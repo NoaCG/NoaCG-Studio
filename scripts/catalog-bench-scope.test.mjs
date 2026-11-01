@@ -13,6 +13,7 @@ import BenchScopeGuard, {
   NOT_BENCHED,
   REPORT,
   benchScopeProblems,
+  replacesReporters,
   scopeFromEnv,
 } from '../e2e/catalog/_bench-scope.mjs';
 
@@ -49,8 +50,11 @@ test('Rule S2: an empty overall selection, or a category filter without designs,
   assert.deepEqual(categoryOnly.problems.length, 1);
   assert.match(categoryOnly.problems[0], /without NOACG_ONLY_DESIGNS/);
   // As read from the environment: present but empty is [], absent is null.
+  assert.deepEqual(empty.problems.length, 1, 'an empty selection says that and nothing else');
   assert.deepEqual(scopeFromEnv({ NOACG_ONLY_DESIGNS: ' , ' }), { designs: [], categories: null });
   assert.deepEqual(scopeFromEnv({}), { designs: null, categories: null });
+  // An empty category variable is unset, as the bench reads it: it narrows nothing, so it is no filter.
+  assert.deepEqual(scopeFromEnv({ NOACG_ONLY_CATEGORIES: '' }), { designs: null, categories: null });
 });
 
 test('Rule S3: a category list that leaves out, or adds, a category fails', () => {
@@ -113,7 +117,7 @@ test('Rule S8: an empty slice passes only when the complete selected manifest ra
   assert.match(incomplete.problems[0], /never measured: lt01/);
 });
 
-test('Rule S9: a declared not-benched design is named, never counted, and alone passes only on the declaration', () => {
+test('Rule S9: a declared not-benched design is named and never counted, so alone it measures nothing and fails', () => {
   const mixed = judge({ scope: scope(['lt01', 'imp01'], ['lower-third', 'imported-design']) });
   assert.deepEqual(mixed.problems, []);
   assert.deepEqual(mixed.summary.notBenched, [{ id: 'imp01', reason: 'a reason' }]);
@@ -121,13 +125,9 @@ test('Rule S9: a declared not-benched design is named, never counted, and alone 
   assert.equal(mixed.summary.expected, 1);
   const allSkipped = [unit('lower-third', 0, 2, null, 'skipped'), unit('lower-third', 1, 2, null, 'skipped'), unit('ticker', 0, 1, null, 'skipped')];
   const alone = judge({ scope: scope(['imp01'], ['imported-design']), units: allSkipped });
-  assert.deepEqual(alone.problems, []);
-  assert.equal(alone.summary.measured, 0);
+  assert.equal(alone.problems.length, 1, alone.problems.join('\n'));
+  assert.match(alone.problems[0], /none of the 1 selected design\(s\) is benched \(imp01\): the bench measured nothing/);
   assert.deepEqual(alone.summary.notBenched.map((d) => d.id), ['imp01']);
-  // Undeclare it and the same run fails (S4): the declaration is what lets it pass.
-  const undeclared = judge({ manifest: { ...manifest, notBenched: {} }, scope: scope(['imp01'], ['imported-design']), units: allSkipped });
-  assert.equal(undeclared.problems.length, 1);
-  assert.match(undeclared.problems[0], /imported-design/);
 });
 
 // A planned bench test as the reporter sees it.
@@ -136,10 +136,10 @@ const planned = (category, slice, slices) => ({
   annotations: [{ type: REPORT, description: JSON.stringify({ category, slice, slices }) }],
 });
 const ran = (status, report) => ({ status, attachments: report === undefined ? [] : [{ name: REPORT, body: Buffer.from(JSON.stringify(report)) }] });
-async function runGuard({ env, results, readCatalog = async () => catalog, extraTests = [] }) {
+async function runGuard({ env, results, readCatalog = async () => catalog, extraTests = [], write }) {
   const lines = [];
   const writes = [];
-  const guard = new BenchScopeGuard({ env, readCatalog, log: (l) => lines.push(l), write: (p, t) => writes.push([p, t]) });
+  const guard = new BenchScopeGuard({ env, readCatalog, log: (l) => lines.push(l), write: write ?? ((p, t) => writes.push([p, t])) });
   const tests = results.map(([t]) => t);
   guard.onBegin({}, { allTests: () => [...tests, ...extraTests] });
   for (const [t, r] of results) if (r) guard.onTestEnd(t, r);
@@ -194,11 +194,24 @@ test('Rule S12: the guard judges every run that plans a bench unit, and only tho
   const other = await runGuard({ env: {}, results: [], extraTests: [{ location: { file: '/repo/e2e/catalog/ograf-parity.spec.ts' }, annotations: [] }], readCatalog: async () => { read = true; return catalog; } });
   assert.equal(other.out, undefined);
   assert.equal(read, false);
-  // The scoped door refuses a --reporter that would replace the guard, before anything starts.
+  // The config and the scoped door refuse a --reporter that would replace the guard.
+  assert.equal(replacesReporters(['test', '--config=playwright.catalog.config.ts']), false);
+  assert.equal(replacesReporters(['test', '--reporter', 'dot']), true);
+  assert.equal(replacesReporters(['test', '--reporter=dot']), true);
   const script = fileURLToPath(new URL('./catalog-specs.mjs', import.meta.url));
   for (const flag of [['--reporter', 'dot'], ['--reporter=dot']]) {
     const run = spawnSync(process.execPath, [script, ...flag], { encoding: 'utf8', windowsHide: true });
     assert.equal(run.status, 2, run.stderr);
     assert.match(run.stderr, /would replace the catalog scope guard/);
   }
+});
+
+test('Rule S13: a report the run asked for and could not write fails the run', async () => {
+  const results = [[planned('ticker', 0, 1), ran('passed', ok('tk01'))]];
+  const env = { NOACG_CATALOG_BENCH_REPORT: '/no/such/dir/out.json' };
+  const { out, lines } = await runGuard({
+    env, results, readCatalog: async () => [{ id: 'tk01', category: 'ticker' }], write: () => { throw new Error('ENOENT'); },
+  });
+  assert.deepEqual(out, { status: 'failed' });
+  assert.match(lines.join('\n'), /could not write the report to \/no\/such\/dir\/out.json/);
 });

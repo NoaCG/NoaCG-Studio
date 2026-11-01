@@ -71,17 +71,27 @@ export const REPORT = 'catalog-bench-report';
 /** The spec file whose units this guard judges. */
 export const BENCH_SPEC = 'catalog-bench.spec.ts';
 
-const slicesOf = (category) => BENCH_SLICES[category] ?? 1;
+const list = (value) => String(value ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
-const list = (value) => {
-  if (value === undefined) return null;
-  return String(value).split(',').map((s) => s.trim()).filter(Boolean);
-};
-
-/** The scope a run was given, read the way the bench reads it, plus whether each variable was present. */
+/**
+ * The scope a run was given. The categories are read exactly as e2e/_catalogScope.ts reads them
+ * (empty is unset), because they only ever narrow. The designs keep one difference on purpose: the
+ * bench reads a present-but-empty `NOACG_ONLY_DESIGNS` as unscoped, and the guard reads it as an
+ * empty selection (`[]`) and fails it (rule S2) - a scope that named nothing is a broken caller.
+ */
 export function scopeFromEnv(env = process.env) {
-  return { designs: list(env.NOACG_ONLY_DESIGNS), categories: list(env.NOACG_ONLY_CATEGORIES) };
+  const categories = list(env.NOACG_ONLY_CATEGORIES);
+  return {
+    designs: env.NOACG_ONLY_DESIGNS === undefined ? null : list(env.NOACG_ONLY_DESIGNS),
+    categories: categories.length ? categories : null,
+  };
 }
+
+/**
+ * True when a Playwright command line replaces the config's reporters, and with them this guard.
+ * playwright.catalog.config.ts and scripts/catalog-specs.mjs both refuse such a run (rule S12).
+ */
+export const replacesReporters = (argv) => argv.some((a) => a === '--reporter' || a.startsWith('--reporter='));
 
 /**
  * Why this bench run is not complete evidence, as sentences (empty when it is), plus a summary.
@@ -103,8 +113,11 @@ export function benchScopeProblems({ catalog, scope, units, manifest }) {
   const categoryOf = new Map(catalog.map((v) => [v.id, v.category]));
   const scoped = scope.designs !== null;
 
-  // S2: an empty overall selection, or a category filter posing as a full run.
-  if (scoped && scope.designs.length === 0) problems.push('NOACG_ONLY_DESIGNS is set but names no design: an empty selection measures nothing');
+  // S2: an empty overall selection, or a category filter posing as a full run. Nothing else is
+  // worth saying about a selection that named nothing.
+  if (scoped && scope.designs.length === 0) {
+    return { problems: ['NOACG_ONLY_DESIGNS is set but names no design: an empty selection measures nothing'], summary: emptySummary() };
+  }
   if (!scoped && scope.categories !== null) {
     problems.push('NOACG_ONLY_CATEGORIES is set without NOACG_ONLY_DESIGNS: the bench would skip categories while reporting a full run');
   }
@@ -165,7 +178,13 @@ export function benchScopeProblems({ catalog, scope, units, manifest }) {
   if (twice.length) problems.push(`design(s) measured by more than one unit: ${twice.join(', ')}`);
   if (unexpected.length) problems.push(`design(s) measured that were not selected: ${unexpected.join(', ')}`);
 
-  // S8 and S9 add no failure of their own: an empty unit and a declared vacancy are summarised.
+  // S9: designs declared not benched are never counted, so a selection with no benched design
+  // measured nothing in the bench, whatever the declaration says.
+  if (known.length > 0 && expected.size === 0) {
+    problems.push(`none of the ${known.length} selected design(s) is benched (${declared.join(', ')}): the bench measured nothing`);
+  }
+
+  // S8 adds no failure of its own: an empty unit is summarised, and passes only beside S1 to S7.
   const emptyUnits = units.filter((u) => Array.isArray(u.report) && u.report.length === 0)
     .map((u) => (u.slices === 1 ? u.category : `${u.category} slice ${u.slice + 1} of ${u.slices}`));
   const summary = {
@@ -180,6 +199,10 @@ export function benchScopeProblems({ catalog, scope, units, manifest }) {
     results: Object.fromEntries(units.flatMap((u) => u.report ?? []).map((r) => [r.id, r.ok])),
   };
   return { problems, summary };
+}
+
+function emptySummary() {
+  return { mode: 'scoped', selected: 0, expected: 0, measured: 0, categories: 0, unitsRun: 0, emptyUnits: [], notBenched: [], results: {} };
 }
 
 /** One line for the log: what the run measured, against what it was asked to. */
@@ -244,11 +267,24 @@ export default class BenchScopeGuard {
     });
     const { problems, summary } = benchScopeProblems({ catalog, scope: scopeFromEnv(this.env), units });
     this.log(describe(summary));
-    for (const d of summary.notBenched) this.log(`  not benched: ${d.id} - ${d.reason}`);
+    for (const [category, reason] of Object.entries(NOT_BENCHED)) this.log(`  not benched, by declaration: ${category} - ${reason}`);
+    // The report is written before the verdict is returned, and a reporter that throws is only
+    // logged by Playwright - so a failed write must not skip the verdict. It fails the run itself:
+    // the caller asked for the report, and catalog-gates uploads it as the comparison evidence.
     const out = this.env.NOACG_CATALOG_BENCH_REPORT;
-    if (out) await this.write(out, `${JSON.stringify({ ...summary, problems }, null, 1)}\n`);
+    if (out) {
+      try {
+        await this.write(out, `${JSON.stringify({ ...summary, problems }, null, 1)}\n`);
+      } catch (err) {
+        problems.push(`could not write the report to ${out} (${err?.message ?? err})`);
+      }
+    }
     if (problems.length === 0) return;
-    this.log(`\ncatalog bench scope: NOT COMPLETE EVIDENCE - the run is failed:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
-    if (result.status === 'passed') return { status: 'failed' };
+    this.log(
+      `\ncatalog bench scope: NOT COMPLETE EVIDENCE - the run is failed:\n${problems.map((p) => `  - ${p}`).join('\n')}\n` +
+        '  A run filtered to some units (-g, --last-failed, --shard, --repeat-each) cannot prove the bench measured its\n' +
+        '  selection: run the whole bench, scoped with `node scripts/catalog-specs.mjs --only <ids>`.',
+    );
+    return { status: 'failed' };
   }
 }

@@ -642,7 +642,7 @@ It prints one of three verdicts, derived from the diff:
   the calibration bench's scope guard (`e2e/catalog/_bench-scope.mjs`, a reporter) fails it unless
   the bench units measured exactly the selected designs in exactly their categories, scoped or
   full; an empty unit is fine only then. Categories the bench does not bench are declared there
-  with a reason and named in every run.
+  with a reason, printed on every run, and a selected design in one of them never counts as measured.
 - **the whole catalog** - something shared changed. A category's `shared.ts`, a preset bank, the
   type registry, fonts, the theme tokens, `src/blocks/`, the `:root` contract, a gate script or a
   baseline: all of them reach every design, so all of them escalate. So does any file it cannot

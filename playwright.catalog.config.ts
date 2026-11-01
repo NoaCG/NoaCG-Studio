@@ -1,6 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
 import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
+import { replacesReporters } from './e2e/catalog/_bench-scope.mjs';
+
+// A `--reporter` on the command line replaces the reporters below, the scope guard among them, so
+// `npm run test:e2e:catalog -- --reporter=dot` would bench without checking what it measured.
+if (replacesReporters(process.argv)) {
+  throw new Error('playwright.catalog.config.ts: --reporter would replace the catalog scope guard (e2e/catalog/_bench-scope.mjs); run without it.');
+}
 
 // The catalog-wide quality gate: e2e/catalog/catalog-bench.spec.ts's calibration tripwire benches
 // every catalog variant across every category. It's excluded from the default offline suite
