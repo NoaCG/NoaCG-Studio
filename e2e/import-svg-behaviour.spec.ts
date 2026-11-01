@@ -694,12 +694,19 @@ test('the quiz\u2019s first option: no lock, and Reveal correct works straight f
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
 });
 
-test('the true no-Lock quiz: no lock control, state or look, and a pick goes straight to the reveal', async ({ page }) => {
+test('the true no-Lock quiz: no lock control, state or look, and a pick goes straight to the reveal', async ({ page }, testInfo) => {
   // jev-svg-import AC-12. Unticking "Require lock" keeps the lock as an optional beat (the test
   // above). "No lock at all" is a different board: the lock and its hidden-pick seal are not on it,
   // so nothing an operator presses can reach them, and the timed reveal (which starts at the
   // lock) is not offered beside it.
-  await openImportDoor(page, QUIZ_SVG);
+  // The sample hides its lock drawing; this copy leaves it VISIBLE, as a designer may, because a
+  // board with no lock must still never show it.
+  const visibleLock = testInfo.outputPath('quiz-visible-lock.svg');
+  const sample = readFileSync(QUIZ_SVG, 'utf8');
+  const lockTag = '<g id="Locked_x20_in" data-name="Locked in" display="none">';
+  expect(sample).toContain(lockTag);
+  writeFileSync(visibleLock, sample.replace(lockTag, '<g id="Locked_x20_in" data-name="Locked in">'));
+  await openImportDoor(page, visibleLock);
   await page.getByTestId('map-svg-option-noLock').check();
   await expect(page.getByTestId('map-svg-option-lock')).toHaveCount(0);
   await expect(page.getByTestId('map-svg-option-autoReveal')).toHaveCount(0);
@@ -719,8 +726,9 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const look = (token: string) => air.locator(`[data-noacg-role~="${token}"]`);
 
-  // The drawn lock is no moment on this board: ticking No lock unbound it.
-  await expect(look('locked')).toHaveCount(0);
+  // The drawn lock is a moment this board never reaches: hidden from the start.
+  await expect(look('locked')).toHaveCount(1);
+  await expect(look('locked')).toBeHidden();
 
   // The pick moves freely until the reveal.
   await page.getByTestId('cue-pick-select-B').click();
@@ -732,6 +740,7 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
   for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(/imported-design-on/);
+  await expect(look('locked')).toBeHidden();
 
   // Next leaves a pick too, with no lock to press first: Continue on a playout server gets past it.
   await page.getByTestId('verb-out').click();
