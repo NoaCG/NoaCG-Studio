@@ -160,7 +160,8 @@
     "Since ci06 (#1872, 26095c82): the selected configured check is part of the PR CI gate; coordinator verifies the CI run head_sha equals the reviewed head and reads its Configured selection; no routine configured-suite dispatch. Kit templates refreshed from main af39c249 at 21:50Z.",
     "Trap: the coordinator worktree must stay at the pinned recovery revision 139a9724 for publish to work; read newer main with git show origin/main:<path>, never by checking it out here.",
     "e2e/import-svg.spec.ts quarantined 2026-10-31 by #1879 (fail-then-pass on af39c249, before row 7; test svg import growth limit, count 5); quarantined specs leave PR selection unless the change edits them. Later SVG rows that edit it run it again.",
-    "Row 10 builder ran earlier /so rounds as in-session subagents; final round redone as separate create_session on request. Remind future builders: every /so round that gates is a separate session."
+    "Row 10 builder ran earlier /so rounds as in-session subagents; final round redone as separate create_session on request. Remind future builders: every /so round that gates is a separate session.",
+    "2026-11-01T07:00Z owner request (relayed by session_017SdbwQxsjW6RWBhZZg2Tix): archived 28 finished run sessions (builders/checkers 1-8, their /so and review sessions, row 10 final /so, qualification jevq-6be893f08997). Standing: after each pass, archive the builder, checker and every /so or review session the builder or repairer started, in the same turn."
   ],
   "ownerOpen": [
     {
