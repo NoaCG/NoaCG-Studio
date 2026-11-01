@@ -25,15 +25,16 @@ on it.
   heading reads "Pick, then reveal".
 - `src/components/wizard/import/BehaviourSection.tsx`: a "No lock at all" checkbox beside the
   quiz's options. Ticked, it writes `{ lock: false, noLock: true }`, clears the timed reveal and
-  hides the lock option, the timed-reveal option and the Locked in picker, and switches off the
-  text rows drawn inside the Locked in layer. Unticked, it restores the options and those rows
-  as they were before the tick (remembered for this visit to the step), with both options and
-  the picker in view again.
+  hides the lock option, the timed-reveal option and the Locked in picker. It leaves every text
+  row alone, so no field id moves. Unticked, it restores the options as they were before the
+  tick (remembered for this visit to the step and this artwork), with both options and the
+  picker in view again.
 - `e2e/import-svg-behaviour.spec.ts`: one journey, on a copy of the sample quiz whose lock layer
   is left visible. Tick No lock, the three controls are gone, the cue has no Lock it in or Reveal
   choice, the drawn lock is hidden from the start and never shows, the pick moves B to D, Reveal
   correct paints the key (C) correct and the rest wrong, and on a second Take Next leaves a pick
-  for the reveal.
+  for the reveal, and on a third Take Reveal correct works with no pick. The lock's own words
+  keep their field (F1), so the answer key is f6, as on the same artwork with a lock.
 
 ## Evidence per criterion
 
@@ -145,6 +146,15 @@ In order. Every round's result belongs to the head named.
     the memory is gone (the fallback above); the byte harness is not committed (row 15's
     `scripts/quiz-no-lock.test.mjs`). Quiz tests 11/11 (j-0017).
 
+11. Final bounded round set by the coordinator after /so 7 (`session_017SdbwMASuVsaW1tTLg19bF`,
+    on `70d5c1f`: AGREE, A-). (1) The "Locked in" field label check is now case-insensitive.
+    (2) Field ids shifted when No lock was ticked on visible lock artwork with text: the answer
+    key moved from f6 to f5, so saved cue values keyed by id would move to other fields. Fixed in
+    `f818c26`: No lock leaves text rows alone (Decisions). The journey asserts the lock's words
+    keep field F1 and the key stays f6. Mutation: putting back the row switch-off fails the
+    journey at the wizard row check (j-0019), and with that check also removed it fails at the
+    label check itself (j-0020); both probes dropped. Quiz tests 11/11 (j-0018).
+
 ## Decisions
 
 - **The variant is a flag the compiler does not fill, not a declared option.** The compiler
@@ -163,10 +173,17 @@ In order. Every round's result belongs to the head named.
   visible. An earlier commit cleared the binding on tick; that left visible lock artwork on air
   for good (review round 1 above), so it was reverted. The picker stays hidden because the
   lock is not a moment of this board; unticking No lock shows it again.
-- **Unticking No lock restores the board as it was before the tick**, options and the lock
-  words' text rows alike. The memory lives in the mapping step for that visit, not in the saved
-  draft (whose shape is outside this row's files); after leaving and coming back, unticking gives
-  the optional-lock board with those rows on, except a row the author took off the artwork.
+- **No lock never touches a text row, so field ids stay stable.** Rounds 5 to 10 switched off the
+  text drawn inside the lock layer, because on a no-Lock board that field edits a drawing nobody
+  sees. Switching a row off renumbers every field after it (the answer key moved from f6 to f5,
+  j-0006 against j-0009), and a saved cue stores its values by those ids, so a quiz revised to no
+  lock would read its saved values into the wrong fields. Preserving saved quiz behaviour
+  outranks removing one field that edits hidden artwork; the author can still switch that row
+  off on a fresh import, where no cue exists yet. Round 11 below.
+- **Unticking No lock restores the options as they were before the tick.** The memory lives in
+  the mapping step for that visit and that artwork, not in the saved draft (whose shape is
+  outside this row's files); after leaving and coming back, unticking gives the optional-lock
+  board.
 - **The no-Lock machine and paint are derived from the lock board's**, filtered, not written a
   second time, so the two variants cannot drift.
 
