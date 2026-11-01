@@ -728,6 +728,8 @@ test('(b) renaming the covered job first is no way round a measured repayment, a
   assert.equal(exceptionStatus([ci04, later], '2027-03-05', 30, known).active.length, 1 - 1, 'an unrecorded orphan stays unknown scope at any age');
   const retired = [{ from: 'job:ci.yml/Catalog calibration gate', retired: true }];
   assert.match(exceptionStatus([ci04, later], '2027-03-05', 30, known, null, retired).invalid.find((e) => e.id === 'unrelated').problems.join(), /renews the scope of ci04-catalog-gate/, 'a replacement (new key, new name) in the same workflow and tier is the same scope');
+  const moved = { ...later, covers: ['job:catalog-gates.yml/Catalog gate (PR)'] };
+  assert.match(exceptionStatus([ci04, moved], '2027-03-05', 30, new Set([...known, 'job:catalog-gates.yml/Catalog gate (PR)']), null, retired).invalid.find((e) => e.id === 'unrelated').problems.join(), /renews the scope of ci04-catalog-gate/, 'moved to another workflow in the same tier: the same scope');
   const elsewhere = { ...later, tier: 'overhead', covers: ['job:ci.yml/Build'] };
   assert.equal(exceptionStatus([ci04, elsewhere], '2027-03-05', 30, new Set([...known, 'job:ci.yml/Build']), null, retired).active.length, 1, 'another tier is another scope');
   assert.match(exceptionStatus([ci04, later], '2027-03-05', 30, known, null, [{ from: 'job:ci.yml/Catalog calibration gate', to: 'job:ci.yml/Catalog calibration gate (v2)' }]).invalid.find((e) => e.id === 'unrelated').problems.join(), /renews the scope of ci04-catalog-gate/, 'a recorded rename carries the scope, months later too');
@@ -1180,6 +1182,7 @@ test('Rule X3: an exception is valid only with id, tier, covers in its tier nami
   const known = new Set(['spec:e2e/configured/a.spec.ts']);
   const problems = (over) => exceptionProblems({ ...good, ...over }, [], 30, known);
   assert.deepEqual(problems({}), []);
+  assert.match(exceptionProblems({ ...good }, [{ ...good }], 30, known).join(), /repeats the id g/, 'a unique id');
   for (const [field, value, why] of [['id', '', /no id/], ['tier', 'x', /unknown tier/], ['covers', [], /no scope/], ['covers', ['spec:e2e/a.spec.ts'], /not in the backend tier/], ['covers', ['spec:e2e/configured/gone.spec.ts'], /names no job or spec/], ['perLanding', 0, /no cost/], ['owner', '', /no owner/], ['reviewed', 'https://github.com/x/y/issues/1#issuecomment-1', /no separate review/], ['expires', '2026-12-30', /over 30/], ['expires', '2026-10-01', /no valid from\/expires/]]) {
     assert.match(problems({ [field]: value }).join(), why, `${field}=${JSON.stringify(value)}`);
   }
@@ -1198,6 +1201,8 @@ test('Rule X4: same scope means a shared cover after recorded renames, a shared 
   assert.ok(renews(old(['spec:e2e/configured/gone.spec.ts'], '2025-01-01', '2025-01-20'), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }, known), 'an unrecorded orphan, at any age');
   assert.ok(renews(old(['spec:e2e/configured/gone.spec.ts'], '2025-01-01', '2025-01-20'), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }, known, null, [{ from: 'spec:e2e/configured/gone.spec.ts', retired: true }]), 'a retired spec\'s unknown successor: any later spec in its folder tier, at any age');
   assert.ok(!renews(old(['spec:e2e/configured/gone.spec.ts']), { ...later, tier: 'graphics', covers: ['spec:e2e/catalog/b.spec.ts'] }, new Set(['spec:e2e/catalog/b.spec.ts']), null, [{ from: 'spec:e2e/configured/gone.spec.ts', retired: true }]), 'another tier is another scope');
+  const job = { ...base, tier: 'backend' };
+  assert.ok(renews({ ...job, id: 'a', covers: ['job:configured-suite.yml/Configured E2E shard ${{ matrix.i }}/4'], from: '2026-01-01', expires: '2026-01-20' }, { ...job, ...later, covers: ['job:hosted-latency.yml/Hosted latency'] }, new Set(['job:hosted-latency.yml/Hosted latency']), null, [{ from: 'job:configured-suite.yml/Configured E2E shard ${{ matrix.i }}/4', retired: true }]), 'a retired job\'s successor in another workflow of the same tier');
   const offline = (spec, from, repaid) => ({ from, spec, minutes: 3, expires: '2026-11-20', ...(repaid ? { repaid } : {}) });
   assert.match(offlineExceptionChanges([offline('e2e/old.spec.ts', 'a/spec.md')], [offline('e2e/old.spec.ts', 'a/spec.md'), offline('e2e/new.spec.ts', 'b/spec.md')], [{ from: 'spec:e2e/old.spec.ts', retired: true }]).join(), /renews an earlier one/, 'offline lines too');
   assert.ok(!renews(old(['spec:e2e/configured/c.spec.ts']), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }), 'a different scope');
@@ -1244,6 +1249,8 @@ test('Rule X6: the ledger is append-only and in order', () => {
   assert.match(ledgerChanges({ base, head: { ...base, exceptions: [] } }).join(), /removed/);
   assert.match(ledgerChanges({ base, head: { ...base, exceptions: [{ ...e('a'), perLanding: 9 }] } }).join(), /edited/);
   assert.match(ledgerChanges({ base, head: { ...base, exceptions: [e('b'), e('a')] } }).join(), /appended after the existing ones/);
+  // An edited copy in front of the untouched original: one id, two entries.
+  assert.match(ledgerChanges({ base, head: { ...base, exceptions: [{ ...e('a'), perLanding: 40, from: '2026-11-25', expires: '2026-12-24' }, e('a')] } }).join(), /appears more than once/);
 });
 
 test('Rule X7: status, first match wins: invalid, expired, not yet started, active', () => {

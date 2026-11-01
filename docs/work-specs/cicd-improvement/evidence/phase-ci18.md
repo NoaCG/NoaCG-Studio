@@ -316,7 +316,7 @@ What each state lets the controls do. A change that adds nothing is never refuse
 - X2. A cover's measured scope: for a job cover, the measured jobs of the same workflow whose
   run-time names match its name (each `${{ }}` matching anything) and that are in the cover's tier.
   A spec cover, or a job not yet measured, has none.
-- X3. An exception is valid only with: an id; a known tier; at least one cover, each in the
+- X3. An exception is valid only with: an id no earlier entry has; a known tier; at least one cover, each in the
   exception's tier and naming a real job or spec; a positive per-landing or per-day allowance; an
   owner; a review link that is an issue comment in NoaCG/NoaCG-Studio; and from and expires dates at
   most 30 days apart.
@@ -324,15 +324,15 @@ What each state lets the controls do. A change that adds nothing is never refuse
   - they share a cover after following recorded renames (X12);
   - they share a measured job (X2);
   - the earlier one covers a name recorded as retired, and the later one covers the same kind in
-    the same tier (a job in the same workflow, or a spec in the same folder tier): a retired name's
-    successor is unknown;
+    the same tier (any job, in any workflow file, or any spec in the same folder tier): a retired
+    name's successor is unknown;
   - the earlier one has a cover that names nothing real and was never recorded.
 - X5. An exception with the same scope as an earlier one needs a measured repayment receipt: a
   positive per-landing or per-day repayment, at least one run, measured on or after the latest
   earlier entry's start. Without one it is invalid. Offline exception lines need the same, except
   that their repayment clause (`, repaid <minutes> min in run <id>`) carries no date to check.
-- X6. The exception ledger is append-only and in order: an entry removed, edited, or placed before
-  an existing one is refused at PR time.
+- X6. The exception ledger is append-only and in order: an entry removed, edited, placed before an
+  existing one, or repeating an existing id is refused at PR time.
 - X7. Status, first match wins: invalid (no credit, covers nothing); expired (no credit, counted
   again); not yet started (no credit); active.
 - X8. Credit is pooled per measured job, within one tier. Active exceptions draw in ledger order,
@@ -342,8 +342,9 @@ What each state lets the controls do. A change that adds nothing is never refuse
 - X9. A spec cover earns no credit on measured cost.
 - X10. A covered addition is waived up to the room left: the allowance minus the measured cost of
   its jobs. Overlapping exceptions give the largest room, never the sum, and the waiver is spent in
-  all of them. Offline spec additions take the same route, so an approved offline exception
-  waives them too.
+  all of them. Offline spec additions take the same route, so an approved offline-tier exception
+  in `growth-ceilings.json` waives them in the tier check. An offline line in a work spec
+  (`- e2e/x.spec.ts: N min, ...`) clears only the table line.
 - X11. Credit never crosses tiers (X1, X2). No exception moves a ceiling, an estimate,
   `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new version and a reviewed revision, and are
   still named for the owner.

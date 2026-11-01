@@ -399,6 +399,7 @@ export function tierOfCover(cover) {
 export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = null, renamed = []) {
   const p = [];
   if (!e.id) p.push('no id');
+  else if (earlier.some((x) => x.id === e.id)) p.push(`repeats the id ${e.id}: each exception has its own`);
   if (!TIERS.includes(e.tier)) p.push(`unknown tier ${e.tier}`);
   if (!Array.isArray(e.covers) || e.covers.length === 0) p.push('no scope (covers)');
   for (const c of Array.isArray(e.covers) ? e.covers : []) {
@@ -420,11 +421,11 @@ export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = nu
     const scope = scopeIdentity(renamed);
     const recorded = new Set((renamed ?? []).map((r) => r.from));
     const sameName = (x) => x.covers.some((c) => e.covers.some((d) => scope(c) === scope(d)));
-    // A retired name has an unknown successor: replacing a covered job or spec (new key, new name)
-    // is recorded as a removal, so a later cover of the same kind and tier (a job in the same
-    // workflow, a spec in the same folder tier) is the same scope, at any age.
+    // A retired name has an unknown successor: replacing a covered job or spec (new key, new name,
+    // or another workflow file) is recorded as a removal, so a later cover of the same kind in the
+    // same tier (any job, or any spec in the same folder tier) is the same scope, at any age.
     const retired = new Set((renamed ?? []).filter((r) => r.retired).map((r) => scope(r.from)));
-    const successor = (c, d) => tierOfCover(c) === tierOfCover(d) && (/^spec:/.test(c) ? /^spec:/.test(d) : /^job:/.test(d) && c.split('/')[0] === d.split('/')[0]);
+    const successor = (c, d) => tierOfCover(c) === tierOfCover(d) && (/^spec:/.test(c) ? /^spec:/.test(d) : /^job:/.test(d));
     const retiredScope = (x) => x.covers.some((c) => retired.has(scope(c)) && e.covers.some((d) => successor(c, d)));
     const orphaned = (x) => known && x.covers.some((c) => !known.has(c) && !known.has(scope(c)) && !recorded.has(c));
     // Covers over the same measured job are the same scope, however each is worded.
@@ -477,6 +478,9 @@ export function ceilingsRevision(base, head) {
 export function ledgerChanges({ base, head, mainRunners = null, shardCap = null }) {
   const problems = [];
   if (!base || !head) return problems;
+  // One id, one entry: a duplicate id would let an edited copy stand in front of its original.
+  const ids = (head.exceptions ?? []).map((e) => e.id);
+  for (const id of new Set(ids.filter((id, i) => ids.indexOf(id) !== i))) problems.push(`exception id ${id} appears more than once: each entry has its own id`);
   const headById = new Map((head.exceptions ?? []).map((e) => [e.id, e]));
   for (const e of base.exceptions ?? []) {
     const now = headById.get(e.id);
