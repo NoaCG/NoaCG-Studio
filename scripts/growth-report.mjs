@@ -401,12 +401,16 @@ export function sampleJobs(reader, runs, budget) {
   for (const r of runs) (strata[`${r.workflow}|${r.event}`] ??= []).push(r);
   const keys = Object.keys(strata);
   const left = Math.max(0, budget - reader.calls);
-  const k = Math.max(2, Math.floor(left / Math.max(1, keys.length)));
+  // Post-landing CI runs get a double share: they are the slowdown series. The shares are sized
+  // by their weights, so the plan fits what is left of the budget (Rule E8); only a budget too
+  // small for two reads per stratum, or a read that needs extra pages, leaves a planned read unread.
+  const weight = (key) => (key === 'ci.yml|push' || key === 'configured-suite.yml|push' ? 2 : 1);
+  const k = Math.max(2, Math.floor(left / Math.max(1, keys.reduce((a, key) => a + weight(key), 0))));
   // Round-robin, so a budget that runs out leaves every stratum sampled rather than the last few
-  // empty. Post-landing CI runs get a double share: they are the slowdown series.
+  // empty.
   const plan = keys.map((key) => {
     const list = strata[key].sort((a, b) => a.created.localeCompare(b.created));
-    const want = key === 'ci.yml|push' || key === 'configured-suite.yml|push' ? 2 * k : k;
+    const want = weight(key) * k;
     const done = list.filter((r) => r.status === 'completed');
     return { list: done, picks: spread(done.length, want) };
   });

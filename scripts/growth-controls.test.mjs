@@ -1064,6 +1064,13 @@ test('Rule E8: a planned job read the call budget stopped makes the tiers partia
   sampleJobs(reader, planned, 0);
   assert.ok(planned.some((r) => r.unread) && planned.every((r) => !r.jobs), 'a budget already spent marks the planned reads unread, never sampled');
   assert.equal(backendOf(planned), 'partial');
+  // The plan fits the budget: two 60-run post-landing strata (double shares) and 30 calls left.
+  const job = JSON.stringify({ total_count: 1, jobs: [{ name: 'Build', status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: '2026-10-30T00:05:00Z', run_attempt: 1 }] });
+  const strata = ['ci.yml', 'configured-suite.yml'].flatMap((wf, w) => [...Array(60)].map((_, i) => ({ id: w * 100 + i, workflow: wf, event: 'push', branch: 'main', sha: `s${w}${i}`, created: new Date(Date.parse('2026-10-24T00:00:00Z') + i * 3_600_000).toISOString(), conclusion: 'success', status: 'completed', jobs: null })));
+  const fits = makeReader(30, () => job);
+  sampleJobs(fits, strata, 30);
+  assert.equal(strata.filter((r) => r.unread).length, 0, 'every planned read fits the budget');
+  assert.ok(strata.filter((r) => r.jobs).length > 0);
 });
 
 test('Rule E9: a run still unfinished at collection makes the tiers partial', () => {
