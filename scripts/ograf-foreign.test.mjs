@@ -356,27 +356,30 @@ async function cpuMs(fn, reps) {
 }
 
 /** Asserts that reading 4x the input takes under 8x the time: linear reading takes about 4x,
- *  quadratic about 16x. The CPU counter advances in ticks of about 4 ms, so each sample repeats
- *  the read until the small one takes 50 ms, counted on warm reads (the lower of two). Each size's
- *  fastest of five samples counts, the sizes taken in turn, so a cold first sample of the large
- *  one is dropped too. The rounds stop past 10 s of CPU (a linear reader needs 1 to 3 s), so a
- *  quadratic one fails with its numbers well inside the CI job's time limit. */
+ *  quadratic about 16x. Each sample reads the small input four times as often as the large one,
+ *  so both last about as long and garbage collection and the CPU counter's ticks of about 4 ms
+ *  land in both alike. The count is set after a warm-up read, doubling until the lower of two
+ *  runs of the small input takes 25 ms, so a sample lasts about 100 ms. Each size's fastest of
+ *  five samples counts, the sizes taken in turn. The rounds stop past 10 s of CPU (a linear reader
+ *  needs 1 to 3 s), so a quadratic one fails with its numbers well inside the CI job's time limit. */
 async function assertLinear(label, small, big) {
   await small();
   let reps = 1;
-  while (Math.min(await cpuMs(small, reps), await cpuMs(small, reps)) < 50) reps *= 2;
+  while (Math.min(await cpuMs(small, reps), await cpuMs(small, reps)) < 25) reps *= 2;
   let s = Infinity;
   let b = Infinity;
   let spent = 0;
   for (let i = 0; i < 5 && spent < 10_000; i++) {
-    const one = await cpuMs(small, reps);
-    const four = await cpuMs(big, reps);
-    s = Math.min(s, one);
-    b = Math.min(b, four);
-    spent += one + four;
+    const smalls = await cpuMs(small, 4 * reps);
+    const bigs = await cpuMs(big, reps);
+    s = Math.min(s, smalls);
+    b = Math.min(b, bigs);
+    spent += smalls + bigs;
   }
-  assert.ok(b < s * 8, `${label}: ${s.toFixed(1)} ms CPU then ${b.toFixed(1)} ms for ${reps} reads (${(b / s).toFixed(1)}x for 4x the input)`);
-  console.log(`  ${label}: ${s.toFixed(1)} ms CPU, 4x input ${b.toFixed(1)} ms, ${reps} reads (${(b / s).toFixed(1)}x)`);
+  const one = s / (4 * reps);
+  const four = b / reps;
+  assert.ok(four < one * 8, `${label}: ${one.toFixed(1)} ms CPU a read then ${four.toFixed(1)} ms (${(four / one).toFixed(1)}x for 4x the input)`);
+  console.log(`  ${label}: ${one.toFixed(1)} ms CPU a read, 4x input ${four.toFixed(1)} ms (${(four / one).toFixed(1)}x)`);
 }
 
 test('reading hostile input stays linear: 4x the input takes about 4x the time, never 16x', async () => {
