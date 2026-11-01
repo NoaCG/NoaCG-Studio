@@ -18,10 +18,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { withBundledPage } from './catalog-emit.mjs';
+import { hash, withBundledPage } from './catalog-emit.mjs';
 
 const SRC = process.env.CREDITS_SRC ?? fileURLToPath(new URL('../src/', import.meta.url));
 const fixture = (rel) => readFileSync(fileURLToPath(new URL(`../e2e/fixtures/${rel}`, import.meta.url)), 'utf8');
@@ -47,6 +46,8 @@ const CASES = {
   // The anchor stated by a stylesheet class, and a run's own x drawn over the text's.
   classed: svg(`<style>.c{text-anchor:middle}</style>${t(500, 100, 24, 'Camera', ' fill="#fc0" class="c"')}${t(500, 160, 40, 'Jonas Berg', ' class="c"')}${t(500, 210, 40, 'Lena Fors', ' class="c"')}`),
   runX: svg(`<text x="50" y="0" font-size="24" fill="#fc0"><tspan x="300" y="100">Camera</tspan></text><text x="0" y="0" font-size="40"><tspan x="300" y="160">Jonas Berg</tspan></text>`),
+  // One name look spelt by two classes that set the same values.
+  twoSpellings: svg(`<style>.a{fill:#fff}.b{fill:#fff}</style>${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada Holm', ' class="a"')}${t(100, 210, 40, 'Bo Lind', ' class="b"')}`),
   oneLook: svg(`${t(100, 100, 40, 'Director')}${t(100, 160, 40, 'Alex Rivera')}`),
   manyLooks: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 220, 40, 'Ida Lake', ' fill="#f00"')}`),
   sideBySide: svg(`${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada')}${t(400, 160, 40, 'Bo')}`),
@@ -224,7 +225,7 @@ const R = await withBundledPage(
   (page) => page.evaluate(inPage, { dev: DEV, cases: CASES, legacy: LEGACY, artwork: ARTWORK }),
 );
 
-const sha = (o) => createHash('sha256').update(JSON.stringify(o)).digest('hex').slice(0, 16);
+const sha = (o) => hash(JSON.stringify(o));
 
 /** Taken on main e680acd1 before this row, and equal on this branch: saved editable and original-
  *  artwork credits, and each dev drawing imported as plain artwork, build byte for byte as before. */
@@ -370,6 +371,13 @@ test('a stylesheet anchor and a run\'s own position are read as drawn', () => {
   const runX = R.caseResults.runX.parsed.out;
   assert.equal(runX.ok, true, runX.message);
   assert.deepEqual(runX.style.steps, { roleToName: 60 });
+});
+
+test('two class spellings of one look are one look once laid out', () => {
+  const { out } = R.caseResults.twoSpellings.laid;
+  assert.equal(out.ok, true, out.message);
+  assert.deepEqual(out.style.anchors.map((a) => a.kind), ['role', 'name', 'name']);
+  assert.equal(R.caseResults.twoSpellings.parsed.out.code, 'many-looks', 'parsed, a class is all there is to compare');
 });
 
 test('a saved centred binding validates on its own, laid out', () => {

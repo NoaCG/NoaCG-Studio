@@ -631,7 +631,8 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   const view = text.ownerDocument.defaultView;
   // Laid out, the browser's own answer, so a stylesheet class counts; parsed, the layer's
   // attributes and inline styles from its first run up through each ancestor.
-  const computed = view && text.isConnected ? view.getComputedStyle(first ?? text) : null;
+  const laid = !!view && text.isConnected;
+  const computed = laid ? view.getComputedStyle(first ?? text) : null;
   const prop = (name: string): string => {
     if (computed) return computed.getPropertyValue(name).trim();
     for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el === first ? text : el.parentElement) {
@@ -645,7 +646,9 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   const size = parseFloat(prop('font-size')) || 16;
   const look = [
     ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'stroke', 'opacity', 'letter-spacing', 'text-decoration'].map((p) => `${p}=${prop(p)}`),
-    `class=${text.getAttribute('class') ?? ''}/${first?.getAttribute('class') ?? ''}`,
+    // Parsed, a stylesheet class is the only sign of what it sets; laid out, its effect is
+    // already in the computed values, and two class spellings of one look are one look.
+    ...(laid ? [] : [`class=${text.getAttribute('class') ?? ''}/${first?.getAttribute('class') ?? ''}`]),
   ].join(';');
   const anchorWord = prop('text-anchor');
   const anchor: CreditsAlign = anchorWord === 'middle' || anchorWord === 'end' ? anchorWord : 'start';
@@ -672,9 +675,7 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     at = y ?? at + (num(run, 'dy') ?? 0);
     if ((run.textContent ?? '').trim()) baselines.add(Math.round(at * 2) / 2);
   }
-  const advance = typeof (text as SVGTextContentElement).getComputedTextLength === 'function' && view && text.isConnected
-    ? (text as SVGTextContentElement).getComputedTextLength()
-    : 0;
+  const advance = laid ? (text as SVGTextContentElement).getComputedTextLength() : 0;
   return {
     candidateId,
     text: (text.textContent ?? '').replace(/\s+/g, ' ').trim(),
@@ -703,10 +704,10 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
  *   another. Read from the stated anchor, or from the drawn widths where the layout gives them.
  * - Every role and name can be written in the list format as it is.
  */
-export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[], ids: readonly string[] = []): CreditsAnalysis {
+export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[], ids: readonly string[]): CreditsAnalysis {
   const refuse = (code: CreditsUnsupported, message: string, anchors: string[]): CreditsAnalysis =>
     ({ ok: false, code, message, anchors, fallback: 'artwork' });
-  const missing = readings.map((r, i) => (r ? null : ids[i] ?? `#${i}`)).filter((x): x is string => x !== null);
+  const missing = ids.filter((_, i) => !readings[i]);
   if (missing.length > 0) return refuse('unknown-anchor', 'A chosen layer is not a text layer of this artwork.', missing);
   const all = readings as CreditsReading[];
   if (all.length < 2) return refuse('too-few', 'Credits need at least one role and one name drawn.', all.map((r) => r.candidateId));
@@ -791,14 +792,15 @@ export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[]
   }
 
   const firstWith = (min: number) => paired.find((g) => g.names.length >= min);
-  const step = (from: Item | undefined, to: Item | undefined) => (from && to ? Math.round((to.y - from.y) * 100) / 100 : undefined);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const step = (from: Item | undefined, to: Item | undefined) => (from && to ? round2(to.y - from.y) : undefined);
   const twoNames = firstWith(2);
   const gapFrom = groups.length > 1 ? groups[0] : undefined;
   const steps: CreditsStyle['steps'] = {
     ...(layout === 'role-above' ? { roleToName: step(paired[0].role, paired[0].names[0]) } : {}),
     ...(twoNames ? { nameToName: step(twoNames.names[0], twoNames.names[1]) } : {}),
     ...(gapFrom ? { groupGap: step(gapFrom.names[gapFrom.names.length - 1] ?? gapFrom.role, groups[1].role) } : {}),
-    ...(column !== undefined ? { column: Math.round(column * 100) / 100 } : {}),
+    ...(column !== undefined ? { column: round2(column) } : {}),
   };
 
   const roleWord = (s: string) => s.replace(/\s*[:;]\s*$/, '');
@@ -886,8 +888,8 @@ export function validateCreditsBinding(svg: DesignSvg, root?: Element): string[]
   try {
     // Layers compared as the text each one draws, since a run's id names its whole text.
     const textOf = (id: string | undefined) => (id ? scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.closest('text') ?? null : null);
-    const texts = ids.map(textOf);
-    if (new Set(texts.filter(Boolean)).size !== texts.filter(Boolean).length) errors.push('duplicate-anchor: a layer is named twice.');
+    const texts = ids.map(textOf).filter((el) => el !== null);
+    if (new Set(texts).size !== texts.length) errors.push('duplicate-anchor: a layer is named twice.');
     const contentText = textOf(svg.fields[content]?.candidateId);
     const perName = svg.fields.filter((f) => {
       const own = textOf(f.candidateId);
@@ -908,7 +910,7 @@ function creditsLaidOut(markup: string): { root: Element; done: () => void } | n
   const host = document.createElement('div');
   host.setAttribute('aria-hidden', 'true');
   host.style.cssText = 'position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none';
-  host.appendChild(document.importNode(parsed, true));
+  host.appendChild(parsed);              // adopted into the page by the append
   document.body.appendChild(host);
   return { root: host.firstElementChild as Element, done: () => host.remove() };
 }

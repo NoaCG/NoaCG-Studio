@@ -44,7 +44,8 @@ names each.
   A line holding a role and then a name is role beside; a first name on a lower line is role
   above. Above, all layers share one aligned edge; beside, roles share one and names another.
   Alignment is read from the stated anchor, or from drawn widths where the text is laid out.
-  Laid out, looks and the anchor are the browser's computed style, so stylesheet classes count;
+  Laid out, looks and the anchor are the browser's computed style, so stylesheet classes count
+  and two class spellings of one look are one look; parsed, the class names are compared;
   validation lays the markup out whenever a page exists. A run's own x and y are where it is drawn.
   Steps (role to name, name to name, group gap, column) are measured where the sample shows them.
 - C6 A whole block turned or scaled as one reads as drawn; layers at different angles or scales
@@ -90,7 +91,7 @@ names each.
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 16/16. The same file with
+- `node --test scripts/imported-credits-model.test.mjs`: 17/17. The same file with
   `CREDITS_SRC` set to an export of main `e680acd1` gives identical pins (the model tests fail
   there, as they must). Mutations: a changed byte in the editable roll's runtime string, or in the
   artwork roll's, fails the pin test; reading the text's x before its run's fails the run-position
