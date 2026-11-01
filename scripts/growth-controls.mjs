@@ -290,8 +290,8 @@ export function reportCadence({ generatedAt, today, maxAgeDays }) {
 
 // Scope is what an exception covers, whatever tier, id or file it is filed under: re-filing a
 // covered job under another tier is the same scope, and would offset that tier besides.
-/** A recorded decision: an issue comment, never a link to anything else or the change itself. */
-const ISSUE_COMMENT = /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+#issuecomment-\d+$/;
+/** A recorded decision: an issue comment in this repository, never a link to anything else. */
+const ISSUE_COMMENT = /^https:\/\/github\.com\/NoaCG\/NoaCG-Studio\/issues\/\d+#issuecomment-\d+$/;
 
 const overlaps = (a, b) => a.covers.some((c) => b.covers.includes(c));
 

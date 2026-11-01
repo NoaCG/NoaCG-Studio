@@ -824,3 +824,9 @@ test('(d) a commit with more than a hundred statuses is read to its first stamp'
   const r = ages({ ceilings: CEILINGS, now, reader: makeReader(20, fake) });
   assert.match(r.body, /#5 unfinished for 240 min/);
 });
+
+test('(b) a review link must be an issue comment in this repository', () => {
+  const ex = { id: 'x', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 5, owner: 'o', from: '2026-10-25', expires: '2026-11-20' };
+  assert.match(exceptionStatus([{ ...ex, reviewed: 'https://github.com/someone/else/issues/1#issuecomment-1' }], TODAY, 30).invalid[0].problems.join(), /no separate review/);
+  assert.equal(exceptionStatus([{ ...ex, reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' }], TODAY, 30).active.length, 1);
+});
