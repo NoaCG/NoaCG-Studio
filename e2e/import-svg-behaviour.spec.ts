@@ -707,17 +707,24 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   expect(sample).toContain(lockTag);
   writeFileSync(visibleLock, sample.replace(lockTag, '<g id="Locked_x20_in" data-name="Locked in">'));
   await openImportDoor(page, visibleLock);
+  // The visible lock's own words are a text row like any other, until the lock goes.
+  const lockWords = page.getByTestId(`map-svg-row-${await rowLabelled(page, /Locked in/i)}`).locator('input[type="checkbox"]');
+  await expect(lockWords).toBeChecked();
   const noLock = page.getByTestId('map-svg-option-noLock');
   await noLock.check();
   await expect(page.getByTestId('map-svg-option-lock')).toHaveCount(0);
   await expect(page.getByTestId('map-svg-option-autoReveal')).toHaveCount(0);
   await expect(page.getByTestId('map-svg-quiz-locked')).toHaveCount(0);
-  // Unticked, it is the optional-lock board again, its Locked in layer still picked.
+  await expect(lockWords).not.toBeChecked();
+  // Unticked, it is the optional-lock board again: its Locked in layer still picked, its words a
+  // field again.
   await noLock.uncheck();
   await expect(page.getByTestId('map-svg-option-lock')).not.toBeChecked();
   await expect(page.getByTestId('map-svg-option-autoReveal')).not.toBeChecked();
   await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('Locked in');
+  await expect(lockWords).toBeChecked();
   await noLock.check();
+  await expect(lockWords).not.toBeChecked();
   await intoProduction(page, 'No lock quiz', 'Quiz Night');
   await settleDurableWrites(page);
 
@@ -761,6 +768,14 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   await page.getByTestId('verb-next').click();
   await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
   await expect(look('answer.wrong/A')).toHaveClass(/imported-design-on/);
+
+  // And Reveal correct works straight from the question, with no pick at all.
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await expect(look('answer.correct/C')).not.toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
 });
 
 test('a meter: the bar the designer drew fills toward the target as the figure goes up', async ({ page }, testInfo) => {

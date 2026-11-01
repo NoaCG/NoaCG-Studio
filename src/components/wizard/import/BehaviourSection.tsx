@@ -163,9 +163,8 @@ function candidatesInside(markup: string, layerId: string): Set<string> {
  * Locked in picker, and clears the timer, whose arrow starts at the lock. The Locked in layer stays
  * bound: it is the drawing of a moment this board never reaches, so no rule shows it and it stays
  * hidden on air, even when the designer left it visible. Text drawn inside it stops being an
- * operator field, since it would edit a drawing nobody sees; its row stays in the text list to
- * tick again. Unticking No lock leaves the optional-lock board, with both options and the picker
- * back in view.
+ * operator field, since it would edit a drawing nobody sees. Unticking No lock leaves the
+ * optional-lock board, with both options, the picker and those text fields back.
  */
 function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
   return (
@@ -1205,10 +1204,11 @@ export default function BehaviourSection({
                 <NoLockOption
                   values={quiz.options ?? {}}
                   onChange={(options) => {
-                    const inside = quizHasNoLock(options) && quiz.locked && draft.designSvg ? candidatesInside(draft.designSvg.markup, quiz.locked) : new Set<string>();
+                    const on = !quizHasNoLock(options);
+                    const inside = quiz.locked && draft.designSvg ? candidatesInside(draft.designSvg.markup, quiz.locked) : new Set<string>();
                     onDraft({
                       svgBehaviour: { ...quiz, options },
-                      ...(inside.size > 0 ? { svgFields: draft.svgFields.map((f) => (inside.has(f.candidateId) ? { ...f, on: false } : f)) } : {}),
+                      ...(inside.size > 0 ? { svgFields: draft.svgFields.map((f) => (inside.has(f.candidateId) ? { ...f, on } : f)) } : {}),
                     });
                   }}
                 />
