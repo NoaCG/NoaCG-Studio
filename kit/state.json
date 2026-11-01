@@ -42,20 +42,21 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on d0ff91f9: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T04:05:00Z"
+    "what": "ci18 merge queue, then landed record and checker; block 1 renewal due before 2026-11-01T08:10Z",
+    "eta": "2026-11-01T04:40:00Z"
   },
   "inFlight": [
     {
       "phase": "ci18",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwNNAPG9N5nzygqtK99",
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Head d0ff91f9: /so and Codex on 0a2a64d2 both found offline job items and spec items judged in separate tier checks (each under 95%, together over; shared allowance spent twice); fixed in one X10 check. 69/69 mutations. Codex, CI and Rules-attack /so session_017SdbwRAUVtYaExJfTYGJo9 running; builder holding.",
+      "note": "Receipt 03:55Z; verified at source: CI 41270062119 gate green (configured whole set 67), Codex clean on d0ff91f9, full-diff Rules-attack /so A (session_017SdbwRAUVtYaExJfTYGJo9). Stamp 41271078051; queued 03:56:29Z. Cleanup after landing: branch claude/plan-cicd-improvement-ci18-pending.",
       "pr": 1880,
-      "reviewedHead": null
+      "reviewedHead": "d0ff91f9e5804eabfcd61a6da976168e3790cb0e",
+      "repairOwnerComment": 6553123397
     }
   ],
   "owner": [],
