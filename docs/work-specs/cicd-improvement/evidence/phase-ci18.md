@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (63 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (64 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -140,9 +140,9 @@ issue, remain for ci17.
 - **The offline table line still prices offline specs; the measured offline tier refuses them at
   its line.** An offline spec is priced once, in table-minutes, by the existing line. The weekly
   offline tier (runner-minutes per landing, including any attributed slowdown) refuses a change
-  that adds offline minutes once it reaches 95% (85% on partial or stale evidence; any addition
-  when the tier is unmeasured), as every other tier does, and its stop refuses them after a
-  failed correction.
+  whose offline minutes, run in every CI run of a landing and in each nightly run, would take it
+  to 95% (85% on partial or stale evidence; any addition when the tier is unmeasured), as every
+  other tier does, and its stop refuses them after a failed correction.
 - **The seed labels offline and fixed overhead complete.** ci01 estimated part of their PR-event
   minutes from dense-window samples scaled to exact run counts, the same stratified estimate the
   weekly sampler calls complete. Backend and graphics are partial in the seed because each misses

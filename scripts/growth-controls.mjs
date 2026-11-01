@@ -469,7 +469,7 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     else if (added && ev.state === 'missing') { status = 'refuse'; why += '; headroom cannot be established, so added cost is refused'; }
     else if (added && after >= line) { status = 'refuse'; why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day, reaching ${Math.round(100 * after)}%, at or over the ${Math.round(100 * line)}% line${ev.state === 'complete' ? '' : ' that partial or stale evidence sets'}`; }
     else if ((after ?? 0) >= ceilings.warnShare || (added && ev.state !== 'complete') || stops[tier]) { status = 'warn'; if (added) why += `; this change adds ${round1(addedLanding)}/landing ${round1(addedDay)}/day`; }
-    tiers[tier] = { status, why, evidence: ev.state, share, after, addedLanding, addedDay, items: tierItems.map((i) => ({ ...i, exception: covered(i)?.id ?? null })) };
+    tiers[tier] = { status, why, evidence: ev.state, share, after, used: m ? { perLanding: usedLanding, perDay: usedDay } : null, ceiling, addedLanding, addedDay, items: tierItems.map((i) => ({ ...i, exception: covered(i)?.id ?? null })) };
   }
   const order = { ok: 0, warn: 1, refuse: 2 };
   const status = Object.values(tiers).reduce((s, t) => (order[t.status] > order[s] ? t.status : s), 'ok');

@@ -252,11 +252,17 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); }
   else if (growth.unreadable) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and no offline stop can be ruled out without the weekly report`); }
   else if (!tier || tier.evidence === 'missing') { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and the offline tier has no measurement, so its headroom cannot be established`); }
-  // The offline tier's measured runner-minutes per landing, including any slowdown the weekly
-  // report attributed, judge an offline addition too: at its line (95%, or 85% on partial or
-  // stale evidence) added offline minutes are refused, as in every other tier. The table line
-  // still prices them; this only refuses when the measured tier has no room left.
-  else if (Number.isFinite(tier?.share) && tier.share >= line) { growth.status = 'refuse'; growth.reasons.push(`offline tier at ${Math.round(100 * tier.share)}% of its per-landing ceiling (the ${Math.round(100 * line)}% line), and this change adds ${result.added.toFixed(1)} offline minute(s)`); }
+  // The offline tier's measured runner-minutes, including any slowdown the weekly report
+  // attributed, judge an offline addition too, as in every other tier: the added spec minutes run
+  // in every CI run of a landing and in each nightly run, and the tier with them must stay under
+  // its line (95%, or 85% on partial or stale evidence). The table line prices them separately.
+  else if (tier?.used && tier?.ceiling) {
+    const e = growth.estimates ?? {};
+    const landing = result.added * (e.runsPerLanding?.everyRun ?? 1);
+    const day = result.added * (e.scheduledRunsPerDay?.offline ?? 1);
+    const after = Math.max((tier.used.perLanding + landing) / tier.ceiling.perLanding, (tier.used.perDay + day) / tier.ceiling.perDay);
+    if (after >= line) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
+  }
   return growth;
 }
 
@@ -357,7 +363,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     ...offline.map((p) => `- Budget exceptions: ${p}.`),
     '',
   ].join('\n');
-  return { status, reasons, markdown, table: fresh, tiers, items, stops: report?.stops ?? {}, unreadable };
+  return { status, reasons, markdown, table: fresh, tiers, items, stops: report?.stops ?? {}, unreadable, estimates: ceilings.estimates };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

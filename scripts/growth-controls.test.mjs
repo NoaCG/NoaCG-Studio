@@ -912,3 +912,14 @@ test('(c) a slowdown is found only between equal workloads: a full suite after a
   const same = seriesOf([full(1, 20), full(2, 20), full(3, 20), full(4, 24), full(5, 24), full(6, 24)]).backend;
   assert.equal(detectSlowdown(same).found, true, 'the same suite slowing down is still found');
 });
+
+test('(b) an offline addition counts toward its tier: a spec that would cross the line is refused', () => {
+  const tiers = (perLanding) => assessTiers({ ceilings: noExceptions, measurement: measurement({ offline: perLanding }), items: [], today: TODAY });
+  const grow = (perLanding, added) => applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: tiers(perLanding), estimates: CEILINGS.estimates }, { added });
+  // 502.9 is 94% of 535: under the 95% line before, but 10 spec minutes x 4.84 runs per landing cross it.
+  const r = grow(502.9, 10);
+  assert.equal(r.status, 'refuse');
+  assert.match(r.reasons.join(), /48\.4 runner-minutes per landing/);
+  assert.equal(grow(300, 3).status, 'ok', 'room left: the table line decides');
+  assert.equal(grow(502.9, 0).status, 'ok', 'adding nothing lands');
+});
