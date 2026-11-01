@@ -1377,6 +1377,20 @@ test('shortcut guard changes escalate and keep the focused-button workflow their
   for (const s of [...FOCUS, 'editor-usability.spec.ts']) assert.ok(focused.specs.includes(s), s);
 });
 
+// ci11 fault F2: a CORE file keeps the specs whose header names it beside the shared-change set.
+// Before, a src/model/project.ts change planned the shared set alone and dropped
+// save-transaction.spec.ts, the one spec that fails on the #1402 reservation regression.
+test('ci11: a CORE file keeps the specs its covers headers name beside the shared-change set', () => {
+  const coverage = [{ spec: 'save-transaction.spec.ts', test: (f) => f === 'src/model/project.ts' }];
+  const plan = planFor(['src/model/project.ts'], { traced: null, sprintFocus: true, coverage });
+  assert.equal(plan.focusApplied, true);
+  for (const s of [...FOCUS, 'save-transaction.spec.ts']) assert.ok(plan.specs.includes(s), s);
+  // Its configured selection is unchanged: CORE still selects the whole configured set.
+  assert.equal(planFor(['src/model/project.ts'], { traced: null, coverage }).mode, 'full');
+  // The real headers: the spec that fails on the #1402 fault is planned for its file.
+  assert.ok(planFor(['src/model/project.ts'], { traced: null, sprintFocus: true }).specs.includes('save-transaction.spec.ts'));
+});
+
 // THE POINT OF THE CHANGE, pinned: a new spec with a covers header is planned for a change to the
 // file it covers, and nothing in scripts/ is edited to make that true. The header is read by the
 // same reader the planner uses, from a directory holding nothing but the new spec.
@@ -1843,8 +1857,8 @@ test('a shared model, rendering or storage change runs the shared-change set, an
   }
 });
 
-// #1349: importTemplate is CORE, so its covers header is bypassed before the shared set is
-// applied. Pin the journey through the default CLI too; a full-suite plan would hide this miss.
+// #1349: importTemplate is CORE, and until ci11 its covers header was bypassed before the shared
+// set was applied. Pin the journey through the default CLI too; a full-suite plan would hide a miss.
 for (const [shape, changed] of [
   ['package import', ['src/model/importTemplate.ts']],
   ['shared model', ['src/model/structure.ts']],
