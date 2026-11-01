@@ -68,6 +68,7 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - After the Codex round (below), on a copy of the sample with its lock layer visible: quiz tests
   10/11 (j-0006), the journey picking the answer key by its old field id (the visible lock's
   text is now a field, so the key moved to f6); corrected, 11/11 (j-0007).
+- With the untick step added after /so 2: quiz tests 11/11 (j-0008).
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
