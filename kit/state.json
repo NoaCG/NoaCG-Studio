@@ -42,7 +42,7 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on 3ceeb3e3: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "what": "ci18 on 19fbdd19: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
     "eta": "2026-11-01T03:15:00Z"
   },
   "inFlight": [
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Tier-scope redesign head 3ceeb3e3: X1-X10 (scope = tier, later exceptions need dated measured receipt, one active per tier, credit capped by measured covered cost), nine replay tests for past escapes, 56/56 mutations, E1-E21 unchanged, ci01 ceilings unchanged. /so on 19c0a0d B (name takeover; bounded now in X8). Effect to report: offline tier already holds work-spec lines to 2026-11-16, so no new offline exception before then. Codex, CI and Rules-attack /so session_017SdbwQHwRwGSBMyjHSCCpH running; builder holding.",
+      "note": "Rules-attack /so on 3ceeb3e3 (session_017SdbwQHwRwGSBMyjHSCCpH): A, tier-scope model held. Codex P2 (one-page artifact search) plus four non-blocking /so notes folded into one push 19fbdd19 (E22, X3, X5, X9, X10), 62/62 mutations. Codex, CI and Rules-attack /so session_017SdbwPK2e21t4B3JXFUfeg running; builder holding. Cleanup after landing: remote branch claude/plan-cicd-improvement-ci18-pending (builder's delete got 403).",
       "pr": 1880,
       "reviewedHead": null
     }
