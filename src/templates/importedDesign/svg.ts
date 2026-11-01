@@ -219,6 +219,7 @@ paintMatchClock = function () {
 
 // importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
 ${duration ? `var importedClockLast = null;     // the clock field's last value, to tell a typed time from a resend
+var importedClockTakeAt = null;   // the origin the wire last stamped, for the next start
 ` : ''}function importedClockUpdate(fields) {
   var el = matchClockEl();
   if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
@@ -229,7 +230,27 @@ ${duration ? `  // A duration's length is a time the operator typed while the gr
   importedClockLast = value;
   var offAir = typeof noacgMachineState === 'function' && noacgMachineState().groups.main === 'off';
   if (offAir && /${CLOCK_TIME.source}/.test(value)) el.setAttribute('data-start', value);
-` : ''}}`;
+  // ON THE WIRE the length rides after the origin ("0:21@/0:30/0:30", control/matchClockWire.ts), so a
+  // reload and every output learn it; and the origin the wire last stamped is kept for the next
+  // start (below): the Take's, which the entrance would otherwise mint again on its first frame.
+  var at = value.indexOf('@');
+  var length = at === -1 ? '' : (value.slice(at + 1).split('/')[1] || '');
+  if (/${CLOCK_TIME.source}/.test(length)) el.setAttribute('data-start', length);
+  importedClockTakeAt = matchClockOriginOf(value);
+` : ''}}${duration ? `
+
+// THE TAKE'S ORIGIN. The entrance starts a duration (resetMatchClock, startMatchClock) on its first
+// frame, off air or on a re-take; its start counts from the origin the wire last stamped when there
+// is one, and from now otherwise (a playout host with no wire), so every output counts the same
+// second.
+var importedClockMatchStart = startMatchClock;
+startMatchClock = function () {
+  if (importedClockTakeAt !== null) {
+    matchClockAt = importedClockTakeAt;
+    importedClockTakeAt = null;
+  }
+  importedClockMatchStart();
+};` : ''}`;
 }
 const IMPORTED_CLOCK_HOOK = `  // The clock adopts its own field's value before the fit measures it (no-op otherwise).
   if (typeof importedClockUpdate === 'function') importedClockUpdate(fields);`;
