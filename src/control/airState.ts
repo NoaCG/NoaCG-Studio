@@ -179,7 +179,9 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
     }
     const value = carried?.[clock.field];
     if (value !== undefined) clocks = { ...clocks, [item.graphic]: clockValueAfterUpdate(clocks[item.graphic], value) };
-    if (msg.t === 'stop' && item.graphic in clocks) clocks = without(clocks, item.graphic);
+    // An imported clock keeps its value through an Out, as the renderer does: it says the clock is
+    // off air, and what its next Take counts (control/matchClockWire.ts).
+    if (msg.t === 'stop' && item.graphic in clocks && !clock.events) clocks = without(clocks, item.graphic);
     const effect = clockRowEffect({ msg, created_at: item.created_at }, clock, clocks[item.graphic], now);
     if (!effect) {
       out.push(item);

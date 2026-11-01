@@ -180,6 +180,8 @@ const RUN = async ({ markup, mode, script }) => {
   for (const [verb, arg, extra] of script) {
     if (verb === 'lag') outs[arg].lag = extra;
     else if (verb === 'type') { cue = { ...cue, [clockField]: arg }; prod.send({ t: 'update', data: { ...cue } }); }
+    // The operator types the time the clock shows (a cue edit that happens to equal it).
+    else if (verb === 'typeShown') { cue = { ...cue, [clockField]: prod.read(outs.A).value }; prod.send({ t: 'update', data: { ...cue } }); }
     else if (verb === 'take') { prod.send({ t: 'update', data: { ...cue } }); prod.send({ t: 'play' }); }
     else if (verb === 'out') prod.send({ t: 'stop' });
     else if (verb === 'event') prod.send({ t: 'event', event: arg, ...(extra ? { payload: extra } : {}) });
@@ -234,6 +236,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['report', 'B'], ['wait', 30000], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded'],
       ['disconnect', 'B'], ['event', pause], ['wait', 5000], ['reconnect', 'B'], ['wait', SETTLE], ['read', 'B reconnected after a pause'],
       ['wait', 4000], ['read', 'held'],
+      ...(native(mode) ? [] : [['update'], ['wait', 600], ['read', 'a resend while paused']]),
       ['type', '40:00'], ['wait', 600], ['read', 'corrected while held'],
       ['event', start], ['wait', SETTLE], ['read', 'restarted'],
       ['report', 'A'], ['disconnect', 'A'], ['wait', 20000], ['reload', 'A'], ['reconnect', 'A'], ['wait', 300], ['read', 'A reloaded from a report, then reconnected'],
@@ -283,6 +286,14 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['event', 'clock_start'], ['wait', 1000], ['out'], ['wait', 2000],
       ['take'], ['wait', 500], ['read', 'taken again with nothing typed'],
       ['event', 'clock_pause'], ['wait', SETTLE], ['type', '0:30'], ['wait', 600], ['read', 'the length typed while paused'],
+      // Two cue edits while paused, the first equal to the time shown: the second is still a change.
+      ['event', 'clock_start'], ['wait', 3000], ['event', 'clock_pause'], ['wait', SETTLE],
+      ['typeShown'], ['wait', 600], ['type', '0:30'], ['wait', 600], ['read', 'two edits, the first equal to the time shown'],
+      // Corrected while paused ON AIR, then out and in again: a correction, never a new length.
+      ['type', '0:20'], ['wait', 600], ['out'], ['wait', 2000], ['take'], ['wait', 500], ['read', 'a Take after a paused correction and an Out'],
+      // A length typed OFF AIR stands through a Reset pressed off air, and the Take counts it.
+      ['out'], ['wait', 2000], ['type', '0:45'], ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'a length typed off air, then Reset'],
+      ['take'], ['wait', 500], ['read', 'taken after it'],
     ]),
   };
 });
@@ -292,6 +303,9 @@ const at = (run, label) => {
   assert.ok(r, `no reading "${label}"`);
   return r;
 };
+/** A wire value with no origin: a held clock, whatever it carries after the `@`. */
+const clockHeld = (v) => !/@\d*[1-9]/.test(v);
+const plainOf = (v) => v.split('@')[0];
 const secs = (t) => { const [m, s] = t.split(':').map(Number); return m * 60 + s; };
 /** Both outputs paint the same time and hold the same wire value. */
 const agree = (r, label) => {
@@ -318,7 +332,7 @@ for (const [name, mode] of [['an imported count-up', 'up'], ['a native scorebug'
     assert.equal(before.A.held.includes('@'), false, 'nothing runs before Start');
     const started = at(r, 'started');
     agree(started, 'started');
-    assert.match(started.A.held, /@\d+$/, 'the running value carries its origin');
+    assert.match(started.A.held, mode === 'native' ? /@\d+$/ : /@\d+\/12:08\/12:08$/, 'the running value carries its origin (and an imported one its length and what was sent)');
     const running = at(r, 'running');
     agree(running, 'running');
     assert.equal(secs(running.A.value) - secs(started.A.value), 4);
@@ -329,9 +343,14 @@ for (const [name, mode] of [['an imported count-up', 'up'], ['a native scorebug'
     assert.equal(reloaded.B.clock, 'running');
     const paused = at(r, 'B reconnected after a pause');
     agree(paused, 'B reconnected after a pause');
-    assert.equal(paused.A.held.includes('@'), false, 'Pause banks a plain time');
+    assert.equal(clockHeld(paused.A.held), true, 'Pause banks a held time');
     assert.deepEqual([paused.A.clock, paused.B.clock], ['stopped', 'stopped']);
     assert.equal(at(r, 'held').A.value, paused.A.value);
+    if (mode !== 'native') {
+      const resent = at(r, 'a resend while paused');
+      agree(resent, 'a resend while paused');
+      assert.equal(resent.A.value, paused.A.value, 'a resend of the cue\'s time never pulls a paused clock back (W3)');
+    }
     agree(at(r, 'corrected while held'), 'corrected');
     assert.equal(at(r, 'corrected while held').A.value, '40:00');
     agree(at(r, 'restarted'), 'restarted');
@@ -340,8 +359,9 @@ for (const [name, mode] of [['an imported count-up', 'up'], ['a native scorebug'
     assert.equal(secs(back.A.value) - secs(at(r, 'restarted').A.value), 20, 'twenty seconds counted while A was gone');
     const reset = at(r, 'reset');
     agree(reset, 'reset');
-    assert.equal(reset.A.held, mode === 'native' ? '0:00' : '12:08', 'Reset banks what the runtime returns to');
-    assert.equal(reset.A.value, reset.A.held);
+    assert.equal(plainOf(reset.A.held), mode === 'native' ? '0:00' : '12:08', 'Reset banks what the runtime returns to');
+    assert.equal(clockHeld(reset.A.held), true);
+    assert.equal(reset.A.value, plainOf(reset.A.held));
     agree(at(r, 'B reloaded after the reset'), 'B reloaded after the reset');
     assert.equal(at(r, 'B reloaded after the reset').B.clock, 'armed');
   });
@@ -403,7 +423,7 @@ test('a duration is stamped by its Take: both outputs count the server origin fr
   agree(pausedReload, 'B reloaded while paused');
   assert.equal(pausedReload.B.clock, 'stopped');
   agree(at(r, 'corrected while paused'), 'corrected while paused');
-  assert.equal(at(r, 'corrected while paused').A.held, '0:20@typed/0:30/0:20', 'a correction keeps the length, marked as the operator\'s');
+  assert.equal(at(r, 'corrected while paused').A.held, '0:20@/0:30/0:20', 'a correction while paused on air keeps the length and stays a correction');
   const back = at(r, 'B reconnected while running');
   agree(back, 'B reconnected');
   assert.equal(back.A.value, '0:17', 'three seconds and a hop since Start, counted while B was gone');
@@ -464,5 +484,17 @@ test('a duration tells a resend from a change by what the cue last sent: a score
   assert.match(again.A.held, /^0:30@\d+\/0:30\/0:25$/, 'taken out running and taken again untyped: a new count of the length, not of the old correction');
   const typed = at(r, 'the length typed while paused');
   agree(typed, 'the length typed while paused');
-  assert.deepEqual([typed.A.value, typed.A.held], ['0:30', '0:30@typed/0:30/0:30'], 'typing the length is a change when the cue last sent something else');
+  assert.deepEqual([typed.A.value, typed.A.held], ['0:30', '0:30@/0:30/0:30'], 'typing the length is a change when the cue last sent something else: a correction, on air');
+  const two = at(r, 'two edits, the first equal to the time shown');
+  agree(two, 'two edits');
+  assert.equal(two.A.value, '0:30', 'a cue edit equal to the time shown still becomes what the cue last sent');
+  const afterOut = at(r, 'a Take after a paused correction and an Out');
+  agree(afterOut, 'a Take after a paused correction and an Out');
+  assert.match(afterOut.A.held, /^0:30@\d+\/0:30\/0:20$/, 'a correction made while paused on air never becomes the length');
+  const offReset = at(r, 'a length typed off air, then Reset');
+  agree(offReset, 'a length typed off air, then Reset');
+  assert.deepEqual([offReset.A.value, offReset.A.held], ['0:45', '0:45@out/0:45/0:45'], 'a time typed off air is the length, so a Reset off air returns to it');
+  const taken = at(r, 'taken after it');
+  agree(taken, 'taken after it');
+  assert.match(taken.A.held, /^0:45@\d+\/0:45\/0:45$/, 'and the Take counts it');
 });

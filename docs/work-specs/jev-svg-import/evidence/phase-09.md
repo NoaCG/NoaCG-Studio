@@ -47,25 +47,25 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
 - **W3 Unrelated rows leave the clock alone.** An update resending the cue's time keeps the
   origin; a score's +1, −1 or New game moves the scores and the flash and never the clock; a clock
   row never moves a score or the flash. New game does not reset the clock.
-- **W4 A duration is stamped by its Take, and held by its Out.** Before the play, the wire writes
-  the Take's count, stamped with the row's time, and that count is the length:
-  `0:30@<take>/0:30/0:30`. It is a time the operator typed while the clock was held, or else the
-  length, so a paused, reset or run-out clock is taken again from the top, as the graphic's
-  entrance does. The graphic keeps the origin the wire last stamped and its entrance's start counts
-  from it (`importedClockJs`, duration only), off air or on a re-take, so every output counts the
-  same second from the first frame. A playout host with no wire still starts from now, as before.
-  After an Out the wire banks the running time, held, as the old countdown's exit stopped it: the
-  wire cannot see on air from off air, and an off-air clock must never read as running.
-- **W5 A duration's value carries its length and what the cue last sent.** After the origin, where
-  every existing reader already stops: held `0:18@/0:30/0:25` (time, length, last sent), running
-  `0:30@<origin>/0:30/0:30`. Every Update resends the cue's whole value set, and after a correction
-  the cue no longer holds the clock's time, so a resend is the time the cue last sent (or the time
-  the clock shows), never a comparison with the clock's own state. Anything else is the
-  operator's: typed while it runs, it keeps running from the update row's own server time (the
-  merge marks it `@0/`, the row's effect stamps it), so outputs and replays agree; typed while it
-  is held, it is marked as theirs (`0:20@typed/0:30/0:20`). Pause, Start and Reset carry the
-  length; Reset banks it. A value that already carries these is taken as it is. The graphic takes
-  its `data-start` from the length, so a reload knows it and Reset returns to it.
+- **W4 A duration is stamped by its Take, and marked off air by its Out.** Before the play, the
+  wire writes the length, stamped with the row's time: `0:30@<take>/0:30/0:30`. A paused, reset or
+  run-out clock is taken from the top, as the graphic's entrance does. The graphic keeps the origin
+  the wire last stamped and its entrance's start counts from it (`importedClockJs`, duration only),
+  off air or on a re-take, so every output counts the same second from the first frame. A playout
+  host with no wire still starts from now, as before. The Out writes the time shown, held, marked
+  off air (`0:12@out/0:30/0:25`), running or not: the wire cannot see on air from off air.
+- **W5 An imported clock's value carries its length and what the cue last sent.** After the origin,
+  where every existing reader already stops: `time@slot/length/sent`, on count-ups and durations
+  alike (count-up's length is its drawn time). Every Update resends the cue's whole value set, and
+  after a Pause or a correction the cue no longer holds the clock's time, so a resend is the time
+  the cue last sent, never a comparison with the clock's own state. A cue edit equal to the time
+  shown changes nothing on air but becomes what was sent. Anything else is the operator's: off air
+  (slot `out`), it is the new length at once, as row 8's graphic takes it; on air it is a
+  correction that leaves the length alone, held where held, and where it runs running on from the
+  update row's own server time (the merge marks it `@0/`, the row's effect stamps it). Pause, Start
+  and Reset carry the length; Reset returns to it, on air or off. The graphic takes its
+  `data-start` from it. The program monitor (`control/airState.ts`) keeps an imported clock's
+  value through an Out, as the renderer does, so the two never disagree.
 - **W6 Native clocks are unchanged.** No native value ever carries a length, so every native path
   through `clockValueAfterUpdate` and `clockRowEffect` is the code it was.
 
@@ -93,24 +93,32 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   duration branch of `importedClockJs` only. Every build but a duration is byte-identical to
   `5624529` (71 corpus files as dropped, every count-up and target-time build), and row 7's pinned
   entrance calls are unchanged: the start is wrapped rather than renamed.
-- **A duration's length is the field's value at the Take.** Row 8's graphic alone still takes it
-  from a time typed off air, unchanged. On the wire the Take resends the cue, so the two agree,
-  except after a time corrected on air and never changed again: the next Take counts from what
-  the operator's field shows.
+- **A duration's length is a time typed off air, on the wire as in row 8's graphic.** A time
+  corrected on air never becomes the length: after "correct on air, Out, Take" the next count is
+  the length, while the operator's field still shows the correction until they type again.
 - **The length rides after the origin, not in a second field.** One wire value is what the wire,
   every report and every page already hold; a second field would be a new operator field and a
   new report shape. Readers that stop at `@` see the time; the origin parsers read the number
   before the slash, so a held value with a length still reads as held.
-- **Rules found after coding (review rounds on `3720ea6` and `d958674`, then a fresh read-only
-  reassessment of the rule model).** Three variants of one missing rule: an Update after a Pause
-  pulled the clock back to the cue's length; a re-take on air dropped the wire's origin; a running
-  duration taken out and given a new length off air aired the old length. The model the
-  reassessment settled: tell a resend from a change by what the cue last SENT, not by the clock's
-  own state, and hold a duration on Out so an off-air clock never reads as running. It also caught
-  a fourth variant (a score sent while paused after a running correction moved the clock), which
-  the same rule fixes. Each is a case in `scripts/imported-clock-wire.test.mjs`.
+- **Rules found after coding: three review rounds on one family, then a bounded model round.**
+  Rounds on `3720ea6`, `d958674` and `e8dd5da` (PR review and two fresh read-only reassessments)
+  found variants of one missing rule: an Update after a Pause pulled a clock back to the cue's
+  time; a re-take on air dropped the wire's origin; a running duration taken out and given a new
+  length aired the old one; a score sent while a corrected duration was paused moved it; an
+  imported count-up paused and resent jumped back (a regression against row 8, whose wire banked
+  no imported pause); a cue edit equal to the time shown hid the next edit; a correction typed
+  while paused on air became the next length; and the program monitor forgot an imported clock on
+  Out. The model that closes them is W4 and W5: every imported clock remembers what the cue last
+  sent, and the Out says the clock is off air. Each variant is a case in
+  `scripts/imported-clock-wire.test.mjs` or `scripts/air-state.test.mjs` that fails without its rule.
+- **Departures reconciled with the coordinator: `src/control/airState.ts` and
+  `scripts/air-state.test.mjs`.** One line: on an Out, the monitor keeps an imported clock's value
+  instead of forgetting it, so it holds what air holds; one test compares the monitor with air's
+  own decision row by row. The native monitor tests pass untouched.
 - **A Take of a duration already on air is a new count of its length** on every output (pinned by
   the re-take case). A score is sent with Update, which leaves the clock alone (W3).
+- **Typing the time a clock already shows** while paused is no change on air, only a new value the
+  cue sends; typing the length while paused on air is a correction, never a new length.
 - **A duration compiled under row 8 and published before this row** reads only a bare time as its
   length, so once the wire carries lengths (after its first Take here) a new length typed off air
   is not taken: it counts from the old length. Republishing the graphic fixes it. Only imported

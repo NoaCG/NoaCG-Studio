@@ -144,27 +144,28 @@ export function formatClock(total: number): string {
   return `${Math.floor(safe / 60)}:${s < 10 ? `0${s}` : s}`;
 }
 
-// ── A DURATION ON THE WIRE (docs/work-specs/jev-svg-import/evidence/phase-09.md, W4-W5) ──
+// ── AN IMPORTED CLOCK ON THE WIRE (docs/work-specs/jev-svg-import/evidence/phase-09.md, W4-W5) ──
 //
-// A clock that starts on the Take counts down from a LENGTH, and Reset goes back to it. The wire
-// holds one value per field, and a Pause banks the paused time into it, so a duration's value
-// carries two more facts after its origin, where every reader already looks past it: its length,
-// and the time the cue last SENT, which is what tells a resend from a change (every Update resends
-// the cue's whole value set, and after a correction the cue no longer holds the clock's time).
-// `"0:18@/0:30/0:25"` is held at 0:18, length 0:30, last sent 0:25; `"0:30@1800000000000/0:30/0:30"`
-// runs. `plainClockValue` reads the time, `clockOriginOf` the origin (a number stops at the slash,
-// anything else is none), and the template's own parsers read them the same way. Only a clock that
-// starts on the Take ever carries one, so a native clock's values are exactly what they were.
+// The wire holds one value per field, and every Update resends the cue's WHOLE value set: after a
+// Pause, or after a correction, the cue no longer holds the clock's time, so comparing what arrives
+// with the clock's own state misreads a resend as a change. An imported clock's value therefore
+// carries three more facts after its origin, where every reader already looks past it: its LENGTH
+// (what Reset returns to, and a duration's Take counts), the time the cue last SENT (a resend is
+// that time, anything else is the operator's), and in the origin slot whether it is held on air
+// or off air. `"0:18@/0:30/0:25"` is held on air at 0:18, length 0:30, last sent 0:25;
+// `"0:30@1800000000000/0:30/0:30"` runs. `plainClockValue` reads the time, `clockOriginOf` the origin
+// (a number stops at the slash, a word is none), and the template's own parsers read them the same
+// way. Only an imported clock ever carries one, so a native clock's values are exactly what they were.
 
-/** The origin of a time corrected while it runs, until the update row's effect stamps it: 0, which
- *  every parser reads as no origin, so for that moment it reads as the corrected time, held. */
+/** The origin slot of a time corrected while it runs, until the update row's effect stamps it: 0,
+ *  which every parser reads as no origin, so for that moment it reads as the corrected time, held. */
 const CORRECTED_ORIGIN = '0';
 
-/** The origin of a time the operator TYPED while the clock was held: no origin to any parser, but
- *  it says the time is theirs, so the next Take counts from it rather than from the length. */
-const TYPED_ORIGIN = 'typed';
+/** The origin slot of a duration held because it was taken OFF AIR: the wire cannot see air, so the
+ *  Out says it, and a time typed from here on is the new length, as the graphic takes it (row 8). */
+const OFF_AIR = 'out';
 
-/** A duration's value, read: its time, what sits in its origin slot, its length and what was sent. */
+/** An imported clock's value, read: its time, its origin slot, its length and what the cue last sent. */
 interface Duration {
   time: string;
   slot: string;
@@ -172,7 +173,7 @@ interface Duration {
   sent: string;
 }
 
-/** A duration's value read apart, or null for a value that is not one (a bare time, a native one). */
+/** An imported clock's value read apart, or null for one that is not (a bare time, a native one). */
 function durationOf(raw: string | undefined | null): Duration | null {
   const text = String(raw ?? '').trim();
   const at = text.indexOf('@');
@@ -182,7 +183,7 @@ function durationOf(raw: string | undefined | null): Duration | null {
   return { time: text.slice(0, at).trim(), slot, length, sent: sent ?? length };
 }
 
-/** A duration's value from its parts. */
+/** An imported clock's value from its parts. */
 function durationValue(time: string, origin: number | string | null, length: string, sent: string): string {
   return `${time}@${origin ?? ''}/${length}/${sent}`;
 }
@@ -208,16 +209,19 @@ function durationValue(time: string, origin: number | string | null, length: str
 export function clockValueAfterUpdate(held: string | undefined, incoming: string): string {
   if (clockOriginOf(incoming) !== null) return incoming;         // a stamped value always wins
   if (durationOf(incoming)) return incoming;                     // …and so does any wire value
-  const duration = durationOf(held);
-  if (duration) {
-    // A duration: a resend is the time the cue last sent (or the time it shows); anything else is
-    // the operator's. Typed while it RUNS, it keeps running from the update row's own instant, which
+  const read = durationOf(held);
+  if (read) {
+    // An imported clock: a resend is the time the cue last sent. A cue edit that happens to equal
+    // the time shown changes nothing on air but is what the cue sends from now on. Anything else is
+    // the operator's: off air, the new length; on air, a correction that leaves the length alone,
+    // held where it is held, and where it RUNS running on from the update row's own instant, which
     // this function does not know: it is marked (`CORRECTED_ORIGIN`) and the row's clock effect
-    // stamps it with the row's server time straight after (durationRowEffect). Typed while HELD,
-    // it is marked as theirs (`TYPED_ORIGIN`). Only a Take makes a new length.
+    // stamps it with the row's server time.
     const time = plainClockValue(incoming);
-    if (time === duration.sent || time === duration.time) return held!;
-    return durationValue(time, clockOriginOf(held) === null ? TYPED_ORIGIN : CORRECTED_ORIGIN, duration.length, time);
+    if (time === read.sent) return held!;
+    if (time === read.time) return durationValue(read.time, read.slot, read.length, time);
+    if (read.slot === OFF_AIR) return durationValue(time, OFF_AIR, time, time);
+    return durationValue(time, clockOriginOf(held) === null ? '' : CORRECTED_ORIGIN, read.length, time);
   }
   if (held === undefined || clockOriginOf(held) === null) return incoming;
   return plainClockValue(held) === plainClockValue(incoming) ? held : incoming;
@@ -288,7 +292,7 @@ export function clockRowEffect(
   held: string | undefined,
   now: number,
 ): ClockEffect | null {
-  if (clock.startsOnTake) return durationRowEffect(row, clock, held ?? clock.seed, rowInstant(row.created_at, now));
+  if (clock.events) return importedRowEffect(row, clock, held ?? clock.seed, rowInstant(row.created_at, now));
   if (row.msg.t !== 'event') return null;
   const at = rowInstant(row.created_at, now);
   const from = held ?? clock.seed;
@@ -309,20 +313,18 @@ export function clockRowEffect(
 }
 
 /**
- * A CLOCK THAT STARTS ON THE TAKE, row by row: the match clock's three verbs, plus the Take, the
- * Out and a running correction, every value carrying its length and what the cue last sent.
+ * AN IMPORTED CLOCK, row by row: the match clock's three verbs and a running correction, every
+ * value carrying its length and what the cue last sent; and for a clock that starts on the Take,
+ * the Take and the Out.
  *
- * THE TAKE counts from a time the operator typed while the clock was held, or else from the
- * length (a paused, reset or run-out clock is taken from the top, as the graphic's entrance does),
- * and that count is the length from then on. BEFORE the play, as a start is: the graphic keeps that
- * origin for its entrance (importedDesign/svg.ts, its start), so the count is the server's from
- * its first frame rather than this renderer's arrival.
+ * THE TAKE counts the length: a time typed off air is the length (row 8), and a paused, reset or
+ * run-out clock is taken from the top, as the graphic's entrance does. BEFORE the play, as a start is: the graphic keeps that origin for its
+ * entrance (importedDesign/svg.ts, its start), so the count is the server's from its first frame.
  *
- * THE OUT holds it, as the old countdown's exit stopped it: the wire cannot see on air from off
- * air, so a duration left running off air would read every time typed for the next Take as a
- * correction to a running clock.
+ * THE OUT holds it, marked off air, running or not, as the old countdown's exit stopped it: the wire
+ * cannot see on air from off air, and only a time typed off air is a new length.
  */
-function durationRowEffect(
+function importedRowEffect(
   row: Pick<ControlEventRow, 'msg' | 'created_at'>,
   clock: ClockSpec,
   from: string,
@@ -332,15 +334,17 @@ function durationRowEffect(
   if (msg.t !== 'update' && msg.t !== 'play' && msg.t !== 'stop' && msg.t !== 'event') return null;
   const read = durationOf(from);
   const time = (read ? read.time : plainClockValue(from)) || clock.resetTo;
-  const length = read?.length ?? time;
+  const length = read?.length ?? (clock.startsOnTake ? time : clock.resetTo);
   const sent = read?.sent ?? time;
-  const running = clockOriginOf(from) !== null;
+  const offAir = read?.slot === OFF_AIR;
   if (msg.t === 'play') {
-    const taken = read && read.slot !== TYPED_ORIGIN ? length : time;
+    if (!clock.startsOnTake) return null;
+    const taken = read ? length : time;
     return { value: durationValue(taken, at, taken, sent), when: 'before' };
   }
   if (msg.t === 'stop') {
-    return running ? { value: durationValue(clockValueAt(from, true, at), null, length, sent), when: 'after' } : null;
+    if (!clock.startsOnTake || offAir) return null;
+    return { value: durationValue(clockValueAt(from, true, at), OFF_AIR, length, sent), when: 'after' };
   }
   // A time typed while it runs counts from the update row's server time, on every output and in
   // every replay. AFTER the row, which has already handed the graphic the time to count from.
@@ -350,11 +354,11 @@ function durationRowEffect(
   const events = clock.events ?? IMPORTED_CLOCK_EVENTS;
   switch (msg.event) {
     case events.start:
-      return { value: durationValue(clockValueAt(from, true, at), at, length, sent), when: 'before' };
+      return { value: durationValue(clockValueAt(from, clock.countsDown, at), at, length, sent), when: 'before' };
     case events.stop:
-      return { value: durationValue(clockValueAt(from, true, at), null, length, sent), when: 'after' };
+      return { value: durationValue(clockValueAt(from, clock.countsDown, at), offAir ? OFF_AIR : '', length, sent), when: 'after' };
     case events.reset:
-      return { value: durationValue(length, null, length, sent), when: 'after' };
+      return { value: durationValue(length, offAir ? OFF_AIR : '', length, sent), when: 'after' };
     default:
       return null;
   }

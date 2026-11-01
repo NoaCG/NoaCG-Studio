@@ -22,6 +22,7 @@ import {
   withReports,
 } from '../src/control/airState.ts';
 import { createAppliedOnce } from '../src/control/commandRoads.ts';
+import { clockRowEffect, clockValueAfterUpdate } from '../src/control/matchClockWire.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, NO_LOG, createPlayoutSession } from '../src/control/playoutSession.ts';
 
@@ -236,6 +237,35 @@ test('a whole match through the monitor: the start stamps BEFORE, a plain resend
   assert.equal(reset[1].msg.data.f5, '10:00');
   step({ graphic: 'score', msg: { t: 'stop' } });
   assert.equal('score' in air.clocks, false, 'off air forgets the clock');
+});
+
+/** An imported duration (jev-svg-import row 9): its own verbs, started by the Take. */
+const DURATION = {
+  field: 'f2', countsDown: true, seed: '12:08', resetTo: '12:08',
+  events: { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' }, startsOnTake: true,
+};
+const DURATIONS = { clocks: new Map([['bug', DURATION]]), pairs: new Map() };
+
+test('an imported duration on the monitor holds the value air holds, through an Out and the next Take', () => {
+  // Air's own decision, row by row, in output/main.ts order: the merge, then the row's clock effect.
+  const air = (rows) => rows.reduce((held, row) => {
+    const merged = row.msg.t === 'update' ? clockValueAfterUpdate(held, row.msg.data.f2) : held;
+    return clockRowEffect(row, DURATION, merged, T)?.value ?? merged;
+  }, undefined);
+  const monitor = (rows) => rows.reduce((part, row) => programItems(part, [{ graphic: 'bug', ...row }], DURATIONS, T).air, NO_AIR).clocks.bug;
+  const row = (mins, msg) => ({ msg, created_at: at(mins) });
+  const take = (mins, f2) => [row(mins, { t: 'update', data: { f2 } }), row(mins, { t: 'play' })];
+  const walks = {
+    'corrected on air, out, taken again': [...take(0, '0:30'), row(0.1, { t: 'update', data: { f2: '0:20' } }), row(0.2, { t: 'stop' }), ...take(0.3, '0:20')],
+    'a new length typed off air, reset, taken': [...take(0, '0:30'), row(0.1, { t: 'stop' }), row(0.2, { t: 'update', data: { f2: '0:45' } }), row(0.3, { t: 'event', event: 'clock_reset' }), ...take(0.4, '0:45')],
+  };
+  for (const [name, rows] of Object.entries(walks)) {
+    for (let n = 1; n <= rows.length; n += 1) {
+      assert.equal(monitor(rows.slice(0, n)), air(rows.slice(0, n)), `${name}, after row ${n}: the monitor holds what air holds`);
+    }
+  }
+  assert.match(air(walks['corrected on air, out, taken again']), /^0:30@\d+\/0:30\/0:20$/, 'a correction on air never becomes the length');
+  assert.match(air(walks['a new length typed off air, reset, taken']), /^0:45@\d+\/0:45\/0:45$/, 'a time typed off air is the length');
 });
 
 test('a row with no server time is stamped with the monitor\'s own receive instant', () => {
