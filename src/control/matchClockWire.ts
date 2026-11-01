@@ -208,9 +208,10 @@ function durationValue(time: string, origin: number | string | null, length: str
  * precisely because the origin write is ours, not the operator's — the operator's `"10:00"` has
  * not changed just because we stamped it.
  *
- * The honest limit, unchanged from the runtime's: an operator cannot re-apply the time the clock
- * already started from. No control surface can express that anyway (the field holds that text, so
- * there is no edit to send), and returning to a known value is `clockReset`'s job.
+ * The honest limit, unchanged from the runtime's for a native clock: an operator cannot re-apply
+ * the time the clock already started from (an imported clock can while it runs, #1890, because its
+ * value says what the cue last sent). No control surface can express that anyway (the field holds
+ * that text, so there is no edit to send), and returning to a known value is `clockReset`'s job.
  */
 export function clockValueAfterUpdate(held: string | undefined, incoming: string): string {
   if (clockOriginOf(incoming) !== null) return incoming;         // a stamped value always wins
@@ -226,7 +227,9 @@ export function clockValueAfterUpdate(held: string | undefined, incoming: string
     const time = plainClockValue(incoming);
     if (time === read.sent) return held!;
     if (read.slot === OFF_AIR) return durationValue(time, OFF_AIR, time, time);
-    if (time === read.time) return durationValue(read.time, read.slot, read.length, time);
+    // Held only: a running value's time is the time it STARTED from, not the one on screen, so
+    // typing it while it runs sets the clock back to it (#1890).
+    if (time === read.time && clockOriginOf(held) === null) return durationValue(read.time, read.slot, read.length, time);
     return durationValue(time, clockOriginOf(held) === null ? '' : CORRECTED_ORIGIN, read.length, time);
   }
   if (held === undefined || clockOriginOf(held) === null) return incoming;

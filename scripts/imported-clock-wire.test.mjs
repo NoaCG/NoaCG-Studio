@@ -505,3 +505,30 @@ test('a duration tells a resend from a change by what the cue last sent: a score
   agree(banked, 'the banked time typed off air, taken');
   assert.match(banked.A.held, /^(0:\d\d)@\d+\/\1\/\1$/, 'a length typed off air equal to the time it was banked at is still the new length');
 });
+
+// ── Row 11 (#1890): a running edit equal to the start time, read straight off the wire's own functions ──
+const { clockRowEffect: rowEffect, clockValueAfterUpdate: afterUpdate } = await import('../src/control/matchClockWire.ts');
+const IMPORTED_EVENTS = { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' };
+const W0 = 1_800_000_000_000;
+/** The wire's value after each row, applied as output/main.ts applies them: the merge, then the effect. */
+const wireAfter = (spec, rows) => rows.reduce((held, [mins, msg]) => {
+  const merged = msg.t === 'update' ? afterUpdate(held, msg.data.f2) : held;
+  return rowEffect({ msg, created_at: new Date(W0 + mins * 60_000).toISOString() }, spec, merged, W0)?.value ?? merged;
+}, undefined);
+
+test('while a clock runs, a time typed equal to the time it started from sets it back to that time (#1890)', () => {
+  const countUp = { field: 'f2', countsDown: false, seed: '0:00', resetTo: '0:00', events: IMPORTED_EVENTS };
+  const rows = [
+    [0, { t: 'update', data: { f2: '0:00' } }],
+    [0, { t: 'event', event: 'clock_start' }],
+    [0.7, { t: 'event', event: 'clock_pause' }],
+    [1, { t: 'event', event: 'clock_start' }],
+  ];
+  const restarted = wireAfter(countUp, rows);
+  assert.match(restarted, /^0:42@\d+\//, 'paused at 0:42 and restarted: it runs on from 0:42');
+  const typed = wireAfter(countUp, [...rows, [1.5, { t: 'update', data: { f2: '0:42' } }]]);
+  assert.equal(typed, `0:42@${W0 + 1.5 * 60_000}/0:00/0:42`, 'at 1:12 the operator types 0:42: it counts on from 0:42 at the row\'s time');
+  // Held, an edit equal to the time shown still changes nothing on air (the rule this narrows).
+  const held = wireAfter(countUp, [...rows.slice(0, 3), [1, { t: 'update', data: { f2: '0:42' } }]]);
+  assert.equal(held, '0:42@/0:00/0:42');
+});

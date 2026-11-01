@@ -154,9 +154,11 @@ export function resolveClockTarget(input: ClockTargetInput, now: number): ClockT
   let day: number;
   if (proposed) {
     day = Math.floor(wallAsUtc(f, now) / DAY) * DAY;
-    // T1: tomorrow when today's has gone. A wall time the zone skips today is still today's.
+    // T1: tomorrow when today's has gone. A wall time the zone skips today is today's while the
+    // zone's own clock has not passed it yet, and tomorrow's once it has (#1894).
     const todays = instantsOf(f, day + minutes * 60_000);
-    if (todays.length > 0 && todays[todays.length - 1] <= now) day += DAY;
+    const gone = todays.length > 0 ? todays[todays.length - 1] <= now : wallAsUtc(f, now) >= day + minutes * 60_000;
+    if (gone) day += DAY;
   } else {
     const ymd = parseDate(input.date!);
     if (!ymd) return { kind: 'invalid', reason: 'date' };

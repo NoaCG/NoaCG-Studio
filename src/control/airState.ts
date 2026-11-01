@@ -249,6 +249,16 @@ export function forgetBootReplay(air: AirPart): AirPart {
 }
 
 /**
+ * A clock's monitor memory from what a live graphic reported. A host that reports the layer's
+ * painted text (control/hostedReceiver.ts `harvest`) says what was shown, never when (row 11, H1).
+ * A target's stamped start is its whole truth whatever was painted ("3:39:30" is hours, which the
+ * wire does not read). Every other clock is the reported value as it always was.
+ */
+function clockSeedFromReport(clock: ClockSpec, reported: string): string {
+  return clock.fixedInstant ? clock.seed : reported;
+}
+
+/**
  * THE RESOLVE'S SEED, guarded (§4.1 R3). The seed is a wholesale replace, so it is skipped
  * outright when the marker moved while the read was in flight (THE MOVES GUARD): the wire's map is
  * a snapshot, and a layer this operator took off meanwhile would come back on air, or a Take made
@@ -285,7 +295,7 @@ export function seedFromResolve(
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined) {
-      clocks = { ...clocks, [graphic]: wire(clock.field) };
+      clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       values[clock.field] = plainClockValue(values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {

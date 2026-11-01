@@ -386,3 +386,11 @@ test('lines written here take local ids counting down from -1, a line that says 
   assert.equal(log.entries[0].id, 7);
   assert.equal(log.localId, -4, 'a row from the wire spends no local id');
 });
+
+test('a host that reports a target\'s painted text never moves the monitor off its stamped start (row 11 /so)', () => {
+  // A target time: its own stamped start is the truth (phase-10 T6/T7), whatever text was painted.
+  const TARGET = { field: 'f2', countsDown: true, seed: '219:30@1000', resetTo: '219:30@1000', events: DURATION.events, fixedInstant: true };
+  const targets = { clocks: new Map([['bug', TARGET]]), pairs: new Map() };
+  const seeded = seedFromResolve(NO_AIR, { liveCue: { bug: 'c1' }, live: { bug: { data: { f2: '3:39:30' } } } }, [], airAtRequest(NO_AIR), [{ id: 'c1', values: { f2: '219:30@1000' } }], targets);
+  assert.equal(seeded.clocks.bug, '219:30@1000');
+});
