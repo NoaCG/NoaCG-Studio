@@ -341,21 +341,52 @@ test('comments are stripped in one pass, strings kept', () => {
   assert.equal(withoutComments('import Default/* vendor */from'), 'import Default from', 'a comment still separates tokens');
 });
 
-/** Median of three runs of `fn`, in ms. */
-async function time(fn) {
-  const runs = [];
-  for (let i = 0; i < 3; i++) {
-    const t = performance.now();
-    await fn();
-    runs.push(performance.now() - t);
-  }
-  return runs.sort((a, b) => a - b)[1];
+/** CPU milliseconds this thread spends on `reps` calls of `fn`. CPU time, not wall time: on a busy
+ *  runner a run of a few milliseconds can finish inside one time slice while a longer one is always
+ *  interrupted, which stretches the longer one by about the load. This thread's, not the process's,
+ *  which adds the garbage collector's helper threads. */
+async function cpuMs(fn, reps) {
+  const now = () => {
+    const { user, system } = process.threadCpuUsage();
+    return (user + system) / 1000;
+  };
+  const before = now();
+  for (let i = 0; i < reps; i++) await fn();
+  return now() - before;
 }
 
-test('reading hostile input stays linear: doubling the input at most about doubles the time', async () => {
+/** Asserts that reading 4x the input takes under 8x the time: linear reading takes about 4x,
+ *  quadratic about 16x. Each sample reads the small input four times as often as the large one,
+ *  so both last about as long and garbage collection and the CPU counter's ticks of about 4 ms
+ *  land in both alike. The count is set after a warm-up read, doubling until the lower of two
+ *  runs of the small input takes 25 ms, so a sample lasts about 100 ms. Each size's fastest of
+ *  five samples counts, the sizes taken in turn. The rounds stop past 10 s of CPU (a linear reader
+ *  needs 1 to 3 s), so a quadratic one fails with its numbers well inside the CI job's time limit. */
+async function assertLinear(label, small, big) {
+  await small();
+  let reps = 1;
+  while (Math.min(await cpuMs(small, reps), await cpuMs(small, reps)) < 25) reps *= 2;
+  let s = Infinity;
+  let b = Infinity;
+  let spent = 0;
+  for (let i = 0; i < 5 && spent < 10_000; i++) {
+    const smalls = await cpuMs(small, 4 * reps);
+    const bigs = await cpuMs(big, reps);
+    s = Math.min(s, smalls);
+    b = Math.min(b, bigs);
+    spent += smalls + bigs;
+  }
+  const one = s / (4 * reps);
+  const four = b / reps;
+  assert.ok(four < one * 8, `${label}: ${one.toFixed(1)} ms CPU a read then ${four.toFixed(1)} ms (${(four / one).toFixed(1)}x for 4x the input)`);
+  console.log(`  ${label}: ${one.toFixed(1)} ms CPU a read, 4x input ${four.toFixed(1)} ms (${(four / one).toFixed(1)}x)`);
+}
+
+test('reading hostile input stays linear: 4x the input takes about 4x the time, never 16x', async () => {
   // Inputs built to make a careless reader quadratic: an unclosed comment opened over and over, an
   // import keyword with no specifier repeated, a huge run of name characters after `import`, and an
-  // archive of many entries.
+  // archive of many entries. Archives are built before timing, so only the reading is timed.
+  const N = 25_000;
   const shapes = {
     comments: (n) => '/*'.repeat(n),
     imports: (n) => 'import '.repeat(n),
@@ -364,21 +395,19 @@ test('reading hostile input stays linear: doubling the input at most about doubl
   };
   for (const [label, make] of Object.entries(shapes)) {
     const ext = label === 'urls' ? 'style.css' : 'graphic.mjs';
-    const run = (n) => async () => {
+    const read = async (n) => {
       const extra = { [ext]: make(n) };
       if (ext === 'graphic.mjs') extra[ext] += '\nexport default class {}';
-      await importForeignOgraf('x.zip', await zipOf(minimal(extra), '', { compression: 'STORE' }));
+      const zip = await zipOf(minimal(extra), '', { compression: 'STORE' });
+      return () => importForeignOgraf('x.zip', zip);
     };
-    const small = await time(run(50_000));
-    const big = await time(run(100_000));
-    assert.ok(big < small * 3 + 20, `${label}: ${small.toFixed(1)} ms then ${big.toFixed(1)} ms`);
-    console.log(`  ${label}: 50k ${small.toFixed(1)} ms, 100k ${big.toFixed(1)} ms`);
+    await assertLinear(label, await read(N), await read(4 * N));
   }
-  const entries = (n) => async () => readOgrafArchive(await zipOf(new Map(Array.from({ length: n }, (_, i) => [`e${i}.txt`, Buffer.from('x')])), ''));
-  const small = await time(entries(450));
-  const big = await time(entries(900));
-  assert.ok(big < small * 3 + 20, `entries: ${small.toFixed(1)} ms then ${big.toFixed(1)} ms`);
-  console.log(`  entries: 450 ${small.toFixed(1)} ms, 900 ${big.toFixed(1)} ms`);
+  const entries = async (n) => {
+    const zip = await zipOf(new Map(Array.from({ length: n }, (_, i) => [`e${i}.txt`, Buffer.from('x')])), '');
+    return () => readOgrafArchive(zip);
+  };
+  await assertLinear('entries', await entries(L.entries / 4), await entries(L.entries));
 });
 
 test('the bounds are this road\'s: an html zip past them is the native importer\'s, as before', async () => {
