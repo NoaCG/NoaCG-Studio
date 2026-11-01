@@ -42,18 +42,25 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci14 builder receipt (session_017SdbwPiLbhnQs2cAumQAtk)",
-    "eta": "2026-11-02T00:30:00Z"
+    "what": "PR #1936 merge queue, then ci14 checker",
+    "eta": "2026-11-01T23:15:00Z"
   },
   "inFlight": [
     {
       "phase": "ci14",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwPiLbhnQs2cAumQAtk",
       "nonce": "ci14-b-b9d3",
       "branch": "claude/plan-cicd-improvement-ci14-build",
       "launchedAt": "2026-11-01T21:59:51Z",
-      "note": "Reporting row: no authorized cohort; record PENDING disposition with observed cicd+JEV co-run operating evidence; starts no plan."
+      "note": "PENDING disposition; co-run p50 9.9/p90 12.4 min, 0 dequeues; GitHub 1h stamp offset 08-09Z corroborated by coordinator ledger. Auto-merge on 22:45Z.",
+      "pr": 1936,
+      "reviewedHead": "a62a6ba0b2dc627769ca92087e6c5a41ac271a92",
+      "stampRun": 41358724212,
+      "so": "session_017SdbwQJCon3KmkjDrtoh8i",
+      "followUps": [
+        1939
+      ]
     }
   ],
   "owner": [],
@@ -338,7 +345,8 @@
     1924,
     1926,
     1928,
-    1932
+    1932,
+    1939
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
