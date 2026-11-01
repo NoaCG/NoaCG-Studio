@@ -650,11 +650,13 @@ test('an imported count-up waits for Start; Pause holds it and Reset returns to 
   await page.getByTestId('verb-take').click();
   const clock = airClock(page);
   await expect(clock).toHaveText(DRAWN);
-  for (const event of CLOCK_EVENTS) await expect(page.getByTestId(`cue-action-${event}`)).toBeEnabled();
-  // Taken, it holds: the operator starts it.
+  for (const event of CLOCK_EVENTS) await expect(page.getByTestId(`cue-action-${event}`)).toBeVisible();
+  // Taken, it holds: the operator starts it, and nothing is running to pause yet.
+  await expect(page.getByTestId('cue-action-clock_pause')).toBeDisabled();
   await page.waitForTimeout(1500);
   await expect(clock).toHaveText(DRAWN);
   await page.getByTestId('cue-action-clock_start').click();
+  await expect(page.getByTestId('cue-action-clock_pause')).toBeEnabled();
   await expect.poll(async () => secondsOf(await clock.textContent()), { timeout: 5000 }).toBeGreaterThan(secondsOf(DRAWN));
   await page.getByTestId('cue-action-clock_pause').click();
   const held = await clock.textContent();
