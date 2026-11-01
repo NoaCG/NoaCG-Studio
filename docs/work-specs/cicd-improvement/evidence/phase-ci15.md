@@ -48,7 +48,7 @@ The incomplete one, which would wait on its own but does not decide this verdict
 
 | Condition | Receipt | My reading | Verdict |
 | --- | --- | --- | --- |
-| 14 clean calendar days after the last defined reset | `e2e-selection-misses.mjs resets` on a full clone (section 2). Reset chain `06d3836c` (ci07) then `c2ca020a` (ci10) then `8e84002d` (ci11) | 0 days elapsed at this row's base. No landing since `8e84002d` is a reset (section 2). The audit also reads `blocked`: three quarantine incidents are open (section 3) | **not met, incomplete** (earliest 2026-11-15T18:14:35Z) |
+| 14 clean calendar days after the last defined reset | `e2e-selection-misses.mjs resets` on a full clone (section 2). Reset chain `06d3836c` (ci07) then `c2ca020a` (ci10) then `8e84002d` (ci11) | 0 days elapsed at this row's base. No landing since `8e84002d` is a reset (section 2). The audit also reads `blocked`: four quarantine incidents are open on `main` now, three at the base (section 3) | **not met, incomplete** (earliest 2026-11-15T18:14:35Z) |
 | Original-culprit replay | ci07 replay of 42 days of red full runs, 126 items, none `unknown` ([phase-ci07-replay.json](phase-ci07-replay.json)); checker PASS on `06d3836c` (PR #1896, comment 6555493937) | The replay exists and I re-read the current 7 days with the same tool (section 3). ci13 adds no historical exact-commit Actions replay; its checker counts that as a missing drill receipt | **receipt accepted**, with one disagreement on its reading (section 4) |
 | Continuing comparison | `weekly-audit.yml` runs the miss audit each week since ci07 | Re-run here on `main` (section 3) | in place |
 | Adversarial replays | ci11 faults F1 to F10 ([phase-ci11.md](phase-ci11.md), [phase-ci11-faults.json](phase-ci11-faults.json)); checker PASS on `8e84002d` (PR #1922, comment 6562405562) | Each fault fails its guard and the correction passes; two historical replays did not reproduce and are reported as such; physical playout devices and vendor builds stay unproved | **accepted**, with those stated limits |
@@ -71,7 +71,9 @@ The clone was shallow at first (three culprit ranges failed to read), so I ran
 | `5ca8b87a` (this row's base) | `8e84002d` 2026-11-01T18:14:35Z | same |
 
 The eight first-parent landings after `8e84002d` (#1923, #1927, #1919, #1929, #1931, #1930, #1933,
-#1936) touch none of the six selector files and carry no `Selection-audit-reset` trailer. ci12 and
+#1936) touch none of the six selector files and carry no `Selection-audit-reset` trailer. Two more landed during this build,
+JEV #1938 (`0c623501`) and quarantine #1940 (`9c2980d0`); `resets --ref origin/main` at `9c2980d0`
+still reads `8e84002d`. ci12 and
 ci13 each classified their own merge as not a reset; I agree.
 
 ## 3. The miss audit on current `main`
@@ -87,31 +89,34 @@ calls. Status **`blocked`**: 4 misses, 0 unknown, 19 failing items on 13 red ful
 | 41134775210 | ci.yml | `import-svg-corpus` | `0df77f74` (#1827) | miss, unmarked | **Explained**: the culprit changed plan-run docs, skills and plan-run tooling scripts only (`scripts/plan-*`, `run-*`, `project-*`, `wave-plan-store.mjs` and tests). The fail-then-pass is quarantine PR #1834, open since 2026-10-30 and not landed, so the store does not mark it |
 | 41244292482 | ci.yml | `import-svg` | `af39c249` (#1877) | miss, flake | **Explained**: the culprit changed `e2e/quarantine.json` only. Its quarantine entry names this very run (same-run receipt) |
 | 41336665950 | ci.yml | `production-chat-intake` | `8e84002d` | selected, flake | Selected. Fail-then-pass, now quarantined (#1923), tracked in #1924 |
-| 41359365006 | ci.yml | `production-data` | `5ca8b87a` (#1936) | miss, unmarked | **Explained**: the culprit is ci14's evidence file only. Fail-then-pass on that commit, quarantine PR #1940 open; the spec has a known open failure, #1603 |
+| 41359365006 | ci.yml | `production-data` | `5ca8b87a` (#1936) | miss, unmarked | **Explained**: the culprit is ci14's evidence file only. Fail-then-pass on that commit, quarantined by #1940 (landed 2026-11-01T23:32:28Z, after this row's base); the spec has a known open failure, #1603 |
 | 40289330116, 40724937287, 41134775201, 41205531471, 41247602152, 41339116445 | configured-suite.yml | shard and verdict jobs | various | not-a-spec | No spec really failed in the verdict; lost shards or stack starts (#1865, #1829) |
 
 All four misses the audit names are explained by their culprits' file lists: none changed product
-code. Two of the four (`import-svg-corpus`, `production-data`) are fail-then-pass flakes whose
-quarantine PRs have not landed (#1834, #1940).
+code. Two of the four (`import-svg-corpus`, `production-data`) are fail-then-pass flakes the store
+did not yet mark at the base: #1834 is still open, and #1940 landed during this build.
 
-**Open quarantine incidents** (`e2e/quarantine.json` at the base), each blocking narrowing and
-expansion under ci07 Rule Q5 and the runbook:
+**Open quarantine incidents** (`e2e/quarantine.json` on `main` at `9c2980d0`, re-read just before
+queueing), each blocking narrowing and expansion under ci07 Rule Q5 and the runbook:
 
 | Spec | Since | Set | Tracking |
 | --- | --- | --- | --- |
 | `e2e/configured/late-send-abandoned.spec.ts` | 2026-10-28 | configured | count 16 |
 | `e2e/import-svg.spec.ts` | 2026-10-31 | mapped | count 5 |
 | `e2e/production-chat-intake.spec.ts` | 2026-11-01 | `// focus` (shared-change set) | #1924 |
+| `e2e/production-data.spec.ts` | 2026-11-01 | `// focus` (shared-change set) | #1940, #1603 |
 
-Pending entries: `import-svg-corpus` (#1834) and `production-data`, also `// focus` (#1940). Zero
+Four incidents, not the three at the base: #1940 landed during this build (not a reset; `resets
+--ref origin/main` still reads `8e84002d`). Pending entry: `import-svg-corpus` (#1834). Zero
 unexplained misses is necessary, not sufficient: these incidents block on their own.
 
 ## 4. The pre-reset unexplained misses, replayed on today's planner
 
 ci07 listed five unexplained misses, all before its reset, and left to ci15 whether they block.
 They block when today's selection still leaves the failed spec out for the culprit's files: the
-gap that may have let the fault in is still open, and the 14-day window cannot observe it, because
-the culprit landed before the window started.
+miss is still unexplained (whether a real dependency gap exists is not proved either way), and the
+14-day window cannot observe it, because the culprit landed before the window started. The verdict
+does not rest on this reading: the ci13 failure alone is enough to block.
 
 I ran each culprit's first-parent diff through the planner the way CI does
 (`node scripts/e2e-affected.mjs --json --files <files>`, which applies the shared-change escalation,
@@ -143,8 +148,7 @@ own, so each is replayed alone. Net: three misses stay open, not one.
   terms while this verdict stands.
 - Misses: a mapping or shared-set correction for #1900, #1942 and #1944, or evidence that clears each
   culprit. Either correction is a reset.
-- Incidents: the three open quarantine entries back in the blocking gate, and #1834 and #1940
-  resolved.
+- Incidents: the four open quarantine entries back in the blocking gate, and #1834 resolved.
 - Window: 14 clean days after the last of those resets.
 - Then a fresh ci15 qualification on still-current receipts. Any reset or stale receipt refuses
   narrowing.
