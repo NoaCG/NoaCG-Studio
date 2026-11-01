@@ -28,7 +28,8 @@ names each.
   built on main: the editable roll, the original-artwork roll (`options.artwork`), and plain
   imports of the credits drawings.
 - C2 One engine per design. `creditsEngine` answers styled, artwork, editable or none. A styled
-  binding with `options.artwork` is refused (`conflicting-engine`), never combined.
+  binding with `options.artwork` is refused (`conflicting-engine`), never combined; the engine
+  answer for it is the artwork roll, which is what the assembler builds.
 - C3 The content is one list. The styled binding keeps the recipe's one `credits` field; any
   other anchor bound as its own field is refused (`field-per-name`). The sample becomes that
   list in the native format (`parseCredits` reads it back), keeping row order and zero, one or
@@ -37,10 +38,14 @@ names each.
   order (top to bottom, then left to right) with its kind, role or name. Unknown, duplicate,
   reordered or re-kinded anchors refuse the whole binding (`unknown-anchor`, `duplicate-anchor`,
   `stale-anchors`); a stored layout the markup no longer shows refuses too (`stale-layout`).
+  Layers are compared as the text each draws, so a run's own id inside an anchor counts as that
+  anchor. Reading never rewrites the markup.
 - C5 The style is read off the drawing. Exactly two looks; the first layer read is the role look.
   A line holding a role and then a name is role beside; a first name on a lower line is role
   above. Above, all layers share one aligned edge; beside, roles share one and names another.
   Alignment is read from the stated anchor, or from drawn widths where the text is laid out.
+  Laid out, looks and the anchor are the browser's computed style, so stylesheet classes count;
+  validation lays the markup out whenever a page exists. A run's own x and y are where it is drawn.
   Steps (role to name, name to name, group gap, column) are measured where the sample shows them.
 - C6 A whole block turned or scaled as one reads as drawn; layers at different angles or scales
   are refused (`mixed-angles`).
@@ -85,10 +90,11 @@ names each.
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 12/12. The same file with
+- `node --test scripts/imported-credits-model.test.mjs`: 16/16. The same file with
   `CREDITS_SRC` set to an export of main `e680acd1` gives identical pins (the model tests fail
   there, as they must). Mutations: a changed byte in the editable roll's runtime string, or in the
-  artwork roll's, fails the pin test.
+  artwork roll's, fails the pin test; reading the text's x before its run's fails the run-position
+  test.
 - `npx tsc --noEmit -p .`, `npx eslint` on the four files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS.
 - `scripts/jev-svg-baseline.test.mjs` 19/19, `scripts/credits-parser.test.mjs` 16/16,
@@ -113,9 +119,22 @@ names each.
 - **Pins compare the html as a tree.** Chromium builds order SVG namespace declarations
   differently when serializing; the pins sort attributes and leave namespace declarations out,
   and compare css, js and fields byte for byte.
+- **The pins cover the whole emitted template**, not only the credits engine, because the brief
+  asks that saved credits and fixed artwork not move at all. A later row that changes the shared
+  emit re-takes them the same way: on main before the change and on its branch.
 - **Ordinary review scenario.** This row adds a declaration and a pure reader with no runtime
   state, transitions, retries or writers, so the Rules were written in these notes rather than
   challenged before code.
+
+## Known limits
+
+- **A name-first drawing reads with roles and names swapped.** With names in the left column and
+  roles on the right, geometry alone cannot tell which look is the role, and the rule "the first
+  layer read is the role look" answers wrongly. The stored anchor kinds are the author's to
+  confirm in row 18's preview (AC-23); nothing here guesses further.
+- **A parsed-only reading does not see stylesheet looks.** Without a page, class-set sizes and
+  anchors are not resolved (classes still separate the looks). Every in-product caller has a page,
+  and validation lays the markup out there.
 
 ## Follow-ups
 

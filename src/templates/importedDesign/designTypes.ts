@@ -5,6 +5,7 @@
 // and `designArt` members of WizardOptions.
 
 import type { CustomFont } from '../../model/fonts';
+import type { CREDITS_LAYOUTS, CREDITS_PLAYBACKS } from '../behaviours/credits';
 
 /**
  * An imported SVG graphic: the sanitized markup (candidates tagged with
@@ -182,8 +183,8 @@ export interface DesignSvgCredits {
   anchors: DesignSvgCreditsAnchor[];
 }
 
-export type CreditsLayout = 'role-above' | 'role-beside';
-export type CreditsPlayback = 'static' | 'roll' | 'cards';
+export type CreditsLayout = (typeof CREDITS_LAYOUTS)[number];
+export type CreditsPlayback = (typeof CREDITS_PLAYBACKS)[number];
 
 /** One drawn layer the credits style is read from. */
 export interface DesignSvgCreditsAnchor {

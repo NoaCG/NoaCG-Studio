@@ -44,6 +44,9 @@ const CASES = {
   centred: svg(`${t(0, 100, 24, 'Camera', ' fill="#fc0"')}${t(0, 160, 40, 'Jonas Bergström')}${t(0, 210, 40, 'Lena Fors')}`),
   // Zero, one and several names: a role with none stays in the list.
   zero: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 260, 24, 'Producer', ' fill="#fc0"')}${t(100, 360, 24, 'Editor', ' fill="#fc0"')}${t(100, 420, 40, 'Mia Holt')}${t(100, 470, 40, 'Ola Berg')}`),
+  // The anchor stated by a stylesheet class, and a run's own x drawn over the text's.
+  classed: svg(`<style>.c{text-anchor:middle}</style>${t(500, 100, 24, 'Camera', ' fill="#fc0" class="c"')}${t(500, 160, 40, 'Jonas Berg', ' class="c"')}${t(500, 210, 40, 'Lena Fors', ' class="c"')}`),
+  runX: svg(`<text x="50" y="0" font-size="24" fill="#fc0"><tspan x="300" y="100">Camera</tspan></text><text x="0" y="0" font-size="40"><tspan x="300" y="160">Jonas Berg</tspan></text>`),
   oneLook: svg(`${t(100, 100, 40, 'Director')}${t(100, 160, 40, 'Alex Rivera')}`),
   manyLooks: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 220, 40, 'Ida Lake', ' fill="#f00"')}`),
   sideBySide: svg(`${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada')}${t(400, 160, 40, 'Bo')}`),
@@ -165,12 +168,32 @@ async function inPage({ dev, cases, legacy, artwork }) {
     })(),
     plain: C.validateCreditsBinding(base(imp1)),
   };
+  // Reading never rewrites the designer's transforms.
+  const turnedRoot = parsed(imported(cases.turned).markup);
+  const before = [...turnedRoot.querySelectorAll('[transform]')].map((el) => el.getAttribute('transform'));
+  C.readCreditsAnchors(turnedRoot, imported(cases.turned).candidates.map((c) => c.id));
+  const after = [...turnedRoot.querySelectorAll('[transform]')].map((el) => el.getAttribute('transform'));
+  // A saved binding of Illustrator-style centring validates without a root: it is laid out.
+  const centredImp = imported(caseMarkup.centred);
+  const centredStyle = analyse(caseMarkup.centred, laidOut).out.style;
+  const centredFields = fieldsOf(centredImp).filter((f) => f.candidateId === centredStyle.anchors[0].candidateId);
+  const centredCheck = C.validateCreditsBinding({ ...base(centredImp), fields: centredFields, behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 }, credits: { v: 1, layout: centredStyle.layout, playback: 'static', anchors: centredStyle.anchors } } });
+  // A run inside a name layer carrying its own id is still that name's layer.
+  const nameId = good.anchors[1].candidateId;
+  const runMarkup = imp1.markup.replace(new RegExp(`(<text[^>]*data-noacg-candidate="${nameId}"[^>]*>)([^<]*)<`), '$1<tspan data-noacg-candidate="run9">$2</tspan><');
+  const runBinding = (credits, extraFields = []) => ({ ...binding(credits), markup: runMarkup, fields: [...fields1, ...extraFields] });
+  const run = {
+    perName: C.validateCreditsBinding(runBinding(good, [{ candidateId: 'run9', title: 'x', sample: 'x', numeric: false }])),
+    duplicate: C.validateCreditsBinding(runBinding({ ...good, anchors: [...good.anchors, { candidateId: 'run9', kind: 'name' }] })),
+    markupChanged: runMarkup !== imp1.markup,
+  };
   const engine = {
     none: C.creditsEngine(base(imp1)),
     quiz: C.creditsEngine(base(imp1, { kind: 'recipe', recipe: 'meter', layers: {} })),
     editable: C.creditsEngine(base(imp1, { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 } })),
     artwork: C.creditsEngine(base(imp1, { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 }, options: { artwork: true } })),
     styled: C.creditsEngine(binding(good)),
+    both: C.creditsEngine(binding(good, { options: { artwork: true } })),
   };
   return {
     pins,
@@ -180,6 +203,9 @@ async function inPage({ dev, cases, legacy, artwork }) {
     unknown,
     validation,
     engine,
+    transforms: { before, after },
+    centredCheck,
+    run,
     overflow: C.CREDITS_OVERFLOW,
     constants: { layouts: window.NOACG_RECIPE.CREDITS_LAYOUTS, playbacks: window.NOACG_RECIPE.CREDITS_PLAYBACKS, seconds: window.NOACG_RECIPE.CREDITS_CARD_SECONDS },
     intent: window.NOACG_CONTRACT.SVG_INTENT.credits,
@@ -332,8 +358,33 @@ test('a saved binding is checked whole against the markup', () => {
   assert.deepEqual(v.plain, [], 'a design without a styled binding has nothing to check');
 });
 
+test('reading leaves the designer\'s transforms as they are', () => {
+  assert.ok(R.transforms.before.length > 0);
+  assert.deepEqual(R.transforms.after, R.transforms.before);
+});
+
+test('a stylesheet anchor and a run\'s own position are read as drawn', () => {
+  const classed = R.caseResults.classed.laid.out;
+  assert.equal(classed.ok, true, classed.message);
+  assert.deepEqual(classed.style.align, { role: 'middle', name: 'middle' });
+  const runX = R.caseResults.runX.parsed.out;
+  assert.equal(runX.ok, true, runX.message);
+  assert.deepEqual(runX.style.steps, { roleToName: 60 });
+});
+
+test('a saved centred binding validates on its own, laid out', () => {
+  assert.deepEqual(R.centredCheck, []);
+});
+
+test('a run inside an anchor layer counts as that layer', () => {
+  assert.ok(R.run.markupChanged);
+  assert.ok(R.run.perName.some((e) => e.startsWith('field-per-name:')), JSON.stringify(R.run.perName));
+  assert.ok(R.run.duplicate.some((e) => e.startsWith('duplicate-anchor:')), JSON.stringify(R.run.duplicate));
+});
+
 test('one engine per design: styled, original artwork or editable, never two', () => {
-  assert.deepEqual(R.engine, { none: null, quiz: null, editable: 'editable', artwork: 'artwork', styled: 'styled' });
+  // Carrying both is refused by validation; the engine answer is the one the assembler builds.
+  assert.deepEqual(R.engine, { none: null, quiz: null, editable: 'editable', artwork: 'artwork', styled: 'styled', both: 'artwork' });
 });
 
 test('overflow is defined for every playback and never drops, clips or switches', () => {

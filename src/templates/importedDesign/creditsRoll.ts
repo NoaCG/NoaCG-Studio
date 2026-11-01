@@ -30,7 +30,7 @@
 
 import { SVG_CANDIDATE_ATTR } from '../../assets/svgImport';
 import type { DesignSvg } from '../../model/wizard';
-import type { CreditsLayout, CreditsPlayback, DesignSvgCreditsAnchor } from './designTypes';
+import type { CreditsLayout, CreditsPlayback, DesignSvgCredits, DesignSvgCreditsAnchor } from './designTypes';
 import {
   CREDITS_BOX_ROLE,
   CREDITS_CARD_SECONDS,
@@ -629,8 +629,11 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     return Number.isFinite(n) ? n : null;
   };
   const view = text.ownerDocument.defaultView;
-  // A property as the layer resolves it: its first run, then the text, then each ancestor.
+  // Laid out, the browser's own answer, so a stylesheet class counts; parsed, the layer's
+  // attributes and inline styles from its first run up through each ancestor.
+  const computed = view && text.isConnected ? view.getComputedStyle(first ?? text) : null;
   const prop = (name: string): string => {
+    if (computed) return computed.getPropertyValue(name).trim();
     for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el === first ? text : el.parentElement) {
       const inline = (el.getAttribute('style') ?? '').split(';').map((d) => d.split(':')).find(([k]) => k?.trim() === name);
       if (inline && inline[1] !== undefined) return inline.slice(1).join(':').trim();
@@ -639,22 +642,27 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     }
     return '';
   };
-  const computedSize = view && text.isConnected ? parseFloat(view.getComputedStyle(text).fontSize) : NaN;
-  const size = Number.isFinite(computedSize) && computedSize > 0 ? computedSize : parseFloat(prop('font-size')) || 16;
+  const size = parseFloat(prop('font-size')) || 16;
   const look = [
     ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'stroke', 'opacity', 'letter-spacing', 'text-decoration'].map((p) => `${p}=${prop(p)}`),
     `class=${text.getAttribute('class') ?? ''}/${first?.getAttribute('class') ?? ''}`,
   ].join(';');
   const anchorWord = prop('text-anchor');
   const anchor: CreditsAlign = anchorWord === 'middle' || anchorWord === 'end' ? anchorWord : 'start';
-  const lx = num(text, 'x') ?? num(first, 'x') ?? 0;
-  const ly = num(text, 'y') ?? num(first, 'y') ?? 0;
+  // A run's own position is where it is drawn; the text's is only the default for it.
+  const lx = num(first, 'x') ?? num(text, 'x') ?? 0;
+  const ly = num(first, 'y') ?? num(text, 'y') ?? 0;
   // Every transform from the layer up to the root, composed: the layer's frame in the artwork's.
   let m = new DOMMatrix();
   for (let el: Element | null = text; el && el !== root; el = el.parentElement) {
+    // Item by item: `consolidate()` would rewrite the designer's transform attribute.
     const list = (el as SVGGraphicsElement).transform?.baseVal;
-    const t = list && list.numberOfItems > 0 ? list.consolidate()?.matrix : null;
-    if (t) m = new DOMMatrix([t.a, t.b, t.c, t.d, t.e, t.f]).multiply(m);
+    let own = new DOMMatrix();
+    for (let i = 0; list && i < list.numberOfItems; i++) {
+      const t = list.getItem(i).matrix;
+      own = own.multiply(new DOMMatrix([t.a, t.b, t.c, t.d, t.e, t.f]));
+    }
+    m = own.multiply(m);
   }
   const p = m.transformPoint(new DOMPoint(lx, ly));
   const baselines = new Set<number>();
@@ -818,13 +826,15 @@ export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[]
   };
 }
 
-/** Which credits engine a saved design selects: the artwork's own styling, the original-text roll,
- *  the editable roll, or none. One answer per design; the styled model never combines. */
+/** Which credits engine a saved design selects: the original-text roll, the artwork's own
+ *  styling, the editable roll, or none. One answer per design. The original-text marker wins, as
+ *  it does in the assembler, so a binding carrying both (`conflicting-engine`) never half-builds
+ *  as styled. The assembler does not build 'styled' yet; #1937 carries that seam. */
 export function creditsEngine(svg: DesignSvg): 'styled' | 'artwork' | 'editable' | null {
   const behaviour = svg.behaviour;
   if (behaviour?.kind !== 'recipe' || behaviour.recipe !== CREDITS_RECIPE_ID) return null;
-  if (behaviour.credits) return 'styled';
-  return behaviour.options?.artwork === true ? 'artwork' : 'editable';
+  if (behaviour.options?.artwork === true) return 'artwork';
+  return behaviour.credits ? 'styled' : 'editable';
 }
 
 /**
@@ -869,17 +879,46 @@ export function validateCreditsBinding(svg: DesignSvg, root?: Element): string[]
   const content = creditsIndex(svg);
   if (content === -1) errors.push('no-content-field: the credits list needs its one field.');
   const ids = (model.anchors ?? []).map((x) => x.candidateId);
-  if (new Set(ids).size !== ids.length) errors.push('duplicate-anchor: a layer is named twice.');
-  const contentId = svg.fields[content]?.candidateId;
-  const perName = svg.fields.filter((f) => f.candidateId !== contentId && ids.includes(f.candidateId));
-  if (perName.length > 0) errors.push(`field-per-name: ${perName.map((f) => f.candidateId).join(', ')} would each be a field.`);
-  const scope = root ?? new DOMParser().parseFromString(svg.markup, 'image/svg+xml').documentElement;
-  const analysis = analyseCreditsStyle(readCreditsAnchors(scope, ids), ids);
-  if (!analysis.ok) errors.push(`${analysis.code}: ${analysis.message} (${analysis.anchors.join(', ')})`);
-  else {
-    if (analysis.style.layout !== model.layout) errors.push(`stale-layout: the artwork shows ${analysis.style.layout}.`);
-    const kinds = analysis.style.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',');
-    if (kinds !== model.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',')) errors.push('stale-anchors: the layers no longer read in this order or role.');
+  // Laid out where there is a page, so drawn widths and stylesheet looks read as the wizard
+  // read them; a parsed document only where there is none.
+  const laid = root ? null : creditsLaidOut(svg.markup);
+  const scope = root ?? laid?.root ?? new DOMParser().parseFromString(svg.markup, 'image/svg+xml').documentElement;
+  try {
+    // Layers compared as the text each one draws, since a run's id names its whole text.
+    const textOf = (id: string | undefined) => (id ? scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.closest('text') ?? null : null);
+    const texts = ids.map(textOf);
+    if (new Set(texts.filter(Boolean)).size !== texts.filter(Boolean).length) errors.push('duplicate-anchor: a layer is named twice.');
+    const contentText = textOf(svg.fields[content]?.candidateId);
+    const perName = svg.fields.filter((f) => {
+      const own = textOf(f.candidateId);
+      return own !== null && own !== contentText && texts.includes(own);
+    });
+    if (perName.length > 0) errors.push(`field-per-name: ${perName.map((f) => f.candidateId).join(', ')} would each be a field.`);
+    analyseInto(errors, model, analyseCreditsStyle(readCreditsAnchors(scope, ids), ids));
+  } finally {
+    laid?.done();
   }
   return errors;
+}
+
+/** The markup placed on the page, unseen, for as long as a reading takes; null without a page. */
+function creditsLaidOut(markup: string): { root: Element; done: () => void } | null {
+  if (typeof document === 'undefined' || !document.body) return null;
+  const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml').documentElement;
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none';
+  host.appendChild(document.importNode(parsed, true));
+  document.body.appendChild(host);
+  return { root: host.firstElementChild as Element, done: () => host.remove() };
+}
+
+function analyseInto(errors: string[], model: DesignSvgCredits, analysis: CreditsAnalysis): void {
+  if (!analysis.ok) {
+    errors.push(`${analysis.code}: ${analysis.message} (${analysis.anchors.join(', ')})`);
+    return;
+  }
+  if (analysis.style.layout !== model.layout) errors.push(`stale-layout: the artwork shows ${analysis.style.layout}.`);
+  const kinds = analysis.style.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',');
+  if (kinds !== model.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',')) errors.push('stale-anchors: the layers no longer read in this order or role.');
 }
