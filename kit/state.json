@@ -42,13 +42,13 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "PR #1918 merge queue, then ci10 checker",
-    "eta": "2026-11-01T15:00:00Z"
+    "what": "ci10 checker verdict (session_017SdbwPbLAh3Uu1dRmNwZks)",
+    "eta": "2026-11-01T15:30:00Z"
   },
   "inFlight": [
     {
       "phase": "ci10",
-      "step": "landing",
+      "step": "check",
       "session": "session_017SdbwQPCwTtHEHCFbfgDw5",
       "nonce": "ci10-b-aa2f",
       "branch": "claude/plan-cicd-improvement-ci10-build",
@@ -61,7 +61,13 @@
       "so": "session_017SdbwMcjCdUC1N9uqB2pXG",
       "followUps": [
         1920
-      ]
+      ],
+      "mergeSha": "c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6",
+      "landedAt": "2026-11-01T14:19:27Z",
+      "queueRun": 41315071742,
+      "checker": "session_017SdbwPbLAh3Uu1dRmNwZks",
+      "actor": "checker-ci10-ci10-c-d494",
+      "auditReset": "c2ca020a 2026-11-01T14:12:39+00:00 (protection removed or changed: 1 covers line)"
     }
   ],
   "owner": [],
@@ -359,6 +365,11 @@
       "at": "2026-11-01T14:12Z",
       "phase": "ci10",
       "decision": "Accepted two disclosed departures: (1) the test-maintenance entry for the deleted e2e/editor-proposal-task.spec.ts is the protection check's designed receipt for a planned merge, keyed to the deleted file only, backed by the F0-F6 fault matrix and the /so line-by-line read; it is not an entry written to pass a gate after a loss. (2) The landing is an audit reset (removed covers line); record the merge SHA and time from `e2e-selection-misses.mjs resets` after landing, and the checker confirms it."
+    },
+    {
+      "at": "2026-11-01T14:21Z",
+      "phase": "run",
+      "decision": "Latest audit reset is now c2ca020a7670ac6a7f2e99150aec9a5108d1e6c6 (ci10 merge, 2026-11-01T14:12:39Z, removed covers line), read from e2e-selection-misses resets on current main. The 14-day audit window restarts from it; earlier reset 06d3836c (ci07)."
     }
   ]
 }
