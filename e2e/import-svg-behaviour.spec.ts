@@ -1288,14 +1288,25 @@ test('one Clock choice on a new import: it sits beside the score tracker, and a 
   const clock = page.getByTestId('map-svg-clock-mode');
   await expect(kind.locator('option[value="timer"]')).toHaveCount(0);
   await expect(clock).toHaveCount(1);
-  // No clock, counting up and a duration; the target time waits for its instant (row 10).
-  await expect(clock.locator('option')).toHaveCount(3);
+  // No clock, counting up, a duration and a target time.
+  await expect(clock.locator('option')).toHaveCount(4);
   await expect(clock).toHaveValue('none');
   await kind.selectOption('score');
   await clock.selectOption('duration');
   await expect(clock).toHaveValue('duration');
   await expect(kind).toHaveValue('score');
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(1);
+  // A target time asks for its time, date and zone, and says which instant it counts to (row 10).
+  await expect(page.getByTestId('map-svg-clock-target')).toHaveCount(0);
+  await clock.selectOption('target-time');
+  // The first proposal names its instant and leaves the date unchosen, so a time typed alone is its next one.
+  await expect(page.getByTestId('map-svg-clock-target-reads')).toBeVisible();
+  await expect(page.getByTestId('map-svg-clock-target-date')).toHaveValue('');
+  await page.getByTestId('map-svg-clock-target-zone').selectOption('Europe/Helsinki');
+  await page.getByTestId('map-svg-clock-target-date').fill('2031-11-14');
+  await page.getByTestId('map-svg-clock-target-time').fill('19:00');
+  await expect(page.getByTestId('map-svg-clock-target-reads')).toContainText('2031');
+  await expect(page.getByTestId('map-svg-clock-target-reads')).toContainText(/19[:.]00|7[:.]00/);
 
   // A file drawn for the countdown is proposed as one, as before, and offers no Clock.
   await openImportDoor(page, TIMER_SVG);

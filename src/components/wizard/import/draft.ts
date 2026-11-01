@@ -25,6 +25,7 @@ import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../..
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_MODES, CLOCK_NAME, CLOCK_TIME } from '../../../templates/behaviours/clock';
+import { formatClockTarget, parseClockTarget, resolveClockTarget } from '../../../control/clockTarget';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
 import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
 import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
@@ -1081,6 +1082,12 @@ export interface SvgClockDraft {
    *  markup, so on any other artwork the clock reads as none: a drop never carries it onto a
    *  layer the author did not pick, and the same file dropped again keeps it. */
   revision: string;
+  /** A target time's resolved instant (control/clockTarget.ts `formatClockTarget`). Picking
+   *  Target time proposes one (the next whole hour), so the picker never offers a clock with
+   *  nothing to count to. */
+  target?: string;
+  /** The target's date was proposed, never typed: a time typed alone takes its next occurrence. */
+  targetProposed?: boolean;
 }
 
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */
@@ -1165,12 +1172,30 @@ export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
   return !!svg && bestProposal({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown';
 }
 
-/** The clock as the graphic carries it, or null. */
-export function svgClockOption(draft: SvgImportDraft): DesignSvgClock | null {
+/**
+ * T10: the target a clock would store at `now`. A dated one is a fixed instant as stored (T2: a past
+ * one stays expired). An undated one (the first proposal, or a time typed alone: `targetProposed`)
+ * is a wall time until the graphic is built: once its stored instant is behind `now`, it moves to
+ * the next occurrence. One the clocks skip or repeat by then keeps its stored instant (T4: no
+ * silent choice), which the import step shows as past.
+ */
+export function svgClockTarget(clock: Pick<SvgClockDraft, 'target' | 'targetProposed'>, now: number): string | undefined {
+  const stored = parseClockTarget(clock.target);
+  if (!stored) return undefined;
+  if (!clock.targetProposed || stored.at > now) return clock.target;
+  const r = resolveClockTarget({ time: stored.time, zone: stored.zone }, now);
+  return r.kind === 'resolved' ? formatClockTarget(r) : clock.target;
+}
+
+/** The clock as the graphic carries it, or null. A target time carries its instant once resolved,
+ *  as of `now` (T10): the build's own moment, unless a caller pins one. */
+export function svgClockOption(draft: SvgImportDraft, now: number = Date.now()): DesignSvgClock | null {
   const clock = draft.svgClock;
   if (!clock || !draft.designSvg || clock.revision !== svgSourceRevision(draft.designSvg.markup)) return null;
   if (!svgClockRows(draft).some((f) => f.candidateId === clock.candidateId)) return null;
-  return { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
+  const option: DesignSvgClock = { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
+  const target = clock.mode === 'target-time' ? svgClockTarget(clock, now) : undefined;
+  return target ? { ...option, target } : option;
 }
 
 /** One line saying what the graphic DOES, for the Finish step and the mapping step's summary. */
