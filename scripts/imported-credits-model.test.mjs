@@ -62,6 +62,10 @@ const CASES = {
   misaligned: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(160, 160, 40, 'Alex Rivera')}`),
   format: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Note: Alex')}`),
   tooFew: svg(t(100, 100, 24, 'Director')),
+  // Several lines in one layer, hidden in a wrapper run the importer keeps (it positions the
+  // first line) or drawn partly as loose text.
+  nestedLines: svg(`<text x="100" y="100" font-size="24" fill="#fc0"><tspan x="100" y="100"><tspan>Director</tspan><tspan x="100" y="160">Alex</tspan></tspan></text>${t(100, 220, 40, 'Ida Lake')}`),
+  looseLines: svg(`<text x="100" y="100" font-size="24" fill="#fc0">Director<tspan x="100" y="160">Alex</tspan></text>${t(100, 220, 40, 'Ida Lake')}`),
 };
 
 /** Runs in the browser: every answer the tests below read, from one page. */
@@ -329,6 +333,8 @@ test('every pattern no one style describes is refused by name, never converted',
     misaligned: 'misaligned',
     format: 'not-list-format',
     tooFew: 'too-few',
+    nestedLines: 'several-lines',
+    looseLines: 'several-lines',
   };
   for (const [k, code] of Object.entries(want)) {
     for (const mode of ['parsed', 'laid']) {

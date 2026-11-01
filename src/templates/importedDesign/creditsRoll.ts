@@ -622,7 +622,8 @@ export function readCreditsAnchors(root: Element, candidateIds: readonly string[
 }
 
 function readOne(root: Element, text: Element, candidateId: string): CreditsReading {
-  const runs = Array.from(text.children).filter((k) => k.tagName.toLowerCase() === 'tspan');
+  // The runs that hold characters, at any depth: a wrapper run around runs holds none.
+  const runs = Array.from(text.querySelectorAll('tspan')).filter((t) => !t.querySelector('tspan'));
   const first = runs[0] ?? null;
   // The first value of a position list, in user units; an `em` step is a multiple of the size.
   let size = 16;
@@ -638,7 +639,7 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   const computed = laid ? view.getComputedStyle(first ?? text) : null;
   const prop = (name: string): string => {
     if (computed) return computed.getPropertyValue(name).trim();
-    for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el === first ? text : el.parentElement) {
+    for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el.parentElement) {
       const inline = (el.getAttribute('style') ?? '').split(';').map((d) => d.split(':')).find(([k]) => k?.trim() === name);
       if (inline && inline[1] !== undefined) return inline.slice(1).join(':').trim();
       const attr = el.getAttribute(name);
@@ -655,15 +656,23 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   ].join(';');
   const anchorWord = prop('text-anchor');
   const anchor: CreditsAlign = anchorWord === 'middle' || anchorWord === 'end' ? anchorWord : 'start';
-  // A run's own position is where it is drawn; the text's is only the default for it.
   // WHERE THE FIRST CHARACTER IS DRAWN, in the layer's own units. Laid out, the browser says so
   // (its start is the line's left end, so the anchor point is found along the drawn advance).
   // Parsed, SVG's rule: each of x, y, dx and dy for that character is the NEAREST element's
   // value - the run's where it states one, else the text's - and the steps are never summed.
   const advance = laid ? (text as SVGTextContentElement).getComputedTextLength() : 0;
-  const nearest = (name: string) => num(first, name) ?? num(text, name);
-  let lx = (nearest('x') ?? 0) + (nearest('dx') ?? 0);
-  let ly = (nearest('y') ?? 0) + (nearest('dy') ?? 0);
+  // A run's position attribute is the one for its first character, then each enclosing element's
+  // while the run starts it, up to the text.
+  const nearest = (run: Element | null, name: string): number | null => {
+    for (let el: Element | null = run ?? text; el; el = el === text ? null : el.parentElement) {
+      const v = num(el, name);
+      if (v !== null) return v;
+      if (el !== text && el.parentElement && runs.find((r) => el!.parentElement!.contains(r)) !== run) return null;
+    }
+    return null;
+  };
+  let lx = (nearest(first, 'x') ?? 0) + (nearest(first, 'dx') ?? 0);
+  let ly = (nearest(first, 'y') ?? 0) + (nearest(first, 'dy') ?? 0);
   if (laid && advance > 0 && (text as SVGTextContentElement).getNumberOfChars() > 0) {
     const start = (text as SVGTextContentElement).getStartPositionOfChar(0);
     lx = start.x + { start: 0, middle: 0.5, end: 1 }[anchor] * advance;
@@ -682,12 +691,21 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     m = own.multiply(m);
   }
   const p = m.transformPoint(new DOMPoint(lx, ly));
+  // HOW MANY LINES the one layer draws. Laid out, the browser's baseline under each character;
+  // parsed, each run's start by the same nearest rule, plus the text's own loose characters.
   const baselines = new Set<number>();
-  let at = num(text, 'y') ?? 0;
-  for (const [i, run] of runs.entries()) {
-    const y = num(run, 'y');
-    at = y ?? at + (num(run, 'dy') ?? (i === 0 ? num(text, 'dy') : null) ?? 0);
-    if ((run.textContent ?? '').trim()) baselines.add(Math.round(at * 2) / 2);
+  const chars = laid ? (text as SVGTextContentElement).getNumberOfChars() : 0;
+  if (chars > 0) {
+    for (let i = 0; i < Math.min(chars, 500); i++) {
+      baselines.add(Math.round((text as SVGTextContentElement).getStartPositionOfChar(i).y * 2) / 2);
+    }
+  } else {
+    let at = (num(text, 'y') ?? 0) + (num(text, 'dy') ?? 0);
+    if (Array.from(text.childNodes).some((n) => n.nodeType === 3 && (n.textContent ?? '').trim())) baselines.add(Math.round(at * 2) / 2);
+    for (const run of runs) {
+      at = (nearest(run, 'y') ?? at) + (nearest(run, 'dy') ?? 0);
+      if ((run.textContent ?? '').trim()) baselines.add(Math.round(at * 2) / 2);
+    }
   }
   return {
     candidateId,
