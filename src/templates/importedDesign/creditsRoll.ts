@@ -648,7 +648,7 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   };
   size = parseFloat(prop('font-size')) || 16;
   const look = [
-    ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'stroke', 'opacity', 'letter-spacing', 'text-decoration'].map((p) => `${p}=${prop(p)}`),
+    ...['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'fill-opacity', 'stroke', 'stroke-opacity', 'stroke-width', 'opacity', 'letter-spacing', 'text-decoration'].map((p) => `${p}=${prop(p)}`),
     // Parsed, a stylesheet class is the only sign of what it sets; laid out, its effect is
     // already in the computed values, and two class spellings of one look are one look.
     ...(laid ? [] : [`class=${text.getAttribute('class') ?? ''}/${first?.getAttribute('class') ?? ''}`]),
@@ -656,9 +656,19 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   const anchorWord = prop('text-anchor');
   const anchor: CreditsAlign = anchorWord === 'middle' || anchorWord === 'end' ? anchorWord : 'start';
   // A run's own position is where it is drawn; the text's is only the default for it.
-  // Plus every relative step taken before the first character: the text's own, then its run's.
-  const lx = (num(first, 'x') ?? num(text, 'x') ?? 0) + (num(text, 'dx') ?? 0) + (num(first, 'dx') ?? 0);
-  const ly = (num(first, 'y') ?? num(text, 'y') ?? 0) + (num(text, 'dy') ?? 0) + (num(first, 'dy') ?? 0);
+  // WHERE THE FIRST CHARACTER IS DRAWN, in the layer's own units. Laid out, the browser says so
+  // (its start is the line's left end, so the anchor point is found along the drawn advance).
+  // Parsed, SVG's rule: each of x, y, dx and dy for that character is the NEAREST element's
+  // value - the run's where it states one, else the text's - and the steps are never summed.
+  const advance = laid ? (text as SVGTextContentElement).getComputedTextLength() : 0;
+  const nearest = (name: string) => num(first, name) ?? num(text, name);
+  let lx = (nearest('x') ?? 0) + (nearest('dx') ?? 0);
+  let ly = (nearest('y') ?? 0) + (nearest('dy') ?? 0);
+  if (laid && advance > 0 && (text as SVGTextContentElement).getNumberOfChars() > 0) {
+    const start = (text as SVGTextContentElement).getStartPositionOfChar(0);
+    lx = start.x + { start: 0, middle: 0.5, end: 1 }[anchor] * advance;
+    ly = start.y;
+  }
   // Every transform from the layer up to the root, composed: the layer's frame in the artwork's.
   let m = new DOMMatrix();
   for (let el: Element | null = text; el && el !== root; el = el.parentElement) {
@@ -673,13 +683,12 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   }
   const p = m.transformPoint(new DOMPoint(lx, ly));
   const baselines = new Set<number>();
-  let at = (num(text, 'y') ?? 0) + (num(text, 'dy') ?? 0);
-  for (const run of runs) {
+  let at = num(text, 'y') ?? 0;
+  for (const [i, run] of runs.entries()) {
     const y = num(run, 'y');
-    at = y ?? at + (num(run, 'dy') ?? 0);
+    at = y ?? at + (num(run, 'dy') ?? (i === 0 ? num(text, 'dy') : null) ?? 0);
     if ((run.textContent ?? '').trim()) baselines.add(Math.round(at * 2) / 2);
   }
-  const advance = laid ? (text as SVGTextContentElement).getComputedTextLength() : 0;
   return {
     candidateId,
     text: (text.textContent ?? '').replace(/\s+/g, ' ').trim(),

@@ -48,7 +48,11 @@ const CASES = {
   classed: svg(`<style>.c{text-anchor:middle}</style>${t(500, 100, 24, 'Camera', ' fill="#fc0" class="c"')}${t(500, 160, 40, 'Jonas Berg', ' class="c"')}${t(500, 210, 40, 'Lena Fors', ' class="c"')}`),
   runX: svg(`<text x="50" y="0" font-size="24" fill="#fc0"><tspan x="300" y="100">Camera</tspan></text><text x="0" y="0" font-size="40"><tspan x="300" y="160">Jonas Berg</tspan></text>`),
   // Positions stated as relative steps, in units and in ems (Inkscape writes them).
-  steps: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}<text x="100" y="100" font-size="40"><tspan dy="60">Alex Rivera</tspan></text><text x="100" y="100" font-size="40" dy="1em"><tspan dy="1.75em">Ida Lake</tspan></text>`),
+  // A run's own step replaces the text's for the first character; the two are never summed. The
+  // role's run states x and dx, so the text's dx is not used; the second name's run states dy.
+  steps: svg(`<text x="50" y="100" dx="30" font-size="24" fill="#fc0"><tspan x="100" dx="0">Director</tspan></text><text x="100" y="100" font-size="40"><tspan dy="60">Alex Rivera</tspan></text><text x="100" y="100" font-size="40" dy="1em"><tspan dy="2.75em">Ida Lake</tspan></text>`),
+  // Roles set apart by paint alone: half-transparent fill, same size and colour.
+  paint: svg(`${t(100, 100, 40, 'Director', ' fill-opacity="0.5"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 260, 40, 'Sound', ' fill-opacity="0.5"')}${t(100, 320, 40, 'Ari Moss')}`),
   // One name look spelt by two classes that set the same values.
   twoSpellings: svg(`<style>.a{fill:#fff}.b{fill:#fff}</style>${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada Holm', ' class="a"')}${t(100, 210, 40, 'Bo Lind', ' class="b"')}`),
   oneLook: svg(`${t(100, 100, 40, 'Director')}${t(100, 160, 40, 'Alex Rivera')}`),
@@ -383,12 +387,26 @@ test('two class spellings of one look are one look once laid out', () => {
   assert.equal(R.caseResults.twoSpellings.parsed.out.code, 'many-looks', 'parsed, a class is all there is to compare');
 });
 
-test('relative steps before the first character are part of where a layer is drawn', () => {
+test('relative steps are read as SVG draws them: the nearest one, never summed', () => {
+  // Laid out, the position is the browser's own; the parsed reading must agree with it.
   for (const mode of ['parsed', 'laid']) {
     const { out } = R.caseResults.steps[mode];
     assert.equal(out.ok, true, `${mode}: ${out.message}`);
     assert.equal(out.style.layout, 'role-above');
+    assert.deepEqual(out.style.align, { role: 'start', name: 'start' });
     assert.deepEqual(out.style.steps, { roleToName: 60, nameToName: 50 });
+  }
+  for (const k of Object.keys(R.caseResults)) {
+    const { parsed, laid } = R.caseResults[k];
+    if (parsed.out.ok && laid.out.ok) assert.deepEqual(parsed.out.style.steps, laid.out.style.steps, `${k}: parsed and laid-out steps agree`);
+  }
+});
+
+test('paint opacity alone sets a look apart', () => {
+  for (const mode of ['parsed', 'laid']) {
+    const { out } = R.caseResults.paint[mode];
+    assert.equal(out.ok, true, `${mode}: ${out.message}`);
+    assert.deepEqual(out.style.anchors.map((a) => a.kind), ['role', 'name', 'role', 'name']);
   }
 });
 
