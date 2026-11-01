@@ -22,8 +22,9 @@ merge-group CI, push CI, configured-suite, Post-landing and Quarantine all succe
 
 ## Checkpoint
 
-1. **Defects:** the rehearsal found no new defect in rows 1 to 12. Twelve tracked follow-ups stay
-   open (table below), four of them P2. Seven of the twelve have no later row with authority over
+1. **Defects:** the rehearsal found no defect in rows 1 to 12. It found two new flaky tests in the
+   already quarantined `e2e/import-svg.spec.ts`, in code no row changed (#1915, P3, area:e2e). Twelve tracked follow-ups were
+   reconciled (table below): two closed as moved, ten stay open, three of them P2. Seven of the ten have no later row with authority over
    the code involved.
 2. **Elapsed time:** 26 h 55 min of 336 h (8%) at 2026-11-01T13:15Z. Run start
    2026-10-31T10:19:44Z. Row 12 landed at 2026-11-01T12:06:46Z. 12 of 40 rows are done (30%).
@@ -77,10 +78,10 @@ rehearsed through those checks.
 | 9, 11 | `node --test scripts/air-state.test.mjs` | 27/27 pass |
 | 10, 11 | `node --test scripts/clock-target.test.mjs` | 19/19 pass |
 | 12 | `node --test scripts/imported-score-event.test.mjs` | 12/12 pass |
-| 3, 12 | `node --test scripts/svg-import-passes.test.mjs` | 18 pass, 4 fail (inventory, bind, emit, runtime records): the known #1647 image difference that rows 3, 5, 8 and 9 recorded. Push CI on `b2f335f`'s parent tree passed it on the pinned browser |
+| 3, 12 | `node --test scripts/svg-import-passes.test.mjs` | 18 pass, 4 fail (inventory, bind, emit, runtime records): the known #1647 image difference that rows 3, 5, 8 and 9 recorded. push CI on `a961bec` passed it on the pinned browser |
 | 12 | `node scripts/check-catalog-emit.mjs` | PASS, 528 designs equal to baseline |
-| 6, 7, 8, 10, 11, 12 | `e2e/jev-svg-preparation.spec.ts`, `e2e/import-svg-behaviour.spec.ts`, `e2e/playout-clock.spec.ts` through the job queue | RESULT_E2E_1 |
-| 5 to 12 | `e2e/import-svg.spec.ts` through the job queue (quarantined, so no PR gate reads it) | RESULT_E2E_2 |
+| 6, 7, 8, 10, 11, 12 | `e2e/jev-svg-preparation.spec.ts`, `e2e/import-svg-behaviour.spec.ts`, `e2e/playout-clock.spec.ts` through the job queue | 61/61 pass (4.5 min), job j-0001 |
+| 5 to 12 | `e2e/import-svg.spec.ts` through the job queue (quarantined, so no PR gate reads it) | 66 pass, 2 fail (job j-0002); the two alone on the same commit pass (job j-0003). A fail-then-pass on one commit, so flakes: filed as #1915 (P3, area:e2e) |
 | 9, 12 | `e2e/configured/scorebug-output.spec.ts` | not run here (needs the local Supabase stack). configured-suite passed on `a961bec` and `b2f335f` |
 
 **An independent probe on a fixture no builder used.** Every score+clock test in rows 8 to 12 uses
@@ -105,9 +106,9 @@ cause. Rows 29 and 38 only test: they will run into a cause but cannot change it
 | #1908 item 2 | P2, area: output | A score board rebooted from its report shows the flag up but no team's flash. Items 1 and 3 were fixed in row 12 | none: the report's shape (`output/main.ts`, receivers) is outside every row | 29, 38 (output recovery) |
 | #1886 | P2, area:playout | Imported clock Take or correction on the hosted fast road is stamped by each output's arrival | none | 29 (hosted clock recovery) |
 | #1887 | P2, area:playout | Exported control panel and production controller send imported clock verbs without a wire stamp | none | 29 (exports) |
-| #1890 | P2, area:playout | Second half fixed by row 11. First half moved to #1903. Still open because the `Closes` line was in an early branch commit | close: nothing left in it | n/a |
-| #1891 | P3, area:playout | Moved whole to #1906. Still open for the same reason | close as superseded by #1906 | n/a |
-| #1903 | P3, area: control | A Reset or Pause before a duration's first Take keeps the old length | none (rows 9 and 11 owned `matchClockWire.ts`) | 38 |
+| #1890 | P2, area:playout | Second half fixed by row 11. First half moved to #1903. Still open because the `Closes` line was in an early branch commit | closed in this row (completed): nothing left in it | n/a |
+| #1891 | P3, area:playout | Moved whole to #1906. Still open for the same reason | closed in this row as a duplicate of #1906 | n/a |
+| #1903 | P3, area: control | A Reset or Pause before a duration's first Take keeps the old length | none (row 9 owned `matchClockWire.ts`) | 38 |
 | #1906 | P3, area: control | The program monitor forgets an off-air imported clock on reload | none (`hostedControl.ts`) | 38 |
 | #1884 items 1, 2 | P3, create | 1: should an off-air Take count the clock's length or the field's last sent value? An owner product decision. 2: the clock's text is not re-fitted as it ticks (`svg.ts` `importedClockJs`) | 1: owner. 2: row 24 lists `svg.ts`, but for linked data only; fixing it there would need a reconciled boundary | 38 |
 | #1898 | P3, area: control | An undated target passing into a DST fold before the build counts to 0:00 | none (row 10 owned `clockTarget.ts`) | none |
@@ -126,7 +127,7 @@ the main import spec) has been quarantined since 2026-10-31T22:01Z, between rows
 five entries. Quarantine incident #1907 records it: changes to `src/templates/**` and
 `src/components/wizard/import/**` merge without it blocking. Its repair is due 2026-11-14, the
 day this run ends, and cicd-improvement owns it. Rows 8 to 12 landed while it was out of the
-blocking gate, and rows 14 to 28 change the same code. This row reran it above. Until it is
+blocking gate, and rows 14 to 28 change the same code. This row reran it above: 66 of 68 passed, and the two failures were flakes (#1915). Until it is
 released, each row touching import or behaviour code should run it locally through the queue as
 part of its targeted checks. That restores no gate and changes no limit.
 
@@ -158,9 +159,10 @@ Order, file lists and checks are as registered in `phases.json`; nothing here ch
 
 ## Decisions and traps
 
-- **Nothing was fixed.** The row allows acceptance records only, and the rehearsal found no new
-  defect, so no new issue was filed. Closing #1890 and #1891 is tidying, not a fix: each one's
-  own comment says what is left and where it moved.
+- **Nothing was fixed.** The row allows acceptance records only. The only new failures (#1915)
+  are flakes in code that predates the run. Their issue names the quarantine owner (#1907), not a
+  row, and says the drag one may be a discarded-gesture defect worth fault injection. Closing #1890 and #1891 here is tidying, not a fix: each one's
+  own comment already said what was left and where it moved, and the close comment points there.
 - **The quarantined import spec was rehearsed, not released.** Releasing it belongs to
   cicd-improvement (#1907). Running it here gives evidence without touching the quarantine.
 - **The probe reused row 12's harness rather than a new one,** with only the fixture inputs
