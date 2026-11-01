@@ -31,15 +31,18 @@
   "inFlight": [
     {
       "phase": "13",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwP6wrt8Gz3Qe4CEKLx",
       "nonce": "13-b-1743",
       "branch": "claude/plan-jev-svg-import-13-build",
       "source": "b2f335fb353f799dc7866f23ca9200168205faad",
       "launchedAt": "2026-11-01T12:44:42Z",
-      "note": "midpoint review builder; acceptance records only; defects filed not fixed 13:18Z PR 1916 open; subscribed.",
+      "note": "midpoint review builder; acceptance records only; defects filed not fixed 13:18Z PR 1916 open; subscribed. 13:21Z gates verified; stamped; auto-merge on.",
       "pr": 1916,
-      "head": "1619339b3bf92563ba0ff5bacf2e73591c1d891f"
+      "head": "1619339b3bf92563ba0ff5bacf2e73591c1d891f",
+      "receipt": "/home/user/noacg-state/jev/receipt-13-b.txt",
+      "so": "session_017SdbwMbPbAbXUs4rGnDa52 A on 1619339",
+      "stamp": "cloud-queue-merge run 41310752713; Reviewed green"
     }
   ],
   "owner": [],
@@ -172,7 +175,8 @@
     "08:39Z phase 11 passed; archived 7 phase-11 sessions (builder, checker, 5 /so).",
     "10:13Z slip: re-requested @codex review on PR 1909 head b38bea5 while the builder request was outstanding (known-traps Review checkpoints). Do not repeat; a stalled Codex is an infrastructure wait.",
     "10:30Z block renewed under standing blockRenewal: epoch 2, id 9b35de1c, deadline 2026-11-02T10:30:18Z.",
-    "12:44Z phase 12 passed; archived 5 phase-12 sessions (builder, checker, 3 /so)."
+    "12:44Z phase 12 passed; archived 5 phase-12 sessions (builder, checker, 3 /so).",
+    "Owner question pending: #1884 item 1, does an off-air Take of an imported duration count the configured length or the last sent value? (product decision, no owning row)"
   ],
   "ownerOpen": [
     {
@@ -196,7 +200,8 @@
     1897,
     1898,
     1903,
-    1908
+    1908,
+    1915
   ],
   "carryForward": [
     {
