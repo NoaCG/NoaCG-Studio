@@ -1,6 +1,7 @@
 // The calibration bench's scope guard, one test per rule (S1 to S12 in
 // docs/work-specs/cicd-improvement/evidence/phase-ci12.md). Each test starts from an honest report
 // that passes and makes the one mutation its rule names.
+// guards: e2e/catalog/_bench-scope.mjs, e2e/catalog/catalog-bench.spec.ts, scripts/catalog-specs.mjs, playwright.catalog.config.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -196,7 +197,7 @@ test('Rule S12: the guard judges every run that plans a bench unit, and only tho
   // The scoped door refuses a --reporter that would replace the guard, before anything starts.
   const script = fileURLToPath(new URL('./catalog-specs.mjs', import.meta.url));
   for (const flag of [['--reporter', 'dot'], ['--reporter=dot']]) {
-    const run = spawnSync(process.execPath, [script, ...flag], { encoding: 'utf8' });
+    const run = spawnSync(process.execPath, [script, ...flag], { encoding: 'utf8', windowsHide: true });
     assert.equal(run.status, 2, run.stderr);
     assert.match(run.stderr, /would replace the catalog scope guard/);
   }
