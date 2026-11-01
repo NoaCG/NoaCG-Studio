@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on 8923a1c2: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T02:45:00Z"
+    "what": "ci18: /so and Codex on 19c0a0d9, diagnose verdict; then receipt or one scoped redesign; block 1 renewal due before 2026-11-01T08:10Z",
+    "eta": "2026-11-01T02:50:00Z"
   },
   "inFlight": [
     {
@@ -53,9 +53,17 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Head 8923a1c2 (E8 small-budget correction from a late Codex result on fd65f6de). /so restarted twice without finishing; 02:09Z told builder to hold 8923a1c2 until its own Codex result and Rules-attack /so session_017SdbwQbAmhQgpRzzrDcW6Q are in, and batch any late older-head findings into one checkpoint. Rules-attack completed rounds: a0b2c502 B, fcb6f405 B, 876d9599 B; if 8923a1c2 is B, launch diagnose.",
+      "note": "Head 19c0a0d9 (one batched X12/X11 correction after /so B on 8923a1c2: removal recorded as rename; Codex: workflow-file rename moved tier). Rules-attack rounds: a0b2c502 B, fcb6f405 B, 876d9599 B, 8923a1c2 B. Builder holding 19c0a0d9; /so session_017SdbwQWzkcuiU1vitz6bjn and Codex running. Independent read-only diagnose launched 02:20Z: session_017SdbwP3NJSQzqUT1RiGZfJ (converging vs leaky; tier-level exception scope alternative).",
       "pr": 1880,
       "reviewedHead": null
+    },
+    {
+      "phase": "ci18",
+      "step": "diagnose",
+      "session": "session_017SdbwP3NJSQzqUT1RiGZfJ",
+      "actor": "diagnose-ci18-exception-model",
+      "launchedAt": "2026-11-01T02:20:51Z",
+      "note": "Read-only design diagnosis of the exception rule model; not a ledger diagnose (no post-landing failure)."
     }
   ],
   "owner": [],
@@ -243,6 +251,11 @@
       "at": "2026-11-01T01:31Z",
       "phase": "ci18",
       "decision": "Repeated family 2 recurred after a reassessment said it held: required an explicit numbered Rules model (evidence completeness; exception scope, credit, renewal, expiry, repayment) with one mutation-tested test per line, and a final fresh /so whose primary task is to attack the Rules, as ci03's decision table did. Further blocking findings are Rules corrections, not standalone patches."
+    },
+    {
+      "at": "2026-11-01T02:21Z",
+      "phase": "ci18",
+      "decision": "Fourth successive B on the written Rules, all in exception scope via identity/rename/successor. Launched an independent read-only design diagnosis before any further round; builder holds 19c0a0d9 until both the /so and the diagnosis report."
     }
   ]
 }
