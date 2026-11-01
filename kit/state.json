@@ -28,18 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": null,
-  "inFlight": [
-    {
-      "phase": "10",
-      "step": "check",
-      "session": "session_017SdbwQYeTdNrAY1DfW93Zi",
-      "nonce": "10-c-c3ee",
-      "mergeSha": "2518b42919123eefd876259f6ba009999ed2b2b4",
-      "pr": 1893,
-      "launchedAt": "2026-11-01T05:55:56Z",
-      "note": "independent checker; brief + coordinator note (AC-9 split rows 10/11 by row text; row 11 follow-ups; accepted limits)"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": {
@@ -131,6 +120,12 @@
       "mergeSha": "e6eadadcc4ec745ebb51dbca7248c62bc61981c5",
       "pr": 1888,
       "checker": "session_017SdbwRHJWwbCZ7MkXiJhoX"
+    },
+    {
+      "phase": "10",
+      "mergeSha": "2518b42919123eefd876259f6ba009999ed2b2b4",
+      "pr": 1893,
+      "checker": "session_017SdbwQYeTdNrAY1DfW93Zi"
     }
   ],
   "coordinatorNotes": [
@@ -223,6 +218,13 @@
     {
       "phase": "11",
       "note": "read #1890 (never-taken clock reads as on air; untested equal-to-shown rule) and #1891 (monitor forgets off-air imported clock after dashboard reload)"
+    },
+    {
+      "forPhases": [
+        "11"
+      ],
+      "from": "10 checker",
+      "note": "Hours display (target shown as minutes, e.g. 219:30) and per-mode playout controls (no Pause/Reset for a target) are row 11 by row text; also #1894 items (DST gap bare time, undated fold, unresolved-input line naming the held instant)."
     }
   ]
 }
