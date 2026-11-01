@@ -37,14 +37,14 @@
       "branch": "claude/plan-jev-svg-import-11-build",
       "source": "2518b42919123eefd876259f6ba009999ed2b2b4",
       "launchedAt": "2026-11-01T06:14:36Z",
-      "note": "builder; carry #1884/#1890/#1891/#1894, hours display, per-mode controls; pre-approved matchClockWire+test (#1890), airState+test (#1891), clockTarget+test (#1894); separate-session /so rule 06:46Z PR 1899 open; coordinator subscribed.",
+      "note": "builder; carry #1884/#1890/#1891/#1894, hours display, per-mode controls; pre-approved matchClockWire+test (#1890), airState+test (#1891), clockTarget+test (#1894); separate-session /so rule 06:46Z PR 1899 open; coordinator subscribed. 07:42Z CI run 41284873718 on fbd0ae5: Configured E2E 1/4 infra outage (ECR 429 + port 54322 in use, #1865) before tests; reran failed jobs once (attempt 2). Codex fbd0ae5 clean. Builder withdrew off-air reseed; #1906 filed.",
       "approvals": [
         "svg.ts one call site: matchClockJs({hours:true}) for target-time only; default bytes unchanged",
         "svg.ts importedClockJs re-fit (#1884 item 2) only if hours display overflows, target-time only, tested; else leave open",
         "#1884 item 1 left open with product question"
       ],
       "pr": 1899,
-      "head": "4cee560f6f88d00e3ff84207b4ebe19e7557f07b"
+      "head": "fbd0ae53b42a806c52682c33a1c1d660eb027631"
     }
   ],
   "owner": [],
@@ -180,7 +180,8 @@
     "#1886 (P2 playout): hosted fast-road Take/correction of an imported clock carries no server time; latency trade-off for the owner",
     1890,
     1891,
-    1894
+    1894,
+    1906
   ],
   "carryForward": [
     {
