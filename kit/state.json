@@ -42,21 +42,23 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 merge queue, then landed record and checker; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T04:40:00Z"
+    "what": "ci18 checker verdict on fb15e6b8 and post-land runs; block 1 ends 2026-11-01T08:10Z: renew at the first check-in after it",
+    "eta": "2026-11-01T05:00:00Z"
   },
   "inFlight": [
     {
       "phase": "ci18",
-      "step": "queued",
-      "session": "session_017SdbwNNAPG9N5nzygqtK99",
-      "nonce": "ci18-b-40c6",
-      "branch": "claude/plan-cicd-improvement-ci18-build",
-      "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Receipt 03:55Z; verified at source: CI 41270062119 gate green (configured whole set 67), Codex clean on d0ff91f9, full-diff Rules-attack /so A (session_017SdbwRAUVtYaExJfTYGJo9). Stamp 41271078051; queued 03:56:29Z. Cleanup after landing: branch claude/plan-cicd-improvement-ci18-pending.",
+      "step": "check",
+      "session": "session_017SdbwQmfJh51VRpXzgQdwS",
+      "nonce": "ci18-c-1360",
+      "actor": "checker-ci18-ci18-c-1360",
+      "launchedAt": "2026-11-01T04:10:26Z",
       "pr": 1880,
+      "mergeSha": "fb15e6b8f6358ef8b0fad080cf71552b4da37187",
+      "builder": "session_017SdbwNNAPG9N5nzygqtK99",
       "reviewedHead": "d0ff91f9e5804eabfcd61a6da976168e3790cb0e",
-      "repairOwnerComment": 6553123397
+      "repairOwnerComment": 6553123397,
+      "note": "Merged 04:08:53Z (queue run 41271128774). Leftover branch claude/plan-cicd-improvement-ci18-pending is an ancestor of main (fully merged); coordinator delete was denied by the session's permission classifier, left for the owner."
     }
   ],
   "owner": [],
