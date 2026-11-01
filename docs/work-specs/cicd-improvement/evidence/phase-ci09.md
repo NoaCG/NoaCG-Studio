@@ -140,17 +140,27 @@ not depend on how workers share the tests.
 | Actions, main run 41294635431 (`23742966`), shard 8/15 | 227.5 s | |
 | Actions, main run 41287750200 (`7030eb18`), shard 8/15 | 275.9 s | |
 | Actions, main run 41287297459 (`06d3836c`), shard 8/15 | 269.0 s | |
-| Actions, this PR's CI run | | ACTIONS-AFTER-1 |
-| Actions, second after sample | | ACTIONS-AFTER-2 |
+| Actions, PR CI run 41303347902 (head `5405faf`), subset shard 1/1 | | 217.7 s |
+| Actions, CI dispatch 41303371001 on the branch (same head, planned from `23742966`), shard 1/1 | | 148.4 s |
 
-ACTIONS-NOTE
+GitHub hands each shard a fast or a slow runner, measured at 0.68 to 1.10 of each other
+(`scripts/e2e-durations.mjs`), so single Actions samples move with the runner as much as with the
+change. The before runs show it: the same spec read 227.5 s on the faster runner of run
+41294635431, whose other fourteen specs in the shard also read 13% under the other two runs. The
+after runs carry no other spec to calibrate against. Taken as means, 257.5 s before (three
+samples) and 183.1 s after (two) is 74 s, or 29%, less per execution; that matches the cloud
+worker, where the same comparison on one machine is 31% and 30%. The saving is the removed second
+boot, about 2.7 s per test here, and nothing else changed in the tests.
 
 Runner cost. The offline shards run on standard Linux runners, so a runner-second saved is a
-billed second saved. RUNNER-COST
+billed second saved. At 74 runner-seconds per execution (the means above), the
+change saves about 1.2 runner-minutes each time the spec runs: once in every full main run (once per
+landing), and in every pull request plan that selects it, which the inventory measured at 31% of
+landings. It also shortens the shard it sits in, so the verdict comes earlier.
 
 Growth controls: `node scripts/e2e-capacity.mjs --changed origin/main` adds no spec and no
 exception (the table reads the spec at 4.27 min until the next durations refresh); with this PR's
-shard report (`--report`) CAPACITY-REPORT. The tier warnings it prints (no weekly growth report yet,
+shard report (`--report`) it reads the spec at 3.63 min (PR run) and 2.47 min (dispatch) against the table's 4.27 (-0.64 and -1.79, "measured in this run"), offline tier OK at 77%. The tier warnings it prints (no weekly growth report yet,
 durations table 13 days old, backend evidence partial) are the plan's existing ones, not this
 change.
 
@@ -192,7 +202,27 @@ scripts/e2e-selection-misses.mjs resets --ref HEAD` still reads the latest reset
 
 ## 9. Verification
 
-VERIFICATION
+- `/check`: the review (delegated, medium, merge base `23742966`, both files, scope matched)
+  returned 8 findings. Fixed: a refused seed folder now fails the setup; the round-trip test says
+  why it compares the whole record. Disclosed in section 3: the starting state, the redundancy, and
+  the matrix's `--max-failures` sampling; other pending writers were probed (section 3, R7: none).
+  Kept: the spec copies the shared helper's few steps rather than editing `e2e/_create.ts`
+  (section 8). Out of scope, not changed: `bootstrapGraphic` leaves the autosave timer armed for
+  every spec that uses it. The placeholder finding was this section, filled here. Simplify: inline,
+  no further change.
+- Fault matrix: F0 to F9, each layer in two `--cap 5` queued jobs (`scripts/jobs.mjs`), 40 jobs;
+  results in section 4; tree clean afterwards.
+- Browser, this machine: the new spec passes in full four times (53 tests: first green run, timing
+  sample 2 in two shards, and after the review fix, j-0049); the old spec passed in the profile run
+  and in each F0 and timing shard.
+- Actions: PR CI run 41303347902 on `5405faf`, CI gate green (offline plan subset, 1 spec, 53
+  tests passed; configured selection untriggered, mode none, 0 specs); `Reviewed` red until the
+  coordinator's stamp. Dispatch 41303371001 on the same head: green.
+- `npm run gates -- run --changed origin/main`, `npx eslint e2e/playout-folders.spec.ts`: clean.
+- `node scripts/check-e2e-protection.mjs --changed origin/main`: passes, no entry (section 8).
+- `node scripts/e2e-capacity.mjs --changed origin/main [--report ...]`: section 5.
+- No production build: no build input changed. Rendered judgment: none needed; nothing visible
+  changes.
 
 ## 10. Phase notes
 
