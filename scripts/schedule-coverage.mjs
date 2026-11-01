@@ -103,7 +103,9 @@ export function runVerdict(run, required = run.required ?? NIGHTLY_JOBS) {
       }
     }
   }
-  if (reasons.length) return { verdict: 'incomplete', reasons };
+  // A failed job with others incomplete (a failed plan skips every shard) still DETECTED something:
+  // it counts toward the first-verdict delay, never toward clearance.
+  if (reasons.length) return { verdict: 'incomplete', reasons, detected: failed };
   return failed ? { verdict: 'red', reasons: ['a required job failed'] } : { verdict: 'green', reasons: [] };
 }
 
@@ -122,7 +124,7 @@ export function coverageTimeline({ landings, runs, now, deadlineHours = DEADLINE
     return { ...r, ...v, position: pos, attributable: pos !== null };
   });
   const finishing = judged
-    .filter((r) => r.attributable && (r.verdict === 'green' || r.verdict === 'red') && r.completedAt <= now)
+    .filter((r) => r.attributable && (r.verdict === 'green' || r.verdict === 'red' || r.detected) && r.completedAt <= now)
     .sort((a, b) => a.completedAt - b.completedAt);
   const deadline = deadlineHours * HOUR;
   const rows = landings.map((l, i) => {
@@ -181,12 +183,19 @@ export function projectedCompletion(timeline, now, position = 0, cron = NIGHTLY_
   for (const r of done) {
     const slot = nextCron(r.createdAt - 24 * HOUR, cron);
     startDelay = Math.max(startDelay, r.createdAt - slot);
-    duration = Math.max(duration, r.completedAt - r.createdAt);
+    duration = Math.max(duration, r.completedAt - (r.startedAt ?? r.createdAt));
   }
   const shape = (at, from) => ({ at, from, startDelayMs: startDelay, durationMs: duration });
   // Any run on main already going counts, a dispatch included: it requested a landing too.
   const going = timeline.runs.find((r) => r.verdict === 'pending' && r.attributable && r.position >= position);
-  if (going) return shape(going.createdAt + duration, `run ${going.id}, already going`);
+  if (going) {
+    // nightly.yml's concurrency group queues a run behind the one in progress (cancel-in-progress
+    // false), so a queued run starts when that one is projected to end. The projection is of
+    // completion; a red result clears nothing and the next report says so.
+    const ahead = timeline.runs.find((r) => r !== going && r.status === 'in_progress');
+    const start = going.status === 'in_progress' || !ahead ? going.createdAt : Math.max(going.createdAt, (ahead.startedAt ?? ahead.createdAt) + duration);
+    return shape(start + duration, `run ${going.id}, already ${going.status === 'in_progress' ? 'going' : 'queued'}`);
+  }
   const lastSlot = nextCron(now - 24 * HOUR, cron);
   const created = scheduled.some((r) => r.createdAt >= lastSlot);
   if (!created && lastSlot + startDelay + duration > now) return shape(lastSlot + startDelay + duration, 'the slot not yet started');
@@ -298,8 +307,18 @@ export function summarize(timeline) {
 const iso = (ms) => new Date(ms).toISOString().replace('.000Z', 'Z');
 const hours = (ms) => (ms / HOUR).toFixed(1);
 
-/** The markdown a summary or a person reads. */
-export function render(timeline, now) {
+/**
+ * The UTC days whose nightly slot has fully passed inside [since, now): the days `missedSlots`
+ * may judge. A slot younger than 24 hours is not missed yet.
+ */
+export function judgedDays(since, now, cron = NIGHTLY_CRON_UTC) {
+  const days = [];
+  for (let slot = nextCron(since - 1, cron); slot + 24 * HOUR <= now; slot += 24 * HOUR) days.push(new Date(slot).toISOString().slice(0, 10));
+  return days;
+}
+
+/** The markdown a summary or a person reads. `notes` are extra lines (the landing-time source). */
+export function render(timeline, now, { projected = projectedBreach(timeline, now), missed = [], notes = [] } = {}) {
   const s = summarize(timeline);
   const lines = [
     `### Landing coverage by the nightly (as of ${iso(now)})`,
@@ -307,21 +326,63 @@ export function render(timeline, now) {
     `${s.landings} landing(s); ${s.covered} cleared by a green complete nightly (${s.exact} exactly at their own commit), ${s.uncovered} waiting.`,
     `Breaches of the ${DEADLINE_HOURS}h bound: ${s.breaches}. Longest wait to green: ${s.maxGreenDelayHours === null ? 'n/a' : `${s.maxGreenDelayHours.toFixed(1)}h`}.`,
     `Nightly runs on main: ${s.runs.green} green, ${s.runs.red} red, ${s.runs.incomplete} incomplete, ${s.runs.pending} still running (${s.runs.unattributable} not attributable to a landing).`,
+    `Missed scheduled slots: ${missed.length ? missed.join(', ') : 'none'}.`,
+    ...notes,
   ];
-  const projected = projectedBreach(timeline, now);
   if (projected) {
     lines.push('', `Oldest uncovered landing: ${projected.sha.slice(0, 8)}, landed ${iso(projected.at)}, waiting ${hours(projected.ageMs)}h, deadline ${iso(projected.deadlineAt)}.`);
     if (projected.projection) lines.push(`A nightly containing it projected complete by ${iso(projected.projection.at)}, ${projected.projection.from} (worst observed start delay ${hours(projected.projection.startDelayMs)}h, duration ${hours(projected.projection.durationMs)}h).`);
     lines.push(projected.breach ? `PROJECTED BREACH: ${projected.reason ?? 'its deadline falls before that'}. The repair is a nightly dispatch on main before the deadline.` : 'Inside the bound on the projection.');
   } else lines.push('', 'Every landing in the window is cleared.');
   for (const r of timeline.runs.filter((x) => x.attributable && x.verdict === 'incomplete')) lines.push(`- incomplete run ${r.id}: ${r.reasons.join('; ')}`);
+  const decision = scopeDecision({ timeline, now, missed });
+  lines.push('', `Catalog scope this window supports: ${decision.scope}${decision.reasons.length ? ` (${decision.reasons.join('; ')})` : ''}. Nothing reads this yet; ci.yml runs the whole catalog.`);
   return lines.join('\n');
 }
 
 // ---- CLI: reads git and GitHub, read-only. ----
 
 function gh(args) {
-  return JSON.parse(execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true }));
+  return execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+}
+
+/**
+ * When each commit reached main: the repository activity API's push or merge-queue-merge time.
+ * The merge commit's committer time is earlier, by the merge group's own CI (6 to 13 minutes on
+ * 2026-11-01), and would overstate every delay by that much. Paged by its `after` cursor until
+ * the window is passed; at most 10 pages.
+ */
+export function pushTimes(repo, since, run = gh) {
+  const times = new Map();
+  let cursor = '';
+  for (let page = 0; page < 10; page++) {
+    const out = run(['api', '-i', `repos/${repo}/activity?ref=refs/heads/main&per_page=100&time_period=month${cursor}`]);
+    const split = out.search(/\r?\n\r?\n/);
+    const head = out.slice(0, split);
+    const body = JSON.parse(out.slice(split).trim() || '[]');
+    for (const a of body) if (a.after && !times.has(a.after)) times.set(a.after, Date.parse(a.timestamp));
+    const next = /<[^>]*[?&]after=([^&>]+)[^>]*>;\s*rel="next"/i.exec(head);
+    if (!next || body.length === 0 || Date.parse(body[body.length - 1].timestamp) < since) break;
+    cursor = `&after=${next[1]}`;
+  }
+  return times;
+}
+
+/**
+ * Each first-parent commit's landing time, oldest first. One push can bring several merge commits
+ * (the activity API lists only its last), so a commit without its own entry landed with the next
+ * commit that has one. Only a commit newer than every listed push falls back to its commit time.
+ */
+export function landingTimes(commits, pushed) {
+  const out = [];
+  let carried = null;
+  for (let i = commits.length - 1; i >= 0; i--) {
+    const c = commits[i];
+    if (pushed.has(c.sha)) carried = pushed.get(c.sha);
+    const source = pushed.has(c.sha) ? 'push' : carried !== null ? 'later push' : 'commit';
+    out.push({ sha: c.sha, at: carried ?? c.committedAt, source });
+  }
+  return out.reverse();
 }
 
 export function parseArgs(argv) {
@@ -331,10 +392,8 @@ export function parseArgs(argv) {
     strict: true,
   });
   const now = values.now ? Date.parse(values.now) : Date.now();
-  // Fourteen days, about 16 API calls. The projection takes the WORST start delay and duration in
-  // the window, so a shorter window projects a looser margin: on 2026-11-01 the last five or
-  // fourteen days put the oldest landing a few minutes inside its deadline, and runs back to
-  // 2026-10-14 (one of them 24 minutes long) put it 44 seconds past.
+  // Fourteen days. The projection takes the WORST start delay and duration in its window, so a
+  // shorter window projects a looser margin.
   const since = values.since ? Date.parse(values.since) : now - 14 * 24 * HOUR;
   if (!Number.isFinite(now) || !Number.isFinite(since)) throw new Error('--since and --now take ISO times');
   return { now, since, json: Boolean(values.json), summary: values.summary ?? null, ref: values.ref ?? 'origin/main' };
@@ -344,31 +403,45 @@ function main() {
   const opts = parseArgs(process.argv.slice(2));
   const repo = process.env.GH_REPO;
   if (!repo) throw new Error('GH_REPO (owner/name) is required');
-  const log = execFileSync('git', ['log', '--first-parent', '--reverse', '--format=%H %cI', `--since=${iso(opts.since)}`, opts.ref], { encoding: 'utf8', windowsHide: true });
-  const landings = log.split('\n').filter(Boolean).map((line) => {
-    const [sha, at] = line.split(' ');
-    return { sha, at: Date.parse(at) };
-  });
-  const listed = gh(['api', `repos/${repo}/actions/workflows/nightly.yml/runs?branch=main&per_page=30`]).workflow_runs;
+  const pushed = pushTimes(repo, opts.since);
+  // A day earlier than the window by commit time, so a commit pushed inside it is never left out.
+  const log = execFileSync('git', ['log', '--first-parent', '--reverse', '--format=%H %cI', `--since=${iso(opts.since - 24 * HOUR)}`, opts.ref], { encoding: 'utf8', windowsHide: true });
+  const landings = landingTimes(
+    log.split('\n').filter(Boolean).map((line) => {
+      const [sha, at] = line.split(' ');
+      return { sha, committedAt: Date.parse(at) };
+    }),
+    pushed,
+  ).filter((l) => l.at >= opts.since && l.at <= opts.now);
+  const fromCommitTime = landings.filter((l) => l.source === 'commit').length;
+  const shas = new Set(landings.map((l) => l.sha));
+  // Every run created in the window, in one page: about one a day plus dispatches.
+  const listed = JSON.parse(gh(['api', `repos/${repo}/actions/workflows/nightly.yml/runs?branch=main&per_page=100&created=>=${iso(opts.since)}`])).workflow_runs;
   const runs = listed
-    .filter((r) => Date.parse(r.created_at) >= opts.since && Date.parse(r.created_at) <= opts.now)
+    .filter((r) => Date.parse(r.created_at) <= opts.now)
     .map((r) => ({
       id: r.id,
       headSha: r.head_sha,
       branch: r.head_branch,
       event: r.event,
       createdAt: Date.parse(r.created_at),
+      // A re-run attempt restarts the clock: its duration is from its own start, not the run's creation.
+      startedAt: Date.parse(r.run_started_at ?? r.created_at),
       completedAt: Date.parse(r.updated_at),
       status: r.status,
       conclusion: r.conclusion,
-      jobs: r.status === 'completed' ? gh(['api', `repos/${repo}/actions/runs/${r.id}/jobs?per_page=50`]).jobs : [],
+      // Jobs only where they can matter: a completed run that requested a landing in the window, or
+      // a scheduled one (the projection's history).
+      jobs: r.status === 'completed' && (shas.has(r.head_sha) || r.event === 'schedule') ? JSON.parse(gh(['api', `repos/${repo}/actions/runs/${r.id}/jobs?per_page=50`])).jobs : [],
     }));
   const timeline = coverageTimeline({ landings, runs, now: opts.now });
-  const text = render(timeline, opts.now);
-  if (opts.summary) appendFileSync(opts.summary, `${text}\n`);
-  if (opts.json) console.log(JSON.stringify({ summary: summarize(timeline), oldest: projectedBreach(timeline, opts.now), timeline }, null, 2));
-  else console.log(text);
   const projected = projectedBreach(timeline, opts.now);
+  const missed = missedSlots(runs, judgedDays(opts.since, opts.now));
+  const notes = fromCommitTime ? [`${fromCommitTime} landing time(s) from the commit, not the push: the activity API did not list them.`] : [];
+  const text = render(timeline, opts.now, { projected, missed, notes });
+  if (opts.summary) appendFileSync(opts.summary, `${text}\n`);
+  if (opts.json) console.log(JSON.stringify({ summary: summarize(timeline), oldest: projected, missed, timeline }, null, 2));
+  else console.log(text);
   if (projected?.breach) console.log(`::warning title=Landing coverage::${projected.sha.slice(0, 8)} is projected to wait past ${DEADLINE_HOURS}h for a complete nightly.`);
 }
 

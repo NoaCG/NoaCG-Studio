@@ -9,9 +9,13 @@ import {
   CONTRACTS,
   coverageTimeline,
   missedSlots,
+  judgedDays,
+  landingTimes,
   nextCron,
   oldestUncovered,
+  projectedCompletion,
   projectedBreach,
+  pushTimes,
   render,
   replayCulprit,
   runVerdict,
@@ -196,4 +200,47 @@ test('drill: full-scope rollback - any open condition means full scope; a clean 
   const decision = scopeDecision({ timeline: late, now: T('2026-10-03T00:00:00Z') });
   assert.equal(decision.scope, 'full');
   assert.match(decision.reasons.join(), /waited more than 24h/);
+});
+
+test('review fixes: a re-run attempt, a queued run, a failed plan and the push-time pager', () => {
+  // A red night re-run hours later: its duration is from the attempt's start, not the creation.
+  const rerun = { ...run(90, 'a1', '2026-10-01T05:00:00Z', 0), startedAt: T('2026-10-01T09:00:00Z'), completedAt: T('2026-10-01T09:20:00Z') };
+  const p = projectedBreach(coverageTimeline({ landings, runs: [rerun], now: T('2026-10-01T22:30:00Z') }), T('2026-10-01T22:30:00Z'));
+  assert.equal(p.projection.durationMs, 20 * 60_000);
+  // A dispatch queued behind a run in progress starts when that one is projected to end.
+  const history = [run(91, 'a1', '2026-10-01T05:00:00Z', 20)];
+  const ahead = { ...run(92, 'a2', '2026-10-02T04:00:00Z', 0), status: 'in_progress', conclusion: null };
+  const queued = { ...run(93, 'a3', '2026-10-02T04:05:00Z', 0), status: 'queued', conclusion: null, event: 'workflow_dispatch' };
+  const now = T('2026-10-02T04:06:00Z');
+  const q = projectedBreach(coverageTimeline({ landings, runs: [...history, ahead, queued], now }), now);
+  assert.equal(q.sha, 'a2');
+  assert.equal(q.projection.from, 'run 92, already going');
+  const q3 = projectedCompletion(coverageTimeline({ landings, runs: [...history, ahead, queued], now }), now, 2);
+  assert.equal(q3.from, 'run 93, already queued');
+  assert.equal(q3.at, T('2026-10-02T04:40:00Z'));
+  // A failed plan skips every shard (their names never expand): incomplete, but a detection.
+  const jobs = [{ name: 'Nightly shard plan', conclusion: 'failure' }, { name: 'Nightly E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}', conclusion: 'skipped' }, ...nightlyJobs(1).slice(2)];
+  const failedPlan = run(94, 'a2', '2026-10-01T06:00:00Z', 5, { jobs });
+  const v = runVerdict(failedPlan);
+  assert.equal(v.verdict, 'incomplete');
+  assert.equal(v.detected, true);
+  const tl = coverageTimeline({ landings, runs: [failedPlan], now: T('2026-10-01T12:00:00Z') });
+  assert.equal(tl.landings[0].firstVerdictRun, 94);
+  assert.equal(tl.landings[0].covered, false);
+  // The activity pager: follows the after-cursor, keeps the first (newest) time per sha, stops past the window.
+  const pages = [
+    'HTTP/2.0 200 OK\r\nLink: <https://api.github.com/repositories/1/activity?per_page=100&after=CUR1>; rel="next"\r\n\r\n[{"after":"s2","timestamp":"2026-10-02T00:10:00Z"},{"after":"s1","timestamp":"2026-10-01T00:10:00Z"}]',
+    'HTTP/2.0 200 OK\r\n\r\n[{"after":"s0","timestamp":"2026-09-20T00:00:00Z"}]',
+  ];
+  const calls = [];
+  const times = pushTimes('o/r', T('2026-09-25T00:00:00Z'), (args) => (calls.push(args[2]), pages[calls.length - 1]));
+  assert.equal(times.get('s1'), T('2026-10-01T00:10:00Z'));
+  assert.equal(times.get('s0'), T('2026-09-20T00:00:00Z'));
+  assert.match(calls[1], /&after=CUR1$/);
+  assert.equal(calls.length, 2);
+  // Two merge commits in one push: the first lands at the push that listed the second.
+  const lt = landingTimes([{ sha: 'c1', committedAt: 1 }, { sha: 'c2', committedAt: 2 }, { sha: 'c3', committedAt: 3 }, { sha: 'c4', committedAt: 4 }], new Map([['c2', 20], ['c3', 30]]));
+  assert.deepEqual(lt.map((l) => [l.sha, l.at, l.source]), [['c1', 20, 'later push'], ['c2', 20, 'push'], ['c3', 30, 'push'], ['c4', 4, 'commit']]);
+  // Only slots a full day old are judged for a miss.
+  assert.deepEqual(judgedDays(T('2026-10-01T00:00:00Z'), T('2026-10-03T00:10:00Z')), ['2026-10-01']);
 });

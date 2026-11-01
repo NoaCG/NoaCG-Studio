@@ -240,6 +240,9 @@ jobs:
       # its own: it needs a checkout and node builtins only, seconds per run.
       - name: Check out history for the landing-coverage report
         if: ${{ !cancelled() && matrix.workflow == 'nightly.yml' }}
+        continue-on-error: true
+        # Inside the job's 5 minutes with room left for the failure step below.
+        timeout-minutes: 1
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -248,6 +251,7 @@ jobs:
       - name: Landing coverage report
         if: ${{ !cancelled() && matrix.workflow == 'nightly.yml' }}
         continue-on-error: true
+        timeout-minutes: 2
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

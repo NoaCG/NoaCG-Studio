@@ -22,10 +22,10 @@ Acceptance, verbatim:
 **Named blocker: two required contracts have one carrier, the nightly, and one daily cron whose
 start drifts by up to two hours cannot clear every landing within 24 hours.** Engine-floor and
 the full E2E suite (every spec a scoped selection would omit) run only in `nightly.yml`. In the 14
-days measured (337 landings), 15 landings waited more than 24 hours for a complete green
-engine-floor verdict and 129 for a complete green E2E suite verdict, 7 of them in the nine
+days measured (337 landings), 11 landings waited more than 24 hours for a complete green
+engine-floor verdict and 128 for a complete green E2E suite verdict, 6 of them in the nine
 all-green nights after the last red one. The catalog battery itself met the bound (0 breaches,
-longest 14.4 hours), but only because the midday catalog-gates pass happened to plan the whole
+longest 14.2 hours), but only because the midday catalog-gates pass happened to plan the whole
 catalog on every day in the window; nothing guarantees that.
 
 AC-5 stays open. Nothing is narrowed. `ci.yml`'s catalog calibration job still runs the whole
@@ -44,8 +44,11 @@ retain pre-merge coverage"; that choice is ci16's, after ci15.
 
 These are the rules `scripts/schedule-coverage.mjs` applies and its tests pin.
 
-- R1. A landing is a commit on `main`'s first-parent line; its time is the merge commit's
-  committer time (the merge queue writes it moments before the push).
+- R1. A landing is a commit on `main`'s first-parent line; its time is when it reached `main`,
+  from the repository activity API (`merge_queue_merge` or `push`). One push can bring two merge
+  commits and the API lists only the last, so a commit without its own entry takes the time of the
+  next one that has one. The committer time is 6 to 13 minutes earlier (the merge group's own CI)
+  and is used only for a commit newer than every listed push; the report counts those.
 - R2. A run speaks for the commit it **requested** (`head_sha`), and only when that commit is a
   landing on the first-parent line and the run's branch is `main`. A branch run, or a run whose
   commit is not a landing, covers nothing. No ancestry inference from any other commit.
@@ -54,7 +57,8 @@ These are the rules `scripts/schedule-coverage.mjs` applies and its tests pin.
 - R4. A run is **complete** for a contract when every job that carries that contract reached
   success or failure, every planned E2E shard 1..N is present, and (catalog-gates) the scope was
   the whole catalog. Cancelled, skipped, missing or timed-out-and-cancelled jobs make it
-  incomplete, and an incomplete run covers nothing.
+  incomplete, and an incomplete run covers nothing. An incomplete run with a failed job (a failed
+  plan skips every shard) still counts as a detection for the first-verdict delay.
 - R5. A complete **red** run is a detection, not a clearance. The strict delay waits for a
   complete **green** run. The landings in a red run's range are the culprit replay's input.
 - R6. Delay = completion time of the first complete green run that covers the landing, minus the
@@ -64,7 +68,9 @@ These are the rules `scripts/schedule-coverage.mjs` applies and its tests pin.
   a run on `main` already going at or after it (its start plus the worst observed duration);
   else today's slot if no scheduled run has been created for it yet and the worst observed start
   delay has not run out; else the next slot. A slot's projection is its cron instant plus the
-  worst observed start delay plus the worst observed duration. A deadline before that is a
+  worst observed start delay plus the worst observed duration (a re-run's duration from its own
+  attempt's start). A run queued behind one in progress (the nightly's concurrency group) starts
+  when that one is projected to end. A deadline before that is a
   projected breach, and the repair is a nightly dispatch on `main` before the deadline.
 - R8. Full scope is required (`scopeDecision`) while any breach, incomplete run, missed slot,
   projected breach or unresolved culprit replay stands.
@@ -77,9 +83,9 @@ run never clears a landing, so this cannot make coverage look better; it can onl
 ## 2. Measurement (a), from real Actions history
 
 Window: landings 2026-10-18T00:00Z to 2026-11-01T20:30Z (337 landings); runs on `main` from
-2026-10-14. Data: 19 `nightly.yml` and 16 `catalog-gates.yml` runs on `main`, their job lists and
-the 15 midday sweep logs needed to read each run's scope. 60 API calls in one pass, run and job
-records cached by ID.
+2026-10-14. Data: 19 `nightly.yml` and 16 `catalog-gates.yml` runs on `main`, their job lists,
+the 15 midday sweep logs needed to read each run's scope, and 800 push records of `main` (8
+pages). About 70 API calls in one pass, run and job records cached by ID.
 
 ### 2.1 Which contracts each scheduled run carries
 
@@ -103,20 +109,25 @@ Whole-catalog IDs do not prove coverage of every required check:
 
 | Contract (carriers) | Landings | Cleared | Breaches > 24h | Longest wait to green | After last red (180 landings) |
 | --- | --- | --- | --- | --- | --- |
-| Catalog battery (nightly catalog jobs or a whole-catalog midday pass) | 337 | 334 | **0** | 14.4h | 0 breaches, 14.4h |
-| engine-floor (nightly only) | 337 | 324 | **15** | 24.6h | 7 breaches, 24.6h |
-| Full E2E suite (nightly only) | 337 | 324 | **129** | 72.5h | 7 breaches, 24.6h |
-| Whole nightly, every job | 337 | 324 | **129** | 72.5h | 7 breaches, 24.6h |
+| Catalog battery (nightly catalog jobs or a whole-catalog midday pass) | 337 | 334 | **0** | 14.2h | 0 breaches, 14.2h |
+| engine-floor (nightly only) | 337 | 324 | **11** | 24.5h | 6 breaches, 24.5h |
+| Full E2E suite (nightly only) | 337 | 324 | **128** | 72.4h | 6 breaches, 24.5h |
+| Whole nightly, every job | 337 | 324 | **128** | 72.4h | 6 breaches, 24.5h |
 
 Uncovered landings are those after the last nightly (waiting, inside their deadline at
-measurement time). The 129 E2E breaches fall almost entirely in 2026-10-18..22, when four of five
-nights were red (section 3). The 15 engine-floor breaches are the structural ones: a landing
-merged minutes after a nightly is created waits for the next night, about 24 hours plus that
-night's later start plus its 18 minutes. Examples: `f393e930` merged 05:32:58 on 10-27, after
-that night's run was created at 05:11; cleared 24.6h later. `a083fc29` merged 04:48:28 on 10-25,
-71 seconds after that night's run was created; cleared 24.4h later.
+measurement time). The 128 E2E breaches fall almost entirely in 2026-10-18..22, when four of five
+nights were red (section 3). The 11 engine-floor breaches are the structural ones: a landing
+pushed minutes after a nightly is created waits for the next night, about 24 hours plus that
+night's later start plus its 18 minutes. The six on green nights: `a083fc29` (24.3h),
+`bc8cb2c1` and `53df82e5` (one push, 24.1h), `f7709512` (24.1h), `f393e930` (24.5h) and
+`c614500f` (24.1h). For example `f393e930` reached `main` at 05:38:05 on 10-27, 27 minutes after
+that night's run was created at 05:11, and was cleared by the next night's run at 06:07 on 10-28.
 
-Exact verdicts: 11 of 324 landings were checked by a nightly at their own commit; every other
+Measured first by committer time, the counts were 15 and 129 and the longest 24.6h; the push time
+is the right clock (R1) and these tables use it.
+
+Exact verdicts: 11 of 324 landings were checked by a full nightly at their own commit (30 of
+334 for the catalog battery, counting the midday runs); every other
 clearance is range evidence (R3).
 
 ### 2.3 Start drift and cost
@@ -142,21 +153,20 @@ a watched schedule has no run created inside 26 hours. Added beside it, on the n
 is a report step that runs `node scripts/schedule-coverage.mjs` (rules R1 to R7) and writes the
 oldest uncovered landing, its deadline and the projection to the step summary, with a warning on a
 projected breach. It is a report, not an alarm: `continue-on-error`, no issue, no change to the
-job's verdict. It reads the last 14 days (about 16 API calls, 6 seconds in Actions). The
-projection takes the worst start delay and duration in its window, so the window decides the
-margin: for the landing below, the last 5 or 14 days projected completion 3 to 4 minutes inside
-its deadline, and runs back to 2026-10-14 (one of them 24 minutes long) projected 44 seconds past.
-A margin of minutes is no margin; the report says which side it falls on and the repair. Why not blocking: nothing relies
-on this bound yet, and a red twice-daily alarm for the structural breaches above would be noise;
+job's verdict; each step has its own timeout inside the job's 5 minutes. It reads the last 14
+days (about 20 API calls). It also prints the missed slots and the scope rule's decision (R8),
+which nothing reads yet. Why not blocking: nothing relies on this bound yet, and a red twice-daily alarm for the structural breaches above would be noise;
 if ci16 activates narrowing, that is where it becomes blocking.
 
 Priced by the growth gate (ci18) as no addition: it is two steps in an existing job, not a job,
 and runs in seconds (measured below). A separate job would have been priced at the overhead tier's
 6 runner-minutes per run, 12 a day, over the 10-a-day ceiling.
 
-Live reading at 2026-11-01T20:30Z, runs from 2026-10-14: oldest uncovered `4c42dc88`, landed
-06:36:01Z, deadline 2026-11-02T06:36:01Z, next nightly projected complete by 06:36:45Z:
-**projected breach by 44 seconds.** The repair it names was run (section 4.2) and cleared the landing.
+Live reading at 2026-11-01T20:30Z, runs from 2026-10-14: oldest uncovered `4c42dc88`, reached
+`main` at 06:42:39Z, deadline 2026-11-02T06:42:39Z, next nightly projected complete by 06:36:45Z:
+inside the bound by 6 minutes. A margin of minutes is no margin. A first version of the report,
+on committer time (06:36:01Z), projected a breach by 44 seconds; that reading started the repair
+drill in section 4.2, which cleared the landing.
 
 ## 3. Nightly causes, triaged before relying on cadence (b)
 
@@ -164,9 +174,9 @@ Live reading at 2026-11-01T20:30Z, runs from 2026-10-14: oldest uncovered `4c42d
 | --- | --- | --- | --- | --- |
 | 10-15 | 38683155633 | E2E 9/11 | Shard stopped at `--global-timeout`, 22 tests unfinished (#1238) | Not recurred in 17 nights |
 | 10-19 | 39201147576 | Report job, E2E time budget step; every spec green (#1498) | Suite over its time budget that night | Not recurred |
-| 10-20 | 39372122320 | `wizard-shell.spec.ts` cold-open check (#1498) | Shared page between checks; fixed by `117f08bd` (isolate each cold-open check) | Fixed |
+| 10-20 | 39372122320 | `wizard-shell.spec.ts` (#1498, failure set `629c321ada82`) | `117f08bd` landed the same day, isolating each wizard cold-open check in a fresh page | Same spec failed again on 10-23 |
 | 10-22 | 39724997061 | `rundown-history.spec.ts:268` (#1598) | Product race: Undo pressed while a write was landing was dropped; fixed by `9ed483bf` (#1649, proved by fault injection) | Fixed |
-| 10-23 | 39903020781 | `wizard-shell.spec.ts:424` (#1598) | Fail then pass at the same commit 799924c (#1622) | **Open**: a flake signal not routed to quarantine; green the nine nights since |
+| 10-23 | 39903020781 | `wizard-shell.spec.ts:424` (#1598, the same failure set) | Fail then pass at the same commit 799924c (#1622) | **Open**: a flake signal not routed to quarantine; green the nine nights since |
 
 Every nightly from 10-24 to 11-01 is green and complete. One cause, #1622, is open. It does not
 change this verdict (the blocker above stands on green nights alone), but a qualification after
@@ -176,7 +186,7 @@ ci13 cannot rely on cadence until #1622 is resolved or quarantined.
 
 ### 4.1 Controlled fixtures
 
-`scripts/schedule-coverage.test.mjs`, 11 tests, run by the build gate's `scripts/**/*.test.mjs`
+`scripts/schedule-coverage.test.mjs`, 12 tests, run by the build gate's `scripts/**/*.test.mjs`
 glob. Each run in a fixture names the commit it requested.
 
 | Drill | What the fixture does | What it proves |
@@ -190,20 +200,25 @@ glob. Each run in a fixture names the commit it requested.
 | Interacting landings and a corrected successor | Exact replays r1 pass, r2 fail, r3 fail, r4 pass; r2's own PR passed | Culprit r2, masked by r4, an interaction; two defects in one range both named |
 | Culprit replay with a gap | One commit not replayed | Attribution unresolved, never guessed; full scope |
 | Full-scope rollback | Clean window, then an unresolved replay, then a late run | `scoped-eligible`, then `full` with each reason |
+| Clocks and queues (from review) | A night re-run hours later; a dispatch queued behind a run in progress; a failed plan; two merge commits in one push; the activity pager | Duration from the attempt; the queued run starts after the one ahead; a failed plan is incomplete but a detection; the first commit lands at the later push; the pager follows its cursor and stops past the window |
 
 Mutation check, each rule broken in turn: crediting a branch run, letting red clear a landing,
-counting a cancelled job as complete, guessing an unreplayed commit, and a projection that never
-alarms. Each fails the tests (1, 1, 2, 2 and 1 failures); the unmodified module passes 11 of 11.
+counting a cancelled job as complete, guessing an unreplayed commit, a projection that never
+alarms, commit time for a commit that shared a push, a re-run's duration from the run's creation,
+and ignoring the concurrency queue. Each fails the tests (1, 2, 2, 2, 1, 1, 1 and 1 failures); the
+unmodified module passes 12 of 12.
 
 ### 4.2 Real runs
 
-- **Repair of a projected breach (missed or late recovery).** The detector projected `4c42dc88` to
-  miss its deadline (section 2.4). Its repair, a nightly dispatch on `main`, was run: run
+- **Repair of a projected breach (missed or late recovery).** The first version of the report, on
+  committer time, projected `4c42dc88` to miss its deadline by 44 seconds (section 2.4; on push
+  time it is 6 minutes inside, still no real margin). Its repair, a nightly dispatch on `main`, was
+  run: run
   41347406304, requested commit `d7b4927b87f037a74411883b69a6282b780b9c19` (main's tip at
   dispatch, 2026-11-01T20:32:52Z). While it ran the report named it as the run that would clear the oldest
   landing ("run 41347406304, already going"). It finished green and complete at 20:53:05Z (11
   shards, all six job kinds). Afterwards the report read "274 landing(s); 274 cleared ... 0
-  waiting": `4c42dc88` cleared after 14.3 hours, by range evidence at `d7b4927b`.
+  waiting": `4c42dc88` cleared 14.2 hours after it reached `main`, by range evidence at `d7b4927b`.
 - **Culprit replay input, real ranges.** For the five red nights the exact replay lists are the
   landings between the last green run's requested commit and the red run's:
   10-15 `1dc34ceb..3738cda3` (54 landings), 10-19 `aeafa14e..bb82c4df` (57),
@@ -215,8 +230,8 @@ alarms. Each fails the tests (1, 1, 2, 2 and 1 failures); the unmodified module 
   replay at October commits would run on today's runners against those commits' dependencies
   (`package-lock.json` changed 626 lines since `0ca77426`), which this row cannot set up faithfully
   inside its bounds. It is a missing drill receipt and part of the not-qualified verdict.
-- **Full-scope rollback.** On the real 14 days, `scopeDecision` returns `full`, naming the 129
-  breaches and the projected breach. The full path itself: catalog-gates
+- **Full-scope rollback.** On the real 14 days, `scopeDecision` returns `full`, naming the 128
+  breaches. The full path itself: catalog-gates
   dispatched with `designs=all` on this branch, run 41348085799, requested commit `47353047`
   (this branch's head then). Green in 12.4 minutes; its bench scope report: mode `full`, 526 of
   526 expected designs measured, 22 categories, 30 units, no empty unit, `imp01` and `svg01`
@@ -255,6 +270,8 @@ reset stays `8e84002d` (ci11).
   - A red complete run never clears a landing (R5). A delay to "any verdict" is reported beside
     the strict one but never qualifies.
   - The detector is a report step in the existing drift job, not a new job and not an alarm (2.4).
+  - Landing time is the push to `main`, not the commit (R1); the first measurement used commit
+    time and overstated the breaches (15 and 129 against 11 and 128).
   - No historical exact-commit Actions replay (4.2).
 - Traps for later rows:
   - ci15 and ci16: "the midday pass planned the whole catalog every day" is a property of this
