@@ -131,3 +131,31 @@ jobs:
               exit 1
               ;;
           esac
+
+  # PER-ITEM AGE ALARMS (docs/work-specs/cicd-improvement/spec.md D7; ceilings in
+  # docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3). One open pull request
+  # past its ready or queue ceiling is enough for an owned, dated action: no sample minimum and no
+  # waiting for the weekly report. Every landing re-reads the open items and keeps one rolling
+  # issue, closed once nothing is overdue. Reads only GitHub; no production access.
+  ages:
+    name: Delivery age alarms
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      # A read that fails leaves the alarm issue as it was and warns; it never turns the landing's
+      # post-land run red, which the phase checkers read for migrations and advisors.
+      - name: Open items past their age ceiling
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/growth-report.mjs ages --issue

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // gate: workflow ci.yml
-// guards: scripts/e2e-durations.json, e2e/**, docs/work-specs/**/spec.md
+// guards: scripts/e2e-durations.json, scripts/growth-ceilings.json, e2e/**, docs/work-specs/**/spec.md, .github/workflows/**
 // THE CAPACITY LINE - how much of the full E2E run's envelope the suite uses, and whether THIS
 // change may add to it (docs/work-specs/e2e-suite-budget/spec.md, decisions 1-3).
 //
@@ -8,7 +8,15 @@
 //   node scripts/e2e-capacity.mjs --changed <base>              # ...with this change's spec files
 //   node scripts/e2e-capacity.mjs --changed <base> --report <merged.json>   # ...measured from the run
 //   flags: --github-output (write capacity=ok|warn|refuse and capacity_reason), --summary <file>
-//          (append a markdown summary), --today YYYY-MM-DD (exception expiry, tests)
+//          (append a markdown summary), --today YYYY-MM-DD (exception expiry, tests),
+//          --growth <growth-report.json> (the latest weekly growth report; the D7 tiers below)
+//
+// THE GROWTH TIERS (docs/work-specs/cicd-improvement/spec.md D7, scripts/growth-controls.mjs).
+// Beside the table line, the same verdict judges what the change adds to each of the four frozen
+// tiers (offline, backend, graphics, fixed overhead), each alone, against the latest weekly
+// report's measurement; whether the durations table is past its 8-day bound (then added minutes
+// are refused from the 85% line); and whether the change edits the frozen ceilings or removes
+// or renews an exception without a measured repayment. There is no aggregate gate.
 //
 // WHY A LINE AND NOT A COUNT. The offline suite grew from 115 to 169 measured minutes in the three
 // weeks to 2026-10-11, almost all of it new spec files, and the full run on main lost a shard at
@@ -50,6 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
+import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -104,8 +113,8 @@ export function parseExceptions(markdown) {
   const out = [];
   for (const line of lines.slice(start + 1)) {
     if (/^##\s/.test(line)) break;
-    const m = /^-\s+`?(e2e\/[^\s:`]+\.spec\.ts)`?:\s*([\d.]+)\s*min,\s*(.+?),\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(line.trim());
-    if (m) out.push({ spec: m[1], minutes: Number(m[2]), protects: m[3].trim(), expires: m[4] });
+    const m = /^-\s+`?(e2e\/[^\s:`]+\.spec\.ts)`?:\s*([\d.]+)\s*min,\s*(.+?)(?:,\s*repaid\s+([\d.]+)\s*min\s+in\s+run\s+(\d+)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?)?,\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(line.trim());
+    if (m) out.push({ spec: m[1], minutes: Number(m[2]), protects: m[3].trim(), expires: m[7], ...(m[4] ? { repaid: { minutes: Number(m[4]), runs: [m[5]], measuredAt: m[6] ?? null } } : {}) });
   }
   return out;
 }
@@ -122,6 +131,41 @@ export function readExceptions(root = ROOT) {
     for (const e of parseExceptions(readFileSync(file, 'utf8'))) out.push({ ...e, from: `docs/work-specs/${folder.name}/spec.md` });
   }
   return out;
+}
+
+/**
+ * What a change does to the offline exceptions, against its base. The offline tier is one scope
+ * (Rule X5): the work-spec lines and the `growth-ceilings.json` exceptions filed under the offline
+ * tier. Lines stay on record after they expire (append-only). The lines a change adds are one
+ * exception that starts the day it is judged; it, or a new offline entry in `growth-ceilings.json`
+ * (`newEntries`), is judged against every earlier offline exception (`base` lines and
+ * `baseEntries`) as Rules X3 and X4 judge the ledger. A line records no start, so its expiry
+ * stands for it. A later line carries a dated receipt:
+ * `, repaid <minutes> min in run <run id> on <YYYY-MM-DD>` before `expires`.
+ */
+export function offlineExceptionChanges(base, head, { today, baseEntries = [], newEntries = [] } = {}) {
+  const key = (e) => `${e.from}|${e.spec}|${e.minutes}|${e.expires}`;
+  const day = (s) => Date.parse(`${String(s).slice(0, 10)}T00:00:00Z`);
+  const iso = (t) => (Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : 'an unreadable date');
+  const baseKeys = new Set(base.map(key));
+  const headKeys = new Set(head.map(key));
+  const problems = [];
+  for (const e of base) if (!headKeys.has(key(e))) problems.push(`the budget exception for ${e.spec} in ${e.from} (expires ${e.expires}) was removed or moved: exception lines stay on record after they expire`);
+  const lines = head.filter((e) => !baseKeys.has(key(e)));
+  // A new line starts the day it is judged and runs at most 30 days from it (Rule X5).
+  for (const e of lines) if (!(day(e.expires) >= day(today) && day(e.expires) - day(today) <= EXCEPTION_MAX_DAYS * 86_400_000)) problems.push(`the new budget exception for ${e.spec} expires ${e.expires}: a new line starts today (${today}) and runs at most ${EXCEPTION_MAX_DAYS} days`);
+  if (lines.length && newEntries.length) problems.push(`this change adds offline lines and the offline exception ${newEntries.map((x) => x.id).join(', ')} in growth-ceilings.json: the offline tier is one scope with one exception at a time`);
+  const earlier = [...base.map((b) => ({ start: b.expires, expires: b.expires })), ...baseEntries.map((x) => ({ start: x.from, expires: x.expires }))];
+  if (!earlier.length) return problems;
+  const latest = Math.max(...earlier.map((x) => day(x.start)));
+  const last = Math.max(...earlier.map((x) => day(x.expires)));
+  for (const e of lines) if (!receiptAfter(e.repaid, latest, day(today))) problems.push(`the new budget exception for ${e.spec} is not the first offline exception and has no measured repayment receipt dated between ${iso(latest)} and today (\`, repaid <minutes> min in run <id> on <date>\`)`);
+  if (lines.length && !(day(today) > last)) problems.push(`the new offline budget exception starts ${today}, while an earlier offline exception runs to ${iso(last)}: one active exception per tier`);
+  for (const x of newEntries) {
+    if (!receiptAfter(x.repaid, latest, day(x.from))) problems.push(`the offline exception ${x.id} is not the first offline exception and has no measured repayment receipt measured between ${iso(latest)} and its start`);
+    if (!(day(x.from) > last)) problems.push(`the offline exception ${x.id} starts ${x.from}, while an earlier offline exception runs to ${iso(last)}: one active exception per tier`);
+  }
+  return problems;
 }
 
 /** An exception covers a spec today if it names it, has not expired, and does not run too long. */
@@ -143,7 +187,7 @@ export function exceptionFor(exceptions, spec, today) {
  * and no measurement counts at the median before a run and at the p90 once a report exists but
  * omits it (the shard that carried it died).
  */
-export function assess({ table = readTable(), suite = specFilesOnDisk(), changed = [], measured = null, exceptions = [], today = new Date().toISOString().slice(0, 10) } = {}) {
+export function assess({ table = readTable(), suite = specFilesOnDisk(), changed = [], measured = null, exceptions = [], today = new Date().toISOString().slice(0, 10), tableStale = false } = {}) {
   const minutes = { ...table.minutes };
   const values = Object.values(table.minutes);
   const median = percentile(values, 0.5);
@@ -172,9 +216,12 @@ export function assess({ table = readTable(), suite = specFilesOnDisk(), changed
   const uncovered = details.filter((d) => d.delta > 0 && !d.exception);
   let status = 'ok';
   let reason = `${after.toFixed(1)} of ${capacity.toFixed(1)} table-minutes (${(100 * share).toFixed(0)}%) on ${MAIN_RUNNERS} runners`;
-  if (share >= HARD_SHARE && added > 0 && uncovered.length > 0) {
+  // A stale table cannot establish the last ten points of headroom (growth-controls.mjs rule 3),
+  // so while it is past its freshness bound added minutes are refused from the warning line.
+  const line = tableStale ? WARN_SHARE : HARD_SHARE;
+  if (share >= line && added > 0 && uncovered.length > 0) {
     status = 'refuse';
-    reason = `${reason}; this change adds ${added.toFixed(1)} minute(s) above the ${Math.round(100 * HARD_SHARE)}% line without a budget exception for ${uncovered.map((d) => d.spec).join(', ')}`;
+    reason = `${reason}; this change adds ${added.toFixed(1)} minute(s) above the ${Math.round(100 * line)}% line${tableStale ? ' a stale durations table sets' : ''} without a budget exception for ${uncovered.map((d) => d.spec).join(', ')}`;
   } else if (share >= WARN_SHARE) {
     status = 'warn';
     reason = `${reason}; above the ${Math.round(100 * WARN_SHARE)}% line${added > 0 ? `, this change adds ${added.toFixed(1)} minute(s)` : ''}`;
@@ -209,6 +256,154 @@ export function changedSpecs(base, cwd = ROOT) {
   return specs;
 }
 
+/**
+ * The weekly report's offline stop reaches the table line: a stop on the offline tier, or a report
+ * that could not be read (so no stop can be ruled out), refuses a change that adds offline minutes.
+ */
+export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refuseShare = HARD_SHARE, paths = [] } = {}) {
+  if (!(result.added > 0)) return growth;
+  // A stop or an unreadable report refuses before any waiver (Rules E18, E21).
+  if (growth.stops?.offline) { growth.status = 'refuse'; growth.reasons.push(`offline growth stopped: ${growth.stops.offline}; this change adds ${result.added.toFixed(1)} minute(s)`); return growth; }
+  if (growth.unreadable) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and no offline stop can be ruled out without the weekly report`); return growth; }
+  const e = growth.estimates ?? {};
+  let landing = result.added * (e.runsPerLanding?.everyRun ?? 1);
+  let day = result.added * (e.scheduledRunsPerDay?.offline ?? 1);
+  // An offline addition goes through the same bounded exception waiver as every other tier
+  // (Rule X9): an approved offline exception waives up to its room, and only what is left is
+  // judged below.
+  if (growth.assessWith && Array.isArray(result.details)) {
+    const pathOf = (name) => paths.find((p) => p.split('/').pop() === name) ?? `e2e/${name}`;
+    const specs = result.details.filter((d) => d.delta > 0).map((d) => ({ tier: 'offline', id: `spec:${pathOf(d.spec)}`, perLanding: d.delta * (e.runsPerLanding?.everyRun ?? 1), perDay: d.delta * (e.scheduledRunsPerDay?.offline ?? 1) }));
+    // The offline jobs this change adds are judged in the same sum as its spec minutes (Rule X10),
+    // so the two never each fit under the line that together they cross.
+    const jobs = (growth.items ?? []).filter((i) => i.tier === 'offline');
+    const t = growth.assessWith([...jobs, ...specs]).tiers.offline;
+    landing = t.addedLanding;
+    day = t.addedDay;
+    if (!(landing > 0) && !(day > 0)) return growth;
+  }
+  const tier = growth.tiers?.tiers?.offline;
+  const line = tier?.evidence === 'complete' ? refuseShare : warnShare;
+  if (!tier || tier.evidence === 'missing') { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s) and the offline tier has no measurement, so its headroom cannot be established`); }
+  // The offline tier's measured runner-minutes, including any slowdown the weekly report
+  // attributed, judge an offline addition too, as in every other tier: the added spec minutes run
+  // in every CI run of a landing and in each nightly run, and the tier with them must stay under
+  // its line (95%, or 85% on partial or stale evidence). The table line prices them separately.
+  else if (tier?.used && tier?.ceiling) {
+    const after = Math.max((tier.used.perLanding + landing) / tier.ceiling.perLanding, (tier.used.perDay + day) / tier.ceiling.perDay);
+    if (after >= line) { growth.status = 'refuse'; growth.reasons.push(`this change adds ${result.added.toFixed(1)} offline minute(s), ${landing.toFixed(1)} runner-minutes per landing and ${day.toFixed(1)} per day, taking the offline tier to ${Math.round(100 * after)}% of its ceiling (the ${Math.round(100 * line)}% line)`); }
+  }
+  return growth;
+}
+
+/** Every e2e spec path on disk, repo-relative, across the offline, configured and catalog folders. */
+function specPathsOnDisk(root) {
+  // Recursive, like the Playwright configs that read these folders, so a nested spec that pricing
+  // sees is also a scope an exception may name.
+  const abs = path.join(root, 'e2e');
+  if (!existsSync(abs)) return [];
+  return readdirSync(abs, { recursive: true }).map((f) => `e2e/${String(f).split(path.sep).join('/')}`).filter((f) => f.endsWith('.spec.ts'));
+}
+
+/** The covers that name a real job or spec in this checkout. */
+export function knownCoversOnDisk(root = ROOT, specs = specPathsOnDisk(root)) {
+  const wfDir = path.join(root, '.github', 'workflows');
+  return knownCovers(Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])), specs);
+}
+
+const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
+const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
+
+/**
+ * The D7 half of this line, with its I/O: the latest weekly growth report (or the frozen seed
+ * when there is none), the files this change adds, the workflows it touches, and the ceilings
+ * and exception records before and after. Never throws: what it cannot read is missing evidence.
+ */
+export function growthAssessment({ base, reportPath, table, today, root = ROOT }) {
+  const ceilings = JSON.parse(readFileSync(path.join(root, 'scripts', 'growth-ceilings.json'), 'utf8'));
+  const reasons = [];
+  // Asked for a report and none could be read (the fetch failed): the tiers have no evidence and
+  // no stops can be known, so additive growth is refused. A fetch that found no report at all
+  // writes `{ none: true }`, and the frozen seed stands in until the first weekly run.
+  let report = null;
+  let unreadable = false;
+  if (reportPath) { try { report = JSON.parse(readFileSync(reportPath, 'utf8')); } catch { unreadable = true; } }
+  if (report?.none) report = null;
+  const measurement = unreadable ? null : report?.measurement ?? ceilings.measurement;
+  if (unreadable) reasons.push('the newest weekly growth report could not be read, so no tier can establish headroom');
+  const cadence = reportCadence({ generatedAt: report?.generatedAt ?? null, today, maxAgeDays: ceilings.reportMaxAgeDays });
+  const fresh = tableFreshness({ recordedAt: table.source?.recordedAt, today, boundDays: ceilings.freshnessDays, pending: report?.table?.pending ?? [] });
+  const added = [];
+  const workflows = {};
+  let ledger = [];
+  let offline = [];
+  let diffFailed = false;
+  const newExceptions = [];
+  let revisionNote = null;
+  if (base) {
+    let diff = '';
+    // An unreadable diff is unknown added cost, never zero: refused, and said so.
+    try { diff = execFileSync('git', ['diff', '--name-status', `${base}...HEAD`], { cwd: root, encoding: 'utf8', windowsHide: true }); } catch { diffFailed = true; reasons.push(`cannot diff ${base}: what this change adds is unknown, so it is refused`); }
+    for (const line of diff.split('\n')) {
+      const [status, ...rest] = line.trim().split(/\s+/);
+      const file = rest.at(-1);
+      if (!status || !file) continue;
+      // A rename adds nothing unless it moves a case into a priced kind (an offline spec moved
+      // into e2e/configured/ is a new backend case).
+      const kind = (f) => (/^e2e\/configured\//.test(f) ? 'backend' : /^e2e\/catalog\//.test(f) ? 'graphics' : 'other');
+      if (/^A/.test(status) || (/^R/.test(status) && kind(rest[0]) !== kind(file))) added.push(file);
+      if (/^[AMR]/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) {
+        const from = /^R/.test(status) ? rest[0] : file;
+        workflows[file.split('/').pop()] = { base: gitShow(base, from, root) ?? '', head: readFileSync(path.join(root, file), 'utf8'), baseFile: from.split('/').pop() };
+      }
+      if (/^D/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) workflows[file.split('/').pop()] = { base: gitShow(base, file, root) ?? '', head: '' };
+    }
+    const baseCeilings = gitShow(base, 'scripts/growth-ceilings.json', root);
+    const baseLedger = baseCeilings ? JSON.parse(baseCeilings) : null;
+    if (baseLedger) {
+      const before = baseLedger;
+      const capIn = (text) => Number(/export const SHARD_CAP_MINUTES = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
+      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS }, shardCap: { base: capIn(gitShow(base, 'scripts/e2e-durations.mjs', root)), head: capIn(readFileSync(path.join(root, 'scripts', 'e2e-durations.mjs'), 'utf8')) } });
+      // A PR that adds an exception is flagged for the separate review the spec requires; the
+      // coordinator or owner decides, never the change's own author or an automatic repair.
+      // A reviewed revision of the ceilings is legal, never silent: it is named for the owner too.
+      const revision = ceilingsRevision(before, ceilings);
+      if (revision) revisionNote = `this change revises the frozen ceilings file to version ${revision.version} (${revision.rationale ?? 'no rationale'}; authority ${revision.authority ?? 'none'}; ${revision.reviewed ?? 'no review link'}): the owner confirms it before it lands`;
+      const before_ids = new Set((before.exceptions ?? []).map((e) => e.id));
+      for (const e of ceilings.exceptions ?? []) if (!before_ids.has(e.id)) newExceptions.push(e.id);
+      // Only an exception this change adds is judged here. One already on record that a rename or
+      // a removed job makes invalid simply covers nothing: removing an excepted job is
+      // cost-reducing maintenance and must land.
+      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root)).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
+    }
+    const baseSpecs = (gitShow(base, 'docs/work-specs', root) ?? '').split('\n').filter((n) => n.endsWith('/'));
+    const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`, root) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
+    const offlineIn = (c) => (c?.exceptions ?? []).filter((e) => e.tier === 'offline');
+    const baseIds = new Set(offlineIn(baseLedger).map((e) => e.id));
+    offline = offlineExceptionChanges(baseExceptions, readExceptions(root), { today, baseEntries: offlineIn(baseLedger), newEntries: offlineIn(ceilings).filter((e) => !baseIds.has(e.id)) });
+  }
+  const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
+  const known = knownCoversOnDisk(root);
+  const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {}, known });
+  let status = tiers.status;
+  for (const t of TIERS) if (tiers.tiers[t].status !== 'ok' && tiers.tiers[t].items.length) reasons.push(`${t} tier ${tiers.tiers[t].status}: ${tiers.tiers[t].why}`);
+  if (ledger.length || offline.length || diffFailed) { status = 'refuse'; reasons.push(...ledger, ...offline); }
+  if (revisionNote) { reasons.push(revisionNote); if (status === 'ok') status = 'warn'; }
+  if (newExceptions.length) { reasons.push(`this change adds budget exception(s) ${newExceptions.join(', ')}: each needs a separate, recorded review before it lands`); if (status === 'ok') status = 'warn'; }
+  if (cadence.overdue && !unreadable) { reasons.push(`${cadence.reason} - an owned failure (${ceilings.owner}); tier evidence is the frozen seed until it runs`); if (status === 'ok') status = 'warn'; }
+  if (fresh.stale) { reasons.push(fresh.reason); if (status === 'ok') status = 'warn'; }
+  const markdown = [
+    ...summarizeTiers(tiers),
+    `- ${fresh.reason}.`,
+    unreadable ? '- The newest weekly growth report could not be read: no tier evidence, additions refused.' : `- ${cadence.reason}${report ? ` (week to ${report.measurement?.windowEnd})` : `; tiers judged on the frozen seed measured to ${ceilings.measurement.windowEnd}`}.`,
+    ...ledger.map((p) => `- Ceilings file: ${p}.`),
+    ...offline.map((p) => `- Budget exceptions: ${p}.`),
+    '',
+  ].join('\n');
+  const assessWith = (extra) => assessTiers({ ceilings, measurement, items: extra, today, stops: report?.stops ?? {}, known });
+  return { status, reasons, markdown, table: fresh, tiers, items, stops: report?.stops ?? {}, unreadable, estimates: ceilings.estimates, assessWith };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const value = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : undefined; };
@@ -227,10 +422,19 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   // empty suite or an empty table is a moved directory or a lost file, never a 0% usage.
   measured(suite.length, 'e2e spec files on disk');
   measured(Object.keys(table.minutes).length, 'measured spec durations');
-  const result = assess({ table, suite, changed, measured: fromReport, exceptions: readExceptions(), today });
+  // THE GROWTH TIERS (D7, scripts/growth-controls.mjs): the table's age, what this change adds to
+  // each tier, and what it does to the frozen ceilings and the exception records.
+  const growth = growthAssessment({ base: base && !/^0{40}$/.test(base) ? base : null, reportPath: value('--growth'), table, today });
+  const result = assess({ table, suite, changed, measured: fromReport, exceptions: readExceptions(), today, tableStale: growth.table.stale });
   const runnerMinutes = value('--runner-minutes') !== undefined ? Number(value('--runner-minutes')) : null;
   const wallMinutes = value('--wall-minutes') !== undefined ? Number(value('--wall-minutes')) : null;
-  const text = summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' });
+  // A growth stop on the offline tier (a cost or pre-merge latency breach whose one correction
+  // failed) refuses added offline minutes too, whatever the table line says.
+  applyOfflineStop(growth, result, { paths: changed });
+  const order = { ok: 0, warn: 1, refuse: 2 };
+  if (order[growth.status] > order[result.status]) result.status = growth.status;
+  if (growth.status !== 'ok' && growth.reasons.length) result.reason = `${result.reason}; ${growth.reasons.join('; ')}`;
+  const text = `${summarize(result, { runnerMinutes, wallMinutes, label: fromReport ? 'measured' : 'estimate' })}${growth.markdown}`;
   console.log(text);
   const summary = value('--summary');
   if (summary) appendFileSync(summary, `${text}\n`);
