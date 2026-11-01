@@ -56,8 +56,12 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - `npm run gates -- run --changed origin/main`: pass.
 - `node scripts/check-catalog-emit.mjs`: PASS, 528 designs equal to baseline.
 - `node scripts/check-e2e-protection.mjs --changed origin/main`: OK.
-- `e2e/import-svg-behaviour.spec.ts` through the job queue (job j-0001): see the PR for the
-  final count.
+- `e2e/import-svg-behaviour.spec.ts` through the job queue: 40/40 on the first commit (j-0001).
+  After the review fixes, 39/40 (j-0002): the new journey still asserted the old bound lock
+  layer, which the fix now clears. With that assertion corrected, every quiz test in the spec
+  passed, 11/11 (j-0003). The other 29 tests do not touch the quiz and passed in j-0002.
+- Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
+  the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
   and the configured suite. They run in CI on the PR. `e2e/import-svg.spec.ts` is quarantined
   (#1879, #1915) and is not this run's.
