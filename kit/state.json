@@ -42,19 +42,27 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci09 gates on final head and receipt",
-    "eta": "2026-11-01T13:00:00Z"
+    "what": "ci09 checker verdict (session_017SdbwR9PmMVXT7Zo6Z6Cup)",
+    "eta": "2026-11-01T13:45:00Z"
   },
   "inFlight": [
     {
       "phase": "ci09",
-      "step": "build",
-      "session": "session_017SdbwLjYgq9sMg5YkzFfJ2",
-      "nonce": "ci09-b-7fc9",
-      "branch": "claude/plan-cicd-improvement-ci09-build",
-      "launchedAt": "2026-11-01T10:10:08Z",
-      "note": "PR #1913 open (playout-folders tests open production once; seed disk round trip), head c099c493; only Reviewed red (awaits stamp). Builder finishing review gates.",
-      "pr": 1913
+      "step": "check",
+      "pr": 1913,
+      "mergeSha": "b2f335fb353f799dc7866f23ca9200168205faad",
+      "reviewedHead": "c099c49328185ce1d1347c01de05ec9bec43454a",
+      "builder": "session_017SdbwLjYgq9sMg5YkzFfJ2",
+      "so": "session_017SdbwQTjYLBdW8ChrYfDW7",
+      "checker": "session_017SdbwR9PmMVXT7Zo6Z6Cup",
+      "actor": "checker-ci09-ci09-c-a767",
+      "landedAt": "2026-11-01T12:30:58Z",
+      "stampRun": 41306261837,
+      "queueRun": 41306338184,
+      "repairOwnerComment": 6557901831,
+      "followUps": [
+        1914
+      ]
     }
   ],
   "owner": [],
