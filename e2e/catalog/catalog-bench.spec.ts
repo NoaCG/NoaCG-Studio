@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { toApp, HELPERS } from '../_bench';
 import { ONLY_DESIGNS, SCOPE_NOTE, categoryOutOfScope } from '../_catalogScope';
-import { BENCH_CATEGORIES, BENCH_SLICES, REPORT } from './_bench-scope.mjs';
+import { BENCH_CATEGORIES, REPORT, benchSlices, unitLabel } from './_bench-scope.mjs';
 
 // The CALIBRATION TRIPWIRE: every catalog variant's create() output must pass its own runtime
 // bench (src/validation/runtimeBench.ts) - the house catalog is the ground truth the thresholds
@@ -16,9 +16,9 @@ import { BENCH_CATEGORIES, BENCH_SLICES, REPORT } from './_bench-scope.mjs';
 // checks a run measured every selected design: the two must agree, so there is one list.
 test.describe('catalog calibration tripwire', () => {
   for (const category of BENCH_CATEGORIES) {
-    const slices = (BENCH_SLICES as Record<string, number>)[category] ?? 1;
+    const slices = benchSlices(category);
     for (let slice = 0; slice < slices; slice++) {
-      const label = slices === 1 ? category : `${category} slice ${slice + 1} of ${slices}`;
+      const label = unitLabel(category, slice, slices);
       // The annotation names the unit for the scope guard even when the unit is skipped.
       const unit = { type: REPORT, description: JSON.stringify({ category, slice, slices }) };
       test(`every ${label} variant passes the bench${SCOPE_NOTE}`, { annotation: unit }, async ({ page }) => {

@@ -127,7 +127,7 @@ and its scope, none in the selector:
 ## 3. Verification of the guard
 
 - `node --test scripts/catalog-bench-scope.test.mjs`: 13 tests, one per rule, all pass.
-- Mutation check: 23 mutations of the guard, each removing one check (every clause of S2, S3, S5
+- Mutation check: 23 mutations of the guard and its `--reporter` refusal, each removing one check (every clause of S2, S3, S5
   and S6 separately), run against that file
   (`mutate.py` in the builder's scratchpad, not committed). Each fails the test named after its own
   rule. S6 also fails S8's test, which uses an omitted design as its failing case. The S8

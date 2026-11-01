@@ -17,6 +17,8 @@
 // NOTHING ABOUT WHAT IS MEASURED CHANGES. The guard refuses incomplete evidence; it selects
 // nothing, and a full run is judged exactly as a scoped one, against the whole catalog.
 
+import { specFileOf } from '../../scripts/e2e-run-integrity.mjs';
+
 /** The categories the bench benches, in the order its units are declared. */
 export const BENCH_CATEGORIES = [
   'lower-third',
@@ -65,6 +67,12 @@ export const NOT_BENCHED = {
     '(cicd-improvement ci12, evidence/phase-ci12.md section 2), tracked in issue #1926',
 };
 
+/** How many units a category benches as: its slice budget, or 1 when it runs whole. */
+export const benchSlices = (category, slices = BENCH_SLICES) => slices[category] ?? 1;
+
+/** A unit's name, exactly as its test title spells it, so a guard message greps to its test. */
+export const unitLabel = (category, slice, slices) => (slices === 1 ? category : `${category} slice ${slice + 1} of ${slices}`);
+
 /** The name of the attachment each unit's report travels in. */
 export const REPORT = 'catalog-bench-report';
 
@@ -87,11 +95,6 @@ export function scopeFromEnv(env = process.env) {
   };
 }
 
-/**
- * True when a Playwright command line replaces the config's reporters, and with them this guard.
- * playwright.catalog.config.ts and scripts/catalog-specs.mjs both refuse such a run (rule S12).
- */
-export const replacesReporters = (argv) => argv.some((a) => a === '--reporter' || a.startsWith('--reporter='));
 
 /**
  * Why this bench run is not complete evidence, as sentences (empty when it is), plus a summary.
@@ -108,7 +111,6 @@ export const replacesReporters = (argv) => argv.some((a) => a === '--reporter' |
  */
 export function benchScopeProblems({ catalog, scope, units, manifest }) {
   const m = manifest ?? { categories: BENCH_CATEGORIES, slices: BENCH_SLICES, notBenched: NOT_BENCHED };
-  const sliceCount = (category) => m.slices[category] ?? 1;
   const problems = [];
   const categoryOf = new Map(catalog.map((v) => [v.id, v.category]));
   const scoped = scope.designs !== null;
@@ -153,9 +155,9 @@ export function benchScopeProblems({ catalog, scope, units, manifest }) {
   // S5: every unit of every benched category holding an expected id ran once, with a report.
   const expectedCategories = [...new Set([...expected].map((id) => categoryOf.get(id)))];
   for (const category of expectedCategories) {
-    const n = sliceCount(category);
+    const n = benchSlices(category, m.slices);
     for (let slice = 0; slice < n; slice++) {
-      const label = n === 1 ? category : `${category} slice ${slice + 1} of ${n}`;
+      const label = unitLabel(category, slice, n);
       const ran = units.filter((u) => u.category === category && u.slice === slice);
       if (ran.length === 0) problems.push(`bench unit "${label}" was not run, so its designs were never measured`);
       else if (ran.length > 1) problems.push(`bench unit "${label}" ran ${ran.length} times`);
@@ -186,7 +188,7 @@ export function benchScopeProblems({ catalog, scope, units, manifest }) {
 
   // S8 adds no failure of its own: an empty unit is summarised, and passes only beside S1 to S7.
   const emptyUnits = units.filter((u) => Array.isArray(u.report) && u.report.length === 0)
-    .map((u) => (u.slices === 1 ? u.category : `${u.category} slice ${u.slice + 1} of ${u.slices}`));
+    .map((u) => unitLabel(u.category, u.slice, u.slices));
   const summary = {
     mode: scoped ? 'scoped' : 'full',
     selected: selected.length,
@@ -215,7 +217,15 @@ export function describe(summary) {
     `in ${summary.categories} categor(y|ies) over ${summary.unitsRun} unit(s), from ${summary.selected} selected${declared}${empty}`;
 }
 
-const fileOf = (test) => String(test.location?.file ?? '').replaceAll('\\', '/');
+/** A unit's report as attached, or null when it is missing or not a list. */
+function parseReport(body) {
+  try {
+    const report = JSON.parse(String(body));
+    return Array.isArray(report) ? report : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The reporter. It changes a passing run's status to failed when the evidence is incomplete. */
 export default class BenchScopeGuard {
@@ -234,7 +244,7 @@ export default class BenchScopeGuard {
   }
 
   onBegin(_config, suite) {
-    this.tests = suite.allTests().filter((t) => fileOf(t).endsWith(`/${BENCH_SPEC}`));
+    this.tests = suite.allTests().filter((t) => specFileOf(t).replaceAll('\\', '/').endsWith(`/${BENCH_SPEC}`));
   }
 
   onTestEnd(test, result) {
@@ -257,13 +267,7 @@ export default class BenchScopeGuard {
       const { category, slice, slices } = unit ? JSON.parse(unit.description) : { category: '?', slice: -1, slices: 0 };
       const res = this.results.get(test);
       const attached = res?.attachments.find((a) => a.name === REPORT && a.body);
-      let report = null;
-      try {
-        report = attached ? JSON.parse(String(attached.body)) : null;
-      } catch {
-        report = null;
-      }
-      return { category, slice, slices, status: res?.status ?? 'not run', report: Array.isArray(report) ? report : null };
+      return { category, slice, slices, status: res?.status ?? 'not run', report: attached ? parseReport(attached.body) : null };
     });
     const { problems, summary } = benchScopeProblems({ catalog, scope: scopeFromEnv(this.env), units });
     this.log(describe(summary));

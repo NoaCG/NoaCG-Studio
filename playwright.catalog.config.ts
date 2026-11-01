@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
 import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
-import { replacesReporters } from './e2e/catalog/_bench-scope.mjs';
+import { replacesReporters } from './scripts/e2e-run-integrity.mjs';
 
 // A `--reporter` on the command line replaces the reporters below, the scope guard among them, so
 // `npm run test:e2e:catalog -- --reporter=dot` would bench without checking what it measured.

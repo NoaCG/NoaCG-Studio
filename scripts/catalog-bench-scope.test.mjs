@@ -1,7 +1,7 @@
 // The calibration bench's scope guard, one test per rule (S1 to S12 in
 // docs/work-specs/cicd-improvement/evidence/phase-ci12.md). Each test starts from an honest report
 // that passes and makes the one mutation its rule names.
-// guards: e2e/catalog/_bench-scope.mjs, e2e/catalog/catalog-bench.spec.ts, scripts/catalog-specs.mjs, playwright.catalog.config.ts
+// guards: e2e/catalog/_bench-scope.mjs, e2e/catalog/catalog-bench.spec.ts, scripts/catalog-specs.mjs, scripts/e2e-run-integrity.mjs, playwright.catalog.config.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -13,9 +13,9 @@ import BenchScopeGuard, {
   NOT_BENCHED,
   REPORT,
   benchScopeProblems,
-  replacesReporters,
   scopeFromEnv,
 } from '../e2e/catalog/_bench-scope.mjs';
+import { replacesReporters } from './e2e-run-integrity.mjs';
 
 // A small catalog: lower-third in two slices (lt01 and lt03 in slice 1, lt02 in slice 2), one
 // whole category, and one the bench declares it does not bench.

@@ -63,13 +63,20 @@ export function missingSpecs(expected, files) {
  * The spec file a test was loaded from: its file suite's location, not the test's own, which is
  * wherever `test()` was called (a helper that declares tests for its importers).
  */
-function specFileOf(test) {
+export function specFileOf(test) {
   let suite = test.parent;
   // `type` is a method on newer reporter APIs and a property on older ones.
   const typeOf = (x) => (typeof x.type === 'function' ? x.type() : x.type);
   while (suite && typeOf(suite) !== 'file') suite = suite.parent;
   return suite?.location?.file ?? test.location?.file ?? '';
 }
+
+/**
+ * True when a Playwright command line replaces the config's reporters, and with them this one and
+ * any guard beside it. playwright.catalog.config.ts and scripts/catalog-specs.mjs refuse such a run,
+ * because the catalog bench's scope guard is a reporter (cicd-improvement ci12, rule S12).
+ */
+export const replacesReporters = (argv) => argv.some((a) => a === '--reporter' || a.startsWith('--reporter='));
 
 /** Free bytes on the volume holding `dir`, or null when it cannot be read. */
 function freeBytes(dir, statfs) {
