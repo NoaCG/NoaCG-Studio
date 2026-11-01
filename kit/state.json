@@ -27,27 +27,24 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": {
-    "what": "phase 8 checker verdict on 56245296 (exact-merge CI, configured-suite, post-land, live clock walk)",
-    "eta": "2026-11-01T01:00:00Z"
-  },
+  "waitingOn": null,
   "inFlight": [
     {
-      "phase": "8",
-      "step": "check",
-      "session": "session_017SdbwNv5WBxa9qnijkHNeV",
-      "nonce": "8-c-68c2",
-      "mergeSha": "562452968ee7e1bd271329420d153b93b1912510",
-      "pr": 1883,
-      "launchedAt": "2026-11-01T00:07:46Z",
-      "note": "checker walks the live clock, judges AC-8 split with rows 9/11; coordinator remains #1883 repair owner through post-land"
+      "phase": "9",
+      "step": "build",
+      "session": "session_017SdbwLqLTF4tDwpMzAPPqv",
+      "nonce": "9-b-c271",
+      "branch": "claude/plan-jev-svg-import-9-build",
+      "source": "562452968ee7e1bd271329420d153b93b1912510",
+      "launchedAt": "2026-11-01T00:26:24Z",
+      "note": "builder; edits a configured spec (in TOUCHES), no configured-suite infra"
     }
   ],
   "owner": [],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-01T01:05:00Z"
+    "checkinAt": "2026-11-01T00:56:24Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
