@@ -138,6 +138,12 @@ In order. Every round's result belongs to the head named.
    without a remembered tick (after leaving the step) switched them on again. Fixed in
    `9ed5485`: that fallback skips rows answered "take it off the artwork". Not covered by the
    journey, which never leaves the step between tick and untick.
+10. /so 6, session `session_017SdbwMd53Jt8ecqVzmuu5D`, on `0a7ea82`: AGREE, A-, nothing blocking.
+    Fixed in `2236f6f`: the remembered board was not tied to the artwork, so
+    replacing the artwork or its lock layer while No lock was ticked could restore another
+    quiz's options; the memory is now keyed to both. Left as documented: after leaving the step
+    the memory is gone (the fallback above); the byte harness is not committed (row 15's
+    `scripts/quiz-no-lock.test.mjs`). Quiz tests 11/11 (j-0017).
 
 ## Decisions
 
