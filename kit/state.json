@@ -31,26 +31,13 @@
   "inFlight": [
     {
       "phase": "10",
-      "step": "queued",
-      "session": "session_017SdbwNKarU7E9E1rj3sBYy",
-      "nonce": "10-b-63bf",
-      "branch": "claude/plan-jev-svg-import-10-build",
-      "source": "e6eadadcc4ec745ebb51dbca7248c62bc61981c5",
-      "launchedAt": "2026-11-01T04:09:06Z",
-      "note": "builder; carry from 8 (Target time picker) with pre-approved boundary jev-svg-contract.test.mjs picker expectation + e2e/import-svg-behaviour.spec.ts walk 3->4; read #1884 04:13Z boundary request approved (4 items, limits sent). 05:11Z PR 1893 open at f772be9; coordinator subscribed as repair owner. 05:37Z receipt received; gates verified on 3dd5159; holding stamp: final /so session not named and no separate /so session visible; asked builder for id or a fresh create_session /so. 05:42Z separate /so confirmed (parent = builder, revision 3dd5159), verdict in body; stamped; auto-merge enabled.",
-      "approvals": [
-        "matchClockWire.ts fixed-instant flag + Take/Out/resend only",
-        "designTypes.ts target?: string",
-        "artworkFields.ts pass extra.target (1 line)",
-        "draft.ts + BehaviourSection.tsx import-time target input only (row 11 keeps playout control exposure)",
-        "pre-approved jev-svg-contract.test.mjs picker expectation + e2e/import-svg-behaviour.spec.ts 3->4",
-        "artworkFields.ts svgFields branch: resolved target clock field ftype hidden, value = stamped start (SPX/standalone correctness), with test"
-      ],
+      "step": "check",
+      "session": "session_017SdbwQYeTdNrAY1DfW93Zi",
+      "nonce": "10-c-c3ee",
+      "mergeSha": "2518b42919123eefd876259f6ba009999ed2b2b4",
       "pr": 1893,
-      "head": "3dd51598a73e0840b653acac93748c04758ff97f",
-      "receipt": "/home/user/noacg-state/jev/receipt-10-b.txt",
-      "so": "session_017SdbwRFKhWYJey41K6NsAr A on 3dd5159",
-      "stamp": "cloud-queue-merge run 41277862998; Reviewed green"
+      "launchedAt": "2026-11-01T05:55:56Z",
+      "note": "independent checker; brief + coordinator note (AC-9 split rows 10/11 by row text; row 11 follow-ups; accepted limits)"
     }
   ],
   "owner": [],
