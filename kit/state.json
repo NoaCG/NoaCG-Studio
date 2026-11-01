@@ -42,27 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci09 checker verdict (session_017SdbwR9PmMVXT7Zo6Z6Cup)",
-    "eta": "2026-11-01T13:45:00Z"
+    "what": "ci10 builder receipt (session_017SdbwQPCwTtHEHCFbfgDw5)",
+    "eta": "2026-11-01T15:30:00Z"
   },
   "inFlight": [
     {
-      "phase": "ci09",
-      "step": "check",
-      "pr": 1913,
-      "mergeSha": "b2f335fb353f799dc7866f23ca9200168205faad",
-      "reviewedHead": "c099c49328185ce1d1347c01de05ec9bec43454a",
-      "builder": "session_017SdbwLjYgq9sMg5YkzFfJ2",
-      "so": "session_017SdbwQTjYLBdW8ChrYfDW7",
-      "checker": "session_017SdbwR9PmMVXT7Zo6Z6Cup",
-      "actor": "checker-ci09-ci09-c-a767",
-      "landedAt": "2026-11-01T12:30:58Z",
-      "stampRun": 41306261837,
-      "queueRun": 41306338184,
-      "repairOwnerComment": 6557901831,
-      "followUps": [
-        1914
-      ]
+      "phase": "ci10",
+      "step": "build",
+      "session": "session_017SdbwQPCwTtHEHCFbfgDw5",
+      "nonce": "ci10-b-aa2f",
+      "branch": "claude/plan-cicd-improvement-ci10-build",
+      "launchedAt": "2026-11-01T12:54:02Z",
+      "note": "Candidate three: overlapping editor qualification walks; keep protection pre-merge; stop and report if no faithful saving."
     }
   ],
   "owner": [],
@@ -235,6 +226,21 @@
       "candidate": "geometry cases in e2e/editor-arrangement.spec.ts (13.40 s to about 4-5 s per spec run)",
       "postLand": "CI 41294635431, configured-suite 41294635322, Post-landing 41294635406, Quarantine 41294635319, Push on main 41294634964, deploy-verify 41294815610 all success; repair ownership complete",
       "pass": "2026-11-01T10:08Z by checker-ci08-ci08-c-e905 (session_017SdbwNXukoELJphiZqTKGM)",
+      "archived": 3
+    },
+    {
+      "phase": "ci09",
+      "pr": 1913,
+      "mergeSha": "b2f335fb353f799dc7866f23ca9200168205faad",
+      "builder": "session_017SdbwLjYgq9sMg5YkzFfJ2",
+      "reviewedHead": "c099c49328185ce1d1347c01de05ec9bec43454a",
+      "repairOwnerComment": 6557901831,
+      "followUps": [
+        1914
+      ],
+      "candidate": "repeated playout setup in e2e/playout-folders.spec.ts (same-machine 468.8 s to 326.0 s; comparable Actions shard about -24%)",
+      "postLand": "CI 41306864314, configured-suite 41306864224, Post-landing 41306864049, Quarantine 41306864168, Push on main 41306863822 success; deploy-verify skipped (no deploy); repair ownership complete",
+      "pass": "2026-11-01T12:52Z by checker-ci09-ci09-c-a767 (session_017SdbwR9PmMVXT7Zo6Z6Cup)",
       "archived": 3
     }
   ],
