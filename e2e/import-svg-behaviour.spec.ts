@@ -720,7 +720,8 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   await expect(actions).not.toContainText('Lock it in');
   await expect(actions).not.toContainText('Reveal choice');
 
-  await page.getByTestId('cue-field-f5-opt-C').click();
+  // The visible lock's own text is a field now (f1), so the answer key is f6.
+  await page.getByTestId('cue-field-f6-opt-C').click();
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
