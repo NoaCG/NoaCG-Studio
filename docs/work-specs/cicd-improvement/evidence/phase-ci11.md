@@ -14,10 +14,10 @@ Acceptance, verbatim:
 
 ## Summary
 
-- Nine boundary faults were injected on this machine (F1 to F9), seven of them replays of a
+- Ten boundary faults were injected on this machine (F1 to F10), seven of them replays of a
   recorded defect. Each one, at its faithful layer, fails the check that guards it, and the
   correction passes. The four areas the acceptance names are covered: cross-tab identity (F1, F2,
-  F6), persistence (F3, F7), export lifecycle (F4) and asset loading (F5, F8), plus one catalog
+  F6), persistence (F3, F7), export lifecycle (F4) and asset loading (F5, F8, F10), plus one catalog
   fault (F9) for the catalog selection class.
 - One fault exposed a **mapping gap**: a change to a CORE file (`src/store/`, `src/model/`,
   `src/preview/` and the rest of the `CORE` list) planned the shared-change set alone and dropped
@@ -38,7 +38,7 @@ Acceptance, verbatim:
 | --- | --- | --- | --- |
 | Broad/shared escalation and catalog gate coupling | ci04, `b666f302` | Each fix reverted alone with its tests run (mutation check); replay of 56 landings. End to end here: F1, F2 and F3 (CORE files reach the shared-change set), F9 (catalog gate and slice) | [phase-ci04.md](phase-ci04.md) sections 3 and 4; this file F1 to F3, F9 |
 | Path selection (renames, deletions, `test.only`, fixtures, copy edits) | ci05, `11523106` | Each fix reverted alone with its tests run; replay of 150 landings | [phase-ci05.md](phase-ci05.md) sections 3 and 4 |
-| Selected configured specs as a required check | ci06, `26095c82` | Mutation check of the planner flag and verdict. End to end here: F6 and F7 are selected by today's configured plan (`configured: all`) for the file that carries them and fail on the local stack | [phase-ci06.md](phase-ci06.md) section 4; this file F6, F7 |
+| Selected configured specs as a required check | ci06, `26095c82` | Mutation check of the planner flag and verdict. End to end here, both arms: F6 and F7 sit on files that plan the whole set (`configured: all`), and F10 on a file that plans a subset of 9 (`configured: subset`, the narrowing ci06 introduced); each fails a selected spec on the local stack | [phase-ci06.md](phase-ci06.md) section 4; this file F6, F7, F10 |
 | Growth controls | ci18, `fb15e6b8` | Every rule line mutation-checked; each earlier escape replayed in `Rule replay:` tests | [phase-ci18.md](phase-ci18.md) sections 2 and 5 |
 | Contract map, critical set, quarantine incidents, miss audit | ci07, `06d3836c` | 33 mutations, all fail; replay of every red full run on `main` for 42 days | [phase-ci07.md](phase-ci07.md) sections 4 and 5 |
 | Arrangement geometry (replaced test stretch one) | ci08, `23742966` | Nine injected faults; the replacement fails on every one the old tests catch | [phase-ci08.md](phase-ci08.md) section 3, PR #1910 |
@@ -50,7 +50,12 @@ broken. What they had not shown is the end-to-end chain this row adds: a product
 today's planner selecting a check for that file, and that check failing. Every class above now has
 an observed fault, cited or added here. The classes still without an end-to-end product fault
 before this row were broad/shared escalation, the catalog slice and the configured selection; F1
-to F3, F6, F7 and F9 cover them.
+to F3, F6, F7, F9 and F10 cover them. The first fresh review found the configured subset arm
+unexercised (F6 and F7 both plan the whole set); F10 was added for it.
+
+ci01 to ci03 are not in the table: ci01 and ci02 changed no protection (a baseline and review
+checkpoints), and ci03 changed configured-suite dispatch identity and concurrency, which is run
+integrity rather than what a check selects or catches.
 
 ## 2. The fault matrix (acceptance a)
 
@@ -71,10 +76,12 @@ tree was clean after every pair. "PR plan" is what `node scripts/e2e-affected.mj
 | F6 every open tab runs a library sync pass for one edit | identity, edit-save-reopen | configured (local Supabase) | replay of `2f64ce14f` | `syncController.ts` `scheduleSync`: an adopted change also schedules a pass | `configured: all` (67 specs), `sync-one-pass-per-edit` selected | **fail** 2/2 | pass 2/2 | "the tab that only adopted the edit runs no pass"; "one open tab took the pass, not each" |
 | F7 a policy lets any account read every library row | persistence and tenancy, access-durability | configured (local Supabase) | realistic: a migration widening a select policy | local database only: `create policy ... on public.documents for select to authenticated using (true)` | a new migration plans `configured: all`, `shared-lab-computer` selected | **fail** 1/1 | pass 1/1 | student 2's library after signing in is `["Lab student 1 ..."]`, expected `[]` |
 | F8 a single-file export ships no font bytes | asset loading, export-portability | artifact (packages over `file://`) | replay of the 2026-07-20 defect (`src/export/AGENTS.md`, dangling-refs instance 1) | `bundledFonts.ts` `inlineBundledFonts`: returns the CSS unchanged | `exports` selected (and the catalog gate) | **fail** 3/18 | pass 18/18 | `no export target ships a relative reference its own package cannot resolve`; `every export target carries the fonts its own code references`; the baked logo stays inlined |
+| F10 the output asks for an imported OGraf package without its revision, so its files never load | asset loading, export-portability | configured (local Supabase; the output, `api/output/assets` and migration 0105) | realistic | `productionOgraf.ts` `publishedOgrafBase`: the request body drops `revision` | `configured: subset` (9 specs), `ograf-rundown` selected | **fail** 2/2 | pass 2/2 | the output's foreign frame `iframe[data-ograf="foreign"][title="Board"]` never mounts, in both the Take test and the reload test |
 | F9 a lower third's text leaves the safe area | graphics-runtime (catalog) | catalog, scoped to the affected slice | realistic (the historical replay is in section 6) | `lt63.ts`: band padding 0 | `catalog-affected`: slice `lt63` (1 design) | **fail** (`long-value-containment`, scoped and unscoped) | pass | "1 of 104 lower thirds put text outside the safe area ... lt63 Broadsheet Band: text 0,919 -> 1732,961" |
 
-The configured runs (F6, F7) used the same local stack the CI job uses: Supabase CLI 2.111.0,
-`supabase start -x studio,edge-runtime`, every migration applied, the CLI's local default
+The configured runs (F6, F7, F10) used the same local stack the CI job uses: Supabase CLI 2.111.0,
+`supabase start -x studio,edge-runtime` (for F10 also `vector,logflare`, the log collectors, after
+the `vector` container failed its health check once), every migration applied, the CLI's local default
 accounts; no hosted project or credential was read. F9's catalog runs are the battery command
 `catalog-affected` prints for the slice (`node scripts/catalog-specs.mjs --only lt63`).
 
@@ -84,9 +91,14 @@ not fail the spec on its own (section 6), so only F2 is a fault the old plan mis
 
 ## 3. Oracles: why each failure is for the right reason
 
-- Each fault's failing assertion names the broken behaviour itself (the table's last column), not
-  a timeout or an unrelated locator. F2's five failures are exactly the reservation-owner rows; the
-  three other rows in that grep pass under the fault.
+- Each fault's failing assertion names the broken behaviour itself (the table's last column).
+  F2's five failures are exactly the reservation-owner rows; the three other rows in that grep pass
+  under the fault. Four stop at the named assertion ("B's slot write names the record A minted");
+  the fifth (`a restored slot names a record holding other work`) fails with a `TypeError` at
+  `save-transaction.spec.ts:274`, because two library records share one id, which is the fault
+  itself: the right reason with a crude message (fresh review; noted in the follow-up issue).
+- F10's oracle is a locator wait: the foreign package's frame never appears on the output, which is
+  what a package whose files cannot be served looks like there; the clean tree mounts it.
 - F7 fails at the line that reads student 2's library, with student 1's graphic in it.
 - F9's oracle was checked against selection: the gross fault fails the scoped run naming `lt63`, so
   the scoped slice really measures the design it selects. The byte-identical baseline
@@ -117,7 +129,8 @@ with the one added line removed, it fails. Nothing narrows: the plan only grows.
 and after). The largest additions, in measured test-minutes from the durations table:
 `src/templates/contract.ts` 40 specs, 30.2; `gsap.min.js` 22.9 (through its `?raw` importers);
 `router.ts` 16.3; `durableStore.ts` 15.6; `saveActions.ts` 15.5; `templateStore.ts` 14.0;
-`structure.ts` 13.7; `project.ts` 12.8. The median CORE file adds nothing and the 90th percentile
+`structure.ts` 13.7; `project.ts` 12.8; `flexGapShim.js` and `flexGapSupport.ts` 10.7 each
+(slowest shard unchanged at 4.9). The median CORE file adds nothing and the 90th percentile
 1.3, against about 53 minutes of the shared-change set. The plan stays at 15 shards; the slowest
 predicted shard grows from 4.9 to 6.0 minutes for `contract.ts`, 5.6 for `saveActions.ts` and
 `project.ts`, 7.2 to 7.6 for `gsap.min.js`; no plan goes over the shard cap (`overCap` 0). Runner
@@ -173,7 +186,7 @@ Reported, not counted as passes:
 - **Physical playout hardware**: CasparCG servers, vision mixers, vMix and OBS hosts, SPX servers
   and LiveOS. F4 and F8 run exported packages in in-repo harnesses and a Chromium renderer page,
   not the vendors' builds; F5 runs the output stage in Chromium, not a CasparCG CEF.
-- **Hosted backend**: F6 and F7 ran on the local stack, not hosted Supabase (the configured suite's
+- **Hosted backend**: F6, F7 and F10 ran on the local stack, not hosted Supabase (the configured suite's
   own boundary). The merge group still skips the configured job (#1846).
 - **Browsers and fonts**: Chromium only; one design for the catalog fault.
 - **Production-page studio acceptance** stays pending under its own plan. F1, F2 and F6 touch the
@@ -187,7 +200,7 @@ Reported, not counted as passes:
 
 ## 8. Verification
 
-- Fault matrix: F1 to F9 and their corrections, queued jobs on this machine; logs kept in the
+- Fault matrix: F1 to F10 and their corrections, queued jobs on this machine; logs kept in the
   session scratchpad, results above. `git status --porcelain` was clean of fault patches after
   every pair.
 - `node --test scripts/e2e-affected.test.mjs scripts/configured-selection.test.mjs
@@ -198,6 +211,10 @@ Reported, not counted as passes:
   comment, the `docs/TEST_SELECTION.md` row and a circular test loop. Not fixed, filed in #1921:
   CORE files still plan no reader specs (a cost decision). Not taken: folding CORE into the
   ordinary mapping path, which would bring readers with it.
+- First fresh `/so` on `d8ec7d09` (AGREE WITH CORRECTIONS, B): one blocking finding, the
+  configured subset arm unexercised by any fault, fixed with F10; non-blocking notes on F2's
+  `TypeError`, the missing ci01 to ci03 line and two cost rows, all folded in. Codex on `d8ec7d09`:
+  no findings.
 - Simplify (inline; the code diff is four lines): `covering` is computed once and used by both
   branches.
 - `npm run gates -- run --changed origin/main`, `npx eslint` on the changed scripts,

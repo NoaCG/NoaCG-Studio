@@ -131,6 +131,20 @@
       "fix": "passed"
     },
     {
+      "id": "F10",
+      "source": "realistic: the output's package request drops its revision",
+      "edits": [
+        {
+          "file": "src/backend/productionOgraf.ts",
+          "find": "        body: JSON.stringify({ version, revision }),",
+          "replace": "        body: JSON.stringify({ version }), // FAULT F10: the package revision is never sent"
+        }
+      ],
+      "run": "npx playwright test --config=playwright.live.config.ts e2e/configured/ograf-rundown.spec.ts, on the local Supabase stack; the file plans configured: subset (9 specs)",
+      "fault": "2 failed",
+      "fix": "2 passed"
+    },
+    {
       "id": "F9-historical",
       "source": "43ead1042",
       "edits": [
