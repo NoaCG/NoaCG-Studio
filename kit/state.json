@@ -28,18 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": null,
-  "inFlight": [
-    {
-      "phase": "13",
-      "step": "check",
-      "session": "session_017SdbwMoHCz3snE7smw8VTy",
-      "nonce": "13-c-2cfe",
-      "mergeSha": "043fcccb08313e321dbfe6ef1c633f37d98a8eaf",
-      "pr": 1916,
-      "launchedAt": "2026-11-01T13:28:46Z",
-      "note": "independent checker of midpoint review. On pass archive builder session_017SdbwP6wrt8Gz3Qe4CEKLx and its /so sessions (MbPbAbXUs4rGnDa52, PxvvtmqwvRaE6K4YG, LxYnCpPXKKQBwpaDf)."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": {
@@ -149,6 +138,12 @@
       "mergeSha": "a961bec063354da0ad5af6460367a840396b798b",
       "pr": 1909,
       "checker": "session_017SdbwR2EQSpUDPfqdG5kLs"
+    },
+    {
+      "phase": "13",
+      "mergeSha": "043fcccb08313e321dbfe6ef1c633f37d98a8eaf",
+      "pr": 1916,
+      "checker": "session_017SdbwMoHCz3snE7smw8VTy"
     }
   ],
   "coordinatorNotes": [
