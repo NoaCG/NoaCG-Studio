@@ -131,6 +131,12 @@ In order. Every round's result belongs to the head named.
    off before a tick stays off. Mutation j-0015 (forget the remembered options) fails at the
    Require lock check; probe dropped. The `noLock` with `autoReveal` refusal stays row 15's to
    qualify.
+9. Codex on `4d644fd` (on request), P2: the same finding as round 8 (a row switched off before
+   the tick came back on), already fixed in `3e7a3fb`. It also named rows the author took off the
+   artwork (`takenOff` in `draft.ts`). The remembered restore keeps those off; the fallback
+   without a remembered tick (after leaving the step) switched them on again. Fixed in
+   `9ed5485`: that fallback skips rows answered "take it off the artwork". Not covered by the
+   journey, which never leaves the step between tick and untick.
 
 ## Decisions
 
@@ -153,7 +159,7 @@ In order. Every round's result belongs to the head named.
 - **Unticking No lock restores the board as it was before the tick**, options and the lock
   words' text rows alike. The memory lives in the mapping step for that visit, not in the saved
   draft (whose shape is outside this row's files); after leaving and coming back, unticking gives
-  the optional-lock board with those rows on.
+  the optional-lock board with those rows on, except a row the author took off the artwork.
 - **The no-Lock machine and paint are derived from the lock board's**, filtered, not written a
   second time, so the two variants cannot drift.
 
