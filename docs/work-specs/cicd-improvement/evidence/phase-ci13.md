@@ -219,6 +219,9 @@ unmodified module passes all 13.
   landing ("run 41347406304, already going"). It finished green and complete at 20:53:05Z (11
   shards, all six job kinds). Afterwards the report read "274 landing(s); 274 cleared ... 0
   waiting": `4c42dc88` cleared 14.2 hours after it reached `main`, by range evidence at `d7b4927b`.
+  Like every nightly, its report job queued a traced-map refresh, which landed as #1929
+  (`1779a5cb`, 241 of 241 specs traced). A trace refresh is not an audit reset by itself
+  (runbook); it adds trace evidence and removes no declared coverage.
 - **Culprit replay input, real ranges.** For the five red nights the exact replay lists are the
   landings between the last green run's requested commit and the red run's:
   10-15 `1dc34ceb..3738cda3` (54 landings), 10-19 `aeafa14e..bb82c4df` (57),
