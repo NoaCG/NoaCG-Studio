@@ -43,7 +43,7 @@
   },
   "waitingOn": {
     "what": "ci07 gates on final head and receipt; block 1 renewal at 08:12Z",
-    "eta": "2026-11-01T06:30:00Z"
+    "eta": "2026-11-01T07:30:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci07-b-f439",
       "branch": "claude/plan-cicd-improvement-ci07-build",
       "launchedAt": "2026-11-01T04:28:35Z",
-      "note": "PR #1896 open, head bbd8d913 (05:30Z); builder watching CI, /so running. Tell it after the 08:12Z renewal that the window is extended.",
+      "note": "PR #1896 head 12a7015f pushed 06:30Z, CI running; builder aggregating miss-audit replay rows. Tell it after the 08:12Z renewal that the window is extended.",
       "pr": 1896
     }
   ],
