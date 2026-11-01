@@ -7,6 +7,7 @@ import test from 'node:test';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { coverageGaps, incidentIssueAction, incidentIssueBody, quarantineIncidents } from './e2e-quarantine.mjs';
 
 import {
   RELEASE_AFTER,
@@ -228,4 +229,75 @@ test('an entry older than STALE_AFTER_DAYS is stale, oldest first, and nothing y
   assert.match(body, /\| `e2e\/c\.spec\.ts` \| 2026-09-10 \| 32 \| 5 \| - \|/);
   assert.ok(body.endsWith('<!-- quarantine-stale-set: e2e/a.spec.ts e2e/c.spec.ts -->'), 'the last line identifies the set so a repeat edits nothing');
   assert.equal(STALE_AFTER_DAYS, 14);
+});
+
+// --- Quarantine incidents (cicd-improvement ci07, evidence/phase-ci07.md Rules Q1 to Q4) ---
+
+const incidentStore = {
+  specs: {
+    'e2e/flows.spec.ts': { since: '2026-10-20', count: 1, run: 'r1' },
+    'e2e/import-svg.spec.ts': { since: '2026-10-31', count: 5, run: 'r2' },
+    'e2e/configured/late-send-abandoned.spec.ts': { since: '2026-10-28', count: 16 },
+  },
+};
+const readText = readFileSync;
+const glob = (g) => ({ globs: [g], test: () => true });
+const incidentHeaders = new Map([
+  ['flows.spec.ts', { critical: ['site-entry'], covers: [glob('src/components/wizard/**')], none: null }],
+  ['import-svg.spec.ts', { critical: [], covers: [glob('src/importedDesign/**')], none: null }],
+]);
+const incidentConfigured = new Map([['late-send-abandoned.spec.ts', { critical: [], covers: [glob('src/control/**')], none: null }]]);
+const context = { headers: incidentHeaders, configured: incidentConfigured, today: '2026-11-01', owner: 'the coordinator' };
+
+test('Rule Q1: every quarantined spec is an incident, critical for a critical journey and affected otherwise', () => {
+  const incidents = quarantineIncidents(incidentStore, context);
+  assert.deepEqual(incidents.map((i) => [i.spec, i.severity]), [
+    ['e2e/flows.spec.ts', 'critical'],
+    ['e2e/configured/late-send-abandoned.spec.ts', 'affected'],
+    ['e2e/import-svg.spec.ts', 'affected'],
+  ]);
+  assert.equal(quarantineIncidents({ specs: {} }, context).length, 0);
+});
+
+test('Rule Q2: an incident has an owner, a bounded repair date and a stated gap, and reads overdue past it', () => {
+  const [flows, late, svg] = quarantineIncidents(incidentStore, context);
+  assert.equal(flows.owner, 'the coordinator');
+  assert.equal(flows.due, '2026-10-27', 'critical: 7 days');
+  assert.equal(flows.overdue, true);
+  assert.match(flows.gap, /critical journey for site-entry is not blocking/);
+  assert.equal(svg.due, '2026-11-14', 'affected: 14 days');
+  assert.equal(svg.overdue, false);
+  assert.match(svg.gap, /src\/importedDesign\/\*\* merge without it blocking/);
+  assert.equal(late.due, '2026-11-11');
+  const unknown = quarantineIncidents({ specs: { 'e2e/gone.spec.ts': { since: '2026-11-01' } } }, context)[0];
+  assert.match(unknown.gap, /selection is unknown/);
+  assert.match(incidentIssueBody([flows], '2026-11-01'), /2026-10-27 \*\*overdue\*\* \| the coordinator/);
+});
+
+test('Rule Q3: one rolling issue, opened with the first incident, updated when the set changes, closed only when none is left', () => {
+  const incidents = quarantineIncidents(incidentStore, context);
+  assert.equal(incidentIssueAction(incidents, null, '2026-11-01').kind, 'create');
+  const body = incidentIssueBody(incidents, '2026-11-01');
+  assert.equal(incidentIssueAction(incidents, { number: 1, body }, '2026-11-02').kind, 'none', 'same set, no mail');
+  const fewer = incidents.slice(1);
+  assert.equal(incidentIssueAction(fewer, { number: 1, body }, '2026-11-02').kind, 'edit');
+  assert.equal(incidentIssueAction([], { number: 1, body }, '2026-11-02').kind, 'close');
+  assert.equal(incidentIssueAction([], null, '2026-11-02').kind, 'none');
+  // An unread store or issue list throws before any action: the CLI reads both with throwing calls.
+  const cli = readText(new URL('./e2e-quarantine.mjs', import.meta.url), 'utf8');
+  const block = cli.slice(cli.indexOf("if (command === 'incidents')"), cli.indexOf("if (command === 'release-due')"));
+  assert.doesNotMatch(block, /allowFailure/, 'no read in the incidents command may fail quietly');
+});
+
+test('Rule Q4: a plan that selects a quarantined spec states each gap on the run, offline and configured', () => {
+  const incidents = quarantineIncidents(incidentStore, context);
+  const gaps = coverageGaps({ quarantined: ['e2e/flows.spec.ts'], configured: { quarantined: ['e2e/configured/late-send-abandoned.spec.ts'] } }, incidents);
+  assert.deepEqual(gaps.map((g) => g.spec), ['e2e/configured/late-send-abandoned.spec.ts', 'e2e/flows.spec.ts']);
+  assert.match(gaps[1].warning, /^::warning title=Coverage gap::e2e\/flows\.spec\.ts is quarantined \(critical incident, repair due 2026-10-27 \(overdue\)\)/);
+  assert.deepEqual(coverageGaps({ quarantined: [], configured: null }, incidents), []);
+  // ci.yml prints them right after the plan, with no retry around them.
+  const ci = readText(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  assert.match(ci, /echo "plan: \$PLAN"\n(?:\s*#.*\n)*\s*node scripts\/e2e-quarantine\.mjs incidents --plan "\$PLAN"\n/);
+  const q = readText(new URL('../.github/workflows/quarantine.yml', import.meta.url), 'utf8');
+  assert.match(q, /node scripts\/e2e-quarantine\.mjs incidents --issue --run "\$RUN_URL"/);
 });
