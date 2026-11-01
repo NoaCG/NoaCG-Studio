@@ -25,6 +25,13 @@ export const CREDITS_SPEED_KEY = 'scrollSpeed';
 export const CREDITS_SPEED_DEFAULT = '100';
 /** What the roll engine is called; the entrance fires it by name. */
 export const CREDITS_ROLL_CALL = 'noacgCreditsRoll';
+/** The layouts and playbacks a credits list in the artwork's own styling can take
+ *  (DesignSvgCredits), spelt as the proposal contract's credits intent spells them. */
+export const CREDITS_LAYOUTS = ['role-above', 'role-beside'] as const;
+export const CREDITS_PLAYBACKS = ['static', 'roll', 'cards'] as const;
+/** Timed cards: the hold an author may state, in seconds. Below two a card cannot be read;
+ *  past a minute the operator's Next is the honest control. */
+export const CREDITS_CARD_SECONDS = { min: 2, max: 60 } as const;
 
 export const creditsRecipe: BehaviourRecipe = {
   id: CREDITS_RECIPE_ID,
