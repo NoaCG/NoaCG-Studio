@@ -271,6 +271,18 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['wait', 2000], ['take'], ['wait', 500], ['read', 're-taken on air'], ['wait', 3000], ['read', 'three seconds into the re-take'],
       // Paused, taken out and taken again with nothing typed: a new count of the length.
       ['event', 'clock_pause'], ['wait', SETTLE], ['out'], ['wait', 3000], ['take'], ['wait', 500], ['read', 'a Take after a pause'],
+      // Taken out while it runs, a new length typed off air: the next Take counts that length.
+      ['wait', 2000], ['out'], ['wait', 3000], ['type', '0:07'], ['take'], ['wait', 500], ['read', 'a new length after a running Out'],
+    ]),
+    // What a resend is, after a correction (the time the cue last sent, not the clock's own).
+    corrections: await run('duration', [
+      ['lag', 'B', LAG],
+      ['type', '0:30'], ['take'], ['wait', 2000], ['type', '0:25'], ['wait', 2000],
+      ['event', 'clock_pause'], ['wait', SETTLE], ['read', 'paused after a correction'],
+      ['goal', 0], ['update'], ['wait', 600], ['read', 'a score sent while paused'],
+      ['event', 'clock_start'], ['wait', 1000], ['out'], ['wait', 2000],
+      ['take'], ['wait', 500], ['read', 'taken again with nothing typed'],
+      ['event', 'clock_pause'], ['wait', SETTLE], ['type', '0:30'], ['wait', 600], ['read', 'the length typed while paused'],
     ]),
   };
 });
@@ -365,7 +377,7 @@ test('a duration is stamped by its Take: both outputs count the server origin fr
   assert.deepEqual([set.A.value, set.B.value, set.A.held], ['0:30', '0:30', '0:30'], 'the length typed off air shows, held: nothing counts before the Take');
   const taken = at(r, 'just taken');
   agree(taken, 'just taken');
-  assert.match(taken.A.held, /^0:30@\d+\/0:30$/, 'the Take stamps its server time, and the time taken is the length');
+  assert.match(taken.A.held, /^0:30@\d+\/0:30\/0:30$/, 'the Take stamps its server time, and the time taken is the length');
   assert.deepEqual([taken.A.clock, taken.B.clock], ['running', 'running']);
   const counting = at(r, 'counting');
   agree(counting, 'counting');
@@ -382,7 +394,7 @@ test('a duration is stamped by its Take: both outputs count the server origin fr
   assert.equal(reloaded.B.clock, 'running');
   const paused = at(r, 'paused');
   agree(paused, 'paused');
-  assert.match(paused.A.held, /^\d+:\d{2}@\/0:30$/, 'Pause banks the time and keeps the length');
+  assert.match(paused.A.held, /^\d+:\d{2}@\/0:30\/0:30$/, 'Pause banks the time and keeps the length');
   assert.equal(at(r, 'held').A.value, paused.A.value);
   const pausedResend = at(r, 'a resend while paused');
   agree(pausedResend, 'a resend while paused');
@@ -391,13 +403,13 @@ test('a duration is stamped by its Take: both outputs count the server origin fr
   agree(pausedReload, 'B reloaded while paused');
   assert.equal(pausedReload.B.clock, 'stopped');
   agree(at(r, 'corrected while paused'), 'corrected while paused');
-  assert.equal(at(r, 'corrected while paused').A.held, '0:20@typed/0:30', 'a correction keeps the length, marked as the operator\'s');
+  assert.equal(at(r, 'corrected while paused').A.held, '0:20@typed/0:30/0:20', 'a correction keeps the length, marked as the operator\'s');
   const back = at(r, 'B reconnected while running');
   agree(back, 'B reconnected');
   assert.equal(back.A.value, '0:17', 'three seconds and a hop since Start, counted while B was gone');
   const corrected = at(r, 'corrected while running, B caught up');
   agree(corrected, 'a correction while running, replayed late');
-  assert.match(corrected.A.held, /^0:12@\d+\/0:30$/, 'a time typed while it runs keeps running, from the row\'s own time, and keeps the length');
+  assert.match(corrected.A.held, /^0:12@\d+\/0:30\/0:12$/, 'a time typed while it runs keeps running, from the row\'s own time, and keeps the length');
   assert.equal(corrected.A.value, '0:08', 'counted from the update row (4.3 s ago), not from when B heard it');
   const out = at(r, 'run out');
   agree(out, 'run out');
@@ -411,25 +423,46 @@ test('a duration\'s Reset goes back to its length on every output and is banked,
   const r = runs.duration;
   const reset = at(r, 'reset');
   agree(reset, 'reset');
-  assert.deepEqual([reset.A.value, reset.A.held, reset.A.expired], ['0:30', '0:30@/0:30', false], 'back to the length, after a correction and a run-out');
+  assert.deepEqual([reset.A.value, reset.A.held, reset.A.expired], ['0:30', '0:30@/0:30/0:12', false], 'back to the length, after a correction and a run-out');
   const reloaded = at(r, 'B reloaded after the reset');
   agree(reloaded, 'B reloaded after the reset');
   assert.deepEqual([reloaded.B.value, reloaded.B.clock], ['0:30', 'armed'], 'a reload after Reset holds at the length');
   const again = at(r, 'a second Take, with a new length');
   agree(again, 'a second Take');
-  assert.match(again.A.held, /^0:09@\d+\/0:09$/, 'a time typed off air is the next Take\'s length');
+  assert.match(again.A.held, /^0:09@\d+\/0:09\/0:09$/, 'a time typed off air is the next Take\'s length');
   assert.equal(again.A.value, '0:08');
   assert.equal(at(r, 'two seconds into it').A.value, '0:06');
   agree(at(r, 'B reloaded into the second Take'), 'B reloaded into the second Take');
   assert.equal(at(r, 'B reloaded into the second Take').B.value, '0:01');
   const retake = at(r, 're-taken on air');
   agree(retake, 're-taken on air');
-  assert.match(retake.A.held, /^0:09@\d+\/0:09$/);
+  assert.match(retake.A.held, /^0:09@\d+\/0:09\/0:09$/);
   assert.notEqual(retake.A.held, again.A.held, 'a re-take is a new origin');
   assert.equal(retake.A.value, '0:08');
   agree(at(r, 'three seconds into the re-take'), 'three seconds into the re-take');
   const afterPause = at(r, 'a Take after a pause');
   agree(afterPause, 'a Take after a pause');
-  assert.match(afterPause.A.held, /^0:09@\d+\/0:09$/, 'a paused clock is taken again from its length, not from where it paused');
+  assert.match(afterPause.A.held, /^0:09@\d+\/0:09\/0:09$/, 'a paused clock is taken again from its length, not from where it paused');
   assert.equal(afterPause.A.value, '0:08');
+  const newLength = at(r, 'a new length after a running Out');
+  agree(newLength, 'a new length after a running Out');
+  assert.match(newLength.A.held, /^0:07@\d+\/0:07\/0:07$/, 'a time typed off air after a running clock went out is the next Take\'s length');
+  assert.equal(newLength.A.value, '0:06');
+});
+
+test('a duration tells a resend from a change by what the cue last sent: a score never moves it, and an untyped Take counts its length (W3, W5)', () => {
+  const r = runs.corrections;
+  const paused = at(r, 'paused after a correction');
+  agree(paused, 'paused after a correction');
+  assert.match(paused.A.held, /^0:2\d@\/0:30\/0:25$/, 'paused below the correction, the length and the last time sent kept');
+  const score = at(r, 'a score sent while paused');
+  agree(score, 'a score sent while paused');
+  assert.deepEqual([score.A.value, score.A.held], [paused.A.value, paused.A.held], 'a score sent with the cue\'s old correction never moves a paused clock');
+  assert.deepEqual(score.A.scores, ['3', '5']);
+  const again = at(r, 'taken again with nothing typed');
+  agree(again, 'taken again with nothing typed');
+  assert.match(again.A.held, /^0:30@\d+\/0:30\/0:25$/, 'taken out running and taken again untyped: a new count of the length, not of the old correction');
+  const typed = at(r, 'the length typed while paused');
+  agree(typed, 'the length typed while paused');
+  assert.deepEqual([typed.A.value, typed.A.held], ['0:30', '0:30@typed/0:30/0:30'], 'typing the length is a change when the cue last sent something else');
 });
