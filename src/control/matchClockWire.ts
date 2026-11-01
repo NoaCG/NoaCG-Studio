@@ -210,8 +210,8 @@ function durationValue(time: string, origin: number | string | null, length: str
  *
  * The honest limit, unchanged from the runtime's for a native clock: an operator cannot re-apply
  * the time the clock already started from (an imported clock can while it runs, #1890, because its
- * value says what the cue last sent). No control surface can express that anyway (the field holds that text, so
- * there is no edit to send), and returning to a known value is `clockReset`'s job.
+ * value says what the cue last sent). No control surface can express that anyway (the field holds
+ * that text, so there is no edit to send), and returning to a known value is `clockReset`'s job.
  */
 export function clockValueAfterUpdate(held: string | undefined, incoming: string): string {
   if (clockOriginOf(incoming) !== null) return incoming;         // a stamped value always wins

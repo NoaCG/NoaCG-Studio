@@ -51,8 +51,8 @@
  *
  * `hours` paints an hour or more as "3:39:30" rather than "219:30" (an imported clock counting
  * down to a set time, jev-svg-import row 11, AC-9), and reads that text back the same way. The
- * field's value and the wire keep minutes and seconds, which every parser reads. Without it the emitted runtime is byte for
- * byte what every native board already ships, where 67 minutes reads "67:00".
+ * field's value and the wire keep minutes and seconds, which every parser reads. Without it the
+ * emitted runtime is byte for byte what every native board already ships ("67:00").
  */
 export function matchClockJs(prefix: string, opts: { hours?: boolean } = {}): string {
   return `// ---- Match clock (playout, not motion — the machine's clock group calls into this) ----
