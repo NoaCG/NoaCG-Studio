@@ -37,7 +37,7 @@
       "branch": "claude/plan-jev-svg-import-10-build",
       "source": "e6eadadcc4ec745ebb51dbca7248c62bc61981c5",
       "launchedAt": "2026-11-01T04:09:06Z",
-      "note": "builder; carry from 8 (Target time picker) with pre-approved boundary jev-svg-contract.test.mjs picker expectation + e2e/import-svg-behaviour.spec.ts walk 3->4; read #1884 04:13Z boundary request approved (4 items, limits sent). 05:11Z PR 1893 open at f772be9; coordinator subscribed as repair owner.",
+      "note": "builder; carry from 8 (Target time picker) with pre-approved boundary jev-svg-contract.test.mjs picker expectation + e2e/import-svg-behaviour.spec.ts walk 3->4; read #1884 04:13Z boundary request approved (4 items, limits sent). 05:11Z PR 1893 open at f772be9; coordinator subscribed as repair owner. 05:37Z receipt received; gates verified on 3dd5159; holding stamp: final /so session not named and no separate /so session visible; asked builder for id or a fresh create_session /so.",
       "approvals": [
         "matchClockWire.ts fixed-instant flag + Take/Out/resend only",
         "designTypes.ts target?: string",
@@ -47,7 +47,8 @@
         "artworkFields.ts svgFields branch: resolved target clock field ftype hidden, value = stamped start (SPX/standalone correctness), with test"
       ],
       "pr": 1893,
-      "head": "f772be9d00ceb8d331ddd8a2f55ec43806097309"
+      "head": "3dd51598a73e0840b653acac93748c04758ff97f",
+      "receipt": "/home/user/noacg-state/jev/receipt-10-b.txt"
     }
   ],
   "owner": [],
@@ -174,7 +175,8 @@
     "#1884 (P3, from row 8 /so): three low notes for rows 10 and 11",
     "#1886 (P2 playout): hosted fast-road Take/correction of an imported clock carries no server time; latency trade-off for the owner",
     1890,
-    1891
+    1891,
+    1894
   ],
   "carryForward": [
     {
