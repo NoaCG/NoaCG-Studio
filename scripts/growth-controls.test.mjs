@@ -15,7 +15,7 @@ import {
   ceilingsRevision, coverCosts, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
+import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -970,4 +970,21 @@ test('(b) a job is one tier by its workflow name and its run-time name, so no ex
   assert.deepEqual(coverCosts({ jobs })('job:ci.yml/${{ matrix.name }}'), { perLanding: 6, perDay: 0 });
   const overhead = assessTiers({ ceilings: noExceptions, measurement: { ...measurement({ overhead: 100, offline: 420 }), jobs }, items: [{ tier: 'overhead', id: 'job:ci.yml/New', perLanding: 10, perDay: 0 }], today: TODAY, exceptions: [{ ...ex, covers: ['job:ci.yml/${{ matrix.name }}'] }] });
   assert.equal(overhead.tiers.overhead.status, 'refuse', 'credit is capped at the 6 minutes of overhead it covers');
+});
+
+test('(e) an overdue item keeps the date its first alarm set, and a passed date reads as missed', () => {
+  const fake = (args) => {
+    const route = args.at(-1);
+    if (/\/pulls\?/.test(route)) return JSON.stringify([{ number: 7, created_at: '2026-10-31T08:00:00Z', head: { ref: 'f' }, draft: false }]);
+    if (/\/commits\?/.test(route)) return JSON.stringify([{ sha: 'c1' }]);
+    if (/\/statuses/.test(route)) return JSON.stringify([{ context: 'noacg/reviewed', state: 'success', created_at: '2026-10-31T08:30:00Z' }]);
+    return '[]';
+  };
+  const day1 = ages({ ceilings: CEILINGS, now: '2026-10-31T12:00:00Z', reader: makeReader(50, fake) });
+  assert.match(day1.body, /act by 2026-11-01\./);
+  const day2 = ages({ ceilings: CEILINGS, now: '2026-11-01T12:00:00Z', reader: makeReader(50, fake), existing: day1.body });
+  assert.match(day2.body, /act by 2026-11-01\./, 'the second check keeps the first date, not 2026-11-02');
+  const day3 = ages({ ceilings: CEILINGS, now: '2026-11-02T12:00:00Z', reader: makeReader(50, fake), existing: day2.body });
+  assert.match(day3.body, /act by 2026-11-01 \(missed\)\./);
+  assert.deepEqual(carriedDues('- phase ci18 unfinished for 900 min, over its 6 hours ceiling (clock from ledger 2026-10-31T00:00:00Z). Owner o; act by 2026-11-01 (missed).'), { 'phase ci18': '2026-11-01' });
 });

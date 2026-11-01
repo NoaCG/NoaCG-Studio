@@ -323,6 +323,20 @@ export function carriedStarts(text) {
   return out;
 }
 
+/**
+ * The dates the open alarm issue already set, per item (`prReady #9`, `queue #9 queue`, `phase
+ * ci18`): one bounded correction keeps its first date until the item recovers, never a new one
+ * on every check.
+ */
+export function carriedDues(text) {
+  const out = {};
+  for (const m of String(text ?? '').matchAll(/^- (\S+) (.+?) unfinished for [^\n]*?act by (\d{4}-\d{2}-\d{2})/gm)) {
+    const key = `${m[1]} ${m[2]}`;
+    if (!out[key] || m[3] < out[key]) out[key] = m[3];
+  }
+  return out;
+}
+
 /** The category a PR's timing sample is reported under: which line of work opened it. */
 export const categoryOf = (ref = '') => (/^claude\/plan-jev/.test(ref) ? 'jev-plan' : /^claude\/plan-cicd/.test(ref) ? 'cicd-plan' : /^bot\//.test(ref) ? 'bot' : /^quarantine\//.test(ref) ? 'quarantine' : 'other');
 
@@ -472,11 +486,16 @@ export const phaseIssueTitle = (ledgerFile) => `${PHASE_AGE_ISSUE}: ${path.basen
 export const WEEKLY_ISSUE = 'Growth controls: weekly actions';
 
 /** The per-item age check alone: cheap enough to run after every landing. */
-export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null, carried = {}, existing = '' }) {
+export function ages({ ceilings, now = new Date().toISOString(), budget = 400, reader = makeReader(budget), ledger = null, carried = {}, existing = '', existingPhase = '' }) {
   const open = openItems(reader, now, carried);
-  const head = (what) => `Owner: ${ceilings.owner}. Checked ${now} (${reader.calls} API calls). Each ${what} below is past its age ceiling (docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3) and needs a corrective action by its date: land it, unblock it or close it with a reason.`;
-  const text = (what, list) => (list.length ? [head(what), '', ...list.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`)].join('\n') : '');
-  const prActions = ageAlarms(open.items, ceilings, now);
+  const head = (what) => `Owner: ${ceilings.owner}. Checked ${now} (${reader.calls} API calls). Each ${what} below is past its age ceiling (docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4.3) and needs a corrective action by its date: land it, unblock it or close it with a reason. A date already passed is a missed correction.`;
+  const today = now.slice(0, 10);
+  const line = (a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}${a.due < today ? ' (missed)' : ''}.`;
+  const text = (what, list) => (list.length ? [head(what), '', ...list.map(line)].join('\n') : '');
+  // An item still overdue keeps the date its first alarm set: the correction is bounded, so a
+  // later check never moves it.
+  const keepDue = (actions, dues) => actions.map((a) => { const first = dues[`${a.category} ${a.subject}`]; return first && first < a.due ? { ...a, due: first } : a; });
+  const prActions = keepDue(ageAlarms(open.items, ceilings, now), carriedDues(existing));
   // A partial read is not "nothing overdue". The open PR list itself unread: leave the issue as
   // it is. Some PRs unread: raise what was read and keep the issue's existing lines for the
   // unread ones, so neither their action nor their recorded start is lost.
@@ -484,7 +503,7 @@ export function ages({ ceilings, now = new Date().toISOString(), budget = 400, r
   if (!open.complete && (open.unread === null || prActions.length === 0)) body = null;
   else {
     const kept = open.complete ? [] : String(existing ?? '').split('\n').filter((l) => open.unread.some((id) => new RegExp(`^- prReady ${id} |^- queue ${id} queue `).test(l)));
-    body = prActions.length || kept.length ? [head('pull request'), '', ...prActions.map((a) => `- ${a.detail}. Owner ${a.owner}; act by ${a.due}.`), ...kept].join('\n') : '';
+    body = prActions.length || kept.length ? [head('pull request'), '', ...prActions.map(line), ...kept].join('\n') : '';
   }
   // Phases come only from the plan-run ledger the coordinator passes, so they keep an issue of
   // their own: a check without the ledger (after a landing) never touches a phase alarm.
@@ -492,7 +511,7 @@ export function ages({ ceilings, now = new Date().toISOString(), budget = 400, r
   let phaseActions = [];
   if (ledger !== null) {
     const phases = phasesFromLedger(ledger).map((p) => ({ id: p.id, category: 'phase', clock: phaseClock({ events: p.events, now }) }));
-    phaseActions = ageAlarms(phases, ceilings, now);
+    phaseActions = keepDue(ageAlarms(phases, ceilings, now), carriedDues(existingPhase));
     phaseBody = text('plan phase', phaseActions);
   }
   return { actions: [...prActions, ...phaseActions], body, phaseBody, calls: reader.calls, complete: open.complete };
@@ -544,11 +563,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let existing = '';
     let existingRead = true;
     try { existing = findIssue(AGE_ISSUE)?.body ?? ''; } catch { existingRead = false; }
-    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried: carriedStarts(existing), existing });
+    let existingPhase = '';
+    let phaseRead = true;
+    if (ledgerFile) { try { existingPhase = findIssue(phaseIssueTitle(ledgerFile))?.body ?? ''; } catch { phaseRead = false; } }
+    const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried: carriedStarts(existing), existing, existingPhase });
     if (result.phaseBody !== undefined) {
       console.log(result.phaseBody || 'no plan phase past its age ceiling');
       // One issue per plan's ledger, so a run checking its own plan never closes another's alarm.
-      if (args.includes('--issue')) console.log(rollingIssue(phaseIssueTitle(ledgerFile), result.phaseBody));
+      // An issue that could not be read keeps its first dates: it is left as it was.
+      if (args.includes('--issue') && phaseRead) console.log(rollingIssue(phaseIssueTitle(ledgerFile), result.phaseBody));
+      if (!phaseRead) console.log('::warning title=Plan phase alarms::the open phase alarm issue could not be read; it is left as it was');
     }
     if (result.body === null || !existingRead) {
       console.log(`::warning title=Delivery age alarms::${existingRead ? `the open items could not all be read (${result.calls} API calls)` : 'the open alarm issue could not be read'}; the alarm issue is left as it was`);

@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (67 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (68 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -242,6 +242,9 @@ issue, remain for ci17.
   expressions (`E2E ${{ matrix.shardIndex }}/...`) that become numbers at run time
   (`E2E 1/6 (full)`); both resolve to the same tier, and a cover credits only measured jobs of its
   own tier, so no exception can move offline cost into overhead headroom.
+- **An alarm keeps its first date.** An item still overdue at the next check keeps the
+  corrective date its first alarm set (PR and phase alarms alike); once that date passes, the
+  line reads "missed". The correction is bounded, never extended by re-checking.
 - **An unread alarm issue is never rewritten.** If the open age alarm issue cannot be read, the
   per-landing check leaves it as it was and fails, rather than dropping the lines it could not
   re-read.
