@@ -42,32 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci12 checker verdict (session_017SdbwN34vMjvXU6xHkmdGd)",
-    "eta": "2026-11-01T21:15:00Z"
+    "what": "ci13 builder receipt (session_017SdbwLqBme15oH4y589fr7)",
+    "eta": "2026-11-02T01:00:00Z"
   },
   "inFlight": [
     {
-      "phase": "ci12",
-      "step": "check",
-      "session": "session_017SdbwNhaBmxumsVW6k2AHU",
-      "nonce": "ci12-b-86a8",
-      "branch": "claude/plan-cicd-improvement-ci12-build",
-      "launchedAt": "2026-11-01T19:01:04Z",
-      "note": "Bench scope guard S1-S13; imported-design declared NOT_BENCHED (never benched at base; svg01 fails bench, #1926); not an audit reset. Auto-merge on.",
-      "pr": 1927,
-      "reviewedHead": "d755f4d618eaf5ed9092ce4172373af90faab39e",
-      "stampRun": 41343765760,
-      "so": "session_017SdbwQ8WQTFLCw1SNSEosh",
-      "followUps": [
-        1926,
-        1928
-      ],
-      "mergeSha": "2314eeec9dba6c33f458db926934ea5058362efc",
-      "landedAt": "2026-11-01T20:01:45Z",
-      "queueRun": 41343834164,
-      "repairOwnerComment": 6563025958,
-      "checker": "session_017SdbwN34vMjvXU6xHkmdGd",
-      "actor": "checker-ci12-ci12-c-d422"
+      "phase": "ci13",
+      "step": "build",
+      "session": "session_017SdbwLqBme15oH4y589fr7",
+      "nonce": "ci13-b-a67c",
+      "branch": "claude/plan-cicd-improvement-ci13-build",
+      "launchedAt": "2026-11-01T20:22:24Z",
+      "note": "Scheduled detection and recovery readiness assessment: delays, alarm, drills; qualified or not qualified with protection kept."
     }
   ],
   "owner": [],
@@ -289,6 +275,22 @@
       "postLand": "CI 41336665950 gate success after unrelated production-chat-intake flake (retry passed, quarantined via #1923, tracked #1924; limited unrelated-failure exception applied by checker), configured-suite 41336665901, Post-landing 41336666013, Quarantine 41336665905, Push on main 41336665417 success; repair ownership complete",
       "pass": "2026-11-01T18:59Z by checker-ci11-ci11-c-3847 (session_017SdbwNKpjRPTXvA1PK4zRR), after a first FAIL blocked (missing tracking issue) cleared by #1924",
       "archived": 4
+    },
+    {
+      "phase": "ci12",
+      "pr": 1927,
+      "mergeSha": "2314eeec9dba6c33f458db926934ea5058362efc",
+      "builder": "session_017SdbwNhaBmxumsVW6k2AHU",
+      "reviewedHead": "d755f4d618eaf5ed9092ce4172373af90faab39e",
+      "repairOwnerComment": 6563025958,
+      "followUps": [
+        1926,
+        1928
+      ],
+      "candidate": "catalog bench scope guard S1-S13; imported-design declared not benched (#1926); not an audit reset",
+      "postLand": "CI 41344706886, configured-suite 41344706844, Post-landing 41344706865, Quarantine 41344706854, Push on main 41344706784, deploy-verify 41344926371 success; checker scoped catalog-gates 41345334021 success; repair ownership complete",
+      "pass": "2026-11-01T20:20Z by checker-ci12-ci12-c-d422 (session_017SdbwN34vMjvXU6xHkmdGd)",
+      "archived": 3
     }
   ],
   "coordinatorNotes": [
