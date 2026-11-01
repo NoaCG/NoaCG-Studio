@@ -48,7 +48,8 @@ storage rules (T5-T7) came from reproducing that a resolved target could not sur
   where the match clock would adopt it.
 - **T9 Picking Target time proposes the next whole hour** in the author's zone, shown with its date
   and zone, so the picker never offers a clock with nothing to count to; only a resolved instant
-  replaces the stored one.
+  replaces the stored one. The proposed date stays implicit (the draft's `targetProposed`) until
+  the author chooses one, so a time typed alone is its next occurrence (T1).
 
 ## What landed
 
@@ -61,7 +62,8 @@ storage rules (T5-T7) came from reproducing that a resolved target could not sur
 - `src/templates/importedDesign/designTypes.ts`: `DesignSvgClock.target`.
 - `src/templates/importedDesign/artworkFields.ts`: the target passed to `clockReadout`; the hidden
   field (T8).
-- `src/components/wizard/import/draft.ts`: `SvgClockDraft.target`, carried by `svgClockOption`.
+- `src/components/wizard/import/draft.ts`: `SvgClockDraft.target` and `targetProposed`; the
+  target is carried by `svgClockOption`.
 - `src/components/wizard/import/BehaviourSection.tsx`: the time, date and zone input shown only for
   Target time, the line naming the instant, the fold choice when one arises (T9).
 - `scripts/clock-target.test.mjs` (new): every resolver case with injected `now` and zones, T6 and
@@ -87,6 +89,10 @@ storage rules (T5-T7) came from reproducing that a resolved target could not sur
   still compiles as rows 7-9 did, counting down from its drawn time on Take.
 - **Templates import nothing from control**, so the stored form is read in `clock.ts` too; the test
   pins the two readers to the same instants.
+- **Review rounds:** the PR review on `98f54e5` (a target before the epoch origin compiled as a
+  duration) and on `f772be9` (a proposed date was treated as typed, so 09:00 typed at 15:20 saved
+  an expired clock) each found a product defect; both are fixed with the rule they broke (T2/T6,
+  T1/T9). The second matches the first /so's note; #1894 keeps only the DST-gap case.
 - Trap: commit messages carry no co-author trailer; the command guard refuses one.
 
 ## Verification on this worker
