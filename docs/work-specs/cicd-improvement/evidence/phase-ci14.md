@@ -69,7 +69,7 @@ ledger was read: the ledgers belong to the coordinators. Times are UTC.
 | Phases passed (heartbeat, 22:00Z / 21:54Z) | 14 of 18 | 14 of 40 |
 | In flight | ci14 (this build) | row 15 landed (#1933), in check |
 | Unfinished, not started | ci15, ci16, ci17 | rows 16-40 (25) |
-| Starvation | none: each plan landed a row every 1.5 to 7 h | none |
+| Starvation | none: the gaps between landings in each plan were 1 to 7 h | none |
 
 Both plans kept landing all through the window. Neither was starved. They share one merge queue
 and one runner pool.
@@ -104,7 +104,7 @@ the ci01 phase clock.
   `removed_from_merge_queue`, at its merge. No plan PR was dequeued by the other plan's flake or
   by anything else.
 - **Merge-group failures: 1 of 42** in the window, run 41243467985 for #1877, a quarantine PR from
-  neither plan. It landed at its next attempt.
+  neither plan. It landed at 21:35Z.
 - **Overlapping queue stays across plans: 3** (#1860/#1861, #1864/#1866, #1896/#1899). The first
   two took 6.8 to 12.4 minutes. The third is the hold above.
 - **Post-landing configured-suite reds: 5** (#1857, #1869, #1881, #1905, #1925), on landings of
