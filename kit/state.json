@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci08 builder: PR and gates",
-    "eta": "2026-11-01T09:30:00Z"
+    "what": "ci08 gates on final head and receipt",
+    "eta": "2026-11-01T10:30:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,8 @@
       "nonce": "ci08-b-f2d7",
       "branch": "claude/plan-cicd-improvement-ci08-build",
       "launchedAt": "2026-11-01T08:26:14Z",
-      "note": "Builder launched from 7030eb18; picks one of the three D4 maintenance candidates."
+      "note": "PR #1910 open, head 928c8142 (09:22Z); builder waiting on CI.",
+      "pr": 1910
     }
   ],
   "owner": [],
