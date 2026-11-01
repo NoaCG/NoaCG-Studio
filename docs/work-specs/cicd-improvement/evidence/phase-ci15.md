@@ -84,7 +84,7 @@ calls. Status **`blocked`**: 4 misses, 0 unknown, 19 failing items on 13 red ful
 | 41134775210 | ci.yml | `import-svg-corpus` | `0df77f74` (#1827) | miss, unmarked | **Explained**: the culprit changed plan-run docs, skills and `scripts/plan-*`/`run-*` only. The fail-then-pass is quarantine PR #1834, open since 2026-10-30 and not landed, so the store does not mark it |
 | 41244292482 | ci.yml | `import-svg` | `af39c249` (#1877) | miss, flake | **Explained**: the culprit changed `e2e/quarantine.json` only. Its quarantine entry names this very run (same-run receipt) |
 | 41336665950 | ci.yml | `production-chat-intake` | `8e84002d` | selected, flake | Selected. Fail-then-pass, now quarantined (#1923), tracked in #1924 |
-| 41359365006 | ci.yml | `production-data` | `5ca8b87a` (#1936) | miss, unmarked | **Explained**: the culprit is ci14's evidence file only. Fail-then-pass on that commit, quarantine PR #1940 open |
+| 41359365006 | ci.yml | `production-data` | `5ca8b87a` (#1936) | miss, unmarked | **Explained**: the culprit is ci14's evidence file only. Fail-then-pass on that commit, quarantine PR #1940 open; the spec has a known open failure, #1603 |
 | 40289330116, 40724937287, 41134775201, 41205531471, 41247602152, 41339116445 | configured-suite.yml | shard and verdict jobs | various | not-a-spec | No spec really failed in the verdict; lost shards or stack starts (#1865, #1829) |
 
 All four misses the audit names are explained by their culprits' file lists: none changed product
@@ -155,6 +155,9 @@ on `696f122e`; the CI path selects it. Net: two misses stay open, not one.
 - GitHub REST: the five checker comments, the CI runs on `5ca8b87a`, issues #1834, #1900,
   #1924, #1926, #1940, #1603, #1865 and #1829. About 30 calls, below the 100-call bound. No log URL
   or credential is recorded here.
+
+Out of scope: the production-page studio acceptance stays pending under its own plan; nothing here
+reads or changes it.
 
 Stated limits: the miss audit reads 7 days; earlier red runs come from ci07's 42-day replay, not a
 re-read. Job logs expire after 90 days.
