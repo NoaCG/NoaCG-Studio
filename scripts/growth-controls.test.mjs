@@ -15,7 +15,7 @@ import {
   ceilingsRevision, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, spread } from './growth-report.mjs';
+import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -873,4 +873,20 @@ test('(d) an alarm issue opened by the coordinator\'s account is found; an outsi
   assert.equal(findIssue(AGE_ISSUE, gh([issue(1, 'stranger', 'User', 'NONE'), issue(2, 'owner', 'User', 'OWNER')]))?.number, 2);
   assert.equal(findIssue(AGE_ISSUE, gh([issue(3, 'github-actions[bot]', 'Bot', 'NONE')]))?.number, 3);
   assert.equal(findIssue(AGE_ISSUE, gh([issue(4, 'stranger', 'User', 'CONTRIBUTOR')])), null);
+  assert.throws(() => findIssue(AGE_ISSUE, gh([...Array(100)].map((_, n) => ({ ...issue(n, 'x', 'User', 'NONE'), title: 'other' })))), /cannot tell/);
+});
+
+test('(e) a run with more jobs than were read is a lower bound: its tier is partial and a stop survives it', () => {
+  const page = [...Array(100)].map((_, i) => ({ name: `Job ${i}`, status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: '2026-10-30T00:01:00Z' }));
+  const read = readJobs(makeReader(10, () => JSON.stringify({ total_count: 301, jobs: page })), { id: 1 });
+  assert.equal(read.complete, false);
+  assert.equal(read.jobs.length, 300);
+  assert.equal(readJobs(makeReader(10, () => JSON.stringify({ total_count: 2, jobs: page.slice(0, 2) })), { id: 1 }).complete, true);
+  const runs = fixtureRuns();
+  runs[0].cutShort = true;
+  assert.equal(priceRuns(runs, { days: 7 }).tiers.backend.evidence, 'partial');
+  const stopped = { key: 'cost:backend', since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'stopped', detail: 'x' };
+  const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped], stops: { backend: 'x' }, timing: [] };
+  const { report } = buildReport({ ceilings: CEILINGS, runs, days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', previous, tableRecordedAt: '2026-11-20', collection: 'fixture' });
+  assert.ok(report.stops.backend, 'an unread job never clears a stop');
 });

@@ -80,6 +80,8 @@ export function priceRuns(runs, { days }) {
     const unfinished = list.filter((r) => r.status && r.status !== 'completed').length;
     if (sampled.length === 0) { for (const t of TIERS) totals[t].partial.push(`${key}: ${list.length} run(s) not sampled`); continue; }
     if (missing) for (const t of TIERS) totals[t].partial.push(`${key}: ${missing} read(s) failed`);
+    const cutShort = list.filter((r) => r.cutShort).length;
+    if (cutShort) for (const t of TIERS) totals[t].partial.push(`${key}: ${cutShort} run(s) with more jobs than were read`);
     if (unfinished) for (const t of TIERS) totals[t].partial.push(`${key}: ${unfinished} run(s) still unfinished`);
     const perRun = Object.fromEntries(TIERS.map((t) => [t, 0]));
     const perJob = {};
@@ -233,9 +235,10 @@ export function readJobs(reader, run) {
     const body = reader.get(`repos/${REPO}/actions/runs/${run.id}/jobs?filter=all&per_page=100&page=${page}`);
     if (!body) return null;
     jobs.push(...(body.jobs ?? []).map((j) => ({ name: j.name, status: j.status, started_at: j.started_at, completed_at: j.completed_at })));
-    if ((body.jobs ?? []).length < 100) break;
+    if ((body.jobs ?? []).length < 100) return { jobs, complete: true };
   }
-  return jobs;
+  // Still full at the last permitted page: later jobs went unread, so the run is a lower bound.
+  return { jobs, complete: false };
 }
 
 /**
@@ -389,8 +392,8 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
     for (const { list, picks } of plan) {
       if (round >= picks.length) continue;
       const run = list[picks[round]];
-      const jobs = readJobs(reader, run);
-      if (jobs) run.jobs = jobs; else if (!reader.exhausted) run.failed = true;
+      const read = readJobs(reader, run);
+      if (read) { run.jobs = read.jobs; if (!read.complete) run.cutShort = true; } else if (!reader.exhausted) run.failed = true;
     }
   }
   const clocks = readClocks(clocksFile, now, ledgerFile);
@@ -425,7 +428,8 @@ export function findIssue(title, gh = (args) => execFileSync('gh', args, { encod
     const found = list.find((i) => i.title === title && !i.pull_request && trusted(i));
     if (found || list.length < 100) return found ?? null;
   }
-  return null;
+  // Unread pages could hold the alarm: guessing "none" would open a duplicate or leave one open.
+  throw new Error(`more than 1,000 open issues: cannot tell whether "${title}" is open`);
 }
 
 export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
