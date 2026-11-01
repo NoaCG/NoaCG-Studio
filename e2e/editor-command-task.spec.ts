@@ -5,11 +5,38 @@ import { createHash } from 'node:crypto';
 import { dropSvg, untickTextRow, rowLabelled } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 
-// This run's pictures and parity records go to the test's own output folder (ignored), never into docs/.
+// This run's pictures, parity records and captured requests go to the test's own output folder (ignored), never into docs/.
 const evidence = (name: string) => test.info().outputPath(name);
-let semantic = false;
+// One walk per viewport and mode: the UI walk is the reference that the shared command handler (semantic)
+// and the reviewed model proposals (proposal) must each reproduce exactly.
+let semantic = false, proposal = false;
 async function inspect(page: Page) { return page.evaluate(async () => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return i; }); }
-async function apply(page: Page, id: string, args: unknown) { const r = await page.evaluate(async ({ id, args }) => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id, args }] }); await new Promise(r => setTimeout(r)); return r; }, { id, args }); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); return r; }
+async function reviewed(page: Page, id: string, args: unknown, commit = true) {
+  await page.route('**/api/ai/config', route => route.fulfill({ json: { providers: [{ id: 'openai', available: true }], keyStorageAvailable: true } }));
+  await page.evaluate(async () => {
+    (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-task', configuredProviders: ['openai'] });
+  });
+  const handler = async (route: import('@playwright/test').Route) => { writeFileSync(evidence('request-' + id + '.json'), JSON.stringify({ body: route.request().postDataJSON(), source: await source(page), expected: { id, args } }, null, 2)); return route.fulfill({ json: { output: { summary: 'Review ' + id, commands: [{ id, args }] }, provider: 'openai', model: 'deterministic-task', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, attempts: [] } }); };
+  await page.route('**/api/ai/generate', handler);
+  await page.getByRole('button', { name: 'Assistant', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Describe an edit', exact: true }).fill('Apply the qualified ' + id + ' task edit');
+  const sent = page.waitForRequest('**/api/ai/generate');
+  const accepted = await page.evaluate(async () => (await import('/src/ai/consent.ts')).noticeAcceptedLocally());
+  const before = await source(page), beforeHistory = (await inspect(page)).history;
+  await page.getByRole('button', { name: 'Propose edits', exact: true }).click();
+  if (!accepted) await page.getByTestId('ai-consent-accept').click(); await sent;
+  await expect(page.getByRole('button', { name: 'Apply edits', exact: true })).toBeVisible();
+  expect(await source(page)).toEqual(before); expect((await inspect(page)).history).toEqual(beforeHistory);
+  await page.unroute('**/api/ai/generate', handler);
+  if (commit) {
+    await page.getByRole('button', { name: 'Apply edits', exact: true }).click();
+    await expect(page.getByTestId('proposal-commit-status')).toHaveText('Applied. Preview ready.');
+    await page.getByRole('button', { name: 'Close assistant', exact: true }).click();
+    await ready(page);
+  }
+}
+async function direct(page: Page, id: string, args: unknown) { const r = await page.evaluate(async ({ id, args }) => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id, args }] }); await new Promise(r => setTimeout(r)); return r; }, { id, args }); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); return r; }
+async function apply(page: Page, id: string, args: unknown) { if (proposal) await reviewed(page, id, args); else await direct(page, id, args); }
 async function changeView(page: Page, request: unknown) { const r = await page.evaluate(async request => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.view({ expected: i.expected, ...(request as object) }); await new Promise(r => setTimeout(r)); return r; }, request); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); }
 const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
 const selection = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
@@ -45,10 +72,10 @@ async function numeric(page: Page, label: string, value: string) {
   await input.fill(value); await input.press('Enter'); await ready(page);
   await expect(page.locator('.ef-animation-properties [role=alert]')).toHaveCount(0);
 }
-for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) test('shared UI and semantic authoring, reopen and output task ' + label, async ({ browser }, testInfo) => {
+for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) test('shared UI, semantic and reviewed-proposal authoring, reopen and output task ' + label, async ({ browser }, testInfo) => {
   const compared: unknown[] = []; const creations: unknown[] = [];
-  for (const mode of ['ui', 'semantic']) {
-  semantic = mode === 'semantic';
+  for (const mode of ['ui', 'semantic', 'proposal']) {
+  semantic = mode !== 'ui'; proposal = mode === 'proposal';
   const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL as string }); const page = await context.newPage();
   test.setTimeout(360_000);
   const errors: string[] = [], network: string[] = [];
@@ -115,6 +142,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   await expect((await frame(page)).locator('#static-note')).toHaveText('News desk');
   expect((await source(page)).fields).toHaveLength(2);
   const completed = await source(page), beforeCancel = await inspect(page);
+  if (proposal) { await reviewed(page, 'text.set', { targetId: publicId.slice(1), text: 'Cancelled model edit' }, false); await page.getByRole('button', { name: 'Cancel', exact: true }).click(); await page.getByRole('button', { name: 'Close assistant', exact: true }).click(); expect(await source(page)).toEqual(completed); }
   if (semantic) await page.evaluate(async geometry => {
     const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands();
     const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message);
@@ -190,7 +218,10 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   const style = await page.addStyleTag({ content: '*{will-change:auto !important}' }); await settle(); await style.evaluate(el => el.remove()); await settle();
   const poses = await (await frame(page)).locator(shapes[0]).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
   compared.push({ phases, saved, poses });
+  if (proposal) await reviewed(page, 'text.set', { targetId: publicId.slice(1), text: 'Evening report' }, false);
+  if (proposal) { await page.getByRole('button', { name: 'Apply edits', exact: true }).scrollIntoViewIfNeeded(); await settle(); }
   await page.screenshot({ path: evidence(label + '-' + mode + '.png') });
+  if (proposal) { await page.getByRole('button', { name: 'Cancel', exact: true }).click(); await page.getByRole('button', { name: 'Close assistant', exact: true }).click(); }
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
       const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
@@ -228,7 +259,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   }
   expect(errors).toEqual([]); expect(network).toEqual([]); await context.close();
   }
-  expect(compared[1]).toEqual(compared[0]);
+  expect(compared[1]).toEqual(compared[0]); expect(compared[2]).toEqual(compared[0]);
   const result = compared[0] as { phases: { source: { html: string; css: string; js: string; fields: { field: string; value: unknown }[]; assets: { path: string }[] }; history: unknown; patches: { file: string }[] }[]; poses: unknown };
   writeFileSync(evidence(label + '-parity.json'), JSON.stringify({ viewport: { width, height }, exactSourceAndHistoryEqual: true,
     phases: result.phases.map(p => ({ hashes: Object.fromEntries((['html', 'css', 'js'] as const).map(file => [file, createHash('sha256').update(p.source[file]).digest('hex')])),
