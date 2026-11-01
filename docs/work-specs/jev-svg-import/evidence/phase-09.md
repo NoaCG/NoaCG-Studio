@@ -102,6 +102,12 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   resent the cue's length and pulled the paused clock back to it; a re-take while on air dropped
   the wire's origin, so its entrance minted a local one. Typing the length itself while paused is
   now read as a resend, the honest limit a native clock already has for its start time.
+- **A Take of a duration already on air is a new count of its length** on every output (pinned by
+  the re-take case). A score is sent with Update, which leaves the clock alone (W3).
+- **A duration compiled under row 8 and published before this row** reads only a bare time as its
+  length, so once the wire carries lengths (after its first Take here) a new length typed off air
+  is not taken: it counts from the old length. Republishing the graphic fixes it. Only imported
+  durations published between row 8 (`5624529`) and this row are affected.
 - **A target time also starts on the Take on the wire.** It counts down from its drawn time until
   row 10 resolves its instant, and its entrance already adopts a stamped origin.
 - **Out of reach here, filed (#1886, #1887):** a Take may ride the fast road, which carries no server time, so on
