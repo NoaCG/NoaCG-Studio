@@ -384,8 +384,9 @@ from those can tie a renewal to what it renews; the tier is the one scope a chan
   A job is an existing one only by its key, or by its name when its old key is gone from the head,
   and each old job has at most one such successor: a copy under a new key that repeats an existing
   job's name, or a second copy of a removed one, is a new job.
-  Offline work is the table line's to price, so a job moved into the offline tier is not priced
-  as a job there (#1885 item 11).
+  Offline jobs are priced the same way, at the slowest measured offline job; offline spec minutes
+  stay the table line's to price. So a new or more frequent offline job meets the offline tier's
+  line and its growth stop (E21).
   No exception moves a ceiling, an estimate, `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new
   version and a reviewed revision, and are still named for the owner.
 

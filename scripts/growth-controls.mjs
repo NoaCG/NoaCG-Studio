@@ -201,7 +201,7 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
     for (const job of after.jobs) {
       const name = after.names[job] ?? job;
       const tier = tierOfJob(wf, name);
-      if (tier === 'offline') continue; // offline work is the table line's to price
+      // Offline jobs are priced here like any other (Rule X10); offline SPEC minutes stay the table line's.
       // A name finds the old job only when its old key is gone: a copy of a job under a new key,
       // even with the same name, is a new job (Rule X10).
       const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name && !taken.has(j));

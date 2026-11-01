@@ -1333,6 +1333,11 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
   // A job moved into another tier by renaming its workflow file is new to that tier.
   const sweep = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  sweep:\n    name: Fit sweep\n";
   const [moved] = priceAdditions({ workflows: { 'fit-sweep-renamed.yml': { base: sweep, head: sweep, baseFile: 'fit-sweep.yml' } }, estimates: CEILINGS.estimates });
+  // An offline job is priced like any other, and an offline growth stop refuses it.
+  const shard = 'on:\n  push:\njobs:\n  e2e:\n    name: E2E 1/1 (full)\n';
+  const [offlineJob] = priceAdditions({ workflows: { 'ci.yml': { base: shard, head: `${shard}  e2e-copy:\n    name: E2E 1/1 (full)\n` } }, estimates: CEILINGS.estimates });
+  assert.equal(offlineJob?.tier, 'offline');
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: measurement({}), items: [offlineJob], today: TODAY, stops: { offline: 'cost:offline' } }).tiers.offline.status, 'refuse');
   assert.equal(moved?.tier, 'overhead');
   assert.match(moved?.how ?? '', /moved into this tier/);
   // A copy under a new key that repeats an existing job's name is new, not the existing job.
