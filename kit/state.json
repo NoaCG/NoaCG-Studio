@@ -31,15 +31,11 @@
   "inFlight": [
     {
       "phase": 15,
-      "role": "build",
-      "session": "session_017SdbwP2NXo2WVZe9bqCLoe",
-      "nonce": "15-b-9b50",
-      "branch": "claude/plan-jev-svg-import-15-build",
-      "pr": 1933,
-      "head": "b5fa71584c0a9ae6fc7be70507b9236aba3ebe95",
-      "stampRun": 41352593313,
-      "ciRun": 41351909807,
-      "so": "session_017SdbwLmDeUdTnyNAteeJeU A- (standing owner rule)"
+      "role": "check",
+      "session": "session_017SdbwQCprR6nk4x8aCVGE6",
+      "nonce": "15-c-a463",
+      "mergeSha": "e680acd1889a2d4d70a754fecebcb6b87f369787",
+      "pr": 1933
     }
   ],
   "owner": [],
