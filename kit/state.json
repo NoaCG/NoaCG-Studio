@@ -42,25 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci07 checker verdict",
-    "eta": "2026-11-01T08:40:00Z"
+    "what": "launch ci08 builder",
+    "eta": "2026-11-01T08:30:00Z"
   },
-  "inFlight": [
-    {
-      "phase": "ci07",
-      "step": "check",
-      "session": "session_017SdbwNLNUDzYmz7NmDbPtQ",
-      "nonce": "ci07-c-7590",
-      "actor": "checker-ci07-ci07-c-7590",
-      "launchedAt": "2026-11-01T08:05:50Z",
-      "pr": 1896,
-      "mergeSha": "06d3836c5557c50daebc165e015906caa7c62f3f",
-      "builder": "session_017SdbwNHTrkTe3sSjW4uaz1",
-      "reviewedHead": "00e1564e86b20f186fc7df1583d418f64934685e",
-      "repairOwnerComment": 6555195323,
-      "note": "Merged 08:04:29Z (queue run 41286559823). After PASS archive builder session_017SdbwNHTrkTe3sSjW4uaz1, its /so sessions and this checker."
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -198,6 +183,24 @@
       "postLand": "CI 41271930424, configured-suite 41271930429, Post-landing 41271930467, Quarantine 41271930434, Push on main 41271929976, deploy-verify 41272095729 all success; repair ownership complete",
       "pass": "2026-11-01T04:27Z by checker-ci18-ci18-c-1360 (session_017SdbwQmfJh51VRpXzgQdwS)",
       "checkerFindings": "non-blocking: no 85% warning on offline per-landing tier for spec additions (#1885 item 1; table line still warns). Exception scope = tier; ci04 graphics exception first in tier, expires 2026-11-30."
+    },
+    {
+      "phase": "ci07",
+      "pr": 1896,
+      "mergeSha": "06d3836c5557c50daebc165e015906caa7c62f3f",
+      "builder": "session_017SdbwNHTrkTe3sSjW4uaz1",
+      "reviewedHead": "00e1564e86b20f186fc7df1583d418f64934685e",
+      "repairOwnerComment": 6555195323,
+      "followUps": [
+        1895,
+        1900,
+        1904,
+        1907
+      ],
+      "postLand": "CI 41287297459, configured-suite 41287297497, Post-landing 41287297534, Quarantine 41287297516 (opened incident #1907), Push on main 41287297195 all success; repair ownership complete",
+      "pass": "2026-11-01T08:24Z by checker-ci07-ci07-c-7590 (session_017SdbwNLNUDzYmz7NmDbPtQ)",
+      "checkerFindings": "carry: #1900 open mapping gap; '// critical x' without colon silently ignored (minor); reset time is commit date not landing time (~70 min early). Latest audit reset 06d3836c.",
+      "archived": 8
     }
   ],
   "coordinatorNotes": [
