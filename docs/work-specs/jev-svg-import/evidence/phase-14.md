@@ -153,7 +153,8 @@ In order. Every round's result belongs to the head named.
     `f818c26`: No lock leaves text rows alone (Decisions). The journey asserts the lock's words
     keep field F1 and the key stays f6. Mutation: putting back the row switch-off fails the
     journey at the wizard row check (j-0019), and with that check also removed it fails at the
-    label check itself (j-0020); both probes dropped. Quiz tests 11/11 (j-0018).
+    label check itself (j-0020); both probes dropped. Quiz tests 11/11 (j-0018); whole
+    behaviour spec 40/40 (j-0021).
 
 ## Decisions
 
