@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on b8648cfa: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T03:35:00Z"
+    "what": "ci18 on 0a2a64d2: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "eta": "2026-11-01T03:45:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Head b8648cfa: /so on 19fbdd19 B (fork PR artifact from a branch named main could forge stops/evidence; fixed in E22 by head_repository_id check) + Codex P2 (two copies inherit one baseline; X10 at most one successor). 65/65 mutations. Codex, CI and Rules-attack /so session_017SdbwNRAhVyDN7fHcXD2Z2 running; builder holding. Tier-scope model graded A on 3ceeb3e3. 03:11Z: Codex P2 on b8648cfa (offline job deltas unpriced, pass an active offline stop) ruled in scope for (b)/E21: fold into next checkpoint. Configured E2E 4/4 died on port 54322 bind (#1865) before tests: one re-run allowed.",
+      "note": "Head 0a2a64d2: /so on b8648cfa B (partial evidence lower bound overstated waiver room; ci04 case read 80% vs true 118%; fixed X9: no waiver unless tier evidence complete). Offline job deltas priced via priceAdditions (X10), #1885 item 11 closed. Configured 4/4 #1865 port bind, one re-run done. 68/68 mutations. Codex, CI and Rules-attack /so session_017SdbwNJUs6i1txFjqrT8K2 running; builder holding.",
       "pr": 1880,
       "reviewedHead": null
     }
