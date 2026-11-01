@@ -37,14 +37,16 @@
       "branch": "claude/plan-jev-svg-import-13-build",
       "source": "b2f335fb353f799dc7866f23ca9200168205faad",
       "launchedAt": "2026-11-01T12:44:42Z",
-      "note": "midpoint review builder; acceptance records only; defects filed not fixed"
+      "note": "midpoint review builder; acceptance records only; defects filed not fixed 13:18Z PR 1916 open; subscribed.",
+      "pr": 1916,
+      "head": "1619339b3bf92563ba0ff5bacf2e73591c1d891f"
     }
   ],
   "owner": [],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-01T13:14:55Z"
+    "checkinAt": "2026-11-01T13:48:10Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
