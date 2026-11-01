@@ -31,23 +31,13 @@
   "inFlight": [
     {
       "phase": "12",
-      "step": "queued",
-      "session": "session_017SdbwMcLNvmXJHxwzybuWk",
-      "nonce": "12-b-72e4",
-      "branch": "claude/plan-jev-svg-import-12-build",
-      "source": "7030eb18dcceef18243e0dc3e937a2b7ef51918e",
-      "launchedAt": "2026-11-01T08:39:15Z",
-      "note": "builder; test-first qualification row; separate-session /so rule 08:44Z D1 reproduced (typed correction moves flash) -> behaviourRuntime.ts approved; D2 (reboot from report loses team flash) to be filed as issue + phase-note limit. 08:48Z D3 reproduced (clock Pause replays score flash pop) -> approved with D1. 08:50Z builder withdrew behaviourRuntime request (D1 breaks data-bound boards; D3 needs versioned animRuntime interpreter change). Root cause: scoring row + moment live in renderer memory/repaint timing. Coordinator: no partial landing (checker would FAIL; no earlier owner row); asked for sized design proposal (event carries scoring row; versioned interpreter for D3; blast radius; data-bound boards; tests). 09:03Z receipt: PR 1909 tests+docs only, gates green, /so session_017SdbwMnfVg8PFKa938xPA9 A, #1908 (D1/D2/D3) open. Stamp HELD: row 12 cannot pass with D1/D3 open; re-asked for sized design proposal. 09:06Z sized proposal received (~3h, medium risk, natives/saved unchanged); approved on PR 1909. 09:48Z new receipt on b38bea5; gates green; Codex stalled on b38bea5 -> re-requested once by coordinator; stamp after Codex handled. 10:13Z Codex silent repo-wide for ~80 min (last activity on any PR ~08:53Z machine time); treated as Codex outage = infrastructure wait. Coordinator SLIP: the 09:48Z @codex review re-request broke known-traps one-outstanding-request-per-head (builder request still outstanding); no further requests on b38bea5. 11:02Z Codex still silent repo-wide (~2h); waiting. 11:32Z Codex still silent repo-wide. 12:05Z Codex recovered (PR 1913 request answered in ~1 min); both 1909 requests had 0 reactions and no running state = dropped in outage; one fresh request posted. 12:07Z Codex clean on b38bea5; stamped; auto-merge on.",
-      "approvals": [
-        "GO 09:06Z: behaviourRuntime.ts (gated award latch from control adjust + pop only on named-group entry via noacgFire wrap) + behaviour.ts call site + re-record of score-recipe corpus expect.json only, with per-file sha/diff proof (AC-3), non-score corpus and jev-svg-baseline byte-identical, natives/catalog unmoved, packages + score e2e green, tests first, fresh separate /so",
-        "09:12Z svg-corpus-passes.json: hand-edit exactly two emit.js values (illustrator-four-team-scoreboard, illustrator-scoreboard-lower-third) instead of expect.json re-record; CI svg-import-passes must confirm; expect.json sidecars unchanged"
-      ],
+      "step": "check",
+      "session": "session_017SdbwR2EQSpUDPfqdG5kLs",
+      "nonce": "12-c-b21b",
+      "mergeSha": "a961bec063354da0ad5af6460367a840396b798b",
       "pr": 1909,
-      "head": "b38bea56dffdb144c6e989e2ea6276884afd4e05",
-      "receipt": "/home/user/noacg-state/jev/receipt-12-b.txt",
-      "so": "session_017SdbwPE8Ty9ZGLxUbjfF6b A on b38bea5",
-      "stamp": "cloud-queue-merge run 41304849287; Reviewed green",
-      "codex": "b38bea5 clean 12:05Z"
+      "launchedAt": "2026-11-01T12:20:07Z",
+      "note": "independent checker; note lists departures, #1908 item 2 limit. On pass archive builder session_017SdbwMcLNvmXJHxwzybuWk and its /so sessions (session_017SdbwMnfVg8PFKa938xPA9, session_017SdbwMF1zGQEbCVKEdoW4n, session_017SdbwPE8Ty9ZGLxUbjfF6b + any other children)."
     }
   ],
   "owner": [],
