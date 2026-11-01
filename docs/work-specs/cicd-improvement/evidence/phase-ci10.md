@@ -86,7 +86,27 @@ source patch on this machine, one at a time: the old pair (copies of `main`'s tw
 new one, untracked) and the merged spec each ran in one queued `--cap 5` job, then the patch was
 reverted (tree clean at the end). F0 is the fix: no patch.
 
-FAULT_TABLE
+| Fault | Patch | Old proposal-task | Old command-task | Merged spec |
+|---|---|---|---|---|
+| F0 none (the fix) | none | pass (3) | pass (3) | pass (3) |
+| F1 command handler writes other text (B4 in the command path) | `commands.ts` `operation`: `text.set` appends `.` | **fail** 3/3, text in the preview | **fail** 3/3, same | **fail** 3/3, same assertion |
+| F2 command history: redo does nothing (B10) | `commands.ts` `history`: redo removed | **fail** 3/3, source after undo/redo | **fail** 3/3, same | **fail** 3/3, same assertion |
+| F3 proposal review refuses a supported command (B5) | `proposals.ts` `reviewProposal`: `out.set` refused | **fail** 3/3, no Apply edits | pass | **fail** 3/3, same assertion |
+| F4 proposal commits on Propose, before review (B5) | `proposals.ts`: `prepare` becomes `apply` | **fail** 3/3, source changed before Apply | pass | **fail** 3/3, same assertion |
+| F5 Cancel commits the pending proposal (B6) | `ProposalPanel.tsx` `cancel` applies it first | **fail** 3/3, source after Cancel | pass | **fail** 3/3, same assertion |
+| F6 UI text editing writes changed text (B4 in the UI path) | `ArtworkTextEditor.tsx`: Apply text uppercases | **fail** 3/3, field text in the preview | **fail** 3/3, same | **fail** 3/3, same assertion |
+
+Every fault each old file catches, the merged spec catches, at the same assertion and on all three
+viewports (the failing line and message were compared from each report). F3 to F5 are the
+proposal-only behaviours, which only the old proposal file held: they moved with it. F1, F2 and F6
+were caught twice before (once per old file) and once now; that is the duplicate this row removes.
+The six faults are the families the inventory names (the command apply path, the proposal
+normaliser, review, Cancel, history and the UI path), not every possible fault.
+
+Blind spot, said plainly: `scripts/check-e2e-protection.mjs` counts `test(` lines and does not count
+tests declared inside a loop (#1911). Both files declare their three tests in one `for (...) test(`
+line, so the check sees no declaration change at all; its finding here is the deleted file (section
+8). The per-line review of the diff and this matrix are the control, not the check's count.
 
 ## 5. Before and after: time and runner cost (acceptance a)
 
@@ -106,11 +126,53 @@ TIME_TABLE
 
 ## 7. Selection and the audit reset (acceptance b)
 
-SELECTION
+Selection is unchanged in substance. A sweep of the planner (`planFor` with the traced map, every
+tracked file outside `docs/` as a one-file change) on base and head: 1,007 files plan the full
+suite on both; the 24 that planned both walks on base plan the merged spec on head; every other file
+plans neither on both. The only difference is the deleted file itself. No file selected one old spec without the other except each
+spec's own path. Neither file carried `// focus` or `// critical`; `scripts/e2e-contracts.mjs` and
+its contract map are untouched.
+
+Classification: **an audit reset by the reset reader's rule.** `node scripts/e2e-selection-misses.mjs
+resets --ref HEAD` reads this branch's first commit as a reset ("protection removed or changed: 1
+covers line(s)"): deleting a spec removes its `// covers:` line, and the reader counts every removed
+covers line, without asking whether another spec carries the same line. The runbook resets a removal
+"when it changes which existing contracts are selected", which the sweep says it does not; the reader
+is the recorded definition, though, and this row does not argue with it or edit it. So the merge
+commit of this PR is the latest actual reset, replacing `06d3836c` (ci07, 2026-11-01T07:53:03Z):
+the 14-day clock restarts at this merge, a few hours after the last one. No commit carries a
+`Selection-audit-reset` trailer. Row completion alone does not reset or begin the clock; the merge
+commit's landing does, and the coordinator records its SHA and time from the reader.
 
 ## 8. Decisions and traps
 
-DECISIONS
+- **Merge, not a shared reference file.** The UI walk is the reference both other walks must equal,
+  and it captures the creation geometry they replay, so it has to run in the same test as them. A
+  reference recorded once and read by a second file would make one test depend on another's output.
+  One file with three walks per viewport keeps each test whole.
+- **The merged file is `editor-command-task.spec.ts`.** Both reviewed proposals and direct commands
+  go through the shared command handler, which the name already says; `scripts/e2e-affected.test.mjs`
+  also names this file as a reader of `e2e/fixtures/fidelity-nested.svg`, so it stays true unchanged.
+- **One test-maintenance entry, and why it is not a gate workaround.** Deleting a spec file is
+  removed protection to `scripts/check-e2e-protection.mjs`, whatever moved where, and it requires a
+  line under `## Test maintenance`. The brief says not to write one "to pass a gate". The rule's
+  intent is that a repair never hides a loss of protection behind an entry; the check's own header
+  says the entry exists for tests "moved, merged and retired" on purpose, read by a reviewer like any
+  claim. This is that case: nothing is lost (sections 2 and 4), and the entry in
+  `docs/work-specs/e2e-suite-budget/spec.md` names what protects each behaviour now and points here.
+  It names a deleted file, so unlike an entry for a living file it cannot cover later edits to it. The
+  departure from the brief's wording is stated in the pull request for the coordinator to judge.
+- **What is weaker, said plainly.** The UI walk now runs once per viewport, not twice: a flaky step
+  in it has one chance to show per run instead of two. A failure in the UI walk now also stops that
+  viewport's semantic and proposal walks (they need its geometry), as it already stopped the second
+  walk in each old file.
+- Trap for later rows: running a queued Playwright job while patching `src/` taints the run; the
+  first baseline here was discarded for that reason and re-run on a clean tree. Old specs for a
+  before/after comparison run from untracked copies beside the new file, never from a file that is
+  being deleted, and nothing in `e2e/` is moved while a job runs.
+- Items 2 and 3 of the inventory (drawing task, transform and layer-property qualification) are left
+  as they are: removing their overlap would mean moving walks to the scheduled cadence this plan does
+  not allow yet, or replacing a journey with a lower layer without a faithful check for its boundary.
 
 ## 9. Verification
 
