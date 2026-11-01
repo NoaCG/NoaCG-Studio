@@ -114,13 +114,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: node scripts/ci-repeat-failures.mjs --days 7 --limit 40 || true
 
-      # DID SELECTION MISS IT. Every red full run on main this week, replayed through the
-      # per-change planner on its landing's own diff: a failing spec the landing's pull request
-      # would not have run is a selection miss, named in the step summary and as a warning. The
-      # count is the rollout criterion for batched validation (docs/work-specs/e2e-suite-budget/
-      # evidence/selection-audit.md). Report only, bounded like the step above. A failing spec
-      # counts for the run that turned it red, never for the landings that inherited a red main,
-      # and a fail-then-pass the quarantine recorded is a flake, not a miss.
+      # DID SELECTION MISS IT (the AC-4 miss audit, cicd-improvement ci07). Every red full run on main
+      # this week, offline (ci.yml) and configured (configured-suite.yml), replayed against the
+      # ORIGINAL plan of each landing that could have caused it: the plan its merge-group run printed.
+      # A spec no culprit's plan selected is a miss; an unreadable plan is unknown, never selected; a
+      # quarantined flake keeps its verdict and is marked for investigation. The summary also names
+      # the latest audit reset (selector code, a focus or critical header line, or a
+      # `Selection-audit-reset:` trailer) and is `blocked` while a critical quarantine incident is
+      # open. Report only, bounded to 100 API calls, like the step above.
       - name: Selection misses this week (report only)
         timeout-minutes: 6
         continue-on-error: true

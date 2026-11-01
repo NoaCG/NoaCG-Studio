@@ -281,6 +281,7 @@ test('Rule Q3: one rolling issue, opened with the first incident, updated when t
   assert.equal(incidentIssueAction(incidents, { number: 1, body }, '2026-11-02').kind, 'none', 'same set, no mail');
   const fewer = incidents.slice(1);
   assert.equal(incidentIssueAction(fewer, { number: 1, body }, '2026-11-02').kind, 'edit');
+  assert.equal(incidentIssueAction(incidents.slice(2), { number: 1, body }, '2026-11-02').kind, 'edit', 'one incident left keeps the issue open');
   assert.equal(incidentIssueAction([], { number: 1, body }, '2026-11-02').kind, 'close');
   assert.equal(incidentIssueAction([], null, '2026-11-02').kind, 'none');
   // An unread store or issue list throws before any action: the CLI reads both with throwing calls.
