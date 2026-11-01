@@ -27,12 +27,15 @@ The demonstrated failures:
 
 1. **The deadline receipt (ci13) is NOT QUALIFIED, and I accept it.** Engine-floor and the full E2E
    suite have one carrier, the nightly. Over 14 days (337 landings) 128 landings waited more than
-   24 hours for a complete green E2E verdict and 11 for engine-floor. Waiting does not fix this; a
+   24 hours for a complete green E2E verdict and 11 for engine-floor (5 if the clock stops at the
+   end of the job that carries engine-floor rather than the run; the ci13 checker found breaches on
+   all-green nights either way). Waiting does not fix this; a
    second complete carrier or keeping those checks pre-merge would.
-2. **Two unexplained misses are still open against today's selection.** ci07 left five
+2. **Three unexplained misses are still open against today's selection.** ci07 left five
    unexplained misses from before its reset. I replayed each culprit's files through the planner
-   as CI runs it (section 4). Three are now selected. `video-hyperframes` (culprit `aa2717b3`,
-   #1900) and `editor-foundation` (culprit `b0331ecb`, #1942) are still not selected. A reset
+   as CI runs it, one culprit landing at a time (section 4). Two are now selected for every
+   culprit. `video-hyperframes` (culprit `aa2717b3`, #1900), `editor-foundation` (culprit
+   `b0331ecb`, #1942) and `editor-base-edits` (culprit `97311f15`, #1944) are still not selected. A reset
    restarts the clock; it does not explain a miss whose gap is still there.
 
 The incomplete one, which would wait on its own but does not decide this verdict:
@@ -49,7 +52,7 @@ The incomplete one, which would wait on its own but does not decide this verdict
 | Original-culprit replay | ci07 replay of 42 days of red full runs, 126 items, none `unknown` ([phase-ci07-replay.json](phase-ci07-replay.json)); checker PASS on `06d3836c` (PR #1896, comment 6555493937) | The replay exists and I re-read the current 7 days with the same tool (section 3). ci13 adds no historical exact-commit Actions replay; its checker counts that as a missing drill receipt | **receipt accepted**, with one disagreement on its reading (section 4) |
 | Continuing comparison | `weekly-audit.yml` runs the miss audit each week since ci07 | Re-run here on `main` (section 3) | in place |
 | Adversarial replays | ci11 faults F1 to F10 ([phase-ci11.md](phase-ci11.md), [phase-ci11-faults.json](phase-ci11-faults.json)); checker PASS on `8e84002d` (PR #1922, comment 6562405562) | Each fault fails its guard and the correction passes; two historical replays did not reproduce and are reported as such; physical playout devices and vendor builds stay unproved | **accepted**, with those stated limits |
-| Zero unexplained misses | ci07's five pre-reset unexplained misses; the current audit (section 3) | Since the reset: none unexplained. Before it: two still not selected by today's planner (section 4) | **not met, demonstrated** |
+| Zero unexplained misses | ci07's five pre-reset unexplained misses; the current audit (section 3) | Since the reset: none unexplained. Before it: three still not selected by today's planner (section 4) | **not met, demonstrated** |
 | ci12 scope-integrity receipt | Guard S1 to S13 in `e2e/catalog/_bench-scope.mjs`, scoped and full comparison runs; checker PASS on `2314eeec` (PR #1927, comment 6563361149) | Agrees. One disclosed gap: `imported-design` (`imp01`, `svg01`) is declared, not benched (#1926), so the bench says nothing about those two designs | **accepted** |
 | ci13 deadline receipt | `scripts/schedule-coverage.mjs`, NOT QUALIFIED; checker PASS on `d26c0ba0` (PR #1930, comment 6564468198) | Agrees. The checker also notes a survived mutation (`scopeDecision` ignores missed slots), the missing exact-commit replay and nightly cause #1622 still open; each would block a later qualified record | **accepted; its content fails the condition** |
 
@@ -81,7 +84,7 @@ calls. Status **`blocked`**: 4 misses, 0 unknown, 19 failing items on 13 red ful
 | 40501378385 | ci.yml | `import-svg` | `55621f97` | selected, flake | Selected. Not a miss |
 | 40653478764 | ci.yml | job: Factory gates | `6dd736c1` | not-a-spec | Not a spec failure |
 | 41027970852 | ci.yml | `editor-transform-qualification` | `b5652ae6` (#1822) | miss, flake | **Explained**: the culprit changed plan-run docs and scripts only (`scripts/project-authorization.mjs` and two tests), no product code |
-| 41134775210 | ci.yml | `import-svg-corpus` | `0df77f74` (#1827) | miss, unmarked | **Explained**: the culprit changed plan-run docs, skills and `scripts/plan-*`/`run-*` only. The fail-then-pass is quarantine PR #1834, open since 2026-10-30 and not landed, so the store does not mark it |
+| 41134775210 | ci.yml | `import-svg-corpus` | `0df77f74` (#1827) | miss, unmarked | **Explained**: the culprit changed plan-run docs, skills and plan-run tooling scripts only (`scripts/plan-*`, `run-*`, `project-*`, `wave-plan-store.mjs` and tests). The fail-then-pass is quarantine PR #1834, open since 2026-10-30 and not landed, so the store does not mark it |
 | 41244292482 | ci.yml | `import-svg` | `af39c249` (#1877) | miss, flake | **Explained**: the culprit changed `e2e/quarantine.json` only. Its quarantine entry names this very run (same-run receipt) |
 | 41336665950 | ci.yml | `production-chat-intake` | `8e84002d` | selected, flake | Selected. Fail-then-pass, now quarantined (#1923), tracked in #1924 |
 | 41359365006 | ci.yml | `production-data` | `5ca8b87a` (#1936) | miss, unmarked | **Explained**: the culprit is ci14's evidence file only. Fail-then-pass on that commit, quarantine PR #1940 open; the spec has a known open failure, #1603 |
@@ -118,8 +121,10 @@ the traced map and the header index):
 | --- | --- | --- | --- |
 | `video-hyperframes` | `aa2717b3` | subset, 133 specs | **no** (#1900) |
 | `editor-foundation` | `b0331ecb` (#538) | subset, 88 specs (`CueRundown.tsx` and `FolderRow.tsx` escalate to the shared-change set) | **no** (#1942) |
-| `editor-base-edits` | `4abaa4a5`, `97311f15` | subset, 154 specs | yes |
-| `wizard-shell` | `7d83ced0`, `74b2ed37` | subset, 178 specs | yes |
+| `editor-base-edits` | `4abaa4a5` (#603) | subset, 153 specs | yes |
+| `editor-base-edits` | `97311f15` (#607) | subset, 26 specs | **no** (#1944) |
+| `wizard-shell` | `7d83ced0` (#609) | subset, 149 specs | yes |
+| `wizard-shell` | `74b2ed37` (#615) | subset, 140 specs | yes |
 | `layout` | `696f122e` | subset, 76 specs | yes |
 
 **Where I disagree with the ci07 checker.** Its comment says "`planFor` on `4abaa4a5` and
@@ -128,14 +133,15 @@ the traced map and the header index):
 way. The CLI that ci.yml runs sets the shared-change escalation (`e2e-affected.mjs` around line
 2119), so a broad change plans the `// focus` set plus the header mapping, not the whole suite. For
 `b0331ecb` that set leaves `editor-foundation` out. The checker also read `layout` as unselected
-on `696f122e`; the CI path selects it. Net: two misses stay open, not one.
+on `696f122e`; the CI path selects it. Each culprit is a separate landing that CI planned on its
+own, so each is replayed alone. Net: three misses stay open, not one.
 
 ## 5. What would lift each blocker (none of it done here)
 
 - Scheduled coverage: the ci13 named blocker. A second complete carrier for engine-floor and for
   the E2E specs a scoped selection omits, or keep them pre-merge. ci16 decides, on no-activation
   terms while this verdict stands.
-- Misses: a mapping or shared-set correction for #1900 and #1942, or evidence that clears each
+- Misses: a mapping or shared-set correction for #1900, #1942 and #1944, or evidence that clears each
   culprit. Either correction is a reset.
 - Incidents: the three open quarantine entries back in the blocking gate, and #1834 and #1940
   resolved.
@@ -180,6 +186,8 @@ re-read. Job logs expire after 90 days.
 - Traps for later rows:
   - Unshallow the clone before reading misses; a shallow clone silently skips culprit ranges.
   - `planFor(files)` with default options plans `full` for a broad change; CI plans the
-    shared-change set. Use the CLI, or pass `sprintFocus: true`, to replay what CI selected.
+    shared-change set, and `planFor` with `sprintFocus: true` still differs from the CLI (it
+    lacks the traced map and header readers the CLI passes). Use the CLI to replay what CI
+    selected, one culprit landing at a time.
   - The miss audit counts an unlanded quarantine PR's spec as an unmarked miss. Read the open
     `quarantine/enter-*` PRs before calling it a real miss.
