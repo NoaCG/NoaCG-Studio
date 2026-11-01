@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on fd65f6de: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T02:30:00Z"
+    "what": "ci18 on 78aa833f: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "eta": "2026-11-01T02:40:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Head fd65f6de: Codex on 876d9599 one finding (E8 sampling within budget, fcbb9f9); Rules-attack /so (session_017SdbwPkfzDwvqthf2UbE8v) B: missing evidence priced an exception at zero and waived its allowance; fixed as X10 + new E21 (stop refuses any addition, waived or not). 51/51 mutations. Rules-attack rounds so far: a0b2c502 B, fcb6f405 B, 876d9599 B. If the round on fd65f6de is B again, launch plan-run diagnose (fresh independent agent) before another round. Codex, CI and /so session_017SdbwMvVn3wsZqXnsfE2ik running.",
+      "note": "Head 78aa833f: Codex finding on fcbb9f9 (merged-PR reader lost carried ready starts) fixed. Rules-attack /so on fd65f6de stopped and restarted on 78aa833f: session_017SdbwPDpbsYJTdrDvmW14z. Rules-attack rounds: a0b2c502 B, fcb6f405 B, 876d9599 B. If 78aa833f is B, launch plan-run diagnose before another round.",
       "pr": 1880,
       "reviewedHead": null
     }
