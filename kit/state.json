@@ -42,7 +42,7 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18: /so #4 on 260fc76, then Rules head, Codex, CI gate, Rules-attacking /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "what": "ci18 on a0b2c502: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
     "eta": "2026-11-01T02:30:00Z"
   },
   "inFlight": [
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Full-diff /so #3 (session_017SdbwQECDQbeV74Pqr2Hm7) on 68969956 graded B: exception scope by wording let a reworded cover draw an expired exception or double-credit (family 2, recurred after /so #1 said it held). Codex P2 on 68969956: age alarm correction date moved forward (fixed 987ea77). Fix 260fc76e. /so #4 running. 01:31Z coordinator: stop edge patching; write numbered Rules for evidence completeness and exception scope/credit in phase notes + PR, one mutation-tested test per line, then one Codex and one fresh full-diff /so attacking the Rules.",
+      "note": "Rules head a0b2c502: numbered Rules E1-E20 (evidence completeness) and X1-X12 (exception scope/credit) in phase-ci18.md section 6 and PR body; one test per line, 37 mutations caught; /so #4 B (rename bypassed renewal) folded in as X12/X4. Codex requested; Rules-attack full-diff /so session_017SdbwPmoTkXtBvzAZhvYST running; CI running.",
       "pr": 1880,
       "reviewedHead": null
     }
