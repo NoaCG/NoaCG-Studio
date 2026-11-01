@@ -224,6 +224,13 @@
    "old": "const exact = block(/^failing specs:$/);",
    "new": "const exact = null;",
    "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "Q3d",
+   "file": "scripts/e2e-quarantine.mjs",
+   "old": "[i.spec, i.severity, i.due, i.overdue, i.owner, i.gap]",
+   "new": "[i.spec, i.severity, i.overdue]",
+   "test": "e2e-quarantine"
   }
  ]
 }

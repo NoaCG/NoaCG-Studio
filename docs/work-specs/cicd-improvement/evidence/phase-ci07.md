@@ -87,6 +87,10 @@ folded into the line it belongs to and tested:
   which stop at a few specs.
 - Q3 (PR review): the incident report reads the store strictly, so a missing store throws instead
   of reading as "no incident" and closing the issue.
+- PR review on `d4ef2d4f`: the incident issue's identity line held only spec, severity and overdue, so a
+  new owner, gap or due date did not refresh it. It now covers every field a reader acts on (Q3).
+- Fifth `/so` on `d4ef2d4f`: AGREE WITH CORRECTIONS, **A**. Its non-blocking notes (computing
+  same-run receipts in the tool, naming who triages weekly misses, two wording slips) are in #1904.
 - PR review on `11beb7d3`: the configured parser read the verdict's fingerprint set, which holds
   skips (`bridge-real-server` and `connector-grants` always skip on CI), as failures. Now only
   really failed specs count, and the verdict prints its uncapped failing list for later runs.
@@ -244,7 +248,7 @@ names that very run. 126 failing items, **none `unknown`**:
 - **3 unmarked flakes**: `editor-arrangement` (76afb8cb) and `editor-groups` (742a5a65) were
   quarantined and released before their window. `import-svg-corpus` (0df77f74, a docs landing) is
   the fail-then-pass bot PR #1834 is quarantining. (`video-hyperframes` at run 37828961726 is in
-  the unexplained list below.)
+  the unexplained list above.)
 - **6 real selection misses, all corrected before the latest reset**:
   - `editor-fidelity-trim` at 5619f765..45ec97b2 (#927, the miss the old weekly audit found)
   - `editor-fidelity-trim` at 14c0a5a5 (`svgFit.js`)
@@ -281,7 +285,7 @@ run was added.
 
 ## 5. Mutation check
 
-Each Rule line broken alone in the code, with its tests run: all 32 mutations fail. 29 fail the
+Each Rule line broken alone in the code, with its tests run: all 33 mutations fail. 30 fail the
 test named after their rule. Three fail a neighbouring test instead: A1b fails the inheritance
 test next to A1, and Q2b and Q2c fail the growth report's `(e)` test that holds the AC-8 line. The list, with the exact replacement for each, is
 [phase-ci07-mutations.json](phase-ci07-mutations.json), so a reviewer can re-apply any of them.
@@ -292,7 +296,10 @@ test next to A1, and Q2b and Q2c fail the growth report's `(e)` test that holds 
   first fresh `/so` on `bbd8d913` (AGREE WITH CORRECTIONS, B: attribution and Q5, fixed), the PR
   review on `d9884dd7` (no findings), a second fresh `/so` on `d9884dd7` (AGREE WITH CORRECTIONS,
   B: per-run flake evidence, the unread configured rows, AC-8 wiring and one stale comment, all
-  addressed). The final assessment is on the PR.
+  addressed), third and fourth fresh `/so` rounds on `12a7015f` and `11beb7d3` (B each; the rule
+  model holds; evidence, wording and one reset class), PR reviews on `11beb7d3` and `d4ef2d4f`
+  (one finding each, fixed), and a fifth fresh `/so` on `d4ef2d4f` (A). Every round is listed under
+  "Rules found after coding"; the assessment of the final head is on the PR.
 - `/check`: the review returned 10 findings, all confirmed and fixed (section "Rules found after
   coding"; the evidence gaps it found are this section and the ones above). Simplify (four
   reviewers): one strict `gh` reader in `ci-failure-set.mjs` instead of a copy, the backend

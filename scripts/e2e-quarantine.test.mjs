@@ -281,6 +281,10 @@ test('Rule Q3: one rolling issue, opened with the first incident, updated when t
   const fewer = incidents.slice(1);
   assert.equal(incidentIssueAction(fewer, { number: 1, body }, '2026-11-02').kind, 'edit');
   assert.equal(incidentIssueAction(incidents.slice(2), { number: 1, body }, '2026-11-02').kind, 'edit', 'one incident left keeps the issue open');
+  // A new owner, gap or due date on the same specs refreshes the issue; a new read date alone does not.
+  assert.equal(incidentIssueAction(incidents.map((i) => ({ ...i, owner: 'someone else' })), { number: 1, body }, '2026-11-02').kind, 'edit');
+  assert.equal(incidentIssueAction(incidents.map((i) => ({ ...i, gap: 'a narrower gap' })), { number: 1, body }, '2026-11-02').kind, 'edit');
+  assert.equal(incidentIssueAction(incidents.map((i) => ({ ...i, due: '2026-12-01' })), { number: 1, body }, '2026-11-02').kind, 'edit');
   assert.equal(incidentIssueAction([], { number: 1, body }, '2026-11-02').kind, 'close');
   assert.equal(incidentIssueAction([], null, '2026-11-02').kind, 'none');
   // An unread store throws rather than reading as empty, so nothing closes the issue.

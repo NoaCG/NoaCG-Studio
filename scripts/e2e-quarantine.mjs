@@ -36,6 +36,7 @@
 //
 // Identity is the repo-relative path (`e2e/anim-engine.spec.ts`), the same string the failure set
 // and the annotations use; scripts/e2e-spec-names.mjs converts to the planner's bare name.
+import { createHash } from 'node:crypto';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -135,7 +136,7 @@ export function quarantineIncidents(store, { headers, configured = new Map(), to
   }).sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'critical' ? -1 : 1) || a.since.localeCompare(b.since) || a.spec.localeCompare(b.spec));
 }
 
-/** The rolling issue's body. The last line is the incident set's identity (spec, severity, overdue). */
+/** The rolling issue's body. The last line is the incident set's identity. */
 export function incidentIssueBody(incidents, today) {
   return [
     `Each spec below is quarantined (\`e2e/quarantine.json\`), so the blocking gate does not read it: the run on main that replaces it blocks nothing (read ${today}). Each is an incident with an owner and a repair due date, and every open incident stops affected narrowing and expansion until it is back in the blocking gate. Repair the cause and let its ${RELEASE_AFTER} passes release it. No retry and no nonblocking run counts as the repair.`,
@@ -144,7 +145,9 @@ export function incidentIssueBody(incidents, today) {
     '|---|---|---|---|---|---|---|---|',
     ...incidents.map((i) => `| \`${i.spec}\` | ${i.severity} | ${i.since} | ${i.due}${i.overdue ? ' **overdue**' : ''} | ${i.owner} | ${i.gap} | ${i.count} | ${i.run || '-'} |`),
     '',
-    `<!-- quarantine-incident-set: ${incidents.map((i) => `${i.spec}:${i.severity}${i.overdue ? ':overdue' : ''}`).sort().join(' ')} -->`,
+    // The identity holds everything a reader acts on (severity, due date, overdue, owner, gap), so
+    // a change to any of them refreshes the issue; only the read date is left out.
+    `<!-- quarantine-incident-set: ${createHash('sha1').update(JSON.stringify(incidents.map((i) => [i.spec, i.severity, i.due, i.overdue, i.owner, i.gap]).sort())).digest('hex').slice(0, 16)} -->`,
   ].join('\n');
 }
 
