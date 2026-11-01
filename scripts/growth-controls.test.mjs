@@ -942,11 +942,10 @@ test('(e) a planned job read the budget stopped makes its stratum partial, so a 
   const reader = makeReader(1, () => cheap);
   const thin = runs();
   sampleJobs(reader, thin, 1);
-  assert.ok(reader.exhausted);
-  assert.ok(thin.some((r) => r.unread), 'the planned reads the budget stopped are marked');
+  assert.ok(thin.filter((r) => r.jobs).length <= 1, 'one call left: at most one read planned');
   const priced = priceRuns(thin, { days: 7 });
   assert.equal(priced.tiers.backend.evidence, 'partial');
-  assert.match(priced.tiers.backend.why, /call budget ran out/);
+  assert.match(priced.tiers.backend.why, /not sampled|call budget ran out/);
   const stopped = { key: 'cost:backend', since: '2026-11-02', due: '2026-11-09', owner: 'o', corrections: 1, state: 'stopped', detail: 'x' };
   const previous = { generatedAt: '2026-11-17T06:00:00Z', breaches: [stopped], stops: { backend: 'x' }, timing: [] };
   const { report } = buildReport({ ceilings: CEILINGS, runs: thin, days: 7, windowEnd: '2026-11-24T00:00:00Z', now: '2026-11-24T06:00:00Z', previous, tableRecordedAt: '2026-11-20', collection: 'fixture' });
@@ -1059,11 +1058,12 @@ test('Rule E7: a planned job read that failed makes the tiers partial', () => {
 test('Rule E8: a planned job read the call budget stopped makes the tiers partial', () => {
   const runs = completeRuns(); runs[1].jobs = null; runs[1].unread = true;
   assert.equal(backendOf(runs), 'partial');
-  const reader = makeReader(0, () => '{}');
-  const planned = completeRuns().map((r) => ({ ...r, jobs: null, status: 'completed' }));
-  sampleJobs(reader, planned, 0);
-  assert.ok(planned.some((r) => r.unread) && planned.every((r) => !r.jobs), 'a budget already spent marks the planned reads unread, never sampled');
-  assert.equal(backendOf(planned), 'partial');
+  // A read that needs extra pages can still spend the budget a planned read counted on.
+  const fullPage = JSON.stringify({ total_count: 250, jobs: [...Array(100)].map((_, i) => ({ name: `Job ${i}`, status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: '2026-10-30T00:01:00Z', run_attempt: 1 })) });
+  const planned = completeRuns().filter((r) => r.workflow === 'ci.yml' && r.event === 'push').slice(0, 2).map((r) => ({ ...r, jobs: null, status: 'completed' }));
+  sampleJobs(makeReader(2, () => fullPage), planned, 2);
+  assert.ok(planned.some((r) => r.unread), 'the read the budget stopped is marked unread, never silently unsampled');
+  assert.equal(backendOf([...completeRuns().filter((r) => !(r.workflow === 'ci.yml' && r.event === 'push')), ...planned]), 'partial');
   // The plan fits the budget: two 60-run post-landing strata (double shares) and 30 calls left.
   const job = JSON.stringify({ total_count: 1, jobs: [{ name: 'Build', status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: '2026-10-30T00:05:00Z', run_attempt: 1 }] });
   const strata = ['ci.yml', 'configured-suite.yml'].flatMap((wf, w) => [...Array(60)].map((_, i) => ({ id: w * 100 + i, workflow: wf, event: 'push', branch: 'main', sha: `s${w}${i}`, created: new Date(Date.parse('2026-10-24T00:00:00Z') + i * 3_600_000).toISOString(), conclusion: 'success', status: 'completed', jobs: null })));
@@ -1071,6 +1071,11 @@ test('Rule E8: a planned job read the call budget stopped makes the tiers partia
   sampleJobs(fits, strata, 30);
   assert.equal(strata.filter((r) => r.unread).length, 0, 'every planned read fits the budget');
   assert.ok(strata.filter((r) => r.jobs).length > 0);
+  // A small budget too: six calls for two post-landing strata plan six reads, not eight.
+  const few = strata.map((r) => ({ ...r, jobs: null, unread: undefined }));
+  sampleJobs(makeReader(6, () => job), few, 6);
+  assert.equal(few.filter((r) => r.unread).length, 0, 'never more planned reads than calls left');
+  assert.equal(few.filter((r) => r.jobs).length, 6);
 });
 
 test('Rule E9: a run still unfinished at collection makes the tiers partial', () => {

@@ -284,9 +284,10 @@ A week's measurement is **partial for every tier** when any of these holds:
 - E5. The run list was cut short (a failed list read, or a 6-hour slice reporting over 1,000 runs).
 - E6. A stratum (workflow and event) has no sampled run.
 - E7. A planned job read failed.
-- E8. A planned job read was stopped by the call budget. Planned reads are sized to fit what is left
-  of the budget, with double shares for the post-landing strata, so this happens only when the
-  budget cannot cover two reads per stratum or a read needs extra pages.
+- E8. A planned job read was stopped by the call budget. Planned reads never exceed what is left of
+  the budget: one per stratum first, then rounds of shares by weight (post-landing strata count
+  twice), never more than a stratum's completed runs. So this happens only when a read needs extra
+  pages; a stratum the budget cannot reach stays unsampled (E6).
 - E9. A run was still unfinished at collection.
 - E10. A run's jobs were still full at the last permitted page; its jobs count as a lower bound.
 - E11. The window holds no landing. The weekly collector then publishes no report and fails for its

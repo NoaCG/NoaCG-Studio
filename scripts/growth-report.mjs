@@ -402,18 +402,30 @@ export function sampleJobs(reader, runs, budget) {
   for (const r of runs) (strata[`${r.workflow}|${r.event}`] ??= []).push(r);
   const keys = Object.keys(strata);
   const left = Math.max(0, budget - reader.calls);
-  // Post-landing CI runs get a double share: they are the slowdown series. The shares are sized
-  // by their weights, so the plan fits what is left of the budget (Rule E8); only a budget too
-  // small for two reads per stratum, or a read that needs extra pages, leaves a planned read unread.
+  // The plan never exceeds what is left of the budget (Rule E8): one read per stratum first, then
+  // rounds of shares by weight (post-landing CI runs count twice: they are the slowdown series),
+  // never more than a stratum's completed runs. A planned read is left unread only when a read
+  // needs extra pages; a stratum the budget cannot reach stays unsampled (Rule E6).
   const weight = (key) => (key === 'ci.yml|push' || key === 'configured-suite.yml|push' ? 2 : 1);
-  const k = Math.max(2, Math.floor(left / Math.max(1, keys.reduce((a, key) => a + weight(key), 0))));
+  const done = Object.fromEntries(keys.map((key) => [key, strata[key].filter((r) => r.status === 'completed')]));
+  const share = Object.fromEntries(keys.map((key) => [key, 0]));
+  let rem = left;
+  for (let pass = 0; rem > 0; pass++) {
+    let moved = false;
+    for (const key of keys) {
+      const add = Math.min(pass === 0 ? 1 : weight(key), rem, done[key].length - share[key]);
+      if (add <= 0) continue;
+      share[key] += add;
+      rem -= add;
+      moved = true;
+    }
+    if (!moved) break;
+  }
   // Round-robin, so a budget that runs out leaves every stratum sampled rather than the last few
   // empty.
   const plan = keys.map((key) => {
-    const list = strata[key].sort((a, b) => a.created.localeCompare(b.created));
-    const want = weight(key) * k;
-    const done = list.filter((r) => r.status === 'completed');
-    return { list: done, picks: spread(done.length, want) };
+    const list = done[key].sort((a, b) => a.created.localeCompare(b.created));
+    return { list, picks: share[key] > 0 ? spread(list.length, share[key]) : [] };
   });
   for (let round = 0; plan.some((p) => p.picks.length > round); round++) {
     for (const { list, picks } of plan) {
