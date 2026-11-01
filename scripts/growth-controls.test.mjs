@@ -15,7 +15,7 @@ import {
   ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, renamesOf, unrecordedRenames, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
-import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
+import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
 
 const CEILINGS = JSON.parse(readFileSync(new URL('./growth-ceilings.json', import.meta.url), 'utf8'));
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -1043,6 +1043,11 @@ test('Rule E4: otherwise the tier is complete', () => {
 test('Rule E5: a run list cut short makes every tier partial', () => {
   const { report } = buildReport({ ceilings: CEILINGS, runs: completeRuns(), days: 7, windowEnd: '2026-10-31T00:00:00Z', now: '2026-10-31T06:00:00Z', listComplete: false, tableRecordedAt: '2026-10-30', collection: 'fixture' });
   for (const t of TIERS) assert.equal(report.measurement.tiers[t].evidence, 'partial', t);
+  // A 6-hour slice that reports more runs than it can page is a cut-short list too.
+  const slice = () => JSON.stringify({ total_count: 1500, workflow_runs: [] });
+  const from = Date.parse('2026-10-30T00:00:00Z');
+  assert.equal(listRuns(makeReader(20, slice), from, from + 6 * 3_600_000).complete, false);
+  assert.equal(listRuns(makeReader(20, () => JSON.stringify({ total_count: 0, workflow_runs: [] })), from, from + 6 * 3_600_000).complete, true);
 });
 
 test('Rule E6: a stratum with no sampled run makes the tiers partial', () => {
@@ -1248,6 +1253,12 @@ test('Rule X12: renaming or removing a spec or job an exception names must be re
   assert.equal(unrecordedRenames({ renames: again, offlineSpecs: ['foo.spec.ts'], renamed: chain }).length, 1, 'an offline line, through the chain');
   const ex = (id, covers, from, expires) => ({ id, tier: 'offline', covers, perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from, expires });
   assert.match(exceptionProblems(ex('n', ['spec:e2e/foo-v3.spec.ts'], '2026-10-25', '2026-11-20'), [ex('o', ['spec:e2e/foo.spec.ts'], '2026-01-01', '2026-01-20')], 30, null, null, [...chain, ...again]).join(), /renews the scope of o/);
+  // A record must say what the change did: a rename to another name, or a removal recorded as a rename, is not a record of it.
+  assert.equal(unrecordedRenames({ renames: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }], covers: ['spec:e2e/foo.spec.ts'], renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/zzz.spec.ts' }] }).length, 1, 'renamed to another name');
+  assert.equal(unrecordedRenames({ renames: [{ from: 'job:ci.yml/Foo lint', retired: true }], covers: ['job:ci.yml/Foo lint'], renamed: [{ from: 'job:ci.yml/Foo lint', to: 'job:ci.yml/Zzz' }] }).length, 1, 'a removal recorded as a rename');
+  const known = new Set(['spec:e2e/foo-v2.spec.ts']);
+  assert.match(ledgerChanges({ base: clone(CEILINGS), head: { ...clone(CEILINGS), renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/zzz.spec.ts' }] }, known }).join(), /names no job or spec/);
+  assert.deepEqual(ledgerChanges({ base: clone(CEILINGS), head: { ...clone(CEILINGS), renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }] }, known }), []);
   const base = { ...clone(CEILINGS), renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }] };
   assert.deepEqual(ledgerChanges({ base, head: { ...base, renamed: [...base.renamed, { from: 'spec:e2e/x.spec.ts', retired: true }] } }), [], 'appending a record needs no revision');
   assert.match(ledgerChanges({ base, head: { ...base, renamed: [] } }).join(), /renamed list is append-only/);
@@ -1342,6 +1353,11 @@ test('Rule X11: credit never crosses tiers, and no exception moves a ceiling, an
   assert.match(ledgerChanges({ base, head }).join(), /without a new version and a reviewed revision/);
   assert.match(ledgerChanges({ base, head: base, mainRunners: { base: 13, head: 20 } }).join(), /MAIN_RUNNERS rose/);
   assert.match(ledgerChanges({ base, head: base, shardCap: { base: 20, head: 40 } }).join(), /SHARD_CAP_MINUTES rose/);
+  // A job moved into another tier by renaming its workflow file is new to that tier.
+  const sweep = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  sweep:\n    name: Fit sweep\n";
+  const [moved] = priceAdditions({ workflows: { 'fit-sweep-renamed.yml': { base: sweep, head: sweep, baseFile: 'fit-sweep.yml' } }, estimates: CEILINGS.estimates });
+  assert.equal(moved?.tier, 'overhead');
+  assert.match(moved?.how ?? '', /moved into this tier/);
 });
 
 test('(d) a merged PR whose head was rewritten keeps the start an earlier read recorded', () => {

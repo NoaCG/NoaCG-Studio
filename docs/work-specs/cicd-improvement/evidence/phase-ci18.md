@@ -357,14 +357,17 @@ What each state lets the controls do. A change that adds nothing is never refuse
   spec additions take the same route, so an approved offline-tier exception
   in `growth-ceilings.json` waives them in the tier check. An offline line in a work spec
   (`- e2e/x.spec.ts: N min, ...`) clears only the table line.
-- X11. Credit never crosses tiers (X1, X2). No exception moves a ceiling, an estimate,
+- X11. Credit never crosses tiers (X1, X2), and a job moved into another tier, by its own name or
+  its workflow file's name, is priced as new in that tier. No exception moves a ceiling, an estimate,
   `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new version and a reviewed revision, and are
   still named for the owner.
 - X12. A change that renames or removes a spec or a job that any exception names must record it in
   `growth-ceilings.json` `renamed`, as `{ from, to }` or `{ from, retired: true }`; otherwise it is
   refused. "Names" includes offline lines, and names reached through the recorded rename chain
   (after A to B, a cover of A names B). A job keeps its key across a display-name rename; a new key
-  and a new name together is a removal. The `renamed` list is append-only.
+  and a new name together is a removal. A record must say what the change did: a removal only as
+  `retired`, a rename only to the name the change uses, and a new record's `to` must name a real job
+  or spec. The `renamed` list is append-only.
 
 - **Previous verified main:** `26095c826f1a0ee910d17070d42026a841b9f284` (ci06 merge: push CI,
   configured suite, post-land and quarantine green). The branch starts at `af39c249`, whose

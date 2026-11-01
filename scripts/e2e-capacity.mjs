@@ -354,7 +354,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     if (baseCeilings) {
       const before = JSON.parse(baseCeilings);
       const capIn = (text) => Number(/export const SHARD_CAP_MINUTES = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
-      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS }, shardCap: { base: capIn(gitShow(base, 'scripts/e2e-durations.mjs', root)), head: capIn(readFileSync(path.join(root, 'scripts', 'e2e-durations.mjs'), 'utf8')) } });
+      ledger = ledgerChanges({ known: knownCoversOnDisk(root), base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS }, shardCap: { base: capIn(gitShow(base, 'scripts/e2e-durations.mjs', root)), head: capIn(readFileSync(path.join(root, 'scripts', 'e2e-durations.mjs'), 'utf8')) } });
       // A PR that adds an exception is flagged for the separate review the spec requires; the
       // coordinator or owner decides, never the change's own author or an automatic repair.
       // A reviewed revision of the ceilings is legal, never silent: it is named for the owner too.

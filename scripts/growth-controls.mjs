@@ -188,7 +188,7 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       items.push({ tier: 'graphics', id: `spec:${file}`, perLanding: e.runsPerLanding.graphics * e.graphicsCaseMinutes, perDay: (e.scheduledRunsPerDay?.graphics ?? 0) * e.graphicsCaseMinutes, how: `new catalog spec at ${e.graphicsCaseMinutes} min, x ${e.runsPerLanding.graphics} catalog runs per landing and ${e.scheduledRunsPerDay?.graphics ?? 0} scheduled runs a day` });
     }
   }
-  for (const [wf, { base, head }] of Object.entries(workflows)) {
+  for (const [wf, { base, head, baseFile = wf }] of Object.entries(workflows)) {
     const before = workflowShape(base);
     const after = workflowShape(head);
     const was = cadence(before, e);
@@ -202,7 +202,8 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name);
       // A job moved into another tier by a rename brings its whole cost there: it is new to that
       // tier, so its old tier's headroom or exceptions never cover it.
-      const moved = oldKey !== undefined && tierOfJob(wf, before.names[oldKey] ?? oldKey) !== tier;
+      // The old job's tier comes from its old file name: renaming the workflow file can move it too.
+      const moved = oldKey !== undefined && tierOfJob(baseFile, before.names[oldKey] ?? oldKey) !== tier;
       const fresh = oldKey === undefined || moved;
       // A new job pays for every run of every matrix entry, at the slowest measured job of its tier;
       // an existing job pays for the runs a more frequent trigger or schedule adds and for any
@@ -378,7 +379,9 @@ export function unrecordedRenames({ renames = [], covers = [], offlineSpecs = []
     const job = /^job:([^/]+)\/(.+)$/.exec(r.from);
     return Boolean(job) && covers.some((c) => coverNames(c, job[1], job[2]));
   };
-  const recorded = (r) => (renamed ?? []).some((x) => x.from === r.from && (r.retired ? x.retired === true || Boolean(x.to) : x.to === r.to));
+  // A record must say what the change did: a removal only as retired, a rename only to the name
+  // the change uses. A rename to any other name would cut the scope link (Rule X12).
+  const recorded = (r) => (renamed ?? []).some((x) => x.from === r.from && (r.retired ? x.retired === true && !x.to : x.to === r.to && !x.retired));
   return renames.filter((r) => named(r) && !recorded(r));
 }
 
@@ -475,7 +478,7 @@ export function ceilingsRevision(base, head) {
   return (head.revisions ?? []).find((r) => r.version === head.version) ?? { version: head.version };
 }
 
-export function ledgerChanges({ base, head, mainRunners = null, shardCap = null }) {
+export function ledgerChanges({ base, head, mainRunners = null, shardCap = null, known = null }) {
   const problems = [];
   if (!base || !head) return problems;
   // One id, one entry: a duplicate id would let an edited copy stand in front of its original.
@@ -494,6 +497,8 @@ export function ledgerChanges({ base, head, mainRunners = null, shardCap = null 
   // The rename record is append-only too: scope identity rests on it.
   const renamedBefore = base.renamed ?? [];
   if (!same((head.renamed ?? []).slice(0, renamedBefore.length), renamedBefore)) problems.push('a recorded rename was removed or edited: the renamed list is append-only');
+  // A new rename must name something real: a made-up name would cut the scope link (Rule X12).
+  if (known) for (const r of (head.renamed ?? []).slice(renamedBefore.length)) if (r?.to && !known.has(r.to)) problems.push(`the recorded rename to ${r.to} names no job or spec in the repository`);
   const revised = head.version > base.version && (head.revisions ?? []).some((r) => r.version === head.version && r.rationale && r.authority && ISSUE_COMMENT.test(r.reviewed ?? ''));
   if (!same(stripLedger(base), stripLedger(head)) && !revised) problems.push('the frozen ceilings, estimates or measurement changed without a new version and a reviewed revision (rationale, authority)');
   if (mainRunners && mainRunners.head > mainRunners.base && !revised) problems.push(`MAIN_RUNNERS rose from ${mainRunners.base} to ${mainRunners.head}: more runners never buy budget without a reviewed revision`);
