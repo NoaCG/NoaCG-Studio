@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on 78aa833f: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T02:40:00Z"
+    "what": "ci18 on 8923a1c2: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "eta": "2026-11-01T02:45:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Head 78aa833f: Codex finding on fcbb9f9 (merged-PR reader lost carried ready starts) fixed. Rules-attack /so on fd65f6de stopped and restarted on 78aa833f: session_017SdbwPDpbsYJTdrDvmW14z. Rules-attack rounds: a0b2c502 B, fcb6f405 B, 876d9599 B. If 78aa833f is B, launch plan-run diagnose before another round.",
+      "note": "Head 8923a1c2 (E8 small-budget correction from a late Codex result on fd65f6de). /so restarted twice without finishing; 02:09Z told builder to hold 8923a1c2 until its own Codex result and Rules-attack /so session_017SdbwQbAmhQgpRzzrDcW6Q are in, and batch any late older-head findings into one checkpoint. Rules-attack completed rounds: a0b2c502 B, fcb6f405 B, 876d9599 B; if 8923a1c2 is B, launch diagnose.",
       "pr": 1880,
       "reviewedHead": null
     }
