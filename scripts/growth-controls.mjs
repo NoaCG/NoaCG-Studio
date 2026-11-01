@@ -222,26 +222,34 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
 }
 
 /**
- * What a covered item costs per landing and per day, as far as an exception may credit it: a job
- * from the measurement's per-job costs (a workflow `name:` with `${{ }}` matches every shard of
- * it); anything else nothing.
+ * The measured jobs a cover names: a `job:` cover matches the measurement's per-job keys of its own
+ * workflow and tier (a workflow `name:` with `${{ }}` matches every shard of it); a spec, or a job
+ * never measured, names none. Credit and renewal are judged on these keys, never on the cover's
+ * wording, so two differently worded patterns over the same jobs are the same scope.
  */
-export function coverCosts(measurement) {
-  const jobs = Object.entries(measurement?.jobs ?? {});
+export function coverJobs(measurement) {
+  const jobs = Object.keys(measurement?.jobs ?? {});
   return (cover) => {
     const job = /^job:([^/]+)\/(.+)$/.exec(cover);
-    if (job) {
-      const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
-      // Only the cover's own tier: a pattern that also matches another tier's jobs never moves
-      // their measured cost into this tier's credit.
-      const tier = tierOfJob(job[1], job[2]);
-      return jobs.filter(([k]) => k.startsWith(`${job[1]}/`) && pattern.test(k.slice(job[1].length + 1)) && tierOfJob(job[1], k.slice(job[1].length + 1)) === tier)
-        .reduce((a, [, v]) => ({ perLanding: a.perLanding + (v.perLanding ?? 0), perDay: a.perDay + (v.perDay ?? 0) }), { perLanding: 0, perDay: 0 });
-    }
-    // A spec has no measured runner-minutes of its own, only a deliberately high estimate, so it
-    // earns no credit: an exception naming a spec only keeps that spec's addition from counting.
-    return { perLanding: 0, perDay: 0 };
+    if (!job) return [];
+    const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+    // Only the cover's own tier: a pattern that also matches another tier's jobs never moves
+    // their measured cost into this tier's credit.
+    const tier = tierOfJob(job[1], job[2]);
+    return jobs.filter((k) => k.startsWith(`${job[1]}/`) && pattern.test(k.slice(job[1].length + 1)) && tierOfJob(job[1], k.slice(job[1].length + 1)) === tier);
   };
+}
+
+/**
+ * What a covered item costs per landing and per day, as far as an exception may credit it: the
+ * measured cost of the jobs it names. A spec has no measured runner-minutes of its own, only a
+ * deliberately high estimate, so it earns no credit: an exception naming a spec only keeps that
+ * spec's addition from counting.
+ */
+export function coverCosts(measurement) {
+  const jobs = measurement?.jobs ?? {};
+  const of = coverJobs(measurement);
+  return (cover) => of(cover).reduce((a, k) => ({ perLanding: a.perLanding + (jobs[k].perLanding ?? 0), perDay: a.perDay + (jobs[k].perDay ?? 0) }), { perLanding: 0, perDay: 0 });
 }
 
 /** Every cover that names something real: each workflow job (`{ file: text }`) and spec path. */
@@ -315,7 +323,7 @@ export function tierOfCover(cover) {
  * given, is every cover that names a real job or spec today; a cover outside it (a reworded scope)
  * covers nothing.
  */
-export function exceptionProblems(e, earlier, maxDays, known = null) {
+export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = null) {
   const p = [];
   if (!e.id) p.push('no id');
   if (!TIERS.includes(e.tier)) p.push(`unknown tier ${e.tier}`);
@@ -336,7 +344,9 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
     // A renamed or removed job is no way round renewal, whatever tier it lands in: an earlier entry
     // whose cover no longer names anything real, and that ran within 30 days of this one, is the same scope.
     const orphaned = (x) => known && x.covers.some((c) => !known.has(c)) && dayMs(x.expires) + maxDays * DAY >= dayMs(e.from);
-    const prior = earlier.filter((x) => Array.isArray(x.covers) && (overlaps(x, e) || orphaned(x)));
+    // Covers over the same measured job are the same scope, however each is worded.
+    const sameJobs = (x) => jobsOf && x.covers.some((c) => jobsOf(c).some((k) => e.covers.some((d) => jobsOf(d).includes(k))));
+    const prior = earlier.filter((x) => Array.isArray(x.covers) && (overlaps(x, e) || sameJobs(x) || orphaned(x)));
     if (prior.length) {
       const r = e.repaid;
       const latest = Math.max(...prior.map((x) => dayMs(x.from)));
@@ -348,12 +358,12 @@ export function exceptionProblems(e, earlier, maxDays, known = null) {
 }
 
 /** Active exceptions on `today`, and the invalid ones with why. Expired ones are listed apart. */
-export function exceptionStatus(ledger = [], today, maxDays, known = null) {
+export function exceptionStatus(ledger = [], today, maxDays, known = null, jobsOf = null) {
   const active = [];
   const invalid = [];
   const expired = [];
   ledger.forEach((e, i) => {
-    const problems = exceptionProblems(e, ledger.slice(0, i), maxDays, known);
+    const problems = exceptionProblems(e, ledger.slice(0, i), maxDays, known, jobsOf);
     if (problems.length) invalid.push({ ...e, problems });
     else if (dayMs(e.expires) < dayMs(today)) expired.push(e);
     else if (dayMs(e.from) <= dayMs(today)) active.push(e);
@@ -409,8 +419,10 @@ export function ledgerChanges({ base, head, mainRunners = null, shardCap = null 
  * the latest weekly report's (or the frozen seed's); `stops` maps a tier to the breach that
  * stopped its growth.
  */
-export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null, coverCost = coverCosts(measurement) }) {
-  const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays, known);
+export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null, jobsOf = coverJobs(measurement) }) {
+  const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays, known, jobsOf);
+  const jobCost = measurement?.jobs ?? {};
+  const jobsIn = (covers) => [...new Set(covers.flatMap(jobsOf))];
   const tiers = {};
   for (const tier of TIERS) {
     const ceiling = ceilings.tiers[tier];
@@ -422,15 +434,17 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     // predecessor) approve the larger allowance, never the sum: an entry credits only what its own
     // allowance adds beyond the credit its covers already received, and never more than they cost.
     const pool = new Map();
+    // The pool is per measured job, not per cover, so covers worded differently over one job share it.
     const draw = (covers, want, key) => {
-      for (const c of covers) if (!pool.has(c)) pool.set(c, { left: { ...coverCost(c) }, credited: { perLanding: 0, perDay: 0 } });
-      const prior = covers.reduce((a, c) => a + pool.get(c).credited[key], 0);
+      const keys = jobsIn(covers);
+      for (const k of keys) if (!pool.has(k)) pool.set(k, { left: { perLanding: jobCost[k].perLanding ?? 0, perDay: jobCost[k].perDay ?? 0 }, credited: { perLanding: 0, perDay: 0 } });
+      const prior = keys.reduce((a, k) => a + pool.get(k).credited[key], 0);
       const budget = Math.max(0, want - prior);
       let got = 0;
-      for (const c of covers) {
-        const take = Math.min(budget - got, pool.get(c).left[key]);
-        pool.get(c).left[key] -= take;
-        pool.get(c).credited[key] += take;
+      for (const k of keys) {
+        const take = Math.min(budget - got, pool.get(k).left[key]);
+        pool.get(k).left[key] -= take;
+        pool.get(k).credited[key] += take;
         got += take;
       }
       return got;
@@ -447,7 +461,7 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     // measured cost of what it covers: growing an excepted job needs approval for the growth.
     // Overlapping entries on one item (a renewal beside its predecessor) approve the larger
     // allowance, never the sum, so an item draws the largest room left and spends it in all of them.
-    const costOf = (e, key) => e.covers.reduce((a, c) => a + (coverCost(c)?.[key] ?? 0), 0);
+    const costOf = (e, key) => jobsIn(e.covers).reduce((a, k) => a + (jobCost[k][key] ?? 0), 0);
     const left = new Map(mine.map((e) => [e.id, { perLanding: Math.max(0, e.claimed.perLanding - costOf(e, 'perLanding')), perDay: Math.max(0, e.claimed.perDay - costOf(e, 'perDay')) }]));
     const charged = tierItems.map((i) => {
       const rooms = mine.filter((e) => e.covers.includes(i.id)).map((e) => left.get(e.id));

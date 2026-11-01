@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, ceilingsRevision, coverJobs, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -339,7 +339,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       // Only an exception this change adds is judged here. One already on record that a rename or
       // a removed job makes invalid simply covers nothing: removing an excepted job is
       // cost-reducing maintenance and must land.
-      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root)).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
+      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root), coverJobs(measurement)).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
     }
     const baseSpecs = (gitShow(base, 'docs/work-specs', root) ?? '').split('\n').filter((n) => n.endsWith('/'));
     const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`, root) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));

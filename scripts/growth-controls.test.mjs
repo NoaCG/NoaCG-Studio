@@ -12,7 +12,7 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, coverCosts, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
@@ -987,4 +987,22 @@ test('(e) an overdue item keeps the date its first alarm set, and a passed date 
   const day3 = ages({ ceilings: CEILINGS, now: '2026-11-02T12:00:00Z', reader: makeReader(50, fake), existing: day2.body });
   assert.match(day3.body, /act by 2026-11-01 \(missed\)\./);
   assert.deepEqual(carriedDues('- phase ci18 unfinished for 900 min, over its 6 hours ceiling (clock from ledger 2026-10-31T00:00:00Z). Owner o; act by 2026-11-01 (missed).'), { 'phase ci18': '2026-11-01' });
+});
+
+test('(b) covers worded differently over the same measured jobs are one scope: renewal needs repayment and credit is never doubled', () => {
+  const shards = [1, 2, 3, 4, 5, 6].map((n) => `ci.yml/Configured E2E ${n}/6 (selected, local Supabase)`);
+  const jobs = Object.fromEntries(shards.map((k) => [k, { perLanding: 10, perDay: 0 }]));
+  const base = { tier: 'backend', owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
+  const e1 = { ...base, id: 'e1', covers: ['job:ci.yml/Configured E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (selected, local Supabase)'], perLanding: 60, from: '2026-10-01', expires: '2026-10-30' };
+  const e2 = { ...base, id: 'e2', covers: ['job:ci.yml/Configured E2E ${{ matrix.lane }}'], perLanding: 60, from: '2026-10-31', expires: '2026-11-20' };
+  const m = { ...measurement({ backend: 112 }), jobs };
+  // The replay: e1 expired; e2 is a new pattern over the same six shards, with no repayment.
+  const renewal = exceptionStatus([e1, e2], TODAY, 30, null, coverJobs(m));
+  assert.match(renewal.invalid.find((e) => e.id === 'e2').problems.join(), /renews the scope of e1 without a measured repayment receipt/);
+  const r = assessTiers({ ceilings: noExceptions, measurement: m, items: [backendItem(1)], today: TODAY, exceptions: [e1, e2] });
+  assert.equal(r.tiers.backend.status, 'refuse', 'no headroom bought with e1\'s measured cost');
+  // Both active and valid (e2 carries its repayment): together they credit the 60 measured, never 120.
+  const both = [{ ...e1, expires: '2026-11-20' }, { ...e2, repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-31' } }];
+  const r2 = assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY, exceptions: both });
+  assert.match(r2.tiers.backend.why, /^52\/117 per landing/, '112 - 60, not 112 - 120');
 });
