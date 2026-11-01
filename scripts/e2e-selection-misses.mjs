@@ -114,20 +114,31 @@ function verdictOf(spec, kind, plan) {
 }
 
 /**
- * Classify one failing spec against the original plans of every candidate culprit (Rules A1 to A3).
- * Pure. First match wins: full, selected, quarantined, unknown (a plan unread), no-selection (a
- * configured culprit before ci06), miss.
+ * Classify one failing spec against the original plans of the candidate culprits, NEWEST FIRST
+ * (Rules A2 and A3). Pure.
+ *
+ * Offline: the newest candidate decides alone. Its merge group's tree is the failing commit (each
+ * merge group holds every landing queued before it), so its plan is the last pre-merge check of
+ * exactly what failed; an older candidate that ran the spec and passed was cleared by that pass and
+ * explains nothing. not-selected there is a miss, an unread plan is unknown.
+ *
+ * Configured: the merge group skips the configured job, so each candidate was checked only on its
+ * own pull request tree. Every candidate must have selected the spec for `selected`; one that read
+ * and left it out makes a miss; then unknown (a plan unread), no-selection (before ci06), quarantined.
  * @param {string} spec repo-relative (`e2e/x.spec.ts`, `e2e/configured/x.spec.ts`) or a job item
- * @param {(object | null)[]} plans the candidates' printed plans, null where unread
+ * @param {(object | null)[]} plans the candidates' printed plans, newest first, null where unread
  * @param {{ kind?: 'offline' | 'configured', flaky?: Set<string> }} [options]
- * @returns {{ spec: string, verdict: string, flake: boolean }}
+ * @returns {{ spec: string, verdict: string, flake: boolean, answers: string[] }}
  */
 export function classifyAgainst(spec, plans, { kind = 'offline', flaky = new Set() } = {}) {
   const flake = flaky.has(spec.split('/').pop());
-  if (!/\.spec\.ts$/.test(spec)) return { spec, verdict: 'not-a-spec', flake };
+  if (!/\.spec\.ts$/.test(spec)) return { spec, verdict: 'not-a-spec', flake, answers: [] };
   const answers = plans.length ? plans.map((p) => verdictOf(spec, kind, p)) : ['unknown'];
-  const verdict = ['full', 'selected', 'quarantined', 'unknown', 'no-selection'].find((v) => answers.includes(v)) ?? 'miss';
-  return { spec, verdict, flake };
+  const named = (a) => (a === 'not-selected' ? 'miss' : a);
+  const verdict = kind === 'offline'
+    ? named(answers[0])
+    : ['not-selected', 'unknown', 'no-selection', 'quarantined'].map(named).find((v) => answers.map(named).includes(v)) ?? 'selected';
+  return { spec, verdict, flake, answers };
 }
 
 /**
@@ -202,21 +213,23 @@ export function latestReset({ ref = 'HEAD', landings = 400, git = gitIn } = {}) 
 }
 
 /**
- * The audit's status (Rules A5 and Q5). Pure. `blocked` while a critical incident is open or any
- * incident is overdue; otherwise `misses` while a miss or unknown stands; `clean` only with none.
+ * The audit's status (Rules A5 and Q5). Pure. `blocked` while any quarantine incident is open;
+ * otherwise `misses` while a miss or unknown stands; `clean` only with none.
  * The days since the latest reset are reported, never read as qualification.
  */
 export function auditStatus({ rows, incidents, reset, today }) {
   const misses = rows.filter((r) => r.verdict === 'miss');
   const unknown = rows.filter((r) => r.verdict === 'unknown');
-  const blocking = incidents.filter((i) => i.severity === 'critical' || i.overdue);
+  // Every incident is critical or affected protection out of the gate (Q1), and the runbook blocks
+  // affected narrowing and expansion until it is back, so any open incident blocks.
+  const blocking = incidents;
   const days = reset.reset ? Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(reset.reset.date.slice(0, 10) + 'T00:00:00Z')) / 86_400_000) : null;
   const status = blocking.length ? 'blocked' : misses.length || unknown.length || !reset.read ? 'misses' : 'clean';
   return { status, misses: misses.length, unknown: unknown.length, blocking: blocking.map((i) => i.spec), days };
 }
 
 /** The report text. Pure. */
-export function summarize({ rows, status, reset, incidents }) {
+export function summarize({ rows, status, reset }) {
   const note = { miss: ' - add a covers line or a shared-set entry, and record the reset', unknown: ' - the original plan could not be read: unexplained', quarantined: ' - a quarantined coverage gap (incident)', 'no-selection': ' - no pre-merge configured check existed then (before ci06)' };
   const r = reset.reset;
   return [
@@ -224,7 +237,7 @@ export function summarize({ rows, status, reset, incidents }) {
     '',
     `${status.misses} miss(es) and ${status.unknown} unknown of ${rows.length} failing item(s) on ${new Set(rows.map((x) => x.runId)).size} red full run(s), each against its culprits' original plans.`,
     r ? `Latest audit reset: ${r.sha.slice(0, 9)} at ${r.date} (${r.reason}); ${status.days} day(s) since. Days are reported, not read as qualification.` : reset.read ? 'No audit reset in the history read.' : 'History unread (shallow clone?): the latest reset is unknown, so the audit is not clean.',
-    status.blocking.length ? `Blocked by quarantine incidents: ${status.blocking.join(', ')} (critical or overdue; ${incidents.length} incident(s) in all).` : `Quarantine incidents: ${incidents.length}, none critical or overdue.`,
+    status.blocking.length ? `Blocked by ${status.blocking.length} open quarantine incident(s): ${status.blocking.join(', ')}. No narrowing or expansion until they are back in the blocking gate.` : 'No open quarantine incident.',
     '',
     '| Red run | Workflow | Failing spec | Culprit landings | Against the original plans |',
     '|---|---|---|---|---|',
@@ -368,7 +381,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         }
       }
       // A red run on the commit the previous green run already had (a re-run on main) has an empty
-      // range; its candidate is that commit itself.
+      // range; its candidate is that commit itself. rev-list lists newest first, and the newest is
+      // the failing commit, so an unread older range changes only the configured answer.
       if (culprits.length === 0) culprits = [run.head_sha];
       const read = (sha) => (kind === 'configured' ? planOf(prHeadOf(sha), 'pull_request') : planOf(sha, 'merge_group'));
       const candidatePlans = [...culprits.map(read), ...(rangeRead ? [] : [null])];
@@ -376,7 +390,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     }
   }
   const status = auditStatus({ rows, incidents, reset, today });
-  const text = summarize({ rows, status, reset, incidents });
+  const text = summarize({ rows, status, reset });
   if (args.includes('--json')) console.log(JSON.stringify({ days, status, reset, rows, calls: gh.used() }, null, 1));
   else console.log(text);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${text}\n`);

@@ -49,17 +49,26 @@ test('Rule A1: the original plan is the one the merge-group CI run printed, read
   assert.equal(originalPlanOf('abc', { repo: 'o/r', gh: () => { throw new Error('403'); }, rawLog: () => log }), null);
 });
 
-test('Rule A2: full, selected, quarantined, unknown and miss, in that order, and a flake keeps its verdict', () => {
+test('Rule A2: offline, the newest candidate decides alone: quarantined, full, selected, miss or unknown; a flake keeps its verdict', () => {
   const spec = 'e2e/x.spec.ts';
-  assert.equal(classifyAgainst(spec, [subset([]), { mode: 'full', specs: [] }]).verdict, 'full');
-  assert.equal(classifyAgainst(spec, [subset([]), subset(['x.spec.ts'])]).verdict, 'selected');
-  assert.equal(classifyAgainst(spec, [subset([], { quarantined: [spec] })]).verdict, 'quarantined');
-  assert.equal(classifyAgainst(spec, [{ mode: 'full', specs: [], quarantined: [spec] }]).verdict, 'quarantined', 'a full plan still left the quarantined spec out');
-  assert.equal(classifyAgainst(spec, [subset([]), null]).verdict, 'unknown', 'an unread plan never reads as selected or miss');
-  assert.equal(classifyAgainst(spec, []).verdict, 'unknown', 'no candidate read at all');
-  assert.equal(classifyAgainst(spec, [subset([]), subset(['y.spec.ts'])]).verdict, 'miss');
+  const verdict = (plans) => classifyAgainst(spec, plans).verdict;
+  assert.equal(verdict([subset([], { quarantined: [spec] })]), 'quarantined');
+  assert.equal(verdict([{ mode: 'full', specs: [], quarantined: [spec] }]), 'quarantined', 'a full plan still left the quarantined spec out');
+  assert.equal(verdict([{ mode: 'full', specs: [] }]), 'full');
+  assert.equal(verdict([subset(['x.spec.ts'])]), 'selected');
+  assert.equal(verdict([subset(['y.spec.ts'])]), 'miss');
+  assert.equal(verdict([null]), 'unknown', 'an unread plan never reads as selected or miss');
+  assert.equal(verdict([]), 'unknown', 'no candidate read at all');
+  // Newest first. An older landing that ran the spec and passed was cleared by that pass: a newer
+  // landing that left it out is the miss, whatever the older plans said.
+  assert.equal(verdict([subset([]), subset(['x.spec.ts'])]), 'miss');
+  assert.equal(verdict([subset([]), { mode: 'full', specs: [] }]), 'miss');
+  assert.equal(verdict([subset(['x.spec.ts']), subset([])]), 'selected', 'the newest ran it on the failing tree');
+  assert.equal(verdict([subset(['x.spec.ts']), null]), 'selected', 'an unread older range does not change the newest answer');
+  assert.equal(verdict([null, subset(['x.spec.ts'])]), 'unknown');
   const flake = classifyAgainst(spec, [subset([])], { flaky: new Set(['x.spec.ts']) });
-  assert.deepEqual(flake, { spec, verdict: 'miss', flake: true }, 'a quarantined flake is investigated, not dropped');
+  assert.deepEqual([flake.verdict, flake.flake], ['miss', true], 'a quarantined flake is investigated, not dropped');
+  assert.deepEqual(classifyAgainst(spec, [subset([]), subset(['x.spec.ts'])]).answers, ['not-selected', 'selected'], 'every candidate answer is kept for the record');
   assert.equal(classifyAgainst('job: Build', [subset([])]).verdict, 'not-a-spec');
 });
 
@@ -70,6 +79,10 @@ test('Rule A3: a configured failure is judged against the printed configured man
   assert.equal(classifyAgainst(spec, [withManifest(['grants.spec.ts'])], opts).verdict, 'selected');
   assert.equal(classifyAgainst(spec, [withManifest([], [spec])], opts).verdict, 'quarantined');
   assert.equal(classifyAgainst(spec, [withManifest([])], opts).verdict, 'miss');
+  // No merge group ran it, so each candidate's own pull request must have selected it.
+  assert.equal(classifyAgainst(spec, [withManifest(['grants.spec.ts']), withManifest([])], opts).verdict, 'miss', 'an older landing that left it out may be the culprit');
+  assert.equal(classifyAgainst(spec, [withManifest(['grants.spec.ts']), withManifest(['grants.spec.ts'])], opts).verdict, 'selected');
+  assert.equal(classifyAgainst(spec, [withManifest(['grants.spec.ts']), null], opts).verdict, 'unknown');
   assert.equal(classifyAgainst(spec, [subset([])], opts).verdict, 'no-selection', 'a pre-ci06 plan carries no manifest');
   assert.equal(classifyAgainst(spec, [{ mode: 'full', specs: [] }], opts).verdict, 'no-selection', 'an offline full plan is not a configured selection');
   assert.equal(classifyAgainst(spec, [subset([]), null], opts).verdict, 'unknown');
@@ -122,19 +135,17 @@ test('Rule A5: clean only with no miss, no unknown and the history read; the day
   assert.equal(auditStatus({ rows: [{ verdict: 'miss' }], incidents: [], reset, today: '2026-11-08' }).status, 'misses');
   assert.equal(auditStatus({ rows: [{ verdict: 'unknown' }], incidents: [], reset, today: '2026-11-08' }).status, 'misses');
   assert.equal(auditStatus({ rows: [], incidents: [], reset: { reset: null, read: false }, today: '2026-11-08' }).status, 'misses', 'unread history is never clean');
-  const text = summarize({ rows: [], status: ok, reset, incidents: [] });
+  const text = summarize({ rows: [], status: ok, reset });
   assert.match(text, /Latest audit reset: c2 at 2026-10-25T10:00:00Z \(selector code\); 14 day\(s\) since\. Days are reported, not read as qualification\./);
 });
 
-test('Rule Q5: an open critical incident or an overdue one blocks the audit, whatever the miss count', () => {
+test('Rule Q5: any open quarantine incident blocks the audit, whatever the miss count', () => {
   const reset = { reset: { sha: 'c2', date: '2026-10-25T00:00:00Z', reason: 'r' }, read: true };
   const critical = { spec: 'e2e/flows.spec.ts', severity: 'critical', overdue: false };
-  const overdue = { spec: 'e2e/x.spec.ts', severity: 'affected', overdue: true };
   const fresh = { spec: 'e2e/y.spec.ts', severity: 'affected', overdue: false };
-  assert.deepEqual(auditStatus({ rows: [], incidents: [critical], reset, today: '2026-11-08' }).blocking, ['e2e/flows.spec.ts']);
-  assert.equal(auditStatus({ rows: [], incidents: [critical], reset, today: '2026-11-08' }).status, 'blocked');
-  assert.equal(auditStatus({ rows: [], incidents: [overdue], reset, today: '2026-11-08' }).status, 'blocked');
-  assert.equal(auditStatus({ rows: [], incidents: [fresh], reset, today: '2026-11-08' }).status, 'clean', 'an affected incident inside its repair date does not block');
+  assert.deepEqual(auditStatus({ rows: [], incidents: [critical, fresh], reset, today: '2026-11-08' }).blocking, ['e2e/flows.spec.ts', 'e2e/y.spec.ts']);
+  assert.equal(auditStatus({ rows: [], incidents: [fresh], reset, today: '2026-11-08' }).status, 'blocked', 'an affected incident inside its repair date still blocks narrowing');
+  assert.equal(auditStatus({ rows: [], incidents: [], reset, today: '2026-11-08' }).status, 'clean');
 });
 
 test('an unread API answer throws, so it is counted unknown and never read as nothing red', () => {
