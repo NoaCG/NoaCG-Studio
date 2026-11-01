@@ -1352,7 +1352,7 @@ function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (t
     if (r?.kind === 'resolved') onTarget(formatClockTarget(r));
   };
   const shown = result ?? (stored ? { kind: 'stored' as const } : null);
-  const wall = (at: number) => new Intl.DateTimeFormat(undefined, { timeZone: zone, dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' }).format(at);
+  const wall = (at: number) => new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }).format(at);
   return (
     <div className="map-svg-row" data-testid="map-svg-clock-target">
       <label className="save-field">
