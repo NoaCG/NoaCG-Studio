@@ -12,7 +12,7 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, renamesOf, unrecordedRenames, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
@@ -153,12 +153,12 @@ test('(b) an exception is owned, reviewed, scoped and at most 30 days; expired o
   assert.equal(run([{ ...ex, reviewed: '' }]).status, 'refuse');
 });
 
-test('(b) the same scope is never renewed without a measured repayment, whatever it is called', () => {
+test('(b) a later exception in a tier is never renewed without a measured repayment, whatever it is called', () => {
   const first = { id: 'a', tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-31', expires: '2026-11-30' };
   const renamed = { ...first, id: 'b-new-name', from: '2026-12-01', expires: '2026-12-30' };
   const st = exceptionStatus([first, renamed], '2026-12-02', 30);
   assert.deepEqual(st.invalid.map((e) => e.id), ['b-new-name']);
-  assert.match(st.invalid[0].problems.join(), /renews the scope of a without a measured repayment/);
+  assert.match(st.invalid[0].problems.join(), /is not the first graphics exception \(a came before\) and has no measured repayment receipt/);
   const repaid = { ...renamed, repaid: { perLanding: 6.1, runs: ['41300000001'], measuredAt: '2026-11-29' } };
   assert.deepEqual(exceptionStatus([first, repaid], '2026-12-02', 30).active.map((e) => e.id), ['b-new-name']);
   const noRuns = { ...renamed, repaid: { perLanding: 6.1, runs: [], measuredAt: '2026-11-29' } };
@@ -193,16 +193,18 @@ test('(b) the ci04 catalog-gate exception holds to 2026-11-30, then its cost cou
   assert.equal(CEILINGS.exceptions[0].repayment, '#1862');
 });
 
-test('(b) offline exception lines stay on record and a renewal for the same spec needs a measured repayment', () => {
+test('(b) offline exception lines stay on record and a later offline line needs a dated, measured repayment', () => {
   const md = (lines) => `## Budget exceptions\n\n${lines.join('\n')}\n`;
   const old = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the match clock, expires 2026-11-16'])).map((e) => ({ ...e, from: 'docs/work-specs/a/spec.md' }));
-  assert.match(offlineExceptionChanges(old, []).join(), /removed or moved/);
+  assert.match(offlineExceptionChanges(old, [], { today: '2026-11-20' }).join(), /removed or moved/);
   const renew = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the clock again, expires 2026-12-10'])).map((e) => ({ ...e, from: 'docs/work-specs/b/spec.md' }));
-  assert.match(offlineExceptionChanges(old, [...old, ...renew]).join(), /without a measured repayment/);
-  const repaid = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the clock again, repaid 0.6 min in run 41300000002, expires 2026-12-10'])).map((e) => ({ ...e, from: 'docs/work-specs/b/spec.md' }));
-  assert.deepEqual(repaid[0].repaid, { minutes: 0.6, run: '41300000002' });
+  assert.match(offlineExceptionChanges(old, [...old, ...renew], { today: '2026-11-20' }).join(), /is not the first offline exception and has no measured repayment receipt dated on or after 2026-11-16/);
+  const repaid = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the clock again, repaid 0.6 min in run 41300000002 on 2026-11-17, expires 2026-12-10'])).map((e) => ({ ...e, from: 'docs/work-specs/b/spec.md' }));
+  assert.deepEqual(repaid[0].repaid, { minutes: 0.6, runs: ['41300000002'], measuredAt: '2026-11-17' });
   assert.equal(repaid[0].protects, 'protects the clock again');
-  assert.deepEqual(offlineExceptionChanges(old, [...old, ...repaid]), []);
+  assert.deepEqual(offlineExceptionChanges(old, [...old, ...repaid], { today: '2026-11-20' }), []);
+  const undated = parseExceptions(md(['- e2e/sports.spec.ts: 1.1 min, protects the clock again, repaid 0.6 min in run 41300000002, expires 2026-12-10'])).map((e) => ({ ...e, from: 'docs/work-specs/b/spec.md' }));
+  assert.match(offlineExceptionChanges(old, [...old, ...undated], { today: '2026-11-20' }).join(), /no measured repayment receipt/, 'a receipt without a date cannot be checked');
 });
 
 // --- (c) ------------------------------------------------------------------------------------
@@ -569,9 +571,9 @@ test('(b) an exception cannot be re-filed under another tier or a reworded scope
   const asBackend = { ...first, id: 'b', tier: 'backend', from: '2026-12-01', expires: '2026-12-30' };
   const st = exceptionStatus([first, asBackend], '2026-12-02', 30, known);
   assert.match(st.invalid.find((e) => e.id === 'b').problems.join(), /not in the backend tier/);
-  assert.match(st.invalid.find((e) => e.id === 'b').problems.join(), /renews the scope of a/, 'scope is what it covers, whatever the tier');
   const reworded = { ...first, id: 'c', covers: ['job:ci.yml/Catalog calibration gate (affected)'], from: '2026-12-01', expires: '2026-12-30' };
   assert.match(exceptionStatus([first, reworded], '2026-12-02', 30, known).invalid[0].problems.join(), /names no job or spec/);
+  assert.match(exceptionStatus([first, reworded], '2026-12-02', 30, known).invalid[0].problems.join(), /not the first graphics exception/, 'and a later graphics exception needs a receipt, however it is worded');
   // And the offset it would have bought is refused: backend at 116/117 with a +5 addition.
   const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, asBackend] }, measurement: measurement({ backend: 116 }), items: [backendItem(5)], today: '2026-12-02', known });
   assert.equal(r.tiers.backend.status, 'refuse');
@@ -663,7 +665,7 @@ test('(d) a partial read keeps the unread PRs\' existing alarms and raises the r
   assert.match(r.body, /prReady #7 unfinished for 200 min/, 'the unread #7 keeps its line and its start');
 });
 
-test('(b) overlapping active exceptions never credit the same job twice', () => {
+test('(b) an overlapping second exception in a tier is invalid, so a job is never credited twice', () => {
   const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
   const first = { ...base, id: 'a', from: '2026-11-01', expires: '2026-11-30' };
   const renewal = { ...base, id: 'b', from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
@@ -703,7 +705,7 @@ test('(b) a renewal cannot be put ahead of the exception it renews, and nested s
   const appended = clone(base);
   appended.exceptions.push({ ...base.exceptions[0], id: 'catalog-gate-2', from: '2026-11-29', expires: '2026-12-28' });
   assert.deepEqual(ledgerChanges({ base, head: appended }), [], 'appending is the route; the renewal itself is then judged invalid without a receipt');
-  assert.match(exceptionStatus(appended.exceptions, '2026-12-05', 30).invalid[0].problems.join(), /without a measured repayment/);
+  assert.match(exceptionStatus(appended.exceptions, '2026-12-05', 30).invalid[0].problems.join(), /no measured repayment receipt/);
   const nested = priceAdditions({ added: ['e2e/configured/sub/x.spec.ts', 'e2e/catalog/deep/y.spec.ts'], estimates: CEILINGS.estimates });
   assert.deepEqual(nested.map((i) => i.tier), ['backend', 'graphics']);
 });
@@ -723,16 +725,13 @@ test('(b) renaming the covered job first is no way round a measured repayment, a
   const renamed = { ...ci04, id: 'catalog-gate-2', covers: ['job:ci.yml/Catalog calibration gate (v2)'], from: '2026-11-29', expires: '2026-12-28' };
   const known = knownCovers({ 'ci.yml': 'on:\n  pull_request:\njobs:\n  e2e-catalog:\n    name: Catalog calibration gate (v2)\n' }, []);
   const st = exceptionStatus([ci04, renamed], '2026-12-05', 30, known);
-  assert.match(st.invalid.find((e) => e.id === 'catalog-gate-2').problems.join(), /renews the scope of ci04-catalog-gate without a measured repayment/);
+  assert.match(st.invalid.find((e) => e.id === 'catalog-gate-2').problems.join(), /not the first graphics exception \(ci04-catalog-gate came before\) and has no measured repayment receipt/);
   const later = { ...renamed, id: 'unrelated', from: '2027-03-01', expires: '2027-03-30' };
-  assert.equal(exceptionStatus([ci04, later], '2027-03-05', 30, known).active.length, 1 - 1, 'an unrecorded orphan stays unknown scope at any age');
-  const retired = [{ from: 'job:ci.yml/Catalog calibration gate', retired: true }];
-  assert.match(exceptionStatus([ci04, later], '2027-03-05', 30, known, null, retired).invalid.find((e) => e.id === 'unrelated').problems.join(), /renews the scope of ci04-catalog-gate/, 'a replacement (new key, new name) in the same workflow and tier is the same scope');
+  assert.match(exceptionStatus([ci04, later], '2027-03-05', 30, known).invalid.find((e) => e.id === 'unrelated').problems.join(), /not the first graphics exception/, 'months later, under any name');
   const moved = { ...later, covers: ['job:catalog-gates.yml/Catalog gate (PR)'] };
-  assert.match(exceptionStatus([ci04, moved], '2027-03-05', 30, new Set([...known, 'job:catalog-gates.yml/Catalog gate (PR)']), null, retired).invalid.find((e) => e.id === 'unrelated').problems.join(), /renews the scope of ci04-catalog-gate/, 'moved to another workflow in the same tier: the same scope');
+  assert.match(exceptionStatus([ci04, moved], '2027-03-05', 30, new Set([...known, 'job:catalog-gates.yml/Catalog gate (PR)'])).invalid.find((e) => e.id === 'unrelated').problems.join(), /not the first graphics exception/, 'moved to another workflow in the same tier');
   const elsewhere = { ...later, tier: 'overhead', covers: ['job:ci.yml/Build'] };
-  assert.equal(exceptionStatus([ci04, elsewhere], '2027-03-05', 30, new Set([...known, 'job:ci.yml/Build']), null, retired).active.length, 1, 'another tier is another scope');
-  assert.match(exceptionStatus([ci04, later], '2027-03-05', 30, known, null, [{ from: 'job:ci.yml/Catalog calibration gate', to: 'job:ci.yml/Catalog calibration gate (v2)' }]).invalid.find((e) => e.id === 'unrelated').problems.join(), /renews the scope of ci04-catalog-gate/, 'a recorded rename carries the scope, months later too');
+  assert.equal(exceptionStatus([ci04, elsewhere], '2027-03-05', 30, new Set([...known, 'job:ci.yml/Build'])).active.length, 1, 'another tier is another scope');
   const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-restart-'));
   const gone = () => JSON.stringify({ artifacts: [{ name: 'growth-report', expired: true, created_at: '2026-09-01T00:00:00Z', workflow_run: { id: 1, head_branch: 'main' } }] });
   assert.throws(() => fetchLatest(path.join(dir, 'a.json'), gone), /expired/);
@@ -761,10 +760,12 @@ test('(b) a rename that moves a job into another tier brings its whole cost ther
   assert.equal(item.tier, 'overhead');
   assert.match(item.how, /moved into this tier/);
   assert.ok(item.perLanding > 0);
-  // An exception re-filed under the new tier for the renamed job is a renewal of ci04 and needs repayment.
+  // An exception filed under the new tier for the moved job waives none of it: the moved job has
+  // no measured cost in its new tier, so it has no room there (Rule X9).
   const known = knownCovers({ 'ci.yml': moved }, []);
   const refiled = { ...clone(CEILINGS.exceptions[0]), id: 'calibration', tier: 'overhead', covers: ['job:ci.yml/Calibration gate'], from: '2026-11-29', expires: '2026-12-28' };
-  assert.match(exceptionStatus([CEILINGS.exceptions[0], refiled], '2026-12-05', 30, known).invalid.find((e) => e.id === 'calibration').problems.join(), /renews the scope of ci04-catalog-gate/);
+  const r0 = assessTiers({ ceilings: noExceptions, measurement: { ...measurement({}), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } }, items: [item], today: '2026-12-05', known, exceptions: [CEILINGS.exceptions[0], refiled] });
+  assert.equal(r0.tiers.overhead.addedLanding, item.perLanding, 'charged in full');
   // A new backend job with eight static shards, and one whose matrix is built at run time.
   const job = (matrix) => `on:\n  push:\njobs:\n  big:\n    name: Big backend\n    strategy:\n      matrix:\n        shard: ${matrix}\n    steps: []\n`;
   const [eight] = priceAdditions({ workflows: { 'configured-suite.yml': { base: '', head: job('[1, 2, 3, 4, 5, 6, 7, 8]') } }, estimates: CEILINGS.estimates });
@@ -808,15 +809,6 @@ test('(b) a ceilings revision needs a recorded decision, not any link, and is al
   assert.equal(ceilingsRevision(base, clone(base)), null);
 });
 
-test('(b) overlapping exceptions share a cover\'s measured cost: a larger renewal is credited, never beyond the cost', () => {
-  const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
-  const first = { ...base, id: 'a', perLanding: 17.7, from: '2026-11-01', expires: '2026-11-30' };
-  const renewal = { ...base, id: 'b', perLanding: 30, from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
-  const m = { ...measurement({ graphics: 37.8 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 30, perDay: 0 } } };
-  const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, renewal] }, measurement: m, items: [{ tier: 'graphics', id: 'spec:e2e/catalog/x.spec.ts', perLanding: 1, perDay: 0 }], today: '2026-11-25' });
-  assert.match(r.tiers.graphics.why, /^7\.8\/10 per landing/, '30 credited in all: 17.7 + 12.3, never 47.7');
-});
-
 test('(d) a commit with more than a hundred statuses is read to its first stamp', () => {
   const now = '2026-10-31T12:00:00Z';
   const filler = [...Array(100)].map(() => ({ context: 'other', state: 'success', created_at: '2026-10-31T11:00:00Z' }));
@@ -838,16 +830,6 @@ test('(b) a review link must be an issue comment in this repository', () => {
   assert.equal(exceptionStatus([{ ...ex, reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' }], TODAY, 30).active.length, 1);
 });
 
-test('(b) a renewal\'s allowance waives growth of what it covers, by the larger allowance and never the sum', () => {
-  const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
-  const first = { ...base, id: 'a', perLanding: 17.7, from: '2026-11-01', expires: '2026-11-30' };
-  const renewal = { ...base, id: 'b', perLanding: 30, from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
-  const m = { ...measurement({ graphics: 25.5 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } };
-  const grow = (perLanding) => assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, renewal] }, measurement: m, items: [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding, perDay: 0 }], today: '2026-11-25' });
-  assert.equal(grow(10).tiers.graphics.addedLanding, 0, '17.7 + 10 is inside the renewal\'s 30');
-  assert.equal(Math.round(10 * grow(20).tiers.graphics.addedLanding) / 10, 7.7, 'past 30 is charged: 12.3 waived, not 12.3 + 17.7');
-});
-
 test('(d) a timeline still full at the last permitted page is a partial read', () => {
   const now = '2026-10-31T12:00:00Z';
   const full = [...Array(100)].map(() => ({ event: 'commented', created_at: '2026-10-31T09:00:00Z' }));
@@ -862,16 +844,6 @@ test('(d) a timeline still full at the last permitted page is a partial read', (
   const r = ages({ ceilings: CEILINGS, now, reader: makeReader(30, fake), existing });
   assert.equal(r.complete, false);
   assert.notEqual(r.body, '', 'unread history never clears an existing queue alarm');
-});
-
-test('(b) overlapping exceptions credit measured cost up to the larger allowance, never the sum', () => {
-  const base = { tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
-  const first = { ...base, id: 'a', perLanding: 17.7, from: '2026-11-01', expires: '2026-11-30' };
-  const renewal = { ...base, id: 'b', perLanding: 30, from: '2026-11-20', expires: '2026-12-19', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-11-19' } };
-  const m = { ...measurement({ graphics: 52.8 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 45, perDay: 0 } } };
-  const r = assessTiers({ ceilings: { ...CEILINGS, exceptions: [first, renewal] }, measurement: m, items: [{ tier: 'graphics', id: 'spec:e2e/catalog/x.spec.ts', perLanding: 1, perDay: 0 }], today: '2026-11-25' });
-  assert.match(r.tiers.graphics.why, /^22\.8\/10 per landing/, '30 credited, not 17.7 + 30');
-  assert.equal(r.tiers.graphics.status, 'refuse');
 });
 
 test('(d) an alarm issue opened by the coordinator\'s account is found; an outsider\'s with the same title is not', () => {
@@ -995,7 +967,7 @@ test('(e) an overdue item keeps the date its first alarm set, and a passed date 
   assert.deepEqual(carriedDues('- phase ci18 unfinished for 900 min, over its 6 hours ceiling (clock from ledger 2026-10-31T00:00:00Z). Owner o; act by 2026-11-01 (missed).'), { 'phase ci18': '2026-11-01' });
 });
 
-test('(b) covers worded differently over the same measured jobs are one scope: renewal needs repayment and credit is never doubled', () => {
+test('(b) covers worded differently over the same measured jobs: renewal needs repayment and credit is never doubled', () => {
   const shards = [1, 2, 3, 4, 5, 6].map((n) => `ci.yml/Configured E2E ${n}/6 (selected, local Supabase)`);
   const jobs = Object.fromEntries(shards.map((k) => [k, { perLanding: 10, perDay: 0 }]));
   const base = { tier: 'backend', owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1' };
@@ -1003,12 +975,12 @@ test('(b) covers worded differently over the same measured jobs are one scope: r
   const e2 = { ...base, id: 'e2', covers: ['job:ci.yml/Configured E2E ${{ matrix.lane }}'], perLanding: 60, from: '2026-10-31', expires: '2026-11-20' };
   const m = { ...measurement({ backend: 112 }), jobs };
   // The replay: e1 expired; e2 is a new pattern over the same six shards, with no repayment.
-  const renewal = exceptionStatus([e1, e2], TODAY, 30, null, coverJobs(m));
-  assert.match(renewal.invalid.find((e) => e.id === 'e2').problems.join(), /renews the scope of e1 without a measured repayment receipt/);
+  const renewal = exceptionStatus([e1, e2], TODAY, 30);
+  assert.match(renewal.invalid.find((e) => e.id === 'e2').problems.join(), /not the first backend exception \(e1 came before\) and has no measured repayment receipt/);
   const r = assessTiers({ ceilings: noExceptions, measurement: m, items: [backendItem(1)], today: TODAY, exceptions: [e1, e2] });
   assert.equal(r.tiers.backend.status, 'refuse', 'no headroom bought with e1\'s measured cost');
-  // Both active and valid (e2 carries its repayment): together they credit the 60 measured, never 120.
-  const both = [{ ...e1, expires: '2026-11-20' }, { ...e2, repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-31' } }];
+  // Overlapping with e1, e2 is invalid even with its repayment: one active exception per tier, so the 60 measured is credited once.
+  const both = [{ ...e1, from: '2026-10-21', expires: '2026-11-20' }, { ...e2, repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-31' } }];
   const r2 = assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY, exceptions: both });
   assert.match(r2.tiers.backend.why, /^52\/117 per landing/, '112 - 60, not 112 - 120');
 });
@@ -1187,6 +1159,15 @@ test('Rule E20: a breach clears only on evidence that judges it, and is otherwis
   assert.ok(keys(build({ openComplete: false })).includes('age:#7'), 'an incomplete read: kept');
 });
 
+test('Rule E21: a growth stop refuses any addition to its tier, waived by an exception or not', () => {
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const run = (items) => assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 60 }), items, today: TODAY, stops: { backend: 'cost:backend since 2026-10-10' }, exceptions: [ex] }).tiers.backend.status;
+  assert.equal(run([backendItem(1)]), 'refuse', 'fully waived, still refused');
+  assert.notEqual(run([]), 'refuse', 'adding nothing lands');
+  const offline = { status: 'ok', reasons: [], stops: { offline: 'x' }, estimates: CEILINGS.estimates, assessWith: () => ({ tiers: { offline: { addedLanding: 0, addedDay: 0 } } }) };
+  assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
+});
+
 test('Rule X1: a cover\'s tier is its job\'s tier with each ${{ }} read as a number, or its spec\'s folder', () => {
   assert.equal(tierOfCover('job:ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})'), 'offline');
   assert.equal(tierOfCover('job:ci.yml/Configured E2E ${{ matrix.shardIndex }}/4 (selected, local Supabase)'), 'backend');
@@ -1195,16 +1176,7 @@ test('Rule X1: a cover\'s tier is its job\'s tier with each ${{ }} read as a num
   assert.equal(tierOfCover('spec:e2e/a.spec.ts'), 'offline');
 });
 
-test('Rule X2: a job cover\'s scope is the measured jobs of its workflow and tier its name matches; a spec or unmeasured job has none', () => {
-  const m = { jobs: { 'ci.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 }, 'ci.yml/Configured E2E 2/2 (selected, local Supabase)': { perLanding: 5 }, 'nightly.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 }, 'ci.yml/E2E 1/6 (full)': { perLanding: 66 } } };
-  const of = coverJobs(m);
-  assert.deepEqual(of('job:ci.yml/Configured E2E ${{ matrix.i }}/${{ matrix.n }} (selected, local Supabase)').sort(), ['ci.yml/Configured E2E 1/2 (selected, local Supabase)', 'ci.yml/Configured E2E 2/2 (selected, local Supabase)']);
-  assert.deepEqual(of('job:ci.yml/${{ matrix.name }}'), [], 'overhead cover: no offline or backend job');
-  assert.deepEqual(of('spec:e2e/configured/a.spec.ts'), []);
-  assert.deepEqual(of('job:ci.yml/Never ran'), []);
-});
-
-test('Rule X3: an exception is valid only with id, tier, covers in its tier naming something real, allowance, owner, issue-comment review and dates at most 30 days apart', () => {
+test('Rule X2: an exception is valid only with id, tier, covers in its tier naming something real, allowance, owner, issue-comment review and dates at most 30 days apart', () => {
   const good = { id: 'g', tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
   const known = new Set(['spec:e2e/configured/a.spec.ts']);
   const problems = (over) => exceptionProblems({ ...good, ...over }, [], 30, known);
@@ -1215,64 +1187,50 @@ test('Rule X3: an exception is valid only with id, tier, covers in its tier nami
   }
 });
 
-test('Rule X4: same scope means a shared cover after recorded renames, a shared measured job, a retired name\'s same-kind same-tier successor, or an unrecorded orphan', () => {
-  const base = { tier: 'backend', perLanding: 5, owner: 'o', reviewed: RULE_REVIEW };
-  const later = { ...base, id: 'b', from: '2026-10-25', expires: '2026-11-20' };
-  const renews = (earlier, e, known = null, jobsOf = null, renamed = []) => /renews the scope/.test(exceptionProblems(e, [earlier], 30, known, jobsOf, renamed).join());
-  const old = (covers, from = '2026-10-01', expires = '2026-10-20') => ({ ...base, id: 'a', covers, from, expires });
-  assert.ok(renews(old(['spec:e2e/configured/a.spec.ts']), { ...later, covers: ['spec:e2e/configured/a.spec.ts'] }), 'shared cover');
-  assert.ok(renews(old(['spec:e2e/configured/a.spec.ts'], '2025-01-01', '2025-01-20'), { ...later, covers: ['spec:e2e/configured/a2.spec.ts'] }, null, null, [{ from: 'spec:e2e/configured/a.spec.ts', to: 'spec:e2e/configured/a2.spec.ts' }]), 'a recorded rename, at any age');
-  const jobsOf = coverJobs({ jobs: { 'ci.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 } } });
-  assert.ok(renews(old(['job:ci.yml/Configured E2E ${{ matrix.i }}/2 (selected, local Supabase)']), { ...later, covers: ['job:ci.yml/Configured E2E ${{ matrix.lane }}'] }, null, jobsOf), 'shared measured job');
-  const known = new Set(['spec:e2e/configured/b.spec.ts']);
-  assert.ok(renews(old(['spec:e2e/configured/gone.spec.ts'], '2025-01-01', '2025-01-20'), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }, known), 'an unrecorded orphan, at any age');
-  assert.ok(renews(old(['spec:e2e/configured/gone.spec.ts'], '2025-01-01', '2025-01-20'), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }, known, null, [{ from: 'spec:e2e/configured/gone.spec.ts', retired: true }]), 'a retired spec\'s unknown successor: any later spec in its folder tier, at any age');
-  assert.ok(!renews(old(['spec:e2e/configured/gone.spec.ts']), { ...later, tier: 'graphics', covers: ['spec:e2e/catalog/b.spec.ts'] }, new Set(['spec:e2e/catalog/b.spec.ts']), null, [{ from: 'spec:e2e/configured/gone.spec.ts', retired: true }]), 'another tier is another scope');
-  const job = { ...base, tier: 'backend' };
-  assert.ok(renews({ ...job, id: 'a', covers: ['job:configured-suite.yml/Configured E2E shard ${{ matrix.i }}/4'], from: '2026-01-01', expires: '2026-01-20' }, { ...job, ...later, covers: ['job:hosted-latency.yml/Hosted latency'] }, new Set(['job:hosted-latency.yml/Hosted latency']), null, [{ from: 'job:configured-suite.yml/Configured E2E shard ${{ matrix.i }}/4', retired: true }]), 'a retired job\'s successor in another workflow of the same tier');
-  const offline = (spec, from, repaid) => ({ from, spec, minutes: 3, expires: '2026-11-20', ...(repaid ? { repaid } : {}) });
-  assert.match(offlineExceptionChanges([offline('e2e/old.spec.ts', 'a/spec.md')], [offline('e2e/old.spec.ts', 'a/spec.md'), offline('e2e/new.spec.ts', 'b/spec.md')], [{ from: 'spec:e2e/old.spec.ts', retired: true }]).join(), /renews an earlier one/, 'offline lines too');
-  assert.ok(!renews(old(['spec:e2e/configured/c.spec.ts']), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }), 'a different scope');
+test('Rule X3: the first exception in a tier needs no receipt; every later one in that tier needs a measured repayment receipt, under any name and at any distance', () => {
+  const ex = (id, over) => ({ id, tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-01', expires: '2026-10-20', ...over });
+  const first = ex('a');
+  assert.deepEqual(exceptionProblems(first, [], 30), [], 'the first in its tier');
+  const later = (repaid) => exceptionProblems(ex('b', { covers: ['spec:e2e/configured/other.spec.ts'], from: '2026-10-25', expires: '2026-11-20', repaid }), [first], 30);
+  assert.deepEqual(later({ perLanding: 2, runs: ['1'], measuredAt: '2026-10-01' }), [], 'measured on the latest earlier start');
+  for (const [r, why] of [[undefined, 'none'], [{ perLanding: 0, runs: ['1'], measuredAt: '2026-10-21' }, 'zero'], [{ perLanding: 2, runs: [], measuredAt: '2026-10-21' }, 'no run'], [{ perLanding: 2, runs: ['1'], measuredAt: '2026-09-30' }, 'before the earlier start'], [{ perLanding: 2, runs: ['1'] }, 'undated']]) {
+    assert.match(later(r).join(), /is not the first backend exception \(a came before\) and has no measured repayment receipt/, why);
+  }
+  assert.match(exceptionProblems(ex('c', { from: '2028-01-01', expires: '2028-01-20' }), [first], 30).join(), /not the first backend exception/, 'it never lapses');
+  assert.match(exceptionProblems(ex('c', { from: '2026-12-01', expires: '2026-12-20' }), [{ ...first, owner: '' }], 30).join(), /not the first backend exception/, 'an earlier entry counts whatever its state today');
+  assert.deepEqual(exceptionProblems(ex('c', { tier: 'graphics', covers: ['spec:e2e/catalog/a.spec.ts'], from: '2026-10-25', expires: '2026-11-20' }), [first], 30), [], 'the first in another tier');
+  const second = ex('b', { from: '2026-10-25', expires: '2026-11-20', repaid: { perLanding: 1, runs: ['1'], measuredAt: '2026-10-21' } });
+  assert.match(exceptionProblems(ex('c', { from: '2026-11-25', expires: '2026-12-20', repaid: { perLanding: 1, runs: ['2'], measuredAt: '2026-10-24' } }), [first, second], 30).join(), /on or after 2026-10-25/, 'the latest earlier start');
 });
 
-test('Rule X12: renaming or removing a spec or job an exception names must be recorded in renamed, and the record is append-only', () => {
-  const wf = (name) => `on:\n  pull_request:\njobs:\n  gate:\n    name: ${name}\n`;
-  const renames = renamesOf({ specChanges: [{ status: 'R100', from: 'e2e/foo.spec.ts', to: 'e2e/foo-v2.spec.ts' }, { status: 'D', from: 'e2e/bar.spec.ts' }], workflows: { 'ci.yml': { base: wf('Catalog calibration gate'), head: wf('Catalog gate') } } });
-  assert.deepEqual(renames, [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }, { from: 'spec:e2e/bar.spec.ts', retired: true }, { from: 'job:ci.yml/Catalog calibration gate', to: 'job:ci.yml/Catalog gate' }]);
-  const covers = ['job:ci.yml/Catalog calibration gate'];
-  const unrecorded = unrecordedRenames({ renames, covers, offlineSpecs: ['foo.spec.ts'], renamed: [] });
-  assert.deepEqual(unrecorded.map((r) => r.from), ['spec:e2e/foo.spec.ts', 'job:ci.yml/Catalog calibration gate'], 'bar names no exception: its removal needs no record');
-  assert.deepEqual(unrecordedRenames({ renames, covers, offlineSpecs: ['foo.spec.ts'], renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }, { from: 'job:ci.yml/Catalog calibration gate', to: 'job:ci.yml/Catalog gate' }] }), []);
-  // The offline ledger follows the record too: a new line for the renamed file is a renewal.
-  const line = (spec, from) => ({ from, spec, minutes: 3, expires: '2026-11-20' });
-  assert.match(offlineExceptionChanges([line('e2e/foo.spec.ts', 'a/spec.md')], [line('e2e/foo.spec.ts', 'a/spec.md'), line('e2e/foo-v2.spec.ts', 'b/spec.md')], [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }]).join(), /renews an earlier one/);
-  // A second rename follows the chain: after foo to foo-v2 is recorded, foo-v2 to foo-v3 needs its own record.
-  const chain = [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }];
-  const again = [{ from: 'spec:e2e/foo-v2.spec.ts', to: 'spec:e2e/foo-v3.spec.ts' }];
-  assert.equal(unrecordedRenames({ renames: again, covers: ['spec:e2e/foo.spec.ts'], renamed: chain }).length, 1, 'a growth cover, through the chain');
-  assert.equal(unrecordedRenames({ renames: again, offlineSpecs: ['foo.spec.ts'], renamed: chain }).length, 1, 'an offline line, through the chain');
-  const ex = (id, covers, from, expires) => ({ id, tier: 'offline', covers, perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from, expires });
-  assert.match(exceptionProblems(ex('n', ['spec:e2e/foo-v3.spec.ts'], '2026-10-25', '2026-11-20'), [ex('o', ['spec:e2e/foo.spec.ts'], '2026-01-01', '2026-01-20')], 30, null, null, [...chain, ...again]).join(), /renews the scope of o/);
-  // A record must say what the change did: a rename to another name, or a removal recorded as a rename, is not a record of it.
-  assert.equal(unrecordedRenames({ renames: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }], covers: ['spec:e2e/foo.spec.ts'], renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/zzz.spec.ts' }] }).length, 1, 'renamed to another name');
-  assert.equal(unrecordedRenames({ renames: [{ from: 'job:ci.yml/Foo lint', retired: true }], covers: ['job:ci.yml/Foo lint'], renamed: [{ from: 'job:ci.yml/Foo lint', to: 'job:ci.yml/Zzz' }] }).length, 1, 'a removal recorded as a rename');
-  const known = new Set(['spec:e2e/foo-v2.spec.ts']);
-  assert.match(ledgerChanges({ base: clone(CEILINGS), head: { ...clone(CEILINGS), renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/zzz.spec.ts' }] }, known }).join(), /names no job or spec/);
-  assert.deepEqual(ledgerChanges({ base: clone(CEILINGS), head: { ...clone(CEILINGS), renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }] }, known }), []);
-  const base = { ...clone(CEILINGS), renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }] };
-  assert.deepEqual(ledgerChanges({ base, head: { ...base, renamed: [...base.renamed, { from: 'spec:e2e/x.spec.ts', retired: true }] } }), [], 'appending a record needs no revision');
-  assert.match(ledgerChanges({ base, head: { ...base, renamed: [] } }).join(), /renamed list is append-only/);
+test('Rule X4: at most one active exception per tier: a later one that starts on or before an earlier one expires is invalid', () => {
+  const r = { perLanding: 2, runs: ['1'], measuredAt: '2026-10-05' };
+  const ex = (id, from, expires, over) => ({ id, tier: 'graphics', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, owner: 'o', reviewed: RULE_REVIEW, from, expires, ...over });
+  const first = ex('a', '2026-10-01', '2026-10-20');
+  assert.match(exceptionProblems(ex('b', '2026-10-20', '2026-11-10', { repaid: r }), [first], 30).join(), /overlaps an earlier graphics exception \(a\)/);
+  assert.deepEqual(exceptionProblems(ex('b', '2026-10-21', '2026-11-10', { repaid: r }), [first], 30), []);
+  const m = { ...measurement({ graphics: 60 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 45, perDay: 0 } } };
+  const why = assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: '2026-10-10', exceptions: [first, ex('b', '2026-10-05', '2026-11-01', { perLanding: 30, repaid: r })] }).tiers.graphics.why;
+  assert.match(why, /^42\.3\/10 per landing/, '60 - 17.7: the overlapping second earns nothing, never 60 - 47.7 or 60 - 30');
 });
 
-test('Rule X5: same scope needs a measured repayment receipt: positive repayment, a run, measured on or after the latest earlier start', () => {
-  const base = { tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW };
-  const first = { ...base, id: 'a', from: '2026-10-01', expires: '2026-10-20' };
-  const renewal = (repaid) => exceptionProblems({ ...base, id: 'b', from: '2026-10-25', expires: '2026-11-20', repaid }, [first], 30);
-  assert.deepEqual(renewal({ perLanding: 2, runs: ['1'], measuredAt: '2026-10-21' }), []);
-  assert.match(renewal(undefined).join(), /without a measured repayment receipt/);
-  assert.match(renewal({ perLanding: 0, runs: ['1'], measuredAt: '2026-10-21' }).join(), /without a measured repayment receipt/);
-  assert.match(renewal({ perLanding: 2, runs: [], measuredAt: '2026-10-21' }).join(), /without a measured repayment receipt/);
-  assert.match(renewal({ perLanding: 2, runs: ['1'], measuredAt: '2026-09-30' }).join(), /without a measured repayment receipt/);
+test('Rule X5: the offline tier is one scope across growth-ceilings.json and the work-spec lines', () => {
+  const line = (spec, from, expires, repaid) => ({ from, spec, minutes: 3, expires, ...(repaid ? { repaid } : {}) });
+  const old = [line('e2e/a.spec.ts', 'docs/work-specs/a/spec.md', '2026-11-16')];
+  const r = (measuredAt) => ({ minutes: 1, runs: ['9'], measuredAt });
+  const fresh = (spec, repaid) => line(spec, 'docs/work-specs/b/spec.md', '2026-12-10', repaid);
+  const ch = (base, head, opts) => offlineExceptionChanges(base, head, { today: '2026-11-20', ...opts }).join();
+  assert.equal(ch([], [fresh('e2e/b.spec.ts')]), '', 'the first offline exception needs no receipt');
+  assert.match(ch(old, [...old, fresh('e2e/b.spec.ts')]), /is not the first offline exception/, 'another spec in another work spec: one scope');
+  assert.equal(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-16'))]), '', 'dated on or after the earlier line\'s expiry, which stands for its start');
+  assert.match(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-15'))]), /dated on or after 2026-11-16/);
+  assert.match(ch(old, [...old, fresh('e2e/b.spec.ts', r('2026-11-16'))], { today: '2026-11-16' }), /one active exception per tier/, 'while an earlier line still runs');
+  const entry = (id, from, expires, repaid) => ({ id, tier: 'offline', covers: ['spec:e2e/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from, expires, ...(repaid ? { repaid } : {}) });
+  assert.match(ch([], [fresh('e2e/b.spec.ts')], { baseEntries: [entry('o1', '2026-10-01', '2026-10-30')] }), /is not the first offline exception/, 'a ceilings entry came first');
+  assert.match(ch(old, old, { newEntries: [entry('o2', '2026-11-17', '2026-12-10')] }), /o2 is not the first offline exception/, 'a work-spec line came first');
+  assert.match(ch(old, old, { newEntries: [entry('o2', '2026-11-15', '2026-12-10', { perLanding: 1, runs: ['9'], measuredAt: '2026-11-16' })] }), /o2 starts 2026-11-15, while an earlier offline exception runs to 2026-11-16/);
+  assert.equal(ch(old, old, { newEntries: [entry('o2', '2026-11-17', '2026-12-10', { perLanding: 1, runs: ['9'], measuredAt: '2026-11-16' })] }), '');
+  assert.match(ch([], [fresh('e2e/b.spec.ts')], { newEntries: [entry('o2', '2026-11-21', '2026-12-10')] }), /one scope with one exception at a time/);
 });
 
 test('Rule X6: the ledger is append-only and in order', () => {
@@ -1295,29 +1253,29 @@ test('Rule X7: status, first match wins: invalid, expired, not yet started, acti
   assert.equal(where(e({})), 'active');
 });
 
-test('Rule X8: credit is pooled per measured job: overlapping exceptions credit the larger allowance, never the sum or more than the jobs cost', () => {
-  const base = { tier: 'graphics', owner: 'o', reviewed: RULE_REVIEW };
-  const a = { ...base, id: 'a', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, from: '2026-10-20', expires: '2026-11-15' };
-  const b = { ...base, id: 'b', covers: ['job:ci.yml/Catalog calibration ${{ matrix.x }}'], perLanding: 30, from: '2026-10-25', expires: '2026-11-20', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-24' } };
-  const why = (cost, exceptions) => assessTiers({ ceilings: noExceptions, measurement: { ...measurement({ graphics: 60 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: cost, perDay: 0 } } }, items: [], today: TODAY, exceptions }).tiers.graphics.why;
-  assert.match(why(45, [a, b]), /^30\/10 per landing/, '60 - 30: the larger allowance, not 47.7');
-  assert.match(why(20, [a, b]), /^40\/10 per landing/, '60 - 20: never more than the job costs');
+test('Rule X8: credit is the allowance capped at the measured cost of the jobs its covers match in its tier; a spec or unmeasured cover earns 0', () => {
+  const m = { jobs: { 'ci.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 }, 'ci.yml/Configured E2E 2/2 (selected, local Supabase)': { perLanding: 5 }, 'nightly.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 }, 'ci.yml/E2E 1/6 (full)': { perLanding: 66 } } };
+  const of = coverJobs(m);
+  assert.deepEqual(of('job:ci.yml/Configured E2E ${{ matrix.i }}/${{ matrix.n }} (selected, local Supabase)').sort(), ['ci.yml/Configured E2E 1/2 (selected, local Supabase)', 'ci.yml/Configured E2E 2/2 (selected, local Supabase)']);
+  assert.deepEqual(of('job:ci.yml/${{ matrix.name }}'), [], 'overhead cover: no offline or backend job');
+  assert.deepEqual(of('spec:e2e/configured/a.spec.ts'), []);
+  assert.deepEqual(of('job:ci.yml/Never ran'), []);
+  const ex = (covers) => ({ id: 'c', tier: 'graphics', covers, perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' });
+  const why = (cost, e) => assessTiers({ ceilings: noExceptions, measurement: { ...measurement({ graphics: 60 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: cost, perDay: 0 } } }, items: [], today: TODAY, exceptions: [e] }).tiers.graphics.why;
+  assert.match(why(45, ex(['job:ci.yml/Catalog calibration gate'])), /^30\/10 per landing/, 'the allowance');
+  assert.match(why(20, ex(['job:ci.yml/Catalog calibration gate'])), /^40\/10 per landing/, 'the measured cost');
+  assert.match(why(20, ex(['job:ci.yml/Catalog calibration never measured'])), /^60\/10 per landing/, 'an unmeasured cover');
+  assert.match(why(20, ex(['spec:e2e/catalog/a.spec.ts'])), /^60\/10 per landing/, 'a spec cover');
 });
 
-test('Rule X9: a spec cover earns no credit on measured cost', () => {
-  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 50, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
-  const m = { ...measurement({ backend: 100 }), jobs: { 'configured-suite.yml/Configured E2E shard 1/4': { perLanding: 40, perDay: 0 } } };
-  assert.match(assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY, exceptions: [ex] }).tiers.backend.why, /^100\/117 per landing/);
-});
-
-test('Rule X10: a covered addition is waived up to the room left (allowance minus its jobs\' cost); overlapping rooms give the largest, never the sum', () => {
+test('Rule X9: a covered addition is waived up to the room left (allowance minus its jobs\' cost); no room on missing evidence or an unmeasured existing job', () => {
   const spec = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
   assert.equal(assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 60 }), items: [backendItem(8)], today: TODAY, exceptions: [spec] }).tiers.backend.addedLanding, 3);
-  const base = { tier: 'graphics', owner: 'o', reviewed: RULE_REVIEW, covers: ['job:ci.yml/Catalog calibration gate'] };
-  const a = { ...base, id: 'a', perLanding: 17.7, from: '2026-10-20', expires: '2026-11-15' };
-  const b = { ...base, id: 'b', perLanding: 30, from: '2026-10-25', expires: '2026-11-20', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-24' } };
-  const grow = (add) => assessTiers({ ceilings: noExceptions, measurement: { ...measurement({ graphics: 25.5 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } }, items: [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding: add, perDay: 0 }], today: TODAY, exceptions: [a, b] }).tiers.graphics.addedLanding;
-  assert.equal(Math.round(10 * grow(20)) / 10, 7.7, '12.3 of room, not 12.3 + 0');
+  const gate = { id: 'g', tier: 'graphics', owner: 'o', reviewed: RULE_REVIEW, covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 30, from: '2026-10-25', expires: '2026-11-20' };
+  const m = { ...measurement({ graphics: 25.5 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } };
+  const grow = (add) => assessTiers({ ceilings: noExceptions, measurement: m, items: [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding: add, perDay: 0, how: 'more runs of a job' }], today: TODAY, exceptions: [gate] }).tiers.graphics.addedLanding;
+  assert.equal(Math.round(10 * grow(20)) / 10, 7.7, '12.3 of room: 30 allowed, 17.7 measured');
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: null, items: [backendItem(8)], today: TODAY, exceptions: [spec] }).tiers.backend.addedLanding, 8, 'missing evidence: no room, even for a spec');
   // The offline tier takes the same route: an approved offline exception waives an offline spec.
   const offlineEx = { id: 'o', tier: 'offline', covers: ['spec:e2e/new.spec.ts'], perLanding: 30, perDay: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
   const offlineGrowth = (exceptions) => {
@@ -1336,16 +1294,7 @@ test('Rule X10: a covered addition is waived up to the room left (allowance minu
   assert.equal(added2('new job at 12.7 runner-min'), 0, 'a job new in this change');
 });
 
-test('Rule E21: a growth stop refuses any addition to its tier, waived by an exception or not', () => {
-  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 30, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
-  const run = (items) => assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 60 }), items, today: TODAY, stops: { backend: 'cost:backend since 2026-10-10' }, exceptions: [ex] }).tiers.backend.status;
-  assert.equal(run([backendItem(1)]), 'refuse', 'fully waived, still refused');
-  assert.notEqual(run([]), 'refuse', 'adding nothing lands');
-  const offline = { status: 'ok', reasons: [], stops: { offline: 'x' }, estimates: CEILINGS.estimates, assessWith: () => ({ tiers: { offline: { addedLanding: 0, addedDay: 0 } } }) };
-  assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
-});
-
-test('Rule X11: credit never crosses tiers, and no exception moves a ceiling, an estimate, MAIN_RUNNERS or SHARD_CAP_MINUTES', () => {
+test('Rule X10: credit never crosses tiers, a job moved into another tier is new there, and no exception moves a ceiling, an estimate, MAIN_RUNNERS or SHARD_CAP_MINUTES', () => {
   const ex = { id: 'x', tier: 'overhead', covers: ['job:ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (full)'], perLanding: 80, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
   assert.match(exceptionStatus([ex], TODAY, 30).invalid[0].problems.join(), /not in the overhead tier/);
   const base = clone(CEILINGS);
@@ -1360,6 +1309,68 @@ test('Rule X11: credit never crosses tiers, and no exception moves a ceiling, an
   assert.match(moved?.how ?? '', /moved into this tier/);
 });
 
+// Each earlier escape from same-scope renewal, replayed against the tier-scope rules with no rename
+// record anywhere: refused, or earning no credit.
+const CI04 = () => clone(CEILINGS.exceptions[0]);
+const laterGraphics = (over) => ({ ...CI04(), id: 'later', from: '2026-12-01', expires: '2026-12-30', ...over });
+const invalidWhy = (ledger, known = null, today = '2026-12-05') => exceptionStatus(ledger, today, 30, known).invalid.map((e) => e.problems.join()).join(' | ');
+
+test('Rule replay: a cover worded as a pattern over the same job needs a receipt', () => {
+  assert.match(invalidWhy([CI04(), laterGraphics({ covers: ['job:ci.yml/Catalog calibration ${{ matrix.lane }}'] })]), /not the first graphics exception/);
+});
+
+test('Rule replay: a templated name in another tier is refused and earns no credit', () => {
+  const ex = { ...laterGraphics({ tier: 'overhead', covers: ['job:ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (full)'] }), from: '2026-10-25', expires: '2026-11-20' };
+  assert.match(invalidWhy([ex], null, TODAY), /not in the overhead tier/);
+  const m = { ...measurement({ overhead: 40 }), jobs: { 'ci.yml/E2E 1/6 (full)': { perLanding: 66, perDay: 0 } } };
+  const wide = { ...ex, covers: ['job:ci.yml/${{ matrix.name }}'] };
+  assert.match(assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY, exceptions: [wide] }).tiers.overhead.why, /^40\/105 per landing/, 'no offline minutes credited to overhead');
+});
+
+test('Rule replay: renaming the covered job first still needs a receipt', () => {
+  const known = new Set(['job:ci.yml/Catalog calibration gate (v2)']);
+  assert.match(invalidWhy([CI04(), laterGraphics({ covers: ['job:ci.yml/Catalog calibration gate (v2)'] })], known), /not the first graphics exception/);
+});
+
+test('Rule replay: retiring the covered job and adding one under a new key and name still needs a receipt', () => {
+  const known = new Set(['job:ci.yml/Catalog calibration fresh']);
+  const why = invalidWhy([CI04(), laterGraphics({ covers: ['job:ci.yml/Catalog calibration fresh'], from: '2027-04-01', expires: '2027-04-30' })], known, '2027-04-05');
+  assert.match(why, /not the first graphics exception/);
+});
+
+test('Rule replay: a duplicate id is refused in the ledger and invalid in the status', () => {
+  const base = clone(CEILINGS);
+  const head = clone(base);
+  head.exceptions.unshift({ ...CI04(), perLanding: 40, from: '2026-11-25', expires: '2026-12-24' });
+  assert.match(ledgerChanges({ base, head }).join(), /appears more than once/);
+  assert.match(invalidWhy(head.exceptions), /repeats the id ci04-catalog-gate/);
+});
+
+test('Rule replay: moving the covered job to another workflow file still needs a receipt', () => {
+  const known = new Set(['job:catalog-gates.yml/Catalog gate (PR)']);
+  assert.match(invalidWhy([CI04(), laterGraphics({ covers: ['job:catalog-gates.yml/Catalog gate (PR)'] })], known), /not the first graphics exception/);
+});
+
+test('Rule replay: an existing job no measurement prices gets no waiver', () => {
+  const ex = { ...CI04(), covers: ['job:ci.yml/Catalog calibration unpriced'], perLanding: 30, from: '2026-10-25', expires: '2026-11-20' };
+  const item = { tier: 'graphics', id: 'job:ci.yml/Catalog calibration unpriced', perLanding: 4, perDay: 0, how: 'more runs of a job at 4 runner-min' };
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: measurement({ graphics: 2 }), items: [item], today: TODAY, exceptions: [ex] }).tiers.graphics.addedLanding, 4);
+});
+
+test('Rule replay: a made-up name is refused and still needs a receipt', () => {
+  const why = invalidWhy([CI04(), laterGraphics({ covers: ['job:ci.yml/Catalog calibration zzz'] })], new Set(['job:ci.yml/Catalog calibration gate']));
+  assert.match(why, /names no job or spec/);
+  assert.match(why, /not the first graphics exception/);
+});
+
+test('Rule replay: a workflow file rename that moves a job\'s tier is priced as new there and earns no room', () => {
+  const sweep = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  sweep:\n    name: Fit sweep\n";
+  const [item] = priceAdditions({ workflows: { 'fit-sweep-renamed.yml': { base: sweep, head: sweep, baseFile: 'fit-sweep.yml' } }, estimates: CEILINGS.estimates });
+  assert.equal(item.tier, 'overhead');
+  const ex = { ...CI04(), id: 'sweep', tier: 'overhead', covers: [item.id], perLanding: 50, perDay: 50, from: '2026-10-25', expires: '2026-11-20' };
+  const m = { ...measurement({}), jobs: { 'fit-sweep.yml/Fit sweep': { perLanding: 0, perDay: 3 } } };
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [item], today: TODAY, exceptions: [ex] }).tiers.overhead.addedDay, item.perDay, 'charged in full');
+});
 test('(d) a merged PR whose head was rewritten keeps the start an earlier read recorded', () => {
   const fake = (args) => {
     const route = args.at(-1);

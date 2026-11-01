@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, ceilingsRevision, coverJobs, exceptionStatus, renamesOf, scopeIdentity, unrecordedRenames, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, ceilingsRevision, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, receiptAfter, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -113,8 +113,8 @@ export function parseExceptions(markdown) {
   const out = [];
   for (const line of lines.slice(start + 1)) {
     if (/^##\s/.test(line)) break;
-    const m = /^-\s+`?(e2e\/[^\s:`]+\.spec\.ts)`?:\s*([\d.]+)\s*min,\s*(.+?)(?:,\s*repaid\s+([\d.]+)\s*min\s+in\s+run\s+(\d+))?,\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(line.trim());
-    if (m) out.push({ spec: m[1], minutes: Number(m[2]), protects: m[3].trim(), expires: m[6], ...(m[4] ? { repaid: { minutes: Number(m[4]), run: m[5] } } : {}) });
+    const m = /^-\s+`?(e2e\/[^\s:`]+\.spec\.ts)`?:\s*([\d.]+)\s*min,\s*(.+?)(?:,\s*repaid\s+([\d.]+)\s*min\s+in\s+run\s+(\d+)(?:\s+on\s+(\d{4}-\d{2}-\d{2}))?)?,\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(line.trim());
+    if (m) out.push({ spec: m[1], minutes: Number(m[2]), protects: m[3].trim(), expires: m[7], ...(m[4] ? { repaid: { minutes: Number(m[4]), runs: [m[5]], measuredAt: m[6] ?? null } } : {}) });
   }
   return out;
 }
@@ -134,29 +134,34 @@ export function readExceptions(root = ROOT) {
 }
 
 /**
- * What a change does to the offline exception lines, against its base. The lines stay on record
- * after they expire (append-only), and a new line for a spec the base already excepted - in any
- * work spec, under any wording - renews that scope, which needs a measured repayment clause:
- * `, repaid <minutes> min in run <run id>` before `expires`.
+ * What a change does to the offline exceptions, against its base. The offline tier is one scope
+ * (Rule X5): the work-spec lines and the `growth-ceilings.json` exceptions filed under the offline
+ * tier. Lines stay on record after they expire (append-only). The lines a change adds are one
+ * exception that starts the day it is judged; it, or a new offline entry in `growth-ceilings.json`
+ * (`newEntries`), is judged against every earlier offline exception (`base` lines and
+ * `baseEntries`) as Rules X3 and X4 judge the ledger. A line records no start, so its expiry
+ * stands for it. A later line carries a dated receipt:
+ * `, repaid <minutes> min in run <run id> on <YYYY-MM-DD>` before `expires`.
  */
-export function offlineExceptionChanges(base, head, renamed = []) {
+export function offlineExceptionChanges(base, head, { today, baseEntries = [], newEntries = [] } = {}) {
   const key = (e) => `${e.from}|${e.spec}|${e.minutes}|${e.expires}`;
-  // A spec's scope follows its recorded renames: a renamed file is the same spec.
-  const specNames = (renamed ?? []).filter((r) => /^spec:/.test(r.from ?? '') && /^spec:/.test(r.to ?? '')).map((r) => ({ from: r.from.split('/').pop(), to: r.to.split('/').pop() }));
-  const scope = scopeIdentity(specNames);
-  const name = (e) => scope(e.spec.split('/').pop());
-  // A retired spec has an unknown successor: once an excepted spec is recorded as removed, any new
-  // offline line in the same folder tier renews its scope (Rule X4).
-  const folder = (spec) => (/(^|\/)configured\//.test(spec) ? 'configured' : /(^|\/)catalog\//.test(spec) ? 'catalog' : 'offline');
-  const retired = (renamed ?? []).filter((r) => r.retired && /^spec:/.test(r.from ?? '')).map((r) => r.from.slice(5));
-  const retiredBase = (e) => base.some((b) => retired.some((r) => scope(r.split('/').pop()) === name(b) && folder(r) === folder(e.spec)));
+  const day = (s) => Date.parse(`${String(s).slice(0, 10)}T00:00:00Z`);
+  const iso = (t) => (Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : 'an unreadable date');
   const baseKeys = new Set(base.map(key));
   const headKeys = new Set(head.map(key));
   const problems = [];
   for (const e of base) if (!headKeys.has(key(e))) problems.push(`the budget exception for ${e.spec} in ${e.from} (expires ${e.expires}) was removed or moved: exception lines stay on record after they expire`);
-  for (const e of head) {
-    if (baseKeys.has(key(e))) continue;
-    if ((base.some((b) => name(b) === name(e)) || retiredBase(e)) && !(e.repaid?.minutes > 0)) problems.push(`the new budget exception for ${e.spec} renews an earlier one for the same spec without a measured repayment (\`, repaid <minutes> min in run <id>\`)`);
+  const lines = head.filter((e) => !baseKeys.has(key(e)));
+  if (lines.length && newEntries.length) problems.push(`this change adds offline lines and the offline exception ${newEntries.map((x) => x.id).join(', ')} in growth-ceilings.json: the offline tier is one scope with one exception at a time`);
+  const earlier = [...base.map((b) => ({ start: b.expires, expires: b.expires })), ...baseEntries.map((x) => ({ start: x.from, expires: x.expires }))];
+  if (!earlier.length) return problems;
+  const latest = Math.max(...earlier.map((x) => day(x.start)));
+  const last = Math.max(...earlier.map((x) => day(x.expires)));
+  for (const e of lines) if (!receiptAfter(e.repaid, latest)) problems.push(`the new budget exception for ${e.spec} is not the first offline exception and has no measured repayment receipt dated on or after ${iso(latest)} (\`, repaid <minutes> min in run <id> on <date>\`)`);
+  if (lines.length && !(day(today) > last)) problems.push(`the new offline budget exception starts ${today}, while an earlier offline exception runs to ${iso(last)}: one active exception per tier`);
+  for (const x of newEntries) {
+    if (!receiptAfter(x.repaid, latest)) problems.push(`the offline exception ${x.id} is not the first offline exception and has no measured repayment receipt measured on or after ${iso(latest)}`);
+    if (!(day(x.from) > last)) problems.push(`the offline exception ${x.id} starts ${x.from}, while an earlier offline exception runs to ${iso(last)}: one active exception per tier`);
   }
   return problems;
 }
@@ -262,7 +267,7 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   let landing = result.added * (e.runsPerLanding?.everyRun ?? 1);
   let day = result.added * (e.scheduledRunsPerDay?.offline ?? 1);
   // An offline addition goes through the same bounded exception waiver as every other tier
-  // (Rule X10): an approved offline exception waives up to its room, and only what is left is
+  // (Rule X9): an approved offline exception waives up to its room, and only what is left is
   // judged below.
   if (growth.assessWith && Array.isArray(result.details)) {
     const pathOf = (name) => paths.find((p) => p.split('/').pop() === name) ?? `e2e/${name}`;
@@ -329,7 +334,6 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   let offline = [];
   let diffFailed = false;
   const newExceptions = [];
-  const specChanges = [];
   let revisionNote = null;
   if (base) {
     let diff = '';
@@ -343,7 +347,6 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       // into e2e/configured/ is a new backend case).
       const kind = (f) => (/^e2e\/configured\//.test(f) ? 'backend' : /^e2e\/catalog\//.test(f) ? 'graphics' : 'other');
       if (/^A/.test(status) || (/^R/.test(status) && kind(rest[0]) !== kind(file))) added.push(file);
-      if (/^[RD]/.test(status)) specChanges.push({ status, from: rest[0], to: /^R/.test(status) ? file : null });
       if (/^[AMR]/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) {
         const from = /^R/.test(status) ? rest[0] : file;
         workflows[file.split('/').pop()] = { base: gitShow(base, from, root) ?? '', head: readFileSync(path.join(root, file), 'utf8'), baseFile: from.split('/').pop() };
@@ -351,10 +354,11 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       if (/^D/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) workflows[file.split('/').pop()] = { base: gitShow(base, file, root) ?? '', head: '' };
     }
     const baseCeilings = gitShow(base, 'scripts/growth-ceilings.json', root);
-    if (baseCeilings) {
-      const before = JSON.parse(baseCeilings);
+    const baseLedger = baseCeilings ? JSON.parse(baseCeilings) : null;
+    if (baseLedger) {
+      const before = baseLedger;
       const capIn = (text) => Number(/export const SHARD_CAP_MINUTES = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
-      ledger = ledgerChanges({ known: knownCoversOnDisk(root), base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS }, shardCap: { base: capIn(gitShow(base, 'scripts/e2e-durations.mjs', root)), head: capIn(readFileSync(path.join(root, 'scripts', 'e2e-durations.mjs'), 'utf8')) } });
+      ledger = ledgerChanges({ base: before, head: ceilings, mainRunners: { base: runnersIn(gitShow(base, 'scripts/e2e-capacity.mjs', root)), head: MAIN_RUNNERS }, shardCap: { base: capIn(gitShow(base, 'scripts/e2e-durations.mjs', root)), head: capIn(readFileSync(path.join(root, 'scripts', 'e2e-durations.mjs'), 'utf8')) } });
       // A PR that adds an exception is flagged for the separate review the spec requires; the
       // coordinator or owner decides, never the change's own author or an automatic repair.
       // A reviewed revision of the ceilings is legal, never silent: it is named for the owner too.
@@ -365,18 +369,13 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       // Only an exception this change adds is judged here. One already on record that a rename or
       // a removed job makes invalid simply covers nothing: removing an excepted job is
       // cost-reducing maintenance and must land.
-      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root), coverJobs(measurement), ceilings.renamed).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
+      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root)).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
     }
     const baseSpecs = (gitShow(base, 'docs/work-specs', root) ?? '').split('\n').filter((n) => n.endsWith('/'));
     const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`, root) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
-    offline = offlineExceptionChanges(baseExceptions, readExceptions(root), ceilings.renamed);
-    // A spec or job an exception names may be renamed or removed only with the change recorded in
-    // `renamed`, so scope identity survives it (Rule X12).
-    const covers = (ceilings.exceptions ?? []).flatMap((e) => e.covers ?? []);
-    const offlineSpecs = [...baseExceptions, ...readExceptions(root)].map((e) => e.spec.split('/').pop());
-    for (const r of unrecordedRenames({ renames: renamesOf({ specChanges, workflows }), covers, offlineSpecs, renamed: ceilings.renamed })) {
-      ledger.push(`this change ${r.retired ? 'removes' : `renames ${r.from} to ${r.to}, `}${r.retired ? `${r.from}, ` : ''}which an exception names: record it in growth-ceilings.json "renamed" (${r.retired ? '{ "from", "retired": true }' : '{ "from", "to" }'}) so its scope carries over`);
-    }
+    const offlineIn = (c) => (c?.exceptions ?? []).filter((e) => e.tier === 'offline');
+    const baseIds = new Set(offlineIn(baseLedger).map((e) => e.id));
+    offline = offlineExceptionChanges(baseExceptions, readExceptions(root), { today, baseEntries: offlineIn(baseLedger), newEntries: offlineIn(ceilings).filter((e) => !baseIds.has(e.id)) });
   }
   const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
   const known = knownCoversOnDisk(root);

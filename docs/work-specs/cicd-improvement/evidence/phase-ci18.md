@@ -41,10 +41,10 @@ no aggregate pull-request gate.
 | Missing evidence refuses added cost; partial or stale evidence refuses it from the 85% line | `(b) missing evidence refuses...` |
 | Durations table alarm past 8 days, an open refresh PR is not fresh, and a stale table refuses added offline minutes from 85% | `(b) the durations table alarms...` |
 | Exceptions owned, reviewed, scoped, at most 30 days; expiry restores refusal | `(b) an exception is owned...` |
-| No same-scope renewal without a measured repayment receipt (runs named), whatever the id | `(b) the same scope is never renewed...` |
+| No same-scope renewal without a measured repayment receipt (runs named): scope is the tier, so every exception after a tier's first needs one, whatever its id, name, file or covers; one active per tier | `(b) a later exception in a tier is never renewed...`, `Rule X3`, `Rule X4`, `Rule replay: ...` |
 | Ledger append-only; ceilings, estimates and seed move only by a new version with a reviewed rationale and authority; `MAIN_RUNNERS` cannot rise quietly (no shard-budget inflation) | `(b) the ledger is append-only...` |
 | ci04's catalog-gate exception (item 1 below) | `(b) the ci04 catalog-gate exception...` |
-| Offline work-spec exception lines: append-only, renewal needs `, repaid <m> min in run <id>` | `(b) offline exception lines...` |
+| Offline work-spec exception lines: append-only, one scope with the offline tier's ceilings exceptions; a later one needs `, repaid <m> min in run <id> on <date>` | `(b) offline exception lines...`, `Rule X5` |
 
 ### (c) Indirect slowdown
 
@@ -150,16 +150,29 @@ issue, remain for ci17.
 - **An exception on record that a rename or removal makes invalid covers nothing; it does not
   refuse the change.** Only an exception the change itself adds is judged by the gate, so
   removing an excepted job (cost-reducing maintenance) lands.
-- **One exception ledger in `growth-ceilings.json`,** append-only, so renewal is detectable by
-  scope (`covers`) rather than by name, file or tier. Every cover must name a real workflow job
-  or spec in the exception's own tier: re-filing ci04's catalog job under backend, or rewording
-  it, covers nothing and offsets nothing. Its credit is capped at what the covered items cost:
+- **One exception ledger in `growth-ceilings.json`,** append-only, and an exception's scope is
+  its tier (Rules X3 to X5). A pull request controls every part of a job's identity (key, name,
+  workflow file, a cover's wording), so four review rounds each found a new way to renew one job's
+  exception under a new identity; no identity a change can rename ties a renewal to what it
+  renews. The tier cannot be renamed away: the first exception ever recorded in a tier needs no
+  receipt, every later one in that tier needs a measured repayment receipt, and only one is
+  active per tier at a time. Every cover must name a real workflow job or spec in the
+  exception's own tier: re-filing ci04's catalog job under backend, or rewording it, covers
+  nothing and offsets nothing. Its credit is capped at what the covered items cost:
   a job at its measured per-job cost from the weekly report (the seed carries the catalog gate
   at ci04's 17.7), a spec at nothing, because a spec has only a deliberately high estimate. An
   exception on a spec only keeps that spec's addition from counting. The review link must be an
   issue comment recording the decision, and a change that adds an exception is warned for its
-  separate review. Work-spec offline lines keep their format, gain an
-  optional repayment clause and become append-only too.
+  separate review. Work-spec offline lines keep their format, gain a dated repayment clause
+  (`, repaid <minutes> min in run <id> on <date>`) and become append-only too. They are the same
+  offline scope as an offline exception in `growth-ceilings.json`.
+- **What the stricter rule means today.** ci04's catalog-gate exception (#1863, to 2026-11-30)
+  is the graphics tier's first exception and stays valid with no receipt; any later graphics
+  exception, for any job, needs a measured repayment receipt. The offline tier already holds
+  work-spec lines (codebase-lean, e2e-suite-budget, wizard-ai), so a new offline line waits until
+  the last of them expires (2026-11-16) and then carries a dated receipt. No existing line
+  carries a receipt, so none needs migrating. Receipts are checked for shape and date by the gate;
+  that the runs exist is confirmed by the person who reviews the exception.
 - **Run sampling, not a full read.** A week is about 2,900 runs; the job token allows 1,000 calls
   an hour. Run lists are read in full and each stratum's jobs on an even spread, scaled to exact
   run counts; an unsampled stratum or failed read makes tiers partial.
@@ -224,14 +237,13 @@ issue, remain for ci17.
   and the gate refuses additions. The way back is the owner's: a `reportRestart` (`at`, reason)
   recorded in `growth-ceilings.json`, which needs a new version and a reviewed revision like any
   other change there; dated after the newest report, it makes the next run a first week.
-- **Renaming a covered spec or job is no way round renewal.** A rename or removal of a name an
-  exception covers must be recorded in `renamed`, and scope follows the record at any age; an
-  unrecorded orphan counts as the same scope (Rules X4, X12).
+- **Renaming a covered spec or job is no way round renewal.** Scope is the tier, so a renamed,
+  replaced or moved job's next exception is a later exception in the same tier and needs a
+  receipt. No rename record is kept: `Rule replay: ...` tests replay each earlier escape.
 - **An exception waives added cost only up to its allowance.** What it already excepts of the
   measured cost is spent first; growing an excepted job beyond its recorded allowance is charged
-  to the tier like any addition. Where a renewal overlaps its predecessor, an item draws the
-  larger allowance left, never the sum of both; the same bound holds for the measured cost
-  they except.
+  to the tier like any addition. A second exception overlapping the first in its tier is
+  invalid, so allowances never add up.
 - **Alarm issues are found whoever opened them.** The workflow token, an app or the
   coordinator's own account on a plan-run check-in; an outsider's issue with the same title is
   never taken for an alarm.
@@ -244,10 +256,9 @@ issue, remain for ci17.
   expressions (`E2E ${{ matrix.shardIndex }}/...`) that become numbers at run time
   (`E2E 1/6 (full)`); both resolve to the same tier, and a cover credits only measured jobs of its
   own tier, so no exception can move offline cost into overhead headroom.
-- **Scope is the measured jobs a cover names, not its wording.** A `${{ }}` cover matches measured
-  jobs by pattern, so credit is pooled per measured job and two exceptions whose covers name the
-  same job are the same scope: a differently worded pattern over an expired exception's jobs needs a
-  measured repayment, and two active ones never credit more than those jobs cost.
+- **Credit is the measured jobs a cover names, not its wording.** A `${{ }}` cover matches
+  measured jobs by pattern within its tier, and its credit is its allowance capped at those jobs'
+  measured cost; a spec or a job nothing measured earns nothing.
 - **An alarm keeps its first date.** An item still overdue at the next check keeps the
   corrective date its first alarm set (PR and phase alarms alike); once that date passes, the
   line reads "missed". The correction is bounded, never extended by re-checking.
@@ -267,7 +278,7 @@ issue, remain for ci17.
 ### Rules
 
 The two rule families that kept recurring in review, written as observable lines. Each line has
-one test named after it (`Rule E1: ...` to `Rule E21: ...` and `Rule X1: ...` to `Rule X12: ...` in `scripts/growth-controls.test.mjs`),
+one test named after it (`Rule E1: ...` to `Rule E21: ...` and `Rule X1: ...` to `Rule X10: ...` in `scripts/growth-controls.test.mjs`),
 and each test fails when its line is broken in the code (mutation-checked). Where order matters,
 the first matching line wins.
 
@@ -317,57 +328,59 @@ What each state lets the controls do. A change that adds nothing is never refuse
 - E21. A growth stop refuses any addition to its tier, whether or not an exception waives it.
   Offline included: the stop, like an unreadable report (E18), is judged before any waiver.
 
-**Exception scope and credit (X).**
+**Exception scope and credit (X).** An exception's scope is its tier. A pull request controls every
+part of a job's identity (its key, name, workflow file and a cover's wording), so no identity drawn
+from those can tie a renewal to what it renews; the tier is the one scope a change cannot rename.
 
 - X1. A cover's tier: for `job:<workflow>/<name>`, the tier of that job with each `${{ }}` read as a
   number; for `spec:<path>`, its folder (`configured/` backend, `catalog/` graphics, else offline).
-- X2. A cover's measured scope: for a job cover, the measured jobs of the same workflow whose
-  run-time names match its name (each `${{ }}` matching anything) and that are in the cover's tier.
-  A spec cover, or a job not yet measured, has none.
-- X3. An exception is valid only with: an id no earlier entry has; a known tier; at least one cover, each in the
-  exception's tier and naming a real job or spec; a positive per-landing or per-day allowance; an
-  owner; a review link that is an issue comment in NoaCG/NoaCG-Studio; and from and expires dates at
-  most 30 days apart.
-- X4. Two exceptions are the same scope when any of these holds; none lapses with time:
-  - they share a cover after following recorded renames (X12);
-  - they share a measured job (X2);
-  - the earlier one covers a name recorded as retired, and the later one covers the same kind in
-    the same tier (any job, in any workflow file, or any spec in the same folder tier): a retired
-    name's successor is unknown;
-  - the earlier one has a cover that names nothing real and was never recorded.
-  The two offline lists are separate scopes: a `growth-ceilings.json` exception waives only the
-  tier check and a work-spec line only the table line (X10), so neither renews the other.
-- X5. An exception with the same scope as an earlier one needs a measured repayment receipt: a
-  positive per-landing or per-day repayment, at least one run, measured on or after the latest
-  earlier entry's start. Without one it is invalid. Offline exception lines need the same, except
-  that their repayment clause (`, repaid <minutes> min in run <id>`) carries no date to check.
+- X2. An exception is valid only with: an id no earlier entry has; a known tier; at least one cover,
+  each in the exception's tier (X1) and naming a real job or spec; a positive per-landing or per-day
+  allowance; an owner; a review link that is an issue comment in NoaCG/NoaCG-Studio; and from and
+  expires dates at most 30 days apart.
+- X3. The first exception ever recorded in a tier needs no receipt. Every later exception in that
+  tier (a renewal, a replacement or a new one, whatever its id, name, file or covers) needs a
+  measured repayment receipt: a positive repayment, at least one run id, measured on or after the
+  latest earlier exception's from-date in that tier. Without one it is invalid. This never lapses,
+  and every earlier entry counts whatever its state today: a change cannot add an invalid entry, so
+  one that reads invalid now was valid when it landed.
+- X4. At most one exception is active per tier: a later exception that starts on or before an
+  earlier one in its tier expires is invalid.
+- X5. The offline tier is one scope across both lists: the offline exceptions in
+  `growth-ceilings.json` and the lines in work specs (`- e2e/x.spec.ts: N min, ...`). The lines a
+  change adds are one exception that starts the day the gate judges it. A line records no start, so
+  its expiry stands for it. Once any offline exception exists, X3 and X4 apply across both lists: a
+  new line carries `, repaid <minutes> min in run <run id> on <YYYY-MM-DD>` dated on or after the
+  latest earlier start, and every earlier offline exception has expired. A change may not add both
+  a line and an offline `growth-ceilings.json` exception.
 - X6. The exception ledger is append-only and in order: an entry removed, edited, placed before an
-  existing one, or repeating an existing id is refused at PR time.
+  existing one, or repeating an existing id is refused at PR time. Offline lines stay on record.
 - X7. Status, first match wins: invalid (no credit, covers nothing); expired (no credit, counted
   again); not yet started (no credit); active.
-- X8. Credit is pooled per measured job, within one tier. Active exceptions draw in ledger order,
-  each at most its allowance minus what its jobs already credited to earlier exceptions, and never
-  more than the pool has left. Overlapping exceptions credit the larger allowance, never the sum,
-  and never more than the jobs cost.
-- X9. A spec cover earns no credit on measured cost.
-- X10. A covered addition is waived up to the room left: the allowance minus the measured cost of
-  its jobs. Overlapping exceptions give the largest room, never the sum, and the waiver is spent in
-  all of them. No room is given when the tier's evidence is missing, or for an existing job no
-  measurement prices: only a spec, or a job new in this change, keeps its full allowance. Offline
-  spec additions take the same route, so an approved offline-tier exception
-  in `growth-ceilings.json` waives them in the tier check. An offline line in a work spec
-  (`- e2e/x.spec.ts: N min, ...`) clears only the table line.
-- X11. Credit never crosses tiers (X1, X2), and a job moved into another tier, by its own name or
-  its workflow file's name, is priced as new in that tier. No exception moves a ceiling, an estimate,
-  `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new version and a reviewed revision, and are
-  still named for the owner.
-- X12. A change that renames or removes a spec or a job that any exception names must record it in
-  `growth-ceilings.json` `renamed`, as `{ from, to }` or `{ from, retired: true }`; otherwise it is
-  refused. "Names" includes offline lines, and names reached through the recorded rename chain
-  (after A to B, a cover of A names B). A job keeps its key across a display-name rename; a new key
-  and a new name together is a removal. A record must say what the change did: a removal only as
-  `retired`, a rename only to the name the change uses, and a new record's `to` must name a real job
-  or spec. The `renamed` list is append-only.
+- X8. Credit is the allowance, capped at the measured cost this window of the jobs its covers match:
+  for a job cover, the jobs of the same workflow whose run-time names match its name (each `${{ }}`
+  matching anything) and that are in its tier. A spec cover, or a job nothing measured, earns 0.
+  A cover follows its name: whatever job carries the name this window is credited, up to the
+  reviewed allowance and only until expiry, as an edit to the job's own steps would be. No check
+  can tell a job given a covered name from the covered job given new work, so the allowance and
+  the 30 days are the bound, and the next exception in the tier needs a receipt (X3).
+- X9. A covered addition is waived up to the room left: the allowance minus the measured cost of its
+  jobs. No room is given when the tier's evidence is missing, or for an existing job no measurement
+  prices: only a spec, or a job new in this change, keeps its full allowance. Offline spec additions
+  take the same route, so an approved offline exception in `growth-ceilings.json` waives them in
+  the tier check; a work-spec line clears only the table line.
+- X10. Credit never crosses tiers (X1, X8), and a job moved into another tier, by its own name or
+  its workflow file's name, is priced as new in that tier, so it has no measured room there (X9).
+  Offline work is the table line's to price, so a job moved into the offline tier is not priced
+  as a job there (#1885 item 11).
+  No exception moves a ceiling, an estimate, `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new
+  version and a reviewed revision, and are still named for the owner.
+
+Each earlier escape is replayed against these lines in `Rule replay: ...` tests: covers worded
+differently over one job, a templated name in another tier, a rename, a retirement plus a new key, a
+duplicate id, a move to another workflow file, an unmeasured job priced at zero, a made-up rename
+target and a workflow file rename that moves a tier. Each is refused or earns no credit, with no
+rename record anywhere.
 
 - **Previous verified main:** `26095c826f1a0ee910d17070d42026a841b9f284` (ci06 merge: push CI,
   configured suite, post-land and quarantine green). The branch starts at `af39c249`, whose
@@ -386,6 +399,9 @@ What each state lets the controls do. A change that adds nothing is never refuse
   - Evidence completeness and exception scope kept recurring after that, each fresh review finding
     the next edge. They are now written as the Rules above, one test per line, mutation-checked:
     a later finding is a change to a line and its test, never a standalone patch.
+  - Exception scope by job identity cannot be closed: four Rules-attack rounds found one hole
+    (renewal under a new identity) in four places. An independent diagnosis of the rule model
+    recommended scope by tier, which replaced the rename and successor rules.
   - Phase age alarms keep their own rolling issue per plan (`Plan phases past their age ceiling:
     <wave file>`): the post-landing check reads no ledger, and a coordinator checking one plan
     must never close or overwrite another plan's phase alarm.

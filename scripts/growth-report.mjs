@@ -32,7 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  TIERS, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, coverJobs, detectSlowdown, exceptionStatus,
+  TIERS, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, detectSlowdown, exceptionStatus,
   expiringSoon, phaseClock, phasesFromLedger, pooledTiming, prClock, queueClock, reportCadence, sustained, tableFreshness, tierOfJob, weeklyMarkdown,
 } from './growth-controls.mjs';
 import { knownCoversOnDisk } from './e2e-capacity.mjs';
@@ -160,7 +160,7 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
     allocatedPerDay: TIERS.reduce((a, t) => a + ceilings.tiers[t].perLanding * perDayLandings + ceilings.tiers[t].perDay, 0),
   };
   const table = tableFreshness({ recordedAt: tableRecordedAt, today, boundDays: ceilings.freshnessDays, pending });
-  const ex = exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, known, coverJobs(measurement), ceilings.renamed);
+  const ex = exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, known);
   const soon = new Set(expiringSoon(ex.active, today).map((e) => e.id));
   const exceptions = [
     ...ex.active.map((e) => ({ ...e, state: 'active', soon: soon.has(e.id) })),
