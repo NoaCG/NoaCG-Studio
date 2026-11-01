@@ -11,6 +11,7 @@ import {
   classifyAgainst,
   configuredFailures,
   latestReset,
+  mergeConfigured,
   newlyFailing,
   originalPlanOf,
   parsePrintedPlan,
@@ -87,6 +88,10 @@ test('Rule A3: a configured failure is judged against the printed configured man
     '2026-10-31T22:32:33.7Z   other.spec.ts::not in the set',
   ].join('\n');
   assert.deepEqual(configuredFailures(log), ['e2e/configured/account.spec.ts', 'e2e/configured/connector-grants.spec.ts']);
+  // Past the verdict's annotation cap, the log names the rest: both are merged, never one alone.
+  assert.deepEqual(mergeConfigured(['e2e/configured/account.spec.ts', 'job: Configured E2E (authenticated, local Supabase)', 'job: Configured E2E shard 4/4'], configuredFailures(log)),
+    ['e2e/configured/account.spec.ts', 'e2e/configured/connector-grants.spec.ts', 'job: Configured E2E shard 4/4']);
+  assert.deepEqual(mergeConfigured(['job: Configured E2E (x)'], []), ['job: Configured E2E (x)'], 'no log set: the items stand');
 });
 
 test('Rule A4: a landing resets the audit for selector code, a focus or critical header line, or a declared trailer', () => {

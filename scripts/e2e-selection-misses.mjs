@@ -86,6 +86,15 @@ export function configuredFailures(log) {
   return [...out].sort();
 }
 
+/**
+ * A configured run's failing items: the annotated ones and the verdict log's full failure set,
+ * merged. The log's specs stand in for the verdict job's own job item. Pure.
+ */
+export function mergeConfigured(items, logged) {
+  if (!logged.length) return items;
+  return [...new Set([...logged, ...items.filter((i) => !/^job: Configured E2E \(/.test(i))])].sort();
+}
+
 /** One plan's answer for one failing spec. `plan` is null when it could not be read. */
 function verdictOf(spec, kind, plan) {
   if (!plan) return 'unknown';
@@ -329,12 +338,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     for (const r of all.filter((x) => x.conclusion === 'failure')) {
       try {
         let items = fetchFailureSet(r.id, { repo, gh }).items;
-        // The verdict annotates at most a few specs; past that the log's failure set names them.
-        if (kind === 'configured' && !items.some((i) => i.startsWith('e2e/configured/'))) {
+        // The verdict annotates at most a few specs; its log's failure set names all of them, so
+        // a configured run always reads it and merges the two.
+        if (kind === 'configured') items = mergeConfigured(items, (() => {
           const job = gh([`repos/${repo}/actions/runs/${r.id}/jobs?per_page=100`, '--jq', '.jobs[] | select(.name | startswith("Configured E2E (")) | .id'])[0];
-          const specs = job ? configuredFailures(rawLog(job)) : [];
-          if (specs.length) items = [...specs, ...items.filter((i) => !/^job: Configured E2E/.test(i))];
-        }
+          return job ? configuredFailures(rawLog(job)) : [];
+        })());
         failing.set(r.id, items.length ? items : null);
       } catch { failing.set(r.id, null); }
     }

@@ -195,12 +195,17 @@ export function emptyStore() {
   return { $comment: COMMENT, version: STORE_VERSION, specs: {}, released: {} };
 }
 
-/** Read the store; a missing file is an empty store, a newer version is refused rather than misread. */
-export function readStore(file = STORE_PATH) {
+/**
+ * Read the store; a missing file is an empty store, a newer version is refused rather than misread.
+ * `strict` refuses a missing or unreadable file too: the incident report must never read "no
+ * incident" off a store it did not read.
+ */
+export function readStore(file = STORE_PATH, { strict = false } = {}) {
   let text;
   try {
     text = readFileSync(file, 'utf8');
-  } catch {
+  } catch (e) {
+    if (strict) throw new Error(`e2e/quarantine.json could not be read (${e.code ?? e.message})`, { cause: e });
     return emptyStore();
   }
   const parsed = JSON.parse(text);
@@ -433,7 +438,7 @@ export async function loadIncidentContext() {
 let incidentContext = null;
 function readIncidents(todayIso) {
   if (!incidentContext) throw new Error('the spec headers or the owner could not be read');
-  return quarantineIncidents(readStore(), { ...incidentContext, today: todayIso });
+  return quarantineIncidents(readStore(STORE_PATH, { strict: true }), { ...incidentContext, today: todayIso });
 }
 
 function main(argv) {

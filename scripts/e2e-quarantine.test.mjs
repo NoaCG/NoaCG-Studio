@@ -283,7 +283,14 @@ test('Rule Q3: one rolling issue, opened with the first incident, updated when t
   assert.equal(incidentIssueAction(incidents.slice(2), { number: 1, body }, '2026-11-02').kind, 'edit', 'one incident left keeps the issue open');
   assert.equal(incidentIssueAction([], { number: 1, body }, '2026-11-02').kind, 'close');
   assert.equal(incidentIssueAction([], null, '2026-11-02').kind, 'none');
-  // An unread store or issue list throws before any action: the CLI reads both with throwing calls.
+  // An unread store throws rather than reading as empty, so nothing closes the issue.
+  const dir = mkdtempSync(path.join(tmpdir(), 'q-incidents-'));
+  try {
+    assert.throws(() => readStore(path.join(dir, 'missing.json'), { strict: true }), /could not be read/);
+    assert.deepEqual(readStore(path.join(dir, 'missing.json')).specs, {}, 'the lenient read the planner uses is unchanged');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  assert.match(readFileSync(new URL('./e2e-quarantine.mjs', import.meta.url), 'utf8'), /readStore\(STORE_PATH, \{ strict: true \}\)/, 'the incident report reads strictly');
+  // An unread issue list throws before any action: the CLI reads it with throwing calls.
   const cli = readFileSync(new URL('./e2e-quarantine.mjs', import.meta.url), 'utf8');
   const block = cli.slice(cli.indexOf("if (command === 'incidents')"), cli.indexOf("if (command === 'release-due')"));
   assert.doesNotMatch(block, /allowFailure/, 'no read in the incidents command may fail quietly');
