@@ -263,7 +263,7 @@ export function fetchFailureSet(runId, { repo = process.env.GH_REPO, gh = ghJson
  * the body as text (a job log), and implies strict.
  */
 export function ghJsonLines(args, { strict = false, raw = false } = {}) {
-  const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true, ...(strict || raw ? { maxBuffer: 64 * 1024 * 1024 } : {}) });
+  const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: strict || raw ? 64 * 1024 * 1024 : 1024 * 1024 });
   if (res.status !== 0) {
     if (strict || raw) throw new Error(`gh api ${args[0]} failed: ${String(res.stderr ?? '').trim().split('\n')[0]}`);
     return [];

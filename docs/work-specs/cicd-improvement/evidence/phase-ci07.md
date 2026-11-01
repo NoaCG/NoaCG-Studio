@@ -138,3 +138,112 @@ The `/check` review (section 6) found these; each is folded into the line it bel
   the owned, dated action the AC-8 report names.
 
 ## 4. The miss audit and the reset (acceptance c)
+
+### The latest audit reset
+
+`node scripts/e2e-selection-misses.mjs resets --ref origin/main` at this row's base reads:
+**`26095c826f1a0ee910d17070d42026a841b9f284`, 2026-10-31T21:15:44Z (ci06 merge), reason
+`selector code: scripts/e2e-affected.mjs, scripts/e2e-lists.mjs`.** ci18 (`fb15e6b8`) touched no
+selector code or membership line.
+
+**This row's own merge is the next reset:** it changes `scripts/e2e-lists.mjs` (header
+interpretation) and adds ten `// critical:` lines (critical/shared membership). The tool reads it
+from git once it lands, so the two-week comparison starts at this PR's merge commit; the checker
+confirms it with the same command on `main`.
+
+### Replay of existing full-main failures
+
+Every red full run on `main` from 2026-09-20 to 2026-11-01 (42 days: `ci.yml` and
+`configured-suite.yml` push runs), replayed in 2-day passes of at most 100 API calls (1,068 calls
+in all) with the final code, plus 1-day re-passes where a pass ran out of budget. 97 failing items:
+
+| Workflow | Verdict | Items |
+| --- | --- | ---: |
+| ci.yml | miss (no culprit's original plan selected it) | 38 |
+| ci.yml | selected (a culprit's plan ran it before merge) | 7 |
+| ci.yml | quarantined (a coverage gap) | 1 |
+| ci.yml | not-a-spec (Build, Factory gates, a lost shard, the retry job) | 17 |
+| ci.yml | unknown in the 2-day pass, resolved by the 1-day re-pass (2 flake misses, 1 selected) | 3 |
+| configured-suite.yml | no-selection (culprit landed before ci06: no pre-merge configured check existed) | 24 |
+| configured-suite.yml | selected (`connector-grants` at run 41247602152, with a lost shard: #1865) | 1 |
+| configured-suite.yml | not-a-spec | 4 |
+| configured-suite.yml | unknown (budget spent; every run in it is from before ci06, so it cannot be `selected`) | 2 |
+
+**Every miss investigated:**
+
+- **30 are flakes**: the spec entered the quarantine with a fail-then-pass on one commit (marked
+  `flake`), and in each case the candidate culprits could not reach it (docs, plan files,
+  quarantine-only landings) or the spec failed on a docs-only landing and passed on the next.
+  They are not selection misses; they are the quarantine's coverage gaps, which ci07 now makes
+  incidents.
+- **4 more are flakes the window's flake set did not mark**: `editor-arrangement` (76afb8cb) and
+  `editor-groups` (742a5a65) were quarantined and released before their window, `import-svg-corpus`
+  (0df77f74, a docs landing) is the fail-then-pass bot PR #1834 is quarantining, and
+  `video-hyperframes` (a2523f82 `.gitignore`, aa2717b3 docs) failed on landings that cannot reach it.
+- **4 are real selection misses, all corrected before the latest reset**: `editor-fidelity-trim`
+  at 5619f765..45ec97b2 (#927, the miss the old weekly audit found) and at 14c0a5a5 (`svgFit.js`),
+  `public-chrome-baseline` at 20367f21 (a `docs/whats-new` page) and at 20bda886..7c59efcb
+  (`docs.html`), and `downloads` at 92c8a616 (`index.html`). Today's planner selects each of them
+  for its culprit's files (checked with `planFor` on the same files), so each mapping was corrected
+  after the miss, before 26095c82.
+
+**Zero unexplained misses in the replayed window.** That is necessary, not proof of completeness;
+the full runs on `main` stay. Three things are reported as limits, not hidden: the 2 configured
+`unknown` items stay unread (pre-ci06, so the answer cannot be `selected`); a red run's failing
+specs come from check annotations, so a failure that annotates nothing is listed as `not-a-spec`;
+and a configured verdict annotates at most a few specs, past which the audit reads its log.
+
+### Continuing comparison
+
+The weekly-audit step now runs this audit every week on the last 7 days: offline and configured
+red runs against their culprits' original plans, the latest reset and the days since it, and the
+quarantine incidents, with status `clean`, `misses` or `blocked`. That is the paired comparison
+AC-4 asks for over at least two weeks after the last reset; ci15 reads it. No duplicate shadow
+run was added.
+
+## 5. Mutation check
+
+Each Rule line broken alone in the code, with its tests run (scratch script, not committed): all
+22 mutations fail their named test. K1 (parse refusal; unknown id), K2, K3, K4, K5 (over target;
+unmeasured), Q1, Q2, Q3, Q4, Q5, A1 (merge-group event; unread failure set resets nothing), A2
+(unknown dropped; flake dropped; quarantine read after full), A3 (pre-ci06 read as not selected;
+no PR head), A4 (membership; trailer), A5.
+
+## 6. Verification
+
+- `/check`: the review returned 10 findings, all confirmed and fixed (section "Rules found after
+  coding"; the evidence gaps it found are this section and the ones above). Simplify (four
+  reviewers): one strict `gh` reader in `ci-failure-set.mjs` instead of a copy, the backend
+  exception derived from its configured checks, one `unknown` state, the durations table's own
+  reader, one git helper, the configured log read only when annotations named no spec, the plan
+  step skipping its gap check when nothing is quarantined. Skipped, with reasons: one shared
+  rolling-issue helper for `stale` and `incidents` (it would change the existing stale issue's
+  search and wording, outside this row), folding the stale issue into the incident issue (removes
+  an existing alarm), `mainPushRuns` for the run list (it has no window or pagination), batching
+  git calls in `latestReset` (it stops at the first reset, a few landings back).
+- `node --test` over the selector, quarantine, contract, capacity and failure-set tests: all pass.
+- `npm run gates -- run --changed origin/main`: all pass (one `windowsHide` finding fixed first).
+- `npx eslint scripts/ --max-warnings 0`, `node scripts/check-workflows.mjs` (24 valid),
+  `node scripts/check-e2e-protection.mjs --changed origin/main` (10 header edits, no protection
+  removed): clean.
+- No browser suite run here: the spec edits are header comments, and CI's plan for this PR runs
+  the specs it selects (it changes `e2e-lists.mjs` and ci.yml, so the shared-change set and the
+  whole configured set).
+
+## 7. Phase notes
+
+- Previous verified main: `fb15e6b8f6358ef8b0fad080cf71552b4da37187` (ci18 merge).
+- Revert: `git revert -m 1 <this PR's merge commit>`, landed through `/queue-merge`. It removes
+  the critical lines, the contract map, the incident issue step, the coverage-gap line and the
+  audit changes together. The revert also changes `e2e-lists.mjs`, so it is itself a reset.
+- Decisions: critical membership lives in each spec's header, the contract map in one module
+  (the build refuses a mapped check that leaves the disk); the critical set selects nothing new
+  (#1895); every quarantined spec is an incident, critical ones on a 7-day bound; the incident owner
+  is the plan's recorded owner; original plans come from CI logs, not today's planner; resets are
+  read from git, with a commit trailer for the classes files cannot show.
+- Traps for later rows: a PR that corrects a mapping after a miss must carry a
+  `Selection-audit-reset: <reason>` trailer in one of its commits, or the audit will not see the
+  reset. Job logs expire after 90 days, so an original plan older than that reads `unknown`.
+  ci08 to ci10 changing `// focus` or `// critical:` lines, or selector code, reset the window.
+  `scripts/e2e-traced.json`, `e2e/quarantine.json` and `scripts/e2e-durations.json` are untouched
+  (bot PRs #1840, #1834, #1503).
