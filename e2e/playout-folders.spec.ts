@@ -70,10 +70,11 @@ async function production(page: Page, media: Record<string, unknown>[] = [], see
       const idOf = (label: string) => m.loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === label)!.id;
       for (const [label, playback] of Object.entries(seed.playback ?? {})) m.setCuePlayback(id, idOf(label), playback as never);
       for (const f of seed.folders ?? []) {
-        const { folderId } = m.addFolderFromSelection(id, f.labels.map(idOf), f.name);
-        if (f.mode) m.setFolderMode(id, folderId!, f.mode);
-        if (f.end || f.layer) m.setFolderPlayback(id, folderId!, { ...(f.end ? { end: f.end } : {}), ...(f.layer ? { layer: f.layer } : {}) });
-        if (f.collapsed) m.setFolderCollapsed(id, folderId!, true);
+        const { folderId, error: refused } = m.addFolderFromSelection(id, f.labels.map(idOf), f.name);
+        if (!folderId) throw new Error(`production: folder ${f.labels.join(', ')} not made: ${refused}`);
+        if (f.mode) m.setFolderMode(id, folderId, f.mode);
+        if (f.end || f.layer) m.setFolderPlayback(id, folderId, { ...(f.end ? { end: f.end } : {}), ...(f.layer ? { layer: f.layer } : {}) });
+        if (f.collapsed) m.setFolderCollapsed(id, folderId, true);
       }
       // The new graphic's autosave is still on its debounce; it lands now, not during the test,
       // where it would count as a rundown write or meet a storage failure the test arms.
@@ -1511,6 +1512,9 @@ test('a seeded rundown reads back whole after a reload: graphics, layers, playba
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect.poll(() => drawn(page)).toEqual(before.rows);
+  // The WHOLE record, not the fields this test seeded: it is the one check of every seeded field's
+  // trip through the disk for this spec (the tests above mount on a seed that never reloaded). If a
+  // page mount ever writes the record, compare what it may change by name; do not drop the check.
   expect(await read()).toEqual(before);
 });
 

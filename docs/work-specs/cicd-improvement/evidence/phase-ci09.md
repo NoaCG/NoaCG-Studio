@@ -76,7 +76,25 @@ What the reload protected, as a side effect of setup (no test named it):
   writes), which boot straight onto the production route, and with the new test.
 - R7 is the autosave flush. Without it, the first version failed four tests: two counted one extra
   write, and two met a storage-failure dialog raised by that autosave. That is why the reload looked
-  like setup and was also hiding a pending write.
+  like setup and was also hiding a pending write. To find every such write, a throwaway probe logged
+  each `spx-data-changed` event, with its stack, from the first boot until six seconds after the
+  production page opened: after the open there was exactly one, this autosave
+  (`templateStore.ts`, the 800 ms project timer). Nothing else from the first boot fires later.
+- The seed now throws when a folder it asks for is refused, instead of carrying on from a partial
+  rundown (review finding; the old seed ignored it too).
+
+What is weaker, said plainly:
+
+- **Starting state.** Each test now reaches the production page the way an operator usually does,
+  from Home inside one document, instead of from a cold boot onto `#/production/<id>`. A defect
+  that shows only on a cold boot onto that route is now caught by the spec's reload tests and the
+  round-trip test (F7 shows it is), not by all 52.
+- **Redundancy.** The old spec caught R2 to R4 through several tests each, as a side effect; the
+  new spec catches R3, R4 and R5 through the round-trip test alone, and R2 through it and the
+  collapse-kept test. That one test is now the main holder of those behaviours: if it were ever
+  quarantined, that is an affected-protection incident under the runbook's quarantine rule, not a
+  routine entry. The matrix ran with `--max-failures=2`, so it shows that each fault is caught, not
+  how many tests catch it.
 - Every other line of the spec is unchanged: no assertion, timeout or test was edited or removed.
 
 ## 4. Fault replay (acceptance a)
