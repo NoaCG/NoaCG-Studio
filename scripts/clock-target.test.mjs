@@ -23,8 +23,8 @@ import {
   formatClockTarget,
   parseClockTarget,
   parseTargetTime,
+  proposeClockTarget,
   resolveClockTarget,
-  splitClockTarget,
 } from '../src/control/clockTarget.ts';
 import { clockRowEffect, clockValueAfterUpdate, clockValueAt } from '../src/control/matchClockWire.ts';
 
@@ -280,13 +280,21 @@ test('T4: a DST fold offers both instants and resolves only on a choice', () => 
   assert.equal(resolved({ time: '04:00', date: '2026-10-25', zone: HEL }).offset, '+02:00');
 });
 
+test('T9: Target time first proposes the next whole hour the clocks neither skip nor repeat', () => {
+  assert.equal(proposeClockTarget(HEL, NOW), '2026-11-01T16:00:00+02:00[Europe/Helsinki]');
+  assert.equal(proposeClockTarget(HEL, Date.parse('2026-11-01T21:30:00Z')), '2026-11-02T00:00:00+02:00[Europe/Helsinki]', 'past midnight, tomorrow');
+  // 02:10 on the spring-forward night: 03:00 does not exist, so 04:00.
+  assert.equal(proposeClockTarget(HEL, Date.parse('2026-03-29T00:10:00Z')), '2026-03-29T04:00:00+03:00[Europe/Helsinki]');
+  // 02:10 summer time on the fall-back night: 03:00 happens twice, so 04:00.
+  assert.equal(proposeClockTarget(HEL, Date.parse('2026-10-24T23:10:00Z')), '2026-10-25T04:00:00+02:00[Europe/Helsinki]');
+  assert.equal(proposeClockTarget('Mars/Olympus', NOW), null);
+});
+
 test('T5: the stored form round-trips the instant and the zone', () => {
   const r = resolved({ time: '19:00', date: '2026-11-14', zone: HEL });
-  assert.deepEqual(parseClockTarget(formatClockTarget(r)), { at: r.at, zone: HEL });
-  assert.deepEqual(splitClockTarget(formatClockTarget(r)), { date: '2026-11-14', time: '19:00', zone: HEL });
+  assert.deepEqual(parseClockTarget(formatClockTarget(r)), { at: r.at, date: '2026-11-14', time: '19:00', zone: HEL });
   for (const bad of [null, '', '2026-11-14T19:00:00+02:00', '2026-11-14T19:00:00+02:00[Nowhere/Here]', 'tonight']) {
     assert.equal(parseClockTarget(bad), null, String(bad));
-    assert.equal(splitClockTarget(bad), null, String(bad));
   }
   // A historic local mean time has no whole-minute offset, so it has no stored form either.
   assert.deepEqual(resolveClockTarget({ time: '12:00', date: '1900-01-01', zone: HEL }, NOW), { kind: 'invalid', reason: 'date' });
@@ -323,12 +331,12 @@ test('T6: an expired target shows 0:00 from the first frame and never counts', (
 test('the readout and the picker: a resolved target is offered, and only a target time takes it', () => {
   assert.deepEqual(CLOCK_PICKER_MODES.map((m) => m.mode), ['count-up', 'duration', 'target-time']);
   const stored = '2026-11-14T19:00:00+02:00[Europe/Helsinki]';
-  assert.deepEqual(clockReadout('target-time', '12:08', stored), { count: 'down', start: clockTargetStart(stored) });
+  assert.deepEqual(clockReadout('target-time', '12:08', stored), { count: 'down', start: clockTargetStart(stored), fixed: true });
   // Every other clock is exactly what it was.
-  assert.deepEqual(clockReadout('count-up', ' 12:08 ', stored), { count: 'up', start: '12:08' });
-  assert.deepEqual(clockReadout('duration', '0:30', stored), { count: 'down', start: '0:30' });
-  assert.deepEqual(clockReadout('target-time', '12:08'), { count: 'down', start: '12:08' });
-  assert.deepEqual(clockReadout('target-time', '12:08', 'garbage'), { count: 'down', start: '12:08' });
+  assert.deepEqual(clockReadout('count-up', ' 12:08 ', stored), { count: 'up', start: '12:08', fixed: false });
+  assert.deepEqual(clockReadout('duration', '0:30', stored), { count: 'down', start: '0:30', fixed: false });
+  assert.deepEqual(clockReadout('target-time', '12:08'), { count: 'down', start: '12:08', fixed: false });
+  assert.deepEqual(clockReadout('target-time', '12:08', 'garbage'), { count: 'down', start: '12:08', fixed: false });
 });
 
 test('T7: the wire never restarts, holds or replaces a fixed instant', () => {
@@ -368,7 +376,7 @@ const left = (ms) => {
 test('the built graphic: a resolved target ships its instant', () => {
   assert.equal(walk.pending.target, undefined, 'a target time with no instant carries none (rows 7-9 compile it as before)');
   assert.equal(walk.spec.fixedInstant, true);
-  assert.equal(walk.spec.startsOnTake, false);
+  assert.ok(!walk.spec.startsOnTake, 'no Take restarts it');
   assert.equal(walk.dataStart, clockTargetStart(TARGET));
   assert.deepEqual(walk.field, { ftype: 'hidden', value: clockTargetStart(TARGET) }, 'no drawn time for a cue or SPX to send over it');
 });

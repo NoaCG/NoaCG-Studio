@@ -13,7 +13,7 @@ import { creditsArtworkFields, creditsIndex, creditsSampleText } from './credits
 /** The design's CLOCK (templates/behaviours/clock.ts): the field its time layer is, and its mode,
  *  or null. A clock whose layer is no longer a field is no clock, as the compiler reads it
  *  (behaviour.ts). Its field stays the operator's text field: typing a time corrects the clock. */
-export function boundClock(svg: DesignSvg): { index: number; mode: ClockMode; count: 'up' | 'down'; start: string } | null {
+export function boundClock(svg: DesignSvg): { index: number; mode: ClockMode; count: 'up' | 'down'; start: string; fixed: boolean } | null {
   const extra = (svg.extras ?? []).find((e) => e.kind === 'clock');
   if (!extra || extra.kind !== 'clock') return null;
   const index = svg.fields.findIndex((f) => f.candidateId === extra.field);
@@ -39,7 +39,7 @@ export function countdownIndex(svg: DesignSvg): number {
 export function svgFields(svg: DesignSvg): SpxField[] {
   const clock = countdownIndex(svg);
   const bound = boundClock(svg);
-  const fixedClock = bound && bound.start.includes('@') ? bound : null;
+  const fixedClock = bound?.fixed ? bound : null;
   const credits = creditsIndex(svg);
   const artworkCredits = creditsArtworkFields(svg);
   return [

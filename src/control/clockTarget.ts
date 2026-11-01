@@ -153,8 +153,7 @@ export function resolveClockTarget(input: ClockTargetInput, now: number): ClockT
   const proposed = !input.date?.trim();
   let day: number;
   if (proposed) {
-    const today = wallAsUtc(f, now);
-    day = Date.UTC(new Date(today).getUTCFullYear(), new Date(today).getUTCMonth(), new Date(today).getUTCDate());
+    day = Math.floor(wallAsUtc(f, now) / DAY) * DAY;
     // T1: tomorrow when today's has gone. A wall time the zone skips today is still today's.
     const todays = instantsOf(f, day + minutes * 60_000);
     if (todays.length > 0 && todays[todays.length - 1] <= now) day += DAY;
@@ -180,16 +179,29 @@ export function formatClockTarget(r: Extract<ClockTargetResolution, { kind: 'res
   return `${r.date}T${r.time}:00${r.offset}[${r.zone}]`;
 }
 
-/** The stored form's wall parts, as a person typed them: `{ date, time, zone }`, or null. */
-export function splitClockTarget(raw: string | null | undefined): Wall | null {
-  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}):00[+-]\d{2}:\d{2}\[([^\]]+)\]$/.exec(String(raw ?? '').trim());
-  return m && parseClockTarget(raw) ? { date: m[1], time: m[2], zone: m[3] } : null;
+/** The stored form read back: its instant, which the offset fixes (T5), and its wall parts as a
+ *  person typed them; or null. */
+export function parseClockTarget(raw: string | null | undefined): (Wall & { at: number }) | null {
+  const m = /^((\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}):\d{2}[+-]\d{2}:\d{2})\[([^\]]+)\]$/.exec(String(raw ?? '').trim());
+  if (!m || !zoneFormat(m[4])) return null;
+  const at = Date.parse(m[1]);
+  return Number.isFinite(at) ? { at, date: m[2], time: m[3], zone: m[4] } : null;
 }
 
-/** The stored form read back: its instant and zone, or null. The offset fixes the instant (T5). */
-export function parseClockTarget(raw: string | null | undefined): { at: number; zone: string } | null {
-  const m = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})\[([^\]]+)\]$/.exec(String(raw ?? '').trim());
-  if (!m || !zoneFormat(m[2])) return null;
-  const at = Date.parse(m[1]);
-  return Number.isFinite(at) ? { at, zone: m[2] } : null;
+/** The author's own zone, as the runtime reports it. */
+export function localTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+
+/** T9: Target time's first proposal, the next whole hour in `zone` that the clocks neither skip nor
+ *  repeat, in its stored form; or null when the next three hours all are. */
+export function proposeClockTarget(zone: string, now: number): string | null {
+  const f = zoneFormat(zone);
+  if (!f) return null;
+  const hour = new Date(wallAsUtc(f, now)).getUTCHours();
+  for (let ahead = 1; ahead <= 3; ahead++) {
+    const r = resolveClockTarget({ time: `${String((hour + ahead) % 24).padStart(2, '0')}:00`, zone }, now);
+    if (r.kind === 'resolved') return formatClockTarget(r);
+  }
+  return null;
 }

@@ -114,7 +114,7 @@ export function clockSpecFromHtml(html: string): ClockSpec | null {
   if (!el.classList.contains(IMPORTED_CLOCK_CLASS)) return spec;
   // A target time ships its instant as a stamped start (phase-10 T6); a count-up or a duration
   // never does, so theirs is exactly the spec it was.
-  if (clockOriginOf(dataStart) !== null) return { ...spec, events: IMPORTED_CLOCK_EVENTS, startsOnTake: false, fixedInstant: true };
+  if (clockOriginOf(dataStart) !== null) return { ...spec, events: IMPORTED_CLOCK_EVENTS, fixedInstant: true };
   return { ...spec, events: IMPORTED_CLOCK_EVENTS, startsOnTake: countsDown };
 }
 

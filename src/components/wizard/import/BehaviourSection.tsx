@@ -29,7 +29,7 @@ import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
-import { formatClockTarget, parseClockTarget, resolveClockTarget, splitClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
+import { formatClockTarget, localTimeZone, parseClockTarget, proposeClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
   clearFill,
@@ -637,7 +637,7 @@ export default function BehaviourSection({
                     const found = CLOCK_PICKER_MODES.find((m) => m.mode === mode);
                     if (!found) return setClock(null);
                     const row = clockRows.find((f) => f.candidateId === clock?.candidateId) ?? clockRows[0];
-                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? ''), ...(found.mode === 'target-time' ? { target: clock?.target ?? proposedClockTarget() } : {}) });
+                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? ''), ...(found.mode === 'target-time' ? { target: clock?.target ?? proposeClockTarget(localTimeZone(), Date.now()) ?? undefined } : {}) });
                   }}
                   data-testid="map-svg-clock-mode"
                 >
@@ -1308,29 +1308,16 @@ export default function BehaviourSection({
   );
 }
 
-/** A target time's first proposal: the next whole hour in the author's own zone that the clocks
- *  neither skip nor repeat, shown with its date and zone so it is confirmed or changed, never taken
- *  silently. */
-function proposedClockTarget(): string | undefined {
-  const now = Date.now();
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', hourCycle: 'h23' }).format(now));
-  for (let ahead = 1; ahead <= 3; ahead++) {
-    const r = resolveClockTarget({ time: `${String((hour + ahead) % 24).padStart(2, '0')}:00`, zone }, now);
-    if (r.kind === 'resolved') return formatClockTarget(r);
-  }
-  return undefined;
-}
+/** The zones the runtime knows, read once. */
+const RUNTIME_ZONES: readonly string[] = (Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] }).supportedValuesOf?.('timeZone') ?? [];
 
 /** The zones the target can be set in: the runtime's list, with the author's own and the stored one on it. */
 function timeZones(...own: string[]): string[] {
-  const intl = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] };
-  const listed = intl.supportedValuesOf ? intl.supportedValuesOf('timeZone') : [];
-  return [...new Set([...own, ...listed])];
+  return [...new Set([...own, ...RUNTIME_ZONES])];
 }
 
 /** What the line under the fields says for a target that does not resolve. */
-const TARGET_UNRESOLVED: Record<string, string> = {
+const TARGET_UNRESOLVED: Record<'gap' | 'time' | 'date' | 'zone', string> = {
   gap: 'The clocks skip that time. Choose another.',
   time: 'Choose a time.',
   date: 'Choose another date.',
@@ -1344,8 +1331,8 @@ const TARGET_UNRESOLVED: Record<string, string> = {
  * draft, so a clock never counts to a time that does not exist.
  */
 function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (target: string) => void }) {
-  const local = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
-  const stored = splitClockTarget(target);
+  const stored = useMemo(() => parseClockTarget(target), [target]);
+  const local = localTimeZone();
   const [time, setTime] = useState(stored?.time ?? '');
   const [date, setDate] = useState(stored?.date ?? '');
   const [zone, setZone] = useState(stored?.zone ?? local);
@@ -1365,12 +1352,12 @@ function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (t
     () => new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }),
     [zone],
   );
-  const storedAt = parseClockTarget(target)?.at;
-  const reads = !result
-    ? storedAt !== undefined ? format.format(storedAt) : null
-    : result.kind === 'resolved'
-      ? `${format.format(result.at)}${result.expired ? ', already past: it shows 0:00' : ''}`
-      : result.kind === 'fold' ? null : TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason];
+  const reads = ((): string | null => {
+    if (!result) return stored ? format.format(stored.at) : null;
+    if (result.kind === 'resolved') return `${format.format(result.at)}${result.expired ? ', already past: it shows 0:00' : ''}`;
+    if (result.kind === 'fold') return null;
+    return TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason];
+  })();
   return (
     <div className="map-svg-row" data-testid="map-svg-clock-target">
       <label className="save-field">

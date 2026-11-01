@@ -53,9 +53,10 @@ storage rules (T5-T7) came from reproducing that a resolved target could not sur
 ## What landed
 
 - `src/control/clockTarget.ts` (new): `parseTargetTime`, `resolveClockTarget` (T1-T4),
-  `formatClockTarget` / `parseClockTarget` (T5). Pure: `now` and the zone are injected.
+  `formatClockTarget` / `parseClockTarget` (T5), `proposeClockTarget` (T9), `localTimeZone`.
+  Pure: `now` and the zone are injected.
 - `src/templates/behaviours/clock.ts`: Target time in `CLOCK_PICKER_MODES`; `clockReadout` takes the
-  stored target; `clockTargetStart` (T6).
+  stored target and says when its start is `fixed`; `clockTargetStart` (T6).
 - `src/control/matchClockWire.ts`: `fixedInstant` on the spec and its row rule (T7).
 - `src/templates/importedDesign/designTypes.ts`: `DesignSvgClock.target`.
 - `src/templates/importedDesign/artworkFields.ts`: the target passed to `clockReadout`; the hidden

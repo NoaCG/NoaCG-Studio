@@ -51,11 +51,11 @@ export const CLOCK_NAME = 'Clock';
  * (templates/shared/matchClock.ts): which way it counts, and the time Reset returns to. The time is
  * the one the designer drew, as a native scorebug's is its period length; a duration counts down
  * from it. A target time with a resolved instant starts as the countdown TO that instant
- * (`clockTargetStart`), so every output, reload and replay reads the same second from it.
+ * (`clockTargetStart`), so every output, reload and replay reads the same second from it: `fixed`.
  */
-export function clockReadout(mode: ClockMode, drawn: string, target?: string): { count: 'up' | 'down'; start: string } {
+export function clockReadout(mode: ClockMode, drawn: string, target?: string): { count: 'up' | 'down'; start: string; fixed: boolean } {
   const fixed = mode === 'target-time' && target ? clockTargetStart(target) : null;
-  return { count: mode === 'count-up' ? 'up' : 'down', start: fixed ?? drawn.trim() };
+  return { count: mode === 'count-up' ? 'up' : 'down', start: fixed ?? drawn.trim(), fixed: fixed !== null };
 }
 
 /** The origin a target time's start is stamped with: one fixed second (1970-01-01T00:00:01Z),
