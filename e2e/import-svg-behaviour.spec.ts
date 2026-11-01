@@ -1299,6 +1299,9 @@ test('one Clock choice on a new import: it sits beside the score tracker, and a 
   // A target time asks for its time, date and zone, and says which instant it counts to (row 10).
   await expect(page.getByTestId('map-svg-clock-target')).toHaveCount(0);
   await clock.selectOption('target-time');
+  // The first proposal names its instant and leaves the date unchosen, so a time typed alone is its next one.
+  await expect(page.getByTestId('map-svg-clock-target-reads')).toBeVisible();
+  await expect(page.getByTestId('map-svg-clock-target-date')).toHaveValue('');
   await page.getByTestId('map-svg-clock-target-zone').selectOption('Europe/Helsinki');
   await page.getByTestId('map-svg-clock-target-date').fill('2031-11-14');
   await page.getByTestId('map-svg-clock-target-time').fill('19:00');

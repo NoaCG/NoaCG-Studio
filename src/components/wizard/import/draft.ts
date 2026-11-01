@@ -1086,6 +1086,8 @@ export interface SvgClockDraft {
    *  Target time proposes one (the next whole hour), so the picker never offers a clock with
    *  nothing to count to. */
   target?: string;
+  /** The target's date was proposed, never typed: a time typed alone takes its next occurrence. */
+  targetProposed?: boolean;
 }
 
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */

@@ -637,7 +637,11 @@ export default function BehaviourSection({
                     const found = CLOCK_PICKER_MODES.find((m) => m.mode === mode);
                     if (!found) return setClock(null);
                     const row = clockRows.find((f) => f.candidateId === clock?.candidateId) ?? clockRows[0];
-                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? ''), ...(found.mode === 'target-time' ? { target: clock?.target ?? proposeClockTarget(localTimeZone(), Date.now()) ?? undefined } : {}) });
+                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? ''), ...(found.mode === 'target-time'
+                      ? clock?.target
+                        ? { target: clock.target, targetProposed: clock.targetProposed }
+                        : { target: proposeClockTarget(localTimeZone(), Date.now()) ?? undefined, targetProposed: true }
+                      : {}) });
                   }}
                   data-testid="map-svg-clock-mode"
                 >
@@ -669,7 +673,11 @@ export default function BehaviourSection({
             </div>
           )}
           {clock?.mode === 'target-time' && (
-            <ClockTargetFields target={clock.target} onTarget={(target) => setClock({ ...clock, target })} />
+            <ClockTargetFields
+              target={clock.target}
+              proposed={clock.targetProposed === true}
+              onTarget={(target, proposed) => setClock({ ...clock, target, targetProposed: proposed || undefined })}
+            />
           )}
           {/* THE HIDDEN LAYERS DID NOT ARRIVE. Illustrator's Export As writes no hidden layer at
               all (measured on 30.1, https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/illustrator-export-as-drops-hidden-layers.md), so
@@ -1330,11 +1338,12 @@ const TARGET_UNRESOLVED: Record<'gap' | 'time' | 'date' | 'zone', string> = {
  * clocks skip asks for another; one they repeat asks which. Only a resolved instant reaches the
  * draft, so a clock never counts to a time that does not exist.
  */
-function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (target: string) => void }) {
+function ClockTargetFields({ target, proposed, onTarget }: { target?: string; proposed: boolean; onTarget: (target: string, proposed: boolean) => void }) {
   const stored = useMemo(() => parseClockTarget(target), [target]);
   const local = localTimeZone();
   const [time, setTime] = useState(stored?.time ?? '');
-  const [date, setDate] = useState(stored?.date ?? '');
+  // A proposed date stays implicit (T1): a time typed alone is its next occurrence.
+  const [date, setDate] = useState(proposed ? '' : (stored?.date ?? ''));
   const [zone, setZone] = useState(stored?.zone ?? local);
   const zones = useMemo(() => timeZones(local, zone), [local, zone]);
   const [result, setResult] = useState<ClockTargetResolution | null>(null);
@@ -1346,7 +1355,7 @@ function ClockTargetFields({ target, onTarget }: { target?: string; onTarget: (t
     const r = resolveClockTarget(input, Date.now());
     setResult(r);
     // Only an instant reaches the draft: until a new one resolves, the last one stands.
-    if (r.kind === 'resolved') onTarget(formatClockTarget(r));
+    if (r.kind === 'resolved') onTarget(formatClockTarget(r), r.proposed);
   };
   const format = useMemo(
     () => new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }),
