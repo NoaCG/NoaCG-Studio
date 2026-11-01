@@ -26,8 +26,9 @@ on it.
 - `src/components/wizard/import/BehaviourSection.tsx`: a "No lock at all" checkbox beside the
   quiz's options. Ticked, it writes `{ lock: false, noLock: true }`, clears the timed reveal and
   hides the lock option, the timed-reveal option and the Locked in picker, and switches off the
-  text rows drawn inside the Locked in layer. Unticked, it switches those rows back on, removes
-  `noLock` and leaves the optional-lock board with both options and the picker in view.
+  text rows drawn inside the Locked in layer. Unticked, it restores the options and those rows
+  as they were before the tick (remembered for this visit to the step), with both options and
+  the picker in view again.
 - `e2e/import-svg-behaviour.spec.ts`: one journey, on a copy of the sample quiz whose lock layer
   is left visible. Tick No lock, the three controls are gone, the cue has no Lock it in or Reveal
   choice, the drawn lock is hidden from the start and never shows, the pick moves B to D, Reveal
@@ -74,6 +75,7 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
   fails as expected.
 - Whole behaviour spec on `e773067`: 40/40 (j-0011). After the /so 4 fixes: quiz tests 11/11
   (j-0012); mutation j-0013 fails as expected.
+- After the /so 5 fix: quiz tests 11/11 (j-0014); mutation j-0015 fails as expected.
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
@@ -119,6 +121,16 @@ In order. Every round's result belongs to the head named.
    checks the rows on tick, untick and tick again (mutation j-0013 fails at the untick check,
    probe dropped). Reveal straight from the question was claimed but untested on this board
    (faulty evidence claim); the journey now reveals with no pick on a third Take.
+8. /so 5, session `session_017SdbwPHdJYneaiqb2TSyVk`, on `4d644fd`: AGREE WITH CORRECTIONS, A-,
+   nothing blocking. Unticking still did not give back the options (Require lock, the timed
+   reveal) or a row the author had switched off. Rounds 7 and 8 found one family (untick must
+   return the board as it was), so the rule was corrected rather than patched again: ticking
+   remembers the quiz's options and which of the lock layer's text rows were fields, and
+   unticking restores both. Fixed in `3e7a3fb`; the journey ticks the timed reveal first,
+   checks Require lock, the timed reveal and the lock words come back, and that a row switched
+   off before a tick stays off. Mutation j-0015 (forget the remembered options) fails at the
+   Require lock check; probe dropped. The `noLock` with `autoReveal` refusal stays row 15's to
+   qualify.
 
 ## Decisions
 
@@ -138,6 +150,10 @@ In order. Every round's result belongs to the head named.
   visible. An earlier commit cleared the binding on tick; that left visible lock artwork on air
   for good (review round 1 above), so it was reverted. The picker stays hidden because the
   lock is not a moment of this board; unticking No lock shows it again.
+- **Unticking No lock restores the board as it was before the tick**, options and the lock
+  words' text rows alike. The memory lives in the mapping step for that visit, not in the saved
+  draft (whose shape is outside this row's files); after leaving and coming back, unticking gives
+  the optional-lock board with those rows on.
 - **The no-Lock machine and paint are derived from the lock board's**, filtered, not written a
   second time, so the two variants cannot drift.
 
