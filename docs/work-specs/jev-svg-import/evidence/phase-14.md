@@ -107,6 +107,10 @@ In order. Every round's result belongs to the head named.
    arrow is now named as an addition (What landed, Decisions), and the latent refusal of
    `noLock` with `autoReveal` (reachable only by hand-edited data today) is left for row 15's
    test.
+6. Codex on `43ba298` (on request), P1: `quiz.ts` imported a type from `src/blocks/`, which the
+   templates layer must not add (`src/templates/AGENTS.md`). Rule break, not a behaviour defect.
+   Fixed in `8dd4074`: the look-rule type is read off `BehaviourRecipe['paint']`. Type-only; the
+   byte comparison was re-run and all seven saved shapes still equal main.
 
 ## Decisions
 
