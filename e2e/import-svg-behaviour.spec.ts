@@ -719,9 +719,8 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const look = (token: string) => air.locator(`[data-noacg-role~="${token}"]`);
 
-  // The drawn lock is no moment on this board: not bound, and never shown.
+  // The drawn lock is no moment on this board: ticking No lock unbound it.
   await expect(look('locked')).toHaveCount(0);
-  const badge = air.getByText('LOCKED IN');
 
   // The pick moves freely until the reveal.
   await page.getByTestId('cue-pick-select-B').click();
@@ -729,12 +728,21 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   await page.getByTestId('cue-pick-select-D').click();
   await expect(look('answer.selected/D')).toHaveClass(/imported-design-on/);
   await expect(look('answer.selected/B')).not.toHaveClass(/imported-design-on/);
-  await expect(badge).toBeHidden();
 
   await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
   for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(/imported-design-on/);
-  await expect(badge).toBeHidden();
+
+  // Next leaves a pick too, with no lock to press first: Continue on a playout server gets past it.
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('cue-pick-select-A').click();
+  await expect(look('answer.selected/A')).toHaveClass(/imported-design-on/);
+  await expect(look('answer.correct/C')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('verb-next').click();
+  await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
+  await expect(look('answer.wrong/A')).toHaveClass(/imported-design-on/);
 });
 
 test('a meter: the bar the designer drew fills toward the target as the figure goes up', async ({ page }, testInfo) => {
