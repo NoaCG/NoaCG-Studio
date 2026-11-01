@@ -694,6 +694,95 @@ test('the quiz\u2019s first option: no lock, and Reveal correct works straight f
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
 });
 
+test('the true no-Lock quiz: no lock control, state or look, and a pick goes straight to the reveal', async ({ page }, testInfo) => {
+  // jev-svg-import AC-12. Unticking "Require lock" keeps the lock as an optional beat (the test
+  // above). "No lock at all" is a different board: the lock and its hidden-pick seal are not on it,
+  // so nothing an operator presses can reach them, and the timed reveal (which starts at the
+  // lock) is not offered beside it.
+  // The sample hides its lock drawing; this copy leaves it VISIBLE, as a designer may, because a
+  // board with no lock must still never show it.
+  const visibleLock = testInfo.outputPath('quiz-visible-lock.svg');
+  const sample = readFileSync(QUIZ_SVG, 'utf8');
+  const lockTag = '<g id="Locked_x20_in" data-name="Locked in" display="none">';
+  expect(sample).toContain(lockTag);
+  writeFileSync(visibleLock, sample.replace(lockTag, '<g id="Locked_x20_in" data-name="Locked in">'));
+  await openImportDoor(page, visibleLock);
+  // The visible lock's own words are a text row like any other. No lock leaves the row alone:
+  // switching it off would renumber every field after it, and a saved cue keyed to those ids
+  // would read its values into the wrong fields.
+  const lockWords = page.getByTestId(`map-svg-row-${await rowLabelled(page, /Locked in/i)}`).locator('input[type="checkbox"]');
+  await expect(lockWords).toBeChecked();
+  const noLock = page.getByTestId('map-svg-option-noLock');
+  const lock = page.getByTestId('map-svg-option-lock');
+  const autoReveal = page.getByTestId('map-svg-option-autoReveal');
+  await autoReveal.check();
+  await noLock.check();
+  await expect(lock).toHaveCount(0);
+  await expect(autoReveal).toHaveCount(0);
+  await expect(page.getByTestId('map-svg-quiz-locked')).toHaveCount(0);
+  await expect(lockWords).toBeChecked();
+  // Unticked, the board is exactly what it was: lock required, the timed reveal on, the Locked in
+  // layer still picked.
+  await noLock.uncheck();
+  await expect(lock).toBeChecked();
+  await expect(autoReveal).toBeChecked();
+  await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('Locked in');
+  await expect(lockWords).toBeChecked();
+  await noLock.check();
+  await intoProduction(page, 'No lock quiz', 'Quiz Night');
+  await settleDurableWrites(page);
+
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('Select answer');
+  await expect(actions).toContainText('Reveal correct');
+  await expect(actions).not.toContainText('Lock it in');
+  await expect(actions).not.toContainText('Reveal choice');
+
+  // Field identity holds: the lock's words keep their field (f1), so the answer key is f6, exactly
+  // as on the same artwork with a lock.
+  await expect(page.getByText(/^F1 · Locked in$/i)).toHaveCount(1);
+  await page.getByTestId('cue-field-f6-opt-C').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const look = (token: string) => air.locator(`[data-noacg-role~="${token}"]`);
+
+  // The drawn lock is a moment this board never reaches: hidden from the start.
+  await expect(look('locked')).toHaveCount(1);
+  await expect(look('locked')).toBeHidden();
+
+  // The pick moves freely until the reveal.
+  await page.getByTestId('cue-pick-select-B').click();
+  await expect(look('answer.selected/B')).toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-pick-select-D').click();
+  await expect(look('answer.selected/D')).toHaveClass(/imported-design-on/);
+  await expect(look('answer.selected/B')).not.toHaveClass(/imported-design-on/);
+
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
+  for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(/imported-design-on/);
+  await expect(look('locked')).toBeHidden();
+
+  // Next leaves a pick too, with no lock to press first: Continue on a playout server gets past it.
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await page.getByTestId('cue-pick-select-A').click();
+  await expect(look('answer.selected/A')).toHaveClass(/imported-design-on/);
+  await expect(look('answer.correct/C')).not.toHaveClass(/imported-design-on/);
+  await page.getByTestId('verb-next').click();
+  await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
+  await expect(look('answer.wrong/A')).toHaveClass(/imported-design-on/);
+
+  // And Reveal correct works straight from the question, with no pick at all.
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await expect(look('answer.correct/C')).not.toHaveClass(/imported-design-on/);
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
+});
+
 test('a meter: the bar the designer drew fills toward the target as the figure goes up', async ({ page }, testInfo) => {
   // THE SURVEY'S "progress bar toward a target" (docs/BEHAVIOUR_SURVEY.md §3) on artwork somebody
   // drew: a bar at its full length and two owned figures, no machine at all - a meter changes
