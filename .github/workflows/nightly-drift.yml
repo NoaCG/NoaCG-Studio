@@ -97,6 +97,8 @@ jobs:
             title: Nightly sweep has not run
             marker: nightly-drift-state
             schedule: '02:00 UTC'
+            # The landing-coverage report below reads this workflow's runs (ci13).
+            coverage: true
             detail: >-
               The whole exhaustive tier is what goes missing. What to check: Actions -> nightly ->
               whether the schedule is disabled (GitHub disables schedules on repos with 60 days of
@@ -239,7 +241,7 @@ jobs:
       # docs/work-specs/cicd-improvement/evidence/phase-ci13.md. A step here rather than a job of
       # its own: it needs a checkout and node builtins only, seconds per run.
       - name: Check out history for the landing-coverage report
-        if: ${{ !cancelled() && matrix.workflow == 'nightly.yml' }}
+        if: ${{ !cancelled() && matrix.coverage }}
         continue-on-error: true
         # Inside the job's 5 minutes with room left for the failure step below.
         timeout-minutes: 1
@@ -249,7 +251,7 @@ jobs:
           filter: blob:none
 
       - name: Landing coverage report
-        if: ${{ !cancelled() && matrix.workflow == 'nightly.yml' }}
+        if: ${{ !cancelled() && matrix.coverage }}
         continue-on-error: true
         timeout-minutes: 2
         env:

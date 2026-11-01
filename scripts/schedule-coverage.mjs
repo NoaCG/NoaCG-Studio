@@ -41,9 +41,12 @@ export const NIGHTLY_CRON_UTC = { hour: 0, minute: 20 };
  * The jobs a complete nightly carries, by name prefix. `Nightly E2E ` is the shard matrix: the
  * shard count is read from the names (`Nightly E2E 3/12`), and every shard 1..N must be present.
  */
+/** The E2E shard matrix's name prefix: every shard 1..N of it must be present. */
+export const E2E_SHARDS = 'Nightly E2E ';
+
 export const NIGHTLY_JOBS = [
   'Nightly shard plan',
-  'Nightly E2E ',
+  E2E_SHARDS,
   'Catalog calibration tripwire',
   'Type floor, overflow sweep and field coverage',
   'Combined nightly report',
@@ -61,7 +64,7 @@ export const CONTRACTS = {
     'catalog-gates.yml': ['Which designs', 'Emit fingerprints and catalog specs', 'Type floor, overflow, field coverage, numerals'],
   },
   'engine-floor': { 'nightly.yml': ['Type floor, overflow sweep and field coverage'] },
-  'full E2E suite': { 'nightly.yml': ['Nightly shard plan', 'Nightly E2E ', 'Combined nightly report'] },
+  'full E2E suite': { 'nightly.yml': ['Nightly shard plan', E2E_SHARDS, 'Combined nightly report'] },
 };
 
 const FINISHED = new Set(['success', 'failure']);
@@ -74,7 +77,8 @@ const FINISHED = new Set(['success', 'failure']);
  * and `scope` when its workflow can measure part of the catalog: anything but `full` is incomplete
  * for a whole-catalog contract.
  */
-export function runVerdict(run, required = run.required ?? NIGHTLY_JOBS) {
+export function runVerdict(run) {
+  const required = run.required ?? NIGHTLY_JOBS;
   if (run.status !== 'completed') return { verdict: 'pending', reasons: [`status ${run.status}`] };
   const jobs = run.jobs ?? [];
   const reasons = [];
@@ -87,7 +91,7 @@ export function runVerdict(run, required = run.required ?? NIGHTLY_JOBS) {
       if (j.conclusion === 'failure') failed = true;
       else if (!FINISHED.has(j.conclusion)) reasons.push(`${j.name}: ${j.conclusion ?? 'no conclusion'}`);
     }
-    if (prefix === 'Nightly E2E ' && matching.length) {
+    if (prefix === E2E_SHARDS && matching.length) {
       const totals = new Set();
       const seen = new Set();
       for (const j of matching) {
@@ -267,14 +271,13 @@ export function replayCulprit(range, verdictAt, prVerdictAt = () => undefined) {
  * below holds, otherwise `full` with every reason. ci13 activates nothing; this is the rollback
  * rule its drills exercise and that ci16 reads.
  */
-export function scopeDecision({ timeline, now, missed = [], replays = [] }) {
+export function scopeDecision({ timeline, now, missed = [], replays = [], projected = projectedBreach(timeline, now) }) {
   const reasons = [];
   const breaches = timeline.landings.filter((l) => l.breach);
   if (breaches.length) reasons.push(`${breaches.length} landing(s) waited more than ${DEADLINE_HOURS}h for a green complete nightly`);
   const incomplete = timeline.runs.filter((r) => r.attributable && r.verdict === 'incomplete');
   if (incomplete.length) reasons.push(`${incomplete.length} incomplete nightly run(s): ${incomplete.map((r) => r.id).join(', ')}`);
   if (missed.length) reasons.push(`missed scheduled slot(s): ${missed.join(', ')}`);
-  const projected = projectedBreach(timeline, now);
   if (projected?.breach) reasons.push(`oldest uncovered landing ${projected.sha.slice(0, 8)} is projected past its deadline`);
   for (const r of replays) if (!r.resolved) reasons.push(`culprit replay unresolved for ${r.unresolved.map((s) => s.slice(0, 8)).join(', ')}`);
   return { scope: reasons.length ? 'full' : 'scoped-eligible', reasons };
@@ -285,6 +288,8 @@ export function summarize(timeline) {
   const rows = timeline.landings;
   const covered = rows.filter((l) => l.covered);
   const max = (xs) => (xs.length ? Math.max(...xs) : null);
+  const attributable = timeline.runs.filter((r) => r.attributable);
+  const count = (verdict) => attributable.filter((r) => r.verdict === verdict).length;
   return {
     landings: rows.length,
     covered: covered.length,
@@ -294,12 +299,12 @@ export function summarize(timeline) {
     maxGreenDelayHours: max(covered.map((l) => l.greenDelayMs / HOUR)),
     maxAnyDelayHours: max(rows.filter((l) => l.anyDelayMs !== null).map((l) => l.anyDelayMs / HOUR)),
     runs: {
-      attributable: timeline.runs.filter((r) => r.attributable).length,
-      green: timeline.runs.filter((r) => r.attributable && r.verdict === 'green').length,
-      red: timeline.runs.filter((r) => r.attributable && r.verdict === 'red').length,
-      incomplete: timeline.runs.filter((r) => r.attributable && r.verdict === 'incomplete').length,
-      pending: timeline.runs.filter((r) => r.attributable && r.verdict === 'pending').length,
-      unattributable: timeline.runs.filter((r) => !r.attributable).length,
+      attributable: attributable.length,
+      green: count('green'),
+      red: count('red'),
+      incomplete: count('incomplete'),
+      pending: count('pending'),
+      unattributable: timeline.runs.length - attributable.length,
     },
   };
 }
@@ -335,7 +340,7 @@ export function render(timeline, now, { projected = projectedBreach(timeline, no
     lines.push(projected.breach ? `PROJECTED BREACH: ${projected.reason ?? 'its deadline falls before that'}. The repair is a nightly dispatch on main before the deadline.` : 'Inside the bound on the projection.');
   } else lines.push('', 'Every landing in the window is cleared.');
   for (const r of timeline.runs.filter((x) => x.attributable && x.verdict === 'incomplete')) lines.push(`- incomplete run ${r.id}: ${r.reasons.join('; ')}`);
-  const decision = scopeDecision({ timeline, now, missed });
+  const decision = scopeDecision({ timeline, now, missed, projected });
   lines.push('', `Catalog scope this window supports: ${decision.scope}${decision.reasons.length ? ` (${decision.reasons.join('; ')})` : ''}. Nothing reads this yet; ci.yml runs the whole catalog.`);
   return lines.join('\n');
 }
@@ -343,7 +348,7 @@ export function render(timeline, now, { projected = projectedBreach(timeline, no
 // ---- CLI: reads git and GitHub, read-only. ----
 
 function gh(args) {
-  return execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+  return execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true, timeout: 20_000, env: { ...process.env, GH_PROMPT_DISABLED: '1' } });
 }
 
 /**
@@ -432,7 +437,7 @@ function main() {
       conclusion: r.conclusion,
       // Jobs only where they can matter: a completed run that requested a landing in the window, or
       // a scheduled one (the projection's history).
-      jobs: r.status === 'completed' && (shas.has(r.head_sha) || r.event === 'schedule') ? JSON.parse(gh(['api', `repos/${repo}/actions/runs/${r.id}/jobs?per_page=50`])).jobs : [],
+      jobs: r.status === 'completed' && (shas.has(r.head_sha) || r.event === 'schedule') ? JSON.parse(gh(['api', `repos/${repo}/actions/runs/${r.id}/jobs?per_page=100`])).jobs : [],
     }));
   const timeline = coverageTimeline({ landings, runs, now: opts.now });
   const projected = projectedBreach(timeline, opts.now);

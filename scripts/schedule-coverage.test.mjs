@@ -3,10 +3,12 @@
 // rollback rule. Every run speaks for the commit it requested (its head sha); none is credited by
 // ancestry from a branch or a non-landing commit.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
   CONTRACTS,
+  NIGHTLY_JOBS,
   coverageTimeline,
   missedSlots,
   judgedDays,
@@ -243,4 +245,14 @@ test('review fixes: a re-run attempt, a queued run, a failed plan and the push-t
   assert.deepEqual(lt.map((l) => [l.sha, l.at, l.source]), [['c1', 20, 'later push'], ['c2', 20, 'push'], ['c3', 30, 'push'], ['c4', 4, 'commit']]);
   // Only slots a full day old are judged for a miss.
   assert.deepEqual(judgedDays(T('2026-10-01T00:00:00Z'), T('2026-10-03T00:10:00Z')), ['2026-10-01']);
+});
+
+test('every job name this report reads is a job name in its workflow, so a rename cannot go quiet', () => {
+  const names = (wf) => [...readFileSync(new URL(`../.github/workflows/${wf}`, import.meta.url), 'utf8').matchAll(/^ {4}name: (.+)$/gm)].map((m) => m[1].trim());
+  const check = (wf, prefixes) => {
+    const declared = names(wf);
+    for (const prefix of prefixes) assert.ok(declared.some((n) => n.startsWith(prefix.trimEnd())), `${wf} has no job named "${prefix.trim()}..."`);
+  };
+  check('nightly.yml', NIGHTLY_JOBS);
+  for (const carriers of Object.values(CONTRACTS)) for (const [wf, prefixes] of Object.entries(carriers)) check(wf, prefixes);
 });

@@ -186,7 +186,7 @@ ci13 cannot rely on cadence until #1622 is resolved or quarantined.
 
 ### 4.1 Controlled fixtures
 
-`scripts/schedule-coverage.test.mjs`, 12 tests, run by the build gate's `scripts/**/*.test.mjs`
+`scripts/schedule-coverage.test.mjs`, 13 tests (one checks that every job name the report reads is declared in its workflow file), run by the build gate's `scripts/**/*.test.mjs`
 glob. Each run in a fixture names the commit it requested.
 
 | Drill | What the fixture does | What it proves |
@@ -206,7 +206,7 @@ Mutation check, each rule broken in turn: crediting a branch run, letting red cl
 counting a cancelled job as complete, guessing an unreplayed commit, a projection that never
 alarms, commit time for a commit that shared a push, a re-run's duration from the run's creation,
 and ignoring the concurrency queue. Each fails the tests (1, 2, 2, 2, 1, 1, 1 and 1 failures); the
-unmodified module passes 12 of 12.
+unmodified module passes all 13.
 
 ### 4.2 Real runs
 
