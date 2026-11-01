@@ -30,7 +30,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
-import { DRIVEN_CLOCK, installDrivenPage } from './driven-clock.mjs';
+import { installDrivenPage } from './driven-clock.mjs';
 
 // controlModel.ts imports without extensions, as Vite does: resolve those to their `.ts` file so
 // the press rules run for real (as scripts/graphic-verbs-walk.test.mjs does).
