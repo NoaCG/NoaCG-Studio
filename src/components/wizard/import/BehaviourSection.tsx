@@ -336,21 +336,25 @@ export default function BehaviourSection({
   const scoreDrawn = scoreDrawnPool(draft.designSvg ?? { groups: [], shapes: [] });
 
   /** The quiz as it was before No lock was ticked, so unticking gives exactly that back. */
-  const beforeNoLock = useRef<{ options: Record<string, boolean>; rowsOn: Set<string> } | null>(null);
+  const beforeNoLock = useRef<{ art: string; options: Record<string, boolean>; rowsOn: Set<string> } | null>(null);
   const toggleNoLock = (options: Record<string, boolean>) => {
     if (!quiz) return;
     const inside = quiz.locked && draft.designSvg ? candidatesInside(draft.designSvg.markup, quiz.locked) : new Set<string>();
+    // The memory belongs to this artwork and lock layer; another one's is never restored here.
+    const art = `${quiz.locked}\n${draft.designSvg?.markup ?? ''}`;
     let rowsOn = new Set<string>();
     if (quizHasNoLock(options)) {
       beforeNoLock.current = {
+        art,
         options: quiz.options ?? {},
         rowsOn: new Set(draft.svgFields.filter((f) => f.on && inside.has(f.candidateId)).map((f) => f.candidateId)),
       };
     } else {
-      // With nothing remembered, a row the author took off the artwork stays off.
-      rowsOn = beforeNoLock.current?.rowsOn ?? new Set(draft.svgFields.filter((f) => inside.has(f.candidateId) && f.whenOff !== 'remove').map((f) => f.candidateId));
-      options = beforeNoLock.current?.options ?? options;
+      const before = beforeNoLock.current?.art === art ? beforeNoLock.current : null;
       beforeNoLock.current = null;
+      // With nothing remembered, a row the author took off the artwork stays off.
+      rowsOn = before?.rowsOn ?? new Set(draft.svgFields.filter((f) => inside.has(f.candidateId) && f.whenOff !== 'remove').map((f) => f.candidateId));
+      options = before?.options ?? options;
     }
     onDraft({
       svgBehaviour: { ...quiz, options },
