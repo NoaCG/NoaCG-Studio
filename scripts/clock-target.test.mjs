@@ -124,6 +124,8 @@ const WALK = async ({ markup, target, wall, driven, script }) => {
     else if (verb === 'out') send({ t: 'stop' });
     else if (verb === 'wait') advance(arg);
     else if (verb === 'report') outs[arg].report = { data: { ...outs[arg].held }, groups: outs[arg].w.noacgMachineState().groups, seq: outs[arg].seen };
+    // A host that reports the layer's PAINTED text (control/hostedReceiver.ts harvest), not the wire value.
+    else if (verb === 'painted') outs[arg].report = { data: { ...outs[arg].held, [field]: outs[arg].w.document.getElementById(field).textContent }, groups: outs[arg].w.noacgMachineState().groups, seq: outs[arg].seen };
     else if (verb === 'reload') {
       const out = outs[arg];
       const report = out.report;
@@ -186,6 +188,7 @@ const walk = await withBundledPage(SPECS, async (page) => {
       ['update'], ['wait', 500], ['read', 'a resend'],
       ['cue', '12:08'], ['wait', 500], ['read', 'a plain time sent over it'],
       ['report', 'B'], ['wait', 600_000], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded ten minutes on'],
+      ['painted', 'B'], ['wait', 3_600_000], ['reload', 'B'], ['wait', 300], ['read', 'B rebooted from painted text an hour old'],
       ['out'], ['wait', 5000], ['read', 'off air'],
       ['take'], ['wait', 500], ['read', 'taken again'],
       ['wait', 7_200_000], ['read', 'past the instant'],
@@ -413,7 +416,7 @@ test('the built graphic: a resolved target ships its instant', () => {
 });
 
 test('the built graphic counts to the instant on every output, through resends, reloads, Outs and Takes', () => {
-  const live = ['before the Take', 'taken', 'a resend', 'a plain time sent over it', 'B reloaded ten minutes on', 'off air', 'taken again'];
+  const live = ['before the Take', 'taken', 'a resend', 'a plain time sent over it', 'B reloaded ten minutes on', 'B rebooted from painted text an hour old', 'off air', 'taken again'];
   for (const label of live) {
     const r = reading(label);
     assert.equal(r.A.value, left(r.at), `${label}: output A, ${r.at} ms into the walk`);
@@ -441,20 +444,18 @@ test('T1 and T4 (#1894): a bare time in a gap already behind today is tomorrow\'
   assert.equal(resolveClockTarget({ time: '03:30', date: '2026-03-29', zone: HEL }, springLater).kind, 'gap');
 });
 
-test('row 11: a target paints hours and reads its painted text back as hours; a native clock is unchanged', async () => {
+test('row 11: a target paints hours; a native clock is unchanged', async () => {
   const { matchClockJs } = await import('../src/templates/shared/matchClock.ts');
   const runtime = (opts) => {
     const js = matchClockJs('x', opts);
     const pick = (name) => `function ${name}${js.split(`function ${name}`)[1].split('\n}\n')[0]}\n}`;
     return new Function(`${pick('parseMatchClock')}\n${pick('formatMatchClock')}\nreturn { parse: parseMatchClock, format: formatMatchClock };`)();
   };
-  const hours = runtime({ hours: true });
-  assert.deepEqual([0, 3599, 3600, 13170].map(hours.format), ['0:00', '59:59', '1:00:00', '3:39:30']);
-  // A host that reports the layer's text (hostedReceiver harvest) rebuilds from "3:39:30".
-  assert.equal(hours.parse('3:39:30'), 13170);
-  assert.equal(hours.parse('219:30@1000'), 13170, 'the wire keeps minutes and seconds');
+  const target = runtime({ target: true });
+  assert.deepEqual([0, 3599, 3600, 13170].map(target.format), ['0:00', '59:59', '1:00:00', '3:39:30']);
+  assert.equal(target.parse('219:30@1000'), 13170, 'the wire and data-start keep minutes and seconds');
   const native = runtime();
   assert.equal(native.format(4020), '67:00', 'a native match clock keeps minutes');
   assert.equal(native.parse('1:30:00'), 90, 'and reads three parts as it always has');
-  assert.equal(matchClockJs('scoreboard'), matchClockJs('scoreboard', {}), 'without hours the runtime is the same text');
+  assert.equal(matchClockJs('scoreboard'), matchClockJs('scoreboard', {}), 'without target the runtime is the same text');
 });

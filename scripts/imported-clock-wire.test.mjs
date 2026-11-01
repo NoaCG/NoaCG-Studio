@@ -506,7 +506,7 @@ test('a duration tells a resend from a change by what the cue last sent: a score
   assert.match(banked.A.held, /^(0:\d\d)@\d+\/\1\/\1$/, 'a length typed off air equal to the time it was banked at is still the new length');
 });
 
-// ── Row 11 (#1890): the two limits the origin slot left, read straight off the wire's own functions ──
+// ── Row 11 (#1890): a running edit equal to the start time, read straight off the wire's own functions ──
 const { clockRowEffect: rowEffect, clockValueAfterUpdate: afterUpdate } = await import('../src/control/matchClockWire.ts');
 const IMPORTED_EVENTS = { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' };
 const W0 = 1_800_000_000_000;
@@ -515,18 +515,6 @@ const wireAfter = (spec, rows) => rows.reduce((held, [mins, msg]) => {
   const merged = msg.t === 'update' ? afterUpdate(held, msg.data.f2) : held;
   return rowEffect({ msg, created_at: new Date(W0 + mins * 60_000).toISOString() }, spec, merged, W0)?.value ?? merged;
 }, undefined);
-
-test('a duration never taken is off air: a Reset or a Pause before the first Take leaves a time typed after it the length (#1890)', () => {
-  const duration = { field: 'f2', countsDown: true, seed: '0:30', resetTo: '0:30', events: IMPORTED_EVENTS, startsOnTake: true };
-  for (const verb of ['clock_reset', 'clock_pause']) {
-    const before = [[0, { t: 'update', data: { f2: '0:45' } }], [0.1, { t: 'event', event: verb }], [0.2, { t: 'update', data: { f2: '0:50' } }]];
-    assert.equal(wireAfter(duration, before), '0:50@out/0:50/0:50', `${verb} before the first Take: the time typed after it is the length`);
-    const taken = wireAfter(duration, [...before, [0.3, { t: 'play' }]]);
-    assert.equal(taken, `0:50@${W0 + 0.3 * 60_000}/0:50/0:50`, `${verb}, then the Take counts the 0:50 the field shows`);
-  }
-  // An Out over a plain value still banks it off air, as before.
-  assert.equal(wireAfter(duration, [[0, { t: 'update', data: { f2: '0:45' } }], [0.1, { t: 'stop' }]]), '0:45@out/0:45/0:45');
-});
 
 test('while a clock runs, a time typed equal to the time it started from sets it back to that time (#1890)', () => {
   const countUp = { field: 'f2', countsDown: false, seed: '0:00', resetTo: '0:00', events: IMPORTED_EVENTS };

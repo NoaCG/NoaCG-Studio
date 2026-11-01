@@ -49,12 +49,15 @@
  *     interval, and `.{prefix}-expired` when a counting-down clock reaches zero, so a design
  *     styles each of the three without any of them being a separate state to animate.
  *
- * `hours` paints an hour or more as "3:39:30" rather than "219:30" (an imported clock counting
- * down to a set time, jev-svg-import row 11, AC-9), and reads that text back the same way. The
- * field's value and the wire keep minutes and seconds, which every parser reads. Without it the
- * emitted runtime is byte for byte what every native board already ships ("67:00").
+ * `target` is a clock counting down to a FIXED INSTANT (an imported target time, jev-svg-import
+ * rows 10-11, AC-9). Its `data-start` is its whole truth (phase-10 T6), so it paints an hour or
+ * more as "3:39:30" rather than "219:30", and it adopts NO value written into its field: a value
+ * there is either its own start again, or painted text a host reported back
+ * (control/hostedReceiver.ts `harvest`), which says what was shown and never when. The field's
+ * value and the wire keep minutes and seconds. Without it the emitted runtime is byte for byte
+ * what every native board already ships ("67:00").
  */
-export function matchClockJs(prefix: string, opts: { hours?: boolean } = {}): string {
+export function matchClockJs(prefix: string, opts: { target?: boolean } = {}): string {
   return `// ---- Match clock (playout, not motion — the machine's clock group calls into this) ----
 // The clock element also carries a data field id, so an operator can correct a drifting
 // clock by typing into it; matchClockUpdate() below re-seeds the tick from what they typed.
@@ -88,7 +91,7 @@ function parseMatchClock(text) {
   var parts = raw.trim().split(':');
   var mins = parseInt(parts[0], 10) || 0;
   if (parts.length < 2) return Math.max(0, mins);          // a bare number is seconds
-${opts.hours ? HOURS_PARSE : ''}  return Math.max(0, mins * 60 + (parseInt(parts[1], 10) || 0));
+  return Math.max(0, mins * 60 + (parseInt(parts[1], 10) || 0));
 }
 
 // matchClockOriginOf(): the epoch ms an "@"-stamped value was true, or null for a plain (held)
@@ -121,7 +124,7 @@ function matchClockValue() {
   return matchClockBase + elapsed;
 }
 
-${opts.hours ? HOURS_FORMAT : MINUTES_FORMAT}
+${opts.target ? HOURS_FORMAT : MINUTES_FORMAT}
 
 // initMatchClock(): read the element's own starting value once. The field's default text IS
 // the starting value, so a design never repeats the number in two places.
@@ -241,7 +244,7 @@ var matchClockSent = null;       // the last clock value the wire delivered, not
 function matchClockUpdate(key, value) {
   var el = matchClockEl();
   if (!el || el.id !== key) return;
-  var incoming = String(value == null ? '' : value);
+${opts.target ? TARGET_UPDATE : ''}  var incoming = String(value == null ? '' : value);
   var stamp = matchClockOriginOf(incoming);
   if (stamp === null && matchClockSent !== null && incoming === matchClockPlain(matchClockSent)) {
     // A resend of a plain value, not an edit. update() has ALREADY written that stale text into
@@ -323,10 +326,14 @@ function formatMatchClock(total) {
   return Math.floor(total / 60) + ':' + (s < 10 ? '0' + s : s);
 }`;
 
-/** With hours, the painted "3:39:30" reads back as the hours it shows, never as 3 minutes 39: a
- *  host that reports the layer's text (control/hostedReceiver.ts `harvest`) hands that text back
- *  to this parser on its reboot. Native clocks keep reading "1:30:00" as 1:30. */
-const HOURS_PARSE = `  if (parts.length > 2) return Math.max(0, mins * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseInt(parts[2], 10) || 0));
+/** A fixed instant adopts nothing: update() has already written the incoming text into the
+ *  layer, so the clock is read from its own data-start (if it has not been yet) and painted back. */
+const TARGET_UPDATE = `  // A FIXED INSTANT: its data-start is its whole truth, so nothing written here moves it. It
+  // repaints on the same second as every other output, as an arriving stamp always started it.
+  initMatchClock();
+  if (matchClockAt !== null && !matchClockTimer) matchClockTimer = setInterval(tickMatchClock, 1000);
+  paintMatchClock();
+  return;
 `;
 
 /** The hours formatter: under an hour exactly the native one, from an hour "3:39:30". */

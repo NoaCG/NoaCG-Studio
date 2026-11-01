@@ -249,19 +249,13 @@ export function forgetBootReplay(air: AirPart): AirPart {
 }
 
 /**
- * An imported clock's monitor memory from what a live graphic reported. A host that reports the
- * layer's painted text (control/hostedReceiver.ts `harvest`) sends a plain time where the renderer
- * sends a wire value (row 11). A target's stamped start is its truth whatever was painted
- * ("3:39:30" is hours, which the wire does not read); a plain duration on air is held on air, as it
- * read before the never-taken rule (#1890), so a Pause never marks it off air. Anything else, and
- * every native clock, is the reported value as it always was.
+ * A clock's monitor memory from what a live graphic reported. A host that reports the layer's
+ * painted text (control/hostedReceiver.ts `harvest`) says what was shown, never when (row 11, H1).
+ * A target's stamped start is its whole truth whatever was painted ("3:39:30" is hours, which the
+ * wire does not read). Every other clock is the reported value as it always was.
  */
-function importedClockSeed(clock: ClockSpec, reported: string): string {
-  if (!clock.events || reported.includes('@')) return reported;
-  if (clock.fixedInstant) return clock.seed;
-  if (!clock.startsOnTake) return reported;
-  const time = plainClockValue(reported);
-  return `${time}@/${time}/${time}`;
+function clockSeedFromReport(clock: ClockSpec, reported: string): string {
+  return clock.fixedInstant ? clock.seed : reported;
 }
 
 /**
@@ -301,7 +295,7 @@ export function seedFromResolve(
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined) {
-      clocks = { ...clocks, [graphic]: importedClockSeed(clock, wire(clock.field)) };
+      clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       values[clock.field] = plainClockValue(values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
