@@ -424,7 +424,10 @@ test('the built graphic counts to the instant on every output, through resends, 
     const r = reading(label);
     assert.deepEqual([r.A.value, r.B.value, r.S.value], ['0:00', '0:00', '0:00'], `${label}: held at zero, never rolled forward`);
   }
-  assert.equal(reading('taken').A.shown, reading('taken').A.value, 'the layer shows the time, never the raw wire value');
+  for (const label of ['before the Take', 'taken', 'past the instant']) {
+    assert.equal(reading(label).A.shown, reading(label).A.value, `${label}: the layer paints the time, never the raw wire value (#1894)`);
+  }
+  assert.match(reading('before the Take').A.shown, /^\d:\d\d:\d\d$/, 'two hours out, the layer paints hours (row 11)');
 });
 
 test('T1 and T4 (#1894): a bare time in a gap already behind today is tomorrow\'s; one still ahead is today\'s gap', () => {

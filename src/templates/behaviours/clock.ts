@@ -20,8 +20,10 @@
 // WHAT THIS ROW DECLARES AND WHAT LATER ROWS ADD. Row 7 persists the instance and its mode and
 // declares the machine and the controls; row 8 binds the readout (`clockReadout`, read by
 // importedDesign/svgBind.ts and svg.ts, which emit the match-clock runtime for it). The namespaced
-// wire and recovery (row 9), the target instant (row 10) and the per-mode control polish (row 11)
-// land on this declaration.
+// wire and recovery (row 9) and the target instant (row 10) land on this declaration. Row 11 keeps
+// the controls per mode as declared below (Start, Pause and Reset for counting up and a duration,
+// none for a target, and never a mode switch on air) and paints a target's hours (svg.ts passes
+// `hours` to the match clock; the field and the wire keep minutes and seconds).
 
 import { scorebugType } from '../types/sportsBugs';
 import type { TypeBranch, TypeControlEvent, TypeGroup, TypeMachine } from '../types/graphicType';
