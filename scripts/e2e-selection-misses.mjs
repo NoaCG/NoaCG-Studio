@@ -170,7 +170,8 @@ export function flakyIn(store, sinceIso) {
 }
 
 /**
- * Is one first-parent landing an audit reset (Rule A4)? Pure.
+ * Is one first-parent landing an audit reset (Rule A4)? Pure. Selector code, a focus or critical
+ * line added or removed, a covers line removed or changed, or a declared trailer.
  * @param {{ sha: string, date: string, files: string[], headerLines: string[], messages: string }} landing
  *   files: the landing's diff; headerLines: its added and removed spec lines (`+// focus`);
  *   messages: the commit messages it brought in
@@ -182,6 +183,10 @@ export function resetOf(landing) {
   if (code.length) reasons.push(`selector code: ${code.join(', ')}`);
   const membership = landing.headerLines.filter((l) => /^[+-]\s*\/\/+\s*(?:focus\s*$|critical\s*:)/.test(l));
   if (membership.length) reasons.push(`critical/shared membership: ${membership.length} header line(s) changed`);
+  // Removed or changed protection: a `covers:` line taken away (a changed line shows as removed and
+  // added). A line only added is additive and audited without a reset.
+  const narrowed = landing.headerLines.filter((l) => /^-\s*\/\/+\s*covers?\s*:/.test(l));
+  if (narrowed.length) reasons.push(`protection removed or changed: ${narrowed.length} covers line(s)`);
   const trailers = [...String(landing.messages ?? '').matchAll(new RegExp(`^${RESET_TRAILER}:\\s*(.+)$`, 'gm'))].map((m) => m[1].trim());
   if (trailers.length) reasons.push(`declared: ${trailers.join('; ')}`);
   return reasons.length ? { sha: landing.sha, date: landing.date, reason: reasons.join(' | ') } : null;

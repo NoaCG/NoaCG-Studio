@@ -33,7 +33,10 @@ Three rule families, written before the code. Each line has one test named after
   and the full run on main is what it protected).
 - Q2. An incident has an owner (the plan's recorded owner in `scripts/growth-ceilings.json`), a
   repair due date (critical: 7 days after it entered; affected: 14, the existing stale bound) and
-  a stated coverage gap (the contracts it served, or its covers). Past its due date it reads `overdue`.
+  a stated coverage gap (the contracts it served, or its covers). Past its due date it reads `overdue`
+  in the issue and the weekly report. The audit is already `blocked` for every open incident (Q5),
+  so overdue adds no further automatic step; escalating an overdue repair is the owner's, and ci15
+  must not read "an issue exists" as "it is being repaired".
 - Q3. The quarantine run on every push to main keeps the incidents in one rolling issue, opened
   when the first incident exists and closed only when the store holds none. A store or issue it
   cannot read never closes the issue.
@@ -62,9 +65,10 @@ Three rule families, written before the code. Each line has one test named after
   `miss`; then `unknown`, then `no-selection` (a culprit that landed before ci06 carries no
   manifest: no pre-merge configured check existed), then `quarantined`.
 - A4. A first-parent landing on main is an audit reset when its diff touches selector code
-  (`SELECTION_CODE`), adds or removes a `// focus` or `// critical:` header line in a spec, or one
-  of its commits carries a `Selection-audit-reset: <reason>` trailer. The reset names its class
-  and files or reason.
+  (`SELECTION_CODE`), adds or removes a `// focus` or `// critical:` header line in a spec, removes
+  or changes a `// covers:` line (protection removed or changed; a line only added is additive),
+  or one of its commits carries a `Selection-audit-reset: <reason>` trailer. The reset names its
+  class and files or reason. The covers clause was added after the fourth review.
 - A5. The audit reports the latest reset (commit, time, reason) and the days since it. Its status
   is `clean` only with no miss, no unknown and nothing blocking (Q5); the day count is reported,
   never read as qualification.
@@ -80,6 +84,9 @@ folded into the line it belongs to and tested:
   which stop at a few specs.
 - Q3 (PR review): the incident report reads the store strictly, so a missing store throws instead
   of reading as "no incident" and closing the issue.
+- Fourth `/so` on `11beb7d3` (AGREE WITH CORRECTIONS, B): the skipping-candidate reading now covers
+  unmarked misses too (`video-hyperframes` is the fifth unexplained miss, #1900); a removed or
+  changed `covers:` line is a reset (A4); Q2 states what overdue does and does not trigger.
 - Third `/so` on `12a7015f` (AGREE WITH CORRECTIONS, B; the rule model holds): every not-selected
   candidate is now read, not only the newest, and 4 misses are reported unexplained; two D2 defect
   classes were added to the map ("same revision with different content" and "parser resource
@@ -209,8 +216,13 @@ names that very run. 189 failing items, **none `unknown`**:
   quarantine-only, workflow or `scripts/` landings, CLI packaging (8bfb475b), the Supabase advisor
   baseline (b1038916, f48659e9), a `.gitignore` (a2523f82), or edits to other spec files
   (76afb8cb, 3d2fa00c). Each candidate's file list was read.
-- **4 flake-marked misses stay UNEXPLAINED per run**: a candidate whose plan left the spec out
-  changed product code, and no same-run receipt clears it.
+- **5 misses stay UNEXPLAINED per run** (4 flake-marked, 1 unmarked): a candidate whose plan left
+  the spec out changed product code, and no same-run receipt clears it. The same reading was
+  applied to every unmarked miss as well.
+  - `video-hyperframes` at run 37828961726: aa2717b3 changed `src/components/editorFoundation/*`,
+    which `src/components/wizard/CreationWizard.tsx` imports, inside the spec's `wizard/**` cover.
+    Today's planner still does not select it for those files, so if this was a real miss the
+    mapping gap is open after the reset. Filed as #1900; a header change there is a reset.
   - `editor-foundation` at run 36597679836: b0331ecb changed the production rundown UI.
   - `editor-base-edits` at run 36932722985: 4abaa4a5 changed `src/preview/composeDocument.ts`,
     `src/output/main.ts` and export code, and 97311f15 changed export code.
@@ -220,16 +232,14 @@ names that very run. 189 failing items, **none `unknown`**:
 
   Each spec has fail-then-pass receipts on nearby runs (it is flaky), and the reasoned reading
   makes the playout and rundown changes unlikely causes of an editor or mobile layout failure.
-  That is not proof, so they are reported as unexplained, not as flakes. All four landed before
-  the latest reset (26095c82, 2026-10-31) and before ci04's broad-file escalation. Today a
-  `composeDocument.ts` change plans the full suite, so the comparison window after this row
-  starts without them. ci15 decides whether pre-reset unexplained misses block qualification.
-- **4 unmarked flakes**: `editor-arrangement` (76afb8cb) and `editor-groups` (742a5a65) were
+  That is not proof, so they are reported as unexplained, not as flakes. All five landed before
+  the latest reset (26095c82, 2026-10-31). Four depend on code today's planner now escalates or
+  selects for (a `composeDocument.ts` change plans the full suite); the `video-hyperframes` one
+  may not (#1900). ci15 decides whether pre-reset unexplained misses block qualification.
+- **3 unmarked flakes**: `editor-arrangement` (76afb8cb) and `editor-groups` (742a5a65) were
   quarantined and released before their window. `import-svg-corpus` (0df77f74, a docs landing) is
-  the fail-then-pass bot PR #1834 is quarantining. `video-hyperframes` failed at a2523f82
-  (`.gitignore`) after aa2717b3, which changed `src/components/editorFoundation/*`. The spec's
-  header does not map that code, and today's planner does not select it for those files. The
-  newest culprit, which decides, cannot reach it.
+  the fail-then-pass bot PR #1834 is quarantining. (`video-hyperframes` at run 37828961726 is in
+  the unexplained list below.)
 - **6 real selection misses, all corrected before the latest reset**:
   - `editor-fidelity-trim` at 5619f765..45ec97b2 (#927, the miss the old weekly audit found)
   - `editor-fidelity-trim` at 14c0a5a5 (`svgFit.js`)
@@ -244,7 +254,8 @@ names that very run. 189 failing items, **none `unknown`**:
   quarantine-only landing that left it out. The same run also lost a shard (118 of 133 tests,
   #1865), and every configured run on main after it is green. This is infrastructure, not selection.
 
-**Unexplained misses: 4, all before the latest reset** (listed above). There is none since it.
+**Unexplained misses: 5, all landed before the latest reset** (listed above); one may point at a
+mapping gap still open (#1900).
 Zero unexplained misses is necessary, not proof of completeness; the full runs on `main` stay.
 Stated limits:
 
@@ -264,7 +275,7 @@ run was added.
 
 ## 5. Mutation check
 
-Each Rule line broken alone in the code, with its tests run: all 29 mutations fail. 26 fail the
+Each Rule line broken alone in the code, with its tests run: all 30 mutations fail. 27 fail the
 test named after their rule. Three fail a neighbouring test instead: A1b fails the inheritance
 test next to A1, and Q2b and Q2c fail the growth report's `(e)` test that holds the AC-8 line. The list, with the exact replacement for each, is
 [phase-ci07-mutations.json](phase-ci07-mutations.json), so a reviewer can re-apply any of them.

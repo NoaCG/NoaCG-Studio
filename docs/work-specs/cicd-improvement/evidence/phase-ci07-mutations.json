@@ -1,5 +1,5 @@
 {
- "how": "For each entry: replace `old` with `new` once in `file`, run `node --test scripts/<test>.test.mjs`, expect a failure in the test named after the rule, then restore the file. Applied by a scratch script on the final code; every entry failed its test.",
+ "how": "For each entry: replace `old` with `new` once in `file`, run `node --test scripts/<test>.test.mjs`, expect a failure (in the test named after the rule, or for A1b, Q2b and Q2c its neighbour), then restore the file. Applied by a scratch script on the final code; every entry failed.",
  "mutations": [
   {
    "rule": "K1",
@@ -203,6 +203,13 @@
    "old": "collection, quarantine });",
    "new": "collection });",
    "test": "growth-controls"
+  },
+  {
+   "rule": "A4c",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "if (narrowed.length) reasons.push",
+   "new": "if (false) reasons.push",
+   "test": "e2e-selection-misses"
   }
  ]
 }

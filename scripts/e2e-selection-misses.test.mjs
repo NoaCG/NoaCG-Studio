@@ -115,6 +115,9 @@ test('Rule A4: a landing resets the audit for selector code, a focus or critical
   assert.match(resetOf({ ...base, headerLines: ['+// focus'] }).reason, /critical\/shared membership: 1 header line/);
   assert.match(resetOf({ ...base, headerLines: ['-// critical: site-entry'] }).reason, /critical\/shared membership/);
   assert.equal(resetOf({ ...base, headerLines: ['+// covers: src/x/**', '+// focus set, like the rest'] }), null, 'an additive header is not a reset');
+  assert.match(resetOf({ ...base, headerLines: ['-// covers: src/x/**'] }).reason, /protection removed or changed: 1 covers line/, 'a removed covers line narrows protection');
+  assert.match(resetOf({ ...base, headerLines: ['-// covers: src/x/**', '+// covers: src/x/a.ts'] }).reason, /protection removed or changed/, 'a changed covers line is a reset');
+  assert.match(resetOf({ ...base, headerLines: ['-// covers: none - runs only behind BRIDGE_REAL=1'] }).reason, /protection removed or changed/);
   assert.match(resetOf({ ...base, messages: 'fix: map svg.ts\n\nSelection-audit-reset: mapping corrected after miss #927\n' }).reason, /declared: mapping corrected after miss #927/);
   // From git, newest first: the first reset wins, and a shallow boundary is history unread.
   const git = (...a) => {
