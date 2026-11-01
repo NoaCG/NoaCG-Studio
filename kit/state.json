@@ -31,18 +31,13 @@
   "inFlight": [
     {
       "phase": "13",
-      "step": "queued",
-      "session": "session_017SdbwP6wrt8Gz3Qe4CEKLx",
-      "nonce": "13-b-1743",
-      "branch": "claude/plan-jev-svg-import-13-build",
-      "source": "b2f335fb353f799dc7866f23ca9200168205faad",
-      "launchedAt": "2026-11-01T12:44:42Z",
-      "note": "midpoint review builder; acceptance records only; defects filed not fixed 13:18Z PR 1916 open; subscribed. 13:21Z gates verified; stamped; auto-merge on.",
+      "step": "check",
+      "session": "session_017SdbwMoHCz3snE7smw8VTy",
+      "nonce": "13-c-2cfe",
+      "mergeSha": "043fcccb08313e321dbfe6ef1c633f37d98a8eaf",
       "pr": 1916,
-      "head": "1619339b3bf92563ba0ff5bacf2e73591c1d891f",
-      "receipt": "/home/user/noacg-state/jev/receipt-13-b.txt",
-      "so": "session_017SdbwMbPbAbXUs4rGnDa52 A on 1619339",
-      "stamp": "cloud-queue-merge run 41310752713; Reviewed green"
+      "launchedAt": "2026-11-01T13:28:46Z",
+      "note": "independent checker of midpoint review. On pass archive builder session_017SdbwP6wrt8Gz3Qe4CEKLx and its /so sessions (MbPbAbXUs4rGnDa52, PxvvtmqwvRaE6K4YG, LxYnCpPXKKQBwpaDf)."
     }
   ],
   "owner": [],
