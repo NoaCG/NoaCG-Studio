@@ -16,7 +16,7 @@ no aggregate pull-request gate.
 | PR and merge-group gate | `scripts/e2e-capacity.mjs`, the `E2E capacity line (estimate)` step of `ci.yml` | The existing `capacity` verdict, which the CI gate already refuses on, now also carries the four tiers judged alone, the table's age, and changes to the ceilings or the exception records. The new step before it fetches the newest weekly report. |
 | Weekly report | `scripts/growth-report.mjs collect`, new `growth` job in `weekly-audit.yml` | Prices the week's runner-minutes into tiers (failed, cancelled and re-run attempts included), attributes slowdowns to a landing range, reports the aggregate against the envelope, keeps owned and dated actions in one rolling issue, and publishes the `growth-report` artifact the gate reads. |
 | Age alarms | `scripts/growth-report.mjs ages`, new `ages` job in `post-land.yml` | After every landing: every open PR's ready and queue clock against its age ceiling; one overdue item is enough for an owned, dated action in one rolling issue. |
-| Tests | `scripts/growth-controls.test.mjs` (69 tests) | Each names the acceptance line it proves; section 2. |
+| Tests | `scripts/growth-controls.test.mjs` (101 tests) | Each names the acceptance line it proves; section 2. |
 
 ## 2. Acceptance, criterion by criterion
 
@@ -222,9 +222,9 @@ issue, remain for ci17.
   and the gate refuses additions. The way back is the owner's: a `reportRestart` (`at`, reason)
   recorded in `growth-ceilings.json`, which needs a new version and a reviewed revision like any
   other change there; dated after the newest report, it makes the next run a first week.
-- **Renaming a covered job is no way round renewal.** An earlier exception in the same tier whose
-  cover no longer names a real job, and that ran within 30 days of a new one, counts as the same
-  scope, so the new one needs a measured repayment.
+- **Renaming a covered spec or job is no way round renewal.** A rename or removal of a name an
+  exception covers must be recorded in `renamed`, and scope follows the record at any age; an
+  unrecorded orphan counts as the same scope (Rules X4, X12).
 - **An exception waives added cost only up to its allowance.** What it already excepts of the
   measured cost is spent first; growing an excepted job beyond its recorded allowance is charged
   to the tier like any addition. Where a renewal overlaps its predecessor, an item draws the
@@ -262,6 +262,89 @@ issue, remain for ci17.
 
 ## 6. Phase notes
 
+### Rules
+
+The two rule families that kept recurring in review, written as observable lines. Each line has
+one test named after it (`Rule E1: ...` to `Rule X12: ...` in `scripts/growth-controls.test.mjs`),
+and each test fails when its line is broken in the code (mutation-checked). Where order matters,
+the first matching line wins.
+
+**Evidence completeness (E).** A tier's evidence comes from the newest weekly report, or from the
+frozen seed until one is published. First match wins:
+
+- E1. No measurement of the tier, or no window end: **missing**.
+- E2. Window end more than 8 days before today: **stale**.
+- E3. The tier's evidence is not complete (E5 to E11): **partial**.
+- E4. Otherwise: **complete**.
+
+A week's measurement is **partial for every tier** when any of these holds:
+
+- E5. The run list was cut short (a failed list read, or a 6-hour slice reporting over 1,000 runs).
+- E6. A stratum (workflow and event) has no sampled run.
+- E7. A planned job read failed.
+- E8. A planned job read was stopped by the call budget.
+- E9. A run was still unfinished at collection.
+- E10. A run's jobs were still full at the last permitted page; its jobs count as a lower bound.
+- E11. The window holds no landing.
+
+How runs become cost and slowdown points:
+
+- E12. Cost counts every attempt of a run; a slowdown point counts the latest attempt only.
+- E13. A slowdown point is complete only for a successful run whose jobs all completed and were all
+  read, and whose tier jobs are not a selected, affected or subset run. Points are compared only
+  within one workload (the workflow plus that tier's job names).
+- E14. The durations table is stale when its recorded date is missing or more than 8 days old. An
+  open refresh pull request is pending and never makes it fresh.
+
+What each state lets the controls do. A change that adds nothing is never refused by evidence.
+
+- E15. Complete: added cost warns from 85% of a ceiling and is refused at 95%.
+- E16. Partial or stale: added cost is refused from 85%.
+- E17. Missing: any added cost is refused.
+- E18. A weekly report that was asked for and could not be read: any added cost is refused, offline
+  included.
+- E19. A stale durations table: the offline table line refuses from 85% instead of 95%.
+- E20. A breach clears only on evidence that judges it, and is otherwise kept with its stop: cost
+  when the tier is complete and at or under 100%; latency when the timing read is complete,
+  adequate and in bounds; age when its read was complete.
+
+**Exception scope and credit (X).**
+
+- X1. A cover's tier: for `job:<workflow>/<name>`, the tier of that job with each `${{ }}` read as a
+  number; for `spec:<path>`, its folder (`configured/` backend, `catalog/` graphics, else offline).
+- X2. A cover's measured scope: for a job cover, the measured jobs of the same workflow whose
+  run-time names match its name (each `${{ }}` matching anything) and that are in the cover's tier.
+  A spec cover, or a job not yet measured, has none.
+- X3. An exception is valid only with: an id; a known tier; at least one cover, each in the
+  exception's tier and naming a real job or spec; a positive per-landing or per-day allowance; an
+  owner; a review link that is an issue comment in NoaCG/NoaCG-Studio; and from and expires dates at
+  most 30 days apart.
+- X4. Two exceptions are the same scope when they share a cover after following recorded renames
+  (X12), share a measured job (X2), or the earlier one has a cover that names nothing real and was
+  never recorded as renamed or retired. None of these lapse with time.
+- X5. An exception with the same scope as an earlier one needs a measured repayment receipt: a
+  positive per-landing or per-day repayment, at least one run, measured on or after the latest
+  earlier entry's start. Without one it is invalid. The same holds for offline exception lines.
+- X6. The exception ledger is append-only and in order: an entry removed, edited, or placed before
+  an existing one is refused at PR time.
+- X7. Status, first match wins: invalid (no credit, covers nothing); expired (no credit, counted
+  again); not yet started (no credit); active.
+- X8. Credit is pooled per measured job, within one tier. Active exceptions draw in ledger order,
+  each at most its allowance minus what its jobs already credited to earlier exceptions, and never
+  more than the pool has left. Overlapping exceptions credit the larger allowance, never the sum,
+  and never more than the jobs cost.
+- X9. A spec cover earns no credit on measured cost.
+- X10. A covered addition is waived up to the room left: the allowance minus the measured cost of
+  its jobs. Overlapping exceptions give the largest room, never the sum, and the waiver is spent in
+  all of them.
+- X11. Credit never crosses tiers (X1, X2). No exception moves a ceiling, an estimate,
+  `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new version and a reviewed revision, and are
+  still named for the owner.
+- X12. A change that renames or removes a spec or a job that any exception names (offline lines
+  included) must record it in `growth-ceilings.json` `renamed`, as `{ from, to }` or
+  `{ from, retired: true }`; otherwise it is refused. A job keeps its key across a display-name
+  rename. The `renamed` list is append-only.
+
 - **Previous verified main:** `26095c826f1a0ee910d17070d42026a841b9f284` (ci06 merge: push CI,
   configured suite, post-land and quarantine green). The branch starts at `af39c249`, whose
   push CI failed in `E2E 3/15 (full)` (run 41244292482), outside this change.
@@ -276,6 +359,9 @@ issue, remain for ci17.
   - Two review rounds found variants of one missing rule (evidence that cannot prove recovery
     cleared a breach). Per the repeated-family checkpoint, a fresh read-only review reassessed the
     rule model before the repair; its five further cases are fixed with replay tests.
+  - Evidence completeness and exception scope kept recurring after that, each fresh review finding
+    the next edge. They are now written as the Rules above, one test per line, mutation-checked:
+    a later finding is a change to a line and its test, never a standalone patch.
   - Phase age alarms keep their own rolling issue per plan (`Plan phases past their age ceiling:
     <wave file>`): the post-landing check reads no ledger, and a coordinator checking one plan
     must never close or overwrite another plan's phase alarm.

@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 
 import { planMinutes } from './e2e-affected.mjs';
 import { budgetMinutes, minutesByFile, readTable, specFilesOnDisk } from './e2e-durations.mjs';
-import { TIERS, assessTiers, ceilingsRevision, coverJobs, exceptionStatus, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
+import { TIERS, assessTiers, ceilingsRevision, coverJobs, exceptionStatus, renamesOf, scopeIdentity, unrecordedRenames, knownCovers, ledgerChanges, priceAdditions, reportCadence, summarizeTiers, tableFreshness } from './growth-controls.mjs';
 import { measured } from './measured.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -139,9 +139,12 @@ export function readExceptions(root = ROOT) {
  * work spec, under any wording - renews that scope, which needs a measured repayment clause:
  * `, repaid <minutes> min in run <run id>` before `expires`.
  */
-export function offlineExceptionChanges(base, head) {
+export function offlineExceptionChanges(base, head, renamed = []) {
   const key = (e) => `${e.from}|${e.spec}|${e.minutes}|${e.expires}`;
-  const name = (e) => e.spec.split('/').pop();
+  // A spec's scope follows its recorded renames: a renamed file is the same spec.
+  const specNames = (renamed ?? []).filter((r) => /^spec:/.test(r.from ?? '') && /^spec:/.test(r.to ?? '')).map((r) => ({ from: r.from.split('/').pop(), to: r.to.split('/').pop() }));
+  const scope = scopeIdentity(specNames);
+  const name = (e) => scope(e.spec.split('/').pop());
   const baseKeys = new Set(base.map(key));
   const headKeys = new Set(head.map(key));
   const problems = [];
@@ -309,6 +312,7 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
   let offline = [];
   let diffFailed = false;
   const newExceptions = [];
+  const specChanges = [];
   let revisionNote = null;
   if (base) {
     let diff = '';
@@ -322,7 +326,12 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       // into e2e/configured/ is a new backend case).
       const kind = (f) => (/^e2e\/configured\//.test(f) ? 'backend' : /^e2e\/catalog\//.test(f) ? 'graphics' : 'other');
       if (/^A/.test(status) || (/^R/.test(status) && kind(rest[0]) !== kind(file))) added.push(file);
-      if (/^[AMR]/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) workflows[file.split('/').pop()] = { base: gitShow(base, file, root) ?? '', head: readFileSync(path.join(root, file), 'utf8') };
+      if (/^[RD]/.test(status)) specChanges.push({ status, from: rest[0], to: /^R/.test(status) ? file : null });
+      if (/^[AMR]/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) {
+        const from = /^R/.test(status) ? rest[0] : file;
+        workflows[file.split('/').pop()] = { base: gitShow(base, from, root) ?? '', head: readFileSync(path.join(root, file), 'utf8'), baseFile: from.split('/').pop() };
+      }
+      if (/^D/.test(status) && /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)) workflows[file.split('/').pop()] = { base: gitShow(base, file, root) ?? '', head: '' };
     }
     const baseCeilings = gitShow(base, 'scripts/growth-ceilings.json', root);
     if (baseCeilings) {
@@ -339,11 +348,18 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
       // Only an exception this change adds is judged here. One already on record that a rename or
       // a removed job makes invalid simply covers nothing: removing an excepted job is
       // cost-reducing maintenance and must land.
-      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root), coverJobs(measurement)).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
+      for (const e of exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, knownCoversOnDisk(root), coverJobs(measurement), ceilings.renamed).invalid) if (newExceptions.includes(e.id)) ledger.push(`exception ${e.id} is invalid: ${e.problems.join('; ')}`);
     }
     const baseSpecs = (gitShow(base, 'docs/work-specs', root) ?? '').split('\n').filter((n) => n.endsWith('/'));
     const baseExceptions = baseSpecs.flatMap((dir) => parseExceptions(gitShow(base, `docs/work-specs/${dir}spec.md`, root) ?? '').map((e) => ({ ...e, from: `docs/work-specs/${dir}spec.md` })));
-    offline = offlineExceptionChanges(baseExceptions, readExceptions(root));
+    offline = offlineExceptionChanges(baseExceptions, readExceptions(root), ceilings.renamed);
+    // A spec or job an exception names may be renamed or removed only with the change recorded in
+    // `renamed`, so scope identity survives it (Rule X12).
+    const covers = (ceilings.exceptions ?? []).flatMap((e) => e.covers ?? []);
+    const offlineSpecs = [...baseExceptions, ...readExceptions(root)].map((e) => e.spec.split('/').pop());
+    for (const r of unrecordedRenames({ renames: renamesOf({ specChanges, workflows }), covers, offlineSpecs, renamed: ceilings.renamed })) {
+      ledger.push(`this change ${r.retired ? 'removes' : `renames ${r.from} to ${r.to}, `}${r.retired ? `${r.from}, ` : ''}which an exception names: record it in growth-ceilings.json "renamed" (${r.retired ? '{ "from", "retired": true }' : '{ "from", "to" }'}) so its scope carries over`);
+    }
   }
   const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
   const known = knownCoversOnDisk(root);

@@ -160,7 +160,7 @@ export function buildReport({ ceilings, runs, days, windowEnd, now, previous = n
     allocatedPerDay: TIERS.reduce((a, t) => a + ceilings.tiers[t].perLanding * perDayLandings + ceilings.tiers[t].perDay, 0),
   };
   const table = tableFreshness({ recordedAt: tableRecordedAt, today, boundDays: ceilings.freshnessDays, pending });
-  const ex = exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, known, coverJobs(measurement));
+  const ex = exceptionStatus(ceilings.exceptions, today, ceilings.exceptionMaxDays, known, coverJobs(measurement), ceilings.renamed);
   const soon = new Set(expiringSoon(ex.active, today).map((e) => e.id));
   const exceptions = [
     ...ex.active.map((e) => ({ ...e, state: 'active', soon: soon.has(e.id) })),

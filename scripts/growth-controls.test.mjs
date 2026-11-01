@@ -12,8 +12,8 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
-  tableFreshness, tierOfJob, workflowShape,
+  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, renamesOf, unrecordedRenames, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
 
@@ -725,7 +725,9 @@ test('(b) renaming the covered job first is no way round a measured repayment, a
   const st = exceptionStatus([ci04, renamed], '2026-12-05', 30, known);
   assert.match(st.invalid.find((e) => e.id === 'catalog-gate-2').problems.join(), /renews the scope of ci04-catalog-gate without a measured repayment/);
   const later = { ...renamed, id: 'unrelated', from: '2027-03-01', expires: '2027-03-30' };
-  assert.equal(exceptionStatus([ci04, later], '2027-03-05', 30, known).active.length, 1, 'months later, an orphaned entry no longer stands in the way');
+  assert.equal(exceptionStatus([ci04, later], '2027-03-05', 30, known).active.length, 1 - 1, 'an unrecorded orphan stays unknown scope at any age');
+  assert.equal(exceptionStatus([ci04, later], '2027-03-05', 30, known, null, [{ from: 'job:ci.yml/Catalog calibration gate', retired: true }]).active.length, 1, 'a recorded removal ends the scope');
+  assert.match(exceptionStatus([ci04, later], '2027-03-05', 30, known, null, [{ from: 'job:ci.yml/Catalog calibration gate', to: 'job:ci.yml/Catalog calibration gate (v2)' }]).invalid.find((e) => e.id === 'unrelated').problems.join(), /renews the scope of ci04-catalog-gate/, 'a recorded rename carries the scope, months later too');
   const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-restart-'));
   const gone = () => JSON.stringify({ artifacts: [{ name: 'growth-report', expired: true, created_at: '2026-09-01T00:00:00Z', workflow_run: { id: 1, head_branch: 'main' } }] });
   assert.throws(() => fetchLatest(path.join(dir, 'a.json'), gone), /expired/);
@@ -1005,4 +1007,270 @@ test('(b) covers worded differently over the same measured jobs are one scope: r
   const both = [{ ...e1, expires: '2026-11-20' }, { ...e2, repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-31' } }];
   const r2 = assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY, exceptions: both });
   assert.match(r2.tiers.backend.why, /^52\/117 per landing/, '112 - 60, not 112 - 120');
+});
+
+// --- Rules (phase-ci18.md section 6): one test per rule line ---------------------------------
+
+const RULE_REVIEW = 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1';
+const completeRuns = () => fixtureRuns();
+const backendOf = (runs, opts) => priceRuns(runs, { days: 7, ...opts }).tiers.backend.evidence;
+
+test('Rule E1: no measurement of the tier, or no window end, is missing', () => {
+  assert.equal(evidenceOf(null, 'backend', TODAY, 8).state, 'missing');
+  const m = measurement({}); delete m.tiers.backend;
+  assert.equal(evidenceOf(m, 'backend', TODAY, 8).state, 'missing');
+  assert.equal(evidenceOf({ ...measurement({}), windowEnd: undefined }, 'backend', TODAY, 8).state, 'missing');
+});
+
+test('Rule E2: a window end more than 8 days old is stale', () => {
+  assert.equal(evidenceOf(measurement({}, { windowEnd: '2026-10-22' }), 'backend', TODAY, 8).state, 'stale');
+  assert.equal(evidenceOf(measurement({}, { windowEnd: '2026-10-23' }), 'backend', TODAY, 8).state, 'complete');
+});
+
+test('Rule E3: a fresh tier whose evidence is not complete is partial', () => {
+  assert.equal(evidenceOf(measurement({}, { evidence: 'partial' }), 'backend', TODAY, 8).state, 'partial');
+});
+
+test('Rule E4: otherwise the tier is complete', () => {
+  assert.equal(evidenceOf(measurement({}), 'backend', TODAY, 8).state, 'complete');
+  assert.equal(backendOf(completeRuns()), 'complete', 'the fixture week is complete, so E5 to E11 each change one thing');
+});
+
+test('Rule E5: a run list cut short makes every tier partial', () => {
+  const { report } = buildReport({ ceilings: CEILINGS, runs: completeRuns(), days: 7, windowEnd: '2026-10-31T00:00:00Z', now: '2026-10-31T06:00:00Z', listComplete: false, tableRecordedAt: '2026-10-30', collection: 'fixture' });
+  for (const t of TIERS) assert.equal(report.measurement.tiers[t].evidence, 'partial', t);
+});
+
+test('Rule E6: a stratum with no sampled run makes the tiers partial', () => {
+  const runs = [...completeRuns(), { id: 900, workflow: 'catalog-gates.yml', event: 'push', branch: 'main', sha: 'x', created: '2026-10-26T00:00:00Z', conclusion: 'success', status: 'completed', jobs: null }];
+  assert.equal(backendOf(runs), 'partial');
+});
+
+test('Rule E7: a planned job read that failed makes the tiers partial', () => {
+  const runs = completeRuns(); runs[1].jobs = null; runs[1].failed = true;
+  assert.equal(backendOf(runs), 'partial');
+});
+
+test('Rule E8: a planned job read the call budget stopped makes the tiers partial', () => {
+  const runs = completeRuns(); runs[1].jobs = null; runs[1].unread = true;
+  assert.equal(backendOf(runs), 'partial');
+  const reader = makeReader(0, () => '{}');
+  const planned = completeRuns().map((r) => ({ ...r, jobs: null, status: 'completed' }));
+  sampleJobs(reader, planned, 0);
+  assert.ok(planned.some((r) => r.unread) && planned.every((r) => !r.jobs), 'a budget already spent marks the planned reads unread, never sampled');
+  assert.equal(backendOf(planned), 'partial');
+});
+
+test('Rule E9: a run still unfinished at collection makes the tiers partial', () => {
+  const runs = [...completeRuns(), { id: 901, workflow: 'ci.yml', event: 'push', branch: 'main', sha: 'u', created: '2026-10-28T00:00:00Z', conclusion: null, status: 'in_progress', jobs: null }];
+  assert.equal(backendOf(runs), 'partial');
+});
+
+test('Rule E10: a run whose jobs were still full at the last page is partial, its jobs a lower bound', () => {
+  const runs = completeRuns(); runs[0].cutShort = true;
+  const priced = priceRuns(runs, { days: 7 });
+  assert.equal(priced.tiers.backend.evidence, 'partial');
+  assert.equal(priced.tiers.backend.lowerBound, true);
+});
+
+test('Rule E11: a week with no landing is partial', () => {
+  const runs = completeRuns().filter((r) => !(r.workflow === 'ci.yml' && r.event === 'push'));
+  assert.equal(backendOf(runs), 'partial');
+});
+
+test('Rule E12: cost counts every attempt; a slowdown point counts the latest attempt only', () => {
+  const job = (attempt) => ({ name: 'Configured E2E shard 1/4', status: 'completed', started_at: '2026-10-30T00:00:00Z', completed_at: '2026-10-30T00:20:00Z', attempt });
+  const rerun = { id: 1, workflow: 'configured-suite.yml', event: 'push', branch: 'main', sha: 'r', created: '2026-10-20T00:00:00Z', conclusion: 'success', jobs: [job(1), job(2)] };
+  const landing = { id: 2, workflow: 'ci.yml', event: 'push', branch: 'main', sha: 'l', created: '2026-10-20T00:00:00Z', conclusion: 'success', jobs: [] };
+  assert.equal(priceRuns([rerun, landing], { days: 7 }).tiers.backend.perLanding, 40);
+  assert.equal(seriesOf([rerun]).backend[0].value, 20);
+});
+
+test('Rule E13: a slowdown point is complete only for a successful, fully read, fixed-workload run; points compare within one workload', () => {
+  const job = (name, status = 'completed') => ({ name, status, started_at: '2026-10-30T00:00:00Z', completed_at: '2026-10-30T00:20:00Z' });
+  const run = (over) => ({ id: 1, workflow: 'configured-suite.yml', event: 'push', branch: 'main', sha: 's', created: '2026-10-20T00:00:00Z', conclusion: 'success', jobs: [job('Configured E2E shard 1/4')], ...over });
+  assert.equal(seriesOf([run({})]).backend[0].complete, true);
+  assert.equal(seriesOf([run({ conclusion: 'failure' })]).backend[0].complete, false, 'failed run');
+  assert.equal(seriesOf([run({ jobs: [job('Configured E2E shard 1/4', 'in_progress')] })]).backend[0].complete, false, 'unfinished job');
+  assert.equal(seriesOf([run({ cutShort: true })]).backend[0].complete, false, 'unread jobs');
+  assert.equal(seriesOf([run({ workflow: 'ci.yml', jobs: [job('Configured E2E 1/4 (selected, local Supabase)')] })]).backend[0].complete, false, 'selected run');
+  assert.notEqual(seriesOf([run({})]).backend[0].workload, seriesOf([run({ jobs: [job('Configured E2E shard 1/8')] })]).backend[0].workload, 'a re-sharded suite is another workload');
+});
+
+test('Rule E14: the durations table is stale past 8 days or with no date, and an open refresh never makes it fresh', () => {
+  assert.equal(tableFreshness({ recordedAt: '2026-10-22', today: TODAY, boundDays: 8 }).stale, true);
+  assert.equal(tableFreshness({ recordedAt: '2026-10-23', today: TODAY, boundDays: 8 }).stale, false);
+  assert.equal(tableFreshness({ recordedAt: undefined, today: TODAY, boundDays: 8 }).stale, true);
+  assert.equal(tableFreshness({ recordedAt: '2026-10-19', today: TODAY, boundDays: 8, pending: [{ number: 1503, recordedAt: '2026-10-30' }] }).stale, true);
+});
+
+test('Rule E15: on complete evidence added cost warns from 85% and is refused at 95%', () => {
+  const run = (used, add) => assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: used }), items: add ? [backendItem(add)] : [], today: TODAY }).tiers.backend.status;
+  assert.equal(run(90, 1), 'ok', '78%');
+  assert.equal(run(100, 1), 'warn', '86%');
+  assert.equal(run(110, 1), 'warn', '94.9%');
+  assert.equal(run(110, 2), 'refuse', '95.7%');
+});
+
+test('Rule E16: on partial or stale evidence added cost is refused from 85%', () => {
+  const run = (m) => assessTiers({ ceilings: noExceptions, measurement: m, items: [backendItem(1)], today: TODAY }).tiers.backend.status;
+  assert.equal(run(measurement({ backend: 100 })), 'warn', 'complete at 86% only warns');
+  assert.equal(run(measurement({ backend: 100 }, { evidence: 'partial' })), 'refuse');
+  assert.equal(run(measurement({ backend: 100 }, { windowEnd: '2026-10-20' })), 'refuse');
+});
+
+test('Rule E17: on missing evidence any added cost is refused, and adding nothing lands', () => {
+  const m = measurement({}); delete m.tiers.backend;
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: m, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
+  assert.notEqual(assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY }).tiers.backend.status, 'refuse');
+});
+
+test('Rule E18: a weekly report asked for and unreadable refuses any added cost, offline included', () => {
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: null, items: [backendItem(0.1)], today: TODAY }).tiers.backend.status, 'refuse');
+  // Offline: even a tier with room is refused when the report itself could not be read.
+  const roomy = assessTiers({ ceilings: noExceptions, measurement: measurement({ offline: 100 }), items: [], today: TODAY });
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: roomy, estimates: CEILINGS.estimates }, { added: 0.1 }).status, 'ok');
+  assert.equal(applyOfflineStop({ status: 'ok', reasons: [], stops: {}, tiers: roomy, estimates: CEILINGS.estimates, unreadable: true }, { added: 0.1 }).status, 'refuse');
+});
+
+test('Rule E19: a stale durations table makes the offline table line refuse from 85%', () => {
+  const minutes = Object.fromEntries([...Array(100).keys()].map((i) => [`s${i}.spec.ts`, 1.8]));
+  const table = { source: {}, minutes, overhead: { jobMinutes: 0.42, testFactor: 1.01, medianJobMinutes: 0.3, samples: 10 } };
+  const args = { table, suite: [...Object.keys(minutes), 'new.spec.ts'].sort(), changed: ['e2e/new.spec.ts'], today: TODAY };
+  assert.equal(assess(args).status, 'warn');
+  assert.equal(assess({ ...args, tableStale: true }).status, 'refuse');
+});
+
+test('Rule E20: a breach clears only on evidence that judges it, and is otherwise kept with its stop', () => {
+  const cost = { key: 'cost:backend', since: '2026-10-10', due: '2026-10-17', owner: 'o', corrections: 1, state: 'stopped', detail: 'x' };
+  const age = { key: 'age:#7', kind: 'age', subject: '#7', category: 'prReady', since: '2026-10-29', due: '2026-10-30', owner: 'o', corrections: 1, state: 'stopped', detail: 'y' };
+  const previous = { generatedAt: '2026-10-24T06:00:00Z', breaches: [cost, age], stops: { backend: 'x' }, timing: [] };
+  const build = (over) => buildReport({ ceilings: CEILINGS, runs: completeRuns(), days: 7, windowEnd: '2026-10-31T00:00:00Z', now: '2026-10-31T06:00:00Z', previous, tableRecordedAt: '2026-10-30', collection: 'fixture', ...over }).report;
+  const keys = (r) => r.breaches.map((b) => b.key);
+  assert.ok(!keys(build({})).includes('cost:backend'), 'complete and in bounds: cleared');
+  assert.ok(keys(build({ listComplete: false })).includes('cost:backend'), 'partial: kept');
+  assert.ok(!keys(build({})).includes('age:#7'), 'a complete read without the item: cleared');
+  assert.ok(keys(build({ openComplete: false })).includes('age:#7'), 'an incomplete read: kept');
+});
+
+test('Rule X1: a cover\'s tier is its job\'s tier with each ${{ }} read as a number, or its spec\'s folder', () => {
+  assert.equal(tierOfCover('job:ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})'), 'offline');
+  assert.equal(tierOfCover('job:ci.yml/Configured E2E ${{ matrix.shardIndex }}/4 (selected, local Supabase)'), 'backend');
+  assert.equal(tierOfCover('spec:e2e/configured/a.spec.ts'), 'backend');
+  assert.equal(tierOfCover('spec:e2e/catalog/a.spec.ts'), 'graphics');
+  assert.equal(tierOfCover('spec:e2e/a.spec.ts'), 'offline');
+});
+
+test('Rule X2: a job cover\'s scope is the measured jobs of its workflow and tier its name matches; a spec or unmeasured job has none', () => {
+  const m = { jobs: { 'ci.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 }, 'ci.yml/Configured E2E 2/2 (selected, local Supabase)': { perLanding: 5 }, 'nightly.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 }, 'ci.yml/E2E 1/6 (full)': { perLanding: 66 } } };
+  const of = coverJobs(m);
+  assert.deepEqual(of('job:ci.yml/Configured E2E ${{ matrix.i }}/${{ matrix.n }} (selected, local Supabase)').sort(), ['ci.yml/Configured E2E 1/2 (selected, local Supabase)', 'ci.yml/Configured E2E 2/2 (selected, local Supabase)']);
+  assert.deepEqual(of('job:ci.yml/${{ matrix.name }}'), [], 'overhead cover: no offline or backend job');
+  assert.deepEqual(of('spec:e2e/configured/a.spec.ts'), []);
+  assert.deepEqual(of('job:ci.yml/Never ran'), []);
+});
+
+test('Rule X3: an exception is valid only with id, tier, covers in its tier naming something real, allowance, owner, issue-comment review and dates at most 30 days apart', () => {
+  const good = { id: 'g', tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const known = new Set(['spec:e2e/configured/a.spec.ts']);
+  const problems = (over) => exceptionProblems({ ...good, ...over }, [], 30, known);
+  assert.deepEqual(problems({}), []);
+  for (const [field, value, why] of [['id', '', /no id/], ['tier', 'x', /unknown tier/], ['covers', [], /no scope/], ['covers', ['spec:e2e/a.spec.ts'], /not in the backend tier/], ['covers', ['spec:e2e/configured/gone.spec.ts'], /names no job or spec/], ['perLanding', 0, /no cost/], ['owner', '', /no owner/], ['reviewed', 'https://github.com/x/y/issues/1#issuecomment-1', /no separate review/], ['expires', '2026-12-30', /over 30/], ['expires', '2026-10-01', /no valid from\/expires/]]) {
+    assert.match(problems({ [field]: value }).join(), why, `${field}=${JSON.stringify(value)}`);
+  }
+});
+
+test('Rule X4: same scope means a shared cover after recorded renames, a shared measured job, or an earlier cover that names nothing now and was never recorded', () => {
+  const base = { tier: 'backend', perLanding: 5, owner: 'o', reviewed: RULE_REVIEW };
+  const later = { ...base, id: 'b', from: '2026-10-25', expires: '2026-11-20' };
+  const renews = (earlier, e, known = null, jobsOf = null, renamed = []) => /renews the scope/.test(exceptionProblems(e, [earlier], 30, known, jobsOf, renamed).join());
+  const old = (covers, from = '2026-10-01', expires = '2026-10-20') => ({ ...base, id: 'a', covers, from, expires });
+  assert.ok(renews(old(['spec:e2e/configured/a.spec.ts']), { ...later, covers: ['spec:e2e/configured/a.spec.ts'] }), 'shared cover');
+  assert.ok(renews(old(['spec:e2e/configured/a.spec.ts'], '2025-01-01', '2025-01-20'), { ...later, covers: ['spec:e2e/configured/a2.spec.ts'] }, null, null, [{ from: 'spec:e2e/configured/a.spec.ts', to: 'spec:e2e/configured/a2.spec.ts' }]), 'a recorded rename, at any age');
+  const jobsOf = coverJobs({ jobs: { 'ci.yml/Configured E2E 1/2 (selected, local Supabase)': { perLanding: 5 } } });
+  assert.ok(renews(old(['job:ci.yml/Configured E2E ${{ matrix.i }}/2 (selected, local Supabase)']), { ...later, covers: ['job:ci.yml/Configured E2E ${{ matrix.lane }}'] }, null, jobsOf), 'shared measured job');
+  const known = new Set(['spec:e2e/configured/b.spec.ts']);
+  assert.ok(renews(old(['spec:e2e/configured/gone.spec.ts'], '2025-01-01', '2025-01-20'), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }, known), 'an unrecorded orphan, at any age');
+  assert.ok(!renews(old(['spec:e2e/configured/gone.spec.ts']), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }, known, null, [{ from: 'spec:e2e/configured/gone.spec.ts', retired: true }]), 'a recorded removal is history, not scope');
+  assert.ok(!renews(old(['spec:e2e/configured/c.spec.ts']), { ...later, covers: ['spec:e2e/configured/b.spec.ts'] }), 'a different scope');
+});
+
+test('Rule X12: renaming or removing a spec or job an exception names must be recorded in renamed, and the record is append-only', () => {
+  const wf = (name) => `on:\n  pull_request:\njobs:\n  gate:\n    name: ${name}\n`;
+  const renames = renamesOf({ specChanges: [{ status: 'R100', from: 'e2e/foo.spec.ts', to: 'e2e/foo-v2.spec.ts' }, { status: 'D', from: 'e2e/bar.spec.ts' }], workflows: { 'ci.yml': { base: wf('Catalog calibration gate'), head: wf('Catalog gate') } } });
+  assert.deepEqual(renames, [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }, { from: 'spec:e2e/bar.spec.ts', retired: true }, { from: 'job:ci.yml/Catalog calibration gate', to: 'job:ci.yml/Catalog gate' }]);
+  const covers = ['job:ci.yml/Catalog calibration gate'];
+  const unrecorded = unrecordedRenames({ renames, covers, offlineSpecs: ['foo.spec.ts'], renamed: [] });
+  assert.deepEqual(unrecorded.map((r) => r.from), ['spec:e2e/foo.spec.ts', 'job:ci.yml/Catalog calibration gate'], 'bar names no exception: its removal needs no record');
+  assert.deepEqual(unrecordedRenames({ renames, covers, offlineSpecs: ['foo.spec.ts'], renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }, { from: 'job:ci.yml/Catalog calibration gate', to: 'job:ci.yml/Catalog gate' }] }), []);
+  // The offline ledger follows the record too: a new line for the renamed file is a renewal.
+  const line = (spec, from) => ({ from, spec, minutes: 3, expires: '2026-11-20' });
+  assert.match(offlineExceptionChanges([line('e2e/foo.spec.ts', 'a/spec.md')], [line('e2e/foo.spec.ts', 'a/spec.md'), line('e2e/foo-v2.spec.ts', 'b/spec.md')], [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }]).join(), /renews an earlier one/);
+  const base = { ...clone(CEILINGS), renamed: [{ from: 'spec:e2e/foo.spec.ts', to: 'spec:e2e/foo-v2.spec.ts' }] };
+  assert.deepEqual(ledgerChanges({ base, head: { ...base, renamed: [...base.renamed, { from: 'spec:e2e/x.spec.ts', retired: true }] } }), [], 'appending a record needs no revision');
+  assert.match(ledgerChanges({ base, head: { ...base, renamed: [] } }).join(), /renamed list is append-only/);
+});
+
+test('Rule X5: same scope needs a measured repayment receipt: positive repayment, a run, measured on or after the latest earlier start', () => {
+  const base = { tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW };
+  const first = { ...base, id: 'a', from: '2026-10-01', expires: '2026-10-20' };
+  const renewal = (repaid) => exceptionProblems({ ...base, id: 'b', from: '2026-10-25', expires: '2026-11-20', repaid }, [first], 30);
+  assert.deepEqual(renewal({ perLanding: 2, runs: ['1'], measuredAt: '2026-10-21' }), []);
+  assert.match(renewal(undefined).join(), /without a measured repayment receipt/);
+  assert.match(renewal({ perLanding: 0, runs: ['1'], measuredAt: '2026-10-21' }).join(), /without a measured repayment receipt/);
+  assert.match(renewal({ perLanding: 2, runs: [], measuredAt: '2026-10-21' }).join(), /without a measured repayment receipt/);
+  assert.match(renewal({ perLanding: 2, runs: ['1'], measuredAt: '2026-09-30' }).join(), /without a measured repayment receipt/);
+});
+
+test('Rule X6: the ledger is append-only and in order', () => {
+  const e = (id) => ({ id, tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-01', expires: '2026-10-20' });
+  const base = { ...clone(CEILINGS), exceptions: [e('a')] };
+  assert.deepEqual(ledgerChanges({ base, head: { ...base, exceptions: [e('a'), e('b')] } }), []);
+  assert.match(ledgerChanges({ base, head: { ...base, exceptions: [] } }).join(), /removed/);
+  assert.match(ledgerChanges({ base, head: { ...base, exceptions: [{ ...e('a'), perLanding: 9 }] } }).join(), /edited/);
+  assert.match(ledgerChanges({ base, head: { ...base, exceptions: [e('b'), e('a')] } }).join(), /appended after the existing ones/);
+});
+
+test('Rule X7: status, first match wins: invalid, expired, not yet started, active', () => {
+  const e = (over) => ({ id: 'x', tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20', ...over });
+  const where = (x) => { const s = exceptionStatus([x], TODAY, 30); return s.invalid.length ? 'invalid' : s.expired.length ? 'expired' : s.active.length ? 'active' : 'not yet'; };
+  assert.equal(where(e({ owner: '', expires: '2026-10-26' })), 'invalid', 'invalid wins over expired');
+  assert.equal(where(e({ from: '2026-10-01', expires: '2026-10-20' })), 'expired');
+  assert.equal(where(e({ from: '2026-11-05', expires: '2026-11-20' })), 'not yet');
+  assert.equal(where(e({})), 'active');
+});
+
+test('Rule X8: credit is pooled per measured job: overlapping exceptions credit the larger allowance, never the sum or more than the jobs cost', () => {
+  const base = { tier: 'graphics', owner: 'o', reviewed: RULE_REVIEW };
+  const a = { ...base, id: 'a', covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 17.7, from: '2026-10-20', expires: '2026-11-15' };
+  const b = { ...base, id: 'b', covers: ['job:ci.yml/Catalog calibration ${{ matrix.x }}'], perLanding: 30, from: '2026-10-25', expires: '2026-11-20', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-24' } };
+  const why = (cost, exceptions) => assessTiers({ ceilings: noExceptions, measurement: { ...measurement({ graphics: 60 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: cost, perDay: 0 } } }, items: [], today: TODAY, exceptions }).tiers.graphics.why;
+  assert.match(why(45, [a, b]), /^30\/10 per landing/, '60 - 30: the larger allowance, not 47.7');
+  assert.match(why(20, [a, b]), /^40\/10 per landing/, '60 - 20: never more than the job costs');
+});
+
+test('Rule X9: a spec cover earns no credit on measured cost', () => {
+  const ex = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/a.spec.ts'], perLanding: 50, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  const m = { ...measurement({ backend: 100 }), jobs: { 'configured-suite.yml/Configured E2E shard 1/4': { perLanding: 40, perDay: 0 } } };
+  assert.match(assessTiers({ ceilings: noExceptions, measurement: m, items: [], today: TODAY, exceptions: [ex] }).tiers.backend.why, /^100\/117 per landing/);
+});
+
+test('Rule X10: a covered addition is waived up to the room left (allowance minus its jobs\' cost); overlapping rooms give the largest, never the sum', () => {
+  const spec = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  assert.equal(assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 60 }), items: [backendItem(8)], today: TODAY, exceptions: [spec] }).tiers.backend.addedLanding, 3);
+  const base = { tier: 'graphics', owner: 'o', reviewed: RULE_REVIEW, covers: ['job:ci.yml/Catalog calibration gate'] };
+  const a = { ...base, id: 'a', perLanding: 17.7, from: '2026-10-20', expires: '2026-11-15' };
+  const b = { ...base, id: 'b', perLanding: 30, from: '2026-10-25', expires: '2026-11-20', repaid: { perLanding: 2, runs: ['1'], measuredAt: '2026-10-24' } };
+  const grow = (add) => assessTiers({ ceilings: noExceptions, measurement: { ...measurement({ graphics: 25.5 }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 17.7, perDay: 0 } } }, items: [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding: add, perDay: 0 }], today: TODAY, exceptions: [a, b] }).tiers.graphics.addedLanding;
+  assert.equal(Math.round(10 * grow(20)) / 10, 7.7, '12.3 of room, not 12.3 + 0');
+});
+
+test('Rule X11: credit never crosses tiers, and no exception moves a ceiling, an estimate, MAIN_RUNNERS or SHARD_CAP_MINUTES', () => {
+  const ex = { id: 'x', tier: 'overhead', covers: ['job:ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (full)'], perLanding: 80, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
+  assert.match(exceptionStatus([ex], TODAY, 30).invalid[0].problems.join(), /not in the overhead tier/);
+  const base = clone(CEILINGS);
+  const head = clone(base); head.tiers.backend.perLanding = 200; head.exceptions.push({ ...ex, tier: 'backend' });
+  assert.match(ledgerChanges({ base, head }).join(), /without a new version and a reviewed revision/);
+  assert.match(ledgerChanges({ base, head: base, mainRunners: { base: 13, head: 20 } }).join(), /MAIN_RUNNERS rose/);
+  assert.match(ledgerChanges({ base, head: base, shardCap: { base: 20, head: 40 } }).join(), /SHARD_CAP_MINUTES rose/);
 });

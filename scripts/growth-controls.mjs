@@ -307,7 +307,74 @@ export function reportCadence({ generatedAt, today, maxAgeDays }) {
 /** A recorded decision: an issue comment in this repository, never a link to anything else. */
 const ISSUE_COMMENT = /^https:\/\/github\.com\/NoaCG\/NoaCG-Studio\/issues\/\d+#issuecomment-\d+$/;
 
-const overlaps = (a, b) => a.covers.some((c) => b.covers.includes(c));
+/**
+ * Scope identity through the recorded renames (`renamed` in growth-ceilings.json): every name in
+ * one rename chain is one scope, so a renamed spec or job never starts a fresh scope.
+ */
+export function scopeIdentity(renamed = []) {
+  const parent = new Map();
+  const find = (x) => { let y = x; while (parent.has(y)) y = parent.get(y); return y; };
+  for (const r of renamed ?? []) {
+    if (!r?.from || !r?.to) continue;
+    const a = find(r.from);
+    const b = find(r.to);
+    if (a !== b) parent.set(a, b);
+  }
+  return find;
+}
+
+/** Whether a cover names `<workflow>/<job name>`: its name, each `${{ }}` matching anything. */
+export function coverNames(cover, workflow, jobName) {
+  const job = /^job:([^/]+)\/(.+)$/.exec(cover);
+  if (!job || job[1] !== workflow) return false;
+  if (job[2] === jobName) return true;
+  return new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`).test(jobName);
+}
+
+/**
+ * The spec files and jobs a change renames or removes: `specChanges` from the diff
+ * (`{ status, from, to }`, git's R and D), `workflows` the changed workflow files (`{ base, head,
+ * baseFile }`). A job keeps its key across a display-name rename; a key gone with its name gone is
+ * a removal.
+ */
+export function renamesOf({ specChanges = [], workflows = {} }) {
+  const out = [];
+  for (const c of specChanges) {
+    if (!/\.spec\.ts$/.test(c.from ?? '')) continue;
+    if (/^R/.test(c.status) && c.to && c.to !== c.from) out.push({ from: `spec:${c.from}`, to: `spec:${c.to}` });
+    else if (/^D/.test(c.status)) out.push({ from: `spec:${c.from}`, retired: true });
+  }
+  for (const [file, { base, head, baseFile = file }] of Object.entries(workflows)) {
+    const before = workflowShape(base ?? '');
+    const after = workflowShape(head ?? '');
+    const headNames = new Set(after.jobs.map((k) => after.names[k] ?? k));
+    for (const key of before.jobs) {
+      const name = before.names[key] ?? key;
+      const from = `job:${baseFile}/${name}`;
+      if (after.jobs.includes(key)) {
+        const now = after.names[key] ?? key;
+        if (now !== name || baseFile !== file) out.push({ from, to: `job:${file}/${now}` });
+      } else if (!headNames.has(name) || baseFile !== file) out.push(headNames.has(name) ? { from, to: `job:${file}/${name}` } : { from, retired: true });
+    }
+  }
+  return out;
+}
+
+/**
+ * The renames and removals of names an exception covers that the change does not record in
+ * `renamed`. `covers` are every growth exception's covers; `offlineSpecs` the spec file names the
+ * offline exception lines name.
+ */
+export function unrecordedRenames({ renames = [], covers = [], offlineSpecs = [], renamed = [] }) {
+  const named = (r) => {
+    const spec = /^spec:(.+)$/.exec(r.from);
+    if (spec) return covers.includes(r.from) || offlineSpecs.includes(spec[1].split('/').pop());
+    const job = /^job:([^/]+)\/(.+)$/.exec(r.from);
+    return Boolean(job) && covers.some((c) => coverNames(c, job[1], job[2]));
+  };
+  const recorded = (r) => (renamed ?? []).some((x) => x.from === r.from && (r.retired ? x.retired === true || Boolean(x.to) : x.to === r.to));
+  return renames.filter((r) => named(r) && !recorded(r));
+}
 
 /** The tier a covered entry belongs to: `job:<workflow>/<job name>` or `spec:<path>`. */
 export function tierOfCover(cover) {
@@ -323,7 +390,7 @@ export function tierOfCover(cover) {
  * given, is every cover that names a real job or spec today; a cover outside it (a reworded scope)
  * covers nothing.
  */
-export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = null) {
+export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = null, renamed = []) {
   const p = [];
   if (!e.id) p.push('no id');
   if (!TIERS.includes(e.tier)) p.push(`unknown tier ${e.tier}`);
@@ -341,12 +408,16 @@ export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = nu
   if (!Number.isFinite(from) || !Number.isFinite(exp) || exp < from) p.push('no valid from/expires dates');
   else if (exp - from > maxDays * DAY) p.push(`runs ${Math.round((exp - from) / DAY)} days, over ${maxDays}`);
   if (Array.isArray(e.covers) && e.covers.length) {
-    // A renamed or removed job is no way round renewal, whatever tier it lands in: an earlier entry
-    // whose cover no longer names anything real, and that ran within 30 days of this one, is the same scope.
-    const orphaned = (x) => known && x.covers.some((c) => !known.has(c)) && dayMs(x.expires) + maxDays * DAY >= dayMs(e.from);
+    // A rename is no way round renewal: names linked by a recorded rename are one scope, however
+    // long ago. An earlier cover that names nothing real and was never recorded as renamed or
+    // retired is unknown scope, so it counts as this one's, at any age.
+    const scope = scopeIdentity(renamed);
+    const recorded = new Set((renamed ?? []).map((r) => r.from));
+    const sameName = (x) => x.covers.some((c) => e.covers.some((d) => scope(c) === scope(d)));
+    const orphaned = (x) => known && x.covers.some((c) => !known.has(c) && !known.has(scope(c)) && !recorded.has(c));
     // Covers over the same measured job are the same scope, however each is worded.
     const sameJobs = (x) => jobsOf && x.covers.some((c) => jobsOf(c).some((k) => e.covers.some((d) => jobsOf(d).includes(k))));
-    const prior = earlier.filter((x) => Array.isArray(x.covers) && (overlaps(x, e) || sameJobs(x) || orphaned(x)));
+    const prior = earlier.filter((x) => Array.isArray(x.covers) && (sameName(x) || sameJobs(x) || orphaned(x)));
     if (prior.length) {
       const r = e.repaid;
       const latest = Math.max(...prior.map((x) => dayMs(x.from)));
@@ -358,12 +429,12 @@ export function exceptionProblems(e, earlier, maxDays, known = null, jobsOf = nu
 }
 
 /** Active exceptions on `today`, and the invalid ones with why. Expired ones are listed apart. */
-export function exceptionStatus(ledger = [], today, maxDays, known = null, jobsOf = null) {
+export function exceptionStatus(ledger = [], today, maxDays, known = null, jobsOf = null, renamed = []) {
   const active = [];
   const invalid = [];
   const expired = [];
   ledger.forEach((e, i) => {
-    const problems = exceptionProblems(e, ledger.slice(0, i), maxDays, known, jobsOf);
+    const problems = exceptionProblems(e, ledger.slice(0, i), maxDays, known, jobsOf, renamed);
     if (problems.length) invalid.push({ ...e, problems });
     else if (dayMs(e.expires) < dayMs(today)) expired.push(e);
     else if (dayMs(e.from) <= dayMs(today)) active.push(e);
@@ -376,7 +447,7 @@ export function expiringSoon(active, today, withinDays = 7) {
   return active.filter((e) => dayMs(e.expires) - dayMs(today) <= withinDays * DAY);
 }
 
-const stripLedger = (c) => Object.fromEntries(Object.entries(c ?? {}).filter(([k]) => k !== 'exceptions' && k !== 'revisions'));
+const stripLedger = (c) => Object.fromEntries(Object.entries(c ?? {}).filter(([k]) => k !== 'exceptions' && k !== 'revisions' && k !== 'renamed'));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
@@ -404,6 +475,9 @@ export function ledgerChanges({ base, head, mainRunners = null, shardCap = null 
   // so a new entry put ahead of the old ones would turn the old one into the "renewal".
   const prefix = (head.exceptions ?? []).slice(0, (base.exceptions ?? []).length).map((e) => e.id);
   if (problems.length === 0 && !same(prefix, (base.exceptions ?? []).map((e) => e.id))) problems.push('new exceptions must be appended after the existing ones: the ledger is append-only, in order');
+  // The rename record is append-only too: scope identity rests on it.
+  const renamedBefore = base.renamed ?? [];
+  if (!same((head.renamed ?? []).slice(0, renamedBefore.length), renamedBefore)) problems.push('a recorded rename was removed or edited: the renamed list is append-only');
   const revised = head.version > base.version && (head.revisions ?? []).some((r) => r.version === head.version && r.rationale && r.authority && ISSUE_COMMENT.test(r.reviewed ?? ''));
   if (!same(stripLedger(base), stripLedger(head)) && !revised) problems.push('the frozen ceilings, estimates or measurement changed without a new version and a reviewed revision (rationale, authority)');
   if (mainRunners && mainRunners.head > mainRunners.base && !revised) problems.push(`MAIN_RUNNERS rose from ${mainRunners.base} to ${mainRunners.head}: more runners never buy budget without a reviewed revision`);
@@ -420,7 +494,7 @@ export function ledgerChanges({ base, head, mainRunners = null, shardCap = null 
  * stopped its growth.
  */
 export function assessTiers({ ceilings, measurement, items = [], today, stops = {}, exceptions = ceilings.exceptions ?? [], known = null, jobsOf = coverJobs(measurement) }) {
-  const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays, known, jobsOf);
+  const { active, invalid } = exceptionStatus(exceptions, today, ceilings.exceptionMaxDays, known, jobsOf, ceilings.renamed);
   const jobCost = measurement?.jobs ?? {};
   const jobsIn = (covers) => [...new Set(covers.flatMap(jobsOf))];
   const tiers = {};
