@@ -47,7 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import type { SvgImportResult } from '../../../assets/svgImport';
+import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
 /** The two empty choices every behaviour picker offers, written once. One string rather than
@@ -151,13 +151,21 @@ function RecipeOptions({
   );
 }
 
+/** The candidates drawn inside one layer of the artwork. */
+function candidatesInside(markup: string, layerId: string): Set<string> {
+  const layer = new DOMParser().parseFromString(markup, 'image/svg+xml').querySelector(`[${SVG_CANDIDATE_ATTR}="${layerId}"]`);
+  return new Set([...(layer?.querySelectorAll(`[${SVG_CANDIDATE_ATTR}]`) ?? [])].map((n) => n.getAttribute(SVG_CANDIDATE_ATTR) ?? ''));
+}
+
 /**
  * THE TRUE NO-LOCK QUIZ (behaviours/quiz.ts `quizHasNoLock`). Unticking "Require lock" keeps the
  * lock as an optional beat; this removes it. Ticking it hides the lock and timer options and the
  * Locked in picker, and clears the timer, whose arrow starts at the lock. The Locked in layer stays
  * bound: it is the drawing of a moment this board never reaches, so no rule shows it and it stays
- * hidden on air, even when the designer left it visible. Unticking it leaves the optional-lock
- * board, with both options and the picker back in view.
+ * hidden on air, even when the designer left it visible. Text drawn inside it stops being an
+ * operator field, since it would edit a drawing nobody sees; its row stays in the text list to
+ * tick again. Unticking No lock leaves the optional-lock board, with both options and the picker
+ * back in view.
  */
 function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
   return (
@@ -1194,7 +1202,16 @@ export default function BehaviourSection({
                 onChange={(options) => patchQuiz({ options })}
                 hide={quizHasNoLock(quiz.options) ? ['lock', 'autoReveal'] : []}
               >
-                <NoLockOption values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
+                <NoLockOption
+                  values={quiz.options ?? {}}
+                  onChange={(options) => {
+                    const inside = quizHasNoLock(options) && quiz.locked && draft.designSvg ? candidatesInside(draft.designSvg.markup, quiz.locked) : new Set<string>();
+                    onDraft({
+                      svgBehaviour: { ...quiz, options },
+                      ...(inside.size > 0 ? { svgFields: draft.svgFields.map((f) => (inside.has(f.candidateId) ? { ...f, on: false } : f)) } : {}),
+                    });
+                  }}
+                />
               </RecipeOptions>
               <div className="map-svg-row hinted">
                 <label className="save-field grow">
