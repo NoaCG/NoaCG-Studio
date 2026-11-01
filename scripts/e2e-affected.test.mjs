@@ -1377,6 +1377,22 @@ test('shortcut guard changes escalate and keep the focused-button workflow their
   for (const s of [...FOCUS, 'editor-usability.spec.ts']) assert.ok(focused.specs.includes(s), s);
 });
 
+// ci11 fault F2: a CORE file keeps the specs whose header names it beside the shared-change set.
+// Before, a src/model/project.ts change planned the shared set alone and dropped
+// save-transaction.spec.ts, the one spec that fails on the #1402 reservation regression.
+test('ci11: a CORE file keeps the specs its covers headers name beside the shared-change set', () => {
+  const coverage = [{ spec: 'save-transaction.spec.ts', test: (f) => f === 'src/model/project.ts' }];
+  const plan = planFor(['src/model/project.ts'], { traced: null, sprintFocus: true, coverage });
+  assert.equal(plan.focusApplied, true);
+  for (const s of [...FOCUS, 'save-transaction.spec.ts']) assert.ok(plan.specs.includes(s), s);
+  // Its configured selection is unchanged: CORE still selects the whole configured set.
+  assert.equal(planFor(['src/model/project.ts'], { traced: null, coverage }).mode, 'full');
+  // The real headers: every spec that names the file is planned for it.
+  const real = planFor(['src/model/project.ts'], { traced: null, sprintFocus: true });
+  for (const s of COVERAGE.filter((c) => c.test('src/model/project.ts')).map((c) => c.spec)) assert.ok(real.specs.includes(s), s);
+  assert.ok(real.specs.includes('save-transaction.spec.ts'));
+});
+
 // THE POINT OF THE CHANGE, pinned: a new spec with a covers header is planned for a change to the
 // file it covers, and nothing in scripts/ is edited to make that true. The header is read by the
 // same reader the planner uses, from a directory holding nothing but the new spec.
