@@ -1348,6 +1348,16 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
   const [offlineJob] = priceAdditions({ workflows: { 'ci.yml': { base: shard, head: `${shard}  e2e-copy:\n    name: E2E 1/1 (full)\n` } }, estimates: CEILINGS.estimates });
   assert.equal(offlineJob?.tier, 'offline');
   assert.equal(assessTiers({ ceilings: noExceptions, measurement: measurement({}), items: [offlineJob], today: TODAY, stops: { offline: 'cost:offline' } }).tiers.offline.status, 'refuse');
+  // An offline job and offline spec minutes added by one change are judged in one sum.
+  const both = (jobItems) => {
+    const m = measurement({ offline: 420 });
+    const ceilings = noExceptions;
+    const growth = { status: 'ok', reasons: [], stops: {}, estimates: CEILINGS.estimates, items: jobItems, tiers: assessTiers({ ceilings, measurement: m, items: jobItems, today: TODAY }), assessWith: (items) => assessTiers({ ceilings, measurement: m, items, today: TODAY }) };
+    return applyOfflineStop(growth, { added: 5, details: [{ spec: 'new.spec.ts', delta: 5 }] }, { paths: ['e2e/new.spec.ts'] }).status;
+  };
+  const job75 = { tier: 'offline', id: 'job:ci.yml/E2E 2/2 (full)', perLanding: 75.02, perDay: 0, how: 'new job at 15.5 runner-min' };
+  assert.equal(both([]), 'ok', '420 + 24.2 alone fits');
+  assert.equal(both([job75]), 'refuse', '420 + 75.02 + 24.2 crosses 95% of 535 together');
   assert.equal(moved?.tier, 'overhead');
   assert.match(moved?.how ?? '', /moved into this tier/);
   // A copy under a new key that repeats an existing job's name is new, not the existing job.

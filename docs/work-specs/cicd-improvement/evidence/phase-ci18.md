@@ -388,7 +388,8 @@ from those can tie a renewal to what it renews; the tier is the one scope a chan
   job's name, or a second copy of a removed one, is a new job.
   Offline jobs are priced the same way, at the slowest measured offline job; offline spec minutes
   stay the table line's to price. So a new or more frequent offline job meets the offline tier's
-  line and its growth stop (E21).
+  line and its growth stop (E21), and the offline jobs and spec minutes one change adds are judged
+  in one sum.
   No exception moves a ceiling, an estimate, `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new
   version and a reviewed revision, and are still named for the owner.
 

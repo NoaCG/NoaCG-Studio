@@ -273,8 +273,11 @@ export function applyOfflineStop(growth, result, { warnShare = WARN_SHARE, refus
   // judged below.
   if (growth.assessWith && Array.isArray(result.details)) {
     const pathOf = (name) => paths.find((p) => p.split('/').pop() === name) ?? `e2e/${name}`;
-    const items = result.details.filter((d) => d.delta > 0).map((d) => ({ tier: 'offline', id: `spec:${pathOf(d.spec)}`, perLanding: d.delta * (e.runsPerLanding?.everyRun ?? 1), perDay: d.delta * (e.scheduledRunsPerDay?.offline ?? 1) }));
-    const t = growth.assessWith(items).tiers.offline;
+    const specs = result.details.filter((d) => d.delta > 0).map((d) => ({ tier: 'offline', id: `spec:${pathOf(d.spec)}`, perLanding: d.delta * (e.runsPerLanding?.everyRun ?? 1), perDay: d.delta * (e.scheduledRunsPerDay?.offline ?? 1) }));
+    // The offline jobs this change adds are judged in the same sum as its spec minutes (Rule X10),
+    // so the two never each fit under the line that together they cross.
+    const jobs = (growth.items ?? []).filter((i) => i.tier === 'offline');
+    const t = growth.assessWith([...jobs, ...specs]).tiers.offline;
     landing = t.addedLanding;
     day = t.addedDay;
     if (!(landing > 0) && !(day > 0)) return growth;
