@@ -56,6 +56,7 @@ on:
 permissions:
   contents: read
   issues: write # the failure step files/updates the rolling issue
+  actions: read # the landing-coverage report reads the nightly's runs and their jobs
 
 # Shared: every watched schedule is DAILY, so they all tolerate the same drift.
 env:
@@ -225,6 +226,32 @@ jobs:
           if [ -n "$EXISTING" ]; then
             gh issue close "$EXISTING" --comment "${LABEL} ran at ${LATEST}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
+
+      # LANDING COVERAGE, the nightly entry only (cicd-improvement ci13). The check above asks
+      # whether the nightly STARTED; this asks whether each landing has been cleared by a COMPLETE
+      # green nightly at the commit that run requested, names the oldest landing still waiting, and
+      # projects whether the next nightly will finish before that landing's 24-hour deadline (the
+      # repair margin: a nightly dispatch on main before the deadline). A REPORT, not an alarm: it
+      # writes the step summary and a warning, and a failure to read GitHub never turns this job red
+      # or green. Today the full pre-merge catalog calibration in ci.yml is the catalog's
+      # protection and nothing has been narrowed onto this bound; whether it ever becomes blocking
+      # is decided with any activation (ci16), on the evidence in
+      # docs/work-specs/cicd-improvement/evidence/phase-ci13.md. A step here rather than a job of
+      # its own: it needs a checkout and node builtins only, seconds per run.
+      - name: Check out history for the landing-coverage report
+        if: ${{ !cancelled() && matrix.workflow == 'nightly.yml' }}
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Landing coverage report
+        if: ${{ !cancelled() && matrix.workflow == 'nightly.yml' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/schedule-coverage.mjs --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Fail the run when the schedule is not firing
         if: ${{ steps.check.outputs.ok == 'false' }}
