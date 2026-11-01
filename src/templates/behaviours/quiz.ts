@@ -17,13 +17,15 @@
 // any number of rows without gaining a state - the model's central rule, unchanged.
 
 import { ANSWER_BOARD_CONTROLS, ANSWER_BOARD_MACHINE, ANSWER_PICK_LOCK_OPTIONAL_SECTION, ANSWER_PICK_SECTION } from '../types/answerBoard';
-import type { LookRule } from '../../blocks/behaviourData';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 import type { TypeBranch, TypeMachine } from '../types/graphicType';
 
 /** How long after the lock a self-revealing board waits, in speed-relative seconds. */
 const AUTO_REVEAL_AFTER = 5;
+
+/** A look rule, read off the recipe declaration rather than imported from the blocks layer. */
+type LookRule = Extract<ReturnType<BehaviourRecipe['paint']>[number], { look: string }>;
 
 /** The heading of a no-Lock board's pick: there is nothing between the pick and the reveal. */
 const NO_LOCK_PICK_SECTION = 'Pick, then reveal';
