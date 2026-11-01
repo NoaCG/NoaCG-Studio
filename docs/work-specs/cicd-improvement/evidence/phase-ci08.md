@@ -11,12 +11,12 @@ The spec names three candidates from the suite-budget inventory
 the app, repeated playout setup, and overlapping editor qualification walks. This row takes the
 **geometry cases**, in `e2e/editor-arrangement.spec.ts` (inventory item 4). Why this one:
 
-- Remeasured on current `main`, its geometry cases are the slowest tests in the file: the two
-  `six alignment edges` tests take 5.49 s and 5.60 s on the main CI shard (run 41287750200, the
-  merge of `7030eb18`), twice the file's median of 3.0 s, and they repeat arithmetic that
+- Remeasured on current `main`, the two `six alignment edges` tests take 5.49 s and 5.60 s on the
+  main CI shard (run 41287750200, the merge of `7030eb18`), the most of any geometry case and
+  nearly twice the file's median of 3.0 s, and they repeat arithmetic that
   `scripts/editor-arrangement.test.mjs` already checks in Node. The inventory's zero-assertion
   `baseline probe` (2.31 s) is still there.
-- The change keeps every rendered and persistence boundary in the browser (section 3), so no
+- The change keeps every rendered and persistence boundary in the browser (section 5), so no
   protection moves to scheduled cadence and the selection does not change (section 6).
 - It stays clear of the other two rows and of the JEV plan: ci09 and ci10 take repeated playout
   setup and the editor qualification walks. No open pull request or JEV branch touches these files
@@ -31,7 +31,8 @@ surface, so it opens no gap there and claims nothing for that plan.
 ## 2. Inventory: behaviour, failure, boundary (acceptance a)
 
 Three browser tests leave `e2e/editor-arrangement.spec.ts`. Each one boots `/app`, applies the
-catalog fixture and creates three layers (about 2 s of CI time before its first assertion).
+catalog fixture and creates three layers; the cheapest test in the file, which does little more,
+takes 2.3 s on CI.
 
 | Test (before) | Behaviour it protects | Failure it would show | Boundary |
 |---|---|---|---|
@@ -43,18 +44,22 @@ What replaces them:
 
 - **Node** (`scripts/editor-arrangement.test.mjs`, new test `every arrangement button does what
   its label says against the selection and the canvas`). The button table moves unchanged from
-  `ArrangementControls.tsx` into `src/blocks/arrangementGeometry.ts` as `ARRANGEMENT_COMMANDS`, and
-  the component renders it as before. The test reads each label's words (left, horizontal center,
-  bottom, horizontally, ...) and checks that button's command against both references: the axis it
-  moves along, that it moves along no other, the edge it lands on, and equal gaps for the two
-  Distribute buttons. That is B1 for all eight buttons and B2 for both references. The existing
+  `ArrangementControls.tsx` into its own plain module beside it,
+  `src/components/editorFoundation/arrangementCommands.ts` (`ARRANGEMENT_COMMANDS`, read-only), and
+  the component renders it as before, grouping the buttons by command kind instead of by index.
+  The test reads each label's words (left, horizontal center, bottom, horizontally, ...) and checks
+  that button's command against both references: the axis it moves along, that it moves along no
+  other, the edge it lands on, and for the two Distribute buttons equal gaps with the outer items
+  kept in place. That is B1 for all eight buttons and B2 for both references. The existing
   arithmetic test (all edges, both references) stays.
 - **Browser** (one test, `alignment edges reach rendered bounds against the selection and the
-  canvas`): one boot, then four click-and-undo rounds through the `Align to` box: selection with
-  horizontal center and bottom, canvas with right and vertical center. Both references, both axes,
-  fractions 0.5 and 1 through rendered bounds and exact undo (B3, B4, B5), then the old test's
-  single-selection tail verbatim (B6). Fraction 0 through rendered bounds stays in
-  `selection alignment uses rendered bounds` (Align left) and the imported SVG test (Align top).
+  canvas`): one boot, then five click-and-undo rounds: `Align to` set to Selection once for
+  horizontal center and bottom, then to Canvas once for top, right and vertical center. Both references, both axes,
+  fractions 0, 0.5 and 1 through rendered bounds and exact undo (B3, B4, B5). Because each reference
+  is chosen once, the later rounds also prove the choice survives a click and an undo, as the old
+  loops did. Then the old test's single-selection tail verbatim (B6). Fraction 0 against the
+  selection through rendered bounds stays in `selection alignment uses rendered bounds` (Align
+  left) and the imported SVG test (Align top).
 - **Retired**: the baseline probe. Nothing replaces it because it asserted nothing.
 
 ## 3. Fault replay (acceptance a)
@@ -69,17 +74,24 @@ F0 is the fix: no patch.
 | Fault | Patch | Old probe | Old selection | Old canvas | New browser | New Node |
 |---|---|---|---|---|---|---|
 | F0 none (the fix) | none | pass | pass | pass | pass | pass |
-| F1 a table entry: Align top lands at the centre | `ARRANGEMENT_COMMANDS` Align top `edge: 'start'` to `'center'` | pass | **fail** | **fail** | pass | **fail** |
+| F1 a table entry: Align top lands at the centre | `arrangementCommands.ts` Align top `edge: 'start'` to `'center'` | pass | **fail** | **fail** | **fail** | **fail** |
 | F2 the canvas reference ignored | `Canvas.tsx`: `reference === 'canvas' &&` to `false &&` | pass | pass | **fail** | **fail** | pass |
 | F3 canvas axes swapped | `Canvas.tsx`: canvas `{ width: resolution.height, height: resolution.width }` | pass | pass | **fail** | **fail** | pass |
 | F4 wrong centre fraction | `arrangementGeometry.ts`: `.5` to `.45` | pass | **fail** | **fail** | **fail** | **fail** |
-| F5 the Align group drops a button | `ArrangementControls.tsx`: `slice(0, 6)` to `slice(0, 5)` | pass | **fail** | **fail** | **fail** | pass |
+| F5 the Align group drops a button (Align bottom) | `ArrangementControls.tsx`: the align group `.slice(0, -1)` | pass | **fail** | **fail** | **fail** | pass |
 | F6 no arrangement toolbar | `ArrangementControls.tsx`: render nothing | **fail** | **fail** | **fail** | **fail** | pass |
 | F7 one alignment, two undo steps | `Canvas.tsx`: first operation and the rest as two transactions | pass | **fail** | **fail** | **fail** | pass |
+| F8 the reference resets after an alignment | `Canvas.tsx`: `setAlignReference(null)` after each alignment | pass | pass | **fail** | **fail** | pass |
 
-Every fault the old tests catch, the replacement also catches. F1 shows why the Node test is
-needed: the browser now clicks four of the six buttons, and the Node test covers the other two from
-their labels. The probe fails only on F6, which every other test in the file also catches.
+Every one of these nine faults that the old tests catch, the replacement catches too: the new
+browser test fails on all eight injected faults, and the Node test also fails on F1 and F4. Every
+Align button is still clicked in a browser test (left in `selection alignment uses rendered
+bounds`, the other five here), but not against both references. The Node test holds the pairs the
+browser no longer clicks (Align left or Align bottom against the canvas, for example): a table fault
+fails it from the label alone, as F1 does. The probe fails only on F6, which every other test in
+the file also catches. Nine faults are not every possible fault: they are the failure modes the inventory names, one or more
+per behaviour B1 to B6. F8 was added after review, when the first version of the new test
+re-picked the reference every round and would have missed it.
 
 ## 4. Before and after: time and runner cost (acceptance a)
 
@@ -98,26 +110,32 @@ two workers share them):
 
 | Sample | Removed three (before) | Added one (after) | Whole spec before | Whole spec after |
 |---|---|---|---|---|
-| This machine, both editor specs, one run per side | 30.2 | 8.3 | 206.0 (25 tests) | 178.3 (23 tests) |
-| This machine, spec alone, sample 1 | 27.9 (tainted, see section 7) | 8.9 | 197.4 | 182.3 |
-| This machine, spec alone, sample 2 | 25.8 | 8.5 | 185.7 | 163.6 |
-| This machine, spec alone, sample 3 | 24.6 | | 184.4 | |
-| Actions, standard runner | 13.40 (2.31 + 5.49 + 5.60) | CI_AFTER_NEW | 89.7 (25 tests) | CI_AFTER_SPEC |
+| This machine, both editor specs, one run per side (first version, four rounds) | 30.2 | 8.3 | 206.0 (25 tests) | 178.3 (23 tests) |
+| This machine, spec alone, sample 1 | 27.9 (tainted, see section 7) | 8.9 (first version) | 197.4 | 182.3 |
+| This machine, spec alone, sample 2 | 25.8 | 8.5 (first version) | 185.7 | 163.6 |
+| This machine, spec alone, sample 3 | 24.6 | 9.99 (final) | 184.4 | 174.8 |
+| This machine, spec alone, sample 4 | | 9.91 (final) | | 181.2 |
+| Actions, standard runner | 13.40 (2.31 + 5.49 + 5.60), main run 41287750200 shard 7 | 5.21 (final), PR run 41291764565 shard 13 | 89.7 (25 tests) | 83.1 (23 tests) |
 
 In the both-specs runs, `editor-groups.spec.ts` (unchanged) read 260.3 s before and 264.6 s after,
 so machine noise between samples is a few percent; the whole-spec totals move with it. The tests
-that change are the stable comparison: about 17 to 22 s saved per execution here, CI_SAVED on
-Actions.
+that change are the stable comparison: the final version saves about 15 to 20 s per execution here
+and 8.2 s (61%) on Actions. The first version (four rounds) was cheaper still; review added the
+fifth round and the once-per-reference choice (section 3, F8).
 
 Runner cost. The offline shards run on standard Linux runners, so a runner-second saved is a
-billed second saved. CI_COST. The spec runs in every full main run (once per landing) and in every
-pull request plan that selects it (its header covers all of `src/components/editorFoundation/`
+billed second saved. Measured on Actions, the change saves 8.2 runner-seconds each time the spec
+runs. That is about 0.14 runner-minutes, below the one-minute rounding of a job's bill, so it shows
+as shorter shards and earlier verdicts rather than on its own line of the bill. The spec runs in
+every full main run (once per landing) and in every pull request plan that selects it (its header covers all of `src/components/editorFoundation/`
 and three blocks), so the saving repeats on each of those.
 
 Growth controls: `node scripts/e2e-capacity.mjs --changed origin/main` adds no case and no
 exception (the table reads the spec at 1.50 min until the next durations refresh, bot PR #1503).
-With this PR's measured report it reads CAPACITY_REPORT. `node scripts/check-e2e-protection.mjs
---changed origin/main` passes with no test-maintenance entry (section 7 says why none is written).
+With this PR's shard 13 report (`--report`) it reads the spec at 1.38 min against the table's 1.50
+(-0.11, "measured in this run"), offline tier OK at 77%. Its warnings are the plan's existing ones
+(no weekly growth report yet, durations table 13 days old), not this change.
+`node scripts/check-e2e-protection.mjs --changed origin/main` passes with no test-maintenance entry (section 7 says why none is written).
 
 ## 5. Integration kept (acceptance b)
 
@@ -128,8 +146,8 @@ With this PR's measured report it reads CAPACITY_REPORT. `node scripts/check-e2e
   artwork, save/reopen and executed exports at desktop and laptop sizes`) is unchanged. The removed
   tests never saved or reopened anything.
 - **Scheduled cadence**: nothing moves to a scheduled or nightly run. The Node test runs in the
-  build gates on every pull request that changes `arrangementGeometry.ts` (its `guards:` line) and
-  on every full build.
+  build gates on every pull request that changes `arrangementGeometry.ts` or
+  `arrangementCommands.ts` (its `guards:` line) and on every full build.
 - **Critical set and contract map**: `editor-arrangement.spec.ts` is not a critical journey and is
   not named in `scripts/e2e-contracts.mjs`. Neither changes.
 
@@ -138,13 +156,16 @@ With this PR's measured report it reads CAPACITY_REPORT. `node scripts/check-e2e
 Classification: **no audit reset.** The runbook's reset classes: selector code, header or list
 interpretation, critical/shared membership, a dependency mapping corrected after a miss, and
 replaced or moved protection *that changes which existing contracts are selected*. This change
-touches no selector code, no `// covers`, `// focus` or `// critical` line, no list, and no
-`guards:` line. Protection moves from browser to Node inside the same contract, and the selection
-is unchanged, measured on base and head:
+touches no selector code, no `// covers`, `// focus` or `// critical` line and no list. Its one
+mapping edit is additive: the Node test's `guards:` line also names the new
+`arrangementCommands.ts`, so that test runs when the table changes; nothing was missed before, as
+the file did not exist. Protection moves from browser to Node inside the same contract, and the
+offline selection is unchanged, measured on base and head (the new file's path is read under the
+same `editorFoundation/**` headers on base):
 
 | Changed file | `e2e-affected --list` specs, base | head |
 |---|---|---|
-| `src/blocks/arrangementGeometry.ts` | 18 | 18, identical |
+| `src/components/editorFoundation/arrangementCommands.ts` (new) | 29 | 29, identical |
 | `src/components/editorFoundation/ArrangementControls.tsx` | 105 | 105, identical |
 | `e2e/editor-arrangement.spec.ts` | 1 | 1, identical |
 | `scripts/editor-arrangement.test.mjs` | 0 | 0 |
@@ -155,14 +176,14 @@ carries a `Selection-audit-reset` trailer.
 
 ## 7. Decisions and traps
 
-- The button table moves into `arrangementGeometry.ts` rather than being exported from the
-  component, so the Node test bundles plain TypeScript with no JSX, as it already did. The
-  component's markup and behaviour are unchanged.
+- The button table moves into a plain `.ts` module beside the component, so the Node test bundles
+  it without JSX. It stays out of `src/blocks`, whose modules are pure transforms; labels are
+  toolbar copy. The component's markup and behaviour are unchanged.
 - **No test-maintenance entry.** `check-e2e-protection` counts `test(` lines, and the two six-edge
   tests came from one `for (...) test(` line it does not count, so it sees one removed and one
   added and passes. An entry would also cover every later change to this file, because the check
   matches entries by file name with no date. So this file and the PR are the receipt, and the blind
-  spot is follow-up issue FOLLOWUP.
+  spot is follow-up issue #1911.
 - Trap for ci09 and ci10: on a cloud worker, a queued job with `--cap 12` cannot run Playwright on
   an uncommitted tree ("Broader selection needs reviewed source admission"). Fault injection needs
   one `--cap 5` job per fault, run one after another, because the patches share the tree.
@@ -171,7 +192,27 @@ carries a `Selection-audit-reset` trailer.
 
 ## 8. Verification
 
-VERIFICATION
+- `/check`: the review (delegated, medium) returned 9 findings. Fixed: the reference re-picked every
+  round (now chosen once per reference, fault F8 added), no canvas round at fraction 0 (Align top
+  added), the overstated fault claim (section 3 reworded), index-based grouping (now by kind), the
+  table in `src/blocks` (moved beside the toolbar), a mutable table (read-only), and the
+  Distribute check not pinning outer items (pinned). The two placeholder findings were the
+  unfinished receipt, filled here, and #1911. Simplify: inline, no further change.
+- Fault matrix, final code: nine runs (F0 to F8) on this machine, each a `--cap 5` queued job
+  (`scripts/jobs.mjs`); results in section 3. A first matrix on the first version ran F0 to F7 with
+  the same outcome except F1 (caught then by Node only).
+- `node --test scripts/editor-arrangement.test.mjs`: 6 pass.
+- Browser, first version: `editor-arrangement.spec.ts` with `editor-groups.spec.ts`, 55 tests, all
+  pass on this machine. Final version: the spec alone, 23 tests, passes in samples 3 and 4 here and
+  in PR CI run 41291764565 (shard 13).
+- `npm run gates -- run --changed origin/main`, `npx eslint` on the changed files,
+  `npx tsc --noEmit -p tsconfig.json`: clean.
+- `node scripts/check-e2e-protection.mjs --changed origin/main`: passes (section 7 on why).
+- `node scripts/e2e-capacity.mjs --changed origin/main [--report ...]`: section 4.
+- No production build: no build input changed (`scripts/execution-profile.mjs` `buildRisk`).
+- Rendered judgment: none needed; nothing visible changes (same buttons, labels and order).
+- Not run here: the configured suite. This PR selects the whole configured set because
+  `ArrangementControls.tsx` is a broad traced file; the CI gate runs it.
 
 ## 9. Phase notes
 
