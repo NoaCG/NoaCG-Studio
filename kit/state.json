@@ -43,7 +43,7 @@
   },
   "waitingOn": {
     "what": "ci09 builder: PR and gates",
-    "eta": "2026-11-01T11:15:00Z"
+    "eta": "2026-11-01T12:15:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci09-b-7fc9",
       "branch": "claude/plan-cicd-improvement-ci09-build",
       "launchedAt": "2026-11-01T10:10:08Z",
-      "note": "Builder launched from 23742966; picks repeated playout setup or editor qualification walks; warned about #1911."
+      "note": "Builder running (11:16Z): fault matrix F0-F3 pass at both layers, F4-F9 running; branch not pushed yet."
     }
   ],
   "owner": [],
