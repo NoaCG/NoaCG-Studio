@@ -42,19 +42,21 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci07 gates on final head and receipt; block 1 renewal at 08:12Z",
-    "eta": "2026-11-01T08:15:00Z"
+    "what": "ci07 merge queue, landed record and checker; block 1 renewal at 08:12Z",
+    "eta": "2026-11-01T08:30:00Z"
   },
   "inFlight": [
     {
       "phase": "ci07",
-      "step": "build",
+      "step": "queued",
       "session": "session_017SdbwNHTrkTe3sSjW4uaz1",
       "nonce": "ci07-b-f439",
       "branch": "claude/plan-cicd-improvement-ci07-build",
       "launchedAt": "2026-11-01T04:28:35Z",
-      "note": "PR #1896 head d4ef2d4f (07:22Z); one infra-failed shard being re-run once by the builder; only Reviewed red otherwise. Tell it after the 08:12Z renewal that the window is extended.",
-      "pr": 1896
+      "note": "Receipt 07:50Z; verified at source: CI 41285365575 gate green, Codex clean, full-diff /so A (session_017SdbwMJ8kVV7VkqQx9CynA). Stamp 41286506255; queued 07:53:03Z. Archive builder and its /so sessions after PASS.",
+      "pr": 1896,
+      "reviewedHead": "00e1564e86b20f186fc7df1583d418f64934685e",
+      "repairOwnerComment": 6555195323
     }
   ],
   "owner": [],
@@ -217,7 +219,10 @@
     1871,
     1873,
     1874,
-    1885
+    1885,
+    1895,
+    1900,
+    1904
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
@@ -278,6 +283,11 @@
       "at": "2026-11-01T06:45Z",
       "phase": "run",
       "decision": "Owner request relayed by session_017SdbwQxsjW6RWBhZZg2Tix: archived 30 finished run sessions (builders, checkers, /so and review sessions for ci01-ci06 and ci18, the ci18 diagnose, the #1844 fix, the ci01 /so and the fresh-worker preflight); kept the coordinator and the in-flight ci07 builder and its /so sessions. Standing practice from now on: when a phase's pass is recorded (or a fix lands), archive that phase's builder, repairer, checker, diagnose and their /so or review sessions in the same turn."
+    },
+    {
+      "at": "2026-11-01T07:53Z",
+      "phase": "ci07",
+      "decision": "#1895 (run the critical journey set on every product change, D2) is outside ci07's acceptance ('distinguish' the sets, done). Carry it to ci17 as a D2 item reported pending until decided; raised to the owner."
     }
   ]
 }
