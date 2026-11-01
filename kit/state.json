@@ -42,21 +42,23 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci07 merge queue, landed record and checker; block 1 renewal at 08:12Z",
-    "eta": "2026-11-01T08:30:00Z"
+    "what": "ci07 checker verdict; block 1 renewal at 08:12Z",
+    "eta": "2026-11-01T08:40:00Z"
   },
   "inFlight": [
     {
       "phase": "ci07",
-      "step": "queued",
-      "session": "session_017SdbwNHTrkTe3sSjW4uaz1",
-      "nonce": "ci07-b-f439",
-      "branch": "claude/plan-cicd-improvement-ci07-build",
-      "launchedAt": "2026-11-01T04:28:35Z",
-      "note": "Receipt 07:50Z; verified at source: CI 41285365575 gate green, Codex clean, full-diff /so A (session_017SdbwMJ8kVV7VkqQx9CynA). Stamp 41286506255; queued 07:53:03Z. Archive builder and its /so sessions after PASS.",
+      "step": "check",
+      "session": "session_017SdbwNLNUDzYmz7NmDbPtQ",
+      "nonce": "ci07-c-7590",
+      "actor": "checker-ci07-ci07-c-7590",
+      "launchedAt": "2026-11-01T08:05:50Z",
       "pr": 1896,
+      "mergeSha": "06d3836c5557c50daebc165e015906caa7c62f3f",
+      "builder": "session_017SdbwNHTrkTe3sSjW4uaz1",
       "reviewedHead": "00e1564e86b20f186fc7df1583d418f64934685e",
-      "repairOwnerComment": 6555195323
+      "repairOwnerComment": 6555195323,
+      "note": "Merged 08:04:29Z (queue run 41286559823). After PASS archive builder session_017SdbwNHTrkTe3sSjW4uaz1, its /so sessions and this checker."
     }
   ],
   "owner": [],
