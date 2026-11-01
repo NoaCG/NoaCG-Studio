@@ -42,18 +42,26 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci10 builder receipt (session_017SdbwQPCwTtHEHCFbfgDw5)",
-    "eta": "2026-11-01T15:30:00Z"
+    "what": "PR #1918 merge queue, then ci10 checker",
+    "eta": "2026-11-01T15:00:00Z"
   },
   "inFlight": [
     {
       "phase": "ci10",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwQPCwTtHEHCFbfgDw5",
       "nonce": "ci10-b-aa2f",
       "branch": "claude/plan-cicd-improvement-ci10-build",
       "launchedAt": "2026-11-01T12:54:02Z",
-      "note": "Candidate three: overlapping editor qualification walks; keep protection pre-merge; stop and report if no faithful saving."
+      "note": "Merged editor-proposal-task into editor-command-task (UI walk 6 to 3 runs per full run; about -25% same-machine). Auto-merge on 14:12Z.",
+      "pr": 1918,
+      "reviewedHead": "19d1b9a9f030230eec18bce035a9fc9e81d97989",
+      "stampRun": 41314965616,
+      "repairOwnerComment": 6559098324,
+      "so": "session_017SdbwMcjCdUC1N9uqB2pXG",
+      "followUps": [
+        1920
+      ]
     }
   ],
   "owner": [],
@@ -346,6 +354,11 @@
       "at": "2026-11-01T10:10Z",
       "phase": "run",
       "decision": "Midpoint retro written in the wave file (five findings, each closed). Kit templates build/repair/fix tightened: the final /so must read the whole diff from the merge base, not a delta."
+    },
+    {
+      "at": "2026-11-01T14:12Z",
+      "phase": "ci10",
+      "decision": "Accepted two disclosed departures: (1) the test-maintenance entry for the deleted e2e/editor-proposal-task.spec.ts is the protection check's designed receipt for a planned merge, keyed to the deleted file only, backed by the F0-F6 fault matrix and the /so line-by-line read; it is not an entry written to pass a gate after a loss. (2) The landing is an audit reset (removed covers line); record the merge SHA and time from `e2e-selection-misses.mjs resets` after landing, and the checker confirms it."
     }
   ]
 }
