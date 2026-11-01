@@ -80,6 +80,10 @@ folded into the line it belongs to and tested:
   which stop at a few specs.
 - Q3 (PR review): the incident report reads the store strictly, so a missing store throws instead
   of reading as "no incident" and closing the issue.
+- Q2 (second `/so`): incidents are counted in the AC-8 weekly growth report, not only in the AC-4
+  audit. Evidence (second `/so`): every flake classification is shown per run (a same-run quarantine
+  receipt, or a culprit that cannot reach the spec), and the configured rows the budget left unread
+  are re-read; the replay's context reads now cover only the last run before each window.
 
 - A2: a full plan still leaves quarantined specs out of its shards, so `quarantined` is read before
   `full`.
@@ -100,6 +104,7 @@ folded into the line it belongs to and tested:
 | Contract map | `scripts/e2e-contracts.mjs` | The six D2 contracts: proof, defect classes, faithful layers, existing checks per layer, cadence, detection, disclosed gaps, and the one backend exception. Its audit is the build refusal for Rules K1 to K4. |
 | Critical journeys | `// critical: <contract>` in ten offline spec headers, read by `scripts/e2e-lists.mjs` | The critical set, distinct from the shared-change set (`// focus`, 77 specs) and inside it. |
 | Quarantine incidents | `scripts/e2e-quarantine.mjs incidents`, a step in `quarantine.yml`, a line in ci.yml's plan step | Every quarantined spec as an owned incident with a repair date and its coverage gap, in one rolling issue; every run whose plan selects a quarantined spec says so. |
+| Weekly report line | `growth-controls.mjs quarantineLines`, `growth-report.mjs collect` | The AC-8 weekly growth report counts every open incident, or says the store was unread. |
 | Miss audit | `scripts/e2e-selection-misses.mjs` (weekly-audit.yml, unchanged step) | Red full runs on main, offline and configured, replayed against each candidate culprit's original merge-group plan; flakes kept and marked; the latest audit reset read from git; status `clean`, `misses` or `blocked`. |
 | Tests | `scripts/e2e-contracts.test.mjs`, `e2e-quarantine.test.mjs`, `e2e-selection-misses.test.mjs` | One test per Rule line, named after it. |
 
@@ -145,11 +150,13 @@ folded into the line it belongs to and tested:
 - No silent replacement: a plan that selects a quarantined spec prints a `Coverage gap` warning and
   summary line on that run (Q4). The quarantine run on main still blocks nothing and is never
   counted as protection; nothing adds a retry.
-- Counted under AC-4 and AC-8: the miss audit lists a quarantined spec its culprit's plan left out
-  as `quarantined`, and reports `blocked` while any incident is open (Q5), which is what ci15 and
-  ci16 read before any narrowing or expansion. With today's three incidents the audit reads
-  `blocked`. The incident issue is
-  the owned, dated action the AC-8 report names.
+- Counted under AC-4 and AC-8. Under AC-4, the miss audit lists a quarantined spec its culprit's
+  plan left out as `quarantined`, and reports `blocked` while any incident is open (Q5). That
+  status is what ci15 and ci16 read before any narrowing or expansion; with today's three
+  incidents it reads `blocked`. Under AC-8, the weekly growth report (`growth-report.mjs collect`,
+  `growth-controls.mjs quarantineLines`) prints every open incident with its severity, repair date
+  and owner, and says `UNREAD` when the store cannot be read. The incident issue is the owned,
+  dated action.
 
 ## 4. The miss audit and the reset (acceptance c)
 
@@ -169,55 +176,59 @@ confirms it with the same command on `main`.
 
 Every red full run on `main` from 2026-09-20 to 2026-11-01 (42 days: `ci.yml` and
 `configured-suite.yml` push runs), replayed with the final code in 2-day passes of at most 100 API
-calls, then 1-day re-passes where a pass spent its budget (2,100 calls in all). **Every row, with
-its run, culprits and each culprit plan's answer, is in
-[phase-ci07-replay.json](phase-ci07-replay.json).** 185 failing items:
+calls, then 1-day, half-day and 3-hour re-passes wherever a pass spent its budget (2,459 calls in
+all). **Every row is in [phase-ci07-replay.json](phase-ci07-replay.json)**: run, spec, culprits,
+each culprit plan's answer (newest first), the verdict, and a `receipt` where a quarantine entry
+names that very run. 189 failing items, **none `unknown`**:
 
 | Workflow | Verdict | Items |
 | --- | --- | ---: |
-| ci.yml | miss, flake-marked | 35 |
-| ci.yml | miss, not flake-marked | 10 |
-| ci.yml | selected by the newest culprit's plan, flake-marked | 4 |
+| ci.yml | miss | 45 (35 flake-marked) |
+| ci.yml | selected by the newest culprit's plan (all flake-marked) | 4 |
 | ci.yml | not-a-spec (Build, Factory gates, a lost shard, the retry job) | 17 |
-| configured-suite.yml | no-selection (culprit landed before ci06: no pre-merge configured check existed) | 73 |
+| configured-suite.yml | no-selection (culprit landed before ci06: no pre-merge configured check existed) | 111 |
 | configured-suite.yml | miss | 1 |
 | configured-suite.yml | not-a-spec | 11 |
-| configured-suite.yml | unknown (budget spent, see below) | 34 |
 
-**The misses:**
+**Every offline miss and selected item, per run (49):**
 
-- **35 flake-marked**: the quarantine store records the spec (by file name) entering or leaving
-  with a fail-then-pass on one commit inside the pass's window. That record is per spec, not per
-  run, so it classes them; it does not prove each one. The diffs sampled (b5652ae6, 0df77f74,
-  af39c249, 081b42af..a1c9efb5, ec723a49) are docs, plan or quarantine-only landings that cannot
-  reach the spec. They are the quarantine's coverage gaps that ci07 now makes incidents, not
-  selection misses; a per-run proof of each is not claimed.
-- **4 of the 10 unmarked are flakes the window's flake set missed**: `editor-arrangement` (76afb8cb)
-  and `editor-groups` (742a5a65) were quarantined and released before their window,
-  `import-svg-corpus` (0df77f74, a docs landing) is the fail-then-pass bot PR #1834 is quarantining,
-  and `video-hyperframes` (a2523f82 `.gitignore`, aa2717b3 docs) failed on landings that cannot
-  reach it.
-- **6 of the 10 are real selection misses, all corrected before the latest reset**:
-  `editor-fidelity-trim` at 5619f765..45ec97b2 (#927, the miss the old weekly audit found) and at
-  14c0a5a5 (`svgFit.js`), `public-chrome-baseline` at 20367f21 (a `docs/whats-new` page) and at
-  20bda886..7c59efcb (`docs.html`), `downloads` at 92c8a616 (`index.html`) and
-  `editor-cli-round-trip` at 7009ebbb..84a10763 (`src/model/importTemplate.ts`). Today's planner
-  selects each for its culprit's files (`planFor` on the same files), so each mapping was corrected
-  after the miss, before 26095c82.
+- **24 have a same-run receipt**: a quarantine entry whose run is that very red run, which proves
+  the spec failed and then passed on that commit. That includes all seven the second `/so` named
+  for product-code culprits (`import-svg` at 49ac0e7f and dedd4576, `editor-base-edits` at
+  8ce08b39, `editor-pen` at 951d944a, `rundown-history` at ef3ada8f, `editor-groups` at 8e4358db,
+  `import-svg-behaviour` at 5b843f32). For `import-svg-behaviour` the later 5bb8f3fe ("Target the
+  quiz reveal action without matching Next") fixed the ambiguous locator that made it flaky; the
+  same-run receipt shows it was a flake on that commit, not a selection miss.
+- **15 more are flake-marked with no same-run receipt**: in every one, the newest culprit cannot
+  reach the spec. They are docs, quarantine-only, workflow or `scripts/` landings, CLI packaging
+  (8bfb475b), the Supabase advisor baseline (b1038916, f48659e9), a `.gitignore` (a2523f82), or
+  edits to other spec files (76afb8cb, 3d2fa00c). Each one's culprit file list was read.
+- **4 unmarked flakes**: `editor-arrangement` (76afb8cb) and `editor-groups` (742a5a65) were
+  quarantined and released before their window. `import-svg-corpus` (0df77f74, a docs landing) is
+  the fail-then-pass bot PR #1834 is quarantining. `video-hyperframes` (a2523f82 `.gitignore`,
+  aa2717b3 docs) failed on landings that cannot reach it.
+- **6 real selection misses, all corrected before the latest reset**:
+  - `editor-fidelity-trim` at 5619f765..45ec97b2 (#927, the miss the old weekly audit found)
+  - `editor-fidelity-trim` at 14c0a5a5 (`svgFit.js`)
+  - `public-chrome-baseline` at 20367f21 (a `docs/whats-new` page)
+  - `public-chrome-baseline` at 20bda886..7c59efcb (`docs.html`)
+  - `downloads` at 92c8a616 (`index.html`)
+  - `editor-cli-round-trip` at 7009ebbb..84a10763 (`src/model/importTemplate.ts`)
+
+  Today's planner selects each of them for its culprit's files (`planFor` on the same files), so
+  each mapping was corrected after the miss, before 26095c82.
 - **The configured miss**: `connector-grants` at run 41247602152. The newest culprit d06974d3 is a
-  quarantine-only landing that left it out; the run also lost a shard (118 of 133 tests, #1865), and
-  every configured run on main after it is green. Infrastructure, not selection.
-- **The 4 flake-marked `selected`**: run before merge on the failing tree by the newest culprit's
-  plan and passed there; flakes, not misses. (Under the first, wrong attribution rule 7 items read
-  `selected`; the 3 with several candidates are misses under the corrected A2 and are flake-marked.)
+  quarantine-only landing that left it out. The same run also lost a shard (118 of 133 tests,
+  #1865), and every configured run on main after it is green. This is infrastructure, not selection.
 
-**No unexplained offline miss in the replayed window.** That is necessary, not proof of
-completeness; the full runs on `main` stay. Limits, stated: the **34 configured `unknown` items**
-are from 2026-10-03 to 2026-10-05, when the configured suite was red on 17 runs in a day and the
-passes ran out of calls reading their logs. They landed before ci06, so no pre-merge configured
-check existed and none could read `selected`, but they are left unread rather than called
-`no-selection`. A red run's failing specs come from check annotations and, for configured runs,
-the verdict log; a failure that names nothing is `not-a-spec`. Job logs expire after 90 days.
+**No unexplained miss in the replayed window.** That is necessary, not proof of completeness; the
+full runs on `main` stay. Stated limits:
+
+- A red run's failing specs come from check annotations, and for configured runs from the verdict
+  log. A failure that names nothing is `not-a-spec`.
+- Job logs expire after 90 days.
+- The flake mark itself is per spec (by file name, within the pass window), not per run. That is
+  why the receipt and the culprit reading above are the evidence, not the mark.
 
 ### Continuing comparison
 
@@ -229,12 +240,17 @@ run was added.
 
 ## 5. Mutation check
 
-Each Rule line broken alone in the code, with its tests run: all 27 mutations fail their named
+Each Rule line broken alone in the code, with its tests run: all 29 mutations fail their named
 test. The list, with the exact replacement for each, is
 [phase-ci07-mutations.json](phase-ci07-mutations.json), so a reviewer can re-apply any of them.
 
 ## 6. Verification
 
+- Review rounds after `/check`: the automated PR review on `bbd8d913` (2 findings, both fixed), a
+  first fresh `/so` on `bbd8d913` (AGREE WITH CORRECTIONS, B: attribution and Q5, fixed), the PR
+  review on `d9884dd7` (no findings), a second fresh `/so` on `d9884dd7` (AGREE WITH CORRECTIONS,
+  B: per-run flake evidence, the unread configured rows, AC-8 wiring and one stale comment, all
+  addressed). The final assessment is on the PR.
 - `/check`: the review returned 10 findings, all confirmed and fixed (section "Rules found after
   coding"; the evidence gaps it found are this section and the ones above). Simplify (four
   reviewers): one strict `gh` reader in `ci-failure-set.mjs` instead of a copy, the backend

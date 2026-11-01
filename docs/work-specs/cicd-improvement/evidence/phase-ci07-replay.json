@@ -2,8 +2,8 @@
  "window": "2026-09-20 to 2026-11-01, main push runs of ci.yml and configured-suite.yml",
  "base": "fb15e6b8f6358ef8b0fad080cf71552b4da37187",
  "command": "node scripts/e2e-selection-misses.mjs --days <n> --before <n> --ref origin/main --json",
- "note": "2-day passes, then 1-day re-passes where a pass spent its 100-call budget; a re-pass answer replaces an unknown row. answers: each candidate culprit plan, newest first.",
- "calls": 2100,
+ "note": "2-day passes, then 1-day re-passes where a pass spent its 100-call budget; a re-pass answer replaces an unknown row. answers: each candidate culprit plan, newest first. The 2026-10-02 to 10-05 configured runs were re-read in half-day and 3-hour passes after the context reads were cut to the last run before each window. Unknown rows from earlier passes for runs inside the re-read window (2026-10-02T06:21Z to 10-05T18:21Z) are dropped: the re-read passes read every red run there (zero unknown) and those runs only inherited failures already counted. receipt: a quarantine entry whose run is this very run, which proves a fail-then-pass on its commit.",
+ "calls": 2459,
  "passes": [
   {
    "pass": "w0",
@@ -169,30 +169,79 @@
    "pass": "d29",
    "days": 1,
    "calls": 100
+  },
+  {
+   "pass": "h26.5",
+   "days": 0.5,
+   "calls": 2
+  },
+  {
+   "pass": "h27.5",
+   "days": 0.5,
+   "calls": 9
+  },
+  {
+   "pass": "h27",
+   "days": 0.5,
+   "calls": 9
+  },
+  {
+   "pass": "h28.5",
+   "days": 0.5,
+   "calls": 24
+  },
+  {
+   "pass": "h28",
+   "days": 0.5,
+   "calls": 20
+  },
+  {
+   "pass": "h29.5",
+   "days": 0.5,
+   "calls": 100
+  },
+  {
+   "pass": "h29",
+   "days": 0.5,
+   "calls": 40
+  },
+  {
+   "pass": "q29.5",
+   "days": 0.125,
+   "calls": 14
+  },
+  {
+   "pass": "q29.625",
+   "days": 0.125,
+   "calls": 30
+  },
+  {
+   "pass": "q29.75",
+   "days": 0.125,
+   "calls": 38
+  },
+  {
+   "pass": "q29.875",
+   "days": 0.125,
+   "calls": 64
+  },
+  {
+   "pass": "oct6",
+   "days": 0.25,
+   "calls": 9
   }
  ],
  "totals": {
-  "configured-suite.yml unknown": 32,
-  "configured-suite.yml no-selection": 55,
-  "configured-suite.yml no-selection (flake)": 18,
+  "configured-suite.yml no-selection": 87,
+  "configured-suite.yml no-selection (flake)": 24,
   "ci.yml miss (flake)": 35,
   "ci.yml not-a-spec": 17,
   "configured-suite.yml not-a-spec": 11,
   "ci.yml miss": 10,
   "ci.yml selected (flake)": 4,
-  "configured-suite.yml unknown (flake)": 2,
   "configured-suite.yml miss": 1
  },
  "rows": [
-  {
-   "workflow": "configured-suite.yml",
-   "run": "-",
-   "spec": "job: configured-suite.yml runs unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [],
-   "answers": []
-  },
   {
    "workflow": "configured-suite.yml",
    "run": 35755733408,
@@ -716,7 +765,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 298b26921f records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",
@@ -820,7 +870,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry deff0ee492 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -846,7 +897,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 7cd8e1ef11 records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",
@@ -986,7 +1038,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 90bddc58e0 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -999,7 +1052,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 90bddc58e0 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -1127,182 +1181,182 @@
    "workflow": "configured-suite.yml",
    "run": 36974119396,
    "spec": "e2e/configured/account.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": true,
    "culprits": [
     "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36974119396,
    "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36974119396,
    "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36974119396,
    "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36974119396,
    "spec": "e2e/configured/live-prepare.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36974119396,
    "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36974119396,
    "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/account.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": true,
    "culprits": [
     "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/live-prepare.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "unknown",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
    ],
    "answers": [
-    "unknown"
+    "no-selection"
    ]
   },
   {
@@ -1318,172 +1372,114 @@
    "answers": [
     "not-selected",
     "not-selected"
+   ],
+   "receipt": "quarantine entry bbb14640ed records a fail-then-pass on this run"
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36987105517,
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
+   ],
+   "answers": [
+    "no-selection"
    ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 36987105517,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "configured-suite.yml",
-   "run": 36991205912,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "run": 36987105517,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
-    "9fb165e2fe177286e5a853a9c993734f1cb51326"
+    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "configured-suite.yml",
-   "run": 36991854932,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "run": 36987105517,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
-    "b623f2da0b8b393bde577e088b668d433f8df99e"
+    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "configured-suite.yml",
-   "run": 36993588776,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "run": 36987105517,
+   "spec": "e2e/configured/live-prepare.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
-    "d5fcf6fb7af5d27cb5f92a2c713ddec22896fff7"
+    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "configured-suite.yml",
-   "run": 36998384426,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "run": 36987105517,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
-    "27660868df61a5f12984a25a4787aec50aaddeaf"
+    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 36987105517,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
+   ],
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "configured-suite.yml",
    "run": 37000361229,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "spec": "e2e/configured/panel-page.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
-    "1ee6a2cb92c4982082ee604bbb9eebc5cbffae4f"
+    "1ee6a2cb92c4982082ee604bbb9eebc5cbffae4f",
+    "4cc74d4449a7f5f84cfcbbd9cf172be5affcfa99"
    ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37003276615,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "94177d561c23f2a1f0045bb7301b3bb6ddeb997a"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37006634298,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "71aca2e1f8dfc09ff6ce7195923d9785a0086be6"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37007103340,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "75620b9a6522ee73c689ad9afe2c145889ab4301"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37014699819,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "c81d4e2f4c2343180cbc6108428e60bba3de830a"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37014964783,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "08161b19e107bcc6a648e1b58536d68929670db6"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37016061559,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "811c09c95746abc7c17506f40ab4a29e776e3d9b"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37021949784,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "80765b6c56f12214fb1f1238d9ff97ac08966395"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37026641032,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "f5cae71dafe01fc9134c9b0c1becf810a1fbf8bc"
-   ],
-   "answers": []
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37033028611,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "975b0606c2acd276141f5f9fd6bf25098d2a9229"
-   ],
-   "answers": []
+   "answers": [
+    "no-selection",
+    "no-selection"
+   ]
   },
   {
    "workflow": "ci.yml",
@@ -1553,13 +1549,93 @@
   {
    "workflow": "configured-suite.yml",
    "run": 37110685912,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "579d12bc44a6974d132146c515f1589516b9155c"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37110685912,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "579d12bc44a6974d132146c515f1589516b9155c"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37110685912,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "579d12bc44a6974d132146c515f1589516b9155c"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37110685912,
+   "spec": "e2e/configured/command-sequence.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "579d12bc44a6974d132146c515f1589516b9155c"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37110685912,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "579d12bc44a6974d132146c515f1589516b9155c"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37110685912,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "579d12bc44a6974d132146c515f1589516b9155c"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37110685912,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "579d12bc44a6974d132146c515f1589516b9155c"
+   ],
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "ci.yml",
@@ -1622,7 +1698,8 @@
    ],
    "answers": [
     "selected"
-   ]
+   ],
+   "receipt": "quarantine entry 18ee205ccb records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",
@@ -1638,24 +1715,119 @@
   {
    "workflow": "configured-suite.yml",
    "run": 37248006050,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "spec": "e2e/configured/account.spec.ts",
+   "verdict": "no-selection",
+   "flake": true,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "e2e/configured/anonymous.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
     "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "configured-suite.yml",
-   "run": 37392704287,
-   "spec": "failure set unread",
-   "verdict": "unknown",
+   "run": 37248006050,
+   "spec": "e2e/configured/bridge-real-server.spec.ts",
+   "verdict": "no-selection",
    "flake": false,
    "culprits": [
-    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
    ],
-   "answers": []
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "e2e/configured/community-authed.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "e2e/configured/moderator.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "e2e/configured/panel-page.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "e2e/configured/panel-production-page.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "e2e/configured/signed-in-ux.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": [
+    "no-selection"
+   ]
+  },
+  {
+   "workflow": "configured-suite.yml",
+   "run": 37248006050,
+   "spec": "e2e/configured/teams.spec.ts",
+   "verdict": "no-selection",
+   "flake": false,
+   "culprits": [
+    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
+   ],
+   "answers": [
+    "no-selection"
+   ]
   },
   {
    "workflow": "configured-suite.yml",
@@ -1877,7 +2049,8 @@
     "not-selected",
     "not-selected",
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 83ad4f009e records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -1924,7 +2097,8 @@
     "not-selected",
     "not-selected",
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 56a7fc896e records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -1941,7 +2115,8 @@
     "not-selected",
     "not-selected",
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry b1487cd9d6 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -1960,7 +2135,8 @@
     "not-selected",
     "not-selected",
     "selected"
-   ]
+   ],
+   "receipt": "quarantine entry 48692427d2 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -1994,7 +2170,8 @@
    "answers": [
     "not-selected",
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry a2e181329d records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2096,7 +2273,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry a57f3ec4b4 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2169,7 +2347,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 7d3cf6e10f records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2199,7 +2378,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry c7984f2443 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2218,18 +2398,8 @@
     "not-selected",
     "not-selected",
     "not-selected"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 39099452797,
-   "spec": "failure set unread",
-   "verdict": "unknown",
-   "flake": false,
-   "culprits": [
-    "0bdf5a47a322f27aa4376d3a6225c17411b0494f"
    ],
-   "answers": []
+   "receipt": "quarantine entry 46f29a4c21 records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",
@@ -2304,7 +2474,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 2c26edcb6a records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2330,7 +2501,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 8f7798879e records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",
@@ -2354,7 +2526,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 95d5dbe364 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2367,7 +2540,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 3a951b8b6d records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2380,7 +2554,8 @@
    ],
    "answers": [
     "selected"
-   ]
+   ],
+   "receipt": "quarantine entry c9c2e5ea73 records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",
@@ -2467,7 +2642,8 @@
    ],
    "answers": [
     "selected"
-   ]
+   ],
+   "receipt": "quarantine entry 3541f37926 records a fail-then-pass on this run"
   },
   {
    "workflow": "ci.yml",
@@ -2528,7 +2704,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 4e9fbc20ff records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",
@@ -2602,7 +2779,8 @@
    ],
    "answers": [
     "not-selected"
-   ]
+   ],
+   "receipt": "quarantine entry 41a21af434 records a fail-then-pass on this run"
   },
   {
    "workflow": "configured-suite.yml",

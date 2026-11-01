@@ -347,8 +347,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     // first judged run. Job items stay: a failing job that annotated no spec (a build step, a lost
     // shard) is listed as `not-a-spec` rather than dropped. A configured run's specs come from its
     // verdict job's log. A red run with no item at all was not read.
+    // Only the last context run says what was already red when the window opens; earlier red
+    // context runs are skipped (`null`), so their reads do not spend the budget.
+    const firstJudged = all.findIndex(judged);
+    const lastContext = firstJudged > 0 ? all[firstJudged - 1] : null;
     const failing = new Map();
-    for (const r of all.filter((x) => x.conclusion === 'failure')) {
+    for (const r of all.filter((x) => x.conclusion === 'failure' && (judged(x) || x === lastContext))) {
       try {
         let items = fetchFailureSet(r.id, { repo, gh }).items;
         // The verdict annotates at most a few specs; its log's failure set names all of them, so
@@ -360,7 +364,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         failing.set(r.id, items.length ? items : null);
       } catch { failing.set(r.id, null); }
     }
-    const introduced = new Map(newlyFailing(all.map((r) => ({ sha: r.head_sha, conclusion: r.conclusion, specs: r.conclusion === 'success' ? [] : failing.get(r.id) }))).map((r) => [r.sha, r.specs]));
+    const introduced = new Map(newlyFailing(all.map((r) => ({ sha: r.head_sha, conclusion: r.conclusion, specs: r.conclusion === 'success' ? [] : failing.get(r.id) ?? null }))).map((r) => [r.sha, r.specs]));
     for (const run of red) {
       if (failing.get(run.id) === null) {
         rows.push({ runId: run.id, workflow, spec: 'failure set unread', verdict: 'unknown', flake: false, culprits: [run.head_sha] });

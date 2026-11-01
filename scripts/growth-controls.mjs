@@ -738,6 +738,22 @@ export function admit(record, assessment) {
 // ---------------------------------------------------------------------------------------------
 // The weekly report's text.
 
+/**
+ * The quarantine coverage gaps the weekly report counts (cicd-improvement ci07, Rule Q2, AC-4/AC-8):
+ * every open incident with its severity and repair date. `'unread'` when the store could not be
+ * read, never "none". Absent (an older report) prints nothing.
+ */
+export function quarantineLines(q) {
+  if (q === undefined || q === null) return [];
+  if (q === 'unread') return ['Quarantine coverage gaps: UNREAD - the quarantine store could not be read, so open incidents are unknown.', ''];
+  if (q.length === 0) return ['Quarantine coverage gaps: none open.', ''];
+  return [
+    `Quarantine coverage gaps: ${q.length} open incident(s), ${q.filter((i) => i.severity === 'critical').length} critical, ${q.filter((i) => i.overdue).length} overdue. Each blocks affected narrowing and expansion until it is back in the blocking gate.`,
+    ...q.map((i) => `- \`${i.spec}\` (${i.severity}, since ${i.since}, repair due ${i.due}${i.overdue ? ', OVERDUE' : ''}): ${i.gap}. Owner ${i.owner}.`),
+    '',
+  ];
+}
+
 /** Markdown for the weekly report: tiers, the aggregate line, freshness, exceptions, timing, actions. */
 export function weeklyMarkdown(r) {
   const fmt = (x) => (x === null || x === undefined ? 'n/a' : round1(x));
@@ -758,6 +774,7 @@ export function weeklyMarkdown(r) {
     ...r.timing.map((t) => `Timing ${t.measure}: ${t.pooled.n} samples pooled (need ${r.ceilings.timing.pooledMinSamples}${t.adequate ? '' : ', descriptive only'}), p50 ${fmt(t.pooled.p50)}, p90 ${fmt(t.pooled.p90)}, max ${fmt(t.pooled.max)} against p50 ${t.ceiling.p50}/p90 ${t.ceiling.p90}${t.sustained ? ' - SUSTAINED BREACH' : ''}. Categories: ${Object.entries(t.categories).map(([k, v]) => `${k} n=${v.n} p50 ${fmt(v.p50)}`).join(', ') || 'none'}.`),
     '',
     ...(r.unknownClocks?.length ? [`Unknown clock starts (reported, never zero): ${r.unknownClocks.join(', ')}.`, ''] : []),
+    ...quarantineLines(r.quarantine),
     r.breaches.length ? '### Actions' : '### Actions: none',
     ...r.breaches.map((b) => `- **${b.key}** (${b.state}): ${b.detail}. Owner ${b.owner}; ${b.state === 'stopped' ? `growth stopped in ${affectedTiers(b.key).join(', ') || 'nothing (item-level)'} until measured back in bounds` : `correction due ${b.due}`}.`),
     '',

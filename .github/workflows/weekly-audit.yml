@@ -120,8 +120,8 @@ jobs:
       # A spec no culprit's plan selected is a miss; an unreadable plan is unknown, never selected; a
       # quarantined flake keeps its verdict and is marked for investigation. The summary also names
       # the latest audit reset (selector code, a focus or critical header line, or a
-      # `Selection-audit-reset:` trailer) and is `blocked` while a critical quarantine incident is
-      # open. Report only, bounded to 100 API calls, like the step above.
+      # `Selection-audit-reset:` trailer) and is `blocked` while any quarantine incident is open.
+      # Report only, bounded to 100 API calls, like the step above.
       - name: Selection misses this week (report only)
         timeout-minutes: 6
         continue-on-error: true

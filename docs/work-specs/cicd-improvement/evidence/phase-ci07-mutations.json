@@ -189,6 +189,20 @@
    "old": "    if (strict) throw new Error",
    "new": "    if (false) throw new Error",
    "test": "e2e-quarantine"
+  },
+  {
+   "rule": "Q2b",
+   "file": "scripts/growth-controls.mjs",
+   "old": "  if (q === 'unread') return",
+   "new": "  if (false) return",
+   "test": "growth-controls"
+  },
+  {
+   "rule": "Q2c",
+   "file": "scripts/growth-report.mjs",
+   "old": "collection, quarantine });",
+   "new": "collection });",
+   "test": "growth-controls"
   }
  ]
 }

@@ -13,7 +13,7 @@ import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCo
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
   ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
-  tableFreshness, tierOfCover, tierOfJob, workflowShape,
+  quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
 
@@ -1451,4 +1451,21 @@ test('(d) a merged PR whose head was rewritten keeps the start an earlier read r
   const r = finishedPrs(makeReader(20, fake), ...window, 5, { '#9': '2026-10-28T08:00:00Z' });
   assert.equal(r.complete, true);
   assert.equal(r.samples.find((x) => x.measure === 'prReady').value, 23 * 60, 'from the recorded 08:00 start to the merge');
+});
+
+test('(e) quarantine coverage gaps are counted in the weekly report (ci07, AC-4/AC-8): each open incident, unread is never "none"', () => {
+  const incidents = [
+    { spec: 'e2e/flows.spec.ts', severity: 'critical', since: '2026-10-20', due: '2026-10-27', overdue: true, gap: 'critical journey for site-entry is not blocking', owner: 'the coordinator' },
+    { spec: 'e2e/import-svg.spec.ts', severity: 'affected', since: '2026-10-31', due: '2026-11-14', overdue: false, gap: 'changes to src/importedDesign/** merge without it blocking', owner: 'the coordinator' },
+  ];
+  const lines = quarantineLines(incidents).join('\n');
+  assert.match(lines, /Quarantine coverage gaps: 2 open incident\(s\), 1 critical, 1 overdue\./);
+  assert.match(lines, /`e2e\/flows\.spec\.ts` \(critical, since 2026-10-20, repair due 2026-10-27, OVERDUE\)/);
+  assert.match(quarantineLines('unread').join('\n'), /UNREAD/);
+  assert.match(quarantineLines([]).join('\n'), /none open/);
+  assert.deepEqual(quarantineLines(undefined), [], 'an older report without the field prints nothing');
+  // collect reads the store strictly and passes the incidents into the report.
+  const src = readFileSync(new URL('./growth-report.mjs', import.meta.url), 'utf8');
+  assert.match(src, /readStore\(QUARANTINE_STORE, \{ strict: true \}\)/);
+  assert.match(src, /collection, quarantine \}\);/);
 });
