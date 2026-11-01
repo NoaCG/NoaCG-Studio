@@ -28,18 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": null,
-  "inFlight": [
-    {
-      "phase": "9",
-      "step": "check",
-      "session": "session_017SdbwRHJWwbCZ7MkXiJhoX",
-      "nonce": "9-c-ba38",
-      "mergeSha": "e6eadadcc4ec745ebb51dbca7248c62bc61981c5",
-      "pr": 1888,
-      "launchedAt": "2026-11-01T03:49:41Z",
-      "note": "independent checker; brief plus coordinator note listing recorded decisions #1886 #1887 #1889 #1890 #1891"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [],
   "triggers": {
@@ -125,6 +114,12 @@
       "mergeSha": "562452968ee7e1bd271329420d153b93b1912510",
       "pr": 1883,
       "checker": "session_017SdbwNv5WBxa9qnijkHNeV"
+    },
+    {
+      "phase": "9",
+      "mergeSha": "e6eadadcc4ec745ebb51dbca7248c62bc61981c5",
+      "pr": 1888,
+      "checker": "session_017SdbwRHJWwbCZ7MkXiJhoX"
     }
   ],
   "coordinatorNotes": [
