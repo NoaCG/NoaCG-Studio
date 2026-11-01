@@ -42,7 +42,7 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on a0b2c502: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "what": "ci18 on fcb6f405: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
     "eta": "2026-11-01T02:30:00Z"
   },
   "inFlight": [
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Rules head a0b2c502: numbered Rules E1-E20 (evidence completeness) and X1-X12 (exception scope/credit) in phase-ci18.md section 6 and PR body; one test per line, 37 mutations caught; /so #4 B (rename bypassed renewal) folded in as X12/X4. Codex requested; Rules-attack full-diff /so session_017SdbwPmoTkXtBvzAZhvYST running; CI running.",
+      "note": "Head fcb6f405: Rules-attack /so on a0b2c502 (session_017SdbwPmoTkXtBvzAZhvYST) B: job replaced under new key/name renewed without repayment; fixed as X4 correction (a later cover of same kind and tier is same scope at any age). Codex on a0b2c502: two findings fixed as X12/X10 corrections. Findings now arrive as rule corrections, no wrong overlaps; 43/43 mutations caught. Codex, CI and Rules-attack /so session_017SdbwPVkZH8CMtuRmRj3HT running on fcb6f405.",
       "pr": 1880,
       "reviewedHead": null
     }
