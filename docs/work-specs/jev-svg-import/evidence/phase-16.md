@@ -46,8 +46,12 @@ names each.
   Alignment is read from the stated anchor, or from drawn widths where the text is laid out.
   Laid out, looks and the anchor are the browser's computed style, so stylesheet classes count
   and two class spellings of one look are one look; parsed, the class names are compared;
-  relative steps (`dx`, `dy`, in units or ems) before the first character count;
-  validation lays the markup out whenever a page exists. A run's own x and y are where it is drawn.
+  where a layer is drawn is its first character's position: laid out, the browser's own
+  (`getStartPositionOfChar(0)`, with the anchor point found along the drawn advance); parsed,
+  each of x, y, dx and dy is the nearest element's value (the run's where it states one, else the
+  text's), never a sum, in units or ems; the two readings must agree. A layer's runs are its
+  character runs at any depth, and laid out, its lines are the browser's baselines under its
+  characters. Validation lays the markup out whenever a page exists.
   Steps (role to name, name to name, group gap, column) are measured where the sample shows them.
 - C6 A whole block turned or scaled as one reads as drawn; layers at different angles or scales
   are refused (`mixed-angles`).
@@ -92,11 +96,13 @@ names each.
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 18/18. The same file with
+- `node --test scripts/imported-credits-model.test.mjs`: 19/19. The same file with
   `CREDITS_SRC` set to an export of main `e680acd1` gives identical pins (the model tests fail
   there, as they must). Mutations: a changed byte in the editable roll's runtime string, or in the
   artwork roll's, fails the pin test; reading the text's x before its run's fails the run-position
-  test; dropping the relative `dy` fails the relative-steps test.
+  test; summing the text's and the run's `dy` in the parsed reading fails the relative-steps test,
+  which holds it against the browser's laid-out reading; reading only direct child runs fails the
+  refusals test on a wrapper run that hides a second line.
 - `npx tsc --noEmit -p .`, `npx eslint` on the four files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS.
 - `scripts/jev-svg-baseline.test.mjs` 19/19, `scripts/credits-parser.test.mjs` 16/16,
@@ -126,6 +132,15 @@ names each.
   emit re-takes them the same way: on main before the change and on its branch.
 - **The role-length limit (48) is a third copy** beside the parser and `control/contentFormats.ts`,
   whose constant is not exported and lies outside this row's files.
+- **Repeated family, positional reading.** the automated PR review on `a428cd7f` found `dx`/`dy` ignored; the fix
+  summed the text's and the run's step, and `/so` on `7c066818` (grade B) found that SVG uses only
+  the nearest one (checked in Chromium). Two rounds on one rule, so the rule was corrected rather
+  than patched again: the browser's reading is the authority when laid out, the parsed reading
+  follows SVG's nearest-value rule, and the test holds the two against each other. the automated PR review on
+  `7ee670f3` then found lines hidden in a wrapper run; the same correction covers it, since lines
+  are now the browser's baselines when laid out and the parsed walk takes runs at any depth.
+- **Looks compare paint too** (the automated PR review on `7c066818`): `fill-opacity`, `stroke-opacity` and
+  `stroke-width` join the look, so roles set apart by opacity alone read as two looks.
 - **Ordinary review scenario.** This row adds a declaration and a pure reader with no runtime
   state, transitions, retries or writers, so the Rules were written in these notes rather than
   challenged before code.
@@ -136,9 +151,12 @@ names each.
   roles on the right, geometry alone cannot tell which look is the role, and the rule "the first
   layer read is the role look" answers wrongly. The stored anchor kinds are the author's to
   confirm in row 18's preview (AC-23); nothing here guesses further.
-- **A parsed-only reading does not see stylesheet looks.** Without a page, class-set sizes and
-  anchors are not resolved (classes still separate the looks). Every in-product caller has a page,
-  and validation lays the markup out there.
+- **A parsed-only reading is a fallback; the laid-out one is the authority.** Without a page,
+  class-set sizes and anchors are not resolved (classes still separate the looks); a percentage
+  position reads as a plain number; and loose text before the first run with its own `dx` is read
+  from that run. Every in-product caller has a page, and validation lays the markup out there.
+- **Nested `<svg>` offsets and CSS `transform` styles are not part of a layer's frame** in either
+  reading. Spacing between layers stays right unless they sit in different nested viewports.
 - **Drawn widths depend on the loaded fonts.** Centring with no stated anchor is read from
   measured widths; measured before the design's faces load, a fallback face can turn a binding
   the wizard accepted into `misaligned`. Nothing calls validation yet; the row that does (19)
@@ -146,6 +164,10 @@ names each.
 - **The laid-out copy shares the page's styles for the moment it is measured.** Nothing paints
   in between, so nothing shows; page-wide font rules could change widths, which only matters for
   the limit above. An isolated frame is the fix if row 19 needs it.
+
+Rendering details for rows 19 to 23 (#1937): a centred line drawn as several pieces on one line is
+measured against the whole text's width; role beside drops a small baseline offset between a role
+and its first name; with a role that has no names, `groupGap` measures role to role.
 
 ## Follow-ups
 
