@@ -42,8 +42,8 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci18 on 0a2a64d2: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T03:45:00Z"
+    "what": "ci18 on d0ff91f9: Codex, CI gate, Rules-attack /so, receipt; block 1 renewal due before 2026-11-01T08:10Z",
+    "eta": "2026-11-01T04:05:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "Head 0a2a64d2: /so on b8648cfa B (partial evidence lower bound overstated waiver room; ci04 case read 80% vs true 118%; fixed X9: no waiver unless tier evidence complete). Offline job deltas priced via priceAdditions (X10), #1885 item 11 closed. Configured 4/4 #1865 port bind, one re-run done. 68/68 mutations. Codex, CI and Rules-attack /so session_017SdbwNJUs6i1txFjqrT8K2 running; builder holding.",
+      "note": "Head d0ff91f9: /so and Codex on 0a2a64d2 both found offline job items and spec items judged in separate tier checks (each under 95%, together over; shared allowance spent twice); fixed in one X10 check. 69/69 mutations. Codex, CI and Rules-attack /so session_017SdbwRAUVtYaExJfTYGJo9 running; builder holding.",
       "pr": 1880,
       "reviewedHead": null
     }
