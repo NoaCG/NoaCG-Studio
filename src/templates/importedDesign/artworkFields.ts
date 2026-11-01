@@ -7,12 +7,28 @@
 import { clockSampleMinutes } from '../../assets/svgImport';
 import type { SpxField } from '../../model/types';
 import type { DesignSvg } from '../../model/wizard';
+import { asClockMode, clockReadout, type ClockMode } from '../behaviours/clock';
 import { creditsArtworkFields, creditsIndex, creditsSampleText } from './creditsRoll';
+
+/** The design's CLOCK (templates/behaviours/clock.ts): the field its time layer is, and its mode,
+ *  or null. A clock whose layer is no longer a field is no clock, as the compiler reads it
+ *  (behaviour.ts). Its field stays the operator's text field: typing a time corrects the clock. */
+export function boundClock(svg: DesignSvg): { index: number; mode: ClockMode; count: 'up' | 'down'; start: string } | null {
+  const extra = (svg.extras ?? []).find((e) => e.kind === 'clock');
+  if (!extra || extra.kind !== 'clock') return null;
+  const index = svg.fields.findIndex((f) => f.candidateId === extra.field);
+  if (index === -1) return null;
+  const mode = asClockMode(extra.mode);
+  return { index, mode, ...clockReadout(mode, svg.fields[index].sample) };
+}
 
 /** The ONE countdown field of a design (plan P2 "clock ftype"): the first text layer bound
  *  as a countdown, or -1. One, because the shared clock runtime (templates/shared/clock.ts)
- *  drives one display; a second countdown choice binds as plain text. */
+ *  drives one display; a second countdown choice binds as plain text. A design that carries the
+ *  CLOCK has no countdown field at all: one clock engine per graphic, and the clock's is the
+ *  match clock, so a layer still flagged as a countdown binds as plain text too. */
 export function countdownIndex(svg: DesignSvg): number {
+  if (boundClock(svg)) return -1;
   return svg.fields.findIndex((f) => f.countdown);
 }
 

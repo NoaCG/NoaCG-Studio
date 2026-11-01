@@ -24,7 +24,7 @@ import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
-import { CLOCK_MODES, CLOCK_NAME, CLOCK_RUNTIME_READY } from '../../../templates/behaviours/clock';
+import { CLOCK_MODES, CLOCK_NAME, CLOCK_TIME } from '../../../templates/behaviours/clock';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
 import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
 import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
@@ -1119,10 +1119,12 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
   const out: DesignSvgExtra[] = [];
   // ONE NAME PER PART. Each extra's buttons and group are named after it, case and punctuation
   // aside, so two hidden layers both called "Sponsor" would be one name twice, which the compiler
-  // refuses. The later one is numbered, as a choice's options are (`optionKey`).
-  const taken = new Set<string>();
+  // refuses. The later one is numbered, as a choice's options are (`optionKey`). The clock is
+  // named first: a choice called "Clock" with a Start option would otherwise share its button.
+  const token = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const clock = svgClockOption(draft);
+  const taken = new Set<string>(clock ? [token(clock.name)] : []);
   const unique = (name: string): string => {
-    const token = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     let next = name;
     for (let n = 2; taken.has(token(next)); n++) next = `${name} ${n}`;
     taken.add(token(next));
@@ -1139,7 +1141,6 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
     groups.set(e.group.trim(), list);
   }
   for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name: unique(name), options });
-  const clock = svgClockOption(draft);
   if (clock) out.push(clock);
   return out.length > 0 ? out : undefined;
 }
@@ -1151,12 +1152,11 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
  * offers exactly these, and the graphic carries a clock only on one of them, so a clock the step
  * no longer shows is never built behind the author's back.
  */
-export function svgClockRows(draft: SvgImportDraft, ready: boolean = CLOCK_RUNTIME_READY): SvgFieldDraft[] {
-  // Until the clock's runtime is bound there is nowhere a clock may go, whoever wrote `svgClock`.
-  if (!ready || draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
+export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
+  if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
   if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
   const driven = pollDrivenLayers(draft.svgBehaviour);
-  return draft.svgFields.filter((f) => f.on && f.clock && !driven.has(f.candidateId));
+  return draft.svgFields.filter((f) => f.on && f.clock && CLOCK_TIME.test(f.sample.trim()) && !driven.has(f.candidateId));
 }
 
 /** Whether the file drew the moments only the countdown paints: its names propose it, read the way
@@ -1166,10 +1166,10 @@ export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
 }
 
 /** The clock as the graphic carries it, or null. */
-export function svgClockOption(draft: SvgImportDraft, ready: boolean = CLOCK_RUNTIME_READY): DesignSvgClock | null {
+export function svgClockOption(draft: SvgImportDraft): DesignSvgClock | null {
   const clock = draft.svgClock;
   if (!clock || !draft.designSvg || clock.revision !== svgSourceRevision(draft.designSvg.markup)) return null;
-  if (!svgClockRows(draft, ready).some((f) => f.candidateId === clock.candidateId)) return null;
+  if (!svgClockRows(draft).some((f) => f.candidateId === clock.candidateId)) return null;
   return { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
 }
 
@@ -1194,8 +1194,8 @@ export function behaviourSummary(draft: SvgImportDraft): string {
   const choices = extras.filter((e) => e.kind === 'choice');
   if (switches.length > 0) parts.push(`${switches.length} ${switches.length === 1 ? 'switch' : 'switches'}`);
   for (const c of choices) if (c.kind === 'choice') parts.push(`a choice, ${c.name} (${c.options.map((o) => o.label).join(', ')})`);
-  const clock = svgClockOption(draft);
-  if (clock) parts.push(CLOCK_MODES.find((m) => m.mode === clock.mode)?.summary ?? 'a clock');
+  const clock = extras.find((e) => e.kind === 'clock');
+  if (clock?.kind === 'clock') parts.push(CLOCK_MODES.find((m) => m.mode === clock.mode)?.summary ?? 'a clock');
   return parts.join(' · ');
 }
 

@@ -7,7 +7,7 @@
 import type { DesignSvg, DesignSvgFollower } from '../../model/wizard';
 import { SVG_CANDIDATE_ATTR, svgPictureTarget } from '../../assets/svgImport';
 import { boundBehaviour } from './behaviour';
-import { countdownIndex, svgFields } from './artworkFields';
+import { boundClock, countdownIndex, svgFields } from './artworkFields';
 import { creditsArtworkFields, creditsClass, creditsIndex } from './creditsRoll';
 import { PREFIX } from './shared';
 import { followToken, growToken, LAYOUT_EL_ATTR, layoutRules } from './svgLayout';
@@ -62,6 +62,13 @@ function normalizePictureHref(el: Element): void {
   if (legacy === null) return;
   if (!el.getAttribute('href')) el.setAttribute('href', legacy);
   el.removeAttribute('xlink:href');
+}
+
+/** Add a class, keeping the designer's own classes and never doubling ours. */
+function addClass(el: Element, cls: string): void {
+  const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+  if (!own.includes(cls)) own.push(cls);
+  el.setAttribute('class', own.join(' '));
 }
 
 /**
@@ -131,6 +138,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   }
 
   const clock = countdownIndex(svg);
+  const matchClock = boundClock(svg);
   const credits = creditsIndex(svg);
   const artworkCredits = creditsArtworkFields(svg, root);
   [...svg.fields, ...svg.images].forEach((field, i) => {
@@ -146,9 +154,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
       // roll copies looks and leading off the lines of the text those runs belong to.
       const target = i === credits || artworkCredits.has(i) ? el.closest('text') ?? el : el;
       const cls = i === clock ? `${PREFIX}-clock` : creditsClass(PREFIX);
-      const own = (target.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-      if (!own.includes(cls)) own.push(cls);
-      target.setAttribute('class', own.join(' '));
+      addClass(target, cls);
       return;
     }
     // A PICTURE field binds the node whose href paints the picture, which is not always the node
@@ -159,6 +165,15 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
     // unaccompanied `setAttribute('id', …)` would leave the shape painting nothing.
     if (i < svg.fields.length) {
       setIdKeepingRefs(root, el, `f${i}`);
+      // THE CLOCK'S READOUT is the time layer itself, keeping its id: the match-clock runtime
+      // paints the ticking time into it, and the operator's typed time lands in the same node as
+      // a correction (templates/shared/matchClock.ts). Two attributes say which way it counts and
+      // where Reset returns; the layer's font, position and transform are the designer's, untouched.
+      if (i === matchClock?.index) {
+        addClass(el, `${PREFIX}-clock`);
+        el.setAttribute('data-count', matchClock.count);
+        el.setAttribute('data-start', matchClock.start);
+      }
       return;
     }
     const picture = svgPictureTarget(el, root);
@@ -173,9 +188,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   for (const outline of svg.outlines) {
     const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${outline.candidateId}"]`);
     if (!el) continue;
-    const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-    if (!own.includes(`${PREFIX}-outlined`)) own.push(`${PREFIX}-outlined`);
-    el.setAttribute('class', own.join(' '));
+    addClass(el, `${PREFIX}-outlined`);
   }
   // A text layer the author said should come OFF the artwork, hidden the same way and for the
   // same reason: the designer's own shapes stay in the file, and one rule takes them off air.
@@ -184,9 +197,7 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
   for (const gone of svg.hidden ?? []) {
     const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${gone.candidateId}"]`);
     if (!el) continue;
-    const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-    if (!own.includes(`${PREFIX}-removed`)) own.push(`${PREFIX}-removed`);
-    el.setAttribute('class', own.join(' '));
+    addClass(el, `${PREFIX}-removed`);
   }
   // THE ELEMENTS A LAYOUT RELATIONSHIP NAMES (plan §6c): every participant - an element that
   // may GROW, and anything DECLARED to travel with it - is stamped with one token, and the
