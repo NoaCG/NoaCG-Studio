@@ -28,35 +28,26 @@
   },
   "branchPrefix": "claude",
   "waitingOn": {
-    "what": "PR #1883 merge-group CI 41254412193 for phase 8",
-    "eta": "2026-11-01T00:15:00Z"
+    "what": "phase 8 checker verdict on 56245296 (exact-merge CI, configured-suite, post-land, live clock walk)",
+    "eta": "2026-11-01T01:00:00Z"
   },
   "inFlight": [
     {
       "phase": "8",
-      "step": "build (queued)",
-      "session": "session_017SdbwMxgk4e9F5r8Ex9Q3C",
-      "nonce": "8-b-c08b",
-      "branch": "claude/plan-jev-svg-import-8-build",
-      "source": "d06974d30c42f504073fc810f2d1316168eb1f8d",
-      "launchedAt": "2026-10-31T22:40:57Z",
-      "note": "auto-merge on; coordinator is #1883 repair owner through post-land. Checker notes: CLOCK_RUNTIME_READY retired, picker live with No clock/Counts up/Duration (Target time off until row 10), four reconciled departures, saved countdowns byte-identical (9+9+57 designs, catalog 528).",
+      "step": "check",
+      "session": "session_017SdbwNv5WBxa9qnijkHNeV",
+      "nonce": "8-c-68c2",
+      "mergeSha": "562452968ee7e1bd271329420d153b93b1912510",
       "pr": 1883,
-      "head": "7979e5a40cc9edbc011e3dec89a6841ca17d79f6",
-      "reviewedHead": "7979e5a40cc9edbc011e3dec89a6841ca17d79f6",
-      "ciRun": 41252023189,
-      "configuredSelection": "all: 67 specs on 4 local stacks, verdict success",
-      "soSession": "session_017SdbwNACJWLLo9MHnszshp",
-      "soGrade": "A",
-      "stampRun": 41254356191,
-      "autoMergeEnabledAt": "2026-10-31T23:53:32Z"
+      "launchedAt": "2026-11-01T00:07:46Z",
+      "note": "checker walks the live clock, judges AC-8 split with rows 9/11; coordinator remains #1883 repair owner through post-land"
     }
   ],
   "owner": [],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-01T00:20:00Z"
+    "checkinAt": "2026-11-01T01:05:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
