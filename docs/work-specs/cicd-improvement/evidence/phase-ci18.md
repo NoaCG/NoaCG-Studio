@@ -327,9 +327,11 @@ What each state lets the controls do. A change that adds nothing is never refuse
   adequate and in bounds; age when its read was complete.
 - E21. A growth stop refuses any addition to its tier, whether or not an exception waives it.
   Offline included: the stop, like an unreadable report (E18), is judged before any waiver.
-- E22. The search for the newest weekly report reads every page of the artifact listing. Only a
-  finished listing with no report from main establishes a first week; a listing it cannot finish
-  fails the weekly run, like reports that all expired.
+- E22. The search for the newest weekly report reads every page of the artifact listing, and
+  counts only reports from this repository's main: a run whose head repository is a fork is never
+  read, even from a branch called main. Only a finished listing with no such report establishes a
+  first week; a listing it cannot finish, or one that does not say how long it is and has not
+  ended on a short page, fails the weekly run, like reports that all expired.
 
 **Exception scope and credit (X).** An exception's scope is its tier. A pull request controls every
 part of a job's identity (its key, name, workflow file and a cover's wording), so no identity drawn

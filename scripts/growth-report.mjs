@@ -554,10 +554,13 @@ export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encod
     const body = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/actions/artifacts?name=growth-report&per_page=100&page=${page}`]));
     const got = body.artifacts ?? [];
     listed.push(...got);
-    if (got.length < 100 || listed.length >= (body.total_count ?? 0)) break;
+    // A listing that does not say how long it is ends only on a short page.
+    if (got.length < 100 || (Number.isFinite(body.total_count) && listed.length >= body.total_count)) break;
   }
   const all = listed
-    .filter((a) => a.workflow_run?.head_branch === 'main')
+    // main of THIS repository: a fork's pull request can upload an artifact of the same name from
+    // its own branch called main, and its run carries the fork as its head repository.
+    .filter((a) => a.workflow_run?.head_branch === 'main' && a.workflow_run?.repository_id != null && a.workflow_run.head_repository_id === a.workflow_run.repository_id)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   if (all.length === 0) {
     writeFileSync(out, `${JSON.stringify({ none: true })}\n`);

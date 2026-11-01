@@ -535,7 +535,7 @@ test('(e) a breach clears only on a measurement that is complete AND back in bou
 test('(e) a long outage is never a first week, and unnamed or thinly read breaches stay', () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-test-'));
   const out = path.join(dir, 'out.json');
-  const art = (expired, at, id) => ({ name: 'growth-report', expired, created_at: at, workflow_run: { id, head_branch: 'main' } });
+  const art = (expired, at, id) => ({ name: 'growth-report', expired, created_at: at, workflow_run: { id, head_branch: 'main', repository_id: 10, head_repository_id: 10 } });
   const fake = (artifacts) => (args) => {
     if (args[0] === 'run') { writeFileSync(path.join(args[args.indexOf('-D') + 1], 'growth-report.json'), '{"generatedAt":"x"}'); return ''; }
     return JSON.stringify({ artifacts });
@@ -733,7 +733,7 @@ test('(b) renaming the covered job first is no way round a measured repayment, a
   const elsewhere = { ...later, tier: 'overhead', covers: ['job:ci.yml/Build'] };
   assert.equal(exceptionStatus([ci04, elsewhere], '2027-03-05', 30, new Set([...known, 'job:ci.yml/Build'])).active.length, 1, 'another tier is another scope');
   const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-restart-'));
-  const gone = () => JSON.stringify({ artifacts: [{ name: 'growth-report', expired: true, created_at: '2026-09-01T00:00:00Z', workflow_run: { id: 1, head_branch: 'main' } }] });
+  const gone = () => JSON.stringify({ artifacts: [{ name: 'growth-report', expired: true, created_at: '2026-09-01T00:00:00Z', workflow_run: { id: 1, head_branch: 'main', repository_id: 10, head_repository_id: 10 } }] });
   assert.throws(() => fetchLatest(path.join(dir, 'a.json'), gone), /expired/);
   assert.equal(fetchLatest(path.join(dir, 'b.json'), gone, { at: '2026-12-01T00:00:00Z', revision: 2 }), null);
   assert.equal(JSON.parse(readFileSync(path.join(dir, 'b.json'), 'utf8')).none, true);
@@ -1170,7 +1170,7 @@ test('Rule E21: a growth stop refuses any addition to its tier, waived by an exc
 
 test('Rule E22: the report search reads every artifact page; only a finished listing establishes a first week', () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-e22-'));
-  const art = (branch, id) => ({ name: 'growth-report', expired: false, created_at: `2026-10-${String(1 + (id % 28)).padStart(2, '0')}T00:00:00Z`, workflow_run: { id, head_branch: branch } });
+  const art = (branch, id) => ({ name: 'growth-report', expired: false, created_at: `2026-10-${String(1 + (id % 28)).padStart(2, '0')}T00:00:00Z`, workflow_run: { id, head_branch: branch, repository_id: 10, head_repository_id: 10 } });
   const branches = [...Array(100)].map((_, i) => art('feature', 1000 + i));
   const pages = (list, total = list.length) => (args) => {
     if (args[0] === 'run') { writeFileSync(path.join(args[args.indexOf('-D') + 1], 'growth-report.json'), '{"generatedAt":"x"}'); return ''; }
@@ -1181,6 +1181,13 @@ test('Rule E22: the report search reads every artifact page; only a finished lis
   assert.equal(fetchLatest(path.join(dir, 'b.json'), pages(branches)), null, 'a finished listing with no main report: a first week');
   const endless = (args) => (args[0] === 'run' ? '' : JSON.stringify({ total_count: 1e6, artifacts: branches }));
   assert.throws(() => fetchLatest(path.join(dir, 'c.json'), endless), /unfinished listing never establishes a first week/);
+  // A fork's branch called main is not main: its report is never read.
+  const fork = { ...art('main', 999), created_at: '2026-11-01T00:00:00Z', workflow_run: { id: 999, head_branch: 'main', repository_id: 10, head_repository_id: 77 } };
+  assert.equal(fetchLatest(path.join(dir, 'd.json'), pages([art('main', 111), fork])).run, 111);
+  assert.equal(fetchLatest(path.join(dir, 'e.json'), pages([fork])), null, 'only a fork\'s report: still a first week');
+  // A listing that does not say how long it is ends only on a short page.
+  const untold = (args) => { if (args[0] === 'run') return pages([])(args); const page = Number(/[?&]page=(\d+)/.exec(args.at(-1))?.[1] ?? 1); const list = [...branches, art('main', 7)]; return JSON.stringify({ artifacts: list.slice((page - 1) * 100, page * 100) }); };
+  assert.equal(fetchLatest(path.join(dir, 'f.json'), untold).run, 7);
 });
 
 test('Rule X1: a cover\'s tier is its job\'s tier with each ${{ }} read as a number, or its spec\'s folder', () => {
