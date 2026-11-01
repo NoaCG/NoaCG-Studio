@@ -25,12 +25,13 @@ on it.
   heading reads "Pick, then reveal".
 - `src/components/wizard/import/BehaviourSection.tsx`: a "No lock at all" checkbox beside the
   quiz's options. Ticked, it writes `{ lock: false, noLock: true }`, clears the timed reveal and
-  the Locked in layer, and hides the lock option, the timed-reveal option and the Locked in
-  picker. Unticked, it removes `noLock` and leaves the optional-lock board with both options in
-  view.
-- `e2e/import-svg-behaviour.spec.ts`: one journey. Tick No lock, the three controls are gone, the
-  cue has no Lock it in or Reveal choice, the pick moves B to D, the drawn lock never shows, and
-  Reveal correct paints the key (C) correct and the rest wrong.
+  hides the lock option, the timed-reveal option and the Locked in picker. Unticked, it removes
+  `noLock` and leaves the optional-lock board with both options and the picker in view.
+- `e2e/import-svg-behaviour.spec.ts`: one journey, on a copy of the sample quiz whose lock layer
+  is left visible. Tick No lock, the three controls are gone, the cue has no Lock it in or Reveal
+  choice, the drawn lock is hidden from the start and never shows, the pick moves B to D, Reveal
+  correct paints the key (C) correct and the rest wrong, and on a second Take Next leaves a pick
+  for the reveal.
 
 ## Evidence per criterion
 
@@ -64,6 +65,9 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
   Take, and the badge check that could not fail was dropped: quiz tests 11/11 (j-0004).
   Mutation check: with the Next arrow removed from `quiz.ts`, the journey fails at the Next
   press (j-0005); the probe commit was dropped, never pushed.
+- After the Codex round (below), on a copy of the sample with its lock layer visible: quiz tests
+  10/11 (j-0006), the journey picking the answer key by its old field id (the visible lock's
+  text is now a field, so the key moved to f6); corrected, 11/11 (j-0007).
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
@@ -78,6 +82,10 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
   committed (row 15 owns `scripts/quiz-no-lock.test.mjs`); unticking No lock gives the
   optional-lock board (a documented choice for row 15's rehearsal to confirm).
 
+- Codex on `3343dc5` (P2): unbinding the Locked in layer left lock artwork drawn visible on
+  air for good. Product defect, family: what a no-Lock board does with a moment it removed.
+  Fixed by keeping the binding, with a journey on visible lock artwork.
+
 ## Decisions
 
 - **The variant is a flag the compiler does not fill, not a declared option.** The compiler
@@ -91,9 +99,11 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - **Next leaves the pick.** On a board with a lock, Next rejoins the walk from `locked`. With no
   lock, a playout server's Continue after a pick would otherwise stop, so the same rejoin leaves
   `selected`.
-- **Ticking No lock clears the Locked in layer.** No rule on a no-Lock board would show it, and a
-  binding hidden from the wizard would still stamp the layer as a look. Unticking does not bring
-  it back; the picker returns and it can be picked again.
+- **The Locked in layer stays bound.** It is the drawing of a moment a no-Lock board never
+  reaches, so no rule shows it and it stays hidden on air, even when the designer left it
+  visible. An earlier commit cleared the binding on tick; that left visible lock artwork on air
+  for good (the Codex finding below), so it was reverted. The picker stays hidden because the
+  lock is not a moment of this board; unticking No lock shows it again.
 - **The no-Lock machine and paint are derived from the lock board's**, filtered, not written a
   second time, so the two variants cannot drift.
 
