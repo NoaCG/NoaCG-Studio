@@ -78,7 +78,14 @@ fixes each narrow one existing rule, stated here as observable lines.
   the length. #1884 item 2 (re-fit as the clock ticks) lives in `svg.ts` `importedClockJs`, beyond
   this row's one approved call site. The fold-at-Finish half of #1894's comment (an author already
   past the step does not see the fold question) needs `draft.ts` or the Finish step, outside the
-  boundary; the step itself now asks.
+  boundary; the step itself now asks. Filed as #1898.
+- **Review round (`/check`):** the hours text a host reads back from the layer
+  (`hostedReceiver.ts` `harvest`) parsed as minutes, so the hours runtime now parses "3:39:30" as
+  hours (native clocks unchanged); the off-air monitor seed takes only a wire value; the never-taken
+  rule applies to Reset and Pause only, so an Out still banks a plain value; the "still counts to"
+  line names the instant in its own zone. Each has a test.
+- A local fail-then-pass in four `import-svg-behaviour` export tests (the export window not open
+  within 7 s under load; no code in reach changed) is filed as #1897.
 - Trap: commit messages carry no co-author trailer, and the command guard scans a whole command,
   heredocs included, for chat or tool names: write a file and commit in separate commands.
 
