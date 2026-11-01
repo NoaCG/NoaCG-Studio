@@ -63,7 +63,10 @@ Three rule families, written before the code. Each line has one test named after
   skips the configured job. Each candidate was checked only on its own pull request tree, so the
   verdict is `selected` only when every candidate selected the spec; one that left it out makes a
   `miss`; then `unknown`, then `no-selection` (a culprit that landed before ci06 carries no
-  manifest: no pre-merge configured check existed), then `quarantined`.
+  manifest: no pre-merge configured check existed), then `quarantined`. The failing specs are the
+  ones that really failed: the verdict's uncapped `failing specs:` list (printed since ci07), or in
+  an older log its annotated failures. Its `failure set` fingerprint also holds skips, and an
+  allowed skip is never a failing item. Corrected after the PR review on `11beb7d3`.
 - A4. A first-parent landing on main is an audit reset when its diff touches selector code
   (`SELECTION_CODE`), adds or removes a `// focus` or `// critical:` header line in a spec, removes
   or changes a `// covers:` line (protection removed or changed; a line only added is additive),
@@ -84,6 +87,9 @@ folded into the line it belongs to and tested:
   which stop at a few specs.
 - Q3 (PR review): the incident report reads the store strictly, so a missing store throws instead
   of reading as "no incident" and closing the issue.
+- PR review on `11beb7d3`: the configured parser read the verdict's fingerprint set, which holds
+  skips (`bridge-real-server` and `connector-grants` always skip on CI), as failures. Now only
+  really failed specs count, and the verdict prints its uncapped failing list for later runs.
 - Fourth `/so` on `11beb7d3` (AGREE WITH CORRECTIONS, B): the skipping-candidate reading now covers
   unmarked misses too (`video-hyperframes` is the fifth unexplained miss, #1900); a removed or
   changed `covers:` line is a reset (A4); Q2 states what overdue does and does not trigger.
@@ -188,19 +194,18 @@ confirms it with the same command on `main`.
 
 Every red full run on `main` from 2026-09-20 to 2026-11-01 (42 days: `ci.yml` and
 `configured-suite.yml` push runs), replayed with the final code in 2-day passes of at most 100 API
-calls, then 1-day, half-day and 3-hour re-passes wherever a pass spent its budget (2,459 calls in
-all). **Every row is in [phase-ci07-replay.json](phase-ci07-replay.json)**: run, spec, culprits,
+calls, then 1-day, half-day and 3-hour re-passes wherever a pass spent its budget, and a
+configured-only re-read after the configured parser was corrected (2,843 calls in all). **Every row is in [phase-ci07-replay.json](phase-ci07-replay.json)**: run, spec, culprits,
 each culprit plan's answer (newest first), the verdict, and a `receipt` where a quarantine entry
-names that very run. 189 failing items, **none `unknown`**:
+names that very run. 126 failing items, **none `unknown`**:
 
 | Workflow | Verdict | Items |
 | --- | --- | ---: |
 | ci.yml | miss | 45 (35 flake-marked) |
 | ci.yml | selected by the newest culprit's plan (all flake-marked) | 4 |
 | ci.yml | not-a-spec (Build, Factory gates, a lost shard, the retry job) | 17 |
-| configured-suite.yml | no-selection (culprit landed before ci06: no pre-merge configured check existed) | 111 |
-| configured-suite.yml | miss | 1 |
-| configured-suite.yml | not-a-spec | 11 |
+| configured-suite.yml | no-selection (culprit landed before ci06: no pre-merge configured check existed) | 42 (14 flake-marked) |
+| configured-suite.yml | not-a-spec (a lost shard, a missing report or a test floor, with no spec that really failed) | 18 |
 
 **Every offline miss and selected item, per run (49):**
 
@@ -250,9 +255,10 @@ names that very run. 189 failing items, **none `unknown`**:
 
   Today's planner selects each of them for its culprit's files (`planFor` on the same files), so
   each mapping was corrected after the miss, before 26095c82.
-- **The configured miss**: `connector-grants` at run 41247602152. The newest culprit d06974d3 is a
-  quarantine-only landing that left it out. The same run also lost a shard (118 of 133 tests,
-  #1865), and every configured run on main after it is green. This is infrastructure, not selection.
+- **No configured miss.** The one post-ci06 red configured run (41247602152, d06974d3) lost a
+  shard (118 of 133 tests, #1865) and no spec really failed: `connector-grants` was only in the
+  verdict's fingerprint set as an allowed skip. An earlier draft of this replay counted it as a
+  miss before the parser was corrected.
 
 **Unexplained misses: 5, all landed before the latest reset** (listed above); one may point at a
 mapping gap still open (#1900).
@@ -275,7 +281,7 @@ run was added.
 
 ## 5. Mutation check
 
-Each Rule line broken alone in the code, with its tests run: all 30 mutations fail. 27 fail the
+Each Rule line broken alone in the code, with its tests run: all 32 mutations fail. 29 fail the
 test named after their rule. Three fail a neighbouring test instead: A1b fails the inheritance
 test next to A1, and Q2b and Q2c fail the growth report's `(e)` test that holds the AC-8 line. The list, with the exact replacement for each, is
 [phase-ci07-mutations.json](phase-ci07-mutations.json), so a reviewer can re-apply any of them.

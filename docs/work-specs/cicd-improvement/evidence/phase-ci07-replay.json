@@ -2,8 +2,8 @@
  "window": "2026-09-20 to 2026-11-01, main push runs of ci.yml and configured-suite.yml",
  "base": "fb15e6b8f6358ef8b0fad080cf71552b4da37187",
  "command": "node scripts/e2e-selection-misses.mjs --days <n> --before <n> --ref origin/main --json",
- "note": "2-day passes, then 1-day re-passes where a pass spent its 100-call budget; a re-pass answer replaces an unknown row. answers: each candidate culprit plan, newest first. The 2026-10-02 to 10-05 configured runs were re-read in half-day and 3-hour passes after the context reads were cut to the last run before each window. Unknown rows from earlier passes for runs inside the re-read window (2026-10-02T06:21Z to 10-05T18:21Z) are dropped: the re-read passes read every red run there (zero unknown) and those runs only inherited failures already counted. receipt: a quarantine entry whose run is this very run, which proves a fail-then-pass on its commit.",
- "calls": 2459,
+ "note": "2-day passes, then 1-day re-passes where a pass spent its 100-call budget; a re-pass answer replaces an unknown row. answers: each candidate culprit plan, newest first. The 2026-10-02 to 10-05 configured runs were re-read in half-day and 3-hour passes after the context reads were cut to the last run before each window. Unknown rows from earlier passes for runs inside the re-read window (2026-10-02T06:21Z to 10-05T18:21Z) are dropped: the re-read passes read every red run there (zero unknown) and those runs only inherited failures already counted. receipt: a quarantine entry whose run is this very run, which proves a fail-then-pass on its commit. Configured rows were replaced by a configured-only re-read (--workflow configured-suite.yml) after the parser stopped reading the verdict fingerprint set, which holds skips, as failures.",
+ "calls": 2843,
  "passes": [
   {
    "pass": "w0",
@@ -229,44 +229,133 @@
    "pass": "oct6",
    "days": 0.25,
    "calls": 9
+  },
+  {
+   "pass": "configured-c0",
+   "days": 2,
+   "calls": 28
+  },
+  {
+   "pass": "configured-c10",
+   "days": 2,
+   "calls": 9
+  },
+  {
+   "pass": "configured-c12",
+   "days": 2,
+   "calls": 2
+  },
+  {
+   "pass": "configured-c14",
+   "days": 2,
+   "calls": 13
+  },
+  {
+   "pass": "configured-c16",
+   "days": 2,
+   "calls": 9
+  },
+  {
+   "pass": "configured-c18",
+   "days": 2,
+   "calls": 13
+  },
+  {
+   "pass": "configured-c2",
+   "days": 2,
+   "calls": 9
+  },
+  {
+   "pass": "configured-c20",
+   "days": 2,
+   "calls": 2
+  },
+  {
+   "pass": "configured-c22",
+   "days": 2,
+   "calls": 2
+  },
+  {
+   "pass": "configured-c24",
+   "days": 2,
+   "calls": 76
+  },
+  {
+   "pass": "configured-c26",
+   "days": 2,
+   "calls": 22
+  },
+  {
+   "pass": "configured-c28",
+   "days": 2,
+   "calls": 85
+  },
+  {
+   "pass": "configured-c30",
+   "days": 2,
+   "calls": 9
+  },
+  {
+   "pass": "configured-c32",
+   "days": 2,
+   "calls": 16
+  },
+  {
+   "pass": "configured-c34",
+   "days": 2,
+   "calls": 2
+  },
+  {
+   "pass": "configured-c36",
+   "days": 2,
+   "calls": 31
+  },
+  {
+   "pass": "configured-c38",
+   "days": 2,
+   "calls": 34
+  },
+  {
+   "pass": "configured-c4",
+   "days": 2,
+   "calls": 9
+  },
+  {
+   "pass": "configured-c40",
+   "days": 2,
+   "calls": 1
+  },
+  {
+   "pass": "configured-c6",
+   "days": 2,
+   "calls": 10
+  },
+  {
+   "pass": "configured-c8",
+   "days": 2,
+   "calls": 2
   }
  ],
  "totals": {
-  "configured-suite.yml no-selection": 87,
-  "configured-suite.yml no-selection (flake)": 24,
+  "configured-suite.yml not-a-spec": 18,
+  "configured-suite.yml no-selection (flake)": 14,
   "ci.yml miss (flake)": 35,
   "ci.yml not-a-spec": 17,
-  "configured-suite.yml not-a-spec": 11,
+  "configured-suite.yml no-selection": 28,
   "ci.yml miss": 10,
-  "ci.yml selected (flake)": 4,
-  "configured-suite.yml miss": 1
+  "ci.yml selected (flake)": 4
  },
  "rows": [
   {
    "workflow": "configured-suite.yml",
    "run": 35755733408,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
    "flake": false,
    "culprits": [
     "6f5855d94b53fe682521b3eb2b93b59041de3353"
    ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 35853344074,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "add4e943f31c3c6a487300f135472ae19c8d9799"
-   ],
-   "answers": [
-    "no-selection"
-   ]
+   "answers": []
   },
   {
    "workflow": "configured-suite.yml",
@@ -355,19 +444,6 @@
   },
   {
    "workflow": "configured-suite.yml",
-   "run": 36029912722,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "18aa69c02e13f0fd4e8cd5c94488423c0019bd07"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
    "run": 36069827692,
    "spec": "e2e/configured/account.spec.ts",
    "verdict": "no-selection",
@@ -411,19 +487,6 @@
    "spec": "e2e/configured/audience-live.spec.ts",
    "verdict": "no-selection",
    "flake": true,
-   "culprits": [
-    "8ba061add60007592ae70be9a7ba7d778bd14dfb"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36069827692,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
    "culprits": [
     "8ba061add60007592ae70be9a7ba7d778bd14dfb"
    ],
@@ -771,87 +834,9 @@
   {
    "workflow": "configured-suite.yml",
    "run": 36466437423,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36466437423,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36466437423,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36466437423,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36466437423,
    "spec": "e2e/configured/hosted-reveal-after-reload.spec.ts",
    "verdict": "no-selection",
    "flake": true,
-   "culprits": [
-    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36466437423,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "188da06485339b85fa2b5d4a789a76610bdcc9ef"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36466437423,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
    "culprits": [
     "188da06485339b85fa2b5d4a789a76610bdcc9ef"
    ],
@@ -903,87 +888,9 @@
   {
    "workflow": "configured-suite.yml",
    "run": 36597679829,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36597679829,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36597679829,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36597679829,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36597679829,
    "spec": "e2e/configured/hosted-reveal-after-reload.spec.ts",
    "verdict": "no-selection",
    "flake": true,
-   "culprits": [
-    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36597679829,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36597679829,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
    "culprits": [
     "04c509a800e8e4d38cda2d79eb31bc8735fa1403"
    ],
@@ -1180,58 +1087,6 @@
   {
    "workflow": "configured-suite.yml",
    "run": 36974119396,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36974119396,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36974119396,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36974119396,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36974119396,
    "spec": "e2e/configured/live-prepare.spec.ts",
    "verdict": "no-selection",
    "flake": false,
@@ -1244,112 +1099,8 @@
   },
   {
    "workflow": "configured-suite.yml",
-   "run": 36974119396,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36974119396,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "ddf667d07b8900871f7e89687d1db2bdbcc6b98e"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36982621173,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36982621173,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36982621173,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36982621173,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
    "run": 36982621173,
    "spec": "e2e/configured/live-prepare.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36982621173,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "c8d4a9385fc73d4b27486fb8a0a1f935abc2bd64"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36982621173,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
    "verdict": "no-selection",
    "flake": false,
    "culprits": [
@@ -1378,85 +1129,7 @@
   {
    "workflow": "configured-suite.yml",
    "run": 36987105517,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36987105517,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36987105517,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36987105517,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36987105517,
    "spec": "e2e/configured/live-prepare.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36987105517,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "73772c1ea7943cffa8ec292f2fdb3ff0dbb358ec"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 36987105517,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
    "verdict": "no-selection",
    "flake": false,
    "culprits": [
@@ -1549,87 +1222,9 @@
   {
    "workflow": "configured-suite.yml",
    "run": 37110685912,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "579d12bc44a6974d132146c515f1589516b9155c"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37110685912,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "579d12bc44a6974d132146c515f1589516b9155c"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37110685912,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "579d12bc44a6974d132146c515f1589516b9155c"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37110685912,
    "spec": "e2e/configured/command-sequence.spec.ts",
    "verdict": "no-selection",
    "flake": true,
-   "culprits": [
-    "579d12bc44a6974d132146c515f1589516b9155c"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37110685912,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "579d12bc44a6974d132146c515f1589516b9155c"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37110685912,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "579d12bc44a6974d132146c515f1589516b9155c"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37110685912,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
    "culprits": [
     "579d12bc44a6974d132146c515f1589516b9155c"
    ],
@@ -1715,71 +1310,6 @@
   {
    "workflow": "configured-suite.yml",
    "run": 37248006050,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37248006050,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37248006050,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37248006050,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37248006050,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37248006050,
    "spec": "e2e/configured/panel-page.spec.ts",
    "verdict": "no-selection",
    "flake": false,
@@ -1806,19 +1336,6 @@
   {
    "workflow": "configured-suite.yml",
    "run": 37248006050,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "047c47c232b8b9221102fb50c9c92cc6c2f7b682"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37248006050,
    "spec": "e2e/configured/teams.spec.ts",
    "verdict": "no-selection",
    "flake": false,
@@ -1832,85 +1349,7 @@
   {
    "workflow": "configured-suite.yml",
    "run": 37392704287,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37392704287,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37392704287,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37392704287,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37392704287,
    "spec": "e2e/configured/live-health.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37392704287,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37392704287,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
    "verdict": "no-selection",
    "flake": false,
    "culprits": [
@@ -1934,72 +1373,7 @@
   {
    "workflow": "configured-suite.yml",
    "run": 37544676687,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37544676687,
    "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37544676687,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37544676687,
-   "spec": "e2e/configured/community-authed.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37544676687,
-   "spec": "e2e/configured/moderator.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "f65ef5490959a7ce2a6b0a8e7ae3257a6e032b68"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 37544676687,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
    "verdict": "no-selection",
    "flake": false,
    "culprits": [
@@ -2200,61 +1574,9 @@
   {
    "workflow": "configured-suite.yml",
    "run": 38299878376,
-   "spec": "e2e/configured/account.spec.ts",
-   "verdict": "no-selection",
-   "flake": true,
-   "culprits": [
-    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 38299878376,
-   "spec": "e2e/configured/anonymous.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 38299878376,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 38299878376,
    "spec": "e2e/configured/connector-grants.spec.ts",
    "verdict": "no-selection",
    "flake": true,
-   "culprits": [
-    "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
-   ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 38299878376,
-   "spec": "e2e/configured/signed-in-ux.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
    "culprits": [
     "2cdded9d0eebe2dded85e3d8813207b9ce0647bd"
    ],
@@ -2560,28 +1882,13 @@
   {
    "workflow": "configured-suite.yml",
    "run": 40177524989,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
    "flake": false,
    "culprits": [
     "70c28888c84d47a2efb28cf4a54976fa1d4878fc"
    ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 40177524989,
-   "spec": "e2e/configured/connector-grants.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "70c28888c84d47a2efb28cf4a54976fa1d4878fc"
-   ],
-   "answers": [
-    "no-selection"
-   ]
+   "answers": []
   },
   {
    "workflow": "configured-suite.yml",
@@ -2597,28 +1904,13 @@
   {
    "workflow": "configured-suite.yml",
    "run": 40289330116,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
    "flake": false,
    "culprits": [
     "8abde8e7103715f21ccf7384f08cb1dbc22a9bfa"
    ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 40289330116,
-   "spec": "e2e/configured/connector-grants.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "8abde8e7103715f21ccf7384f08cb1dbc22a9bfa"
-   ],
-   "answers": [
-    "no-selection"
-   ]
+   "answers": []
   },
   {
    "workflow": "configured-suite.yml",
@@ -2659,28 +1951,13 @@
   {
    "workflow": "configured-suite.yml",
    "run": 40724937287,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
    "flake": false,
    "culprits": [
     "55f98f9e6671723497adee9af34d0d5c27a641f1"
    ],
-   "answers": [
-    "no-selection"
-   ]
-  },
-  {
-   "workflow": "configured-suite.yml",
-   "run": 40724937287,
-   "spec": "e2e/configured/connector-grants.spec.ts",
-   "verdict": "no-selection",
-   "flake": false,
-   "culprits": [
-    "55f98f9e6671723497adee9af34d0d5c27a641f1"
-   ],
-   "answers": [
-    "no-selection"
-   ]
+   "answers": []
   },
   {
    "workflow": "configured-suite.yml",
@@ -2710,15 +1987,13 @@
   {
    "workflow": "configured-suite.yml",
    "run": 41134775201,
-   "spec": "e2e/configured/bridge-real-server.spec.ts",
-   "verdict": "no-selection",
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
    "flake": false,
    "culprits": [
     "0df77f74e142fed3955756f6c89314309dc9bbf1"
    ],
-   "answers": [
-    "no-selection"
-   ]
+   "answers": []
   },
   {
    "workflow": "configured-suite.yml",
@@ -2747,15 +2022,13 @@
   {
    "workflow": "configured-suite.yml",
    "run": 41205531471,
-   "spec": "e2e/configured/connector-grants.spec.ts",
-   "verdict": "no-selection",
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
    "flake": false,
    "culprits": [
     "6b3592c3fc70e9306a54a41bbf87ab9674d894f5"
    ],
-   "answers": [
-    "no-selection"
-   ]
+   "answers": []
   },
   {
    "workflow": "configured-suite.yml",
@@ -2785,17 +2058,14 @@
   {
    "workflow": "configured-suite.yml",
    "run": 41247602152,
-   "spec": "e2e/configured/connector-grants.spec.ts",
-   "verdict": "miss",
+   "spec": "job: Configured E2E (authenticated, local Supabase)",
+   "verdict": "not-a-spec",
    "flake": false,
    "culprits": [
     "d06974d30c42f504073fc810f2d1316168eb1f8d",
     "c469facba90f6ed04cb29b9ef5ac7b23d72e7ec3"
    ],
-   "answers": [
-    "not-selected",
-    "selected"
-   ]
+   "answers": []
   },
   {
    "workflow": "configured-suite.yml",

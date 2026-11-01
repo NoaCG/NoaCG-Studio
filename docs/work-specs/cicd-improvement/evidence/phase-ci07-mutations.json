@@ -210,6 +210,20 @@
    "old": "if (narrowed.length) reasons.push",
    "new": "if (false) reasons.push",
    "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A3e",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "(lines.some((l) => /further spec\\(s\\) were not clean/.test(l)) ?",
+   "new": "(true ?",
+   "test": "e2e-selection-misses"
+  },
+  {
+   "rule": "A3f",
+   "file": "scripts/e2e-selection-misses.mjs",
+   "old": "const exact = block(/^failing specs:$/);",
+   "new": "const exact = null;",
+   "test": "e2e-selection-misses"
   }
  ]
 }
