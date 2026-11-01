@@ -236,7 +236,9 @@ export function listRuns(reader, from, to) {
         if (at < from || at >= to) continue;
         runs.push({ id: r.id, workflow: String(r.path ?? '').split('/').pop().replace(/@.*$/, ''), event: r.event, branch: r.head_branch, sha: r.head_sha, created: r.created_at, conclusion: r.conclusion, status: r.status, jobs: null });
       }
-      if ((body.workflow_runs ?? []).length < 100 || page >= 10) break;
+      if ((body.workflow_runs ?? []).length < 100) break;
+      // The last permitted page, still full: a slice that does not say how long it is may hold more.
+      if (page >= 10) { if (!Number.isFinite(body.total_count)) complete = false; break; }
     }
   }
   return { runs, complete };

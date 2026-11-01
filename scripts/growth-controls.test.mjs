@@ -1020,6 +1020,9 @@ test('Rule E5: a run list cut short makes every tier partial', () => {
   const from = Date.parse('2026-10-30T00:00:00Z');
   assert.equal(listRuns(makeReader(20, slice), from, from + 6 * 3_600_000).complete, false);
   assert.equal(listRuns(makeReader(20, () => JSON.stringify({ total_count: 0, workflow_runs: [] })), from, from + 6 * 3_600_000).complete, true);
+  // Ten full pages and no total count: the slice may hold more, so the list is cut short.
+  const full = () => JSON.stringify({ workflow_runs: [...Array(100)].map((_, i) => ({ id: i, path: '.github/workflows/ci.yml', event: 'push', created_at: '2026-10-30T01:00:00Z' })) });
+  assert.equal(listRuns(makeReader(20, full), from, from + 6 * 3_600_000).complete, false);
 });
 
 test('Rule E6: a stratum with no sampled run makes the tiers partial', () => {
@@ -1296,7 +1299,7 @@ test('Rule X8: credit is the allowance capped at the measured cost of the jobs i
   assert.match(why(20, ex(['spec:e2e/catalog/a.spec.ts'])), /^60\/10 per landing/, 'a spec cover');
 });
 
-test('Rule X9: a covered addition is waived up to the room left (allowance minus its jobs\' cost); no room on missing evidence or an unmeasured existing job', () => {
+test('Rule X9: a covered addition is waived up to the room left (allowance minus its jobs\' cost); no room unless the evidence is complete, nor for an unmeasured existing job', () => {
   const spec = { id: 's', tier: 'backend', covers: ['spec:e2e/configured/new.spec.ts'], perLanding: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
   assert.equal(assessTiers({ ceilings: noExceptions, measurement: measurement({ backend: 60 }), items: [backendItem(8)], today: TODAY, exceptions: [spec] }).tiers.backend.addedLanding, 3);
   const gate = { id: 'g', tier: 'graphics', owner: 'o', reviewed: RULE_REVIEW, covers: ['job:ci.yml/Catalog calibration gate'], perLanding: 30, from: '2026-10-25', expires: '2026-11-20' };
@@ -1304,6 +1307,13 @@ test('Rule X9: a covered addition is waived up to the room left (allowance minus
   const grow = (add) => assessTiers({ ceilings: noExceptions, measurement: m, items: [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding: add, perDay: 0, how: 'more runs of a job' }], today: TODAY, exceptions: [gate] }).tiers.graphics.addedLanding;
   assert.equal(Math.round(10 * grow(20)) / 10, 7.7, '12.3 of room: 30 allowed, 17.7 measured');
   assert.equal(assessTiers({ ceilings: noExceptions, measurement: null, items: [backendItem(8)], today: TODAY, exceptions: [spec] }).tiers.backend.addedLanding, 8, 'missing evidence: no room, even for a spec');
+  // Partial or stale evidence reads a job's cost as a lower bound, so its room is unknown: nothing is waived.
+  const gate4 = (m2) => assessTiers({ ceilings: noExceptions, measurement: m2, items: [{ tier: 'graphics', id: 'job:ci.yml/Catalog calibration gate', perLanding: 4, perDay: 0, how: 'more runs of a job' }], today: TODAY, exceptions: [{ ...gate, perLanding: 17.7 }] }).tiers.graphics;
+  const at = (evidence, windowEnd) => ({ ...measurement({ graphics: 21.5 }, { evidence, windowEnd }), jobs: { 'ci.yml/Catalog calibration gate': { perLanding: 13.7, perDay: 0 } } });
+  assert.equal(gate4(at('complete')).addedLanding, 0, 'complete: 4 of the 4.0 room waived');
+  assert.equal(gate4(at('partial')).addedLanding, 4, 'partial: nothing waived');
+  assert.equal(gate4(at('partial')).status, 'refuse');
+  assert.equal(gate4(at('complete', '2026-10-01')).addedLanding, 4, 'stale: nothing waived');
   // The offline tier takes the same route: an approved offline exception waives an offline spec.
   const offlineEx = { id: 'o', tier: 'offline', covers: ['spec:e2e/new.spec.ts'], perLanding: 30, perDay: 5, owner: 'o', reviewed: RULE_REVIEW, from: '2026-10-25', expires: '2026-11-20' };
   const offlineGrowth = (exceptions) => {

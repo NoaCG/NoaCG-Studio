@@ -464,10 +464,11 @@ export function assessTiers({ ceilings, measurement, items = [], today, stops = 
     // measured cost of what it covers: growing an excepted job needs approval for the growth.
     const left = new Map(mine.map((e) => [e.id, { perLanding: Math.max(0, e.claimed.perLanding - costOf(e, 'perLanding')), perDay: Math.max(0, e.claimed.perDay - costOf(e, 'perDay')) }]));
     const charged = tierItems.map((i) => {
-      // Room rests on measured cost (Rule X9): with the tier's evidence missing, or for an
-      // existing job no measurement prices, the room is unknown, so nothing is waived. A spec, or
+      // Room rests on measured cost (Rule X9): unless the tier's evidence is complete (partial or
+      // stale evidence reads a job's cost only as a lower bound), or for an existing job no
+      // measurement prices, the room is unknown, so nothing is waived. A spec, or
       // a job new in this change, keeps its full allowance.
-      if (ev.state === 'missing') return i;
+      if (ev.state !== 'complete') return i;
       if (/^job:/.test(i.id) && jobsOf(i.id).length === 0 && !/^new job/.test(i.how ?? '')) return i;
       const e = covered(i);
       if (!e) return i;

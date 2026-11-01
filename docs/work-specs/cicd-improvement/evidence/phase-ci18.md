@@ -292,7 +292,8 @@ frozen seed until one is published. First match wins:
 
 A week's measurement is **partial for every tier** when any of these holds:
 
-- E5. The run list was cut short (a failed list read, or a 6-hour slice reporting over 1,000 runs).
+- E5. The run list was cut short (a failed list read, a 6-hour slice reporting over 1,000 runs, or
+  one still full at its last permitted page without saying how many runs it holds).
 - E6. A stratum (workflow and event) has no sampled run.
 - E7. A planned job read failed.
 - E8. A planned job read was stopped by the call budget. Planned reads never exceed what is left of
@@ -374,7 +375,8 @@ from those can tie a renewal to what it renews; the tier is the one scope a chan
   can tell a job given a covered name from the covered job given new work, so the allowance and
   the 30 days are the bound, and the next exception in the tier needs a receipt (X3).
 - X9. A covered addition is waived up to the room left: the allowance minus the measured cost of its
-  jobs. No room is given when the tier's evidence is missing, or for an existing job no measurement
+  jobs. No room is given unless the tier's evidence is complete (partial or stale evidence reads a
+  job's cost only as a lower bound), nor for an existing job no measurement
   prices: only a spec, or a job new to the repository in this change (not one moved into the tier,
   X10), keeps its full allowance. Offline spec additions
   take the same route, so an approved offline exception in `growth-ceilings.json` waives them in
