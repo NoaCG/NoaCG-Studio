@@ -638,7 +638,11 @@ It prints one of three verdicts, derived from the diff:
   `NOACG_ONLY_CATEGORIES=<categories>`; the command list it prints already carries them. An id the
   catalog does not ship is REFUSED rather than quietly sweeping nothing - on the script side by
   `scripts/catalog-scope.mjs`, and before specs start by `scripts/catalog-specs.mjs`. The
-  shared `e2e/_catalogScope.ts` reader consumes that validated environment scope.
+  shared `e2e/_catalogScope.ts` reader consumes that validated environment scope. After the run,
+  the calibration bench's scope guard (`e2e/catalog/_bench-scope.mjs`, a reporter) fails it unless
+  the bench units measured exactly the selected designs in exactly their categories, scoped or
+  full; an empty unit is fine only then. Categories the bench does not bench are declared there
+  with a reason and named in every run.
 - **the whole catalog** - something shared changed. A category's `shared.ts`, a preset bank, the
   type registry, fonts, the theme tokens, `src/blocks/`, the `:root` contract, a gate script or a
   baseline: all of them reach every design, so all of them escalate. So does any file it cannot
