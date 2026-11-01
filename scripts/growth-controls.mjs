@@ -53,7 +53,10 @@ const round1 = (x) => Math.round(x * 10) / 10;
 /** The tier a workflow job's runner-minutes belong to. `workflow` is the file name (ci.yml). */
 export function tierOfJob(workflow, jobName) {
   const wf = String(workflow).split('/').pop();
-  const name = String(jobName);
+  // A workflow's own name for a job may hold `${{ }}` expressions that become numbers at run time
+  // (`E2E ${{ matrix.shardIndex }}/...` runs as `E2E 1/6 (full)`): the same job is one tier at
+  // PR time and in the weekly report.
+  const name = String(jobName).replace(/\$\{\{[^}]*\}\}/g, '1');
   if (wf === 'configured-suite.yml' || wf === 'hosted-latency.yml') return 'backend';
   if (wf === 'ci.yml' && /^Configured E2E\b/.test(name)) return 'backend';
   if (wf === 'catalog-gates.yml' || wf === 'fit-sweep.yml') return 'graphics';
@@ -229,7 +232,10 @@ export function coverCosts(measurement) {
     const job = /^job:([^/]+)\/(.+)$/.exec(cover);
     if (job) {
       const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
-      return jobs.filter(([k]) => k.startsWith(`${job[1]}/`) && pattern.test(k.slice(job[1].length + 1)))
+      // Only the cover's own tier: a pattern that also matches another tier's jobs never moves
+      // their measured cost into this tier's credit.
+      const tier = tierOfJob(job[1], job[2]);
+      return jobs.filter(([k]) => k.startsWith(`${job[1]}/`) && pattern.test(k.slice(job[1].length + 1)) && tierOfJob(job[1], k.slice(job[1].length + 1)) === tier)
         .reduce((a, [, v]) => ({ perLanding: a.perLanding + (v.perLanding ?? 0), perDay: a.perDay + (v.perDay ?? 0) }), { perLanding: 0, perDay: 0 });
     }
     // A spec has no measured runner-minutes of its own, only a deliberately high estimate, so it

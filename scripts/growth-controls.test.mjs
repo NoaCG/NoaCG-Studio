@@ -12,7 +12,7 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, coverCosts, evidenceOf, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   tableFreshness, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, ages, buildReport, carriedStarts, fetchLatest, findIssue, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
@@ -954,4 +954,20 @@ test('(c) a re-run landing is one attempt\'s work in the slowdown series, never 
   assert.equal(detectSlowdown(series).found, false, 'three re-run landings are not a 2x slowdown');
   const landing = { id: 99, workflow: 'ci.yml', event: 'push', branch: 'main', sha: 'm4', created: '2026-10-14T00:00:00Z', conclusion: 'success', jobs: [] };
   assert.equal(priceRuns([run(4, 2), landing], { days: 7 }).tiers.backend.perLanding, 40, 'cost still counts every attempt: 20 + 20');
+});
+
+test('(b) a job is one tier by its workflow name and its run-time name, so no exception moves offline cost into overhead', () => {
+  const yamlShard = 'E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})';
+  assert.equal(tierOfJob('ci.yml', yamlShard), 'offline');
+  assert.equal(tierOfJob('ci.yml', 'E2E 1/6 (full)'), 'offline');
+  assert.equal(tierOfJob('nightly.yml', 'Nightly E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}'), 'offline');
+  // The replay: an overhead exception on the shard job's workflow name, to buy overhead headroom
+  // with offline's measured cost.
+  const ex = { id: 'x', tier: 'overhead', covers: [`job:ci.yml/${yamlShard}`], perLanding: 80, owner: 'o', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1#issuecomment-1', from: '2026-10-25', expires: '2026-11-20' };
+  assert.match(exceptionStatus([ex], TODAY, 30).invalid[0].problems.join(), /not in the overhead tier/);
+  // A catch-all cover in the right tier still credits only that tier's measured jobs.
+  const jobs = { 'ci.yml/E2E 1/6 (full)': { perLanding: 66, perDay: 0 }, 'ci.yml/Build': { perLanding: 6, perDay: 0 } };
+  assert.deepEqual(coverCosts({ jobs })('job:ci.yml/${{ matrix.name }}'), { perLanding: 6, perDay: 0 });
+  const overhead = assessTiers({ ceilings: noExceptions, measurement: { ...measurement({ overhead: 100, offline: 420 }), jobs }, items: [{ tier: 'overhead', id: 'job:ci.yml/New', perLanding: 10, perDay: 0 }], today: TODAY, exceptions: [{ ...ex, covers: ['job:ci.yml/${{ matrix.name }}'] }] });
+  assert.equal(overhead.tiers.overhead.status, 'refuse', 'credit is capped at the 6 minutes of overhead it covers');
 });

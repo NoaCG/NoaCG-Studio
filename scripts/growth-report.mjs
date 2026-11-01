@@ -539,16 +539,19 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const ledgerFile = value('--ledger');
     // Starts the open alarm issue already records outlive a rewritten head.
-    let existing;
-    try { existing = findIssue(AGE_ISSUE)?.body ?? ''; } catch { existing = ''; }
+    // An alarm issue that could not be read is unknown, never empty: rewriting it would drop the
+    // lines of the PRs this run could not re-read.
+    let existing = '';
+    let existingRead = true;
+    try { existing = findIssue(AGE_ISSUE)?.body ?? ''; } catch { existingRead = false; }
     const result = ages({ ceilings, now: value('--now') ?? new Date().toISOString(), ledger: ledgerFile ? readFileSync(ledgerFile, 'utf8') : null, carried: carriedStarts(existing), existing });
     if (result.phaseBody !== undefined) {
       console.log(result.phaseBody || 'no plan phase past its age ceiling');
       // One issue per plan's ledger, so a run checking its own plan never closes another's alarm.
       if (args.includes('--issue')) console.log(rollingIssue(phaseIssueTitle(ledgerFile), result.phaseBody));
     }
-    if (result.body === null) {
-      console.log(`::warning title=Delivery age alarms::the open items could not all be read (${result.calls} API calls); the alarm issue is left as it was`);
+    if (result.body === null || !existingRead) {
+      console.log(`::warning title=Delivery age alarms::${existingRead ? `the open items could not all be read (${result.calls} API calls)` : 'the open alarm issue could not be read'}; the alarm issue is left as it was`);
       process.exit(1);
     }
     console.log(result.body || `no pull request past its age ceiling (${result.calls} API calls)`);
