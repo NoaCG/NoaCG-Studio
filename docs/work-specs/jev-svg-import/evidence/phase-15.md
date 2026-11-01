@@ -90,7 +90,28 @@ No product source changed. This row is tests and notes.
 
 ## Verification on this worker
 
-(filled below)
+- `node --test scripts/quiz-no-lock.test.mjs`: 17/17. The same file with
+  `QUIZ_SRC` set to a checkout of `043fcccb` (main before row 14): the seven saved-shape pins and
+  the four lock-board edge lists pass; the no-Lock tests fail there, as they must (the variant
+  does not exist). Mutation: a four- or two-second timer fails five tests.
+- `npx tsc --noEmit -p .`, `npx eslint` on the two changed code files: pass.
+- `npm run gates -- run --changed origin/main`: pass. `node scripts/check-e2e-protection.mjs
+  --changed origin/main`: OK (both journeys set 100 s, under the 120 s ceiling).
+- The two journeys through the job queue. First runs failed on test faults, not product ones:
+  the hidden pick sits under the cue's Advanced section (j-0001); the second context read the
+  cue before its save had landed (j-0001, the journey now waits for the record); Back to start
+  goes to Off, not to the question, so the reset is Back to start then Re-take (j-0002); the
+  replay revealed without the lock its board requires (j-0003). Then both passed (j-0004).
+- Mutations, each probe commit dropped and never pushed: a two-second timer fails the standard
+  journey at the timer line, revealed after 3.3 s (j-0005). Keeping the `locked` state on the
+  no-Lock board fails the second-author journey at the snap list (j-0007) and three node tests.
+  Removing only the Lock button from the no-Lock control filter changed nothing on screen
+  (j-0006): the cue draws a button only for an event some arrow carries, so the machine, not the
+  control list, is what hides it.
+- Whole `e2e/import-svg-behaviour.spec.ts` on the final source: 42/42 (j-0008).
+- Not run here: the configured suite (CI selects it from the PR) and a production build (no
+  build input changed). Not done: a manual browser walk with a screenshot; the journeys drive the
+  same UI.
 
 ## Decisions
 
