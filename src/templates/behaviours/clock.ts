@@ -74,7 +74,9 @@ const TARGET_ORIGIN = 1000;
 export function clockTargetStart(target: string): string | null {
   const m = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2})\[[^\]]+\]$/.exec(target.trim());
   const at = m ? Date.parse(m[1]) : NaN;
-  if (!Number.isFinite(at) || at <= TARGET_ORIGIN) return null;
+  if (!Number.isFinite(at)) return null;
+  // An instant at or before the origin has already been reached: expired, held at 0:00 (T2).
+  if (at <= TARGET_ORIGIN) return `0:00@${TARGET_ORIGIN}`;
   const left = Math.ceil((at - TARGET_ORIGIN) / 1000);
   const s = left % 60;
   return `${Math.floor(left / 60)}:${s < 10 ? `0${s}` : s}@${at - left * 1000}`;

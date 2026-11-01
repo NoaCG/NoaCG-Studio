@@ -147,7 +147,7 @@ const walk = await withBundledPage(SPECS, async (page) => {
   await installDrivenPage(page);
   const stored = [
     TARGET, '2026-11-01T19:00:00+02:00[Europe/Helsinki]', '2026-11-14T19:00:00+02:00[Europe/Helsinki]', '2026-10-25T03:30:00+02:00[Europe/Helsinki]',
-    '2026-10-25T03:30:00+03:00[Europe/Helsinki]', '2026-11-02T00:00:00-05:00[America/New_York]', '2026-10-31T19:00:00+02:00[Europe/Helsinki]', '', 'tonight', '2026-11-14T19:00:00+02:00', 'garbage',
+    '2026-10-25T03:30:00+03:00[Europe/Helsinki]', '2026-11-02T00:00:00-05:00[America/New_York]', '2026-10-31T19:00:00+02:00[Europe/Helsinki]', '1969-12-31T00:00:00+00:00[UTC]', '', 'tonight', '2026-11-14T19:00:00+02:00', 'garbage',
   ];
   const readouts = [['target-time', '12:08', stored[2]], ['count-up', ' 12:08 ', stored[2]], ['duration', '0:30', stored[2]], ['target-time', '12:08', undefined], ['target-time', '12:08', 'garbage']];
   const t = await page.evaluate(({ stored, readouts }) => ({
@@ -326,6 +326,10 @@ test('T6: an expired target shows 0:00 from the first frame and never counts', (
   const start = clockTargetStart(formatClockTarget(past));
   assert.equal(clockValueAt(start, true, NOW), '0:00');
   assert.equal(clockValueAt(start, true, NOW + 86_400_000), '0:00');
+  // Before the origin itself: still a fixed, expired start, never the drawn time.
+  const ancient = clockTargetStart('1969-12-31T00:00:00+00:00[UTC]');
+  assert.equal(ancient, '0:00@1000');
+  assert.equal(clockValueAt(ancient, true, NOW), '0:00');
 });
 
 test('the readout and the picker: a resolved target is offered, and only a target time takes it', () => {
