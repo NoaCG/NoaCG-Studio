@@ -6,7 +6,7 @@
 // suite in configured-suite.yml - is replayed against the ORIGINAL selection of each landing that
 // could have caused it, and the audit window is measured from the latest audit reset.
 //
-//   node scripts/e2e-selection-misses.mjs [--days 7] [--before 0] [--limit 100] [--calls 100] [--ref HEAD] [--json]
+//   node scripts/e2e-selection-misses.mjs [--days 7] [--before 0] [--calls 100] [--ref HEAD] [--json]
 //   node scripts/e2e-selection-misses.mjs resets [--ref HEAD] [--landings 400] [--json]
 //
 // THE ORIGINAL SELECTION, NOT TODAY'S PLANNER. The question is whether the plan that actually ran
@@ -25,12 +25,12 @@
 // removes a shared-change (`// focus`) or critical-journey (`// critical:`) header line, or whose
 // commits carry a `Selection-audit-reset: <reason>` trailer (a mapping corrected after a miss, or
 // any other selection change the files alone do not show). Read from git, so it cannot go stale.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fetchFailureSet, ghJsonLines, resolveRepo } from './ci-failure-set.mjs';
+import { fetchFailureSet, resolveRepo } from './ci-failure-set.mjs';
 import { loadIncidentContext, quarantineIncidents, readStore } from './e2e-quarantine.mjs';
 import { measured } from './measured.mjs';
 
@@ -38,9 +38,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
  * SELECTOR CODE (reset class "selector or header/list semantics" and "critical/shared membership").
- * The planner, its header and list reader, the traced-map reader, copy matching, spec identity, the
- * quarantine split, the catalog slicer and the contract map. The traced map's data
- * (scripts/e2e-traced.json) and the durations table are refreshes, not semantics.
+ * The planner (which holds the quarantine split), its header and list reader, the traced-map
+ * reader, copy matching, spec identity and the catalog slicer. Critical and shared membership is
+ * read from the header lines themselves. The traced map's data (scripts/e2e-traced.json), the
+ * durations table, the quarantine store and the contract map's prose are not selection semantics.
  */
 export const SELECTION_CODE = [
   'scripts/e2e-affected.mjs',
@@ -48,9 +49,7 @@ export const SELECTION_CODE = [
   'scripts/e2e-lists.mjs',
   'scripts/e2e-traced.mjs',
   'scripts/e2e-spec-names.mjs',
-  'scripts/e2e-quarantine.mjs',
   'scripts/catalog-affected.mjs',
-  'scripts/e2e-contracts.mjs',
 ];
 
 /** The commit trailer that declares a reset the files alone do not show. */
@@ -97,9 +96,10 @@ function verdictOf(spec, kind, plan) {
     if ((m.quarantined ?? []).includes(spec)) return 'quarantined';
     return 'not-selected';
   }
+  // A full plan still leaves quarantined specs out of its shards, so the quarantine is read first.
+  if ((plan.quarantined ?? []).includes(spec)) return 'quarantined';
   if (plan.mode === 'full') return 'full';
   if (plan.specs.includes(name)) return 'selected';
-  if ((plan.quarantined ?? []).includes(spec)) return 'quarantined';
   return 'not-selected';
 }
 
@@ -125,13 +125,16 @@ export function classifyAgainst(spec, plans, { kind = 'offline', flaky = new Set
 /**
  * Which failing specs each red run INTRODUCED. A red main stays red through the landings after it
  * until somebody fixes it, so a spec counts for the first run in which it fails after a run in
- * which it did not, and a run inherits the rest. Pure; `runs` oldest first.
+ * which it did not, and a run inherits the rest. Pure; `runs` oldest first. A run whose failure set
+ * is unknown (`specs: null`) is skipped and keeps what came before, so the next red run is not
+ * charged with failures it only inherited.
  * @returns {{ sha: string, specs: string[] }[]}
  */
 export function newlyFailing(runs) {
   let before = new Set();
   const out = [];
   for (const run of runs) {
+    if (run.specs === null) continue;
     const now = new Set(run.specs ?? []);
     if (run.conclusion === 'failure') out.push({ sha: run.sha, specs: [...now].filter((s) => !before.has(s)) });
     before = now;
@@ -224,8 +227,18 @@ export function summarize({ rows, status, reset, incidents }) {
   ].join('\n');
 }
 
+/**
+ * `gh api ... --jq` that THROWS on a failed call. ghJsonLines answers a failure with `[]`, which is
+ * right for an alarm and wrong here: an unread run list or failure set would read as nothing red.
+ */
+export function ghStrict(args) {
+  const res = spawnSync('gh', ['api', ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (res.status !== 0) throw new Error(`gh api ${args[0]} failed: ${String(res.stderr ?? '').trim().split('\n')[0]}`);
+  return String(res.stdout ?? '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => JSON.parse(l));
+}
+
 /** A gh caller that refuses past its call budget (runbook: at most 100 calls a collection pass). */
-export function budgetedGh(limit, gh = ghJsonLines) {
+export function budgetedGh(limit, gh = ghStrict) {
   let used = 0;
   const spend = () => {
     if (used >= limit) throw new Error(`call budget of ${limit} spent`);
@@ -240,10 +253,17 @@ export function budgetedGh(limit, gh = ghJsonLines) {
   return call;
 }
 
-/** The printed plan of a landing's merge-group CI run, or null. Three calls at most. */
-export function originalPlanOf(sha, { repo, gh, rawLog }) {
+/**
+ * The plan a CI run printed for a commit, or null. Three calls at most. The offline question reads
+ * the landing's merge-group run (the merge group's commit is the landed commit); the configured
+ * question reads the pull request's run on its head, because the merge group skips the configured
+ * job and only the pull request ran that selection.
+ */
+export function originalPlanOf(sha, { repo, gh, rawLog, event = 'merge_group' }) {
+  if (!sha) return null;
   try {
-    const run = gh([`repos/${repo}/actions/runs?head_sha=${sha}&event=merge_group&per_page=10`, '--jq', '.workflow_runs[] | select(.path == ".github/workflows/ci.yml") | .id'])[0];
+    // Runs come newest first: the first is the last run on that commit.
+    const run = gh([`repos/${repo}/actions/runs?head_sha=${sha}&event=${event}&per_page=20`, '--jq', '.workflow_runs[] | select(.path == ".github/workflows/ci.yml") | .id'])[0];
     if (!run) return null;
     const job = gh([`repos/${repo}/actions/runs/${run}/jobs?per_page=100`, '--jq', '.jobs[] | select(.name == "E2E plan") | .id'])[0];
     return job ? parsePrintedPlan(rawLog(job)) : null;
@@ -262,7 +282,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(reset.read ? 0 : 1);
   }
   const days = Number(value('--days', 7));
-  const limit = Number(value('--limit', 100));
   const { repo } = resolveRepo();
   if (!repo) {
     console.error('e2e-selection-misses: cannot resolve the repository (GH_REPO or the origin remote).');
@@ -282,30 +301,47 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const flaky = flakyIn(store, sinceIso);
   const incidents = quarantineIncidents(store, { ...(await loadIncidentContext()), today });
   const plans = new Map();
-  const planOf = (sha) => {
-    if (!plans.has(sha)) plans.set(sha, originalPlanOf(sha, { repo, gh, rawLog }));
-    return plans.get(sha);
+  const planOf = (sha, event) => {
+    const key = `${event}:${sha}`;
+    if (!plans.has(key)) plans.set(key, originalPlanOf(sha, { repo, gh, rawLog, event }));
+    return plans.get(key);
   };
   const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', windowsHide: true });
+  // The configured question reads the pull request's own run: its head is the landing's second parent.
+  const prHeadOf = (sha) => {
+    try { return git('rev-parse', '--verify', '--quiet', `${sha}^2`).trim() || null; } catch { return null; }
+  };
+  // Runs before the window are context, not judged: the run before the first judged one says what
+  // was already red and where the first candidate range starts.
+  const CONTEXT_DAYS = 2;
+  const listFrom = since - CONTEXT_DAYS * 86_400_000;
+  const day = (t) => new Date(t).toISOString().slice(0, 10);
   const rows = [];
   for (const [workflow, kind] of [['ci.yml', 'offline'], ['configured-suite.yml', 'configured']]) {
-    let all;
+    let all = [];
     try {
-      all = gh([`repos/${repo}/actions/workflows/${workflow}/runs?branch=main&event=push&status=completed&created=${new Date(since).toISOString().slice(0, 10)}..${new Date(until).toISOString().slice(0, 10)}&per_page=${Math.min(100, limit)}`, '--jq', '.workflow_runs[] | {id, head_sha, conclusion, created_at}'])
-        .filter((r) => r?.id && (r.conclusion === 'failure' || r.conclusion === 'success') && Date.parse(r.created_at) >= since && Date.parse(r.created_at) < until)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+      for (let page = 1; page <= 5; page++) {
+        const got = gh([`repos/${repo}/actions/workflows/${workflow}/runs?branch=main&event=push&status=completed&created=${day(listFrom)}..${day(until)}&per_page=100&page=${page}`, '--jq', '.workflow_runs[] | {id, head_sha, conclusion, created_at}']);
+        all.push(...got);
+        if (got.length < 100) break;
+        if (page === 5) throw new Error('more than 500 runs in the window: cut short');
+      }
     } catch (e) {
-      console.error(`e2e-selection-misses: ${workflow} runs unread (${String(e?.message ?? e).split('\n')[0]}) - its failures count as unknown.`);
+      console.error(`e2e-selection-misses: ${workflow} runs unread (${String(e?.message ?? e).split('\n')[0]}) - counted as unknown.`);
       rows.push({ runId: '-', workflow, spec: `job: ${workflow} runs unread`, verdict: 'unknown', flake: false, culprits: [] });
       continue;
     }
-    const red = all.filter((r) => r.conclusion === 'failure');
+    all = all.filter((r) => r?.id && (r.conclusion === 'failure' || r.conclusion === 'success') && Date.parse(r.created_at) >= listFrom && Date.parse(r.created_at) < until)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const judged = (r) => Date.parse(r.created_at) >= since;
+    const red = all.filter((r) => r.conclusion === 'failure' && judged(r));
     measured.optional(red.length, `red ${workflow} runs on main in the window`, 'a week with no red main run has nothing to replay');
+    // Red context runs need their failure sets too, so an inherited failure is not charged to the
+    // first judged run. Job items stay: a failing job that annotated no spec (a build step, a lost
+    // shard) is listed as `not-a-spec` rather than dropped. A configured run's specs come from its
+    // verdict job's log. A red run with no item at all was not read.
     const failing = new Map();
-    // Job items stay: a failing job that annotated no spec (a build step, a lost shard) is a
-    // full-run failure too, listed as `not-a-spec` rather than dropped. A configured run's specs
-    // come from its verdict job's log (`configuredFailures`).
-    for (const r of red) {
+    for (const r of all.filter((x) => x.conclusion === 'failure')) {
       try {
         let items = fetchFailureSet(r.id, { repo, gh }).items;
         if (kind === 'configured') {
@@ -313,10 +349,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           const specs = job ? configuredFailures(rawLog(job)) : [];
           if (specs.length) items = [...specs, ...items.filter((i) => !/^job: Configured E2E/.test(i))];
         }
-        failing.set(r.id, items);
+        failing.set(r.id, items.length ? items : null);
       } catch { failing.set(r.id, null); }
     }
-    const introduced = new Map(newlyFailing(all.map((r) => ({ sha: r.head_sha, conclusion: r.conclusion, specs: failing.get(r.id) ?? [] }))).map((r) => [r.sha, r.specs]));
+    const introduced = new Map(newlyFailing(all.map((r) => ({ sha: r.head_sha, conclusion: r.conclusion, specs: r.conclusion === 'success' ? [] : failing.get(r.id) }))).map((r) => [r.sha, r.specs]));
     for (const run of red) {
       if (failing.get(run.id) === null) {
         rows.push({ runId: run.id, workflow, spec: 'failure set unread', verdict: 'unknown', flake: false, culprits: [run.head_sha] });
@@ -325,11 +361,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const specs = introduced.get(run.head_sha) ?? [];
       if (specs.length === 0) continue;
       const previous = all[all.indexOf(run) - 1];
-      // The candidates: every first-parent landing since the previous completed run. A range git
-      // cannot read even after fetching both ends leaves the candidates unknown, so a null plan
-      // joins them and nothing short of `selected` can come of it.
+      // The candidates: every first-parent landing since the previous completed run. With no
+      // previous run in reach, or a range git cannot read even after fetching both ends, the
+      // candidates are unknown: a null plan joins them and nothing short of `selected` comes of it.
       let culprits = [run.head_sha];
-      let rangeRead = !previous;
+      let rangeRead = false;
       if (previous) {
         const range = () => git('rev-list', '--first-parent', `${previous.head_sha}..${run.head_sha}`).split('\n').filter(Boolean);
         try { culprits = range(); rangeRead = true; } catch {
@@ -339,7 +375,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       // A red run on the commit the previous green run already had (a re-run on main) has an empty
       // range; its candidate is that commit itself.
       if (culprits.length === 0) culprits = [run.head_sha];
-      const candidatePlans = [...culprits.map(planOf), ...(rangeRead ? [] : [null])];
+      const read = (sha) => (kind === 'configured' ? planOf(prHeadOf(sha), 'pull_request') : planOf(sha, 'merge_group'));
+      const candidatePlans = [...culprits.map(read), ...(rangeRead ? [] : [null])];
       for (const spec of specs) rows.push({ ...classifyAgainst(spec, candidatePlans, { kind, flaky }), runId: run.id, workflow, culprits });
     }
   }

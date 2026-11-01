@@ -76,8 +76,10 @@ jobs:
       # stopped reading, so it is an incident with an owner, a repair due date and its coverage gap,
       # `critical` for a critical journey (its `// critical:` header, so the spec headers are in the
       # sparse checkout). One rolling issue, closed only when the store is empty. A store or issue
-      # list this step cannot read fails it and closes nothing.
+      # list this step cannot read fails it and closes nothing. continue-on-error, because the spec
+      # jobs below need this job: a failed report must not stop the runs that earn a release.
       - name: Keep the quarantine incidents issue
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

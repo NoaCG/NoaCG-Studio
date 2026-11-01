@@ -432,6 +432,7 @@ export async function loadIncidentContext() {
 }
 let incidentContext = null;
 function readIncidents(todayIso) {
+  if (!incidentContext) throw new Error('the spec headers or the owner could not be read');
   return quarantineIncidents(readStore(), { ...incidentContext, today: todayIso });
 }
 
@@ -565,13 +566,19 @@ function main(argv) {
     // the store holds none. A store or issue list that cannot be read throws before anything is
     // closed. With --plan '<plan json>' it prints that plan's coverage gaps instead (Rule Q4).
     const todayIso = String(flags.get('--today') ?? today());
-    const incidents = readIncidents(todayIso);
     if (flags.has('--plan')) {
+      // The plan step must not fail on a report: the planner already reads an unreadable store
+      // toward running more. The gaps are still stated, with their incident unknown.
+      let incidents = [];
+      try { incidents = readIncidents(todayIso); } catch (e) {
+        console.log(`::warning title=Coverage gap::the quarantine incidents could not be read (${String(e?.message ?? e).split('\n')[0]}); gaps below name no incident.`);
+      }
       const gaps = coverageGaps(JSON.parse(String(flags.get('--plan'))), incidents);
       for (const g of gaps) console.log(g.warning);
       if (gaps.length && process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Coverage gaps\n\n${gaps.map((g) => g.summary).join('\n')}\n\n`);
       return 0;
     }
+    const incidents = readIncidents(todayIso);
     for (const i of incidents) console.log(`incident: ${i.spec}  ${i.severity}  since ${i.since}  repair due ${i.due}${i.overdue ? ' OVERDUE' : ''}  owner ${i.owner}`);
     if (incidents.length === 0) console.log('quarantine: no incident.');
     if (!flags.has('--issue')) return 0;
@@ -621,6 +628,11 @@ function main(argv) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (process.argv[2] === 'incidents') incidentContext = await loadIncidentContext();
+  if (process.argv[2] === 'incidents') {
+    try { incidentContext = await loadIncidentContext(); } catch (e) {
+      if (!process.argv.includes('--plan')) throw e;
+      incidentContext = null;
+    }
+  }
   process.exit(main(process.argv.slice(2)));
 }

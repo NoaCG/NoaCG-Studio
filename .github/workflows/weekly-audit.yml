@@ -128,7 +128,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: node scripts/e2e-selection-misses.mjs --days 7 --limit 100 || true
+        run: node scripts/e2e-selection-misses.mjs --days 7 --calls 100 || true
 
       # Fails on high/critical only — the tracked low/moderate advisories (repo maintenance
       # notes) stay a report, not a weekly alarm.

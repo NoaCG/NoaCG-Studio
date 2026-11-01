@@ -52,8 +52,9 @@ Three rule families, written before the code. Each line has one test named after
   `miss` when every candidate's plan was read and none selected it; `unknown` when none selected
   it and a plan could not be read. A spec the quarantine store knows from the window keeps its
   verdict and is marked `flake` for investigation, never dropped.
-- A3. A red configured-suite run on main is replayed the same way against the configured manifest
-  in that printed plan. A culprit whose plan carries no manifest (it landed before ci06) is
+- A3. A red configured-suite run on main is replayed against the configured manifest printed by
+  the culprit's PULL REQUEST run on its head (the landing's second parent), because the merge group
+  skips the configured job. A culprit whose plan carries no manifest (it landed before ci06) is
   `no-selection`: no pre-merge configured check existed, so it is listed and never `selected`.
 - A4. A first-parent landing on main is an audit reset when its diff touches selector code
   (`SELECTION_CODE`), adds or removes a `// focus` or `// critical:` header line in a spec, or one
@@ -62,6 +63,22 @@ Three rule families, written before the code. Each line has one test named after
 - A5. The audit reports the latest reset (commit, time, reason) and the days since it. Its status
   is `clean` only with no miss, no unknown and nothing blocking (Q5); the day count is reported,
   never read as qualification.
+
+### Rules found after coding
+
+The `/check` review (section 6) found these; each is folded into the line it belongs to and tested:
+
+- A2: a full plan still leaves quarantined specs out of its shards, so `quarantined` is read before
+  `full`.
+- A1 and A2: an API read that fails throws (`ghStrict`), so an unread run list or failure set is
+  `unknown`, never "nothing red"; an unread failure set does not reset what was already failing;
+  runs from two days before the window are read as context, so the first judged run is not charged
+  with failures it inherited or given a candidate range it cannot know.
+- A3: configured failures are judged against the pull request's run, not the merge group's plan.
+- A4: `SELECTION_CODE` holds only files that decide selection (the quarantine split is in the
+  planner; critical membership is the header lines).
+- Q3 and Q4: a report never blocks: the plan step states gaps even when the incidents cannot be
+  read, and the incidents step in `quarantine.yml` cannot skip the quarantined-spec runs.
 
 ## 1. What changed
 

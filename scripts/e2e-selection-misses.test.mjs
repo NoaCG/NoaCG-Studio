@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
   auditStatus,
   budgetedGh,
+  ghStrict,
   classifyAgainst,
   configuredFailures,
   latestReset,
@@ -27,6 +28,9 @@ test('a spec counts for the run that turned it red, not for the landings that in
     { sha: 'c', conclusion: 'failure', specs: ['e2e/x.spec.ts', 'e2e/y.spec.ts'] },
   ];
   assert.deepEqual(newlyFailing(runs), [{ sha: 'b', specs: ['e2e/x.spec.ts'] }, { sha: 'c', specs: ['e2e/y.spec.ts'] }]);
+  // A run whose failure set is unread keeps what came before: the next red run inherits, not introduces.
+  const unread = [runs[1], { sha: 'u', conclusion: 'failure', specs: null }, { sha: 'd', conclusion: 'failure', specs: ['e2e/x.spec.ts'] }];
+  assert.deepEqual(newlyFailing(unread), [{ sha: 'b', specs: ['e2e/x.spec.ts'] }, { sha: 'd', specs: [] }]);
 });
 
 test('Rule A1: the original plan is the one the merge-group CI run printed, read from its plan job log', () => {
@@ -49,6 +53,7 @@ test('Rule A2: full, selected, quarantined, unknown and miss, in that order, and
   assert.equal(classifyAgainst(spec, [subset([]), { mode: 'full', specs: [] }]).verdict, 'full');
   assert.equal(classifyAgainst(spec, [subset([]), subset(['x.spec.ts'])]).verdict, 'selected');
   assert.equal(classifyAgainst(spec, [subset([], { quarantined: [spec] })]).verdict, 'quarantined');
+  assert.equal(classifyAgainst(spec, [{ mode: 'full', specs: [], quarantined: [spec] }]).verdict, 'quarantined', 'a full plan still left the quarantined spec out');
   assert.equal(classifyAgainst(spec, [subset([]), null]).verdict, 'unknown', 'an unread plan never reads as selected or miss');
   assert.equal(classifyAgainst(spec, []).verdict, 'unknown', 'no candidate read at all');
   assert.equal(classifyAgainst(spec, [subset([]), subset(['y.spec.ts'])]).verdict, 'miss');
@@ -67,6 +72,12 @@ test('Rule A3: a configured failure is judged against the printed configured man
   assert.equal(classifyAgainst(spec, [subset([])], opts).verdict, 'no-selection', 'a pre-ci06 plan carries no manifest');
   assert.equal(classifyAgainst(spec, [{ mode: 'full', specs: [] }], opts).verdict, 'no-selection', 'an offline full plan is not a configured selection');
   assert.equal(classifyAgainst(spec, [subset([]), null], opts).verdict, 'unknown');
+  // The configured question reads the pull request's run: the merge group skips the configured job.
+  const asked = [];
+  const gh = (args) => { asked.push(args[0]); return [1]; };
+  originalPlanOf('prhead', { repo: 'o/r', gh, rawLog: () => '', event: 'pull_request' });
+  assert.match(asked[0], /head_sha=prhead&event=pull_request/);
+  assert.equal(originalPlanOf(null, { repo: 'o/r', gh, rawLog: () => 'plan: {"mode":"subset","specs":[]}', event: 'pull_request' }), null, 'no pull request head: unread');
   const log = [
     '2026-10-31T22:32:33.4Z Ran 118 tests (118 passed, 0 failed, 0 flaky), 1 skipped.',
     '2026-10-31T22:32:33.5Z failure set (ede21a9ed8c4):',
@@ -119,6 +130,10 @@ test('Rule Q5: an open critical incident or an overdue one blocks the audit, wha
   assert.equal(auditStatus({ rows: [], incidents: [critical], reset, today: '2026-11-08' }).status, 'blocked');
   assert.equal(auditStatus({ rows: [], incidents: [overdue], reset, today: '2026-11-08' }).status, 'blocked');
   assert.equal(auditStatus({ rows: [], incidents: [fresh], reset, today: '2026-11-08' }).status, 'clean', 'an affected incident inside its repair date does not block');
+});
+
+test('an unread API answer throws, so it is counted unknown and never read as nothing red', () => {
+  assert.throws(() => ghStrict(['repos/o/r/actions/runs?bogus=', '--hostname', 'invalid.invalid']), /gh api .* failed/);
 });
 
 test('a collection pass spends at most its call budget, log reads included', () => {
