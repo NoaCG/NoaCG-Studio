@@ -42,18 +42,24 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci13 builder receipt (session_017SdbwLqBme15oH4y589fr7)",
-    "eta": "2026-11-02T01:00:00Z"
+    "what": "PR #1930 merge queue, then ci13 checker",
+    "eta": "2026-11-01T22:00:00Z"
   },
   "inFlight": [
     {
       "phase": "ci13",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwLqBme15oH4y589fr7",
       "nonce": "ci13-b-a67c",
       "branch": "claude/plan-cicd-improvement-ci13-build",
       "launchedAt": "2026-11-01T20:22:24Z",
-      "note": "Scheduled detection and recovery readiness assessment: delays, alarm, drills; qualified or not qualified with protection kept."
+      "note": "NOT QUALIFIED: nightly is the only carrier for engine-floor and full E2E (11 and 128 breaches over 337 landings). Nothing narrowed. Missing receipt: historical exact-commit Actions culprit replay (fixtures cover). Auto-merge on 21:19Z.",
+      "pr": 1930,
+      "reviewedHead": "daa4c576702e5e0bbb94bb050e8b8874bc970ac6",
+      "stampRun": 41351376200,
+      "followUps": [
+        1932
+      ]
     }
   ],
   "owner": [],
@@ -322,7 +328,8 @@
     1912,
     1924,
     1926,
-    1928
+    1928,
+    1932
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
