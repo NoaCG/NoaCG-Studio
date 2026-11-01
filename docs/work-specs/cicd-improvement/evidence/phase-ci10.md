@@ -75,9 +75,12 @@ now compares both with the same run, which also makes semantic and proposal equa
   `reviewed` helper is copied verbatim, and a diff of the two old files was the 34 proposal-only lines
   (section 1) and the mode name.
 - Test titles: one `for (...) test(` line declares the three viewport tests, as before.
-- `test.setTimeout(360_000)` is the unchanged existing line. A merged test measured 103 to 109 s here
-  (section 5), so the ceiling is not near.
-- The editor-model-proposals README's run command names the merged file.
+- `test.setTimeout(360_000)` is the unchanged existing line. A merged test measured 103 to 114 s on the cloud
+  worker and ACTIONS_PER_TEST on Actions (section 5).
+- The parity check is one assertion over both modes, so a divergence of the semantic path no longer
+  hides a divergence of the proposal path (review finding; each old file had one parity check).
+- The editor-model-proposals README's run command names the merged file. Its `check.md` lists the
+  old file among the files a past check reviewed; that is a record of that check and stays as it was.
 
 ## 4. Fault matrix (acceptance a)
 
@@ -204,7 +207,16 @@ commit's landing does, and the coordinator records its SHA and time from the rea
 - **What is weaker, said plainly.** The UI walk now runs once per viewport, not twice: a flaky step
   in it has one chance to show per run instead of two. A failure in the UI walk now also stops that
   viewport's semantic and proposal walks (they need its geometry), as it already stopped the second
-  walk in each old file.
+  walk in each old file. Likewise a semantic-walk failure now stops that viewport's proposal walk
+  before it starts, where the old proposal file ran on its own: the test still fails, but a second,
+  simultaneous proposal regression shows only after the first is fixed. And one quarantine of a
+  merged test takes out both paths at that viewport, so it is an affected-protection incident under
+  the runbook's quarantine rule, not a routine entry.
+- The test titles change (to `shared UI, semantic and reviewed-proposal authoring, reopen and output
+  task <viewport>`), so title-keyed history (durations, flake samples) starts afresh for them.
+- The durations table is not hand-edited (only `record:e2e-durations` writes it): until its next
+  refresh it lists the deleted file and weighs the merged file at the old 2.92 minutes, about 1.5
+  under what it takes, so the packer under-weights one shard by that much against its 20-minute cap.
 - Trap for later rows: running a queued Playwright job while patching `src/` taints the run; the
   first baseline here was discarded for that reason and re-run on a clean tree. Old specs for a
   before/after comparison run from untracked copies beside the new file, never from a file that is

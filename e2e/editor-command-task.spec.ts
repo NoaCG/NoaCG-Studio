@@ -259,7 +259,8 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   }
   expect(errors).toEqual([]); expect(network).toEqual([]); await context.close();
   }
-  expect(compared[1]).toEqual(compared[0]); expect(compared[2]).toEqual(compared[0]);
+  // One assertion, so a divergence of either path shows even when the other also diverges.
+  expect({ semantic: compared[1], proposal: compared[2] }).toEqual({ semantic: compared[0], proposal: compared[0] });
   const result = compared[0] as { phases: { source: { html: string; css: string; js: string; fields: { field: string; value: unknown }[]; assets: { path: string }[] }; history: unknown; patches: { file: string }[] }[]; poses: unknown };
   writeFileSync(evidence(label + '-parity.json'), JSON.stringify({ viewport: { width, height }, exactSourceAndHistoryEqual: true,
     phases: result.phases.map(p => ({ hashes: Object.fromEntries((['html', 'css', 'js'] as const).map(file => [file, createHash('sha256').update(p.source[file]).digest('hex')])),
