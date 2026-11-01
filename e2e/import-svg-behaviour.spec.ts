@@ -694,6 +694,45 @@ test('the quiz\u2019s first option: no lock, and Reveal correct works straight f
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
 });
 
+test('the true no-Lock quiz: no lock control, state or look, and a pick goes straight to the reveal', async ({ page }) => {
+  // jev-svg-import AC-12. Unticking "Require lock" keeps the lock as an optional beat (the test
+  // above). "No lock at all" is a different board: the lock and its hidden-pick seal are not on it,
+  // so nothing an operator presses can reach them, and the timed reveal (which starts at the
+  // lock) is not offered beside it.
+  await openImportDoor(page, QUIZ_SVG);
+  await page.getByTestId('map-svg-option-noLock').check();
+  await expect(page.getByTestId('map-svg-option-lock')).toHaveCount(0);
+  await expect(page.getByTestId('map-svg-option-autoReveal')).toHaveCount(0);
+  await expect(page.getByTestId('map-svg-quiz-locked')).toHaveCount(0);
+  await intoProduction(page, 'No lock quiz', 'Quiz Night');
+  await settleDurableWrites(page);
+
+  const actions = page.getByTestId('cue-actions');
+  await expect(actions).toContainText('Select answer');
+  await expect(actions).toContainText('Reveal correct');
+  await expect(actions).not.toContainText('Lock it in');
+  await expect(actions).not.toContainText('Reveal choice');
+
+  await page.getByTestId('cue-field-f5-opt-C').click();
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const look = (token: string) => air.locator(`[data-noacg-role~="${token}"]`);
+
+  // The pick moves freely until the reveal; the drawn lock never shows.
+  await page.getByTestId('cue-pick-select-B').click();
+  await expect(look('answer.selected/B')).toHaveClass(/imported-design-on/);
+  await page.getByTestId('cue-pick-select-D').click();
+  await expect(look('answer.selected/D')).toHaveClass(/imported-design-on/);
+  await expect(look('answer.selected/B')).not.toHaveClass(/imported-design-on/);
+  await expect(look('locked')).not.toHaveClass(/imported-design-on/);
+
+  await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
+  await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
+  for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(/imported-design-on/);
+  await expect(look('locked')).not.toHaveClass(/imported-design-on/);
+});
+
 test('a meter: the bar the designer drew fills toward the target as the figure goes up', async ({ page }, testInfo) => {
   // THE SURVEY'S "progress bar toward a target" (docs/BEHAVIOUR_SURVEY.md §3) on artwork somebody
   // drew: a bar at its full length and two owned figures, no machine at all - a meter changes

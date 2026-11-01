@@ -24,6 +24,32 @@ import type { TypeBranch, TypeMachine } from '../types/graphicType';
 /** How long after the lock a self-revealing board waits, in speed-relative seconds. */
 const AUTO_REVEAL_AFTER = 5;
 
+/** The heading of a no-Lock board's pick: there is nothing between the pick and the reveal. */
+const NO_LOCK_PICK_SECTION = 'Pick, then reveal';
+
+/**
+ * THE TRUE NO-LOCK VARIANT (jev-svg-import AC-12). `lock: false` keeps the lock as an optional
+ * beat, and every quiz saved that way must keep doing so. `noLock` is a different board: the
+ * lock does not exist. Its states (`locked`, `sealed`), its events (`lock`, `revealChoice`), its
+ * buttons and its look are gone, so no arrow, button or rule can reach them.
+ *
+ * It is NOT a declared `options` entry on purpose: the compiler fills every declared option's
+ * default into the emitted table, so declaring it would add `noLock: false` to every saved
+ * quiz's bytes. Only a board that chose it carries the key.
+ *
+ * The five-second timer leaves `locked`, which this board does not have. Moving it onto the pick
+ * would change when a board reveals itself, so the pair is refused rather than resolved quietly.
+ */
+export function quizHasNoLock(options: Record<string, unknown> | undefined): boolean {
+  return options?.noLock === true;
+}
+
+function assertNoLockSupported(ctx: RecipeContext): void {
+  if (quizHasNoLock(ctx.options) && ctx.options.autoReveal === true) {
+    throw new Error('Behaviour: a quiz without a lock has no automatic reveal (the timer starts at the lock).');
+  }
+}
+
 /**
  * The answer board's arc WITHOUT the audience branch (this binding has no drawn moment for
  * percentages painted as chips), with the two OPTIONS applied as arrows rather than as flags:
@@ -38,6 +64,21 @@ const AUTO_REVEAL_AFTER = 5;
  * survive can never drift from the catalog's.
  */
 function quizMachine(ctx: RecipeContext): TypeMachine {
+  assertNoLockSupported(ctx);
+  if (quizHasNoLock(ctx.options)) {
+    // Only the pick survives. Reveal correct is legal from it, and Next rejoins the walk from it
+    // too, as it does from `locked` on a board with a lock: a playout server's Continue must
+    // still get past a pick when no lock is there to press first.
+    const selected = (ANSWER_BOARD_MACHINE.main?.branches ?? []).filter((b) => b.id === 'selected').map((b) => ({
+      ...b,
+      edges: [
+        ...b.edges,
+        { from: 'selected', to: { waypoint: 1 }, trigger: 'operator' as const, event: 'judge' },
+        { from: 'selected', to: { waypoint: 1 }, trigger: 'operator' as const, event: 'next' },
+      ],
+    }));
+    return withRepaint({ main: { ...ANSWER_BOARD_MACHINE.main, branches: selected } });
+  }
   const branches: TypeBranch[] = (ANSWER_BOARD_MACHINE.main?.branches ?? [])
     .filter((b) => b.id !== 'audience')
     .map((b) => {
@@ -95,13 +136,24 @@ export const quizRecipe: BehaviourRecipe = {
   machine: quizMachine,
   // The board's own buttons; with the lock option off the heading says the lock is optional.
   controls: (ctx) =>
-    ctx.options.lock === false
+    quizHasNoLock(ctx.options)
+      ? ANSWER_BOARD_CONTROLS.filter((c) => c.event !== 'lock' && c.event !== 'revealChoice').map((c) =>
+          c.section === ANSWER_PICK_SECTION ? { ...c, section: NO_LOCK_PICK_SECTION } : c,
+        )
+      : ctx.options.lock === false
       ? ANSWER_BOARD_CONTROLS.map((c) => (c.section === ANSWER_PICK_SECTION ? { ...c, section: ANSWER_PICK_LOCK_OPTIONAL_SECTION } : c))
       : ANSWER_BOARD_CONTROLS,
-  paint: () => [
-    { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
-    { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
-    { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
-    { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
-  ],
+  paint: (ctx) =>
+    quizHasNoLock(ctx.options)
+      ? [
+          { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
+          { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
+          { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
+        ]
+      : [
+          { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },
+          { look: 'answer.correct', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:picked'] }, default: 'row-mark:correct', anchor: 'answer' },
+          { look: 'answer.wrong', rows: 'answer', when: { state: ['main/reveal'], facts: ['correctAnswer:unpicked'] }, default: 'row-mark:wrong', anchor: 'answer' },
+          { look: 'locked', when: { state: ['main/locked', 'main/sealed'] }, default: 'badge:Locked in' },
+        ],
 };

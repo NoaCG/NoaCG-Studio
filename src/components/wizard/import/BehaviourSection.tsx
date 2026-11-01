@@ -30,6 +30,7 @@ import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
+import { quizHasNoLock } from '../../../templates/behaviours/quiz';
 import { formatClockTarget, localTimeZone, parseClockTarget, proposeClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
@@ -119,13 +120,19 @@ function RecipeOptions({
   recipeId,
   values,
   onChange,
+  hide = [],
+  children,
 }: {
   recipeId: string;
   values: Record<string, boolean>;
   onChange: (values: Record<string, boolean>) => void;
+  /** Options the chosen variant does not have (a no-Lock quiz has no lock and no timer). */
+  hide?: string[];
+  /** A recipe's own extra choice, in the same row. */
+  children?: ReactNode;
 }) {
-  const options = recipeById(recipeId)?.options ?? [];
-  if (options.length === 0) return null;
+  const options = (recipeById(recipeId)?.options ?? []).filter((o) => !hide.includes(o.key));
+  if (options.length === 0 && !children) return null;
   return (
     <div className="map-svg-row" data-testid="map-svg-options">
       {options.map((o) => (
@@ -139,7 +146,36 @@ function RecipeOptions({
           <span>{o.label}</span>
         </label>
       ))}
+      {children}
     </div>
+  );
+}
+
+/**
+ * THE TRUE NO-LOCK QUIZ (behaviours/quiz.ts `quizHasNoLock`). Unticking "Require lock" keeps the
+ * lock as an optional beat; this removes it. Ticking it hides the lock and timer options and the
+ * Locked in picker, because none of them can change this board, and clears the timer, whose
+ * arrow starts at the lock. Unticking it gives back the optional-lock board it came from.
+ */
+function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
+  return (
+    <label className="save-field" title="Pick, then Reveal correct. No Lock it in button, no locked look, no timed reveal.">
+      <input
+        type="checkbox"
+        checked={quizHasNoLock(values)}
+        onChange={(e) => {
+          const next = { ...values };
+          delete next.noLock;
+          if (e.target.checked) {
+            delete next.autoReveal;
+            Object.assign(next, { lock: false, noLock: true });
+          }
+          onChange(next);
+        }}
+        data-testid="map-svg-option-noLock"
+      />
+      <span>No lock at all</span>
+    </label>
   );
 }
 
@@ -1150,7 +1186,14 @@ export default function BehaviourSection({
           )}
           {quiz && (
             <>
-              <RecipeOptions recipeId="quiz" values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
+              <RecipeOptions
+                recipeId="quiz"
+                values={quiz.options ?? {}}
+                onChange={(options) => patchQuiz({ options })}
+                hide={quizHasNoLock(quiz.options) ? ['lock', 'autoReveal'] : []}
+              >
+                <NoLockOption values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
+              </RecipeOptions>
               <div className="map-svg-row hinted">
                 <label className="save-field grow">
                   <span>Question</span>
@@ -1237,6 +1280,7 @@ export default function BehaviourSection({
                   </div>
                 </div>
               ))}
+              {!quizHasNoLock(quiz.options) && (
               <label className="save-field">
                 <span>Locked in</span>
                 <select
@@ -1254,6 +1298,7 @@ export default function BehaviourSection({
                 </select>
                 {hintFor('locked', undefined, quiz.locked, 'map-svg-quiz-locked')}
               </label>
+              )}
             </>
           )}
         </div>
