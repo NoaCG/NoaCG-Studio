@@ -141,7 +141,7 @@ const WALK = async ({ markup, target, wall, driven, script }) => {
 };
 
 /** The template's readers, which import the type registry and so run in the bundle. */
-let clockTargetStart, clockReadout, CLOCK_PICKER_MODES;
+let clockTargetStart, clockReadout, CLOCK_PICKER_MODES, t10;
 
 const walk = await withBundledPage(SPECS, async (page) => {
   await installDrivenPage(page);
@@ -159,6 +159,22 @@ const walk = await withBundledPage(SPECS, async (page) => {
   const readoutMap = new Map(t.readouts);
   clockReadout = (m, d, x) => readoutMap.get(JSON.stringify([m, d, x ?? null]));
   CLOCK_PICKER_MODES = t.modes;
+  // T10, through the draft's own reader: a proposal or a time typed alone, built after it passed.
+  t10 = await page.evaluate(({ now }) => {
+    const D = window.NOACG_DRAFT;
+    const at = (target, targetProposed, when) => D.svgClockTarget({ target, targetProposed }, when);
+    return {
+      // Proposed 16:00 at 15:59, built at 16:03: tomorrow's 16:00, never a clock stuck at 0:00.
+      rolled: at('2026-11-01T16:00:00+02:00[Europe/Helsinki]', true, Date.parse('2026-11-01T14:03:00Z')),
+      // Still ahead: unchanged.
+      ahead: at('2026-11-01T16:00:00+02:00[Europe/Helsinki]', true, Date.parse('2026-11-01T13:59:00Z')),
+      // A dated target is fixed: past stays past.
+      dated: at('2026-11-01T16:00:00+02:00[Europe/Helsinki]', undefined, Date.parse('2026-11-01T14:03:00Z')),
+      // 03:30 proposed on the eve of the fall-back night, built after it: tomorrow's 03:30 is a fold, so it keeps its instant.
+      fold: at('2026-10-24T03:30:00+03:00[Europe/Helsinki]', true, Date.parse('2026-10-24T01:00:00Z')),
+      none: at(undefined, true, now) ?? null,
+    };
+  }, { now: 1793539230000 });
   return page.evaluate(WALK, {
     markup: SCORE_CLOCK,
     target: TARGET,
@@ -288,6 +304,14 @@ test('T9: Target time first proposes the next whole hour the clocks neither skip
   // 02:10 summer time on the fall-back night: 03:00 happens twice, so 04:00.
   assert.equal(proposeClockTarget(HEL, Date.parse('2026-10-24T23:10:00Z')), '2026-10-25T04:00:00+02:00[Europe/Helsinki]');
   assert.equal(proposeClockTarget('Mars/Olympus', NOW), null);
+});
+
+test('T10: an undated target moves to its next occurrence once behind the build; a dated one never does', () => {
+  assert.equal(t10.rolled, '2026-11-02T16:00:00+02:00[Europe/Helsinki]');
+  assert.equal(t10.ahead, '2026-11-01T16:00:00+02:00[Europe/Helsinki]');
+  assert.equal(t10.dated, '2026-11-01T16:00:00+02:00[Europe/Helsinki]');
+  assert.equal(t10.fold, '2026-10-24T03:30:00+03:00[Europe/Helsinki]', 'no silent choice of a fold');
+  assert.equal(t10.none, null);
 });
 
 test('T5: the stored form round-trips the instant and the zone', () => {

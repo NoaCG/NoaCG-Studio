@@ -51,6 +51,15 @@ storage rules (T5-T7) came from reproducing that a resolved target could not sur
   replaces the stored one. The proposed date stays implicit (the draft's `targetProposed`) until
   the author chooses one, so a time typed alone is its next occurrence (T1).
 
+- **T10 An undated target is a wall time until the graphic is built.** A target with an explicit
+  date is a fixed instant as soon as it resolves. One without (the first proposal, or a time typed
+  alone: the draft's `targetProposed`) moves to its next occurrence once its stored instant is
+  behind the build moment (`svgClockTarget`, read by `svgClockOption`), so a proposal accepted at
+  15:59 and built at 16:03 counts to tomorrow's 16:00, never sits at 0:00. One the clocks skip or
+  repeat by then keeps its instant (T4) and the line says it is past. The line under the input
+  always names what the graphic would store now, refreshed while the step is open. After the build
+  the design holds only the instant (T5), so replay, reload and Take are unchanged.
+
 ## What landed
 
 - `src/control/clockTarget.ts` (new): `parseTargetTime`, `resolveClockTarget` (T1-T4),
@@ -92,7 +101,11 @@ storage rules (T5-T7) came from reproducing that a resolved target could not sur
 - **Review rounds:** the PR review on `98f54e5` (a target before the epoch origin compiled as a
   duration) and on `f772be9` (a proposed date was treated as typed, so 09:00 typed at 15:20 saved
   an expired clock) each found a product defect; both are fixed with the rule they broke (T2/T6,
-  T1/T9). The second matches the first /so's note; #1894 keeps only the DST-gap case.
+  T1/T9). The second matches the first /so's note; #1894 keeps only the DST-gap case. A third
+  round (a fresh /so on `7f94310`: an accepted proposal frozen at pick time could pass before the
+  build) was the same family, so the rule model was reassessed by a fresh read-only session before
+  any patch; it accepted T10 with changes (roll forward only once behind; the line computed at
+  render against a ticking clock; a DST case kept visible), all taken.
 - Trap: commit messages carry no co-author trailer; the command guard refuses one.
 
 ## Verification on this worker

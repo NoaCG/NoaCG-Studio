@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useState, type ReactNode, type RefObject } from 'react';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
   SvgBehaviourDraft,
@@ -23,6 +23,7 @@ import {
   scoreDrawnPool,
   svgClockOption,
   svgClockRows,
+  svgClockTarget,
   svgCountdownDrawn,
 } from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
@@ -1361,11 +1362,18 @@ function ClockTargetFields({ target, proposed, onTarget }: { target?: string; pr
     () => new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }),
     [zone],
   );
+  // T10: the line names what the graphic would store NOW, kept current while the step is open.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, []);
   const reads = ((): string | null => {
-    if (!result) return stored ? format.format(stored.at) : null;
-    if (result.kind === 'resolved') return `${format.format(result.at)}${result.expired ? ', already past: it shows 0:00' : ''}`;
-    if (result.kind === 'fold') return null;
-    return TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason];
+    if (result && result.kind === 'fold') return null;
+    if (result && result.kind !== 'resolved') return TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason];
+    const at = parseClockTarget(svgClockTarget({ target, targetProposed: proposed }, now))?.at;
+    if (at === undefined) return null;
+    return `${format.format(at)}${at <= now ? ', already past: it shows 0:00' : ''}`;
   })();
   return (
     <div className="map-svg-row" data-testid="map-svg-clock-target">
