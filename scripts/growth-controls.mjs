@@ -195,13 +195,17 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
     const now = cadence(after, e);
     // A renamed key or a renamed display name is the same job, not a new one. A removed job earns
     // no credit: pricing it would let a cheap removal pay for an expensive addition.
+    // Each old job has at most one successor: once a renamed key inherits it, a second copy under
+    // the same name is a new job (Rule X10).
+    const taken = new Set(after.jobs.filter((j) => before.jobs.includes(j)));
     for (const job of after.jobs) {
       const name = after.names[job] ?? job;
       const tier = tierOfJob(wf, name);
       if (tier === 'offline') continue; // offline work is the table line's to price
       // A name finds the old job only when its old key is gone: a copy of a job under a new key,
       // even with the same name, is a new job (Rule X10).
-      const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name && !after.jobs.includes(j));
+      const oldKey = before.jobs.includes(job) ? job : before.jobs.find((j) => (before.names[j] ?? j) === name && !taken.has(j));
+      if (oldKey !== undefined) taken.add(oldKey);
       // A job moved into another tier by a rename brings its whole cost there: it is new to that
       // tier, so its old tier's headroom or exceptions never cover it.
       // The old job's tier comes from its old file name: renaming the workflow file can move it too.

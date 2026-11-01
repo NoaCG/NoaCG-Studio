@@ -1333,6 +1333,8 @@ test('Rule X10: credit never crosses tiers, a job moved into another tier is new
   const [copy] = priceAdditions({ workflows: { 'ci.yml': { base: build, head: `${build}  build-copy:\n    name: Build\n` } }, estimates: CEILINGS.estimates });
   assert.match(copy?.how ?? '', /^new job/);
   assert.deepEqual(priceAdditions({ workflows: { 'ci.yml': { base: build, head: build.replace('  build:', '  compile:') } }, estimates: CEILINGS.estimates }), [], 'a renamed key with its name kept is the same job');
+  const twice = priceAdditions({ workflows: { 'ci.yml': { base: build, head: 'on:\n  pull_request:\njobs:\n  compile:\n    name: Build\n  compile-2:\n    name: Build\n' } }, estimates: CEILINGS.estimates });
+  assert.deepEqual(twice.map((i) => i.how.split(' at ')[0]), ['new job'], 'a removed job has one successor; the second copy is new');
 });
 
 // Each earlier escape from same-scope renewal, replayed against the tier-scope rules with no rename

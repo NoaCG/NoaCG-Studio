@@ -379,8 +379,9 @@ from those can tie a renewal to what it renews; the tier is the one scope a chan
   the tier check; a work-spec line clears only the table line.
 - X10. Credit never crosses tiers (X1, X8), and a job moved into another tier, by its own name or
   its workflow file's name, is priced as new in that tier, so it has no measured room there (X9).
-  A job is an existing one only by its key, or by its name when its old key is gone from the head:
-  a copy under a new key that repeats an existing job's name is a new job.
+  A job is an existing one only by its key, or by its name when its old key is gone from the head,
+  and each old job has at most one such successor: a copy under a new key that repeats an existing
+  job's name, or a second copy of a removed one, is a new job.
   Offline work is the table line's to price, so a job moved into the offline tier is not priced
   as a job there (#1885 item 11).
   No exception moves a ceiling, an estimate, `MAIN_RUNNERS` or `SHARD_CAP_MINUTES`: those need a new
