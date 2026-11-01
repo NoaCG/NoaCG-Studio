@@ -42,32 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci11 checker re-verdict with #1924",
-    "eta": "2026-11-01T19:30:00Z"
+    "what": "ci12 builder receipt (session_017SdbwNhaBmxumsVW6k2AHU)",
+    "eta": "2026-11-01T22:30:00Z"
   },
   "inFlight": [
     {
-      "phase": "ci11",
-      "step": "check",
-      "session": "session_017SdbwMP3C2VJwynfzdzgvv",
-      "nonce": "ci11-b-d8b0",
-      "branch": "claude/plan-cicd-improvement-ci11-build",
-      "launchedAt": "2026-11-01T14:56:22Z",
-      "note": "Checker first verdict FAIL blocked (18:57Z): CI push run 41336665950 red on unrelated production-chat-intake.spec.ts:234 with no tracking issue (retry passed, gate green, quarantined via #1923). Coordinator opened #1924 and asked the checker to re-judge.",
-      "pr": 1922,
-      "reviewedHead": "1189cd7eeb4107dd8321fd92f129ae0dcf832970",
-      "stampRun": 41335506658,
-      "so": "session_017SdbwM4UUnDVyt19RPgzy3",
-      "followUps": [
-        1921
-      ],
-      "mergeSha": "8e84002dc9a82fbf8430616db4e027ee24fa4d52",
-      "landedAt": "2026-11-01T18:26:56Z",
-      "queueRun": 41335614126,
-      "repairOwnerComment": 6561908774,
-      "checker": "session_017SdbwNKpjRPTXvA1PK4zRR",
-      "actor": "checker-ci11-ci11-c-3847",
-      "auditReset": "8e84002d 2026-11-01T18:14:35Z (selector code, declared trailer)"
+      "phase": "ci12",
+      "step": "build",
+      "session": "session_017SdbwNhaBmxumsVW6k2AHU",
+      "nonce": "ci12-b-86a8",
+      "branch": "claude/plan-cicd-improvement-ci12-build",
+      "launchedAt": "2026-11-01T19:01:04Z",
+      "note": "Scoped-catalog report integrity: Rules-first guard, report mutations fail, rendered scoped/full Actions comparison; no calibration narrowing."
     }
   ],
   "owner": [],
@@ -272,6 +258,23 @@
       "postLand": "CI 41315616118, configured-suite 41315616120, Post-landing 41315616128, Quarantine 41315616119, Push on main 41315616095 success; deploy-verify skipped (no deploy); repair ownership complete",
       "pass": "2026-11-01T14:54Z by checker-ci10-ci10-c-d494 (session_017SdbwPbLAh3Uu1dRmNwZks)",
       "archived": 3
+    },
+    {
+      "phase": "ci11",
+      "pr": 1922,
+      "mergeSha": "8e84002dc9a82fbf8430616db4e027ee24fa4d52",
+      "builder": "session_017SdbwMP3C2VJwynfzdzgvv",
+      "reviewedHead": "1189cd7eeb4107dd8321fd92f129ae0dcf832970",
+      "repairOwnerComment": 6561908774,
+      "followUps": [
+        1921,
+        1924
+      ],
+      "candidate": "AC-3 fault detection: F1-F10 observed (identity, persistence, export lifecycle, asset loading, configured); CORE files keep covers-header specs",
+      "auditReset": "8e84002d 2026-11-01T18:14:35Z",
+      "postLand": "CI 41336665950 gate success after unrelated production-chat-intake flake (retry passed, quarantined via #1923, tracked #1924; limited unrelated-failure exception applied by checker), configured-suite 41336665901, Post-landing 41336666013, Quarantine 41336665905, Push on main 41336665417 success; repair ownership complete",
+      "pass": "2026-11-01T18:59Z by checker-ci11-ci11-c-3847 (session_017SdbwNKpjRPTXvA1PK4zRR), after a first FAIL blocked (missing tracking issue) cleared by #1924",
+      "archived": 4
     }
   ],
   "coordinatorNotes": [
@@ -392,6 +395,11 @@
       "at": "2026-11-01T18:28Z",
       "phase": "run",
       "decision": "Latest audit reset is now 8e84002dc9a82fbf8430616db4e027ee24fa4d52 (ci11 merge, 2026-11-01T18:14:35Z, selector code scripts/e2e-affected.mjs with a declared Selection-audit-reset trailer). The 14-day window restarts from it. #1895 evidence from ci11 (to confirm by checker): the 10 critical specs catch F1 and F8 only."
+    },
+    {
+      "at": "2026-11-01T18:59Z",
+      "phase": "ci11",
+      "decision": "Checker first verdict FAIL blocked (unrelated red exact-merge job without a tracking issue). Coordinator opened #1924 (third quarantine of production-chat-intake) and the same checker re-judged PASS under the limited unrelated-failure exception. #1895 evidence for ci17: the critical set catches F1 and F8 only; under F2 its one red was noise (passes 4/4 with and without the fault)."
     }
   ]
 }
