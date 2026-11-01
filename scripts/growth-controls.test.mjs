@@ -909,6 +909,8 @@ test('(c) a slowdown is found only between equal workloads: a full suite after a
   assert.equal(detectSlowdown(mixed).found, false);
   const shards = (i, min, n) => ({ ...full(i, min), jobs: [...Array(n)].map((_, s) => job(`Configured E2E shard ${s + 1}/${n}`, min / n)) });
   assert.equal(detectSlowdown(seriesOf([shards(1, 12, 2), shards(2, 12, 2), shards(3, 12, 2), shards(4, 30, 4), shards(5, 30, 4), shards(6, 30, 4)]).backend).found, false, 'a re-sharded suite is another workload');
+  const subset = (i, min) => ({ id: i, workflow: 'ci.yml', event: 'push', branch: 'main', sha: `m${i}`, created: at(i), conclusion: 'success', jobs: [1, 2, 3, 4].map((n) => job(`E2E ${n}/4 (subset)`, min)) });
+  assert.equal(detectSlowdown(seriesOf([subset(1, 5), subset(2, 5), subset(3, 5), subset(4, 12), subset(5, 12), subset(6, 12)]).offline).found, false, 'an offline subset is a variable workload too');
   const same = seriesOf([full(1, 20), full(2, 20), full(3, 20), full(4, 24), full(5, 24), full(6, 24)]).backend;
   assert.equal(detectSlowdown(same).found, true, 'the same suite slowing down is still found');
 });

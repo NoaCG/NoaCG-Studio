@@ -124,8 +124,8 @@ export function seriesOf(runs) {
     for (const t of TIERS) {
       if (!(per[t] > 0)) continue;
       // Only equal work is compared: a point's workload is its workflow and that tier's job names,
-      // and a selected or affected run's size is not in its names, so it is never a complete point.
-      const varies = [...names[t]].some((n) => /\b(selected|affected)\b/i.test(n));
+      // and a selected, affected or subset run's size is not in its names, so it is never a complete point.
+      const varies = [...names[t]].some((n) => /\b(selected|affected|subset)\b/i.test(n));
       out[t].push({ sha: r.sha, at: r.created, complete: complete && !varies, value: per[t], workload: `${r.workflow}|${[...names[t]].sort().join('|')}` });
     }
   }

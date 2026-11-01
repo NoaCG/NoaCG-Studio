@@ -53,7 +53,7 @@ no aggregate pull-request gate.
 - One slow run is noise: `(c) one slow run is noise`. A step needs three complete points after it,
   every one above every point before.
 - Only equal work is compared: a point's workload is its workflow and that tier's job names, and a
-  selected or affected run (whose size its names do not show) is never a complete point. The
+  selected, affected or subset run (whose size its names do not show) is never a complete point. The
   backend series therefore comes from the full configured suite on main, not CI's selections:
   `(c) a slowdown is found only between equal workloads`.
 - The estimate rises and the ceiling does not; the NEXT additive change is refused while a change
