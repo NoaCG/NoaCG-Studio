@@ -96,7 +96,7 @@ Reproduced with the real built `score-clock-1.svg` graphic on a driven clock:
   before the slash, so a held value with a length still reads as held.
 - **A target time also starts on the Take on the wire.** It counts down from its drawn time until
   row 10 resolves its instant, and its entrance already adopts a stamped origin.
-- **Out of reach here, filed:** a Take may ride the fast road, which carries no server time, so on
+- **Out of reach here, filed (#1886, #1887):** a Take may ride the fast road, which carries no server time, so on
   the hosted road a duration's Take stamp is each renderer's arrival instant (synced machines agree
   within the fast road's spread); Start, Pause and Reset are exact. The exported control page and
   the production controller page keep their own copy of the native decision and do not yet press
