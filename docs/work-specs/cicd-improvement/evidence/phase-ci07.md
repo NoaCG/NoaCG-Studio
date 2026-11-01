@@ -80,6 +80,11 @@ folded into the line it belongs to and tested:
   which stop at a few specs.
 - Q3 (PR review): the incident report reads the store strictly, so a missing store throws instead
   of reading as "no incident" and closing the issue.
+- Third `/so` on `12a7015f` (AGREE WITH CORRECTIONS, B; the rule model holds): every not-selected
+  candidate is now read, not only the newest, and 4 misses are reported unexplained; two D2 defect
+  classes were added to the map ("same revision with different content" and "parser resource
+  limits", with the SVG parser's size bound as a stated gap); the incident issue text and the
+  workflow comment now match Q5 and A2/A3.
 - Q2 (second `/so`): incidents are counted in the AC-8 weekly growth report, not only in the AC-4
   audit. Evidence (second `/so`): every flake classification is shown per run (a same-run quarantine
   receipt, or a culprit that cannot reach the spec), and the configured rows the budget left unread
@@ -199,14 +204,32 @@ names that very run. 189 failing items, **none `unknown`**:
   `import-svg-behaviour` at 5b843f32). For `import-svg-behaviour` the later 5bb8f3fe ("Target the
   quiz reveal action without matching Next") fixed the ambiguous locator that made it flaky; the
   same-run receipt shows it was a flake on that commit, not a selection miss.
-- **15 more are flake-marked with no same-run receipt**: in every one, the newest culprit cannot
-  reach the spec. They are docs, quarantine-only, workflow or `scripts/` landings, CLI packaging
-  (8bfb475b), the Supabase advisor baseline (b1038916, f48659e9), a `.gitignore` (a2523f82), or
-  edits to other spec files (76afb8cb, 3d2fa00c). Each one's culprit file list was read.
+- **11 more are flake-marked with no same-run receipt, and explained**: EVERY candidate whose
+  plan left the spec out (not only the newest) changed no product code. They are docs,
+  quarantine-only, workflow or `scripts/` landings, CLI packaging (8bfb475b), the Supabase advisor
+  baseline (b1038916, f48659e9), a `.gitignore` (a2523f82), or edits to other spec files
+  (76afb8cb, 3d2fa00c). Each candidate's file list was read.
+- **4 flake-marked misses stay UNEXPLAINED per run**: a candidate whose plan left the spec out
+  changed product code, and no same-run receipt clears it.
+  - `editor-foundation` at run 36597679836: b0331ecb changed the production rundown UI.
+  - `editor-base-edits` at run 36932722985: 4abaa4a5 changed `src/preview/composeDocument.ts`,
+    `src/output/main.ts` and export code, and 97311f15 changed export code.
+  - `wizard-shell` at run 36974119344: 7d83ced0 changed the editor canvas and blocks, and
+    74b2ed37 changed ticker templates.
+  - `layout` at run 37096120413: 696f122e changed the playout protocol.
+
+  Each spec has fail-then-pass receipts on nearby runs (it is flaky), and the reasoned reading
+  makes the playout and rundown changes unlikely causes of an editor or mobile layout failure.
+  That is not proof, so they are reported as unexplained, not as flakes. All four landed before
+  the latest reset (26095c82, 2026-10-31) and before ci04's broad-file escalation. Today a
+  `composeDocument.ts` change plans the full suite, so the comparison window after this row
+  starts without them. ci15 decides whether pre-reset unexplained misses block qualification.
 - **4 unmarked flakes**: `editor-arrangement` (76afb8cb) and `editor-groups` (742a5a65) were
   quarantined and released before their window. `import-svg-corpus` (0df77f74, a docs landing) is
-  the fail-then-pass bot PR #1834 is quarantining. `video-hyperframes` (a2523f82 `.gitignore`,
-  aa2717b3 docs) failed on landings that cannot reach it.
+  the fail-then-pass bot PR #1834 is quarantining. `video-hyperframes` failed at a2523f82
+  (`.gitignore`) after aa2717b3, which changed `src/components/editorFoundation/*`. The spec's
+  header does not map that code, and today's planner does not select it for those files. The
+  newest culprit, which decides, cannot reach it.
 - **6 real selection misses, all corrected before the latest reset**:
   - `editor-fidelity-trim` at 5619f765..45ec97b2 (#927, the miss the old weekly audit found)
   - `editor-fidelity-trim` at 14c0a5a5 (`svgFit.js`)
@@ -221,8 +244,9 @@ names that very run. 189 failing items, **none `unknown`**:
   quarantine-only landing that left it out. The same run also lost a shard (118 of 133 tests,
   #1865), and every configured run on main after it is green. This is infrastructure, not selection.
 
-**No unexplained miss in the replayed window.** That is necessary, not proof of completeness; the
-full runs on `main` stay. Stated limits:
+**Unexplained misses: 4, all before the latest reset** (listed above). There is none since it.
+Zero unexplained misses is necessary, not proof of completeness; the full runs on `main` stay.
+Stated limits:
 
 - A red run's failing specs come from check annotations, and for configured runs from the verdict
   log. A failure that names nothing is `not-a-spec`.
@@ -240,8 +264,9 @@ run was added.
 
 ## 5. Mutation check
 
-Each Rule line broken alone in the code, with its tests run: all 29 mutations fail their named
-test. The list, with the exact replacement for each, is
+Each Rule line broken alone in the code, with its tests run: all 29 mutations fail. 26 fail the
+test named after their rule. Three fail a neighbouring test instead: A1b fails the inheritance
+test next to A1, and Q2b and Q2c fail the growth report's `(e)` test that holds the AC-8 line. The list, with the exact replacement for each, is
 [phase-ci07-mutations.json](phase-ci07-mutations.json), so a reviewer can re-apply any of them.
 
 ## 6. Verification

@@ -116,8 +116,9 @@ jobs:
 
       # DID SELECTION MISS IT (the AC-4 miss audit, cicd-improvement ci07). Every red full run on main
       # this week, offline (ci.yml) and configured (configured-suite.yml), replayed against the
-      # ORIGINAL plan of each landing that could have caused it: the plan its merge-group run printed.
-      # A spec no culprit's plan selected is a miss; an unreadable plan is unknown, never selected; a
+      # ORIGINAL plan of each landing that could have caused it. Offline, the newest landing's
+      # merge-group plan decides (its tree is the failing commit); configured, every landing's own
+      # pull request run must have selected the spec. An unreadable plan is unknown, never selected; a
       # quarantined flake keeps its verdict and is marked for investigation. The summary also names
       # the latest audit reset (selector code, a focus or critical header line, or a
       # `Selection-audit-reset:` trailer) and is `blocked` while any quarantine incident is open.

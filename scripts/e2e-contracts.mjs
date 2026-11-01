@@ -69,7 +69,7 @@ export const CONTRACTS = [
     id: 'edit-save-reopen',
     title: 'Edit, save and reopen',
     proof: 'Reopened fields and appearance match the accepted edit; a refused save is not reported as saved.',
-    defects: ['cross-tab lost update', 'a failed write reported as saved', 'a refresh mid-edit losing the draft'],
+    defects: ['cross-tab lost update', 'same revision with different content (a receipt for the wrong rundown)', 'a failed write reported as saved', 'a refresh mid-edit losing the draft'],
     layers: ['node', 'browser', 'configured'],
     checks: [
       { path: 'scripts/team-save.test.mjs', layer: 'node' },
@@ -124,10 +124,11 @@ export const CONTRACTS = [
     id: 'graphics-runtime',
     title: 'Graphics runtime',
     proof: 'Text, media and data updates paint, assets load, layout stays in bounds and entry and exit reach their state.',
-    defects: ['asset or font loading fault', 'a data update that never paints', 'layout overflow on a long value'],
+    defects: ['asset or font loading fault', 'a data update that never paints', 'layout overflow on a long value', 'parser resource limits (a data feed past its size or time bound)'],
     layers: ['node', 'browser', 'catalog'],
     checks: [
       { path: 'scripts/bundled-font-glyphs.test.mjs', layer: 'node' },
+      { path: 'scripts/external-data-connector.test.mjs', layer: 'node' },
       { path: 'e2e/snap-recovery.spec.ts', layer: 'browser' },
       { path: 'e2e/offline.spec.ts', layer: 'browser' },
       { path: 'e2e/output-font-hold.spec.ts', layer: 'browser' },
@@ -137,7 +138,7 @@ export const CONTRACTS = [
     ],
     cadence: 'critical journeys on every escalation; affected designs through the catalog gate; whole catalog nightly',
     detection: 'pre-merge for an escalating or catalog-reaching change; nightly otherwise',
-    gaps: ['representatives do not certify every design, font, viewport or browser'],
+    gaps: ['representatives do not certify every design, font, viewport or browser', 'no Node test bounds the SVG import parser\'s input size or time; a parser scaling limit is a stated gap until one is added below the UI'],
   },
   {
     id: 'access-durability',

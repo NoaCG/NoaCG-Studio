@@ -138,7 +138,7 @@ export function quarantineIncidents(store, { headers, configured = new Map(), to
 /** The rolling issue's body. The last line is the incident set's identity (spec, severity, overdue). */
 export function incidentIssueBody(incidents, today) {
   return [
-    `Each spec below is quarantined (\`e2e/quarantine.json\`), so the blocking gate does not read it: the run on main that replaces it blocks nothing (read ${today}). Each is an incident with an owner and a repair due date; a critical one stops affected narrowing and expansion until it is back in the blocking gate. Repair the cause and let its ${RELEASE_AFTER} passes release it. No retry and no nonblocking run counts as the repair.`,
+    `Each spec below is quarantined (\`e2e/quarantine.json\`), so the blocking gate does not read it: the run on main that replaces it blocks nothing (read ${today}). Each is an incident with an owner and a repair due date, and every open incident stops affected narrowing and expansion until it is back in the blocking gate. Repair the cause and let its ${RELEASE_AFTER} passes release it. No retry and no nonblocking run counts as the repair.`,
     '',
     '| Spec | Severity | Since | Repair due | Owner | Coverage gap | Entries | Run |',
     '|---|---|---|---|---|---|---|---|',
