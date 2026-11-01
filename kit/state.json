@@ -43,7 +43,7 @@
   },
   "waitingOn": {
     "what": "ci18 builder: gates on final head and receipt; block 1 renewal due before 2026-11-01T08:10Z",
-    "eta": "2026-11-01T00:40:00Z"
+    "eta": "2026-11-01T01:35:00Z"
   },
   "inFlight": [
     {
@@ -53,7 +53,7 @@
       "nonce": "ci18-b-40c6",
       "branch": "claude/plan-cicd-improvement-ci18-build",
       "launchedAt": "2026-10-31T21:50:16Z",
-      "note": "PR #1880 head 749451b9 pushed 23:44Z, CI running (23 jobs in progress); builder iterating.",
+      "note": "PR #1880 head e4217f24 pushed 00:34Z; CI running (only Reviewed red, awaiting stamp); builder watching.",
       "pr": 1880
     }
   ],
