@@ -142,7 +142,14 @@ every pull request plan that selects them, which the inventory measured at 11 to
 It also takes one 3.5-table-minute spec out of the packer's input; the durations table keeps
 `editor-command-task` at 2.92 until its next refresh records the merged file.
 
-Growth controls, `node scripts/e2e-capacity.mjs --changed origin/main`: CAPACITY
+Growth controls, `node scripts/e2e-capacity.mjs --changed origin/main`: execution reads 158.3 table-minutes on this branch against 161.7 on
+`main` (-3.4: the deleted file's 3.47, with the merged spec still read at its old 2.92 until the table
+refresh, when it should read about 1.5 more, for a net of about -1.6 table-minutes). Per tier: offline
+OK 410/535 per landing, backend WARN 107.4/117, graphics OK 7.8/10, overhead OK 84/105, the same on
+both trees: the tiers are judged on the frozen seed until the weekly growth report runs, so this
+change shows up in them only after it is measured. No spec, exception or budget line is added. The
+backend WARN, the 13-day-old durations table and the missing weekly report are the plan's existing
+warnings, not this change.
 
 ## 6. Integration kept (acceptance b)
 
