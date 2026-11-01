@@ -49,19 +49,20 @@
 // would otherwise run 100+ specs to prove nothing.
 // covers: docs/svg-samples/**
 
-import { test, expect, type BrowserContext, type FrameLocator, type Page, type Route } from '@playwright/test';
+import { test, expect, type BrowserContext, type TestInfo, type FrameLocator, type Page, type Route } from '@playwright/test';
 import { finishIntoNewEditor, openExportWindow } from './_create';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import nodePath from 'node:path';
 import JSZip from 'jszip';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { relayServe, routeOrigin } from './_relay';
 import {
   bindEveryTextLayer,
   boxGrowOf,
   dropSvg,
+  intoExistingProduction,
   intoProduction,
   rowLabelled,
   tutorialShot,
@@ -694,6 +695,17 @@ test('the quiz\u2019s first option: no lock, and Reveal correct works straight f
   await expect(air.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(/imported-design-on/);
 });
 
+/** The sample quiz with its Locked in drawing left VISIBLE, as a designer may: its words are then a
+ *  text row (field F1), so every later field id would move if a No lock switched that row off. */
+function visibleLockQuiz(testInfo: TestInfo): string {
+  const file = testInfo.outputPath('quiz-visible-lock.svg');
+  const sample = readFileSync(QUIZ_SVG, 'utf8');
+  const lockTag = '<g id="Locked_x20_in" data-name="Locked in" display="none">';
+  expect(sample).toContain(lockTag);
+  writeFileSync(file, sample.replace(lockTag, '<g id="Locked_x20_in" data-name="Locked in">'));
+  return file;
+}
+
 test('the true no-Lock quiz: no lock control, state or look, and a pick goes straight to the reveal', async ({ page }, testInfo) => {
   // jev-svg-import AC-12. Unticking "Require lock" keeps the lock as an optional beat (the test
   // above). "No lock at all" is a different board: the lock and its hidden-pick seal are not on it,
@@ -701,12 +713,7 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   // lock) is not offered beside it.
   // The sample hides its lock drawing; this copy leaves it VISIBLE, as a designer may, because a
   // board with no lock must still never show it.
-  const visibleLock = testInfo.outputPath('quiz-visible-lock.svg');
-  const sample = readFileSync(QUIZ_SVG, 'utf8');
-  const lockTag = '<g id="Locked_x20_in" data-name="Locked in" display="none">';
-  expect(sample).toContain(lockTag);
-  writeFileSync(visibleLock, sample.replace(lockTag, '<g id="Locked_x20_in" data-name="Locked in">'));
-  await openImportDoor(page, visibleLock);
+  await openImportDoor(page, visibleLockQuiz(testInfo));
   // The visible lock's own words are a text row like any other. No lock leaves the row alone:
   // switching it off would renumber every field after it, and a saved cue keyed to those ids
   // would read its values into the wrong fields.
@@ -781,6 +788,246 @@ test('the true no-Lock quiz: no lock control, state or look, and a pick goes str
   await expect(look('answer.correct/C')).not.toHaveClass(/imported-design-on/);
   await page.getByRole('button', { name: '⚡ Reveal correct', exact: true }).click();
   await expect(look('answer.correct/C')).toHaveClass(/imported-design-on/);
+});
+
+/** The quiz board on air, read the way the audience sees it, and the operator's state chip. */
+function quizBoard(page: Page) {
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const look = (token: string) => air.locator(`[data-noacg-role~="${token}"]`);
+  const chip = page.getByTestId('machine-state-chip');
+  const lit = air.locator('.imported-design-look.imported-design-on');
+  const ON = /imported-design-on/;
+  /** THE RESET: Recovery's "Back to start", the visual reset, takes the board back before its
+   *  entrance with nothing lit (the data stays as the cue holds it); Re-take then plays the
+   *  question again, clean. */
+  const reset = async () => {
+    const recovery = page.getByTestId('cue-actions-recovery');
+    if ((await recovery.getAttribute('open')) === null) await recovery.locator('summary').click();
+    await page.getByTestId('machine-snap').selectOption('::reset');
+    await expect(chip).toHaveText('Off');
+    await expect(lit).toHaveCount(0);
+    await page.getByTestId('verb-retake').click();
+    await expect(chip).toHaveText('Question');
+    await expect(lit).toHaveCount(0);
+  };
+  return { look, chip, lit, ON, reset };
+}
+
+test('the standard quiz qualified: a hidden pick, reselection, the timer from the lock, right and wrong, replay, and reset from every state', async ({ page }) => {
+  // jev-svg-import row 15 (AC-12). The board every saved quiz already is, with the timed reveal on:
+  // the no-Lock variant must leave all of this exactly as it was (scripts/quiz-no-lock.test.mjs pins
+  // the bytes; this walks the behaviour on air). About 13 s of it are waits that must see nothing.
+  test.setTimeout(100_000);
+  await openImportDoor(page, QUIZ_SVG);
+  await page.getByTestId('map-svg-option-autoReveal').check();
+  await intoProduction(page, 'Timed quiz', 'Quiz Night');
+  await settleDurableWrites(page);
+  const { look, chip, lit, ON, reset } = quizBoard(page);
+  const select = (row: string) => page.getByTestId(`cue-pick-select-${row}`);
+  const lockIn = page.getByRole('button', { name: /Lock it in/ });
+  const revealChoice = page.getByRole('button', { name: /Reveal choice/ });
+  const revealCorrect = page.getByRole('button', { name: '⚡ Reveal correct', exact: true });
+
+  // THE HIDDEN PICK: the key and the contestant's answer are set as data, and nothing paints.
+  await page.getByTestId('cue-field-f5-opt-C').click();
+  await page.getByTestId('cue-advanced-toggle').click();
+  await page.getByTestId('cue-field-f6-opt-B').click();
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question', { timeout: 20_000 });
+  await expect(lit).toHaveCount(0);
+  await reset();
+
+  // Sealed: locked straight from the question, the answer still hidden. Reset leaves it.
+  await lockIn.click();
+  await expect(chip).toHaveText('Locked, choice hidden');
+  await expect(look('locked')).toHaveClass(ON);
+  await expect(look('answer.selected/B')).not.toHaveClass(ON);
+  await reset();
+  await lockIn.click();
+  await expect(chip).toHaveText('Locked, choice hidden');
+  // A sealed answer cannot be changed, only revealed.
+  await expect(select('A')).toBeDisabled();
+  // The timer starts at the lock with the pick showing, never at the seal: past five seconds the
+  // seal still holds. (A wait is the assertion here: nothing may happen.)
+  await page.waitForTimeout(6_500);
+  await expect(chip).toHaveText('Locked, choice hidden');
+
+  // Reveal choice shows the pick and STARTS the timer: the board reveals itself about five
+  // seconds after that press, not before.
+  await revealChoice.click();
+  const lockedAt = Date.now();
+  await expect(chip).toHaveText('Locked in');
+  await expect(look('answer.selected/B')).toHaveClass(ON);
+  await expect(chip).not.toHaveText('Locked in', { timeout: 15_000 });
+  // Bounded on both sides: the chip is re-read once a second, so the reveal reads a little late,
+  // never early (a two-second timer read 3.3 s here). The exact five is pinned by
+  // scripts/quiz-no-lock.test.mjs.
+  const waited = Date.now() - lockedAt;
+  expect(waited, 'the reveal waited for the five-second timer').toBeGreaterThanOrEqual(4_500);
+  expect(waited, 'the reveal came with the five-second timer, not long after').toBeLessThanOrEqual(9_000);
+  // A WRONG pick: B was picked, C is the key.
+  await expect(look('answer.correct/C')).toHaveClass(ON);
+  for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(ON);
+  await expect(look('answer.correct/B')).not.toHaveClass(ON);
+  // AN INVALID REVEAL: once revealed, nothing reveals, locks or picks again.
+  for (const button of [revealCorrect, lockIn, revealChoice, select('A')]) await expect(button).toBeDisabled();
+  await reset();
+
+  // RESELECTION: the pick moves freely until the lock, and Reveal choice belongs to the seal.
+  await select('B').click();
+  await expect(look('answer.selected/B')).toHaveClass(ON);
+  await select('D').click();
+  await expect(look('answer.selected/D')).toHaveClass(ON);
+  await expect(look('answer.selected/B')).not.toHaveClass(ON);
+  await expect(revealChoice).toBeDisabled();
+  await reset();
+
+  // Reset from the lock stops its timer: the board stays on the question past five seconds.
+  await select('C').click();
+  await lockIn.click();
+  await expect(chip).toHaveText('Locked in');
+  await reset();
+  await page.waitForTimeout(6_500);
+  await expect(chip).toHaveText('Question');
+  await expect(lit).toHaveCount(0);
+
+  // A RIGHT pick, revealed by the operator before the timer: C picked and C the key.
+  await select('C').click();
+  await lockIn.click();
+  await expect(chip).toHaveText('Locked in');
+  await revealCorrect.click();
+  await expect(look('answer.correct/C')).toHaveClass(ON);
+  for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(ON);
+  await expect(look('answer.wrong/C')).not.toHaveClass(ON);
+  await reset();
+
+  // REPLAY: Out and Take again starts from a clean question, with the key the cue still holds.
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question', { timeout: 20_000 });
+  await expect(lit).toHaveCount(0);
+  await select('A').click();
+  await lockIn.click();
+  await revealCorrect.click();
+  await expect(look('answer.correct/C')).toHaveClass(ON);
+  await expect(look('answer.wrong/A')).toHaveClass(ON);
+  await reset();
+});
+
+test('a second author reopens a saved quiz in a fresh browser, makes it a true no-Lock quiz, and runs Select, Reveal and Reset', async ({ page, browser }, testInfo) => {
+  // jev-svg-import AC-22. A task rehearsal, not a novice-user study. The second author is a fresh
+  // browser context holding only what the first author saved. The saved graphic keeps no wizard
+  // draft, so reopening it to change its behaviour is the normal Import road: the same artwork
+  // dropped again and finished under the same name into the same production, which saves over
+  // the graphic and keeps its cues.
+  test.setTimeout(100_000);
+  // The sample with its lock drawing visible, so its words are a text row: a No lock that moved
+  // a field id would read the saved key into the wrong field (row 14).
+  const art = visibleLockQuiz(testInfo);
+
+  /** The saved graphic as data: its fields, every drawn element's styling and role stamp, and
+   *  what each animation step moves. */
+  const saved = (p: Page) =>
+    p.evaluate(async () => {
+      const { loadGraphics } = await import('/src/model/library.ts');
+      const { parseAnimData } = await import('/src/blocks/animData.ts');
+      const named = loadGraphics().filter((d) => d.name === 'Olympics quiz');
+      if (named.length !== 1) return { count: named.length, fields: null, drawn: null, motion: null };
+      const g = named[0];
+      const doc = new DOMParser().parseFromString(g.template.html, 'text/html');
+      const ATTRS = ['fill', 'font-family', 'font-size', 'font-weight', 'style', 'transform', 'x', 'y', 'class', 'display', 'data-noacg-role', 'data-noacg-el'];
+      const drawn = [...doc.querySelectorAll('svg [id], svg [data-noacg-role], svg [data-noacg-el]')].map((el) =>
+        [el.tagName, el.id, ...ATTRS.map((a) => `${a}=${el.getAttribute(a) ?? ''}`)].join(' '),
+      );
+      const anim = parseAnimData(g.template.js ?? '');
+      return {
+        count: 1,
+        fields: g.template.fields.map((f) => `${f.field} ${f.ftype} ${f.title}`),
+        drawn,
+        motion: anim?.steps.map((s) => `${s.name}: ${Object.keys(s.layers ?? {}).sort().join(' ')}`) ?? null,
+      };
+    });
+
+  // THE FIRST AUTHOR: a standard quiz, its key set to C in the cue.
+  await openImportDoor(page, art);
+  await intoProduction(page, 'Olympics quiz', 'Quiz Night');
+  await page.getByTestId('cue-field-f6-opt-C').click();
+  // The cue saves once typing pauses; the second author must find the key on the record.
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const { loadShows } = await import('/src/model/shows.ts');
+        return loadShows().find((s) => s.name === 'Quiz Night')?.cues?.[0]?.values.f6 ?? null;
+      }),
+    )
+    .toBe('C');
+  await settleDurableWrites(page);
+  const before = await saved(page);
+  expect(before.count).toBe(1);
+  // f0-f5 are the artwork's text (the lock's words are F1), so the answer key is f6.
+  expect(before.fields).toContain('f6 dropdown Correct answer');
+  expect(before.drawn?.length).toBeGreaterThan(10);
+  expect(before.drawn?.some((line) => line.includes('data-noacg-role=locked'))).toBe(true);
+  expect(before.motion?.length).toBeGreaterThan(0);
+  const where = page.url();
+  const storage = await page.context().storageState({ indexedDB: true });
+
+  // THE SECOND AUTHOR, in a fresh context.
+  const second = await browser.newContext({ storageState: storage });
+  const p2 = await second.newPage();
+  await p2.goto(where);
+  await expect(p2.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await awaitDurableReady(p2);
+  // The saved quiz is the standard one, lock and all.
+  await expect(p2.getByTestId('cue-actions')).toContainText('Lock it in');
+  await expect(p2.getByTestId('cue-field-f6-opt-C')).toHaveAttribute('aria-pressed', 'true');
+
+  // Reopen it through Import, choose the true no-Lock profile, and save over it.
+  await dropSvg(p2, art);
+  await p2.getByTestId('map-svg-option-noLock').check();
+  await expect(p2.getByTestId('map-svg-option-lock')).toHaveCount(0);
+  await expect(p2.getByTestId('map-svg-option-autoReveal')).toHaveCount(0);
+  await intoExistingProduction(p2, 'Olympics quiz', 'Quiz Night');
+  await settleDurableWrites(p2);
+
+  // ONE graphic, same fields, same styling, same animation targets: only its behaviour changed.
+  const after = await saved(p2);
+  expect(after.count, 'the save went over the graphic, not beside it').toBe(1);
+  expect(after.fields).toEqual(before.fields);
+  expect(after.drawn).toEqual(before.drawn);
+  expect(after.motion).toEqual(before.motion);
+
+  // The cue kept its key in the same field, and the lock is gone from its controls.
+  const actions = p2.getByTestId('cue-actions');
+  await expect(actions).toContainText('Select answer');
+  await expect(actions).toContainText('Reveal correct');
+  await expect(actions).not.toContainText('Lock it in');
+  await expect(actions).not.toContainText('Reveal choice');
+  await expect(p2.getByTestId('cue-field-f6-opt-C')).toHaveAttribute('aria-pressed', 'true');
+
+  // SELECT → REVEAL → RESET, through the cue, and reset from every state this board can reach.
+  const { look, chip, ON, reset } = quizBoard(p2);
+  const revealCorrect = p2.getByRole('button', { name: '⚡ Reveal correct', exact: true });
+  await p2.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Question', { timeout: 20_000 });
+  // Recovery offers no lock state to snap to.
+  await expect(p2.getByTestId('machine-snap')).not.toContainText('Locked');
+  await reset();
+  await p2.getByTestId('cue-pick-select-B').click();
+  await expect(chip).toHaveText('Answer selected');
+  await expect(look('answer.selected/B')).toHaveClass(ON);
+  await reset();
+  await p2.getByTestId('cue-pick-select-B').click();
+  await revealCorrect.click();
+  await expect(look('answer.correct/C')).toHaveClass(ON);
+  for (const row of ['A', 'B', 'D']) await expect(look(`answer.wrong/${row}`)).toHaveClass(ON);
+  await expect(look('locked')).toBeHidden();
+  // AN INVALID REVEAL: revealed once, Reveal correct and the pick are greyed.
+  await expect(revealCorrect).toBeDisabled();
+  await expect(p2.getByTestId('cue-pick-select-A')).toBeDisabled();
+  await reset();
+  await second.close();
 });
 
 test('a meter: the bar the designer drew fills toward the target as the figure goes up', async ({ page }, testInfo) => {
