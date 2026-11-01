@@ -83,7 +83,7 @@ var NOACG_BEHAVIOUR = ${serializeBehaviourData(data)};
  * The runtime. `withClock` emits the clock's own paint hook, so a tick repaints; only a design
  * whose table names a clock kind asks for it (a second definition would shadow a catalog one).
  */
-export function behaviourRuntimeJs(withClock: boolean): string {
+export function behaviourRuntimeJs(withClock: boolean, withAwards = false): string {
   return `
 // ── The behaviour runtime ───────────────────────────────────────────────────
 // Reads NOACG_BEHAVIOUR (above) and the machine's state, and paints YOUR drawings: a look is
@@ -337,7 +337,7 @@ function noacgRememberNumbers() {
     if (!Object.prototype.hasOwnProperty.call(kinds, id) || kinds[id].kind !== 'number') continue;
     var now = noacgNumberOf(id);
     var last = noacgBehaviourMemory.numbers[id];
-    if (last !== undefined && now > last) noacgBehaviourMemory.rose[kinds[id].group || id] = id;
+    if (last !== undefined && now > last${withAwards ? ' && !noacgHasAwards()' : ''}) noacgBehaviourMemory.rose[kinds[id].group || id] = id;
     noacgBehaviourMemory.numbers[id] = now;
   }
 }
@@ -968,11 +968,13 @@ function noacgRepaintWith(reason) {
       if (rule['default'] && !defaults[token]) defaults[token] = { rule: rule, key: keys[k] };
       if (noacgHolds(rule.when, keys[k])) {
         lit[token] = true;
-        if (rule.enter === 'pop' && reason === 'state') pops[token] = true;
+        if (rule.enter === 'pop' && reason === 'state'${withAwards ? ' && noacgPopEntered(rule)' : ''}) pops[token] = true;
       }
     }
   }
-  for (var t in seen) {
+${withAwards ? `  // The entries this repaint answered are spent: the next state repaint pops only for its own.
+  if (reason === 'state') noacgEntered = {};
+` : ''}  for (var t in seen) {
     if (!Object.prototype.hasOwnProperty.call(seen, t)) continue;
     var slash = t.indexOf('/');
     var els = noacgRoleEls(slash === -1 ? t : t.slice(0, slash), slash === -1 ? null : t.slice(slash + 1));
@@ -1100,6 +1102,60 @@ function noacgRepaintTick() { noacgRepaintWith('tick'); }${withClock ? `
 // clockPainted(): the shared clock runtime's paint hook (templates/shared/clock.ts) - the idle
 // preview, every tick, a pause, a resume and an Update all pass through it, so everything the
 // count drives is decided on one beat.
-function clockPainted() { noacgRepaintTick(); }` : ''}
+function clockPainted() { noacgRepaintTick(); }` : ''}${withAwards ? `
+
+// ── Awards (a board whose figures a press adds to) ──────────────────────────
+// WHO SCORED IS SAID BY THE PRESS, never guessed from a figure that rose: a figure typed up to
+// correct it is data, and data never moves a moment (docs/work-specs/jev-svg-import, row 12). The
+// machine's own controls say it - a control that adds to a number field awards that field's row -
+// so a +1 whose figure arrives later from shared production data names its team at the press.
+// And a moment pops when its OWN group is entered: a second +1 (shown to shown) replays it, a
+// clock's Start, Full time or a snap does not.
+var noacgEntered = {};      // group id -> entered by a transition since the last state repaint
+var noacgAwardMap = null;   // event -> the number field it adds to
+function noacgAwards() {
+  if (noacgAwardMap) return noacgAwardMap;
+  noacgAwardMap = {};
+  var kinds = NOACG_BEHAVIOUR.kinds || {};
+  var controls = (typeof NOACG_ANIM !== 'undefined' && NOACG_ANIM.machine && NOACG_ANIM.machine.controls) || [];
+  for (var i = 0; i < controls.length; i++) {
+    var adjust = controls[i].adjust || {};
+    for (var key in adjust) {
+      if (Object.prototype.hasOwnProperty.call(adjust, key) && adjust[key] > 0 && kinds[key] && kinds[key].kind === 'number') {
+        noacgAwardMap[controls[i].event] = key;
+      }
+    }
+  }
+  return noacgAwardMap;
+}
+function noacgHasAwards() {
+  var awards = noacgAwards();
+  for (var e in awards) if (Object.prototype.hasOwnProperty.call(awards, e)) return true;
+  return false;
+}
+// noacgPopEntered(rule): a rule that names states pops only when one of their groups was entered.
+function noacgPopEntered(rule) {
+  var states = (rule.when && rule.when.state) || [];
+  if (states.length === 0) return true;
+  if (!noacgEntered) return false;
+  for (var i = 0; i < states.length; i++) if (noacgEntered[String(states[i]).split('/')[0]]) return true;
+  return false;
+}
+// Every transition passes through the interpreter's noacgFire: noted (and an award latched)
+// before it runs, because the entered state's own repaint may run inside it.
+if (typeof noacgFire === 'function') {
+  var noacgFireUnwatched = noacgFire;
+  noacgFire = function (group, edge) {
+    if (group && edge) {
+      noacgEntered[group.id] = true;
+      var awarded = edge.event ? noacgAwards()[edge.event] : undefined;
+      if (awarded) {
+        var spec = (NOACG_BEHAVIOUR.kinds || {})[awarded];
+        noacgBehaviourMemory.rose[(spec && spec.group) || awarded] = awarded;
+      }
+    }
+    return noacgFireUnwatched.apply(this, arguments);
+  };
+}` : ''}
 `;
 }

@@ -203,6 +203,28 @@ const RUN = async ({ template, scoreFields, script }) => {
   return { readings, scores };
 };
 
+/** Runs in the browser: the interpreter's noacgFire as the board wraps it - what it is handed
+ *  and what it hands back must be the interpreter's own. */
+const WRAP = async ({ template }) => {
+  const w = await window.__mountDesign(template);
+  w.update(JSON.stringify(Object.fromEntries(template.fields.filter((f) => f.field).map((f) => [f.field, String(f.value ?? '')]))));
+  w.play();
+  const wrapped = w.noacgFire !== w.noacgFireUnwatched;
+  const seen = [];
+  const inner = w.noacgFireUnwatched;
+  w.noacgFireUnwatched = function (group, edge) {
+    seen.push({ self: this === probe, group: group.id, to: edge.to, args: arguments.length });
+    return inner.apply(this, arguments);
+  };
+  const probe = { probe: true };
+  const flag = w.noacgMachine.groups.find((g) => g.id === 'flag');
+  const edge = flag.transitions.find((t) => t.event === 'score1');
+  const tl = w.noacgFire.call(probe, flag, edge);
+  const dispatched = w.noacgDispatch('score2', {});
+  w.noacgFireUnwatched = inner;
+  return { wrapped, seen, returned: !!tl && typeof tl.progress === 'function', dispatched: !!dispatched && typeof dispatched.progress === 'function', state: w.noacgMachineState().groups.flag };
+};
+
 const SETTLE = 1500;
 const TWO = { rows: [['FIELD', '2', 'object8'], ['SHORE', '5', 'object9']], final: 'object10' };
 const FOUR_TEAMS = { rows: [['Marsh', '7', 'object20'], ['Dune', '3', 'object21'], ['Reef', '8', 'object22'], ['Grove', '5', 'object23']] };
@@ -218,6 +240,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
   const r = (label) => ['read', label];
   const s = ['wait', SETTLE];
   return {
+    wrap: await page.evaluate(WRAP, { template: twoClock }),
     twoClock,
     four,
     awards: await run(four, [
@@ -469,6 +492,15 @@ test('a snap recovers the moment without replaying it (S5, AC-10)', () => {
   assert.equal(snapped.A.flag, 'shown');
   flashOnly(snapped, 2, 'snapped');
   assert.deepEqual(snapped.A.pops, point.A.pops, 'a snap is instant: no pop');
+});
+
+test('the board watches the interpreter\'s transitions without changing them: the same arguments, this and answer', () => {
+  const { wrap } = runs;
+  assert.equal(wrap.wrapped, true, 'a score board wraps noacgFire');
+  assert.deepEqual(wrap.seen[0], { self: true, group: 'flag', to: 'shown', args: 2 }, 'called through with its own this and both arguments');
+  assert.equal(wrap.returned, true, 'the entered state\'s timeline comes back');
+  assert.equal(wrap.dispatched, true, 'and a dispatch still answers with it');
+  assert.equal(wrap.state, 'shown');
 });
 
 // ── S6: the surface ──────────────────────────────────────────────────────────────────────────
