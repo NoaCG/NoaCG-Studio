@@ -278,7 +278,7 @@ issue, remain for ci17.
 ### Rules
 
 The two rule families that kept recurring in review, written as observable lines. Each line has
-one test named after it (`Rule E1: ...` to `Rule E21: ...` and `Rule X1: ...` to `Rule X10: ...` in `scripts/growth-controls.test.mjs`),
+one test named after it (`Rule E1: ...` to `Rule E22: ...` and `Rule X1: ...` to `Rule X10: ...` in `scripts/growth-controls.test.mjs`),
 and each test fails when its line is broken in the code (mutation-checked). Where order matters,
 the first matching line wins.
 
@@ -327,6 +327,9 @@ What each state lets the controls do. A change that adds nothing is never refuse
   adequate and in bounds; age when its read was complete.
 - E21. A growth stop refuses any addition to its tier, whether or not an exception waives it.
   Offline included: the stop, like an unreadable report (E18), is judged before any waiver.
+- E22. The search for the newest weekly report reads every page of the artifact listing. Only a
+  finished listing with no report from main establishes a first week; a listing it cannot finish
+  fails the weekly run, like reports that all expired.
 
 **Exception scope and credit (X).** An exception's scope is its tier. A pull request controls every
 part of a job's identity (its key, name, workflow file and a cover's wording), so no identity drawn

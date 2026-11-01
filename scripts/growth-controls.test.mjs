@@ -1168,6 +1168,21 @@ test('Rule E21: a growth stop refuses any addition to its tier, waived by an exc
   assert.equal(applyOfflineStop(offline, { added: 1, details: [{ spec: 'new.spec.ts', delta: 1 }] }).status, 'refuse', 'offline: the stop is judged before the waiver');
 });
 
+test('Rule E22: the report search reads every artifact page; only a finished listing establishes a first week', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'growth-e22-'));
+  const art = (branch, id) => ({ name: 'growth-report', expired: false, created_at: `2026-10-${String(1 + (id % 28)).padStart(2, '0')}T00:00:00Z`, workflow_run: { id, head_branch: branch } });
+  const branches = [...Array(100)].map((_, i) => art('feature', 1000 + i));
+  const pages = (list, total = list.length) => (args) => {
+    if (args[0] === 'run') { writeFileSync(path.join(args[args.indexOf('-D') + 1], 'growth-report.json'), '{"generatedAt":"x"}'); return ''; }
+    const page = Number(/[?&]page=(\d+)/.exec(args.at(-1))?.[1] ?? 1);
+    return JSON.stringify({ total_count: total, artifacts: list.slice((page - 1) * 100, page * 100) });
+  };
+  assert.equal(fetchLatest(path.join(dir, 'a.json'), pages([...branches, art('main', 7)])).run, 7, 'main\'s report on page 2 is found');
+  assert.equal(fetchLatest(path.join(dir, 'b.json'), pages(branches)), null, 'a finished listing with no main report: a first week');
+  const endless = (args) => (args[0] === 'run' ? '' : JSON.stringify({ total_count: 1e6, artifacts: branches }));
+  assert.throws(() => fetchLatest(path.join(dir, 'c.json'), endless), /unfinished listing never establishes a first week/);
+});
+
 test('Rule X1: a cover\'s tier is its job\'s tier with each ${{ }} read as a number, or its spec\'s folder', () => {
   assert.equal(tierOfCover('job:ci.yml/E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }} (${{ needs.plan.outputs.mode }})'), 'offline');
   assert.equal(tierOfCover('job:ci.yml/Configured E2E ${{ matrix.shardIndex }}/4 (selected, local Supabase)'), 'backend');

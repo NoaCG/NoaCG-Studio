@@ -542,8 +542,21 @@ export function ages({ ceilings, now = new Date().toISOString(), budget = 400, r
  * `{ "none": true }`, the second writes nothing and fails, so neither the weekly run nor the gate
  * can mistake a long gap for a clean start.
  */
+/** The most artifact pages the report search reads; past it the search fails rather than guess. */
+export const ARTIFACT_PAGES = 30;
+
 export function fetchLatest(out, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true }), restart = null) {
-  const all = (JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/actions/artifacts?name=growth-report&per_page=100`])).artifacts ?? [])
+  // Every page (Rule E22): branch dispatches upload reports too, so main's newest may sit past the
+  // first page, and only a finished listing can show that no report was ever published.
+  const listed = [];
+  for (let page = 1; ; page++) {
+    if (page > ARTIFACT_PAGES) throw new Error(`the growth-report artifact listing runs past ${ARTIFACT_PAGES} pages: an unfinished listing never establishes a first week`);
+    const body = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/actions/artifacts?name=growth-report&per_page=100&page=${page}`]));
+    const got = body.artifacts ?? [];
+    listed.push(...got);
+    if (got.length < 100 || listed.length >= (body.total_count ?? 0)) break;
+  }
+  const all = listed
     .filter((a) => a.workflow_run?.head_branch === 'main')
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   if (all.length === 0) {
