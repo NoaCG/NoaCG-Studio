@@ -19,13 +19,14 @@ on it.
 ## What landed
 
 - `src/templates/behaviours/quiz.ts`: a quiz whose options carry `noLock: true` compiles to a
-  board with one state before the reveal, `selected`. Reveal correct (`judge`) and Next leave it
-  for the reveal. The `locked` and `sealed` states, the `lock` and `revealChoice` events and
+  board with one state before the reveal, `selected`. Reveal correct (`judge`) leaves it for the
+  reveal, and so does Next, an arrow this row ADDS (see Decisions). The `locked` and `sealed` states, the `lock` and `revealChoice` events and
   buttons, and the Locked in look are not in its machine, controls or paint table. The pick's
   heading reads "Pick, then reveal".
 - `src/components/wizard/import/BehaviourSection.tsx`: a "No lock at all" checkbox beside the
   quiz's options. Ticked, it writes `{ lock: false, noLock: true }`, clears the timed reveal and
-  hides the lock option, the timed-reveal option and the Locked in picker. Unticked, it removes
+  hides the lock option, the timed-reveal option and the Locked in picker, and switches off the
+  text rows drawn inside the Locked in layer. Unticked, it removes
   `noLock` and leaves the optional-lock board with both options and the picker in view.
 - `e2e/import-svg-behaviour.spec.ts`: one journey, on a copy of the sample quiz whose lock layer
   is left visible. Tick No lock, the three controls are gone, the cue has no Lock it in or Reveal
@@ -69,6 +70,8 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
   10/11 (j-0006), the journey picking the answer key by its old field id (the visible lock's
   text is now a field, so the key moved to f6); corrected, 11/11 (j-0007).
 - With the untick step added after /so 2: quiz tests 11/11 (j-0008).
+- With the lock words switched off after /so 3: quiz tests 11/11 (j-0009); mutation j-0010
+  fails as expected.
 - Not done: a manual walk of the wizard in a browser with a screenshot. The e2e journey drives
   the same flow through the real UI.
 - Not run here: the broad affected selection (`src/templates/**` maps to most of the e2e tree)
@@ -77,24 +80,33 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 
 ## Review rounds
 
-- /so 1, session `session_017SdbwRKWDSULfSmTWBDXLw`, on `3343dc5`: AGREE, A-, nothing blocking.
-  Fixed: the Next arrow from the pick had no test (faulty evidence claim), and the LOCKED IN
-  check passed whatever happened (faulty test expectation). Left: the byte harness is not
-  committed (row 15 owns `scripts/quiz-no-lock.test.mjs`); unticking No lock gives the
-  optional-lock board (a documented choice for row 15's rehearsal to confirm).
+In order. Every round's result belongs to the head named.
 
-- /so 2, session `session_017SdbwPXQ2MqyHe6zSQFrG1`, on `559f034`: AGREE WITH CORRECTIONS, A-,
-  nothing blocking. Fixed: the untick claim had no check (faulty evidence claim); the journey now
-  unticks No lock and sees the optional-lock board with its Locked in layer still picked, then
-  ticks it again. Not changed: on the visible-lock copy, the lock's own text "LOCKED IN" is an
-  operator field (f1). That is the mapping step's rule for every visible text layer (each
-  detected row starts on, and the author can switch it off), the same on a board with a lock;
-  the sample hides its lock layer, so its text is no field. Not a lock control this row adds.
-  Byte harness: as in round 1. CI was still running.
-- Codex on `559f034`: clean.
-- Codex on `3343dc5` (P2): unbinding the Locked in layer left lock artwork drawn visible on
-  air for good. Product defect, family: what a no-Lock board does with a moment it removed.
-  Fixed by keeping the binding, with a journey on visible lock artwork.
+1. Codex on `3343dc5` (on PR open), P2: unbinding the Locked in layer left lock artwork drawn
+   visible on air for good. Product defect; family: what a no-Lock board does with the moment it
+   removed. Fixed in `16d07cd` and `4b45621` by keeping the binding, with the journey on a copy
+   of the sample whose lock layer is visible.
+2. /so 1, session `session_017SdbwRKWDSULfSmTWBDXLw`, on `3343dc5`: AGREE, A-, nothing blocking.
+   Fixed in `c1b3745`: the Next arrow from the pick had no test (faulty evidence claim); the
+   LOCKED IN check passed whatever happened (faulty test expectation). Left: the byte harness is
+   not committed (row 15 owns `scripts/quiz-no-lock.test.mjs`).
+3. Codex on `559f034` (on request): clean.
+4. /so 2, session `session_017SdbwPXQ2MqyHe6zSQFrG1`, on `559f034`: AGREE WITH CORRECTIONS, A-,
+   nothing blocking. Fixed in `4cb740e`: the untick claim had no check; the journey now
+   unticks No lock, sees the optional-lock board with its Locked in layer still picked, and ticks
+   it again. Argued, not changed: on visible lock artwork its words ("LOCKED IN") are an operator
+   field.
+5. /so 3, session `session_017SdbwQrYjWdNF9XK5a8z3K`, on `43ba298`: AGREE, A-, nothing blocking.
+   The LOCKED IN field came back: two successive rounds on one family (obsolete controls on a
+   no-Lock board), so it was reassessed before any patch. Reassessed: on this board that field
+   edits a drawing nobody sees, which is an obsolete control, and round 2's argument (it is the
+   mapping step's general rule) answered the wording, not the intent. Fixed in `4768f31`: ticking
+   No lock switches off the text rows drawn inside the Locked in layer; they stay in the text
+   list to tick again. The journey checks no "Locked in" field reaches the cue; with the switch
+   removed it fails at that line (mutation, j-0010, probe dropped). Also from round 3: the Next
+   arrow is now named as an addition (What landed, Decisions), and the latent refusal of
+   `noLock` with `autoReveal` (reachable only by hand-edited data today) is left for row 15's
+   test.
 
 ## Decisions
 
@@ -106,13 +118,13 @@ differed (56,883 bytes on main, where the flag meant nothing, against 55,717 her
 - **A checkbox, not a three-way control.** The existing "Require lock" checkbox and its tests stay
   as they are. The new choice sits beside it and hides what it makes meaningless, as the wizard
   hides controls that cannot change the graphic.
-- **Next leaves the pick.** On a board with a lock, Next rejoins the walk from `locked`. With no
-  lock, a playout server's Continue after a pick would otherwise stop, so the same rejoin leaves
-  `selected`.
+- **Next leaves the pick: the one arrow this row adds rather than removes.** On a board with a
+  lock, Next rejoins the walk from `locked`. With no lock, a playout server's Continue after a
+  pick would otherwise stop, so the same rejoin leaves `selected`.
 - **The Locked in layer stays bound.** It is the drawing of a moment a no-Lock board never
   reaches, so no rule shows it and it stays hidden on air, even when the designer left it
   visible. An earlier commit cleared the binding on tick; that left visible lock artwork on air
-  for good (the Codex finding below), so it was reverted. The picker stays hidden because the
+  for good (review round 1 above), so it was reverted. The picker stays hidden because the
   lock is not a moment of this board; unticking No lock shows it again.
 - **The no-Lock machine and paint are derived from the lock board's**, filtered, not written a
   second time, so the two variants cannot drift.
