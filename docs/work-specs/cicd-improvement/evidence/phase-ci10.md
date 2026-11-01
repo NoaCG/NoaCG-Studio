@@ -69,14 +69,14 @@ now compares both with the same run, which also makes semantic and proposal equa
 - `e2e/editor-command-task.spec.ts` now runs three walks per viewport: UI, semantic, proposal, each in
   its own browser context as before. `apply` dispatches to the direct command call (semantic) or the
   reviewed proposal (proposal). The proposal-only steps (B5, B6, the Evening report screenshot) are
-  guarded by the proposal mode; everything else is the old line, unchanged. The end requires
-  `compared[1]` and `compared[2]` each to equal `compared[0]`.
+  guarded by the proposal mode; everything else is the old line, unchanged. The end requires, in
+  one assertion, `compared[1]` and `compared[2]` each to equal `compared[0]`.
 - `e2e/editor-proposal-task.spec.ts` is removed. Its every assertion is in the merged file: the
   `reviewed` helper is copied verbatim, and a diff of the two old files was the 34 proposal-only lines
   (section 1) and the mode name.
 - Test titles: one `for (...) test(` line declares the three viewport tests, as before.
-- `test.setTimeout(360_000)` is the unchanged existing line. A merged test measured 103 to 114 s on the cloud
-  worker and ACTIONS_PER_TEST on Actions (section 5).
+- `test.setTimeout(360_000)` is the unchanged existing line. A merged test measured 103 to 117 s on the cloud
+  worker and 86 to 91 s on Actions (section 5).
 - The parity check is one assertion over both modes, so a divergence of the semantic path no longer
   hides a divergence of the proposal path (review finding; each old file had one parity check).
 - The editor-model-proposals README's run command names the merged file. Its `check.md` lists the
@@ -123,9 +123,8 @@ same cloud worker, same queue, two workers, old pair and merged spec run back to
 | Pair 2, after first (j-0016, j-0017) | 447.6 s (207.0 + 240.6) | 332.2 s | -115.4 s, -25.8% |
 
 The saving is the removed UI walk at each viewport: the old proposal and command tests took 77 to 81
-and 64 to 71 s here, the merged test 103 to 114 s, so one UI walk is about 33 to 37 s per viewport.
-Each merged test stays well inside its unchanged 360 s timeout, and under the gate's 120 s
-per-test ceiling on this worker too.
+and 64 to 71 s here, the merged test 103 to 117 s, so one UI walk is about 33 to 37 s per viewport.
+Each merged test stays well inside its unchanged 360 s timeout.
 
 Actions, before (the same two files in three full main runs, shards 3/15 and 4/15, each a 16-spec
 shard on one worker; blob reports merged per shard):
@@ -136,7 +135,15 @@ shard on one worker; blob reports merged per shard):
 | 41305901072 (`a961bec0`) | 209.1 s | 153.5 s | 362.6 s |
 | 41294635431 (`23742966`) | 182.2 s | 158.5 s | 340.7 s |
 
-ACTIONS_AFTER
+Actions, after: PR CI run 41313596080 on `2b0005d` (subset plan, the merged spec alone on shard 1/1):
+264.4 s, 86 to 91 s per test. This is not the comparable figure, and it is not used to claim the
+saving: the spec ran alone on its shard, while the before samples each sat in a 16-spec shard, and
+a lone spec and a spec inside a full shard are not comparable (ci09's lesson). It does show the
+merged test well inside its 360 s timeout on a standard runner, and under the 120 s ceiling the
+protection check applies to added timeouts. The comparable Actions figure is the merged spec inside
+a full shard: the first full main run after this lands records it, and the checker reads it there;
+a full dispatch here would have spent about 180 runner-minutes to measure about 1.5. The saving
+claimed rests on the same-machine pairs above.
 
 Runner cost. The offline shards run on standard Linux runners, billed by the minute. At the
 same-machine ratio (25% of the pair's 361 s mean on Actions, about 90 runner-seconds) the change
@@ -244,7 +251,9 @@ commit's landing does, and the coordinator records its SHA and time from the rea
 - Selection sweep and reset reader: section 7.
 - No production build: no build input changed. Rendered judgment: none needed; nothing visible
   changes (the screenshots the walks write are their own test output, unchanged).
-- Actions: CI_LINE
+- Actions: PR CI run 41313596080 on `2b0005d`, CI gate green (offline plan subset, 1 spec,
+  3 tests passed; configured selection untriggered, 0 specs); `Reviewed` red until the coordinator's
+  stamp. Codex review of `2b0005d`: completed, no findings.
 
 ## 10. Phase notes
 
