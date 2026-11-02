@@ -184,7 +184,8 @@
     "17",
     "18",
     "19",
-    "20"
+    "20",
+    "21"
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
