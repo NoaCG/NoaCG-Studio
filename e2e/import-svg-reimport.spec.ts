@@ -54,6 +54,10 @@ async function reimport(page: Page, first: string, second: string) {
     // The work made after the import: two Position X keys on the role, and the role relabelled.
     const data = A.parseAnimData(baseline.js)!;
     data.steps[0].layers[`#${role}`] = { ...data.steps[0].layers[`#${role}`], x: [{ time: 0, value: -40 }, { time: 0.5, value: 0, ease: 'power2.out' }] };
+    // ...and the first entrance track the import made, deleted.
+    const name = Object.keys(data.steps[0].layers).find((sel) => Object.keys(data.steps[0].layers[sel]).length > 0) ?? '';
+    const deleted = name ? Object.keys(data.steps[0].layers[name])[0] : null;
+    if (deleted) delete data.steps[0].layers[name][deleted];
     const fields = baseline.fields.map((f) => (f.field === role ? { ...f, title: 'Job title' } : f));
     const prior = { ...baseline, js: A.spliceAnimData(baseline.js, data)!, fields };
     const built = build(b);
@@ -67,6 +71,8 @@ async function reimport(page: Page, first: string, second: string) {
       ids: Object.fromEntries(out.template.fields.map((f) => [f.field, f.title])),
       texts: Object.fromEntries(out.template.fields.map((f) => [f.field, textOf(f.field)])),
       roleKeys: outData.steps[0].layers[`#${role}`]?.x ?? null,
+      deleted,
+      deletedBack: deleted ? Object.keys(outData.steps[0].layers[name] ?? {}).includes(deleted) : null,
       definition: out.template.html.includes('"title": "Job title"'),
       unresolved: out.unresolved,
       role,
@@ -84,6 +90,9 @@ test('changed artwork keeps every matched id, its keys and its label; an added l
   expect(r.ids).toEqual({ f0: 'name', f1: 'Job title', f2: 'badge' });
   expect(r.texts).toEqual({ f0: 'Presenter', f1: 'Guest role', f2: 'LIVE' });
   expect(r.roleKeys).toEqual([{ time: 0, value: -40 }, { time: 0.5, value: 0, ease: 'power2.out' }]);
+  // A track deleted after the import does not come back from the new build.
+  expect(r.deleted, 'the import makes an entrance track').not.toBeNull();
+  expect(r.deletedBack).toBe(false);
   expect(r.definition).toBe(true);
   expect(r.unresolved).toEqual([]);
 });

@@ -46,8 +46,9 @@ PR challenged them against that code. Rules found after coding are marked (after
   An added field keeps its own id unless the earlier graphic used it; then it takes the lowest id
   no field and no node holds. A removed field's id is never reused.
 - **R4 Keys made after the import come across.** A track that differs from the earlier baseline
-  replaces the new build's track for the same timeline, selector and property. An untouched track
-  is the import's own motion, and the new walk's choice stands.
+  replaces the new build's track for the same timeline, selector and property, and a track
+  deleted after the import stays deleted (after, from the `/check` review). An untouched track is
+  the import's own motion, and the new walk's choice stands.
 - **R5 A key must still have a target.** An editor-minted `artwork-N` moves only to the one layer
   with the same key (R1, R2); otherwise the key is unresolved.
 - **R6 A label changed after the import wins** on a verified match, and the definition in the
@@ -102,6 +103,14 @@ PR challenged them against that code. Rules found after coding are marked (after
   that version goes in as a separate graphic unless the reader replaces anyway.
 - A saved graphic edited in the editor's artwork (an attribute changed on a bound layer) reads as a
   different layer on the next reimport, for the same reason.
+
+- Keys only: a step's duration or default ease changed after the import is the new walk's again.
+
+## Review rounds
+
+- `/check` inline review on `a3cc91f`: one finding fixed, class product defect, family R4: a track
+  deleted in the editor after the import came back from the new build. The matcher test now
+  deletes one and asserts it stays gone; removing the fix fails it at that assertion.
 
 ## Traps
 

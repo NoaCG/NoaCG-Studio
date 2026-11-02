@@ -599,7 +599,7 @@ export default function CreationWizard() {
     // reimport kept separate saves under a free name rather than the one typed).
     noteMade: (name, production, landedOn = null) => {
       const s = useTemplateStore.getState();
-      noteMade(memory.current, { name: s.saved.graphicId ? s.template.name || name : name, graphicId: s.saved.graphicId, production, landedOn });
+      noteMade(memory.current, { name: s.template.name || name, graphicId: s.saved.graphicId, production, landedOn });
       // A REF the Finish step reads: nothing re-renders on its own, and the step is still on
       // screen after the export door (the production door routes away instead).
       rereadFinish();

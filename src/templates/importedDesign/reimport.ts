@@ -182,8 +182,9 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 /**
  * Carry the KEYS made after the import: every track of the earlier graphic that differs from the
  * one its import made (the baseline) replaces the new build's track for that selector and
- * property. An untouched track is the import's own motion and the new walk's choice stands. A
- * timeline the new build lacks keeps its keys unresolved. Returns the selectors it wrote, so the
+ * property, and a track deleted after the import stays deleted. An untouched track is the
+ * import's own motion and the new walk's choice stands. A timeline the new build lacks keeps its
+ * keys unresolved. Returns the selectors it wrote, so the
  * caller can check each still addresses the artwork.
  */
 export function carryKeys(prior: AnimData, baseline: AnimData | null, built: AnimData): { data: AnimData; selectors: string[]; unresolved: ReimportItem[] } {
@@ -203,6 +204,17 @@ export function carryKeys(prior: AnimData, baseline: AnimData | null, built: Ani
         }
         (target.layers[selector] ??= {})[prop] = structuredClone(keys);
         selectors.add(selector);
+      }
+    }
+  }
+  // A track the reader DELETED after the import stays deleted.
+  const now = timelines(prior);
+  for (const [at, step] of was) {
+    for (const [selector, tracks] of Object.entries(step.layers)) {
+      for (const prop of Object.keys(tracks)) {
+        if (now.get(at)?.layers[selector]?.[prop] !== undefined) continue;
+        const target = into.get(at)?.layers[selector];
+        if (target) delete target[prop];
       }
     }
   }
