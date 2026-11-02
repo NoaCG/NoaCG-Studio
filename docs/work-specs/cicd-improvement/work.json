@@ -5,5 +5,196 @@
     "status": "agreed",
     "source": "Owner master-planner instructions recorded in docs/work-specs/cicd-improvement/launch.md on 2026-10-30: revised intent accepted, execution until complete with automatic daily blocks and default two-week planning target, early start before remaining production-page studio acceptance permitted. Runner changes first; native continuation qualification is still required before opening runtime state. Scope remains 18 phases and eight criteria; required merge gates and existing budgets bind. Provider: owner override on 2026-10-31 (run issue #1842, authorization plan-cicd-improvement-2026-10-31, recorded verbatim in launch.md) authorizes Claude Code Cloud instead of Codex Cloud, superseding the original Codex Cloud wording; do not switch providers again automatically. specSha256 refreshed 2026-10-31 for a status-only spec change (issue #1844)."
   },
-  "review": null
+  "review": {
+    "revision": "66a61064f5f90acb4f68abef9738e38ea1ae9f3e",
+    "specSha256": "50fc8644161a4a30bfd53307e2b361945d71b870825e1e55902eef33bf6668d9",
+    "evidence": [
+      {
+        "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+        "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci01.md",
+            "sha256": "a86c0aaad971c348b0b8a37450ae9ebce8e34983ef43a2ce16cb3a9afa538aca"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci02.md",
+            "sha256": "f17e34fb91b84bc9ddbe46519c4f0719d2702ca362ac7dc2cfe418974916032c"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci07.md",
+            "sha256": "1253388c984995b93ab86232a5834a5141ffc0788c27ed57b2a60dbafbb9dd4c"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci11.md",
+            "sha256": "e618cc10fdf66b0ede35633f980d9f6a641fa290f623e0e8e8cd09995c60778f"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci11-faults.json",
+            "sha256": "42193fc6accf223b467b8a67656194db5c4c4f5e4bb37c3ea3e82574151406b9"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "fail",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci04.md",
+            "sha256": "7d739d2b11d8f624f50dfe54fac91fbd1b2b9cadecb964b5a4a11ef3eeab7698"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci05.md",
+            "sha256": "9b59f5e0e72848f11b8df14217e29a2cc10f6491684d34e16643f9eed32ce01f"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci07.md",
+            "sha256": "1253388c984995b93ab86232a5834a5141ffc0788c27ed57b2a60dbafbb9dd4c"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci15.md",
+            "sha256": "9620bdd74fc8f4d563e4fca011697b0382cbbd526d41d5884f566cfa4f9f7117"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci16.md",
+            "sha256": "b0458074a77b0048b8a7a5f98f5b9021a118e128463c48d41d2220bfe358316c"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "fail",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci08.md",
+            "sha256": "f4d3db6b9cd321603539457af03c07cef8f224bc9afdae69dc4367e2fae8c874"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci09.md",
+            "sha256": "387df6aec5c06d8c3e729920b288e5e4653dbad96523bd5612ceaf4805177ecd"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci10.md",
+            "sha256": "813958d9e3b666db0e7cfad862a01af9b09cf1f7b6f9054f765acd5b458cea61"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci12.md",
+            "sha256": "9ad98f122a63db4e6491858b6c5264ee4be820aeb037201192017c6f99c2320f"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci13.md",
+            "sha256": "b7636372a644a18e4e1a6ec21567d8f0a1bd2ad3fa3ee7565ad8f5b2f2e17eb8"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci15.md",
+            "sha256": "9620bdd74fc8f4d563e4fca011697b0382cbbd526d41d5884f566cfa4f9f7117"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci16.md",
+            "sha256": "b0458074a77b0048b8a7a5f98f5b9021a118e128463c48d41d2220bfe358316c"
+          }
+        ]
+      },
+      {
+        "id": "AC-6",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci03.md",
+            "sha256": "3ca73040db85481281636316c83946b5e361eb5a7ace2ed392b98779aee9437c"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci05.md",
+            "sha256": "9b59f5e0e72848f11b8df14217e29a2cc10f6491684d34e16643f9eed32ce01f"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci06.md",
+            "sha256": "d0d7f9e3e8d7954235be977d1045e4e1036dff86fd8489a59e7066ae14b63144"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci14.md",
+            "sha256": "176f577e810c5267a023e5bbfee8ea9b4b002594d09c7b73ef8aca8d58ad6056"
+          }
+        ]
+      },
+      {
+        "id": "AC-8",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci01.md",
+            "sha256": "a86c0aaad971c348b0b8a37450ae9ebce8e34983ef43a2ce16cb3a9afa538aca"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci14.md",
+            "sha256": "176f577e810c5267a023e5bbfee8ea9b4b002594d09c7b73ef8aca8d58ad6056"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci18.md",
+            "sha256": "4504b2dee27ea7012173d85502696539dde47b202aef47ed85c35ec332b235d2"
+          }
+        ]
+      },
+      {
+        "id": "AC-9",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
+            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+          },
+          {
+            "path": "docs/work-specs/cicd-improvement/evidence/phase-ci18.md",
+            "sha256": "4504b2dee27ea7012173d85502696539dde47b202aef47ed85c35ec332b235d2"
+          }
+        ]
+      }
+    ]
+  }
 }
