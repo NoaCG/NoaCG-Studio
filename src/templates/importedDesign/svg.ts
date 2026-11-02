@@ -46,7 +46,7 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
-import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
+import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsBuildSvg, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
 import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
@@ -262,7 +262,8 @@ function designPreset(id: string): AnimPreset {
 
 /** Build the complete SpxTemplate for an imported SVG design. */
 export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
-  const svg = o.designSvg ?? NO_SVG;
+  // A styled credits binding that cannot build styled builds as its fallback, wholly.
+  const svg = creditsBuildSvg(o.designSvg ?? NO_SVG);
   const artworkRoll = isArtworkCredits(svg);
   // Credits in the artwork's own role and name layers, where a saved styled binding builds.
   const styledCredits = artworkRoll ? null : styledCreditsConfig(svg);
@@ -447,7 +448,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA
   // (the step-calls model, docs/STATE_MACHINE_SCHEMA.md): startClock as the entrance lands,
   // stopClock the moment the exit begins - exactly what the catalog's countdown presets emit.
-  const withLifecycleCalls = clockField || artworkRoll
+  const withLifecycleCalls = clockField || artworkRoll || styledCredits
     ? (data: AnimData): AnimData => {
         const steps = data.steps.map((s) => ({ ...s }));
         const enter = steps[0];
@@ -456,7 +457,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
           enter.calls = [...(enter.calls ?? []), { time: enter.duration, call: 'startClock' }];
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopClock' }];
         }
-        if (artworkRoll) {
+        if (artworkRoll || styledCredits) {
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopCreditsRoll' }];
         }
         return { ...data, steps };

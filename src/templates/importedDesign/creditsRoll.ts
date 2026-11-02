@@ -603,26 +603,27 @@ export interface CreditsStyledConfig {
   roleSuffix: string;
 }
 
-/** What the styled runtime of a design is built with, or null when it builds another engine. */
+/** What the styled runtime of a design is built with, or null when it builds another engine.
+ *  A step the sample does not show falls back as the editable roll's do. */
 export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
   const style = styledCredits(svg);
   if (!style) return null;
-  const doc = new DOMParser().parseFromString(svg.markup, 'image/svg+xml');
-  const role = doc.querySelector(`[${SVG_CANDIDATE_ATTR}="${style.anchors[0].candidateId}"]`)?.closest('text');
-  return creditsStyledConfig(style, (role?.textContent ?? '').trim());
-}
-
-/** The runtime's numbers for a style, with the fallbacks applied. */
-function creditsStyledConfig(style: CreditsStyle, roleText: string): CreditsStyledConfig {
   const roleToName = style.steps.roleToName ?? style.steps.nameToName ?? 0;
   const nameToName = style.steps.nameToName ?? roleToName;
-  return {
-    align: style.align.role,
-    roleToName,
-    nameToName,
-    groupGap: style.steps.groupGap ?? nameToName,
-    roleSuffix: /\s*[:;]\s*$/.exec(roleText)?.[0].trim() ?? '',
-  };
+  return { align: style.align.role, roleToName, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix };
+}
+
+/**
+ * The design as it builds: a styled binding that cannot build styled (`creditsEngine` answers
+ * 'artwork') builds as the original-text roll it falls back to, marker and all, so the emitted
+ * behaviour table and every reader of it agree that the list field is inert.
+ */
+export function creditsBuildSvg(svg: DesignSvg): DesignSvg {
+  const behaviour = svg.behaviour;
+  if (behaviour?.kind !== 'recipe' || !behaviour.credits || behaviour.options?.artwork === true) return svg;
+  if (styledCredits(svg)) return svg;
+  const { credits: _dropped, ...rest } = behaviour;
+  return { ...svg, behaviour: { ...rest, options: { ...behaviour.options, artwork: true } } };
 }
 
 /** The stylesheet part: the drawn source layers are laid out, never painted. */
@@ -673,18 +674,19 @@ function creditsAnchors() {
   return out;
 }
 
-// creditsSample(): the first role layer - the frame every row is placed in.
+// creditsSample(): the roll's window, once built - the take reads the frame it runs in from the
+// window's parent, the group shared by every source layer.
 function creditsSample() {
-  var list = creditsAnchors();
-  return list.length ? list[0].el : null;
+  return noacgCreditsRows ? noacgCreditsRows.parentNode.parentNode : null;
 }
 
 ${creditsFieldJs()}
 
-// creditsFrom(a, b): the matrix taking a's own units into b's.
+// creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
+// elements of the drawing answer in one frame.
 function creditsFrom(a, b) {
-  var ma = a.getCTM ? a.getCTM() : null;
-  var mb = b.getCTM ? b.getCTM() : null;
+  var ma = a.getScreenCTM ? a.getScreenCTM() : null;
+  var mb = b.getScreenCTM ? b.getScreenCTM() : null;
   return ma && mb ? mb.inverse().multiply(ma) : null;
 }
 
@@ -754,26 +756,41 @@ function creditsCopy(source, words) {
   return { row: row, run: first ? first.parentNode : row };
 }
 
-// creditsLookOf(source, ref): what a copy placed beside ref would lose when its source sits in
-// another group: the inherited look, and the opacity of the groups between. Empty when they share
-// a parent, which is how the layers are usually drawn.
-function creditsLookOf(source, ref) {
-  if (source.parentNode === ref.parentNode) return '';
-  var cs = getComputedStyle(creditsFirstText(source) ? creditsFirstText(source).parentNode : source);
+// creditsLookOf(source, container): what a copy placed in the shared group would lose when its
+// source sits in a group of its own: the inherited look, and the opacity of the groups between.
+// Empty when the source is drawn straight in the shared group, which is how layers usually are.
+function creditsLookOf(source, container) {
+  if (source.parentNode === container) return '';
+  var first = creditsFirstText(source);
+  var cs = getComputedStyle(first ? first.parentNode : source);
   var props = ['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'fill-opacity', 'stroke', 'stroke-opacity', 'stroke-width', 'letter-spacing', 'text-transform', 'direction'];
   var out = [];
   for (var i = 0; i < props.length; i++) out.push(props[i] + ':' + cs.getPropertyValue(props[i]));
-  var opacity = 1;
-  for (var el = source.parentNode; el && !el.contains(ref); el = el.parentNode) {
+  var opacity = parseFloat(getComputedStyle(source).opacity);
+  if (!isFinite(opacity)) opacity = 1;
+  for (var el = source.parentNode; el && el !== container; el = el.parentNode) {
     var v = parseFloat(getComputedStyle(el).opacity);
     if (isFinite(v)) opacity *= v;
   }
-  if (opacity < 1) out.push('opacity:' + opacity * (parseFloat(getComputedStyle(source).opacity) || 1));
+  if (opacity < 1) out.push('opacity:' + opacity);
   return out.join(';');
 }
 
-// The rows, made once beside the first role layer and kept.
+// creditsShared(anchors): the nearest group holding every source layer - the rows are built in
+// it, so a row inherits what its source inherits there and nothing from another source's group.
+function creditsShared(anchors) {
+  var at = anchors[0].el.parentNode;
+  for (var i = 1; i < anchors.length; i++) {
+    while (at && !at.contains(anchors[i].el)) at = at.parentNode;
+  }
+  return at;
+}
+
+// The rows, made once in the shared group and kept, with the stylesheet that paints them: the
+// rows' looks and sizes live there rather than inline, so a reset that clears inline styles
+// leaves them as built.
 var noacgCreditsRows = null;
+var noacgCreditsSheet = null;
 // What the last build fitted, for a reader: each row's shrink and whether it was reported.
 var noacgCreditsFit = [];
 
@@ -784,12 +801,10 @@ function creditsRender() {
   var anchors = creditsAnchors();
   if (!anchors.length) return null;
   var ref = anchors[0].el;
-  var roleEl = null, nameEl = null;
-  for (var i = 0; i < anchors.length; i++) {
-    if (!roleEl && anchors[i].kind === 'role') roleEl = anchors[i].el;
-    if (!nameEl && anchors[i].kind === 'name') nameEl = anchors[i].el;
-  }
-  if (!roleEl || !nameEl) return null;
+  var container = creditsShared(anchors);
+  var sources = {};
+  for (var i = 0; i < anchors.length; i++) if (!sources[anchors[i].kind]) sources[anchors[i].kind] = anchors[i].el;
+  if (!sources.role || !sources.name || !container) return null;
   // THE SHARED EDGE, the mean over every drawn layer in the first role's frame: the drawing put
   // them all on one aligned edge, and the rows keep it.
   var sum = 0;
@@ -801,6 +816,8 @@ function creditsRender() {
   }
   var x = sum / anchors.length;
   var top = creditsEdge(ref).y;
+  var toContainer = creditsFrom(ref, container);
+  if (!toContainer) return null;
   var rows = noacgCreditsRows;
   if (!rows) {
     // The window the roll runs through, and the group it moves, as the editable roll makes them:
@@ -810,39 +827,47 @@ function creditsRender() {
     window_.setAttribute('overflow', 'hidden');
     var roll = document.createElementNS(ref.namespaceURI, 'g');
     roll.setAttribute('class', '${cls}-roll');
-    // The rows sit in the first role's own frame: its transform, so every step is in its units.
+    noacgCreditsSheet = document.createElementNS(ref.namespaceURI, 'style');
     rows = document.createElementNS(ref.namespaceURI, 'g');
     rows.setAttribute('class', '${cls}-rows');
-    if (ref.getAttribute('transform')) rows.setAttribute('transform', ref.getAttribute('transform'));
+    roll.appendChild(noacgCreditsSheet);
     roll.appendChild(rows);
     window_.appendChild(roll);
-    ref.parentNode.insertBefore(window_, ref.nextSibling);
+    // Painted where the first role is in the stack.
+    var after = ref;
+    while (after.parentNode !== container) after = after.parentNode;
+    container.insertBefore(window_, after.nextSibling);
     noacgCreditsRows = rows;
   }
+  // The rows sit in the first role's own frame, so every step is in its units.
+  rows.setAttribute('transform', 'matrix(' + [toContainer.a, toContainer.b, toContainer.c, toContainer.d, toContainer.e, toContainer.f].join(' ') + ')');
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
   var text = holder ? holder.textContent : '';
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);
   var S = NOACG_CREDITS_STYLE;
-  // The room each row has: the window (the Credits box, else the frame) in the first role's
-  // frame, less half a row's type at the side it meets, spent from the aligned edge.
-  var win = creditsWindow(ref);
-  var toRef = win ? creditsFrom(ref.parentNode, ref) : null;
-  var lo = null, hi = null;
-  if (win && toRef) {
-    var c = [creditsAt(toRef, win.left, win.top), creditsAt(toRef, win.right, win.top), creditsAt(toRef, win.left, win.bottom), creditsAt(toRef, win.right, win.bottom)];
-    lo = Math.min(c[0].x, c[1].x, c[2].x, c[3].x);
-    hi = Math.max(c[0].x, c[1].x, c[2].x, c[3].x);
+  // One look rule per kind: what a copy outside its source's group needs, and the shared edge.
+  var sel = '.${cls}-rows > .${cls}-row';
+  var base = '';
+  var kinds = ['role', 'name'];
+  var frames = {};
+  for (var q = 0; q < kinds.length; q++) {
+    var kind = kinds[q];
+    frames[kind] = creditsFrom(sources[kind], ref);
+    if (!frames[kind]) return null;
+    var look = creditsLookOf(sources[kind], container);
+    var where = sel + '[data-noacg-credits="' + kind + '"]';
+    base += where + ', ' + where + ' [data-noacg-run] {' + (look ? look + ';' : '') + 'text-anchor:' + S.align + ' !important}\\n';
   }
-  noacgCreditsFit = [];
-  var over = false;
+  noacgCreditsSheet.textContent = base;
+  // FIRST PASS: every row, spaced as drawn, appended at once.
+  var made = [];
   var y = top;
-  var count = 0;
   var prev = null;
   var sectionBreak = false;
   var paint = function (kind, words) {
-    if (count > 0) {
+    if (made.length > 0) {
       y += kind === 'role' ? S.groupGap : prev === 'role' ? S.roleToName : S.nameToName;
       // A blank line before a name adds the air the drawing gives a group, or one name step.
       if (sectionBreak && kind !== 'role') {
@@ -850,43 +875,20 @@ function creditsRender() {
         y += air > 0.5 ? air : S.nameToName;
       }
     }
-    var source = kind === 'role' ? roleEl : nameEl;
-    var m = creditsFrom(source, ref);
-    if (!m) return;
-    var made = creditsCopy(source, words);
-    var row = made.row;
+    var m = frames[kind];
+    var copy = creditsCopy(sources[kind], words);
+    var row = copy.row;
     row.setAttribute('transform', 'matrix(' + [m.a, m.b, m.c, m.d, m.e, m.f].join(' ') + ')');
     var p = creditsAt(m.inverse(), x, y);
     row.setAttribute('x', p.x.toFixed(2));
     row.setAttribute('y', p.y.toFixed(2));
     row.setAttribute('data-noacg-credits', kind);
-    var look = creditsLookOf(source, ref);
-    row.setAttribute('style', (look ? look + ';' : '') + 'text-anchor:' + S.align);
-    made.run.style.textAnchor = S.align;
+    row.setAttribute('data-noacg-row', String(made.length));
+    if (copy.run !== row) copy.run.setAttribute('data-noacg-run', '');
     rows.appendChild(row);
-    // TOO WIDE: shrink to the room, report past 55%, stop at the 30% floor (CREDITS_OVERFLOW).
-    var fit = { kind: kind, words: words, scale: 1, reported: false };
-    var box = null;
-    try { box = row.getBBox(); } catch (e) { box = null; }
-    if (lo !== null && box && box.width > 0) {
-      var scale = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
-      var size = parseFloat(getComputedStyle(made.run).fontSize) || 16;
-      var margin = 0.5 * size * scale;
-      var rtl = getComputedStyle(row).direction === 'rtl';
-      var edgeWord = S.align === 'middle' ? 'middle' : (S.align === 'start') !== rtl ? 'left' : 'right';
-      var room = edgeWord === 'middle' ? 2 * Math.min(x - lo, hi - x) - 2 * margin : edgeWord === 'left' ? hi - x - margin : x - lo - margin;
-      var width = box.width * scale;
-      if (width > room) {
-        fit.scale = Math.max(NOACG_CREDITS_FLOOR, room / width);
-        made.run.style.fontSize = (size * fit.scale) + 'px';
-        if (fit.scale < NOACG_CREDITS_REPORT) fit.reported = true;
-      }
-    }
-    if (fit.reported) over = true;
-    noacgCreditsFit.push(fit);
+    made.push({ row: row, run: copy.run, kind: kind, words: words, m: m });
     prev = kind;
     sectionBreak = false;
-    count++;
   };
   for (var s = 0; s < sections.length; s++) {
     sectionBreak = s > 0;
@@ -902,10 +904,55 @@ function creditsRender() {
       }
     }
   }
+  // SECOND PASS, TOO WIDE: each row measured once, in one layout. A row wider than its room
+  // shrinks to it, is reported past 55% and stops at the 30% floor (CREDITS_OVERFLOW). The room
+  // is the window (the Credits box, else the frame) in the first role's frame, less half a row's
+  // type at the side it meets, spent from the aligned edge.
+  var win = creditsWindow(rows.parentNode.parentNode);
+  var toRef = win ? creditsFrom(container, ref) : null;
+  var lo = null, hi = null;
+  if (win && toRef) {
+    var c = [creditsAt(toRef, win.left, win.top), creditsAt(toRef, win.right, win.top), creditsAt(toRef, win.left, win.bottom), creditsAt(toRef, win.right, win.bottom)];
+    lo = Math.min(c[0].x, c[1].x, c[2].x, c[3].x);
+    hi = Math.max(c[0].x, c[1].x, c[2].x, c[3].x);
+  }
+  noacgCreditsFit = [];
+  var over = false;
+  var sizes = '';
+  for (var r = 0; r < made.length; r++) {
+    var one = made[r];
+    var fit = { kind: one.kind, words: one.words, scale: 1, reported: false };
+    var box = null;
+    try { box = one.row.getBBox(); } catch (err) { box = null; }
+    if (lo !== null && box && box.width > 0) {
+      var scale = Math.sqrt(Math.abs(one.m.a * one.m.d - one.m.b * one.m.c)) || 1;
+      var size = parseFloat(getComputedStyle(one.run).fontSize) || 16;
+      var margin = 0.5 * size * scale;
+      var rtl = getComputedStyle(one.row).direction === 'rtl';
+      var side = S.align === 'middle' ? 'middle' : (S.align === 'start') !== rtl ? 'left' : 'right';
+      var room = side === 'middle' ? 2 * Math.min(x - lo, hi - x) - 2 * margin : side === 'left' ? hi - x - margin : x - lo - margin;
+      var width = box.width * scale;
+      if (width > room) {
+        fit.scale = Math.max(NOACG_CREDITS_FLOOR, room / width);
+        fit.reported = fit.scale < NOACG_CREDITS_REPORT;
+        var at = sel + '[data-noacg-row="' + r + '"]';
+        sizes += at + ', ' + at + ' [data-noacg-run] {font-size:' + (size * fit.scale) + 'px !important}\\n';
+      }
+    }
+    if (fit.reported) over = true;
+    noacgCreditsFit.push(fit);
+  }
+  if (sizes) noacgCreditsSheet.textContent = base + sizes;
   // The operator hears about a row past the report line through the graphic's overflow report,
   // under the one Credits field.
   if (holder && typeof svgFitOver !== 'undefined') svgFitOver[holder.id] = over;
   return { rows: rows, looks: { afterName: S.nameToName } };
+}
+
+// stopCreditsRoll(): Out ends the roll, so nothing keeps moving the list off air.
+function stopCreditsRoll() {
+  if (noacgCreditsTween) noacgCreditsTween.kill();
+  noacgCreditsTween = null;
 }
 
 ${creditsTakeJs()}
@@ -976,6 +1023,8 @@ export interface CreditsStyle {
   steps: { roleToName?: number; nameToName?: number; groupGap?: number; column?: number };
   /** The sample as the credits list: what the one content field starts with. */
   list: string;
+  /** What the drawn roles end with (`:` or nothing), so a rendered role reads as drawn. */
+  roleSuffix: string;
 }
 
 export type CreditsAnalysis =
@@ -1143,11 +1192,16 @@ function parsedValue(name: string, value: string): string {
   if (name !== 'fill' && name !== 'stroke') return value;
   if (colourProbe === undefined) colourProbe = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   if (!colourProbe || !value || /^(none|currentcolor|inherit)$/i.test(value) || /^url\(/i.test(value)) return value;
-  const unset = 'rgba(1, 2, 3, 0.004)';
-  colourProbe.fillStyle = unset;
+  // A colour the canvas cannot read leaves the probe's last value; that value is read back
+  // rather than spelt here, since engines serialise it their own way.
+  colourProbe.fillStyle = 'rgba(1, 2, 3, 0.5)';
+  const unset = String(colourProbe.fillStyle);
   colourProbe.fillStyle = value;
   const read = String(colourProbe.fillStyle);
-  return read === unset && value.replace(/\s/g, '') !== 'rgba(1,2,3,0.004)' ? value : read;
+  if (read !== unset) return read;
+  colourProbe.fillStyle = 'rgba(3, 2, 1, 0.5)';
+  colourProbe.fillStyle = value;
+  return String(colourProbe.fillStyle) === unset ? read : value;
 }
 
 /** Where an edge sits along a drawn line, from its left end: `start` is the right end of a
@@ -1298,6 +1352,7 @@ export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[]
       align,
       steps,
       list,
+      roleSuffix: /\s*[:;]\s*$/.exec(roles[0].r.text)?.[0].trim() ?? '',
     },
   };
 }
@@ -1460,7 +1515,9 @@ interface CreditsBindingRead {
 let bindingMemo: { key: string; read: CreditsBindingRead } | null = null;
 
 function readBindingMemo(svg: DesignSvg): CreditsBindingRead {
-  const key = JSON.stringify([svg.behaviour, svg.fields.map((f) => f.candidateId)]) + svg.markup;
+  // Drawn widths change when a face arrives, so a reading taken before is not reused after.
+  const fonts = typeof document !== 'undefined' && document.fonts ? `${document.fonts.status}:${document.fonts.size}` : '';
+  const key = JSON.stringify([svg.behaviour, svg.fields.map((f) => f.candidateId), fonts]) + svg.markup;
   if (bindingMemo?.key === key) return bindingMemo.read;
   const read = readBinding(svg);
   bindingMemo = { key, read };

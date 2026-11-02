@@ -28,9 +28,12 @@ succeeded on it.
   - `creditsStyledRuntimeJs` / `creditsStyledCss`: every role row is a copy of the first drawn role,
     every name row of the first drawn name (class, runs, paint and transform kept; words and
     position changed), placed on the shared edge at the drawn steps, in the first role's frame.
-    A copy whose source sits in another group carries that group's look. A row too wide for its
-    room shrinks, is reported past 55% through `noacgTextOverflow()` under the one Credits field,
-    and stops at the 30% floor.
+    Rows are built in the group every source layer shares; a source in a group of its own gives
+    its rows that group's look. Looks and shrink live in a stylesheet the runtime owns, never
+    inline. A row too wide for its room shrinks, is reported past 55% through
+    `noacgTextOverflow()` under the one Credits field, and stops at the 30% floor. Out stops the
+    roll. A binding that cannot build styled builds wholly as the original-text roll
+    (`creditsBuildSvg`).
   - The editable roll's field and take code is shared, extracted verbatim (`creditsFieldJs`,
     `creditsTakeJs`); the editable and artwork pins are unchanged.
   - #1941 points 2 and 3: the look and position come from the element painting the first
@@ -65,7 +68,7 @@ save disabled the role-above walk fails (j-0003).
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 27/27.
+- `node --test scripts/imported-credits-model.test.mjs`: 27/27 (after the review fixes too).
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail, and the whole output is identical on an
@@ -73,6 +76,28 @@ save disabled the role-above walk fails (j-0003).
   corpus records). No record regenerated.
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 6/6 (j-0001, j-0002 after the
   checklist line). `check-e2e-protection --changed origin/main`: OK.
+
+## Review rounds
+
+- `/check` review (delegated, 10 findings; 9 fixed, 1 a documented limit):
+  - Row looks and the shrink were inline styles, which the editor's reset clears
+    (`resetGraphicInline`, `clearProps: 'all'`): they now live in a stylesheet the runtime owns
+    inside the roll, and a test clears every inline style and finds the rows unchanged.
+  - Rows were built in the first role's parent, so they inherited that role's own group (opacity,
+    filters): they are now built in the nearest group shared by every source layer, and each kind
+    carries what its own groups add (test `roleGroup`).
+  - A styled binding falling back to the artwork roll kept a behaviour table without the artwork
+    marker, so a linked Sheet would have offered rows to an inert field: the fallback now builds
+    wholly as the artwork roll (`creditsBuildSvg`), table included.
+  - A binding read before the design's faces loaded was memoised: the memo key now carries the
+    font set's state.
+  - Out did not stop the styled roll: the exit now calls `stopCreditsRoll`, as the artwork roll's does.
+  - One forced layout per row: rows are now appended in one pass and measured in a second.
+  - The colour probe compared against a spelt sentinel: it now reads the canvas's own spelling back.
+  - The checklist and the draft each derived the source layers: one helper (`creditsSourceLayers`).
+  - The role suffix was read by parsing the markup again: it now comes with the style.
+  - Not changed: a styled binding that falls back shows its other drawn layers as artwork, not as
+    fields (Known limits).
 
 ## Decisions
 
@@ -113,6 +138,10 @@ save disabled the role-above walk fails (j-0003).
 - A styled build validates with fallback fonts when the design's own faces are not on the page;
   centring drawn without a stated anchor could then read `misaligned` and build the
   original-text roll (phase 16's limit, unchanged).
+- A styled binding that cannot build styled (stale after the artwork changed) builds the
+  original-text roll: the Credits layer scrolls, and the other drawn roles and names stay as
+  drawn, not as fields. Importing the artwork again reads it afresh.
+- A source layer's filter, clip or mask on its own group is not carried to the rows.
 - Letter spacing set in px does not scale with a shrunk row.
 - A row past the 30% floor is reported and clipped by the roll's window, as the policy states.
 

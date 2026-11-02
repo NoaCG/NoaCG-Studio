@@ -83,6 +83,8 @@ const CASES = {
 const STYLED_CASES = {
   bold: svg(`<style>.r{font-weight:700;fill:#fc0}</style>${t(500, 100, 24, 'Director', ' class="r" text-anchor="middle"')}${t(500, 160, 40, 'Alex Rivera', ' text-anchor="middle"')}${t(500, 210, 40, 'Ida Lake', ' text-anchor="middle"')}${t(500, 330, 24, 'Sound', ' class="r" text-anchor="middle"')}${t(500, 390, 40, 'Ari Moss', ' text-anchor="middle"')}`),
   grouped: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}<g fill="#9cf" opacity="0.5" font-style="italic">${t(100, 160, 40, 'Alex Rivera')}${t(100, 210, 40, 'Ida Lake')}</g>`),
+  // The first role in a translucent group of its own: names built beside it must not take it.
+  roleGroup: svg(`<g opacity="0.5">${t(100, 100, 24, 'Director', ' fill="#fc0"')}</g>${t(100, 160, 40, 'Alex Rivera')}${t(100, 210, 40, 'Ida Lake')}`),
   // Loose characters painted before the first run take the text's look, not the run's.
   loose: svg(`<text x="100" y="100" font-size="40" fill="#fc0">Dir<tspan fill="#fff">ector</tspan></text>${t(100, 160, 40, 'Alex Rivera')}`),
   // One name look spelt two ways: the parsed reading compares colours, not spellings.
@@ -160,6 +162,11 @@ function readStyled({ field }) {
   const overLong = noacgTextOverflow();
   write('Research:\nNia Vale');
   const overShort = noacgTextOverflow();
+  // A reset that clears every inline style (the editor's snap and reset) leaves the rows as built.
+  write(`Research:\n${long[2]}`);
+  const beforeReset = rows().map((r) => [r.start, r.look]);
+  window.gsap.set([document.body.querySelector('div'), ...document.body.querySelector('div').querySelectorAll('*')], { clearProps: 'all' });
+  const afterReset = rows().map((r) => [r.start, r.look]);
   // The take: the roll moves its own group; the source layers stay exactly as they were.
   write('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
   const before = sources().map((x) => x.outer);
@@ -168,10 +175,12 @@ function readStyled({ field }) {
   const target = tween && tween.targets()[0].getAttribute('class');
   const again = window.noacgCreditsRoll();
   const second = { ...window.noacgCreditsLast };
-  if (again) again.kill();
+  window.stopCreditsRoll();
+  const stopped = window.noacgCreditsTween === null && again.isActive() === false;
   return {
     atRest, repeated, longRows, longFit, naturals, overLong, overShort, field,
-    take: { ok: !!tween, first, second, target, sourcesKept: JSON.stringify(sources().map((x) => x.outer)) === JSON.stringify(before) },
+    take: { ok: !!tween, first, second, target, stopped, sourcesKept: JSON.stringify(sources().map((x) => x.outer)) === JSON.stringify(before) },
+    reset: { before: beforeReset, after: afterReset },
     holder: document.getElementById(field)?.className,
   };
 }
@@ -338,6 +347,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     one: styledOf(dev[0].markup, 'Research'),
     bold: styledOf(cases.bold, 'Director'),
     grouped: styledOf(cases.grouped, 'Director'),
+    roleGroup: styledOf(cases.roleGroup, 'Director'),
   };
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
@@ -347,7 +357,9 @@ async function inPage({ dev, cases, legacy, artwork }) {
     stale: notYet({ ...good, anchors: [...good.anchors].reverse() }),
   };
   const staticBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'static' }) });
-  fallbacks.staticBuildsArtwork = staticBuild.js.includes('function stopCreditsRoll()') && !staticBuild.js.includes('NOACG_CREDITS_STYLE');
+  fallbacks.staticBuildsArtwork = staticBuild.js.includes('function creditsArtwork(') && !staticBuild.js.includes('NOACG_CREDITS_STYLE');
+  // The fallback builds wholly as the artwork roll: its behaviour table says the list is inert.
+  fallbacks.staticTableArtwork = /"artwork":\s*true/.test(staticBuild.js);
   // #1941: loose characters before the first run, and colour spellings in the parsed reading.
   const loose = analyse(cases.loose, parsed);
   const looseLaid = analyse(cases.loose, laidOut);
@@ -627,7 +639,7 @@ test('the model spells layout and playback as the proposal contract does', () =>
 // ── Row 19: role-above credits rendered in the artwork's own styling ─────────────────────────
 
 const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
-const ROLE_ABOVE = ['one', 'bold', 'grouped'];
+const ROLE_ABOVE = ['one', 'bold', 'grouped', 'roleGroup'];
 
 test('row 19: a role-above binding builds the styled engine, one Credits field holding the drawn list', () => {
   for (const k of ROLE_ABOVE) {
@@ -636,7 +648,8 @@ test('row 19: a role-above binding builds the styled engine, one Credits field h
     assert.deepEqual(b.errors, [], k);
     assert.equal(b.engine, 'styled', k);
     assert.ok(b.js.includes('var NOACG_CREDITS_STYLE = '), `${k}: the styled runtime is emitted`);
-    assert.ok(!b.js.includes('function creditsSampleLines(') && !b.js.includes('function stopCreditsRoll('), `${k}: and neither other engine`);
+    assert.ok(!b.js.includes('function creditsSampleLines(') && !b.js.includes('function creditsArtwork('), `${k}: and neither other engine`);
+    assert.match(b.js, /"call":\s*"stopCreditsRoll"/, `${k}: Out stops the roll`);
     assert.deepEqual(b.played.errors, [], `${k}: no page errors`);
     assert.equal(b.played.holder, 'noacg-data-source', `${k}: the list lives in a hidden holder`);
   }
@@ -670,6 +683,8 @@ test('row 19: bold roles, and names drawn in a group of their own, keep their lo
     ['rgb(153, 204, 255)', 'italic', 0.5],
     ['rgb(153, 204, 255)', 'italic', 0.5],
   ], 'the group\'s fill, italic and opacity travel with the names');
+  const roleGroup = R.styled.roleGroup.played.atRest.rows;
+  assert.deepEqual(roleGroup.map((r) => r.look.opacity), [0.5, 1, 1], 'a role\'s own group stays its own');
 });
 
 test('row 19: repeated roles and names follow the sample\'s spacing', () => {
@@ -720,6 +735,8 @@ test('row 19: the roll keeps the source layers and their original text, and repl
     assert.equal(take.target, 'imported-design-credits-roll', `${k}: the roll moves its own group`);
     assert.equal(take.sourcesKept, true, `${k}: the take leaves every source layer as it was`);
     assert.deepEqual(take.second, take.first, `${k}: a second take measures the same roll`);
+    assert.equal(take.stopped, true, `${k}: Out stops the roll`);
+    assert.deepEqual(R.styled[k].played.reset.after, R.styled[k].played.reset.before, `${k}: a reset of inline styles leaves the rows as built`);
     assert.ok(take.first.distance > 0 && take.first.duration > 0, k);
     for (const src of atRest.sources) assert.equal(src.visibility, 'hidden', `${k}: a source layer is laid out, never painted`);
   }
@@ -744,7 +761,7 @@ test('row 19: the roll keeps the source layers and their original text, and repl
 
 test('row 19: what no row renders yet builds the original-text roll, never an untested picture', () => {
   // Role beside is row 20, static row 22, cards row 23. A stale binding builds its fallback too.
-  assert.deepEqual(R.fallbacks, { static: 'artwork', cards: 'artwork', stale: 'artwork', staticBuildsArtwork: true });
+  assert.deepEqual(R.fallbacks, { static: 'artwork', cards: 'artwork', stale: 'artwork', staticBuildsArtwork: true, staticTableArtwork: true });
 });
 
 test('#1941: loose characters before the first run, and colour spellings, read as painted', () => {

@@ -13,7 +13,7 @@ import type {
 import {
   modeOfAxis,
   pollDrivenLayers,
-  styledCreditsOf,
+  creditsSourceLayers,
   takenOff,
   svgDesignOptions,
 } from './draft';
@@ -196,11 +196,10 @@ export default function MapSvgFieldsStep({
   }, [draft]);
   // Credits drawn as separate role and name layers: each layer other than the Credits field sets
   // the look of every role or name in the list, and is not a field of its own.
-  const creditsSources = useMemo(() => {
-    const b = draft.svgBehaviour;
-    const credits = b?.kind === 'recipe' ? styledCreditsOf(b) : undefined;
-    return new Map((credits?.anchors ?? []).filter((a) => b?.kind === 'recipe' && a.candidateId !== b.fields?.credits).map((a) => [a.candidateId, a.kind]));
-  }, [draft.svgBehaviour]);
+  const creditsSources = useMemo(
+    () => (draft.svgBehaviour?.kind === 'recipe' ? creditsSourceLayers(draft.svgBehaviour) : new Map<string, 'role' | 'name'>()),
+    [draft.svgBehaviour],
+  );
   const stageRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [drawArmed, setDrawArmed] = useState(false);

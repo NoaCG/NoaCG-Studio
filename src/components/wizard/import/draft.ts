@@ -466,6 +466,14 @@ export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | u
   return credits && picked && credits.anchors[0]?.candidateId === picked ? credits : undefined;
 }
 
+/** The drawn role and name layers a styled credits binding copies, other than the Credits field
+ *  itself, with what each sets the look of. They are kept out of the field list (`pollDrivenLayers`)
+ *  and the Text step says what each becomes. */
+export function creditsSourceLayers(behaviour: SvgRecipeDraft): Map<string, 'role' | 'name'> {
+  const anchors = styledCreditsOf(behaviour)?.anchors ?? [];
+  return new Map(anchors.filter((a) => a.candidateId !== behaviour.fields?.credits).map((a) => [a.candidateId, a.kind]));
+}
+
 /**
  * The TEXT layers a bound poll writes into — the ones that must not also be operator fields.
  *
@@ -479,7 +487,7 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
   if (behaviour?.kind === 'recipe') {
     // A styled credits binding keeps ONE field, its Credits layer; the other drawn roles and names
     // are the engine's source layers, never fields (creditsRoll.ts, `field-per-name`).
-    const sources = (styledCreditsOf(behaviour)?.anchors ?? []).map((a) => a.candidateId).filter((id) => id !== behaviour.fields?.credits);
+    const sources = [...creditsSourceLayers(behaviour).keys()];
     const written = new Set(
       (recipeById(behaviour.recipe)?.roles ?? [])
         .filter((r) => r.kind === 'layer' && r.paint?.includes('write'))
