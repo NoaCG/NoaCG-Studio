@@ -42,13 +42,13 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "PR #1952 merge queue, then ci17 checker",
-    "eta": "2026-11-02T02:30:00Z"
+    "what": "ci17 checker verdict (session_017SdbwQZbkuarTQBc9U8kaD)",
+    "eta": "2026-11-02T03:00:00Z"
   },
   "inFlight": [
     {
       "phase": "ci17",
-      "step": "landing",
+      "step": "check",
       "session": "session_017SdbwQgWjrdBuyYC8WvH5a",
       "nonce": "ci17-b-1689",
       "branch": "claude/plan-cicd-improvement-ci17-build",
@@ -61,7 +61,13 @@
       "followUps": [
         1951,
         1953
-      ]
+      ],
+      "mergeSha": "87ca1b807e03317becad2812b9c5c551ccaf5070",
+      "landedAt": "2026-11-02T02:01:56Z",
+      "queueRun": 41374944537,
+      "repairOwnerComment": 6567215608,
+      "checker": "session_017SdbwQZbkuarTQBc9U8kaD",
+      "actor": "checker-ci17-ci17-c-088e"
     }
   ],
   "owner": [],
