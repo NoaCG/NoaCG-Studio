@@ -3,7 +3,7 @@
 // and its fixture. The SVG examples walk rides along: its credits are the list the default
 // pace was set by (about thirty seconds), rolled from Illustrator's own output.
 // covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,creditsArtwork,artworkFields,svg,svgBind}.ts,endCredits/shared.ts}
-// covers: e2e/fixtures/{credits-roll,credits-artwork}.svg
+// covers: e2e/fixtures/{credits-roll,credits-artwork}.svg, e2e/fixtures/jev-svg/dev/credits-2.svg
 // covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx}
 // covers: src/components/wizard/draft/template.ts, src/blocks/motionPresets.ts
 // covers: src/components/home/CueActions.tsx
@@ -42,6 +42,7 @@ import { dropSvg, intoProduction } from './_svg-import';
 
 const CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-roll.svg', import.meta.url));
 const ARTWORK_CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-artwork.svg', import.meta.url));
+const BESIDE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-2.svg', import.meta.url));
 
 test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting for fonts', async ({ page }) => {
   // Exercise the compiled template on a blank page: the motion picker changes entrance length
@@ -150,6 +151,10 @@ test('imported artwork credits preserve the complete design and roll off the who
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('none');
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   await expect(page.getByTestId('map-svg-recipe-credits').locator('option:checked')).toHaveText('Programme text');
+  // The preview reads the one composed text as the list it is, in its own order.
+  const preview = page.getByTestId('map-svg-credits-preview');
+  await expect(preview).toHaveAttribute('data-layout', 'list');
+  await expect(preview.locator('[data-credit]').first()).toHaveText('NIGHT SKY');
   await intoProduction(page, 'Night sky credits', 'Night sky');
   await settleDurableWrites(page);
   await page.getByTestId('verb-take').click();
@@ -318,6 +323,39 @@ async function openLegacyProduction(page: Page, graphic: string, production: str
   }, { source: readFileSync(CREDITS_SVG, 'utf8'), graphicName: graphic, useBox: boxed });
   await openProductionWithCurrent(page, production);
 }
+
+test('the Credits preview reads roles and names off a role-beside drawing, with one choice for its columns', async ({ page }) => {
+  // AC-23 (jev-svg-import row 18): the list the Credits layer declares, read by the shipped
+  // parser, as headings, roles and their names. A drawing's two columns could each be the roles,
+  // so the author answers that once; the list and its order never change with the answer.
+  await page.goto('/app');
+  await dropSvg(page, BESIDE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  // The first role layer, Réalisation: the title drawn above it is not part of the list.
+  const role = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
+  await picker.selectOption(role);
+  const preview = page.getByTestId('map-svg-credits-preview');
+  await expect(preview).toHaveAttribute('data-layout', 'role-beside');
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
+  await expect(preview.locator('[data-credit="name"]')).toHaveText(['Léa Orme', 'Noé Rivage', 'Émilie Lac']);
+  // Beside: a role shares its line with its first name; a second name stays in the name column.
+  const top = (text: string) => preview.getByText(text, { exact: true }).evaluate((el) => Math.round(el.getBoundingClientRect().top));
+  expect(await top('Image')).toBe(await top('Noé Rivage'));
+  expect(await top('Émilie Lac')).toBeGreaterThan(await top('Noé Rivage'));
+  // No JSON, no field per person: the step still holds the one Credits picker.
+  await expect(preview).not.toContainText('{');
+  await expect(page.locator('[data-testid^="map-svg-recipe-credits"]')).toHaveCount(1);
+
+  const roles = page.getByTestId('map-svg-credits-roles');
+  await expect(roles.locator('option')).toHaveText(['Roles: Réalisation, Image', 'Roles: Léa Orme, Noé Rivage']);
+  await roles.selectOption({ index: 1 });
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Léa Orme', 'Noé Rivage', 'Émilie Lac']);
+  await expect(preview.locator('[data-credit="name"]')).toHaveText(['Réalisation', 'Image']);
+  await roles.selectOption({ index: 0 });
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
+});
 
 test('imported credits: one pasted list rolls through the Credits box in the sample\'s two looks', async ({ page }) => {
   test.slow(); // an import, a production, two takes and a paste, read in the renderer

@@ -759,15 +759,18 @@ function creditsEdgeFraction(edge: CreditsAlign, rtl: boolean): number {
  * - Every layer is real, there are at least two, and each draws one line.
  * - They share one angle and scale; positions are then compared in that shared frame, so a block
  *   turned as a whole is read as drawn and islands turned differently are refused.
- * - Exactly two looks. Reading order is top to bottom, then left to right; the look of the first
- *   layer read is the ROLE look, the other the NAME look.
+ * - Exactly two looks. Reading order is top to bottom, then along the line in the text's own
+ *   direction (right to left when every layer on it is right-to-left); the look of the first
+ *   layer read is the ROLE look, the other the NAME look. `choice.swap` reads each line the other
+ *   way, which is the one answer an author gives where the columns are ambiguous
+ *   (`creditsColumnsAmbiguous`): geometry cannot tell a role column from a name column.
  * - A line holds one layer, or a role and then its first name: role BESIDE. A first name on a
  *   lower line is role ABOVE. Every role with names must agree.
  * - Above, roles and names share one aligned edge; beside, the roles share one and the names
  *   another. Read from the stated anchor, or from the drawn widths where the layout gives them.
  * - Every role and name can be written in the list format as it is.
  */
-export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[], ids: readonly string[]): CreditsAnalysis {
+export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[], ids: readonly string[], choice: CreditsChoice = {}): CreditsAnalysis {
   const refuse = (code: CreditsUnsupported, message: string, anchors: string[]): CreditsAnalysis =>
     ({ ok: false, code, message, anchors, fallback: 'artwork' });
   const missing = ids.filter((_, i) => !readings[i]);
@@ -799,7 +802,11 @@ export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[]
     if (row && it.y - row[0].y <= tolY) row.push(it);
     else rows.push([it]);
   }
-  rows.forEach((row) => row.sort((p, q) => p.x - q.x));
+  // Along the line in its reading direction: right to left when every layer on it says so.
+  rows.forEach((row) => {
+    const leftward = row.every((it) => it.r.rtl === true) !== (choice.swap === true);
+    row.sort((p, q) => (leftward ? q.x - p.x : p.x - q.x));
+  });
   const roleLook = rows[0][0].r.look;
   const kindOf = (it: (typeof items)[number]) => (it.r.look === roleLook ? 'role' : 'name');
   const crowded = rows.filter((row) => row.length > 2 || (row.length === 2 && (kindOf(row[0]) !== 'role' || kindOf(row[1]) !== 'name')));
@@ -889,6 +896,88 @@ export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[]
       list,
     },
   };
+}
+
+/** The author's one answer where a drawing's columns are ambiguous: read each line the other
+ *  way, so the other column is the role. Absent reads in the text's own direction. */
+export interface CreditsChoice {
+  swap?: boolean;
+}
+
+/**
+ * Whether a drawing's two columns could each be the roles: both readings describe credits and
+ * name different layers as roles. Only a role-beside drawing can be read both ways; then the
+ * author gets the one choice, `CreditsChoice.swap`, and nothing is guessed further.
+ */
+export function creditsColumnsAmbiguous(readings: readonly (CreditsReading | null)[], ids: readonly string[]): boolean {
+  const read = analyseCreditsStyle(readings, ids);
+  const swapped = analyseCreditsStyle(readings, ids, { swap: true });
+  if (!read.ok || !swapped.ok || read.style.layout !== 'role-beside') return false;
+  const kinds = (a: CreditsStyle) => a.anchors.map((x) => `${x.candidateId}:${x.kind}`).sort().join(',');
+  return kinds(read.style) !== kinds(swapped.style);
+}
+
+/** One section of a credits list as the shipped parser reads it, in order. */
+export type CreditsListItem =
+  | { type: 'heading'; text: string }
+  | { type: 'group'; role: string; names: string[] }
+  | { type: 'entry'; text: string };
+
+let listParser: ((text: string, escape: (s: string) => string) => CreditsListItem[][]) | null = null;
+
+/**
+ * A credits list as the operator's field holds it, read by the parser every credits roll ships
+ * (`CREDITS_PARSER_JS`), so a preview cannot read the list differently from the graphic: headings,
+ * each role with its zero, one or several names, and loose names, in the list's order. Sections
+ * are what blank lines separate. The text is never escaped here; a preview writes it as text.
+ */
+export function readCreditsList(text: string): CreditsListItem[][] {
+  listParser ??= new Function(`${CREDITS_PARSER_JS}\nreturn parseCredits;`)() as typeof listParser;
+  return listParser!(text, (s) => s);
+}
+
+/** What the wizard previews for the layer picked as Credits. */
+export type CreditsPreview =
+  | { styled: true; layout: CreditsLayout; rtl: boolean; ambiguous: boolean; anchors: DesignSvgCreditsAnchor[]; list: CreditsListItem[][] }
+  | { styled: false; list: CreditsListItem[][] };
+
+/**
+ * THE PREVIEW OF THE ONE CREDITS LIST the picked layer declares. Where the picked layer is the
+ * first role of roles and names drawn as separate layers, the anchors are it and every text layer
+ * read at or below it (a title drawn above stays artwork) and the list is the one
+ * `analyseCreditsStyle` writes; the layout is the drawing's, and `ambiguous` says whether the
+ * columns need the author's one choice. Anything else previews the layer's own text as the list.
+ * Either way the list is read by the shipped parser, never a second grammar.
+ */
+export function creditsPreview(root: Element, candidateIds: readonly string[], creditsId: string, choice: CreditsChoice = {}): CreditsPreview {
+  const all = readCreditsAnchors(root, candidateIds);
+  const picked = all[candidateIds.indexOf(creditsId)];
+  const own = { styled: false as const, list: readCreditsList(creditsLayerText(root, creditsId)) };
+  if (!picked || picked.lines > 1) return own;
+  const ids = candidateIds.filter((_, i) => {
+    const r = all[i];
+    return r && r.y >= picked.y - 0.25 * Math.min(r.size, picked.size);
+  });
+  const readings = readCreditsAnchors(root, ids);
+  const analysis = analyseCreditsStyle(readings, ids, choice);
+  if (!analysis.ok || !analysis.style.anchors.some((a) => a.candidateId === creditsId)) return own;
+  return {
+    styled: true,
+    layout: analysis.style.layout,
+    rtl: readings.every((r) => r?.rtl === true),
+    ambiguous: creditsColumnsAmbiguous(readings, ids),
+    anchors: analysis.style.anchors,
+    list: readCreditsList(analysis.style.list),
+  };
+}
+
+/** A text layer's drawn lines, one per baseline with section gaps as blank lines (the editable
+ *  roll's sample reading), or its plain text where it draws no runs. */
+export function creditsLayerText(root: Element, candidateId: string): string {
+  const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
+  const text = el?.closest('text') ?? el;
+  if (!text) return '';
+  return readSampleText(new XMLSerializer().serializeToString(text), candidateId) ?? (text.textContent ?? '').replace(/\s+/g, ' ').trim();
 }
 
 /** Which credits engine a saved design selects: the original-text roll, the artwork's own
