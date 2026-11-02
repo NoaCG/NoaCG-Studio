@@ -59,42 +59,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
 
   const op = await context.newPage();
   // Each held press waits for the page to be level with the log, or its monitor would not move.
-  const followerLevel = watchLogReads(op);
-  // DIAGNOSTIC (cf07, not for landing): the operator page's realtime frames, without tokens.
-  const t0 = Date.now();
-  const diag: string[] = [];
-  op.on('websocket', (ws) => {
-    diag.push(`${Date.now() - t0}ms ws open ${ws.url().replace(/apikey=[^&]+/, 'apikey=x')}`);
-    const note = (dir: string) => (f: { payload: string | Buffer }) => {
-      const text = typeof f.payload === 'string' ? f.payload : '<binary>';
-      if (/heartbeat/.test(text) && !/error/.test(text)) return;
-      diag.push(`${Date.now() - t0}ms ${dir} ${text.replace(/"access_token":"[^"]+"/g, '"access_token":"x"').slice(0, 400)}`);
-    };
-    ws.on('framesent', note('>'));
-    ws.on('framereceived', note('<'));
-    ws.on('close', () => diag.push(`${Date.now() - t0}ms ws close`));
-  });
-  op.on('request', (r) => { if (/control_tail_seq/.test(r.url())) diag.push(`${Date.now() - t0}ms tail_seq request`); });
-  context.on('request', (r) => {
-    if (/control_tail_seq/.test(r.url())) diag.push(`${Date.now() - t0}ms context request from ${r.frame().page() === op ? 'op' : r.frame().page() === page ? 'page' : r.frame().page() === air ? 'air' : 'other'}`);
-  });
-  op.on('requestfinished', (r) => { if (/control_tail_seq/.test(r.url())) diag.push(`${Date.now() - t0}ms tail_seq finished`); });
-  const cdp = await context.newCDPSession(op);
-  await cdp.send('Network.enable');
-  cdp.on('Network.requestWillBeSent', (e: { request: { url: string } }) => {
-    if (/control_tail_seq/.test(e.request.url)) diag.push(`${Date.now() - t0}ms cdp requestWillBeSent`);
-  });
-  await op.addInitScript(() => {
-    const w = window as unknown as { fetch: typeof fetch };
-    const real = w.fetch.bind(window);
-    w.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-      if (/control_tail_seq/.test(url)) console.debug('[cf07] page fetch tail_seq');
-      return real(input, init);
-    };
-  });
-  op.on('console', (m) => diag.push(`${Date.now() - t0}ms console ${m.type()} ${m.text().slice(0, 300)}`));
-  const printDiag = () => console.log(`[cf07 diag]\n${diag.join('\n')}`);
+  const followerLevel = await watchLogReads(op);
   await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   const chip = op.getByTestId('hosted-live-chip');
@@ -128,7 +93,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // A Take held with no Out behind it: both attempts inside the window are abandoned, and within
   // the window (not at a statement timeout, 3 s to 8 s per attempt before) the page says that the
   // graphic on its monitor is on no other screen.
-  try { await followerLevel(); } finally { printDiag(); }
+  await followerLevel();
   const takenAt = Date.now();
   await op.getByTestId('hosted-take-cue').click();
   await expect(chip).toContainText('on air:');
