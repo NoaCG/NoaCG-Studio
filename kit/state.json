@@ -43,17 +43,18 @@
   "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed.",
   "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15."
  },
- "waitingOn": {
-  "what": "owner confirms the daily alarm email arrived (cf01(b) via email route); then close #1971 and #1951, second cf01 check, and a small docs PR naming the email route",
-  "eta": "2026-11-04T11:43:00Z"
- },
- "inFlight": [],
- "owner": [
+ "waitingOn": null,
+ "inFlight": [
   {
-   "what": "look at the 'Owner alarms (daily)' session in Claude Code: its first run should report test alarm #1971; tell the coordinator it showed up",
-   "where": "session_017SdbwQfGaKDTYKsFgzGxY6"
+   "phase": "cf01",
+   "step": "check",
+   "attempt": 2,
+   "session": "session_017SdbwNwX5gEgmpee6oBrkT",
+   "nonce": "cf01-c-fa52",
+   "launchedAt": "2026-11-02T21:38:46Z"
   }
  ],
+ "owner": [],
  "fixes": [],
  "triggers": {
   "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y",
@@ -78,5 +79,11 @@
    "what": "Email route dropped: trigger-started sessions had no GitHub access (403) and the emails held only a session link; owner prefers Claude Code. Daily wake trig_01AMdUqAkdtQgPQ5FmwLtL6U (06:37 Helsinki) into persistent session session_017SdbwQfGaKDTYKsFgzGxY6 with repo access; no email or push."
   }
  ],
- "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6"
+ "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
+ "followups": [
+  {
+   "what": "docs PR: record the owner alarm route (Owner alarms (daily) session + wake trigger) in docs/ROUTINES.md and cf01 evidence",
+   "when": "before cf15"
+  }
+ ]
 }
