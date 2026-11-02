@@ -165,19 +165,11 @@ export interface SheetContent {
  * standings).
  */
 export function listLeaves(shape: ListAdapter, graphic?: GraphicShape): { leaf: string; field?: string; label: string }[] {
-  if (graphic?.type === 'imported-design') {
-    const own = graphicListFormat(graphic);
-    const main = own?.adapter === shape ? own.main : undefined;
-    if (shape === 'standings') return [{ leaf: 'rows', field: main, label: 'Rows' }, { leaf: 'headers', field: own?.adapter === shape ? own.headers : undefined, label: 'Column headings' }];
-    return [{ leaf: 'lines', field: main, label: 'Lines' }];
-  }
-  if (shape === 'standings') {
-    return [
-      { leaf: 'rows', field: 'f2', label: 'Rows' },
-      { leaf: 'headers', field: 'f3', label: 'Column headings' },
-    ];
-  }
-  return [{ leaf: 'lines', field: 'f0', label: 'Lines' }];
+  const leaves = shape === 'standings' ? [{ leaf: 'rows', field: 'f2', label: 'Rows' }, { leaf: 'headers', field: 'f3', label: 'Column headings' }] : [{ leaf: 'lines', field: 'f0', label: 'Lines' }];
+  if (graphic?.type !== 'imported-design') return leaves;
+  // An imported design's only list is a credits list (contentFormats `graphicListFormat`).
+  const own = graphicListFormat(graphic);
+  return leaves.map((l, i) => ({ ...l, field: own?.adapter === shape && i === 0 ? own.main : undefined }));
 }
 
 /** Read a tab's rows in a shape. */

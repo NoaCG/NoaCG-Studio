@@ -69,7 +69,7 @@ export function listFormatFor(graphic: GraphicShape, fieldId: string): ListForma
   const js = graphic.template.js ?? '';
   if (graphic.type === 'imported-design') {
     const format = importedListFormat(js);
-    return format && format.main === fieldId ? format : null;
+    return format?.main === fieldId ? format : null;
   }
   if (graphic.type === 'ticker' && fieldId === 'f0') return { adapter: 'lines', main: 'f0' };
   if (graphic.type === 'end-credits' && fieldId === 'f0') return { adapter: 'credits', main: 'f0' };
@@ -84,9 +84,14 @@ export function listFormatFor(graphic: GraphicShape, fieldId: string): ListForma
   return null;
 }
 
-/** The role an imported credits list binds as (templates/behaviours/credits.ts
- *  `CREDITS_FIELD_ROLE`; control cannot import templates, so the test pins the two equal). */
+/** The imported credits recipe and the field role its list binds as (templates/behaviours/
+ *  credits.ts `CREDITS_RECIPE_ID`, `CREDITS_FIELD_ROLE`; control cannot import templates, so the
+ *  test pins both equal). */
+const IMPORTED_CREDITS_RECIPE = 'credits';
 const IMPORTED_CREDITS_ROLE = 'credits';
+
+/** The last table read, by its js: a review asks once per field on every render. */
+let lastRead: { js: string; format: ListFormat | null } | null = null;
 
 /**
  * An imported design's list field: the credits list its recipe declared, at whichever `fN` the
@@ -96,11 +101,12 @@ const IMPORTED_CREDITS_ROLE = 'credits';
  * inert, so it has no list to fill.
  */
 function importedListFormat(js: string): ListFormat | null {
-  if (!js.includes('NOACG_BEHAVIOUR')) return null;
+  if (lastRead?.js === js) return lastRead.format;
   const table = parseBehaviourData(js);
-  if (!table || table.recipe !== IMPORTED_CREDITS_ROLE || table.options?.artwork === true) return null;
-  const main = table.fields?.[IMPORTED_CREDITS_ROLE];
-  return typeof main === 'string' && /^f\d+$/.test(main) ? { adapter: 'credits', main } : null;
+  const main = table && table.recipe === IMPORTED_CREDITS_RECIPE && table.options?.artwork !== true ? table.fields?.[IMPORTED_CREDITS_ROLE] : null;
+  const format: ListFormat | null = typeof main === 'string' && /^f\d+$/.test(main) ? { adapter: 'credits', main } : null;
+  lastRead = { js, format };
+  return format;
 }
 
 /** The one list field a graphic fills from rows, whatever its id, or null when it takes values.

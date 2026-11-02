@@ -63,6 +63,7 @@ const BUILT = await withBundledPage(
         const A = R.importSvgMarkup(artwork);
         return {
           role: C.CREDITS_FIELD_ROLE,
+          recipe: C.CREDITS_RECIPE_ID,
           // A saved editable roll: the Heading is drawn above the list, so the list is f1.
           editable: build(base(L, { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: L.candidates.findIndex((c) => c.label === 'Credits') } })),
           // The original-artwork roll: its text scrolls as drawn and its field is inert.
@@ -110,7 +111,9 @@ const csvOf = (rows) => rows.map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.r
 // ── Which field the rows fill ───────────────────────────────────────────────────────────────
 
 test('the list is the field the recipe compiled it to, not f0; the artwork roll and a plain drawing take values', () => {
-  assert.equal(BUILT.role, 'credits', 'contentFormats reads the role credits.ts declares');
+  // contentFormats restates both (control cannot import templates): the recipe id and the role.
+  assert.equal(BUILT.recipe, 'credits', 'the recipe id credits.ts declares');
+  assert.equal(BUILT.role, 'credits', 'the field role credits.ts declares');
   const table = JSON.parse(/var NOACG_BEHAVIOUR = (\{[\s\S]*?\});/.exec(EDITABLE.js)[1]);
   assert.equal(table.fields.credits, 'f1', 'the fixture really puts the list at f1');
   assert.equal(EDITABLE.fields.find((f) => f.field === 'f0').title, 'Heading');
