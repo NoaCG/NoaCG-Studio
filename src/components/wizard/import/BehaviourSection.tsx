@@ -47,7 +47,8 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import { creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
+import { CREDITS_RENDERED, creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
+import type { DesignSvgCredits } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
@@ -116,16 +117,23 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * a linked Sheet writes into that field, so the preview and the source cannot disagree. Where
  * roles and names are drawn as separate layers it also shows the drawing's layout.
  *
- * NO COLUMN CHOICE YET. Where either column could be the roles, the model takes the author's one
- * answer (`CreditsChoice`), but new credits imports are saved as artwork credits, which never read
- * roles, so a select here would change nothing built: it is offered with the styled binding (#1937).
+ * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above, as a
+ * roll), the graphic is built in those layers' own styling: the reading is handed to the draft as
+ * the binding, its anchors exactly as previewed. Anything else saves the original-text roll.
+ *
+ * NO COLUMN CHOICE YET. Only role beside can be read both ways (`CreditsChoice`), and the styled
+ * engine does not render role beside yet, so a select here would change nothing built: it comes
+ * with role beside (jev-svg-import row 20, #1937).
  */
-function CreditsListPreview({ stage, layers, creditsId, measured }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, onStyled }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
   /** Changes whenever the step's render was measured again (a font landed, a new file). */
   measured: unknown;
+  /** The styled binding the draft holds now, and how to replace it. */
+  saved: DesignSvgCredits | undefined;
+  onStyled: (credits: DesignSvgCredits | undefined) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -135,6 +143,16 @@ function CreditsListPreview({ stage, layers, creditsId, measured }: {
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);
+  const styled: DesignSvgCredits | undefined = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll')
+    ? { v: 1, layout: shown.layout, playback: 'roll', anchors: shown.anchors }
+    : undefined;
+  const wantKey = styled ? JSON.stringify(styled) : '';
+  const savedKey = saved ? JSON.stringify(saved) : '';
+  useEffect(() => {
+    if (shown && wantKey !== savedKey) onStyled(styled);
+    // The keys stand for the two bindings; the callback is the parent's patch of this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, wantKey, savedKey]);
   if (!shown) return null;
   const beside = shown.styled && shown.layout === 'role-beside';
   return (
@@ -1268,6 +1286,8 @@ export default function BehaviourSection({
                   layers={textLayers}
                   creditsId={generic.fields.credits}
                   measured={layerBoxes}
+                  saved={generic.credits}
+                  onStyled={(credits) => patchGeneric({ credits })}
                 />
               )}
             </>

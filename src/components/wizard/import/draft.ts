@@ -9,6 +9,7 @@ import { addPlacedLine } from '../../../blocks/designLayout';
 import { applyPlacedFieldSpecs } from '../../../blocks/designFields';
 import type {
   DesignSvgClock,
+  DesignSvgCredits,
   DesignArt,
   DesignSvg,
   DesignSvgAlign,
@@ -263,6 +264,10 @@ export interface SvgRecipeDraft {
   /** One entry per row, in row order, for a recipe with rows: that row's field and layer picks. */
   rows?: SvgRecipeRow[];
   options: Record<string, boolean>;
+  /** Credits only: the styled binding the Fields step read off the drawn role and name layers
+   *  (`creditsPreview`), set only where the styled engine renders that layout. Absent saves the
+   *  original-text roll, as every credits import did before. */
+  credits?: DesignSvgCredits;
 }
 
 export interface SvgRecipeRow {
@@ -453,6 +458,22 @@ export function disarmTimerClock(fields: SvgFieldDraft[]): SvgFieldDraft[] {
   );
 }
 
+/** A credits draft's styled binding, while it still belongs to the layer picked as Credits (the
+ *  step reads it again whenever the pick changes; until then nothing stale is saved). */
+export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | undefined {
+  const credits = behaviour.recipe === 'credits' ? behaviour.credits : undefined;
+  const picked = behaviour.fields?.credits;
+  return credits && picked && credits.anchors[0]?.candidateId === picked ? credits : undefined;
+}
+
+/** The drawn role and name layers a styled credits binding copies, other than the Credits field
+ *  itself, with what each sets the look of. They are kept out of the field list (`pollDrivenLayers`)
+ *  and the Text step says what each becomes. */
+export function creditsSourceLayers(behaviour: SvgRecipeDraft): Map<string, 'role' | 'name'> {
+  const anchors = styledCreditsOf(behaviour)?.anchors ?? [];
+  return new Map(anchors.filter((a) => a.candidateId !== behaviour.fields?.credits).map((a) => [a.candidateId, a.kind]));
+}
+
 /**
  * The TEXT layers a bound poll writes into — the ones that must not also be operator fields.
  *
@@ -464,6 +485,9 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
   // ANY recipe's WRITE targets are driven the same way: a meter's percent layer is written by the
   // runtime, so an operator field on it would be the two-writers graphic the vote avoids.
   if (behaviour?.kind === 'recipe') {
+    // A styled credits binding keeps ONE field, its Credits layer; the other drawn roles and names
+    // are the engine's source layers, never fields (creditsRoll.ts, `field-per-name`).
+    const sources = [...creditsSourceLayers(behaviour).keys()];
     const written = new Set(
       (recipeById(behaviour.recipe)?.roles ?? [])
         .filter((r) => r.kind === 'layer' && r.paint?.includes('write'))
@@ -473,7 +497,7 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
       ...Object.entries(behaviour.layers),
       ...(behaviour.rows ?? []).flatMap((row) => Object.entries(row.layers)),
     ];
-    return new Set(picks.filter(([role, id]) => written.has(role) && !!id).map(([, id]) => id));
+    return new Set([...picks.filter(([role, id]) => written.has(role) && !!id).map(([, id]) => id), ...sources]);
   }
   if (behaviour?.kind !== 'poll') return new Set();
   return new Set(
@@ -1288,6 +1312,7 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       ...Object.fromEntries(Object.entries(picked(behaviour.fields)).map(([role, id]) => [role, indexOf(id)])),
       ...perRow((row) => Object.fromEntries(Object.entries(picked(row.fields)).map(([role, id]) => [role, indexOf(id)]))),
     };
+    const styled = styledCreditsOf(behaviour);
     return {
       kind: 'recipe',
       recipe: behaviour.recipe,
@@ -1296,7 +1321,11 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       ...(keys.length > 0 ? { rows: keys } : {}),
       // New Credits imports preserve the complete text artwork. An old saved DesignSvg without
       // this additive marker still assembles its editable roll; no second import option is shown.
-      ...(behaviour.recipe === 'credits'
+      // Credits drawn as separate role and name layers, in a layout the styled engine renders,
+      // save that binding instead (the step read it off the drawing): never both.
+      ...(styled
+        ? { credits: styled, ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}) }
+        : behaviour.recipe === 'credits'
         ? { options: { ...behaviour.options, artwork: true } }
         : Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
     };

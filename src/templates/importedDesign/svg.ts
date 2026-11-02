@@ -46,7 +46,7 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
-import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, isArtworkCredits } from './creditsRoll';
+import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
 import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
@@ -264,6 +264,8 @@ function designPreset(id: string): AnimPreset {
 export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const svg = o.designSvg ?? NO_SVG;
   const artworkRoll = isArtworkCredits(svg);
+  // Credits in the artwork's own role and name layers, where a saved styled binding builds.
+  const styledCredits = artworkRoll ? null : styledCreditsConfig(svg);
   const name = 'Imported SVG design';
   const artworkFields = svgFields(svg);
   // The behaviour's own fields sit AFTER the artwork's, and that order is load-bearing: the
@@ -314,6 +316,13 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const creditsField = credits === -1 ? null : artworkFields[credits];
   const creditsHolder = artworkRoll
     ? artworkFields.filter((_, i) => artworkCredits.has(i)).map((field) => `\n    <div id="${field.field}" class="${DATA_SOURCE_CLASS}"></div>`).join('')
+    : creditsField && styledCredits
+    ? `
+    <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per role or name,
+         written by SPX and drawn by the credits engine in template.js in your own role and name
+         layers. Its line breaks are the list, so the code formatter leaves it as written. -->
+    <!-- prettier-ignore -->
+    <div id="${creditsField.field}" class="${DATA_SOURCE_CLASS}">${escapeHtml(creditsField.value)}</div>`
     : creditsField
     ? `
     <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per name, written
@@ -376,7 +385,7 @@ ${dataSourceCss}
 ` : ''}${behaviour?.css ? `
 ${behaviour.css}
 ` : ''}${creditsField ? `
-${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
+${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PREFIX) : creditsRollCss(PREFIX)}
 ` : ''}`;
 
   const preset = designPreset(o.animation.presetId);
@@ -439,13 +448,13 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
-    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height) : creditsRollRuntimeJs(PREFIX)}` : '') +
+    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height) : styledCredits ? creditsStyledRuntimeJs(PREFIX, styledCredits) : creditsRollRuntimeJs(PREFIX)}` : '') +
     SVG_FIT_BOOT;
 
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA
   // (the step-calls model, docs/STATE_MACHINE_SCHEMA.md): startClock as the entrance lands,
   // stopClock the moment the exit begins - exactly what the catalog's countdown presets emit.
-  const withLifecycleCalls = clockField || artworkRoll
+  const withLifecycleCalls = clockField || artworkRoll || styledCredits
     ? (data: AnimData): AnimData => {
         const steps = data.steps.map((s) => ({ ...s }));
         const enter = steps[0];
@@ -454,7 +463,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
           enter.calls = [...(enter.calls ?? []), { time: enter.duration, call: 'startClock' }];
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopClock' }];
         }
-        if (artworkRoll) {
+        if (artworkRoll || styledCredits) {
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopCreditsRoll' }];
         }
         return { ...data, steps };
