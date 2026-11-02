@@ -33,7 +33,10 @@ suite is not assumed to speed up merging.
   genuinely related documentation-only changes are bundled.
 - Long audit and observation windows are tracked explicitly; pending goals are never labelled
   complete.
-- Phases cf07, cf09, cf05, cf08 and cf14 carry owner dates (2026-11-11 to 2026-11-30). If a dated phase
+- Phases cf07, cf09, cf05, cf08 and cf14 carry owner dates: each phase's date is the earliest repair
+  due or expiry date in its issues (cf07: #1805, 2026-11-11; cf09: #1953, 2026-11-13 and 2026-11-16;
+  cf05: the repair dates cf01(c) records for #1924 and #1603; cf08: #1954, 2026-11-14; cf14: #1863,
+  2026-11-30). If a dated phase
   cannot PASS by its date, the coordinator records a dated extension under the incident or
   exception policy before the date passes, never after.
 - Execution order is the numbered `## Phases` list; phase ids are names, not positions.
@@ -106,7 +109,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 - **cf04.** (a) Concurrent configured stacks are isolated, with safe port allocation, readiness
   checks and cleanup on failure or cancellation, and the collision cause is diagnosed. (b)
   Concurrent execution is verified in CI; no unrelated process is killed and startup is not merely
-  retried.
+  retried. Cleanup is shown in CI after one failed and one cancelled run, with no stack process or
+  port left held.
 - **cf05.** (a) Each named flake is reproduced or explained, with a root-cause fix that waits on
   observable state (or a product fix for a race). A wait or dialog dismissal in the test does not
   count as the fix when the failure shows product behaviour that breaks a documented rule (for #1603,
@@ -149,7 +153,12 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   exercises and reports the missing svg01 case. (c) #1834 is reviewed against current main: it lands
   as an updated, policy-compliant quarantine with issue, owner and expiry, or is closed as obsolete
   or as a duplicate of an existing quarantine. A deterministic product regression is not
-  quarantined. A critical-test quarantine follows the incident process.
+  quarantined. A critical-test quarantine follows the incident process. (d) For #1954: if the JEV
+  run has accepted it with a target date, cf08 records that date, and if the date passes with the
+  spec still quarantined, the coordinator records a dated extension under the incident policy and
+  cf20 reports it open. Otherwise cf08 repairs it itself under the same criteria as cf05(a) to (c):
+  root-cause fix (a product fix if the failure is a product race), the pre-written CI repeat count
+  with zero failures, and release by the documented route.
 - **cf09.** (a) Each offline exception expiring 2026-11-13 or 2026-11-16 is paid down, or extended
   briefly, only where pay-down is not practical before the expiry, with the reason recorded,
   current cost evidence, an owner and a reduction plan. Coverage is not weakened to
@@ -166,7 +175,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   selection states in its PR that it restarts the audit, and cf18's earliest date moves with it.
 - **cf12.** (a) The ten critical tests run on every product change while their measured added
   minutes per product change, from cf03's M3, stay under a ceiling written in the phase brief
-  before the change lands, stated as a share of cf03's median M3 per merge with the reason, without running the same tests twice in one validation pipeline. If the measured added minutes exceed the ceiling, the tests are not
+  before the change lands, stated as a share of cf03's median M3 per merge with the reason and not above 5% unless the owner
+  approves a higher share, without running the same tests twice in one validation pipeline. If the measured added minutes exceed the ceiling, the tests are not
   enabled on every product change, the measurement is recorded, and the owner is told in the phase
   result. (b) The 2-of-6 result
   from cicd-improvement ci11 is explained, with what the set does and does not protect, and the
@@ -176,7 +186,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   sufficient, show M1 median or p95 lower or M3 lower beyond cf03's measured run-to-run spread, with
   no regression in M2 waiting time, M2 execution time or M4. If no candidate improves beyond that spread, the phase records the result,
   reverts or keeps the change on cost grounds with its reason, and moves to the next ranked
-  candidate. It does not PASS on landing alone. If every ranked candidate has been tried without an
+  candidate. Candidates are tried in ranked order, at most three; untried candidates go to cf20(c)
+  as measured next steps. It does not PASS on landing alone. If every tried candidate (at most three) has failed to show an
   improvement beyond the spread, the phase PASSES with that negative result recorded, the speed goal
   stays open, and cf20 reports it as open. (b) Obsolete PR runs are
   cancelled where safe, with required merge and coverage verification preserved.
