@@ -48,10 +48,10 @@
   {
    "phase": "cf01",
    "step": "check",
-   "attempt": 2,
-   "session": "session_017SdbwNwX5gEgmpee6oBrkT",
-   "nonce": "cf01-c-fa52",
-   "launchedAt": "2026-11-02T21:38:46Z"
+   "attempt": 3,
+   "session": "session_017SdbwMH234MxQaTMzvcbRy",
+   "nonce": "cf01-c-0b01",
+   "launchedAt": "2026-11-02T21:42:56Z"
   }
  ],
  "owner": [],
@@ -67,6 +67,12 @@
    "check": 1,
    "verdict": "FAIL blocked: owner receipt pending; (a), (c) and merge checks pass",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6576623136"
+  },
+  {
+   "phase": "cf01",
+   "check": 2,
+   "verdict": "FAIL product: #1951 closed by PR #1970 merge before the receipt",
+   "repair": "coordinator reopened and re-closed #1951 (comment 6589180116)"
   }
  ],
  "decisions": [
@@ -85,5 +91,8 @@
    "what": "docs PR: record the owner alarm route (Owner alarms (daily) session + wake trigger) in docs/ROUTINES.md and cf01 evidence",
    "when": "before cf15"
   }
+ ],
+ "traps": [
+  "A builder's PR body must not use a closing keyword for an issue the phase says to keep open until a later receipt (cf01: 'close #1951' closed it at merge)."
  ]
 }
