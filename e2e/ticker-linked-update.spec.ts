@@ -41,7 +41,7 @@ const lines = (...items: string[]) => items.map((i) => `${i}\n`).join('');
 /** A native ticker on a production, its f0 connected to the fake Sheet, taken to air. */
 async function linkedTicker(page: Page, server: Server, sheet: string, design: string, first: string) {
   server.set(sheet, first);
-  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, server.routeTo());
+  await server.route(page.context());
   await bootstrapGraphic(page, { name: design });
   await openProductionWithCurrent(page, `${design} linked ${Date.now()}`);
   await page.getByTestId('cue-connect').click();
@@ -64,8 +64,8 @@ async function linkedTicker(page: Page, server: Server, sheet: string, design: s
  * time now: `samples(air, since)` reads the frames after it. `mark` says whether the first item
  * node is one `markFirstItem` tagged, so a re-render of the items shows.
  */
-async function record(air: FrameLocator): Promise<number> {
-  return air.locator('#ticker-track').evaluate((track) => {
+async function record(air: FrameLocator, { showing = false } = {}): Promise<number> {
+  return air.locator('#ticker-track').evaluate((track, withShowing) => {
     const w = window as unknown as { gsap: { getProperty(t: Element, p: string): number }; __rec: Sample[]; __recOn: boolean };
     if (w.__recOn) return performance.now();
     w.__recOn = true;
@@ -78,14 +78,15 @@ async function record(air: FrameLocator): Promise<number> {
         width: track.scrollWidth / 2,
         n: items.length,
         texts: items.map((i) => (i.textContent ?? '').trim()),
-        showing: items.filter((i) => Number(getComputedStyle(i).opacity) > 0.5).map((i) => (i.textContent ?? '').trim()),
+        // Which items show is read only where it is judged (a flip): it costs a style read each.
+        showing: withShowing ? items.filter((i) => Number(getComputedStyle(i).opacity) > 0.5).map((i) => (i.textContent ?? '').trim()) : [],
         mark: !!(items[0] as unknown as { __mark?: boolean })?.__mark,
       });
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
     return performance.now();
-  });
+  }, showing);
 }
 
 const latest = (air: FrameLocator) => air.locator('body').evaluate(() => (window as unknown as { __rec: Sample[] }).__rec.at(-1)!);
@@ -190,9 +191,9 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
   const all = await samples(air, marked);
   judgeMarquee(all, PACE * 2, 'speed only');
   expect(all.every((s) => s.mark), 'speed only: the items were not rendered again').toBe(true);
-  const fast = all.slice(-40);
-  expect(paceOf(fast) / paceOf(slow), 'the pace doubled').toBeGreaterThan(1.8);
-  expect(paceOf(fast) / paceOf(slow)).toBeLessThan(2.2);
+  const ratio = paceOf(all.slice(-40)) / paceOf(slow);
+  expect(ratio, 'the pace doubled').toBeGreaterThan(1.8);
+  expect(ratio, 'the pace doubled').toBeLessThan(2.2);
   expect(await plays(page)).toBe('1');
 
   // EMPTY clears the strip on purpose; FILLED AGAIN it moves without a Take.
@@ -286,7 +287,7 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
   const first = ['Story one', 'Story two', 'Story three'];
   const air = await linkedTicker(page, server, SHEET, 'Glass Flip', lines(...first));
   await expect(page.getByTestId('program-stage')).toHaveAttribute('data-plays', '1');
-  await record(air);
+  await record(air, { showing: true });
   // Two whole turns as the flip runs untouched: its own turn length and gap between stories.
   await expect.poll(async () => turns(await samples(air)).length, { timeout: 20_000 }).toBeGreaterThanOrEqual(3);
   const before = await samples(air);

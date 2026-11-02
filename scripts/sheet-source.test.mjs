@@ -1050,7 +1050,8 @@ async function walkFailures({ id, shape, path, first, firstValue, newer, newerVa
     assert.equal(page.status().state, 'ok');
     assert.equal(page.status().stale, false);
     assert.equal(page.status().failingSince, null);
-    await new Promise((r) => setTimeout(r, EVERY * 3));
+    const reads = server.reads(id);
+    await until(() => server.reads(id) >= reads + 3, 3000, 'three more reads');
     assert.equal(page.writes.length, writes + 1, 'unchanged after the reconnect: written once');
 
     // Malformed rows, as the tab holds them.

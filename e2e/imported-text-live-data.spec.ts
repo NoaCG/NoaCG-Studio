@@ -19,7 +19,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
-import { startSheetServer, csvOf } from './fixtures/jev-sheet-server.mjs';
+import { startSheetServer, csvOf, MODEL_REQUEST, PAGE_FAILURES } from './fixtures/jev-sheet-server.mjs';
 
 const NOTICE_SVG = fileURLToPath(new URL('./fixtures/jev-svg/qualification/multiline.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGNoticeSheet000000000/edit#gid=0';
@@ -124,9 +124,9 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
   const SHEET = '1NoaCGNoticeFake000000000';
   const tab = (body: string) => csvOf(tabOf(body));
   fake.set(SHEET, tab('Doors open at 18:00\nEntry from the courtyard'));
-  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, fake.routeTo());
+  await fake.route(page.context());
   const asked: string[] = [];
-  page.on('request', (r) => { if (/\/api\/ai\b|anthropic|openai|generativelanguage|ai-gateway/.test(r.url())) asked.push(r.url()); });
+  page.on('request', (r) => { if (MODEL_REQUEST.test(r.url())) asked.push(r.url()); });
   try {
     await page.goto('/app');
     await dropSvg(page, NOTICE_SVG);
@@ -155,14 +155,8 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
     const spin = () => air.locator('body').evaluate(() => (window as unknown as { __spin: { totalTime(): number } }).__spin.totalTime());
 
     // Each failure is said on the line, and the field keeps its last good lines on air.
-    const failures: [Parameters<typeof fake.mode>[1], RegExp][] = [
-      ['deny', /can’t read it \(not shared\) since/],
-      ['hang', /Google did not answer in 10 seconds since/],
-      ['reset', /not shared, or offline\) since/],
-      ['signin', /can’t read it \(not shared\) since/],
-    ];
     let turned = await spin();
-    for (const [mode, said] of failures) {
+    for (const [mode, said] of PAGE_FAILURES) {
       fake.mode(SHEET, mode);
       await expect(status, mode).toHaveText(said, { timeout: 25_000 });
       expect(await words(), `${mode}: the last good lines stay on air`).toBe('Doors open at 18:00 Entry from the courtyard');

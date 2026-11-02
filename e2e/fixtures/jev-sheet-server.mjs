@@ -25,6 +25,28 @@
 import http from 'node:http';
 
 const GOOGLE = /^https:\/\/docs\.google\.com(\/spreadsheets\/d\/.*)$/;
+/** The page's reads of a Sheet: the export and the published CSV addresses. */
+const SHEET_READS = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/(?:e\/)?[^/]+\/(?:export|pub)\b/;
+const CORS = { 'access-control-allow-origin': '*' };
+/** The answers that differ only in status and body. */
+const CANNED = {
+  deny: [403, '<html>Forbidden</html>'],
+  missing: [404, '<html>Not found</html>'],
+  error: [500, '<html>Error</html>'],
+  signin: [200, '<!DOCTYPE html><html><body>Sign in - Google Accounts</body></html>'],
+};
+
+/** What the production page's source line says for each failure a browser walk meets, in an order
+ *  where no two neighbours say the same, so each step is seen to land. */
+export const PAGE_FAILURES = [
+  ['deny', /can’t read it \(not shared\) since/],
+  ['hang', /Google did not answer in 10 seconds since/],
+  ['reset', /not shared, or offline\) since/],
+  ['signin', /can’t read it \(not shared\) since/],
+];
+
+/** Requests a refresh must never make: the app's AI routes and the model providers. */
+export const MODEL_REQUEST = /\/api\/ai\b|anthropic|openai|generativelanguage|ai-gateway/;
 
 /** Start the fake. `await server.close()` when done: it also ends every hanging read. */
 export async function startSheetServer() {
@@ -32,9 +54,8 @@ export async function startSheetServer() {
   const tabs = new Map();
   const hits = [];
   const sockets = new Set();
-  const keyOf = (id, gid) => `${id}#${gid ?? '0'}`;
   const tabOf = (id, gid) => {
-    const key = keyOf(id, gid);
+    const key = `${id}#${gid ?? '0'}`;
     if (!tabs.has(key)) tabs.set(key, { csv: null, mode: 'ok' });
     return tabs.get(key);
   };
@@ -54,7 +75,7 @@ export async function startSheetServer() {
     const at = Date.now();
     if (!match) {
       hits.push({ at, id: null, gid: null, mode: 'not-a-sheet' });
-      res.writeHead(404, { 'access-control-allow-origin': '*' }).end();
+      res.writeHead(404, CORS).end();
       return;
     }
     const id = decodeURIComponent(match[1]);
@@ -63,22 +84,14 @@ export async function startSheetServer() {
     // A tab nobody wrote is not there.
     const mode = tab.csv === null && tab.mode === 'ok' ? 'missing' : tab.mode;
     hits.push({ at, id, gid, mode });
-    const cors = { 'access-control-allow-origin': '*' };
+    if (CANNED[mode]) {
+      const [status, body] = CANNED[mode];
+      res.writeHead(status, { ...CORS, 'content-type': 'text/html' }).end(body);
+      return;
+    }
     switch (mode) {
       case 'ok':
-        res.writeHead(200, { ...cors, 'content-type': 'text/csv; charset=utf-8' }).end(tab.csv);
-        return;
-      case 'deny':
-        res.writeHead(403, { ...cors, 'content-type': 'text/html' }).end('<html>Forbidden</html>');
-        return;
-      case 'missing':
-        res.writeHead(404, { ...cors, 'content-type': 'text/html' }).end('<html>Not found</html>');
-        return;
-      case 'error':
-        res.writeHead(500, { ...cors, 'content-type': 'text/html' }).end('<html>Error</html>');
-        return;
-      case 'signin':
-        res.writeHead(200, { ...cors, 'content-type': 'text/html' }).end('<!DOCTYPE html><html><body>Sign in - Google Accounts</body></html>');
+        res.writeHead(200, { ...CORS, 'content-type': 'text/csv; charset=utf-8' }).end(tab.csv);
         return;
       case 'hang':
         return; // never answered; close() ends it
@@ -104,9 +117,7 @@ export async function startSheetServer() {
   };
 
   return {
-    origin,
     hits,
-    local,
     /** Write the tab's cells (CSV text, or rows that are quoted as Google quotes them) and answer ok. */
     set(id, content, gid = '0') {
       const tab = tabOf(id, gid);
@@ -142,9 +153,13 @@ export async function startSheetServer() {
           await route.abort('connectionreset').catch(() => {});
           return;
         }
-        const headers = { ...response.headers(), 'access-control-allow-origin': '*' };
+        const headers = { ...response.headers(), ...CORS };
         await route.fulfill({ status: response.status(), headers, body: await response.body() }).catch(() => {});
       };
+    },
+    /** Answer every page of a Playwright browser context's Sheet reads from this server. */
+    route(context) {
+      return context.route(SHEET_READS, this.routeTo());
     },
     async close() {
       for (const socket of sockets) socket.destroy();

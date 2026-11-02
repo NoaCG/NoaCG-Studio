@@ -335,14 +335,14 @@ function publishedRow(server) {
     bindings: { [k.graphic]: { [k.field]: k.path } },
     fields: { [k.graphic]: [{ field: k.field, ftype: 'textarea' }] },
   }));
-  const row = { pages: new Set(kinds.map((k) => k.id)), state: {}, tree: {}, fetched: [] };
+  const row = { pageOpen: true, state: {}, tree: {}, fetched: [] };
   const through = tick.cappedFetch(server.fetchFor());
   const io = {
     now: () => Date.now(),
     due: async () => structuredClone(due),
     lease: async (slug, source, claim, ttlMs) => {
       if (ttlMs === 0) return { ok: false, released: true };
-      if (row.pages.has(source)) return { ok: false, owner: 'operator-page' };
+      if (row.pageOpen) return { ok: false, owner: 'operator-page' };
       const s = row.state[source] ?? {};
       return { ok: true, claim: `tick:${source}`, snapshot: s.snapshot ?? {}, content: s.content ?? null, status: s.status ?? null };
     },
@@ -362,12 +362,13 @@ function publishedRow(server) {
     clearTimer: (t) => clearTimeout(t),
   };
   const outcomes = async () => Object.fromEntries((await tick.runDataTick(io)).sources.map((s) => [s.source, s.outcome]));
-  return { row, io, outcomes, status: (k) => row.state[k.id]?.status };
+  return { row, outcomes, status: (k) => row.state[k.id]?.status };
 }
 
 test('every operator page closed: the tick takes over, keeps the last good ticker, credits and multiline text through denial, timeout, reset and a sign-in page, and reconnects', async () => {
   const server = await startSheetServer();
   const { ticker: tk, credits: cr, notice: nt } = LIVE;
+  const all = [tk, cr, nt];
   const notice = (body) => csvOf([['Field ID', 'Label', 'Value'], ['f0', 'Title', 'NOTICE'], ['f1', 'Body', body]]);
   server.set(tk.sheet, csvOf([['Polls close at 20:00'], ['Turnout 61%']]));
   server.set(cr.sheet, csvOf([['Role', 'Name'], ['Research', 'Nia Vale'], ['', 'Tomas Fen']]));
@@ -379,21 +380,21 @@ test('every operator page closed: the tick takes over, keeps the last good ticke
     assert.deepEqual(p.row.fetched, []);
 
     // Every page closed: the server reads all three and writes what they hold.
-    p.row.pages.clear();
+    p.row.pageOpen = false;
     assert.deepEqual(await p.outcomes(), { tk: 'read', cr: 'read', nt: 'read' });
     const good = { [tk.path]: 'Polls close at 20:00\nTurnout 61%', [cr.path]: 'Research | Nia Vale\nTomas Fen', [nt.path]: 'Doors open at 18:00\nEntry from the courtyard' };
     assert.deepEqual(p.row.tree, good);
-    for (const k of [tk, cr, nt]) assert.equal(p.status(k).reader, 'server');
+    for (const k of all) assert.equal(p.status(k).reader, 'server');
 
     // Each failure: nothing written, the last good values hold on the row.
     const failures = [['deny', /not shared/], ['hang', /did not answer/], ['reset', /offline/], ['signin', /not shared/]];
     for (const [mode, error] of failures) {
-      for (const k of [tk, cr, nt]) server.mode(k.sheet, mode);
+      for (const k of all) server.mode(k.sheet, mode);
       assert.deepEqual(await p.outcomes(), { tk: 'failed', cr: 'failed', nt: 'failed' }, mode);
       assert.deepEqual(p.row.tree, good, `${mode}: the last good values hold`);
-      for (const k of [tk, cr, nt]) assert.match(p.status(k).error, error, `${mode}: ${k.id} says why`);
+      for (const k of all) assert.match(p.status(k).error, error, `${mode}: ${k.id} says why`);
     }
-    for (const k of [tk, cr, nt]) {
+    for (const k of all) {
       assert.equal(p.status(k).missed, 4);
       assert.equal(p.status(k).stale, true, `${k.id}: three misses and more are stale`);
     }
@@ -405,7 +406,7 @@ test('every operator page closed: the tick takes over, keeps the last good ticke
     assert.deepEqual(await p.outcomes(), { tk: 'read', cr: 'read', nt: 'read' });
     const newer = { [tk.path]: 'Turnout 64%\nResults from 22:00', [cr.path]: 'Camera | Jonas Berg\nDirector | Alex Rivera', [nt.path]: 'Doors open at 19:00\nTickets at the door\nStep-free access east' };
     assert.deepEqual(p.row.tree, newer);
-    for (const k of [tk, cr, nt]) {
+    for (const k of all) {
       assert.equal(p.status(k).stale, false);
       assert.equal(p.status(k).state, 'ok');
     }
@@ -423,7 +424,7 @@ test('every operator page closed: the tick takes over, keeps the last good ticke
 
     // Nothing but the three export addresses was fetched.
     const addresses = new Set(p.row.fetched);
-    assert.deepEqual([...addresses].sort(), [tk, cr, nt].map((k) => `https://docs.google.com/spreadsheets/d/${k.sheet}/export?format=csv&gid=0`).sort());
+    assert.deepEqual([...addresses].sort(), all.map((k) => `https://docs.google.com/spreadsheets/d/${k.sheet}/export?format=csv&gid=0`).sort());
   } finally {
     await server.close();
   }

@@ -252,7 +252,7 @@ test('every page closed and the Sheet failing: the tick writes nothing, the outp
   const link = `https://docs.google.com/spreadsheets/d/${FAKE}/edit#gid=0`;
   fake.set(FAKE, csvOf([['Polls close at 20:00'], ['Turnout 61%']]));
   // The page reads the same fake as the tick.
-  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, fake.routeTo());
+  await fake.route(page.context());
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
@@ -274,11 +274,12 @@ test('every page closed and the Sheet failing: the tick writes nothing, the outp
   await leave(page);
   await expireLease(showId);
   const written = (await lines(showId)).length;
-  const failures: [string, RegExp][] = [['deny', /not shared/], ['hang', /did not answer/], ['reset', /offline/], ['signin', /not shared/]];
+  /** One tick as the cron runs it, and what it came to for this source. */
+  const outcome = async () => (await tick(`Bearer ${SECRET}`)).body.sources?.find((s) => s.source === sourceId)?.outcome;
+  const failures: [Parameters<typeof fake.mode>[1], RegExp][] = [['deny', /not shared/], ['hang', /did not answer/], ['reset', /offline/], ['signin', /not shared/]];
   for (const [mode, error] of failures) {
-    fake.mode(FAKE, mode as Parameters<typeof fake.mode>[1]);
-    const run = await tick(`Bearer ${SECRET}`);
-    expect(run.body.sources?.find((s) => s.source === sourceId)?.outcome, mode).toBe('failed');
+    fake.mode(FAKE, mode);
+    expect(await outcome(), mode).toBe('failed');
     expect((await lines(showId)).length, `${mode}: no update row, the output keeps its last good lines`).toBe(written);
     const status = await sourceRead(showId);
     expect(status?.state, mode).toBe('failing');
@@ -289,10 +290,8 @@ test('every page closed and the Sheet failing: the tick writes nothing, the outp
 
   // Reconnect: reordered and replaced rows, written once.
   fake.set(FAKE, csvOf([['Turnout 64%'], ['Results from 22:00']]));
-  let run = await tick(`Bearer ${SECRET}`);
-  expect(run.body.sources?.find((s) => s.source === sourceId)?.outcome).toBe('read');
-  run = await tick(`Bearer ${SECRET}`);
-  expect(run.body.sources?.find((s) => s.source === sourceId)?.outcome).toBe('unchanged');
+  expect(await outcome()).toBe('read');
+  expect(await outcome()).toBe('unchanged');
   const after = (await lines(showId)).slice(written);
   expect(after).toEqual([{ text: 'Turnout 64%\nResults from 22:00', src: 'sheet' }]);
   // The row's status is the server's good read: no page has read since every page closed.

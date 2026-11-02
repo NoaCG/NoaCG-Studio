@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
-import { startSheetServer, csvOf } from './fixtures/jev-sheet-server.mjs';
+import { startSheetServer, csvOf, MODEL_REQUEST, PAGE_FAILURES } from './fixtures/jev-sheet-server.mjs';
 
 const ABOVE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGCreditsSheet00000000/edit#gid=0';
@@ -183,9 +183,9 @@ test('a failing Sheet keeps the prepared credits as last read and says why; the 
   const fake = await startSheetServer();
   const SHEET = '1NoaCGCreditsFake00000000';
   fake.set(SHEET, csvOf(TAB));
-  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, fake.routeTo());
+  await fake.route(page.context());
   const asked: string[] = [];
-  page.on('request', (r) => { if (/\/api\/ai\b|anthropic|openai|generativelanguage|ai-gateway/.test(r.url())) asked.push(r.url()); });
+  page.on('request', (r) => { if (MODEL_REQUEST.test(r.url())) asked.push(r.url()); });
   try {
     await styledCreditsProduction(page, 'roll', 'Failing roll');
     await connectSheet(page, 'Crew', `https://docs.google.com/spreadsheets/d/${SHEET}/edit#gid=0`);
@@ -197,13 +197,7 @@ test('a failing Sheet keeps the prepared credits as last read and says why; the 
     // Off air the prepared rows follow every write, so a write that should not happen would show.
     await page.getByTestId('verb-out').click();
 
-    const failures: [Parameters<typeof fake.mode>[1], RegExp][] = [
-      ['deny', /can’t read it \(not shared\) since/],
-      ['hang', /Google did not answer in 10 seconds since/],
-      ['reset', /not shared, or offline\) since/],
-      ['signin', /can’t read it \(not shared\) since/],
-    ];
-    for (const [mode, said] of failures) {
+    for (const [mode, said] of PAGE_FAILURES) {
       fake.mode(SHEET, mode);
       await expect(status, mode).toHaveText(said, { timeout: 25_000 });
       await expect(rows, `${mode}: the last good list is kept`).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
