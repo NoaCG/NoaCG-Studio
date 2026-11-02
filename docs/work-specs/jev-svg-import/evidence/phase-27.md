@@ -119,7 +119,7 @@ PR challenged them against that code. Rules found after coding are marked (after
 ## Verification on this worker
 
 - `e2e/import-svg-reimport.spec.ts` 12/12; with `import-name-collision`, `wizard-finish`,
-  `jev-svg-preparation`, `wizard-draft-guard` and `import-svg-behaviour`: 95/95 on the final source (j-0040); 49/49 with
+  `jev-svg-preparation`, `wizard-draft-guard` and `import-svg-behaviour`: 96/96 on the final source (j-0043); 49/49 with
   R14 (j-0020).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
   first three: 47/47 earlier on this branch (j-0007).
