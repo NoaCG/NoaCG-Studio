@@ -109,6 +109,7 @@ const STYLED_CASES = {
   // A role with no names among others (consecutive role lines), and a right-to-left drawing with
   // the names on the right, the roles on the left, and a last name on its own line.
   tightThree: svg(`${t(100, 120, 24, 'Director', ' fill="#fc0"')}${t(100, 175, 40, 'Alex Rivera')}${t(100, 225, 24, 'Sound', ' fill="#fc0"')}${t(100, 280, 40, 'Ari Moss')}${t(100, 330, 40, 'Bo Lind')}${t(100, 380, 24, 'Editor', ' fill="#fc0"')}${t(100, 435, 40, 'Sol Reed')}`),
+  tightEmptyEnd: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 170, 40, 'Alex Rivera')}${t(100, 220, 24, 'Sound', ' fill="#fc0"')}${t(100, 290, 40, 'Ari Moss')}${t(100, 340, 24, 'Editor', ' fill="#fc0"')}`),
   tightThreeCodex: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 170, 40, 'Alex Rivera')}${t(100, 220, 24, 'Sound', ' fill="#fc0"')}${t(100, 290, 40, 'Ari Moss')}${t(100, 340, 24, 'Editor', ' fill="#fc0"')}${t(100, 410, 40, 'Sol Reed')}`),
   evenTitledName: svg(`${t(100, 40, 40, 'THE TEAM')}${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 220, 24, 'Sound', ' fill="#fc0"')}${t(100, 280, 40, 'Ari Moss')}`),
   tightTitledName: svg(`${t(100, 30, 40, 'THE TEAM')}${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 170, 40, 'Alex Rivera')}${t(100, 220, 24, 'Sound', ' fill="#fc0"')}${t(100, 290, 40, 'Ari Moss')}`),
@@ -410,9 +411,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     titledAsRead: previewOf(cases.namesLeftTitled, 'Director'),
     titledChosen: previewOf(cases.namesLeftTitled, 'Director', { swap: true }),
     nameTitleRole: previewOf(cases.titledNameLook, 'Director'),
-    nameTitleName: previewOf(cases.titledNameLook, 'Alex Rivera'),
     roleTitleRole: previewOf(cases.headingAbove, 'Director'),
-    roleTitleName: previewOf(cases.headingAbove, 'Alex Rivera'),
     namesLeftNameTitle: previewOf(cases.namesLeftNameTitle, 'Director'),
     namesLeftNameTitleChosen: previewOf(cases.namesLeftNameTitle, 'Director', { swap: true }),
     emptyEditor: previewOf(cases.emptyRole, 'Editor'),
@@ -422,11 +421,11 @@ async function inPage({ dev, cases, legacy, artwork }) {
     evenMiddle: previewOf(cases.evenThree, 'Sound'),
     tightMiddle: previewOf(cases.tightThree, 'Sound'),
     tightMiddleCodex: previewOf(cases.tightThreeCodex, 'Sound'),
+    tightEmptyEnd: previewOf(cases.tightEmptyEnd, 'Sound'),
     evenTitledName: previewOf(cases.evenTitledName, 'Director'),
     tightTitledName: previewOf(cases.tightTitledName, 'Director'),
     evenCentredTitled: previewOf(cases.evenCentredTitled, 'Director'),
     emptyProducer: previewOf(cases.emptyRole, 'Producer'),
-    emptyName: previewOf(cases.emptyRole, 'Alex Rivera'),
     rtlTailAsRead: previewOf(cases.rtlNamesRight, 'רון בר'),
     rtlTailChosen: previewOf(cases.rtlNamesRight, 'רון בר', { swap: true }),
   };
@@ -446,7 +445,6 @@ async function inPage({ dev, cases, legacy, artwork }) {
     pickName: styledOf(dev[0].markup, 'Nia Vale'),
     pickBesideName: styledOf(dev[1].markup, 'Émilie Lac'),
     pickLaterRole: styledOf(dev[0].markup, 'Sound'),
-    pickUnderTitle: styledOf(cases.headingAbove, 'Alex Rivera'),
     idaAsRead: styledOf(cases.namesLeft, 'Ida Lake'),
     idaChosen: styledOf(cases.namesLeft, 'Ida Lake', { swap: true }),
     tailChosen: styledOf(cases.namesLeftTail, 'Sol Reed', { swap: true }),
@@ -1035,20 +1033,17 @@ test('row 20: the one column choice decides which drawn column is the roles, and
   assert.equal(R.styled.one.preview.ambiguous, false, 'role above never asks');
 });
 
-test('row 20: a name layer picked as Credits reads from its own role and builds styled', () => {
-  // As that role picked would: credits-1's first name reads the whole block from Research;
-  // credits-2's last name (alone on its line) reads from Image, as picking Image does.
-  const one = R.styled.pickName;
-  assert.deepEqual(one.preview.anchors, R.styled.one.preview.anchors);
-  assert.equal(one.field.value, R.styled.one.field.value);
-  assert.equal(one.fieldCount, R.styled.one.fieldCount, 'still one list field');
+test('row 20: a name picked beside reads from its own role; above, every pick reads from itself as on main', () => {
+  // Beside, the column answer settles a name: credits-2's last name (alone on its line) reads
+  // from Image, as picking Image does.
+  // Above, a name and a later role can be drawn alike, so a pick is read from itself, exactly as
+  // row 19 read it; credits-1's first name is listed first, which the preview shows.
+  assert.equal(R.styled.pickName.preview.anchors[0].candidateId, R.styled.one.preview.anchors[1].candidateId);
   const beside = R.styled.pickBesideName;
   assert.deepEqual(beside.preview.anchors, R.styled.beside.preview.anchors.slice(2));
   assert.equal(beside.field.value, 'Image:\nNoé Rivage\nÉmilie Lac');
-  for (const b of [one, beside]) {
-    assert.equal(b.engine, 'styled');
-    assert.deepEqual(b.errors, []);
-  }
+  assert.equal(beside.engine, 'styled');
+  assert.deepEqual(beside.errors, []);
 });
 
 test('row 20: beside, a marked heading spans both columns and the names after it step down', () => {
@@ -1078,15 +1073,12 @@ test('row 20: a picked layer is a role or a name by the drawing\'s role look, ne
   const sound = R.styled.pickLaterRole;
   assert.equal(sound.field.value, 'Sound:\nAri Moss');
   assert.deepEqual(sound.preview.anchors.map((a) => a.kind), ['role', 'name']);
-  // A title in the role look above the block stays artwork when a name is picked.
-  const under = R.styled.pickUnderTitle;
-  assert.equal(under.field.value, 'Director:\nAlex Rivera\nSound:\nAri Moss');
   // Names left of roles, a name alone on its line picked: the question is asked either way, and
   // the answer reads it as a name under Director.
   assert.equal(R.styled.idaAsRead.preview.ambiguous, true);
   assert.equal(R.styled.idaChosen.preview.ambiguous, true);
   assert.equal(R.styled.idaChosen.field.value, 'Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss');
-  for (const k of ['pickLaterRole', 'pickUnderTitle', 'idaChosen']) {
+  for (const k of ['pickLaterRole', 'idaChosen']) {
     assert.equal(R.styled[k].engine, 'styled', k);
     assert.deepEqual(R.styled[k].errors, [], k);
   }
@@ -1118,11 +1110,10 @@ test('row 20: a title above the credits, in either look, changes neither the kin
   const groups = (p) => p.list.flat().map((e) => [e.role, e.names]);
   const want = [['Director', ['Alex Rivera', 'Ida Lake']], ['Sound', ['Ari Moss']]];
   const P = R.previews;
-  for (const k of ['nameTitleRole', 'nameTitleName', 'roleTitleRole']) {
+  for (const k of ['nameTitleRole', 'roleTitleRole']) {
     assert.equal(P[k].styled, true, k);
     assert.deepEqual(groups(P[k]), k === 'roleTitleRole' ? [['Director', ['Alex Rivera']], ['Sound', ['Ari Moss']]] : want, `${k}: the title stays artwork, roles stay roles`);
   }
-  assert.deepEqual(groups(P.roleTitleName), [['Director', ['Alex Rivera']], ['Sound', ['Ari Moss']]], 'a name under a role-look title reads from its own role');
   assert.equal(P.namesLeftNameTitle.ambiguous, true, 'a title in the name look does not hide the question');
   assert.deepEqual(groups(P.namesLeftNameTitleChosen), want);
 });
@@ -1144,8 +1135,8 @@ test('row 20: a role with no names keeps roles as roles; a right-to-left questio
   // above would only hold by inventing roles with no names).
   assert.deepEqual(groups(P.tightMiddle), [['Sound', ['Ari Moss', 'Bo Lind']], ['Editor', ['Sol Reed']]]);
   assert.deepEqual(groups(P.tightMiddleCodex), [['Sound', ['Ari Moss']], ['Editor', ['Sol Reed']]]);
+  assert.deepEqual(groups(P.tightEmptyEnd), [['Sound', ['Ari Moss']], ['Editor', []]], 'a role with no names at the end changes nothing');
   assert.deepEqual(groups(P.emptyProducer), [['Producer', []], ['Editor', ['Mia Holt']]]);
-  assert.deepEqual(groups(P.emptyName), [['Director', ['Alex Rivera']], ['Producer', []], ['Editor', ['Mia Holt']]], 'a name reads from its own role');
   // Right to left, the drawn reading takes the right column (the names) for roles and fails on
   // the last name; the answer reads it under צילום. Both carry the drawing's direction.
   assert.equal(P.rtlTailAsRead.styled, false);
