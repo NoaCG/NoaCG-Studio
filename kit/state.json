@@ -30,23 +30,29 @@
   "waitingOn": null,
   "inFlight": [
     {
-      "phase": 20,
-      "role": "check",
-      "session": "session_017SdbwRKopc2ubXvCNjhsgT",
-      "nonce": "20-c-03cc",
-      "mergeSha": "7b404d3241240fc96a257bd9baeb035f4dbf718e",
-      "pr": 1959,
-      "toArchive": [
-        "session_017SdbwMeoxTiZG8vVq5Vna2",
-        "session_017SdbwQftYSk2KxtyZcsSke"
-      ]
+      "role": "fix",
+      "issue": 1958,
+      "session": "session_017SdbwR8HnjR7gA2eDpnGmq",
+      "nonce": "fix-1958-f-42fb",
+      "branch": "claude/plan-jev-svg-import-fix-1958"
     }
   ],
   "owner": [],
-  "fixes": [],
+  "fixes": [
+    {
+      "issue": 1958,
+      "session": "session_017SdbwR8HnjR7gA2eDpnGmq",
+      "nonce": "fix-1958-f-42fb",
+      "branch": "claude/plan-jev-svg-import-fix-1958",
+      "source": "7b404d3241240fc96a257bd9baeb035f4dbf718e",
+      "launchedAt": "2026-11-02T09:29Z",
+      "landBefore": "21",
+      "reason": "owner product direction 2026-11-02 (deliberate Fixed artwork choice)"
+    }
+  ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T09:38:30Z"
+    "checkinAt": "2026-11-02T09:59:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -163,7 +169,8 @@
     "16",
     "17",
     "18",
-    "19"
+    "19",
+    "20"
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
