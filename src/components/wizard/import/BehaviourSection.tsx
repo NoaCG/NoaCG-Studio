@@ -47,7 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import { CREDITS_RENDERED, creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
+import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
@@ -117,55 +117,94 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * a linked Sheet writes into that field, so the preview and the source cannot disagree. Where
  * roles and names are drawn as separate layers it also shows the drawing's layout.
  *
- * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above, as a
- * roll), the graphic is built in those layers' own styling: the reading is handed to the draft as
- * the binding, its anchors exactly as previewed. Anything else saves the original-text roll.
+ * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above or
+ * role beside, as a roll), the graphic is built in those layers' own styling by default: the
+ * reading is handed to the draft as the binding, its anchors exactly as previewed. The author may
+ * deliberately keep the credits as fixed artwork instead. Anything else saves the original-text
+ * roll, and the preview says in one line why.
  *
- * NO COLUMN CHOICE YET. Only role beside can be read both ways (`CreditsChoice`), and the styled
- * engine does not render role beside yet, so a select here would change nothing built: it comes
- * with role beside (jev-svg-import row 20, #1937).
+ * ONE COLUMN CHOICE. Only role beside can be read both ways (`CreditsChoice`); where it can, the
+ * author answers which column holds the roles. The answer changes the preview and the saved
+ * anchor kinds, which is what the live graphic copies, so it is read back from the saved binding.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, onStyled }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, fixed, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
   /** Changes whenever the step's render was measured again (a font landed, a new file). */
   measured: unknown;
-  /** The styled binding the draft holds now, and how to replace it. */
+  /** The styled binding the draft holds now, whether the author chose fixed artwork, and how to
+   *  change either. */
   saved: DesignSvgCredits | undefined;
-  onStyled: (credits: DesignSvgCredits | undefined) => void;
+  fixed: boolean;
+  onPatch: (patch: { credits?: DesignSvgCredits; creditsArtwork?: true }) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
-  const shown = useMemo(() => {
+  const readings = useMemo(() => {
     const root = stage.current?.querySelector('svg');
-    return root ? creditsPreview(root, idKey.split('\n'), creditsId) : null;
+    if (!root) return null;
+    const ids = idKey.split('\n');
+    const read = creditsPreview(root, ids, creditsId);
+    return { read, swapped: read.styled && read.ambiguous ? creditsPreview(root, ids, creditsId, { swap: true }) : null };
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);
-  const styled: DesignSvgCredits | undefined = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll')
+  // The author's answer in this visit, else the one the saved binding carries.
+  const [swapChoice, setSwapChoice] = useState<boolean | null>(null);
+  const anchorsKey = (p: CreditsPreview | null | undefined) => (p?.styled ? JSON.stringify(p.anchors) : '');
+  const swap = swapChoice ?? (!!saved && !!readings?.swapped && anchorsKey(readings.swapped) === JSON.stringify(saved.anchors));
+  const shown = readings ? (swap && readings.swapped ? readings.swapped : readings.read) : null;
+  const rendered = !!shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll');
+  const styled: DesignSvgCredits | undefined = rendered && shown?.styled && !fixed
     ? { v: 1, layout: shown.layout, playback: 'roll', anchors: shown.anchors }
     : undefined;
   const wantKey = styled ? JSON.stringify(styled) : '';
   const savedKey = saved ? JSON.stringify(saved) : '';
   useEffect(() => {
-    if (shown && wantKey !== savedKey) onStyled(styled);
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
   if (!shown) return null;
   const beside = shown.styled && shown.layout === 'role-beside';
+  const rtl = shown.styled && shown.rtl;
   return (
-    <div className="save-field" data-testid="map-svg-credits-preview" data-layout={shown.styled ? shown.layout : 'list'}>
-      <span>Credits preview</span>
-      <div dir={shown.styled && shown.rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
-        {shown.list.map((section, at) => (
-          <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
-            {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
-          </div>
-        ))}
+    <>
+      {rendered && (
+        <label className="save-field">
+          <span>Show as</span>
+          <select
+            value={fixed ? 'artwork' : 'editable'}
+            onChange={(e) => onPatch(e.target.value === 'artwork' ? { credits: undefined, creditsArtwork: true } : { creditsArtwork: undefined })}
+            data-testid="map-svg-credits-engine"
+          >
+            <option value="editable">Editable, in this design&apos;s styling</option>
+            <option value="artwork">Fixed artwork</option>
+          </select>
+        </label>
+      )}
+      {readings?.swapped && !fixed && (
+        <label className="save-field">
+          <span>Which column contains the roles?</span>
+          <select value={swap ? 'other' : 'first'} onChange={(e) => setSwapChoice(e.target.value === 'other')} data-testid="map-svg-credits-roles">
+            <option value="first">{rtl ? 'Right' : 'Left'}</option>
+            <option value="other">{rtl ? 'Left' : 'Right'}</option>
+          </select>
+        </label>
+      )}
+      <div className="save-field" data-testid="map-svg-credits-preview" data-layout={shown.styled ? shown.layout : 'list'}>
+        <span>Credits preview</span>
+        <div dir={rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
+          {shown.list.map((section, at) => (
+            <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
+              {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
+            </div>
+          ))}
+        </div>
+        {!shown.styled && <p className="hint" data-testid="map-svg-credits-fallback">Fixed artwork: {shown.reason}</p>}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -1282,12 +1321,14 @@ export default function BehaviourSection({
               <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
               {generic.recipe === 'credits' && generic.fields?.credits && (
                 <CreditsListPreview
+                  key={generic.fields.credits}
                   stage={stageRef}
                   layers={textLayers}
                   creditsId={generic.fields.credits}
                   measured={layerBoxes}
                   saved={generic.credits}
-                  onStyled={(credits) => patchGeneric({ credits })}
+                  fixed={!!generic.creditsArtwork}
+                  onPatch={patchGeneric}
                 />
               )}
             </>

@@ -93,6 +93,12 @@ const STYLED_CASES = {
   loose: svg(`<text x="100" y="100" font-size="40" fill="#fc0">Dir<tspan fill="#fff">ector</tspan></text>${t(100, 160, 40, 'Alex Rivera')}`),
   // One name look spelt two ways: the parsed reading compares colours, not spellings.
   spellings: svg(`${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada Holm', ' fill="white"')}${t(100, 210, 40, 'Bo Lind', ' fill="#ffffff"')}`),
+  // Row 20, role beside. Roles set against their end at 300, names from 340: two edges.
+  besideEnd: svg(`${t(300, 100, 24, 'Director', ' fill="#fc0" text-anchor="end"')}${t(340, 100, 40, 'Alex Rivera')}${t(340, 155, 40, 'Ida Lake')}${t(300, 270, 24, 'Sound', ' fill="#fc0" text-anchor="end"')}${t(340, 270, 40, 'Ari Moss')}`),
+  // Names on the left, roles on the right: either column could be the roles (the one choice).
+  namesLeft: svg(`${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}`),
+  // Right to left: the role column on the right, read first.
+  hebrewBeside: svg(`${t(900, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(600, 100, 40, 'דנה לוי', ' direction="rtl"')}${t(600, 155, 40, 'יוסי כהן', ' direction="rtl"')}`),
 };
 
 /** Plays one styled document on its own page and reads back what the rows show. Positions are in
@@ -132,11 +138,23 @@ function readStyled({ field }) {
     const cs = getComputedStyle(node);
     return { fill: cs.fill, size: cs.fontSize, weight: cs.fontWeight, style: cs.fontStyle, family: cs.fontFamily, opacity: round(opacity) };
   };
+  // Where a layer's drawn ink starts and ends along its line, in the artwork's units.
+  const inkOf = (el) => {
+    const b = el.getBBox();
+    const y = el.getStartPositionOfChar(0).y;
+    const xs = [toArt(el, b.x, y).x, toArt(el, b.x + b.width, y).x];
+    return [round(Math.min(...xs)), round(Math.max(...xs))];
+  };
+  // Where a row's advance ends, for an edge set against the end.
+  const endOf = (el) => {
+    const p = el.getStartPositionOfChar(0);
+    return round(toArt(el, p.x + el.getComputedTextLength(), p.y).x);
+  };
   const sources = () => [...document.querySelectorAll('[data-noacg-credit]')].map((el) => ({
-    mark: el.getAttribute('data-noacg-credit'), text: el.textContent, outer: el.outerHTML, visibility: getComputedStyle(el).visibility, start: startOf(el), look: painted(el),
+    mark: el.getAttribute('data-noacg-credit'), text: el.textContent, outer: el.outerHTML, visibility: getComputedStyle(el).visibility, start: startOf(el), look: painted(el), ink: inkOf(el),
   }));
   const rows = () => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => ({
-    kind: el.getAttribute('data-noacg-credits'), text: el.textContent, start: startOf(el), look: painted(el), id: el.getAttribute('id'),
+    kind: el.getAttribute('data-noacg-credits'), text: el.textContent, start: startOf(el), end: endOf(el), look: painted(el), id: el.getAttribute('id'),
     width: round(el.getBBox().width * Math.sqrt(Math.abs(toArt(el, 1, 0).x - toArt(el, 0, 0).x) ** 2 + Math.abs(toArt(el, 1, 0).y - toArt(el, 0, 0).y) ** 2)),
   }));
   const write = (list) => window.update(JSON.stringify({ [field]: list }));
@@ -147,25 +165,31 @@ function readStyled({ field }) {
   // Long names, measured against the drawn name look itself: each one's natural width is what the
   // first name layer draws when it holds those words.
   const nameLayer = [...document.querySelectorAll('[data-noacg-credit]')].find((el) => el.getAttribute('data-noacg-credit').endsWith(' name'));
-  const natural = (words) => {
-    const first = document.createTreeWalker(nameLayer, NodeFilter.SHOW_TEXT);
+  const roleLayer = [...document.querySelectorAll('[data-noacg-credit]')].find((el) => el.getAttribute('data-noacg-credit').endsWith(' role'));
+  const natural = (words, layer = nameLayer) => {
+    const first = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT);
     let node = first.nextNode();
     while (node && !node.nodeValue.trim()) node = first.nextNode();
     const was = node.nodeValue;
     node.nodeValue = words;
-    const w = nameLayer.getBBox().width;
+    const w = layer.getBBox().width;
     node.nodeValue = was;
-    const unit = Math.hypot(toArt(nameLayer, 1, 0).x - toArt(nameLayer, 0, 0).x, toArt(nameLayer, 1, 0).y - toArt(nameLayer, 0, 0).y);
+    const unit = Math.hypot(toArt(layer, 1, 0).x - toArt(layer, 0, 0).x, toArt(layer, 1, 0).y - toArt(layer, 0, 0).y);
     return round(w * unit);
   };
   const long = [1, 3, 5, 14].map((n) => Array(n).fill('Aurelia Vantongeren').join(' '));
   write(`Research:\n${long.join('\n')}`);
   const longRows = rows();
   const longFit = window.noacgCreditsFit.map((f) => ({ ...f }));
-  const naturals = long.map(natural);
+  const naturals = long.map((w) => natural(w));
   const overLong = window.noacgTextOverflow();
   write('Research:\nNia Vale');
   const overShort = window.noacgTextOverflow();
+  // A role too long for its room, measured the same way against the drawn role look (the list
+  // format reads a role of up to 48 characters).
+  const longRole = 'Aurelia Vantongeren Aurelia Vantongeren';
+  write(`${longRole}:\nNia Vale`);
+  const roleFit = { fit: { ...window.noacgCreditsFit[0] }, natural: natural(longRole, roleLayer), width: rows()[0].width, over: window.noacgTextOverflow() };
   // A reset that clears every inline style (the editor's snap and reset) leaves the rows as built.
   write(`Research:\n${long[2]}`);
   const beforeReset = rows().map((r) => [r.start, r.look]);
@@ -182,7 +206,7 @@ function readStyled({ field }) {
   window.stopCreditsRoll();
   const stopped = window.noacgCreditsTween === null && again.isActive() === false;
   return {
-    atRest, repeated, longRows, longFit, naturals, overLong, overShort, field,
+    atRest, repeated, longRows, longFit, naturals, overLong, overShort, roleFit, field,
     take: { ok: !!tween, first, second, target, stopped, sourcesKept: JSON.stringify(sources().map((x) => x.outer)) === JSON.stringify(before) },
     reset: { before: beforeReset, after: afterReset },
     holder: document.getElementById(field)?.className,
@@ -330,11 +354,11 @@ async function inPage({ dev, cases, legacy, artwork }) {
   };
   // ROW 19: the styled engine, role above. Each binding is the reading the wizard saves: the
   // anchors `creditsPreview` reads from the first role layer down, one Credits field, a roll.
-  const styledOf = (markup, roleWord) => {
+  const styledOf = (markup, roleWord, choice = {}) => {
     const imp = imported(markup);
     const content = imp.candidates.find((c) => c.sample === roleWord).id;
     const host = laidOut(imp.markup);
-    const preview = C.creditsPreview(host, imp.candidates.map((c) => c.id), content);
+    const preview = C.creditsPreview(host, imp.candidates.map((c) => c.id), content, choice);
     host.parentElement.remove();
     const sources = new Set(preview.styled ? preview.anchors.map((a) => a.candidateId) : []);
     const fields = fieldsOf(imp).filter((f) => !sources.has(f.candidateId) || f.candidateId === content);
@@ -353,6 +377,15 @@ async function inPage({ dev, cases, legacy, artwork }) {
     grouped: styledOf(cases.grouped, 'Director'),
     roleGroup: styledOf(cases.roleGroup, 'Director'),
     idGroup: styledOf(cases.idGroup, 'Director'),
+    // Row 20: role beside, the dev sample and three drawings of it; the column choice both ways;
+    // a name layer picked as Credits.
+    beside: styledOf(dev[1].markup, 'Réalisation'),
+    besideEnd: styledOf(cases.besideEnd, 'Director'),
+    hebrewBeside: styledOf(cases.hebrewBeside, 'במאי'),
+    namesLeftAsRead: styledOf(cases.namesLeft, 'Alex Rivera'),
+    namesLeft: styledOf(cases.namesLeft, 'Alex Rivera', { swap: true }),
+    pickName: styledOf(dev[0].markup, 'Nia Vale'),
+    pickBesideName: styledOf(dev[1].markup, 'Noé Rivage'),
   };
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
@@ -773,7 +806,7 @@ test('row 19: the roll keeps the source layers and their original text, and repl
 });
 
 test('row 19: what no row renders yet builds what it built before, never an untested picture', () => {
-  // Role beside is row 20, static row 22, cards row 23; a stale binding likewise. Each keeps the
+  // Static is row 22, cards row 23; a stale binding likewise. Each keeps the
   // editable roll of its one list field, exactly as before row 19.
   assert.deepEqual(R.fallbacks, { static: 'editable', cards: 'editable', stale: 'editable', staticBuildsEditable: true, staticSameAsUnstyled: true });
 });
@@ -795,4 +828,153 @@ test('row 19: the list holder keeps its line breaks through the editor\'s code f
   const holder = new RegExp(`<div id="${R.styled.one.field.field}"[^>]*>([\\s\\S]*?)</div>`).exec(formatted);
   assert.ok(holder, 'the holder is in the formatted html');
   assert.equal(holder[1], R.styled.one.field.value);
+});
+
+// ── Row 20: role-beside credits rendered in the artwork's own styling ────────────────────────
+
+/** Taken on main bc9be3b before this row: row 19's role-above builds, byte for byte. */
+const ROLE_ABOVE_PINS = { one: '1bb5cc1c10fe5a29', bold: 'f314ebd9aacb462d', grouped: '95b9c8c2de09a5f0', roleGroup: 'a60241dd7963af1c', idGroup: '0860a942e8c3f6ec' };
+const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
+
+test('row 20: role-above styled credits build exactly as row 19 built them', () => {
+  for (const k of ROLE_ABOVE) assert.equal(sha({ html: R.styled[k].html, css: R.styled[k].css, js: R.styled[k].js }), ROLE_ABOVE_PINS[k], k);
+});
+
+test('row 20: a role-beside binding builds the styled engine, one Credits field holding the drawn list', () => {
+  for (const k of BESIDE) {
+    const b = R.styled[k];
+    assert.equal(b.preview.layout, 'role-beside', k);
+    assert.deepEqual(b.errors, [], k);
+    assert.equal(b.engine, 'styled', k);
+    assert.match(b.js, /var NOACG_CREDITS_STYLE = \{[^\n]*"roleToName":0[^\n]*"nameAlign":"(start|middle|end)"/, `${k}: two edges, a role and its first name on one line`);
+    assert.ok(!b.js.includes('function creditsSampleLines(') && !b.js.includes('function creditsArtwork('), `${k}: and neither other engine`);
+    assert.deepEqual(b.played.errors, [], `${k}: no page errors`);
+    assert.equal(b.played.holder, 'noacg-data-source', k);
+  }
+  assert.equal(R.styled.beside.field.value, 'Réalisation:\nLéa Orme\nImage:\nNoé Rivage\nÉmilie Lac');
+  assert.equal(R.styled.beside.fieldCount, 3, 'the drawn title, the one list, Scroll speed');
+  assert.equal(R.styled.besideEnd.fieldCount, 2);
+});
+
+test('row 20: the sample rebuilds in its two columns, each on its drawn edge and in its drawn look', () => {
+  for (const k of BESIDE) {
+    const { rows } = R.styled[k].played.atRest;
+    // In reading order, which is the document's only where the drawing reads left to right.
+    const sources = [...R.styled[k].played.atRest.sources].sort((a, b) => parseFloat(a.mark) - parseFloat(b.mark));
+    assert.equal(rows.length, sources.length, k);
+    rows.forEach((row, i) => {
+      const src = sources[i];
+      assert.equal(row.text, src.text, `${k} ${i}`);
+      assert.equal(row.kind, src.mark.split(' ')[1], `${k} ${i}: kind`);
+      assert.ok(near(row.start.x, src.start.x) && near(row.start.y, src.start.y), `${k} ${i}: drawn at ${JSON.stringify(src.start)}, row at ${JSON.stringify(row.start)}`);
+      assert.deepEqual(row.look, src.look, `${k} ${i}: the look is the drawn layer's`);
+      assert.equal(row.id, null, `${k} ${i}: no id is copied`);
+    });
+  }
+});
+
+test('row 20: columns, several names per role and the drawn spacing, on every edge', () => {
+  const at = (k) => R.styled[k].played.repeated.map((r) => [r.kind, r.text]);
+  const want = [
+    ['role', 'Research'], ['name', 'Nia Vale'], ['name', 'Tomas Fen'], ['name', 'Ida Lake'],
+    ['role', 'Sound'], ['name', 'Ari Moss'], ['role', 'Music'], ['role', 'Research'], ['name', 'Sol Reed'],
+  ];
+  for (const k of BESIDE) assert.deepEqual(at(k), want, k);
+  // credits-2: names 55 apart, 170 from a group's last line to the next role; a role and its first
+  // name share a baseline; a role with no names (Music) and a section break are each a group gap.
+  const ys = (k) => R.styled[k].played.repeated.map((r) => r.start.y);
+  assert.deepEqual(ys('beside'), [195, 195, 250, 305, 475, 475, 645, 815, 815]);
+  assert.deepEqual(ys('pickBesideName'), ys('beside'));
+  const column = (k, kind, edge) => R.styled[k].played.repeated.filter((r) => r.kind === kind).map((r) => (edge === 'end' ? r.end : r.start.x));
+  const on = (list, x, msg) => assert.ok(list.every((v) => near(v, x)), `${msg}: ${JSON.stringify(list)} on ${x}`);
+  on(column('beside', 'role', 'start'), 90, 'credits-2 roles start at 90');
+  on(column('beside', 'name', 'start'), 440, 'credits-2 names start at 440');
+  on(column('besideEnd', 'role', 'end'), 300, 'roles set against their end at 300, whatever their length');
+  on(column('besideEnd', 'name', 'start'), 340, 'names from 340');
+  // Right to left, the start is the right end: every role reaches 900 and every name 600.
+  on(column('hebrewBeside', 'role', 'end'), 900, 'right-to-left roles start at 900');
+  on(column('hebrewBeside', 'name', 'end'), 600, 'right-to-left names start at 600');
+});
+
+test('row 20: a role or name too wide for its column shrinks to the room, is reported past 55% and stops at 30%', () => {
+  // A column's room runs from its drawn edge to where the columns meet, halfway across the gutter
+  // between the drawn layers' ink, or to the frame; half the row's type is kept at each side.
+  const rooms = {
+    beside: { W: 1100, name: { size: 32 }, role: { size: 26 } },
+    besideEnd: { W: 1000, name: { size: 40 }, role: { size: 24 } },
+    namesLeft: { W: 1000, name: { size: 40 }, role: { size: 24 } },
+  };
+  const regimes = new Set();
+  for (const [k, cfg] of Object.entries(rooms)) {
+    const p = R.styled[k].played;
+    const sources = p.atRest.sources;
+    const ink = (kind) => {
+      const s = sources.filter((x) => x.mark.endsWith(kind));
+      return [Math.min(...s.map((x) => x.ink[0])), Math.max(...s.map((x) => x.ink[1]))];
+    };
+    const [r, n] = [ink('role'), ink('name')];
+    const roleLeft = r[0] + r[1] <= n[0] + n[1];
+    const meet = roleLeft ? (r[1] + n[0]) / 2 : (n[1] + r[0]) / 2;
+    const roomOf = (kind, edge, x) => {
+      const [lo, hi] = (kind === 'role') === roleLeft ? [0, meet] : [meet, cfg.W];
+      const margin = cfg[kind].size / 2;
+      return edge === 'start' ? hi - x - margin : x - lo - margin;
+    };
+    const edgeX = (kind) => (k === 'besideEnd' && kind === 'role' ? 300 : sources.find((x) => x.mark.endsWith(kind)).start.x);
+    const nameRoom = roomOf('name', 'start', edgeX('name'));
+    const names = p.longFit.filter((f) => f.kind === 'name');
+    names.forEach((fit, i) => {
+      const want = Math.min(1, Math.max(0.3, nameRoom / p.naturals[i]));
+      assert.ok(Math.abs(fit.scale - want) < 0.005, `${k} name ${i}: scale ${fit.scale}, measured ${want} (room ${nameRoom})`);
+      assert.equal(fit.reported, want < 0.55, `${k} name ${i}: reported only past 55%`);
+      const width = p.longRows[i + 1].width;
+      if (want < 1 && want > 0.3) assert.ok(width <= nameRoom + 0.5 && width >= nameRoom - 3, `${k}: shrunk to the room: ${width} of ${nameRoom}`);
+      regimes.add(want === 1 ? 'fits' : want >= 0.55 ? 'shrinks' : want > 0.3 ? 'reported' : 'floor');
+    });
+    const roleRoom = roomOf('role', k === 'besideEnd' ? 'end' : 'start', edgeX('role'));
+    const roleWant = Math.min(1, Math.max(0.3, roleRoom / p.roleFit.natural));
+    assert.ok(Math.abs(p.roleFit.fit.scale - roleWant) < 0.005, `${k} role: scale ${p.roleFit.fit.scale}, measured ${roleWant} (room ${roleRoom})`);
+    assert.equal(p.roleFit.fit.reported, roleWant < 0.55, `${k} role: reported only past 55%`);
+    if (roleWant < 1) assert.ok(p.roleFit.width <= roleRoom + 0.5 && p.roleFit.width >= roleRoom - 3, `${k}: the role shrunk to its column: ${p.roleFit.width} of ${roleRoom}`);
+    assert.deepEqual(p.roleFit.over, roleWant < 0.55 ? [p.field] : [], `${k}: the report names the one Credits field`);
+    assert.deepEqual(p.overShort, [], `${k}: and clears when the list fits`);
+  }
+  assert.deepEqual([...regimes].sort(), ['fits', 'floor', 'reported', 'shrinks'], 'the names cover every rung');
+  assert.ok(R.styled.beside.played.roleFit.fit.reported, 'a role past its column on the dev sample is reported');
+});
+
+test('row 20: the one column choice decides which drawn column is the roles, and is what the graphic builds', () => {
+  const asRead = R.styled.namesLeftAsRead;
+  const chosen = R.styled.namesLeft;
+  for (const b of [asRead, chosen]) {
+    assert.equal(b.preview.ambiguous, true, 'names drawn left of their roles read either way');
+    assert.deepEqual(b.errors, [], 'either answer saves a binding that validates');
+    assert.equal(b.engine, 'styled');
+  }
+  // Read as drawn, the left column (the names) is taken for the roles: the output is wrong.
+  assert.equal(asRead.field.value, 'Alex Rivera:\nDirector\nIda Lake:\nAri Moss:\nSound');
+  assert.deepEqual(asRead.played.repeated.filter((r) => r.kind === 'role').map((r) => [r.start.x, r.look.fill])[0], [100, 'rgb(255, 255, 255)']);
+  // The author's answer, the right column: roles in gold at 600, names in white at 100.
+  assert.equal(chosen.field.value, 'Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss');
+  const rows = chosen.played.repeated;
+  for (const r of rows) {
+    const [x, fill] = r.kind === 'role' ? [600, 'rgb(255, 204, 0)'] : [100, 'rgb(255, 255, 255)'];
+    assert.ok(near(r.start.x, x) && r.look.fill === fill, `${r.kind} ${r.text}: ${r.start.x} ${r.look.fill}`);
+  }
+  assert.deepEqual(chosen.anchors.map((a) => a.kind), ['role', 'name', 'name', 'role', 'name']);
+  assert.notDeepEqual(chosen.anchors, asRead.anchors, 'the answer is stored in the anchors');
+  // The dev sample reads either way too, so its author gets the same question.
+  assert.equal(R.styled.beside.preview.ambiguous, true);
+  assert.equal(R.styled.one.preview.ambiguous, false, 'role above never asks');
+});
+
+test('row 20: a name layer picked as Credits reads its whole block and builds styled', () => {
+  for (const [name, first] of [['pickName', 'one'], ['pickBesideName', 'beside']]) {
+    const b = R.styled[name];
+    assert.deepEqual(b.preview.anchors, R.styled[first].preview.anchors, `${name}: the block from its first role`);
+    assert.equal(b.engine, 'styled', name);
+    assert.deepEqual(b.errors, [], name);
+    assert.equal(b.field.value, R.styled[first].field.value, name);
+    assert.equal(b.fieldCount, R.styled[first].fieldCount, `${name}: still one list field`);
+  }
 });

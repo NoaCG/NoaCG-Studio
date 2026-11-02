@@ -10,7 +10,7 @@
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { openProductionWithCurrent } from './_create';
@@ -353,13 +353,148 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await expect(preview).not.toContainText('{');
   await expect(page.locator('[data-testid^="map-svg-recipe-credits"]')).toHaveCount(1);
 
-  // Either column could be the roles here, and the model takes that one answer, but no control
-  // is offered while role beside saves as artwork credits: it would change nothing the graphic
-  // builds (row 20 renders role beside and offers it with that binding).
-  await expect(page.getByTestId('map-svg-credits-roles')).toHaveCount(0);
-  // Role beside is not rendered in its own styling yet, so it saves as artwork credits, and the
-  // step says so on the Credits row exactly as before.
-  await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveText([/, scrolls as artwork$/]);
+  // Either column could be the roles here, so the author gets the one question (row 20), read
+  // as drawn until answered: the left column.
+  await expect(page.getByTestId('map-svg-credits-roles')).toHaveValue('first');
+  await expect(page.getByTestId('map-svg-credits-roles').locator('option:checked')).toHaveText('Left');
+  // Role beside renders in its own styling (row 20): the other drawn layers set the looks.
+  await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveText([
+    /, sets the look of every name in Credits$/,
+    /, sets the look of every role in Credits$/,
+    /, sets the look of every name in Credits$/,
+    /, sets the look of every name in Credits$/,
+  ]);
+});
+
+/** Each row on air read in the roll's own group, so the roll's travel is set aside and the
+ *  drawing's units remain: its first character, the end of its advance, and its look. */
+function creditRowsAtRest(air: FrameLocator) {
+  return air.locator('.imported-design-credits-row').evaluateAll((els) => els.map((el) => {
+    const t = el as SVGTextElement;
+    const roll = el.closest('.imported-design-credits-roll') as SVGGElement;
+    const m = roll.getScreenCTM()!.inverse().multiply(t.getScreenCTM()!);
+    const p = t.getStartPositionOfChar(0);
+    const at = (x: number, y: number) => ({ x: Math.round((m.a * x + m.c * y + m.e) * 100) / 100, y: Math.round((m.b * x + m.d * y + m.f) * 100) / 100 });
+    const cs = getComputedStyle(el);
+    return { kind: el.getAttribute('data-noacg-credits'), text: el.textContent, x: at(p.x, p.y).x, y: at(p.x, p.y).y, fill: cs.fill, size: cs.fontSize };
+  }));
+}
+
+test('role-beside credits roll in their two drawn columns, from a name layer picked as Credits', async ({ page }) => {
+  // jev-svg-import row 20 (AC-13): role beside in the drawn layers' own styling. A role and its
+  // first name share a line, later names stay in the name column, each column on its drawn edge.
+  await page.goto('/app');
+  await dropSvg(page, BESIDE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  // A NAME layer, Léa Orme: the preview still reads the whole block from its first role.
+  const name = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[2]);
+  await picker.selectOption(name);
+  const preview = page.getByTestId('map-svg-credits-preview');
+  await expect(preview).toHaveAttribute('data-layout', 'role-beside');
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
+  await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
+  await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
+  await intoProduction(page, 'Équipe credits', 'Équipe night');
+  await settleDurableWrites(page);
+
+  const credits = page.getByTestId('cue-field-f1');
+  await expect(credits).toHaveValue('Réalisation:\nLéa Orme\nImage:\nNoé Rivage\nÉmilie Lac');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('ÉQUIPE');
+  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  await expect(air.locator('[data-noacg-credit]')).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  await expect.poll(() => air.locator('.imported-design-credits-roll').evaluate(() =>
+    !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  // Where and how credits-2 draws them: roles from 90 in pale green 26, names from 440 in white 32.
+  const role = ['rgb(191, 228, 206)', '26px'];
+  const nm = ['rgb(255, 255, 255)', '32px'];
+  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y, r.fill, r.size])).toEqual([
+    ['role', 90, 195, ...role], ['name', 440, 195, ...nm], ['role', 90, 365, ...role], ['name', 440, 365, ...nm], ['name', 440, 420, ...nm],
+  ]);
+
+  // A new list on Update: several names per role, a role with none, the drawn steps kept.
+  await credits.fill('Son:\nAri Moss\nIda Lake\nJun Harbor\nMontage:\nMusique:\nSol Reed');
+  await page.getByTestId('verb-update').click();
+  await expect(rows).toHaveText(['Son', 'Ari Moss', 'Ida Lake', 'Jun Harbor', 'Montage', 'Musique', 'Sol Reed']);
+  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y])).toEqual([
+    ['role', 90, 195], ['name', 440, 195], ['name', 440, 250], ['name', 440, 305], ['role', 90, 475], ['role', 90, 645], ['name', 440, 645],
+  ]);
+});
+
+/** Names drawn on the left and their roles on the right, so either column could be the roles. */
+const NAMES_LEFT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff">
+  <rect width="1000" height="600" fill="#1d2433" />
+  <text x="100" y="150" font-size="40">Alex Rivera</text>
+  <text x="600" y="150" font-size="24" fill="#ffcc00">Director</text>
+  <text x="100" y="205" font-size="40">Ida Lake</text>
+  <text x="100" y="320" font-size="40">Ari Moss</text>
+  <text x="600" y="320" font-size="24" fill="#ffcc00">Sound</text>
+</svg>`;
+
+test('the one column choice fixes names drawn left of their roles: preview, saved import and live graphic', async ({ page }, testInfo) => {
+  // Owner decision 2026-11-02: show "Which column contains the roles?" only where the columns are
+  // ambiguous; the answer updates the preview, is saved with the import and drives the graphic.
+  const file = testInfo.outputPath('credits-names-left.svg');
+  writeFileSync(file, NAMES_LEFT_SVG);
+  await page.goto('/app');
+  await dropSvg(page, file);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  const first = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[0]);
+  await picker.selectOption(first);
+  const preview = page.getByTestId('map-svg-credits-preview');
+  // Read as drawn, the left column is taken for the roles: the names would roll as roles.
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Alex Rivera', 'Ida Lake', 'Ari Moss']);
+  const roles = page.getByTestId('map-svg-credits-roles');
+  await roles.selectOption({ label: 'Right' });
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Director', 'Sound']);
+  await expect(preview.locator('[data-credit="name"]')).toHaveText(['Alex Rivera', 'Ida Lake', 'Ari Moss']);
+  await intoProduction(page, 'Names left credits', 'Names left night');
+  await settleDurableWrites(page);
+
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.locator('.imported-design-credits-row')).toHaveText(['Director', 'Alex Rivera', 'Ida Lake', 'Sound', 'Ari Moss']);
+  // Roles in their drawn gold column at 600, names in white at 100, each role beside its name.
+  const gold = 'rgb(255, 204, 0)';
+  const white = 'rgb(255, 255, 255)';
+  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y, r.fill])).toEqual([
+    ['role', 600, 150, gold], ['name', 100, 150, white], ['name', 100, 205, white], ['role', 600, 320, gold], ['name', 100, 320, white],
+  ]);
+});
+
+test('credits that could be styled can be kept as fixed artwork, and a fallback says why', async ({ page }) => {
+  // Owner direction 2026-11-02: editable styled credits by default, fixed artwork a deliberate
+  // choice, and one plain line where a design falls back.
+  await page.goto('/app');
+  await dropSvg(page, ABOVE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  const values = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean));
+  await picker.selectOption(values[1]);
+  const engine = page.getByTestId('map-svg-credits-engine');
+  await expect(engine).toHaveValue('editable');
+  const rowsSay = page.locator('[data-testid^="map-svg-driven-"]');
+  await expect(rowsSay.first()).toHaveText(/, sets the look of every name in Credits$/);
+  await engine.selectOption('artwork');
+  // Kept as artwork: the drawn text scrolls as drawn, as every artwork credits import does.
+  await expect(rowsSay.first()).toHaveText(/, scrolls as artwork$/);
+  await expect(rowsSay.filter({ hasText: 'sets the look' })).toHaveCount(0);
+  await engine.selectOption('editable');
+  await expect(rowsSay.first()).toHaveText(/, sets the look of every name in Credits$/);
+  // The title is one look of its own, so picking it gives no roles and names: it says so.
+  await picker.selectOption(values[0]);
+  await expect(page.getByTestId('map-svg-credits-fallback')).toHaveText(/^Fixed artwork: .+/);
+  await expect(engine).toHaveCount(0);
 });
 
 test('role-above credits drawn as separate layers roll in those layers\' own styling', async ({ page }) => {

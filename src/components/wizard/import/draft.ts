@@ -268,6 +268,9 @@ export interface SvgRecipeDraft {
    *  (`creditsPreview`), set only where the styled engine renders that layout. Absent saves the
    *  original-text roll, as every credits import did before. */
   credits?: DesignSvgCredits;
+  /** Credits only: the author chose fixed artwork where editable styled credits could build, so
+   *  the step does not write `credits` for them. */
+  creditsArtwork?: true;
 }
 
 export interface SvgRecipeRow {
@@ -459,11 +462,12 @@ export function disarmTimerClock(fields: SvgFieldDraft[]): SvgFieldDraft[] {
 }
 
 /** A credits draft's styled binding, while it still belongs to the layer picked as Credits (the
- *  step reads it again whenever the pick changes; until then nothing stale is saved). */
+ *  step reads it again whenever the pick changes; until then nothing stale is saved), unless the
+ *  author chose fixed artwork. The picked layer may be any role or name the binding reads. */
 export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | undefined {
-  const credits = behaviour.recipe === 'credits' ? behaviour.credits : undefined;
+  const credits = behaviour.recipe === 'credits' && !behaviour.creditsArtwork ? behaviour.credits : undefined;
   const picked = behaviour.fields?.credits;
-  return credits && picked && credits.anchors[0]?.candidateId === picked ? credits : undefined;
+  return credits && picked && credits.anchors.some((a) => a.candidateId === picked) ? credits : undefined;
 }
 
 /** The drawn role and name layers a styled credits binding copies, other than the Credits field
