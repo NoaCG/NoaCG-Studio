@@ -42,34 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci15 checker verdict (session_017SdbwPZMMDdKt7BLqjaUgq)",
-    "eta": "2026-11-02T01:15:00Z"
+    "what": "ci16 builder receipt (session_017SdbwMxcHZ24rak29S7scX)",
+    "eta": "2026-11-02T02:00:00Z"
   },
   "inFlight": [
     {
-      "phase": "ci15",
-      "step": "check",
-      "session": "session_017SdbwNtP4xJXZmRkUKq9R1",
-      "nonce": "ci15-b-b5fc",
-      "branch": "claude/plan-cicd-improvement-ci15-build",
-      "launchedAt": "2026-11-01T23:20:17Z",
-      "note": "NOT QUALIFIED now: ci13 deadline failure, three pre-reset unexplained misses still unselected (#1900, #1942, #1944), window open until >= 2026-11-15T18:14Z, four quarantine incidents. PR CI attempt 1 red on unrelated production-controls (#1946), failed-job re-run green. Auto-merge on 00:12Z.",
-      "pr": 1943,
-      "reviewedHead": "35364b885338dedb8ba48bc1929e81630afdb224",
-      "stampRun": 41365857766,
-      "so": "session_017SdbwLezrXemm98cHtgq9z",
-      "followUps": [
-        1942,
-        1944,
-        1945,
-        1946
-      ],
-      "mergeSha": "5f60ce9774dae4e618837591fde32c7b8d160cec",
-      "landedAt": "2026-11-02T00:17:51Z",
-      "queueRun": 41365938929,
-      "repairOwnerComment": 6565987842,
-      "checker": "session_017SdbwPZMMDdKt7BLqjaUgq",
-      "actor": "checker-ci15-ci15-c-f182"
+      "phase": "ci16",
+      "step": "build",
+      "session": "session_017SdbwMxcHZ24rak29S7scX",
+      "nonce": "ci16-b-30a5",
+      "branch": "claude/plan-cicd-improvement-ci16-build",
+      "launchedAt": "2026-11-02T00:38:18Z",
+      "note": "No-activation outcome only (ci15 NOT QUALIFIED); evidence file recording retained protection and blockers."
     }
   ],
   "owner": [],
@@ -337,6 +321,24 @@
       "postLand": "CI 41359365006 gate success after unrelated production-data flake (retry passed; tracked #1603; quarantine PR #1940), configured-suite 41359364992, Post-landing 41359365100, Quarantine 41359364918, Push on main 41359364385 success; repair ownership complete",
       "pass": "2026-11-01T23:17Z by checker-ci14-ci14-c-b100 (session_017SdbwQHNhMhD7V2PNewBbA)",
       "archived": 6
+    },
+    {
+      "phase": "ci15",
+      "pr": 1943,
+      "mergeSha": "5f60ce9774dae4e618837591fde32c7b8d160cec",
+      "builder": "session_017SdbwNtP4xJXZmRkUKq9R1",
+      "reviewedHead": "35364b885338dedb8ba48bc1929e81630afdb224",
+      "repairOwnerComment": 6565987842,
+      "followUps": [
+        1942,
+        1944,
+        1945,
+        1946
+      ],
+      "candidate": "NOT QUALIFIED now (ci13 deadline failure; 3 unexplained pre-reset misses #1900 #1942 #1944; window open until >= 2026-11-15T18:14:35Z; 4 quarantine incidents); protection retained",
+      "postLand": "CI 41366379777, configured-suite 41366379639, Post-landing 41366379672, Quarantine 41366379674, Push on main 41366379905 success; repair ownership complete",
+      "pass": "2026-11-02T00:36Z by checker-ci15-ci15-c-f182 (session_017SdbwPZMMDdKt7BLqjaUgq)",
+      "archived": 5
     }
   ],
   "coordinatorNotes": [
