@@ -703,11 +703,15 @@ test('styled credits, role above and role beside, enter and leave the whole fram
   const builds = [...await buildRolls(page, ABOVE, 'Research', 'styled', true), ...await buildRolls(page, BESIDE, 'Réalisation', 'styled', true)];
   expect(builds.map((b) => [b.layout, b.engine])).toEqual([...Array(3).fill(['role-above', 'styled']), ...Array(3).fill(['role-beside', 'styled'])]);
   for (const b of builds) expect(b.js).toContain('function creditsSettle(tween)');
-  let release = () => {};
+  // Every request for the face is held until released, each with its own resolver.
+  const held: (() => void)[] = [];
+  const asked: string[] = [];
   await page.route('**/fonts/anton*.woff2*', async (route) => {
-    await new Promise<void>((resolve) => { release = resolve; });
+    asked.push(route.request().url());
+    await new Promise<void>((resolve) => { held.push(resolve); });
     await route.fulfill({ body: readFileSync('public/fonts/anton.woff2'), contentType: 'font/woff2' });
   });
+  const release = () => { for (const resolve of held.splice(0)) resolve(); };
   for (const [i, b] of builds.entries()) {
     const at = `${b.layout} after ${b.motion}`;
     await page.goto('/robots.txt');
@@ -723,6 +727,8 @@ test('styled credits, role above and role beside, enter and leave the whole fram
       return { distance: w.noacgCreditsLast.distance, reached: w.noacgCreditsTween.progress(), fonts: document.fonts.status };
     });
     expect(early.fonts, `${at}: measured before the face landed`).toBe('loading');
+    // This document's own request is held, so releasing frees it rather than an older one.
+    await expect.poll(() => asked.some((url) => url.includes(`take=${i}`)) && held.length > 0, `${at}: the face's request is held`).toBe(true);
     release();
     await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsLast: { distance: number } }).noacgCreditsLast.distance), `${at}: measured again in the face`).not.toBe(early.distance);
     // It carried on from where it was rather than starting again.

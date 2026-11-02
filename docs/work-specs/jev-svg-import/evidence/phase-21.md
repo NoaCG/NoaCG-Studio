@@ -36,10 +36,12 @@ end of the roll against the frame.
 
 - `creditsRoll.ts`:
   - `styledCreditsConfig` sets `faces` when the design ships faces of its own (a bundled or
-    custom face in `svg.fonts`, the ones `svgFontCss` declares). Nothing else can arrive late.
+    custom face in `svg.fonts`, the ones `svgFontCss` declares). These are the faces the
+    template itself loads; a family it does not ship is whatever the playout machine has
+    installed, which does not load late.
   - With `faces`, the styled take carries `creditsSettle`: if the faces are still loading at the
     take, when they land the take is measured again in them and carries on from the share of the
-    roll it had reached. A new take or Out in between leaves it alone.
+    roll it had reached, paused if it was. A new take or Out in between leaves it alone.
   - `faces` only chooses lines; it is kept out of the emitted spacing table. Without it the
     runtime is byte for byte what it was, so the editable roll, the artwork roll, the plain
     imports and row 19's five role-above builds keep their pins, and so does every saved styled
@@ -93,12 +95,20 @@ at 0.4, underlined. A fix in the runtime was written and removed, since nothing 
 
 - A face that starts loading only after the take (none in practice: the rows are laid out at
   load, which requests it) is not waited for.
+- A face loaded by something other than the template (a playout page injecting a web font the
+  drawing names) is not watched: the design's build does not know of it.
+- The legacy editable roll (saved credits from before the original-artwork marker, and a stale
+  styled binding's fallback) shares the take but not the second measure: its bytes are pinned
+  and its builder (`creditsRollRuntimeJs(prefix)`) receives no design. Follow-up: #1965 (P3).
+- If the second measure finds nothing to measure (the list emptied at that moment), the roll
+  stops where it is, as a take that cannot measure does.
 - Row 19's and 20's limits stand.
 
 ## Follow-ups
 
 - Rows 22 and 23 (#1937): static and cards; row 24, live Sheet updates.
 - #1955 (P3): the editable roll's list holder through the formatter.
+- #1965 (P3): the legacy editable roll does not measure again when a face lands after the take.
 
 ## Revert
 

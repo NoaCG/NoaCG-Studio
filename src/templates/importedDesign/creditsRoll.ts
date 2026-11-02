@@ -562,14 +562,15 @@ function ${CREDITS_ROLL_CALL}() {
 
 // creditsSettle(tween): the design's own faces were still loading at the take, so the rows were
 // measured in a fallback face. When the faces land, the take is measured again in them and
-// carries on from the share of the roll it had reached: the whole list still enters from below
-// the window and leaves above it. A new take or Out since then leaves it alone.
+// carries on from the share of the roll it had reached, paused if it was: the whole list still
+// enters from below the window and leaves above it. A new take or Out since then leaves it alone.
 function creditsSettle(tween) {
   document.fonts.ready.then(function () {
     if (noacgCreditsTween !== tween) return;
     var reached = tween.progress();
+    var paused = tween.paused();
     var again = ${CREDITS_ROLL_CALL}();
-    if (again) again.progress(reached);
+    if (again) again.progress(reached).paused(paused);
   });
 }` : ''}
 
