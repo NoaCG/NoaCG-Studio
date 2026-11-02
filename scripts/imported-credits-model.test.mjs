@@ -97,6 +97,8 @@ const STYLED_CASES = {
   besideEnd: svg(`${t(300, 100, 24, 'Director', ' fill="#fc0" text-anchor="end"')}${t(340, 100, 40, 'Alex Rivera')}${t(340, 155, 40, 'Ida Lake')}${t(300, 270, 24, 'Sound', ' fill="#fc0" text-anchor="end"')}${t(340, 270, 40, 'Ari Moss')}`),
   // Names on the left, roles on the right: either column could be the roles (the one choice).
   namesLeft: svg(`${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}`),
+  // A title drawn in the role look above the block, which a picked name must not pull in.
+  headingAbove: svg(`${t(100, 60, 24, 'CREDITS', ' fill="#fc0"')}${t(100, 140, 24, 'Director', ' fill="#fc0"')}${t(100, 200, 40, 'Alex Rivera')}${t(100, 320, 24, 'Sound', ' fill="#fc0"')}${t(100, 380, 40, 'Ari Moss')}`),
   // Right to left: the role column on the right, read first.
   hebrewBeside: svg(`${t(900, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(600, 100, 40, 'דנה לוי', ' direction="rtl"')}${t(600, 155, 40, 'יוסי כהן', ' direction="rtl"')}`),
 };
@@ -389,6 +391,10 @@ async function inPage({ dev, cases, legacy, artwork }) {
     namesLeft: styledOf(cases.namesLeft, 'Alex Rivera', { swap: true }),
     pickName: styledOf(dev[0].markup, 'Nia Vale'),
     pickBesideName: styledOf(dev[1].markup, 'Émilie Lac'),
+    pickLaterRole: styledOf(dev[0].markup, 'Sound'),
+    pickUnderTitle: styledOf(cases.headingAbove, 'Alex Rivera'),
+    idaAsRead: styledOf(cases.namesLeft, 'Ida Lake'),
+    idaChosen: styledOf(cases.namesLeft, 'Ida Lake', { swap: true }),
   };
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
@@ -1009,4 +1015,23 @@ test('row 20: role beside keeps the source layers and their original text, and r
     for (const src of atRest.sources) assert.equal(src.visibility, 'hidden', `${k}: a source layer is laid out, never painted`);
   }
   assert.equal(R.styled.beside.played.take.first.step, 55, 'the pace rides the drawn name step');
+});
+
+test('row 20: a picked layer is a role or a name by the drawing\'s role look, never by where a reading starts', () => {
+  // Codex on 91fe641: a later role picked read from the previous group's last name, kinds reversed.
+  const sound = R.styled.pickLaterRole;
+  assert.equal(sound.field.value, 'Sound:\nAri Moss');
+  assert.deepEqual(sound.preview.anchors.map((a) => a.kind), ['role', 'name']);
+  // A title in the role look above the block stays artwork when a name is picked.
+  const under = R.styled.pickUnderTitle;
+  assert.equal(under.field.value, 'Director:\nAlex Rivera\nSound:\nAri Moss');
+  // Names left of roles, a name alone on its line picked: the question is asked either way, and
+  // the answer reads it as a name under Director.
+  assert.equal(R.styled.idaAsRead.preview.ambiguous, true);
+  assert.equal(R.styled.idaChosen.preview.ambiguous, true);
+  assert.equal(R.styled.idaChosen.field.value, 'Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss');
+  for (const k of ['pickLaterRole', 'pickUnderTitle', 'idaChosen']) {
+    assert.equal(R.styled[k].engine, 'styled', k);
+    assert.deepEqual(R.styled[k].errors, [], k);
+  }
 });

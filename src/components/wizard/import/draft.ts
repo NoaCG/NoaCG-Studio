@@ -272,11 +272,8 @@ export interface SvgRecipeDraft {
    *  another pick is never saved. */
   creditsFor?: string;
   /** Credits only: the author's answer where either drawn column could be the roles - the other
-   *  column (`CreditsChoice.swap`). Kept while fixed artwork is chosen, for a change of mind. */
+   *  column (`CreditsChoice.swap`). */
   creditsSwap?: true;
-  /** Credits only: the author chose fixed artwork where editable styled credits could build, so
-   *  the step does not write `credits` for them. */
-  creditsArtwork?: true;
 }
 
 export interface SvgRecipeRow {
@@ -468,10 +465,10 @@ export function disarmTimerClock(fields: SvgFieldDraft[]): SvgFieldDraft[] {
 }
 
 /** A credits draft's styled binding, while it still belongs to the layer picked as Credits (the
- *  step reads it again whenever the pick changes; until then nothing stale is saved), unless the
- *  author chose fixed artwork. A binding without `creditsFor` was read for its first role. */
+ *  step reads it again whenever the pick changes; until then nothing stale is saved). A binding
+ *  without `creditsFor` was read for its first role. */
 export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | undefined {
-  const credits = behaviour.recipe === 'credits' && !behaviour.creditsArtwork ? behaviour.credits : undefined;
+  const credits = behaviour.recipe === 'credits' ? behaviour.credits : undefined;
   const picked = behaviour.fields?.credits;
   const readFor = behaviour.creditsFor ?? credits?.anchors[0]?.candidateId;
   return credits && picked && readFor === picked && credits.anchors.some((a) => a.candidateId === picked) ? credits : undefined;

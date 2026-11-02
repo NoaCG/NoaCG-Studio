@@ -1478,21 +1478,34 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     });
     return { ids: at.map((x) => x.id), readings: at.map((x) => x.r) };
   };
-  let block = from(picked);
-  // A NAME PICKED reads from its own role: the nearest layer at or above it in another look. It
-  // is a name when either reading of that wider block says so, so the block does not depend on
-  // the column answer, and a role picked keeps the block it starts (a title above stays out).
-  const ownRole = all
-    .filter((r): r is CreditsReading => !!r && r.look !== picked.look && down(r) <= down(picked) + 0.25 * Math.min(r.size, picked.size))
-    .sort((p, q) => down(q) - down(p))[0];
-  if (ownRole) {
-    const wider = from(ownRole);
-    const asName = (swap: boolean) => {
-      const read = analyseCreditsStyle(wider.readings, wider.ids, { swap });
-      return read.ok && read.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name';
-    };
-    if (asName(false) || asName(true)) block = wider;
+  const near = (p: CreditsReading, q: CreditsReading) => Math.abs(down(p) - down(q)) <= 0.25 * Math.min(p.size, q.size);
+  // THE DRAWING'S TOP: the layers above, nearest first, while the whole stays within two looks.
+  // Its first line, read in the reading direction (the column answer turns it), starts with a
+  // role, so its first layer's look is the ROLE look: one layer's identity is never guessed from
+  // where a reading happens to start.
+  const looks = new Set(from(picked).readings.map((r) => r.look));
+  let top = picked;
+  const above = all
+    .filter((r): r is CreditsReading => !!r && down(r) < down(picked) && !near(r, picked))
+    .sort((p, q) => down(q) - down(p));
+  for (const r of above) {
+    if (!looks.has(r.look) && looks.size >= 2) break;
+    looks.add(r.look);
+    top = r;
   }
+  const region = from(top);
+  const firstLine = region.readings.filter((r) => near(r, top));
+  const across = (r: CreditsReading) => (d * r.x - c * r.y) / (a * d - b * c || 1);
+  const leftward = firstLine.every((r) => r.rtl === true) !== (choice.swap === true);
+  const roleLook = [...firstLine].sort((p, q) => (leftward ? across(q) - across(p) : across(p) - across(q)))[0].look;
+  // A ROLE picked starts the block; a NAME picked reads from its own role, the nearest layer at
+  // or above it in the role look, as picking that role would. A title above stays out either way.
+  const ownRole = picked.look === roleLook
+    ? picked
+    : all
+      .filter((r): r is CreditsReading => !!r && r.look === roleLook && (down(r) < down(picked) || near(r, picked)))
+      .sort((p, q) => down(q) - down(p))[0] ?? picked;
+  const block = from(ownRole);
   const { ids, readings } = block;
   const analysis = analyseCreditsStyle(readings, ids, choice);
   if (!analysis.ok) return own(analysis.message);
@@ -1501,7 +1514,9 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     styled: true,
     layout: analysis.style.layout,
     rtl: readings.every((r) => r?.rtl === true),
-    ambiguous: creditsColumnsAmbiguous(readings, ids),
+    // Whether the drawing's columns read either way is a fact of the whole drawing, not of the
+    // block one answer starts, so the question does not come and go with the answer.
+    ambiguous: creditsColumnsAmbiguous(region.readings, region.ids),
     anchors: analysis.style.anchors,
     list: readCreditsList(analysis.style.list),
   };

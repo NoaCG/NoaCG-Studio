@@ -397,7 +397,6 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
   await picker.selectOption(name);
   await expect(preview).toHaveAttribute('data-layout', 'role-beside');
   await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
-  await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
   await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
   await intoProduction(page, 'Équipe credits', 'Équipe night');
   await settleDurableWrites(page);
@@ -459,12 +458,6 @@ test('the one column choice fixes names drawn left of their roles: preview, save
   await roles.selectOption({ label: 'Right' });
   await expect(preview.locator('[data-credit="role"]')).toHaveText(['Director', 'Sound']);
   await expect(preview.locator('[data-credit="name"]')).toHaveText(['Alex Rivera', 'Ida Lake', 'Ari Moss']);
-  // The answer is the draft's, so a detour through fixed artwork does not lose it.
-  const engine = page.getByTestId('map-svg-credits-engine');
-  await engine.selectOption('artwork');
-  await expect(roles).toHaveCount(0);
-  await engine.selectOption('editable');
-  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Director', 'Sound']);
   await intoProduction(page, 'Names left credits', 'Names left night');
   await settleDurableWrites(page);
 
@@ -481,29 +474,22 @@ test('the one column choice fixes names drawn left of their roles: preview, save
   ]);
 });
 
-test('credits that could be styled can be kept as fixed artwork, and a fallback says why', async ({ page }) => {
-  // Owner direction 2026-11-02: editable styled credits by default, fixed artwork a deliberate
-  // choice, and one plain line where a design falls back.
+test('credits that cannot be styled say why they stay fixed artwork, in one line', async ({ page }) => {
+  // Owner direction 2026-11-02: where a design falls back to artwork, say plainly why.
   await page.goto('/app');
   await dropSvg(page, ABOVE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   const picker = page.getByTestId('map-svg-recipe-credits');
   const values = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean));
   await picker.selectOption(values[1]);
-  const engine = page.getByTestId('map-svg-credits-engine');
-  await expect(engine).toHaveValue('editable');
-  const rowsSay = page.locator('[data-testid^="map-svg-driven-"]');
-  await expect(rowsSay.first()).toHaveText(/, sets the look of every name in Credits$/);
-  await engine.selectOption('artwork');
-  // Kept as artwork: the drawn text scrolls as drawn, as every artwork credits import does.
-  await expect(rowsSay.first()).toHaveText(/, scrolls as artwork$/);
-  await expect(rowsSay.filter({ hasText: 'sets the look' })).toHaveCount(0);
-  await engine.selectOption('editable');
-  await expect(rowsSay.first()).toHaveText(/, sets the look of every name in Credits$/);
-  // The title is one look of its own, so picking it gives no roles and names: it says so.
+  const fallback = page.getByTestId('map-svg-credits-fallback');
+  await expect(page.locator('[data-testid^="map-svg-driven-"]').first()).toHaveText(/, sets the look of every name in Credits$/);
+  await expect(fallback).toHaveCount(0);
+  // The title is a look of its own, so picking it gives no roles and names: it says so, and its
+  // row scrolls as artwork.
   await picker.selectOption(values[0]);
-  await expect(page.getByTestId('map-svg-credits-fallback')).toHaveText(/^Fixed artwork: .+/);
-  await expect(engine).toHaveCount(0);
+  await expect(fallback).toHaveText(/^Fixed artwork: .+/);
+  await expect(page.locator('[data-testid^="map-svg-driven-"]').first()).toHaveText(/, scrolls as artwork$/);
 });
 
 test('role-above credits drawn as separate layers roll in those layers\' own styling', async ({ page }) => {

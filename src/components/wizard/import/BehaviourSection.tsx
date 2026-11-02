@@ -119,27 +119,27 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  *
  * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above or
  * role beside, as a roll), the graphic is built in those layers' own styling by default: the
- * reading is handed to the draft as the binding, its anchors exactly as previewed. The author may
- * deliberately keep the credits as fixed artwork instead. Anything else saves the original-text
- * roll, and the preview says in one line why.
+ * reading is handed to the draft as the binding, its anchors exactly as previewed. Anything else
+ * saves the original-text roll, and the preview says in one line why. No fixed-artwork choice is
+ * offered for credits that can be styled: the artwork roll moves only the Credits layer's own
+ * text, so for separate role and name layers it would half-scroll (#1958).
  *
  * ONE COLUMN CHOICE. Only role beside can be read both ways (`CreditsChoice`); where it can, the
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
   /** Changes whenever the step's render was measured again (a font landed, a new file). */
   measured: unknown;
-  /** What the draft holds now - the styled binding, the column answer, whether the author chose
-   *  fixed artwork - and how to change it. */
+  /** What the draft holds now - the styled binding, the pick it was read for, the column answer -
+   *  and how to change it. */
   saved: DesignSvgCredits | undefined;
   savedFor: string | undefined;
   swap: boolean;
-  fixed: boolean;
-  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork'>) => void;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -154,7 +154,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   }, [stage, idKey, creditsId, measured]);
   const shown = readings ? (swap && readings.swapped ? readings.swapped : readings.read) : null;
   const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
-  const styled: DesignSvgCredits | undefined = reading && !fixed
+  const styled: DesignSvgCredits | undefined = reading
     ? { v: 1, layout: reading.layout, playback: 'roll', anchors: reading.anchors }
     : undefined;
   // A binding belongs to the pick it was read for, so the same anchors for another pick are new.
@@ -170,20 +170,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const rtl = shown.styled && shown.rtl;
   return (
     <>
-      {reading && (
-        <label className="save-field">
-          <span>Show as</span>
-          <select
-            value={fixed ? 'artwork' : 'editable'}
-            onChange={(e) => onPatch(e.target.value === 'artwork' ? { credits: undefined, creditsArtwork: true } : { creditsArtwork: undefined })}
-            data-testid="map-svg-credits-engine"
-          >
-            <option value="editable">Editable, in this design&apos;s styling</option>
-            <option value="artwork">Fixed artwork</option>
-          </select>
-        </label>
-      )}
-      {readings?.swapped && !fixed && (
+      {readings?.swapped && (
         <label className="save-field">
           <span>Which column contains the roles?</span>
           <select value={swap ? 'other' : 'first'} onChange={(e) => onPatch({ creditsSwap: e.target.value === 'other' ? true : undefined })} data-testid="map-svg-credits-roles">
@@ -1327,7 +1314,6 @@ export default function BehaviourSection({
                   saved={generic.credits}
                   savedFor={generic.creditsFor}
                   swap={!!generic.creditsSwap}
-                  fixed={!!generic.creditsArtwork}
                   onPatch={patchGeneric}
                 />
               )}
