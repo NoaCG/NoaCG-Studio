@@ -1006,12 +1006,12 @@ function liveReader(server, { id, shape, paths }) {
 
 /** The failures a live Sheet meets, each said with its fix and none writing anything. */
 const FAILURES = [
-  ['deny', /not shared/],
-  ['hang', /did not answer in 10 seconds/],
-  ['reset', /not shared, or offline/],
-  ['signin', /not shared/],
-  ['error', /refused the read \(500\)/],
-  ['missing', /can’t find the tab/],
+  ['deny', /^can’t read it \(not shared\)$/],
+  ['hang', /^Google did not answer in 10 seconds$/],
+  ['reset', /^can’t read it \(not shared, or offline\)$/],
+  ['signin', /^can’t read it \(not shared\)$/],
+  ['error', /^Google refused the read \(500\)$/],
+  ['missing', /^can’t find the tab$/],
 ];
 
 /**
@@ -1030,7 +1030,11 @@ async function walkFailures({ id, shape, path, first, firstValue, newer, newerVa
     for (const [mode, error] of FAILURES) {
       const writes = page.writes.length;
       server.mode(id, mode);
-      await until(() => page.status().state === 'failing' && error.test(page.status().error), 3000, `${mode} said as a failure`);
+      // Two reads under this failure: the first has answered (reads never overlap).
+      const reads = server.reads(id);
+      await until(() => server.reads(id) >= reads + 2, 3000, `${mode} read twice`);
+      assert.equal(page.status().state, 'failing', mode);
+      assert.match(page.status().error, error, mode);
       assert.ok(page.status().fix, `${mode}: the line says what to do`);
       assert.equal(page.writes.length, writes, `${mode}: a failed read writes nothing`);
       assert.equal(page.value(), firstValue, `${mode}: the last good value holds`);
