@@ -224,6 +224,44 @@ test('an earlier id another node of the new artwork holds is not given back', as
   expect(r.f1Nodes).toBeLessThanOrEqual(1);
 });
 
+test('an edited identity a designer node of the new artwork happens to wear is not trusted', async ({ page }) => {
+  await page.goto('/app');
+  const r = await page.evaluate(async ([a, b]) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const A = await import('/src/blocks/animData.ts');
+    const { commitSvgIdentity } = await import('/src/blocks/svgIdentity.ts');
+    const { getTemplateParts } = await import('/src/model/structure.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const build = (markup: string) => {
+      const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      return buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Guest' }));
+    };
+    const baseline = build(a);
+    // Key the backdrop through an identity the editor mints (artwork-1).
+    const backdrop = getTemplateParts(baseline.html, baseline.fields, true).find((p) => /^body.*>svg:nth-of-type\(1\)>rect:nth-of-type\(1\)$/.test(p.selector))!;
+    const done = commitSvgIdentity(baseline, backdrop.selector);
+    const data = A.parseAnimData(done.template.js)!;
+    data.steps[0].layers[done.selector] = { opacity: [{ time: 0, value: 0 }, { time: 0.4, value: 1 }] };
+    const prior = { ...done.template, js: A.spliceAnimData(done.template.js, data)! };
+    const out = D.svgReimported({ template: prior, baseline }, build(b))!;
+    const doc = new DOMParser().parseFromString(out.template.html, 'text/html');
+    return {
+      selector: done.selector,
+      wearer: doc.querySelector(done.selector)?.getAttribute('fill') ?? null,
+      keyed: !!A.parseAnimData(out.template.js)!.steps[0].layers[done.selector],
+      unresolved: out.unresolved.map((u) => u.kind),
+    };
+  }, [V1, V1.replace('#122036', '#334455').replace('</svg>', '  <circle id="artwork-1" cx="1250" cy="20" r="8" fill="#ff0000"/>\n</svg>')]);
+  expect(r.selector).toBe('#artwork-1');
+  // The new artwork's own node keeps its id, but the backdrop's keys are not handed to it.
+  expect(r.wearer).toBe('#ff0000');
+  expect(r.keyed).toBe(false);
+  expect(r.unresolved).toContain('key');
+});
+
 test('a removed field never lands on its unbound look-alike', async ({ page }) => {
   await page.goto('/app');
   // Two identical captions in two unnamed groups; only the first is a field. Version two deletes

@@ -2174,17 +2174,21 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
       const doc = parseHtml(template.html);
       let found: Element | null = null;
       try { found = doc.querySelector(selector); } catch { /* not a selector this document answers */ }
-      if (found) continue;
-      // A layer keyed through an identity the editor minted: the same drawn layer, verified by
-      // its source key, takes the identity back.
-      const was = /^#artwork-\d+$/.test(selector) ? priorDoc.querySelector(selector) : null;
+      const minted = /^#artwork-\d+$/.test(selector);
+      // A designer's own id names its layer in both versions; an identity the editor MINTED is
+      // ours, so a node of the new artwork wearing it proves nothing until its source key agrees.
+      if (found && !minted) continue;
+      // The same drawn layer, verified by its source key, takes the identity back.
+      const was = minted ? priorDoc.querySelector(selector) : null;
       const art = artOf(doc);
       const key = was && priorArt.contains(was) ? sourceKey(was, priorArt) : null;
       const alike = (root: Element | null) => (key && root ? Array.from(root.querySelectorAll('*')).filter((el) => sourceKey(el, root) === key) : []);
       // Verified only when the key occurs once on EACH side (R2): a twin in the earlier artwork
       // may be the very layer the keys were on.
       const twins = alike(art);
-      const carried = twins.length === 1 && alike(priorArt).length === 1 ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
+      const verified = twins.length === 1 && alike(priorArt).length === 1;
+      if (found && verified && twins[0] === found) continue;
+      const carried = !found && verified ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
       if (carried) template = carried;
       else {
         drop(selector);
