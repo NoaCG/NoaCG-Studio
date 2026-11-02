@@ -40,6 +40,9 @@ import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
 import { canonical } from '../../../model/publishedRecord';
 import { parseAnimData, spliceAnimData } from '../../../blocks/animData';
 import { carrySvgIdentity } from '../../../blocks/svgIdentity';
+import { duplicateGraphic, graphicById, librarySaveEffect, type LibraryNameEntry } from '../../../model/library';
+import { freeName } from '../../../model/poolIdentity';
+import type { LibraryIo, WalkMemory } from '../shell/walkState';
 import { artOf, carryKeys, carryTitles, lostActions, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
@@ -2192,5 +2195,57 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
       .map(named)
       .filter((u) => !(u.kind === 'key' && gone.has(u.label)))
       .filter((u) => !seen.has(u.kind + u.label) && !!seen.add(u.kind + u.label)),
+  };
+}
+
+/** The working document as the reimport seam reads and writes it (the template store). */
+interface ReimportStore {
+  getState(): { template: SpxTemplate };
+  setState(patch: { template: SpxTemplate; baseline: SpxTemplate; sampleData: Record<string, string> }): void;
+}
+
+/** The library seam's reimport half (shell/walkState.ts `LibraryIo`): the working document is the
+ *  build, and `apply` makes the reconciled build the working document and its Reset target. */
+export function reimportIo(
+  store: ReimportStore,
+  sampleData: (template: SpxTemplate, existing: Record<string, string>) => Record<string, string>,
+): Pick<LibraryIo, 'reconcile' | 'keepCopy'> {
+  return {
+    reconcile: (id) => {
+      const held = graphicById(id);
+      const done = held ? svgReimported({ template: held.template, baseline: held.baseline }, store.getState().template) : null;
+      if (!done) return null;
+      return {
+        unresolved: done.unresolved,
+        apply: () => store.setState({ template: done.template, baseline: done.baseline, sampleData: sampleData(done.template, {}) }),
+      };
+    },
+    keepCopy: (id) => {
+      const copy = duplicateGraphic(id);
+      return !!copy.doc && !copy.error;
+    },
+  };
+}
+
+/** The Finish step's read of a reimport, cached on what it reads: the build and the held record. */
+let reviewCache: { built: SpxTemplate; id: string; at: string; result: SvgReimport | null } | null = null;
+
+/** What Finish says about a reimport over the graphic `name` holds (FinishStep `reimport`), or
+ *  null when the save is the ordinary one or carries everything. */
+export function finishReimport(built: SpxTemplate | null, name: string, library: LibraryNameEntry[], madeId: string | null, memory: WalkMemory) {
+  const effect = librarySaveEffect(library, name, madeId);
+  const held = built && effect.kind === 'over' ? graphicById(effect.targetId) : null;
+  if (!built || !held) return null;
+  if (reviewCache?.built !== built || reviewCache.id !== held.id || reviewCache.at !== held.updatedAt) {
+    reviewCache = { built, id: held.id, at: held.updatedAt, result: svgReimported({ template: held.template, baseline: held.baseline }, built) };
+  }
+  const unresolved = reviewCache.result?.unresolved ?? [];
+  if (unresolved.length === 0) return null;
+  return {
+    unresolved,
+    separateName: freeName(library.map((g) => g.name), name),
+    copyName: `${name} copy`,
+    replace: !!memory.replaceOver,
+    onReplace: (replace: boolean) => { memory.replaceOver = replace; },
   };
 }

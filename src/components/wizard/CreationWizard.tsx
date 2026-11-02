@@ -1,9 +1,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState, type SetStateAction } from 'react';
-import { useTemplateStore } from '../../store/templateStore';
+import { syncSampleData, useTemplateStore } from '../../store/templateStore';
 import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   brandOrClearPatch,
-  buildDraftTemplate,
+  buildDraftTemplate, finishReimport, reimportIo,
   draftFormatSelection,
   draftName,
   draftResolution,
@@ -58,10 +58,7 @@ import { useRouter, type Route } from '../../app/router';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
 import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
-import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
-import { freeName } from '../../model/poolIdentity';
-import { svgReimported, type SvgReimport } from './import/draft';
-import { syncSampleData } from '../../store/templateStore';
+import { graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
@@ -136,33 +133,7 @@ const LIBRARY_IO: LibraryIo = {
   linkTo: (id) => useTemplateStore.getState().setSaved({ graphicId: id, dirty: true, status: 'idle' }),
   saveCurrent: (name) => saveCurrentGraphic({ name }),
   saveAs: (name) => saveGraphicAs(name, { kind: 'standalone' }),
-  // REIMPORT (spec "Reimport", AC-15): the working build against the record it would replace.
-  reconcile: (id) => {
-    const held = graphicById(id);
-    const s = useTemplateStore.getState();
-    const done = held ? svgReimported({ template: held.template, baseline: held.baseline }, s.template) : null;
-    if (!done) return null;
-    return {
-      unresolved: done.unresolved,
-      apply: () => useTemplateStore.setState({ template: done.template, baseline: done.baseline, sampleData: syncSampleData(done.template, {}) }),
-    };
-  },
-  keepCopy: (id) => {
-    const copy = duplicateGraphic(id);
-    return !!copy.doc && !copy.error;
-  },
 };
-
-/** The Finish step's read of a reimport, cached on what it reads: the build and the held record. */
-let reviewCache: { built: SpxTemplate; id: string; at: string; result: SvgReimport | null } | null = null;
-function reimportReview(built: SpxTemplate, id: string): SvgReimport | null {
-  const held = graphicById(id);
-  if (!held) return null;
-  if (reviewCache?.built !== built || reviewCache.id !== id || reviewCache.at !== held.updatedAt) {
-    reviewCache = { built, id, at: held.updatedAt, result: svgReimported({ template: held.template, baseline: held.baseline }, built) };
-  }
-  return reviewCache.result;
-}
 
 /**
  * The choose-first creation wizard (replaces the old template gallery). Six steps —
@@ -573,33 +544,13 @@ export default function CreationWizard() {
    */
   const remember = () => rememberWalk(memory.current, walk);
 
-  /** What Finish says about a reimport over the graphic its name holds (FinishStep `reimport`). */
-  const finishReimport = () => {
-    if (mode !== 'svg' || !previewTemplate || !variant) return null;
-    const name = draftName(variant, draft);
-    const effect = librarySaveEffect(finishLibrary, name, finishMadeId);
-    if (effect.kind !== 'over') return null;
-    const review = reimportReview(previewTemplate, effect.targetId);
-    if (!review?.unresolved.length) return null;
-    const names = finishLibrary.map((g) => g.name);
-    return {
-      unresolved: review.unresolved,
-      separateName: freeName(names, name),
-      copyName: `${name} copy`,
-      replace: !!memory.current.replaceOver,
-      onReplace: (replace: boolean) => { memory.current.replaceOver = replace; },
-    };
-  };
-
   /** Every ending of the walk (shell/doors.ts), each taking the mode's applier below. */
   const doors = makeDoors({
     ...STUDIO_DOOR_IO,
-    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, LIBRARY_IO, { replace: memory.current.replaceOver }),
-    // The record's id and name are read from the store, so only once the save has linked it (a
-    // reimport kept separate saves under a free name rather than the one typed).
+    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, { replace: memory.current.replaceOver }),
+    // The record's id (and name: a reimport kept separate saves under a free one) are read from the store, once the save has linked it.
     noteMade: (name, production, landedOn = null) => {
-      const s = useTemplateStore.getState();
-      noteMade(memory.current, { name: s.template.name || name, graphicId: s.saved.graphicId, production, landedOn });
+      noteMade(memory.current, { name: useTemplateStore.getState().template.name || name, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn });
       // A REF the Finish step reads: nothing re-renders on its own, and the step is still on
       // screen after the export door (the production door routes away instead).
       rereadFinish();
@@ -1337,8 +1288,7 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                madeId={finishMadeId}
-                reimport={finishReimport()}
+                madeId={finishMadeId} reimport={variant && mode === 'svg' ? finishReimport(previewTemplate, draftName(variant, draft), finishLibrary, finishMadeId, memory.current) : null}
                 onAddToProduction={(dest) => void doors.addToProduction(applyDraftProject, dest, catalogName)}
                 onEditArtwork={() => void doors.editArtwork(applyDraftProject)}
                 onExport={() => void doors.export(applyDraftProject, catalogName)}
