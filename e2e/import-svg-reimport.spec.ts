@@ -199,6 +199,36 @@ test('an edited identity on one of two look-alike layers is not moved onto the s
   expect(r.unresolved).toContain('key');
 });
 
+test('a removed field never lands on its unbound look-alike', async ({ page }) => {
+  await page.goto('/app');
+  // Two identical captions in two unnamed groups; only the first is a field. Version two deletes
+  // the first, and its walk binds the survivor.
+  const caption = (x: number) => `  <g transform="translate(${x} 0)"><text x="70" y="220" font-size="18">Caption</text></g>\n`;
+  const a = V1.replace('</svg>', caption(0) + caption(600) + '</svg>');
+  const b = V1.replace('</svg>', caption(600) + '</svg>');
+  const r = await page.evaluate(async ([first, second]) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const build = (markup: string, unbindLastCaption: boolean) => {
+      const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      const captions = patch.svgFields.filter((f) => f.sample === 'Caption');
+      const off = unbindLastCaption ? captions[captions.length - 1].candidateId : null;
+      const svgFields = patch.svgFields.map((f) => (f.candidateId === off ? { ...f, on: false } : f));
+      return buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, svgFields, name: 'Guest' }));
+    };
+    const prior = build(first, true);
+    const out = D.svgReimported({ template: prior, baseline: prior }, build(second, false))!;
+    const captionId = prior.fields.find((f) => f.value === 'Caption' || f.title.toLowerCase().includes('caption'))?.field ?? null;
+    return { prior: prior.fields.map((f) => f.field), captionId, unresolved: out.unresolved.map((u) => u.kind), ids: out.template.fields.map((f) => f.field) };
+  }, [a, b]);
+  // The caption field's id is not handed to the other caption; the earlier graphic is kept.
+  expect(r.unresolved).toContain('ambiguous');
+  expect(r.ids).not.toContain(r.captionId);
+});
+
 test('a behaviour keeps its fields and actions; dropping it names every action', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async (markup) => {

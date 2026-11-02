@@ -93,6 +93,17 @@ function counts(keys: Iterable<string>): Map<string, number> {
   return n;
 }
 
+/** How often each key occurs among a template's fields AND every drawn layer of its artwork: an
+ *  unbound twin of a bound layer makes that layer ambiguous too (R2). A field's own node is
+ *  counted once. */
+function keyCounts(template: SpxTemplate, keys: Map<string, string>): Map<string, number> {
+  const doc = parseHtml(template.html);
+  const art = artOf(doc);
+  const drawn = art ? Array.from(art.querySelectorAll('*')).map((el) => sourceKey(el, art)) : [];
+  const holders = [...keys.values()].filter((k) => k.startsWith('holder|'));
+  return counts([...drawn, ...holders]);
+}
+
 export interface ReimportMatch {
   /** Built field id -> the id it takes: its earlier id for a match, a fresh one where the
    *  earlier graphic used that id for something else. Ids absent here keep their own. */
@@ -116,8 +127,8 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
   const firstTitle = new Map((priorBaseline?.fields ?? []).map((f) => [f.field, f.title]));
   const before = fieldKeys(prior, (f) => firstTitle.get(f.field) ?? f.title);
   const after = fieldKeys(built, (f) => f.title);
-  const nBefore = counts(before.values());
-  const nAfter = counts(after.values());
+  const nBefore = keyCounts(prior, before);
+  const nAfter = keyCounts(built, after);
   const byKey = new Map([...after].map(([id, k]) => [k, id]));
   const matched = new Map<string, string>();
   const gone: string[] = [];
@@ -125,12 +136,14 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
   for (const f of prior.fields) {
     const k = before.get(f.field)!;
     const n = nAfter.get(k) ?? 0;
-    if (n === 1 && nBefore.get(k) === 1) {
+    // The match must also be one of the new build's FIELDS: a layer the new walk left unbound is
+    // not where the earlier field went.
+    if (n === 1 && nBefore.get(k) === 1 && byKey.has(k)) {
       matched.set(f.field, byKey.get(k)!);
       continue;
     }
     gone.push(f.field);
-    unresolved.push({ kind: n === 0 ? 'removed' : 'ambiguous', label: f.title || f.field });
+    unresolved.push({ kind: n === 0 || (n === 1 && !byKey.has(k)) ? 'removed' : 'ambiguous', label: f.title || f.field });
   }
   const rename = new Map<string, string>();
   for (const [was, now] of matched) if (was !== now) rename.set(now, was);
