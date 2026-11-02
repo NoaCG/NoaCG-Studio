@@ -704,6 +704,7 @@ test('role-above credits chosen to play as cards change on Next card, and a card
   await playback.selectOption('cards');
   await expect(page.getByTestId('map-svg-credits-cards')).toHaveText('A blank line starts a new card. A card too long for the page is not shown, and its field says so.');
   await expect(page.getByTestId('map-svg-credits-advance')).toHaveValue('');
+  await expect(page.getByTestId('map-svg-credits-advance-hint')).toHaveText('Blank waits for Next card; playout systems without custom actions need a card time.');
   await intoProduction(page, 'Research cards', 'Research cards');
   await settleDurableWrites(page);
 

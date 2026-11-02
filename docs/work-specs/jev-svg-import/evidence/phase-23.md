@@ -88,13 +88,26 @@ Mutations, each caught (the jobs are in Verification):
 
 ## Decisions
 
-- **Advance: Next card by default, a card time when stated** (spec Credits bullet and phase 16:
-  "Cards default to operator Next; optional timed advancement requires an explicit profile
-  value"). The native page swap is timer-only, so the brief's condition applied and the options
-  were sent to the coordinator before building (no reply had arrived when this was written; the
-  PR says what came back). The time is the binding's `advance` (2 to 60, `CREDITS_CARD_SECONDS`)
-  and is the production page's `Card time (s)` field, so a last-minute change needs no re-import.
-  Blank means Next only. A new time applies to the hold under way, counted from its start.
+- **Advance: Next card by default, a card time when stated.** The spec's Credits bullet, verbatim:
+  "Cards default to operator Next; optional timed advancement requires an explicit profile value
+  and tested bounds." Phase 16's model already says it (`advance` absent = the operator's Next).
+  The native page swap is timer-only, so the brief's condition applied: the options went to the
+  coordinator before building, and the coordinator chose this one (B) on 2026-11-02, with these
+  conditions, each met here:
+  1. Without an advance, Next card is the only advance; with one, the timer plus Next.
+  2. The wizard says in one sentence that hosts without custom actions need a card time:
+     "Blank waits for Next card; playout systems without custom actions need a card time."
+     It names no playout client: `check:client-neutral` refuses SPX as product copy, and allowing
+     it would need a file outside this row's list. SPX is one such system.
+  3. Next card stays on the existing one-state parallel group primitive, with no file outside
+     TOUCHES and the pre-approved list.
+  4. The last card holds until Out.
+  5. Both modes are tested, Next during a timed card included; the native `credits-pages` preset
+     and catalog emit are unchanged (`check:catalog-emit` PASS, 528, which builds every
+     `endCredits` design; no file under `src/templates/endCredits/` changed).
+  The time is the binding's `advance` (2 to 60, `CREDITS_CARD_SECONDS`) and is the production
+  page's `Card time (s)` field, so a last-minute change needs no re-import. Blank means Next only.
+  A new time applies to the hold under way, counted from its start.
 - **Next card is a machine event on a one-state parallel group**, so it reaches the Control tab
   and OGraf hosts as a custom action. A playout road without custom actions (SPX's fixed Continue
   count) cannot press it; such a show sets a card time (Known limits).
@@ -115,7 +128,7 @@ Mutations, each caught (the jobs are in Verification):
 ## Known limits
 
 - On a playout road with no custom actions (SPX Continue), cards without a card time stay on the
-  first card. The wizard's blank seconds say "each card waits for Next card"; set a time there.
+  first card. The wizard says so where the seconds are set.
 - A single name too wide for 30% is still cut at the window's edge, as on the roll (row 19).
 - A card refused for length leaves the artwork on air without that card's credits until Next or a
   shorter list (row 22's limit, per card).

@@ -244,7 +244,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
             }}
             data-testid="map-svg-credits-advance"
           />
-          <span className="hint">Blank: each card waits for Next card.</span>
+          <span className="hint" data-testid="map-svg-credits-advance-hint">Blank waits for Next card; playout systems without custom actions need a card time.</span>
         </label>
       )}
       {asks && !artwork && (
