@@ -512,7 +512,7 @@ function creditsWindow(sample) {
 /** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
  *  a live speed change. Each engine supplies `creditsSample()` (the layer whose parent the rows
  *  sit in) and `creditsRender()` (the rows and the name step they were built with). */
-function creditsTakeJs(settle = false): string {
+function creditsTakeJs(settle = false, held = false): string {
   return `${creditsWindowJs()}
 
 var noacgCreditsTween = null;
@@ -529,7 +529,8 @@ function ${CREDITS_ROLL_CALL}() {
   // A new take ends the last one first, so a take that cannot measure leaves no old roll for a
   // later speed change to rescale.
   if (noacgCreditsTween) noacgCreditsTween.kill();
-  noacgCreditsTween = null;
+  noacgCreditsTween = null;${held ? `
+  creditsHoldList();` : ''}
   var built = creditsRender();
   var sample = creditsSample();
   if (!built || !sample || typeof gsap === 'undefined') return null;
@@ -575,8 +576,11 @@ function creditsSettle(tween) {
   document.fonts.ready.then(function () {
     if (noacgCreditsTween !== tween) return;
     var reached = tween.progress();
-    var paused = tween.paused();
-    var again = ${CREDITS_ROLL_CALL}();
+    var paused = tween.paused();${held ? `
+    noacgCreditsSettling = true;      // the same take, measured again: it keeps the list it took
+    var again = null;
+    try { again = ${CREDITS_ROLL_CALL}(); } finally { noacgCreditsSettling = false; }` : `
+    var again = ${CREDITS_ROLL_CALL}();`}
     if (again) again.progress(reached).paused(paused);
   });
 }` : ''}
@@ -594,10 +598,51 @@ function creditsLiveSpeed() {
 // the list back below the window. No jump either: the take is started from a timeline CALL, so
 // the tween lives on GSAP's root timeline, which holds a child's playhead still across a
 // timeScale by itself (the catalog roll, nested in a step timeline, has to lend it that).
-function creditsDataUpdated() {
-  creditsRender();
+function creditsDataUpdated() {${held ? `
+  // A roll on air keeps the list it took (creditsHeldList); a new list waits for the next take.
+  if (!creditsListWaits()) creditsRender();` : `
+  creditsRender();`}
   if (noacgCreditsTween) noacgCreditsTween.timeScale(creditsLiveSpeed() / noacgCreditsBuiltAt);
 }`;
+}
+
+/** THE LIST ON AIR (styled roll and cards): a take keeps the list it took until Out or the next
+ *  take, so an update on air (a Sheet refresh, a typed Update) never changes a moving roll or the
+ *  cards under the viewer. The holder keeps every write; off air the rows follow it at once, and
+ *  the next take takes the newest. `noacgCreditsWaiting` says a newer list waits for that take. */
+function creditsHeldJs(): string {
+  return `
+// The list the take on air took, null off air; whether the holder has a newer one since; and a
+// take measured again when its faces land (creditsSettle), which keeps the list it took.
+var noacgCreditsHeld = null;
+var noacgCreditsWaiting = false;
+var noacgCreditsSettling = false;
+
+// creditsHeldList(): the list the rows are built from - the one taken while on air, else the
+// holder's as it stands.
+function creditsHeldList() {
+  if (noacgCreditsHeld !== null) return noacgCreditsHeld;
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  return holder ? holder.textContent : '';
+}
+
+// creditsHoldList(): a take takes the holder's list as it stands now.
+function creditsHoldList() {
+  if (noacgCreditsSettling) return;
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  noacgCreditsHeld = holder ? holder.textContent : '';
+  noacgCreditsWaiting = false;
+}
+
+// creditsListWaits(): after update(), whether a take on air keeps its list, and so whether the
+// holder's list now waits for the next take. False off air: then the rows follow the holder.
+function creditsListWaits() {
+  if (noacgCreditsHeld === null) return false;
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  noacgCreditsWaiting = !!holder && holder.textContent !== noacgCreditsHeld;
+  return true;
+}
+`;
 }
 
 /** THE TAKE OF A STILL PAGE (styled credits, `static`): the rows are built and fitted where the
@@ -611,13 +656,21 @@ var noacgCreditsTween = null;
 // What the page shows now, for a reader: how many rows, the share of the drawn size the whole
 // page was set at to fit, and whether it was too long to show at all.
 var noacgCreditsLast = null;
+// A refit waiting for the faces to land: one per landing, however many updates came meanwhile.
+var noacgCreditsRefit = false;
 
 // creditsHold(): rebuild and refit the page from the list as it stands. Where a face is still
 // loading, the page was measured in a fallback, so it is fitted again when the faces land.
 function creditsHold() {
   var built = creditsRender();
   noacgCreditsLast = built ? { still: true, rows: built.rows.children.length, scale: built.scale, refused: built.refused } : null;
-  if (document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(creditsHold);
+  if (document.fonts && document.fonts.status === 'loading' && !noacgCreditsRefit) {
+    noacgCreditsRefit = true;
+    document.fonts.ready.then(function () {
+      noacgCreditsRefit = false;
+      creditsHold();
+    });
+  }
   return built;
 }
 
@@ -651,6 +704,8 @@ var noacgCreditsCard = -1;
 var noacgCreditsTurning = false;
 var noacgCreditsHold = null;
 var noacgCreditsSince = 0;
+// A deal waiting for the faces to land: one per landing.
+var noacgCreditsRefit = false;
 // What the cards show now, for a reader: each card's rows, share and refusal, and the one shown.
 var noacgCreditsLast = null;
 
@@ -670,8 +725,7 @@ function creditsCardTime() {
 // its own, fitted or refused as a still page is. The room is the still page's, measured on the
 // whole list laid out once at its drawn size (the probe), so nothing is laid out twice to deal it.
 function creditsCardsOf(probe) {
-  var holder = creditsField('${CREDITS_FIELD_ROLE}');
-  var sections = parseCredits(holder ? holder.textContent : '', function (s) { return s; });
+  var sections = parseCredits(creditsHeldList(), function (s) { return s; });
   var units = [];
   var at = 0;
   var glued = null;
@@ -749,7 +803,13 @@ function creditsDeal() {
   noacgCreditsLast = { cards: cards.length ? report : [], card: noacgCreditsCard, shown: shown };
   // Off air nothing is changing cards, so a change Out cut short leaves no half-faded card.
   if (noacgCreditsCard < 0 && built && typeof gsap !== 'undefined') gsap.set(built.rows.parentNode, { opacity: 1 });
-  if (document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(creditsDeal);
+  if (document.fonts && document.fonts.status === 'loading' && !noacgCreditsRefit) {
+    noacgCreditsRefit = true;          // one deal per landing, however many came meanwhile
+    document.fonts.ready.then(function () {
+      noacgCreditsRefit = false;
+      creditsDeal();
+    });
+  }
   creditsKeepHold();
   return built;
 }
@@ -822,6 +882,7 @@ function creditsTurn() {
 // field is reported too long.
 function ${CREDITS_ROLL_CALL}() {
   stopCreditsRoll();
+  creditsHoldList();
   noacgCreditsCard = 0;
   var built = creditsDeal();
   if (built && typeof gsap !== 'undefined') gsap.set(built.rows.parentNode, { opacity: 1 });
@@ -834,10 +895,12 @@ function ${CREDITS_NEXT_CALL}() {
   creditsTurn();
 }
 
-// creditsDataUpdated(): update() wrote the fields - deal the cards again and show the one on air;
-// the deal keeps the hold rule.
+// creditsDataUpdated(): update() wrote the fields. Off air, deal the cards again. On air the
+// cards keep the list they took (creditsHeldList) and a new list waits for the next take, while a
+// new card time still applies to the hold under way (creditsKeepHold).
 function creditsDataUpdated() {
-  creditsDeal();
+  if (creditsListWaits()) creditsKeepHold();
+  else creditsDeal();
 }`;
 }
 
@@ -947,6 +1010,9 @@ export function creditsStyledRuntimeJs(prefix: string, config: CreditsStyledConf
   // Cards are still pages dealt one at a time: a few more lines, chosen the same way; a still
   // page emits exactly what it did before cards existed.
   const cards = (page: string, cardsJs: string) => (config.cards ? cardsJs : page);
+  // A roll and cards keep the list they took while they are on air; a still page shows every
+  // update at once (phase 24), so it emits none of this.
+  const held = (page: string, heldJs: string) => (config.still && !config.cards ? page : heldJs);
   // `faces`, `still` and `cards` decide which lines are emitted; they are not part of the table.
   const { faces, still: _still, cards: _cards, ...table } = config;
   return `
@@ -990,7 +1056,7 @@ function creditsSample() {
 }
 
 ${creditsFieldJs()}
-
+${held('', creditsHeldJs())}
 // creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
 // elements of the drawing answer in one frame.
 function creditsFrom(a, b) {
@@ -1182,7 +1248,7 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   // The rows sit in the first role's own frame, so every step is in its units.
   rows.setAttribute('transform', 'matrix(' + [toContainer.a, toContainer.b, toContainer.c, toContainer.d, toContainer.e, toContainer.f].join(' ') + ')');
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
-  var text = holder ? holder.textContent : '';
+  var text = ${held("holder ? holder.textContent : ''", 'creditsHeldList()')};
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);
@@ -1381,13 +1447,15 @@ ${still(`      var width = box.width * scale;
 // stopCreditsRoll(): Out ends the roll, so nothing keeps moving the list off air.
 function stopCreditsRoll() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
-  noacgCreditsTween = null;${cards('', `
+  noacgCreditsTween = null;${held('', `
+  noacgCreditsHeld = null;
+  noacgCreditsWaiting = false;`)}${cards('', `
   noacgCreditsCard = -1;
   noacgCreditsTurning = false;
   if (noacgCreditsLast) noacgCreditsLast.card = -1;`)}
 }
 
-${still(creditsTakeJs(faces === true), cards(creditsHoldJs(), creditsCardsJs()))}
+${still(creditsTakeJs(faces === true, true), cards(creditsHoldJs(), creditsCardsJs()))}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the drawn widths decide where an aligned row starts.

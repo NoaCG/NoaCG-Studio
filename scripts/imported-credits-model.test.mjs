@@ -1002,12 +1002,27 @@ test('row 19: the list holder keeps its line breaks through the editor\'s code f
 
 // ── Row 20: role-beside credits rendered in the artwork's own styling ────────────────────────
 
-/** Taken on main bc9be3b before this row: row 19's role-above builds, byte for byte. */
-const ROLE_ABOVE_PINS = { one: '1bb5cc1c10fe5a29', bold: 'f314ebd9aacb462d', grouped: '95b9c8c2de09a5f0', roleGroup: 'a60241dd7963af1c', idGroup: '0860a942e8c3f6ec' };
+/** Taken on main bc9be3b before row 20: row 19's role-above builds, byte for byte. Re-taken by
+ *  row 24 (coordinator-approved): their js gains the snapshot rule and nothing else, html and css
+ *  unchanged; the diff is in docs/work-specs/jev-svg-import/evidence/phase-24.md, and the test
+ *  "row 24: ..." below asserts the rule is there. */
+const ROLE_ABOVE_PINS = { one: '04dc9549e22f53d7', bold: 'bece698c794e6600', grouped: '868bf20efd79e78d', roleGroup: '840ba1d0e561ff3f', idGroup: 'c20cb61badf34408' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
   for (const k of ROLE_ABOVE) assert.equal(sha({ html: R.styled[k].html, css: R.styled[k].css, js: R.styled[k].js }), ROLE_ABOVE_PINS[k], k);
+});
+
+test('row 24: a styled roll keeps the list its take took while on air; the editable and artwork rolls keep their policy', () => {
+  for (const k of ROLE_ABOVE) {
+    const { js } = R.styled[k];
+    assert.ok(js.includes('var noacgCreditsHeld = null;') && js.includes('function creditsListWaits()'), `${k}: the snapshot rule is emitted`);
+    assert.match(js, /noacgCreditsTween = null;\n  creditsHoldList\(\);\n  var built = creditsRender\(\);/, `${k}: the take holds the list it builds from`);
+    assert.ok(js.includes('var text = creditsHeldList();'), `${k}: the rows are built from the held list`);
+    assert.ok(js.includes('if (!creditsListWaits()) creditsRender();'), `${k}: an update on air leaves the rows as taken`);
+    assert.ok(js.includes('noacgCreditsHeld = null;\n  noacgCreditsWaiting = false;'), `${k}: Out lets go of the held list`);
+  }
+  for (const k of ['editable', 'artwork']) assert.ok(!R.pins[k].js.includes('noacgCreditsHeld'), `${k}: no snapshot rule`);
 });
 
 test('row 20: a role-beside binding builds the styled engine, one Credits field holding the drawn list', () => {
