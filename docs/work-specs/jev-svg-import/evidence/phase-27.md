@@ -44,7 +44,8 @@ PR challenged them against that code. Rules found after coding are marked (after
   `be7be458`), and the match is a field of the new build. No similarity, no position, no
   name-only fallback. A data holder (a behaviour's field, a clock or credits holder)
   is keyed by its kind and the title its import gave it.
-- **R3 A verified match keeps its earlier field id.** The new build's ids are renamed all at once.
+- **R3 A verified match keeps its earlier field id**, unless another node of the new markup
+  already holds that id (then the field is unresolved; from the PR review bot on `a13edb02`). The new build's ids are renamed all at once.
   An added field keeps its own id unless the earlier graphic used it; then it takes the lowest id
   no field and no node holds. A removed field's id is never reused.
 - **R4 Keys made after the import come across.** A track that differs from the earlier baseline
@@ -103,11 +104,11 @@ PR challenged them against that code. Rules found after coding are marked (after
   save, the separate import, the copy before a reviewed replace), `CreationWizard.tsx` (the
   library seam and the Finish review), `steps/FinishStep.tsx` (the list and the Replace anyway
   box in the existing name warning).
-- `e2e/import-svg-reimport.spec.ts` (new), ten tests: the matcher on changed artwork (ids, keys,
+- `e2e/import-svg-reimport.spec.ts` (new), eleven tests: the matcher on changed artwork (ids, keys,
   label, a fresh id for the added layer, a deleted track, the new build's motion through an id
   cycle), a removed and a look-alike layer, an edited-artwork identity that follows its layer and
   one that is named, an identity on one of two look-alike layers, a field whose unbound twin
-  survives, a behaviour's fields and actions, three journeys through Finish into a production
+  survives, an earlier id another node now holds, a behaviour's fields and actions, three journeys through Finish into a production
   (changed artwork saved through Export and then the production door keeps the record, ids,
   keys, label and binding; a removed layer saves beside the earlier graphic, the production
   follows the saved name, and Replace anyway keeps a copy; walking back after a clean reimport
@@ -115,7 +116,7 @@ PR challenged them against that code. Rules found after coding are marked (after
 
 ## Verification on this worker
 
-- `e2e/import-svg-reimport.spec.ts` 10/10; with `import-name-collision`, `wizard-finish`,
+- `e2e/import-svg-reimport.spec.ts` 11/11; with `import-name-collision`, `wizard-finish`,
   `jev-svg-preparation`, `wizard-draft-guard` and `import-svg-behaviour`: 94/94 on the final source (j-0036); 49/49 with
   R14 (j-0020).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
@@ -127,7 +128,8 @@ PR challenged them against that code. Rules found after coding are marked (after
   field ids and the rule test; a second rename pass over the script fails the matcher test at the
   badge's motion; Finish's list shown for the `over` effect only fails the walk-back journey;
   identity uniqueness checked on the new side only fails the look-alike identity test; a
-  bound-only uniqueness count fails the unbound look-alike test.
+  bound-only uniqueness count fails the unbound look-alike test; no collision check fails the
+  held-id test.
 - `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
   `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
   `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply`,
@@ -240,6 +242,14 @@ PR challenged them against that code. Rules found after coding are marked (after
   reopens a saved quiz ... makes it a true no-Lock quiz" failed: the first R7 listed the dropped
   Lock event, so the save went beside the quiz instead of over it. Class product defect, family
   R7 (a rule wider than the contract). R7 narrowed as above; the spec is unchanged.
+
+- Final `/so` on `a13edb02` (`session_017SdbwQbvR1UL8YTjveTpFr`): AGREE WITH CORRECTIONS, grade
+  A-, nothing blocking. Its one point (R7 says "the reader chose" while the code cannot tell a
+  chosen behaviour drop from a missed proposal; Finish could say "No longer answers: Lock") is
+  added to #1987 as point 4.
+- PR review bot on `a13edb02`: one P2, class product defect, family R3: a matched field taking
+  back `f1` could collide with an unbound designer node already called `f1`. Fixed (such a field
+  is unresolved); a new test builds that case; without the check it fails.
 
 ## Traps
 
