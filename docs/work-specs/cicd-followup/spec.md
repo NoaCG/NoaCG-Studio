@@ -95,9 +95,9 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   the five categories gets at least one candidate or a measured reason it has none. (c) For
   M1, M2 and M3, the run-to-run spread on comparable changes and the minimum sample size per side
   for a before/after comparison, each derived from the history with the method stated. cf13 uses
-  these values unchanged, and the rule for grouping comparable changes (for example by changed-path
-  class and selected shard count). cf13 and cf20 use this rule, the spread and the minimum sample
-  sizes unchanged.
+  these values unchanged. It also states the rule for grouping comparable changes (for example by
+  changed-path class and selected shard count). cf13 and cf20 use this rule, the spread and the
+  minimum sample sizes unchanged.
 - **cf04.** (a) Concurrent configured stacks are isolated, with safe port allocation, readiness
   checks and cleanup on failure or cancellation, and the collision cause is diagnosed. (b)
   Concurrent execution is verified in CI; no unrelated process is killed and startup is not merely
@@ -107,7 +107,9 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   count as the fix when the failure shows product behaviour that breaks a documented rule (for #1603,
   the save rule); that needs the product fix.
   (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
-  CI worker count, written in the phase brief before the run, with zero failures), and any
+  CI worker count, written in the phase brief before the run, large enough that the failure rate measured before
+  the fix would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
+  zero failures), and any
   quarantine is released only by the documented route. (c) Each incident issue carries owner,
   impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
   the documented route.
@@ -116,7 +118,9 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   count as the fix when the failure shows product behaviour that breaks a documented rule; that needs
   the product fix.
   (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
-  CI worker count, written in the phase brief before the run, with zero failures), and any
+  CI worker count, written in the phase brief before the run, large enough that the failure rate measured before
+  the fix would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
+  zero failures), and any
   quarantine is released only by the documented route. (c) Each incident issue carries owner,
   impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
   the documented route.
@@ -126,12 +130,14 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   the product fix. The fix rules out a backend stack or port collision (#1865, #1829) as the cause,
   or names it and leaves the setup fix to cf04.
   (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
-  CI worker count, written in the phase brief before the run, with zero failures), and any
+  CI worker count, written in the phase brief before the run, large enough that the failure rate measured before
+  the fix would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
+  zero failures), and any
   quarantine is released only by the documented route. (c) Each incident issue carries owner,
   impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
   the documented route.
 - **cf08.** (a) #1954 and #1926 carry a named owner, target date and link to the JEV run, which
-  keeps implementation; if the JEV run has not accepted them with a target date by the time cf08 starts, a coordinated fix is split out. (b) CI
+  keeps implementation; if the JEV run has not accepted them with a target date by the time cf08 starts, a coordinated fix is split out as an issue with a named owner and target date, linked from #1926. (b) CI
   exercises and reports the missing svg01 case. (c) #1834 is reviewed against current main: it lands
   as an updated, policy-compliant quarantine with issue, owner and expiry, or is closed as obsolete
   or as a duplicate of an existing quarantine. A deterministic product regression is not
@@ -194,8 +200,11 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   without relaxing any criterion. cf19 then takes the no-activation outcome with full protection
   retained, and cf20 reports re-qualification as open. (The limit is the coordinator's default;
   the owner may set another.)
-- **cf19.** (a) A focused repeat of cicd-improvement ci16: activation only on a qualified cf18 PASS
-  with still-current evidence, otherwise the no-activation outcome with retained protection.
+- **cf19.** (a) A focused repeat of cicd-improvement ci16: activation only on a qualified cf18
+  PASS with still-current evidence, when cf16's recommendation, re-read against cf18's result, is
+  to adopt the model, and the full validation of every exact merged revision from cf16(b) is
+  running with its capacity and monitoring, finishing within 24 hours. Otherwise the no-activation
+  outcome with full pre-merge protection retained.
 - **cf20.** (a) Before and after merge turnaround and CI cost with sample sizes, using cf03's
   comparability rule and spread; change in flaky
   failures and reruns. (b) Which cicd-improvement and cicd-followup criteria now pass and which

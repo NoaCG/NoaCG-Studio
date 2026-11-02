@@ -17,6 +17,11 @@ Owner answer, verbatim: "Me, weekly session backup (Recommended)": Mirko (`miwco
 owner of the growth, age and quarantine alarms and incidents; the weekly owner session reviews
 open alarm and incident issues each week as backup coverage.
 
+## Coordinator defaults (owner may change)
+
+- cf18(c): re-qualification stops waiting after two audit restarts after cf11's final selector
+  change, or on 2026-12-31, and is then recorded as not met without relaxing any criterion.
+
 ## Owner instructions, verbatim
 
 > Please treat this as authorization for a focused CI follow-up. The goal is faster, reliable merges, with evidence that the changes improve total turnaround time. Do not mark the original performance goals achieved just because all implementation phases landed.
