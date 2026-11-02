@@ -52,8 +52,9 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
   - It reads the layout once and reuses that reading for every subset.
 - Wizard (owner-approved files, see the PR):
   - `BehaviourSection.tsx`, the Credits preview:
-    - "Which column contains the roles?" (Left / Right) appears where `ambiguous` is true and at
-      least one answer gives styled credits (a title falls back either way and is not asked).
+    - "Which column contains the roles?" (Left / Right) appears where `ambiguous` is true, at
+      least one answer gives styled credits, and the two answers read differently (a title, or a
+      two-word title line above role-above credits, is not asked).
       Its answer updates the preview and is saved as the binding's anchor kinds, which the
       runtime copies.
     - Where a design falls back, the preview says so in one line: "Fixed artwork: <reason>".
@@ -92,13 +93,13 @@ Mutations, each caught:
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 41/41 (the empty-role checks extend an existing test). `scripts/imported-credits-source.test.mjs`: 14/14.
+- `node --test scripts/imported-credits-model.test.mjs`: 42/42 (the empty-role checks extend an existing test). `scripts/imported-credits-source.test.mjs`: 14/14.
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
   worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
-  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, j-0014, j-0015, j-0017, j-0018, and j-0019 on the final code). Mutation runs j-0003 and j-0006
+  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, j-0014, j-0015, j-0017, j-0018, j-0019, and j-0020 on the final code). Mutation runs j-0003 and j-0006
   above. `check-e2e-protection --changed origin/main`: OK.
 - Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
   the Roles question (Left) and the two columns showed, with no console errors.
@@ -201,6 +202,17 @@ Mutations, each caught:
   step uses the painting run. Not covered by a test: the importer moves a run's size onto its
   text in every drawing tried, so no imported sample tells the two apart. A test was written
   and dropped when its mutation stayed green.
+- `/so` on `2bab117` (session `session_017SdbwQw4quLb2Q4Kmhpb44`, AGREE WITH CORRECTIONS, B+,
+  "A- once point 1 is fixed"; 24,342 checks over 1,949 drawings and a sweep of 89,418):
+  - Blocking: a title line holding one word in each look above role-above credits sent them
+    through the column reading, so the first role fell back or a later role read reversed.
+    Fixed by its tested one-line change: where the column reading is not role beside, the pick
+    reads as row 19 read it. The question is hidden where both answers read the same. Test: the
+    two-look title drawing reads as on `main` for the first and a later role, either answer.
+  - Non-blocking: role-above name picks read as on `main` (a recorded departure; owner to
+    acknowledge); the fixed-artwork choice (#1958); picking a title on a role-beside page
+    (Known limits).
+  - It confirmed role beside correct on all 4,608 non-title picks on the correct answer.
 - **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
   picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
   the rule model was rewritten (What changed, `creditsPreview`):
@@ -263,10 +275,10 @@ Mutations, each caught:
   answer. The author picks the first role.
 - On a role-beside page, a title in the role look, if picked, becomes a styled role with no
   names. The preview shows it.
-- A title line holding one layer in each look (for example "CREDITS" in the role look beside
-  "2026" in the name look) above role-above credits makes the column question appear. The
-  preselected answer is correct. The other answer can read names as roles for a later pick,
-  which the preview shows.
+- A title line holding one layer in each look (for example "THE TEAM" beside "CREDITS") above
+  role-above credits reads as row 19 read it, for either answer: a column reading that is not
+  role beside gives way to the pick's own reading. The question is not asked there, since both
+  answers read the same.
 - No deliberate fixed-artwork choice for credits that can be styled (Decisions; #1958, P2). A
   drawing that cannot be styled still saves the original-text roll, as before.
 - The Behaviour summary still says the original artwork scrolls. That is the recipe's own line

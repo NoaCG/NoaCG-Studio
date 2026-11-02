@@ -47,7 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import { CREDITS_RENDERED, creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
+import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
@@ -152,9 +152,10 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);
-  // The question is asked only where an answer gives styled credits; a pick neither reading can
-  // style (a title) is the fallback either way.
-  const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled);
+  // The question is asked only where an answer gives styled credits and the two answers read
+  // differently; a pick neither reading can style (a title) is the fallback either way.
+  const key = (p: CreditsPreview) => (p.styled ? JSON.stringify(p.anchors) : '');
+  const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled) && key(readings.read) !== key(readings.swapped);
   const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
   const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
   const styled: DesignSvgCredits | undefined = reading

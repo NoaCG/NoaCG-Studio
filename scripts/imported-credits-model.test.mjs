@@ -120,6 +120,8 @@ const STYLED_CASES = {
   emptyRoleTitled: svg(`${t(100, 20, 40, 'THE TEAM')}${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 260, 24, 'Producer', ' fill="#fc0"')}${t(100, 360, 24, 'Editor', ' fill="#fc0"')}${t(100, 420, 40, 'Mia Holt')}`),
   emptyRole: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 260, 24, 'Producer', ' fill="#fc0"')}${t(100, 360, 24, 'Editor', ' fill="#fc0"')}${t(100, 420, 40, 'Mia Holt')}`),
   rtlNamesRight: svg(`${t(900, 100, 40, 'דנה לוי', ' direction="rtl"')}${t(300, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(900, 270, 40, 'יוסי כהן', ' direction="rtl"')}${t(300, 270, 24, 'צילום', ' fill="#fc0" direction="rtl"')}${t(900, 325, 40, 'רון בר', ' direction="rtl"')}`),
+  // Role-above credits under a title line holding one word in each look, the name-look word first.
+  twoLookTitle: svg(`${t(100, 40, 40, 'THE TEAM')}${t(600, 40, 24, 'CREDITS', ' fill="#fc0"')}${t(100, 140, 24, 'Director', ' fill="#fc0"')}${t(100, 200, 40, 'Alex Rivera')}${t(100, 250, 40, 'Ida Lake')}${t(100, 370, 24, 'Sound', ' fill="#fc0"')}${t(100, 430, 40, 'Ari Moss')}`),
   // Right to left: the role column on the right, read first.
   hebrewBeside: svg(`${t(900, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(600, 100, 40, 'דנה לוי', ' direction="rtl"')}${t(600, 155, 40, 'יוסי כהן', ' direction="rtl"')}`),
 };
@@ -422,6 +424,10 @@ async function inPage({ dev, cases, legacy, artwork }) {
     tightMiddle: previewOf(cases.tightThree, 'Sound'),
     tightMiddleCodex: previewOf(cases.tightThreeCodex, 'Sound'),
     tightEmptyEnd: previewOf(cases.tightEmptyEnd, 'Sound'),
+    twoLookFirst: previewOf(cases.twoLookTitle, 'Director'),
+    twoLookFirstOther: previewOf(cases.twoLookTitle, 'Director', { swap: true }),
+    twoLookLater: previewOf(cases.twoLookTitle, 'Sound'),
+    twoLookLaterOther: previewOf(cases.twoLookTitle, 'Sound', { swap: true }),
     evenTitledName: previewOf(cases.evenTitledName, 'Director'),
     tightTitledName: previewOf(cases.tightTitledName, 'Director'),
     evenCentredTitled: previewOf(cases.evenCentredTitled, 'Director'),
@@ -1144,4 +1150,14 @@ test('row 20: a role with no names keeps roles as roles; a right-to-left questio
   assert.equal(P.rtlTailAsRead.rtl, true, 'the labels follow the drawing, not the reading that worked');
   assert.equal(P.rtlTailChosen.rtl, true);
   assert.deepEqual(groups(P.rtlTailChosen), [['צילום', ['יוסי כהן', 'רון בר']]]);
+});
+
+test('row 20: a two-look title line above role-above credits leaves row 19\'s reading, either answer', () => {
+  const groups = (p) => p.list.flat().map((e) => [e.role, e.names]);
+  const P = R.previews;
+  const first = [['Director', ['Alex Rivera', 'Ida Lake']], ['Sound', ['Ari Moss']]];
+  for (const k of ['twoLookFirst', 'twoLookFirstOther']) assert.deepEqual(groups(P[k]), first, k);
+  for (const k of ['twoLookLater', 'twoLookLaterOther']) assert.deepEqual(groups(P[k]), [['Sound', ['Ari Moss']]], k);
+  // Both answers read the same, so the wizard does not ask (BehaviourSection compares them).
+  assert.deepEqual(P.twoLookFirst.anchors, P.twoLookFirstOther.anchors);
 });

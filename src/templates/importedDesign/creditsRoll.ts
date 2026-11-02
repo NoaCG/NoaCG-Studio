@@ -1520,6 +1520,9 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
         .filter((r): r is CreditsReading => !!r && r.look === roleLook && (down(r) < down(picked) || near(r, picked)))
         .sort((p, q) => down(q) - down(p))[0] ?? picked;
     analysis = analyse(from(ownRole));
+    // A line in both looks above credits that read role above (a two-word title) is not a column:
+    // there the pick reads exactly as row 19 read it.
+    if (!analysis.ok || analysis.style.layout !== 'role-beside') analysis = analyse(from(picked));
   } else {
     // ROLE ABOVE: the picked layer is the role, exactly as row 19 read it. A name and a later role
     // can be drawn alike (tight groups, roles with no names), so nothing here re-reads a pick from
