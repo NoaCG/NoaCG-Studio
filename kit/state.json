@@ -1,0 +1,53 @@
+{
+ "version": 1,
+ "project": "plan-cicd-followup-2026-11-02",
+ "plan": "cicd-followup",
+ "spec": "docs/work-specs/cicd-followup/spec.md",
+ "issue": 1967,
+ "coordinator": {
+  "session": "session_017SdbwPphatUYXtpZ9CHkPu",
+  "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
+  "return": "send it with mcp__claude-code-remote__send_message (or mcp__Claude_Code_Remote__send_message) to session_017SdbwPphatUYXtpZ9CHkPu, and also print it as your final answer"
+ },
+ "provider": {
+  "name": "Claude Code Cloud",
+  "override": "Owner 2026-10-31 override carried by cicd-followup launch.md: Claude Code Cloud; never switch providers automatically; recovery keeps Claude.",
+  "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
+ },
+ "authorization": {
+  "line": "Owner authorization 2026-11-02 in Claude Code Cloud session session_017SdbwPphatUYXtpZ9CHkPu: a focused CI follow-up, the 20 ordered phases of docs/work-specs/cicd-followup/spec.md; planning target 2026-11-30, continue until done (launch.md).",
+  "startedAt": "2026-11-02T12:45:00+02:00",
+  "deadline": "2026-11-30T23:59:00+02:00",
+  "standing": {
+   "untilComplete": "Continue this approved scope until complete past the planning target. (Owner answer 2026-11-02: \"Nov 30, continue until done (Recommended)\")",
+   "blockRenewal": "Renew 24-hour work blocks without asking again; no automatic or indefinite renewal of exceptions. (Owner answer 2026-11-02: \"Nov 30, continue until done (Recommended)\", launch.md)",
+   "provider": "Claude Code Cloud, under the cicd-improvement override of 2026-10-31; do not switch providers automatically. (launch.md)",
+   "alarmOwner": "Me, weekly session backup (Recommended): miwco is primary owner of the growth, age and quarantine alarms and incidents; the weekly owner session is backup. (#1951, launch.md)",
+   "operations": "Create one small follow-up run with a single coordinating agent and separate, reviewable PRs for independent fixes. Keep human operational ownership distinct from agent coordination. (Owner decision G, launch.md)"
+  }
+ },
+ "brief": {
+  "read": "docs/work-specs/cicd-followup/launch.md (the owner's words, verbatim, and the coordinator defaults); the cicd-improvement final report docs/work-specs/cicd-improvement/evidence/phase-ci17.md for context;",
+  "rules": "Provider is Claude Code Cloud; never substitute Codex, an API model or a same-VM subagent for a cloud worker. Evidence goes in docs/work-specs/cicd-followup/evidence/phase-<id>.md, one file per phase. Follow the spec's Rules for every phase and its Measurement contract. Never weaken, skip or loosen a check, test, limit or budget, never write a test-maintenance entry or budget exception to pass a gate (the only exception: a dated extension under the spec's rule, at most 14 days past the original date and once per item), and never manufacture samples or filler work to meet a timing target. No arbitrary sleeps or added retries as a flake fix. The limited unrelated-failure exception applies only with independent attribution evidence and its tracking issue; pending, cancelled or missing results never qualify, and a failure in checks, selection, shared infrastructure or protection the phase changed stays blocking. Human operational ownership (miwco, weekly owner session backup) is distinct from agent coordination: never invent an owner. Bound each GitHub API collection pass to 100 calls, cache immutable run/job reads, and keep credentials and signed log URLs out of evidence. A JEV session may run beside this plan: before touching ci.yml, configured-suite, selectors/lists, helpers, Playwright configs, quarantine handling or locks, check open PRs and branches for overlap and report a conflict instead of racing it."
+ },
+ "branchPrefix": "claude",
+ "qualification": {
+  "coordinator": "same coordinator session and environment as cicd-improvement (qualified 2026-10-31); re-proven 2026-11-02, see block evidence",
+  "freshWorker": "create_session workers session_017SdbwPsynK9DqeqscS1SwC, session_017SdbwNBKkob6ieZ53Jyeav, session_017SdbwM6ewkBSVhHCDSTN8b, session_017SdbwPbWLWqvr3H4UV8hPW returned results 2026-11-02",
+  "wake": "send_later trig_014sBc9YBoXF3b6WHfkMLPwu fired 2026-11-02T10:34Z into this session on a resumed container, worktrees intact",
+  "github": "cloud-queue-merge.yml dispatch run 41429981235 success; commit-status write remains a known proxy denial: stamp via cloud-queue-merge.yml",
+  "open": "archived-session revival; wake delivery during an account usage-limit stop (2026-10-17 finding: not retried); remote owner fencing"
+ },
+ "carry": {
+  "cf03": "#1964: apply the two cf13 sample-window notes in a reviewed spec change before cf03 starts.",
+  "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954."
+ },
+ "waitingOn": null,
+ "inFlight": [],
+ "owner": [],
+ "fixes": [],
+ "triggers": {
+  "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y"
+ },
+ "heartbeat": 6575215206
+}
