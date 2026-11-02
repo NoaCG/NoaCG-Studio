@@ -27,11 +27,10 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
-import { startSheetServer, csvOf as fakeCsv } from './fixtures/jev-sheet-server.mjs';
+import { startSheetServer, csvOf } from './fixtures/jev-sheet-server.mjs';
 
 const ABOVE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGCreditsSheet00000000/edit#gid=0';
-const csvOf = (rows: string[][]) => rows.map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n') + '\n';
 
 /** A Sheet tab the test edits: every read answers what it holds now. */
 async function stubSheet(page: Page, rows: string[][]) {
@@ -183,7 +182,7 @@ test('a failing Sheet keeps the prepared credits as last read and says why; the 
   test.setTimeout(120_000);
   const fake = await startSheetServer();
   const SHEET = '1NoaCGCreditsFake00000000';
-  fake.set(SHEET, fakeCsv(TAB));
+  fake.set(SHEET, csvOf(TAB));
   await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, fake.routeTo());
   const asked: string[] = [];
   page.on('request', (r) => { if (/\/api\/ai\b|anthropic|openai|generativelanguage|ai-gateway/.test(r.url())) asked.push(r.url()); });
@@ -211,7 +210,7 @@ test('a failing Sheet keeps the prepared credits as last read and says why; the 
     }
 
     // Reconnect: the newest list arrives off air, and the Take airs it in the drawn looks.
-    fake.set(SHEET, fakeCsv(NEWER));
+    fake.set(SHEET, csvOf(NEWER));
     await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera'], { timeout: 20_000 });
     await expect(status).toContainText('checked');
     await page.getByTestId('verb-take').click();

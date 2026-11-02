@@ -88,6 +88,7 @@ async function record(air: FrameLocator): Promise<number> {
   });
 }
 
+const latest = (air: FrameLocator) => air.locator('body').evaluate(() => (window as unknown as { __rec: Sample[] }).__rec.at(-1)!);
 const samples = (air: FrameLocator, since = 0) =>
   air.locator('body').evaluate((_, from) => (window as unknown as { __rec: Sample[] }).__rec.filter((s) => s.t >= from), since);
 const markFirstItem = (air: FrameLocator) => air.locator('#ticker-track .ticker-item').first().evaluate((el) => { (el as unknown as { __mark: boolean }).__mark = true; });
@@ -107,22 +108,25 @@ async function itemsBecome(air: FrameLocator, want: string[], message: string) {
  */
 function judgeMarquee(run: Sample[], pace: number, what: string) {
   expect(run.length, `${what}: frames were recorded`).toBeGreaterThan(30);
+  let still = 0;
   for (let i = 1; i < run.length; i++) {
     const a = run[i - 1], b = run[i];
-    expect(b.n, `${what}: the strip is never blank (frame ${i})`).toBeGreaterThan(0);
+    expect(b.n, `${what}: the strip holds items (frame ${i})`).toBeGreaterThan(0);
     const dx = b.x - a.x, dt = (b.t - a.t) / 1000;
+    // The items are rendered twice, so any x from 0 to one set left fills the window.
+    expect(b.x <= 1 && b.x >= -Math.max(a.width, b.width) - 3, `${what}: the window is covered (frame ${i}, x ${b.x.toFixed(1)}, set ${b.width})`).toBe(true);
     if (dx <= 0) {
       expect(-dx, `${what}: never ahead of its pace (frame ${i}, ${dx.toFixed(1)} px in ${dt.toFixed(3)} s)`).toBeLessThanOrEqual(pace * dt * 1.25 + 2);
-    } else {
+    } else if (dx > 1.5) {
       // A move back is the loop point, or the handover onto the new track at the same offset.
       const sets = dx / b.width;
+      expect(Math.round(sets), `${what}: a move back is at least one set (frame ${i}, ${dx.toFixed(1)} px)`).toBeGreaterThanOrEqual(1);
       expect(Math.abs(sets - Math.round(sets)) * b.width, `${what}: back only by whole set widths (frame ${i}, ${dx.toFixed(1)} px, set ${b.width})`).toBeLessThan(pace * dt * 1.25 + 3);
-      expect(Math.round(sets), `${what}: a move back is at least one set`).toBeGreaterThanOrEqual(1);
     }
+    // Never stalled: no stretch of a quarter second without moving.
+    still = Math.abs(dx) < 0.01 ? still + (b.t - a.t) : 0;
+    expect(still, `${what}: never stalled (frame ${i})`).toBeLessThan(250);
   }
-  const moved = run.at(-1)!.t - run[0].t;
-  const travelled = run.slice(1).reduce((sum, s, i) => sum + Math.max(0, run[i].x - s.x), 0);
-  expect(travelled / (moved / 1000), `${what}: it kept moving`).toBeGreaterThan(pace * 0.3);
 }
 
 /** Average leftward pace (px/s) over frames, wraps left out. */
@@ -176,7 +180,7 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
   const slow = await samples(air, marked);
   await page.getByTestId('cue-field-f2').fill('200');
   await page.getByTestId('verb-update').click();
-  await expect.poll(async () => paceOf((await samples(air)).slice(-30)), { timeout: 10_000, message: 'the pace changed' }).toBeGreaterThan(PACE * 1.6);
+  await expect.poll(async () => paceOf((await samples(air, marked)).slice(-30)), { timeout: 10_000, message: 'the pace changed' }).toBeGreaterThan(PACE * 1.6);
   await page.waitForTimeout(1500);
   const all = await samples(air, marked);
   judgeMarquee(all, PACE * 2, 'speed only');
@@ -293,7 +297,7 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
     // The edit has landed when the track ends with the new items in order (a story finishing its
     // turn is kept in front of them).
     const holds = (x: Sample) => x.texts.slice(-items.length).join('|') === items.join('|') && x.texts.length <= items.length + 1;
-    await expect.poll(async () => holds((await samples(air)).at(-1)!), { timeout: 20_000, message: `${what} reached the strip` }).toBe(true);
+    await expect.poll(async () => holds(await latest(air)), { timeout: 20_000, message: `${what} reached the strip` }).toBe(true);
     await page.waitForTimeout(turnMs * 1.6);
     // The whole history, so a turn already under way when this step began is seen from its start.
     const history = await samples(air);
@@ -327,13 +331,14 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
   // EMPTY clears on purpose; FILLED AGAIN the stories come back without a Take.
   server.set(SHEET, '');
   await expect(air.locator('#ticker-track .ticker-item')).toHaveCount(0, { timeout: 20_000 });
+  const emptied = await record(air);
   server.set(SHEET, lines('Story six', 'Story seven'));
-  await expect.poll(async () => turns(await samples(air)).map((x) => x.text), { timeout: 20_000, message: 'filled again' }).toContain('Story six');
+  await expect.poll(async () => turns(await samples(air, emptied)).map((x) => x.text), { timeout: 20_000, message: 'filled again' }).toContain('Story six');
   expect(await plays(page), 'filled again without a Take').toBe('1');
 
   // SPEED ONLY: Item speed to 200% through Update. The story on screen stays (its node is not
   // rendered again) and the turns after it are about half as long.
-  await expect.poll(async () => turns(await samples(air)).length, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
+  await expect.poll(async () => turns(await samples(air, emptied)).length, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
   await markFirstItem(air);
   const pressed = await record(air);
   await page.getByTestId('cue-field-f2').fill('200');

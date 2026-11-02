@@ -19,11 +19,10 @@ import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
-import { startSheetServer, csvOf as fakeCsv } from './fixtures/jev-sheet-server.mjs';
+import { startSheetServer, csvOf } from './fixtures/jev-sheet-server.mjs';
 
 const NOTICE_SVG = fileURLToPath(new URL('./fixtures/jev-svg/qualification/multiline.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGNoticeSheet000000000/edit#gid=0';
-const csvOf = (rows: string[][]) => rows.map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n') + '\n';
 const tabOf = (body: string) => [['Field ID', 'Label', 'Value'], ['f0', 'Title', 'COMMUNITY NOTICE'], ['f1', 'Body', body]];
 
 async function stubSheet(page: Page, rows: string[][]) {
@@ -123,7 +122,7 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
   test.setTimeout(120_000);
   const fake = await startSheetServer();
   const SHEET = '1NoaCGNoticeFake000000000';
-  const tab = (body: string) => fakeCsv(tabOf(body));
+  const tab = (body: string) => csvOf(tabOf(body));
   fake.set(SHEET, tab('Doors open at 18:00\nEntry from the courtyard'));
   await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, fake.routeTo());
   const asked: string[] = [];

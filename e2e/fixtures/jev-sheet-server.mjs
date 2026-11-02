@@ -40,6 +40,15 @@ export async function startSheetServer() {
   };
 
   const server = http.createServer((req, res) => {
+    try {
+      answer(req, res);
+    } catch (error) {
+      // A fixture fault answers 500 and is recorded, rather than killing the test process.
+      hits.push({ at: Date.now(), id: null, gid: null, mode: `fault: ${error.message}` });
+      if (!res.headersSent) res.writeHead(500).end();
+    }
+  });
+  const answer = (req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     const match = /^\/spreadsheets\/d\/(?:e\/)?([^/]+)\/(export|pub)$/.exec(url.pathname);
     const at = Date.now();
@@ -79,7 +88,7 @@ export async function startSheetServer() {
       default:
         throw new Error(`jev-sheet-server: unknown mode ${mode}`);
     }
-  });
+  };
   server.on('connection', (socket) => {
     sockets.add(socket);
     socket.on('close', () => sockets.delete(socket));
@@ -114,7 +123,10 @@ export async function startSheetServer() {
     },
     /** A `SheetFetch` (and a plain fetch) that reads Google's addresses from this server. */
     fetchFor(realFetch = globalThis.fetch) {
-      return (url, init) => (GOOGLE.test(String(url)) ? realFetch(local(url), init) : realFetch(url, init));
+      return (input, init) => {
+        const url = input instanceof Request ? input.url : String(input);
+        return GOOGLE.test(url) ? realFetch(local(url), init) : realFetch(input, init);
+      };
     },
     /**
      * A Playwright route handler: the page's read of Google's address is answered with what this

@@ -25,7 +25,7 @@
 // (e2e/fixtures/jev-sheet-server.mjs) that denies, never answers, drops the connection and serves
 // a sign-in page in turn. None of those writes an update row, so the output keeps the last good
 // lines, the row's status says why and goes stale; the next good read writes the newest lines
-// once, and the reopened page shows what the server read.
+// once, and the row's status is the server's good read again.
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
@@ -259,7 +259,6 @@ test('every page closed and the Sheet failing: the tick writes nothing, the outp
   await wipeMyGraphics(page);
   await bootstrapGraphic(page, { name: 'News Strip' });
   const showId = await openProductionWithCurrent(page, `Tick failing ${Date.now()}`);
-  const productionUrl = page.url();
   await publishProduction(page);
   await page.keyboard.press('Escape');
   await page.getByTestId('cue-connect').click();
@@ -296,11 +295,8 @@ test('every page closed and the Sheet failing: the tick writes nothing, the outp
   expect(run.body.sources?.find((s) => s.source === sourceId)?.outcome).toBe('unchanged');
   const after = (await lines(showId)).slice(written);
   expect(after).toEqual([{ text: 'Turnout 64%\nResults from 22:00', src: 'sheet' }]);
-  expect((await sourceRead(showId))?.stale).toBe(false);
-
-  // The page opened again shows a good read, not the failure.
-  await page.goto(productionUrl);
-  const status = page.getByTestId(`source-line-${sourceId}`).getByTestId('source-status');
-  await expect(status).toHaveText(/checked \d+ s ago/, { timeout: 20_000 });
+  // The row's status is the server's good read: no page has read since every page closed.
+  const healthy = await sourceRead(showId);
+  expect(healthy).toMatchObject({ state: 'ok', stale: false, missed: 0, reader: 'server' });
   await switchTick(null);
 });

@@ -1021,9 +1021,9 @@ const FAILURES = [
  */
 async function walkFailures({ id, shape, path, first, firstValue, newer, newerValue, malformed, empty }) {
   const server = await startSheetServer();
+  server.set(id, first);
   const page = liveReader(server, { id, shape, paths: [path] });
   try {
-    server.set(id, first);
     await until(() => page.value() === firstValue, 3000, 'the first good read');
     assert.equal(page.status().state, 'ok');
 
@@ -1157,7 +1157,8 @@ test('probe: a controlled public Sheet, read as the page reads it, edit to expor
   const title = `noacg-probe-${Date.now()}`;
   const added = await fetch(`${api}:batchUpdate`, { method: 'POST', headers, body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }) });
   assert.equal(added.status, 200, 'the temporary tab was added');
-  const gid = String((await added.json()).replies[0].addSheet.properties.sheetId);
+  // The tab is found again by its title in the end, whatever happens in between.
+  const gid = String((await added.json().catch(() => null))?.replies?.[0]?.addSheet?.properties?.sheetId ?? '');
   const write = async (text) => {
     const r = await fetch(`${api}/values/${encodeURIComponent(`'${title}'!A1`)}?valueInputOption=RAW`, { method: 'PUT', headers, body: JSON.stringify({ values: [[text]] }) });
     assert.equal(r.status, 200);
@@ -1168,6 +1169,7 @@ test('probe: a controlled public Sheet, read as the page reads it, edit to expor
   const written = [];
   let reader = null;
   try {
+    assert.ok(gid, 'the temporary tab has an id');
     await write('probe 0');
     reader = createSheetReader({
       key: 'probe',
@@ -1214,9 +1216,10 @@ test('probe: a controlled public Sheet, read as the page reads it, edit to expor
     assert.ok(Math.max(...toWrite) < SHEET_READ_MS + SHEET_TIMEOUT_MS, 'every edit was written within one read and its timeout');
   } finally {
     reader?.stop();
-    const removed = await fetch(`${api}:batchUpdate`, { method: 'POST', headers, body: JSON.stringify({ requests: [{ deleteSheet: { sheetId: Number(gid) } }] }) });
-    const after = await fetch(`${api}?fields=sheets.properties.title`, { headers });
-    const titles = (await after.json()).sheets?.map((s) => s.properties.title) ?? [];
+    const listed = async () => (await (await fetch(`${api}?fields=sheets.properties(sheetId,title)`, { headers })).json()).sheets?.map((s) => s.properties) ?? [];
+    const mine = (await listed()).find((p) => p.title === title);
+    const removed = mine ? await fetch(`${api}:batchUpdate`, { method: 'POST', headers, body: JSON.stringify({ requests: [{ deleteSheet: { sheetId: mine.sheetId } }] }) }) : { status: 200 };
+    const titles = (await listed()).map((p) => p.title);
     console.log(`probe: temporary tab deleted ${removed.status === 200 && !titles.includes(title) ? 'and confirmed gone' : 'FAILED: remove it by hand'}`);
     assert.equal(removed.status, 200);
     assert.ok(!titles.includes(title), 'the temporary tab is gone');
