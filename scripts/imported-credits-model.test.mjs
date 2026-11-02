@@ -160,9 +160,9 @@ function readStyled({ field }) {
   const longRows = rows();
   const longFit = window.noacgCreditsFit.map((f) => ({ ...f }));
   const naturals = long.map(natural);
-  const overLong = noacgTextOverflow();
+  const overLong = window.noacgTextOverflow();
   write('Research:\nNia Vale');
-  const overShort = noacgTextOverflow();
+  const overShort = window.noacgTextOverflow();
   // A reset that clears every inline style (the editor's snap and reset) leaves the rows as built.
   write(`Research:\n${long[2]}`);
   const beforeReset = rows().map((r) => [r.start, r.look]);
