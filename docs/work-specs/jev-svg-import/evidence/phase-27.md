@@ -56,8 +56,11 @@ PR challenged them against that code. Rules found after coding are marked (after
   second half from the PR review bot on `3bf9b4f5`); otherwise the key is unresolved.
 - **R6 A label changed after the import wins** on a verified match, and the definition in the
   markup is rewritten with it.
-- **R7 Action identity is the operator event.** Every event the earlier graphic answered must be
-  answered by the new build, or it is unresolved.
+- **R7 Action identity is the operator event's name, carried by the recipe.** A verified build
+  answers the same events by construction (the behaviour test compares them). An action the walk
+  itself drops, through a behaviour profile the reader chose (a quiz with no Lock), is that
+  choice, not lost work, and is not listed (narrowed after coding: the first version listed it,
+  which broke AC-22's reopen-and-change journey in `import-svg-behaviour.spec.ts`).
 - **R8 Unresolved work is never written over.** A removed, look-alike or untargeted item makes
   every Finish door save the new version as a separate graphic (`<name> 2`), leaving the earlier
   graphic, its bindings and cues untouched. Finish names the items first. Replace anyway is the
@@ -90,7 +93,7 @@ PR challenged them against that code. Rules found after coding are marked (after
 ## What landed
 
 - `src/templates/importedDesign/reimport.ts` (new): the source key, the exact matcher, the
-  simultaneous id rename, the key, label and event comparison. Pure.
+  simultaneous id rename, the key and label carry. Pure.
 - `src/components/wizard/import/draft.ts`: `svgReimported`, the glue that parses and serializes
   the animation data, moves an editor identity, and names each unresolved item in the reader's
   words (a field's title, the designer's group name).
@@ -100,16 +103,20 @@ PR challenged them against that code. Rules found after coding are marked (after
   save, the separate import, the copy before a reviewed replace), `CreationWizard.tsx` (the
   library seam and the Finish review), `steps/FinishStep.tsx` (the list and the Replace anyway
   box in the existing name warning).
-- `e2e/import-svg-reimport.spec.ts` (new), six tests: the matcher on changed artwork (ids, keys,
-  label, a fresh id for the added layer), a removed and a look-alike layer, an edited-artwork
-  identity that follows its layer and one that is named, a behaviour's fields and actions, and two
-  journeys through Finish into a production: changed artwork keeps the record, ids, keys, label
-  and binding; a removed layer saves beside the earlier graphic, and Replace anyway keeps a copy.
+- `e2e/import-svg-reimport.spec.ts` (new), ten tests: the matcher on changed artwork (ids, keys,
+  label, a fresh id for the added layer, a deleted track, the new build's motion through an id
+  cycle), a removed and a look-alike layer, an edited-artwork identity that follows its layer and
+  one that is named, an identity on one of two look-alike layers, a field whose unbound twin
+  survives, a behaviour's fields and actions, three journeys through Finish into a production
+  (changed artwork saved through Export and then the production door keeps the record, ids,
+  keys, label and binding; a removed layer saves beside the earlier graphic, the production
+  follows the saved name, and Replace anyway keeps a copy; walking back after a clean reimport
+  shows the list on Finish), and the record rule's four states.
 
 ## Verification on this worker
 
 - `e2e/import-svg-reimport.spec.ts` 10/10; with `import-name-collision`, `wizard-finish`,
-  `jev-svg-preparation` and `wizard-draft-guard`: 51/51 on the final source (j-0031); 49/49 with
+  `jev-svg-preparation`, `wizard-draft-guard` and `import-svg-behaviour`: 94/94 on the final source (j-0036); 49/49 with
   R14 (j-0020).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
   first three: 47/47 earlier on this branch (j-0007).
@@ -228,6 +235,11 @@ PR challenged them against that code. Rules found after coding are marked (after
   Fixed (artwork-wide count); a new test unbinds one of two identical captions, deletes the bound
   one in version two, and finds the field ambiguous and its id not reused; with the bound-only
   count it fails.
+
+- Neighbouring run on the artwork-wide fix: `import-svg-behaviour.spec.ts` "a second author
+  reopens a saved quiz ... makes it a true no-Lock quiz" failed: the first R7 listed the dropped
+  Lock event, so the save went beside the quiz instead of over it. Class product defect, family
+  R7 (a rule wider than the contract). R7 narrowed as above; the spec is unchanged.
 
 ## Traps
 
