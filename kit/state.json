@@ -42,18 +42,28 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci15 builder receipt (session_017SdbwNtP4xJXZmRkUKq9R1)",
-    "eta": "2026-11-02T01:30:00Z"
+    "what": "PR #1943 merge queue, then ci15 checker",
+    "eta": "2026-11-02T00:45:00Z"
   },
   "inFlight": [
     {
       "phase": "ci15",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwNtP4xJXZmRkUKq9R1",
       "nonce": "ci15-b-b5fc",
       "branch": "claude/plan-cicd-improvement-ci15-build",
       "launchedAt": "2026-11-01T23:20:17Z",
-      "note": "Evidence-only qualification; expected NOT QUALIFIED now (ci13 demonstrated failure; audit window open until >= 2026-11-15T18:14Z)."
+      "note": "NOT QUALIFIED now: ci13 deadline failure, three pre-reset unexplained misses still unselected (#1900, #1942, #1944), window open until >= 2026-11-15T18:14Z, four quarantine incidents. PR CI attempt 1 red on unrelated production-controls (#1946), failed-job re-run green. Auto-merge on 00:12Z.",
+      "pr": 1943,
+      "reviewedHead": "35364b885338dedb8ba48bc1929e81630afdb224",
+      "stampRun": 41365857766,
+      "so": "session_017SdbwLezrXemm98cHtgq9z",
+      "followUps": [
+        1942,
+        1944,
+        1945,
+        1946
+      ]
     }
   ],
   "owner": [],
@@ -354,7 +364,11 @@
     1926,
     1928,
     1932,
-    1939
+    1939,
+    1942,
+    1944,
+    1945,
+    1946
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
