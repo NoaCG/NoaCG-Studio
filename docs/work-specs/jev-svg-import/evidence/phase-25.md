@@ -91,11 +91,14 @@ cloud worker, 2026-11-02, against the first controlled synthetic Sheet named in 
 for all six). The account added a temporary tab, edited one cell ten times and deleted the tab;
 the probe confirmed it gone. Reads went through Google's public export address, as the page reads:
 
-| Measure | min | median | max | n |
-|---|---|---|---|---|
-| Edit to visible in the public export (100 ms poll) | 184 ms | 213 ms | 252 ms | 10 |
-| The reader's interval between reads | 5000 ms | 5000 ms | 5002 ms | 10 |
-| Edit to written by the reader | 3541 ms | 4820 ms | 5577 ms | 10 |
+| Measure | Run 1: min / median / max | Run 2: min / median / max | n each |
+|---|---|---|---|
+| Edit to visible in the public export (100 ms poll) | 184 / 213 / 252 ms | 169 / 203 / 261 ms | 10 |
+| The reader's interval between reads | 5000 / 5000 / 5002 ms | 4996 / 5001 / 5009 ms | 10 |
+| Edit to written by the reader | 3541 / 4820 / 5577 ms | 4581 / 4829 / 4918 ms | 10 |
+
+Both runs deleted their temporary tab and confirmed it gone; the second run (after the review
+fixes) finds the tab by its title for the cleanup.
 
 Each edit was made just after the reader's previous read (the probe waited for that read's
 write), so edit-to-write sits near its worst case, one interval plus the export's lag. It is
@@ -104,19 +107,47 @@ export's lag is shorter than the 441 to 1,011 ms measured on 2026-10-16.
 
 ## Mutations
 
+Each applied to the source on this worker, run, and restored (tree clean after each):
+
 - The reader's sign-in-page check removed (`sheetSource.ts`, a sign-in page read as cells): the
   three Node reader tests and the tick test fail; restored, they pass. The first version of the
   reader tests missed it (a sign-in failure's text matched the previous step's), so each step now
   waits for two reads under its own failure and matches the exact error.
+- The marquee handover starting from the top of the new track (`tickerMarqueeHandover`,
+  `into = 0`): marquee tests 1 and 2 fail ("back only by whole set widths", 608.9 px on a 937.5 px
+  set).
+- The flip handover dropping the story on screen (`tickerFlipHandover`, `showing = null`): the flip
+  test fails at its first edit ("the story on screen kept its turn"). An earlier version caught it
+  only at the third edit, because it took the landing time from its poll, after the story had
+  gone; it now finds the landing frame in the samples.
 
 ## Verification on this worker
 
 - `node --test scripts/sheet-source.test.mjs`: 44 pass, the probe skipped by default.
   `scripts/data-tick.test.mjs`: 14/14. The probe: above.
 - Browser, through the job queue: `e2e/imported-text-live-data.spec.ts` 2/2,
-  `e2e/imported-credits-live-data.spec.ts` 7/7, `e2e/ticker-linked-update.spec.ts` 3/3.
+  `e2e/imported-credits-live-data.spec.ts` 7/7 (j-0013), `e2e/ticker-linked-update.spec.ts` 6/6
+  over two repeats (j-0015) after the review fixes; the flip test alone 3/3 (j-0011).
+- `npm run gates -- run --changed origin/main`: pass. `node scripts/check-e2e-protection.mjs
+  --changed origin/main`: OK. `npx tsc --noEmit -p .` and `npx eslint` on the changed files: pass.
 - `e2e/configured/production-data-key-tick.spec.ts` needs the configured stack: it runs in this
   PR's CI (configured selection), not here.
+
+## Review rounds
+
+- `/check` code review (delegated, 10 findings; 8 fixed, 2 kept):
+  - Fixed: a sub-pixel move back no longer fails the marquee rule; the marquee rule also requires
+    the window covered (x within one set) and no stall of a quarter second; the configured tick
+    test's last step judged a page that could read the fake itself, so it now reads the row's
+    status the tick wrote; the fixture answers a fault with a 500 instead of throwing in its
+    handler, and `fetchFor` takes a `Request`; the Node walk writes the tab before its reader
+    starts; the probe finds its tab by title for the cleanup; polls read the last frame or a
+    window, not the whole history; the two live-data specs use the fixture's `csvOf`.
+  - Kept: the connect steps repeated in four specs, and the failure table in two. A shared helper
+    would be a new file outside this row's files; each copy is a few lines.
+- Two checks added in that round met the browser's own timing: the marquee was judged during its
+  entrance (it now waits until it travels), and a late frame split one flip turn in two (a turn
+  now ends on a blank or another story, never on time).
 
 ## Decisions
 
