@@ -1,5 +1,6 @@
 // covers: src/templates/importedDesign/reimport.ts, src/blocks/svgIdentity.ts
 // covers: src/components/wizard/import/draft.ts
+// covers: src/components/wizard/shell/walkState.ts, src/components/wizard/steps/FinishStep.tsx, src/components/wizard/CreationWizard.tsx
 //
 // REIMPORT KEEPS THE WORK (docs/work-specs/jev-svg-import/spec.md, row 27, AC-15). Changed artwork
 // imported over a saved graphic keeps every verified-match layer's field id, the keys and labels
@@ -7,8 +8,12 @@
 // removed or look-alike layer is never guessed: it is named, and the earlier graphic is kept.
 
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { SCORE_SVG } from './_svg-import';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { SCORE_SVG, dropSvg, intoProduction } from './_svg-import';
+import { addToProductionFromFinish } from './_create';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 /** Version one: a plate, a name and a role. */
 const V1 = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="240" viewBox="0 0 1280 240" font-family="sans-serif" fill="#fff">
@@ -88,7 +93,6 @@ test('a removed layer and look-alike layers are named, never guessed', async ({ 
   const removed = await reimport(page, V1, V3);
   expect(removed.unresolved).toEqual([
     { kind: 'removed', label: 'Job title' },
-    { kind: 'key', label: `#${removed.role}` },
   ]);
   const twins = await reimport(page, V1, V4);
   expect(twins.unresolved.map((u) => u.kind)).toContain('ambiguous');
@@ -137,7 +141,7 @@ test('a key on an edited artwork layer follows that layer; a changed layer leave
   // plate's colour changed, so its key is named rather than moved onto a guess.
   expect(r.fills).toEqual(['#122036', null]);
   expect(r.keyed).toEqual([true, true]);
-  expect(r.unresolved).toEqual([{ kind: 'key', label: '#artwork-2' }]);
+  expect(r.unresolved).toEqual([{ kind: 'key', label: 'Plate' }]);
 });
 
 test('a behaviour keeps its fields and actions; dropping it names every action', async ({ page }) => {
@@ -168,4 +172,135 @@ test('a behaviour keeps its fields and actions; dropping it names every action',
   expect(r.againUnresolved).toEqual([]);
   expect(r.againFields).toEqual(r.fields);
   expect(r.plainKinds).toContain('action');
+});
+
+// ── THE DOORS ────────────────────────────────────────────────────────────────────────────────
+// The same reimport through the product: import into a production, make work on the saved
+// graphic, then import the next version under the same name.
+
+/** The artwork as a file the drop zone takes, named so every version reads as "guest". */
+function asFile(markup: string, tag: string): string {
+  const file = path.join(mkdtempSync(path.join(tmpdir(), `reimport-${tag}-`)), 'guest.svg');
+  writeFileSync(file, markup);
+  return file;
+}
+
+/** The work a person makes after the first import: keys on the role, the role relabelled, and the
+ *  role bound to production data. Written through the model, as the editor and the data
+ *  workspace write it. */
+async function makeWork(page: Page) {
+  await page.evaluate(async () => {
+    const { loadGraphics, updateGraphic } = await import('/src/model/library.ts');
+    const { loadShows, setFieldBinding } = await import('/src/model/shows.ts');
+    const { replaceDefinitionInHtml } = await import('/src/model/spxDefinition.ts');
+    const A = await import('/src/blocks/animData.ts');
+    const g = loadGraphics().find((d) => d.name === 'Guest')!;
+    const role = g.template.fields.find((f) => f.title === 'role')!.field;
+    const data = A.parseAnimData(g.template.js)!;
+    data.steps[0].layers[`#${role}`] = { ...data.steps[0].layers[`#${role}`], x: [{ time: 0, value: -40 }, { time: 0.5, value: 0 }] };
+    const fields = g.template.fields.map((f) => (f.field === role ? { ...f, title: 'Job title' } : f));
+    const html = replaceDefinitionInHtml(g.template.html, g.template.settings, fields);
+    updateGraphic(g.id, { template: { ...g.template, html, fields, js: A.spliceAnimData(g.template.js, data)! } });
+    setFieldBinding(loadShows()[0].id, 'Guest', role, 'guest.role');
+  });
+  await settleDurableWrites(page);
+}
+
+/** What the library and the production hold. */
+async function state(page: Page) {
+  await awaitDurableReady(page);
+  return page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadShows } = await import('/src/model/shows.ts');
+    const A = await import('/src/blocks/animData.ts');
+    const show = loadShows()[0];
+    return {
+      library: loadGraphics().map((g) => {
+        const doc = new DOMParser().parseFromString(g.template.html, 'text/html');
+        const steps = A.parseAnimData(g.template.js)?.steps ?? [];
+        return {
+          id: g.id,
+          name: g.name,
+          fields: g.template.fields.map((f) => `${f.field} ${f.title} ${doc.getElementById(f.field)?.textContent ?? ''}`.trim()),
+          keyed: Object.entries(steps[0]?.layers ?? {}).filter(([, t]) => (t as Record<string, unknown[]>).x?.length === 2).map(([sel]) => sel),
+        };
+      }),
+      bindings: show.bindings ?? {},
+      pool: show.graphics.map((g) => g.name),
+    };
+  });
+}
+
+/** From a fresh visit to the Finish step of the next version, named like the saved graphic. */
+async function reimportToFinish(page: Page, file: string): Promise<void> {
+  await page.goto('/app');
+  await dropSvg(page, file);
+  await page.getByTestId('wz-skip-to-finish').click();
+  await expect(page.getByTestId('wz-stepcount')).toContainText('5');
+  await page.getByTestId('wz-finish-name').fill('Guest');
+  const pick = page.getByTestId('wz-finish-production');
+  await pick.selectOption((await pick.locator('option', { hasText: 'Show' }).getAttribute('value'))!);
+}
+
+async function pressAdd(page: Page): Promise<void> {
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+}
+
+test('reimporting changed artwork through Finish keeps the graphic, its ids, keys, label and binding', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/app');
+  await dropSvg(page, asFile(V1, 'v1'));
+  await intoProduction(page, 'Guest', 'Show');
+  await makeWork(page);
+  const before = await state(page);
+
+  await reimportToFinish(page, asFile(V2, 'v2'));
+  // Nothing is unresolved, so Finish says what it always says about a held name.
+  await expect(page.getByTestId('wz-finish-name-taken')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
+  await pressAdd(page);
+
+  const after = await state(page);
+  expect(after.library.map((g) => g.id)).toEqual(before.library.map((g) => g.id));
+  // In the new artwork's order: the badge is drawn first and took an id nobody used.
+  expect(after.library[0].fields).toEqual(['f2 badge LIVE', 'f0 name Presenter', 'f1 Job title Guest role']);
+  expect(after.library[0].keyed).toEqual(['#f1']);
+  // The binding still names the role's id, and that id is still the role layer.
+  expect(after.bindings).toEqual(before.bindings);
+  expect(after.bindings).toEqual({ Guest: { f1: 'guest.role' } });
+  expect(after.pool).toEqual(['Guest']);
+});
+
+test('a removed layer saves the new version beside the earlier one; Replace anyway keeps a copy', async ({ page }) => {
+  test.setTimeout(110_000);
+  await page.goto('/app');
+  await dropSvg(page, asFile(V1, 'v1'));
+  await intoProduction(page, 'Guest', 'Show');
+  await makeWork(page);
+  const earlier = (await state(page)).library[0];
+
+  const v3 = asFile(V3, 'v3');
+  await reimportToFinish(page, v3);
+  const review = page.getByTestId('wz-finish-reimport');
+  await expect(review).toContainText('Not carried over to this version: Job title.');
+  await expect(review).toContainText('saves this one as Guest 2');
+  await expect(page.getByTestId('wz-finish-name-taken')).toHaveCount(0);
+  await pressAdd(page);
+  let now = await state(page);
+  // The earlier graphic, its work and its binding are untouched; the new version is its own.
+  expect(now.library.find((g) => g.id === earlier.id)).toEqual(earlier);
+  expect(now.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest 2']);
+  expect(now.bindings).toEqual({ Guest: { [earlier.fields[1].split(' ')[0]]: 'guest.role' } });
+
+  await reimportToFinish(page, v3);
+  await page.getByTestId('wz-finish-reimport-replace').check();
+  await expect(page.getByTestId('wz-finish-reimport')).toContainText('keeps the earlier one as Guest copy');
+  await pressAdd(page);
+  now = await state(page);
+  const replaced = now.library.find((g) => g.id === earlier.id)!;
+  expect(replaced.fields).toEqual(['f0 name Guest name']);
+  // The earlier version stays recoverable as its own graphic, work included.
+  const copy = now.library.find((g) => g.name === 'Guest copy')!;
+  expect({ ...copy, id: earlier.id, name: earlier.name }).toEqual(earlier);
 });

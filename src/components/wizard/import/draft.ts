@@ -2168,10 +2168,29 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
     unresolved.push({ kind: 'key', label: 'animation' });
   }
   template = carryTitles(template, prior.template, prior.baseline, match.matched);
+  // A key is named by what the reader knows it as: the field's title, else the designer's
+  // nearest named group, never a selector.
+  const named = (u: ReimportItem): ReimportItem => {
+    if (u.kind !== 'key' || !u.label.startsWith('#')) return u;
+    const field = prior.template.fields.find((f) => `#${f.field}` === u.label);
+    if (field) return { ...u, label: field.title || field.field };
+    let el: Element | null = null;
+    try { el = priorDoc.querySelector(u.label); } catch { /* not a selector */ }
+    for (let up = el?.parentElement; up && up !== priorArt; up = up.parentElement) {
+      const id = up.getAttribute('id');
+      if (id && !/^(?:f\d+|artwork-\d+)$/.test(id)) return { ...u, label: id.replace(/^layer-/, '') };
+    }
+    return { ...u, label: 'artwork' };
+  };
+  // Keys on a field already named as gone are said once, with the field.
+  const gone = new Set(match.unresolved.map((u) => u.label));
   const seen = new Set<string>();
   return {
     template,
     baseline,
-    unresolved: unresolved.filter((u) => !seen.has(u.kind + u.label) && !!seen.add(u.kind + u.label)),
+    unresolved: unresolved
+      .map(named)
+      .filter((u) => !(u.kind === 'key' && gone.has(u.label)))
+      .filter((u) => !seen.has(u.kind + u.label) && !!seen.add(u.kind + u.label)),
   };
 }
