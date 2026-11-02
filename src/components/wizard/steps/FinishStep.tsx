@@ -100,9 +100,7 @@ interface Props {
 
 /** One unresolved item in the reader's words. */
 function reimportWords(u: ReimportItem): string {
-  if (u.kind === 'key') return `keys on ${u.label}`;
-  if (u.kind === 'action') return `the ${u.label} action`;
-  return u.label;
+  return u.kind === 'key' ? `keys on ${u.label}` : u.label;
 }
 
 /**

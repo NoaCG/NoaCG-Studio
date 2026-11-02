@@ -44,7 +44,7 @@ import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, upd
 import { freeName } from '../../../model/poolIdentity';
 import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
 import { PREFIX } from '../../../templates/importedDesign/shared';
-import { artOf, carryKeys, carryTitles, lostActions, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
+import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -2148,7 +2148,9 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
   const priorData = parseAnimData(prior.template.js);
   const firstData = prior.baseline ? parseAnimData(prior.baseline.js) : null;
   const builtData = parseAnimData(template.js);
-  unresolved.push(...lostActions(priorData, builtData));
+  // Action identities ride on the recipe, which names its events: a verified build answers the
+  // same ones. An action the walk itself drops (a behaviour profile the reader chose, such as a
+  // quiz with no Lock) is that choice, not lost work, so it is not listed.
   if (priorData && builtData) {
     const keys = carryKeys(priorData, firstData, builtData);
     unresolved.push(...keys.unresolved);

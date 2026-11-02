@@ -19,9 +19,9 @@ import { replaceDefinitionInHtml } from '../../model/spxDefinition';
 import { PREFIX } from './shared';
 
 /** One piece of earlier work this reimport cannot carry on its own. `label` is what the reader
- *  recognises: a field's title, a keyed layer's selector, an operator event's name. */
+ *  recognises: a field's title or a keyed layer's selector. */
 export interface ReimportItem {
-  kind: 'removed' | 'ambiguous' | 'key' | 'action';
+  kind: 'removed' | 'ambiguous' | 'key';
   label: string;
 }
 
@@ -248,24 +248,6 @@ export function carryKeys(prior: AnimData, baseline: AnimData | null, built: Ani
     }
   }
   return { data, selectors: [...selectors], unresolved };
-}
-
-/** The operator events a block answers - an action's identity, which a control, a panel button
- *  and a cue's command all address by name. Read off the machine here rather than through
- *  blocks/animMachine `allOperatorEvents`, for the import rule above; controls count too. */
-function operatorEvents(data: AnimData | null): Set<string> {
-  const out = new Set<string>();
-  for (const g of data?.machine?.groups ?? []) {
-    for (const t of g.transitions) if (t.trigger === 'operator' && t.event) out.add(t.event);
-  }
-  for (const c of data?.machine?.controls ?? []) out.add(c.event);
-  return out;
-}
-
-/** Earlier operator events the new build no longer answers. */
-export function lostActions(prior: AnimData | null, built: AnimData | null): ReimportItem[] {
-  const now = operatorEvents(built);
-  return [...operatorEvents(prior)].filter((e) => !now.has(e)).map((label) => ({ kind: 'action' as const, label }));
 }
 
 /** A label the reader changed after the import (earlier title differs from its baseline) wins

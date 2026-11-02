@@ -229,18 +229,21 @@ test('a removed field never lands on its unbound look-alike', async ({ page }) =
   expect(r.ids).not.toContain(r.captionId);
 });
 
-test('a behaviour keeps its fields and actions; dropping it names every action', async ({ page }) => {
+test('a behaviour keeps its fields and its actions; dropping it in the walk is the walk\'s choice', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async (markup) => {
     const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
     const D = await import('/src/components/wizard/import/draft.ts');
+    const A = await import('/src/blocks/animData.ts');
+    const { allOperatorEvents } = await import('/src/blocks/animMachine.ts');
     const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
     const build = (svg: string, plain = false) => {
       const patch = D.svgDraftFromImport(importSvgMarkup(svg), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
       return buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, ...(plain ? { svgBehaviour: null } : {}), name: 'Board' }));
     };
+    const events = (js: string) => { const m = A.parseAnimData(js)?.machine; return m ? allOperatorEvents(m).sort() : []; };
     const first = build(markup);
     // The same board with a new background colour.
     const again = D.svgReimported({ template: first, baseline: first }, build(markup.replace(/<svg([^>]*)>/, '<svg$1><rect width="10" height="10" fill="#010203"/>')))!;
@@ -249,6 +252,8 @@ test('a behaviour keeps its fields and actions; dropping it names every action',
       recipe: first.js.includes('NOACG_BEHAVIOUR'),
       fields: first.fields.map((f) => `${f.field} ${f.title}`),
       againFields: again.template.fields.map((f) => `${f.field} ${f.title}`),
+      events: events(first.js),
+      againEvents: events(again.template.js),
       againUnresolved: again.unresolved,
       plainKinds: [...new Set(plain.unresolved.map((u) => u.kind))],
     };
@@ -256,7 +261,12 @@ test('a behaviour keeps its fields and actions; dropping it names every action',
   expect(r.recipe).toBe(true);
   expect(r.againUnresolved).toEqual([]);
   expect(r.againFields).toEqual(r.fields);
-  expect(r.plainKinds).toContain('action');
+  // Every action keeps its identity: the same operator events, by name.
+  expect(r.events.length).toBeGreaterThan(0);
+  expect(r.againEvents).toEqual(r.events);
+  // Dropping the recipe in the walk is the reader's choice (as choosing a quiz with no Lock is):
+  // the score fields are the artwork's own and stay matched, so nothing is listed.
+  expect(r.plainKinds).toEqual([]);
 });
 
 // ── THE DOORS ────────────────────────────────────────────────────────────────────────────────
