@@ -272,6 +272,11 @@ test('reimporting changed artwork through Finish keeps the graphic, its ids, key
   // Nothing is unresolved, so Finish says what it always says about a held name.
   await expect(page.getByTestId('wz-finish-name-taken')).toBeVisible();
   await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
+  // Two presses of one walk: Export saves the reconciled graphic, then the production door saves
+  // again from a fresh build, and must reconcile again rather than write that build over it.
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  await page.getByTestId('export-window').locator('.gallery-close').click();
   await pressAdd(page);
 
   const after = await state(page);
@@ -327,4 +332,27 @@ test('a removed layer saves the new version beside the earlier one; Replace anyw
   // The earlier version stays recoverable as its own graphic, work included.
   const copy = now.library.find((g) => g.name === 'Guest copy')!;
   expect({ ...copy, id: earlier.id, name: earlier.name }).toEqual(earlier);
+});
+
+test('reconciliation follows the record, not the press', async ({ page }) => {
+  await page.goto('/app');
+  const r = await page.evaluate(async () => {
+    const { reimportTarget } = await import('/src/components/wizard/import/draft.ts');
+    const index = [{ id: 'g', name: 'Guest', updatedAt: 't1', fields: [] }];
+    const over = { kind: 'over' as const, targetId: 'g', holder: index[0] };
+    const update = { kind: 'update' as const, targetId: 'g', renamedFrom: null, sharesWith: null };
+    const made = (m: object) => ({ name: 'Guest', graphicId: 'g', production: null, landedOn: null, ...m });
+    return {
+      // A graphic this walk never opened.
+      over: reimportTarget(over, null, index),
+      // This walk's own plain graphic, untouched since: today's plain write.
+      ownPlain: reimportTarget(update, made({ at: 't1' }), index),
+      // The same graphic after another tab wrote to it: its work is read, not written over.
+      ownChanged: reimportTarget(update, made({ at: 't0' }), index),
+      // A graphic this walk reconciled: every later press reconciles again.
+      ownReconciled: reimportTarget(update, made({ at: 't1', reconciled: true }), index),
+      mint: reimportTarget({ kind: 'mint', targetId: null }, null, index),
+    };
+  });
+  expect(r).toEqual({ over: 'g', ownPlain: null, ownChanged: 'g', ownReconciled: 'g', mint: null });
 });

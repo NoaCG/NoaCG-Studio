@@ -40,9 +40,9 @@ import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
 import { canonical } from '../../../model/publishedRecord';
 import { parseAnimData, spliceAnimData } from '../../../blocks/animData';
 import { carrySvgIdentity } from '../../../blocks/svgIdentity';
-import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, updateGraphic, type LibraryNameEntry } from '../../../model/library';
+import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, updateGraphic, type LibraryNameEntry, type LibrarySaveEffect } from '../../../model/library';
 import { freeName } from '../../../model/poolIdentity';
-import type { LibraryIo, WalkMemory } from '../shell/walkState';
+import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
 import { artOf, carryKeys, carryTitles, lostActions, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
@@ -2252,8 +2252,9 @@ let reviewCache: { built: SpxTemplate; id: string; at: string; result: SvgReimpo
 /** What Finish says about a reimport over the graphic `name` holds (FinishStep `reimport`), or
  *  null when the save is the ordinary one or carries everything. */
 export function finishReimport(built: SpxTemplate | null, name: string, library: LibraryNameEntry[], madeId: string | null, memory: WalkMemory) {
-  const effect = librarySaveEffect(library, name, madeId);
-  const held = built && effect.kind === 'over' ? graphicById(effect.targetId) : null;
+  // The save's own test (`reimportTarget`), so Finish and the save agree.
+  const target = reimportTarget(librarySaveEffect(library, name, madeId), memory.made, library);
+  const held = built && target ? graphicById(target) : null;
   if (!built || !held) return null;
   if (reviewCache?.built !== built || reviewCache.id !== held.id || reviewCache.at !== held.updatedAt) {
     reviewCache = { built, id: held.id, at: held.updatedAt, result: svgReimported({ template: held.template, baseline: held.baseline }, built) };
@@ -2267,4 +2268,20 @@ export function finishReimport(built: SpxTemplate | null, name: string, library:
     replace: !!memory.replaceOver,
     onReplace: (replace: boolean) => { memory.replaceOver = replace; },
   };
+}
+
+/**
+ * THE RECORD A SAVE RECONCILES AGAINST, or null for a plain write (spec "Reimport", AC-15). Each
+ * door rebuilds the raw, positionally numbered build first, so reconciliation follows the RECORD,
+ * not the press: a save reconciles against any record it would write over, unless that record is
+ * still exactly what this walk last wrote by a plain write (its own fresh graphic, untouched).
+ * Whether the record is an SVG import at all is the reconcile's own question. The Finish review
+ * (`finishReimport`) and the save (shell/walkState.ts `saveBuiltGraphic`) ask this same function,
+ * so the sentence and the save decide alike.
+ */
+export function reimportTarget(effect: LibrarySaveEffect, made: MadeGraphic | null, index: LibraryNameEntry[]): string | null {
+  const target = effect.targetId;
+  if (!target) return null;
+  const plainOwn = made?.graphicId === target && !made.reconciled && made.at === index.find((g) => g.id === target)?.updatedAt;
+  return plainOwn ? null : target;
 }

@@ -23,6 +23,7 @@ import type { AiThread } from '../../../model/aiThread';
 import type { GenerationSpec } from '../../../model/generationSpec';
 import type { ImportedTemplateResult } from '../../../model/importTemplate';
 import type { LibraryNameEntry, librarySaveEffect } from '../../../model/library';
+import { reimportTarget } from '../import';
 import { freeName } from '../../../model/poolIdentity';
 import type { ReimportItem } from '../../../templates/importedDesign/reimport';
 import type { Show } from '../../../model/shows';
@@ -79,6 +80,11 @@ export interface MadeGraphic {
    *  rather than to the Home page a plain wizard close would rewind to. Null when the door
    *  kept the wizard open (export), where there is nothing to walk back from. */
   landedOn: Route | null;
+  /** REIMPORT: this walk's last write to the record was a reimport reconcile. */
+  reconciled?: boolean;
+  /** The record's `updatedAt` right after this walk's last write, so a later press can tell
+   *  whether anything else has written to it since. */
+  at?: string;
 }
 
 /**
@@ -563,9 +569,17 @@ export function rememberWalk(memory: WalkMemory, state: WalkState): void {
 /** What the door actually produced, once it has: the warning names it, and a second pass down
  *  the same walk writes over it. */
 export function noteMade(memory: WalkMemory, made: MadeGraphic): void {
-  if (memory.finished) memory.finished.made = made;
-  memory.made = made;
+  // What the save learned about the record (a reconcile, its write time) stays with it when a
+  // door notes the same record afterwards.
+  const prev = memory.made;
+  const learned = prev && prev.graphicId === made.graphicId
+    ? { ...(prev.reconciled ? { reconciled: true } : {}), ...(prev.at ? { at: prev.at } : {}) }
+    : {};
+  const next = Object.keys(learned).length ? { ...learned, ...made } : made;
+  if (memory.finished) memory.finished.made = next;
+  memory.made = next;
 }
+
 
 /** The library as the save sees it: the name index, the effect rule, and the two writes. */
 export interface LibraryIo {
@@ -627,7 +641,10 @@ export async function saveBuiltGraphic(
   // the next pass writes over it, under whatever name Finish then carries (#1367, #1384).
   const mint = (as = name) => {
     const run = lib.saveAs(as).then((minted) => {
-      if (minted.graphicId) noteMade(memory, { name: as, graphicId: minted.graphicId, production: null, landedOn: null });
+      if (minted.graphicId) {
+        const at = lib.index().find((g) => g.id === minted.graphicId)?.updatedAt;
+        noteMade(memory, { name: as, graphicId: minted.graphicId, production: null, landedOn: null, ...(at ? { at } : {}) });
+      }
       return minted;
     });
     const done = () => { if (memory.minting === minting) memory.minting = undefined; };
@@ -636,10 +653,10 @@ export async function saveBuiltGraphic(
     return run;
   };
   if (!over) return mint();
-  // REIMPORT over a graphic this walk never opened. Work the reconcile cannot carry is never
-  // written over: by default the new artwork becomes a separate graphic beside it, and a reader
-  // who reviewed the list and replaces anyway keeps the earlier one as its own entry first.
-  const reimport = effect.kind === 'over' ? lib.reconcile?.(over) ?? null : null;
+  // REIMPORT (`reimportTarget`). Work the reconcile cannot carry is never written over: by
+  // default the new artwork becomes a separate graphic beside it, and a reader who reviewed the
+  // list and replaces anyway keeps the earlier one as its own entry first.
+  const reimport = reimportTarget(effect, memory.made, lib.index()) ? lib.reconcile?.(over) ?? null : null;
   if (reimport?.unresolved.length && !opts.replace) return mint(freeName(lib.index().map((g) => g.name), name));
   if (reimport?.unresolved.length && !lib.keepCopy?.(over)) {
     return { ok: false, error: `The earlier “${name}” could not be kept, so nothing was saved over it.` };
@@ -647,7 +664,13 @@ export async function saveBuiltGraphic(
   reimport?.apply();
   lib.linkTo(over);
   const result = await lib.saveCurrent(name);
-  if (result === 'saved') return { ok: true, error: null };
+  if (result === 'saved') {
+    const at = lib.index().find((g) => g.id === over)?.updatedAt;
+    const { reconciled: _was, at: _then, ...made } = memory.made?.graphicId === over ? memory.made : { name, graphicId: over, production: null, landedOn: null };
+    memory.made = null;
+    noteMade(memory, { ...made, ...(reimport ? { reconciled: true } : {}), ...(at ? { at } : {}) });
+    return { ok: true, error: null };
+  }
   // 'needs-name' means the record went between the check above and the write (deleted on
   // another device or tab). Minting is then the right answer, not an error - the work is what
   // matters, and there is no longer anything to write over.
