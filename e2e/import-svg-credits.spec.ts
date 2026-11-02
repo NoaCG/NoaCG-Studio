@@ -1170,6 +1170,7 @@ for (const layout of CARD_LAYOUTS) {
 
     // OUT DURING A CHANGE: nothing half-faded is left for the next look at the graphic off air.
     await cardsDispatch(page, 'next');
+    await expect.poll(async () => Number((await cardsState(page)).opacity), `${at}: the change is fading`).toBeLessThan(0.9);
     await cardsDispatch(page, 'stop');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: Out mid-change`).toBe(-1);
     await write(list);

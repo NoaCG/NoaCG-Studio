@@ -68,9 +68,9 @@ a manual Next.
 | Role/name association | Same tests: every role on a card is followed by all its names on that card, kinds checked row by row. A group never splits across cards. Node "row 23" asserts the build |
 | Long cards | Same tests, a group too long for one card (30 names above, 15 beside) is a card of its own: shrunk as a whole below 55% and not below 30%, filling its room within 2 units without passing it, and the Credits field reported before it is shown. 200 names: that card is refused (hidden, reported). A list that fits again clears the report |
 | Ordering | Same tests: the cards read in order are the list without its blank line |
-| Replay | Same tests: Out, Next off air (ignored), Take: the first card again |
+| Replay | Same tests: Take starts on the first card; Next to the second; Out (the card reads -1); Next off air, 1.2 s later still off air with no timer; Take: the first card again, the same rows |
 | Manual advance (the default) | Same tests: no card time, the first card still shows after 2.5 s; `nextCard` turns each card; on the last card Next does nothing and no timer runs. Wizard walk: Cards with blank seconds, on the production page the Card time field is blank, and the `Next card` press shows the second card at the drawn baselines (175, 240) |
-| Automatic advance | Same tests, `advance: 2`: the first card holds at least 1.9 s, then turns by itself; Next still skips ahead, and the next hold starts again (none on the last card) |
+| Automatic advance | Same tests, `advance: 2`: the first card holds at least 1.9 s, then turns by itself; Next pressed during that timed card skips ahead, and the next hold starts again (none on the last card). A new Card time on air (8 at 1.5 s, then 4 at 3 s) turns the card at 4 s from the take, between 3.9 and 5 s. A one-card list holds with no timer; grown to several cards on air, it turns by itself. Out during a change, then an update off air: the first card at full opacity |
 | Refusal visible before air | Wizard walk: the choice says "A blank line starts a new card. A card too long for the page is not shown, and its field says so." Pasting a second card of 200 names marks the field and the cue's note says "too long for the design" before any take |
 | No dead control | Node "row 23": a cards build has Card time (`''` for Next, `'8'` for 8 s), no Scroll speed, the `nextCard` event and `noacgCreditsNext`; the roll of the same binding has no `nextCard` |
 | Roll, still page and fixed artwork unchanged | The emitted styled runtime for six configurations (roll, roll with faces, still, still with faces, beside roll, beside still) hashes the same on this branch and on main (`1fcac77a…`). Node pins of the editable roll, the artwork roll, the three plain drawings and `ROLE_ABOVE_PINS` pass unchanged; a stale binding still builds the editable roll byte for byte |
@@ -85,6 +85,9 @@ Mutations, each caught (the jobs are in Verification):
 - A take that keeps the card it stopped on: both fail at "the replay starts on the first card"
   (j-0009).
 - The wizard never saving cards: the walk fails at the Cards hint (j-0010).
+- After review: a card that gains cards after it on air never starting its hold (j-0018); a
+  second time change counted from the first change rather than the hold's start (j-0019); no
+  opacity reset off air after Out cut a change short (j-0020). Results in Verification.
 
 ## Decisions
 
@@ -124,6 +127,22 @@ Mutations, each caught (the jobs are in Verification):
   rebuild in place today. Holding a snapshot until the next take is row 24's.
 - **Ordinary review scenario.** A new playback renderer, one press and a wizard select. The
   press rides the existing structural machine; no state rule changes.
+
+## Review rounds
+
+- `/check` on `88ba653` (delegated review, 6 findings; 4 fixed, 2 kept):
+  - Fixed: a card that became non-last through an update on air never armed its hold (now
+    `creditsDataUpdated` arms one when none runs); a second time change was counted from the
+    first change (now from the hold's start, `noacgCreditsSince`, on GSAP's clock); every change
+    re-laid out every card (now a change lays out the next card alone, `creditsShow`, keeping the
+    deal's report); Out during a change left the card part-faded for an off-air look (now a deal
+    off air sets it whole). The replay test was vacuous (Next landed before Out took effect), and
+    the reader record kept the old card after Out: both fixed, and the cases above added.
+  - Kept: a press during a change is that change (one press, one card), now said in the code; the
+    geometry bounds use the fallback face as row 22's do, with wide margins (a group of three
+    names ends near 685 of 772.5 above, and 30 names land at a share near 0.36, between the
+    floor and the report line); the card time is the operator's seconds and is not scaled by
+    `motionSpeed()`, while the fades are.
 
 ## Known limits
 
