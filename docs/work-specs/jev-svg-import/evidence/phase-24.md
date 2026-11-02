@@ -183,11 +183,12 @@ Mutations, each caught (this worker's queue):
   it holds the list taken and lets the newest wait. That is "prepare new source content
   automatically" with "no second data owner": the field keeps the newest value, and only what
   plays on air is held.
-- **A held-still page updates in place on air** (agreed with the coordinator). Nothing on it moves,
-  so an update has no motion to replay, and a last-minute correction reaches air at once, which is
-  what the owner asks of credits. Row 22's in-place refit already does it, with its tests
-  unchanged. The spec's "Static credits use the snapshot on Take" holds: the Take airs the list
-  as it stands.
+- **A held-still page updates in place on air** (agreed with the coordinator). This departs from
+  the wording of spec.md's Updates bullet, "Static credits use the snapshot on Take". The reading
+  chosen: the Take airs the list as it stands, and after that an update refits the page in place.
+  Nothing on a still page moves, so an update has nothing to replay, and a last-minute correction
+  reaches air at once, which is what the owner asks of credits. Row 22's in-place refit already
+  does it, with its tests unchanged.
 - **Every update on air waits, the operator's own Update included.** The graphic cannot tell a
   Sheet write from a typed Update, and the spec's rule is "until the next Play/Take". Re-take is
   the existing explicit apply control, and the source line names it. The cue editor keeps its own

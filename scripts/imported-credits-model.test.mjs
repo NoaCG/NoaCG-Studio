@@ -1017,7 +1017,7 @@ test('row 24: a styled roll keeps the list its take took while on air; the edita
   for (const k of ROLE_ABOVE) {
     const { js } = R.styled[k];
     assert.ok(js.includes('var noacgCreditsHeld = null;') && js.includes('function creditsListWaits()'), `${k}: the snapshot rule is emitted`);
-    assert.match(js, /noacgCreditsTween = null;\n  creditsHoldList\(\);\n  var built = creditsRender\(\);/, `${k}: the take holds the list it builds from`);
+    assert.match(js, /noacgCreditsTween = null;\n {2}creditsHoldList\(\);\n {2}var built = creditsRender\(\);/, `${k}: the take holds the list it builds from`);
     assert.ok(js.includes('var text = creditsHeldList();'), `${k}: the rows are built from the held list`);
     assert.ok(js.includes('if (!creditsListWaits()) creditsRender();'), `${k}: an update on air leaves the rows as taken`);
     assert.ok(js.includes('noacgCreditsHeld = null;\n  noacgCreditsWaiting = false;'), `${k}: Out lets go of the held list`);
