@@ -1039,18 +1039,17 @@ const cardsDispatch = (page: Page, call: 'play' | 'stop' | 'next') => page.evalu
   else w[call]();
 }, call);
 
-test('styled credits as cards, role above and role beside: page boundaries, whole groups, long cards, ordering, both advances and replay', async ({ page }) => {
-  test.slow(); // two layouts, each dealt, taken, advanced on a timer and by Next, and replayed
-  await page.goto('/app');
-  const layouts = [
-    // credits-1: roles at 175 and names 65 then 55 below, the next role 150 after a group; the room
-    // ends half a drawn line above the 800 frame's bottom.
-    { source: readFileSync(ABOVE_CREDITS_SVG, 'utf8'), role: 'Research', top: 175, limit: 772.5, perCard: 2, cast: 30 },
-    // credits-2: a role and its first name on one line at 195, the next role 170 after a group's
-    // last line; 540 tall, so one group of three names fills a card.
-    { source: readFileSync(BESIDE_CREDITS_SVG, 'utf8'), role: 'Réalisation', top: 195, limit: 512.5, perCard: 1, cast: 15 },
-  ];
-  for (const layout of layouts) {
+const CARD_LAYOUTS = [
+  // credits-1: roles at 175 and names 65 then 55 below, the next role 150 after a group; the room
+  // ends half a drawn line above the 800 frame's bottom.
+  { source: readFileSync(ABOVE_CREDITS_SVG, 'utf8'), role: 'Research', top: 175, limit: 772.5, perCard: 2, cast: 30 },
+  // credits-2: a role and its first name on one line at 195, the next role 170 after a group's
+  // last line; 540 tall, so one group of three names fills a card.
+  { source: readFileSync(BESIDE_CREDITS_SVG, 'utf8'), role: 'Réalisation', top: 195, limit: 512.5, perCard: 1, cast: 15 },
+];
+for (const layout of CARD_LAYOUTS) {
+  test(`styled credits as cards, ${layout.role === 'Research' ? 'role above' : 'role beside'}: page boundaries, whole groups, long cards, ordering, both advances and replay`, async ({ page }) => {
+    await page.goto('/app');
     const [onNext] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards');
     const [timed] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards', 2);
     const at = onNext.layout;
@@ -1143,8 +1142,8 @@ test('styled credits as cards, role above and role beside: page boundaries, whol
     await expect.poll(async () => (await cardsState(page)).shown, `${at}: Next skips ahead`).toBe(2);
     // Its hold starts again; the last card has none.
     await expect.poll(async () => (await cardsState(page)).tween, `${at}: the hold after Next`).toBe(expected.length - 1 > 2);
-  }
-});
+  });
+}
 
 test('fixed-artwork credits drawn as separate layers enter and leave the whole frame as one block after Drop, Rise and Pop', async ({ page }) => {
   // #1962 kept as artwork: every drawn role and name moves the same distance, the block's top
