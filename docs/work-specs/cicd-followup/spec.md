@@ -81,7 +81,7 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   alarm counts), is observed reaching `miwco`, with its receipt; #1951 closes only after that.
   (c) Before cf01 closes, each quarantined spec in `e2e/quarantine.json` has one open incident
   issue carrying owner, impact, repair date and restoration criteria, coordinated with its existing
-  owner. Issues that overlap #1924, #1946, #1603, #1778, #1805 or #1954 are merged or cross-linked
+  owner. Issues that overlap #1924, #1946, #1603, #1778, #1805, #1874 or #1954 are merged or cross-linked
   so each spec has exactly one tracking issue.
 - **cf02.** (a) `.agent-workflows/plan-run.md` says to archive a phase's builder, repairer,
   checker, diagnose and review sessions once its result and required handoff evidence are
@@ -89,17 +89,24 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 - **cf03.** (a) M1 to M5 measured from existing history with sample sizes, before and after the
   cicd-improvement landings, for comparable changes. (b) An explanation of why each landed
   improvement did or did not change total turnaround, and a ranked list of candidate optimizations
-  (duplicate work, cache misses, setup, shard balance, concurrency) with expected effect.
+  (duplicate work, cache misses, setup, shard balance, concurrency) with expected effect. (c) For
+  M1, M2 and M3, the run-to-run spread on comparable changes and the minimum sample size per side
+  for a before/after comparison, each derived from the history with the method stated. cf13 uses
+  these values unchanged.
 - **cf04.** (a) Concurrent configured stacks are isolated, with safe port allocation, readiness
   checks and cleanup on failure or cancellation, and the collision cause is diagnosed. (b)
   Concurrent execution is verified in CI; no unrelated process is killed and startup is not merely
   retried.
 - **cf05, cf06, cf07.** (a) Each named flake is reproduced or explained, with a root-cause fix
-  that waits on observable state (or a product fix for a race). (b) Stability is shown under
-  representative CI conditions, and any quarantine is released only by the documented route.
+  that waits on observable state (or a product fix for a race). A wait or dialog dismissal in the
+  test does not count as the fix when the failure shows product behaviour that breaks a documented
+  rule (for #1603, the save rule); that needs the product fix. For cf07, the fix rules out a backend
+  stack or port collision (#1865, #1829) as the cause, or names it and leaves the setup fix to
+  cf04. (b) Stability is shown under representative CI conditions (a repeat count on CI runners
+  with the CI worker count, written in the phase brief before the run, with zero failures), and any quarantine is released only by the documented route.
   Each incident issue carries owner, impact, repair date and restoration criteria.
 - **cf08.** (a) #1954 and #1926 carry a named owner, target date and link to the JEV run, which
-  keeps implementation; if JEV cannot take them promptly, a coordinated fix is split out. (b) CI
+  keeps implementation; if the JEV run has not accepted them with a target date by the time cf08 starts, a coordinated fix is split out. (b) CI
   exercises and reports the missing svg01 case. (c) #1834 is reviewed against current main: it lands
   as an updated, policy-compliant quarantine with issue, owner and expiry, or is closed as obsolete
   or as a duplicate of an existing quarantine. A deterministic product regression is not
@@ -120,15 +127,17 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   selection states in its PR that it restarts the audit, and cf18's earliest date moves with it.
 - **cf12.** (a) The ten critical tests run on every product change while their measured added
   minutes per product change, from cf03's M3, stay under a ceiling written in the phase brief
-  before the change lands, without running the same tests twice in one validation pipeline. (b) The 2-of-6 result
+  before the change lands, stated as a share of cf03's median M3 per merge with the reason, without running the same tests twice in one validation pipeline. (b) The 2-of-6 result
   from cicd-improvement ci11 is explained, with what the set does and does not protect, and the
   missed faults turned into worthwhile coverage improvements or recorded follow-ups.
 - **cf13.** (a) At least one optimization chosen from the cf03 ranking lands. Before and after M1
   and M3 on comparable changes, with sample sizes stated and at least the sample size cf03 judged
   sufficient, show M1 median or p95 lower or M3 lower beyond cf03's measured run-to-run spread, with
-  no regression in M4. If no candidate improves beyond that spread, the phase records the result,
+  no regression in M2 waiting time, M2 execution time or M4. If no candidate improves beyond that spread, the phase records the result,
   reverts or keeps the change on cost grounds with its reason, and moves to the next ranked
-  candidate. It does not PASS on landing alone. (b) Obsolete PR runs are
+  candidate. It does not PASS on landing alone. If every ranked candidate has been tried without an
+  improvement beyond the spread, the phase PASSES with that negative result recorded, the speed goal
+  stays open, and cf20 reports it as open. (b) Obsolete PR runs are
   cancelled where safe, with required merge and coverage verification preserved.
 - **cf14.** (a) The graphics tier cost is paid down before 2026-11-30, prioritising measured waste
   and critical-path impact, or, only if the remaining work cannot safely finish by then and the
@@ -138,7 +147,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   plus any documentation-only remainder of #1945 and #1953) are completed in one cleanup PR; behaviour changes are left to their implementation phase.
 - **cf16.** (a) Whether merge-queue validation already gives equivalent evidence for each exact
   merged revision is established. (b) Total CI cost and capacity are estimated for full validation
-  of every exact merged revision within 24 hours, with latency and CI-minute tradeoffs reported
+  of every exact merged revision within 24 hours, with the capacity and monitoring needed to meet
+  that deadline, with latency and CI-minute tradeoffs reported
   both ways. (c) A recommendation: adopt that model, or keep full pre-merge coverage and optimize
   its execution. Full pre-merge testing stays until cf18 qualifies. (d) This phase changes no
   coverage. Its recommendation is re-read against cf18's result before cf19 acts on it.
