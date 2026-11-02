@@ -159,6 +159,11 @@ export interface DesignSvgRecipeBehaviour {
    *  styling. ADDITIVE: absent keeps the editable roll or, with `options.artwork`, the original
    *  artwork roll, exactly as saved. The two engines never combine. */
   credits?: DesignSvgCredits;
+  /** The credits recipe with `options.artwork` only: the other text layers that scroll with the
+   *  Credits text as one block, as candidate ids - the role and name layers of credits drawn as
+   *  separate layers, kept as fixed artwork by the author's choice. ADDITIVE: absent, the Credits
+   *  text scrolls alone, exactly as saved. */
+  artworkLayers?: string[];
 }
 
 /**

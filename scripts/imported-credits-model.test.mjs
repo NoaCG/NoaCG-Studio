@@ -141,6 +141,45 @@ async function playStyled(context, built) {
   }
 }
 
+/** Plays a fixed-artwork credits document: where every drawn text is at rest and halfway through
+ *  the roll, and what writing every field does to the drawn words. */
+async function playFixed(context, built) {
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  try {
+    await page.setContent(built.doc);
+    await page.evaluate(() => document.fonts.ready);
+    const rest = await page.evaluate(() => {
+      const all = [...document.querySelectorAll('.imported-design-art text')];
+      const words = all.map((t) => t.textContent);
+      // Every field the definition offers, written: the drawn block takes none of it.
+      const fields = window.SPXGCTemplateDefinition?.DataFields ?? [];
+      window.update(JSON.stringify(Object.fromEntries(fields.map((f) => [f.field, 'Written']))));
+      return {
+        top: all.map((t) => t.getBoundingClientRect().top),
+        block: all.map((t) => t.classList.contains('imported-design-credits')),
+        ids: all.map((t) => t.getAttribute('id')),
+        words,
+        afterWrite: all.map((t) => t.textContent),
+      };
+    });
+    // The take: the roll starts once the entrance has settled.
+    await page.evaluate(() => window.play());
+    // Polled on a timer: a page in the background gets no animation frames to poll on.
+    await page.waitForFunction(() => !!(window.noacgCreditsLast && window.noacgCreditsTween), null, { timeout: 15000, polling: 100 });
+    const mid = await page.evaluate(() => {
+      window.noacgCreditsTween.pause();
+      window.noacgCreditsTween.progress(0.5);
+      const all = [...document.querySelectorAll('.imported-design-art text')];
+      return { top: all.map((t) => t.getBoundingClientRect().top), last: { ...window.noacgCreditsLast } };
+    });
+    return { errors, rest, mid };
+  } finally {
+    await page.close();
+  }
+}
+
 /** Runs in the played document. */
 function readStyled({ field }) {
   const art = document.querySelector('.imported-design-art');
@@ -455,6 +494,26 @@ async function inPage({ dev, cases, legacy, artwork }) {
     idaChosen: styledOf(cases.namesLeft, 'Ida Lake', { swap: true }),
     tailChosen: styledOf(cases.namesLeftTail, 'Sol Reed', { swap: true }),
   };
+  // #1958: credits that could be styled, kept as fixed artwork by the author's choice. As the
+  // wizard saves them: every text layer stays a field, and the binding names the block's other
+  // layers, read by `creditsPreview` from the Credits pick.
+  const fixedOf = (markup, roleWord) => {
+    const imp = imported(markup);
+    const content = imp.candidates.find((c) => c.sample === roleWord).id;
+    const host = laidOut(imp.markup);
+    const preview = C.creditsPreview(host, imp.candidates.map((c) => c.id), content);
+    host.parentElement.remove();
+    const fields = fieldsOf(imp);
+    const block = preview.anchors.map((a) => a.candidateId);
+    const svg = {
+      markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [], fonts: [],
+      behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: fields.findIndex((f) => f.candidateId === content) }, options: { artwork: true }, artworkLayers: block.filter((id) => id !== content) },
+    };
+    const tpl = I.IMPORTED_SVG.create({ designSvg: svg });
+    const blockFields = fields.flatMap((f, i) => (block.includes(f.candidateId) ? [tpl.fields[i]] : []));
+    return { engine: C.creditsEngine(svg), styled: preview.styled, words: block.map((id) => imp.candidates.find((c) => c.id === id).sample), blockFields, doc: window.NOACG_COMPOSE.composeDocument(tpl) };
+  };
+  const fixedBlocks = { above: fixedOf(dev[0].markup, 'Research'), beside: fixedOf(dev[1].markup, 'Réalisation') };
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
   const fallbacks = {
@@ -475,6 +534,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
 
   return {
     styled,
+    fixedBlocks,
     previews,
     fallbacks,
     issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
@@ -511,6 +571,7 @@ const R = await withBundledPage(
       const context = await page.context().browser().newContext();
       try {
         for (const built of Object.values(out.styled)) built.played = await playStyled(context, built);
+        for (const built of Object.values(out.fixedBlocks)) built.played = await playFixed(context, built);
       } finally {
         await context.close();
       }
@@ -1160,4 +1221,31 @@ test('row 20: a two-look title line above role-above credits leaves row 19\'s re
   for (const k of ['twoLookLater', 'twoLookLaterOther']) assert.deepEqual(groups(P[k]), [['Sound', ['Ari Moss']]], k);
   // Both answers read the same, so the wizard does not ask (BehaviourSection compares them).
   assert.deepEqual(P.twoLookFirst.anchors, P.twoLookFirstOther.anchors);
+});
+
+// ── #1958: credits drawn as separate layers, kept as fixed artwork, scroll as one block ──────
+
+test('#1958: fixed-artwork credits drawn as separate role and name layers scroll as one whole block', () => {
+  for (const [k, F] of Object.entries(R.fixedBlocks)) {
+    const P = F.played;
+    assert.deepEqual(P.errors, [], k);
+    assert.equal(F.engine, 'artwork', k);
+    assert.equal(F.styled, true, `${k}: the drawing could be styled, so the author chose fixed artwork`);
+    // Every role and name layer of the block is the artwork's, never an operator field.
+    assert.ok(F.blockFields.length >= 3, k);
+    for (const f of F.blockFields) assert.equal(f.ftype, 'hidden', `${k}: ${f.title} offers nothing to type`);
+    const block = P.rest.block.flatMap((b, i) => (b ? [i] : []));
+    assert.equal(block.length, F.words.length, `${k}: every layer of the block scrolls (${F.words.join(', ')})`);
+    assert.equal(P.mid.last.layers, block.length, k);
+    for (const i of block) assert.doesNotMatch(P.rest.ids[i] ?? '', /^f\d+$/, `${k}: ${P.rest.words[i]} carries no field id, so no write or fit reaches it`);
+    assert.deepEqual(block.map((i) => P.rest.afterWrite[i]), block.map((i) => P.rest.words[i]), `${k}: writing every field leaves the block's words as drawn`);
+    // Halfway through the roll every layer of the block has moved by the same distance.
+    const moved = block.map((i) => P.mid.top[i] - P.rest.top[i]);
+    assert.ok(Math.abs(moved[0]) > 50, `${k}: the block moved (${moved[0]})`);
+    for (const m of moved) assert.ok(Math.abs(m - moved[0]) < 0.5, `${k}: one block, ${moved.join(', ')}`);
+    // A layer outside the block (a title drawn above, as the styled reading leaves it) stays put.
+    P.rest.block.forEach((b, i) => { if (!b) assert.ok(Math.abs(P.mid.top[i] - P.rest.top[i]) < 0.5, `${k}: ${P.rest.words[i]} stays where it was drawn`); });
+    // And the whole block was measured: it starts below the frame and ends above it.
+    assert.ok(P.mid.last.distance > P.mid.last.startY, k);
+  }
 });

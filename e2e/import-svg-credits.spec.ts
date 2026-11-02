@@ -496,6 +496,55 @@ test('credits that cannot be styled say why they stay fixed artwork, in one line
   await expect(page.locator('[data-testid^="map-svg-driven-"]').first()).toHaveText(/, scrolls as artwork$/);
 });
 
+test('credits that can be styled can be kept as fixed artwork, and then the whole drawing scrolls', async ({ page }) => {
+  // #1958, owner direction 2026-11-02: fixed artwork is a deliberate choice next to the default
+  // editable credits, said plainly. Kept as artwork, every drawn role and name scrolls as one.
+  await page.goto('/app');
+  await dropSvg(page, ABOVE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  const values = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean));
+  await picker.selectOption(values[1]);
+  const engine = page.getByTestId('map-svg-credits-engine');
+  const fixedLine = page.getByTestId('map-svg-credits-fixed');
+  // Editable credits stay the default.
+  await expect(engine).toHaveValue('editable');
+  await expect(fixedLine).toHaveCount(0);
+  await engine.selectOption('artwork');
+  await expect(fixedLine).toHaveText('The text stays part of the artwork and cannot be edited on the production page.');
+  await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
+  // Every role and name layer, the picked one included, scrolls as artwork.
+  await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveText(Array(5).fill(/, scrolls as artwork$/));
+  await intoProduction(page, 'Research artwork', 'Research artwork night');
+  await settleDurableWrites(page);
+  // Nothing of the block is offered to type; the title drawn above stays the one text field.
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('PRODUCTION');
+  for (let i = 1; i <= 5; i++) await expect(page.getByTestId(`cue-field-f${i}`)).toHaveCount(0);
+
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const block = air.locator('.imported-design-credits');
+  await expect(block).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect.poll(() => block.first().evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  // Halfway through, every drawn layer has travelled the same distance from where it was drawn.
+  const moved = await block.first().evaluate(() => {
+    const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value: number): void } };
+    const texts = [...document.querySelectorAll('.imported-design-credits')];
+    const travels = texts.map((t) => t.parentElement!);
+    w.noacgCreditsTween.pause();
+    w.noacgCreditsTween.progress(0.5);
+    const mid = texts.map((t) => t.getBoundingClientRect().top);
+    const transforms = travels.map((g) => g.getAttribute('transform'));
+    travels.forEach((g) => g.removeAttribute('transform'));
+    const rest = texts.map((t) => t.getBoundingClientRect().top);
+    travels.forEach((g, i) => g.setAttribute('transform', transforms[i]!));
+    return mid.map((m, i) => m - rest[i]);
+  });
+  expect(Math.abs(moved[0]), `the block moved: ${moved.join(', ')}`).toBeGreaterThan(50);
+  for (const m of moved) expect(Math.abs(m - moved[0]), `one block: ${moved.join(', ')}`).toBeLessThan(0.5);
+});
+
 test('role-above credits drawn as separate layers roll in those layers\' own styling', async ({ page }) => {
   // jev-svg-import row 19 (AC-13): roles and names drawn as their own text layers are the source.
   // The graphic keeps ONE list field; every role row is a copy of the first drawn role, every
