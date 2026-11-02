@@ -40,32 +40,31 @@
  },
  "carry": {
   "cf03": "#1964: apply the two cf13 sample-window notes in a reviewed spec change before cf03 starts.",
-  "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed."
+  "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed.",
+  "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15."
  },
- "waitingOn": {
-  "what": "PR #1970 in the merge queue",
-  "eta": "2026-11-02T12:15:00Z"
- },
+ "waitingOn": null,
  "inFlight": [
   {
    "phase": "cf01",
-   "step": "build",
-   "session": "session_017SdbwN7t9AEigGsqEgFFGn",
-   "nonce": "cf01-b-258f",
-   "pr": 1970,
-   "head": "b93008eeffbf67a0169ae0a2c56decdf5a419fe4",
-   "stamped": "run 41437935895",
-   "autoMerge": "2026-11-02T11:35:16Z",
-   "state": "queued"
+   "step": "check",
+   "session": "session_017SdbwMKtRp3sQGjsmmqUEC",
+   "nonce": "cf01-c-2b1b",
+   "merge": "80759a01e3c8733f96168491d53feecd864d73e7",
+   "launchedAt": "2026-11-02T11:43:46Z"
   }
  ],
- "owner": [],
+ "owner": [
+  {
+   "item": "cf01(b) test-alarm receipt on #1951 (alarm #1971)",
+   "askedAt": "2026-11-02T11:43:00Z",
+   "comment": 6576269914,
+   "fallbackAt": "2026-11-04T11:43:00Z"
+  }
+ ],
  "fixes": [],
  "triggers": {
   "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y"
  },
- "heartbeat": 6575215206,
- "afterLanding": {
-  "cf01": "gh workflow run alarm-test.yml --ref main -R NoaCG/NoaCG-Studio, then ask miwco for the delivery receipt on #1951 in the same turn; 48h fallback per cf01(b)"
- }
+ "heartbeat": 6575215206
 }
