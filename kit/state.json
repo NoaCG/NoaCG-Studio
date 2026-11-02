@@ -52,7 +52,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T09:59:00Z"
+    "checkinAt": "2026-11-02T10:31:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -205,7 +205,8 @@
     "2026-11-02T04:50Z row 19 builder evidence: role-above is never ambiguous (creditsRoll.ts:912-918, phase-18 test 5), so the Roles choice can only change a role-beside build, which row 20 renders. Told builder: save styled binding only for role-above (roll); no Roles select in row 19; state the move. Asked owner to confirm moving the clause to row 20.",
     "2026-11-02T04:57Z row 19: approved departure src/components/wizard/import/MapSvgFieldsStep.tsx, styled source layers added to the existing creditsLayers set with one short line; no other copy/layout change; artwork credits unchanged; test required.",
     "2026-11-02 OWNER DECISION + DIRECTION verbatim: \"Move “Ambiguous columns get one mapping choice” to phase 20, where role-beside credits are first rendered. Keep phase 19 focused on role-above credits and proceed with its independent check, recording the mapping requirement as explicitly deferred to phase 20.\\n\\nIn phase 20, show the Roles picker only when the columns are ambiguous. Use clear wording such as “Which column contains the roles?” The answer must update the preview, be saved with the import, and drive the live graphic. Include a test with names on the left and roles on the right to verify that the choice fixes the output.\\n\\nOur main goal is easy, editable credits. Most users should be able to paste text or bring it in from Google Sheets, Excel, or similar sources, then make last-minute changes on the production page before playout. Importing a design should preserve its styling while allowing supported text to remain editable.\\n\\nFixed artwork should remain available for people who deliberately want it, and as a clearly explained fallback for unsupported designs. Users should understand when imported text will remain part of the artwork rather than become editable credits.\\n\\nPlease continue on that basis. Use your judgment for routine implementation choices, and bring me questions when they involve a meaningful product tradeoff. This mapping question should not hold up phase 19.\"",
-    "2026-11-02T08:52Z row 20: coordinator accepted departures 1 (no deliberate Fixed artwork choice until #1958 fix) and 2 (role-above name picks as on main, documented). Plan: run #1958 as an owner-requested fix (whole separate-layer drawing scrolls as artwork, then the deliberate Show as: Fixed artwork choice) after row 20 passes and before row 21."
+    "2026-11-02T08:52Z row 20: coordinator accepted departures 1 (no deliberate Fixed artwork choice until #1958 fix) and 2 (role-above name picks as on main, documented). Plan: run #1958 as an owner-requested fix (whole separate-layer drawing scrolls as artwork, then the deliberate Show as: Fixed artwork choice) after row 20 passes and before row 21.",
+    "2026-11-02T09:32Z fix #1958: approved additive optional artworkLayers?: string[] on DesignSvgRecipeBehaviour (designTypes.ts), written only for deliberate Fixed artwork on a stylable drawing; type only; pins unchanged."
   ],
   "ownerOpen": [
     {
