@@ -7,11 +7,6 @@
       "count": 16,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/40763025050"
     },
-    "e2e/production-chat-intake.spec.ts": {
-      "since": "2026-11-01",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/41336665950"
-    },
     "e2e/production-data.spec.ts": {
       "since": "2026-11-01",
       "count": 1,
@@ -166,6 +161,10 @@
     "e2e/playout-feedback-health.spec.ts": {
       "count": 1,
       "last": "2026-10-04"
+    },
+    "e2e/production-chat-intake.spec.ts": {
+      "count": 3,
+      "last": "2026-11-02"
     },
     "e2e/publish-output-setup.spec.ts": {
       "count": 2,
