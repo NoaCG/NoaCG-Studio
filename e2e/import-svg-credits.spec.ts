@@ -3,7 +3,7 @@
 // and its fixture. The SVG examples walk rides along: its credits are the list the default
 // pace was set by (about thirty seconds), rolled from Illustrator's own output.
 // covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,creditsArtwork,artworkFields,svg,svgBind}.ts,endCredits/shared.ts}
-// covers: e2e/fixtures/{credits-roll,credits-artwork}.svg, e2e/fixtures/jev-svg/dev/credits-2.svg
+// covers: e2e/fixtures/{credits-roll,credits-artwork}.svg, e2e/fixtures/jev-svg/dev/{credits-1,credits-2}.svg
 // covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx}
 // covers: src/components/wizard/draft/template.ts, src/blocks/motionPresets.ts
 // covers: src/components/home/CueActions.tsx
@@ -43,6 +43,7 @@ import { dropSvg, intoProduction } from './_svg-import';
 const CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-roll.svg', import.meta.url));
 const ARTWORK_CREDITS_SVG = fileURLToPath(new URL('./fixtures/credits-artwork.svg', import.meta.url));
 const BESIDE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-2.svg', import.meta.url));
+const ABOVE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
 
 test('artwork credits measure after Drop, Rise and Pop and cancel a take waiting for fonts', async ({ page }) => {
   // Exercise the compiled template on a blank page: the motion picker changes entrance length
@@ -348,9 +349,80 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   await expect(page.locator('[data-testid^="map-svg-recipe-credits"]')).toHaveCount(1);
 
   // Either column could be the roles here, and the model takes that one answer, but no control
-  // is offered while new credits imports are saved as artwork credits: it would change nothing
-  // the graphic builds (#1937 offers it with the styled binding).
+  // is offered while role beside saves as artwork credits: it would change nothing the graphic
+  // builds (row 20 renders role beside and offers it with that binding).
   await expect(page.getByTestId('map-svg-credits-roles')).toHaveCount(0);
+});
+
+test('role-above credits drawn as separate layers roll in those layers\' own styling', async ({ page }) => {
+  // jev-svg-import row 19 (AC-13): roles and names drawn as their own text layers are the source.
+  // The graphic keeps ONE list field; every role row is a copy of the first drawn role, every
+  // name row of the first drawn name, spaced as drawn, and the drawn layers stay in the file.
+  test.slow(); // an import, a production, a take and an update, read in the renderer
+  await page.goto('/app');
+  await dropSvg(page, ABOVE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  // The first role layer, Research: PRODUCTION drawn above it stays artwork.
+  const role = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
+  await picker.selectOption(role);
+  const preview = page.getByTestId('map-svg-credits-preview');
+  await expect(preview).toHaveAttribute('data-layout', 'role-above');
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Research', 'Sound']);
+  // Role above is never ambiguous, so there is nothing to choose.
+  await expect(page.getByTestId('map-svg-credits-roles')).toHaveCount(0);
+  await intoProduction(page, 'Research credits', 'Research night');
+  await settleDurableWrites(page);
+
+  // ONE list field holding the drawn list, the title, Scroll speed: never a field per name.
+  const credits = page.getByTestId('cue-field-f1');
+  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('PRODUCTION');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('100');
+  await expect(page.getByTestId('cue-field-f3')).toHaveCount(0);
+
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  // The drawn layers are the source: kept, laid out, never painted.
+  const sources = air.locator('[data-noacg-credit]');
+  await expect(sources).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  for (let i = 0; i < 5; i++) await expect(sources.nth(i)).toHaveCSS('visibility', 'hidden');
+  await expect(air.locator('#role0')).toHaveText('Research');
+  // Each row is drawn in its source's look, where its source was drawn: read in the roll's own
+  // group, so the roll's travel is set aside and the drawing's units remain.
+  const atRest = () => rows.evaluateAll((els) => els.map((el) => {
+    const roll = el.closest('.imported-design-credits-roll') as SVGGElement;
+    const m = roll.getScreenCTM()!.inverse().multiply((el as SVGTextElement).getScreenCTM()!);
+    const p = (el as SVGTextElement).getStartPositionOfChar(0);
+    const cs = getComputedStyle(el);
+    return { kind: el.getAttribute('data-noacg-credits'), y: Math.round((m.b * p.x + m.d * p.y + m.f) * 100) / 100, fill: cs.fill, size: cs.fontSize };
+  }));
+  await expect.poll(() => air.locator('.imported-design-credits-roll').evaluate(() =>
+    !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  const drawn = await atRest();
+  expect(drawn.map((r) => r.y)).toEqual([175, 240, 295, 445, 510]);
+  expect(drawn.map((r) => [r.kind, r.fill, r.size])).toEqual([
+    ['role', 'rgb(237, 188, 113)', '25px'],
+    ['name', 'rgb(255, 255, 255)', '35px'],
+    ['name', 'rgb(255, 255, 255)', '35px'],
+    ['role', 'rgb(237, 188, 113)', '25px'],
+    ['name', 'rgb(255, 255, 255)', '35px'],
+  ]);
+  const roll = await air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsLast: { step: number; rows: number } }).noacgCreditsLast);
+  expect(roll.step).toBe(55);
+  expect(roll.rows).toBe(5);
+
+  // A new list on Update: repeated roles, several names, the drawn spacing kept.
+  await credits.fill('Research:\nIda Lake\nSol Reed\nJun Harbor\nSound:\nMia Holt\nResearch:\nOla Berg');
+  await page.getByTestId('verb-update').click();
+  await expect(rows).toHaveText(['Research', 'Ida Lake', 'Sol Reed', 'Jun Harbor', 'Sound', 'Mia Holt', 'Research', 'Ola Berg']);
+  const again = await atRest();
+  expect(again.map((r) => r.y)).toEqual([175, 240, 295, 350, 500, 565, 715, 780]);
+  await expect(sources).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
 });
 
 test('imported credits: one pasted list rolls through the Credits box in the sample\'s two looks', async ({ page }) => {
