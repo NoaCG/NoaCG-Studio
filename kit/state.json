@@ -41,7 +41,7 @@
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T00:21:30Z"
+    "checkinAt": "2026-11-02T00:52:18Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -183,7 +183,8 @@
     "2026-11-01T16:13Z phase 14: /so session_017SdbwQ5mhAB6UGUm6b52ux on f9353c4 A-. Residuals: (1) saved-shape byte comparison script uncommitted, already row 15 carry; (2) No-lock untick memory lasts only within the step, documented safe states. Gate is /so A or A+ (plan-run.md:19); coordinator does not waive. Asked owner.",
     "2026-11-01 owner accepted phase 14 at A- verbatim: \"Accept phase 14 at A-: the remaining points are phase 15's committed byte-comparison test and a documented, safe No-lock memory limit. Land it.\" Recorded in PR #1919 body.",
     "2026-11-01T20:2xZ STANDING OWNER RULE, verbatim: \"in the future A- may land when every remaining point is non-blocking and is either assigned to a later phase or a documented, safe limit\". Applies to /so gate; cite in PR body and stamp review text.",
-    "2026-11-01 #1937: rows 19-23 need svg.ts, svgBind.ts, draft.ts for the styled credits engine; reconcile as a boundary request before row 19."
+    "2026-11-01 #1937: rows 19-23 need svg.ts, svgBind.ts, draft.ts for the styled credits engine; reconcile as a boundary request before row 19.",
+    "2026-11-01T23:55Z phase 17: approved departure src/components/home/CueEditor.tsx, two call sites only (line 262 offeredValues list format; line 690 starter-rows list field), because a saved imported credits roll has its list at f1 and the f0 default would bind rows to Heading. Conditions: failing test first, native unchanged, no saved byte move, listed in PR body."
   ],
   "ownerOpen": [
     {
