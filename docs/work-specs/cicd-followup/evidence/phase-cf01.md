@@ -118,8 +118,9 @@ quarantine on 2026-11-01 (6599585) and is a different spec from #1603: status re
 root cause (cf08). The spec-to-issue map is on #1907; #1945 item 1 is marked resolved. Each
 quarantined spec has exactly one tracking issue.
 
-**Open at the time of writing.** PR #1968 (bot, auto-merge on) releases `production-chat-intake`
-after 20 passes. #1924 stays open for the root cause either way.
+**Since then.** PR #1968 released `production-chat-intake` after 20 passes (b46abd3, merged into
+this branch), so `e2e/quarantine.json` now holds two specs, each with its issue above. Passing
+again is not the repair: #1924 keeps its record and stays open for the root cause (cf05).
 
 ## Verification
 
