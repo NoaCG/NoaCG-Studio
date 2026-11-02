@@ -34,7 +34,17 @@
       "role": "build",
       "session": "session_017SdbwNMEZYDauc6zGSGTyU",
       "nonce": "18-b-aaab",
-      "branch": "claude/plan-jev-svg-import-18-build"
+      "branch": "claude/plan-jev-svg-import-18-build",
+      "pr": 1950,
+      "head": "4104c7dde225572190be1745e64c8a5e78b83fc4",
+      "stampRun": 41376370881,
+      "ciRun": 41375006055,
+      "so": "session_017SdbwMTJfquS6VvMYFX2zb A- (standing owner rule)",
+      "soOther": [
+        "session_017SdbwNoQfaxe5WzuhVyU4m",
+        "session_017SdbwLw1kkm8MRtLYEWTH5",
+        "session_017SdbwNLGmL1jjGy1YNUz25"
+      ]
     }
   ],
   "owner": [],
@@ -185,7 +195,8 @@
     "2026-11-01 owner accepted phase 14 at A- verbatim: \"Accept phase 14 at A-: the remaining points are phase 15's committed byte-comparison test and a documented, safe No-lock memory limit. Land it.\" Recorded in PR #1919 body.",
     "2026-11-01T20:2xZ STANDING OWNER RULE, verbatim: \"in the future A- may land when every remaining point is non-blocking and is either assigned to a later phase or a documented, safe limit\". Applies to /so gate; cite in PR body and stamp review text.",
     "2026-11-01 #1937: rows 19-23 need svg.ts, svgBind.ts, draft.ts for the styled credits engine; reconcile as a boundary request before row 19.",
-    "2026-11-01T23:55Z phase 17: approved departure src/components/home/CueEditor.tsx, two call sites only (line 262 offeredValues list format; line 690 starter-rows list field), because a saved imported credits roll has its list at f1 and the f0 default would bind rows to Heading. Conditions: failing test first, native unchanged, no saved byte move, listed in PR body."
+    "2026-11-01T23:55Z phase 17: approved departure src/components/home/CueEditor.tsx, two call sites only (line 262 offeredValues list format; line 690 starter-rows list field), because a saved imported credits roll has its list at f1 and the f0 default would bind rows to Heading. Conditions: failing test first, native unchanged, no saved byte move, listed in PR body.",
+    "2026-11-02 row 18: AC-23 \"Ambiguous columns get one mapping choice\" landed as model answer (CreditsChoice.swap) without a wizard select, under wizard/offer-control-can-change-graphic-front. The row that writes DesignSvgCredits (rows 19-23, #1937) must add the Roles select and store the swap answer. Carry to row 19+ briefs."
   ],
   "ownerOpen": [
     {
