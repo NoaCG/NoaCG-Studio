@@ -67,8 +67,23 @@ Mutation: both new files run against main's `contentFormats.ts` and `sheetSource
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass (167 tests and the cheap checks).
 - `npm run check:catalog-emit`: PASS, 528 designs.
-- Browser: `e2e/production-views.spec.ts` and `e2e/production-data.spec.ts` (the Sheet review and
-  data surfaces) through the job queue; result in the PR.
+- Browser, through the job queue: `e2e/production-views.spec.ts` and `e2e/production-data.spec.ts`
+  (the Sheet review and data surfaces): 44 passed, 1 failed. The failure is `Connect closes only
+  once the save landed` (a native lower third, keyed values: no path this change reaches): the
+  app's "Could not save" dialog covers Connect after the test fills storage. The same test on
+  unmodified main `9c2980d0` fails the same way (control run in a detached worktree), and
+  `e2e/production-data.spec.ts` is already in `e2e/quarantine.json` (since 2026-11-01). Reported
+  in the PR, not repaired here.
+
+## Review rounds
+
+- `/check` code review (8 points): fixed the per-field reparse of the behaviour table (now read
+  once per template), the recipe id and the field role folded into one constant (now two, each
+  pinned to `credits.ts`), and three simplifications in `listLeaves`/`importedListFormat`. Not
+  changed: a hand-edited table naming a field the graphic lacks (the roll engine resolves the same
+  id, so Sheet and graphic agree; nothing renders either way), and an operator binding a credits
+  list by hand to a lines leaf of a reused ticker source (the operator's explicit choice, the same
+  as on native graphics).
 
 ## Decisions
 
