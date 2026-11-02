@@ -696,7 +696,6 @@ function rollPoses(page: Page) {
 }
 
 test('styled credits, role above and role beside, enter and leave the whole frame, measure again when their faces land, and replay alike', async ({ page }) => {
-  test.slow(); // two layouts, three entrances, each taken twice
   await page.goto('/app');
   // The design ships its own face (Anton), held back until the take has measured in a fallback.
   const ABOVE = readFileSync(ABOVE_CREDITS_SVG, 'utf8').replace('font-family="sans-serif"', 'font-family="Anton"');
