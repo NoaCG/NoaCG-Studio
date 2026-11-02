@@ -606,22 +606,29 @@ function creditsHoldJs(): string {
 
 // A still page never moves; Out's stopCreditsRoll() finds nothing running.
 var noacgCreditsTween = null;
-// What the last take showed, for a reader: how many rows, the share of the drawn size the whole
+// What the page shows now, for a reader: how many rows, the share of the drawn size the whole
 // page was set at to fit, and whether it was too long to show at all.
 var noacgCreditsLast = null;
 
-// ${CREDITS_ROLL_CALL}(): THE TAKE. Rebuild the rows from the list as it stands and show them
-// still, in the window, where the drawing put them. A page too long to fit at the floor is not
-// shown; its Credits field is reported too long instead.
-function ${CREDITS_ROLL_CALL}() {
+// creditsHold(): rebuild and refit the page from the list as it stands. Where a face is still
+// loading, the page was measured in a fallback, so it is fitted again when the faces land.
+function creditsHold() {
   var built = creditsRender();
   noacgCreditsLast = built ? { still: true, rows: built.rows.children.length, scale: built.scale, refused: built.refused } : null;
+  if (document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(creditsHold);
+  return built;
+}
+
+// ${CREDITS_ROLL_CALL}(): THE TAKE. Show the rows still, in the window, where the drawing put
+// them. A page too long to fit at the floor is not shown; its Credits field is reported too long.
+function ${CREDITS_ROLL_CALL}() {
+  creditsHold();
   return null;
 }
 
-// creditsDataUpdated(): update() wrote the fields - rebuild and refit the rows in place.
+// creditsDataUpdated(): update() wrote the fields - rebuild and refit the page in place.
 function creditsDataUpdated() {
-  creditsRender();
+  creditsHold();
 }`;
 }
 
@@ -734,9 +741,9 @@ ${still(`// ONE PASTED LIST rolls through the frame, bottom to top, at the opera
 // and the position changed. The spacing below is yours, read off the drawing when this was built;
 // change a layer's font, size or colour in your design app and every row follows.
 
-var NOACG_CREDITS_LINES_PER_SECOND = ${CREDITS_LINES_PER_SECOND};
+${still(`var NOACG_CREDITS_LINES_PER_SECOND = ${CREDITS_LINES_PER_SECOND};
 
-// The drawing's spacing, in the layers' own units: role to its first name, name to name, and the
+`, '')}// The drawing's spacing, in the layers' own units: role to its first name, name to name, and the
 // gap before the next role; and the edge every row lines up on.
 var NOACG_CREDITS_STYLE = ${JSON.stringify(table)};
 
@@ -1130,8 +1137,12 @@ ${still(`      var width = box.width * scale;
     var bottom = page ? page.y + page.height : -Infinity;
     if (page && page.height > 0 && bottom > limit + 0.5 && bottom > first) {
       var share = K * (limit - first) / (bottom - first);
-      if (share < NOACG_CREDITS_FLOOR) refused = true;
-      else if (share < K * 0.999) return creditsRender(share);
+      // Below the floor, the page is built at the floor once and judged there, so a list the
+      // estimate rounds just past it is not refused.
+      if (share < NOACG_CREDITS_FLOOR) {
+        if (K > NOACG_CREDITS_FLOOR) return creditsRender(NOACG_CREDITS_FLOOR);
+        refused = true;
+      } else if (share < K * 0.999) return creditsRender(share);
     }
   }
   if (refused) {

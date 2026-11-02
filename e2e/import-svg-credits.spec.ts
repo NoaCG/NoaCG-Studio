@@ -647,6 +647,8 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await expect(playback).toHaveValue('roll');
   await expect(playback.locator('option')).toHaveText(['Roll', 'Hold still']);
   await playback.selectOption('static');
+  // The one class of list a still page cannot show is named where the choice is made.
+  await expect(page.getByTestId('map-svg-credits-still')).toHaveText('A list too long for the page is not shown, and its field says so.');
   await intoProduction(page, 'Research page', 'Research still');
   await settleDurableWrites(page);
 
@@ -670,7 +672,7 @@ test('role-above credits chosen to hold still air as one still page, and a list 
     const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsLast: { still?: boolean; refused?: boolean } | null };
     return { tween: w.noacgCreditsTween, last: w.noacgCreditsLast, moved: getComputedStyle(roll).transform, shown: getComputedStyle(roll.querySelector('.imported-design-credits-rows')!).visibility };
   });
-  await expect.poll(async () => (await state()).last).toEqual({ still: true, rows: 201, scale: 1, refused: true });
+  await expect.poll(async () => (await state()).last).toEqual({ still: true, rows: 201, scale: 0.3, refused: true });
   expect(await state()).toMatchObject({ tween: null, moved: 'none', shown: 'hidden' });
   await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
 
@@ -933,6 +935,42 @@ test('styled credits held still, role above and role beside: no travel, the whol
     const back = await retake(page, field, names(3));
     expect([back.shown, back.over, back.last?.refused], `${b.layout}: shortened again`).toEqual(['visible', [], false]);
   }
+});
+
+test('a still page measured before its face lands is fitted again when the face arrives', async ({ page }) => {
+  // credits-1 in Anton, held back until the take has fitted the page in a fallback face.
+  await page.goto('/app');
+  const ABOVE = readFileSync(ABOVE_CREDITS_SVG, 'utf8').replace('font-family="sans-serif"', 'font-family="Anton"');
+  const [b] = await buildRolls(page, ABOVE, 'Research', 'styled', true, 'static');
+  const held: (() => void)[] = [];
+  await page.route('**/fonts/anton*.woff2*', async (route) => {
+    await new Promise<void>((resolve) => { held.push(resolve); });
+    await route.fulfill({ body: readFileSync('public/fonts/anton.woff2'), contentType: 'font/woff2' });
+  });
+  await page.goto('/robots.txt');
+  await page.setContent(b.html, { waitUntil: 'domcontentloaded' });
+  await expect.poll(() => page.evaluate(() => document.fonts.status), 'the face is on its way').toBe('loading');
+  const field = await page.evaluate(() => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor('credits', null));
+  const list = ['Research:', ...Array.from({ length: 12 }, (_, i) => `Name Number ${i + 1}`)].join('\n');
+  await page.evaluate(({ field, list }) => {
+    const w = window as unknown as { update(data: Record<string, string>): void; play(): void };
+    w.update({ [field]: list });
+    w.play();
+  }, { field, list });
+  await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsLast: unknown }).noacgCreditsLast)).toBe(true);
+  const early = await page.evaluate(() => ({ fonts: document.fonts.status, sizes: [...document.querySelectorAll('.imported-design-credits-row')].map((el) => (el as SVGTextElement).getComputedTextLength()) }));
+  expect(early.fonts, 'fitted before the face landed').toBe('loading');
+  await expect.poll(() => held.length > 0, 'the face request is held').toBe(true);
+  for (const resolve of held.splice(0)) resolve();
+  await expect.poll(() => page.evaluate(() => document.fonts.status)).toBe('loaded');
+  // Fitted again in the face: the same rule as any still page, read in the face's own metrics.
+  await expect.poll(async () => {
+    const shown = await stillPage(page);
+    const bottom = Math.max(...shown.rows.map((r) => r.bottom));
+    return { refitted: shown.last!.scale < 1 && bottom <= 772.5 + 0.5 && bottom > 772.5 - 2, widths: shown.rows.length };
+  }, 'fitted again in the face').toEqual({ refitted: true, widths: 13 });
+  const late = await page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => (el as SVGTextElement).getComputedTextLength()));
+  expect(late, 'the rows are now set in the face').not.toEqual(early.sizes);
 });
 
 test('fixed-artwork credits drawn as separate layers enter and leave the whole frame as one block after Drop, Rise and Pop', async ({ page }) => {

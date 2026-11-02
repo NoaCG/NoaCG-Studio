@@ -171,9 +171,9 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
   const savedKey = saved ? `${savedFor} ${JSON.stringify(saved)}` : '';
   useEffect(() => {
-    // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork answer goes
-    // with it rather than coming back unseen on the next stylable pick.
-    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined }) });
+    // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork or Hold
+    // still answer goes with it rather than coming back unseen on the next stylable pick.
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined, creditsStill: undefined }) });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
@@ -205,6 +205,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
             <option value="roll">Roll</option>
             <option value="static">Hold still</option>
           </select>
+          {still && <span className="hint" data-testid="map-svg-credits-still">A list too long for the page is not shown, and its field says so.</span>}
         </label>
       )}
       {asks && !artwork && (
