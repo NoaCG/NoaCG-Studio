@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "owner: phase 18 check FAIL blocked on AC-23 \"Ambiguous columns get one mapping choice\" (needs the styled credits binding saved from the wizard, #1937, which row 19 is the first to build). Options: move that clause to row 19 with draft.ts/svg.ts/svgBind.ts/BehaviourSection.tsx approved there, or build a preview-only choice now against wizard/offer-control-can-change-graphic-front.",
+  "waitingOn": null,
   "inFlight": [
     {
       "phase": 18,
@@ -187,7 +187,8 @@
     "2026-11-01T20:2xZ STANDING OWNER RULE, verbatim: \"in the future A- may land when every remaining point is non-blocking and is either assigned to a later phase or a documented, safe limit\". Applies to /so gate; cite in PR body and stamp review text.",
     "2026-11-01 #1937: rows 19-23 need svg.ts, svgBind.ts, draft.ts for the styled credits engine; reconcile as a boundary request before row 19.",
     "2026-11-01T23:55Z phase 17: approved departure src/components/home/CueEditor.tsx, two call sites only (line 262 offeredValues list format; line 690 starter-rows list field), because a saved imported credits roll has its list at f1 and the f0 default would bind rows to Heading. Conditions: failing test first, native unchanged, no saved byte move, listed in PR body.",
-    "2026-11-02 row 18: AC-23 \"Ambiguous columns get one mapping choice\" landed as model answer (CreditsChoice.swap) without a wizard select, under wizard/offer-control-can-change-graphic-front. The row that writes DesignSvgCredits (rows 19-23, #1937) must add the Roles select and store the swap answer. Carry to row 19+ briefs."
+    "2026-11-02 row 18: AC-23 \"Ambiguous columns get one mapping choice\" landed as model answer (CreditsChoice.swap) without a wizard select, under wizard/offer-control-can-change-graphic-front. The row that writes DesignSvgCredits (rows 19-23, #1937) must add the Roles select and store the swap answer. Carry to row 19+ briefs.",
+    "2026-11-02 OWNER DECISION verbatim: \"Move \"Ambiguous columns get one mapping choice\" from phase 18 to phase 19. Phase 19 adds the Roles choice when it saves the styled credits binding, and may touch draft.ts, svg.ts, svgBind.ts and BehaviourSection.tsx for that. Re-check phase 18 on the rest.\""
   ],
   "ownerOpen": [
     {
@@ -277,6 +278,13 @@
       ],
       "from": "10 checker",
       "note": "Hours display (target shown as minutes, e.g. 219:30) and per-mode playout controls (no Pause/Reset for a target) are row 11 by row text; also #1894 items (DST gap bare time, undated fold, unresolved-input line naming the held instant)."
+    },
+    {
+      "forPhases": [
+        "19"
+      ],
+      "from": "18 (owner decision 2026-11-02)",
+      "note": "Owns AC-23 clause \"Ambiguous columns get one mapping choice\": save the styled credits binding (DesignSvgCredits) from the wizard and add the Roles choice in BehaviourSection.tsx when creditsPreview(...).ambiguous, storing anchors from creditsPreview(root, ids, creditsId, { swap }). Owner-approved files beyond row 19 TOUCHES: src/components/wizard/import/draft.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/svgBind.ts, src/components/wizard/import/BehaviourSection.tsx. Closes the wizard part of #1937."
     }
   ]
 }
