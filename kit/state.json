@@ -34,7 +34,8 @@
       "issue": 1958,
       "session": "session_017SdbwR8HnjR7gA2eDpnGmq",
       "nonce": "fix-1958-f-42fb",
-      "branch": "claude/plan-jev-svg-import-fix-1958"
+      "branch": "claude/plan-jev-svg-import-fix-1958",
+      "pr": 1962
     }
   ],
   "owner": [],
@@ -47,7 +48,13 @@
       "source": "7b404d3241240fc96a257bd9baeb035f4dbf718e",
       "launchedAt": "2026-11-02T09:29Z",
       "landBefore": "21",
-      "reason": "owner product direction 2026-11-02 (deliberate Fixed artwork choice)"
+      "reason": "owner product direction 2026-11-02 (deliberate Fixed artwork choice)",
+      "pr": 1962,
+      "head": "03a5ed169e1dd0d5eba2c3b43f42a1ea48acf7e8",
+      "stampRun": 41425516878,
+      "ciRun": 41423557028,
+      "so": "session_017SdbwNNcfptCXLax9EfuwP A-",
+      "ownerPhysicalCheck": "Import e2e/fixtures/jev-svg/dev/credits-1.svg, choose Credits roll, pick Research, set Show as to Fixed artwork (line: The text stays part of the artwork and cannot be edited on the production page.), put in a production, Take: every role and name scrolls together, none offered to type, PRODUCTION title stays; Editable is default when first picked."
     }
   ],
   "triggers": {
@@ -340,6 +347,20 @@
       ],
       "from": "19 checker + owner direction",
       "note": "The wizard does not yet offer fixed artwork as a deliberate, explained choice for a credits import that could be styled. Owner direction: fixed artwork stays available for people who deliberately want it, and as a clearly explained fallback; the author must understand when imported text stays part of the artwork. Add that choice and wording alongside the Roles picker in the Credits preview (BehaviourSection.tsx, approved)."
+    },
+    {
+      "forPhases": [
+        "30"
+      ],
+      "from": "fix #1958",
+      "note": "Update END_CREDITS.md and src/templates/importedDesign/AGENTS.md wording for the deliberate Fixed artwork choice and multi-layer artwork roll (PR #1962 /so point 1)."
+    },
+    {
+      "forPhases": [
+        "40"
+      ],
+      "from": "fix #1958",
+      "note": "phase-20 evidence note about fixed artwork superseded by #1962 (PR #1962 /so point 2)."
     }
   ]
 }
