@@ -305,3 +305,126 @@ test('the tick reads a field’s kind as the browser does: kindForField, without
   const server = tick.descriptorsOf(fields).map((d) => [d.key, d.kind, d.options]);
   assert.deepEqual(server, browser);
 });
+
+// ── Every page closed, a real HTTP Sheet failing and coming back (jev-svg-import row 25) ─────
+//
+// The server takes over once the last operator page has gone: while a page holds a source's
+// lease the tick leaves it alone; once that page has closed (its lease let go) the tick reads it,
+// over real HTTP from a local fake of the export (e2e/fixtures/jev-sheet-server.mjs), and keeps
+// the read state on the row between ticks as the database does. Three linked kinds are read in
+// the same tick: a ticker's ordered lines, an imported credits list and a multiline text value.
+// A denial, a read that never answers, a dropped connection and a sign-in page each write
+// nothing, so the last good values hold on the row; three misses make the line stale; the next
+// good read writes the newest rows once, and an emptied tab clears. The tick fetches nothing but
+// the three export addresses: no model is asked per refresh.
+
+const { startSheetServer, csvOf } = await import('../e2e/fixtures/jev-sheet-server.mjs');
+
+const LIVE = {
+  ticker: { id: 'tk', sheet: '1NoaCGTickTicker000000000', shape: 'lines', graphic: 'News Strip', field: 'f0', path: 'sheet.tk.lines' },
+  credits: { id: 'cr', sheet: '1NoaCGTickCredits00000000', shape: 'credits', graphic: 'Imported credits', field: 'f1', path: 'sheet.cr.lines' },
+  notice: { id: 'nt', sheet: '1NoaCGTickNotice000000000', shape: 'values', graphic: 'Imported notice', field: 'f1', path: 'sheet.nt.values.f1' },
+};
+
+/** The published row as the database keeps it between ticks: leases, read state and the tree. */
+function publishedRow(server) {
+  const kinds = Object.values(LIVE);
+  const due = kinds.map((k) => ({
+    slug: 'slug-live',
+    source: { id: k.id, kind: 'sheet', label: k.id, config: { sheetId: k.sheet, gid: '0', shape: k.shape } },
+    bindings: { [k.graphic]: { [k.field]: k.path } },
+    fields: { [k.graphic]: [{ field: k.field, ftype: 'textarea' }] },
+  }));
+  const row = { pages: new Set(kinds.map((k) => k.id)), state: {}, tree: {}, fetched: [] };
+  const through = tick.cappedFetch(server.fetchFor());
+  const io = {
+    now: () => Date.now(),
+    due: async () => structuredClone(due),
+    lease: async (slug, source, claim, ttlMs) => {
+      if (ttlMs === 0) return { ok: false, released: true };
+      if (row.pages.has(source)) return { ok: false, owner: 'operator-page' };
+      const s = row.state[source] ?? {};
+      return { ok: true, claim: `tick:${source}`, snapshot: s.snapshot ?? {}, content: s.content ?? null, status: s.status ?? null };
+    },
+    commit: async (slug, source, claim, writes, state) => {
+      row.state[source] = structuredClone(state);
+      Object.assign(row.tree, writes);
+      return { ok: true };
+    },
+    record: async () => {},
+    fetch: (url, init) => {
+      row.fetched.push(url);
+      return through(url, init);
+    },
+    feed: async () => assert.fail('no feed is published here'),
+    // The 10-second cut, shortened: a hanging read is cut by the tick's own timer.
+    setTimer: (run, ms) => setTimeout(run, Math.min(ms, 250)),
+    clearTimer: (t) => clearTimeout(t),
+  };
+  const outcomes = async () => Object.fromEntries((await tick.runDataTick(io)).sources.map((s) => [s.source, s.outcome]));
+  return { row, io, outcomes, status: (k) => row.state[k.id]?.status };
+}
+
+test('every operator page closed: the tick takes over, keeps the last good ticker, credits and multiline text through denial, timeout, reset and a sign-in page, and reconnects', async () => {
+  const server = await startSheetServer();
+  const { ticker: tk, credits: cr, notice: nt } = LIVE;
+  const notice = (body) => csvOf([['Field ID', 'Label', 'Value'], ['f0', 'Title', 'NOTICE'], ['f1', 'Body', body]]);
+  server.set(tk.sheet, csvOf([['Polls close at 20:00'], ['Turnout 61%']]));
+  server.set(cr.sheet, csvOf([['Role', 'Name'], ['Research', 'Nia Vale'], ['', 'Tomas Fen']]));
+  server.set(nt.sheet, notice('Doors open at 18:00\nEntry from the courtyard'));
+  const p = publishedRow(server);
+  try {
+    // A page is open: it holds every lease, and the tick reads nothing.
+    assert.deepEqual(await p.outcomes(), { tk: 'leased', cr: 'leased', nt: 'leased' });
+    assert.deepEqual(p.row.fetched, []);
+
+    // Every page closed: the server reads all three and writes what they hold.
+    p.row.pages.clear();
+    assert.deepEqual(await p.outcomes(), { tk: 'read', cr: 'read', nt: 'read' });
+    const good = { [tk.path]: 'Polls close at 20:00\nTurnout 61%', [cr.path]: 'Research | Nia Vale\nTomas Fen', [nt.path]: 'Doors open at 18:00\nEntry from the courtyard' };
+    assert.deepEqual(p.row.tree, good);
+    for (const k of [tk, cr, nt]) assert.equal(p.status(k).reader, 'server');
+
+    // Each failure: nothing written, the last good values hold on the row.
+    const failures = [['deny', /not shared/], ['hang', /did not answer/], ['reset', /offline/], ['signin', /not shared/]];
+    for (const [mode, error] of failures) {
+      for (const k of [tk, cr, nt]) server.mode(k.sheet, mode);
+      assert.deepEqual(await p.outcomes(), { tk: 'failed', cr: 'failed', nt: 'failed' }, mode);
+      assert.deepEqual(p.row.tree, good, `${mode}: the last good values hold`);
+      for (const k of [tk, cr, nt]) assert.match(p.status(k).error, error, `${mode}: ${k.id} says why`);
+    }
+    for (const k of [tk, cr, nt]) {
+      assert.equal(p.status(k).missed, 4);
+      assert.equal(p.status(k).stale, true, `${k.id}: three misses and more are stale`);
+    }
+
+    // Reconnect: newer rows (reordered, replaced, removed) are written once and stale clears.
+    server.set(tk.sheet, csvOf([['Turnout 64%'], ['Results from 22:00']]));
+    server.set(cr.sheet, csvOf([['Role', 'Name'], ['Camera', 'Jonas Berg'], ['Director', 'Alex Rivera']]));
+    server.set(nt.sheet, notice('Doors open at 19:00\nTickets at the door\nStep-free access east'));
+    assert.deepEqual(await p.outcomes(), { tk: 'read', cr: 'read', nt: 'read' });
+    const newer = { [tk.path]: 'Turnout 64%\nResults from 22:00', [cr.path]: 'Camera | Jonas Berg\nDirector | Alex Rivera', [nt.path]: 'Doors open at 19:00\nTickets at the door\nStep-free access east' };
+    assert.deepEqual(p.row.tree, newer);
+    for (const k of [tk, cr, nt]) {
+      assert.equal(p.status(k).stale, false);
+      assert.equal(p.status(k).state, 'ok');
+    }
+    assert.deepEqual(await p.outcomes(), { tk: 'unchanged', cr: 'unchanged', nt: 'unchanged' }, 'unchanged: written once');
+
+    // Emptied tabs clear on purpose, and fill again.
+    server.set(tk.sheet, '');
+    server.set(cr.sheet, csvOf([['Role', 'Name']]));
+    server.set(nt.sheet, notice(''));
+    assert.deepEqual(await p.outcomes(), { tk: 'read', cr: 'read', nt: 'read' });
+    assert.deepEqual(p.row.tree, { [tk.path]: '', [cr.path]: '', [nt.path]: '' });
+    server.set(tk.sheet, csvOf([['Polls close at 20:00']]));
+    await p.outcomes();
+    assert.equal(p.row.tree[tk.path], 'Polls close at 20:00');
+
+    // Nothing but the three export addresses was fetched.
+    const addresses = new Set(p.row.fetched);
+    assert.deepEqual([...addresses].sort(), [tk, cr, nt].map((k) => `https://docs.google.com/spreadsheets/d/${k.sheet}/export?format=csv&gid=0`).sort());
+  } finally {
+    await server.close();
+  }
+});

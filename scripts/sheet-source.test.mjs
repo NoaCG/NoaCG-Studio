@@ -934,3 +934,190 @@ test('the sources writer tries a failed write again, and a newer value waiting r
   assert.deepEqual(failures, ['offline', 'offline']);
   w.stop();
 });
+
+// ── Over real HTTP, against a local fake of the export (jev-svg-import row 25, AC-14) ─────────
+//
+// The same reader, on the real clock, reading a real HTTP server on loopback that answers as
+// Google's export does and as it fails (e2e/fixtures/jev-sheet-server.mjs): a denial, a read that
+// never answers, a dropped connection, a sign-in page, a 500, then good rows again. Each graphic
+// kind a linked Sheet feeds is walked: a ticker's ordered lines, an imported credits list (the
+// credits adapter) and a multiline text value (keyed by Field ID). A failure writes nothing, so
+// the last good value holds; three misses mark it stale; the next good read reconnects, writing
+// the newest rows once. The reads go to the Sheet's export address and nowhere else, so a
+// refresh asks no model anything. Short intervals keep it quick: the rules are the cadence's,
+// not its length (5 s, 10 s and three misses are pinned on the fake clock above).
+
+const { startSheetServer, csvOf } = await import('../e2e/fixtures/jev-sheet-server.mjs');
+const { mergePatch } = await import('../src/model/productionData.ts');
+
+const EVERY = 120;
+const CUT = 300;
+
+/** Poll `probe` until it returns true, on the real clock. */
+async function until(probe, ms, what) {
+  const end = Date.now() + ms;
+  for (;;) {
+    if (await probe()) return;
+    if (Date.now() > end) assert.fail(`timed out waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
+/** One page's reader of a tab on the fake, writing into its own tree; every request counted. */
+function liveReader(server, { id, shape, paths }) {
+  const leases = new Map();
+  const asked = [];
+  const out = { tree: {}, writes: [], statuses: [], paused: false };
+  const through = server.fetchFor();
+  out.reader = createSheetReader({
+    key: `live:${id}`,
+    sourceId: 's1',
+    link: { sheetId: id, gid: '0' },
+    shape,
+    tab: 'A',
+    world: 'local',
+    everyMs: EVERY,
+    timeoutMs: CUT,
+    io: {
+      now: () => Date.now(),
+      setTimer: (run, ms) => setTimeout(run, ms),
+      clearTimer: (t) => clearTimeout(t),
+      fetch: (url, init) => {
+        asked.push(String(url));
+        return through(url, init);
+      },
+      readLease: (key) => (leases.has(key) ? structuredClone(leases.get(key)) : null),
+      writeLease: (key, lease) => leases.set(key, structuredClone(lease)),
+    },
+    connected: () => new Set(paths),
+    paused: () => out.paused,
+    write: async (patch) => {
+      out.writes.push(patch);
+      out.tree = mergePatch(out.tree, patch);
+      return true;
+    },
+    onStatus: (s) => out.statuses.push(s),
+  });
+  out.asked = asked;
+  out.value = (p = paths[0]) => p.split('.').reduce((at, k) => (at == null ? undefined : at[k]), out.tree);
+  out.status = () => out.statuses.at(-1);
+  return out;
+}
+
+/** The failures a live Sheet meets, each said with its fix and none writing anything. */
+const FAILURES = [
+  ['deny', /not shared/],
+  ['hang', /did not answer in 10 seconds/],
+  ['reset', /not shared, or offline/],
+  ['signin', /not shared/],
+  ['error', /refused the read \(500\)/],
+  ['missing', /can’t find the tab/],
+];
+
+/**
+ * Walk one kind: good rows, every failure (the last good value holds, stale after three misses),
+ * a reconnect to newer rows, malformed rows (`malformed` says what they write), an empty tab
+ * (clears) and rows again.
+ */
+async function walkFailures({ id, shape, path, first, firstValue, newer, newerValue, malformed, empty }) {
+  const server = await startSheetServer();
+  const page = liveReader(server, { id, shape, paths: [path] });
+  try {
+    server.set(id, first);
+    await until(() => page.value() === firstValue, 3000, 'the first good read');
+    assert.equal(page.status().state, 'ok');
+
+    for (const [mode, error] of FAILURES) {
+      const writes = page.writes.length;
+      server.mode(id, mode);
+      await until(() => page.status().state === 'failing' && error.test(page.status().error), 3000, `${mode} said as a failure`);
+      assert.ok(page.status().fix, `${mode}: the line says what to do`);
+      assert.equal(page.writes.length, writes, `${mode}: a failed read writes nothing`);
+      assert.equal(page.value(), firstValue, `${mode}: the last good value holds`);
+    }
+    assert.equal(page.status().stale, true, 'three misses in a row and more: stale');
+    const since = page.status().failingSince;
+    assert.ok(since > 0, 'the time failing began is kept');
+
+    // Reconnect: the newest rows arrive in one write, and stale clears.
+    const writes = page.writes.length;
+    server.set(id, newer);
+    await until(() => page.value() === newerValue, 3000, 'the reconnect');
+    assert.equal(page.status().state, 'ok');
+    assert.equal(page.status().stale, false);
+    assert.equal(page.status().failingSince, null);
+    await new Promise((r) => setTimeout(r, EVERY * 3));
+    assert.equal(page.writes.length, writes + 1, 'unchanged after the reconnect: written once');
+
+    // Malformed rows, as the tab holds them.
+    server.set(id, malformed.csv);
+    await until(() => malformed.reached(page), 3000, 'the malformed read');
+
+    // Empty clears on purpose; rows again come back.
+    server.set(id, empty);
+    await until(() => page.value() === '', 3000, 'an empty tab clears');
+    server.set(id, first);
+    await until(() => page.value() === firstValue, 3000, 'filled again');
+
+    // Every request was a read of this tab's export address: no other service was asked.
+    assert.ok(page.asked.length > 10);
+    for (const url of page.asked) assert.equal(url, `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=0`);
+    assert.ok(server.hits.every((h) => h.id === id), 'the fake saw nothing but reads of the tab');
+  } finally {
+    page.reader.stop();
+    await server.close();
+  }
+}
+
+test('over HTTP, a ticker’s ordered lines keep the last good read through denial, timeout, reset, sign-in, 500 and 404, and reconnect to the newest rows', async () => {
+  await walkFailures({
+    id: '1NoaCGLiveTicker000000000',
+    shape: 'lines',
+    path: 'sheet.s1.lines',
+    first: csvOf([['Polls close at 20:00'], ['Turnout 61%'], ['Results from 22:00']]),
+    firstValue: 'Polls close at 20:00\nTurnout 61%\nResults from 22:00',
+    // Reordered, one replaced, one deleted.
+    newer: csvOf([['Results from 22:00'], ['Turnout 64%']]),
+    newerValue: 'Results from 22:00\nTurnout 64%',
+    // A read cut inside a quoted cell imports what it has (model/csv.ts), so a truncated answer
+    // still writes its whole rows in order.
+    malformed: { csv: 'Results from 22:00\n"Turnout 64%, still counting\n', reached: (p) => p.value() === 'Results from 22:00\nTurnout 64%, still counting' },
+    empty: '',
+  });
+});
+
+test('over HTTP, an imported credits list keeps the last good roles and names through every failure, reconnects, and an emptied tab clears', async () => {
+  await walkFailures({
+    id: '1NoaCGLiveCredits00000000',
+    shape: 'credits',
+    path: 'sheet.s1.lines',
+    first: csvOf([['Role', 'Name'], ['Research', 'Nia Vale'], ['', 'Tomas Fen'], ['Sound', 'Ari Moss']]),
+    firstValue: 'Research | Nia Vale\nTomas Fen\nSound | Ari Moss',
+    newer: csvOf([['Role', 'Name'], ['Camera', 'Jonas Berg'], ['Director', 'Alex Rivera']]),
+    newerValue: 'Camera | Jonas Berg\nDirector | Alex Rivera',
+    // A role waiting for its names is a valid row of the native grammar, and is kept.
+    malformed: { csv: csvOf([['Role', 'Name'], ['Camera', 'Jonas Berg'], ['Grip', '']]), reached: (p) => p.value() === 'Camera | Jonas Berg\nGrip:' },
+    // A header row alone is a list with nobody in it.
+    empty: csvOf([['Role', 'Name']]),
+  });
+});
+
+test('over HTTP, a multiline text value keyed by Field ID keeps its last good lines through every failure, and a row without a usable Field ID writes nothing', async () => {
+  const tab = (body) => csvOf([['Field ID', 'Label', 'Value'], ['f0', 'Title', 'COMMUNITY NOTICE'], ['f1', 'Body', body]]);
+  await walkFailures({
+    id: '1NoaCGLiveNotice000000000',
+    shape: 'values',
+    path: 'sheet.s1.values.f1',
+    first: tab('Doors open at 18:00\nEntry from the courtyard'),
+    firstValue: 'Doors open at 18:00\nEntry from the courtyard',
+    newer: tab('Doors open at 19:00\nTickets at the door\nStep-free access east'),
+    newerValue: 'Doors open at 19:00\nTickets at the door\nStep-free access east',
+    // The body's row lost its Field ID: it is reported, writes nothing, and the field keeps its
+    // newest good lines.
+    malformed: {
+      csv: csvOf([['Field ID', 'Label', 'Value'], ['f0', 'Title', 'COMMUNITY NOTICE'], ['', 'Body', 'Wrong row']]),
+      reached: (p) => p.status().problems.some((t) => /no usable Field ID/.test(t)) && p.status().problems.some((t) => /f1 is missing/.test(t)) && p.value() === 'Doors open at 19:00\nTickets at the door\nStep-free access east',
+    },
+    empty: tab(''),
+  });
+});
