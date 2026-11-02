@@ -47,6 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
+import { CREDITS_CARD_SECONDS } from '../../../templates/behaviours/credits';
 import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
@@ -129,7 +130,7 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
@@ -144,7 +145,10 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   fixed: boolean;
   /** The author chose a still page rather than the roll. */
   still: boolean;
-  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill'>) => void;
+  /** The author chose cards, and the seconds each holds where stated. */
+  cards: boolean;
+  advance: number | undefined;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -164,8 +168,11 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
   const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
   const stills = !!reading && CREDITS_RENDERED[reading.layout].includes('static');
+  const decks = !!reading && CREDITS_RENDERED[reading.layout].includes('cards');
+  const playback = cards && decks ? 'cards' : still && stills ? 'static' : 'roll';
+  const timed = playback === 'cards' && advance !== undefined;
   const styled: DesignSvgCredits | undefined = reading
-    ? { v: 1, layout: reading.layout, playback: still && stills ? 'static' : 'roll', anchors: reading.anchors }
+    ? { v: 1, layout: reading.layout, playback, ...(timed ? { advance } : {}), anchors: reading.anchors }
     : undefined;
   // A binding belongs to the pick it was read for, so the same anchors for another pick are new.
   const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
@@ -173,7 +180,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   useEffect(() => {
     // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork or Hold
     // still answer goes with it rather than coming back unseen on the next stylable pick.
-    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined, creditsStill: undefined }) });
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined, creditsStill: undefined, creditsCards: undefined, creditsAdvance: undefined }) });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
@@ -201,11 +208,43 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
       {stills && !artwork && (
         <label className="save-field">
           <span>Plays as</span>
-          <select value={still ? 'static' : 'roll'} onChange={(e) => onPatch({ creditsStill: e.target.value === 'static' ? true : undefined })} data-testid="map-svg-credits-playback">
+          <select
+            value={playback}
+            onChange={(e) => onPatch({ creditsStill: e.target.value === 'static' ? true : undefined, creditsCards: e.target.value === 'cards' ? true : undefined })}
+            data-testid="map-svg-credits-playback"
+          >
             <option value="roll">Roll</option>
             <option value="static">Hold still</option>
+            {decks && <option value="cards">Cards</option>}
           </select>
-          {still && <span className="hint" data-testid="map-svg-credits-still">A list too long for the page is not shown, and its field says so.</span>}
+          {playback === 'static' && <span className="hint" data-testid="map-svg-credits-still">A list too long for the page is not shown, and its field says so.</span>}
+          {playback === 'cards' && <span className="hint" data-testid="map-svg-credits-cards">A blank line starts a new card. A card too long for the page is not shown, and its field says so.</span>}
+        </label>
+      )}
+      {playback === 'cards' && !artwork && (
+        <label className="save-field">
+          <span>Seconds per card</span>
+          <input
+            type="number"
+            min={CREDITS_CARD_SECONDS.min}
+            max={CREDITS_CARD_SECONDS.max}
+            placeholder="Next card"
+            defaultValue={advance ?? ''}
+            // Kept as typed until it leaves the field, so 15 can be typed through 1; a time out of
+            // bounds is brought into them there, and blank is Next card.
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (e.target.value === '' || (n >= CREDITS_CARD_SECONDS.min && n <= CREDITS_CARD_SECONDS.max)) onPatch({ creditsAdvance: e.target.value === '' ? undefined : n });
+            }}
+            onBlur={(e) => {
+              const n = e.target.value === '' ? NaN : Number(e.target.value);
+              const held = Number.isFinite(n) ? Math.min(CREDITS_CARD_SECONDS.max, Math.max(CREDITS_CARD_SECONDS.min, n)) : undefined;
+              e.target.value = held === undefined ? '' : String(held);
+              onPatch({ creditsAdvance: held });
+            }}
+            data-testid="map-svg-credits-advance"
+          />
+          <span className="hint">Blank: each card waits for Next card.</span>
         </label>
       )}
       {asks && !artwork && (
@@ -1355,6 +1394,8 @@ export default function BehaviourSection({
                   swap={!!generic.creditsSwap}
                   fixed={!!generic.creditsArtwork}
                   still={!!generic.creditsStill}
+                  cards={!!generic.creditsCards}
+                  advance={generic.creditsAdvance}
                   onPatch={patchGeneric}
                 />
               )}

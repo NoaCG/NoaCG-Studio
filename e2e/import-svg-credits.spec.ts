@@ -7,6 +7,7 @@
 // covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx}
 // covers: src/components/wizard/draft/template.ts, src/blocks/motionPresets.ts
 // covers: src/components/home/CueActions.tsx
+// covers: src/templates/behaviours/recipe.ts, src/templates/importedDesign/behaviour.ts
 
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
@@ -687,13 +688,57 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await expect(page.getByTestId('cue-field-over-f1')).toHaveCount(0);
 });
 
+test('role-above credits chosen to play as cards change on Next card, and a card too long says so before the take', async ({ page }) => {
+  // jev-svg-import row 23 (AC-13): "Plays as: Cards" with no seconds saves cards that wait for
+  // the operator's Next card. The graphic offers a blank Card time in place of Scroll speed, and
+  // a Next card press. A card too long even at the floor is named on its field before the take.
+  await page.goto('/app');
+  await dropSvg(page, ABOVE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  const role = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
+  await picker.selectOption(role);
+  const playback = page.getByTestId('map-svg-credits-playback');
+  await expect(playback.locator('option')).toHaveText(['Roll', 'Hold still', 'Cards']);
+  await playback.selectOption('cards');
+  await expect(page.getByTestId('map-svg-credits-cards')).toHaveText('A blank line starts a new card. A card too long for the page is not shown, and its field says so.');
+  await expect(page.getByTestId('map-svg-credits-advance')).toHaveValue('');
+  await intoProduction(page, 'Research cards', 'Research cards');
+  await settleDurableWrites(page);
+
+  // One list field, the drawn title and a blank Card time; no Scroll speed.
+  const credits = page.getByTestId('cue-field-f1');
+  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('');
+  await expect(page.getByText('F2 · Card time (s)')).toBeVisible();
+  await expect(page.getByText('Scroll speed (%)')).toHaveCount(0);
+
+  // A second card too long even at the floor: the field says so before any take.
+  await credits.fill(['Research:', 'Nia Vale', '', 'Cast:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n'));
+  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
+
+  // Two cards that fit: Take shows the first, Next card the second.
+  await credits.fill('Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-over-f1')).toHaveCount(0);
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
+  await page.getByTestId('cue-actions').getByRole('button', { name: /Next card$/ }).click();
+  await expect(rows).toHaveText(['Sound', 'Ari Moss']);
+  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240]]);
+});
+
 // jev-svg-import row 21 (AC-13): continuous roll playback, built on a blank page the way the
 // wizard saves each binding, with the entrance the motion picker sets. `styled` reads the drawn
 // role and name layers from the first role down (rows 19 and 20); `block` keeps the same drawing
 // as fixed artwork, every one of those layers scrolling (#1962).
 type RollBuild = { layout: string; motion: string; engine: string | null; js: string; html: string };
-function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block', face: boolean, playback: 'roll' | 'static' = 'roll'): Promise<RollBuild[]> {
-  return page.evaluate(async ({ source, roleWord, as, face, playback }) => {
+function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block', face: boolean, playback: 'roll' | 'static' | 'cards' = 'roll', advance?: number): Promise<RollBuild[]> {
+  return page.evaluate(async ({ source, roleWord, as, face, playback, advance }) => {
     const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
     const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
     const C = await import('/src/templates/importedDesign/creditsRoll.ts');
@@ -716,7 +761,7 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
       markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [],
       fonts: face ? [{ family: 'Anton', fontId: 'anton' }] : [],
       behaviour: as === 'styled'
-        ? { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback, anchors: preview.anchors } }
+        ? { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback, ...(advance === undefined ? {} : { advance }), anchors: preview.anchors } }
         : { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, options: { artwork: true }, artworkLayers: block.filter((id) => id !== content) },
     };
     const template = IMPORTED_SVG.create({ designSvg: svg });
@@ -724,7 +769,7 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
       layout: preview.layout, motion, engine: C.creditsEngine(svg), js: template.js,
       html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: motion, motionOut: 'fade' } }), IMPORTED_SVG)),
     }));
-  }, { source, roleWord, as, face, playback });
+  }, { source, roleWord, as, face, playback, advance });
 }
 
 /** Where the moving credits stand on screen at the start and at the end of the take, against the
@@ -971,6 +1016,134 @@ test('a still page measured before its face lands is fitted again when the face 
   }, 'fitted again in the face').toEqual({ refitted: true, widths: 13 });
   const late = await page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => (el as SVGTextElement).getComputedTextLength()));
   expect(late, 'the rows are now set in the face').not.toEqual(early.sizes);
+});
+
+// jev-svg-import row 23 (AC-13): cards. The list is dealt into cards that each hold still as a
+// still page does: a blank line starts a card, a role and its names stay on one card whole, and a
+// group too long for one card is fitted or refused on a card of its own. A card changes on the
+// card time, or on Next card; the last one holds until Out, and a take starts from the first.
+type CardsState = { card: number; shown: number; cards: { rows: number; scale: number; refused: boolean }[]; tween: boolean; opacity: string; visibility: string; over: string[]; field: string; rows: StillRow[] };
+async function cardsState(page: Page): Promise<CardsState> {
+  const still = await stillPage(page);
+  const more = await page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsLast: { card: number; shown: number; cards: CardsState['cards'] }; noacgCreditsTween: unknown };
+    const face = document.querySelector('.imported-design-credits-roll') as SVGGElement;
+    return { ...w.noacgCreditsLast, tween: !!w.noacgCreditsTween, opacity: getComputedStyle(face).opacity };
+  });
+  return { ...more, visibility: still.shown, over: still.over, field: still.field, rows: still.rows };
+}
+const names = (head: string, n: number, from = 1) => [head, ...Array.from({ length: n }, (_, i) => `Name ${i + from}`)];
+const cardsDispatch = (page: Page, call: 'play' | 'stop' | 'next') => page.evaluate((call) => {
+  const w = window as unknown as { play(): void; stop(): void; noacgDispatch(event: string): void };
+  if (call === 'next') w.noacgDispatch('nextCard');
+  else w[call]();
+}, call);
+
+test('styled credits as cards, role above and role beside: page boundaries, whole groups, long cards, ordering, both advances and replay', async ({ page }) => {
+  test.slow(); // two layouts, each dealt, taken, advanced on a timer and by Next, and replayed
+  await page.goto('/app');
+  const layouts = [
+    // credits-1: roles at 175 and names 65 then 55 below, the next role 150 after a group; the room
+    // ends half a drawn line above the 800 frame's bottom.
+    { source: readFileSync(ABOVE_CREDITS_SVG, 'utf8'), role: 'Research', top: 175, limit: 772.5, perCard: 2, cast: 30 },
+    // credits-2: a role and its first name on one line at 195, the next role 170 after a group's
+    // last line; 540 tall, so one group of three names fills a card.
+    { source: readFileSync(BESIDE_CREDITS_SVG, 'utf8'), role: 'Réalisation', top: 195, limit: 512.5, perCard: 1, cast: 15 },
+  ];
+  for (const layout of layouts) {
+    const [onNext] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards');
+    const [timed] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards', 2);
+    const at = onNext.layout;
+    expect([onNext.engine, timed.engine], at).toEqual(['styled', 'styled']);
+    expect(onNext.js, at).not.toContain('gsap.fromTo(roll');
+    await page.goto('/robots.txt');
+    await page.setContent(onNext.html);
+    const { field } = await stillPage(page);
+    const write = (list: string[]) => page.evaluate(({ field, list }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [field]: list }), { field, list: list.join('\n') });
+
+    // PAGE BOUNDARIES: a blank line starts a new card; within one, whole groups fill each card.
+    const groups = [0, 1, 2, 3, 4].map((g) => names(`Role ${g + 1}:`, 3, 3 * g + 1));
+    const list = [...groups[0], '', ...groups.slice(1).flat()];
+    await write(list);
+    const rest = await cardsState(page);
+    const expected = [groups[0]];
+    for (let g = 1; g < groups.length; g += layout.perCard) expected.push(groups.slice(g, g + layout.perCard).flat());
+    expect(rest.cards.map((c) => c.rows), `${at}: dealt ${JSON.stringify(rest.cards)}`).toEqual(expected.map((c) => c.length));
+    // Off air the first card is shown.
+    expect([rest.card, rest.shown, rest.tween], at).toEqual([-1, 0, false]);
+    await cardsDispatch(page, 'play');
+    const seen: string[][] = [];
+    for (let k = 0; k < expected.length; k++) {
+      await expect.poll(async () => (await cardsState(page)).shown, `${at}: card ${k}`).toBe(k);
+      await expect.poll(async () => (await cardsState(page)).opacity, `${at}: card ${k} faded in`).toBe('1');
+      const card = await cardsState(page);
+      const say = `${at}, card ${k}: ${JSON.stringify({ ...card, rows: card.rows.map((r) => [r.text, r.y, r.bottom]) })}`;
+      // ROLE AND NAMES: every role on the card is followed by all its names; the first row stands
+      // where the first role is drawn, at the drawn size, and nothing passes the card's room.
+      expect(card.rows.map((r) => r.text), say).toEqual(expected[k].map((t) => t.replace(/:$/, '')));
+      expect(card.rows.map((r) => r.kind), say).toEqual(expected[k].map((t) => (t.endsWith(':') ? 'role' : 'name')));
+      expect(Math.abs(card.rows[0].y - layout.top), say).toBeLessThan(0.6);
+      expect(Math.max(...card.rows.map((r) => r.bottom)), say).toBeLessThanOrEqual(layout.limit + 0.5);
+      expect([card.cards[k].scale, card.cards[k].refused, card.visibility], say).toEqual([1, false, 'visible']);
+      seen.push(card.rows.map((r) => r.text!));
+      // MANUAL ADVANCE: with no card time, a card waits for Next card.
+      if (k === 0) {
+        await page.waitForTimeout(2500);
+        expect((await cardsState(page)).shown, `${at}: no card time, no change`).toBe(0);
+      }
+      await cardsDispatch(page, 'next');
+    }
+    // ORDERING: the cards, in order, are the list without its blank line.
+    expect(seen.flat(), at).toEqual(list.filter(Boolean).map((t) => t.replace(/:$/, '')));
+    // The last card holds: Next does nothing more.
+    await page.waitForTimeout(1200);
+    expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: the last card holds`).toEqual([expected.length - 1, false]);
+    // REPLAY: Out, then Take, starts from the first card again; Next off air does nothing.
+    await cardsDispatch(page, 'stop');
+    await cardsDispatch(page, 'next');
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: the replay starts on the first card`).toBe(0);
+    expect((await cardsState(page)).rows.map((r) => r.text), at).toEqual(seen[0]);
+
+    // LONG CARDS: a group too long for one card is a card of its own, shrunk as a whole and
+    // reported past 55%, before any take; past the floor it is not shown, and reported.
+    // (credits-2's shorter frame holds fewer names at the floor.)
+    const long = [...groups[0], '', ...names('Cast:', layout.cast)];
+    await write(long);
+    const dealt = await cardsState(page);
+    const sayLong = `${at}, long: ${JSON.stringify(dealt.cards)}`;
+    expect(dealt.cards.map((c) => c.rows), sayLong).toEqual([4, layout.cast + 1]);
+    expect(dealt.cards.map((c) => c.refused), sayLong).toEqual([false, false]);
+    expect(dealt.cards[0].scale, sayLong).toBe(1);
+    expect(dealt.cards[1].scale, sayLong).toBeLessThan(0.55);
+    expect(dealt.cards[1].scale, sayLong).toBeGreaterThanOrEqual(0.3);
+    expect(dealt.over, `${sayLong}: reported before it is shown`).toContain(field);
+    await cardsDispatch(page, 'next');
+    await expect.poll(async () => (await cardsState(page)).shown, `${at}: the long card`).toBe(1);
+    const shrunk = await cardsState(page);
+    const bottom = Math.max(...shrunk.rows.map((r) => r.bottom));
+    expect(bottom, `${at}: the long card fills its room and does not pass it`).toBeLessThanOrEqual(layout.limit + 0.5);
+    expect(bottom, `${at}: the long card fills its room`).toBeGreaterThan(layout.limit - 2);
+    await write([...groups[0], '', ...names('Cast:', 200)]);
+    const refused = await cardsState(page);
+    expect([refused.cards[1].refused, refused.visibility, refused.over.includes(field)], `${at}: refused`).toEqual([true, 'hidden', true]);
+    await write(list);
+    expect((await cardsState(page)).over, `${at}: the report clears`).toEqual([]);
+
+    // AUTOMATIC ADVANCE: the author's two seconds per card, and Next still skips ahead.
+    await page.goto('/robots.txt');
+    await page.setContent(timed.html);
+    await write(list);
+    await cardsDispatch(page, 'play');
+    const started = Date.now();
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: timed`, timeout: 6000 }).toBe(1);
+    const held = Date.now() - started;
+    expect(held, `${at}: the first card held its two seconds`).toBeGreaterThanOrEqual(1900);
+    await cardsDispatch(page, 'next');
+    await expect.poll(async () => (await cardsState(page)).shown, `${at}: Next skips ahead`).toBe(2);
+    // Its hold starts again; the last card has none.
+    await expect.poll(async () => (await cardsState(page)).tween, `${at}: the hold after Next`).toBe(expected.length - 1 > 2);
+  }
 });
 
 test('fixed-artwork credits drawn as separate layers enter and leave the whole frame as one block after Drop, Rise and Pop', async ({ page }) => {

@@ -34,10 +34,12 @@ import type { CreditsLayout, CreditsPlayback, DesignSvgCredits, DesignSvgCredits
 import {
   CREDITS_BOX_ROLE,
   CREDITS_CARD_SECONDS,
+  CREDITS_CARD_TIME_KEY,
   CREDITS_FIELD_ROLE,
   CREDITS_LAYOUTS,
   CREDITS_PLAYBACKS,
   CREDITS_RECIPE_ID,
+  CREDITS_NEXT_CALL,
   CREDITS_ROLL_CALL,
   CREDITS_SPEED_KEY,
 } from '../behaviours/credits';
@@ -632,6 +634,181 @@ function creditsDataUpdated() {
 }`;
 }
 
+/** THE TAKE OF CARDS (styled credits, `cards`): the list is dealt into cards, each laid out and
+ *  fitted as a still page is (`creditsRender`), shown one at a time. A card changes the way the
+ *  catalog's page swap changes its pages (endCredits/creditsMotion.ts `creditsPages`): the card
+ *  fades out, the next fades in, and the last one holds until Out. It changes on the card time
+ *  when one is set, and on the operator's Next card at any time. */
+function creditsCardsJs(): string {
+  return `${creditsWindowJs()}
+
+// The hold or the change under way, which Out's stopCreditsRoll() ends.
+var noacgCreditsTween = null;
+// The cards dealt from the list, each the rows from..to; the one on air, -1 off air; whether a
+// change is under way; and the card time the running hold was started with.
+var noacgCreditsCards = [];
+var noacgCreditsCard = -1;
+var noacgCreditsTurning = false;
+var noacgCreditsHold = null;
+// What the cards show now, for a reader: each card's rows, share and refusal, and the one shown.
+var noacgCreditsLast = null;
+
+// creditsCardTime(): the operator's Card time in seconds, held to ${CREDITS_CARD_SECONDS.min}-${CREDITS_CARD_SECONDS.max}, or null when blank:
+// then a card changes only on Next card.
+function creditsCardTime() {
+  var el = creditsField('${CREDITS_CARD_TIME_KEY}');
+  var seconds = el ? parseFloat(el.textContent) : NaN;
+  if (!isFinite(seconds) || seconds <= 0) return null;
+  return Math.min(${CREDITS_CARD_SECONDS.max}, Math.max(${CREDITS_CARD_SECONDS.min}, seconds));
+}
+
+// creditsCardsOf(probe): DEAL THE LIST INTO CARDS. A blank line in the list starts a new card, as
+// a section is a page in the catalog's page swap. Within a section, cards fill from the top with
+// whole groups (a role and all its names; a heading stays with what follows it): a group that
+// would pass the page's room starts the next card. A group too long for one card is a card of
+// its own, fitted or refused as a still page is. The room is the still page's, measured on the
+// whole list laid out once at its drawn size (the probe), so nothing is laid out twice to deal it.
+function creditsCardsOf(probe) {
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  var sections = parseCredits(holder ? holder.textContent : '', function (s) { return s; });
+  var units = [];
+  var at = 0;
+  var glued = null;
+  for (var s = 0; s < sections.length; s++) {
+    for (var e = 0; e < sections[s].length; e++) {
+      var entry = sections[s][e];
+      var n = entry.type === 'group' ? 1 + entry.names.length : 1;
+      var unit = glued && glued.section === s ? { from: glued.from, to: at + n, section: s } : { from: at, to: at + n, section: s };
+      if (glued && glued.section !== s) units.push(glued);
+      glued = null;
+      at += n;
+      if (entry.type === 'heading') glued = unit;
+      else units.push(unit);
+    }
+  }
+  if (glued) units.push(glued);
+  if (!units.length) return [];
+  if (!probe || !probe.made || probe.made.length !== at) return [{ from: 0, to: at }];
+  var base = [], low = [];
+  for (var r = 0; r < probe.made.length; r++) {
+    var row = probe.made[r].row;
+    var m = creditsFrom(row, probe.container);
+    var bb = null;
+    try { bb = row.getBBox(); } catch (err) { bb = null; }
+    if (!m || !bb) return [{ from: 0, to: at }];
+    base.push(creditsAt(m, parseFloat(row.getAttribute('x')) || 0, parseFloat(row.getAttribute('y')) || 0).y);
+    low.push(Math.max(creditsAt(m, bb.x, bb.y + bb.height).y, creditsAt(m, bb.x + bb.width, bb.y + bb.height).y));
+  }
+  // Rows from..to as a card: moved up so the first stands where the first role is drawn.
+  var fits = function (from, to) {
+    var lowest = -Infinity;
+    for (var i = from; i < to; i++) lowest = Math.max(lowest, low[i]);
+    return lowest - (base[from] - probe.first) <= probe.limit + 0.5;
+  };
+  var out = [];
+  var card = null;
+  for (var u = 0; u < units.length; u++) {
+    if (card && card.section === units[u].section && fits(card.from, units[u].to)) {
+      card.to = units[u].to;
+      continue;
+    }
+    if (card) out.push({ from: card.from, to: card.to });
+    card = { from: units[u].from, to: units[u].to, section: units[u].section };
+  }
+  out.push({ from: card.from, to: card.to });
+  return out;
+}
+
+// creditsDeal(): deal the list as it stands and show the card on air (the first, off air). Every
+// card is fitted once, so a card too long for the page is reported under the Credits field
+// before the take, whichever card it is. Where a face is still loading, the cards were measured
+// in a fallback, so they are dealt again when the faces land.
+function creditsDeal() {
+  var cards = creditsCardsOf(creditsRender(1, null, true));
+  noacgCreditsCards = cards;
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  var shown = Math.max(0, Math.min(noacgCreditsCard, cards.length - 1));
+  if (noacgCreditsCard >= 0) noacgCreditsCard = shown;
+  var report = [];
+  var over = false;
+  var built = null;
+  // The card shown is built last, so it is the one on the page.
+  var order = [];
+  for (var c = 0; c < cards.length; c++) if (c !== shown) order.push(c);
+  order.push(shown);
+  for (var k = 0; k < order.length; k++) {
+    built = creditsRender(1, cards[order[k]] || { from: 0, to: 0 });
+    report[order[k]] = built ? { rows: built.rows.children.length, scale: built.scale, refused: built.refused } : null;
+    if (holder && typeof svgFitOver !== 'undefined' && svgFitOver[holder.id]) over = true;
+  }
+  if (holder && typeof svgFitOver !== 'undefined') svgFitOver[holder.id] = over;
+  noacgCreditsLast = { cards: cards.length ? report : [], card: noacgCreditsCard, shown: shown };
+  if (document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(creditsDeal);
+  return built;
+}
+
+// creditsArm(after): hold the card on air for the card time, then change it. The last card holds
+// until Out, and with no card time every card waits for Next card.
+function creditsArm(after) {
+  if (noacgCreditsTween) noacgCreditsTween.kill();
+  noacgCreditsTween = null;
+  noacgCreditsHold = creditsCardTime();
+  if (noacgCreditsHold === null || noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || typeof gsap === 'undefined') return;
+  noacgCreditsTween = gsap.delayedCall(typeof after === 'number' ? after : noacgCreditsHold, creditsTurn);
+}
+
+// creditsTurn(): change to the next card - the one on air fades out, the next is laid out unseen
+// and fades in, and its hold starts.
+function creditsTurn() {
+  if (noacgCreditsTurning || noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || !noacgCreditsRows || typeof gsap === 'undefined') return;
+  if (noacgCreditsTween) noacgCreditsTween.kill();
+  var face = noacgCreditsRows.parentNode;
+  var pace = typeof motionSpeed === 'function' ? motionSpeed() : 1;
+  noacgCreditsTurning = true;
+  var tl = gsap.timeline();
+  tl.to(face, { opacity: 0, duration: 0.4 / pace, ease: 'power2.in' }, 0);
+  tl.call(function () {
+    noacgCreditsCard += 1;
+    creditsDeal();
+  }, null, 0.4 / pace);
+  tl.to(face, { opacity: 1, duration: 0.5 / pace, ease: 'power2.out' }, 0.4 / pace);
+  tl.call(function () {
+    noacgCreditsTurning = false;
+    creditsArm();
+  }, null, 0.9 / pace);
+  noacgCreditsTween = tl;
+}
+
+// ${CREDITS_ROLL_CALL}(): THE TAKE. Deal the list and show the first card, where the drawing put
+// it, then hold it for the card time. A card too long to fit at the floor is not shown; its
+// Credits field is reported too long.
+function ${CREDITS_ROLL_CALL}() {
+  stopCreditsRoll();
+  noacgCreditsCard = 0;
+  var built = creditsDeal();
+  if (built && typeof gsap !== 'undefined') gsap.set(built.rows.parentNode, { opacity: 1 });
+  creditsArm();
+  return null;
+}
+
+// ${CREDITS_NEXT_CALL}(): the operator's Next card. On air, the next card comes up now; on the last
+// card, during a change, or off air, it does nothing.
+function ${CREDITS_NEXT_CALL}() {
+  creditsTurn();
+}
+
+// creditsDataUpdated(): update() wrote the fields - deal the cards again and show the one on air.
+// A new card time applies to the hold under way, counted from when that hold started.
+function creditsDataUpdated() {
+  creditsDeal();
+  if (noacgCreditsTurning || noacgCreditsCard < 0) return;
+  var hold = creditsCardTime();
+  if (hold === noacgCreditsHold) return;
+  var spent = noacgCreditsTween ? noacgCreditsTween.time() : 0;
+  creditsArm(hold === null ? undefined : Math.max(0, hold - spent));
+}`;
+}
+
 // ── The styled engine: credits in the artwork's own role and name layers ──────────────────────
 //
 // The designer drew a few roles and names as separate text layers (DesignSvgCredits). Those
@@ -688,6 +865,9 @@ export interface CreditsStyledConfig {
   /** The list holds still (`static`) rather than rolling: fitted to the window where the drawing
    *  put it, and not shown at all when it is too long to fit at the floor. Absent, a roll. */
   still?: true;
+  /** Cards (`cards`, with `still`): the list is dealt into pages that each hold still as a
+   *  still page does, one at a time, changing on the card time or the operator's Next card. */
+  cards?: true;
 }
 
 /** What the styled runtime of a design is built with, or null when it builds another engine.
@@ -695,9 +875,11 @@ export interface CreditsStyledConfig {
 export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
   const style = styledCredits(svg);
   if (!style) return null;
-  const flags: Pick<CreditsStyledConfig, 'faces' | 'still'> = {
+  const playback = svg.behaviour?.kind === 'recipe' ? svg.behaviour.credits?.playback : undefined;
+  const flags: Pick<CreditsStyledConfig, 'faces' | 'still' | 'cards'> = {
     ...(svg.fonts.some((f) => f.fontId || f.customFont) ? { faces: true as const } : {}),
-    ...(svg.behaviour?.kind === 'recipe' && svg.behaviour.credits?.playback === 'static' ? { still: true as const } : {}),
+    ...(playback === 'static' || playback === 'cards' ? { still: true as const } : {}),
+    ...(playback === 'cards' ? { cards: true as const } : {}),
   };
   if (style.layout === 'role-beside') {
     // Beside, every drawn line is a role and its first name, so the line step is the group gap;
@@ -730,11 +912,14 @@ export function creditsStyledRuntimeJs(prefix: string, config: CreditsStyledConf
   // A still page differs from the roll in its take and its fit, chosen the same way; the roll
   // emits exactly what it did before the still page existed.
   const still = (roll: string, stillJs: string) => (config.still ? stillJs : roll);
-  // `faces` and `still` decide which lines are emitted; they are not part of the spacing table.
-  const { faces, still: _still, ...table } = config;
+  // Cards are still pages dealt one at a time: a few more lines, chosen the same way; a still
+  // page emits exactly what it did before cards existed.
+  const cards = (page: string, cardsJs: string) => (config.cards ? cardsJs : page);
+  // `faces`, `still` and `cards` decide which lines are emitted; they are not part of the table.
+  const { faces, still: _still, cards: _cards, ...table } = config;
   return `
 // ── Credits in the artwork's own styling (SVG) ────────────────────────────────────────────────
-${still(`// ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed.`, `// ONE PASTED LIST holds still on the page, where the drawing put it, fitted to the frame.`)} The role
+${still(`// ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed.`, cards(`// ONE PASTED LIST holds still on the page, where the drawing put it, fitted to the frame.`, `// ONE PASTED LIST plays as cards, one page at a time, each where the drawing put it.`))} The role
 // and name layers you drew are the SOURCE: they stay in the file, hidden on air (template.css
 // hides .${cls}), and every role the operator types is a copy of your first role layer and every
 // name a copy of your first name layer - class, runs, paint and transform kept, only the words
@@ -896,8 +1081,10 @@ var noacgCreditsFit = [];
 // drawn, and hand back the group that holds them with the step the pace rides. Runs at load, on
 // every update() and at the start of every take.${still('', `
 // A STILL PAGE is built at a share of the drawn size (1 unless creditsRender calls itself with
-// less): type and spacing shrink together, each column staying on its drawn edge.`)}
-function creditsRender(${still('', 'shrink')}) {${still('', `
+// less): type and spacing shrink together, each column staying on its drawn edge.`)}${cards('', `
+// A CARD is the rows from..to of the list (all of them without one), laid out from the top; a
+// probe lays the whole list out once and hands back what the dealing measures (creditsDeal).`)}
+function creditsRender(${still('', cards('shrink', 'shrink, card, probe'))}) {${still('', `
   var K = typeof shrink === 'number' ? shrink : 1;`)}
   var anchors = creditsAnchors();
   if (!anchors.length) return null;
@@ -1001,10 +1188,13 @@ ${still('', `  // The drawn line, for the margin a still page keeps; then every 
   var made = [];
   var y = top;
   var prev = null;
-  var sectionBreak = false;${beside('', `
+  var sectionBreak = false;${cards('', `
+  var index = 0;`)}${beside('', `
   // A heading spans both columns: the line after it steps down, and its room is the whole window.
   var prevHeading = false;`)}
-  var paint = function (kind, words${beside('', ', heading')}) {
+  var paint = function (kind, words${beside('', ', heading')}) {${cards('', `
+    var at = index++;
+    if (card && (at < card.from || at >= card.to)) return;`)}
     if (made.length > 0) {
       y += kind === 'role' ? S.groupGap : prev === 'role'${beside('', ' && !prevHeading')} ? S.roleToName : S.nameToName;
       // A blank line before a name adds the air the drawing gives a group, or one name step.
@@ -1134,15 +1324,16 @@ ${still(`      var width = box.width * scale;
     }
     limit = Math.min(limit, win.bottom);
     var first = creditsAt(toContainer, ${beside('x', 'xs.role')}, top).y;
-    var bottom = page ? page.y + page.height : -Infinity;
+    var bottom = page ? page.y + page.height : -Infinity;${cards('', `
+    if (probe) return { made: made, first: first, limit: limit, container: container };`)}
     if (page && page.height > 0 && bottom > limit + 0.5 && bottom > first) {
       var share = K * (limit - first) / (bottom - first);
       // Below the floor, the page is built at the floor once and judged there, so a list the
       // estimate rounds just past it is not refused.
       if (share < NOACG_CREDITS_FLOOR) {
-        if (K > NOACG_CREDITS_FLOOR) return creditsRender(NOACG_CREDITS_FLOOR);
+        if (K > NOACG_CREDITS_FLOOR) return creditsRender(NOACG_CREDITS_FLOOR${cards('', ', card')});
         refused = true;
-      } else if (share < K * 0.999) return creditsRender(share);
+      } else if (share < K * 0.999) return creditsRender(share${cards('', ', card')});
     }
   }
   if (refused) {
@@ -1158,19 +1349,21 @@ ${still(`      var width = box.width * scale;
 // stopCreditsRoll(): Out ends the roll, so nothing keeps moving the list off air.
 function stopCreditsRoll() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
-  noacgCreditsTween = null;
+  noacgCreditsTween = null;${cards('', `
+  noacgCreditsCard = -1;
+  noacgCreditsTurning = false;`)}
 }
 
-${still(creditsTakeJs(faces === true), creditsHoldJs())}
+${still(creditsTakeJs(faces === true), cards(creditsHoldJs(), creditsCardsJs()))}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the drawn widths decide where an aligned row starts.
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', creditsRender);
+  document.addEventListener('DOMContentLoaded', ${cards('creditsRender', 'creditsDeal')});
 } else {
-  creditsRender();                  // DOM already parsed (e.g. an inline preview build)
+  ${cards('creditsRender', 'creditsDeal')}();                  // DOM already parsed (e.g. an inline preview build)
 }
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(creditsRender);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(${cards('creditsRender', 'creditsDeal')});
 `;
 }
 
@@ -1720,13 +1913,12 @@ export function creditsEngine(svg: DesignSvg): 'styled' | 'artwork' | 'editable'
 
 /**
  * THE LAYOUTS AND PLAYBACKS THE STYLED ENGINE RENDERS. Row 19 renders role above as a roll, row
- * 20 role beside, row 22 both as a still page; cards (row 23) are added by the row that renders them. A
- * binding nothing renders yet keeps building the editable roll of its one list field, as it did
+ * 20 role beside, row 22 both as a still page, row 23 both as cards. A binding nothing renders yet keeps building the editable roll of its one list field, as it did
  * before, never an untested picture; the wizard saves only what is rendered.
  */
 export const CREDITS_RENDERED: Readonly<Record<CreditsLayout, readonly CreditsPlayback[]>> = {
-  'role-above': ['roll', 'static'],
-  'role-beside': ['roll', 'static'],
+  'role-above': ['roll', 'static', 'cards'],
+  'role-beside': ['roll', 'static', 'cards'],
 };
 
 /** The style a saved styled binding builds with, or null when it builds anything else. */
@@ -1750,8 +1942,10 @@ export function styledCredits(svg: DesignSvg): CreditsStyle | null {
  *   together (type and spacing, each column on its drawn edge) to fit the window, reported past
  *   55%; past the same floor the take is refused: the page is not shown and the Credits field is
  *   reported too long.
- * - `tall`, cards: a group that fits stays whole on one card; a longer one continues on the next
- *   card at a name boundary under its role repeated; one name taller than a card is reported.
+ * - `tall`, cards: a blank line in the list starts a new card, and a group (a role and its names)
+ *   that would pass the card's room starts the next card whole. A group too long for one card is a
+ *   card of its own, fitted as a still page is: shrunk as a whole, reported past 55%, and below
+ *   the floor not shown, with the Credits field reported too long. Never split, never clipped.
  */
 export const CREDITS_OVERFLOW: Readonly<Record<CreditsPlayback, { wide: 'shrink-report'; tall: 'run-through' | 'shrink-then-refuse' | 'next-card' }>> = {
   roll: { wide: 'shrink-report', tall: 'run-through' },

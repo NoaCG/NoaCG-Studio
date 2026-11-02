@@ -514,18 +514,33 @@ async function inPage({ dev, cases, legacy, artwork }) {
     return { engine: C.creditsEngine(svg), styled: preview.styled, words: block.map((id) => imp.candidates.find((c) => c.id === id).sample), blockFields, doc: window.NOACG_COMPOSE.composeDocument(tpl) };
   };
   const fixedBlocks = { above: fixedOf(dev[0].markup, 'Research'), beside: fixedOf(dev[1].markup, 'Réalisation') };
-  // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
+  // What does NOT build styled: a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
+  const staleCredits = { ...good, anchors: [...good.anchors].reverse() };
   const fallbacks = {
-    cards: notYet({ ...good, playback: 'cards' }),
-    stale: notYet({ ...good, anchors: [...good.anchors].reverse() }),
+    stale: notYet(staleCredits),
   };
-  const cardsBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'cards' }) });
+  const staleBuild = I.IMPORTED_SVG.create({ designSvg: binding(staleCredits) });
   // ...which is the editable roll it built before any styled engine existed, byte for byte.
-  fallbacks.cardsBuildsEditable = cardsBuild.js.includes('function creditsSampleLines(') && !cardsBuild.js.includes('NOACG_CREDITS_STYLE');
+  fallbacks.staleBuildsEditable = staleBuild.js.includes('function creditsSampleLines(') && !staleBuild.js.includes('NOACG_CREDITS_STYLE');
   const unstyled = binding(good);
   delete unstyled.behaviour.credits;
-  fallbacks.cardsSameAsUnstyled = JSON.stringify(cardsBuild) === JSON.stringify(I.IMPORTED_SVG.create({ designSvg: unstyled }));
+  fallbacks.staleSameAsUnstyled = JSON.stringify(staleBuild) === JSON.stringify(I.IMPORTED_SVG.create({ designSvg: unstyled }));
+  // Row 23: a cards binding builds cards in the styled engine: no roll and no Scroll speed, a Card
+  // time field holding the author's seconds (blank for Next card only) and a Next card press.
+  const cardsOf = (credits) => {
+    const tpl = I.IMPORTED_SVG.create({ designSvg: binding(credits) });
+    return {
+      engine: C.creditsEngine(binding(credits)),
+      styled: tpl.js.includes('var NOACG_CREDITS_STYLE'),
+      editable: tpl.js.includes('function creditsSampleLines('),
+      deals: tpl.js.includes('ONE PASTED LIST plays as cards') && tpl.js.includes('function creditsCardsOf('),
+      rolls: tpl.js.includes('gsap.fromTo(roll'),
+      speed: speedOf(tpl),
+      cardTime: tpl.fields.find((f) => f.title === 'Card time (s)')?.value ?? null,
+      next: tpl.js.includes('"nextCard"') && tpl.js.includes('function noacgCreditsNext('),
+    };
+  };
   // Row 22: a static binding builds the still page in the styled engine: no roll, no Scroll
   // speed, while the roll of the same binding keeps both.
   const speedOf = (tpl) => tpl.fields.some((f) => f.title === 'Scroll speed (%)');
@@ -541,6 +556,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     rollRolls: rollBuild.js.includes('gsap.fromTo(roll'),
     rollSpeed: speedOf(rollBuild),
   };
+  const cards = { onNext: cardsOf({ ...good, playback: 'cards' }), timed: cardsOf({ ...good, playback: 'cards', advance: 8 }), rollNext: rollBuild.js.includes('"nextCard"') };
   // #1941: loose characters before the first run, and colour spellings in the parsed reading.
   const loose = analyse(cases.loose, parsed);
   const looseLaid = analyse(cases.loose, laidOut);
@@ -552,6 +568,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     previews,
     fallbacks,
     still,
+    cards,
     issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
     pins,
     devResults,
@@ -950,10 +967,14 @@ test('row 19: the roll keeps the source layers and their original text, and repl
   }
 });
 
-test('row 19: what no row renders yet builds what it built before, never an untested picture', () => {
-  // Cards are row 23; a stale binding likewise. Each keeps the editable roll of its one list
-  // field, exactly as before row 19.
-  assert.deepEqual(R.fallbacks, { cards: 'editable', stale: 'editable', cardsBuildsEditable: true, cardsSameAsUnstyled: true });
+test('row 19: what no row renders builds what it built before, never an untested picture', () => {
+  // A stale binding keeps the editable roll of its one list field, exactly as before row 19.
+  assert.deepEqual(R.fallbacks, { stale: 'editable', staleBuildsEditable: true, staleSameAsUnstyled: true });
+});
+
+test('row 23: a cards binding deals cards, with a Card time and Next card in place of the roll and its Scroll speed', () => {
+  const card = { engine: 'styled', styled: true, editable: false, deals: true, rolls: false, speed: false, next: true };
+  assert.deepEqual(R.cards, { onNext: { ...card, cardTime: '' }, timed: { ...card, cardTime: '8' }, rollNext: false });
 });
 
 test('row 22: a static binding builds the still page, without the roll or its Scroll speed', () => {
