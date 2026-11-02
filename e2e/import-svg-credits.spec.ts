@@ -425,9 +425,12 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
     ['role', 90, 195, ...role], ['name', 440, 195, ...nm], ['role', 90, 365, ...role], ['name', 440, 365, ...nm], ['name', 440, 420, ...nm],
   ]);
 
-  // A new list on Update: several names per role, a role with none, the drawn steps kept.
+  // A new list on Update: the roll on air keeps the list it took (row 24), and Re-take airs the
+  // new one - several names per role, a role with none, the drawn steps kept.
   await credits.fill('Son:\nAri Moss\nIda Lake\nJun Harbor\nMontage:\nMusique:\nSol Reed');
   await page.getByTestId('verb-update').click();
+  await expect(rows).toHaveText(['Réalisation', 'Léa Orme', 'Image', 'Noé Rivage', 'Émilie Lac']);
+  await page.getByTestId('verb-retake').click();
   await expect(rows).toHaveText(['Son', 'Ari Moss', 'Ida Lake', 'Jun Harbor', 'Montage', 'Musique', 'Sol Reed']);
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.x, r.y])).toEqual([
     ['role', 90, 195], ['name', 440, 195], ['name', 440, 250], ['name', 440, 305], ['role', 90, 475], ['role', 90, 645], ['name', 440, 645],
@@ -622,9 +625,12 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   expect(roll.step).toBe(55);
   expect(roll.rows).toBe(5);
 
-  // A new list on Update: repeated roles, several names, the drawn spacing kept.
+  // A new list on Update: the roll on air keeps the list it took (row 24), and Re-take airs the
+  // new one - repeated roles, several names, the drawn spacing kept.
   await credits.fill('Research:\nIda Lake\nSol Reed\nJun Harbor\nSound:\nMia Holt\nResearch:\nOla Berg');
   await page.getByTestId('verb-update').click();
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await page.getByTestId('verb-retake').click();
   await expect(rows).toHaveText(['Research', 'Ida Lake', 'Sol Reed', 'Jun Harbor', 'Sound', 'Mia Holt', 'Research', 'Ola Berg']);
   const again = await atRest();
   expect(again.map((r) => r.y)).toEqual([175, 240, 295, 350, 500, 565, 715, 780]);
@@ -1127,7 +1133,10 @@ for (const layout of CARD_LAYOUTS) {
 
     // LONG CARDS: a group too long for one card is a card of its own, shrunk as a whole and
     // reported past 55%, before any take; past the floor it is not shown, and reported.
-    // (credits-2's shorter frame holds fewer names at the floor.)
+    // (credits-2's shorter frame holds fewer names at the floor.) Written off air: cards on air
+    // keep the list their take dealt (row 24).
+    await cardsDispatch(page, 'stop');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: Out before the long lists`).toBe(-1);
     const long = [...groups[0], '', ...names('Cast:', layout.cast)];
     await write(long);
     const dealt = await cardsState(page);
@@ -1138,15 +1147,25 @@ for (const layout of CARD_LAYOUTS) {
     expect(dealt.cards[1].scale, sayLong).toBeLessThan(0.55);
     expect(dealt.cards[1].scale, sayLong).toBeGreaterThanOrEqual(0.3);
     expect(dealt.over, `${sayLong}: reported before it is shown`).toContain(field);
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: taken with the long card`).toBe(0);
     await cardsDispatch(page, 'next');
     await expect.poll(async () => (await cardsState(page)).shown, `${at}: the long card`).toBe(1);
     const shrunk = await cardsState(page);
     const bottom = Math.max(...shrunk.rows.map((r) => r.bottom));
     expect(bottom, `${at}: the long card fills its room and does not pass it`).toBeLessThanOrEqual(layout.limit + 0.5);
     expect(bottom, `${at}: the long card fills its room`).toBeGreaterThan(layout.limit - 2);
+    await cardsDispatch(page, 'stop');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: Out`).toBe(-1);
     await write([...groups[0], '', ...names('Cast:', 200)]);
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: taken with the refused card`).toBe(0);
+    await cardsDispatch(page, 'next');
+    await expect.poll(async () => (await cardsState(page)).shown, `${at}: the refused card`).toBe(1);
     const refused = await cardsState(page);
     expect([refused.cards[1].refused, refused.visibility, refused.over.includes(field)], `${at}: refused`).toEqual([true, 'hidden', true]);
+    await cardsDispatch(page, 'stop');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: Out`).toBe(-1);
     await write(list);
     expect((await cardsState(page)).over, `${at}: the report clears`).toEqual([]);
 
@@ -1199,7 +1218,16 @@ for (const layout of CARD_LAYOUTS) {
     await write(list);
     expect([(await cardsState(page)).shown, (await cardsState(page)).opacity], `${at}: off air after a cut-short change`).toEqual([0, '1']);
 
-    // A LIST THAT GROWS ON AIR: the only card holds with no timer, then gains cards and starts its hold.
+    // ON AIR THE CARDS KEEP THE LIST THEIR TAKE DEALT (row 24): a list written on air waits for the
+    // next take, so the only card still holds with no timer.
+    // The deals below stand for the cards measured again on air (the faces landing): they deal the
+    // list the take holds, here set to grow or shrink the deck, and keep the hold rule.
+    const redeal = (cards: string[]) => page.evaluate((list) => {
+      const w = window as unknown as { noacgCreditsHeld: string; creditsDeal(): void };
+      w.noacgCreditsHeld = list;
+      w.creditsDeal();
+    }, cards.join('\n'));
+    const waiting = () => page.evaluate(() => (window as unknown as { noacgCreditsWaiting: boolean }).noacgCreditsWaiting);
     await setTime('2');
     await write(groups[0]);
     await cardsDispatch(page, 'play');
@@ -1207,22 +1235,27 @@ for (const layout of CARD_LAYOUTS) {
     await page.waitForTimeout(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: the only card holds`).toEqual([0, false]);
     await write(list);
+    await page.waitForTimeout(2500);
+    const kept = await cardsState(page);
+    expect([kept.shown, kept.tween, kept.cards.length, await waiting()], `${at}: written on air, the cards taken stay`).toEqual([0, false, 1, true]);
+
+    // A DEAL ON AIR THAT GROWS THE DECK: the only card gains cards, starts its hold and turns.
+    await redeal(list);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown, it turns`, timeout: 5000 }).toBe(1);
 
     // SHRUNK TO THE LAST, THEN GROWN: the card on air becomes the last (no hold), its old hold's
     // time passes, and grown again it starts a hold and turns.
-    await write([...groups[0], '', ...groups[1]]);
+    await redeal([...groups[0], '', ...groups[1]]);
     await page.waitForTimeout(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: now the last card`).toEqual([1, false]);
-    await write(list);
+    await redeal(list);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown again, it turns`, timeout: 5000 }).toBe(2);
 
-    // SHRUNK DURING A CHANGE: the change lands on a card that is still dealt, never on an empty one.
+    // WRITTEN DURING A CHANGE: the change lands on the next card the take dealt, as taken.
     await setTime('');
     await write([...groups[0], '', ...groups[1]]);
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: taken, Next only`).toBe(0);
-    // Next, and the list shrinks while the first card is still fading out.
     await page.evaluate(async ({ field, list }) => {
       const w = window as unknown as { noacgDispatch(event: string): void; update(d: Record<string, string>): void; noacgCreditsTurning: boolean };
       w.noacgDispatch('nextCard');
@@ -1231,18 +1264,31 @@ for (const layout of CARD_LAYOUTS) {
       w.update({ [field]: list });
     }, { field, list: groups[0].join('\n') });
     await expect.poll(async () => (await cardsState(page)).opacity, `${at}: the change ends`).toBe('1');
+    const asTaken = await cardsState(page);
+    expect([asTaken.card, asTaken.shown, asTaken.visibility, asTaken.rows.map((r) => r.text)], `${at}: landed on the taken card`).toEqual([1, 1, 'visible', groups[1].map((t) => t.replace(/:$/, ''))]);
+
+    // SHRUNK DURING A CHANGE: the change lands on a card that is still dealt, never on an empty one.
+    await write([...groups[0], '', ...groups[1]]);
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: taken again, Next only`).toBe(0);
+    await page.evaluate(async (list) => {
+      const w = window as unknown as { noacgDispatch(event: string): void; noacgCreditsTurning: boolean; noacgCreditsHeld: string; creditsDeal(): void };
+      w.noacgDispatch('nextCard');
+      await new Promise((r) => setTimeout(r, 150));
+      if (!w.noacgCreditsTurning) throw new Error('the change had not started');
+      w.noacgCreditsHeld = list;
+      w.creditsDeal();
+    }, groups[0].join('\n'));
+    await expect.poll(async () => (await cardsState(page)).opacity, `${at}: the change ends`).toBe('1');
     const landed = await cardsState(page);
     expect([landed.card, landed.shown, landed.visibility, landed.rows.map((r) => r.text)], `${at}: landed on a dealt card`).toEqual([0, 0, 'visible', groups[0].map((t) => t.replace(/:$/, ''))]);
 
-    // A DEAL WITHOUT AN UPDATE (as when the faces land and the cards are measured again): the
-    // only card holds with no timer; dealt again into several, it starts its hold and turns.
+    // A DEAL WITHOUT AN UPDATE: the only card holds with no timer; dealt again into several, it
+    // starts its hold and turns.
     await setTime('2');
     await page.waitForTimeout(2500);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: one card, no hold`).toEqual([0, false]);
-    await page.evaluate(({ field, list }) => {
-      document.getElementById(field)!.textContent = list;
-      (window as unknown as { creditsDeal(): void }).creditsDeal();
-    }, { field, list: list.join('\n') });
+    await redeal(list);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: dealt again, it turns`, timeout: 5000 }).toBe(1);
 
     // THE BOUND ON AIR: a Card time of 1 is held to 2 seconds.
