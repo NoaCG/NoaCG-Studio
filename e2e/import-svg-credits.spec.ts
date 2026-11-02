@@ -515,6 +515,12 @@ test('credits that can be styled can be kept as fixed artwork, and then the whol
   await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
   // Every role and name layer, the picked one included, scrolls as artwork.
   await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveText(Array(5).fill(/, scrolls as artwork$/));
+  // A pick that cannot be styled (the title) has no choice, and takes the answer with it.
+  await picker.selectOption(values[0]);
+  await expect(engine).toHaveCount(0);
+  await picker.selectOption(values[1]);
+  await expect(engine).toHaveValue('editable');
+  await engine.selectOption('artwork');
   await intoProduction(page, 'Research artwork', 'Research artwork night');
   await settleDurableWrites(page);
   // Nothing of the block is offered to type; the title drawn above stays the one text field.

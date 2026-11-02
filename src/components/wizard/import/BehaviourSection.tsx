@@ -167,7 +167,9 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
   const savedKey = saved ? `${savedFor} ${JSON.stringify(saved)}` : '';
   useEffect(() => {
-    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined });
+    // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork answer goes
+    // with it rather than coming back unseen on the next stylable pick.
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined }) });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
