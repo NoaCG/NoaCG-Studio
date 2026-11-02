@@ -43,7 +43,16 @@
   "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954."
  },
  "waitingOn": null,
- "inFlight": [],
+ "inFlight": [
+  {
+   "phase": "cf01",
+   "step": "build",
+   "session": "session_017SdbwN7t9AEigGsqEgFFGn",
+   "nonce": "cf01-b-258f",
+   "launchedAt": "2026-11-02T10:48:06Z",
+   "branch": "claude/plan-cicd-followup-cf01-build"
+  }
+ ],
  "owner": [],
  "fixes": [],
  "triggers": {
