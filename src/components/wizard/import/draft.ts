@@ -2178,8 +2178,11 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
       const was = /^#artwork-\d+$/.test(selector) ? priorDoc.querySelector(selector) : null;
       const art = artOf(doc);
       const key = was && priorArt.contains(was) ? sourceKey(was, priorArt) : null;
-      const twins = key && art ? Array.from(art.querySelectorAll('*')).filter((el) => sourceKey(el, art) === key) : [];
-      const carried = twins.length === 1 ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
+      const alike = (root: Element | null) => (key && root ? Array.from(root.querySelectorAll('*')).filter((el) => sourceKey(el, root) === key) : []);
+      // Verified only when the key occurs once on EACH side (R2): a twin in the earlier artwork
+      // may be the very layer the keys were on.
+      const twins = alike(art);
+      const carried = twins.length === 1 && alike(priorArt).length === 1 ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
       if (carried) template = carried;
       else {
         drop(selector);

@@ -165,6 +165,40 @@ test('a key on an edited artwork layer follows that layer; a changed layer leave
   expect(r.unresolved).toEqual([{ kind: 'key', label: 'Plate' }]);
 });
 
+test('an edited identity on one of two look-alike layers is not moved onto the survivor', async ({ page }) => {
+  await page.goto('/app');
+  // Two identical marks in two unnamed groups; version two drops the second.
+  const marks = (both: boolean) => V1.replace('</svg>', `  <g transform="translate(900 20)"><rect width="40" height="40" fill="#fff"/></g>\n${both ? '  <g transform="translate(960 20)"><rect width="40" height="40" fill="#fff"/></g>\n' : ''}</svg>`);
+  const r = await page.evaluate(async ([a, b]) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const A = await import('/src/blocks/animData.ts');
+    const { commitSvgIdentity } = await import('/src/blocks/svgIdentity.ts');
+    const { getTemplateParts } = await import('/src/model/structure.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const build = (markup: string) => {
+      const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      return buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Guest' }));
+    };
+    const baseline = build(a);
+    // Key the SECOND mark, the one version two removes.
+    const second = getTemplateParts(baseline.html, baseline.fields, true).filter((p) => /g:nth-of-type\(\d+\)>rect:nth-of-type\(1\)$/.test(p.selector)).pop()!;
+    const done = commitSvgIdentity(baseline, second.selector);
+    const data = A.parseAnimData(done.template.js)!;
+    data.steps[0].layers[done.selector] = { opacity: [{ time: 0, value: 0 }, { time: 0.4, value: 1 }] };
+    const prior = { ...done.template, js: A.spliceAnimData(done.template.js, data)! };
+    const out = D.svgReimported({ template: prior, baseline }, build(b))!;
+    return {
+      moved: new DOMParser().parseFromString(out.template.html, 'text/html').querySelector(done.selector) !== null,
+      unresolved: out.unresolved.map((u) => u.kind),
+    };
+  }, [marks(true), marks(false)]);
+  expect(r.moved).toBe(false);
+  expect(r.unresolved).toContain('key');
+});
+
 test('a behaviour keeps its fields and actions; dropping it names every action', async ({ page }) => {
   await page.goto('/app');
   const r = await page.evaluate(async (markup) => {
