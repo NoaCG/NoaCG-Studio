@@ -125,14 +125,15 @@ function CreditsListPreview({ stage, layers, creditsId, measured }: {
   measured: unknown;
 }) {
   const [swap, setSwap] = useState(false);
+  // The parent passes a fresh list every render; the ids are what the reading depends on.
+  const idKey = layers.map((c) => c.id).join('\n');
   const previews = useMemo(() => {
     const root = stage.current?.querySelector('svg');
     if (!root) return null;
-    const ids = layers.map((c) => c.id);
-    return [false, true].map((s) => creditsPreview(root, ids, creditsId, { swap: s }));
+    return [false, true].map((s) => creditsPreview(root, idKey.split('\n'), creditsId, { swap: s }));
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, layers, creditsId, measured]);
+  }, [stage, idKey, creditsId, measured]);
   if (!previews) return null;
   const read = previews[0];
   const ambiguous = read.styled && read.ambiguous;
@@ -1273,6 +1274,8 @@ export default function BehaviourSection({
               <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
               {generic.recipe === 'credits' && generic.fields?.credits && (
                 <CreditsListPreview
+                  // A choice belongs to the layer it was made for.
+                  key={generic.fields.credits}
                   stage={stageRef}
                   layers={textLayers}
                   creditsId={generic.fields.credits}

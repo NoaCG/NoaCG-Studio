@@ -952,15 +952,15 @@ export type CreditsPreview =
 export function creditsPreview(root: Element, candidateIds: readonly string[], creditsId: string, choice: CreditsChoice = {}): CreditsPreview {
   const all = readCreditsAnchors(root, candidateIds);
   const picked = all[candidateIds.indexOf(creditsId)];
-  const own = { styled: false as const, list: readCreditsList(creditsLayerText(root, creditsId)) };
-  if (!picked || picked.lines > 1) return own;
+  const own = (): CreditsPreview => ({ styled: false, list: readCreditsList(creditsLayerText(root, creditsId)) });
+  if (!picked || picked.lines > 1) return own();
   const ids = candidateIds.filter((_, i) => {
     const r = all[i];
     return r && r.y >= picked.y - 0.25 * Math.min(r.size, picked.size);
   });
   const readings = readCreditsAnchors(root, ids);
   const analysis = analyseCreditsStyle(readings, ids, choice);
-  if (!analysis.ok || !analysis.style.anchors.some((a) => a.candidateId === creditsId)) return own;
+  if (!analysis.ok || !analysis.style.anchors.some((a) => a.candidateId === creditsId)) return own();
   return {
     styled: true,
     layout: analysis.style.layout,
@@ -973,7 +973,7 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
 
 /** A text layer's drawn lines, one per baseline with section gaps as blank lines (the editable
  *  roll's sample reading), or its plain text where it draws no runs. */
-export function creditsLayerText(root: Element, candidateId: string): string {
+function creditsLayerText(root: Element, candidateId: string): string {
   const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
   const text = el?.closest('text') ?? el;
   if (!text) return '';
