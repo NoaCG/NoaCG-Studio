@@ -181,6 +181,9 @@ Mutations, each caught (job ids from this worker's queue):
 
 - A Card time of 0 or less on the production page means Next only, as blank does; the wizard
   brings a typed time into 2 to 60. Both are safe; neither changes a card faster than 2 s.
+- Updates while a face is still loading each ask for one more deal when it lands. Each gives the
+  same cards and keeps the hold rule, so the repeats are harmless (row 22's still page does the
+  same).
 - Where the dealing has nothing to measure (no window yet), the whole list is one card, fitted or
   refused by the still page's rule and reported as ever. Nothing is clipped.
 - On a playout road with no custom actions (SPX Continue), cards without a card time stay on the

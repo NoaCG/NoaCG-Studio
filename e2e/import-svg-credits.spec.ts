@@ -703,7 +703,14 @@ test('role-above credits chosen to play as cards change on Next card, and a card
   await expect(playback.locator('option')).toHaveText(['Roll', 'Hold still', 'Cards']);
   await playback.selectOption('cards');
   await expect(page.getByTestId('map-svg-credits-cards')).toHaveText('A blank line starts a new card. A card too long for the page is not shown, and its field says so.');
-  await expect(page.getByTestId('map-svg-credits-advance')).toHaveValue('');
+  // The seconds are held to 2-60 when they leave the box; blank is Next card.
+  const seconds = page.getByTestId('map-svg-credits-advance');
+  await expect(seconds).toHaveValue('');
+  for (const [typed, held] of [['1', '2'], ['120', '60'], ['', '']]) {
+    await seconds.fill(typed);
+    await seconds.blur();
+    await expect(seconds, `typed ${typed}`).toHaveValue(held);
+  }
   await expect(page.getByTestId('map-svg-credits-advance-hint')).toHaveText('Blank waits for Next card; playout systems without custom actions need a card time.');
   await intoProduction(page, 'Research cards', 'Research cards');
   await settleDurableWrites(page);
@@ -1237,6 +1244,15 @@ for (const layout of CARD_LAYOUTS) {
       (window as unknown as { creditsDeal(): void }).creditsDeal();
     }, { field, list: list.join('\n') });
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: dealt again, it turns`, timeout: 5000 }).toBe(1);
+
+    // THE BOUND ON AIR: a Card time of 1 is held to 2 seconds.
+    await setTime('1');
+    await write(list);
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: taken at 1 s`).toBe(0);
+    const fast = Date.now();
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: held to 2 s`, timeout: 5000 }).toBe(1);
+    expect(Date.now() - fast, `${at}: no faster than 2 s`).toBeGreaterThanOrEqual(1900);
   });
 }
 
