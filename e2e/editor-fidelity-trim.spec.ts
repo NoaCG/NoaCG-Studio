@@ -394,6 +394,7 @@ test('a nested imported field stays a field and an animation target, with its ti
   expect((await source(page)).fields).toEqual([{ ...saved.fields[0], value: 'Night report' }]);
   expect((await source(page)).js).toBe(saved.js);
   const edited = await source(page);
+  expect(await page.evaluate(html => new DOMParser().parseFromString(html, 'text/html').querySelector('#parent > #card > #f0')?.textContent, edited.html)).toBe('Night report');
   const expected = await page.evaluate(async () => {
     const { resolveValue } = await import('/src/blocks/animEval.ts'); const { parseAnimData } = await import('/src/blocks/animData.ts');
     const d = parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!;
