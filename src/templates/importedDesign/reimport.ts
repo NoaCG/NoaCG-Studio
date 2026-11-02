@@ -133,12 +133,16 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
   const matched = new Map<string, string>();
   const gone: string[] = [];
   const unresolved: ReimportItem[] = [];
+  const builtFieldIds = new Set(built.fields.map((f) => f.field));
+  // An id some other node of the new markup already holds (a designer layer named `f1` that the
+  // build left alone) cannot be given back: two nodes would answer `#f1`.
+  const heldElsewhere = (id: string) => !builtFieldIds.has(id) && new RegExp(`\\sid\\s*=\\s*["']${id}["']`).test(built.html);
   for (const f of prior.fields) {
     const k = before.get(f.field)!;
     const n = nAfter.get(k) ?? 0;
     // The match must also be one of the new build's FIELDS: a layer the new walk left unbound is
     // not where the earlier field went.
-    if (n === 1 && nBefore.get(k) === 1 && byKey.has(k)) {
+    if (n === 1 && nBefore.get(k) === 1 && byKey.has(k) && !heldElsewhere(f.field)) {
       matched.set(f.field, byKey.get(k)!);
       continue;
     }

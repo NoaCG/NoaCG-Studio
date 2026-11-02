@@ -199,6 +199,31 @@ test('an edited identity on one of two look-alike layers is not moved onto the s
   expect(r.unresolved).toContain('key');
 });
 
+test('an earlier id another node of the new artwork holds is not given back', async ({ page }) => {
+  await page.goto('/app');
+  // Version two drops the name, so the role builds as f0 and would take back f1, but a
+  // designer's rectangle in version two is already called f1.
+  const b = V3.replace(/\s*<text[^>]*id="name">Guest name<\/text>/, '').replace('</svg>', '  <rect id="f1" x="1200" y="10" width="20" height="20" fill="#fff"/>\n</svg>');
+  const r = await page.evaluate(async ([first, second]) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const build = (markup: string) => {
+      const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      return buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Guest' }));
+    };
+    const prior = build(first);
+    const out = D.svgReimported({ template: prior, baseline: prior }, build(second))!;
+    const doc = new DOMParser().parseFromString(out.template.html, 'text/html');
+    return { prior: prior.fields.map((f) => `${f.field} ${f.title}`), unresolved: out.unresolved, f1Nodes: doc.querySelectorAll('[id="f1"]').length };
+  }, [V1, b.replace(/\s*<text[^>]*id="role">Guest role<\/text>/, '').replace('</svg>', '  <text x="70" y="166" font-size="22" id="role">Guest role</text>\n</svg>')]);
+  expect(r.prior).toEqual(['f0 name', 'f1 role']);
+  expect(r.unresolved).toEqual([{ kind: 'removed', label: 'name' }, { kind: 'ambiguous', label: 'role' }]);
+  expect(r.f1Nodes).toBeLessThanOrEqual(1);
+});
+
 test('a removed field never lands on its unbound look-alike', async ({ page }) => {
   await page.goto('/app');
   // Two identical captions in two unnamed groups; only the first is a field. Version two deletes
