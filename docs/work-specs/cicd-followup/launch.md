@@ -21,6 +21,10 @@ open alarm and incident issues each week as backup coverage.
 
 - cf18(c): re-qualification stops waiting after two audit restarts caused by selection misses after cf11's final selector
   change, or on 2026-12-31, and is then recorded as not met without relaxing any criterion.
+- cf17: if no three-plan cohort can run, the trial is recorded as not run 7 days after the owner is
+  asked; permanent three-plan concurrency stays off.
+- Dated extensions: at most 14 days past the original date, once per item; any further extension
+  needs the owner's approval on the item's issue.
 
 ## Owner instructions, verbatim
 

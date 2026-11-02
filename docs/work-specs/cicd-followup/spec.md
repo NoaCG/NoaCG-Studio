@@ -38,7 +38,8 @@ suite is not assumed to speed up merging.
   cf05: the repair dates cf01(c) records for #1924 and #1603; cf08: #1954, 2026-11-14; cf14: #1863,
   2026-11-30). If a dated phase
   cannot PASS by its date, the coordinator records a dated extension under the incident or
-  exception policy before the date passes, never after.
+  exception policy, of at most 14 days past the original date and once per item (any further
+  extension needs the owner's approval on the item's issue), before the date passes, never after.
 - Execution order is the numbered `## Phases` list; phase ids are names, not positions.
 
 ## Measurement contract (used by cf03, cf13 and cf20)
@@ -86,11 +87,14 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   (b) An alarm or incident notification, raised by the live routing (a deliberately triggered test
   alarm counts), is observed reaching `miwco`, with its receipt. The alarm is raised by the workflow's own token
   (not `miwco`'s), and the receipt is either the notification thread in `miwco`'s GitHub
-  notifications or the owner's confirmation on #1951; #1951 closes only after that.
+  notifications or the owner's confirmation on #1951; #1951 closes only after that. The coordinator asks the owner for the receipt on #1951 in the
+  same turn the test alarm is raised.
   (c) Before cf01 closes, each quarantined spec in `e2e/quarantine.json` has one open incident
   issue carrying owner, impact, repair date and restoration criteria, coordinated with its existing
   owner. Issues that overlap #1924, #1946, #1603, #1778, #1805, #1874 or #1954 are merged or cross-linked
-  so each spec has exactly one tracking issue.
+  so each spec has exactly one tracking issue. Each incident issue records whether the spec is a
+  critical test and how many merge failures it caused; a critical spec's repair date is no later
+  than any non-critical one's.
 - **cf02.** (a) `.agent-workflows/plan-run.md` says to archive a phase's builder, repairer,
   checker, diagnose and review sessions once its result and required handoff evidence are
   recorded, without disrupting active work (on main since 78c1cd8); the checker confirms the text
@@ -185,7 +189,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   and M3 on comparable changes, with sample sizes stated and at least the sample size cf03 judged
   sufficient, show M1 median or p95 lower or M3 lower beyond cf03's measured run-to-run spread, with
   no regression in M2 waiting time, M2 execution time or M4. The before side of each comparison is
-  the merges after the last earlier phase that changed CI landed and before the candidate lands;
+  the merges after the last earlier landing that changed CI (this run's or any other: workflows, e2e selection
+  or quarantine scripts, `covers` metadata) landed and before the candidate lands;
   cf03's baseline is not the before side. If no candidate improves beyond that spread, the phase records the result,
   reverts or keeps the change on cost grounds with its reason, and moves to the next ranked
   candidate. Candidates are tried in ranked order, at most three; untried candidates go to cf20(c)
@@ -207,8 +212,13 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   both ways. (c) A recommendation: adopt that model, or keep full pre-merge coverage and optimize
   its execution. Full pre-merge testing stays until cf18 qualifies. (d) This phase changes no
   coverage. Its recommendation is re-read against cf18's result before cf19 acts on it.
-- **cf17.** (a) Success criteria, stop thresholds for contention and failure rate, and a resource
-  and spend ceiling within existing capacity and budget constraints are written before execution. (b)
+- **cf17.** (a) Before execution, the brief names the three plans and their work, each already
+  authorized in `plan-run.md`'s Runnable plans, together with the success criteria, the stop
+  thresholds for contention and failure rate, and a resource and spend ceiling within existing
+  capacity and budget constraints. If fewer than three such plans can run when cf17 starts, the
+  coordinator asks the owner once on the run issue, recommending a cohort. If no cohort is
+  authorized within 7 days, the phase records the trial as not run, with the reason, and PASSES;
+  permanent three-plan concurrency stays off, and cf20(b) reports decision E as open. (b)
   One bounded three-plan trial measures completed work per unit time, queue delay, contention,
   retries and CI cost, and stops if contention or failure rates cross the thresholds written in (a). (c) Permanent
   three-plan concurrency is enabled only if the trial meets the success criteria written in (a).
