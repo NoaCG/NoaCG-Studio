@@ -67,12 +67,25 @@ Observable lines; the two journeys in `e2e/editor-fidelity-trim.spec.ts` check e
     leaves the JS and fields alone. After save and reload the rows and source are unchanged. In
     the self-contained graphic, `update()` writes 3 into `#Row_x20_1 > #f2`; `score1` with 4
     makes it 4 and paints team 1's flash and no other; `#f2` stands 12 artwork units from where
-    it was drawn before and after the paint.
+    it was drawn before and after the paint. The key is refused again after reopen, with the
+    reason in the Inspector and the JS unchanged.
 - `docs/work-specs/jev-svg-import/evidence/phase-26.md`: this file.
+
+## Review rounds
+
+- `/check` on `9f368cf`: inline review, one finding fixed (the text editor's write is read off
+  the nested node itself); simplify inline, no change.
+- PR review bot on `9f368cf` (PR opened): no findings.
+- `/so` on `9f368cf` (`session_017SdbwN3jrZR6xrjnioAFFT`, read-only): AGREE WITH CORRECTIONS,
+  grade A-. Point 1, the behaviour-graphic key limit, is a documented safe limit assigned to row
+  39 through #1982. Point 2, class faulty test expectation (family P2): the refusal was checked
+  only before save. Fixed: the second test now retries the key after reopen and reads the
+  Inspector's reason.
 
 ## Verification on this worker
 
-- `e2e/editor-fidelity-trim.spec.ts` whole: 13/13 through the queue (j-0009).
+- `e2e/editor-fidelity-trim.spec.ts` whole: 13/13 through the queue (j-0009, j-0010, and j-0011
+  after the review fix).
 - The two new tests: 2/2 (j-0006, j-0007). Earlier runs failed on test faults, not product ones:
   Position X shows base plus key (98, not 40); Apply text updates the field's value; `score1`
   takes the adjusted value as its payload, as the production page sends it; gsap's `x` on an SVG

@@ -434,11 +434,11 @@ test('a nested field on a behaviour graphic keeps its field and its placement, a
   const rows = await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector')));
   expect(rows).toEqual(expect.arrayContaining(['#Row_x20_1', '#f1', '#f2']));
   for (const look of looks) expect(rows).not.toContain(look);
-  const refused = await page.evaluate(async () => {
+  const refuseKey = () => page.evaluate(async () => {
     const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'animation.key', selector: '#f2', step: 0, property: 'x', time: .4, value: 20, action: 'set' }] }); return ''; } catch (e) { return String(e); }
   });
-  expect(refused).toContain('state-machine ownership');
+  expect(await refuseKey()).toContain('state-machine ownership');
   expect(await source(page)).toEqual(prepared);
   await select(page, '#f2');
   await expect(page.getByText(/state-machine ownership/)).toBeVisible();
@@ -454,6 +454,8 @@ test('a nested field on a behaviour graphic keeps its field and its placement, a
   for (const ext of ['html', 'css', 'js'] as const) expect(reopened[ext]).toBe(saved[ext]);
   expect(reopened.fields).toEqual(prepared.fields);
   expect((await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector'))))).toEqual(rows);
+  expect(await refuseKey()).toContain('state-machine ownership'); expect((await source(page)).js).toBe(saved.js);
+  await select(page, '#f2'); await expect(page.getByText(/state-machine ownership/)).toBeVisible();
   const compose = (template: typeof prepared) => page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), template);
   const output = await page.context().newPage();
   // Where #f2 stands in artwork units, read through the artwork's own scale.
