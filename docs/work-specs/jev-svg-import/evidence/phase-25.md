@@ -125,9 +125,10 @@ Each applied to the source on this worker, run, and restored (tree clean after e
 
 - `node --test scripts/sheet-source.test.mjs`: 44 pass, the probe skipped by default.
   `scripts/data-tick.test.mjs`: 14/14. The probe: above.
-- Browser, through the job queue: `e2e/imported-text-live-data.spec.ts` 2/2,
-  `e2e/imported-credits-live-data.spec.ts` 7/7 (j-0013), `e2e/ticker-linked-update.spec.ts` 6/6
-  over two repeats (j-0015) after the review fixes; the flip test alone 3/3 (j-0011).
+- Browser, through the job queue, on the final code: `e2e/imported-text-live-data.spec.ts` 2/2,
+  `e2e/imported-credits-live-data.spec.ts` 7/7 and `e2e/ticker-linked-update.spec.ts` 3/3 in one
+  run (j-0017). Before the simplify pass: the ticker spec 6/6 over two repeats (j-0015), the flip
+  test alone 3/3 (j-0011).
 - `npm run gates -- run --changed origin/main`: pass. `node scripts/check-e2e-protection.mjs
   --changed origin/main`: OK. `npx tsc --noEmit -p .` and `npx eslint` on the changed files: pass.
 - `e2e/configured/production-data-key-tick.spec.ts` needs the configured stack: it runs in this
@@ -145,6 +146,20 @@ Each applied to the source on this worker, run, and restored (tree clean after e
     window, not the whole history; the two live-data specs use the fixture's `csvOf`.
   - Kept: the connect steps repeated in four specs, and the failure table in two. A shared helper
     would be a new file outside this row's files; each copy is a few lines.
+- `/simplify` (delegated, three reviewers: reuse, simplification, efficiency and altitude):
+  - Applied: the fixture answers its canned failures from one table and drops two unused returns;
+    it owns the page's Sheet route (`route(context)`, which also covers the published address), the
+    page failure table and the model-request pattern, so the four specs stop copying them; the
+    frame recorder reads opacity only for the flip; the configured tick test reads a tick's outcome
+    through one helper and types its failure table; the Node tick test iterates its three kinds and
+    holds the page as one flag; the Node walk waits for three reads instead of a sleep.
+  - Skipped: a shared connect helper (a new file outside the row); building the HTTP reader on the
+    fake-clock `tab()` helper and the HTTP tick on `world()` (each would bend a helper the older
+    tests rely on); the probe reusing `production-page-keys.mjs`'s sign-in (not exported, outside
+    the row); `serializeCsv` for the fixture (it writes CRLF and would bring a `src` import into a
+    fixture the tick test loads without the TypeScript loader); moving the configured spec's first
+    test onto the fake (that test is unchanged on purpose); the fixed observation windows in the
+    ticker spec (they are how long the strip is watched, not waits for a state).
 - Two checks added in that round met the browser's own timing: the marquee was judged during its
   entrance (it now waits until it travels), and a late frame split one flip turn in two (a turn
   now ends on a blank or another story, never on time).
