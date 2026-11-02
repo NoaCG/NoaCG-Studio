@@ -173,8 +173,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   selector corrections, including cf12's change to selection, land before or with this phase's
   final selector change, and the audit reset is recorded there. Any later phase that changes
   selection states in its PR that it restarts the audit, and cf18's earliest date moves with it.
-- **cf12.** (a) The ten critical tests run on every product change while their measured added
-  minutes per product change, from cf03's M3, stay under a ceiling written in the phase brief
+- **cf12.** (a) The ten critical tests run on every product change while their added
+  minutes per product change, measured on product changes after enabling, stay under a ceiling written in the phase brief
   before the change lands, stated as a share of cf03's median M3 per merge with the reason and not above 5% unless the owner
   approves a higher share, without running the same tests twice in one validation pipeline. If the measured added minutes exceed the ceiling, the tests are not
   enabled on every product change, the measurement is recorded, and the owner is told in the phase
@@ -184,7 +184,9 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 - **cf13.** (a) At least one optimization chosen from the cf03 ranking lands. Before and after M1
   and M3 on comparable changes, with sample sizes stated and at least the sample size cf03 judged
   sufficient, show M1 median or p95 lower or M3 lower beyond cf03's measured run-to-run spread, with
-  no regression in M2 waiting time, M2 execution time or M4. If no candidate improves beyond that spread, the phase records the result,
+  no regression in M2 waiting time, M2 execution time or M4. The before side of each comparison is
+  the merges after the last earlier phase that changed CI landed and before the candidate lands;
+  cf03's baseline is not the before side. If no candidate improves beyond that spread, the phase records the result,
   reverts or keeps the change on cost grounds with its reason, and moves to the next ranked
   candidate. Candidates are tried in ranked order, at most three; untried candidates go to cf20(c)
   as measured next steps. It does not PASS on landing alone. If every tried candidate (at most three) has failed to show an
@@ -196,7 +198,7 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   reason is recorded, a short dated extension is recorded with current cost evidence, an owner and
   a concrete reduction plan (no automatic or indefinite renewal). Coverage is not weakened to meet a
   limit.
-- **cf15.** (a) The documentation-only follow-ups (#1914, #1920, #1928, #1932, #1939, #1949, #1849,
+- **cf15.** (a) The documentation-only follow-ups (#1914, #1920 (its documentation part; the full-shard figure is cf18's), #1928, #1932, #1939, #1949, #1849,
   plus any documentation-only remainder of #1945 and #1953) are completed in one cleanup PR; behaviour changes are left to their implementation phase.
 - **cf16.** (a) Whether merge-queue validation already gives equivalent evidence for each exact
   merged revision is established. (b) Total CI cost and capacity are estimated for full validation
@@ -227,7 +229,7 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   outcome with full pre-merge protection retained.
 - **cf20.** (a) Before and after merge turnaround and CI cost with sample sizes, using cf03's
   comparability rule and spread; change in flaky
-  failures and reruns. (b) Which cicd-improvement and cicd-followup criteria now pass and which
+  failures and reruns (M4) with sample sizes. (b) Which cicd-improvement and cicd-followup criteria now pass and which
   stay open. (c) The next highest-impact optimization supported by measurements.
 
 ## Environment
