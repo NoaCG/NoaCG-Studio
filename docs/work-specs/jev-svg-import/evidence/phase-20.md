@@ -44,8 +44,8 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
     what any credits page draws (the air between groups is wider than the step from a role to
     its first name) AND a layer in the block's other look is drawn above it. Then the reading is
     taken from the nearest such layer, and kept only where the picked layer reads as a name of
-    that role. Otherwise the preview falls back and says to pick the role above. With nothing
-    drawn above, row 19's reading stands, however the page is spaced.
+    that role. Otherwise the picked layer's own reading stands, as on `main`, however the page is
+    spaced.
     Nothing is inferred from runs of one look, since a role with no names also makes them.
   - `ambiguous` is true wherever a line holds a role and a name, whether or not the drawn
     reading of the picked block works. A title above does not hide it. Every preview, styled or
@@ -102,7 +102,7 @@ Mutations, each caught:
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
   worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
-  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, and j-0014 on the final code). Mutation runs j-0003 and j-0006
+  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, j-0014, and j-0015 on the final code). Mutation runs j-0003 and j-0006
   above. `check-e2e-protection --changed origin/main`: OK.
 - Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
   the Roles question (Left) and the two columns showed, with no console errors.
@@ -168,6 +168,19 @@ Mutations, each caught:
     drawing (a recorded decision).
   - It found row 19's first-role picks identical to `main` on every drawing in the tests and on
     credits-1 to 3, and the owner's names-left walk correct.
+- Codex on `34a0fda` (P2, product defect, same family): on an evenly spaced page, a middle role
+  picked fell back to artwork. The picked layer's own reading now stands unless the wider
+  reading proves it a name (test: `Sound` on a three-group even page reads
+  `Sound: Ari Moss / Editor: Sol Reed`).
+- `/so` on `34a0fda` (session `session_017SdbwQpVDVFtT7Ej3AfYgn`, AGREE WITH CORRECTIONS, B+):
+  - Blocking: a title in the names' look above evenly spaced (or tighter, or centred) role-above
+    credits made the first role fall back. Its probe compared main and head on 566 picks over
+    133 drawings. Same root cause as the Codex finding above, fixed by the same change: the
+    picked layer's own reading stands unless the wider reading proves it a name. Its four
+    drawings are now tests, and every role pick in them reads as on `main`.
+  - Non-blocking: the fixed-artwork departure (#1958), and the documented limits below.
+  - It found role beside, the column answer, the names-left drawing, headings beside, overflow
+    and name picks correct. Every role pick with nothing drawn above it matched `main`.
 - **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
   picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
   the rule model was rewritten (What changed, `creditsPreview`):
@@ -217,11 +230,10 @@ Mutations, each caught:
 
 - Picking a role or name below the first group lists from that group down (phase 18's limit,
   now also for names). The author picks the first role, or a name on its line; the e2e does.
-- Role above: a name picked where the reading from it still keeps the group-air rule (for
-  example a single group with even steps) reads as a role, as on `main`. On a page drawn with no
-  more air between groups than between a role and its name, a name picked falls back and asks
-  for the role above. The first role picked reads as on `main`. The preview shows each case, and
-  the author picks the first role.
+- Role above: a name picked reads as a role, as on `main`, where nothing proves otherwise. That
+  covers a reading that keeps the group-air rule (for example a single group with even steps),
+  and a page drawn with no more air between groups than between a role and its name. Any role
+  picked reads as on `main`. The preview shows each case, and the author picks the first role.
 - Role above: picking a last role that has no names (Director with names, then Producer alone)
   reads the name above it as a role and Producer as its name. The preview shows it, and the
   advice to pick the first role covers it.

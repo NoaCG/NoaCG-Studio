@@ -1523,8 +1523,8 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     // breaks what any credits page draws (the air between groups is wider than the step from a
     // role to its first name) AND a layer in the block's other look is drawn above it. Then the
     // reading is taken from that layer, and kept only where the picked layer is a name of that
-    // role; otherwise the preview says to pick the role above. Nothing is inferred from runs of
-    // one look, which a role with no names also makes.
+    // role; otherwise the picked layer's own reading stands, as the preview shows. Nothing is
+    // inferred from runs of one look, which a role with no names also makes.
     const sound = (x: CreditsAnalysis) =>
       x.ok && !(x.style.steps.roleToName !== undefined && x.style.steps.groupGap !== undefined && x.style.steps.roleToName >= x.style.steps.groupGap);
     const block = from(picked);
@@ -1539,8 +1539,6 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
       const wider = analyse(from(role));
       if (sound(wider) && wider.ok && wider.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name') {
         analysis = wider;
-      } else if (analysis.ok) {
-        return own('This layer reads as a name: pick the role drawn above it.');
       }
     }
   }
