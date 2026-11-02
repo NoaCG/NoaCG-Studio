@@ -41,10 +41,11 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
     other column's look. A role picked starts its block; a name picked reads from its own role,
     the nearest layer at or above it in the role look.
   - ROLE ABOVE: the picked layer is the first role, as row 19 read it, unless that reading breaks
-    what any credits page draws: the air between groups is wider than the step from a role to
-    its first name. A reading that breaks this rule, or that does not read at all, is taken from
-    the nearest layer above in the other look. It is kept only where the picked layer then reads
-    as a name of that role. Otherwise the preview falls back and says to pick the role above.
+    what any credits page draws (the air between groups is wider than the step from a role to
+    its first name) AND a layer in the block's other look is drawn above it. Then the reading is
+    taken from the nearest such layer, and kept only where the picked layer reads as a name of
+    that role. Otherwise the preview falls back and says to pick the role above. With nothing
+    drawn above, row 19's reading stands, however the page is spaced.
     Nothing is inferred from runs of one look, since a role with no names also makes them.
   - `ambiguous` is true wherever a line holds a role and a name, whether or not the drawn
     reading of the picked block works. A title above does not hide it. Every preview, styled or
@@ -101,7 +102,7 @@ Mutations, each caught:
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
   worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
-  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, and j-0013 on the final code). Mutation runs j-0003 and j-0006
+  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, and j-0014 on the final code). Mutation runs j-0003 and j-0006
   above. `check-e2e-protection --changed origin/main`: OK.
 - Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
   the Roles question (Left) and the two columns showed, with no console errors.
@@ -155,6 +156,18 @@ Mutations, each caught:
   - Non-blocking: the fixed-artwork departure (#1958), and the two documented limits below.
   - It confirmed role beside correct in every case it tried, and row 19's first-role picks equal
     to main's on every existing drawing.
+- `/so` on `b421bed` (session `session_017SdbwQ3Du2fNpG6cZ977N4`, AGREE WITH CORRECTIONS, B+):
+  - Blocking: evenly spaced role-above credits (or tighter between groups than from a role to its
+    name) fell back on the first-role pick, where `main` styled them. Fixed: the group-air rule
+    only acts where a layer in the block's other look is drawn above the pick (tests: the even
+    and tight drawings read as on `main`).
+  - Non-blocking, documented in Known limits: a two-look title line above role-above credits
+    asks the column question (the default answer is correct); a last role with no names picked
+    reads with its kinds reversed in the preview.
+  - Non-blocking: the fixed-artwork departure (#1958), and the question on every role-beside
+    drawing (a recorded decision).
+  - It found row 19's first-role picks identical to `main` on every drawing in the tests and on
+    credits-1 to 3, and the owner's names-left walk correct.
 - **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
   picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
   the rule model was rewritten (What changed, `creditsPreview`):
@@ -205,9 +218,17 @@ Mutations, each caught:
 - Picking a role or name below the first group lists from that group down (phase 18's limit,
   now also for names). The author picks the first role, or a name on its line; the e2e does.
 - Role above: a name picked where the reading from it still keeps the group-air rule (for
-  example a single group with even steps) reads as a role, as on `main`. The preview shows this,
-  and the author picks the first role. A page drawn with less air between groups than between
-  a role and its name reads only from its first role.
+  example a single group with even steps) reads as a role, as on `main`. On a page drawn with no
+  more air between groups than between a role and its name, a name picked falls back and asks
+  for the role above. The first role picked reads as on `main`. The preview shows each case, and
+  the author picks the first role.
+- Role above: picking a last role that has no names (Director with names, then Producer alone)
+  reads the name above it as a role and Producer as its name. The preview shows it, and the
+  advice to pick the first role covers it.
+- A title line holding one layer in each look (for example "CREDITS" in the role look beside
+  "2026" in the name look) above role-above credits makes the column question appear. The
+  preselected answer keeps row 19's reading; the other answer falls back. The question stays
+  safe because its default is correct.
 - No deliberate fixed-artwork choice for credits that can be styled (Decisions; #1958, P2). A
   drawing that cannot be styled still saves the original-text roll, as before.
 - The Behaviour summary still says the original artwork scrolls. That is the recipe's own line

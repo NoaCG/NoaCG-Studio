@@ -1520,20 +1520,24 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     analysis = analyse(from(ownRole));
   } else {
     // ROLE ABOVE: the picked layer is the first role, as row 19 read it, unless that reading
-    // breaks what any credits page draws: the air between groups is wider than the step from a
-    // role to its first name. A reading that breaks it, or does not read at all, is taken from
-    // the nearest layer above in the other look, and kept only where the picked layer is then
-    // a name of that role. Nothing is inferred from runs of one look, which a role with no
-    // names also makes.
+    // breaks what any credits page draws (the air between groups is wider than the step from a
+    // role to its first name) AND a layer in the block's other look is drawn above it. Then the
+    // reading is taken from that layer, and kept only where the picked layer is a name of that
+    // role; otherwise the preview says to pick the role above. Nothing is inferred from runs of
+    // one look, which a role with no names also makes.
     const sound = (x: CreditsAnalysis) =>
       x.ok && !(x.style.steps.roleToName !== undefined && x.style.steps.groupGap !== undefined && x.style.steps.roleToName >= x.style.steps.groupGap);
-    analysis = analyse(from(picked));
-    if (!sound(analysis)) {
-      const role = all
-        .filter((r): r is CreditsReading => !!r && r.look !== picked.look && down(r) < down(picked) && !near(r, picked))
-        .sort((p, q) => down(q) - down(p))[0];
-      const wider = role ? analyse(from(role)) : null;
-      if (wider && sound(wider) && wider.ok && wider.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name') {
+    const block = from(picked);
+    analysis = analyse(block);
+    // Only a layer in the block's other look can be the picked layer's role; with none above,
+    // the picked layer is the top of the credits and row 19's reading stands.
+    const blockLooks = new Set(block.readings.map((r) => r.look));
+    const role = sound(analysis) ? undefined : all
+      .filter((r): r is CreditsReading => !!r && r.look !== picked.look && blockLooks.has(r.look) && down(r) < down(picked) && !near(r, picked))
+      .sort((p, q) => down(q) - down(p))[0];
+    if (role) {
+      const wider = analyse(from(role));
+      if (sound(wider) && wider.ok && wider.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name') {
         analysis = wider;
       } else if (analysis.ok) {
         return own('This layer reads as a name: pick the role drawn above it.');
