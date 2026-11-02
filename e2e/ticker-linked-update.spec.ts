@@ -11,7 +11,9 @@
 // track's x, its one-set width, the items and which are showing), and the samples are judged here:
 //
 //  - MARQUEE (News Strip, tk01): messages replaced, reordered and deleted while moving, a
-//    speed-only change, empty then filled again, Pause then Resume, and the page reopened. The
+//    speed-only change, empty then filled again, Pause then Resume, and the page reopened (it
+//    catches up with the Sheet before anything airs, since an unpublished production's air ends
+//    with its page, and the next Take airs the newest lines). The
 //    strip is never blank for a nonempty list, it never skips ahead faster than its pace, and it
 //    moves back only by whole set widths (the seamless loop point, and the handover onto the new
 //    track at the same offset into a set). The speed change keeps the items' nodes and changes
@@ -196,7 +198,7 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
   expect(await plays(page), 'filled again without a Take').toBe('1');
 });
 
-test('a linked marquee holds through Pause, takes the newest lines on Resume, and a reopened page carries on updating without a replay', async ({ page }) => {
+test('a linked marquee holds through Pause, takes the newest lines on Resume, and a reopened page catches up and carries on updating without a replay', async ({ page }) => {
   test.setTimeout(120_000);
   const SHEET = '1NoaCGMarqueeReopen000000';
   const air = await linkedTicker(page, server, SHEET, 'News Strip', lines('Polls close at 20:00', 'Turnout 61%'));
@@ -214,11 +216,28 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   judgeMarquee(await samples(air, resumed), PACE, 'resume');
   expect(await plays(page)).toBe('1');
 
-  // REOPEN: the page comes back with the strip on air, reads the Sheet again, and a change after
-  // that reaches the running strip without another entrance.
-  await page.reload();
+  // REOPEN: the page closed (an unpublished production's air is this page's own, so it ends with
+  // the page), the Sheet changed meanwhile. Opened again, the reader reconnects and catches up
+  // before anything airs; the Take airs the newest lines once, and a change after that reaches the
+  // running strip without another entrance.
+  const url = page.url();
+  await page.goto('about:blank');
+  server.set(SHEET, lines('Results from 22:00', 'Turnout 63%'));
+  await page.goto(url);
+  await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 20_000 });
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Results from 22:00\nTurnout 63%', { timeout: 20_000 });
+  await page.getByTestId('verb-take').click();
   const again = page.frameLocator('[data-testid="program-stage"] iframe');
-  await expect(again.locator('#ticker-track .ticker-item').first()).toBeAttached({ timeout: 20_000 });
+  await itemsBecome(again, ['Results from 22:00', 'Turnout 63%'], 'the reopened page airs the newest lines');
+  await expect(page.getByTestId('program-stage')).toHaveAttribute('data-plays', '1');
+  await page.waitForTimeout(500);
+  const changed = await record(again);
+  server.set(SHEET, lines('Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'));
+  await itemsBecome(again, ['Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'], 'reopened page reads');
+  await page.waitForTimeout(1500);
+  judgeMarquee(await samples(again, changed), PACE, 'reopened');
+  expect(await plays(page), 'no entrance replayed after reopening').toBe('1');
+});
   await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 20_000 });
   const opened = await plays(page);
   const reopened = await record(again);
@@ -278,6 +297,7 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
     ['reorder', ['Story five', 'Story two', 'Story four']],
     ['delete', ['Story five', 'Story four']],
   ];
+  let previous = first;
   for (const [what, items] of steps) {
     const from = await record(air);
     server.set(SHEET, lines(...items));
@@ -297,13 +317,21 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
     if (onScreen) {
       expect(onScreen.to - onScreen.from, `${what}: the story on screen kept its turn`).toBeGreaterThan(turnMs - 120);
     }
-    const after = seen.filter((x) => x.from > landed);
+    let after = seen.filter((x) => x.from > landed);
+    // A story still flipping in when the edit landed had begun its turn: it plays the whole turn
+    // and the new list starts after it.
+    if (after[0] && !items.includes(after[0].text)) {
+      expect(previous, `${what}: a story finishing its turn is from the list before`).toContain(after[0].text);
+      expect(after[0].to - after[0].from, `${what}: and keeps its whole turn`).toBeGreaterThan(turnMs - 120);
+      after = after.slice(1);
+    }
     expect(after.length, `${what}: the new list started at the boundary`).toBeGreaterThan(0);
     expect(items, `${what}: what came next is the new list`).toContain(after[0].text);
     for (let i = 1; i < seen.length; i++) expect(seen[i].text, `${what}: no story twice in a row`).not.toBe(seen[i - 1].text);
     expect(seen.some((x) => x.text === '<two>'), `${what}: never two stories at once`).toBe(false);
     expect(longestBlank(run), `${what}: no blank longer than the flip's own`).toBeLessThanOrEqual(ownGap + 120);
     expect(await plays(page), `${what}: no entrance replayed`).toBe('1');
+    previous = items;
   }
 
   // EMPTY clears on purpose; FILLED AGAIN the stories come back without a Take.
