@@ -57,13 +57,17 @@ async function linkedTicker(page: Page, server: Server, sheet: string, design: s
   return air;
 }
 
-/** Start recording the strip on every frame; `marked` tags the first item node so a re-render shows. */
-async function record(air: FrameLocator) {
-  await air.locator('#ticker-track').evaluate((track) => {
+/**
+ * Record the strip on every frame from now on (once per document), and answer the frame clock's
+ * time now: `samples(air, since)` reads the frames after it. `mark` says whether the first item
+ * node is one `markFirstItem` tagged, so a re-render of the items shows.
+ */
+async function record(air: FrameLocator): Promise<number> {
+  return air.locator('#ticker-track').evaluate((track) => {
     const w = window as unknown as { gsap: { getProperty(t: Element, p: string): number }; __rec: Sample[]; __recOn: boolean };
-    w.__rec = [];
-    if (w.__recOn) return;
+    if (w.__recOn) return performance.now();
     w.__recOn = true;
+    w.__rec = [];
     const frame = () => {
       const items = Array.from(track.querySelectorAll('.ticker-item')) as HTMLElement[];
       w.__rec.push({
@@ -78,10 +82,12 @@ async function record(air: FrameLocator) {
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
+    return performance.now();
   });
 }
 
-const samples = (air: FrameLocator) => air.locator('body').evaluate(() => (window as unknown as { __rec: Sample[] }).__rec.slice());
+const samples = (air: FrameLocator, since = 0) =>
+  air.locator('body').evaluate((_, from) => (window as unknown as { __rec: Sample[] }).__rec.filter((s) => s.t >= from), since);
 const markFirstItem = (air: FrameLocator) => air.locator('#ticker-track .ticker-item').first().evaluate((el) => { (el as unknown as { __mark: boolean }).__mark = true; });
 const plays = (page: Page) => page.getByTestId('program-stage').getAttribute('data-plays');
 
@@ -151,11 +157,11 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
     ['delete', ['Results from 22:00', 'Turnout 64%']],
   ];
   for (const [what, items] of steps) {
-    await record(air);
+    const from = await record(air);
     server.set(SHEET, lines(...items));
     await itemsBecome(air, items, `${what} reached the strip`);
     await page.waitForTimeout(1500);
-    judgeMarquee(await samples(air), PACE, what);
+    judgeMarquee(await samples(air, from), PACE, what);
     expect(await plays(page), `${what}: no entrance replayed`).toBe('1');
   }
 
@@ -163,14 +169,14 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
   // again (the marked node stays) and the pace doubles from that frame, without a jump.
   await page.waitForTimeout(1000);
   await markFirstItem(air);
-  await record(air);
+  const marked = await record(air);
   await page.waitForTimeout(1500);
-  const slow = await samples(air);
+  const slow = await samples(air, marked);
   await page.getByTestId('cue-field-f2').fill('200');
   await page.getByTestId('verb-update').click();
   await expect.poll(async () => paceOf((await samples(air)).slice(-30)), { timeout: 10_000, message: 'the pace changed' }).toBeGreaterThan(PACE * 1.6);
   await page.waitForTimeout(1500);
-  const all = await samples(air);
+  const all = await samples(air, marked);
   judgeMarquee(all, PACE * 2, 'speed only');
   expect(all.every((s) => s.mark), 'speed only: the items were not rendered again').toBe(true);
   const fast = all.slice(-40);
@@ -181,13 +187,12 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
   // EMPTY clears the strip on purpose; FILLED AGAIN it moves without a Take.
   server.set(SHEET, '');
   await expect(air.locator('#ticker-track .ticker-item')).toHaveCount(0, { timeout: 20_000 });
-  await record(air);
   server.set(SHEET, lines('Back on air', 'Turnout 66%'));
   await itemsBecome(air, ['Back on air', 'Turnout 66%'], 'filled again');
   await page.waitForTimeout(500);
-  await record(air);
+  const refilled = await record(air);
   await page.waitForTimeout(1500);
-  judgeMarquee(await samples(air), PACE * 2, 'filled again');
+  judgeMarquee(await samples(air, refilled), PACE * 2, 'filled again');
   expect(await plays(page), 'filled again without a Take').toBe('1');
 });
 
@@ -195,7 +200,6 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   test.setTimeout(120_000);
   const SHEET = '1NoaCGMarqueeReopen000000';
   const air = await linkedTicker(page, server, SHEET, 'News Strip', lines('Polls close at 20:00', 'Turnout 61%'));
-  await record(air);
 
   // PAUSE: a change waits; RESUME (the reader reconnecting) reaches the running strip.
   await page.getByTestId('source-pause').click();
@@ -203,11 +207,11 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   server.set(SHEET, lines('Turnout 63%', 'Polls close at 20:00'));
   await page.waitForTimeout(6000);
   await itemsBecome(air, ['Polls close at 20:00', 'Turnout 61%'], 'paused: nothing read');
-  await record(air);
+  const resumed = await record(air);
   await page.getByTestId('source-pause').click();
   await itemsBecome(air, ['Turnout 63%', 'Polls close at 20:00'], 'resumed');
   await page.waitForTimeout(1500);
-  judgeMarquee(await samples(air), PACE, 'resume');
+  judgeMarquee(await samples(air, resumed), PACE, 'resume');
   expect(await plays(page)).toBe('1');
 
   // REOPEN: the page comes back with the strip on air, reads the Sheet again, and a change after
@@ -217,11 +221,14 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   await expect(again.locator('#ticker-track .ticker-item').first()).toBeAttached({ timeout: 20_000 });
   await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 20_000 });
   const opened = await plays(page);
-  await record(again);
+  const reopened = await record(again);
+  await page.waitForTimeout(1500);
+  judgeMarquee(await samples(again, reopened), PACE, 'reopened, before a change');
+  const changed = await record(again);
   server.set(SHEET, lines('Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'));
   await itemsBecome(again, ['Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'], 'reopened page reads');
   await page.waitForTimeout(1500);
-  judgeMarquee(await samples(again), PACE, 'reopened');
+  judgeMarquee(await samples(again, changed), PACE, 'reopened');
   expect(await plays(page), 'no entrance replayed after reopening').toBe(opened);
 });
 
@@ -272,7 +279,7 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
     ['delete', ['Story five', 'Story four']],
   ];
   for (const [what, items] of steps) {
-    await record(air);
+    const from = await record(air);
     server.set(SHEET, lines(...items));
     // The edit has landed when the track holds the new items (plus the one finishing its turn).
     await expect.poll(async () => {
@@ -281,14 +288,14 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
     }, { timeout: 20_000, message: `${what} reached the strip` }).toBe(true);
     const landed = (await samples(air)).at(-1)!.t;
     await page.waitForTimeout(turnMs * 1.6);
-    const run = await samples(air);
+    // The whole history, so a turn already under way when this step began is seen from its start.
+    const history = await samples(air);
+    const run = history.filter((s) => s.t >= from);
     const seen = turns(run);
     // The story on screen when the edit landed: it shows on until its own turn's end.
-    const onScreen = seen.find((x) => x.from <= landed && x.to >= landed);
+    const onScreen = turns(history).find((x) => x.from <= landed && x.to >= landed);
     if (onScreen) {
-      const own = turns(run.filter((s) => s.t <= landed)).at(-1)!;
-      const began = own.from;
-      expect(onScreen.to - began, `${what}: the story on screen kept its turn`).toBeGreaterThan(turnMs - 250);
+      expect(onScreen.to - onScreen.from, `${what}: the story on screen kept its turn`).toBeGreaterThan(turnMs - 120);
     }
     const after = seen.filter((x) => x.from > landed);
     expect(after.length, `${what}: the new list started at the boundary`).toBeGreaterThan(0);
@@ -302,7 +309,6 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
   // EMPTY clears on purpose; FILLED AGAIN the stories come back without a Take.
   server.set(SHEET, '');
   await expect(air.locator('#ticker-track .ticker-item')).toHaveCount(0, { timeout: 20_000 });
-  await record(air);
   server.set(SHEET, lines('Story six', 'Story seven'));
   await expect.poll(async () => turns(await samples(air)).map((x) => x.text), { timeout: 20_000, message: 'filled again' }).toContain('Story six');
   expect(await plays(page), 'filled again without a Take').toBe('1');
@@ -311,15 +317,14 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
   // rendered again) and the turns after it are about half as long.
   await expect.poll(async () => turns(await samples(air)).length, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
   await markFirstItem(air);
-  await record(air);
+  const pressed = await record(air);
   await page.getByTestId('cue-field-f2').fill('200');
   await page.getByTestId('verb-update').click();
-  const pressed = Date.now();
   await page.waitForTimeout(turnMs * 1.8);
-  const run = await samples(air);
+  const run = await samples(air, pressed);
   expect(run.every((s) => s.mark), 'speed only: the items were not rendered again').toBe(true);
   const quick = turns(run).slice(1, -1);
-  expect(quick.length, `whole turns after the speed change (${Date.now() - pressed} ms)`).toBeGreaterThan(0);
+  expect(quick.length, 'whole turns after the speed change').toBeGreaterThan(0);
   for (const x of quick) expect(x.to - x.from, 'a turn at 200% is about half').toBeLessThan(turnMs * 0.65);
   expect(longestBlank(run), 'no blank longer than the flip’s own').toBeLessThanOrEqual(ownGap + 120);
   expect(await plays(page)).toBe('1');

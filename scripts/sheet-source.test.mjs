@@ -1121,3 +1121,100 @@ test('over HTTP, a multiline text value keyed by Field ID keeps its last good li
     empty: tab(''),
   });
 });
+
+// ── One controlled public-sheet probe (jev-svg-import row 25): the cadence on a real Sheet ─────
+//
+// Run by hand, never in CI: `NOACG_SHEET_PROBE=1 node --test --test-name-pattern=probe
+// scripts/sheet-source.test.mjs`. It needs the controlled synthetic Sheets the readiness file
+// names (NOACG_TEST_SHEET_IDS, the first one) and their service account
+// (GOOGLE_SERVICE_ACCOUNT_JSON), read from the checkout's .env as scripts/production-page-keys.mjs
+// reads them. The account adds a temporary tab, edits one cell ten times, and deletes the tab in
+// the end; the edits are read the way an operator's page reads them, signed out, through Google's
+// public export address: by the reader itself at its own 5-second cadence, and by a 100 ms poll
+// that times how long an edit takes to show in the export. It prints only timings, never an id,
+// an address or a credential.
+
+test('probe: a controlled public Sheet, read as the page reads it, edit to export and edit to write', { skip: process.env.NOACG_SHEET_PROBE !== '1' }, async () => {
+  const { createSign } = await import('node:crypto');
+  const { ambientEnv } = await import('./read-dotenv.mjs');
+  const env = ambientEnv(new URL('..', import.meta.url).pathname);
+  const sheetId = (env.NOACG_TEST_SHEET_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean)[0];
+  const account = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON ?? 'null');
+  assert.ok(sheetId && account?.client_email, 'UNAVAILABLE: the controlled Sheet or its service account is not configured here');
+  const b64 = (v) => Buffer.from(JSON.stringify(v)).toString('base64url');
+  const aud = account.token_uri ?? 'https://oauth2.googleapis.com/token';
+  const now = Math.floor(Date.now() / 1000);
+  const claim = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({ iss: account.client_email, scope: 'https://www.googleapis.com/auth/spreadsheets', aud, iat: now, exp: now + 900 })}`;
+  const assertion = `${claim}.${createSign('RSA-SHA256').update(claim).sign(account.private_key, 'base64url')}`;
+  const signIn = await fetch(aud, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }) });
+  assert.equal(signIn.status, 200, 'UNAVAILABLE: the service account could not sign in');
+  const headers = { Authorization: `Bearer ${(await signIn.json()).access_token}`, 'content-type': 'application/json' };
+  const api = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}`;
+  const title = `noacg-probe-${Date.now()}`;
+  const added = await fetch(`${api}:batchUpdate`, { method: 'POST', headers, body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }) });
+  assert.equal(added.status, 200, 'the temporary tab was added');
+  const gid = String((await added.json()).replies[0].addSheet.properties.sheetId);
+  const write = async (text) => {
+    const r = await fetch(`${api}/values/${encodeURIComponent(`'${title}'!A1`)}?valueInputOption=RAW`, { method: 'PUT', headers, body: JSON.stringify({ values: [[text]] }) });
+    assert.equal(r.status, 200);
+    return Date.now();
+  };
+  const leases = new Map();
+  const reads = [];
+  const written = [];
+  let reader = null;
+  try {
+    await write('probe 0');
+    reader = createSheetReader({
+      key: 'probe',
+      sourceId: 'p',
+      link: { sheetId, gid },
+      shape: 'lines',
+      tab: 'probe',
+      world: 'probe',
+      io: {
+        now: () => Date.now(),
+        setTimer: (run, ms) => setTimeout(run, ms),
+        clearTimer: (t) => clearTimeout(t),
+        fetch: async (url, init) => { reads.push(Date.now()); return fetch(url, init); },
+        readLease: (k) => (leases.has(k) ? structuredClone(leases.get(k)) : null),
+        writeLease: (k, l) => leases.set(k, structuredClone(l)),
+      },
+      connected: () => new Set(['sheet.p.lines']),
+      paused: () => false,
+      write: async (patch) => { written.push({ at: Date.now(), text: patch.sheet.p.lines }); return true; },
+      onStatus: () => {},
+    });
+    await until(() => written.some((w) => w.text === 'probe 0'), 30_000, 'the first read of the probe tab');
+    const exportUrl = sheetCsvUrl({ sheetId, gid });
+    const toExport = [];
+    const toWrite = [];
+    for (let k = 1; k <= 10; k++) {
+      const text = `probe ${k}`;
+      const at = await write(text);
+      for (;;) {
+        const body = await (await fetch(exportUrl)).text();
+        if (body.trim() === text) { toExport.push(Date.now() - at); break; }
+        if (Date.now() - at > 30_000) assert.fail(`edit ${k} never reached the export`);
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      await until(() => written.some((w) => w.text === text), 30_000, `edit ${k} written by the reader`);
+      toWrite.push(written.find((w) => w.text === text).at - at);
+    }
+    const gaps = reads.slice(1).map((t, i) => t - reads[i]);
+    const stat = (xs) => { const s = [...xs].sort((a, b) => a - b); return `min ${s[0]} ms, median ${s[Math.floor(s.length / 2)]} ms, max ${s.at(-1)} ms (n=${s.length})`; };
+    console.log(`probe: edit -> public export: ${stat(toExport)}`);
+    console.log(`probe: edit -> reader write: ${stat(toWrite)}`);
+    console.log(`probe: reader read interval: ${stat(gaps)}`);
+    assert.ok(Math.max(...gaps) < SHEET_READ_MS + 2_000, 'the reader kept its 5-second cadence');
+    assert.ok(Math.max(...toWrite) < SHEET_READ_MS + SHEET_TIMEOUT_MS, 'every edit was written within one read and its timeout');
+  } finally {
+    reader?.stop();
+    const removed = await fetch(`${api}:batchUpdate`, { method: 'POST', headers, body: JSON.stringify({ requests: [{ deleteSheet: { sheetId: Number(gid) } }] }) });
+    const after = await fetch(`${api}?fields=sheets.properties.title`, { headers });
+    const titles = (await after.json()).sheets?.map((s) => s.properties.title) ?? [];
+    console.log(`probe: temporary tab deleted ${removed.status === 200 && !titles.includes(title) ? 'and confirmed gone' : 'FAILED: remove it by hand'}`);
+    assert.equal(removed.status, 200);
+    assert.ok(!titles.includes(title), 'the temporary tab is gone');
+  }
+});
