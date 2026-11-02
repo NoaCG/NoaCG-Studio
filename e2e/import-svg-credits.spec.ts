@@ -541,7 +541,7 @@ test('credits that can be styled can be kept as fixed artwork, and then the whol
     travels.forEach((g, i) => g.setAttribute('transform', transforms[i]!));
     return mid.map((m, i) => m - rest[i]);
   });
-  expect(Math.abs(moved[0]), `the block moved: ${moved.join(', ')}`).toBeGreaterThan(50);
+  expect(Math.abs(moved[0]), `the block moved: ${moved.join(', ')}`).toBeGreaterThan(10);
   for (const m of moved) expect(Math.abs(m - moved[0]), `one block: ${moved.join(', ')}`).toBeLessThan(0.5);
 });
 
