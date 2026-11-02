@@ -295,14 +295,16 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
       const run = await samples(air);
       return items.every((i) => run.at(-1)!.texts.includes(i)) && run.at(-1)!.texts.length <= items.length + 1;
     }, { timeout: 20_000, message: `${what} reached the strip` }).toBe(true);
-    const landed = (await samples(air)).at(-1)!.t;
     await page.waitForTimeout(turnMs * 1.6);
     // The whole history, so a turn already under way when this step began is seen from its start.
     const history = await samples(air);
     const run = history.filter((s) => s.t >= from);
     const seen = turns(run);
-    // The story on screen when the edit landed: it shows on until its own turn's end.
-    const onScreen = turns(history).find((x) => x.from <= landed && x.to >= landed);
+    // The frame the edit landed in is the first whose track holds the new items.
+    const landed = run.find((s) => items.every((i) => s.texts.includes(i)))!.t;
+    const lastBefore = run.filter((s) => s.t < landed).at(-1)!;
+    // The story showing in the frame before: it shows on until its own turn's end.
+    const onScreen = lastBefore.showing.length === 1 ? turns(history).find((x) => x.from <= lastBefore.t && x.to >= lastBefore.t) : undefined;
     if (onScreen) {
       expect(onScreen.to - onScreen.from, `${what}: the story on screen kept its turn`).toBeGreaterThan(turnMs - 120);
     }
