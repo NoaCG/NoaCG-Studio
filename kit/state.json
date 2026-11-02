@@ -188,7 +188,10 @@
     "2026-11-01 #1937: rows 19-23 need svg.ts, svgBind.ts, draft.ts for the styled credits engine; reconcile as a boundary request before row 19.",
     "2026-11-01T23:55Z phase 17: approved departure src/components/home/CueEditor.tsx, two call sites only (line 262 offeredValues list format; line 690 starter-rows list field), because a saved imported credits roll has its list at f1 and the f0 default would bind rows to Heading. Conditions: failing test first, native unchanged, no saved byte move, listed in PR body.",
     "2026-11-02 row 18: AC-23 \"Ambiguous columns get one mapping choice\" landed as model answer (CreditsChoice.swap) without a wizard select, under wizard/offer-control-can-change-graphic-front. The row that writes DesignSvgCredits (rows 19-23, #1937) must add the Roles select and store the swap answer. Carry to row 19+ briefs.",
-    "2026-11-02 OWNER DECISION verbatim: \"Move \"Ambiguous columns get one mapping choice\" from phase 18 to phase 19. Phase 19 adds the Roles choice when it saves the styled credits binding, and may touch draft.ts, svg.ts, svgBind.ts and BehaviourSection.tsx for that. Re-check phase 18 on the rest.\""
+    "2026-11-02 OWNER DECISION verbatim: \"Move \"Ambiguous columns get one mapping choice\" from phase 18 to phase 19. Phase 19 adds the Roles choice when it saves the styled credits binding, and may touch draft.ts, svg.ts, svgBind.ts and BehaviourSection.tsx for that. Re-check phase 18 on the rest.\"",
+    "2026-11-02T04:50Z row 19 builder evidence: role-above is never ambiguous (creditsRoll.ts:912-918, phase-18 test 5), so the Roles choice can only change a role-beside build, which row 20 renders. Told builder: save styled binding only for role-above (roll); no Roles select in row 19; state the move. Asked owner to confirm moving the clause to row 20.",
+    "2026-11-02T04:57Z row 19: approved departure src/components/wizard/import/MapSvgFieldsStep.tsx, styled source layers added to the existing creditsLayers set with one short line; no other copy/layout change; artwork credits unchanged; test required.",
+    "2026-11-02 OWNER DECISION + DIRECTION verbatim: \"Move “Ambiguous columns get one mapping choice” to phase 20, where role-beside credits are first rendered. Keep phase 19 focused on role-above credits and proceed with its independent check, recording the mapping requirement as explicitly deferred to phase 20.\\n\\nIn phase 20, show the Roles picker only when the columns are ambiguous. Use clear wording such as “Which column contains the roles?” The answer must update the preview, be saved with the import, and drive the live graphic. Include a test with names on the left and roles on the right to verify that the choice fixes the output.\\n\\nOur main goal is easy, editable credits. Most users should be able to paste text or bring it in from Google Sheets, Excel, or similar sources, then make last-minute changes on the production page before playout. Importing a design should preserve its styling while allowing supported text to remain editable.\\n\\nFixed artwork should remain available for people who deliberately want it, and as a clearly explained fallback for unsupported designs. Users should understand when imported text will remain part of the artwork rather than become editable credits.\\n\\nPlease continue on that basis. Use your judgment for routine implementation choices, and bring me questions when they involve a meaningful product tradeoff. This mapping question should not hold up phase 19.\""
   ],
   "ownerOpen": [
     {
@@ -281,10 +284,22 @@
     },
     {
       "forPhases": [
-        "19"
+        "20"
       ],
-      "from": "18 (owner decision 2026-11-02)",
-      "note": "Owns AC-23 clause \"Ambiguous columns get one mapping choice\": save the styled credits binding (DesignSvgCredits) from the wizard and add the Roles choice in BehaviourSection.tsx when creditsPreview(...).ambiguous, storing anchors from creditsPreview(root, ids, creditsId, { swap }). Owner-approved files beyond row 19 TOUCHES: src/components/wizard/import/draft.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/svgBind.ts, src/components/wizard/import/BehaviourSection.tsx. Closes the wizard part of #1937."
+      "from": "18/19 (owner decision 2026-11-02, second)",
+      "note": "Owns AC-23 clause \"Ambiguous columns get one mapping choice\" (deferred from rows 18 and 19). Show the Roles picker only when the columns are ambiguous, worded like \"Which column contains the roles?\". The answer must update the preview, be saved with the import, and drive the live graphic. Test: names on the left, roles on the right; the choice fixes the output. Owner-approved files for that purpose: src/components/wizard/import/draft.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/svgBind.ts, src/components/wizard/import/BehaviourSection.tsx (and MapSvgFieldsStep.tsx creditsLayers as approved in row 19)."
+    },
+    {
+      "forPhases": [
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24"
+      ],
+      "from": "owner direction 2026-11-02",
+      "note": "Main goal: easy, editable credits. Paste text or bring it from Google Sheets, Excel or similar, then make last-minute edits on the production page before playout. Importing keeps the design styling while supported text stays editable. Fixed artwork stays available on purpose and as a clearly explained fallback for unsupported designs; the author must understand when imported text stays part of the artwork. Coordinator decides routine implementation choices; bring meaningful product trade-offs to the owner."
     }
   ]
 }
