@@ -942,9 +942,9 @@ export type CreditsPreview =
   | { styled: false; list: CreditsListItem[][] };
 
 /**
- * THE PREVIEW OF THE ONE CREDITS LIST the picked layer declares. Where the picked layer is the
- * first role of roles and names drawn as separate layers, the anchors are it and every text layer
- * read at or below it (a title drawn above stays artwork) and the list is the one
+ * THE PREVIEW OF THE ONE CREDITS LIST the picked layer declares. Where the picked layer is one
+ * line of roles and names drawn as separate layers, the anchors are every text layer read at or
+ * below it (a title drawn above stays artwork) and the list is the one
  * `analyseCreditsStyle` writes; the layout is the drawing's, and `ambiguous` says whether the
  * columns need the author's one choice. Anything else previews the layer's own text as the list.
  * Either way the list is read by the shipped parser, never a second grammar.

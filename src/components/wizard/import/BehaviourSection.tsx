@@ -152,7 +152,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured }: {
       <div dir={shown.styled && shown.rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
         {shown.list.map((section, at) => (
           <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
-            {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} />)}
+            {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
           </div>
         ))}
       </div>
@@ -162,13 +162,13 @@ function CreditsListPreview({ stage, layers, creditsId, measured }: {
 
 /** One heading, role group or loose name. Beside, a role and its first name share a line and
  *  later names stay in the name column; above, the names follow under their role. */
-function CreditsPreviewItem({ item, beside }: { item: CreditsListItem; beside: boolean }) {
+function CreditsPreviewItem({ item, beside, first }: { item: CreditsListItem; beside: boolean; first: boolean }) {
   const whole = { gridColumn: '1 / -1' };
   if (item.type === 'heading') return <strong style={whole} data-credit="heading">{item.text}</strong>;
   if (item.type === 'entry') return <span style={beside ? { gridColumn: 2 } : undefined} data-credit="name">{item.text}</span>;
   return (
     <>
-      <span className="hint" style={beside ? { gridColumn: 1, gridRow: `span ${Math.max(1, item.names.length)}` } : undefined} data-credit="role">
+      <span className="hint" style={beside ? { gridColumn: 1, gridRow: `span ${Math.max(1, item.names.length)}` } : first ? undefined : { marginTop: '0.4em' }} data-credit="role">
         {item.role}
       </span>
       {item.names.map((name, i) => (
