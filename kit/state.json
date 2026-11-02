@@ -34,7 +34,12 @@
       "role": "build",
       "session": "session_017SdbwQPEg9XdNGfRKMxB9b",
       "nonce": "17-b-1519",
-      "branch": "claude/plan-jev-svg-import-17-build"
+      "branch": "claude/plan-jev-svg-import-17-build",
+      "pr": 1947,
+      "head": "87782638b7526eac78057df77f8f78c01750a321",
+      "stampRun": 41368009462,
+      "ciRun": 41366346541,
+      "so": "session_017SdbwQHQRsBTiJHLpc5vw8 A- (standing owner rule)"
     }
   ],
   "owner": [],
