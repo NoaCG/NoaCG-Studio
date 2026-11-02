@@ -44,19 +44,20 @@
   "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15."
  },
  "waitingOn": {
-  "what": "owner receipt on #1951 for test alarm #1971 (cf01(b)); then the second cf01 check",
+  "what": "owner confirms the daily alarm email arrived (cf01(b) via email route); then close #1971 and #1951, second cf01 check, and a small docs PR naming the email route",
   "eta": "2026-11-04T11:43:00Z"
  },
  "inFlight": [],
  "owner": [
   {
-   "what": "confirm the test alarm #1971 reached you (cf01(b)); without a reply by 2026-11-04T11:43Z cf01 passes on routing alone",
-   "where": "https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6576269914"
+   "what": "confirm the daily alarm email (first run fired 2026-11-02T21:18Z, reporting test alarm #1971) reached your inbox",
+   "where": "https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6588697627"
   }
  ],
  "fixes": [],
  "triggers": {
-  "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y"
+  "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y",
+  "ownerEmail": "trig_01CSf61M12iQvmzNYzaZoHnU"
  },
  "heartbeat": 6575215206,
  "history": [
@@ -65,6 +66,12 @@
    "check": 1,
    "verdict": "FAIL blocked: owner receipt pending; (a), (c) and merge checks pass",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6576623136"
+  }
+ ],
+ "decisions": [
+  {
+   "at": "2026-11-02T21:18Z",
+   "what": "Owner chose email delivery: daily cloud scheduled task trig_01CSf61M12iQvmzNYzaZoHnU (06:39 Helsinki), email only when noteworthy; GitHub assignment stays the record. Owner words on #1951 comment 6588697627."
   }
  ]
 }
