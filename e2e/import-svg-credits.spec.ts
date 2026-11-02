@@ -630,13 +630,56 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await expect(sources).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
 });
 
+test('role-above credits chosen to hold still air as one still page, and a list too long for it says so on the production page', async ({ page }) => {
+  // jev-svg-import row 22 (AC-13): "Plays as: Hold still" saves the styled binding as a still
+  // page. On air the rows stand where they were drawn; a list too long for the page even at the
+  // floor is not shown, and the cue says in words which field is too long.
+  await page.goto('/app');
+  await dropSvg(page, ABOVE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  const role = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
+  await picker.selectOption(role);
+  await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
+  const playback = page.getByTestId('map-svg-credits-playback');
+  await expect(playback).toHaveValue('roll');
+  await playback.selectOption('static');
+  await intoProduction(page, 'Research page', 'Research still');
+  await settleDurableWrites(page);
+
+  const credits = page.getByTestId('cue-field-f1');
+  await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  const state = () => air.locator('.imported-design-credits-roll').evaluate((roll) => {
+    const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsLast: { still?: boolean; refused?: boolean } | null };
+    return { tween: w.noacgCreditsTween, last: w.noacgCreditsLast, moved: getComputedStyle(roll).transform, shown: getComputedStyle(roll.querySelector('.imported-design-credits-rows')!).visibility };
+  });
+  await expect.poll(async () => (await state()).last?.still).toBe(true);
+  expect(await state()).toMatchObject({ tween: null, moved: 'none', shown: 'visible' });
+  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240], ['name', 295], ['role', 445], ['name', 510]]);
+
+  // Two hundred names cannot stand on one page even at the floor: the page is not shown, and the
+  // cue names the Credits field as too long rather than airing a clipped or rolling list.
+  await credits.fill(['Research:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n'));
+  await page.getByTestId('verb-update').click();
+  await expect.poll(async () => (await state()).shown).toBe('hidden');
+  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
+  expect((await state()).tween).toBeNull();
+});
+
 // jev-svg-import row 21 (AC-13): continuous roll playback, built on a blank page the way the
 // wizard saves each binding, with the entrance the motion picker sets. `styled` reads the drawn
 // role and name layers from the first role down (rows 19 and 20); `block` keeps the same drawing
 // as fixed artwork, every one of those layers scrolling (#1962).
 type RollBuild = { layout: string; motion: string; engine: string | null; js: string; html: string };
-function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block', face: boolean): Promise<RollBuild[]> {
-  return page.evaluate(async ({ source, roleWord, as, face }) => {
+function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block', face: boolean, playback: 'roll' | 'static' = 'roll'): Promise<RollBuild[]> {
+  return page.evaluate(async ({ source, roleWord, as, face, playback }) => {
     const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
     const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
     const C = await import('/src/templates/importedDesign/creditsRoll.ts');
@@ -659,7 +702,7 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
       markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [],
       fonts: face ? [{ family: 'Anton', fontId: 'anton' }] : [],
       behaviour: as === 'styled'
-        ? { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback: 'roll' as const, anchors: preview.anchors } }
+        ? { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback, anchors: preview.anchors } }
         : { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, options: { artwork: true }, artworkLayers: block.filter((id) => id !== content) },
     };
     const template = IMPORTED_SVG.create({ designSvg: svg });
@@ -667,7 +710,7 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
       layout: preview.layout, motion, engine: C.creditsEngine(svg), js: template.js,
       html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: motion, motionOut: 'fade' } }), IMPORTED_SVG)),
     }));
-  }, { source, roleWord, as, face });
+  }, { source, roleWord, as, face, playback });
 }
 
 /** Where the moving credits stand on screen at the start and at the end of the take, against the
@@ -751,6 +794,132 @@ test('styled credits, role above and role beside, enter and leave the whole fram
     expect(Math.abs(replay.distance - settled.distance), `${at}: the replay measures the same roll: ${JSON.stringify(replay)}`).toBeLessThan(1);
     expect(Math.abs(replay.start.top - replay.frameBottom), `${at}: replay start`).toBeLessThan(0.5);
     expect(Math.abs(replay.end.bottom - replay.frameTop), `${at}: replay end`).toBeLessThan(0.5);
+  }
+});
+
+// jev-svg-import row 22 (AC-13): a still page. The rows stand where the drawing put them and
+// nothing moves them; a list too tall for the window shrinks as a whole (type and spacing, each
+// column on its drawn edge), and one too tall at the 30% floor is not shown and is reported.
+type StillRow = { kind: string | null; text: string | null; x: number; y: number; left: number; right: number; top: number; bottom: number; size: number };
+type StillPage = { rows: StillRow[]; last: { still: boolean; rows: number; scale: number; refused: boolean } | null; tween: unknown; moved: string; shown: string; over: string[]; field: string; frame: { width: number; height: number } };
+function stillPage(page: Page): Promise<StillPage> {
+  return page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsLast: StillPage['last']; noacgTextOverflow(): string[] | null; noacgFieldFor(role: string, key: null): string };
+    const art = (document.querySelector('[data-noacg-credit]') as SVGGraphicsElement).ownerSVGElement!;
+    const roll = document.querySelector('.imported-design-credits-roll') as SVGGElement;
+    const round = (n: number) => Math.round(n * 100) / 100;
+    const rows = [...document.querySelectorAll('.imported-design-credits-row')].map((el) => {
+      const t = el as SVGTextElement;
+      const m = art.getScreenCTM()!.inverse().multiply(t.getScreenCTM()!);
+      const at = (x: number, y: number) => ({ x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f });
+      const p = at(t.getStartPositionOfChar(0).x, t.getStartPositionOfChar(0).y);
+      const b = t.getBBox();
+      const a = at(b.x, b.y);
+      const z = at(b.x + b.width, b.y + b.height);
+      return { kind: el.getAttribute('data-noacg-credits'), text: el.textContent, x: round(p.x), y: round(p.y), left: round(a.x), right: round(z.x), top: round(a.y), bottom: round(z.y), size: parseFloat(getComputedStyle(el).fontSize) };
+    });
+    const vb = art.viewBox.baseVal;
+    return {
+      rows, last: w.noacgCreditsLast, tween: w.noacgCreditsTween,
+      moved: getComputedStyle(roll).transform + ' ' + (roll.getAttribute('transform') ?? ''),
+      shown: getComputedStyle(document.querySelector('.imported-design-credits-rows')!).visibility,
+      over: w.noacgTextOverflow() ?? [], field: w.noacgFieldFor('credits', null), frame: { width: vb.width, height: vb.height },
+    };
+  });
+}
+
+/** Write a new list and take again, as an operator's Update then Take. */
+async function retake(page: Page, field: string, list: string) {
+  await page.evaluate(({ field, list }) => {
+    const w = window as unknown as { update(data: Record<string, string>): void; play(): void; noacgCreditsLast: unknown };
+    w.update({ [field]: list });
+    w.noacgCreditsLast = null;
+    w.play();
+  }, { field, list });
+  await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsLast: unknown }).noacgCreditsLast), 'the take showed the page').toBe(true);
+  return stillPage(page);
+}
+
+test('styled credits held still, role above and role beside: no travel, the whole list shrinks to fit, and a list past the floor is refused and reported', async ({ page }) => {
+  await page.goto('/app');
+  const layouts = [
+    // credits-1: centred on 400 in an 800 frame, names 55 apart; the drawn page is the rows below.
+    { source: readFileSync(ABOVE_CREDITS_SVG, 'utf8'), role: 'Research', drawn: [['role', 175], ['name', 240], ['name', 295], ['role', 445], ['name', 510]], edges: { role: 400, name: 400 }, head: 'Research:', smaller: 12, reported: 30 },
+    // credits-2: roles from 90 and names from 440 in a 1100 by 540 frame.
+    { source: readFileSync(BESIDE_CREDITS_SVG, 'utf8'), role: 'Réalisation', drawn: [['role', 195], ['name', 195], ['role', 365], ['name', 365], ['name', 420]], edges: { role: 90, name: 440 }, head: 'Son:', smaller: 8, reported: 15 },
+  ];
+  for (const layout of layouts) {
+    const builds = await buildRolls(page, layout.source, layout.role, 'styled', false, 'static');
+    for (const b of builds) {
+      const at = `${b.layout} after ${b.motion}`;
+      expect(b.engine, at).toBe('styled');
+      // A still page carries no roll: no travel, no pace.
+      expect(b.js, at).not.toContain('gsap.fromTo(roll');
+      await page.goto('/robots.txt');
+      await page.setContent(b.html);
+      await page.evaluate(() => (window as unknown as { play(): void }).play());
+      await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsLast: unknown }).noacgCreditsLast), `${at}: taken`).toBe(true);
+      const taken = await stillPage(page);
+      const say = `${at}: ${JSON.stringify(taken)}`;
+      expect(taken.last, say).toEqual({ still: true, rows: 5, scale: 1, refused: false });
+      expect(taken.tween, say).toBeNull();
+      expect(taken.moved, say).toBe('none ');
+      // Where the drawing put each row, in its drawn size, on its column's edge.
+      expect(taken.rows.map((r) => [r.kind, Math.round(r.y)]), say).toEqual(layout.drawn);
+      for (const r of taken.rows) {
+        const edge = b.layout === 'role-above' ? (r.left + r.right) / 2 : r.x;
+        expect(Math.abs(edge - layout.edges[r.kind as 'role' | 'name']), `${say}: ${r.text}'s edge`).toBeLessThan(0.6);
+      }
+      // A moment later, after the entrance: the same rows in the same places.
+      await page.waitForTimeout(700);
+      const later = await stillPage(page);
+      expect(later.rows, `${at}: held still`).toEqual(taken.rows);
+      expect(later.tween, `${at}: still no roll`).toBeNull();
+    }
+    const b = builds[0];
+    await page.goto('/robots.txt');
+    await page.setContent(b.html);
+    await page.evaluate(() => (window as unknown as { play(): void }).play());
+    await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsLast: unknown }).noacgCreditsLast)).toBe(true);
+    const { field, frame } = await stillPage(page);
+    const names = (n: number) => [layout.head, ...Array.from({ length: n }, (_, i) => `Name Number ${i + 1}`)].join('\n');
+    // The room runs from the first drawn role down to half a drawn line (55) above the frame's
+    // bottom: the page's last ink must not pass it (clipped), and must reach it (room unspent).
+    const limit = frame.height - 27.5;
+    const firstY = layout.drawn[0][1] as number;
+    // Three names fit as drawn; the other two lists shrink, the second past the report line.
+    for (const [n, reported] of [[3, false], [layout.smaller, false], [layout.reported, true]] as const) {
+      const shown = await retake(page, field, names(n));
+      const say = `${b.layout}, ${n} names: ${JSON.stringify({ ...shown, rows: shown.rows.slice(-2) })}`;
+      expect(shown.last?.refused, say).toBe(false);
+      expect(shown.shown, say).toBe('visible');
+      expect(shown.rows.length, say).toBe(n + 1);
+      expect(shown.rows.map((r) => r.text), say).toEqual(names(n).split('\n').map((t) => t.replace(/:$/, '')));
+      const bottom = Math.max(...shown.rows.map((r) => r.bottom));
+      expect(bottom, say).toBeLessThanOrEqual(limit + 0.5);
+      if (shown.last!.scale < 1) expect(bottom, say).toBeGreaterThan(limit - 2);
+      // The first role stays where it was drawn, and every row keeps its column's edge.
+      expect(Math.abs(shown.rows[0].y - firstY), say).toBeLessThan(0.6);
+      for (const r of shown.rows) {
+        const edge = b.layout === 'role-above' ? (r.left + r.right) / 2 : r.x;
+        expect(Math.abs(edge - layout.edges[r.kind as 'role' | 'name']), `${say}: ${r.text}'s edge`).toBeLessThan(0.6);
+      }
+      // Type and spacing shrink together, and past 55% the Credits field is reported.
+      expect(shown.last!.scale, say).toBeGreaterThanOrEqual(0.3);
+      expect(shown.over.includes(field), say).toBe(reported);
+      if (reported) expect(shown.last!.scale, say).toBeLessThan(0.55);
+    }
+    expect((await retake(page, field, names(3))).last!.scale, `${b.layout}: three names fit as drawn`).toBe(1);
+    // Past the floor: not clipped, not rolled, not shown; the Credits field says it is too long.
+    const refused = await retake(page, field, names(200));
+    const say = `${b.layout}, 200 names: ${JSON.stringify({ ...refused, rows: refused.rows.length })}`;
+    expect(refused.last?.refused, say).toBe(true);
+    expect(refused.shown, say).toBe('hidden');
+    expect(refused.over, say).toContain(field);
+    expect(refused.tween, say).toBeNull();
+    // Shortened again, the page comes back and the report clears.
+    const back = await retake(page, field, names(3));
+    expect([back.shown, back.over, back.last?.refused], `${b.layout}: shortened again`).toEqual(['visible', [], false]);
   }
 });
 
