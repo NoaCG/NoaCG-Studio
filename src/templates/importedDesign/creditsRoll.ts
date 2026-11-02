@@ -725,7 +725,8 @@ function creditsCardsOf(probe) {
 // creditsDeal(): deal the list as it stands and show the card on air (the first, off air). Every
 // card is fitted once, so a card too long for the page is reported under the Credits field
 // before the take, whichever card it is. Where a face is still loading, the cards were measured
-// in a fallback, so they are dealt again when the faces land.
+// in a fallback, so they are dealt again when the faces land. Every deal on air ends by making
+// the hold true for the cards it dealt (creditsKeepHold), whatever asked for it.
 function creditsDeal() {
   var cards = creditsCardsOf(creditsRender(1, null, true));
   noacgCreditsCards = cards;
@@ -749,7 +750,23 @@ function creditsDeal() {
   // Off air nothing is changing cards, so a change Out cut short leaves no half-faded card.
   if (noacgCreditsCard < 0 && built && typeof gsap !== 'undefined') gsap.set(built.rows.parentNode, { opacity: 1 });
   if (document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(creditsDeal);
+  creditsKeepHold();
   return built;
+}
+
+// creditsKeepHold(): THE HOLD RULE. On air and between changes, a card with a card time and cards
+// after it has exactly one hold running, and any other card none. A new card time applies to the
+// hold under way, counted from when it started; a card that has gained cards after it starts a
+// hold. A change under way arms its own hold when it ends.
+function creditsKeepHold() {
+  if (noacgCreditsTurning || noacgCreditsCard < 0 || typeof gsap === 'undefined') return;
+  var hold = creditsCardTime();
+  if (hold === null || noacgCreditsCard >= noacgCreditsCards.length - 1) {
+    creditsArm();                    // arms nothing here, and ends any hold left running
+    return;
+  }
+  if (!noacgCreditsTween) creditsArm();
+  else if (hold !== noacgCreditsHold) creditsArm(Math.max(0, hold - (gsap.ticker.time - noacgCreditsSince)));
 }
 
 // creditsArm(after): hold the card on air for the card time, then change it; given AFTER, the
@@ -801,14 +818,13 @@ function creditsTurn() {
 }
 
 // ${CREDITS_ROLL_CALL}(): THE TAKE. Deal the list and show the first card, where the drawing put
-// it, then hold it for the card time. A card too long to fit at the floor is not shown; its
-// Credits field is reported too long.
+// it; the deal starts its hold. A card too long to fit at the floor is not shown; its Credits
+// field is reported too long.
 function ${CREDITS_ROLL_CALL}() {
   stopCreditsRoll();
   noacgCreditsCard = 0;
   var built = creditsDeal();
   if (built && typeof gsap !== 'undefined') gsap.set(built.rows.parentNode, { opacity: 1 });
-  creditsArm();
   return null;
 }
 
@@ -818,21 +834,10 @@ function ${CREDITS_NEXT_CALL}() {
   creditsTurn();
 }
 
-// creditsDataUpdated(): update() wrote the fields - deal the cards again and show the one on air.
-// Then the hold is made true again: on air and between changes, a card with a card time and
-// cards after it has exactly one hold running, and any other card none. A new card time applies
-// to the hold under way, counted from when it started; a card that has gained cards after it
-// starts a hold. A change under way arms its own hold when it ends.
+// creditsDataUpdated(): update() wrote the fields - deal the cards again and show the one on air;
+// the deal keeps the hold rule.
 function creditsDataUpdated() {
   creditsDeal();
-  if (noacgCreditsTurning || noacgCreditsCard < 0 || typeof gsap === 'undefined') return;
-  var hold = creditsCardTime();
-  if (hold === null || noacgCreditsCard >= noacgCreditsCards.length - 1) {
-    creditsArm();                    // arms nothing here, and ends any hold left running
-    return;
-  }
-  if (!noacgCreditsTween) creditsArm();
-  else if (hold !== noacgCreditsHold) creditsArm(Math.max(0, hold - (gsap.ticker.time - noacgCreditsSince)));
 }`;
 }
 

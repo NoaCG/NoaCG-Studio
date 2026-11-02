@@ -1226,6 +1226,17 @@ for (const layout of CARD_LAYOUTS) {
     await expect.poll(async () => (await cardsState(page)).opacity, `${at}: the change ends`).toBe('1');
     const landed = await cardsState(page);
     expect([landed.card, landed.shown, landed.visibility, landed.rows.map((r) => r.text)], `${at}: landed on a dealt card`).toEqual([0, 0, 'visible', groups[0].map((t) => t.replace(/:$/, ''))]);
+
+    // A DEAL WITHOUT AN UPDATE (as when the faces land and the cards are measured again): the
+    // only card holds with no timer; dealt again into several, it starts its hold and turns.
+    await setTime('2');
+    await page.waitForTimeout(2500);
+    expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: one card, no hold`).toEqual([0, false]);
+    await page.evaluate(({ field, list }) => {
+      document.getElementById(field)!.textContent = list;
+      (window as unknown as { creditsDeal(): void }).creditsDeal();
+    }, { field, list: list.join('\n') });
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: dealt again, it turns`, timeout: 5000 }).toBe(1);
   });
 }
 
