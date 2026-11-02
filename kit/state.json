@@ -31,22 +31,18 @@
   "inFlight": [
     {
       "phase": 17,
-      "role": "build",
-      "session": "session_017SdbwQPEg9XdNGfRKMxB9b",
-      "nonce": "17-b-1519",
-      "branch": "claude/plan-jev-svg-import-17-build",
-      "pr": 1947,
-      "head": "87782638b7526eac78057df77f8f78c01750a321",
-      "stampRun": 41368009462,
-      "ciRun": 41366346541,
-      "so": "session_017SdbwQHQRsBTiJHLpc5vw8 A- (standing owner rule)"
+      "role": "check",
+      "session": "session_017SdbwQjCE9uBWkHT9aijst",
+      "nonce": "17-c-e553",
+      "mergeSha": "da7ba5ef0828ab6a8ec6f3402ad620fe5b00d998",
+      "pr": 1947
     }
   ],
   "owner": [],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T00:52:18Z"
+    "checkinAt": "2026-11-02T01:20:20Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
