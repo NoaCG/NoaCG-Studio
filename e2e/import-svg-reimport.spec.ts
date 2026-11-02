@@ -60,12 +60,14 @@ async function reimport(page: Page, first: string, second: string) {
     if (deleted) delete data.steps[0].layers[name][deleted];
     const fields = baseline.fields.map((f) => (f.field === role ? { ...f, title: 'Job title' } : f));
     const prior = { ...baseline, js: A.spliceAnimData(baseline.js, data)!, fields };
-    const built = build(b);
-    const out = D.svgReimported({ template: prior, baseline }, built)!;
-    // The new build's own tracks, by the field they animate, before and after the rename.
+    let built = build(b);
+    // The new build's own motion on its first field (the badge in version two), which must follow
+    // that field through any id rename.
+    const first = built.fields[0];
     const builtData = A.parseAnimData(built.js)!;
-    const tracksOf = (d: typeof builtData, title: string, fields: { field: string; title: string }[]) =>
-      JSON.stringify(d.steps.map((st) => st.layers[`#${fields.find((f) => f.title === title)!.field}`] ?? null));
+    builtData.steps[0].layers[`#${first.field}`] = { ...builtData.steps[0].layers[`#${first.field}`], scale: [{ time: 0, value: 0.5 }, { time: 0.3, value: 1 }] };
+    built = { ...built, js: A.spliceAnimData(built.js, builtData)! };
+    const out = D.svgReimported({ template: prior, baseline }, built)!;
     const doc = new DOMParser().parseFromString(out.template.html, 'text/html');
     const textOf = (id: string) => doc.getElementById(id)?.textContent ?? null;
     const outData = A.parseAnimData(out.template.js)!;
@@ -75,7 +77,7 @@ async function reimport(page: Page, first: string, second: string) {
       ids: Object.fromEntries(out.template.fields.map((f) => [f.field, f.title])),
       texts: Object.fromEntries(out.template.fields.map((f) => [f.field, textOf(f.field)])),
       roleKeys: outData.steps[0].layers[`#${role}`]?.x ?? null,
-      badgeTracks: [tracksOf(builtData, 'badge', built.fields), tracksOf(outData, 'badge', out.template.fields)],
+      firstScale: outData.steps[0].layers[`#${out.template.fields.find((f) => f.title === first.title)?.field}`]?.scale ?? null,
       deleted,
       deletedBack: deleted ? Object.keys(outData.steps[0].layers[name] ?? {}).includes(deleted) : null,
       definition: out.template.html.includes('"title": "Job title"'),
@@ -96,8 +98,7 @@ test('changed artwork keeps every matched id, its keys and its label; an added l
   expect(r.texts).toEqual({ f0: 'Presenter', f1: 'Guest role', f2: 'LIVE' });
   expect(r.roleKeys).toEqual([{ time: 0, value: -40 }, { time: 0.5, value: 0, ease: 'power2.out' }]);
   // The new build's motion on the badge follows the badge through the id cycle (f0 -> f2).
-  expect(r.badgeTracks[1]).toBe(r.badgeTracks[0]);
-  expect(r.badgeTracks[0]).not.toBe(JSON.stringify([null, null]));
+  expect(r.firstScale).toEqual([{ time: 0, value: 0.5 }, { time: 0.3, value: 1 }]);
   // A track deleted after the import does not come back from the new build.
   expect(r.deleted, 'the import makes an entrance track').not.toBeNull();
   expect(r.deletedBack).toBe(false);
