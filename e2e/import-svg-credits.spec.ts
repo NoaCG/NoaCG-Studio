@@ -366,7 +366,6 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   // jev-svg-import row 19 (AC-13): roles and names drawn as their own text layers are the source.
   // The graphic keeps ONE list field; every role row is a copy of the first drawn role, every
   // name row of the first drawn name, spaced as drawn, and the drawn layers stay in the file.
-  test.slow(); // an import, a production, a take and an update, read in the renderer
   await page.goto('/app');
   await dropSvg(page, ABOVE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
