@@ -54,7 +54,9 @@ PR challenged them against that code. Rules found after coding are marked (after
   the import's own motion, and the new walk's choice stands.
 - **R5 A key must still have a target.** An editor-minted `artwork-N` moves only to the one layer
   with the same key, and only when that key is unique in the earlier artwork too (R1, R2; the
-  second half from the PR review bot on `3bf9b4f5`); otherwise the key is unresolved.
+  second half from the PR review bot on `3bf9b4f5`); otherwise the key is unresolved. A node of
+  the new artwork that already wears that id is trusted only when it is that same layer (from
+  the PR review bot on `83cb517a`).
 - **R6 A label changed after the import wins** on a verified match, and the definition in the
   markup is rewritten with it.
 - **R7 Action identity is the operator event's name, carried by the recipe.** A verified build
@@ -104,11 +106,11 @@ PR challenged them against that code. Rules found after coding are marked (after
   save, the separate import, the copy before a reviewed replace), `CreationWizard.tsx` (the
   library seam and the Finish review), `steps/FinishStep.tsx` (the list and the Replace anyway
   box in the existing name warning).
-- `e2e/import-svg-reimport.spec.ts` (new), eleven tests: the matcher on changed artwork (ids, keys,
+- `e2e/import-svg-reimport.spec.ts` (new), twelve tests: the matcher on changed artwork (ids, keys,
   label, a fresh id for the added layer, a deleted track, the new build's motion through an id
   cycle), a removed and a look-alike layer, an edited-artwork identity that follows its layer and
   one that is named, an identity on one of two look-alike layers, a field whose unbound twin
-  survives, an earlier id another node now holds, a behaviour's fields and actions, three journeys through Finish into a production
+  survives, an earlier id another node now holds, a minted identity a new node wears, a behaviour's fields and actions, three journeys through Finish into a production
   (changed artwork saved through Export and then the production door keeps the record, ids,
   keys, label and binding; a removed layer saves beside the earlier graphic, the production
   follows the saved name, and Replace anyway keeps a copy; walking back after a clean reimport
@@ -116,7 +118,7 @@ PR challenged them against that code. Rules found after coding are marked (after
 
 ## Verification on this worker
 
-- `e2e/import-svg-reimport.spec.ts` 11/11; with `import-name-collision`, `wizard-finish`,
+- `e2e/import-svg-reimport.spec.ts` 12/12; with `import-name-collision`, `wizard-finish`,
   `jev-svg-preparation`, `wizard-draft-guard` and `import-svg-behaviour`: 95/95 on the final source (j-0040); 49/49 with
   R14 (j-0020).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
@@ -129,7 +131,7 @@ PR challenged them against that code. Rules found after coding are marked (after
   badge's motion; Finish's list shown for the `over` effect only fails the walk-back journey;
   identity uniqueness checked on the new side only fails the look-alike identity test; a
   bound-only uniqueness count fails the unbound look-alike test; no collision check fails the
-  held-id test.
+  held-id test; trusting any node wearing a minted id fails the worn-identity test.
 - `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
   `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
   `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply`,
@@ -250,6 +252,14 @@ PR challenged them against that code. Rules found after coding are marked (after
 - PR review bot on `a13edb02`: one P2, class product defect, family R3: a matched field taking
   back `f1` could collide with an unbound designer node already called `f1`. Fixed (such a field
   is unresolved); a new test builds that case; without the check it fails.
+
+- Final `/so` on `83cb517a` (`session_017SdbwNPRmtKpt5PioRwV5i`): AGREE, grade A-, nothing
+  blocking; its two code-quality points (an unescaped id in a pattern, two quote styles) are
+  added to #1987.
+- PR review bot on `83cb517a`: one P2, class product defect, family R5: keys on an editor-minted
+  `#artwork-1` were kept when a designer node of the new artwork merely wore that id. Fixed (the
+  node must be the same layer by its source key); a new test gives version two a red circle
+  called `artwork-1` and finds the backdrop's keys not handed to it; without the check it fails.
 
 ## Traps
 
