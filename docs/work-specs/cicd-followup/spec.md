@@ -30,7 +30,7 @@ suite is not assumed to speed up merging.
   genuinely related documentation-only changes are bundled.
 - Long audit and observation windows are tracked explicitly; pending goals are never labelled
   complete.
-- Phases cf07, cf09, cf05 and cf08 carry owner dates (2026-11-11 to 2026-11-16). If a dated phase
+- Phases cf07, cf09, cf05, cf08 and cf14 carry owner dates (2026-11-11 to 2026-11-30). If a dated phase
   cannot PASS by its date, the coordinator records a dated extension under the incident or
   exception policy before the date passes, never after.
 - Execution order is the numbered `## Phases` list; phase ids are names, not positions.
@@ -85,26 +85,51 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   so each spec has exactly one tracking issue.
 - **cf02.** (a) `.agent-workflows/plan-run.md` says to archive a phase's builder, repairer,
   checker, diagnose and review sessions once its result and required handoff evidence are
-  recorded, without disrupting active work.
+  recorded, without disrupting active work (on main since 78c1cd8); the checker confirms the text
+  and that the coordinator has archived each finished phase's sessions so far. This is not counted
+  as new work in cf20.
 - **cf03.** (a) M1 to M5 measured from existing history with sample sizes, before and after the
   cicd-improvement landings, for comparable changes. (b) An explanation of why each landed
   improvement did or did not change total turnaround, and a ranked list of candidate optimizations
-  (duplicate work, cache misses, setup, shard balance, concurrency) with expected effect. (c) For
+  (duplicate work, cache misses, setup, shard balance, concurrency) with expected effect. Each of
+  the five categories gets at least one candidate or a measured reason it has none. (c) For
   M1, M2 and M3, the run-to-run spread on comparable changes and the minimum sample size per side
   for a before/after comparison, each derived from the history with the method stated. cf13 uses
-  these values unchanged.
+  these values unchanged, and the rule for grouping comparable changes (for example by changed-path
+  class and selected shard count). cf13 and cf20 use this rule, the spread and the minimum sample
+  sizes unchanged.
 - **cf04.** (a) Concurrent configured stacks are isolated, with safe port allocation, readiness
   checks and cleanup on failure or cancellation, and the collision cause is diagnosed. (b)
   Concurrent execution is verified in CI; no unrelated process is killed and startup is not merely
   retried.
-- **cf05, cf06, cf07.** (a) Each named flake is reproduced or explained, with a root-cause fix
-  that waits on observable state (or a product fix for a race). A wait or dialog dismissal in the
-  test does not count as the fix when the failure shows product behaviour that breaks a documented
-  rule (for #1603, the save rule); that needs the product fix. For cf07, the fix rules out a backend
-  stack or port collision (#1865, #1829) as the cause, or names it and leaves the setup fix to
-  cf04. (b) Stability is shown under representative CI conditions (a repeat count on CI runners
-  with the CI worker count, written in the phase brief before the run, with zero failures), and any quarantine is released only by the documented route.
-  Each incident issue carries owner, impact, repair date and restoration criteria.
+- **cf05.** (a) Each named flake is reproduced or explained, with a root-cause fix that waits on
+  observable state (or a product fix for a race). A wait or dialog dismissal in the test does not
+  count as the fix when the failure shows product behaviour that breaks a documented rule (for #1603,
+  the save rule); that needs the product fix.
+  (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
+  CI worker count, written in the phase brief before the run, with zero failures), and any
+  quarantine is released only by the documented route. (c) Each incident issue carries owner,
+  impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
+  the documented route.
+- **cf06.** (a) Each named flake is reproduced or explained, with a root-cause fix that waits on
+  observable state (or a product fix for a race). A wait or dialog dismissal in the test does not
+  count as the fix when the failure shows product behaviour that breaks a documented rule; that needs
+  the product fix.
+  (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
+  CI worker count, written in the phase brief before the run, with zero failures), and any
+  quarantine is released only by the documented route. (c) Each incident issue carries owner,
+  impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
+  the documented route.
+- **cf07.** (a) Each named flake is reproduced or explained, with a root-cause fix that waits on
+  observable state (or a product fix for a race). A wait or dialog dismissal in the test does not
+  count as the fix when the failure shows product behaviour that breaks a documented rule; that needs
+  the product fix. The fix rules out a backend stack or port collision (#1865, #1829) as the cause,
+  or names it and leaves the setup fix to cf04.
+  (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
+  CI worker count, written in the phase brief before the run, with zero failures), and any
+  quarantine is released only by the documented route. (c) Each incident issue carries owner,
+  impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
+  the documented route.
 - **cf08.** (a) #1954 and #1926 carry a named owner, target date and link to the JEV run, which
   keeps implementation; if the JEV run has not accepted them with a target date by the time cf08 starts, a coordinated fix is split out. (b) CI
   exercises and reports the missing svg01 case. (c) #1834 is reviewed against current main: it lands
@@ -127,7 +152,9 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   selection states in its PR that it restarts the audit, and cf18's earliest date moves with it.
 - **cf12.** (a) The ten critical tests run on every product change while their measured added
   minutes per product change, from cf03's M3, stay under a ceiling written in the phase brief
-  before the change lands, stated as a share of cf03's median M3 per merge with the reason, without running the same tests twice in one validation pipeline. (b) The 2-of-6 result
+  before the change lands, stated as a share of cf03's median M3 per merge with the reason, without running the same tests twice in one validation pipeline. If the measured added minutes exceed the ceiling, the tests are not
+  enabled on every product change, the measurement is recorded, and the owner is told in the phase
+  result. (b) The 2-of-6 result
   from cicd-improvement ci11 is explained, with what the set does and does not protect, and the
   missed faults turned into worthwhile coverage improvements or recorded follow-ups.
 - **cf13.** (a) At least one optimization chosen from the cf03 ranking lands. Before and after M1
@@ -152,18 +179,25 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   both ways. (c) A recommendation: adopt that model, or keep full pre-merge coverage and optimize
   its execution. Full pre-merge testing stays until cf18 qualifies. (d) This phase changes no
   coverage. Its recommendation is re-read against cf18's result before cf19 acts on it.
-- **cf17.** (a) Success criteria and a resource and spend ceiling are written before execution. (b)
+- **cf17.** (a) Success criteria, stop thresholds for contention and failure rate, and a resource
+  and spend ceiling within existing capacity and budget constraints are written before execution. (b)
   One bounded three-plan trial measures completed work per unit time, queue delay, contention,
-  retries and CI cost, and stops if contention or failure rates materially worsen. (c) Permanent
+  retries and CI cost, and stops if contention or failure rates cross the thresholds written in (a). (c) Permanent
   three-plan concurrency is enabled only if the trial shows a benefit.
 - **cf18.** (a) After the final selector change's clean audit window and every other
   prerequisite, a focused repeat of cicd-improvement ci15 is run, with the missing risky-change
   samples collected, and the other evidence cicd-improvement ci17 section 6 lists as missing
   (exact-commit replay drill, imported-design bench #1926, ci10 full-shard figure #1920) collected
-  or recorded as still open. (b) Acceptance criteria are not relaxed to close the run.
+  or recorded as still open. (b) Acceptance criteria are not relaxed to close the run. (c) If the
+  audit window restarts twice after cf11's final selector change, or has not completed clean by
+  2026-12-31, the phase stops waiting: it records re-qualification as not met, with the open misses,
+  without relaxing any criterion. cf19 then takes the no-activation outcome with full protection
+  retained, and cf20 reports re-qualification as open. (The limit is the coordinator's default;
+  the owner may set another.)
 - **cf19.** (a) A focused repeat of cicd-improvement ci16: activation only on a qualified cf18 PASS
   with still-current evidence, otherwise the no-activation outcome with retained protection.
-- **cf20.** (a) Before and after merge turnaround and CI cost with sample sizes; change in flaky
+- **cf20.** (a) Before and after merge turnaround and CI cost with sample sizes, using cf03's
+  comparability rule and spread; change in flaky
   failures and reruns. (b) Which cicd-improvement and cicd-followup criteria now pass and which
   stay open. (c) The next highest-impact optimization supported by measurements.
 
