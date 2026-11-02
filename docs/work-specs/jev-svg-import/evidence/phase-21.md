@@ -91,6 +91,18 @@ at 0.4, underlined. A fix in the runtime was written and removed, since nothing 
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `check-e2e-protection --changed origin/main`: OK.
 
+## Review rounds
+
+- `/check` on `0b5c0a7`-era head (delegated review, 9 findings; 3 fixed, 6 kept):
+  - Fixed: the test's held font kept one resolver and could release before this document's
+    request arrived (now every request is held and the release waits for this one); a paused roll
+    resumed when the faces landed (now it stays paused); these notes overstated what can arrive
+    late (worded into Known limits).
+  - Kept: settling on every styled roll and in the legacy editable roll would move the pinned
+    bytes the brief keeps fixed (#1965 for the legacy roll); the second render when the faces land
+    is the load-time hook's, harmless; a second measure with nothing to measure stops the roll,
+    as any take does.
+
 ## Known limits
 
 - A face that starts loading only after the take (none in practice: the rows are laid out at
