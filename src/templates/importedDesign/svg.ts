@@ -46,7 +46,7 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
-import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsBuildSvg, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
+import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
 import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
@@ -262,8 +262,7 @@ function designPreset(id: string): AnimPreset {
 
 /** Build the complete SpxTemplate for an imported SVG design. */
 export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
-  // A styled credits binding that cannot build styled builds as its fallback, wholly.
-  const svg = creditsBuildSvg(o.designSvg ?? NO_SVG);
+  const svg = o.designSvg ?? NO_SVG;
   const artworkRoll = isArtworkCredits(svg);
   // Credits in the artwork's own role and name layers, where a saved styled binding builds.
   const styledCredits = artworkRoll ? null : styledCreditsConfig(svg);

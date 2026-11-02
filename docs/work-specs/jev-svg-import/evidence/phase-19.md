@@ -19,7 +19,8 @@ succeeded on it.
 - `creditsRoll.ts`, the styled engine:
   - `creditsEngine` answers `styled` only where the binding validates and its layout and playback
     are in `CREDITS_RENDERED` (row 19: role above, roll). A styled binding anything else describes,
-    or a stale one, builds its declared fallback, the original-text roll (`isArtworkCredits`).
+    or a stale one, builds what it built before this row, the editable roll of its one list field,
+    byte for byte (a test compares it with the same binding without `credits`).
   - `styledCredits` / `styledCreditsConfig`: the style read at build (one laid-out reading per
     markup and binding, memoised), and the runtime's numbers: aligned edge, role to name, name to
     name, group gap, and what the drawn roles end with.
@@ -32,8 +33,7 @@ succeeded on it.
     its rows that group's look. Looks and shrink live in a stylesheet the runtime owns, never
     inline. A row too wide for its room shrinks, is reported past 55% through
     `noacgTextOverflow()` under the one Credits field, and stops at the 30% floor. Out stops the
-    roll. A binding that cannot build styled builds wholly as the original-text roll
-    (`creditsBuildSvg`).
+    roll.
   - The editable roll's field and take code is shared, extracted verbatim (`creditsFieldJs`,
     `creditsTakeJs`); the editable and artwork pins are unchanged.
   - #1941 points 2 and 3: the look and position come from the element painting the first
@@ -57,7 +57,7 @@ succeeded on it.
 | Spacing from the sample | Steps are `analyseCreditsStyle`'s, in the first role layer's units; the pace rides the drawn name step (55) |
 | Original source text retained | Node: each source layer in the built html is the import's text element word for word with its attributes; the take leaves every source layer's markup unchanged; e2e: the five drawn layers keep their words after Take and Update, laid out and hidden |
 | Animation anchors retained | The roll moves its own group (`.imported-design-credits-roll`); a second take measures the same roll; sources are not motion targets and are not rewritten |
-| Defined overflow per playback | Roll: tall runs through, wide shrinks and reports (above). Static and cards build the original-text roll until rows 22 and 23 render them (test "what no row renders yet") |
+| Defined overflow per playback | Roll: tall runs through, wide shrinks and reports (above). Static and cards build the editable roll they built before, until rows 22 and 23 render them (test "what no row renders yet") |
 | One list, no field per name | Node and e2e: one textarea holding `Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss`, the drawn title, Scroll speed; no fourth field. The other drawn layers' checklist rows are greyed: "sets the look of every name in Credits" |
 | Fixed artwork compatible | Pins of the editable roll, the artwork roll and the plain credits drawings unchanged; `check:catalog-emit` PASS (528). Byte comparison through the wizard's draft path (`svgDraftFromImport` then `svgDesignOptions` then build) of credits-roll, credits-artwork and credits-1 to 3 without the step's styled reading: identical hashes on this branch and on `516ec2c`. e2e: the artwork import's rows still say "scrolls as artwork"; role beside still saves artwork credits |
 
@@ -91,8 +91,12 @@ save disabled the role-above walk fails (j-0003).
     filters): they are now built in the nearest group shared by every source layer, and each kind
     carries what its own groups add (test `roleGroup`).
   - A styled binding falling back to the artwork roll kept a behaviour table without the artwork
-    marker, so a linked Sheet would have offered rows to an inert field: the fallback now builds
-    wholly as the artwork roll (`creditsBuildSvg`), table included.
+    marker, so a linked Sheet would have offered rows to an inert field. First fixed by building
+    the fallback wholly as the artwork roll; CI on `594313f` then failed row 18's test that every
+    styled binding keeps one live list field (`imported-credits-source` test 7, Factory gates).
+    Corrected at the root: the fallback is now what such a binding built before this row, the
+    editable roll, whose list field is live, so neither the Sheet adapter nor row 18's guarantee
+    changes.
   - A binding read before the design's faces loaded was memoised: the memo key now carries the
     font set's state.
   - Out did not stop the styled roll: the exit now calls `stopCreditsRoll`, as the artwork roll's does.
@@ -100,7 +104,7 @@ save disabled the role-above walk fails (j-0003).
   - The colour probe compared against a spelt sentinel: it now reads the canvas's own spelling back.
   - The checklist and the draft each derived the source layers: one helper (`creditsSourceLayers`).
   - The role suffix was read by parsing the markup again: it now comes with the style.
-  - Not changed: a styled binding that falls back shows its other drawn layers as artwork, not as
+  - Not changed: a styled binding that falls back shows its other drawn layers as drawn, not as
     fields (Known limits).
 - Browser run j-0004 (after the review fixes) failed twice and passed 6/6 unchanged in j-0005.
   Cause found, not re-run away: the production page formats the template, and the formatter
@@ -122,8 +126,9 @@ save disabled the role-above walk fails (j-0003).
   (`wizard/offer-control-can-change-graphic-front`). The draft field that carries the anchors is in
   place for phase 20 and changes nothing for imports today (byte comparison above).
 - **Only what a row has rendered builds styled** (`CREDITS_RENDERED`): role above as a roll. The
-  wizard saves the styled binding only there; other layouts and playbacks, and a binding gone
-  stale, build the original-text roll, so an untested picture never airs.
+  wizard saves the styled binding only there. Other layouts and playbacks, and a binding gone
+  stale, build exactly what they built before this row (the editable roll of the one list field),
+  so an untested picture never airs and no saved binding changes.
 - **Copies of the drawn layers, not a second look model.** A row is the source layer cloned with
   new words, so classes, runs, paint, transform and anything a stylesheet sets travel without a
   property list. Only a source in another group gets its inherited look written on the copy.
@@ -148,11 +153,11 @@ save disabled the role-above walk fails (j-0003).
 ## Known limits
 
 - A styled build validates with fallback fonts when the design's own faces are not on the page;
-  centring drawn without a stated anchor could then read `misaligned` and build the
-  original-text roll (phase 16's limit, unchanged).
+  centring drawn without a stated anchor could then read `misaligned` and build the editable
+  roll (phase 16's limit, unchanged).
 - A styled binding that cannot build styled (stale after the artwork changed) builds the
-  original-text roll: the Credits layer scrolls, and the other drawn roles and names stay as
-  drawn, not as fields. Importing the artwork again reads it afresh.
+  editable roll: the list rolls in the Credits layer's one look, and the other drawn roles and
+  names stay as drawn, not as fields. Importing the artwork again reads it afresh.
 - A source layer's filter, clip or mask on its own group is not carried to the rows.
 - Letter spacing set in px does not scale with a shrunk row.
 - A row past the 30% floor is reported and clipped by the roll's window, as the policy states.

@@ -358,9 +358,11 @@ async function inPage({ dev, cases, legacy, artwork }) {
     stale: notYet({ ...good, anchors: [...good.anchors].reverse() }),
   };
   const staticBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'static' }) });
-  fallbacks.staticBuildsArtwork = staticBuild.js.includes('function creditsArtwork(') && !staticBuild.js.includes('NOACG_CREDITS_STYLE');
-  // The fallback builds wholly as the artwork roll: its behaviour table says the list is inert.
-  fallbacks.staticTableArtwork = /"artwork":\s*true/.test(staticBuild.js);
+  // ...which is the editable roll it built before any styled engine existed, byte for byte.
+  fallbacks.staticBuildsEditable = staticBuild.js.includes('function creditsSampleLines(') && !staticBuild.js.includes('NOACG_CREDITS_STYLE');
+  const unstyled = binding(good);
+  delete unstyled.behaviour.credits;
+  fallbacks.staticSameAsUnstyled = JSON.stringify(staticBuild) === JSON.stringify(I.IMPORTED_SVG.create({ designSvg: unstyled }));
   // #1941: loose characters before the first run, and colour spellings in the parsed reading.
   const loose = analyse(cases.loose, parsed);
   const looseLaid = analyse(cases.loose, laidOut);
@@ -760,9 +762,10 @@ test('row 19: the roll keeps the source layers and their original text, and repl
   }
 });
 
-test('row 19: what no row renders yet builds the original-text roll, never an untested picture', () => {
-  // Role beside is row 20, static row 22, cards row 23. A stale binding builds its fallback too.
-  assert.deepEqual(R.fallbacks, { static: 'artwork', cards: 'artwork', stale: 'artwork', staticBuildsArtwork: true, staticTableArtwork: true });
+test('row 19: what no row renders yet builds what it built before, never an untested picture', () => {
+  // Role beside is row 20, static row 22, cards row 23; a stale binding likewise. Each keeps the
+  // editable roll of its one list field, exactly as before row 19.
+  assert.deepEqual(R.fallbacks, { static: 'editable', cards: 'editable', stale: 'editable', staticBuildsEditable: true, staticSameAsUnstyled: true });
 });
 
 test('#1941: loose characters before the first run, and colour spellings, read as painted', () => {

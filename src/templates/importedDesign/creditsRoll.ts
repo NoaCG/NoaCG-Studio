@@ -68,8 +68,7 @@ export function creditsIndex(svg: DesignSvg): number {
   return typeof at === 'number' && at >= 0 && at < svg.fields.length ? at : -1;
 }
 
-/** New imports scroll original artwork. Absence preserves previously saved editable bindings.
- *  A styled binding that cannot build styled builds this too: its declared fallback. */
+/** New imports scroll original artwork. Absence preserves previously saved editable bindings. */
 export function isArtworkCredits(svg: DesignSvg): boolean {
   return creditsEngine(svg) === 'artwork';
 }
@@ -611,19 +610,6 @@ export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null 
   const roleToName = style.steps.roleToName ?? style.steps.nameToName ?? 0;
   const nameToName = style.steps.nameToName ?? roleToName;
   return { align: style.align.role, roleToName, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix };
-}
-
-/**
- * The design as it builds: a styled binding that cannot build styled (`creditsEngine` answers
- * 'artwork') builds as the original-text roll it falls back to, marker and all, so the emitted
- * behaviour table and every reader of it agree that the list field is inert.
- */
-export function creditsBuildSvg(svg: DesignSvg): DesignSvg {
-  const behaviour = svg.behaviour;
-  if (behaviour?.kind !== 'recipe' || !behaviour.credits || behaviour.options?.artwork === true) return svg;
-  if (styledCredits(svg)) return svg;
-  const { credits: _dropped, ...rest } = behaviour;
-  return { ...svg, behaviour: { ...rest, options: { ...behaviour.options, artwork: true } } };
 }
 
 /** The stylesheet part: the drawn source layers are laid out, never painted. */
@@ -1447,20 +1433,20 @@ function creditsLayerText(root: Element, candidateId: string): string {
  *  styling, the editable roll, or none. One answer per design. The original-text marker wins, as
  *  it does in the assembler, so a binding carrying both (`conflicting-engine`) never half-builds
  *  as styled. A styled binding builds styled only where it validates and a row has rendered its
- *  layout and playback (`CREDITS_RENDERED`); otherwise it builds its declared fallback, the
- *  original-text roll, and never half-applies. */
+ *  layout and playback (`CREDITS_RENDERED`); otherwise it builds what it built before any styled
+ *  engine existed, the editable roll of its one list field, byte for byte. */
 export function creditsEngine(svg: DesignSvg): 'styled' | 'artwork' | 'editable' | null {
   const behaviour = svg.behaviour;
   if (behaviour?.kind !== 'recipe' || behaviour.recipe !== CREDITS_RECIPE_ID) return null;
   if (behaviour.options?.artwork === true) return 'artwork';
-  if (!behaviour.credits) return 'editable';
-  return styledCredits(svg) ? 'styled' : 'artwork';
+  return behaviour.credits && styledCredits(svg) ? 'styled' : 'editable';
 }
 
 /**
  * THE LAYOUTS AND PLAYBACKS THE STYLED ENGINE RENDERS. Row 19 renders role above as a roll; role
- * beside (row 20), static (row 22) and cards (row 23) are added by the rows that render them, so a
- * binding nothing renders yet builds the original-text roll instead of an untested picture.
+ * beside (row 20), static (row 22) and cards (row 23) are added by the rows that render them. A
+ * binding nothing renders yet keeps building the editable roll of its one list field, as it did
+ * before, never an untested picture; the wizard saves only what is rendered.
  */
 export const CREDITS_RENDERED: Readonly<Record<CreditsLayout, readonly CreditsPlayback[]>> = {
   'role-above': ['roll'],
