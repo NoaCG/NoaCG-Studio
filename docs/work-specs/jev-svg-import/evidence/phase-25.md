@@ -204,6 +204,9 @@ Each applied to the source on this worker, run, and restored (tree clean after e
   address meets it; not pinned here.
 - The flip's blank-gap bound is relative to its own measured gap (+120 ms), so a design whose flip
   leaves a longer gap is judged against itself.
+- The flip test needs at least one of its three edits to land while a story is on screen. Edits
+  land when the reader reads, so each falls in a flip gap with a chance of about 13% (0.5 s of a
+  3.95 s turn), all three about 0.2%.
 - A drawn ticker still has no motion engine (rows 17 and 24); moving imported artwork stays out
   of scope.
 
