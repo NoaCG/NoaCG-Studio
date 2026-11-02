@@ -39,8 +39,10 @@ PR challenged them against that code. Rules found after coding are marked (after
 - **R1 Identity is the drawn layer.** A field's source key is the layer's tag, its designer-named
   groups, and every attribute the designer exported on it. Never its words, never its id (the
   build replaced it), never the build's own classes or `data-noacg-*` stamps.
-- **R2 A verified match is an exact key that occurs once on each side.** No similarity, no
-  position, no name-only fallback. A data holder (a behaviour's field, a clock or credits holder)
+- **R2 A verified match is an exact key that occurs once on each side**, counted across every
+  drawn layer of the artwork (an unbound twin counts; second half from the PR review bot on
+  `be7be458`), and the match is a field of the new build. No similarity, no position, no
+  name-only fallback. A data holder (a behaviour's field, a clock or credits holder)
   is keyed by its kind and the title its import gave it.
 - **R3 A verified match keeps its earlier field id.** The new build's ids are renamed all at once.
   An added field keeps its own id unless the earlier graphic used it; then it takes the lowest id
@@ -106,7 +108,7 @@ PR challenged them against that code. Rules found after coding are marked (after
 
 ## Verification on this worker
 
-- `e2e/import-svg-reimport.spec.ts` 9/9; with `import-name-collision`, `wizard-finish`,
+- `e2e/import-svg-reimport.spec.ts` 10/10; with `import-name-collision`, `wizard-finish`,
   `jev-svg-preparation` and `wizard-draft-guard`: 51/51 on the final source (j-0031); 49/49 with
   R14 (j-0020).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
@@ -117,7 +119,8 @@ PR challenged them against that code. Rules found after coding are marked (after
   the name check; no R14 (reconcile on the `over` effect only) fails the first journey at the
   field ids and the rule test; a second rename pass over the script fails the matcher test at the
   badge's motion; Finish's list shown for the `over` effect only fails the walk-back journey;
-  identity uniqueness checked on the new side only fails the look-alike identity test.
+  identity uniqueness checked on the new side only fails the look-alike identity test; a
+  bound-only uniqueness count fails the unbound look-alike test.
 - `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
   `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
   `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply`,
@@ -213,6 +216,18 @@ PR challenged them against that code. Rules found after coding are marked (after
   one of two look-alike layers moved onto the survivor when the keyed twin was removed. Fixed
   (uniqueness on both sides); a new test keys the removed twin and finds the identity not moved
   and the key listed; without the fix it fails at the move.
+
+- Final `/so` on `be7be458` (`session_017SdbwPs4E1vqTNddirrQcE`): AGREE WITH CORRECTIONS, grade
+  A-, nothing blocking. Its three points are filed as #1987 (P3): a Replace anyway tick that can
+  outlive its list when Finish and the save read differently (the earlier graphic is still copied
+  first), Finish's review shown in SVG mode only while the save reconciles in any mode (fails to a
+  separate graphic), and machine edits after the import not compared (no UI edits the machine
+  today).
+- PR review bot on `be7be458`: one P2, class product defect, family R2 (the bound-only count):
+  a field whose layer had an unbound twin matched the twin after the bound one was deleted.
+  Fixed (artwork-wide count); a new test unbinds one of two identical captions, deletes the bound
+  one in version two, and finds the field ambiguous and its id not reused; with the bound-only
+  count it fails.
 
 ## Traps
 
