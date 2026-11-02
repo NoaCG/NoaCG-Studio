@@ -70,16 +70,17 @@ list through the operator door) already cover what this row would have added the
 | Reconnect | Node reader and tick: newer rows (reordered, one replaced, one removed) are written once, then nothing while unchanged. Browser: the newest lines reach the field on air (text) and the prepared rows, then the Take (credits). Pause/Resume: ticker spec 2, and row 24's text and credits journeys |
 | Server takeover with every operator page closed, in Actions | `e2e/configured/production-data-key-tick.spec.ts` test 2, on the configured stack's real database (selected in this PR's CI): every page closed and the lease lapsed, the tick meets deny, hang, reset and sign-in, writes no update row, the row's status says why and goes stale; the next good read writes the newest lines once (then `unchanged`), and the reopened page shows a good read. Node tick test: the same for the three kinds, with a page holding every lease first (`leased`, nothing fetched) |
 | Imported credits, ticker rows, multiline text | Each failure walk covers the three: Node reader and tick (adapters `credits`, `lines`, keyed values), browser text and credits walks, ticker spec |
-| Content refresh preserves animation state | Text walk: the drawing's own motion keeps turning through every failure and the reconnect, `data-plays` stays 1. Credits: row 24's snapshot rules are unchanged (6/6 on this branch). Ticker spec below |
+| Content refresh preserves animation state | Text walk: a repeating turn the test starts on the drawing's decoration keeps running and its time only grows through every failure and the reconnect (so nothing reloaded or reset the motion), `data-plays` stays 1. Credits: row 24's snapshot rules are unchanged (6/6 on this branch). Ticker spec below |
+| Each existing/selected playback update policy | Row 24's tests, unchanged and passing on this branch (`imported-credits-live-data` 1 to 6): a styled roll and cards keep their snapshot on air until the next Take, a still page refits in place, the multiline field updates without replaying motion; the editable and artwork rolls keep their policies (row 17 and 24 node tests). This row adds the failure walk on the roll: off air the prepared rows keep the last good list through every failure |
 | No model request | Node reader: every request is the tab's export address. Tick: nothing but the three export addresses is fetched. Browser text and credits walks: no request to `/api/ai` or a model provider on any refresh |
 | One controlled public-sheet probe, actual cadence | Below |
-| Ticker: replace/reorder/delete while moving | `ticker-linked-update` 1 (marquee) and 3 (flip) |
+| Ticker: replace/reorder/delete while moving | `ticker-linked-update` 1 (marquee) and 3 (flip). Each step waits until the strip holds the new items in order, so a reorder is seen to land (with the reorder left unwritten, the step fails) |
 | Speed-only change | Marquee: Scroll speed 200% through Update doubles the pace from that frame (ratio within 1.8 to 2.2), the items' nodes are not rendered again, no jump. Flip: the story on screen stays, the whole turns after it are under 0.65 of the measured turn |
 | Empty then repopulate | Marquee and flip: an emptied tab clears the strip (no items); filled again it moves (marquee) or rotates (flip) without a Take, `data-plays` 1 |
 | Reopen/reconnect | Ticker spec 2: Pause holds the strip, Resume reaches the running strip with the newest lines. Page closed, Sheet changed, page reopened: the reader catches up in the preview before anything airs; the Take airs the newest lines; a change after that reaches the running strip without another entrance |
-| No unintended blank interval or entrance replay; empty intentionally clears | Marquee: in every frame of every window the strip holds items; `data-plays` stays 1. Flip: the longest gap with no story showing after each edit is no longer than the flip's own gap before any edit (+120 ms, about seven frames); never two stories at once; `data-plays` 1 |
-| Marquee continuity (frame/time) | Each frame's x against the last: never further left than the pace allows (×1.25 plus 2 px), and back only by whole one-set widths (the seamless loop point, and the handover onto the new track at the same offset into a set); it keeps moving |
-| Flip handover at its item boundary (frame/time) | The story whose turn was under way when an edit landed shows on for its whole measured turn (within 120 ms); a story still flipping in plays its whole turn too; the next story is from the new list; no story twice in a row |
+| No unintended blank interval or entrance replay; empty intentionally clears | Marquee: in every frame of every window the strip holds items and its track covers the window (x within one set; the marquee's handover has no fade, so this is the blank it could show); `data-plays` stays 1. Flip: the longest gap with no story showing after each edit is no longer than the flip's own gap before any edit (+120 ms, about seven frames); never two stories at once; `data-plays` 1 |
+| Marquee continuity (frame/time) | Each frame's x against the last, once the entrance is over: never further left than the pace allows (×1.25 plus 2 px), back only by whole one-set widths (the seamless loop point, and the handover onto the new track at the same offset into a set), never still for 250 ms |
+| Flip handover at its item boundary (frame/time) | The landing frame is the first whose track holds the new order. The story on screen in the frame before shows on for its whole measured turn (within 120 ms), and at least one of the three edits lands on a story; a story still flipping in plays its whole turn too; the next story is from the new list, and when the finishing story is in the new list, it is the one after it there; no story twice in a row |
 | Linked multiline SVG field without resetting motion | Row 24's journey (unchanged) and the text failure walk |
 | No imported-SVG ticker motion compiler | None added. A drawn ticker's message field shows the ordered rows as text (row 17); moving imported artwork stays a stated limit |
 
@@ -131,8 +132,10 @@ Each applied to the source on this worker, run, and restored (tree clean after e
   test alone 3/3 (j-0011).
 - `npm run gates -- run --changed origin/main`: pass. `node scripts/check-e2e-protection.mjs
   --changed origin/main`: OK. `npx tsc --noEmit -p .` and `npx eslint` on the changed files: pass.
-- `e2e/configured/production-data-key-tick.spec.ts` needs the configured stack: it runs in this
-  PR's CI (configured selection), not here.
+- `e2e/configured/production-data-key-tick.spec.ts` needs the configured stack, so it runs in the
+  PR's CI: on `9c1f21f` (run 41497496154) the configured selection was a subset of one spec, this
+  one, and `Configured E2E 1/1 (selected, local Supabase)` passed. The final head's run is in the PR.
+- After the review round: `e2e/ticker-linked-update.spec.ts` 6/6 over two repeats (j-0020).
 
 ## Review rounds
 
@@ -160,6 +163,15 @@ Each applied to the source on this worker, run, and restored (tree clean after e
     fixture the tick test loads without the TypeScript loader); moving the configured spec's first
     test onto the fake (that test is unchanged on purpose); the fixed observation windows in the
     ticker spec (they are how long the strip is watched, not waits for a state).
+- Codex on `9c1f21f` (PR opened), one P2: the marquee wait sorted the items, so the reorder step
+  passed before the reorder was read and the next step could overwrite it. Fixed: the wait needs
+  the new order (the set rendered twice); with the reorder left unwritten, the step now fails.
+- `/so` round 1, session `session_017SdbwNvyLAGvdfn7k1vEAw`, on `9c1f21f`: AGREE WITH CORRECTIONS,
+  B+. Its blocking point is the same reorder wait, fixed above. Non-blocking, all applied: the flip
+  must land at least one edit on a story; the story after the finishing one in the new list comes
+  next when the rule fixes it; the marquee's no-blank evidence says what it checks; the text walk's
+  motion is named as the test's own tween; an AC-14 row points at row 24's playback policy tests;
+  the configured run's result is read on the final head.
 - Two checks added in that round met the browser's own timing: the marquee was judged during its
   entrance (it now waits until it travels), and a late frame split one flip turn in two (a turn
   now ends on a blank or another story, never on time).
