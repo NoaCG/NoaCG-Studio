@@ -1312,6 +1312,7 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       ...Object.fromEntries(Object.entries(picked(behaviour.fields)).map(([role, id]) => [role, indexOf(id)])),
       ...perRow((row) => Object.fromEntries(Object.entries(picked(row.fields)).map(([role, id]) => [role, indexOf(id)]))),
     };
+    const styled = styledCreditsOf(behaviour);
     return {
       kind: 'recipe',
       recipe: behaviour.recipe,
@@ -1322,8 +1323,8 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       // this additive marker still assembles its editable roll; no second import option is shown.
       // Credits drawn as separate role and name layers, in a layout the styled engine renders,
       // save that binding instead (the step read it off the drawing): never both.
-      ...(styledCreditsOf(behaviour)
-        ? { credits: styledCreditsOf(behaviour), ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}) }
+      ...(styled
+        ? { credits: styled, ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}) }
         : behaviour.recipe === 'credits'
         ? { options: { ...behaviour.options, artwork: true } }
         : Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
