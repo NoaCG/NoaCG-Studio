@@ -1052,7 +1052,11 @@ export function validateCreditsBinding(svg: DesignSvg, root?: Element): string[]
       return own !== null && own !== contentText && texts.includes(own);
     });
     if (perName.length > 0) errors.push(`field-per-name: ${perName.map((f) => f.candidateId).join(', ')} would each be a field.`);
-    analyseInto(errors, model, analyseCreditsStyle(readCreditsAnchors(scope, ids), ids));
+    const readings = readCreditsAnchors(scope, ids);
+    // Where the columns are ambiguous, the author's answer is the one the stored kinds give.
+    const read = analyseCreditsStyle(readings, ids);
+    const swapped = creditsColumnsAmbiguous(readings, ids) ? analyseCreditsStyle(readings, ids, { swap: true }) : null;
+    analyseInto(errors, model, swapped?.ok && sameAnchors(swapped.style.anchors, model.anchors) ? swapped : read);
   } finally {
     laid?.done();
   }
@@ -1071,12 +1075,14 @@ function creditsLaidOut(markup: string): { root: Element; done: () => void } | n
   return { root: host.firstElementChild as Element, done: () => host.remove() };
 }
 
+const anchorKey = (anchors: readonly DesignSvgCreditsAnchor[]) => anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',');
+const sameAnchors = (a: readonly DesignSvgCreditsAnchor[], b: readonly DesignSvgCreditsAnchor[]) => anchorKey(a) === anchorKey(b);
+
 function analyseInto(errors: string[], model: DesignSvgCredits, analysis: CreditsAnalysis): void {
   if (!analysis.ok) {
     errors.push(`${analysis.code}: ${analysis.message} (${analysis.anchors.join(', ')})`);
     return;
   }
   if (analysis.style.layout !== model.layout) errors.push(`stale-layout: the artwork shows ${analysis.style.layout}.`);
-  const kinds = analysis.style.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',');
-  if (kinds !== model.anchors.map((x) => `${x.candidateId}:${x.kind}`).join(',')) errors.push('stale-anchors: the layers no longer read in this order or role.');
+  if (!sameAnchors(analysis.style.anchors, model.anchors)) errors.push('stale-anchors: the layers no longer read in this order or role.');
 }

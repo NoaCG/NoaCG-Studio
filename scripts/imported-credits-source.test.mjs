@@ -102,7 +102,27 @@ const BUILT = await withBundledPage(
                 return { layout: read.layout, playback, errors: P.validateCreditsBinding(svg, root), js: build(svg).js };
               });
             });
+            // A saved binding of each reading of the ambiguous drawing, validated against it.
+            const swapCheck = (() => {
+              const imp = R.importSvgMarkup(synthetic.nameFirst);
+              const root = laid(imp);
+              const id = idOf(imp, 'Alex Rivera');
+              const fields = fieldsOf(imp).filter((f) => f.candidateId === id);
+              const check = (choice) => {
+                const read = P.creditsPreview(root, ids(imp), id, choice);
+                return P.validateCreditsBinding({ ...base(imp), fields, behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 }, credits: { v: 1, layout: read.layout, playback: 'cards', anchors: read.anchors } } }, root);
+              };
+              // Kinds no reading gives: every layer a role but the last.
+              const read = P.creditsPreview(root, ids(imp), id);
+              const bogus = read.anchors.map((a, i) => ({ ...a, kind: i === read.anchors.length - 1 ? 'name' : 'role' }));
+              return {
+                read: check({}),
+                swapped: check({ swap: true }),
+                bogus: P.validateCreditsBinding({ ...base(imp), fields, behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 }, credits: { v: 1, layout: read.layout, playback: 'cards', anchors: bogus } } }, root),
+              };
+            })();
             return {
+              swapCheck,
               above: show(drawn, 'Research'),
               beside: show(beside, 'Réalisation'),
               legacy: show(legacy, L.candidates.find((c) => c.label === 'Credits').sample),
@@ -286,6 +306,10 @@ test('preview: ambiguous columns get one choice; right-to-left lines read from t
   assert.deepEqual(PREVIEW.nameFirst.list, [[{ type: 'group', role: 'Alex Rivera', names: ['Director'] }, { type: 'group', role: 'Ari Moss', names: ['Sound'] }]]);
   assert.deepEqual(PREVIEW.nameFirstSwapped.list, [[{ type: 'group', role: 'Director', names: ['Alex Rivera'] }, { type: 'group', role: 'Sound', names: ['Ari Moss'] }]]);
   assert.deepEqual(PREVIEW.nameFirstSwapped.anchors, ['Director:role', 'Alex Rivera:name', 'Sound:role', 'Ari Moss:name']);
+  // Either answer saves as a valid binding of that drawing; kinds neither reading gives do not.
+  assert.deepEqual(PREVIEW.swapCheck.read, []);
+  assert.deepEqual(PREVIEW.swapCheck.swapped, []);
+  assert.ok(PREVIEW.swapCheck.bogus.some((e) => e.startsWith('stale-anchors')), JSON.stringify(PREVIEW.swapCheck.bogus));
   // A turned block is read in its own frame: the first role keeps its name.
   assert.equal(PREVIEW.turned.layout, 'role-beside');
   assert.deepEqual(PREVIEW.turned.list, [[{ type: 'group', role: 'Director', names: ['Alex Rivera'] }, { type: 'group', role: 'Sound', names: ['Ari Moss'] }]]);

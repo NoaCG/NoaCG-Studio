@@ -73,6 +73,15 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
   role-beside block lost its first role's name. The filter now undoes the block's turn as the
   analysis does; test 6 adds the turned case, which fails on the old filter.
 
+- `/so` on `de94d1d0` (session `session_017SdbwNoQfaxe5WzuhVyU4m`, AGREE WITH CORRECTIONS, B+):
+  a binding saved with the swapped answer would be refused as `stale-anchors`, because
+  `validateCreditsBinding` read only the default direction; and no row named owns saving the
+  choice. Fixed here: where the drawing is ambiguous, validation accepts the reading whose kinds the
+  binding stores (test 6 saves both answers and a set of kinds neither reading gives; without the
+  fix the swapped one is refused). The save is assigned below. Its other two points are notes:
+  the preview reads the field rather than the Sheet (Decisions) and picking a lower layer shortens
+  the list (Known limits).
+
 ## Decisions
 
 - **The preview reads the field's list, not a Sheet.** The Credits field is the declared list
@@ -83,8 +92,11 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
   when both readings succeed and differ.
 - **The choice is held by the step, not saved.** The wizard writes no styled binding yet: every new
   credits import is `options.artwork` (`draft.ts`), and the assembler does not build `styled`. The
-  choice's output is the anchor kinds `DesignSvgCredits` already stores; writing them belongs to
-  the rows that build the engine (#1937, rows 19 to 23).
+  choice's output is the anchor kinds `DesignSvgCredits` already stores, and validation accepts
+  either answer. Writing the binding, with the answer, needs `draft.ts` (and the choice lifted out
+  of the step into the draft), which no row 19 to 23 allowlist names: #1937 carries that boundary
+  for the coordinator to reconcile before row 19 (comment there names `creditsPreview` with the
+  answer as the source of the stored kinds).
 - **Anchors are the picked layer's line and every text layer below it.** A title above the list is
   artwork in every dev fixture. A layer that is not part of a two-look drawing previews as its own
   text, never a guess.
@@ -99,7 +111,10 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
 
 ## Known limits
 
-- The column choice is not saved (see Decisions).
+- The column choice is not saved (see Decisions; #1937).
+- The list starts at the layer picked as Credits: picking a lower role (Image in credits-2) leaves
+  the roles above it out of the preview, as a title drawn above is left out. The author picks the
+  first role; the e2e does.
 - The preview shows the structure, not the drawn looks or measured overflow; rows 19 to 23 render.
 
 ## Revert
