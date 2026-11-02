@@ -65,8 +65,9 @@ export function trialVerdict(report, repeat) {
   const walk = (suite) => {
     for (const child of suite.suites ?? []) walk(child);
     for (const spec of suite.specs ?? []) {
-      // One test is one spec entry (its id, or its file, line and title): two tests may share a title.
-      const id = spec.id ?? `${spec.file}:${spec.line}:${spec.title}`;
+      // One test is its file, line and title: two tests may share a title, and the report lists
+      // each repetition as its own entry with its own id, so the id would count every run as a test.
+      const id = `${spec.file}:${spec.line}:${spec.title}`;
       for (const test of spec.tests ?? []) {
         for (const result of test.results ?? []) runs.push({ id, status: result.status, retry: result.retry ?? 0 });
       }
