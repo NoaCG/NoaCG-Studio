@@ -2,6 +2,8 @@
 // guards: src/templates/importedDesign/creditsRoll.ts
 // guards: src/templates/importedDesign/designTypes.ts
 // guards: src/templates/behaviours/credits.ts
+// guards: src/templates/importedDesign/svg.ts
+// guards: src/templates/importedDesign/svgBind.ts
 //
 // IMPORTED CREDITS IN THE ARTWORK'S OWN STYLING: the model (jev-svg-import row 16, AC-13).
 //
@@ -75,6 +77,104 @@ const CASES = {
   nestedLines: svg(`<text x="100" y="100" font-size="24" fill="#fc0"><tspan x="100" y="100"><tspan>Director</tspan><tspan x="100" y="160">Alex</tspan></tspan></text>${t(100, 220, 40, 'Ida Lake')}`),
   looseLines: svg(`<text x="100" y="100" font-size="24" fill="#fc0">Director<tspan x="100" y="160">Alex</tspan></text>${t(100, 220, 40, 'Ida Lake')}`),
 };
+
+/** Row 19's drawings: a bold role look set by a stylesheet class, names drawn in a group of
+ *  their own (so a copy must carry the group's look), and the two #1941 reader cases. */
+const STYLED_CASES = {
+  bold: svg(`<style>.r{font-weight:700;fill:#fc0}</style>${t(500, 100, 24, 'Director', ' class="r" text-anchor="middle"')}${t(500, 160, 40, 'Alex Rivera', ' text-anchor="middle"')}${t(500, 210, 40, 'Ida Lake', ' text-anchor="middle"')}${t(500, 330, 24, 'Sound', ' class="r" text-anchor="middle"')}${t(500, 390, 40, 'Ari Moss', ' text-anchor="middle"')}`),
+  grouped: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}<g fill="#9cf" opacity="0.5" font-style="italic">${t(100, 160, 40, 'Alex Rivera')}${t(100, 210, 40, 'Ida Lake')}</g>`),
+  // Loose characters painted before the first run take the text's look, not the run's.
+  loose: svg(`<text x="100" y="100" font-size="40" fill="#fc0">Dir<tspan fill="#fff">ector</tspan></text>${t(100, 160, 40, 'Alex Rivera')}`),
+  // One name look spelt two ways: the parsed reading compares colours, not spellings.
+  spellings: svg(`${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada Holm', ' fill="white"')}${t(100, 210, 40, 'Bo Lind', ' fill="#ffffff"')}`),
+};
+
+/** Plays one styled document on its own page and reads back what the rows show. Positions are in
+ *  the artwork's own units, through the screen, so the roll's window is crossed honestly. */
+async function playStyled(context, built) {
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  try {
+    await page.setContent(built.doc);
+    await page.evaluate(() => document.fonts.ready);
+    return { errors, ...(await page.evaluate(readStyled, { field: built.field.field })) };
+  } finally {
+    await page.close();
+  }
+}
+
+/** Runs in the played document. */
+function readStyled({ field }) {
+  const art = document.querySelector('.imported-design-art');
+  const toArt = (el, x, y) => {
+    const m = art.getScreenCTM().inverse().multiply(el.getScreenCTM());
+    return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+  };
+  const round = (n) => Math.round(n * 100) / 100;
+  const startOf = (el) => {
+    const p = el.getStartPositionOfChar(0);
+    const q = toArt(el, p.x, p.y);
+    return { x: round(q.x), y: round(q.y) };
+  };
+  const painted = (el) => {
+    let node = el;
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.nodeValue.trim()) { node = n.parentNode; break; }
+    let opacity = 1;
+    for (let e = node; e && e !== art; e = e.parentNode) opacity *= parseFloat(getComputedStyle(e).opacity);
+    const cs = getComputedStyle(node);
+    return { fill: cs.fill, size: cs.fontSize, weight: cs.fontWeight, style: cs.fontStyle, family: cs.fontFamily, opacity: round(opacity) };
+  };
+  const sources = () => [...document.querySelectorAll('[data-noacg-credit]')].map((el) => ({
+    mark: el.getAttribute('data-noacg-credit'), text: el.textContent, outer: el.outerHTML, visibility: getComputedStyle(el).visibility, start: startOf(el), look: painted(el),
+  }));
+  const rows = () => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => ({
+    kind: el.getAttribute('data-noacg-credits'), text: el.textContent, start: startOf(el), look: painted(el), id: el.getAttribute('id'),
+    width: round(el.getBBox().width * Math.sqrt(Math.abs(toArt(el, 1, 0).x - toArt(el, 0, 0).x) ** 2 + Math.abs(toArt(el, 1, 0).y - toArt(el, 0, 0).y) ** 2)),
+  }));
+  const write = (list) => window.update(JSON.stringify({ [field]: list }));
+  const atRest = { sources: sources(), rows: rows() };
+  // Repeated roles and names, a role with none, a heading and a section break.
+  write('Research:\nNia Vale\nTomas Fen\nIda Lake\nSound:\nAri Moss\nMusic:\n\nResearch:\nSol Reed');
+  const repeated = rows();
+  // Long names, measured against the drawn name look itself: each one's natural width is what the
+  // first name layer draws when it holds those words.
+  const nameLayer = [...document.querySelectorAll('[data-noacg-credit]')].find((el) => el.getAttribute('data-noacg-credit').endsWith(' name'));
+  const natural = (words) => {
+    const first = document.createTreeWalker(nameLayer, NodeFilter.SHOW_TEXT);
+    let node = first.nextNode();
+    while (node && !node.nodeValue.trim()) node = first.nextNode();
+    const was = node.nodeValue;
+    node.nodeValue = words;
+    const w = nameLayer.getBBox().width;
+    node.nodeValue = was;
+    const unit = Math.hypot(toArt(nameLayer, 1, 0).x - toArt(nameLayer, 0, 0).x, toArt(nameLayer, 1, 0).y - toArt(nameLayer, 0, 0).y);
+    return round(w * unit);
+  };
+  const long = [1, 3, 5, 14].map((n) => Array(n).fill('Aurelia Vantongeren').join(' '));
+  write(`Research:\n${long.join('\n')}`);
+  const longRows = rows();
+  const longFit = window.noacgCreditsFit.map((f) => ({ ...f }));
+  const naturals = long.map(natural);
+  const overLong = noacgTextOverflow();
+  write('Research:\nNia Vale');
+  const overShort = noacgTextOverflow();
+  // The take: the roll moves its own group; the source layers stay exactly as they were.
+  write('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  const before = sources().map((x) => x.outer);
+  const tween = window.noacgCreditsRoll();
+  const first = { ...window.noacgCreditsLast };
+  const target = tween && tween.targets()[0].getAttribute('class');
+  const again = window.noacgCreditsRoll();
+  const second = { ...window.noacgCreditsLast };
+  if (again) again.kill();
+  return {
+    atRest, repeated, longRows, longFit, naturals, overLong, overShort, field,
+    take: { ok: !!tween, first, second, target, sourcesKept: JSON.stringify(sources().map((x) => x.outer)) === JSON.stringify(before) },
+    holder: document.getElementById(field)?.className,
+  };
+}
 
 /** Runs in the browser: every answer the tests below read, from one page. */
 async function inPage({ dev, cases, legacy, artwork }) {
@@ -215,7 +315,48 @@ async function inPage({ dev, cases, legacy, artwork }) {
     styled: C.creditsEngine(binding(good)),
     both: C.creditsEngine(binding(good, { options: { artwork: true } })),
   };
+  // ROW 19: the styled engine, role above. Each binding is the reading the wizard saves: the
+  // anchors `creditsPreview` reads from the first role layer down, one Credits field, a roll.
+  const styledOf = (markup, roleWord) => {
+    const imp = imported(markup);
+    const content = imp.candidates.find((c) => c.sample === roleWord).id;
+    const host = laidOut(imp.markup);
+    const preview = C.creditsPreview(host, imp.candidates.map((c) => c.id), content);
+    host.parentElement.remove();
+    const sources = new Set(preview.styled ? preview.anchors.map((a) => a.candidateId) : []);
+    const fields = fieldsOf(imp).filter((f) => !sources.has(f.candidateId) || f.candidateId === content);
+    const svg = {
+      markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [], fonts: [],
+      behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: fields.findIndex((f) => f.candidateId === content) }, credits: { v: 1, layout: preview.layout, playback: 'roll', anchors: preview.anchors } },
+    };
+    const tpl = I.IMPORTED_SVG.create({ designSvg: svg });
+    const field = tpl.fields.find((f) => f.ftype === 'textarea');
+    return { preview, engine: C.creditsEngine(svg), errors: C.validateCreditsBinding(svg), doc: window.NOACG_COMPOSE.composeDocument(tpl), html: tpl.html, css: tpl.css, js: tpl.js, field, fieldCount: tpl.fields.length, sourceMarkup: imp.markup, anchors: preview.anchors };
+  };
+  if (typeof C.styledCredits !== 'function') return { pins };
+  const styled = {
+    one: styledOf(dev[0].markup, 'Research'),
+    bold: styledOf(cases.bold, 'Director'),
+    grouped: styledOf(cases.grouped, 'Director'),
+  };
+  // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
+  const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
+  const fallbacks = {
+    static: notYet({ ...good, playback: 'static' }),
+    cards: notYet({ ...good, playback: 'cards' }),
+    stale: notYet({ ...good, anchors: [...good.anchors].reverse() }),
+  };
+  const staticBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'static' }) });
+  fallbacks.staticBuildsArtwork = staticBuild.js.includes('function stopCreditsRoll()') && !staticBuild.js.includes('NOACG_CREDITS_STYLE');
+  // #1941: loose characters before the first run, and colour spellings in the parsed reading.
+  const loose = analyse(cases.loose, parsed);
+  const looseLaid = analyse(cases.loose, laidOut);
+  const spellings = analyse(cases.spellings, parsed);
+
   return {
+    styled,
+    fallbacks,
+    issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
     pins,
     devResults,
     caseResults,
@@ -240,8 +381,21 @@ const R = await withBundledPage(
     ['templates/endCredits/shared.ts', 'NOACG_PARSER'],
     ['templates/behaviours/credits.ts', 'NOACG_RECIPE'],
     ['ai/svgInterpretation/contract.ts', 'NOACG_CONTRACT'],
+    ['preview/composeDocument.ts', 'NOACG_COMPOSE'],
   ].map(([rel, globalName]) => ({ entry: `${SRC}${rel}`, globalName })),
-  (page) => page.evaluate(inPage, { dev: DEV, cases: CASES, legacy: LEGACY, artwork: ARTWORK }),
+  async (page) => {
+    const out = await page.evaluate(inPage, { dev: DEV, cases: { ...CASES, ...STYLED_CASES }, legacy: LEGACY, artwork: ARTWORK });
+    // The styled documents play on pages of their own, as an output would show them.
+    if (out.styled) {
+      const context = await page.context().browser().newContext();
+      try {
+        for (const built of Object.values(out.styled)) built.played = await playStyled(context, built);
+      } finally {
+        await context.close();
+      }
+    }
+    return out;
+  },
 );
 
 const sha = (o) => hash(JSON.stringify(o));
@@ -256,6 +410,7 @@ const PINS = {
   'fixed:credits-3': 'f6535d6218476819',
 };
 
+if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
 if (process.env.CREDITS_PRINT_PINS) console.log(JSON.stringify(Object.fromEntries(Object.entries(R.pins).map(([k, v]) => [k, sha(v)]))));
 
 test('saved editable and original-artwork credits, and plain imports, build exactly as before', () => {
