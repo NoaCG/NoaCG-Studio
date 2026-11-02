@@ -389,8 +389,12 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
   const picker = page.getByTestId('map-svg-recipe-credits');
   // The first role, then a NAME layer on its line, Léa Orme: the same block is read for both, and
   // the binding follows the pick (one read for another pick is never saved).
-  const [, first, name] = await picker.locator('option').evaluateAll((options) =>
+  const [title, first, name] = await picker.locator('option').evaluateAll((options) =>
     (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean));
+  // The title gives no credits either way, so it falls back and nothing is asked.
+  await picker.selectOption(title);
+  await expect(page.getByTestId('map-svg-credits-fallback')).toHaveText(/^Fixed artwork: .+/);
+  await expect(page.getByTestId('map-svg-credits-roles')).toHaveCount(0);
   await picker.selectOption(first);
   const preview = page.getByTestId('map-svg-credits-preview');
   await expect(preview).toHaveAttribute('data-layout', 'role-beside');

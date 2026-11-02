@@ -152,7 +152,10 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);
-  const shown = readings ? (swap && readings.swapped ? readings.swapped : readings.read) : null;
+  // The question is asked only where an answer gives styled credits; a pick neither reading can
+  // style (a title) is the fallback either way.
+  const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled);
+  const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
   const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
   const styled: DesignSvgCredits | undefined = reading
     ? { v: 1, layout: reading.layout, playback: 'roll', anchors: reading.anchors }
@@ -171,7 +174,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const rtl = readings?.read.rtl ?? false;
   return (
     <>
-      {readings?.swapped && (
+      {asks && (
         <label className="save-field">
           <span>Which column contains the roles?</span>
           <select value={swap ? 'other' : 'first'} onChange={(e) => onPatch({ creditsSwap: e.target.value === 'other' ? true : undefined })} data-testid="map-svg-credits-roles">

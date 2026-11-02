@@ -54,9 +54,10 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
   - It reads the layout once and reuses that reading for every subset.
 - Wizard (owner-approved files, see the PR):
   - `BehaviourSection.tsx`, the Credits preview:
-    - "Which column contains the roles?" (Left / Right) appears where `ambiguous` is true. Its
-      answer updates the preview and is saved as the binding's anchor kinds, which the runtime
-      copies.
+    - "Which column contains the roles?" (Left / Right) appears where `ambiguous` is true and at
+      least one answer gives styled credits (a title falls back either way and is not asked).
+      Its answer updates the preview and is saved as the binding's anchor kinds, which the
+      runtime copies.
     - Where a design falls back, the preview says so in one line: "Fixed artwork: <reason>".
     - No fixed-artwork choice for credits that can be styled (Decisions: a departure).
   - `draft.ts`: `creditsSwap` holds the column answer, and `creditsFor` the layer the binding was
@@ -94,13 +95,13 @@ Mutations, each caught:
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 41/41. `scripts/imported-credits-source.test.mjs`: 14/14.
+- `node --test scripts/imported-credits-model.test.mjs`: 41/41 (the empty-role checks extend an existing test). `scripts/imported-credits-source.test.mjs`: 14/14.
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
   worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
-  j-0007, j-0008, j-0009, j-0010, j-0011, and j-0012 on the final code). Mutation runs j-0003 and j-0006
+  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, and j-0013 on the final code). Mutation runs j-0003 and j-0006
   above. `check-e2e-protection --changed origin/main`: OK.
 - Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
   the Roles question (Left) and the two columns showed, with no console errors.
@@ -145,6 +146,15 @@ Mutations, each caught:
   - in a right-to-left drawing, the Left / Right labels followed whichever reading worked.
   Role above now trusts only what the drawing proves, the group-air check. The labels come from
   the drawing's direction.
+- `/so` on `7e76517` (session `session_017SdbwPt5FARMMtz8XQUxoy`, AGREE WITH CORRECTIONS, B):
+  - Blocking: a role with no names flipped role-above credits (the run heuristic). This was
+    already removed in `36c8e64`. Its drawing is now a test: under a title in the names' look,
+    the first role reads as on main, and Editor reads `Editor:\nMia Holt`.
+  - Non-blocking, taken: the question appeared on picks where neither answer styles (a title).
+    It now needs at least one styled reading (e2e: the credits-2 title asks nothing).
+  - Non-blocking: the fixed-artwork departure (#1958), and the two documented limits below.
+  - It confirmed role beside correct in every case it tried, and row 19's first-role picks equal
+    to main's on every existing drawing.
 - **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
   picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
   the rule model was rewritten (What changed, `creditsPreview`):
