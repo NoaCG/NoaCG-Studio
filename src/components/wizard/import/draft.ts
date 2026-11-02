@@ -279,6 +279,10 @@ export interface SvgRecipeDraft {
   creditsArtwork?: true;
   /** Credits only: the author chose a still page (`static`) for styled credits, not the roll. */
   creditsStill?: true;
+  /** Credits only: the author chose cards (`cards`) for styled credits, and, where stated, the
+   *  seconds each card holds (`advance`); absent, a card changes on the operator's Next card. */
+  creditsCards?: true;
+  creditsAdvance?: number;
 }
 
 export interface SvgRecipeRow {
