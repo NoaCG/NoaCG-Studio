@@ -92,6 +92,11 @@ const latest = (air: FrameLocator) => air.locator('body').evaluate(() => (window
 const samples = (air: FrameLocator, since = 0) =>
   air.locator('body').evaluate((_, from) => (window as unknown as { __rec: Sample[] }).__rec.filter((s) => s.t >= from), since);
 const markFirstItem = (air: FrameLocator) => air.locator('#ticker-track .ticker-item').first().evaluate((el) => { (el as unknown as { __mark: boolean }).__mark = true; });
+/** Wait until a marquee is travelling (its entrance over), and start recording if not yet. */
+async function travelling(air: FrameLocator) {
+  await record(air);
+  await expect.poll(async () => (await latest(air)).x, { timeout: 10_000, message: 'the marquee started travelling' }).toBeLessThan(-5);
+}
 const plays = (page: Page) => page.getByTestId('program-stage').getAttribute('data-plays');
 
 /** Wait until the strip's items are exactly `want` (a marquee renders its set twice). */
@@ -125,7 +130,7 @@ function judgeMarquee(run: Sample[], pace: number, what: string) {
     }
     // Never stalled: no stretch of a quarter second without moving.
     still = Math.abs(dx) < 0.01 ? still + (b.t - a.t) : 0;
-    expect(still, `${what}: never stalled (frame ${i})`).toBeLessThan(250);
+    expect(still, `${what}: never stalled (frame ${i}, x ${a.x.toFixed(1)} -> ${b.x.toFixed(1)}, frames ${run.slice(Math.max(0, i - 6), i + 1).map((f) => `${f.t.toFixed(0)}:${f.x.toFixed(1)}/${f.n}`).join(' ')})`).toBeLessThan(250);
   }
 }
 
@@ -154,7 +159,7 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
   const SHEET = '1NoaCGMarqueeLinked000000';
   const air = await linkedTicker(page, server, SHEET, 'News Strip', lines('Polls close at 20:00', 'Turnout 61%', 'Results from 22:00'));
   await expect(page.getByTestId('program-stage')).toHaveAttribute('data-plays', '1');
-  await record(air);
+  await travelling(air);
 
   // REPLACE, REORDER, DELETE while moving: each lands on the running strip.
   const steps: [string, string[]][] = [
@@ -195,7 +200,7 @@ test('a linked marquee keeps moving through replace, reorder and delete, a speed
   await expect(air.locator('#ticker-track .ticker-item')).toHaveCount(0, { timeout: 20_000 });
   server.set(SHEET, lines('Back on air', 'Turnout 66%'));
   await itemsBecome(air, ['Back on air', 'Turnout 66%'], 'filled again');
-  await page.waitForTimeout(500);
+  await travelling(air);
   const refilled = await record(air);
   await page.waitForTimeout(1500);
   judgeMarquee(await samples(air, refilled), PACE * 2, 'filled again');
@@ -206,6 +211,7 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   test.setTimeout(120_000);
   const SHEET = '1NoaCGMarqueeReopen000000';
   const air = await linkedTicker(page, server, SHEET, 'News Strip', lines('Polls close at 20:00', 'Turnout 61%'));
+  await travelling(air);
 
   // PAUSE: a change waits; RESUME (the reader reconnecting) reaches the running strip.
   await page.getByTestId('source-pause').click();
@@ -235,7 +241,7 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   const again = page.frameLocator('[data-testid="program-stage"] iframe');
   await itemsBecome(again, ['Results from 22:00', 'Turnout 63%'], 'the reopened page airs the newest lines');
   await expect(page.getByTestId('program-stage')).toHaveAttribute('data-plays', '1');
-  await page.waitForTimeout(500);
+  await travelling(again);
   const changed = await record(again);
   server.set(SHEET, lines('Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'));
   await itemsBecome(again, ['Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'], 'reopened page reads');
@@ -246,15 +252,20 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
 
 // ── Flip ─────────────────────────────────────────────────────────────────────────────────
 
-/** Each run of frames one story is showing: its text, first and last frame time. */
+/**
+ * Each turn of one story on screen: its text, first and last frame time. A turn ends when a
+ * frame shows no story or another one, never on time alone, so a late frame does not split it.
+ */
 function turns(run: Sample[]) {
   const out: { text: string; from: number; to: number }[] = [];
+  let open = false;
   for (const s of run) {
     const text = s.showing.length === 1 ? s.showing[0] : s.showing.length === 0 ? null : '<two>';
+    if (text === null) { open = false; continue; }
     const last = out.at(-1);
-    if (text === null) continue;
-    if (last && last.text === text && s.t - last.to < 120) last.to = s.t;
+    if (open && last && last.text === text) last.to = s.t;
     else out.push({ text, from: s.t, to: s.t });
+    open = true;
   }
   return out;
 }
