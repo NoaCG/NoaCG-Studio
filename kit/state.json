@@ -31,18 +31,25 @@
   "inFlight": [
     {
       "phase": 18,
-      "role": "blocked",
-      "lastCheck": "session_017SdbwLneUcppqyqxGnehzm",
-      "builder": "session_017SdbwNMEZYDauc6zGSGTyU",
+      "role": "check",
+      "session": "session_017SdbwPGnxCiUdbwwPUyhk9",
+      "nonce": "18-c-b7ef",
+      "mergeSha": "516ec2c9615c595dc1b8f32010930af7fee3a5a9",
       "pr": 1950,
-      "mergeSha": "516ec2c9615c595dc1b8f32010930af7fee3a5a9"
+      "toArchive": [
+        "session_017SdbwNMEZYDauc6zGSGTyU",
+        "session_017SdbwMTJfquS6VvMYFX2zb",
+        "session_017SdbwNoQfaxe5WzuhVyU4m",
+        "session_017SdbwLw1kkm8MRtLYEWTH5",
+        "session_017SdbwNLGmL1jjGy1YNUz25"
+      ]
     }
   ],
   "owner": [],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T04:46:00Z"
+    "checkinAt": "2026-11-02T05:10:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
