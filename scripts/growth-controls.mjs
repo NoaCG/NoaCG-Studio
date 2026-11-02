@@ -700,7 +700,9 @@ export function carryBreaches({ previous = [], current = [], today, owner, corre
     const was = prev.get(b.key);
     if (!was) { out.push({ ...b, owner: b.owner ?? owner, since: today, state: 'correcting', corrections: 1, due: b.due ?? addDays(today, correctionDays) }); continue; }
     const overdue = dayMs(today) >= dayMs(was.due);
-    out.push({ ...b, owner: was.owner, since: was.since, corrections: was.corrections, due: was.due, state: was.state === 'stopped' || overdue ? 'stopped' : 'correcting' });
+    // The breach keeps its first date and its one correction, but follows the recorded owner:
+    // an ownership change (#1951) reaches breaches already being carried.
+    out.push({ ...b, owner: owner ?? was.owner, since: was.since, corrections: was.corrections, due: was.due, state: was.state === 'stopped' || overdue ? 'stopped' : 'correcting' });
   }
   const stops = {};
   for (const b of out) if (b.state === 'stopped') for (const t of affectedTiers(b.key)) stops[t] ??= `${b.key} since ${b.since}, one correction due ${b.due} did not bring it back in bounds`;
