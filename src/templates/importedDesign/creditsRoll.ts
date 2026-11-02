@@ -466,10 +466,8 @@ function creditsSpeed() {
 }`;
 }
 
-/** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
- *  a live speed change. Each engine supplies `creditsSample()` (the layer whose parent the rows
- *  sit in) and `creditsRender()` (the rows and the name step they were built with). */
-function creditsTakeJs(settle = false): string {
+/** creditsWindow(): where the credits run, shared by the roll's take and the still page. */
+function creditsWindowJs(): string {
   return `// creditsWindow(sample): where the roll runs, as a rectangle in the rows' own space - the
 // Credits box where one is drawn, else the artwork's whole frame. Both are read through the
 // screen, so a box inside a moved or scaled group lands where it paints. Null until the design
@@ -506,7 +504,14 @@ function creditsWindow(sample) {
     bottom: Math.max.apply(null, ys),
     boxed: !!box,
   };
+}`;
 }
+
+/** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
+ *  a live speed change. Each engine supplies `creditsSample()` (the layer whose parent the rows
+ *  sit in) and `creditsRender()` (the rows and the name step they were built with). */
+function creditsTakeJs(settle = false): string {
+  return `${creditsWindowJs()}
 
 var noacgCreditsTween = null;
 var noacgCreditsBuiltAt = 1;       // the speed the running take was built at (creditsDataUpdated)
@@ -593,6 +598,40 @@ function creditsDataUpdated() {
 }`;
 }
 
+/** THE TAKE OF A STILL PAGE (styled credits, `static`): the rows are built and fitted where the
+ *  drawing put them (`creditsRender`), and nothing moves them. The entrance and exit are the
+ *  graphic's own; Out has no roll to stop. */
+function creditsHoldJs(): string {
+  return `${creditsWindowJs()}
+
+// A still page never moves; Out's stopCreditsRoll() finds nothing running.
+var noacgCreditsTween = null;
+// What the page shows now, for a reader: how many rows, the share of the drawn size the whole
+// page was set at to fit, and whether it was too long to show at all.
+var noacgCreditsLast = null;
+
+// creditsHold(): rebuild and refit the page from the list as it stands. Where a face is still
+// loading, the page was measured in a fallback, so it is fitted again when the faces land.
+function creditsHold() {
+  var built = creditsRender();
+  noacgCreditsLast = built ? { still: true, rows: built.rows.children.length, scale: built.scale, refused: built.refused } : null;
+  if (document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(creditsHold);
+  return built;
+}
+
+// ${CREDITS_ROLL_CALL}(): THE TAKE. Show the rows still, in the window, where the drawing put
+// them. A page too long to fit at the floor is not shown; its Credits field is reported too long.
+function ${CREDITS_ROLL_CALL}() {
+  creditsHold();
+  return null;
+}
+
+// creditsDataUpdated(): update() wrote the fields - rebuild and refit the page in place.
+function creditsDataUpdated() {
+  creditsHold();
+}`;
+}
+
 // ── The styled engine: credits in the artwork's own role and name layers ──────────────────────
 //
 // The designer drew a few roles and names as separate text layers (DesignSvgCredits). Those
@@ -646,6 +685,9 @@ export interface CreditsStyledConfig {
   /** The design ships faces of its own (`svgFontCss`), which can land after the take: the take is
    *  measured again when they do. Absent, nothing can arrive late and the runtime is as before. */
   faces?: true;
+  /** The list holds still (`static`) rather than rolling: fitted to the window where the drawing
+   *  put it, and not shown at all when it is too long to fit at the floor. Absent, a roll. */
+  still?: true;
 }
 
 /** What the styled runtime of a design is built with, or null when it builds another engine.
@@ -653,7 +695,10 @@ export interface CreditsStyledConfig {
 export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
   const style = styledCredits(svg);
   if (!style) return null;
-  const flags: Pick<CreditsStyledConfig, 'faces'> = svg.fonts.some((f) => f.fontId || f.customFont) ? { faces: true } : {};
+  const flags: Pick<CreditsStyledConfig, 'faces' | 'still'> = {
+    ...(svg.fonts.some((f) => f.fontId || f.customFont) ? { faces: true as const } : {}),
+    ...(svg.behaviour?.kind === 'recipe' && svg.behaviour.credits?.playback === 'static' ? { still: true as const } : {}),
+  };
   if (style.layout === 'role-beside') {
     // Beside, every drawn line is a role and its first name, so the line step is the group gap;
     // a step neither shows (one drawn line) is left 0 for the runtime to take from the type.
@@ -682,20 +727,23 @@ export function creditsStyledRuntimeJs(prefix: string, config: CreditsStyledConf
   // Role beside differs from role above in a few lines only: two edges, two columns of room. Role
   // above emits exactly what it did before role beside existed.
   const beside = (above: string, besideJs: string) => (config.nameAlign === undefined ? above : besideJs);
-  // `faces` decides which lines the take carries; it is not part of the spacing table.
-  const { faces, ...table } = config;
+  // A still page differs from the roll in its take and its fit, chosen the same way; the roll
+  // emits exactly what it did before the still page existed.
+  const still = (roll: string, stillJs: string) => (config.still ? stillJs : roll);
+  // `faces` and `still` decide which lines are emitted; they are not part of the spacing table.
+  const { faces, still: _still, ...table } = config;
   return `
 // ── Credits in the artwork's own styling (SVG) ────────────────────────────────────────────────
-// ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed. The role
+${still(`// ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed.`, `// ONE PASTED LIST holds still on the page, where the drawing put it, fitted to the frame.`)} The role
 // and name layers you drew are the SOURCE: they stay in the file, hidden on air (template.css
 // hides .${cls}), and every role the operator types is a copy of your first role layer and every
 // name a copy of your first name layer - class, runs, paint and transform kept, only the words
 // and the position changed. The spacing below is yours, read off the drawing when this was built;
 // change a layer's font, size or colour in your design app and every row follows.
 
-var NOACG_CREDITS_LINES_PER_SECOND = ${CREDITS_LINES_PER_SECOND};
+${still(`var NOACG_CREDITS_LINES_PER_SECOND = ${CREDITS_LINES_PER_SECOND};
 
-// The drawing's spacing, in the layers' own units: role to its first name, name to name, and the
+`, '')}// The drawing's spacing, in the layers' own units: role to its first name, name to name, and the
 // gap before the next role; and the edge every row lines up on.
 var NOACG_CREDITS_STYLE = ${JSON.stringify(table)};
 
@@ -846,8 +894,11 @@ var noacgCreditsFit = [];
 
 // creditsRender(): build the rows from the pasted list in the drawn layers' looks, spaced as
 // drawn, and hand back the group that holds them with the step the pace rides. Runs at load, on
-// every update() and at the start of every take.
-function creditsRender() {
+// every update() and at the start of every take.${still('', `
+// A STILL PAGE is built at a share of the drawn size (1 unless creditsRender calls itself with
+// less): type and spacing shrink together, each column staying on its drawn edge.`)}
+function creditsRender(${still('', 'shrink')}) {${still('', `
+  var K = typeof shrink === 'number' ? shrink : 1;`)}
   var anchors = creditsAnchors();
   if (!anchors.length) return null;
   var ref = anchors[0].el;
@@ -941,7 +992,12 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
     var line = 1.2 * (parseFloat(getComputedStyle(nameRun ? nameRun.parentNode : sources.name).fontSize) || 16) * Math.sqrt(Math.abs(nameFrame.a * nameFrame.d - nameFrame.b * nameFrame.c));
     S = { align: S.align, nameAlign: S.nameAlign, roleToName: 0, nameToName: line, groupGap: S.groupGap || line, roleSuffix: S.roleSuffix };
   }`)}
-  // FIRST PASS: every row, spaced as drawn, appended at once.
+${still('', `  // The drawn line, for the margin a still page keeps; then every step at the page's share.
+  var drawnLine = S.nameToName;
+  var scaled = {};
+  for (var sk in S) scaled[sk] = typeof S[sk] === 'number' ? S[sk] * K : S[sk];
+  S = scaled;
+`)}  // FIRST PASS: every row, spaced as drawn, appended at once.
   var made = [];
   var y = top;
   var prev = null;
@@ -1029,22 +1085,74 @@ ${beside(`      var side = S.align === 'middle' ? 'middle' : (S.align === 'start
       var H = one.heading ? hi : span[one.kind][1];
       var side = A === 'middle' ? 'middle' : (A === 'start') !== rtl ? 'left' : 'right';
       var room = side === 'middle' ? 2 * Math.min(X - L, H - X) - 2 * margin : side === 'left' ? H - X - margin : X - L - margin;`)}
-      var width = box.width * scale;
+${still(`      var width = box.width * scale;
       if (width > room) {
         fit.scale = Math.max(NOACG_CREDITS_FLOOR, room / width);
         fit.reported = fit.scale < NOACG_CREDITS_REPORT;
         var at = sel + '[data-noacg-row="' + r + '"]';
         sizes += at + ', ' + at + ' [data-noacg-run] {font-size:' + (size * fit.scale) + 'px !important}\\n';
       }
+    }`, `      var width = box.width * scale;
+      if (width > room) fit.scale = Math.max(NOACG_CREDITS_FLOOR, room / width);
     }
+    // A still page's share applies to every row; a row too wide for its room at it goes smaller.
+    if (K < fit.scale) fit.scale = K;
+    if (fit.scale < 1) {
+      fit.reported = fit.scale < NOACG_CREDITS_REPORT;
+      var px = parseFloat(getComputedStyle(one.run).fontSize) || 16;
+      var at = sel + '[data-noacg-row="' + r + '"]';
+      sizes += at + ', ' + at + ' [data-noacg-run] {font-size:' + (px * fit.scale) + 'px !important}\\n';
+    }`)}
     if (fit.reported) over = true;
     noacgCreditsFit.push(fit);
   }
-  if (sizes) noacgCreditsSheet.textContent = base + sizes;
+  if (sizes) noacgCreditsSheet.textContent = base + sizes;${still('', `
+  // THIRD PASS, TOO TALL (a still page): the page holds in the window (the Credits box, else the
+  // frame), from where the first role is drawn down to half a drawn line above the window's
+  // bottom, or to the lowest drawn layer where that is lower, so the page as drawn always fits.
+  // A longer list is built again at the share that fits: type and spacing shrink together, and
+  // past 55% the Credits field is reported. Below the 30% floor nothing is clipped and nothing
+  // moves to another layout: the page is not shown, and the Credits field is reported too long
+  // (CREDITS_OVERFLOW).
+  var refused = false;
+  var frame = rows.parentNode.parentNode;
+  if (win) {
+    frame.setAttribute('x', String(win.left));
+    frame.setAttribute('y', String(win.top));
+    frame.setAttribute('width', String(win.right - win.left));
+    frame.setAttribute('height', String(win.bottom - win.top));
+    frame.setAttribute('viewBox', win.left + ' ' + win.top + ' ' + (win.right - win.left) + ' ' + (win.bottom - win.top));
+    var page = null;
+    try { page = rows.parentNode.getBBox(); } catch (err) { page = null; }
+    var unit = Math.sqrt(Math.abs(toContainer.a * toContainer.d - toContainer.b * toContainer.c)) || 1;
+    var limit = win.bottom - 0.5 * drawnLine * unit;
+    for (var d = 0; d < anchors.length; d++) {
+      var mc = creditsFrom(anchors[d].el, container);
+      var drawnInk = null;
+      try { drawnInk = anchors[d].el.getBBox(); } catch (err) { drawnInk = null; }
+      if (mc && drawnInk) limit = Math.max(limit, creditsAt(mc, drawnInk.x, drawnInk.y + drawnInk.height).y, creditsAt(mc, drawnInk.x + drawnInk.width, drawnInk.y + drawnInk.height).y);
+    }
+    limit = Math.min(limit, win.bottom);
+    var first = creditsAt(toContainer, ${beside('x', 'xs.role')}, top).y;
+    var bottom = page ? page.y + page.height : -Infinity;
+    if (page && page.height > 0 && bottom > limit + 0.5 && bottom > first) {
+      var share = K * (limit - first) / (bottom - first);
+      // Below the floor, the page is built at the floor once and judged there, so a list the
+      // estimate rounds just past it is not refused.
+      if (share < NOACG_CREDITS_FLOOR) {
+        if (K > NOACG_CREDITS_FLOOR) return creditsRender(NOACG_CREDITS_FLOOR);
+        refused = true;
+      } else if (share < K * 0.999) return creditsRender(share);
+    }
+  }
+  if (refused) {
+    noacgCreditsSheet.textContent += '.${cls}-rows {visibility:hidden !important}\\n';
+    over = true;
+  }`)}
   // The operator hears about a row past the report line through the graphic's overflow report,
   // under the one Credits field.
   if (holder && typeof svgFitOver !== 'undefined') svgFitOver[holder.id] = over;
-  return { rows: rows, looks: { afterName: S.nameToName } };
+  return { rows: rows, looks: { afterName: S.nameToName }${still('', ', scale: K, refused: refused')} };
 }
 
 // stopCreditsRoll(): Out ends the roll, so nothing keeps moving the list off air.
@@ -1053,7 +1161,7 @@ function stopCreditsRoll() {
   noacgCreditsTween = null;
 }
 
-${creditsTakeJs(faces === true)}
+${still(creditsTakeJs(faces === true), creditsHoldJs())}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the drawn widths decide where an aligned row starts.
@@ -1612,13 +1720,13 @@ export function creditsEngine(svg: DesignSvg): 'styled' | 'artwork' | 'editable'
 
 /**
  * THE LAYOUTS AND PLAYBACKS THE STYLED ENGINE RENDERS. Row 19 renders role above as a roll, row
- * 20 role beside; static (row 22) and cards (row 23) are added by the rows that render them. A
+ * 20 role beside, row 22 both as a still page; cards (row 23) are added by the row that renders them. A
  * binding nothing renders yet keeps building the editable roll of its one list field, as it did
  * before, never an untested picture; the wizard saves only what is rendered.
  */
 export const CREDITS_RENDERED: Readonly<Record<CreditsLayout, readonly CreditsPlayback[]>> = {
-  'role-above': ['roll'],
-  'role-beside': ['roll'],
+  'role-above': ['roll', 'static'],
+  'role-beside': ['roll', 'static'],
 };
 
 /** The style a saved styled binding builds with, or null when it builds anything else. */
@@ -1638,8 +1746,10 @@ export function styledCredits(svg: DesignSvg): CreditsStyle | null {
  * - `wide`: a role or name wider than its column's room shrinks, is reported past 55% through the
  *   graphic's overflow report and stops at the 30% floor (the SVG fit ladder's numbers).
  * - `tall`, roll: the list runs through whatever its length.
- * - `tall`, static: the whole list shrinks together to the same floor; past it the take is refused
- *   with the overflow reported.
+ * - `tall`, static: the page stays where the first role is drawn, and the whole list shrinks
+ *   together (type and spacing, each column on its drawn edge) to fit the window, reported past
+ *   55%; past the same floor the take is refused: the page is not shown and the Credits field is
+ *   reported too long.
  * - `tall`, cards: a group that fits stays whole on one card; a longer one continues on the next
  *   card at a name boundary under its role repeated; one name taller than a card is reported.
  */

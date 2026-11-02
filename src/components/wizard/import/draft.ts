@@ -277,6 +277,8 @@ export interface SvgRecipeDraft {
   /** Credits only: the author chose to keep credits that could be styled as fixed artwork. The
    *  reading in `credits` is kept: its layers are the block that scrolls (`artworkLayers`). */
   creditsArtwork?: true;
+  /** Credits only: the author chose a still page (`static`) for styled credits, not the roll. */
+  creditsStill?: true;
 }
 
 export interface SvgRecipeRow {

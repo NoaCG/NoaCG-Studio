@@ -118,7 +118,8 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * roles and names are drawn as separate layers it also shows the drawing's layout.
  *
  * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above or
- * role beside, as a roll), the graphic is built in those layers' own styling by default: the
+ * role beside, as a roll or held still on one page, the author's "Plays as"), the graphic is
+ * built in those layers' own styling by default: the
  * reading is handed to the draft as the binding, its anchors exactly as previewed. Anything else
  * saves the original-text roll, and the preview says in one line why. Credits that can be styled
  * may deliberately be kept as fixed artwork instead: the whole drawn block then scrolls as drawn
@@ -128,7 +129,7 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
@@ -141,7 +142,9 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   swap: boolean;
   /** The author chose fixed artwork for credits that could be styled. */
   fixed: boolean;
-  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork'>) => void;
+  /** The author chose a still page rather than the roll. */
+  still: boolean;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -160,16 +163,17 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled) && key(readings.read) !== key(readings.swapped);
   const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
   const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
+  const stills = !!reading && CREDITS_RENDERED[reading.layout].includes('static');
   const styled: DesignSvgCredits | undefined = reading
-    ? { v: 1, layout: reading.layout, playback: 'roll', anchors: reading.anchors }
+    ? { v: 1, layout: reading.layout, playback: still && stills ? 'static' : 'roll', anchors: reading.anchors }
     : undefined;
   // A binding belongs to the pick it was read for, so the same anchors for another pick are new.
   const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
   const savedKey = saved ? `${savedFor} ${JSON.stringify(saved)}` : '';
   useEffect(() => {
-    // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork answer goes
-    // with it rather than coming back unseen on the next stylable pick.
-    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined }) });
+    // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork or Hold
+    // still answer goes with it rather than coming back unseen on the next stylable pick.
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined, creditsStill: undefined }) });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
@@ -192,6 +196,16 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
             <option value="editable">Editable, in this design&apos;s styling</option>
             <option value="artwork">Fixed artwork</option>
           </select>
+        </label>
+      )}
+      {stills && !artwork && (
+        <label className="save-field">
+          <span>Plays as</span>
+          <select value={still ? 'static' : 'roll'} onChange={(e) => onPatch({ creditsStill: e.target.value === 'static' ? true : undefined })} data-testid="map-svg-credits-playback">
+            <option value="roll">Roll</option>
+            <option value="static">Hold still</option>
+          </select>
+          {still && <span className="hint" data-testid="map-svg-credits-still">A list too long for the page is not shown, and its field says so.</span>}
         </label>
       )}
       {asks && !artwork && (
@@ -1340,6 +1354,7 @@ export default function BehaviourSection({
                   savedFor={generic.creditsFor}
                   swap={!!generic.creditsSwap}
                   fixed={!!generic.creditsArtwork}
+                  still={!!generic.creditsStill}
                   onPatch={patchGeneric}
                 />
               )}
