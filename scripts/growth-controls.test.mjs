@@ -31,7 +31,9 @@ const noExceptions = { ...CEILINGS, exceptions: [] };
 // --- (a) ------------------------------------------------------------------------------------
 
 test('(a) the tiers are ci01 version 1, unchanged, and their allocation fits the envelope', () => {
-  assert.equal(CEILINGS.version, 1);
+  // Version 2 (#1951) moved only the owner; the tiers below are still ci01's version 1 values.
+  assert.equal(CEILINGS.version, 2);
+  assert.deepEqual(CEILINGS.revisions.map((r) => r.version), [2]);
   assert.deepEqual(CEILINGS.tiers, { offline: { perLanding: 535, perDay: 215 }, backend: { perLanding: 117, perDay: 78 }, graphics: { perLanding: 10, perDay: 115 }, overhead: { perLanding: 105, perDay: 10 } });
   assert.equal(CEILINGS.envelopeRunnerMinutesPerDay, 28800);
   const perLanding = TIERS.reduce((a, t) => a + CEILINGS.tiers[t].perLanding, 0);
@@ -176,7 +178,7 @@ test('(b) the ledger is append-only and the ceilings move only by a reviewed rev
   assert.match(ledgerChanges({ base, head: raised }).join(), /without a new version/);
   const cheaper = clone(base); cheaper.estimates.backendCaseMinutes = 0.1;
   assert.equal(ledgerChanges({ base, head: cheaper }).length, 1, 'estimates cannot be quietly lowered either');
-  const revised = clone(raised); revised.version = 2; revised.revisions = [{ version: 2, rationale: 'measured', authority: 'owner', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1842#issuecomment-2' }];
+  const revised = clone(raised); revised.version = base.version + 1; revised.revisions = [{ version: base.version + 1, rationale: 'measured', authority: 'owner', reviewed: 'https://github.com/NoaCG/NoaCG-Studio/issues/1842#issuecomment-2' }];
   assert.deepEqual(ledgerChanges({ base, head: revised }), []);
   assert.match(ledgerChanges({ base, head: clone(base), mainRunners: { base: 13, head: 15 } }).join(), /MAIN_RUNNERS rose/);
   assert.match(ledgerChanges({ base, head: clone(base), shardCap: { base: 20, head: 25 } }).join(), /SHARD_CAP_MINUTES rose/);
@@ -338,6 +340,8 @@ test('(e) a breach gets an owner, a dated correction, then a growth stop if one 
   assert.equal(w2.breaches[0].state, 'stopped');
   assert.equal(w2.breaches[0].corrections, 1, 'one bounded correction, not a second');
   assert.deepEqual(Object.keys(w2.stops), ['backend']);
+  const handed = carryBreaches({ previous: w1.breaches, current: [{ key: 'cost:backend', detail: 'x' }], today: '2026-11-09', owner: 'miwco' });
+  assert.deepEqual([handed.breaches[0].owner, handed.breaches[0].due], ['miwco', '2026-11-09'], 'a carried breach follows the recorded owner and keeps its date');
   const w3 = carryBreaches({ previous: w2.breaches, current: [], today: '2026-11-16', owner: 'coordinator' });
   assert.deepEqual(w3.cleared, ['cost:backend']);
   assert.deepEqual(w3.stops, {}, 'back in bounds, growth resumes');
@@ -800,12 +804,12 @@ test('(b) include-only matrix entries are counted, and an exception waives growt
 
 test('(b) a ceilings revision needs a recorded decision, not any link, and is always named for the owner', () => {
   const base = clone(CEILINGS);
-  const head = clone(base); head.version = 2; head.tiers.backend.perLanding = 400;
-  head.revisions = [{ version: 2, rationale: 'more', authority: 'me', reviewed: 'https://example.com/x' }];
+  const head = clone(base); head.version = base.version + 1; head.tiers.backend.perLanding = 400;
+  head.revisions = [{ version: base.version + 1, rationale: 'more', authority: 'me', reviewed: 'https://example.com/x' }];
   assert.match(ledgerChanges({ base, head, mainRunners: { base: 13, head: 20 }, shardCap: { base: 20, head: 40 } }).join(), /without a new version and a reviewed revision/);
   head.revisions[0].reviewed = 'https://github.com/NoaCG/NoaCG-Studio/issues/1842#issuecomment-9';
   assert.deepEqual(ledgerChanges({ base, head, mainRunners: { base: 13, head: 20 } }), []);
-  assert.equal(ceilingsRevision(base, head).version, 2, 'legal, and still named');
+  assert.equal(ceilingsRevision(base, head).version, base.version + 1, 'legal, and still named');
   assert.equal(ceilingsRevision(base, clone(base)), null);
 });
 

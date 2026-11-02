@@ -1,9 +1,10 @@
 {
-  "version": 1,
+  "version": 2,
   "frozenAt": "2026-10-31",
   "source": "docs/work-specs/cicd-improvement/evidence/phase-ci01.md section 4",
   "authority": "repository owner; a ceiling increase needs a new version with a reviewed rationale and that authority",
-  "owner": "cicd-improvement plan coordinator (run issue #1842) until ci17 hands off",
+  "owner": "miwco (primary); the weekly owner session (backup coverage)",
+  "ownerLogin": "miwco",
   "warnShare": 0.85,
   "refuseShare": 0.95,
   "exceptionMaxDays": 30,
@@ -114,6 +115,14 @@
     },
     "jobsWhy": "Per-job cost an exception may credit at most. The catalog gate carries ci04's reviewed +17.7 projection only, not its pre-ci04 share of the 7.8, so its credit can only be smaller than its real cost."
   },
+  "revisions": [
+    {
+      "version": 2,
+      "rationale": "Alarm and incident ownership after the cicd-improvement run: miwco is the primary owner of the growth, age and quarantine alarms and incidents, and the weekly owner session reviews them each week as backup coverage. Only owner and ownerLogin (the account each alarm issue is assigned to) change; no ceiling, estimate or measurement moves.",
+      "authority": "repository owner (miwco)",
+      "reviewed": "https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6570085219"
+    }
+  ],
   "exceptions": [
     {
       "id": "ci04-catalog-gate",
