@@ -21,7 +21,7 @@ the week.
 
 Tuesday, not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday.
 
-## 1. Measure - six commands, nothing recalled
+## 1. Measure - seven commands, nothing recalled
 
 Work from a checkout of current `origin/main` - the scheduled run gets a fresh worktree of its own -
 and never in the primary checkout, which the merge queue relies on. The feedback count reads the
@@ -31,6 +31,7 @@ plans live in the store (`node scripts/wave-plan-store.mjs --list`), reachable f
     node scripts/orchestrator-week.mjs
     npm run night:report -- --hours 168
     node scripts/alarm-issues.mjs
+    node scripts/alarm-owner.mjs list
     node scripts/wave-plan-store.mjs --list
     npm run feedback:count
     npm run check:freshness
@@ -45,7 +46,9 @@ report**: a number reaches him only when it changes something he would do (step 
 
 The night report over 168 hours is the queue's week: what landed, what was refused and why, and how
 many landings needed a retry. Its headline line is what matters; the per-branch lists are not for
-him. `alarm-issues.mjs` names what is red on `main` right now. The wave-plan store lists this week's
+him. `alarm-issues.mjs` names what is red on `main` right now. `alarm-owner.mjs list` names the open
+growth, age and quarantine alarm issues: he owns them (#1951) and this session is their backup
+coverage, so an alarm past its date, or one not routed to him, goes under **Serious**. The wave-plan store lists this week's
 waves; read the `## Report` at the end of each one written in the window, because each holds what
 shipped, what was not done and that wave's retro. Last, compare the scheduler's list of tasks with
 the table in `docs/ROUTINES.md`: every enabled routine there, on the cadence it states.

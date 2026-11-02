@@ -39,6 +39,7 @@ import { knownCoversOnDisk } from './e2e-capacity.mjs';
 import { CONFIGURED_HEADERS, SPEC_HEADERS } from './e2e-lists.mjs';
 import { quarantineIncidents, readStore, STORE_PATH as QUARANTINE_STORE } from './e2e-quarantine.mjs';
 import { measured } from './measured.mjs';
+import { alarmOwner, routeToOwner } from './alarm-owner.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaCG-Studio';
@@ -479,10 +480,6 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
 }
 
 /**
- * Keep ONE rolling issue per alarm title: open or update it with `body`, or close it when `body`
- * is empty. Only a run about main may raise or withdraw an alarm (the caller checks the ref).
- */
-/**
  * An open alarm issue by exact title. It may have been opened by the workflow token, an app, or
  * the coordinator's own account on a plan-run check-in, so any bot or repository member counts;
  * an outsider's issue with the same title is never taken for it.
@@ -498,10 +495,16 @@ export function findIssue(title, gh = (args) => execFileSync('gh', args, { encod
   throw new Error(`more than 1,000 open issues: cannot tell whether "${title}" is open`);
 }
 
-export function rollingIssue(title, body, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
+/**
+ * Keep ONE rolling issue per alarm title: open or update it with `body`, assigned to the owner's
+ * `login`, or close it when `body` is empty. Only a run about main may raise or withdraw an alarm
+ * (the caller checks the ref).
+ */
+export function rollingIssue(title, body, login, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
   const found = findIssue(title, gh);
-  if (body && found) { gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${body}`]); return `updated #${found.number}`; }
-  if (body) { const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-f', `body=${body}`])); return `opened #${made.number}`; }
+  // A raised alarm is routed to its owner (scripts/alarm-owner.mjs); a closed one needs no one.
+  if (body && found) { gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${body}`]); routeToOwner(found.number, { login, repo: REPO, gh }); return `updated #${found.number}`; }
+  if (body) { const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-f', `body=${body}`])); routeToOwner(made.number, { login, repo: REPO, gh }); return `opened #${made.number}`; }
   if (found) { gh(['api', '-X', 'POST', `repos/${REPO}/issues/${found.number}/comments`, '-f', 'body=Nothing overdue any more; closing.']); gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', 'state=closed']); return `closed #${found.number}`; }
   return 'nothing to raise';
 }
@@ -614,7 +617,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.log(result.phaseBody || 'no plan phase past its age ceiling');
       // One issue per plan's ledger, so a run checking its own plan never closes another's alarm.
       // An issue that could not be read keeps its first dates: it is left as it was.
-      if (args.includes('--issue') && phaseRead) console.log(rollingIssue(phaseIssueTitle(ledgerFile), result.phaseBody));
+      if (args.includes('--issue') && phaseRead) console.log(rollingIssue(phaseIssueTitle(ledgerFile), result.phaseBody, alarmOwner(ceilings).login));
       if (!phaseRead) console.log('::warning title=Plan phase alarms::the open phase alarm issue could not be read; it is left as it was');
     }
     if (result.body === null || !existingRead) {
@@ -622,7 +625,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       process.exit(1);
     }
     console.log(result.body || `no pull request past its age ceiling (${result.calls} API calls)`);
-    if (args.includes('--issue')) console.log(rollingIssue(AGE_ISSUE, result.body));
+    if (args.includes('--issue')) console.log(rollingIssue(AGE_ISSUE, result.body, alarmOwner(ceilings).login));
   } else if (command === 'collect') {
     const ceilings = JSON.parse(readFileSync(path.join(ROOT, 'scripts', 'growth-ceilings.json'), 'utf8'));
     const previousFile = value('--previous');
@@ -640,7 +643,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(markdown);
     if (value('--out')) writeFileSync(value('--out'), `${JSON.stringify(report, null, 2)}\n`);
     if (value('--summary')) appendFileSync(value('--summary'), `${markdown}\n`);
-    if (args.includes('--issue')) console.log(rollingIssue(WEEKLY_ISSUE, report.breaches.length ? markdown : ''));
+    if (args.includes('--issue')) console.log(rollingIssue(WEEKLY_ISSUE, report.breaches.length ? markdown : '', alarmOwner(ceilings).login));
   } else {
     console.error('usage: growth-report.mjs collect|ages|fetch [...] (see the header)');
     process.exit(2);
