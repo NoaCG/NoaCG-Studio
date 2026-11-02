@@ -19,9 +19,10 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
 
 - `creditsRoll.ts`, the styled engine:
   - `CREDITS_RENDERED['role-beside']` is `['roll']`, so a role-beside binding builds styled.
-  - `styledCreditsConfig` gives role beside its own numbers: `nameAlign`, the name column's edge
-    (`align` stays the role column's); `roleToName: 0`, because a role and its first name share a
-    baseline; and the line step, which is the name step or else the group gap.
+  - `styledCreditsConfig` gives role beside its own numbers:
+    - `nameAlign`, the name column's edge (`align` stays the role column's);
+    - `roleToName: 0`, because a role and its first name share a baseline;
+    - the line step: the name step, or else the group gap.
   - `creditsStyledRuntimeJs` differs for role beside in a few places only:
     - each column sits on its own edge, the mean of its drawn layers;
     - the stylesheet anchors each kind on its own edge;
@@ -31,124 +32,177 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
     - a marked heading (`# ...`) spans both columns: its room is the whole window, and the line
       after it steps down rather than sitting beside it.
     Role above emits the same bytes as before (`ROLE_ABOVE_PINS`, taken on `bc9be3b`).
-  - `creditsPreview`:
-    - It reads a NAME picked as Credits from its own role, as picking that role would. Its role is
-      the nearest layer at or above it in another look. The wider block is used when either
-      reading of it makes the picked layer a name, so the block does not depend on the column
-      answer. A role picked keeps exactly the block row 19 read.
-    - It reuses the one reading of every layer rather than reading the layout again per subset.
-    - A preview that falls back now says why (`reason`, the analysis's own message).
+- `creditsRoll.ts`, `creditsPreview`. A layer's identity, role or name, is read off the whole
+  drawing, never from where the reading of one block happens to start.
+  - THE DRAWING is the picked layer, everything below it, and the layers above, nearest first,
+    while the whole stays within two looks. A title in a third look stays out.
+  - THE ROLE LOOK:
+    - Where a line holds two layers in the two looks (role beside), the roles are a column. The
+      first layer read on the first such line wears the role look; the column answer turns it
+      to the other column's look.
+    - Role above: a look drawn on two lines in a row is the name look; failing that, the widest
+      step (clearly wider than the narrowest) comes before a role. The top line is left out of
+      both, since a title may sit there in either look. With no such evidence, the picked layer
+      is the role, as row 19 read it.
+  - A role picked starts its block, as in row 19. A name picked reads from its own role, the
+    nearest layer at or above it in the role look, as picking that role would.
+  - `ambiguous` is true wherever a line holds a role and a name, whether or not the drawn
+    reading of the picked block works. A title above does not hide it.
+  - A preview that falls back says why (`reason`, the analysis's own message).
+  - It reads the layout once and reuses that reading for every subset.
 - Wizard (owner-approved files, see the PR):
-  - `BehaviourSection.tsx`: the Credits preview adds two selects.
-    - "Which column contains the roles?" (Left / Right) appears only where the columns are
-      ambiguous. Its answer updates the preview and is saved as the binding's anchor kinds,
-      which the runtime copies. The draft keeps the answer (`creditsSwap`), so a detour through
-      fixed artwork does not lose it.
-    - "Show as" (Editable, in this design's styling / Fixed artwork) appears where styled
-      credits can build, and defaults to editable.
-    Where a design falls back, the preview says so in one line: "Fixed artwork: <reason>".
-  - `draft.ts`: `SvgRecipeDraft.creditsArtwork` holds the deliberate fixed-artwork choice,
-    `creditsSwap` the column answer, and `creditsFor` the layer the binding was read for.
-    `styledCreditsOf` saves a binding only for the pick it was read for (a binding from before
-    this row was read for its first role), and that pick may be a name.
+  - `BehaviourSection.tsx`, the Credits preview:
+    - "Which column contains the roles?" (Left / Right) appears where `ambiguous` is true. Its
+      answer updates the preview and is saved as the binding's anchor kinds, which the runtime
+      copies.
+    - Where a design falls back, the preview says so in one line: "Fixed artwork: <reason>".
+    - No fixed-artwork choice for credits that can be styled (Decisions: a departure).
+  - `draft.ts`: `creditsSwap` holds the column answer, and `creditsFor` the layer the binding was
+    read for. `styledCreditsOf` saves a binding only for the pick it was read for; a binding from
+    before this row was read for its first role. That pick may be a name.
 - `svg.ts`, `svgBind.ts`, `MapSvgFieldsStep.tsx`: unchanged. The row-19 paths already build,
-  mark and describe any styled binding, and the fixed-artwork choice reaches the checklist
-  through `svgDesignOptions`.
+  mark and describe any styled binding.
 
 ## Evidence per criterion
 
 | Criterion | Evidence |
 |---|---|
-| Role beside renders in imported styling | Node "the sample rebuilds in its two columns": credits-2 (the dev sample), roles set against their end, right to left, names drawn left of their roles, and a name layer picked. Every row's first character is within 0.05 units of its source's, with the same fill, size, weight, style, family and effective opacity. e2e: the wizard walk on credits-2 saves the binding, and the take shows roles at x 90 in pale green 26 and names at x 440 in white 32, at baselines 195 / 195 / 365 / 365 / 420 |
+| Role beside renders in imported styling | Node "the sample rebuilds in its two columns", on credits-2 (the dev sample), roles set against their end, right to left, names drawn left of their roles, and a name layer picked. Every row's first character is within 0.05 units of its source's, with the same fill, size, weight, style, family and effective opacity. e2e: the wizard walk on credits-2 saves the binding. The take shows roles at x 90 in pale green 26 and names at x 440 in white 32, at baselines 195 / 195 / 365 / 365 / 420 |
 | Columns and alignment | Node: credits-2 roles start at 90 and names at 440 for every list. Roles set against their end all end at 300 whatever their length, with names from 340. Right-to-left roles reach 900 and names 600 |
 | Multiple names per role | Node: nine rows (three names under one role, a role with none, a section break) at 195, 195, 250, 305, 475, 475, 645, 815, 815: names 55 apart, 170 from a group's last line to the next role, a role and its first name on one line. e2e: an Update rebuilds at 195, 195, 250, 305, 475, 645, 645 |
-| Overflow, measured | Node, on three drawings: names measured in the drawn name look against their column's room (credits-2: the frame edge 1100, less 440, less 16) fit, shrink, are reported past 55% and floor at 30%. A 39-character role against the role column's room (to where the columns meet) shrinks to it and is reported under the one Credits field; the report clears when the list fits |
-| Ambiguous columns get one mapping choice | Node: names drawn left of roles read either way. Read as drawn, the names roll as roles at x 100 in white; with the answer, roles roll in gold at 600 and names in white at 100. Both bindings validate, and the anchors differ. e2e (owner's test): the preview first lists the names as roles; after "Right" it lists Director and Sound; the saved field is `Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss`; on air the roles are gold at 600 and the names white at 100. Role above never asks (node, and the row-19 e2e) |
-| Name layer picked as Credits | Node: credits-1's first name gives the same anchors, list and field count as its role; credits-2's Émilie Lac, alone on its line, reads from Image, as picking Image does. e2e: picking the first role and then Léa Orme saves the styled binding for Léa and rolls all five rows |
-| Headings beside | Node: `# SPECIAL THANKS TO EVERYONE AT THE STUDIO` then two names on credits-2: the heading keeps its full size on the whole frame, the names step down at 250 and 305 in the name column |
-| Fixed artwork as a deliberate, explained choice | e2e: "Show as" defaults to editable; Fixed artwork turns the checklist rows to "scrolls as artwork"; Editable turns them back; picking the title shows "Fixed artwork: ..." and no Show as. The column answer survives Fixed artwork and back |
-| Source and animation identity | Node "role beside keeps the source layers": the take moves the roll's own group, a second take measures the same roll, Out stops it, every source layer's markup is unchanged after a take and stays hidden, and a reset of inline styles leaves the rows as built |
+| Overflow, measured | Node, on three drawings: names measured in the drawn name look against their column's room (credits-2: the frame edge 1100, less 440, less 16) fit, shrink, are reported past 55% and floor at 30%. A 39-character role against the role column's room (to where the columns meet) shrinks to it and is reported under the one Credits field. The report clears when the list fits |
+| Headings beside | Node: `# SPECIAL THANKS TO EVERYONE AT THE STUDIO` then two names on credits-2. The heading keeps its full size on the whole frame, and the names step down to 250 and 305 in the name column |
+| Ambiguous columns get one mapping choice | Node: names drawn left of roles read either way. Read as drawn, the names roll as roles at x 100 in white; with the answer, roles roll in gold at 600 and names in white at 100. Both bindings validate, and the anchors differ. The question is asked when the drawn reading of the pick fails (a last name on its own line), and under a title in either look. e2e (owner's test): the preview first lists the names as roles. After "Right" it lists Director and Sound, the saved field is `Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss`, and on air the roles are gold at 600 and the names white at 100. Role above never asks (node, and the row-19 e2e) |
+| Name layer picked as Credits | Node: credits-1's first name gives the same anchors, list and field count as its role. credits-2's Émilie Lac, alone on its line, reads from Image, as picking Image does. A later role (Sound) reads `Sound:\nAri Moss`. Under a title in the name look or the role look, a picked role keeps roles as roles and a picked name reads from its own role. e2e: picking the first role and then Léa Orme saves the styled binding for Léa and rolls all five rows |
+| Fallback explained in one line | e2e: picking the title shows "Fixed artwork: <reason>" and its row scrolls as artwork; a stylable pick shows no such line |
+| Source and animation identity | Node "role beside keeps the source layers": the take moves the roll's own group, a second take measures the same roll, and Out stops it. Every source layer's markup is unchanged after a take and stays hidden, and a reset of inline styles leaves the rows as built |
 | Not cr02 | The rows are copies of the imported drawing's own layers (above). Nothing in the engine reads a catalog design |
-| Fixed artwork and saved graphics compatible | Pins of the editable roll, the artwork roll and the three plain credits drawings unchanged. Row 19's five role-above styled builds are byte for byte as on `bc9be3b` (new test). `check:catalog-emit` PASS (528). The draft saves `options.artwork` exactly as before wherever it holds no styled binding |
+| Fixed artwork and saved graphics compatible | Pins of the editable roll, the artwork roll and the three plain credits drawings are unchanged. Row 19's five role-above styled builds are byte for byte as on `bc9be3b` (new test). `check:catalog-emit` PASS (528). Wherever the draft holds no styled binding, it saves `options.artwork` exactly as before. The deliberate fixed-artwork choice is held back (Decisions) |
 
 Mutations, each caught:
 - Names placed on the role column's edge: three node tests fail.
-- Each column's room the whole window: the overflow test fails.
-- No upward reading for a picked name: two node tests fail.
-- e2e, in one run (j-0003, 2 failed): the Roles answer not applied, and `styledCreditsOf`
-  restored to "the first anchor only".
+- Each column's room set to the whole window: the overflow test fails.
+- No reading from a picked name's role: two node tests fail.
+- The question decided by the analysis of the drawing (the old rule): the question test fails.
+- e2e, in one run (j-0003, 2 failed): the Roles answer not applied, together with
+  `styledCreditsOf` restored to "the first anchor only".
 - e2e (j-0006, 1 failed): the binding not re-saved when the pick moves to another layer of the
   same block.
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 37/37. `scripts/imported-credits-source.test.mjs`: 14/14.
+- `node --test scripts/imported-credits-model.test.mjs`: 40/40. `scripts/imported-credits-source.test.mjs`: 14/14.
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
-  worktree of `origin/main` on this machine, except paths and timings (row 19 recorded the same).
-- Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 (j-0001, and j-0007 after
-  the review fixes). Mutation runs j-0003 and j-0006 above. `check-e2e-protection --changed origin/main`: OK.
-- The wizard walked on this worktree's dev server with credits-2. The Credits preview shows Show
-  as, the Roles question (Left) and the two columns. No console errors.
+  worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
+- Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
+  j-0007, j-0008, j-0009, j-0010, and j-0011 on the final code). Mutation runs j-0003 and j-0006
+  above. `check-e2e-protection --changed origin/main`: OK.
+- Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
+  the Roles question (Left) and the two columns showed, with no console errors.
 
 ## Review rounds
 
-- `/check` review (delegated, 8 findings; 7 fixed, 1 kept as is):
-  - The widening for a picked name depended on the column answer and could drop the first line
-    or hide the question; it could also pull a title drawn in the role look into the block, and
-    a failed widening fell back to a reading with every kind inverted. Replaced by "a name reads
-    from its own role", decided on both readings (tests: name picks, the choice).
+- `/check` on `f582330` (delegated review, 8 findings; 7 fixed, 1 kept as is):
+  - The widening for a picked name depended on the column answer, could pull in a title, and
+    could fall back to inverted kinds. Replaced (and later reworked; see below).
   - A binding read for one pick was saved for another layer of the block: the draft now records
     the pick it was read for (`creditsFor`; e2e mutation j-0006).
-  - A heading in role beside got only the role column's room and its first name sat on its
-    line: headings now span both columns (test "a marked heading spans both columns").
-  - The column answer was derived from the saved binding, so fixed artwork and back lost it: the
-    draft keeps it (`creditsSwap`; e2e).
+  - In role beside, a heading got only the role column's room, and its first name sat on its
+    line. Headings now span both columns.
+  - The column answer was derived from the saved binding and could be lost: the draft keeps it.
   - The preview read the layout again for each subset: it now reuses the one reading.
-  - Two flags derived the same fact in the preview (`rendered`, `styled`): one reading now.
-  - Kept: the preview still runs the analysis a few times per re-measure (both readings, the
-    ambiguity check). It reads the layout once, and the analysis is arithmetic on a few layers.
+  - Two flags derived the same fact in the preview: one reading now.
+  - Kept: the analysis still runs a few times per re-measure. It is arithmetic on a few layers.
+- Codex on `91fe641` (P2, product defect): a later role picked (`Sound`) was read from the
+  previous group's last name, with roles and names reversed. Family: a layer's identity read from
+  where a reading starts.
+- `/so` on `91fe641` (session `session_017SdbwMzqUSsHc7p2w57zgR`, AGREE WITH CORRECTIONS, B+):
+  - Blocking: "Show as: Fixed artwork" was offered only for separate-layer drawings, and for
+    exactly those the artwork roll scrolls only the Credits layer (#1958). The choice was removed
+    (Decisions).
+  - Non-blocking: the Roles question shows for nearly every role-beside import (by design,
+    reported to the owner).
+  - Non-blocking: the fallback reasons use the analysis's wording ("look"). Kept: one accurate
+    line, and the brief allows no other copy change.
+  - Non-blocking: the column answer carries over to another pick, visibly.
+- Codex on `ef23674` (2 x P2, product defects, same family as above):
+  - the question was not offered when the drawn reading of the pick failed;
+  - a title in the role look above a names-left block hid the question.
+- `/so` on `ef23674` (session `session_017SdbwNjajnwgJr5qdXeh8r`, AGREE WITH CORRECTIONS, B):
+  - Blocking: a title in the names' look flipped role-above credits (a regression from row 19).
+  - Blocking: a title in either look hid the question on the names-left drawing.
+  - Blocking: these notes still described the removed choice. The edit had not been applied:
+    the commit hook refused the command that carried it.
+  Its points 4 to 7 are non-blocking: the fixed-artwork departure (#1958), and phase 18's
+  pick-the-first-role limit. The Codex fix itself is sound without a title.
+- **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
+  picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
+  the rule model was rewritten (What changed, `creditsPreview`):
+  - the question follows the drawing's geometry (a line holding a role and a name);
+  - the role look follows the column answer in role beside, and drawn evidence in role above;
+  - a role picked keeps row 19's reading.
+  Tests: "a picked layer is a role or a name by the drawing's role look", "a drawing with a role
+  and a name on one line always gets the column question", "a title above the credits, in either
+  look, changes neither the kinds nor the question".
 
 ## Decisions
 
+- **No deliberate fixed-artwork choice yet, a departure from the brief's wording.**
+  - The owner's direction asked for fixed artwork as a choice in the Credits preview wherever
+    styled credits are supported. That choice can only appear on a drawing of separate role and
+    name layers.
+  - For exactly those drawings, the artwork roll moves only the text holding the Credits layer,
+    so the rest of the credits would stand still on air (#1958).
+  - The binding wizard invariant `wizard/offer-control-can-change-graphic-front` says a control
+    that cannot keep its promise must be hidden, or name its failing class where it is offered.
+    The brief allows no other copy. So the choice is held back until #1958 lets fixed artwork
+    move the whole block.
+  - `/so` on `91fe641` found it and named it an owner decision. Fixing it here needs
+    `creditsArtwork.ts` and an artwork binding that names its layers.
+  - The other half, "say why a design falls back", is done.
 - **Role beside differs in a few runtime lines, chosen at build.** Role above must keep its bytes,
   so the emitted runtime branches in TypeScript (`beside(...)`). That beats a generic runtime that
   would change every row-19 graphic.
 - **Where the columns meet** is halfway across the gutter between the drawn layers' ink, in the
   first role's frame. A column's room runs from its edge to there, or to the window on its outer
   side, less half its type at each side, as role above spends its room.
-- **The Roles question appears wherever both readings describe credits**, which includes credits-2.
-  Geometry cannot tell a role column from a name column, so the author answers. "As drawn" is
-  preselected: the left column, or the right for right-to-left text. The labels are Left and
-  Right because the author sees the columns.
+- **The Roles question appears on every drawing with a role and a name on one line**, including
+  credits-2. Geometry cannot tell a role column from a name column, so the author answers. "As
+  drawn" is preselected: the left column, or the right for right-to-left text. The labels are
+  Left and Right because the author sees the columns.
 - **The saved answer is the anchors**, not a new field in the saved graphic. The kinds are what
-  the runtime copies and what `validateCreditsBinding` already accepts either way (row 18). The
-  wizard draft also keeps the answer, so the step can show it and reapply it.
-- **Fixed artwork is a draft choice** (`creditsArtwork`), so the step's automatic styled write
-  never overrides it. Saved, it is the same `options.artwork` binding every artwork import has.
-- **A picked name reads from its own role**, the same block as picking that role. So a name on a
-  later line drops the groups above it, exactly as picking a later role already does (phase 18's
-  known limit). A title or heading above the block is never pulled in.
-- **Ordinary review scenario.** A renderer, two selects and three draft fields; no state rule changes.
+  the runtime copies, and `validateCreditsBinding` already accepts either answer (row 18). The
+  wizard draft also keeps the answer, so the step can show it and apply it again.
+- **Identity from the drawing, not the reading.** Role beside, the column answer decides it. Role
+  above has no answer to ask for, so drawn evidence decides it: names run on consecutive lines,
+  and groups are separated by the widest step. Without evidence, the picked layer is the role,
+  so row 19's reading of a role picked never changes.
+- **Ordinary review scenario.** A renderer, one select and two draft fields; no state rule changes.
 
 ## Known limits
 
 - Picking a role or name below the first group lists from that group down (phase 18's limit,
-  now also for names). The author picks the first role or a name on its line; the e2e does.
-- Fixed artwork of a drawing made of separate role and name layers rolls only the text holding
-  the Credits layer, as role-beside imports did before this row. The other layers stay drawn and
-  become ordinary fields (#1958, P2: it needs `creditsArtwork.ts`).
+  now also for names). The author picks the first role, or a name on its line; the e2e does.
+- Role above with no drawn evidence (one name per role and even steps): a name picked reads as a
+  role, as on `main`. The author picks the first role.
+- No deliberate fixed-artwork choice for credits that can be styled (Decisions; #1958, P2). A
+  drawing that cannot be styled still saves the original-text roll, as before.
 - The Behaviour summary still says the original artwork scrolls. That is the recipe's own line
   (`words.json`), unchanged here because the brief allows no other copy change.
-- Row 19's limits stand: fallback fonts at validation, a stale binding builds the editable roll,
-  a source's own filter, clip or mask is not carried, and px letter spacing does not scale.
+- Row 19's limits stand:
+  - validation reads with fallback fonts;
+  - a stale binding builds the editable roll;
+  - a source's own filter, clip or mask is not carried;
+  - letter spacing in px does not scale.
 
 ## Follow-ups
 
 - Rows 21 to 23 (#1937): roll qualification (21, including inline opacity on a source in its own
   group), static (22), cards (23).
-- #1958 (P2): fixed artwork of a separate-layer drawing rolls only the Credits layer.
+- #1958 (P2): fixed artwork of a separate-layer drawing rolls only the Credits layer. The
+  deliberate fixed-artwork choice comes with its fix.
 - #1955 (P3): the editable roll's list holder through the formatter.
 
 ## Revert
@@ -158,5 +212,5 @@ On a fresh branch from `origin/main`, landed through the merge queue:
     git revert -m 1 "$(git log origin/main --merges --format=%H -1 --grep='claude/plan-jev-svg-import-20-build')"
 
 After a revert, new role-beside imports save artwork credits again. A graphic saved with a
-role-beside styled binding in between then builds the editable roll of its one list field. Its
-other drawn layers show as drawn. Role-above graphics are unaffected.
+role-beside styled binding in between then builds the editable roll of its one list field, and
+its other drawn layers show as drawn. Role-above graphics are unaffected.

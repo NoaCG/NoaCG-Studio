@@ -99,6 +99,13 @@ const STYLED_CASES = {
   namesLeft: svg(`${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}`),
   // A title drawn in the role look above the block, which a picked name must not pull in.
   headingAbove: svg(`${t(100, 60, 24, 'CREDITS', ' fill="#fc0"')}${t(100, 140, 24, 'Director', ' fill="#fc0"')}${t(100, 200, 40, 'Alex Rivera')}${t(100, 320, 24, 'Sound', ' fill="#fc0"')}${t(100, 380, 40, 'Ari Moss')}`),
+  // The names-left drawing with a last name on a line of its own, and with a title in the role
+  // look above it.
+  namesLeftTail: svg(`${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}${t(100, 325, 40, 'Sol Reed')}`),
+  namesLeftTitled: svg(`${t(600, 40, 24, 'CREDITS', ' fill="#fc0"')}${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}`),
+  // Role above under a title in the NAME look, and the names-left drawing under one.
+  titledNameLook: svg(`${t(100, 40, 40, 'THE TEAM')}${t(100, 140, 24, 'Director', ' fill="#fc0"')}${t(100, 200, 40, 'Alex Rivera')}${t(100, 250, 40, 'Ida Lake')}${t(100, 370, 24, 'Sound', ' fill="#fc0"')}${t(100, 430, 40, 'Ari Moss')}`),
+  namesLeftNameTitle: svg(`${t(100, 40, 40, 'THE TEAM')}${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}`),
   // Right to left: the role column on the right, read first.
   hebrewBeside: svg(`${t(900, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(600, 100, 40, 'דנה לוי', ' direction="rtl"')}${t(600, 155, 40, 'יוסי כהן', ' direction="rtl"')}`),
 };
@@ -376,6 +383,26 @@ async function inPage({ dev, cases, legacy, artwork }) {
     return { preview, engine: C.creditsEngine(svg), errors: C.validateCreditsBinding(svg), doc: window.NOACG_COMPOSE.composeDocument(tpl), html: tpl.html, css: tpl.css, js: tpl.js, field, fieldCount: tpl.fields.length, sourceMarkup: imp.markup, anchors: preview.anchors };
   };
   if (typeof C.styledCredits !== 'function') return { pins };
+  // Previews only: the reading of a pick, as the drawn answer and as the other column.
+  const previewOf = (markup, word, choice = {}) => {
+    const imp = imported(markup);
+    const host = laidOut(imp.markup);
+    const out = C.creditsPreview(host, imp.candidates.map((c) => c.id), imp.candidates.find((c) => c.sample === word).id, choice);
+    host.parentElement.remove();
+    return out;
+  };
+  const previews = {
+    tailAsRead: previewOf(cases.namesLeftTail, 'Sol Reed'),
+    tailChosen: previewOf(cases.namesLeftTail, 'Sol Reed', { swap: true }),
+    titledAsRead: previewOf(cases.namesLeftTitled, 'Director'),
+    titledChosen: previewOf(cases.namesLeftTitled, 'Director', { swap: true }),
+    nameTitleRole: previewOf(cases.titledNameLook, 'Director'),
+    nameTitleName: previewOf(cases.titledNameLook, 'Alex Rivera'),
+    roleTitleRole: previewOf(cases.headingAbove, 'Director'),
+    roleTitleName: previewOf(cases.headingAbove, 'Alex Rivera'),
+    namesLeftNameTitle: previewOf(cases.namesLeftNameTitle, 'Director'),
+    namesLeftNameTitleChosen: previewOf(cases.namesLeftNameTitle, 'Director', { swap: true }),
+  };
   const styled = {
     one: styledOf(dev[0].markup, 'Research'),
     bold: styledOf(cases.bold, 'Director'),
@@ -395,6 +422,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     pickUnderTitle: styledOf(cases.headingAbove, 'Alex Rivera'),
     idaAsRead: styledOf(cases.namesLeft, 'Ida Lake'),
     idaChosen: styledOf(cases.namesLeft, 'Ida Lake', { swap: true }),
+    tailChosen: styledOf(cases.namesLeftTail, 'Sol Reed', { swap: true }),
   };
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
@@ -416,6 +444,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
 
   return {
     styled,
+    previews,
     fallbacks,
     issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
     pins,
@@ -1034,4 +1063,39 @@ test('row 20: a picked layer is a role or a name by the drawing\'s role look, ne
     assert.equal(R.styled[k].engine, 'styled', k);
     assert.deepEqual(R.styled[k].errors, [], k);
   }
+});
+
+test('row 20: a drawing with a role and a name on one line always gets the column question', () => {
+  // Codex on ef23674: the question hung on the default reading working, and a title in the role
+  // look above the block hid it.
+  const { tailAsRead, tailChosen, titledAsRead, titledChosen } = R.previews;
+  // A last name on its own line: read as drawn it is a lone role and falls back; the question is
+  // still asked, and the answer reads it as a name under Sound.
+  assert.equal(tailAsRead.styled, false);
+  assert.equal(tailAsRead.ambiguous, true, 'the question is offered although the drawn reading fails');
+  assert.equal(tailChosen.styled, true);
+  assert.deepEqual(tailChosen.list.flat().map((e) => [e.role, e.names]), [['Sound', ['Ari Moss', 'Sol Reed']]]);
+  // A title in the role look above: the question is offered, and the answer reads Director as a role.
+  assert.equal(titledAsRead.ambiguous, true);
+  assert.equal(titledChosen.styled, true);
+  assert.deepEqual(titledChosen.list.flat().map((e) => [e.role, e.names]), [['Director', ['Alex Rivera', 'Ida Lake']], ['Sound', ['Ari Moss']]]);
+  // The answer saved for the last name validates and builds styled.
+  assert.deepEqual(R.styled.tailChosen.errors, []);
+  assert.equal(R.styled.tailChosen.engine, 'styled');
+  assert.equal(R.styled.tailChosen.field.value, 'Sound:\nAri Moss\nSol Reed');
+});
+
+test('row 20: a title above the credits, in either look, changes neither the kinds nor the question', () => {
+  // /so on ef23674: a title in the names' look flipped role-above credits, and a title hid the
+  // column question.
+  const groups = (p) => p.list.flat().map((e) => [e.role, e.names]);
+  const want = [['Director', ['Alex Rivera', 'Ida Lake']], ['Sound', ['Ari Moss']]];
+  const P = R.previews;
+  for (const k of ['nameTitleRole', 'nameTitleName', 'roleTitleRole']) {
+    assert.equal(P[k].styled, true, k);
+    assert.deepEqual(groups(P[k]), k === 'roleTitleRole' ? [['Director', ['Alex Rivera']], ['Sound', ['Ari Moss']]] : want, `${k}: the title stays artwork, roles stay roles`);
+  }
+  assert.deepEqual(groups(P.roleTitleName), [['Director', ['Alex Rivera']], ['Sound', ['Ari Moss']]], 'a name under a role-look title reads from its own role');
+  assert.equal(P.namesLeftNameTitle.ambiguous, true, 'a title in the name look does not hide the question');
+  assert.deepEqual(groups(P.namesLeftNameTitleChosen), want);
 });

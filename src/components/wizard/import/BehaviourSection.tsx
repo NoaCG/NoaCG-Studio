@@ -148,7 +148,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
     if (!root) return null;
     const ids = idKey.split('\n');
     const read = creditsPreview(root, ids, creditsId);
-    return { read, swapped: read.styled && read.ambiguous ? creditsPreview(root, ids, creditsId, { swap: true }) : null };
+    return { read, swapped: read.ambiguous ? creditsPreview(root, ids, creditsId, { swap: true }) : null };
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);

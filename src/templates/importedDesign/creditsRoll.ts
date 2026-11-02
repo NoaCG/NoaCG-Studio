@@ -1448,7 +1448,7 @@ export function readCreditsList(text: string): CreditsListItem[][] {
 /** What the wizard previews for the layer picked as Credits. */
 export type CreditsPreview =
   | { styled: true; layout: CreditsLayout; rtl: boolean; ambiguous: boolean; anchors: DesignSvgCreditsAnchor[]; list: CreditsListItem[][] }
-  | { styled: false; list: CreditsListItem[][]; reason: string };
+  | { styled: false; list: CreditsListItem[][]; reason: string; ambiguous: boolean };
 
 /**
  * THE PREVIEW OF THE ONE CREDITS LIST the picked layer declares. Where the picked layer is one
@@ -1463,7 +1463,8 @@ export type CreditsPreview =
 export function creditsPreview(root: Element, candidateIds: readonly string[], creditsId: string, choice: CreditsChoice = {}): CreditsPreview {
   const all = readCreditsAnchors(root, candidateIds);
   const picked = all[candidateIds.indexOf(creditsId)];
-  const own = (reason: string): CreditsPreview => ({ styled: false, list: readCreditsList(creditsLayerText(root, creditsId)), reason });
+  let ambiguous = false;
+  const own = (reason: string): CreditsPreview => ({ styled: false, list: readCreditsList(creditsLayerText(root, creditsId)), reason, ambiguous });
   if (!picked) return own('This layer is not a text layer of the artwork.');
   if (picked.lines > 1) return own('Its lines are one text layer, so no role or name look can be told apart.');
   // "Below" in the block's own frame, as the analysis reads it: a turned block's lines are not
@@ -1479,10 +1480,9 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     return { ids: at.map((x) => x.id), readings: at.map((x) => x.r) };
   };
   const near = (p: CreditsReading, q: CreditsReading) => Math.abs(down(p) - down(q)) <= 0.25 * Math.min(p.size, q.size);
-  // THE DRAWING'S TOP: the layers above, nearest first, while the whole stays within two looks.
-  // Its first line, read in the reading direction (the column answer turns it), starts with a
-  // role, so its first layer's look is the ROLE look: one layer's identity is never guessed from
-  // where a reading happens to start.
+  // THE DRAWING: the picked layer, everything below it, and the layers above, nearest first,
+  // while the whole stays within two looks. A layer's identity, role or name, is read off the
+  // whole drawing, never from where the reading of one block happens to start.
   const looks = new Set(from(picked).readings.map((r) => r.look));
   let top = picked;
   const above = all
@@ -1494,10 +1494,43 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     top = r;
   }
   const region = from(top);
-  const firstLine = region.readings.filter((r) => near(r, top));
+  // THE ROLE LOOK. Where a line of the drawing holds two layers in the two looks, the roles are a
+  // COLUMN: the first layer read on the first such line wears the role look, and the column
+  // answer turns it to the other column's look. Geometry cannot tell the columns apart, so that
+  // drawing always gets the question, whichever reading of the picked block works.
+  // Role above, a look drawn on two lines in a row is the NAME look (a role has its names under
+  // it); failing that, the widest step comes before a ROLE. The top line is left out of both,
+  // since a title may sit there in either look. With no such evidence the picked layer is the
+  // role, as row 19 read it.
   const across = (r: CreditsReading) => (d * r.x - c * r.y) / (a * d - b * c || 1);
-  const leftward = firstLine.every((r) => r.rtl === true) !== (choice.swap === true);
-  const roleLook = [...firstLine].sort((p, q) => (leftward ? across(q) - across(p) : across(p) - across(q)))[0].look;
+  const lineOf = (r: CreditsReading) => region.readings.filter((q) => near(q, r));
+  const pair = region.readings.map(lineOf).find((line) => new Set(line.map((q) => q.look)).size === 2);
+  ambiguous = !!pair && looks.size === 2;
+  const aboveRoleLook = (): string => {
+    const lines = [...region.readings].sort((p, q) => down(p) - down(q))
+      .filter((r, i, all) => i === 0 || !near(r, all[i - 1]));
+    const runs = new Map<string, number>();
+    for (let i = 2; i < lines.length; i++) {
+      if (lines[i].look === lines[i - 1].look) runs.set(lines[i].look, (runs.get(lines[i].look) ?? 0) + 1);
+    }
+    const [one, other] = [...looks];
+    if (other === undefined) return picked.look;
+    const n1 = runs.get(one) ?? 0;
+    const n2 = runs.get(other) ?? 0;
+    if (n1 !== n2) return n1 > n2 ? other : one;
+    // Else the widest step, clearly wider than the narrowest, comes before a role (the gap
+    // between groups).
+    const steps = lines.slice(2).map((r, i) => ({ look: r.look, step: down(r) - down(lines[i + 1]) }));
+    if (steps.length >= 2) {
+      const widest = steps.reduce((w, x) => (x.step > w.step ? x : w));
+      if (widest.step >= 1.25 * Math.min(...steps.map((x) => x.step))) return widest.look;
+    }
+    return picked.look;
+  };
+  const leftward = !!pair && pair.every((r) => r.rtl === true) !== (choice.swap === true);
+  const roleLook = pair
+    ? [...pair].sort((p, q) => (leftward ? across(q) - across(p) : across(p) - across(q)))[0].look
+    : aboveRoleLook();
   // A ROLE picked starts the block; a NAME picked reads from its own role, the nearest layer at
   // or above it in the role look, as picking that role would. A title above stays out either way.
   const ownRole = picked.look === roleLook
@@ -1514,9 +1547,7 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     styled: true,
     layout: analysis.style.layout,
     rtl: readings.every((r) => r?.rtl === true),
-    // Whether the drawing's columns read either way is a fact of the whole drawing, not of the
-    // block one answer starts, so the question does not come and go with the answer.
-    ambiguous: creditsColumnsAmbiguous(region.readings, region.ids),
+    ambiguous,
     anchors: analysis.style.anchors,
     list: readCreditsList(analysis.style.list),
   };
