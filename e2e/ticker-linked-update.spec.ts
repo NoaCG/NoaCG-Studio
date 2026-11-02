@@ -100,12 +100,16 @@ async function travelling(air: FrameLocator) {
 }
 const plays = (page: Page) => page.getByTestId('program-stage').getAttribute('data-plays');
 
-/** Wait until the strip's items are exactly `want` (a marquee renders its set twice). */
+/**
+ * Wait until the strip's items are exactly `want`, in order: a marquee renders its set twice, so
+ * the track reads `want` repeated. Order matters, or a reorder would pass before it is read.
+ */
 async function itemsBecome(air: FrameLocator, want: string[], message: string) {
   await expect.poll(async () => {
     const texts = await air.locator('#ticker-track .ticker-item').evaluateAll((els) => els.map((e) => (e.textContent ?? '').trim()));
-    return [...new Set(texts)].sort().join(' | ');
-  }, { timeout: 20_000, message }).toBe([...want].sort().join(' | '));
+    const sets = texts.length / want.length;
+    return Number.isInteger(sets) && sets >= 1 && texts.every((t, i) => t === want[i % want.length]) ? 'in order' : texts.join(' | ');
+  }, { timeout: 20_000, message }).toBe('in order');
 }
 
 /**
