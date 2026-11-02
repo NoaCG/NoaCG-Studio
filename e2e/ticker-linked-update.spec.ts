@@ -238,18 +238,6 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   judgeMarquee(await samples(again, changed), PACE, 'reopened');
   expect(await plays(page), 'no entrance replayed after reopening').toBe('1');
 });
-  await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 20_000 });
-  const opened = await plays(page);
-  const reopened = await record(again);
-  await page.waitForTimeout(1500);
-  judgeMarquee(await samples(again, reopened), PACE, 'reopened, before a change');
-  const changed = await record(again);
-  server.set(SHEET, lines('Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'));
-  await itemsBecome(again, ['Results from 22:00', 'Turnout 63%', 'Polls close at 20:00'], 'reopened page reads');
-  await page.waitForTimeout(1500);
-  judgeMarquee(await samples(again, changed), PACE, 'reopened');
-  expect(await plays(page), 'no entrance replayed after reopening').toBe(opened);
-});
 
 // ── Flip ─────────────────────────────────────────────────────────────────────────────────
 
