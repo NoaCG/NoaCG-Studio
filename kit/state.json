@@ -50,14 +50,14 @@
  "inFlight": [],
  "owner": [
   {
-   "what": "confirm the daily alarm email (first run fired 2026-11-02T21:18Z, reporting test alarm #1971) reached your inbox",
-   "where": "https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6588697627"
+   "what": "look at the 'Owner alarms (daily)' session in Claude Code: its first run should report test alarm #1971; tell the coordinator it showed up",
+   "where": "session_017SdbwQfGaKDTYKsFgzGxY6"
   }
  ],
  "fixes": [],
  "triggers": {
   "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y",
-  "ownerEmail": "trig_01CSf61M12iQvmzNYzaZoHnU"
+  "ownerAlarms": "trig_01AMdUqAkdtQgPQ5FmwLtL6U"
  },
  "heartbeat": 6575215206,
  "history": [
@@ -72,6 +72,11 @@
   {
    "at": "2026-11-02T21:18Z",
    "what": "Owner chose email delivery: daily cloud scheduled task trig_01CSf61M12iQvmzNYzaZoHnU (06:39 Helsinki), email only when noteworthy; GitHub assignment stays the record. Owner words on #1951 comment 6588697627."
+  },
+  {
+   "at": "2026-11-02T21:24Z",
+   "what": "Email route dropped: trigger-started sessions had no GitHub access (403) and the emails held only a session link; owner prefers Claude Code. Daily wake trig_01AMdUqAkdtQgPQ5FmwLtL6U (06:37 Helsinki) into persistent session session_017SdbwQfGaKDTYKsFgzGxY6 with repo access; no email or push."
   }
- ]
+ ],
+ "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6"
 }
