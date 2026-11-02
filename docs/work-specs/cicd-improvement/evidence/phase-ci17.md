@@ -23,11 +23,11 @@ Acceptance, verbatim:
 
 **This is not initial success.** `node scripts/work-spec.mjs converge
 docs/work-specs/cicd-improvement/work.json` returns `open` (exit 1), not `evidence-complete`
-(section 4). Two of the eight initial criteria are met, two are not met and four are pending.
+(section 4). One of the eight initial criteria is met, two are not met and five are pending.
 
 | AC | Status | work.json | One-line reason |
 | --- | --- | --- | --- |
-| AC-1 Baseline distinguishes delay from execution | **MET** | `pass` | ci01 froze the configuration and a 21-row post-sharding cohort, cut it into non-overlapping segments, triaged the nightlies and timed deployment; missing parts are labelled as AC-1 allows |
+| AC-1 Baseline distinguishes delay from execution | **PENDING** | `unverified` | ci01 froze the configuration and a 21-row cohort, cut it into non-overlapping segments, triaged the nightlies and timed deployment; setup/test/report time and the dependency/concurrency wait split were never measured |
 | AC-2 Review convergence improves | **PENDING** | `unverified` | 2 feasibility rows and 3 of the 10 comparison rows have landed; no improvement claim is possible yet |
 | AC-3 Critical contracts detect representative defects | **MET** | `pass` | ci07 mapped every D2 contract to its faithful layer; ci11 observed ten faults fail and their corrections pass, with an independent oracle check |
 | AC-4 Selection never silently narrows | **NOT MET** | `fail` | three unexplained misses are still unselected by today's planner (#1900, #1942, #1944); the 14-day window from reset `8e84002d` is still open |
@@ -77,11 +77,11 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
 
 ## 2. Criterion by criterion
 
-### AC-1: MET
+### AC-1: PENDING
 
-- **Evidence.** [phase-ci01.md](phase-ci01.md), merge `139a9724`, checker PASS "All four criteria
-  are met" (comment 6542211458).
-- **Why met.** Frozen source and workflow blobs (section 1); a post-sharding cohort of 21 completed
+- **Evidence.** [phase-ci01.md](phase-ci01.md), merge `139a9724`, checker PASS (comment
+  6542211458). That checker judged ci01's own four row criteria, not every measure AC-1 lists.
+- **What exists.** Frozen source and workflow blobs (section 1); a post-sharding cohort of 21 completed
   rows, above the 12-row minimum, with no unfinished eligible row; strata reported (backend 13,
   feature 8 provisional, extraction 0 missing); builder-to-PASS cut into consecutive,
   non-overlapping segments that add up exactly to each row's time; eligible runner wait (p50 0.03
@@ -89,8 +89,15 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   and failed runner-minutes (section 5); escaped defects (3 failed checks in 2 rows); the five red
   nightlies triaged; deployment timing measured (production live 9.5 to 11.4 minutes before the
   configured verdict in 24 of 24 landings, owner decision #1846).
-- **Limits kept.** PR-level finding families were never recorded and stay missing; ci02 added the
-  record for later rows. One wrong commit reference in section 4.4 is tracked in #1849 and changes
+- **Why pending, not met.** AC-1 names measures ci01 did not take, and neither ci01 nor any later
+  row labels them missing: (1) setup, test and report time per run: ci01 has no such split;
+  (2) dependency and concurrency wait as components: ci01 says dependency wait "is not tabulated
+  separately here" (section 2), and eligible runner wait comes from two dense sample windows,
+  not the cohort; (3) PR-level finding families, never recorded (ci02 added the record for later
+  rows). The first two can still be measured from existing Actions job records, so this is
+  pending, not failed. The segment table and the CI-occupancy union do separate gross delay from
+  execution, but they do not cover the measures AC-1 lists, so they are not reported as meeting it.
+- **Other limits.** One wrong commit reference in ci01 section 4.4 is tracked in #1849 and changes
   no number.
 
 ### AC-2: PENDING (ten-risky-row sample limit)
@@ -131,7 +138,9 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   or replaced has an observed fault: ten injected faults F1 to F10, seven of them replays of
   recorded defects, covering cross-tab identity (F1, F2, F6), persistence (F3, F7), export
   lifecycle (F4) and asset loading (F5, F8, F10), each failing its guard and passing on the
-  correction. The checker re-ran the faults on its own machine and checked the oracles. F2 exposed
+  correction. ci12 and ci13, which came after ci11's class table, proved their own guards by
+  mutation ([phase-ci12.md](phase-ci12.md) section 3, [phase-ci13.md](phase-ci13.md)
+  section 4). The checker re-ran the faults on its own machine and checked the oracles. F2 exposed
   a mapping gap, corrected in the same merge (an audit reset).
 - **Gaps reported, as AC-3 requires.** Physical playout hardware and vendor builds, hosted
   Supabase, browsers other than Chromium, loop-declared tests (#1911), quarantined specs (#1907),
@@ -216,7 +225,9 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   activated (ci16), so there is no gain to persist.
 - **Known risk that would make it not met.** ci06's selected PR runs project the backend tier to
   about 150 to 160 runner-minutes per landing against its 117 ceiling (128 to 137%) while worker
-  full dispatches continue; only the 107.4 measured before ci06 exists (#1871). The intentional
+  full dispatches continue (#1871). Measured: 107.4 before ci06, and ci18's one live weekly
+  collection (a thin 100-call sample, every tier partial) read 167.6 per landing (143%) and
+  raised `cost:backend` with an owner and due date. The intentional
   safety cost of P1(b/c) is reported separately above (ci04, ci05) and here (ci06: +56 projected,
   -48 if routine dispatches stop).
 
@@ -228,7 +239,10 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   indirect-slowdown attribution, clock starts and per-item age alarms, each mutation-checked and
   replayed.
 - **Live tier evidence.** Measured, not projected: backend 107.4 per landing (92% of 117) for the
-  33 landings to 2026-10-31T21Z, before ci06. Today's `node scripts/e2e-capacity.mjs --changed
+  33 landings to 2026-10-31T21Z, before ci06. ci18's one live weekly collection (7 days, 100
+  calls, every tier partial) read backend **167.6 per landing (143% of the ceiling)** and raised
+  `cost:backend` with an owner and a due date: partial live evidence of a breach, and of an owned,
+  dated action. Today's `node scripts/e2e-capacity.mjs --changed
   origin/main` on `66a61064`: offline 410/535 (77%) OK; backend 107.4/117 (92%) WARN, evidence
   partial; graphics 7.8/10 (80%) OK with the catalog-gate exception excepting 17.7 per landing to
   2026-11-30, evidence partial; overhead 84/105 (80%) OK; durations table 14 days old, over its
@@ -240,14 +254,16 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   delivery-time report exists.
 - **Sample sufficiency.** Not sufficient. The one live weekly collection (ci18) was a 100-call
   sample against the 550 the production job uses, and every tier was partial. `weekly-audit.yml`
-  runs Mondays at 06:00 UTC; its last three scheduled runs before ci18 started 6.6 to 9 hours late (2026-10-12 to
-  2026-10-26), and the first scheduled run after ci18 (2026-11-02) had not run when this file was
+  runs Mondays at 06:00 UTC; its last three scheduled runs before ci18 started 6.6 to 9 hours
+  late (2026-10-12 to 2026-10-26), and the first scheduled run after ci18 (2026-11-02) had not run when this file was
   written. No percentile is invented.
 - **Weekly ownership.** Every owner string reads "cicd-improvement plan coordinator (run issue
   #1842) until ci17 hands off" (`scripts/growth-ceilings.json`, #1892, #1907). This row hands off
   without a successor owner: naming one is an owner decision, filed as #1951 (P1). Until it is
-  decided, the weekly report, age alarms and quarantine incidents run but nobody is assigned to
-  act on them. Who triages weekly miss rows is also open (#1904).
+  decided, the alarms keep naming the coordinator, and once the coordinator stops its wakes no
+  session acts on them: the weekly report, the age alarms and the quarantine incident repairs
+  (due 2026-11-11 to 2026-11-15) fall to the owner by default. Who triages weekly miss rows is also
+  open (#1904).
 - **Outstanding exceptions.** `ci04-catalog-gate` (graphics, 17.7 per landing, expires
   2026-11-30, repayment #1862; on 2026-12-01 graphics counts at about 255% of its ceiling). The
   offline work-spec exception lines for `save-transaction`, `save-transaction-holds` and
@@ -267,9 +283,9 @@ On this branch, with the review recorded in work.json (revision `66a61064`, the 
 
 ```
 $ node scripts/work-spec.mjs converge docs/work-specs/cicd-improvement/work.json
-status: open, problems 0, gaps 6
-gaps: AC-2: unverified; AC-4: fail; AC-5: fail; AC-6: unverified; AC-8: unverified; AC-9: unverified
-openCriteria: AC-2, AC-4, AC-5, AC-6, AC-8, AC-9
+status: open, problems 0, gaps 7
+gaps: AC-1: unverified; AC-2: unverified; AC-4: fail; AC-5: fail; AC-6: unverified; AC-8: unverified; AC-9: unverified
+openCriteria: AC-1, AC-2, AC-4, AC-5, AC-6, AC-8, AC-9
 exit 1
 ```
 
@@ -316,7 +332,8 @@ enough.
 | P3 | #1914, #1920, #1928, #1932, #1939, #1945, #1949, #1849, #1863 | Evidence and tooling follow-ups from rows ci01 to ci16; none changes a status above |
 | open PR | #1834 | Pending quarantine entry (`import-svg-corpus`) and the live age alarm in #1892 |
 
-What would move the open criteria: AC-4 needs the three misses fixed (each a reset), the
+What would move the open criteria: AC-1 needs setup/test/report time and the dependency
+and concurrency wait split measured from existing job records for the ci01 cohort; AC-4 needs the three misses fixed (each a reset), the
 incidents cleared and 14 clean days after the last reset; AC-5 needs a second complete carrier
 for engine-floor and the omitted E2E specs, or keeping them pre-merge, then a qualified ci15-style
 verdict; AC-2 needs seven more eligible risky rows; AC-6 needs an owner-authorized cohort; AC-8
@@ -326,8 +343,10 @@ and AC-9 need complete weekly reports with a named owner.
 
 - **Wakes.** The coordinator stops the run's wakes after this row's PASS lands, as the brief says.
   This row starts or stops nothing.
-- **Repair ownership.** Every PR of this run is merged; no open PR of the run needs a repair
-  owner. Open quarantine incidents and alarms keep the owner string above until #1951 is decided.
+- **Repair ownership.** Every earlier PR of this run is merged. This row's own PR #1952 keeps the
+  coordinator as its repair owner through its post-landing results. After the run ends, the open
+  quarantine incidents and alarms fall to the owner by default until #1951 names someone (AC-9
+  section above).
 - **The next assessment.** A later reassessment of AC-2, AC-4 and AC-9 is meaningful after
   2026-11-15T18:14:35Z (the earliest audit close), after the remaining JEV risky rows land, and
   after at least one complete weekly report.
@@ -339,9 +358,9 @@ and AC-9 need complete weekly reports with a named owner.
 - **Revert:** `git revert -m 1 <this PR's merge commit>` removes this file and the work.json
   review; nothing else depends on them.
 - **Decisions.** (1) Pending maps to `unverified` and not met to `fail`, the two non-pass statuses
-  the existing tool accepts as an honest partial review; no tool change. (2) AC-1 is met although
-  finding families are missing: AC-1 itself asks for missing samples to be reported as
-  provisional, and families were never recorded by anyone. (3) AC-4 and AC-5 are `fail`, not
+  the existing tool accepts as an honest partial review; no tool change. (2) AC-1 is pending, not met:
+  AC-1's "report missing samples as provisional" covers thin samples, not measures that were
+  never taken (setup/test/report time, dependency wait), and those can still be measured. (3) AC-4 and AC-5 are `fail`, not
   pending, because their failures are demonstrated and do not depend on time passing. (4) The
   successor owner is not chosen here; #1951 asks for it. (5) The review revision is this row's
   base, so the record names the exact source it judged.
