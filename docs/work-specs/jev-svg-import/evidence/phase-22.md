@@ -60,10 +60,11 @@ never saved one. Phase 16 had already declared the static overflow policy in `CR
 | Explicit fit, never clipped | Same test, longer lists on Update and Take: three names fit as drawn (share 1). Longer lists shrink as a whole: the last ink reaches the room's end, within 2 units, and never passes it. The first role stays on its drawn baseline, and every row keeps its column's edge. Above: 12 names, then 30. Beside: 8 names, then 15 |
 | Overflow reported past 55% | Same test: the second longer list in each layout sets the page below 55% and names the Credits field in `noacgTextOverflow()`; the first does not |
 | Refusal, not clipping or a layout switch | Same test, 200 names: the share would be below the 30% floor, so the rows are hidden (`visibility: hidden`), `refused: true`, the Credits field is reported, and no tween runs. Shortened again, the page shows and the report clears |
-| Refusal visible to the author before air | e2e "role-above credits chosen to hold still…": the wizard walk chooses Hold still. On the production page, before any take, pasting 200 names marks the field "Too long for the design" and the cue's note says it "is too long for the design". On Take the page is not shown, with no roll. With the drawn list again, on Update, the page shows still, at the drawn baselines, and the mark clears |
+| Refusal visible to the author before air | e2e "role-above credits chosen to hold still…": the wizard walk chooses Hold still, and the choice says "A list too long for the page is not shown, and its field says so." On the production page, before any take, pasting 200 names marks the field "Too long for the design" and the cue's note says it "is too long for the design". On Take the page is not shown, with no roll. With the drawn list again, on Update, the page shows still, at the drawn baselines, and the mark clears |
 | The wizard saves static; no dead control | Same walk: the select reads Roll / Hold still and starts on Roll. After Hold still the graphic has the Credits list and the title, and no Scroll speed field (`cue-field-f2` absent). Node: a static binding's build has no Scroll speed; the roll's does |
 | Static builds the still page | Node "row 22": engine `styled`, the styled table, no editable roll, the still header, and no `gsap.fromTo(roll` |
 | Roll and fixed artwork unchanged | Node pins of the editable roll, the artwork roll and the three plain drawings, and `ROLE_ABOVE_PINS`, all pass unchanged. Cards and a stale binding still build the editable roll, byte for byte as the binding without `credits`. `check:catalog-emit` PASS (528). The whole `import-svg-credits` spec passes, row 21's enter and exit and replay tests included |
+| Faces landing after the fit | e2e "a still page measured before its face lands is fitted again…": credits-1 in Anton with 12 names, updated and taken while the face is held. When it lands the rows are set in the face and the page is fitted again by the same rule (last ink within 2 units of the room's end, never past it) |
 | Source and animation identity | The still page builds its rows by the same code as the roll, from the same hidden source layers (row 19's tests), in the same roll group. The roll group is never moved |
 
 Mutations, each caught:
@@ -71,10 +72,15 @@ Mutations, each caught:
 - No refusal, so the page is set below the floor: both tests fail (j-0004).
 - The wizard saving `roll` whatever the choice: the walk fails (j-0005).
 - The Scroll speed field kept on a still page: node "row 22" fails.
+- Not caught: removing the take's own refit when faces land (`creditsHold`) leaves the face test
+  green (j-0010). On a blank page the face is already loading when the template's load-time
+  `document.fonts.ready` refit is registered, and that refit covers it. The take's refit is for
+  the order the load-time hook misses: faces that start loading after `ready` resolved, as row 21
+  measured for the roll. That order was not reproduced here.
 
 ## Verification on this worker
 
-- Browser, through the job queue: the two new tests (j-0002, j-0007), the mutation runs above,
+- Browser, through the job queue: the new tests (j-0002, j-0007, j-0009), the mutation runs above,
   the whole `e2e/import-svg-credits.spec.ts` 15/15 (j-0006), then with
   `e2e/import-svg-behaviour.spec.ts` (j-0008), since `behaviour.ts` compiles every recipe.
 - `node --test scripts/imported-credits-model.test.mjs`: 44/44, pins unchanged.
@@ -82,6 +88,21 @@ Mutations, each caught:
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
   `check-e2e-protection --changed origin/main`: OK.
+
+## Review rounds
+
+- `/check` on `8d9956a` (delegated review, 10 findings; 4 fixed, 6 kept):
+  - Fixed: a still page fitted while a face was loading was not fitted again when it landed (now
+    `creditsHold` refits then); a list whose estimate fell just under the floor was refused
+    without trying the floor (now the page is built at the floor once and judged there); the
+    page's record (`noacgCreditsLast`) went stale on `update()` (now kept current); the Hold
+    still choice did not name the input it cannot show
+    (`wizard/offer-control-can-change-graphic-front`), and survived a pick that cannot be styled.
+    The roll's pace constant is no longer emitted on a still page.
+  - Kept: the take rebuilds the rows as the roll's take does; the fit rebuilds at most twice
+    (once at the measured share, once at the floor); `RecipeContext.credits` is the seam the
+    coordinator approved; a second font-size read per row; `creditsSpeed` stays in the shared
+    field code.
 
 ## Decisions
 
