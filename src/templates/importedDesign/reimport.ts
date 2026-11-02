@@ -9,8 +9,9 @@
 // caller keeps the earlier graphic rather than writing over it.
 //
 // Pure: templates and animation data in, templates and animation data out. The canonical
-// animation serializer and the artwork identity patch live in blocks/, which a template module
-// may not import, so components/wizard/import/draft.ts `svgReimported` is the glue.
+// animation serializer and the artwork identity patch live in blocks/, and this folder adds no
+// new import from blocks/ (the `templates/add-imports-sanctioned-animation-data-importer` rule),
+// so components/wizard/import/draft.ts `svgReimported` is the glue.
 
 import type { SpxField, SpxTemplate } from '../../model/types';
 import type { AnimData, AnimStep } from '../../blocks/animData';
@@ -98,6 +99,8 @@ export interface ReimportMatch {
   rename: Map<string, string>;
   /** Earlier field id -> built field id, the verified matches. */
   matched: Map<string, string>;
+  /** Earlier field ids with no verified match (removed or ambiguous). */
+  gone: string[];
   unresolved: ReimportItem[];
 }
 
@@ -117,13 +120,17 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
   const nAfter = counts(after.values());
   const byKey = new Map([...after].map(([id, k]) => [k, id]));
   const matched = new Map<string, string>();
+  const gone: string[] = [];
   const unresolved: ReimportItem[] = [];
   for (const f of prior.fields) {
     const k = before.get(f.field)!;
     const n = nAfter.get(k) ?? 0;
-    if (n === 0) unresolved.push({ kind: 'removed', label: f.title || f.field });
-    else if (n > 1 || nBefore.get(k)! > 1) unresolved.push({ kind: 'ambiguous', label: f.title || f.field });
-    else matched.set(f.field, byKey.get(k)!);
+    if (n === 1 && nBefore.get(k) === 1) {
+      matched.set(f.field, byKey.get(k)!);
+      continue;
+    }
+    gone.push(f.field);
+    unresolved.push({ kind: n === 0 ? 'removed' : 'ambiguous', label: f.title || f.field });
   }
   const rename = new Map<string, string>();
   for (const [was, now] of matched) if (was !== now) rename.set(now, was);
@@ -142,12 +149,12 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
     rename.set(id, `f${next}`);
     used.add(`f${next}`);
   }
-  return { rename, matched, unresolved };
+  return { rename, matched, gone, unresolved };
 }
 
 /**
  * Rename field ids across a built template, all at once (a swap never chains). Ids are written in
- * a fixed set of places - an `id`, a `#ref` or a quoted id in the markup, the definition, the
+ * a fixed set of places - an id attribute, a `#ref` and the definition in the markup, the
  * stylesheet and the script (animation selectors, the layout table, the behaviour tables) - and
  * only an exact quoted or `#`-prefixed token is touched, never a word that merely contains one.
  */
@@ -156,10 +163,15 @@ export function renameFields(template: SpxTemplate, rename: Map<string, string>)
   const swap = (id: string) => rename.get(id) ?? id;
   const quoted = (s: string) => s.replace(/(["'])(#?)(f\d+)\1/g, (_, q: string, hash: string, id: string) => q + hash + swap(id) + q);
   const hashed = (s: string) => s.replace(/#(f\d+)(?![\w-])/g, (_, id: string) => '#' + swap(id));
-  const urls = (s: string) => s.replace(/url\(#(f\d+)\)/g, (_, id: string) => `url(#${swap(id)})`);
+  // In the markup only the attributes that hold an id, `url(#…)` and the definition's `field`, so
+  // a designer's colour such as `fill="#f12"` is never read as a field.
+  const markup = (s: string) => s
+    .replace(/(\s(?:id|href|xlink:href)\s*=\s*)(["'])(#?)(f\d+)\2/g, (_, a: string, q: string, hash: string, id: string) => a + q + hash + swap(id) + q)
+    .replace(/url\(#(f\d+)\)/g, (_, id: string) => `url(#${swap(id)})`)
+    .replace(/("field"\s*:\s*)"(f\d+)"/g, (_, a: string, id: string) => `${a}"${swap(id)}"`);
   return {
     ...template,
-    html: urls(quoted(template.html)),
+    html: markup(template.html),
     css: hashed(quoted(template.css)),
     js: hashed(quoted(template.js)),
     fields: template.fields.map((f) => ({ ...f, field: swap(f.field) })),
@@ -222,7 +234,8 @@ export function carryKeys(prior: AnimData, baseline: AnimData | null, built: Ani
 }
 
 /** The operator events a block answers - an action's identity, which a control, a panel button
- *  and a cue's command all address by name. */
+ *  and a cue's command all address by name. Read off the machine here rather than through
+ *  blocks/animMachine `allOperatorEvents`, for the import rule above; controls count too. */
 function operatorEvents(data: AnimData | null): Set<string> {
   const out = new Set<string>();
   for (const g of data?.machine?.groups ?? []) {

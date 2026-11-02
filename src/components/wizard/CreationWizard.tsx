@@ -548,9 +548,9 @@ export default function CreationWizard() {
   const doors = makeDoors({
     ...STUDIO_DOOR_IO,
     saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, { replace: memory.current.replaceOver }),
-    // The record's id (and name: a reimport kept separate saves under a free one) are read from the store, once the save has linked it.
-    noteMade: (name, production, landedOn = null) => {
-      noteMade(memory.current, { name: useTemplateStore.getState().template.name || name, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn });
+    // The record's id and name are read from the store once the save linked it; a reimport kept separate took a free name, which Finish then carries (no second press renames it back).
+    noteMade: (name, production, landedOn = null, made = useTemplateStore.getState().template.name || name) => {
+      noteMade(memory.current, { name: made, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn }); if (made !== name) dispatch({ type: 'patch', patch: { name: made } });
       // A REF the Finish step reads: nothing re-renders on its own, and the step is still on
       // screen after the export door (the production door routes away instead).
       rereadFinish();

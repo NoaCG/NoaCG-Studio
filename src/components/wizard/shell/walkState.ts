@@ -600,7 +600,9 @@ export interface LibraryIo {
  *
  * It is NOT a silent overwrite: the production door confirms every press, and the Finish step's
  * warning says which of the four things this one does before it happens — both read
- * `librarySaveEffect`, so the sentence and the write cannot disagree.
+ * `librarySaveEffect`, so the sentence and the write cannot disagree. A REIMPORT is read twice, on
+ * Finish's build and here on the saved one; should the two ever differ, this save errs to the safe
+ * side (a separate graphic, never a write over unresolved work).
  *
  * A RENAME mid-walk moves the record THIS WALK MADE onto the new name. It never resolves the new
  * name against the library, because that reaches across to whatever graphic already carries it

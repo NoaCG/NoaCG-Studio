@@ -64,7 +64,12 @@ PR challenged them against that code. Rules found after coding are marked (after
   graphic name and field id, both kept.
 - **R10 (after) The new Reset target is the renamed build without the carried work**, so a later
   reimport still reads the carried keys and labels as work made after an import.
-- **R11 (after) Keys on a field named as removed are said once**, with the field.
+- **R11 (after) Keys on a field named as removed are said once**, with the field, and are not
+  written: no track is left on an id nothing holds.
+- **R12 (after, from `/so`) After a separate save, Finish carries the name it was saved under**,
+  so a second door press updates that graphic and never renames it back over the earlier one.
+- **R13 (after, from `/so`) A key on a positional selector is unresolved**: it names a place, not
+  a layer (R5).
 
 ## What landed
 
@@ -103,6 +108,11 @@ PR challenged them against that code. Rules found after coding are marked (after
   that version goes in as a separate graphic unless the reader replaces anyway.
 - A saved graphic edited in the editor's artwork (an attribute changed on a bound layer) reads as a
   different layer on the next reimport, for the same reason.
+- R3 holds within one reimport. After Replace anyway, the removed field's id is free again, so a
+  later reimport may give it to a new layer, and a production binding left on that id would then
+  drive it. The editor's own add-field has the same property today.
+- A graphic keyed before the editor minted `artwork-N` identities addresses those layers by
+  position; such keys are listed as not carried (R13).
 
 - Keys only: a step's duration or default ease changed after the import is the new walk's again.
 
@@ -111,6 +121,18 @@ PR challenged them against that code. Rules found after coding are marked (after
 - `/check` inline review on `a3cc91f`: one finding fixed, class product defect, family R4: a track
   deleted in the editor after the import came back from the new build. The matcher test now
   deletes one and asserts it stays gone; removing the fix fails it at that assertion.
+
+- Fresh read-only `/so` on `15e93fc8` (`session_017SdbwPUh4B83xDgsDeDjeo`): AGREE WITH
+  CORRECTIONS, grade A-. Taken: (1) class product defect, family R8: after a separate save the
+  Finish name still read the earlier name, so a second press (Export, then Add to the production)
+  renamed "Guest 2" back to "Guest" and replaced the pooled copy; fixed (R12), and the journey now
+  saves through Export first and checks the pool. (2) class product defect, family R3/R11: keys
+  on a removed field were written as orphan tracks; no longer written. (3) the review and the save
+  read two documents: the save's doc comment now says which way a disagreement errs. (4) the
+  module header misstated the import rule; corrected (the folder rule against new blocks/ imports
+  is why the glue stays in the wizard). (5) the copy name now takes a free name; markup renames
+  touch id attributes, `url(#…)` and the definition only, never a colour like `fill="#f12"`;
+  positional keys are unresolved (R13). Two limits added above.
 
 ## Traps
 

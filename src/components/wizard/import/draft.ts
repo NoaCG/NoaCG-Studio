@@ -40,7 +40,7 @@ import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
 import { canonical } from '../../../model/publishedRecord';
 import { parseAnimData, spliceAnimData } from '../../../blocks/animData';
 import { carrySvgIdentity } from '../../../blocks/svgIdentity';
-import { duplicateGraphic, graphicById, librarySaveEffect, type LibraryNameEntry } from '../../../model/library';
+import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, updateGraphic, type LibraryNameEntry } from '../../../model/library';
 import { freeName } from '../../../model/poolIdentity';
 import type { LibraryIo, WalkMemory } from '../shell/walkState';
 import { artOf, carryKeys, carryTitles, lostActions, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
@@ -2151,7 +2151,21 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
   if (priorData && builtData) {
     const keys = carryKeys(priorData, firstData, builtData);
     unresolved.push(...keys.unresolved);
+    // A key with no verified target is not written: on a field with no match (named with the
+    // field), or on a positional selector, which names a place rather than a layer.
+    const drop = (selector: string) => {
+      for (const step of [...keys.data.steps, ...(keys.data.machine?.groups ?? []).flatMap((g) => g.states.flatMap((st) => (st.timeline ? [st.timeline] : [])))]) {
+        delete step.layers[selector];
+      }
+    };
+    for (const id of match.gone) drop(`#${id}`);
     for (const selector of keys.selectors) {
+      if (match.gone.some((id) => selector === `#${id}`)) continue;
+      if (!selector.startsWith('#') && !selector.startsWith('.')) {
+        drop(selector);
+        unresolved.push({ kind: 'key', label: selector });
+        continue;
+      }
       const doc = parseHtml(template.html);
       let found: Element | null = null;
       try { found = doc.querySelector(selector); } catch { /* not a selector this document answers */ }
@@ -2164,7 +2178,10 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
       const twins = key && art ? Array.from(art.querySelectorAll('*')).filter((el) => sourceKey(el, art) === key) : [];
       const carried = twins.length === 1 ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
       if (carried) template = carried;
-      else unresolved.push({ kind: 'key', label: selector });
+      else {
+        drop(selector);
+        unresolved.push({ kind: 'key', label: selector });
+      }
     }
     template = { ...template, js: spliceAnimData(template.js, keys.data) ?? template.js };
   } else if (priorData && firstData && canonical(priorData) !== canonical(firstData)) {
@@ -2174,7 +2191,7 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
   // A key is named by what the reader knows it as: the field's title, else the designer's
   // nearest named group, never a selector.
   const named = (u: ReimportItem): ReimportItem => {
-    if (u.kind !== 'key' || !u.label.startsWith('#')) return u;
+    if (u.kind !== 'key' || u.label === 'animation') return u;
     const field = prior.template.fields.find((f) => `#${f.field}` === u.label);
     if (field) return { ...u, label: field.title || field.field };
     let el: Element | null = null;
@@ -2222,7 +2239,9 @@ export function reimportIo(
     },
     keepCopy: (id) => {
       const copy = duplicateGraphic(id);
-      return !!copy.doc && !copy.error;
+      if (!copy.doc || copy.error) return false;
+      const name = freeName(graphicNameIndex().filter((g) => g.id !== copy.doc!.id).map((g) => g.name), copy.doc.name);
+      return name === copy.doc.name || !updateGraphic(copy.doc.id, { name }).error;
     },
   };
 }
@@ -2244,7 +2263,7 @@ export function finishReimport(built: SpxTemplate | null, name: string, library:
   return {
     unresolved,
     separateName: freeName(library.map((g) => g.name), name),
-    copyName: `${name} copy`,
+    copyName: freeName(library.map((g) => g.name), `${name} copy`),
     replace: !!memory.replaceOver,
     onReplace: (replace: boolean) => { memory.replaceOver = replace; },
   };

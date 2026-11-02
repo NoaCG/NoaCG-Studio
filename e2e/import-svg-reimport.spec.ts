@@ -103,6 +103,8 @@ test('a removed layer and look-alike layers are named, never guessed', async ({ 
   expect(removed.unresolved).toEqual([
     { kind: 'removed', label: 'Job title' },
   ]);
+  // Its keys are not written onto the gone id, where a later layer could pick them up.
+  expect(removed.roleKeys).toBeNull();
   const twins = await reimport(page, V1, V4);
   expect(twins.unresolved.map((u) => u.kind)).toContain('ambiguous');
 });
@@ -147,9 +149,10 @@ test('a key on an edited artwork layer follows that layer; a changed layer leave
   }, [V1, V2]);
   expect(r.ids).toEqual(['#artwork-1', '#artwork-2']);
   // The backdrop is drawn the same in both versions and takes its identity and key across; the
-  // plate's colour changed, so its key is named rather than moved onto a guess.
+  // plate's colour changed, so its key is named rather than moved onto a guess, and not written
+  // where nothing holds it (the earlier graphic keeps it).
   expect(r.fills).toEqual(['#122036', null]);
-  expect(r.keyed).toEqual([true, true]);
+  expect(r.keyed).toEqual([true, false]);
   expect(r.unresolved).toEqual([{ kind: 'key', label: 'Plate' }]);
 });
 
@@ -236,6 +239,7 @@ async function state(page: Page) {
       }),
       bindings: show.bindings ?? {},
       pool: show.graphics.map((g) => g.name),
+      poolGuest: show.graphics.find((g) => g.name === 'Guest')?.template.fields.map((f) => `${f.field} ${f.title}`) ?? null,
     };
   });
 }
@@ -287,7 +291,8 @@ test('a removed layer saves the new version beside the earlier one; Replace anyw
   await dropSvg(page, asFile(V1, 'v1'));
   await intoProduction(page, 'Guest', 'Show');
   await makeWork(page);
-  const earlier = (await state(page)).library[0];
+  const before = await state(page);
+  const earlier = before.library[0];
 
   const v3 = asFile(V3, 'v3');
   await reimportToFinish(page, v3);
@@ -295,12 +300,22 @@ test('a removed layer saves the new version beside the earlier one; Replace anyw
   await expect(review).toContainText('Not carried over to this version: Job title.');
   await expect(review).toContainText('saves this one as Guest 2');
   await expect(page.getByTestId('wz-finish-name-taken')).toHaveCount(0);
+  // Saved separately through Export first; Finish then carries the name it was saved under, so
+  // the production door that follows adds that graphic rather than renaming it back over Guest.
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  await page.getByTestId('export-window').locator('.gallery-close').click();
+  await expect(page.getByTestId('wz-finish-name')).toHaveValue('Guest 2');
   await pressAdd(page);
   let now = await state(page);
-  // The earlier graphic, its work and its binding are untouched; the new version is its own.
+  // The earlier graphic, its work, its binding and its place in the production are untouched; the
+  // new version is its own graphic beside it.
   expect(now.library.find((g) => g.id === earlier.id)).toEqual(earlier);
   expect(now.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest 2']);
+  expect(now.library.find((g) => g.name === 'Guest 2')!.keyed).toEqual([]);
   expect(now.bindings).toEqual({ Guest: { [earlier.fields[1].split(' ')[0]]: 'guest.role' } });
+  expect(now.pool.sort()).toEqual(['Guest', 'Guest 2']);
+  expect(now.poolGuest).toEqual(before.poolGuest);
 
   await reimportToFinish(page, v3);
   await page.getByTestId('wz-finish-reimport-replace').check();
