@@ -290,18 +290,17 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
   for (const [what, items] of steps) {
     const from = await record(air);
     server.set(SHEET, lines(...items));
-    // The edit has landed when the track holds the new items (plus the one finishing its turn).
-    await expect.poll(async () => {
-      const run = await samples(air);
-      return items.every((i) => run.at(-1)!.texts.includes(i)) && run.at(-1)!.texts.length <= items.length + 1;
-    }, { timeout: 20_000, message: `${what} reached the strip` }).toBe(true);
+    // The edit has landed when the track ends with the new items in order (a story finishing its
+    // turn is kept in front of them).
+    const holds = (x: Sample) => x.texts.slice(-items.length).join('|') === items.join('|') && x.texts.length <= items.length + 1;
+    await expect.poll(async () => holds((await samples(air)).at(-1)!), { timeout: 20_000, message: `${what} reached the strip` }).toBe(true);
     await page.waitForTimeout(turnMs * 1.6);
     // The whole history, so a turn already under way when this step began is seen from its start.
     const history = await samples(air);
     const run = history.filter((s) => s.t >= from);
     const seen = turns(run);
     // The frame the edit landed in is the first whose track holds the new items.
-    const landed = run.find((s) => items.every((i) => s.texts.includes(i)))!.t;
+    const landed = run.find(holds)!.t;
     const lastBefore = run.filter((s) => s.t < landed).at(-1)!;
     // The story showing in the frame before: it shows on until its own turn's end.
     const onScreen = lastBefore.showing.length === 1 ? turns(history).find((x) => x.from <= lastBefore.t && x.to >= lastBefore.t) : undefined;
