@@ -42,18 +42,26 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci17 builder receipt (session_017SdbwQgWjrdBuyYC8WvH5a)",
-    "eta": "2026-11-02T03:30:00Z"
+    "what": "PR #1952 merge queue, then ci17 checker",
+    "eta": "2026-11-02T02:30:00Z"
   },
   "inFlight": [
     {
       "phase": "ci17",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwQgWjrdBuyYC8WvH5a",
       "nonce": "ci17-b-1689",
       "branch": "claude/plan-cicd-improvement-ci17-build",
       "launchedAt": "2026-11-02T01:24:13Z",
-      "note": "Final report: every AC met/not met/pending; work.json passes only for met ACs; converge result; #1895 carried as pending."
+      "note": "Final report: AC-3 pass, AC-4 fail, AC-1/2/5/6/8/9 unverified; converge open exit 1; #1951 P1 owner decision on alarm ownership.",
+      "pr": 1952,
+      "reviewedHead": "d56ca9dbe66cf53b3314397766c84269078fc4ef",
+      "stampRun": 41374876810,
+      "so": "session_017SdbwPLVSfsov82Rk5Uyp3",
+      "followUps": [
+        1951,
+        1953
+      ]
     }
   ],
   "owner": [],
@@ -392,7 +400,9 @@
     1944,
     1945,
     1946,
-    1949
+    1949,
+    1951,
+    1953
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
