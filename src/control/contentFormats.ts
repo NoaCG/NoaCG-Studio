@@ -28,6 +28,7 @@
 import type { TemplateType } from '../model/types';
 import type { FieldDescriptor } from '../model/fieldModel';
 import { detectSeparator, parseDelimited, serializeCsv } from '../model/csv.js';
+import { parseBehaviourData } from '../blocks/behaviourData.js';
 
 export type ListAdapter = 'lines' | 'schedule' | 'standings' | 'credits';
 
@@ -66,6 +67,10 @@ export type GraphicShape = { type: TemplateType; template: { js?: string } };
 
 export function listFormatFor(graphic: GraphicShape, fieldId: string): ListFormat | null {
   const js = graphic.template.js ?? '';
+  if (graphic.type === 'imported-design') {
+    const format = importedListFormat(js);
+    return format?.main === fieldId ? format : null;
+  }
   if (graphic.type === 'ticker' && fieldId === 'f0') return { adapter: 'lines', main: 'f0' };
   if (graphic.type === 'end-credits' && fieldId === 'f0') return { adapter: 'credits', main: 'f0' };
   // scheduleRowsRuntimeJs (templates/infographics/dataRuntimes.ts) draws `.infographic-time`.
@@ -77,6 +82,38 @@ export function listFormatFor(graphic: GraphicShape, fieldId: string): ListForma
     return { adapter: 'standings', main: 'f2', headers: 'f3' };
   }
   return null;
+}
+
+/** The imported credits recipe and the field role its list binds as (templates/behaviours/
+ *  credits.ts `CREDITS_RECIPE_ID`, `CREDITS_FIELD_ROLE`; control cannot import templates, so the
+ *  test pins both equal). */
+const IMPORTED_CREDITS_RECIPE = 'credits';
+const IMPORTED_CREDITS_ROLE = 'credits';
+
+/** The last table read, by its js: a review asks once per field on every render. */
+let lastRead: { js: string; format: ListFormat | null } | null = null;
+
+/**
+ * An imported design's list field: the credits list its recipe declared, at whichever `fN` the
+ * behaviour table compiled it to (a Heading drawn above it makes it f1). Read from the emitted
+ * NOACG_BEHAVIOUR table, the same map the roll engine finds its field by, never from a title.
+ * The original-artwork roll (`options.artwork`) scrolls the drawn text and leaves its field
+ * inert, so it has no list to fill.
+ */
+function importedListFormat(js: string): ListFormat | null {
+  if (lastRead?.js === js) return lastRead.format;
+  const table = parseBehaviourData(js);
+  const main = table && table.recipe === IMPORTED_CREDITS_RECIPE && table.options?.artwork !== true ? table.fields?.[IMPORTED_CREDITS_ROLE] : null;
+  const format: ListFormat | null = typeof main === 'string' && /^f\d+$/.test(main) ? { adapter: 'credits', main } : null;
+  lastRead = { js, format };
+  return format;
+}
+
+/** The one list field a graphic fills from rows, whatever its id, or null when it takes values.
+ *  A Sheet connection reads the graphic's rows through this adapter (sheetSource `sheetShapeFor`). */
+export function graphicListFormat(graphic: GraphicShape): ListFormat | null {
+  if (graphic.type === 'imported-design') return importedListFormat(graphic.template.js ?? '');
+  return listFormatFor(graphic, 'f0') ?? listFormatFor(graphic, 'f2');
 }
 
 // ── Reading pasted text into cells ──────────────────────────────────────────
