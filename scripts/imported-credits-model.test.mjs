@@ -623,3 +623,136 @@ test('the model spells layout and playback as the proposal contract does', () =>
   assert.deepEqual(R.constants.playbacks, values('playback'));
   assert.deepEqual(R.constants.seconds, { min: 2, max: 60 });
 });
+
+// ── Row 19: role-above credits rendered in the artwork's own styling ─────────────────────────
+
+const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
+const ROLE_ABOVE = ['one', 'bold', 'grouped'];
+
+test('row 19: a role-above binding builds the styled engine, one Credits field holding the drawn list', () => {
+  for (const k of ROLE_ABOVE) {
+    const b = R.styled[k];
+    assert.equal(b.preview.layout, 'role-above', k);
+    assert.deepEqual(b.errors, [], k);
+    assert.equal(b.engine, 'styled', k);
+    assert.ok(b.js.includes('var NOACG_CREDITS_STYLE = '), `${k}: the styled runtime is emitted`);
+    assert.ok(!b.js.includes('function creditsSampleLines(') && !b.js.includes('function stopCreditsRoll('), `${k}: and neither other engine`);
+    assert.deepEqual(b.played.errors, [], `${k}: no page errors`);
+    assert.equal(b.played.holder, 'noacg-data-source', `${k}: the list lives in a hidden holder`);
+  }
+  // One textarea for the list, the drawn title as its own field, and Scroll speed: never a field per name.
+  assert.equal(R.styled.one.field.value, 'Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  assert.equal(R.styled.one.fieldCount, 3);
+  assert.equal(R.styled.bold.fieldCount, 2);
+});
+
+test('row 19: the sample list rebuilds exactly where and how the designer drew it', () => {
+  for (const k of ROLE_ABOVE) {
+    const { rows, sources } = R.styled[k].played.atRest;
+    assert.equal(rows.length, sources.length, k);
+    rows.forEach((row, i) => {
+      const src = sources[i];
+      assert.equal(row.text, src.text, `${k} ${i}`);
+      assert.equal(row.kind, src.mark.split(' ')[1], `${k} ${i}: kind`);
+      assert.ok(near(row.start.x, src.start.x) && near(row.start.y, src.start.y), `${k} ${i}: drawn at ${JSON.stringify(src.start)}, row at ${JSON.stringify(row.start)}`);
+      assert.deepEqual(row.look, src.look, `${k} ${i}: the look is the drawn layer's`);
+      assert.equal(row.id, null, `${k} ${i}: no id is copied`);
+    });
+  }
+});
+
+test('row 19: bold roles, and names drawn in a group of their own, keep their looks', () => {
+  const bold = R.styled.bold.played.atRest.rows;
+  assert.deepEqual(bold.map((r) => r.look.weight), ['700', '400', '400', '700', '400'], 'a stylesheet class sets the roles bold');
+  const grouped = R.styled.grouped.played.atRest.rows;
+  assert.deepEqual(grouped.map((r) => [r.look.fill, r.look.style, r.look.opacity]), [
+    ['rgb(255, 204, 0)', 'normal', 1],
+    ['rgb(153, 204, 255)', 'italic', 0.5],
+    ['rgb(153, 204, 255)', 'italic', 0.5],
+  ], 'the group\'s fill, italic and opacity travel with the names');
+});
+
+test('row 19: repeated roles and names follow the sample\'s spacing', () => {
+  const rows = R.styled.one.played.repeated;
+  assert.deepEqual(rows.map((r) => [r.kind, r.text]), [
+    ['role', 'Research'], ['name', 'Nia Vale'], ['name', 'Tomas Fen'], ['name', 'Ida Lake'],
+    ['role', 'Sound'], ['name', 'Ari Moss'],
+    ['role', 'Music'],
+    ['role', 'Research'], ['name', 'Sol Reed'],
+  ], 'the drawn roles carry no colon, so the rows carry none');
+  const ys = rows.map((r) => r.start.y);
+  const steps = ys.slice(1).map((y, i) => Math.round((y - ys[i]) * 100) / 100);
+  // credits-1: role to name 65, name to name 55, last name to the next role 150. A role with no
+  // names (Music) is followed at the group gap; the blank line before the second Research is a
+  // section break, which before a role is that same gap.
+  assert.deepEqual(steps, [65, 55, 55, 150, 65, 150, 150, 65]);
+  for (const r of rows) assert.ok(near(r.start.y - Math.round(r.start.y), 0), 'baselines sit on the drawn units');
+});
+
+test('row 19: a name too wide shrinks to its measured room, is reported past 55% and stops at the 30% floor', () => {
+  const p = R.styled.one.played;
+  // credits-1 centres every layer on x=400 in an 800-wide frame: a centred row may spend 400 to
+  // each side, less half its type (35/2) at each edge.
+  const room = 2 * 400 - 35;
+  const names = p.longFit.filter((f) => f.kind === 'name');
+  assert.equal(names.length, p.naturals.length);
+  const regimes = new Set();
+  names.forEach((fit, i) => {
+    const natural = p.naturals[i];
+    const want = Math.min(1, Math.max(0.3, room / natural));
+    assert.ok(Math.abs(fit.scale - want) < 0.005, `${fit.words.length} chars: scale ${fit.scale}, measured ${want}`);
+    assert.equal(fit.reported, want < 0.55, `${fit.words.length} chars: reported only past 55%`);
+    const width = p.longRows[i + 1].width;
+    if (want === 1) assert.ok(near(width, natural, 0.5), 'a name that fits is drawn at its own size');
+    else if (want > 0.3) assert.ok(width <= room + 0.5 && width >= room - 3, `shrunk to the room: ${width} of ${room}`);
+    else assert.ok(near(width, natural * 0.3, 1), 'at the floor it stops shrinking');
+    regimes.add(want === 1 ? 'fits' : want >= 0.55 ? 'shrinks' : want > 0.3 ? 'reported' : 'floor');
+  });
+  assert.deepEqual([...regimes].sort(), ['shrinks', 'fits', 'floor', 'reported'].sort(), 'the names cover every rung');
+  assert.deepEqual(p.overLong, [p.field], 'the overflow report names the one Credits field');
+  assert.deepEqual(p.overShort, [], 'and clears when the list fits again');
+});
+
+test('row 19: the roll keeps the source layers and their original text, and replays the same', () => {
+  for (const k of ROLE_ABOVE) {
+    const { take, atRest } = R.styled[k].played;
+    assert.equal(take.ok, true, k);
+    assert.equal(take.target, 'imported-design-credits-roll', `${k}: the roll moves its own group`);
+    assert.equal(take.sourcesKept, true, `${k}: the take leaves every source layer as it was`);
+    assert.deepEqual(take.second, take.first, `${k}: a second take measures the same roll`);
+    assert.ok(take.first.distance > 0 && take.first.duration > 0, k);
+    for (const src of atRest.sources) assert.equal(src.visibility, 'hidden', `${k}: a source layer is laid out, never painted`);
+  }
+  assert.equal(R.styled.one.played.take.first.step, 55, 'the pace rides the drawn name step');
+  // The source layers in the built html are the import's own text elements, word for word, with
+  // their attributes kept; the engine adds only its class and its mark.
+  for (const k of ROLE_ABOVE) {
+    const b = R.styled[k];
+    const doc = new Map();
+    for (const m of b.html.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) doc.set(m[2], m[1]);
+    for (const m of b.sourceMarkup.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) {
+      const id = /data-noacg-candidate="([^"]+)"/.exec(m[1])?.[1];
+      if (!b.anchors.some((a) => a.candidateId === id)) continue;
+      const built = doc.get(m[2]);
+      assert.ok(built !== undefined, `${k}: ${m[2]} is still in the file as drawn`);
+      const attrs = (s) => [...s.matchAll(/([\w:-]+)="([^"]*)"/g)].filter(([, n]) => n !== 'class' && !n.startsWith('data-noacg')).map(([, n, v]) => `${n}=${v}`).sort();
+      assert.deepEqual(attrs(built), attrs(m[1]), `${k}: ${m[2]} keeps its attributes`);
+      assert.match(built, /data-noacg-credit="\d+ (role|name)"/);
+    }
+  }
+});
+
+test('row 19: what no row renders yet builds the original-text roll, never an untested picture', () => {
+  // Role beside is row 20, static row 22, cards row 23. A stale binding builds its fallback too.
+  assert.deepEqual(R.fallbacks, { static: 'artwork', cards: 'artwork', stale: 'artwork', staticBuildsArtwork: true });
+});
+
+test('#1941: loose characters before the first run, and colour spellings, read as painted', () => {
+  // Point 2: "Dir" is painted in the text's own gold before the white run; the look is gold.
+  assert.equal(R.issue1941.loose.ok, true, R.issue1941.loose.message);
+  assert.equal(R.issue1941.looseLaid.ok, true, R.issue1941.looseLaid.message);
+  assert.deepEqual(R.issue1941.loose.style.anchors.map((a) => a.kind), ['role', 'name']);
+  // Point 3: white and #ffffff are one name look in the parsed reading as well.
+  assert.equal(R.issue1941.spellings.ok, true, R.issue1941.spellings.message);
+  assert.deepEqual(R.issue1941.spellings.style.anchors.map((a) => a.kind), ['role', 'name', 'name']);
+});
