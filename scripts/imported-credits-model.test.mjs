@@ -978,3 +978,17 @@ test('row 20: a name layer picked as Credits reads its whole block and builds st
     assert.equal(b.fieldCount, R.styled[first].fieldCount, `${name}: still one list field`);
   }
 });
+
+test('row 20: role beside keeps the source layers and their original text, and replays the same', () => {
+  for (const k of BESIDE) {
+    const { take, atRest } = R.styled[k].played;
+    assert.equal(take.ok, true, k);
+    assert.equal(take.target, 'imported-design-credits-roll', `${k}: the roll moves its own group`);
+    assert.equal(take.sourcesKept, true, `${k}: the take leaves every source layer as it was`);
+    assert.deepEqual(take.second, take.first, `${k}: a second take measures the same roll`);
+    assert.equal(take.stopped, true, `${k}: Out stops the roll`);
+    assert.deepEqual(R.styled[k].played.reset.after, R.styled[k].played.reset.before, `${k}: a reset of inline styles leaves the rows as built`);
+    for (const src of atRest.sources) assert.equal(src.visibility, 'hidden', `${k}: a source layer is laid out, never painted`);
+  }
+  assert.equal(R.styled.beside.played.take.first.step, 55, 'the pace rides the drawn name step');
+});
