@@ -38,6 +38,9 @@ import {
 } from '../../../ai/svgInterpretation/apply';
 import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
 import { canonical } from '../../../model/publishedRecord';
+import { parseAnimData, spliceAnimData } from '../../../blocks/animData';
+import { carrySvgIdentity } from '../../../blocks/svgIdentity';
+import { artOf, carryKeys, carryTitles, lostActions, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -2112,4 +2115,63 @@ export function svgProposalOfDraft(draft: SvgImportDraft): { proposal: SvgPropos
     };
   }
   return { proposal, omitted };
+}
+
+/** What reimporting a build over a saved SVG graphic gives: the template to save, its new Reset
+ *  target, and the earlier work it could not carry (spec "Reimport"; evidence/phase-27.md). */
+export interface SvgReimport {
+  template: SpxTemplate;
+  baseline: SpxTemplate;
+  unresolved: ReimportItem[];
+}
+
+/**
+ * REIMPORT CHANGED ARTWORK over a saved graphic, keeping its work: every verified-match layer
+ * keeps its field id (so production bindings, cue values and control entries still address it),
+ * keys and labels made after the earlier import come across, and an identity the editor minted on
+ * a keyed artwork layer moves to the same layer. Whatever has no verified target is returned in
+ * `unresolved`, for the caller to keep the earlier graphic instead of writing over it. Null when
+ * either side is not an SVG import: nothing here applies, and the save is the ordinary one.
+ */
+export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemplate }, built: SpxTemplate): SvgReimport | null {
+  const priorDoc = parseHtml(prior.template.html);
+  const priorArt = artOf(priorDoc);
+  if (!priorArt || !artOf(parseHtml(built.html))) return null;
+  const match = matchReimport(prior.template, prior.baseline, built);
+  const unresolved = [...match.unresolved];
+  let template = renameFields(built, match.rename);
+  const baseline = template;
+  const priorData = parseAnimData(prior.template.js);
+  const firstData = prior.baseline ? parseAnimData(prior.baseline.js) : null;
+  const builtData = parseAnimData(template.js);
+  unresolved.push(...lostActions(priorData, builtData));
+  if (priorData && builtData) {
+    const keys = carryKeys(priorData, firstData, builtData);
+    unresolved.push(...keys.unresolved);
+    for (const selector of keys.selectors) {
+      const doc = parseHtml(template.html);
+      let found: Element | null = null;
+      try { found = doc.querySelector(selector); } catch { /* not a selector this document answers */ }
+      if (found) continue;
+      // A layer keyed through an identity the editor minted: the same drawn layer, verified by
+      // its source key, takes the identity back.
+      const was = /^#artwork-\d+$/.test(selector) ? priorDoc.querySelector(selector) : null;
+      const art = artOf(doc);
+      const key = was && priorArt.contains(was) ? sourceKey(was, priorArt) : null;
+      const twins = key && art ? Array.from(art.querySelectorAll('*')).filter((el) => sourceKey(el, art) === key) : [];
+      const carried = twins.length === 1 ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
+      if (carried) template = carried;
+      else unresolved.push({ kind: 'key', label: selector });
+    }
+    template = { ...template, js: spliceAnimData(template.js, keys.data) ?? template.js };
+  } else if (priorData && firstData && canonical(priorData) !== canonical(firstData)) {
+    unresolved.push({ kind: 'key', label: 'animation' });
+  }
+  template = carryTitles(template, prior.template, prior.baseline, match.matched);
+  const seen = new Set<string>();
+  return {
+    template,
+    baseline,
+    unresolved: unresolved.filter((u) => !seen.has(u.kind + u.label) && !!seen.add(u.kind + u.label)),
+  };
 }

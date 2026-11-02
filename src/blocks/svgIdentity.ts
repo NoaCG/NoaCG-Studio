@@ -32,11 +32,28 @@ export function commitSvgIdentity(template: SpxTemplate, selector: string) {
   const reserved = [template.html, template.css, template.js, markupValues, normalizedStyles].join('\n').replace(/%([0-9a-f]{2})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
   while (doc.getElementById('artwork-' + index) || reserved.includes('artwork-' + index)) index++;
   const id = 'artwork-' + index;
+  return { template: patchId(template, node, id), selector: '#' + id };
+}
+
+/** Write `id` onto one parsed node in place, touching no other byte of the markup. */
+function patchId(template: SpxTemplate, node: Element, id: string): SpxTemplate {
   const range = artworkRange(template.html, node);
   const opening = template.html.slice(range.start, range.content);
   const attribute = /\s+id\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i;
   const changed = node.hasAttribute('id') ? opening.replace(attribute, ' id="' + id + '"')
     : opening.replace(/\s*\/?>$/, end => ' id="' + id + '"' + end);
   if (changed === opening) throw new Error('The artwork ID cannot be patched safely.');
-  return { template: { ...template, html: template.html.slice(0, range.start) + changed + template.html.slice(range.content) }, selector: '#' + id };
+  return { ...template, html: template.html.slice(0, range.start) + changed + template.html.slice(range.content) };
+}
+
+/**
+ * REIMPORT: give an identity the editor minted on the earlier artwork back to the same layer in the
+ * new artwork, so keys addressed to it still have a target (templates/importedDesign/reimport.ts).
+ * Only onto a node with no id of its own and only while nothing else holds the id; null otherwise,
+ * and the caller reports the keys unresolved rather than guessing.
+ */
+export function carrySvgIdentity(template: SpxTemplate, node: Element, id: string): SpxTemplate | null {
+  if (!/^artwork-\d+$/.test(id) || node.hasAttribute('id') || node.ownerDocument.getElementById(id)) return null;
+  if (template.html.includes(id) || template.css.includes(id) || template.js.includes(id)) return null;
+  try { return patchId(template, node, id); } catch { return null; }
 }
