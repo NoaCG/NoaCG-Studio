@@ -31,16 +31,14 @@
   "inFlight": [
     {
       "phase": 23,
-      "role": "build",
-      "session": "session_017SdbwNvBTQ5LRmehLW4wwV",
-      "nonce": "23-b-8f79",
-      "branch": "claude/plan-jev-svg-import-23-build",
+      "role": "check",
+      "session": "session_017SdbwPi6DhcDL2Uk1arhGo",
+      "nonce": "23-c-53c1",
+      "mergeSha": "7b95dcb7ac5d1976fb0fcd5efd365e89e9e659cc",
       "pr": 1974,
-      "head": "7e4109115fac3a059aed79908bb64139eb68a92a",
-      "stampRun": 41463482546,
-      "ciRun": 41460036550,
-      "so": "session_017SdbwRAFquF2NHL5cm2wbf A",
-      "soOther": [
+      "toArchive": [
+        "session_017SdbwNvBTQ5LRmehLW4wwV",
+        "session_017SdbwRAFquF2NHL5cm2wbf",
         "session_017SdbwNNwFe7XYTDtz8TkDr",
         "session_017SdbwRFUsMbfCGQCjcyAnM"
       ]
@@ -70,7 +68,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T15:18:30Z"
+    "checkinAt": "2026-11-02T15:21:30Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
