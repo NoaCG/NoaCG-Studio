@@ -317,6 +317,13 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const creditsField = credits === -1 ? null : artworkFields[credits];
   const creditsHolder = artworkRoll
     ? artworkFields.filter((_, i) => artworkCredits.has(i)).map((field) => `\n    <div id="${field.field}" class="${DATA_SOURCE_CLASS}"></div>`).join('')
+    : creditsField && styledCredits
+    ? `
+    <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per role or name,
+         written by SPX and drawn by the credits engine in template.js in your own role and name
+         layers. Its line breaks are the list, so the code formatter leaves it as written. -->
+    <!-- prettier-ignore -->
+    <div id="${creditsField.field}" class="${DATA_SOURCE_CLASS}">${escapeHtml(creditsField.value)}</div>`
     : creditsField
     ? `
     <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per name, written

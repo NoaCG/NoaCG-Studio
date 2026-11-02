@@ -24,6 +24,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { hash, withBundledPage } from './catalog-emit.mjs';
+import * as prettier from 'prettier';
 
 const SRC = process.env.CREDITS_SRC ?? fileURLToPath(new URL('../src/', import.meta.url));
 const fixture = (rel) => readFileSync(fileURLToPath(new URL(`../e2e/fixtures/${rel}`, import.meta.url)), 'utf8');
@@ -772,4 +773,13 @@ test('#1941: loose characters before the first run, and colour spellings, read a
   // Point 3: white and #ffffff are one name look in the parsed reading as well.
   assert.equal(R.issue1941.spellings.ok, true, R.issue1941.spellings.message);
   assert.deepEqual(R.issue1941.spellings.style.anchors.map((a) => a.kind), ['role', 'name', 'name']);
+});
+
+test('row 19: the list holder keeps its line breaks through the editor\'s code formatter', async () => {
+  // The production page formats the template (src/format/formatCode.ts, the same options). A
+  // collapsed holder read as one line on any stage reload before the next update().
+  const formatted = await prettier.format(R.styled.one.html, { printWidth: 100, tabWidth: 2, endOfLine: 'lf', parser: 'html' });
+  const holder = new RegExp(`<div id="${R.styled.one.field.field}"[^>]*>([\\s\\S]*?)</div>`).exec(formatted);
+  assert.ok(holder, 'the holder is in the formatted html');
+  assert.equal(holder[1], R.styled.one.field.value);
 });

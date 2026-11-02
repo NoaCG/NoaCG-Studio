@@ -96,6 +96,14 @@ save disabled the role-above walk fails (j-0003).
   - The colour probe compared against a spelt sentinel: it now reads the canvas's own spelling back.
   - The checklist and the draft each derived the source layers: one helper (`creditsSourceLayers`).
   - The role suffix was read by parsing the markup again: it now comes with the style.
+- Browser run j-0004 (after the review fixes) failed twice and passed 6/6 unchanged in j-0005.
+  Cause found, not re-run away: the production page formats the template, and the formatter
+  turned the list holder's line breaks into spaces, so a stage reload before the next `update()`
+  read the list as one line (the styled walk's failure showed exactly that text; the editable
+  walk's second take found no roll). The styled holder now carries `prettier-ignore`, as the
+  artwork roll's markup does, and a test formats the built html with the app's options and finds
+  the list intact (mutation: without the guard it fails). The editable roll has the same holder;
+  its bytes are pinned here, so it is a follow-up (see Follow-ups).
   - Not changed: a styled binding that falls back shows its other drawn layers as artwork, not as
     fields (Known limits).
 
