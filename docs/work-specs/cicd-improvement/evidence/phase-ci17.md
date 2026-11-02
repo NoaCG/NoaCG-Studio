@@ -23,7 +23,7 @@ Acceptance, verbatim:
 
 **This is not initial success.** `node scripts/work-spec.mjs converge
 docs/work-specs/cicd-improvement/work.json` returns `open` (exit 1), not `evidence-complete`
-(section 4). One of the eight initial criteria is met, two are not met and five are pending.
+(section 4). One of the eight initial criteria is met, one is not met and six are pending.
 
 | AC | Status | work.json | One-line reason |
 | --- | --- | --- | --- |
@@ -31,7 +31,7 @@ docs/work-specs/cicd-improvement/work.json` returns `open` (exit 1), not `eviden
 | AC-2 Review convergence improves | **PENDING** | `unverified` | 2 feasibility rows and 3 of the 10 comparison rows have landed; no improvement claim is possible yet |
 | AC-3 Critical contracts detect representative defects | **MET** | `pass` | ci07 mapped every D2 contract to its faithful layer; ci11 observed ten faults fail and their corrections pass, with an independent oracle check |
 | AC-4 Selection never silently narrows | **NOT MET** | `fail` | three unexplained misses are still unselected by today's planner (#1900, #1942, #1944); the 14-day window from reset `8e84002d` is still open |
-| AC-5 Maintenance preserves behaviour and reduces work | **NOT MET** | `fail` | three candidates landed with measured savings, but the 24-hour scheduled bound failed (ci13 NOT QUALIFIED, ci15 NOT QUALIFIED); nothing was narrowed (ci16) |
+| AC-5 Maintenance preserves behaviour and reduces work | **PENDING** | `unverified` | three candidates landed with measured savings; the 24-hour bound failed, so pre-merge coverage was retained (ci13, ci15 NOT QUALIFIED; ci16 no activation) as AC-5 allows; drill and measurement receipts are still missing |
 | AC-6 Parallel validation keeps every verdict | **PENDING** | `unverified` | parallel validation parts are proved (ci03, ci05, ci06); the two-plan smoke and three-plan cohort never ran (ci14: no authorized cohort) |
 | AC-8 Gains persist within the resource envelope | **PENDING** | `unverified` | no matched after-measurement exists and no weekly report has run; the backend tier is projected over its ceiling |
 | AC-9 Growth is controlled for every tier and delivery time | **PENDING** | `unverified` | the controls work on fixtures and live per-PR reads, but no weekly report after activation exists, backend evidence is partial, and owners after handoff are unnamed (#1951) |
@@ -90,11 +90,11 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   nightlies triaged; deployment timing measured (production live 9.5 to 11.4 minutes before the
   configured verdict in 24 of 24 landings, owner decision #1846).
 - **Why pending, not met.** AC-1 names measures ci01 did not take, and neither ci01 nor any later
-  row labels them missing: (1) setup, test and report time per run: ci01 has no such split;
+  row labels the first two missing: (1) setup, test and report time per run: ci01 has no such split;
   (2) dependency and concurrency wait as components: ci01 says dependency wait "is not tabulated
   separately here" (section 2), and eligible runner wait comes from two dense sample windows,
-  not the cohort; (3) PR-level finding families, never recorded (ci02 added the record for later
-  rows). The first two can still be measured from existing Actions job records, so this is
+  not the cohort; (3) PR-level finding families, never recorded, which ci01 does label missing
+  (section 2, "Review"); ci02 added the record for later rows. The first two can still be measured from existing Actions job records, so this is
   pending, not failed. The segment table and the CI-occupancy union do separate gross delay from
   execution, but they do not cover the measures AC-1 lists, so they are not reported as meeting it.
 - **Other limits.** One wrong commit reference in ci01 section 4.4 is tracked in #1849 and changes
@@ -113,7 +113,7 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   | --- | --- | --- | ---: | ---: | --- |
   | Feasibility 1 | 5 | #1864 | 45 | 3 | UNAVAILABLE (configured shard infrastructure, #1865) |
   | Feasibility 2 | 7 | #1878 | 45 | 2 | PASS |
-  | Comparison 1 | 9 | #1888 | 153 | 4 | PASS |
+  | Comparison 1 | 9 | #1888 | 152 | 4 | PASS |
   | Comparison 2 | 10 | #1893 | 58 | 0 | PASS |
   | Comparison 3 | 17 | #1947 | 19 | 0 | PASS |
   | Comparison 4 to 10 | 24, 25, 27, 28, 31, 35, 37 | not landed | | | missing |
@@ -169,7 +169,7 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   runner-minutes per landing, held as the dated exception `ci04-catalog-gate` (#1863). ci05:
   +0.15% over 150 landings, no graphics cost.
 
-### AC-5: NOT MET
+### AC-5: PENDING
 
 - **Evidence.** [phase-ci08.md](phase-ci08.md), [phase-ci09.md](phase-ci09.md),
   [phase-ci10.md](phase-ci10.md) (the three candidates), [phase-ci12.md](phase-ci12.md) (scope
@@ -186,12 +186,17 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
 
   ci12 fixed scoped-catalog completeness (guard S1 to S13; one declared, never-benched category,
   #1926).
-- **Why not met.** AC-5 requires a completed full or collectively exhaustive pass inside the
-  24-hour bound before narrowing. ci13 measured 14 days (337 landings): 128 landings waited more
-  than 24 hours for a complete green E2E verdict and 11 for engine-floor, because the nightly is
-  their only carrier. ci15 accepted that as a demonstrated failure; ci16 retained full protection.
-  The historical exact-commit culprit replay is also missing (ci13 checker). Nightly cause #1622 is
-  open.
+- **The 24-hour bound.** ci13 measured 14 days (337 landings): 128 landings waited more than 24
+  hours for a complete green E2E verdict and 11 for engine-floor, because the nightly is their only
+  carrier. ci15 accepted that as a demonstrated failure. AC-5 allows exactly this case: "if the
+  existing schedule cannot do that, add the smallest justified fallback using existing workflows
+  or retain pre-merge coverage". ci16 retained full pre-merge coverage and narrowed nothing, so the
+  bound's failure blocks narrowing but does not fail AC-5.
+- **Why pending.** Receipts AC-5 asks for are still missing: the historical exact-commit replay of
+  scheduled failures against candidate landings (ci13 checker counts it as a missing drill
+  receipt); the imported-design category declared but never benched (#1926); and ci10's
+  comparable full-shard Actions figure (#1920). Nightly cause #1622 is open. Each can be supplied
+  later without waiting on a window.
 
 ### AC-6: PENDING (three-plan sample limit)
 
@@ -255,7 +260,8 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
 - **Sample sufficiency.** Not sufficient. The one live weekly collection (ci18) was a 100-call
   sample against the 550 the production job uses, and every tier was partial. `weekly-audit.yml`
   runs Mondays at 06:00 UTC; its last three scheduled runs before ci18 started 6.6 to 9 hours
-  late (2026-10-12 to 2026-10-26), and the first scheduled run after ci18 (2026-11-02) had not run when this file was
+  late (2026-10-12 to 2026-10-26), the 2026-10-26 run concluded `failure` in its Dependency audit
+  step (run 40323809431, before ci18 added the growth job), and the first scheduled run after ci18 (2026-11-02) had not run when this file was
   written. No percentile is invented.
 - **Weekly ownership.** Every owner string reads "cicd-improvement plan coordinator (run issue
   #1842) until ci17 hands off" (`scripts/growth-ceilings.json`, #1892, #1907). This row hands off
@@ -284,7 +290,7 @@ On this branch, with the review recorded in work.json (revision `66a61064`, the 
 ```
 $ node scripts/work-spec.mjs converge docs/work-specs/cicd-improvement/work.json
 status: open, problems 0, gaps 7
-gaps: AC-1: unverified; AC-2: unverified; AC-4: fail; AC-5: fail; AC-6: unverified; AC-8: unverified; AC-9: unverified
+gaps: AC-1: unverified; AC-2: unverified; AC-4: fail; AC-5: unverified; AC-6: unverified; AC-8: unverified; AC-9: unverified
 openCriteria: AC-1, AC-2, AC-4, AC-5, AC-6, AC-8, AC-9
 exit 1
 ```
@@ -334,9 +340,9 @@ enough.
 
 What would move the open criteria: AC-1 needs setup/test/report time and the dependency
 and concurrency wait split measured from existing job records for the ci01 cohort; AC-4 needs the three misses fixed (each a reset), the
-incidents cleared and 14 clean days after the last reset; AC-5 needs a second complete carrier
-for engine-floor and the omitted E2E specs, or keeping them pre-merge, then a qualified ci15-style
-verdict; AC-2 needs seven more eligible risky rows; AC-6 needs an owner-authorized cohort; AC-8
+incidents cleared and 14 clean days after the last reset; AC-5 needs the exact-commit
+replay drill, the imported-design bench (#1926) and ci10's full-shard figure (#1920), and any
+later narrowing still needs a second complete carrier and a qualified ci15-style verdict; AC-2 needs seven more eligible risky rows; AC-6 needs an owner-authorized cohort; AC-8
 and AC-9 need complete weekly reports with a named owner.
 
 ## 7. Handoff
@@ -360,8 +366,10 @@ and AC-9 need complete weekly reports with a named owner.
 - **Decisions.** (1) Pending maps to `unverified` and not met to `fail`, the two non-pass statuses
   the existing tool accepts as an honest partial review; no tool change. (2) AC-1 is pending, not met:
   AC-1's "report missing samples as provisional" covers thin samples, not measures that were
-  never taken (setup/test/report time, dependency wait), and those can still be measured. (3) AC-4 and AC-5 are `fail`, not
-  pending, because their failures are demonstrated and do not depend on time passing. (4) The
+  never taken (setup/test/report time, dependency wait), and those can still be measured. (3) AC-4 is `fail`, not pending:
+  three unexplained misses are demonstrated and AC-4 requires zero; time does not change that.
+  AC-5 is pending, not failed: its failed bound is answered by AC-5's own alternative (retained
+  pre-merge coverage), and what remains is missing receipts. (4) The
   successor owner is not chosen here; #1951 asks for it. (5) The review revision is this row's
   base, so the record names the exact source it judged.
 - **Traps.** `work-spec converge` reports a review stale as soon as any non-review file changes
