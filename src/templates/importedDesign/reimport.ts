@@ -161,8 +161,12 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
 export function renameFields(template: SpxTemplate, rename: Map<string, string>): SpxTemplate {
   if (rename.size === 0) return template;
   const swap = (id: string) => rename.get(id) ?? id;
-  const quoted = (s: string) => s.replace(/(["'])(#?)(f\d+)\1/g, (_, q: string, hash: string, id: string) => q + hash + swap(id) + q);
-  const hashed = (s: string) => s.replace(/#(f\d+)(?![\w-])/g, (_, id: string) => '#' + swap(id));
+  // ONE pass over each text: a quoted id and a bare `#id` are two branches of one pattern, so no
+  // position is renamed twice (two passes chained `"#f1"` -> `"#f0"` -> `"#f2"` on a cycle).
+  const code = (s: string) => s.replace(
+    /(["'])(#?)(f\d+)\1|#(f\d+)(?![\w-])/g,
+    (_, q: string | undefined, hash: string, id: string, bare: string | undefined) => (bare ? '#' + swap(bare) : q + hash + swap(id) + q),
+  );
   // In the markup only the attributes that hold an id, `url(#…)` and the definition's `field`, so
   // a designer's colour such as `fill="#f12"` is never read as a field.
   const markup = (s: string) => s
@@ -172,8 +176,8 @@ export function renameFields(template: SpxTemplate, rename: Map<string, string>)
   return {
     ...template,
     html: markup(template.html),
-    css: hashed(quoted(template.css)),
-    js: hashed(quoted(template.js)),
+    css: code(template.css),
+    js: code(template.js),
     fields: template.fields.map((f) => ({ ...f, field: swap(f.field) })),
     layers: template.layers.map((l) => ({ ...l, id: swap(l.id), ...(l.fieldId ? { fieldId: swap(l.fieldId) } : {}) })),
   };
