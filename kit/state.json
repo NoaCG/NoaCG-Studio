@@ -46,12 +46,12 @@
  "waitingOn": null,
  "inFlight": [
   {
-   "phase": "cf01",
-   "step": "check",
-   "attempt": 3,
-   "session": "session_017SdbwMH234MxQaTMzvcbRy",
-   "nonce": "cf01-c-0b01",
-   "launchedAt": "2026-11-02T21:42:56Z"
+   "phase": "cf07",
+   "step": "build",
+   "session": "session_017SdbwPLCaRK56zKEDHLRY6",
+   "nonce": "cf07-b-4f41",
+   "launchedAt": "2026-11-02T21:46:27Z",
+   "due": "2026-11-11"
   }
  ],
  "owner": [],
@@ -73,6 +73,12 @@
    "check": 2,
    "verdict": "FAIL product: #1951 closed by PR #1970 merge before the receipt",
    "repair": "coordinator reopened and re-closed #1951 (comment 6589180116)"
+  },
+  {
+   "phase": "cf01",
+   "check": 3,
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6589247426"
   }
  ],
  "decisions": [
