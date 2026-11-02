@@ -225,7 +225,8 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   server.set(SHEET, lines('Results from 22:00', 'Turnout 63%'));
   await page.goto(url);
   await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 20_000 });
-  await expect(page.getByTestId('cue-field-f0')).toHaveValue('Results from 22:00\nTurnout 63%', { timeout: 20_000 });
+  await expect(page.getByTestId('program-stage')).toContainText('Nothing on air');
+  await itemsBecome(page.frameLocator('[data-testid="production-preview"] iframe'), ['Results from 22:00', 'Turnout 63%'], 'the reopened page caught up');
   await page.getByTestId('verb-take').click();
   const again = page.frameLocator('[data-testid="program-stage"] iframe');
   await itemsBecome(again, ['Results from 22:00', 'Turnout 63%'], 'the reopened page airs the newest lines');
