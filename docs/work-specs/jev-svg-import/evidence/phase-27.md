@@ -90,6 +90,22 @@ PR challenged them against that code. Rules found after coding are marked (after
   journeys through Finish into a production: changed artwork keeps the record, ids, keys, label
   and binding; a removed layer saves beside the earlier graphic, and Replace anyway keeps a copy.
 
+## Verification on this worker
+
+- `e2e/import-svg-reimport.spec.ts` 6/6; with `import-name-collision`, `wizard-finish` and
+  `jev-svg-preparation`: 40/40 after the `/so` fixes (j-0016). `editor-fidelity-trim` with the
+  first three: 47/47 earlier on this branch (j-0007).
+- Mutations, each reverted: no id rename fails the matcher test and the first journey; no
+  reconcile on save fails the second journey (the earlier graphic is written over); no
+  deleted-track rule fails the matcher test; no Finish name follow-up fails the second journey at
+  the name check.
+- `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
+  `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
+  `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply` and
+  `wizard-draft`: pass.
+- Not run here: the configured suite and the full e2e set (CI), a production build (no build
+  input changed).
+
 ## Decisions
 
 - **Product choice A** (coordinator, 2026-11-02): unresolved work saves a separate graphic by
