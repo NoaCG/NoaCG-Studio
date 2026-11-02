@@ -61,7 +61,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T12:11:00Z"
+    "checkinAt": "2026-11-02T12:53:13Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -218,7 +218,9 @@
     "2026-11-02T08:52Z row 20: coordinator accepted departures 1 (no deliberate Fixed artwork choice until #1958 fix) and 2 (role-above name picks as on main, documented). Plan: run #1958 as an owner-requested fix (whole separate-layer drawing scrolls as artwork, then the deliberate Show as: Fixed artwork choice) after row 20 passes and before row 21.",
     "2026-11-02T09:32Z fix #1958: approved additive optional artworkLayers?: string[] on DesignSvgRecipeBehaviour (designTypes.ts), written only for deliberate Fixed artwork on a stylable drawing; type only; pins unchanged.",
     "2026-11-02T10:20Z SLIP: launched the row 21 builder before recording intent; the supervisor refused the record until the midpoint retro was written. Retro written, record made after. Always run next before a launch.",
-    "2026-11-02T11:2xZ row 21: CI attempt 1 failed only e2e/import-svg.spec.ts:988 (released from quarantine by #1963 at 10:38Z; #1915 fail-then-pass). Re-ran failed jobs once; attempt 2 green. Reported to the cicd coordinator."
+    "2026-11-02T11:2xZ row 21: CI attempt 1 failed only e2e/import-svg.spec.ts:988 (released from quarantine by #1963 at 10:38Z; #1915 fail-then-pass). Re-ran failed jobs once; attempt 2 green. Reported to the cicd coordinator.",
+    "2026-11-02T11:45Z row 22: approved recipe.ts and importedDesign/behaviour.ts so RecipeContext carries the credits binding and Scroll speed is hidden for static styled credits (native unchanged, test both). Static overflow policy accepted: phase 16 CREDITS_OVERFLOW tall policy (shrink to fit, reported past 55%, below 30% floor not shown on air with Too long for the design on the field before Take); wizard select Roll / Hold still.",
+    "2026-11-02T11:47Z row 22: approved scripts/imported-credits-model.test.mjs edit of the row-19 placeholder case only (not-yet example moves to cards/stale; add an assertion that static styled builds the hold engine; pins untouched; quote old/new in PR)."
   ],
   "ownerOpen": [
     {
