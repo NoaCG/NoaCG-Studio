@@ -15,16 +15,22 @@
 //
 // And #1973: a still page whose face starts loading at its Take, after the load-time refit had
 // already run, is fitted again when the face lands, once however many updates came meanwhile.
+//
+// Row 25 (AC-14): a FAILING SHEET. Read from a local fake of the export
+// (e2e/fixtures/jev-sheet-server.mjs), a denial, a read that never answers, a dropped connection
+// and a sign-in page are each said on the source line and write nothing: the prepared rows keep
+// the last good list. The next good read reconnects, the rows follow, the Take airs the newest
+// list in the drawn looks, and no model is asked anything on the way.
 
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
+import { startSheetServer, csvOf, MODEL_REQUEST, PAGE_FAILURES } from './fixtures/jev-sheet-server.mjs';
 
 const ABOVE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGCreditsSheet00000000/edit#gid=0';
-const csvOf = (rows: string[][]) => rows.map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')).join('\n') + '\n';
 
 /** A Sheet tab the test edits: every read answers what it holds now. */
 async function stubSheet(page: Page, rows: string[][]) {
@@ -51,10 +57,10 @@ async function styledCreditsProduction(page: Page, playback: 'roll' | 'cards', n
 }
 
 /** Connect the stubbed Sheet to the selected cue, as the operator does. */
-async function connectSheet(page: Page, label: string) {
+async function connectSheet(page: Page, label: string, link = SHEET_URL) {
   await page.getByTestId('cue-connect').click();
   const review = page.getByTestId('cue-connect-menu');
-  await review.getByTestId('cue-connect-link').fill(SHEET_URL);
+  await review.getByTestId('cue-connect-link').fill(link);
   await review.getByTestId('cue-connect-read').click();
   await review.getByTestId('cue-connect-label').fill(label);
   await review.getByTestId('cue-connect-confirm').click();
@@ -170,6 +176,47 @@ test('cards on air keep the cards they took: a refresh waits for the next Take, 
   await expect(page.getByTestId('source-waiting')).toHaveCount(0);
   await page.getByTestId('cue-actions').getByRole('button', { name: /Next card$/ }).click();
   await expect(rows).toHaveText(['Director', 'Alex Rivera']);
+});
+
+test('a failing Sheet keeps the prepared credits as last read and says why; the reconnect brings the newest, and the Take airs it with no model request', async ({ page }) => {
+  test.setTimeout(120_000);
+  const fake = await startSheetServer();
+  const SHEET = '1NoaCGCreditsFake00000000';
+  fake.set(SHEET, csvOf(TAB));
+  await fake.route(page.context());
+  const asked: string[] = [];
+  page.on('request', (r) => { if (MODEL_REQUEST.test(r.url())) asked.push(r.url()); });
+  try {
+    await styledCreditsProduction(page, 'roll', 'Failing roll');
+    await connectSheet(page, 'Crew', `https://docs.google.com/spreadsheets/d/${SHEET}/edit#gid=0`);
+    const status = page.getByTestId('sources-line').getByTestId('source-status');
+    const air = page.frameLocator('[data-testid="program-stage"] iframe');
+    const rows = air.locator('.imported-design-credits-row');
+    await page.getByTestId('verb-take').click();
+    await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+    // Off air the prepared rows follow every write, so a write that should not happen would show.
+    await page.getByTestId('verb-out').click();
+
+    for (const [mode, said] of PAGE_FAILURES) {
+      fake.mode(SHEET, mode);
+      await expect(status, mode).toHaveText(said, { timeout: 25_000 });
+      await expect(rows, `${mode}: the last good list is kept`).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+    }
+
+    // Reconnect: the newest list arrives off air, and the Take airs it in the drawn looks.
+    fake.set(SHEET, csvOf(NEWER));
+    await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera'], { timeout: 20_000 });
+    await expect(status).toContainText('checked');
+    await page.getByTestId('verb-take').click();
+    await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+    const looks = await rows.evaluateAll((els) => els.map((el) => [el.getAttribute('data-noacg-credits'), getComputedStyle(el).fill]));
+    expect(looks.map((l) => l.join(' '))).toEqual(['role rgb(237, 188, 113)', 'name rgb(255, 255, 255)', 'name rgb(255, 255, 255)', 'role rgb(237, 188, 113)', 'name rgb(255, 255, 255)']);
+    expect(asked, 'no model request on any refresh').toEqual([]);
+  } finally {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await page.context().unrouteAll({ behavior: 'ignoreErrors' });
+    await fake.close();
+  }
 });
 
 // ── The same rules on a blank page, built as the wizard saves each binding ─────────────────────
