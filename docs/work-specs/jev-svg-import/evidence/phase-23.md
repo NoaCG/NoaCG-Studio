@@ -89,6 +89,13 @@ Mutations, each caught (job ids from this worker's queue):
   second time change counted from the first change rather than the hold's start (j-0019); no
   opacity reset off air after Out cut a change short (j-0021, once the test took Out while the
   card was part-faded; at j-0020 it took Out before the fade began and missed it).
+- After Codex: a change landing past the last card when the list shrinks during its fade-out
+  (j-0028); a hold left running when an update makes the card on air the last, so a
+  later growth never re-arms (j-0029); a heading dealt as a unit of its own, so it can
+  end a card alone (j-0030; caught beside, where the heading would otherwise fit). The first runs of the clamp and of a timer self-clear both
+  survived (j-0025, j-0026): the test wrote the list after the fade's midpoint, and the
+  self-clear was unreachable once updates reconcile the hold. The test now writes 150 ms into the
+  fade-out, and the self-clear was removed.
 
 ## Decisions
 
@@ -158,8 +165,24 @@ Mutations, each caught (job ids from this worker's queue):
     floor and the report line); the card time is the operator's seconds and is not scaled by
     `motionSpeed()`, while the fades are.
 
+- Codex on `2e43da6` (2 findings, both fixed): the change's destination was not checked against
+  the cards dealt during its fade; an update that made the card on air the last left its hold
+  running. Family: hold and change state going stale when the list changes on air, a variant of
+  the round above. Per the repeated-family rule the model was restated before the repair, in the
+  code (`creditsDataUpdated`): on air and between changes, a card with a card time and cards after
+  it has exactly one hold running, any other card none; a change lands on a card dealt now.
+  Class: product defect.
+- `/so` round 1, session `session_017SdbwNNwFe7XYTDtz8TkDr`, on `2e43da6`: AGREE WITH
+  CORRECTIONS, grade A-, nothing blocking. Acted on: a heading case in the cards tests, a comment
+  and a limit for the one-card fallback, and the 0-second card time documented. The diff changed
+  after it, so a fresh `/so` assesses the final head (PR body).
+
 ## Known limits
 
+- A Card time of 0 or less on the production page means Next only, as blank does; the wizard
+  brings a typed time into 2 to 60. Both are safe; neither changes a card faster than 2 s.
+- Where the dealing has nothing to measure (no window yet), the whole list is one card, fitted or
+  refused by the still page's rule and reported as ever. Nothing is clipped.
 - On a playout road with no custom actions (SPX Continue), cards without a card time stay on the
   first card. The wizard says so where the seconds are set.
 - A single name too wide for 30% is still cut at the window's edge, as on the roll (row 19).
