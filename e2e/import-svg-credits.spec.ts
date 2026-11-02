@@ -387,11 +387,14 @@ test('role-beside credits roll in their two drawn columns, from a name layer pic
   await dropSvg(page, BESIDE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   const picker = page.getByTestId('map-svg-recipe-credits');
-  // A NAME layer, Léa Orme: the preview still reads the whole block from its first role.
-  const name = await picker.locator('option').evaluateAll((options) =>
-    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[2]);
-  await picker.selectOption(name);
+  // The first role, then a NAME layer on its line, Léa Orme: the same block is read for both, and
+  // the binding follows the pick (one read for another pick is never saved).
+  const [, first, name] = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean));
+  await picker.selectOption(first);
   const preview = page.getByTestId('map-svg-credits-preview');
+  await expect(preview).toHaveAttribute('data-layout', 'role-beside');
+  await picker.selectOption(name);
   await expect(preview).toHaveAttribute('data-layout', 'role-beside');
   await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
   await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
@@ -456,6 +459,12 @@ test('the one column choice fixes names drawn left of their roles: preview, save
   await roles.selectOption({ label: 'Right' });
   await expect(preview.locator('[data-credit="role"]')).toHaveText(['Director', 'Sound']);
   await expect(preview.locator('[data-credit="name"]')).toHaveText(['Alex Rivera', 'Ida Lake', 'Ari Moss']);
+  // The answer is the draft's, so a detour through fixed artwork does not lose it.
+  const engine = page.getByTestId('map-svg-credits-engine');
+  await engine.selectOption('artwork');
+  await expect(roles).toHaveCount(0);
+  await engine.selectOption('editable');
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Director', 'Sound']);
   await intoProduction(page, 'Names left credits', 'Names left night');
   await settleDurableWrites(page);
 

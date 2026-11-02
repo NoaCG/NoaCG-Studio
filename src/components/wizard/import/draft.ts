@@ -268,6 +268,12 @@ export interface SvgRecipeDraft {
    *  (`creditsPreview`), set only where the styled engine renders that layout. Absent saves the
    *  original-text roll, as every credits import did before. */
   credits?: DesignSvgCredits;
+  /** Credits only: the layer picked as Credits when `credits` was read, so a binding read for
+   *  another pick is never saved. */
+  creditsFor?: string;
+  /** Credits only: the author's answer where either drawn column could be the roles - the other
+   *  column (`CreditsChoice.swap`). Kept while fixed artwork is chosen, for a change of mind. */
+  creditsSwap?: true;
   /** Credits only: the author chose fixed artwork where editable styled credits could build, so
    *  the step does not write `credits` for them. */
   creditsArtwork?: true;
@@ -463,11 +469,12 @@ export function disarmTimerClock(fields: SvgFieldDraft[]): SvgFieldDraft[] {
 
 /** A credits draft's styled binding, while it still belongs to the layer picked as Credits (the
  *  step reads it again whenever the pick changes; until then nothing stale is saved), unless the
- *  author chose fixed artwork. The picked layer may be any role or name the binding reads. */
+ *  author chose fixed artwork. A binding without `creditsFor` was read for its first role. */
 export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | undefined {
   const credits = behaviour.recipe === 'credits' && !behaviour.creditsArtwork ? behaviour.credits : undefined;
   const picked = behaviour.fields?.credits;
-  return credits && picked && credits.anchors.some((a) => a.candidateId === picked) ? credits : undefined;
+  const readFor = behaviour.creditsFor ?? credits?.anchors[0]?.candidateId;
+  return credits && picked && readFor === picked && credits.anchors.some((a) => a.candidateId === picked) ? credits : undefined;
 }
 
 /** The drawn role and name layers a styled credits binding copies, other than the Credits field

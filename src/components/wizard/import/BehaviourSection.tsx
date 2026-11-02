@@ -47,7 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
+import { CREDITS_RENDERED, creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
@@ -125,19 +125,21 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  *
  * ONE COLUMN CHOICE. Only role beside can be read both ways (`CreditsChoice`); where it can, the
  * author answers which column holds the roles. The answer changes the preview and the saved
- * anchor kinds, which is what the live graphic copies, so it is read back from the saved binding.
+ * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, fixed, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
   /** Changes whenever the step's render was measured again (a font landed, a new file). */
   measured: unknown;
-  /** The styled binding the draft holds now, whether the author chose fixed artwork, and how to
-   *  change either. */
+  /** What the draft holds now - the styled binding, the column answer, whether the author chose
+   *  fixed artwork - and how to change it. */
   saved: DesignSvgCredits | undefined;
+  savedFor: string | undefined;
+  swap: boolean;
   fixed: boolean;
-  onPatch: (patch: { credits?: DesignSvgCredits; creditsArtwork?: true }) => void;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -150,19 +152,16 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, fixed, 
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);
-  // The author's answer in this visit, else the one the saved binding carries.
-  const [swapChoice, setSwapChoice] = useState<boolean | null>(null);
-  const anchorsKey = (p: CreditsPreview | null | undefined) => (p?.styled ? JSON.stringify(p.anchors) : '');
-  const swap = swapChoice ?? (!!saved && !!readings?.swapped && anchorsKey(readings.swapped) === JSON.stringify(saved.anchors));
   const shown = readings ? (swap && readings.swapped ? readings.swapped : readings.read) : null;
-  const rendered = !!shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll');
-  const styled: DesignSvgCredits | undefined = rendered && shown?.styled && !fixed
-    ? { v: 1, layout: shown.layout, playback: 'roll', anchors: shown.anchors }
+  const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
+  const styled: DesignSvgCredits | undefined = reading && !fixed
+    ? { v: 1, layout: reading.layout, playback: 'roll', anchors: reading.anchors }
     : undefined;
-  const wantKey = styled ? JSON.stringify(styled) : '';
-  const savedKey = saved ? JSON.stringify(saved) : '';
+  // A binding belongs to the pick it was read for, so the same anchors for another pick are new.
+  const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
+  const savedKey = saved ? `${savedFor} ${JSON.stringify(saved)}` : '';
   useEffect(() => {
-    if (shown && wantKey !== savedKey) onPatch({ credits: styled });
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
@@ -171,7 +170,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, fixed, 
   const rtl = shown.styled && shown.rtl;
   return (
     <>
-      {rendered && (
+      {reading && (
         <label className="save-field">
           <span>Show as</span>
           <select
@@ -187,7 +186,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, fixed, 
       {readings?.swapped && !fixed && (
         <label className="save-field">
           <span>Which column contains the roles?</span>
-          <select value={swap ? 'other' : 'first'} onChange={(e) => setSwapChoice(e.target.value === 'other')} data-testid="map-svg-credits-roles">
+          <select value={swap ? 'other' : 'first'} onChange={(e) => onPatch({ creditsSwap: e.target.value === 'other' ? true : undefined })} data-testid="map-svg-credits-roles">
             <option value="first">{rtl ? 'Right' : 'Left'}</option>
             <option value="other">{rtl ? 'Left' : 'Right'}</option>
           </select>
@@ -1321,12 +1320,13 @@ export default function BehaviourSection({
               <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
               {generic.recipe === 'credits' && generic.fields?.credits && (
                 <CreditsListPreview
-                  key={generic.fields.credits}
                   stage={stageRef}
                   layers={textLayers}
                   creditsId={generic.fields.credits}
                   measured={layerBoxes}
                   saved={generic.credits}
+                  savedFor={generic.creditsFor}
+                  swap={!!generic.creditsSwap}
                   fixed={!!generic.creditsArtwork}
                   onPatch={patchGeneric}
                 />

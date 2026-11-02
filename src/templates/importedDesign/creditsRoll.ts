@@ -897,10 +897,12 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   var made = [];
   var y = top;
   var prev = null;
-  var sectionBreak = false;
-  var paint = function (kind, words) {
+  var sectionBreak = false;${beside('', `
+  // A heading spans both columns: the line after it steps down, and its room is the whole window.
+  var prevHeading = false;`)}
+  var paint = function (kind, words${beside('', ', heading')}) {
     if (made.length > 0) {
-      y += kind === 'role' ? S.groupGap : prev === 'role' ? S.roleToName : S.nameToName;
+      y += kind === 'role' ? S.groupGap : prev === 'role'${beside('', ' && !prevHeading')} ? S.roleToName : S.nameToName;
       // A blank line before a name adds the air the drawing gives a group, or one name step.
       if (sectionBreak && kind !== 'role') {
         var air = S.groupGap - S.nameToName;
@@ -918,8 +920,9 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
     row.setAttribute('data-noacg-row', String(made.length));
     if (copy.run !== row) copy.run.setAttribute('data-noacg-run', '');
     rows.appendChild(row);
-    made.push({ row: row, run: copy.run, kind: kind, words: words, m: m });
-    prev = kind;
+    made.push({ row: row, run: copy.run, kind: kind, words: words, m: m${beside('', ', heading: !!heading')} });
+    prev = kind;${beside('', `
+    prevHeading = !!heading;`)}
     sectionBreak = false;
   };
   for (var s = 0; s < sections.length; s++) {
@@ -930,7 +933,7 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
         paint('role', entry.role + S.roleSuffix);
         for (var k = 0; k < entry.names.length; k++) paint('name', entry.names[k]);
       } else if (entry.type === 'heading') {
-        paint('role', entry.text);
+        paint('role', entry.text${beside('', ', true')});
       } else {
         paint('name', entry.text);
       }
@@ -974,8 +977,8 @@ ${beside('', `  // Beside, a column's room ends where the two columns meet; the 
 ${beside(`      var side = S.align === 'middle' ? 'middle' : (S.align === 'start') !== rtl ? 'left' : 'right';
       var room = side === 'middle' ? 2 * Math.min(x - lo, hi - x) - 2 * margin : side === 'left' ? hi - x - margin : x - lo - margin;`, `      var A = one.kind === 'name' ? S.nameAlign : S.align;
       var X = xs[one.kind];
-      var L = span[one.kind][0];
-      var H = span[one.kind][1];
+      var L = one.heading ? lo : span[one.kind][0];
+      var H = one.heading ? hi : span[one.kind][1];
       var side = A === 'middle' ? 'middle' : (A === 'start') !== rtl ? 'left' : 'right';
       var room = side === 'middle' ? 2 * Math.min(X - L, H - X) - 2 * margin : side === 'left' ? H - X - margin : X - L - margin;`)}
       var width = box.width * scale;
@@ -1452,8 +1455,8 @@ export type CreditsPreview =
  * line of roles and names drawn as separate layers, the anchors are every text layer read at or
  * below it (a title drawn above stays artwork) and the list is the one
  * `analyseCreditsStyle` writes; the layout is the drawing's, and `ambiguous` says whether the
- * columns need the author's one choice. A NAME picked inside such a block reads the block from
- * its first role: the lines above it drawn in the block's two looks belong to it. Anything else
+ * columns need the author's one choice. A NAME picked reads the block from its own role, as that
+ * role picked would. Anything else
  * previews the layer's own text as the list, with the reason it stays artwork. Either way the
  * list is read by the shipped parser, never a second grammar.
  */
@@ -1467,37 +1470,31 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
   // level in the artwork's.
   const [a, b, c, d] = picked.linear;
   const down = (r: CreditsReading) => (-b * r.x + a * r.y) / (a * d - b * c || 1);
-  const tol = (r: CreditsReading) => 0.25 * Math.min(r.size, picked.size);
-  let ids = candidateIds.filter((_, i) => {
-    const r = all[i];
-    return r && down(r) >= down(picked) - tol(r);
-  });
-  let readings = readCreditsAnchors(root, ids);
-  let analysis = analyseCreditsStyle(readings, ids, choice);
-  // The layers above, nearest first, while the whole stays within two looks.
-  const looks = new Set(readings.map((r) => r!.look));
-  const block: string[] = [];
-  const above = all
-    .map((r, i) => ({ r, id: candidateIds[i] }))
-    .filter((x): x is { r: CreditsReading; id: string } => !!x.r && down(x.r) < down(picked) - tol(x.r))
-    .sort((p, q) => down(q.r) - down(p.r));
-  for (const x of above) {
-    if (!looks.has(x.r.look) && looks.size >= 2) break;
-    looks.add(x.r.look);
-    block.push(x.id);
+  // Every text layer read at or below a line, with its reading taken from `all`.
+  const from = (top: CreditsReading) => {
+    const at = candidateIds.flatMap((id, i) => {
+      const r = all[i];
+      return r && down(r) >= down(top) - 0.25 * Math.min(r.size, top.size) ? [{ id, r }] : [];
+    });
+    return { ids: at.map((x) => x.id), readings: at.map((x) => x.r) };
+  };
+  let block = from(picked);
+  // A NAME PICKED reads from its own role: the nearest layer at or above it in another look. It
+  // is a name when either reading of that wider block says so, so the block does not depend on
+  // the column answer, and a role picked keeps the block it starts (a title above stays out).
+  const ownRole = all
+    .filter((r): r is CreditsReading => !!r && r.look !== picked.look && down(r) <= down(picked) + 0.25 * Math.min(r.size, picked.size))
+    .sort((p, q) => down(q) - down(p))[0];
+  if (ownRole) {
+    const wider = from(ownRole);
+    const asName = (swap: boolean) => {
+      const read = analyseCreditsStyle(wider.readings, wider.ids, { swap });
+      return read.ok && read.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name';
+    };
+    if (asName(false) || asName(true)) block = wider;
   }
-  if (block.length > 0) {
-    const wider = candidateIds.filter((id) => ids.includes(id) || block.includes(id));
-    const widerReadings = readCreditsAnchors(root, wider);
-    const widerAnalysis = analyseCreditsStyle(widerReadings, wider, choice);
-    // Only where the picked layer then reads as a name: a role picked first keeps the block it
-    // starts, so a line above in the role look (a heading) is never pulled in.
-    if (widerAnalysis.ok && widerAnalysis.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name') {
-      ids = wider;
-      readings = widerReadings;
-      analysis = widerAnalysis;
-    }
-  }
+  const { ids, readings } = block;
+  const analysis = analyseCreditsStyle(readings, ids, choice);
   if (!analysis.ok) return own(analysis.message);
   if (!analysis.style.anchors.some((x) => x.candidateId === creditsId)) return own('This layer is not part of the roles and names drawn below it.');
   return {

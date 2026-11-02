@@ -190,6 +190,9 @@ function readStyled({ field }) {
   const longRole = 'Aurelia Vantongeren Aurelia Vantongeren';
   write(`${longRole}:\nNia Vale`);
   const roleFit = { fit: { ...window.noacgCreditsFit[0] }, natural: natural(longRole, roleLayer), width: rows()[0].width, over: window.noacgTextOverflow() };
+  // A marked heading, then loose names.
+  write('# SPECIAL THANKS TO EVERYONE AT THE STUDIO\nNia Vale\nTomas Fen');
+  const heading = { rows: rows(), fit: window.noacgCreditsFit.map((f) => ({ ...f })) };
   // A reset that clears every inline style (the editor's snap and reset) leaves the rows as built.
   write(`Research:\n${long[2]}`);
   const beforeReset = rows().map((r) => [r.start, r.look]);
@@ -206,7 +209,7 @@ function readStyled({ field }) {
   window.stopCreditsRoll();
   const stopped = window.noacgCreditsTween === null && again.isActive() === false;
   return {
-    atRest, repeated, longRows, longFit, naturals, overLong, overShort, roleFit, field,
+    atRest, repeated, longRows, longFit, naturals, overLong, overShort, roleFit, heading, field,
     take: { ok: !!tween, first, second, target, stopped, sourcesKept: JSON.stringify(sources().map((x) => x.outer)) === JSON.stringify(before) },
     reset: { before: beforeReset, after: afterReset },
     holder: document.getElementById(field)?.className,
@@ -385,7 +388,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     namesLeftAsRead: styledOf(cases.namesLeft, 'Alex Rivera'),
     namesLeft: styledOf(cases.namesLeft, 'Alex Rivera', { swap: true }),
     pickName: styledOf(dev[0].markup, 'Nia Vale'),
-    pickBesideName: styledOf(dev[1].markup, 'Noé Rivage'),
+    pickBesideName: styledOf(dev[1].markup, 'Émilie Lac'),
   };
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
@@ -884,7 +887,9 @@ test('row 20: columns, several names per role and the drawn spacing, on every ed
   // name share a baseline; a role with no names (Music) and a section break are each a group gap.
   const ys = (k) => R.styled[k].played.repeated.map((r) => r.start.y);
   assert.deepEqual(ys('beside'), [195, 195, 250, 305, 475, 475, 645, 815, 815]);
-  assert.deepEqual(ys('pickBesideName'), ys('beside'));
+  // Picked from Émilie Lac, the list starts at its role's line (Image, 365). That block draws
+  // one group, so it shows no group gap and the name step stands in for it.
+  assert.deepEqual(ys('pickBesideName'), [365, 365, 420, 475, 530, 530, 585, 640, 640]);
   const column = (k, kind, edge) => R.styled[k].played.repeated.filter((r) => r.kind === kind).map((r) => (edge === 'end' ? r.end : r.start.x));
   const on = (list, x, msg) => assert.ok(list.every((v) => near(v, x)), `${msg}: ${JSON.stringify(list)} on ${x}`);
   on(column('beside', 'role', 'start'), 90, 'credits-2 roles start at 90');
@@ -968,15 +973,28 @@ test('row 20: the one column choice decides which drawn column is the roles, and
   assert.equal(R.styled.one.preview.ambiguous, false, 'role above never asks');
 });
 
-test('row 20: a name layer picked as Credits reads its whole block and builds styled', () => {
-  for (const [name, first] of [['pickName', 'one'], ['pickBesideName', 'beside']]) {
-    const b = R.styled[name];
-    assert.deepEqual(b.preview.anchors, R.styled[first].preview.anchors, `${name}: the block from its first role`);
-    assert.equal(b.engine, 'styled', name);
-    assert.deepEqual(b.errors, [], name);
-    assert.equal(b.field.value, R.styled[first].field.value, name);
-    assert.equal(b.fieldCount, R.styled[first].fieldCount, `${name}: still one list field`);
+test('row 20: a name layer picked as Credits reads from its own role and builds styled', () => {
+  // As that role picked would: credits-1's first name reads the whole block from Research;
+  // credits-2's last name (alone on its line) reads from Image, as picking Image does.
+  const one = R.styled.pickName;
+  assert.deepEqual(one.preview.anchors, R.styled.one.preview.anchors);
+  assert.equal(one.field.value, R.styled.one.field.value);
+  assert.equal(one.fieldCount, R.styled.one.fieldCount, 'still one list field');
+  const beside = R.styled.pickBesideName;
+  assert.deepEqual(beside.preview.anchors, R.styled.beside.preview.anchors.slice(2));
+  assert.equal(beside.field.value, 'Image:\nNoé Rivage\nÉmilie Lac');
+  for (const b of [one, beside]) {
+    assert.equal(b.engine, 'styled');
+    assert.deepEqual(b.errors, []);
   }
+});
+
+test('row 20: beside, a marked heading spans both columns and the names after it step down', () => {
+  const { rows, fit } = R.styled.beside.played.heading;
+  assert.deepEqual(rows.map((r) => [r.kind, r.text]), [['role', 'SPECIAL THANKS TO EVERYONE AT THE STUDIO'], ['name', 'Nia Vale'], ['name', 'Tomas Fen']]);
+  assert.equal(fit[0].scale, 1, 'the heading has the whole frame, not the role column');
+  assert.deepEqual(rows.map((r) => r.start.y), [195, 250, 305], 'the first name is not set beside the heading');
+  assert.ok(near(rows[0].start.x, 90) && near(rows[1].start.x, 440), 'the heading on the role edge, names in their column');
 });
 
 test('row 20: role beside keeps the source layers and their original text, and replays the same', () => {
