@@ -42,31 +42,18 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci16 checker verdict (session_017SdbwLn3GVGq5bHzeBdr53)",
-    "eta": "2026-11-02T01:45:00Z"
+    "what": "ci17 builder receipt (session_017SdbwQgWjrdBuyYC8WvH5a)",
+    "eta": "2026-11-02T03:30:00Z"
   },
   "inFlight": [
     {
-      "phase": "ci16",
-      "step": "check",
-      "session": "session_017SdbwMxcHZ24rak29S7scX",
-      "nonce": "ci16-b-30a5",
-      "branch": "claude/plan-cicd-improvement-ci16-build",
-      "launchedAt": "2026-11-02T00:38:18Z",
-      "note": "No-activation evidence; auto-merge on 00:49Z.",
-      "pr": 1948,
-      "reviewedHead": "27cecea1dbc5d82740b3bef58a2f204509842ed2",
-      "stampRun": 41369171403,
-      "so": "session_017SdbwMgyhBxSj76VPBHE7H",
-      "followUps": [
-        1949
-      ],
-      "mergeSha": "66a61064f5f90acb4f68abef9738e38ea1ae9f3e",
-      "landedAt": "2026-11-02T00:56:44Z",
-      "queueRun": 41369254679,
-      "repairOwnerComment": 6566436750,
-      "checker": "session_017SdbwLn3GVGq5bHzeBdr53",
-      "actor": "checker-ci16-ci16-c-52c1"
+      "phase": "ci17",
+      "step": "build",
+      "session": "session_017SdbwQgWjrdBuyYC8WvH5a",
+      "nonce": "ci17-b-1689",
+      "branch": "claude/plan-cicd-improvement-ci17-build",
+      "launchedAt": "2026-11-02T01:24:13Z",
+      "note": "Final report: every AC met/not met/pending; work.json passes only for met ACs; converge result; #1895 carried as pending."
     }
   ],
   "owner": [],
@@ -352,6 +339,21 @@
       "postLand": "CI 41366379777, configured-suite 41366379639, Post-landing 41366379672, Quarantine 41366379674, Push on main 41366379905 success; repair ownership complete",
       "pass": "2026-11-02T00:36Z by checker-ci15-ci15-c-f182 (session_017SdbwPZMMDdKt7BLqjaUgq)",
       "archived": 5
+    },
+    {
+      "phase": "ci16",
+      "pr": 1948,
+      "mergeSha": "66a61064f5f90acb4f68abef9738e38ea1ae9f3e",
+      "builder": "session_017SdbwMxcHZ24rak29S7scX",
+      "reviewedHead": "27cecea1dbc5d82740b3bef58a2f204509842ed2",
+      "repairOwnerComment": 6566436750,
+      "followUps": [
+        1949
+      ],
+      "candidate": "no-activation outcome: no narrowing, full protection retained, blockers listed; AC-4/AC-5 open",
+      "postLand": "CI 41369851039, configured-suite 41369851064, Post-landing 41369850980, Quarantine 41369850984, Push on main 41369850941 success; repair ownership complete",
+      "pass": "2026-11-02T01:21Z by checker-ci16-ci16-c-52c1 (session_017SdbwLn3GVGq5bHzeBdr53)",
+      "archived": 3
     }
   ],
   "coordinatorNotes": [
