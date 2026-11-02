@@ -890,7 +890,9 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   // A drawing of one line shows no step: the next line comes 1.2 of the drawn name type down.
   if (!S.nameToName) {
     var nameFrame = frames.name;
-    var line = 1.2 * (parseFloat(getComputedStyle(sources.name).fontSize) || 16) * Math.sqrt(Math.abs(nameFrame.a * nameFrame.d - nameFrame.b * nameFrame.c));
+    // The size of the run that paints the name, as the copies are painted.
+    var nameRun = creditsFirstText(sources.name);
+    var line = 1.2 * (parseFloat(getComputedStyle(nameRun ? nameRun.parentNode : sources.name).fontSize) || 16) * Math.sqrt(Math.abs(nameFrame.a * nameFrame.d - nameFrame.b * nameFrame.c));
     S = { align: S.align, nameAlign: S.nameAlign, roleToName: 0, nameToName: line, groupGap: S.groupGap || line, roleSuffix: S.roleSuffix };
   }`)}
   // FIRST PASS: every row, spaced as drawn, appended at once.

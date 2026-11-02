@@ -98,7 +98,7 @@ Mutations, each caught:
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
   worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
-  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, j-0014, j-0015, j-0017, and j-0018 on the final code). Mutation runs j-0003 and j-0006
+  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, j-0014, j-0015, j-0017, j-0018, and j-0019 on the final code). Mutation runs j-0003 and j-0006
   above. `check-e2e-protection --changed origin/main`: OK.
 - Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
   the Roles question (Left) and the two columns showed, with no console errors.
@@ -190,6 +190,17 @@ Mutations, each caught:
   rule model was reassessed again: the drawing cannot decide a role-above pick, and every
   heuristic failed somewhere. Role above now reads every pick as `main` does (Decisions).
   Test: that drawing reads `Sound: Ari Moss / Editor:`, as on `main`.
+- `/so` on `90ac83a` (session `session_017SdbwPDmsTy9bySpE3vsVv`, AGREE WITH CORRECTIONS, B+;
+  24,658 picks over 2,091 drawings, and a sweep of 69,154): its blocker (a tight page with a
+  title in the names' look and a trailing role with no names flipped the first role) was
+  already gone in `2bab117`, which reads every role-above pick as `main` does. Its points 2 to 4
+  are worded into Known limits.
+- Codex on `2bab117` (P2, product defect, a different family: a size read from the wrong
+  element): in a role-beside drawing of one line, the fallback line step read the text's font
+  size, not the size of the run that paints the name, as the copies are painted. Fixed: the
+  step uses the painting run. Not covered by a test: the importer moves a run's size onto its
+  text in every drawing tried, so no imported sample tells the two apart. A test was written
+  and dropped when its mutation stayed green.
 - **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
   picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
   the rule model was rewritten (What changed, `creditsPreview`):
@@ -245,16 +256,17 @@ Mutations, each caught:
 - Role above: a name picked reads as on `main`, as the first role of whatever it starts. The
   preview lists it as a role, and the author picks the first role. Every role picked reads as
   on `main`.
-- A name whose block below holds only names (the last name of a drawing, or a later name of a
-  single-group page) falls back, as on `main`. Its line repeats the analysis's reason ("Credits
-  need at least one role and one name drawn" or "Roles and names share one look"), which does
-  not describe the whole page. The author picks the first role.
+- A pick whose block below cannot read as credits falls back, and its line repeats the
+  analysis's reason ("Credits need at least one role and one name drawn" or "Roles and names
+  share one look"), which does not describe the whole page. Above, this is a name whose block
+  below holds only names (as on `main`). Beside, it is a last role with no names, for either
+  answer. The author picks the first role.
 - On a role-beside page, a title in the role look, if picked, becomes a styled role with no
   names. The preview shows it.
 - A title line holding one layer in each look (for example "CREDITS" in the role look beside
   "2026" in the name look) above role-above credits makes the column question appear. The
-  preselected answer keeps row 19's reading; the other answer falls back. The question stays
-  safe because its default is correct.
+  preselected answer is correct. The other answer can read names as roles for a later pick,
+  which the preview shows.
 - No deliberate fixed-artwork choice for credits that can be styled (Decisions; #1958, P2). A
   drawing that cannot be styled still saves the original-text roll, as before.
 - The Behaviour summary still says the original artwork scrolls. That is the recipe's own line
