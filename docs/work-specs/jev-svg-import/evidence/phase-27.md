@@ -101,14 +101,16 @@ PR challenged them against that code. Rules found after coding are marked (after
 ## Verification on this worker
 
 - `e2e/import-svg-reimport.spec.ts` 7/7; with `import-name-collision`, `wizard-finish`,
-  `jev-svg-preparation` and `wizard-draft-guard`: 49/49 on the head with R14 to R16 (j-0020).
+  `jev-svg-preparation` and `wizard-draft-guard`: 49/49 with R14 to R16 (j-0020); the spec 7/7
+  after the rename fix (j-0023).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
   first three: 47/47 earlier on this branch (j-0007).
 - Mutations, each reverted: no id rename fails the matcher test and the first journey; no
   reconcile on save fails the second journey (the earlier graphic is written over); no
   deleted-track rule fails the matcher test; no Finish name follow-up fails the second journey at
   the name check; no R14 (reconcile on the `over` effect only) fails the first journey at the
-  field ids.
+  field ids and the rule test; a second rename pass over the script fails the matcher test at the
+  badge's motion.
 - `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
   `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
   `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply`,
@@ -176,6 +178,17 @@ PR challenged them against that code. Rules found after coding are marked (after
   first journey now presses Export and then Add to the production; with R14 removed it fails at
   the field ids. A fifth test pins the rule's four states. Its non-blocking points are listed
   under Limits.
+
+- PR review bot on `9ab30dbc` (PR opened): two P1 findings. (1) class product defect, family R3:
+  the stylesheet and script rename ran two passes, so on an id cycle a quoted `"#f1"` was renamed
+  twice and the new build's own field motion moved to another layer. Fixed with one pattern per
+  text; the matcher test now gives the new build a track on the badge and checks it follows the
+  badge through the cycle; restoring the second pass fails it. (2) the second-press finding, the
+  same as the final `/so`'s, fixed by R14.
+- Code scanning on `9ab30dbc`: "DOM text reinterpreted as HTML" at `parseHtml`. Not a defect:
+  `DOMParser` builds an inert document from the graphic's own stored template, scripts never run
+  in it and nothing from it is inserted into the page; `model/structure.ts` reads templates the
+  same way. Answered on the PR thread.
 
 ## Traps
 
