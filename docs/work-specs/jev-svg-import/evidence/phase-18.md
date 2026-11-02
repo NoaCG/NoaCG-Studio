@@ -55,10 +55,21 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
 - `node --test scripts/imported-credits-source.test.mjs`: 14/14. `scripts/imported-credits-model.test.mjs`: 19/19.
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files, `npx depcruise`: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528 designs.
-- Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 5/5 passed.
+- Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 5/5 passed (j-0001, and j-0003
+  after the review fixes; j-0002 refused to start because this worker's own dev server held the
+  port, not a test result).
   `check-e2e-protection --changed origin/main`: OK.
 - The wizard walked on the dev server with credits-1 and credits-2: preview read as above; no
   console errors.
+
+## Review rounds
+
+- `/check` review (inline, 2 findings, both fixed): the preview re-read the drawing on every
+  render, because the step passes its text layers as a new array each time (now keyed on the ids);
+  a column choice carried over to the next Credits layer picked (the preview now starts fresh per
+  layer). Simplify: the layer-text reader is private and the fallback list is read only when used.
+  Not changed: the "at or below" filter compares the layers' frame y, so a block turned steeply
+  enough could include a title; the dev fixtures and the turned case are not affected.
 
 ## Decisions
 
