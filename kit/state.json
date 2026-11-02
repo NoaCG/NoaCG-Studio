@@ -27,29 +27,22 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": null,
+  "waitingOn": "owner: phase 18 check FAIL blocked on AC-23 \"Ambiguous columns get one mapping choice\" (needs the styled credits binding saved from the wizard, #1937, which row 19 is the first to build). Options: move that clause to row 19 with draft.ts/svg.ts/svgBind.ts/BehaviourSection.tsx approved there, or build a preview-only choice now against wizard/offer-control-can-change-graphic-front.",
   "inFlight": [
     {
       "phase": 18,
-      "role": "check",
-      "session": "session_017SdbwLneUcppqyqxGnehzm",
-      "nonce": "18-c-8f93",
-      "mergeSha": "516ec2c9615c595dc1b8f32010930af7fee3a5a9",
+      "role": "blocked",
+      "lastCheck": "session_017SdbwLneUcppqyqxGnehzm",
+      "builder": "session_017SdbwNMEZYDauc6zGSGTyU",
       "pr": 1950,
-      "toArchive": [
-        "session_017SdbwNMEZYDauc6zGSGTyU",
-        "session_017SdbwMTJfquS6VvMYFX2zb",
-        "session_017SdbwNoQfaxe5WzuhVyU4m",
-        "session_017SdbwLw1kkm8MRtLYEWTH5",
-        "session_017SdbwNLGmL1jjGy1YNUz25"
-      ]
+      "mergeSha": "516ec2c9615c595dc1b8f32010930af7fee3a5a9"
     }
   ],
   "owner": [],
   "fixes": [],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T02:43:00Z"
+    "checkinAt": "2026-11-02T03:45:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
