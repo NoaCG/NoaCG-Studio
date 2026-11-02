@@ -30,12 +30,11 @@
   "waitingOn": null,
   "inFlight": [
     {
-      "role": "fix",
-      "issue": 1958,
-      "session": "session_017SdbwR8HnjR7gA2eDpnGmq",
-      "nonce": "fix-1958-f-42fb",
-      "branch": "claude/plan-jev-svg-import-fix-1958",
-      "pr": 1962
+      "phase": 21,
+      "role": "build",
+      "session": "session_017SdbwNQCQtCeNjoM2CifSi",
+      "nonce": "21-b-06ca",
+      "branch": "claude/plan-jev-svg-import-21-build"
     }
   ],
   "owner": [],
@@ -54,7 +53,10 @@
       "stampRun": 41425516878,
       "ciRun": 41423557028,
       "so": "session_017SdbwNNcfptCXLax9EfuwP A-",
-      "ownerPhysicalCheck": "Import e2e/fixtures/jev-svg/dev/credits-1.svg, choose Credits roll, pick Research, set Show as to Fixed artwork (line: The text stays part of the artwork and cannot be edited on the production page.), put in a production, Take: every role and name scrolls together, none offered to type, PRODUCTION title stays; Editable is default when first picked."
+      "ownerPhysicalCheck": "Import e2e/fixtures/jev-svg/dev/credits-1.svg, choose Credits roll, pick Research, set Show as to Fixed artwork (line: The text stays part of the artwork and cannot be edited on the production page.), put in a production, Take: every role and name scrolls together, none offered to type, PRODUCTION title stays; Editable is default when first picked.",
+      "mergeSha": "ca4d037d2ce2bfe7202eea822184da4c1039f43e",
+      "landedAt": "2026-11-02T10:16:21.218Z",
+      "state": "landed"
     }
   ],
   "triggers": {
