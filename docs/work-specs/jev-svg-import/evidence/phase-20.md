@@ -36,18 +36,20 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
   drawing, never from where the reading of one block happens to start.
   - THE DRAWING is the picked layer, everything below it, and the layers above, nearest first,
     while the whole stays within two looks. A title in a third look stays out.
-  - THE ROLE LOOK:
-    - Where a line holds two layers in the two looks (role beside), the roles are a column. The
-      first layer read on the first such line wears the role look; the column answer turns it
-      to the other column's look.
-    - Role above: a look drawn on two lines in a row is the name look; failing that, the widest
-      step (clearly wider than the narrowest) comes before a role. The top line is left out of
-      both, since a title may sit there in either look. With no such evidence, the picked layer
-      is the role, as row 19 read it.
-  - A role picked starts its block, as in row 19. A name picked reads from its own role, the
-    nearest layer at or above it in the role look, as picking that role would.
+  - ROLE BESIDE (a line holds two layers in the two looks): the roles are a column. The first
+    layer read on the first such line wears the role look; the column answer turns it to the
+    other column's look. A role picked starts its block; a name picked reads from its own role,
+    the nearest layer at or above it in the role look.
+  - ROLE ABOVE: the picked layer is the first role, as row 19 read it, unless that reading breaks
+    what any credits page draws: the air between groups is wider than the step from a role to
+    its first name. A reading that breaks this rule, or that does not read at all, is taken from
+    the nearest layer above in the other look. It is kept only where the picked layer then reads
+    as a name of that role. Otherwise the preview falls back and says to pick the role above.
+    Nothing is inferred from runs of one look, since a role with no names also makes them.
   - `ambiguous` is true wherever a line holds a role and a name, whether or not the drawn
-    reading of the picked block works. A title above does not hide it.
+    reading of the picked block works. A title above does not hide it. Every preview, styled or
+    not, carries it and the drawing's direction (`rtl`), so the question's Left / Right labels
+    do not change with the reading.
   - A preview that falls back says why (`reason`, the analysis's own message).
   - It reads the layout once and reuses that reading for every subset.
 - Wizard (owner-approved files, see the PR):
@@ -72,8 +74,8 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
 | Multiple names per role | Node: nine rows (three names under one role, a role with none, a section break) at 195, 195, 250, 305, 475, 475, 645, 815, 815: names 55 apart, 170 from a group's last line to the next role, a role and its first name on one line. e2e: an Update rebuilds at 195, 195, 250, 305, 475, 645, 645 |
 | Overflow, measured | Node, on three drawings: names measured in the drawn name look against their column's room (credits-2: the frame edge 1100, less 440, less 16) fit, shrink, are reported past 55% and floor at 30%. A 39-character role against the role column's room (to where the columns meet) shrinks to it and is reported under the one Credits field. The report clears when the list fits |
 | Headings beside | Node: `# SPECIAL THANKS TO EVERYONE AT THE STUDIO` then two names on credits-2. The heading keeps its full size on the whole frame, and the names step down to 250 and 305 in the name column |
-| Ambiguous columns get one mapping choice | Node: names drawn left of roles read either way. Read as drawn, the names roll as roles at x 100 in white; with the answer, roles roll in gold at 600 and names in white at 100. Both bindings validate, and the anchors differ. The question is asked when the drawn reading of the pick fails (a last name on its own line), and under a title in either look. e2e (owner's test): the preview first lists the names as roles. After "Right" it lists Director and Sound, the saved field is `Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss`, and on air the roles are gold at 600 and the names white at 100. Role above never asks (node, and the row-19 e2e) |
-| Name layer picked as Credits | Node: credits-1's first name gives the same anchors, list and field count as its role. credits-2's Émilie Lac, alone on its line, reads from Image, as picking Image does. A later role (Sound) reads `Sound:\nAri Moss`. Under a title in the name look or the role look, a picked role keeps roles as roles and a picked name reads from its own role. e2e: picking the first role and then Léa Orme saves the styled binding for Léa and rolls all five rows |
+| Ambiguous columns get one mapping choice | Node: names drawn left of roles read either way. Read as drawn, the names roll as roles at x 100 in white; with the answer, roles roll in gold at 600 and names in white at 100. Both bindings validate, and the anchors differ. The question is asked when the drawn reading of the pick fails (a last name on its own line, left to right and right to left, with the labels following the drawing's direction), and under a title in either look. e2e (owner's test): the preview first lists the names as roles. After "Right" it lists Director and Sound, the saved field is `Director:\nAlex Rivera\nIda Lake\nSound:\nAri Moss`, and on air the roles are gold at 600 and the names white at 100. Role above never asks (node, and the row-19 e2e) |
+| Name layer picked as Credits | Node: credits-1's first name gives the same anchors, list and field count as its role. credits-2's Émilie Lac, alone on its line, reads from Image, as picking Image does. A later role (Sound) reads `Sound:\nAri Moss`. Under a title in the name look or the role look, a picked role keeps roles as roles and a picked name reads from its own role. With a role that has no names (Producer), Editor reads `Editor:\nMia Holt` and a name reads from its own role. e2e: picking the first role and then Léa Orme saves the styled binding for Léa and rolls all five rows |
 | Fallback explained in one line | e2e: picking the title shows "Fixed artwork: <reason>" and its row scrolls as artwork; a stylable pick shows no such line |
 | Source and animation identity | Node "role beside keeps the source layers": the take moves the roll's own group, a second take measures the same roll, and Out stops it. Every source layer's markup is unchanged after a take and stays hidden, and a reset of inline styles leaves the rows as built |
 | Not cr02 | The rows are copies of the imported drawing's own layers (above). Nothing in the engine reads a catalog design |
@@ -84,6 +86,7 @@ Mutations, each caught:
 - Each column's room set to the whole window: the overflow test fails.
 - No reading from a picked name's role: two node tests fail.
 - The question decided by the analysis of the drawing (the old rule): the question test fails.
+- Role above without the group-air check: four node tests fail.
 - e2e, in one run (j-0003, 2 failed): the Roles answer not applied, together with
   `styledCreditsOf` restored to "the first anchor only".
 - e2e (j-0006, 1 failed): the binding not re-saved when the pick moves to another layer of the
@@ -91,13 +94,13 @@ Mutations, each caught:
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 40/40. `scripts/imported-credits-source.test.mjs`: 14/14.
+- `node --test scripts/imported-credits-model.test.mjs`: 41/41. `scripts/imported-credits-source.test.mjs`: 14/14.
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
   worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
-  j-0007, j-0008, j-0009, j-0010, and j-0011 on the final code). Mutation runs j-0003 and j-0006
+  j-0007, j-0008, j-0009, j-0010, j-0011, and j-0012 on the final code). Mutation runs j-0003 and j-0006
   above. `check-e2e-protection --changed origin/main`: OK.
 - Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
   the Roles question (Left) and the two columns showed, with no console errors.
@@ -137,12 +140,18 @@ Mutations, each caught:
     the commit hook refused the command that carried it.
   Its points 4 to 7 are non-blocking: the fixed-artwork departure (#1958), and phase 18's
   pick-the-first-role limit. The Codex fix itself is sound without a title.
+- Codex on `7e76517` (2 x P2, product defects, same family):
+  - the role-above run heuristic took consecutive role lines (a role with no names) for names;
+  - in a right-to-left drawing, the Left / Right labels followed whichever reading worked.
+  Role above now trusts only what the drawing proves, the group-air check. The labels come from
+  the drawing's direction.
 - **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
   picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
   the rule model was rewritten (What changed, `creditsPreview`):
   - the question follows the drawing's geometry (a line holding a role and a name);
-  - the role look follows the column answer in role beside, and drawn evidence in role above;
-  - a role picked keeps row 19's reading.
+  - the role look follows the column answer in role beside;
+  - role above keeps row 19's reading of a picked role unless the group-air check fails, and
+    infers nothing else.
   Tests: "a picked layer is a role or a name by the drawing's role look", "a drawing with a role
   and a name on one line always gets the column question", "a title above the credits, in either
   look, changes neither the kinds nor the question".
@@ -175,18 +184,20 @@ Mutations, each caught:
 - **The saved answer is the anchors**, not a new field in the saved graphic. The kinds are what
   the runtime copies, and `validateCreditsBinding` already accepts either answer (row 18). The
   wizard draft also keeps the answer, so the step can show it and apply it again.
-- **Identity from the drawing, not the reading.** Role beside, the column answer decides it. Role
-  above has no answer to ask for, so drawn evidence decides it: names run on consecutive lines,
-  and groups are separated by the widest step. Without evidence, the picked layer is the role,
-  so row 19's reading of a role picked never changes.
+- **Identity from the drawing, not the reading.** In role beside, the column answer decides it.
+  Role above has no answer to ask for, so the picked layer is the role, as in row 19, unless the
+  reading breaks the group-air rule (the air between groups is wider than a role's step to its
+  first name). Runs of one look prove nothing, because a role with no names makes them too.
 - **Ordinary review scenario.** A renderer, one select and two draft fields; no state rule changes.
 
 ## Known limits
 
 - Picking a role or name below the first group lists from that group down (phase 18's limit,
   now also for names). The author picks the first role, or a name on its line; the e2e does.
-- Role above with no drawn evidence (one name per role and even steps): a name picked reads as a
-  role, as on `main`. The author picks the first role.
+- Role above: a name picked where the reading from it still keeps the group-air rule (for
+  example a single group with even steps) reads as a role, as on `main`. The preview shows this,
+  and the author picks the first role. A page drawn with less air between groups than between
+  a role and its name reads only from its first role.
 - No deliberate fixed-artwork choice for credits that can be styled (Decisions; #1958, P2). A
   drawing that cannot be styled still saves the original-text roll, as before.
 - The Behaviour summary still says the original artwork scrolls. That is the recipe's own line

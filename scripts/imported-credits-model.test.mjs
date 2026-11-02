@@ -106,6 +106,10 @@ const STYLED_CASES = {
   // Role above under a title in the NAME look, and the names-left drawing under one.
   titledNameLook: svg(`${t(100, 40, 40, 'THE TEAM')}${t(100, 140, 24, 'Director', ' fill="#fc0"')}${t(100, 200, 40, 'Alex Rivera')}${t(100, 250, 40, 'Ida Lake')}${t(100, 370, 24, 'Sound', ' fill="#fc0"')}${t(100, 430, 40, 'Ari Moss')}`),
   namesLeftNameTitle: svg(`${t(100, 40, 40, 'THE TEAM')}${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}`),
+  // A role with no names among others (consecutive role lines), and a right-to-left drawing with
+  // the names on the right, the roles on the left, and a last name on its own line.
+  emptyRole: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 260, 24, 'Producer', ' fill="#fc0"')}${t(100, 360, 24, 'Editor', ' fill="#fc0"')}${t(100, 420, 40, 'Mia Holt')}`),
+  rtlNamesRight: svg(`${t(900, 100, 40, 'דנה לוי', ' direction="rtl"')}${t(300, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(900, 270, 40, 'יוסי כהן', ' direction="rtl"')}${t(300, 270, 24, 'צילום', ' fill="#fc0" direction="rtl"')}${t(900, 325, 40, 'רון בר', ' direction="rtl"')}`),
   // Right to left: the role column on the right, read first.
   hebrewBeside: svg(`${t(900, 100, 24, 'במאי', ' fill="#fc0" direction="rtl"')}${t(600, 100, 40, 'דנה לוי', ' direction="rtl"')}${t(600, 155, 40, 'יוסי כהן', ' direction="rtl"')}`),
 };
@@ -402,6 +406,11 @@ async function inPage({ dev, cases, legacy, artwork }) {
     roleTitleName: previewOf(cases.headingAbove, 'Alex Rivera'),
     namesLeftNameTitle: previewOf(cases.namesLeftNameTitle, 'Director'),
     namesLeftNameTitleChosen: previewOf(cases.namesLeftNameTitle, 'Director', { swap: true }),
+    emptyEditor: previewOf(cases.emptyRole, 'Editor'),
+    emptyProducer: previewOf(cases.emptyRole, 'Producer'),
+    emptyName: previewOf(cases.emptyRole, 'Alex Rivera'),
+    rtlTailAsRead: previewOf(cases.rtlNamesRight, 'רון בר'),
+    rtlTailChosen: previewOf(cases.rtlNamesRight, 'רון בר', { swap: true }),
   };
   const styled = {
     one: styledOf(dev[0].markup, 'Research'),
@@ -1098,4 +1107,21 @@ test('row 20: a title above the credits, in either look, changes neither the kin
   assert.deepEqual(groups(P.roleTitleName), [['Director', ['Alex Rivera']], ['Sound', ['Ari Moss']]], 'a name under a role-look title reads from its own role');
   assert.equal(P.namesLeftNameTitle.ambiguous, true, 'a title in the name look does not hide the question');
   assert.deepEqual(groups(P.namesLeftNameTitleChosen), want);
+});
+
+test('row 20: a role with no names keeps roles as roles; a right-to-left question keeps its labels', () => {
+  // Codex on 7e76517: consecutive role lines were taken for names, and the column labels followed
+  // whichever reading worked.
+  const groups = (p) => p.list.flat().map((e) => [e.role, e.names]);
+  const P = R.previews;
+  assert.deepEqual(groups(P.emptyEditor), [['Editor', ['Mia Holt']]]);
+  assert.deepEqual(groups(P.emptyProducer), [['Producer', []], ['Editor', ['Mia Holt']]]);
+  assert.deepEqual(groups(P.emptyName), [['Director', ['Alex Rivera']], ['Producer', []], ['Editor', ['Mia Holt']]], 'a name reads from its own role');
+  // Right to left, the drawn reading takes the right column (the names) for roles and fails on
+  // the last name; the answer reads it under צילום. Both carry the drawing's direction.
+  assert.equal(P.rtlTailAsRead.styled, false);
+  assert.equal(P.rtlTailAsRead.ambiguous, true);
+  assert.equal(P.rtlTailAsRead.rtl, true, 'the labels follow the drawing, not the reading that worked');
+  assert.equal(P.rtlTailChosen.rtl, true);
+  assert.deepEqual(groups(P.rtlTailChosen), [['צילום', ['יוסי כהן', 'רון בר']]]);
 });

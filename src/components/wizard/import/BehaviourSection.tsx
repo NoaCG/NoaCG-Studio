@@ -167,7 +167,8 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   }, [shown, wantKey, savedKey]);
   if (!shown) return null;
   const beside = shown.styled && shown.layout === 'role-beside';
-  const rtl = shown.styled && shown.rtl;
+  // The drawing's direction, not the shown reading's, so the labels stay put whichever works.
+  const rtl = readings?.read.rtl ?? false;
   return (
     <>
       {readings?.swapped && (
