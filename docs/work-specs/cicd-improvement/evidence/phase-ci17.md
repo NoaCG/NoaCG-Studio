@@ -240,7 +240,7 @@ diffs: five configured-suite stack starts (#1865, #1829), `production-chat-intak
   delivery-time report exists.
 - **Sample sufficiency.** Not sufficient. The one live weekly collection (ci18) was a 100-call
   sample against the 550 the production job uses, and every tier was partial. `weekly-audit.yml`
-  runs Mondays at 06:00 UTC; its last runs before ci18 started 6 to 9 hours late (2026-10-19,
+  runs Mondays at 06:00 UTC; its last three scheduled runs before ci18 started 6.6 to 9 hours late (2026-10-12 to
   2026-10-26), and the first scheduled run after ci18 (2026-11-02) had not run when this file was
   written. No percentile is invented.
 - **Weekly ownership.** Every owner string reads "cicd-improvement plan coordinator (run issue

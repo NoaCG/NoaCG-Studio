@@ -11,7 +11,7 @@
     "evidence": [
       {
         "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-        "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+        "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
       }
     ],
     "criteria": [
@@ -21,7 +21,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci01.md",
@@ -35,7 +35,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci02.md",
@@ -49,7 +49,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci07.md",
@@ -71,7 +71,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci04.md",
@@ -101,7 +101,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci08.md",
@@ -139,7 +139,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci03.md",
@@ -165,7 +165,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci01.md",
@@ -187,7 +187,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci17.md",
-            "sha256": "b42c4bc48f0d4b48e8fa8c2d641afa4efd8a760c9ae3e8be3946211187198416"
+            "sha256": "cd20d9fd878e48435371c657eb242b7b24f479050191bd0d41ad0d42f294b73c"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci18.md",
