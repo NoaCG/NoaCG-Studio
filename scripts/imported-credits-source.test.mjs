@@ -2,6 +2,7 @@
 // guards: src/control/contentFormats.ts
 // guards: src/control/sheetSource.ts
 // guards: src/templates/behaviours/credits.ts
+// guards: src/templates/importedDesign/creditsRoll.ts
 //
 // AN IMPORTED CREDITS LIST FOLLOWS A SHEET THROUGH THE EXISTING CREDITS ADAPTER (jev-svg-import
 // row 17, AC-14, credits half).
@@ -22,6 +23,9 @@
 //   - the update policy that exists today: the editable roll rebuilds from the written list on
 //     update(); the artwork roll is offered nothing to follow;
 //   - no model request: the only address fetched is the Sheet's own export.
+// And the preview (row 18, AC-23): the wizard reads the same list through the shipped parser,
+// headings, roles and their zero, one or several names in order, for role above and beside and
+// each playback, with one choice where a drawing's columns could each be the roles.
 // Templates are built on one blank Chromium page from the real importer (scripts/catalog-emit.mjs).
 
 import assert from 'node:assert/strict';
@@ -51,11 +55,12 @@ const BUILT = await withBundledPage(
     ['assets/svgImport.ts', 'NOACG_SVG'],
     ['templates/importedDesign/svg.ts', 'NOACG_IMPORTED'],
     ['templates/behaviours/credits.ts', 'NOACG_RECIPE'],
+    ['templates/importedDesign/creditsRoll.ts', 'NOACG_ROLL'],
   ].map(([rel, globalName]) => ({ entry: path.join(root, 'src', rel), globalName })),
   (page) =>
     page.evaluate(
-      ({ legacy, artwork, drawn }) => {
-        const { NOACG_SVG: R, NOACG_IMPORTED: I, NOACG_RECIPE: C } = window;
+      ({ legacy, artwork, drawn, beside, synthetic, list }) => {
+        const { NOACG_SVG: R, NOACG_IMPORTED: I, NOACG_RECIPE: C, NOACG_ROLL: P } = window;
         const fieldsOf = (imp) => imp.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
         const base = (imp, behaviour) => ({ markup: imp.markup, width: imp.width, height: imp.height, fields: fieldsOf(imp), images: [], outlines: [], fonts: [], ...(behaviour ? { behaviour } : {}) });
         const build = (designSvg) => I.IMPORTED_SVG.create({ designSvg });
@@ -70,9 +75,85 @@ const BUILT = await withBundledPage(
           artwork: build(base(A, { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: A.candidates.findIndex((c) => c.label === 'Programme text') }, options: { artwork: true } })),
           // A credits drawing imported as plain text fields.
           plain: build(base(R.importSvgMarkup(drawn))),
+          preview: (() => {
+            // The step's own render: the sanitized markup laid out on the page.
+            const laid = (imp) => {
+              const host = document.createElement('div');
+              host.innerHTML = imp.markup;
+              document.body.appendChild(host);
+              return host.firstElementChild;
+            };
+            const ids = (imp) => imp.candidates.map((c) => c.id);
+            const idOf = (imp, words) => imp.candidates.find((c) => c.sample === words).id;
+            const show = (markup, words, choice) => {
+              const imp = R.importSvgMarkup(markup);
+              const out = P.creditsPreview(laid(imp), ids(imp), idOf(imp, words), choice);
+              return { ...out, ...(out.anchors ? { anchors: out.anchors.map((a) => `${imp.candidates.find((c) => c.id === a.candidateId).sample}:${a.kind}`) } : {}) };
+            };
+            // One list for every layout and playback: a styled binding of each, its list field
+            // found by the Sheet the same way, every binding valid against its drawing.
+            const bindings = [[drawn, 'Research'], [beside, 'Réalisation']].flatMap(([markup, words]) => {
+              const imp = R.importSvgMarkup(markup);
+              const root = laid(imp);
+              const read = P.creditsPreview(root, ids(imp), idOf(imp, words));
+              const fields = fieldsOf(imp).filter((f) => f.candidateId === idOf(imp, words));
+              return ['static', 'roll', 'cards'].map((playback) => {
+                const svg = { ...base(imp), fields, behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 }, credits: { v: 1, layout: read.layout, playback, anchors: read.anchors } } };
+                return { layout: read.layout, playback, errors: P.validateCreditsBinding(svg, root), js: build(svg).js };
+              });
+            });
+            // A saved binding of each reading of the ambiguous drawing, validated against it.
+            const swapCheck = (() => {
+              const imp = R.importSvgMarkup(synthetic.nameFirst);
+              const root = laid(imp);
+              const id = idOf(imp, 'Alex Rivera');
+              const fields = fieldsOf(imp).filter((f) => f.candidateId === id);
+              const check = (choice) => {
+                const read = P.creditsPreview(root, ids(imp), id, choice);
+                return P.validateCreditsBinding({ ...base(imp), fields, behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 }, credits: { v: 1, layout: read.layout, playback: 'cards', anchors: read.anchors } } }, root);
+              };
+              // Kinds no reading gives: every layer a role but the last.
+              const read = P.creditsPreview(root, ids(imp), id);
+              const bogus = read.anchors.map((a, i) => ({ ...a, kind: i === read.anchors.length - 1 ? 'name' : 'role' }));
+              return {
+                read: check({}),
+                swapped: check({ swap: true }),
+                bogus: P.validateCreditsBinding({ ...base(imp), fields, behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: 0 }, credits: { v: 1, layout: read.layout, playback: 'cards', anchors: bogus } } }, root),
+              };
+            })();
+            return {
+              swapCheck,
+              above: show(drawn, 'Research'),
+              beside: show(beside, 'Réalisation'),
+              legacy: show(legacy, L.candidates.find((c) => c.label === 'Credits').sample),
+              nameFirst: show(synthetic.nameFirst, 'Alex Rivera'),
+              nameFirstSwapped: show(synthetic.nameFirst, 'Alex Rivera', { swap: true }),
+              turned: show(synthetic.turned, 'Director'),
+              hebrew: show(synthetic.hebrew, 'במאי'),
+              hebrewSwapped: show(synthetic.hebrew, 'במאי', { swap: true }),
+              title: show(drawn, R.importSvgMarkup(drawn).candidates[0].sample),
+              list: P.readCreditsList(list),
+              bindings,
+            };
+          })(),
         };
       },
-      { legacy: fixture('credits-roll.svg'), artwork: fixture('credits-artwork.svg'), drawn: fixture('jev-svg/dev/credits-1.svg') },
+      {
+        legacy: fixture('credits-roll.svg'),
+        artwork: fixture('credits-artwork.svg'),
+        drawn: fixture('jev-svg/dev/credits-1.svg'),
+        beside: fixture('jev-svg/dev/credits-2.svg'),
+        list: '# PRODUCTION\nDirector | Alex Rivera\nCamera | Jonas Berg\nLena Fors\nPetri Salo\nSound:\n\n# THANKS\nCatering | Dot & Co',
+        synthetic: {
+          // Names in the left column, roles on the right: geometry alone cannot say which.
+          nameFirst: `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff"><text x="100" y="100" font-size="40">Alex Rivera</text><text x="600" y="100" font-size="24" fill="#fc0">Director</text><text x="100" y="200" font-size="40">Ari Moss</text><text x="600" y="200" font-size="24" fill="#fc0">Sound</text></svg>`,
+          // Role beside, the whole block turned 8 degrees counterclockwise: a name right of its
+          // role sits higher in the artwork's frame than the role does.
+          turned: `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff"><g transform="translate(100 200) rotate(-8)"><text x="0" y="0" font-size="24" fill="#fc0">Director</text><text x="500" y="0" font-size="40">Alex Rivera</text><text x="0" y="100" font-size="24" fill="#fc0">Sound</text><text x="500" y="100" font-size="40">Ari Moss</text></g></svg>`,
+          // Hebrew role beside its name: the role is on the right, where the line starts.
+          hebrew: `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff"><text x="900" y="100" font-size="24" fill="#fc0" direction="rtl">במאי</text><text x="600" y="100" font-size="40" direction="rtl">דנה לוי</text><text x="900" y="200" font-size="24" fill="#fc0" direction="rtl">צילום</text><text x="600" y="200" font-size="40" direction="rtl">יוסי כהן</text><text x="600" y="250" font-size="40" direction="rtl">רות גל</text></svg>`,
+        },
+      },
     ),
 );
 const named = (template, name) => ({ ...template, name });
@@ -170,6 +251,88 @@ test('role and name columns, headings, order and several names per role reach th
   ]);
   // The same list pasted into the cue reads the same: one adapter for both.
   assert.equal(formats.fillList(formats.graphicListFormat(shapeOf(EDITABLE)), TAB).values.f1, TAB_TEXT);
+});
+
+// ── The preview (row 18, AC-23) ──────────────────────────────────────────────────────────────
+
+const PREVIEW = BUILT.preview;
+const TAB_LIST = [
+  [
+    { type: 'heading', text: 'PRODUCTION' },
+    { type: 'group', role: 'Director', names: ['Alex Rivera'] },
+    { type: 'group', role: 'Camera', names: ['Jonas Berg', 'Lena Fors', 'Petri Salo'] },
+    { type: 'group', role: 'Sound', names: [] },
+  ],
+  [
+    { type: 'heading', text: 'THANKS' },
+    { type: 'group', role: 'Catering', names: ['Dot & Co'] },
+  ],
+];
+
+test('preview: the Sheet\'s list reads as headings, roles and zero, one or several names, in order, by the shipped parser', () => {
+  // The same text a Sheet writes into the field (test above): one reading for source and preview.
+  assert.equal(sheet.sheetContent('credits', TAB).leaves.lines, TAB_TEXT);
+  assert.deepEqual(PREVIEW.list, TAB_LIST);
+  assert.deepEqual(PREVIEW.list, parseCredits(TAB_TEXT), 'the preview reads exactly what the roll parses');
+});
+
+test('preview: role above and role beside read off the drawing, the one list kept, a title drawn above left as artwork', () => {
+  assert.equal(PREVIEW.above.styled, true);
+  assert.equal(PREVIEW.above.layout, 'role-above');
+  assert.equal(PREVIEW.above.ambiguous, false, 'above, the order says which look is the role');
+  assert.deepEqual(PREVIEW.above.list, [[
+    { type: 'group', role: 'Research', names: ['Nia Vale', 'Tomas Fen'] },
+    { type: 'group', role: 'Sound', names: ['Ari Moss'] },
+  ]]);
+  assert.deepEqual(PREVIEW.above.anchors, ['Research:role', 'Nia Vale:name', 'Tomas Fen:name', 'Sound:role', 'Ari Moss:name']);
+
+  assert.equal(PREVIEW.beside.styled, true);
+  assert.equal(PREVIEW.beside.layout, 'role-beside');
+  assert.deepEqual(PREVIEW.beside.list, [[
+    { type: 'group', role: 'Réalisation', names: ['Léa Orme'] },
+    { type: 'group', role: 'Image', names: ['Noé Rivage', 'Émilie Lac'] },
+  ]]);
+  // A layer that is not a role or name of the drawing previews as its own text, never a guess.
+  assert.equal(PREVIEW.title.styled, false);
+  // The editable roll's one multi-line sample previews as the list it is.
+  assert.equal(PREVIEW.legacy.styled, false);
+  assert.ok(PREVIEW.legacy.list.flat().some((item) => item.type === 'group' && item.names.length > 1), JSON.stringify(PREVIEW.legacy.list));
+});
+
+test('preview: ambiguous columns get one choice; right-to-left lines read from the right', () => {
+  // Names drawn left of their roles: read left to right the names would be roles, and nothing in
+  // the geometry says otherwise, so the author gets the one choice and its answer swaps them.
+  assert.equal(PREVIEW.nameFirst.ambiguous, true);
+  assert.deepEqual(PREVIEW.nameFirst.list, [[{ type: 'group', role: 'Alex Rivera', names: ['Director'] }, { type: 'group', role: 'Ari Moss', names: ['Sound'] }]]);
+  assert.deepEqual(PREVIEW.nameFirstSwapped.list, [[{ type: 'group', role: 'Director', names: ['Alex Rivera'] }, { type: 'group', role: 'Sound', names: ['Ari Moss'] }]]);
+  assert.deepEqual(PREVIEW.nameFirstSwapped.anchors, ['Director:role', 'Alex Rivera:name', 'Sound:role', 'Ari Moss:name']);
+  // Either answer saves as a valid binding of that drawing; kinds neither reading gives do not.
+  assert.deepEqual(PREVIEW.swapCheck.read, []);
+  assert.deepEqual(PREVIEW.swapCheck.swapped, []);
+  assert.ok(PREVIEW.swapCheck.bogus.some((e) => e.startsWith('stale-anchors')), JSON.stringify(PREVIEW.swapCheck.bogus));
+  // A turned block is read in its own frame: the first role keeps its name.
+  assert.equal(PREVIEW.turned.layout, 'role-beside');
+  assert.deepEqual(PREVIEW.turned.list, [[{ type: 'group', role: 'Director', names: ['Alex Rivera'] }, { type: 'group', role: 'Sound', names: ['Ari Moss'] }]]);
+  // Hebrew: the role starts the line at the right, so it reads first without any choice (#1941).
+  assert.equal(PREVIEW.hebrew.rtl, true);
+  assert.equal(PREVIEW.hebrew.layout, 'role-beside');
+  assert.deepEqual(PREVIEW.hebrew.list, [[{ type: 'group', role: 'במאי', names: ['דנה לוי'] }, { type: 'group', role: 'צילום', names: ['יוסי כהן', 'רות גל'] }]]);
+  assert.deepEqual(PREVIEW.hebrewSwapped.list.flat().map((g) => g.role), ['דנה לוי', 'יוסי כהן', 'רות גל'], 'the choice still reads the other column');
+});
+
+test('preview: one list field, one Sheet source, through role above and beside and static, roll and cards', () => {
+  assert.deepEqual(PREVIEW.bindings.map((b) => `${b.layout}/${b.playback}`), [
+    'role-above/static', 'role-above/roll', 'role-above/cards', 'role-beside/static', 'role-beside/roll', 'role-beside/cards',
+  ]);
+  for (const b of PREVIEW.bindings) {
+    const label = `${b.layout}/${b.playback}`;
+    assert.deepEqual(b.errors, [], `${label}: a valid binding of its drawing`);
+    const shape = { type: 'imported-design', template: { js: b.js } };
+    const format = formats.graphicListFormat(shape);
+    assert.deepEqual(format, { adapter: 'credits', main: 'f0' }, `${label}: one list field`);
+    assert.equal(sheet.sheetShapeFor(shape), 'credits', `${label}: the same Sheet adapter`);
+    assert.equal(formats.fillList(format, TAB).values.f0, TAB_TEXT, `${label}: the same list text`);
+  }
 });
 
 // ── The review, its save and its reopening ──────────────────────────────────────────────────

@@ -47,6 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
+import { creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
@@ -108,6 +109,68 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
   const words = BEHAVIOUR_WORDS[recipeIdOf(b)];
   return words ? `a ${words.name.toLowerCase().replace(/^the /, '')}` : recipeIdOf(b);
 }
+/**
+ * THE CREDITS LIST AS IT WILL READ (jev-svg-import AC-23): headings, each role with its zero, one
+ * or several names, and loose names, in the list's order, read from the one list the Credits
+ * layer declares by the parser every credits roll ships (`creditsPreview`). The same text is what
+ * a linked Sheet writes into that field, so the preview and the source cannot disagree. Where
+ * roles and names are drawn as separate layers it also shows the drawing's layout.
+ *
+ * NO COLUMN CHOICE YET. Where either column could be the roles, the model takes the author's one
+ * answer (`CreditsChoice`), but new credits imports are saved as artwork credits, which never read
+ * roles, so a select here would change nothing built: it is offered with the styled binding (#1937).
+ */
+function CreditsListPreview({ stage, layers, creditsId, measured }: {
+  stage: RefObject<HTMLDivElement | null>;
+  layers: SvgImportResult['candidates'];
+  creditsId: string;
+  /** Changes whenever the step's render was measured again (a font landed, a new file). */
+  measured: unknown;
+}) {
+  // The parent passes a fresh list every render; the ids are what the reading depends on.
+  const idKey = layers.map((c) => c.id).join('\n');
+  const shown = useMemo(() => {
+    const root = stage.current?.querySelector('svg');
+    return root ? creditsPreview(root, idKey.split('\n'), creditsId) : null;
+    // `measured` stands for the stage's render, which a ref cannot announce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, idKey, creditsId, measured]);
+  if (!shown) return null;
+  const beside = shown.styled && shown.layout === 'role-beside';
+  return (
+    <div className="save-field" data-testid="map-svg-credits-preview" data-layout={shown.styled ? shown.layout : 'list'}>
+      <span>Credits preview</span>
+      <div dir={shown.styled && shown.rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
+        {shown.list.map((section, at) => (
+          <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
+            {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** One heading, role group or loose name. Beside, a role and its first name share a line and
+ *  later names stay in the name column; above, the names follow under their role. */
+function CreditsPreviewItem({ item, beside, first }: { item: CreditsListItem; beside: boolean; first: boolean }) {
+  const whole = { gridColumn: '1 / -1' };
+  if (item.type === 'heading') return <strong style={whole} data-credit="heading">{item.text}</strong>;
+  if (item.type === 'entry') return <span style={beside ? { gridColumn: 2 } : undefined} data-credit="name">{item.text}</span>;
+  return (
+    <>
+      <span className="hint" style={beside ? { gridColumn: 1, gridRow: `span ${Math.max(1, item.names.length)}` } : first ? undefined : { marginTop: '0.4em' }} data-credit="role">
+        {item.role}
+      </span>
+      {item.names.map((name, i) => (
+        <span key={i} style={beside ? { gridColumn: 2 } : undefined} data-credit="name">
+          {name}
+        </span>
+      ))}
+    </>
+  );
+}
+
 function behaviourSummaryLine(b: SvgBehaviourDraft): string {
   const words = BEHAVIOUR_WORDS[recipeIdOf(b)];
   return words ? `${behaviourNoun(b)}: ${words.verbs}` : recipeIdOf(b);
@@ -1199,6 +1262,14 @@ export default function BehaviourSection({
                 </>
               )}
               <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
+              {generic.recipe === 'credits' && generic.fields?.credits && (
+                <CreditsListPreview
+                  stage={stageRef}
+                  layers={textLayers}
+                  creditsId={generic.fields.credits}
+                  measured={layerBoxes}
+                />
+              )}
             </>
           )}
           {quiz && (
