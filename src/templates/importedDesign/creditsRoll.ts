@@ -81,14 +81,29 @@ export function creditsArtworkFields(svg: DesignSvg, root?: Element): Set<number
   const field = svg.fields[creditsIndex(svg)];
   if (!field) return indices;
   const scope = root ?? new DOMParser().parseFromString(svg.markup, 'image/svg+xml').documentElement;
-  const selected = scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${field.candidateId}"]`);
-  const text = selected?.closest('text') ?? selected;
+  const textOf = (candidateId: string) => {
+    const node = scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
+    return node?.closest('text') ?? node;
+  };
+  const text = textOf(field.candidateId);
   if (!text) return indices;
+  // Credits drawn as separate role and name layers scroll as one block: every layer the binding
+  // names is protected as the Credits text is (#1958).
+  const block = new Set([text, ...creditsArtworkLayers(svg).map(textOf)]);
   svg.fields.forEach((candidate, i) => {
-    const node = scope.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidate.candidateId}"]`);
-    if (node && (node.closest('text') ?? node) === text) indices.add(i);
+    const node = textOf(candidate.candidateId);
+    if (node && block.has(node)) indices.add(i);
   });
   return indices;
+}
+
+/** The other text layers a fixed-artwork binding scrolls with its Credits text: the role and name
+ *  layers of credits drawn as separate layers (`DesignSvgRecipeBehaviour.artworkLayers`). Empty for
+ *  credits drawn as one text, as every binding saved before #1958 is, and for any other engine. */
+export function creditsArtworkLayers(svg: DesignSvg): string[] {
+  const behaviour = svg.behaviour;
+  if (!isArtworkCredits(svg) || behaviour?.kind !== 'recipe') return [];
+  return (behaviour.artworkLayers ?? []).filter((id) => typeof id === 'string');
 }
 
 /**
@@ -578,16 +593,26 @@ export const CREDITS_ANCHOR_ATTR = 'data-noacg-credit';
 /** Stamp the source layers of a styled binding (svgBind.ts, before the markers come off): each
  *  text takes the sample's class, hidden on air, and its place in reading order with its kind. */
 export function creditsMarkAnchors(svg: DesignSvg, root: Element, prefix: string): void {
+  // A fixed-artwork block's layers take the class whether or not they are fields, so a layer the
+  // author left unticked scrolls with the rest rather than standing still.
+  for (const id of creditsArtworkLayers(svg)) {
+    const text = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${id}"]`)?.closest('text');
+    if (text) addCreditsClass(text, prefix);
+  }
   const style = styledCredits(svg);
   if (!style) return;
   style.anchors.forEach((a, i) => {
     const text = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${a.candidateId}"]`)?.closest('text');
     if (!text) return;
     text.setAttribute(CREDITS_ANCHOR_ATTR, `${i} ${a.kind}`);
-    const own = (text.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-    if (!own.includes(creditsClass(prefix))) own.push(creditsClass(prefix));
-    text.setAttribute('class', own.join(' '));
+    addCreditsClass(text, prefix);
   });
+}
+
+function addCreditsClass(text: Element, prefix: string): void {
+  const own = (text.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+  if (!own.includes(creditsClass(prefix))) own.push(creditsClass(prefix));
+  text.setAttribute('class', own.join(' '));
 }
 
 /** What the styled runtime is built with, read off the drawing at build. */

@@ -120,15 +120,15 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above or
  * role beside, as a roll), the graphic is built in those layers' own styling by default: the
  * reading is handed to the draft as the binding, its anchors exactly as previewed. Anything else
- * saves the original-text roll, and the preview says in one line why. No fixed-artwork choice is
- * offered for credits that can be styled: the artwork roll moves only the Credits layer's own
- * text, so for separate role and name layers it would half-scroll (#1958).
+ * saves the original-text roll, and the preview says in one line why. Credits that can be styled
+ * may deliberately be kept as fixed artwork instead: the whole drawn block then scrolls as drawn
+ * (`artworkLayers`, #1958), and one line says its text cannot be edited.
  *
  * ONE COLUMN CHOICE. Only role beside can be read both ways (`CreditsChoice`); where it can, the
  * author answers which column holds the roles. The answer changes the preview and the saved
  * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, onPatch }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
@@ -139,7 +139,9 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   saved: DesignSvgCredits | undefined;
   savedFor: string | undefined;
   swap: boolean;
-  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap'>) => void;
+  /** The author chose fixed artwork for credits that could be styled. */
+  fixed: boolean;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
@@ -165,7 +167,9 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
   const savedKey = saved ? `${savedFor} ${JSON.stringify(saved)}` : '';
   useEffect(() => {
-    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined });
+    // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork answer goes
+    // with it rather than coming back unseen on the next stylable pick.
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined }) });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
@@ -173,9 +177,24 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   const beside = shown.styled && shown.layout === 'role-beside';
   // The drawing's direction, not the shown reading's, so the labels stay put whichever works.
   const rtl = readings?.read.rtl ?? false;
+  // Only credits that can be styled offer the choice; the one that cannot is fixed artwork anyway.
+  const artwork = !!reading && fixed;
   return (
     <>
-      {asks && (
+      {reading && (
+        <label className="save-field">
+          <span>Show as</span>
+          <select
+            value={artwork ? 'artwork' : 'editable'}
+            onChange={(e) => onPatch({ creditsArtwork: e.target.value === 'artwork' ? true : undefined })}
+            data-testid="map-svg-credits-engine"
+          >
+            <option value="editable">Editable, in this design&apos;s styling</option>
+            <option value="artwork">Fixed artwork</option>
+          </select>
+        </label>
+      )}
+      {asks && !artwork && (
         <label className="save-field">
           <span>Which column contains the roles?</span>
           <select value={swap ? 'other' : 'first'} onChange={(e) => onPatch({ creditsSwap: e.target.value === 'other' ? true : undefined })} data-testid="map-svg-credits-roles">
@@ -194,6 +213,7 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
           ))}
         </div>
         {!shown.styled && <p className="hint" data-testid="map-svg-credits-fallback">Fixed artwork: {shown.reason}</p>}
+        {artwork && <p className="hint" data-testid="map-svg-credits-fixed">The text stays part of the artwork and cannot be edited on the production page.</p>}
       </div>
     </>
   );
@@ -1319,6 +1339,7 @@ export default function BehaviourSection({
                   saved={generic.credits}
                   savedFor={generic.creditsFor}
                   swap={!!generic.creditsSwap}
+                  fixed={!!generic.creditsArtwork}
                   onPatch={patchGeneric}
                 />
               )}

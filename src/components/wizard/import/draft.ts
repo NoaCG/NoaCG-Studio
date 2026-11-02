@@ -274,6 +274,9 @@ export interface SvgRecipeDraft {
   /** Credits only: the author's answer where either drawn column could be the roles - the other
    *  column (`CreditsChoice.swap`). */
   creditsSwap?: true;
+  /** Credits only: the author chose to keep credits that could be styled as fixed artwork. The
+   *  reading in `credits` is kept: its layers are the block that scrolls (`artworkLayers`). */
+  creditsArtwork?: true;
 }
 
 export interface SvgRecipeRow {
@@ -478,6 +481,8 @@ export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | u
  *  itself, with what each sets the look of. They are kept out of the field list (`pollDrivenLayers`)
  *  and the Text step says what each becomes. */
 export function creditsSourceLayers(behaviour: SvgRecipeDraft): Map<string, 'role' | 'name'> {
+  // Kept as fixed artwork, the layers are part of the artwork that scrolls, never copied.
+  if (behaviour.creditsArtwork) return new Map();
   const anchors = styledCreditsOf(behaviour)?.anchors ?? [];
   return new Map(anchors.filter((a) => a.candidateId !== behaviour.fields?.credits).map((a) => [a.candidateId, a.kind]));
 }
@@ -1330,9 +1335,13 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       // New Credits imports preserve the complete text artwork. An old saved DesignSvg without
       // this additive marker still assembles its editable roll; no second import option is shown.
       // Credits drawn as separate role and name layers, in a layout the styled engine renders,
-      // save that binding instead (the step read it off the drawing): never both.
-      ...(styled
+      // save that binding instead (the step read it off the drawing): never both. Kept as fixed
+      // artwork by the author's choice, they save the artwork roll naming every other layer of
+      // the block, so the whole drawing scrolls (#1958).
+      ...(styled && !behaviour.creditsArtwork
         ? { credits: styled, ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}) }
+        : styled
+        ? { options: { ...behaviour.options, artwork: true }, artworkLayers: styled.anchors.map((a) => a.candidateId).filter((id) => id !== behaviour.fields?.credits) }
         : behaviour.recipe === 'credits'
         ? { options: { ...behaviour.options, artwork: true } }
         : Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
