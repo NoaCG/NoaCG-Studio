@@ -654,7 +654,7 @@ var noacgCreditsSince = 0;
 // What the cards show now, for a reader: each card's rows, share and refusal, and the one shown.
 var noacgCreditsLast = null;
 
-// creditsCardTime(): the operator's Card time in seconds, held to ${CREDITS_CARD_SECONDS.min}-${CREDITS_CARD_SECONDS.max}, or null when blank:
+// creditsCardTime(): the operator's Card time in seconds (0 or less counts as blank), held to ${CREDITS_CARD_SECONDS.min}-${CREDITS_CARD_SECONDS.max}, or null when blank:
 // then a card changes only on Next card.
 function creditsCardTime() {
   var el = creditsField('${CREDITS_CARD_TIME_KEY}');
@@ -689,6 +689,8 @@ function creditsCardsOf(probe) {
   }
   if (glued) units.push(glued);
   if (!units.length) return [];
+  // Nothing measured (no window yet, or the probe built other rows): the whole list is one card,
+  // which the still page's rule fits or refuses, reported as ever. Nothing is clipped.
   if (!probe || !probe.made || probe.made.length !== at) return [{ from: 0, to: at }];
   var base = [], low = [];
   for (var r = 0; r < probe.made.length; r++) {
@@ -759,11 +761,7 @@ function creditsArm(after) {
   noacgCreditsHold = creditsCardTime();
   if (noacgCreditsHold === null || noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || typeof gsap === 'undefined') return;
   if (typeof after !== 'number') noacgCreditsSince = gsap.ticker.time;
-  // A hold that has run out is no hold: it clears itself before it changes the card.
-  noacgCreditsTween = gsap.delayedCall(typeof after === 'number' ? after : noacgCreditsHold, function () {
-    noacgCreditsTween = null;
-    creditsTurn();
-  });
+  noacgCreditsTween = gsap.delayedCall(typeof after === 'number' ? after : noacgCreditsHold, creditsTurn);
 }
 
 // creditsShow(i): lay out card i on its own, keeping the report the deal made for every card.

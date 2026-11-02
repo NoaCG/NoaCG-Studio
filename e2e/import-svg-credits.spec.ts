@@ -1062,7 +1062,7 @@ async function cardsPage(page: Page, layout: (typeof CARD_LAYOUTS)[number], adva
   const list = [...groups[0], '', ...groups.slice(1).flat()];
   const expected = [groups[0]];
   for (let g = 1; g < groups.length; g += layout.perCard) expected.push(groups.slice(g, g + layout.perCard).flat());
-  return { build, at: build.layout, write, groups, list, expected };
+  return { build, at: build.layout, field, write, groups, list, expected };
 }
 for (const layout of CARD_LAYOUTS) {
   test(`styled credits as cards, ${LAYOUT_NAME(layout)}: page boundaries, whole groups, long cards, ordering, Next card and replay`, async ({ page }) => {
@@ -1143,10 +1143,19 @@ for (const layout of CARD_LAYOUTS) {
     await write(list);
     expect((await cardsState(page)).over, `${at}: the report clears`).toEqual([]);
 
+    // A HEADING stays with what follows it: it opens its card rather than ending the one before
+    // (beside, it would fit under the second group's card on its own).
+    const headed = [...groups[0], '', ...groups[1], ...groups[2], '# Crew', ...groups[3], ...groups[4]];
+    await write(headed);
+    const deck = await page.evaluate(() => (window as unknown as { noacgCreditsCards: { from: number; to: number }[] }).noacgCreditsCards);
+    const h = headed.filter(Boolean).indexOf('# Crew');
+    const holding = deck.find((c) => c.from <= h && h < c.to)!;
+    expect([holding.from, holding.to > h + 1], `${at}: the heading's card ${JSON.stringify(deck)}`).toEqual([h, true]);
+
   });
 
   test(`styled credits as cards, ${LAYOUT_NAME(layout)}: the card time, Next during a timed card, and live updates on air`, async ({ page }) => {
-    const { at, write, groups, list, expected } = await cardsPage(page, layout, 2);
+    const { at, field, write, groups, list, expected } = await cardsPage(page, layout, 2);
     // AUTOMATIC ADVANCE: the author's two seconds per card, and Next still skips ahead.
     await write(list);
     await cardsDispatch(page, 'play');
@@ -1206,9 +1215,14 @@ for (const layout of CARD_LAYOUTS) {
     await write([...groups[0], '', ...groups[1]]);
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: taken, Next only`).toBe(0);
-    await cardsDispatch(page, 'next');
-    await expect.poll(async () => Number((await cardsState(page)).opacity), `${at}: fading to the second card`).toBeLessThan(0.9);
-    await write(groups[0]);
+    // Next, and the list shrinks while the first card is still fading out.
+    await page.evaluate(async ({ field, list }) => {
+      const w = window as unknown as { noacgDispatch(event: string): void; update(d: Record<string, string>): void; noacgCreditsTurning: boolean };
+      w.noacgDispatch('nextCard');
+      await new Promise((r) => setTimeout(r, 150));
+      if (!w.noacgCreditsTurning) throw new Error('the change had not started');
+      w.update({ [field]: list });
+    }, { field, list: groups[0].join('\n') });
     await expect.poll(async () => (await cardsState(page)).opacity, `${at}: the change ends`).toBe('1');
     const landed = await cardsState(page);
     expect([landed.card, landed.shown, landed.visibility, landed.rows.map((r) => r.text)], `${at}: landed on a dealt card`).toEqual([0, 0, 'visible', groups[0].map((t) => t.replace(/:$/, ''))]);
