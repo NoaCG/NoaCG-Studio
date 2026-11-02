@@ -34,7 +34,15 @@
       "role": "build",
       "session": "session_017SdbwPhGMmsfQsHzMK56Am",
       "nonce": "19-b-84e2",
-      "branch": "claude/plan-jev-svg-import-19-build"
+      "branch": "claude/plan-jev-svg-import-19-build",
+      "pr": 1956,
+      "head": "797bf0e5b43c4568f9c769421feac0a42eb3a819",
+      "stampRun": 41396980998,
+      "ciRun": 41395495898,
+      "so": "session_017SdbwPQurGMRLC2KhnVnwL A- (standing owner rule)",
+      "soOther": [
+        "session_017SdbwQQfzUDXPix2f3geEt"
+      ]
     }
   ],
   "owner": [],
@@ -300,6 +308,20 @@
       ],
       "from": "owner direction 2026-11-02",
       "note": "Main goal: easy, editable credits. Paste text or bring it from Google Sheets, Excel or similar, then make last-minute edits on the production page before playout. Importing keeps the design styling while supported text stays editable. Fixed artwork stays available on purpose and as a clearly explained fallback for unsupported designs; the author must understand when imported text stays part of the artwork. Coordinator decides routine implementation choices; bring meaningful product trade-offs to the owner."
+    },
+    {
+      "forPhases": [
+        "20"
+      ],
+      "from": "19",
+      "note": "Picking a name layer as Credits saves artwork credits (safe fallback), assigned to phase 20 with the mapping choice (#1937)."
+    },
+    {
+      "forPhases": [
+        "21"
+      ],
+      "from": "19",
+      "note": "Inline opacity on a credits source in its own group is not kept by the styled engine; assigned to phase 21 (#1937)."
     }
   ]
 }
