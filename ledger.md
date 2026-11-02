@@ -32,3 +32,4 @@ Project: {"version":1,"id":"plan-cicd-followup-2026-11-02","ownership":"local-si
 - 2026-11-02T11:42:21.787Z phase 1 landed {"mergeSha":"80759a01e3c8733f96168491d53feecd864d73e7","pr":1970,"mergedAt":"2026-11-02T11:41:59Z"}
 - 2026-11-02T11:43:55.717Z phase 1 check {"actor":"checker-cf01-cf01-c-2b1b","session":"session_017SdbwMKtRp3sQGjsmmqUEC","nonce":"cf01-c-2b1b","evidence":"create_session at 2026-11-02T11:43:46Z on merge 80759a01"}
 - 2026-11-02T12:02:29.358Z phase 1 fail blocked: owner receipt for test alarm #1971 not yet on #1951 (asked 2026-11-02T11:43:02Z; 48h fallback 2026-11-04T11:43Z); (a), (c) and all merge checks pass per checker-cf01-cf01-c-2b1b, findings https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6576623136
+- 2026-11-02T21:38:52.975Z phase 1 check {"actor":"checker-cf01-cf01-c-fa52","session":"session_017SdbwNwX5gEgmpee6oBrkT","nonce":"cf01-c-fa52","evidence":"second check, create_session at 2026-11-02T21:38:46Z on merge 80759a01"}
