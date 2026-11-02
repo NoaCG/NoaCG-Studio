@@ -34,7 +34,12 @@
       "role": "build",
       "session": "session_017SdbwNAsimW5PH2nb2tM7f",
       "nonce": "22-b-ae2f",
-      "branch": "claude/plan-jev-svg-import-22-build"
+      "branch": "claude/plan-jev-svg-import-22-build",
+      "pr": 1972,
+      "head": "8cadc8ab426e8c02fa9987255df96fffe9338f23",
+      "stampRun": 41446062472,
+      "ciRun": 41443911576,
+      "so": "session_017SdbwMecJmjt8yrcs1Mp7e A- (standing owner rule)"
     }
   ],
   "owner": [],
@@ -368,6 +373,13 @@
       ],
       "from": "fix #1958",
       "note": "phase-20 evidence note about fixed artwork superseded by #1962 (PR #1962 /so point 2)."
+    },
+    {
+      "forPhases": [
+        "24"
+      ],
+      "from": "22",
+      "note": "#1973: prove the still page take refit when a face lands late, and refit once per landing (row 22 /so points 1-2)."
     }
   ]
 }
