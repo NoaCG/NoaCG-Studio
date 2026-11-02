@@ -125,6 +125,8 @@ export interface WalkMemory {
   minting?: Promise<void>;
   /** The reader reviewed what a reimport cannot carry and ticked Replace anyway on Finish. */
   replaceOver?: boolean;
+  /** The list that tick was given to (FinishStep `reimport.sig`): a different list clears it. */
+  replaceFor?: string;
 }
 
 export interface WalkState {
@@ -661,6 +663,8 @@ export async function saveBuiltGraphic(
   if (reimport?.unresolved.length && !lib.keepCopy?.(over)) {
     return { ok: false, error: `The earlier “${name}” could not be kept, so nothing was saved over it.` };
   }
+  // A tick is spent by the save it was given for; a later press needs its own review.
+  if (reimport?.unresolved.length) memory.replaceOver = false;
   reimport?.apply();
   lib.linkTo(over);
   const result = await lib.saveCurrent(name);

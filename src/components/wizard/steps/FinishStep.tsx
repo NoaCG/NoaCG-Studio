@@ -88,6 +88,8 @@ interface Props {
    *  version cannot carry. Non-empty, the doors save a separate graphic (`separateName`) unless the
    *  reader replaces anyway, which first keeps the earlier one as `copyName`. */
   reimport?: {
+    /** Names this list against its target, so a tick given to one list never carries to another. */
+    sig: string;
     unresolved: ReimportItem[];
     separateName: string;
     copyName: string;
@@ -330,8 +332,10 @@ export default function FinishStep({
   const strandedInLibrary = effect.kind === 'over' ? strandedBy(effect.holder.fields, fields) : [];
   // A REIMPORT that cannot carry everything never writes over by default (walkState.ts
   // saveBuiltGraphic): the doors save a separate graphic, and replacing is the reader's choice.
-  const unresolved = effect.kind === 'over' ? reimport?.unresolved ?? [] : [];
-  const [replace, setReplace] = useState(reimport?.replace ?? false);
+  // Shown whatever the effect: the save reconciles this walk's own record too.
+  const unresolved = reimport?.unresolved ?? [];
+  const [choice, setChoice] = useState<{ sig: string; replace: boolean } | null>(null);
+  const replace = choice && choice.sig === reimport?.sig ? choice.replace : reimport?.replace ?? false;
   // WHAT BOTH DOOR FACES SAY ABOUT THE LIBRARY: one sentence, because neither door's title
   // says it saves. Written out per case rather than assembled, because these sentences are the
   // product and a reader should be able to edit one.
@@ -384,7 +388,7 @@ export default function FinishStep({
                 type="checkbox"
                 checked={replace}
                 onChange={(e) => {
-                  setReplace(e.target.checked);
+                  setChoice({ sig: reimport.sig, replace: e.target.checked });
                   reimport.onReplace(e.target.checked);
                 }}
                 data-testid="wz-finish-reimport-replace"
@@ -423,7 +427,7 @@ export default function FinishStep({
         )}
         {/* And the ordinary second press: your own graphic, updated. Stated calmly, because
             nothing here is at risk - the alternative would be a second row of your own work. */}
-        {effect.kind === 'update' && !sharesNameWith && (
+        {effect.kind === 'update' && !sharesNameWith && unresolved.length === 0 && (
           <p className="hint" data-testid="wz-finish-name-yours">
             {effect.renamedFrom
               ? `Finishing renames the graphic you just saved from ${effect.renamedFrom} to ${graphicName}.`

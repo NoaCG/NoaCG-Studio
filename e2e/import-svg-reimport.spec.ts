@@ -365,3 +365,35 @@ test('reconciliation follows the record, not the press', async ({ page }) => {
   });
   expect(r).toEqual({ over: 'g', ownPlain: null, ownChanged: 'g', ownReconciled: 'g', mint: null });
 });
+
+test('walking back after a clean reimport, a removed layer is reviewed on Finish and saved beside it', async ({ page }) => {
+  test.setTimeout(100_000);
+  await page.goto('/app');
+  await dropSvg(page, asFile(V1, 'v1'));
+  await intoProduction(page, 'Guest', 'Show');
+  await makeWork(page);
+
+  await reimportToFinish(page, asFile(V2, 'v2'));
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  await page.getByTestId('export-window').locator('.gallery-close').click();
+  const reconciled = (await state(page)).library.find((g) => g.name === 'Guest')!;
+  expect(reconciled.fields).toEqual(['f2 badge LIVE', 'f0 name Presenter', 'f1 Job title Guest role']);
+
+  // Back to the artwork in the same walk, and a version without the role.
+  await page.locator('.wz-rail button').nth(1).click();
+  await page.getByRole('button', { name: '✕ Use a different design' }).click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(asFile(V3, 'v3'));
+  await expect(page.getByTestId('import-svg-card')).toBeVisible();
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-name').fill('Guest');
+  // The record is this walk's own now, and the save still reconciles against it: Finish says so.
+  await expect(page.getByTestId('wz-finish-reimport')).toContainText('Not carried over to this version: Job title.');
+  await expect(page.getByTestId('wz-finish-name-yours')).toHaveCount(0);
+  const pick = page.getByTestId('wz-finish-production');
+  await pick.selectOption((await pick.locator('option', { hasText: 'Show' }).getAttribute('value'))!);
+  await pressAdd(page);
+  const now = await state(page);
+  expect(now.library.find((g) => g.id === reconciled.id)).toEqual(reconciled);
+  expect(now.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest 2']);
+});

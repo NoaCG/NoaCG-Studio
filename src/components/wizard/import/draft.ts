@@ -43,6 +43,7 @@ import { carrySvgIdentity } from '../../../blocks/svgIdentity';
 import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, updateGraphic, type LibraryNameEntry, type LibrarySaveEffect } from '../../../model/library';
 import { freeName } from '../../../model/poolIdentity';
 import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
+import { PREFIX } from '../../../templates/importedDesign/shared';
 import { artOf, carryKeys, carryTitles, lostActions, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
@@ -2161,7 +2162,9 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
     for (const id of match.gone) drop(`#${id}`);
     for (const selector of keys.selectors) {
       if (match.gone.some((id) => selector === `#${id}`)) continue;
-      if (!selector.startsWith('#') && !selector.startsWith('.')) {
+      // Only an id names one layer; the build's own `.imported-design-*` structure is stable, a
+      // designer's class may now gather other layers.
+      if (!selector.startsWith('#') && !selector.startsWith(`.${PREFIX}-`)) {
         drop(selector);
         unresolved.push({ kind: 'key', label: selector });
         continue;
@@ -2261,7 +2264,14 @@ export function finishReimport(built: SpxTemplate | null, name: string, library:
   }
   const unresolved = reviewCache.result?.unresolved ?? [];
   if (unresolved.length === 0) return null;
+  // A Replace anyway tick belongs to the list it was given for, on this target.
+  const sig = JSON.stringify([held.id, held.updatedAt, unresolved]);
+  if (memory.replaceFor !== sig) {
+    memory.replaceFor = sig;
+    memory.replaceOver = false;
+  }
   return {
+    sig,
     unresolved,
     separateName: freeName(library.map((g) => g.name), name),
     copyName: freeName(library.map((g) => g.name), `${name} copy`),
