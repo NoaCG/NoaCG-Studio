@@ -50,7 +50,8 @@ PR challenged them against that code. Rules found after coding are marked (after
   deleted after the import stays deleted (after, from the `/check` review). An untouched track is
   the import's own motion, and the new walk's choice stands.
 - **R5 A key must still have a target.** An editor-minted `artwork-N` moves only to the one layer
-  with the same key (R1, R2); otherwise the key is unresolved.
+  with the same key, and only when that key is unique in the earlier artwork too (R1, R2; the
+  second half from the PR review bot on `3bf9b4f5`); otherwise the key is unresolved.
 - **R6 A label changed after the import wins** on a verified match, and the definition in the
   markup is rewritten with it.
 - **R7 Action identity is the operator event.** Every event the earlier graphic answered must be
@@ -105,7 +106,7 @@ PR challenged them against that code. Rules found after coding are marked (after
 
 ## Verification on this worker
 
-- `e2e/import-svg-reimport.spec.ts` 8/8; with `import-name-collision`, `wizard-finish`,
+- `e2e/import-svg-reimport.spec.ts` 9/9; with `import-name-collision`, `wizard-finish`,
   `jev-svg-preparation` and `wizard-draft-guard`: 50/50 on the final source (j-0027); 49/49 with
   R14 (j-0020).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
@@ -115,7 +116,8 @@ PR challenged them against that code. Rules found after coding are marked (after
   deleted-track rule fails the matcher test; no Finish name follow-up fails the second journey at
   the name check; no R14 (reconcile on the `over` effect only) fails the first journey at the
   field ids and the rule test; a second rename pass over the script fails the matcher test at the
-  badge's motion; Finish's list shown for the `over` effect only fails the walk-back journey.
+  badge's motion; Finish's list shown for the `over` effect only fails the walk-back journey;
+  identity uniqueness checked on the new side only fails the look-alike identity test.
 - `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
   `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
   `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply`,
@@ -206,6 +208,11 @@ PR challenged them against that code. Rules found after coding are marked (after
   shown. Fixed as R16 and R17, with a journey that walks back after a clean reimport, swaps in a
   version without the badge and the role, and finds the list on Finish and a separate graphic.
   Its non-blocking points are taken: class keys (R18) and three limits above.
+
+- PR review bot on `3bf9b4f5`: one P2, class product defect, family R2/R5: an editor identity on
+  one of two look-alike layers moved onto the survivor when the keyed twin was removed. Fixed
+  (uniqueness on both sides); a new test keys the removed twin and finds the identity not moved
+  and the key listed; without the fix it fails at the move.
 
 ## Traps
 
