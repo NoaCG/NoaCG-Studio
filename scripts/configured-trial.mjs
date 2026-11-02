@@ -15,10 +15,12 @@
 // is the generic dispatch-only workflow for exactly this: it is never a required check, and a
 // trial only adds the npm script it runs.
 //
-// THE CONDITIONS ARE CI's: an ubuntu-latest runner, the same Supabase CLI and stack
-// (`supabase start -x studio,edge-runtime`), playwright.live.config.ts with its one worker. Two
-// things differ, both stricter: retries are off, so a fail-then-pass counts as the failure it is
-// (the configured verdict counts a flaky test red as well), and a failing attempt keeps its trace.
+// THE CONDITIONS ARE CI's: an ubuntu-latest runner, the same Supabase CLI and stack command
+// (`supabase start -x studio,edge-runtime`), playwright.live.config.ts with its one worker. What
+// differs: retries are off, so a fail-then-pass counts as the failure it is (the configured
+// verdict counts a flaky test red as well); a failing run keeps its trace; the spec runs alone,
+// not after its shard's neighbours; and the stack is not put through the configured-stack
+// action's schema, grant and publication assertions, only the account is made and signed in.
 //
 // The verdict: every one of the `--repeat` runs passed, and exactly that many ran. Anything else,
 // including a run cut off by `--minutes`, fails. endurance-output/ keeps the JSON report, the
@@ -32,8 +34,9 @@ import { specFilterArg } from './e2e-spec-names.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'endurance-output');
 
-/** The most runs one trial may ask for: a configured spec takes up to a minute, and the job ends at 75. */
-export const MAX_REPEAT = 120;
+/** The most runs one trial may ask for: one a minute fits the job's 75 minutes, so a longer
+ *  trial is refused here rather than cut off by the clock. */
+export const MAX_REPEAT = 75;
 
 /**
  * Read and check the trial's arguments.
@@ -41,7 +44,8 @@ export const MAX_REPEAT = 120;
  * @returns {{ spec: string, repeat: number, minutes: number }}
  */
 export function trialArgs(argv) {
-  const value = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
+  // The last occurrence wins, so a value given after `npm run trial:<name> --` overrides the script's.
+  const value = (name) => (argv.includes(name) ? argv[argv.lastIndexOf(name) + 1] : undefined);
   const spec = String(value('--spec') ?? '');
   if (!/^e2e\/configured\/[\w.-]+\.spec\.ts$/.test(spec)) throw new Error(`--spec must be one file under e2e/configured/, got "${spec}"`);
   const repeat = Number(value('--repeat'));
@@ -61,13 +65,15 @@ export function trialVerdict(report, repeat) {
   const walk = (suite) => {
     for (const child of suite.suites ?? []) walk(child);
     for (const spec of suite.specs ?? []) {
+      // One test is one spec entry (its id, or its file, line and title): two tests may share a title.
+      const id = spec.id ?? `${spec.file}:${spec.line}:${spec.title}`;
       for (const test of spec.tests ?? []) {
-        for (const result of test.results ?? []) runs.push({ title: spec.title, status: result.status, retry: result.retry ?? 0 });
+        for (const result of test.results ?? []) runs.push({ id, status: result.status, retry: result.retry ?? 0 });
       }
     }
   };
   for (const suite of report?.suites ?? []) walk(suite);
-  const titles = new Set(runs.map((r) => r.title));
+  const titles = new Set(runs.map((r) => r.id));
   const passed = runs.filter((r) => r.status === 'passed').length;
   const failed = runs.length - passed;
   const expected = titles.size * repeat;
@@ -87,7 +93,12 @@ async function main() {
   // The local stack only: its keys are the CLI's published defaults and live only on this machine.
   const status = run('supabase', ['status', '-o', 'json'], { cwd: ROOT });
   if (status.status !== 0) throw new Error(`no local Supabase stack (supabase status: ${status.stderr.trim()}); start it first, as endurance.yml does with local-supabase`);
-  const stack = JSON.parse(status.stdout.slice(status.stdout.indexOf('{')));
+  let stack;
+  try {
+    stack = JSON.parse(status.stdout.slice(status.stdout.indexOf('{'), status.stdout.lastIndexOf('}') + 1));
+  } catch {
+    throw new Error(`supabase status -o json printed no readable JSON: ${status.stdout.slice(0, 200)}`);
+  }
   for (const name of ['API_URL', 'ANON_KEY', 'SERVICE_ROLE_KEY']) if (!stack[name]) throw new Error(`supabase status gave no ${name}`);
   if (!/^http:\/\/(127\.0\.0\.1|localhost):/.test(stack.API_URL)) throw new Error(`refusing a stack that is not on this machine: ${stack.API_URL}`);
   const env = {
@@ -113,7 +124,8 @@ async function main() {
     headers: { apikey: stack.ANON_KEY, 'content-type': 'application/json' },
     body: JSON.stringify({ email: env.E2E_EMAIL, password: env.E2E_PASSWORD }),
   });
-  if (!(await signedIn.json()).access_token) throw new Error('the account cannot sign in');
+  const token = signedIn.ok ? (await signedIn.json().catch(() => ({}))).access_token : null;
+  if (!token) throw new Error(`the account cannot sign in (${signedIn.status})`);
 
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
@@ -124,7 +136,8 @@ async function main() {
     [
       'playwright', 'test', '--config=playwright.live.config.ts',
       `--repeat-each=${repeat}`, '--retries=0', '--trace=retain-on-failure',
-      `--output=${path.join(OUT, 'test-results')}`, '--reporter=list,json',
+            // The run-integrity reporter goes back in: a --reporter flag replaces the config's list.
+      `--output=${path.join(OUT, 'test-results')}`, '--reporter=list,json,./scripts/e2e-run-integrity.mjs',
       `--global-timeout=${minutes * 60_000}`, specFilterArg(spec),
     ],
     { cwd: ROOT, env, stdio: ['ignore', 'inherit', 'inherit'] },

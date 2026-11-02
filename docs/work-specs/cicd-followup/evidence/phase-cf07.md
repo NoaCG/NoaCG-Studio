@@ -68,8 +68,11 @@ nothing.
 
 **The fix waits on observable state.** `watchLogReads` now counts the page's reads at the page's
 own `fetch`, through an init script installed before the page loads, and polls that counter.
-The read is the fetch, so it cannot be missed. The rule it waits for is unchanged: one read
-answered, none open, none for 300 ms. No timeout, wait, retry or assertion changed. The four
+The read is the fetch, so it cannot be missed. A read counts as Playwright's events counted it:
+open from the call, closed once the whole answer has arrived (the wrapper reads a clone of the
+body), answered whatever status the server sent, and not answered if it broke off. The rule
+waited for is the same: one read answered, none open, none for 300 ms. No timeout, wait, retry
+or assertion changed. The four
 specs that use the helper (late-send-abandoned, late-commit-notice, command-sequence,
 playout-switch-mid-flight) now await it before their page loads.
 
@@ -81,7 +84,10 @@ in under 100 ms. The setup fix stays with cf04.
 
 ## (b) Stability under CI conditions
 
-The brief above was pushed in its own commit (`0bd3e24d`) before the run. The run:
+The brief above was pushed in its own commit (`0bd3e24d`) before the run. One correction to its
+wording: the trial's stack is started with the same CLI and command as the configured suite's,
+but it is not put through the configured-stack action's schema, grant and publication
+assertions; the trial makes and signs in its account only. The first run:
 [41542195497](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41542195497), `endurance.yml`
 on this branch at `0bd3e24d` (the fix and the brief), `trial:late-send-abandoned` for 40 minutes
 with the local stack: **40 of 40 runs passed, 0 failed, exactly 40 ran** (21.4 minutes of

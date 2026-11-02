@@ -228,15 +228,20 @@ export async function watchLogReads(page: Page): Promise<() => Promise<void>> {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (!/\/rpc\/control_tail_seq\b/.test(url)) return pageFetch(input, init);
       reads.open += 1;
-      let ok = false;
-      try {
-        const response = await pageFetch(input, init);
-        ok = response.ok;
-        return response;
-      } finally {
+      const close = (answered: boolean) => {
         reads.open -= 1;
         reads.lastClosed = performance.now();
-        if (ok) reads.answered += 1;
+        if (answered) reads.answered += 1;
+      };
+      try {
+        const response = await pageFetch(input, init);
+        // Closed when the whole answer has arrived, as Playwright's `requestfinished` was: any
+        // status the server sent counts as answered, a read that broke off does not.
+        response.clone().arrayBuffer().then(() => close(true), () => close(false));
+        return response;
+      } catch (error) {
+        close(false);
+        throw error;
       }
     };
   });

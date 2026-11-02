@@ -11,6 +11,8 @@ test('a trial names one configured spec, a count and a time cap', () => {
     repeat: 32,
     minutes: 40,
   });
+  // A value given after `npm run trial:<name> --` overrides the script's own.
+  assert.equal(trialArgs(args('--spec e2e/configured/a.spec.ts --repeat 40 --minutes 40 --repeat 3')).repeat, 3);
   assert.throws(() => trialArgs(args('--spec e2e/late-send-abandoned.spec.ts --repeat 3 --minutes 4')), /under e2e\/configured/);
   assert.throws(() => trialArgs(args('--spec e2e/configured/../x.spec.ts --repeat 3 --minutes 4')), /under e2e\/configured/);
   assert.throws(() => trialArgs(args('--spec e2e/configured/a.spec.ts --repeat 0 --minutes 4')), /--repeat/);
@@ -20,9 +22,8 @@ test('a trial names one configured spec, a count and a time cap', () => {
   assert.throws(() => trialArgs(args('--spec e2e/configured/a.spec.ts --repeat 3 --minutes 76')), /--minutes/);
 });
 
-const report = (statuses, retry = 0) => ({
-  suites: [{ suites: [{ specs: [{ title: 'a held Take', tests: [{ results: statuses.map((status) => ({ status, retry })) }] }] }] }],
-});
+const spec = (id, statuses, retry = 0) => ({ id, title: 'a held Take', tests: [{ results: statuses.map((status) => ({ status, retry })) }] });
+const report = (statuses, retry = 0) => ({ suites: [{ suites: [{ specs: [spec('s1', statuses, retry)] }] }] });
 
 test('only every asked-for run passing is a pass', () => {
   assert.equal(trialVerdict(report(['passed', 'passed', 'passed']), 3).ok, true);
@@ -37,4 +38,11 @@ test('a short, missing or retried run is never a pass', () => {
   assert.match(trialVerdict(report(['passed', 'passed']), 3).problems.join(), /2 runs, but 1 test\(s\) x 3 = 3/);
   assert.match(trialVerdict(null, 3).problems.join(), /no test ran/);
   assert.match(trialVerdict(report(['passed'], 1), 1).problems.join(), /retried/);
+});
+
+test('two tests with one title are two tests', () => {
+  const both = { suites: [{ specs: [spec('s1', ['passed', 'passed']), spec('s2', ['passed', 'passed'])] }] };
+  const v = trialVerdict(both, 2);
+  assert.equal(v.tests, 2);
+  assert.equal(v.ok, true);
 });
