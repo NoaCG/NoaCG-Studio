@@ -76,8 +76,13 @@ PR challenged them against that code. Rules found after coding are marked (after
   (`reimportTarget`). This replaces "only a save over a graphic this walk never opened".
 - **R15 (after) What a save learned is part of the walk's memory**: the record it reconciled and
   the record's write time sit on the walk's `MadeGraphic`, so walk-back and rename keep them.
-- **R16 (after) Finish's review asks the save's own question** (`reimportTarget`); should the two
-  documents still disagree, the save errs to a separate graphic.
+- **R16 (after) Finish's review asks the save's own question** (`reimportTarget`) and shows the
+  list whatever the name's effect, this walk's own record included; should the two documents
+  still disagree, the save errs to a separate graphic.
+- **R17 (after, final `/so`) A Replace anyway tick belongs to the list it was given for** on that
+  target, and is spent by the save it was given for; a later press needs its own review.
+- **R18 (after) Only an id names one layer**: a key on a designer's class is not carried (a class
+  may gather other layers in the new artwork); the build's own `.imported-design-*` structure is.
 
 ## What landed
 
@@ -100,9 +105,9 @@ PR challenged them against that code. Rules found after coding are marked (after
 
 ## Verification on this worker
 
-- `e2e/import-svg-reimport.spec.ts` 7/7; with `import-name-collision`, `wizard-finish`,
-  `jev-svg-preparation` and `wizard-draft-guard`: 49/49 with R14 to R16 (j-0020); the spec 7/7
-  after the rename fix (j-0023).
+- `e2e/import-svg-reimport.spec.ts` 8/8; with `import-name-collision`, `wizard-finish`,
+  `jev-svg-preparation` and `wizard-draft-guard`: 50/50 on the final source (j-0027); 49/49 with
+  R14 (j-0020).
   40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
   first three: 47/47 earlier on this branch (j-0007).
 - Mutations, each reverted: no id rename fails the matcher test and the first journey; no
@@ -110,7 +115,7 @@ PR challenged them against that code. Rules found after coding are marked (after
   deleted-track rule fails the matcher test; no Finish name follow-up fails the second journey at
   the name check; no R14 (reconcile on the `over` effect only) fails the first journey at the
   field ids and the rule test; a second rename pass over the script fails the matcher test at the
-  badge's motion.
+  badge's motion; Finish's list shown for the `over` effect only fails the walk-back journey.
 - `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
   `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
   `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply`,
@@ -146,7 +151,11 @@ PR challenged them against that code. Rules found after coding are marked (after
   (`saveGraphicAs` always mints), so the earlier graphic is never written over, but that new
   graphic carries no reconciled work. Filed as #1986 (P3, editor).
 - CSS and script renames touch exact quoted or `#`-prefixed field ids, so a stylesheet colour
-  spelled `#f12` would be renamed when field `f12` is (13 or more fields and that exact colour).
+  spelled `#f10` would be renamed when field `f10` is (11 or more fields and that exact colour).
+- A record saved without a baseline (older saves) reads every key as made after the import, so the
+  earlier motion wins over the new walk's; holder titles are read as they are now. Both err safe.
+- After Replace anyway with look-alike layers, the record keeps the twins, so a later press of the
+  same walk lists them again and saves separately unless the reader replaces again.
 - If keeping the copy succeeds and the save then fails, a spare copy is left in the library.
 
 - Keys only: a step's duration or default ease changed after the import is the new walk's again.
@@ -189,6 +198,14 @@ PR challenged them against that code. Rules found after coding are marked (after
   `DOMParser` builds an inert document from the graphic's own stored template, scripts never run
   in it and nothing from it is inserted into the page; `model/structure.ts` reads templates the
   same way. Answered on the PR thread.
+
+- Final `/so` on `3bf9b4f5` (`session_017SdbwLe43NApYKwZhHc75P`): AGREE WITH CORRECTIONS, B+
+  as it stood, A- after one bounded fix. Class product defect, family R16/R8 (the third "later
+  press" round): Finish showed the list only for a graphic the walk never opened, while the save
+  also reconciles the walk's own record; and a Replace anyway tick could carry to a list never
+  shown. Fixed as R16 and R17, with a journey that walks back after a clean reimport, swaps in a
+  version without the badge and the role, and finds the list on Finish and a separate graphic.
+  Its non-blocking points are taken: class keys (R18) and three limits above.
 
 ## Traps
 
