@@ -70,7 +70,7 @@ export function creditsIndex(svg: DesignSvg): number {
 
 /** New imports scroll original artwork. Absence preserves previously saved editable bindings. */
 export function isArtworkCredits(svg: DesignSvg): boolean {
-  return svg.behaviour?.kind === 'recipe' && svg.behaviour.recipe === CREDITS_RECIPE_ID && svg.behaviour.options?.artwork === true;
+  return creditsEngine(svg) === 'artwork';
 }
 
 /** A composed text can expose several field candidates. Protect its entire original subtree,
@@ -100,6 +100,9 @@ export function creditsArtworkFields(svg: DesignSvg, root?: Element): Set<number
 export function creditsSampleText(svg: DesignSvg): string {
   const field = svg.fields[creditsIndex(svg)];
   if (!field) return '';
+  // Drawn as separate role and name layers, the sample is the list those layers spell.
+  const styled = styledCredits(svg);
+  if (styled) return styled.list;
   // Memoised on the markup and the layer: `svgFields` is asked several times per assemble, and
   // the wizard's previews assemble on every change, so a large Illustrator export would otherwise
   // be parsed three times over for one string that cannot change between them.
@@ -188,22 +191,7 @@ function creditsSample() {
   return document.querySelector('.${cls}');
 }
 
-// creditsField(role): the holder behind one of the recipe's fields - the pasted list, the
-// operator's Scroll speed - by the fN the NOACG_BEHAVIOUR table compiled it to.
-function creditsField(role) {
-  var id = typeof noacgFieldFor === 'function' ? noacgFieldFor(role, null) : null;
-  return id ? document.getElementById(id) : null;
-}
-
-// creditsSpeed(): the operator's Scroll speed as a factor of the authored pace - 100 is as
-// authored, 200 twice as fast. Blank, nonsense and zero all mean 100 rather than "stop", and
-// the clamp (10%-400%) is the catalog roll's, so a roll always finishes.
-function creditsSpeed() {
-  var el = creditsField('${CREDITS_SPEED_KEY}');
-  var percent = el ? parseFloat(el.textContent) : NaN;
-  if (!isFinite(percent) || percent <= 0) return 1;
-  return Math.min(400, Math.max(10, percent)) / 100;
-}
+${creditsFieldJs()}
 
 // creditsLength(el, name, fallback): one positional attribute of a run, in user units. A
 // designer's file may state a step in ems ("dy=1.2em", the SVG idiom Inkscape and hand-written
@@ -429,7 +417,45 @@ function creditsRender() {
   return { rows: rows, looks: looks };
 }
 
-// creditsWindow(sample): where the roll runs, as a rectangle in the rows' own space - the
+${creditsTakeJs()}
+
+// Render once on load, so a preview shows the list before the first update(); again when the
+// real typeface arrives, because the sample's line widths decide how the rows line up.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', creditsRender);
+} else {
+  creditsRender();                  // DOM already parsed (e.g. an inline preview build)
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(creditsRender);
+`;
+}
+
+/** The holders behind the recipe's fields and the operator's Scroll speed: shared by the editable
+ *  roll and the styled one, so both read the speed the same way. */
+function creditsFieldJs(): string {
+  return `// creditsField(role): the holder behind one of the recipe's fields - the pasted list, the
+// operator's Scroll speed - by the fN the NOACG_BEHAVIOUR table compiled it to.
+function creditsField(role) {
+  var id = typeof noacgFieldFor === 'function' ? noacgFieldFor(role, null) : null;
+  return id ? document.getElementById(id) : null;
+}
+
+// creditsSpeed(): the operator's Scroll speed as a factor of the authored pace - 100 is as
+// authored, 200 twice as fast. Blank, nonsense and zero all mean 100 rather than "stop", and
+// the clamp (10%-400%) is the catalog roll's, so a roll always finishes.
+function creditsSpeed() {
+  var el = creditsField('${CREDITS_SPEED_KEY}');
+  var percent = el ? parseFloat(el.textContent) : NaN;
+  if (!isFinite(percent) || percent <= 0) return 1;
+  return Math.min(400, Math.max(10, percent)) / 100;
+}`;
+}
+
+/** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
+ *  a live speed change. Each engine supplies `creditsSample()` (the layer whose parent the rows
+ *  sit in) and `creditsRender()` (the rows and the name step they were built with). */
+function creditsTakeJs(): string {
+  return `// creditsWindow(sample): where the roll runs, as a rectangle in the rows' own space - the
 // Credits box where one is drawn, else the artwork's whole frame. Both are read through the
 // screen, so a box inside a moved or scaled group lands where it paints. Null until the design
 // is laid out, and then the take measures nothing rather than something wrong.
@@ -534,10 +560,391 @@ function creditsLiveSpeed() {
 function creditsDataUpdated() {
   creditsRender();
   if (noacgCreditsTween) noacgCreditsTween.timeScale(creditsLiveSpeed() / noacgCreditsBuiltAt);
+}`;
 }
 
+// ── The styled engine: credits in the artwork's own role and name layers ──────────────────────
+//
+// The designer drew a few roles and names as separate text layers (DesignSvgCredits). Those
+// layers stay in the file as drawn, hidden on air, and are the SOURCE the rows copy: every role
+// row is a copy of the first role layer read and every name row a copy of the first name layer,
+// keeping their classes, runs, paint and transform, with only the words and the position changed.
+// The spacing is the drawing's own (`analyseCreditsStyle`), read at build from the stored anchors;
+// where each row is drawn is measured on the page, in the first role layer's own frame.
+
+/** The attribute that marks each source layer of a styled binding: its place and kind. */
+export const CREDITS_ANCHOR_ATTR = 'data-noacg-credit';
+
+/** Stamp the source layers of a styled binding (svgBind.ts, before the markers come off): each
+ *  text takes the sample's class, hidden on air, and its place in reading order with its kind. */
+export function creditsMarkAnchors(svg: DesignSvg, root: Element, prefix: string): void {
+  const style = styledCredits(svg);
+  if (!style) return;
+  style.anchors.forEach((a, i) => {
+    const text = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${a.candidateId}"]`)?.closest('text');
+    if (!text) return;
+    text.setAttribute(CREDITS_ANCHOR_ATTR, `${i} ${a.kind}`);
+    const own = (text.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
+    if (!own.includes(creditsClass(prefix))) own.push(creditsClass(prefix));
+    text.setAttribute('class', own.join(' '));
+  });
+}
+
+/** What the styled runtime is built with, read off the drawing at build. */
+export interface CreditsStyledConfig {
+  align: CreditsAlign;
+  /** Baseline steps in the layers' own units. A step the sample does not show falls back as the
+   *  editable roll's do: name to name to role to name, the group gap to name to name. */
+  roleToName: number;
+  nameToName: number;
+  groupGap: number;
+  /** What the drawn roles end with (`:` or nothing), so a row reads as the drawing does. */
+  roleSuffix: string;
+}
+
+/** What the styled runtime of a design is built with, or null when it builds another engine.
+ *  A step the sample does not show falls back as the editable roll's do. */
+export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
+  const style = styledCredits(svg);
+  if (!style) return null;
+  const roleToName = style.steps.roleToName ?? style.steps.nameToName ?? 0;
+  const nameToName = style.steps.nameToName ?? roleToName;
+  return { align: style.align.role, roleToName, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix };
+}
+
+/** The stylesheet part: the drawn source layers are laid out, never painted. */
+export function creditsStyledCss(prefix: string): string {
+  return `/* ── The credits, in your own role and name layers ──
+   The role and name layers you drew are the SOURCE. They are hidden on air, and every role and
+   name the operator types is a copy of the first role or the first name, spaced as you spaced
+   them (template.js, "Credits in the artwork's own styling"). Delete this rule to see them. */
+.${creditsClass(prefix)} {
+  visibility: hidden;              /* laid out, so they can be measured; never painted */
+}`;
+}
+
+/** The styled engine, emitted once for a design whose styled binding builds (`styledCredits`). */
+export function creditsStyledRuntimeJs(prefix: string, config: CreditsStyledConfig): string {
+  const cls = creditsClass(prefix);
+  return `
+// ── Credits in the artwork's own styling (SVG) ────────────────────────────────────────────────
+// ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed. The role
+// and name layers you drew are the SOURCE: they stay in the file, hidden on air (template.css
+// hides .${cls}), and every role the operator types is a copy of your first role layer and every
+// name a copy of your first name layer - class, runs, paint and transform kept, only the words
+// and the position changed. The spacing below is yours, read off the drawing when this was built;
+// change a layer's font, size or colour in your design app and every row follows.
+
+var NOACG_CREDITS_LINES_PER_SECOND = ${CREDITS_LINES_PER_SECOND};
+
+// The drawing's spacing, in the layers' own units: role to its first name, name to name, and the
+// gap before the next role; and the edge every row lines up on.
+var NOACG_CREDITS_STYLE = ${JSON.stringify(config)};
+
+// Past this share of its size a row is reported too long, and it never shrinks below the floor
+// (the SVG fit ladder's numbers; CREDITS_OVERFLOW).
+var NOACG_CREDITS_REPORT = 0.55;
+var NOACG_CREDITS_FLOOR = 0.3;
+
+${CREDITS_PARSER_JS}
+
+// creditsAnchors(): the source layers in reading order, each with its kind.
+function creditsAnchors() {
+  var found = document.querySelectorAll('[${CREDITS_ANCHOR_ATTR}]');
+  var out = [];
+  for (var i = 0; i < found.length; i++) {
+    var mark = found[i].getAttribute('${CREDITS_ANCHOR_ATTR}').split(' ');
+    out.push({ at: parseFloat(mark[0]), kind: mark[1], el: found[i] });
+  }
+  out.sort(function (a, b) { return a.at - b.at; });
+  return out;
+}
+
+// creditsSample(): the roll's window, once built - the take reads the frame it runs in from the
+// window's parent, the group shared by every source layer.
+function creditsSample() {
+  return noacgCreditsRows ? noacgCreditsRows.parentNode.parentNode : null;
+}
+
+${creditsFieldJs()}
+
+// creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
+// elements of the drawing answer in one frame.
+function creditsFrom(a, b) {
+  var ma = a.getScreenCTM ? a.getScreenCTM() : null;
+  var mb = b.getScreenCTM ? b.getScreenCTM() : null;
+  return ma && mb ? mb.inverse().multiply(ma) : null;
+}
+
+// creditsAt(m, x, y): a point through a matrix.
+function creditsAt(m, x, y) {
+  return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+}
+
+// creditsEdge(el): where a drawn layer's aligned edge meets its baseline, in its own units: along
+// its ADVANCE, which is what text-anchor places (the ink box starts a side bearing away). start is
+// the right end of right-to-left text, as text-anchor reads it.
+function creditsEdge(el) {
+  if (!el.getNumberOfChars || el.getNumberOfChars() === 0) return null;
+  var advance = el.getComputedTextLength();
+  var at = el.getStartPositionOfChar(0);
+  var rtl = getComputedStyle(el).direction === 'rtl';
+  var edge = NOACG_CREDITS_STYLE.align;
+  var f = edge === 'start' ? 0 : edge === 'middle' ? 0.5 : 1;
+  if (rtl) f = 1 - f;
+  return { x: (rtl ? at.x - advance : at.x) + f * advance, y: at.y };
+}
+
+// creditsFirstText(el): the text node holding a layer's first character - the run that paints it
+// is the look a copy keeps.
+function creditsFirstText(el) {
+  var kids = el.childNodes;
+  for (var i = 0; i < kids.length; i++) {
+    var k = kids[i];
+    if (k.nodeType === 3 && /[^ \\t\\r\\n]/.test(k.nodeValue)) return k;
+    if (k.nodeType === 1) {
+      var inner = creditsFirstText(k);
+      if (inner) return inner;
+    }
+  }
+  return null;
+}
+
+// creditsCopy(source, words): a row - a copy of the drawn layer with its words replaced. Its id,
+// its marks, the hiding class and every position attribute come off; the run that painted the
+// first character keeps the new words and every other run is emptied, so the look is that run's.
+function creditsCopy(source, words) {
+  var row = source.cloneNode(true);
+  var all = [row].concat(Array.prototype.slice.call(row.getElementsByTagName('*')));
+  for (var i = 0; i < all.length; i++) {
+    var names = [];
+    for (var a = 0; a < all[i].attributes.length; a++) {
+      var n = all[i].attributes[a].name;
+      if (n === 'id' || n.indexOf('data-noacg') === 0 || /^(x|y|dx|dy|rotate|textLength|lengthAdjust|transform)$/.test(n)) names.push(n);
+    }
+    for (var r = 0; r < names.length; r++) all[i].removeAttribute(names[r]);
+  }
+  var own = (row.getAttribute('class') || '').split(' ').filter(function (c) { return c && c !== '${cls}'; });
+  own.push('${cls}-row');
+  row.setAttribute('class', own.join(' '));
+  var first = creditsFirstText(row);
+  var texts = [];
+  var walk = function (node) {
+    for (var k = 0; k < node.childNodes.length; k++) {
+      var c = node.childNodes[k];
+      if (c.nodeType === 3) texts.push(c);
+      else if (c.nodeType === 1) walk(c);
+    }
+  };
+  walk(row);
+  for (var t = 0; t < texts.length; t++) texts[t].nodeValue = texts[t] === first ? words : '';
+  if (!first) row.textContent = words;
+  return { row: row, run: first ? first.parentNode : row };
+}
+
+// creditsLookOf(source, container): what a copy placed in the shared group would lose when its
+// source sits in a group of its own: the inherited look, and the opacity of the groups between.
+// Empty when the source is drawn straight in the shared group, which is how layers usually are.
+function creditsLookOf(source, container) {
+  if (source.parentNode === container) return '';
+  var first = creditsFirstText(source);
+  var cs = getComputedStyle(first ? first.parentNode : source);
+  var props = ['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'fill-opacity', 'stroke', 'stroke-opacity', 'stroke-width', 'letter-spacing', 'text-transform', 'direction'];
+  var out = [];
+  for (var i = 0; i < props.length; i++) out.push(props[i] + ':' + cs.getPropertyValue(props[i]));
+  var opacity = parseFloat(getComputedStyle(source).opacity);
+  if (!isFinite(opacity)) opacity = 1;
+  for (var el = source.parentNode; el && el !== container; el = el.parentNode) {
+    var v = parseFloat(getComputedStyle(el).opacity);
+    if (isFinite(v)) opacity *= v;
+  }
+  if (opacity < 1) out.push('opacity:' + opacity);
+  return out.join(';');
+}
+
+// creditsShared(anchors): the nearest group holding every source layer - the rows are built in
+// it, so a row inherits what its source inherits there and nothing from another source's group.
+function creditsShared(anchors) {
+  var at = anchors[0].el.parentNode;
+  for (var i = 1; i < anchors.length; i++) {
+    while (at && !at.contains(anchors[i].el)) at = at.parentNode;
+  }
+  return at;
+}
+
+// The rows, made once in the shared group and kept, with the stylesheet that paints them: the
+// rows' looks and sizes live there rather than inline, so a reset that clears inline styles
+// leaves them as built.
+var noacgCreditsRows = null;
+var noacgCreditsSheet = null;
+// What the last build fitted, for a reader: each row's shrink and whether it was reported.
+var noacgCreditsFit = [];
+
+// creditsRender(): build the rows from the pasted list in the drawn layers' looks, spaced as
+// drawn, and hand back the group that holds them with the step the pace rides. Runs at load, on
+// every update() and at the start of every take.
+function creditsRender() {
+  var anchors = creditsAnchors();
+  if (!anchors.length) return null;
+  var ref = anchors[0].el;
+  var container = creditsShared(anchors);
+  var sources = {};
+  for (var i = 0; i < anchors.length; i++) if (!sources[anchors[i].kind]) sources[anchors[i].kind] = anchors[i].el;
+  if (!sources.role || !sources.name || !container) return null;
+  // THE SHARED EDGE, the mean over every drawn layer in the first role's frame: the drawing put
+  // them all on one aligned edge, and the rows keep it.
+  var sum = 0;
+  for (var j = 0; j < anchors.length; j++) {
+    var m = creditsFrom(anchors[j].el, ref);
+    var edge = creditsEdge(anchors[j].el);
+    if (!m || !edge) return null;
+    sum += creditsAt(m, edge.x, edge.y).x;
+  }
+  var x = sum / anchors.length;
+  var top = creditsEdge(ref).y;
+  var toContainer = creditsFrom(ref, container);
+  if (!toContainer) return null;
+  var rows = noacgCreditsRows;
+  if (!rows) {
+    // The window the roll runs through, and the group it moves, as the editable roll makes them:
+    // an inner <svg> viewport clips without an id, and the roll moves a group of its own.
+    var window_ = document.createElementNS(ref.namespaceURI, 'svg');
+    window_.setAttribute('class', '${cls}-window');
+    window_.setAttribute('overflow', 'hidden');
+    var roll = document.createElementNS(ref.namespaceURI, 'g');
+    roll.setAttribute('class', '${cls}-roll');
+    noacgCreditsSheet = document.createElementNS(ref.namespaceURI, 'style');
+    rows = document.createElementNS(ref.namespaceURI, 'g');
+    rows.setAttribute('class', '${cls}-rows');
+    roll.appendChild(noacgCreditsSheet);
+    roll.appendChild(rows);
+    window_.appendChild(roll);
+    // Painted where the first role is in the stack.
+    var after = ref;
+    while (after.parentNode !== container) after = after.parentNode;
+    container.insertBefore(window_, after.nextSibling);
+    noacgCreditsRows = rows;
+  }
+  // The rows sit in the first role's own frame, so every step is in its units.
+  rows.setAttribute('transform', 'matrix(' + [toContainer.a, toContainer.b, toContainer.c, toContainer.d, toContainer.e, toContainer.f].join(' ') + ')');
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  var text = holder ? holder.textContent : '';
+  // Written as textContent, so nothing here is escaped: the identity is the escape.
+  var sections = parseCredits(text, function (s) { return s; });
+  while (rows.firstChild) rows.removeChild(rows.firstChild);
+  var S = NOACG_CREDITS_STYLE;
+  // One look rule per kind: what a copy outside its source's group needs, and the shared edge.
+  var sel = '.${cls}-rows > .${cls}-row';
+  var base = '';
+  var kinds = ['role', 'name'];
+  var frames = {};
+  for (var q = 0; q < kinds.length; q++) {
+    var kind = kinds[q];
+    frames[kind] = creditsFrom(sources[kind], ref);
+    if (!frames[kind]) return null;
+    var look = creditsLookOf(sources[kind], container);
+    var where = sel + '[data-noacg-credits="' + kind + '"]';
+    base += where + ', ' + where + ' [data-noacg-run] {' + (look ? look + ';' : '') + 'text-anchor:' + S.align + ' !important}\\n';
+  }
+  noacgCreditsSheet.textContent = base;
+  // FIRST PASS: every row, spaced as drawn, appended at once.
+  var made = [];
+  var y = top;
+  var prev = null;
+  var sectionBreak = false;
+  var paint = function (kind, words) {
+    if (made.length > 0) {
+      y += kind === 'role' ? S.groupGap : prev === 'role' ? S.roleToName : S.nameToName;
+      // A blank line before a name adds the air the drawing gives a group, or one name step.
+      if (sectionBreak && kind !== 'role') {
+        var air = S.groupGap - S.nameToName;
+        y += air > 0.5 ? air : S.nameToName;
+      }
+    }
+    var m = frames[kind];
+    var copy = creditsCopy(sources[kind], words);
+    var row = copy.row;
+    row.setAttribute('transform', 'matrix(' + [m.a, m.b, m.c, m.d, m.e, m.f].join(' ') + ')');
+    var p = creditsAt(m.inverse(), x, y);
+    row.setAttribute('x', p.x.toFixed(2));
+    row.setAttribute('y', p.y.toFixed(2));
+    row.setAttribute('data-noacg-credits', kind);
+    row.setAttribute('data-noacg-row', String(made.length));
+    if (copy.run !== row) copy.run.setAttribute('data-noacg-run', '');
+    rows.appendChild(row);
+    made.push({ row: row, run: copy.run, kind: kind, words: words, m: m });
+    prev = kind;
+    sectionBreak = false;
+  };
+  for (var s = 0; s < sections.length; s++) {
+    sectionBreak = s > 0;
+    for (var e = 0; e < sections[s].length; e++) {
+      var entry = sections[s][e];
+      if (entry.type === 'group') {
+        paint('role', entry.role + S.roleSuffix);
+        for (var k = 0; k < entry.names.length; k++) paint('name', entry.names[k]);
+      } else if (entry.type === 'heading') {
+        paint('role', entry.text);
+      } else {
+        paint('name', entry.text);
+      }
+    }
+  }
+  // SECOND PASS, TOO WIDE: each row measured once, in one layout. A row wider than its room
+  // shrinks to it, is reported past 55% and stops at the 30% floor (CREDITS_OVERFLOW). The room
+  // is the window (the Credits box, else the frame) in the first role's frame, less half a row's
+  // type at the side it meets, spent from the aligned edge.
+  var win = creditsWindow(rows.parentNode.parentNode);
+  var toRef = win ? creditsFrom(container, ref) : null;
+  var lo = null, hi = null;
+  if (win && toRef) {
+    var c = [creditsAt(toRef, win.left, win.top), creditsAt(toRef, win.right, win.top), creditsAt(toRef, win.left, win.bottom), creditsAt(toRef, win.right, win.bottom)];
+    lo = Math.min(c[0].x, c[1].x, c[2].x, c[3].x);
+    hi = Math.max(c[0].x, c[1].x, c[2].x, c[3].x);
+  }
+  noacgCreditsFit = [];
+  var over = false;
+  var sizes = '';
+  for (var r = 0; r < made.length; r++) {
+    var one = made[r];
+    var fit = { kind: one.kind, words: one.words, scale: 1, reported: false };
+    var box = null;
+    try { box = one.row.getBBox(); } catch (err) { box = null; }
+    if (lo !== null && box && box.width > 0) {
+      var scale = Math.sqrt(Math.abs(one.m.a * one.m.d - one.m.b * one.m.c)) || 1;
+      var size = parseFloat(getComputedStyle(one.run).fontSize) || 16;
+      var margin = 0.5 * size * scale;
+      var rtl = getComputedStyle(one.row).direction === 'rtl';
+      var side = S.align === 'middle' ? 'middle' : (S.align === 'start') !== rtl ? 'left' : 'right';
+      var room = side === 'middle' ? 2 * Math.min(x - lo, hi - x) - 2 * margin : side === 'left' ? hi - x - margin : x - lo - margin;
+      var width = box.width * scale;
+      if (width > room) {
+        fit.scale = Math.max(NOACG_CREDITS_FLOOR, room / width);
+        fit.reported = fit.scale < NOACG_CREDITS_REPORT;
+        var at = sel + '[data-noacg-row="' + r + '"]';
+        sizes += at + ', ' + at + ' [data-noacg-run] {font-size:' + (size * fit.scale) + 'px !important}\\n';
+      }
+    }
+    if (fit.reported) over = true;
+    noacgCreditsFit.push(fit);
+  }
+  if (sizes) noacgCreditsSheet.textContent = base + sizes;
+  // The operator hears about a row past the report line through the graphic's overflow report,
+  // under the one Credits field.
+  if (holder && typeof svgFitOver !== 'undefined') svgFitOver[holder.id] = over;
+  return { rows: rows, looks: { afterName: S.nameToName } };
+}
+
+// stopCreditsRoll(): Out ends the roll, so nothing keeps moving the list off air.
+function stopCreditsRoll() {
+  if (noacgCreditsTween) noacgCreditsTween.kill();
+  noacgCreditsTween = null;
+}
+
+${creditsTakeJs()}
+
 // Render once on load, so a preview shows the list before the first update(); again when the
-// real typeface arrives, because the sample's line widths decide how the rows line up.
+// real typeface arrives, because the drawn widths decide where an aligned row starts.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', creditsRender);
 } else {
@@ -602,6 +1009,8 @@ export interface CreditsStyle {
   steps: { roleToName?: number; nameToName?: number; groupGap?: number; column?: number };
   /** The sample as the credits list: what the one content field starts with. */
   list: string;
+  /** What the drawn roles end with (`:` or nothing), so a rendered role reads as drawn. */
+  roleSuffix: string;
 }
 
 export type CreditsAnalysis =
@@ -626,7 +1035,10 @@ export function readCreditsAnchors(root: Element, candidateIds: readonly string[
 function readOne(root: Element, text: Element, candidateId: string): CreditsReading {
   // The runs that hold characters, at any depth: a wrapper run around runs holds none.
   const runs = Array.from(text.querySelectorAll('tspan')).filter((t) => !t.querySelector('tspan'));
-  const first = runs[0] ?? null;
+  // THE ELEMENT THAT PAINTS THE FIRST CHARACTER: the run holding it, or the text itself where
+  // loose characters come before any run (#1941 point 2). Its look and position are the layer's.
+  const firstNode = firstCharNode(text);
+  const first = firstNode ? (firstNode.parentElement === text ? null : firstNode.parentElement) : runs[0] ?? null;
   // The first value of a position list, in user units; an `em` step is a multiple of the size.
   let size = 16;
   const num = (el: Element | null, name: string) => {
@@ -643,9 +1055,9 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     if (computed) return computed.getPropertyValue(name).trim();
     for (let el: Element | null = first ?? text; el && el !== root.parentElement; el = el.parentElement) {
       const inline = (el.getAttribute('style') ?? '').split(';').map((d) => d.split(':')).find(([k]) => k?.trim() === name);
-      if (inline && inline[1] !== undefined) return inline.slice(1).join(':').trim();
+      if (inline && inline[1] !== undefined) return parsedValue(name, inline.slice(1).join(':').trim());
       const attr = el.getAttribute(name);
-      if (attr !== null) return attr.trim();
+      if (attr !== null) return parsedValue(name, attr.trim());
     }
     return '';
   };
@@ -685,10 +1097,12 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
   // A run's position attribute is the one for its first character, then each enclosing element's
   // while the run starts it, up to the text.
   const nearest = (run: Element | null, name: string): number | null => {
+    const own = firstCharNode(run ?? text);
     for (let el: Element | null = run ?? text; el; el = el === text ? null : el.parentElement) {
       const v = num(el, name);
       if (v !== null) return v;
-      if (el !== text && el.parentElement && runs.find((r) => el!.parentElement!.contains(r)) !== run) return null;
+      // An enclosing element's value is this run's only while its first character is the run's.
+      if (el !== text && el.parentElement && firstCharNode(el.parentElement) !== own) return null;
     }
     return null;
   };
@@ -744,6 +1158,36 @@ function readOne(root: Element, text: Element, candidateId: string): CreditsRead
     linear: [m.a, m.b, m.c, m.d],
     lines: Math.max(1, baselines.size),
   };
+}
+
+/** The text node holding an element's first non-blank character, in document order. */
+function firstCharNode(el: Element): Text | null {
+  const walk = el.ownerDocument.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) if ((n.textContent ?? '').trim()) return n as Text;
+  return null;
+}
+
+let colourProbe: CanvasRenderingContext2D | null | undefined;
+
+/**
+ * A value as the parsed reading compares it. Colours are spelt one way, so `white` and `#ffffff`
+ * are one look as they are laid out (#1941 point 3); anything a canvas does not read as a colour
+ * (`none`, `currentColor`, a paint server) is compared as written.
+ */
+function parsedValue(name: string, value: string): string {
+  if (name !== 'fill' && name !== 'stroke') return value;
+  if (colourProbe === undefined) colourProbe = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  if (!colourProbe || !value || /^(none|currentcolor|inherit)$/i.test(value) || /^url\(/i.test(value)) return value;
+  // A colour the canvas cannot read leaves the probe's last value; that value is read back
+  // rather than spelt here, since engines serialise it their own way.
+  colourProbe.fillStyle = 'rgba(1, 2, 3, 0.5)';
+  const unset = String(colourProbe.fillStyle);
+  colourProbe.fillStyle = value;
+  const read = String(colourProbe.fillStyle);
+  if (read !== unset) return read;
+  colourProbe.fillStyle = 'rgba(3, 2, 1, 0.5)';
+  colourProbe.fillStyle = value;
+  return String(colourProbe.fillStyle) === unset ? read : value;
 }
 
 /** Where an edge sits along a drawn line, from its left end: `start` is the right end of a
@@ -894,6 +1338,7 @@ export function analyseCreditsStyle(readings: readonly (CreditsReading | null)[]
       align,
       steps,
       list,
+      roleSuffix: /\s*[:;]\s*$/.exec(roles[0].r.text)?.[0].trim() ?? '',
     },
   };
 }
@@ -987,12 +1432,35 @@ function creditsLayerText(root: Element, candidateId: string): string {
 /** Which credits engine a saved design selects: the original-text roll, the artwork's own
  *  styling, the editable roll, or none. One answer per design. The original-text marker wins, as
  *  it does in the assembler, so a binding carrying both (`conflicting-engine`) never half-builds
- *  as styled. The assembler does not build 'styled' yet; #1937 carries that seam. */
+ *  as styled. A styled binding builds styled only where it validates and a row has rendered its
+ *  layout and playback (`CREDITS_RENDERED`); otherwise it builds what it built before any styled
+ *  engine existed, the editable roll of its one list field, byte for byte. */
 export function creditsEngine(svg: DesignSvg): 'styled' | 'artwork' | 'editable' | null {
   const behaviour = svg.behaviour;
   if (behaviour?.kind !== 'recipe' || behaviour.recipe !== CREDITS_RECIPE_ID) return null;
   if (behaviour.options?.artwork === true) return 'artwork';
-  return behaviour.credits ? 'styled' : 'editable';
+  return behaviour.credits && styledCredits(svg) ? 'styled' : 'editable';
+}
+
+/**
+ * THE LAYOUTS AND PLAYBACKS THE STYLED ENGINE RENDERS. Row 19 renders role above as a roll; role
+ * beside (row 20), static (row 22) and cards (row 23) are added by the rows that render them. A
+ * binding nothing renders yet keeps building the editable roll of its one list field, as it did
+ * before, never an untested picture; the wizard saves only what is rendered.
+ */
+export const CREDITS_RENDERED: Readonly<Record<CreditsLayout, readonly CreditsPlayback[]>> = {
+  'role-above': ['roll'],
+  'role-beside': [],
+};
+
+/** The style a saved styled binding builds with, or null when it builds anything else. */
+export function styledCredits(svg: DesignSvg): CreditsStyle | null {
+  const behaviour = svg.behaviour;
+  if (behaviour?.kind !== 'recipe' || behaviour.recipe !== CREDITS_RECIPE_ID || !behaviour.credits) return null;
+  if (behaviour.options?.artwork === true) return null;
+  if (!CREDITS_RENDERED[behaviour.credits.layout]?.includes(behaviour.credits.playback)) return null;
+  const read = readBindingMemo(svg);
+  return read.errors.length === 0 ? read.style : null;
 }
 
 /**
@@ -1019,10 +1487,35 @@ export const CREDITS_OVERFLOW: Readonly<Record<CreditsPlayback, { wide: 'shrink-
  * fails whole rather than half-applying.
  */
 export function validateCreditsBinding(svg: DesignSvg, root?: Element): string[] {
+  return (root ? readBinding(svg, root) : readBindingMemo(svg)).errors;
+}
+
+interface CreditsBindingRead {
+  errors: string[];
+  /** The style the markup shows, read the way the binding's stored kinds say. */
+  style: CreditsStyle | null;
+}
+
+// The assembler asks for the same binding several times per build, and the wizard rebuilds on
+// every change: one laid-out reading per markup and binding.
+let bindingMemo: { key: string; read: CreditsBindingRead } | null = null;
+
+function readBindingMemo(svg: DesignSvg): CreditsBindingRead {
+  // Drawn widths change when a face arrives, so a reading taken before is not reused after.
+  const fonts = typeof document !== 'undefined' && document.fonts ? `${document.fonts.status}:${document.fonts.size}` : '';
+  const key = JSON.stringify([svg.behaviour, svg.fields.map((f) => f.candidateId), fonts]) + svg.markup;
+  if (bindingMemo?.key === key) return bindingMemo.read;
+  const read = readBinding(svg);
+  bindingMemo = { key, read };
+  return read;
+}
+
+function readBinding(svg: DesignSvg, root?: Element): CreditsBindingRead {
   const behaviour = svg.behaviour;
-  if (behaviour?.kind !== 'recipe' || !behaviour.credits) return [];
+  if (behaviour?.kind !== 'recipe' || !behaviour.credits) return { errors: [], style: null };
   const model = behaviour.credits;
   const errors: string[] = [];
+  let style: CreditsStyle | null = null;
   if (behaviour.recipe !== CREDITS_RECIPE_ID) errors.push('wrong-recipe: only the credits recipe carries a credits style.');
   if (behaviour.options?.artwork === true) errors.push('conflicting-engine: the original-artwork roll and the styled credits cannot both be chosen.');
   if (model.v !== 1) errors.push(`unknown-version: ${String(model.v)}.`);
@@ -1056,11 +1549,13 @@ export function validateCreditsBinding(svg: DesignSvg, root?: Element): string[]
     // Where the columns are ambiguous, the author's answer is the one the stored kinds give.
     const read = analyseCreditsStyle(readings, ids);
     const swapped = creditsColumnsAmbiguous(readings, ids) ? analyseCreditsStyle(readings, ids, { swap: true }) : null;
-    analyseInto(errors, model, swapped?.ok && sameAnchors(swapped.style.anchors, model.anchors) ? swapped : read);
+    const chosen = swapped?.ok && sameAnchors(swapped.style.anchors, model.anchors) ? swapped : read;
+    analyseInto(errors, model, chosen);
+    if (chosen.ok) style = chosen.style;
   } finally {
     laid?.done();
   }
-  return errors;
+  return { errors, style };
 }
 
 /** The markup placed on the page, unseen, for as long as a reading takes; null without a page. */

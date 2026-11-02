@@ -8,7 +8,7 @@ import type { DesignSvg, DesignSvgFollower } from '../../model/wizard';
 import { SVG_CANDIDATE_ATTR, svgPictureTarget } from '../../assets/svgImport';
 import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
-import { creditsArtworkFields, creditsClass, creditsIndex } from './creditsRoll';
+import { creditsArtworkFields, creditsClass, creditsIndex, creditsMarkAnchors } from './creditsRoll';
 import { PREFIX } from './shared';
 import { followToken, growToken, LAYOUT_EL_ATTR, layoutRules } from './svgLayout';
 
@@ -180,6 +180,9 @@ export function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
     normalizePictureHref(picture);
     setIdKeepingRefs(root, picture, `f${i}`);
   });
+  // A styled credits binding's role and name layers: hidden on air and marked in reading order
+  // for its engine to copy (creditsRoll.ts). Nothing else is stamped for any other design.
+  creditsMarkAnchors(svg, root, PREFIX);
   // An outlined-text group the user chose to replace (plan §1.A) is HIDDEN, not deleted:
   // the class below is what the `.{prefix}-outlined { display: none }` rule in template.css
   // matches, so a professional can compare the live text against the shapes by deleting

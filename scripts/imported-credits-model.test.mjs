@@ -2,6 +2,8 @@
 // guards: src/templates/importedDesign/creditsRoll.ts
 // guards: src/templates/importedDesign/designTypes.ts
 // guards: src/templates/behaviours/credits.ts
+// guards: src/templates/importedDesign/svg.ts
+// guards: src/templates/importedDesign/svgBind.ts
 //
 // IMPORTED CREDITS IN THE ARTWORK'S OWN STYLING: the model (jev-svg-import row 16, AC-13).
 //
@@ -22,6 +24,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { hash, withBundledPage } from './catalog-emit.mjs';
+import * as prettier from 'prettier';
 
 const SRC = process.env.CREDITS_SRC ?? fileURLToPath(new URL('../src/', import.meta.url));
 const fixture = (rel) => readFileSync(fileURLToPath(new URL(`../e2e/fixtures/${rel}`, import.meta.url)), 'utf8');
@@ -75,6 +78,113 @@ const CASES = {
   nestedLines: svg(`<text x="100" y="100" font-size="24" fill="#fc0"><tspan x="100" y="100"><tspan>Director</tspan><tspan x="100" y="160">Alex</tspan></tspan></text>${t(100, 220, 40, 'Ida Lake')}`),
   looseLines: svg(`<text x="100" y="100" font-size="24" fill="#fc0">Director<tspan x="100" y="160">Alex</tspan></text>${t(100, 220, 40, 'Ida Lake')}`),
 };
+
+/** Row 19's drawings: a bold role look set by a stylesheet class, names drawn in a group of
+ *  their own (so a copy must carry the group's look), and the two #1941 reader cases. */
+const STYLED_CASES = {
+  bold: svg(`<style>.r{font-weight:700;fill:#fc0}</style>${t(500, 100, 24, 'Director', ' class="r" text-anchor="middle"')}${t(500, 160, 40, 'Alex Rivera', ' text-anchor="middle"')}${t(500, 210, 40, 'Ida Lake', ' text-anchor="middle"')}${t(500, 330, 24, 'Sound', ' class="r" text-anchor="middle"')}${t(500, 390, 40, 'Ari Moss', ' text-anchor="middle"')}`),
+  grouped: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}<g fill="#9cf" opacity="0.5" font-style="italic">${t(100, 160, 40, 'Alex Rivera')}${t(100, 210, 40, 'Ida Lake')}</g>`),
+  // The first role in a translucent group of its own: names built beside it must not take it.
+  roleGroup: svg(`<g opacity="0.5">${t(100, 100, 24, 'Director', ' fill="#fc0"')}</g>${t(100, 160, 40, 'Alex Rivera')}${t(100, 210, 40, 'Ida Lake')}`),
+  // Loose characters painted before the first run take the text's look, not the run's.
+  loose: svg(`<text x="100" y="100" font-size="40" fill="#fc0">Dir<tspan fill="#fff">ector</tspan></text>${t(100, 160, 40, 'Alex Rivera')}`),
+  // One name look spelt two ways: the parsed reading compares colours, not spellings.
+  spellings: svg(`${t(100, 100, 24, 'Cast', ' fill="#fc0"')}${t(100, 160, 40, 'Ada Holm', ' fill="white"')}${t(100, 210, 40, 'Bo Lind', ' fill="#ffffff"')}`),
+};
+
+/** Plays one styled document on its own page and reads back what the rows show. Positions are in
+ *  the artwork's own units, through the screen, so the roll's window is crossed honestly. */
+async function playStyled(context, built) {
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  try {
+    await page.setContent(built.doc);
+    await page.evaluate(() => document.fonts.ready);
+    return { errors, ...(await page.evaluate(readStyled, { field: built.field.field })) };
+  } finally {
+    await page.close();
+  }
+}
+
+/** Runs in the played document. */
+function readStyled({ field }) {
+  const art = document.querySelector('.imported-design-art');
+  const toArt = (el, x, y) => {
+    const m = art.getScreenCTM().inverse().multiply(el.getScreenCTM());
+    return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+  };
+  const round = (n) => Math.round(n * 100) / 100;
+  const startOf = (el) => {
+    const p = el.getStartPositionOfChar(0);
+    const q = toArt(el, p.x, p.y);
+    return { x: round(q.x), y: round(q.y) };
+  };
+  const painted = (el) => {
+    let node = el;
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.nodeValue.trim()) { node = n.parentNode; break; }
+    let opacity = 1;
+    for (let e = node; e && e !== art; e = e.parentNode) opacity *= parseFloat(getComputedStyle(e).opacity);
+    const cs = getComputedStyle(node);
+    return { fill: cs.fill, size: cs.fontSize, weight: cs.fontWeight, style: cs.fontStyle, family: cs.fontFamily, opacity: round(opacity) };
+  };
+  const sources = () => [...document.querySelectorAll('[data-noacg-credit]')].map((el) => ({
+    mark: el.getAttribute('data-noacg-credit'), text: el.textContent, outer: el.outerHTML, visibility: getComputedStyle(el).visibility, start: startOf(el), look: painted(el),
+  }));
+  const rows = () => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => ({
+    kind: el.getAttribute('data-noacg-credits'), text: el.textContent, start: startOf(el), look: painted(el), id: el.getAttribute('id'),
+    width: round(el.getBBox().width * Math.sqrt(Math.abs(toArt(el, 1, 0).x - toArt(el, 0, 0).x) ** 2 + Math.abs(toArt(el, 1, 0).y - toArt(el, 0, 0).y) ** 2)),
+  }));
+  const write = (list) => window.update(JSON.stringify({ [field]: list }));
+  const atRest = { sources: sources(), rows: rows() };
+  // Repeated roles and names, a role with none, a heading and a section break.
+  write('Research:\nNia Vale\nTomas Fen\nIda Lake\nSound:\nAri Moss\nMusic:\n\nResearch:\nSol Reed');
+  const repeated = rows();
+  // Long names, measured against the drawn name look itself: each one's natural width is what the
+  // first name layer draws when it holds those words.
+  const nameLayer = [...document.querySelectorAll('[data-noacg-credit]')].find((el) => el.getAttribute('data-noacg-credit').endsWith(' name'));
+  const natural = (words) => {
+    const first = document.createTreeWalker(nameLayer, NodeFilter.SHOW_TEXT);
+    let node = first.nextNode();
+    while (node && !node.nodeValue.trim()) node = first.nextNode();
+    const was = node.nodeValue;
+    node.nodeValue = words;
+    const w = nameLayer.getBBox().width;
+    node.nodeValue = was;
+    const unit = Math.hypot(toArt(nameLayer, 1, 0).x - toArt(nameLayer, 0, 0).x, toArt(nameLayer, 1, 0).y - toArt(nameLayer, 0, 0).y);
+    return round(w * unit);
+  };
+  const long = [1, 3, 5, 14].map((n) => Array(n).fill('Aurelia Vantongeren').join(' '));
+  write(`Research:\n${long.join('\n')}`);
+  const longRows = rows();
+  const longFit = window.noacgCreditsFit.map((f) => ({ ...f }));
+  const naturals = long.map(natural);
+  const overLong = window.noacgTextOverflow();
+  write('Research:\nNia Vale');
+  const overShort = window.noacgTextOverflow();
+  // A reset that clears every inline style (the editor's snap and reset) leaves the rows as built.
+  write(`Research:\n${long[2]}`);
+  const beforeReset = rows().map((r) => [r.start, r.look]);
+  window.gsap.set([document.body.querySelector('div'), ...document.body.querySelector('div').querySelectorAll('*')], { clearProps: 'all' });
+  const afterReset = rows().map((r) => [r.start, r.look]);
+  // The take: the roll moves its own group; the source layers stay exactly as they were.
+  write('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  const before = sources().map((x) => x.outer);
+  const tween = window.noacgCreditsRoll();
+  const first = { ...window.noacgCreditsLast };
+  const target = tween && tween.targets()[0].getAttribute('class');
+  const again = window.noacgCreditsRoll();
+  const second = { ...window.noacgCreditsLast };
+  window.stopCreditsRoll();
+  const stopped = window.noacgCreditsTween === null && again.isActive() === false;
+  return {
+    atRest, repeated, longRows, longFit, naturals, overLong, overShort, field,
+    take: { ok: !!tween, first, second, target, stopped, sourcesKept: JSON.stringify(sources().map((x) => x.outer)) === JSON.stringify(before) },
+    reset: { before: beforeReset, after: afterReset },
+    holder: document.getElementById(field)?.className,
+  };
+}
 
 /** Runs in the browser: every answer the tests below read, from one page. */
 async function inPage({ dev, cases, legacy, artwork }) {
@@ -215,7 +325,53 @@ async function inPage({ dev, cases, legacy, artwork }) {
     styled: C.creditsEngine(binding(good)),
     both: C.creditsEngine(binding(good, { options: { artwork: true } })),
   };
+  // ROW 19: the styled engine, role above. Each binding is the reading the wizard saves: the
+  // anchors `creditsPreview` reads from the first role layer down, one Credits field, a roll.
+  const styledOf = (markup, roleWord) => {
+    const imp = imported(markup);
+    const content = imp.candidates.find((c) => c.sample === roleWord).id;
+    const host = laidOut(imp.markup);
+    const preview = C.creditsPreview(host, imp.candidates.map((c) => c.id), content);
+    host.parentElement.remove();
+    const sources = new Set(preview.styled ? preview.anchors.map((a) => a.candidateId) : []);
+    const fields = fieldsOf(imp).filter((f) => !sources.has(f.candidateId) || f.candidateId === content);
+    const svg = {
+      markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [], fonts: [],
+      behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: fields.findIndex((f) => f.candidateId === content) }, credits: { v: 1, layout: preview.layout, playback: 'roll', anchors: preview.anchors } },
+    };
+    const tpl = I.IMPORTED_SVG.create({ designSvg: svg });
+    const field = tpl.fields.find((f) => f.ftype === 'textarea');
+    return { preview, engine: C.creditsEngine(svg), errors: C.validateCreditsBinding(svg), doc: window.NOACG_COMPOSE.composeDocument(tpl), html: tpl.html, css: tpl.css, js: tpl.js, field, fieldCount: tpl.fields.length, sourceMarkup: imp.markup, anchors: preview.anchors };
+  };
+  if (typeof C.styledCredits !== 'function') return { pins };
+  const styled = {
+    one: styledOf(dev[0].markup, 'Research'),
+    bold: styledOf(cases.bold, 'Director'),
+    grouped: styledOf(cases.grouped, 'Director'),
+    roleGroup: styledOf(cases.roleGroup, 'Director'),
+  };
+  // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
+  const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
+  const fallbacks = {
+    static: notYet({ ...good, playback: 'static' }),
+    cards: notYet({ ...good, playback: 'cards' }),
+    stale: notYet({ ...good, anchors: [...good.anchors].reverse() }),
+  };
+  const staticBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'static' }) });
+  // ...which is the editable roll it built before any styled engine existed, byte for byte.
+  fallbacks.staticBuildsEditable = staticBuild.js.includes('function creditsSampleLines(') && !staticBuild.js.includes('NOACG_CREDITS_STYLE');
+  const unstyled = binding(good);
+  delete unstyled.behaviour.credits;
+  fallbacks.staticSameAsUnstyled = JSON.stringify(staticBuild) === JSON.stringify(I.IMPORTED_SVG.create({ designSvg: unstyled }));
+  // #1941: loose characters before the first run, and colour spellings in the parsed reading.
+  const loose = analyse(cases.loose, parsed);
+  const looseLaid = analyse(cases.loose, laidOut);
+  const spellings = analyse(cases.spellings, parsed);
+
   return {
+    styled,
+    fallbacks,
+    issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
     pins,
     devResults,
     caseResults,
@@ -240,8 +396,21 @@ const R = await withBundledPage(
     ['templates/endCredits/shared.ts', 'NOACG_PARSER'],
     ['templates/behaviours/credits.ts', 'NOACG_RECIPE'],
     ['ai/svgInterpretation/contract.ts', 'NOACG_CONTRACT'],
+    ['preview/composeDocument.ts', 'NOACG_COMPOSE'],
   ].map(([rel, globalName]) => ({ entry: `${SRC}${rel}`, globalName })),
-  (page) => page.evaluate(inPage, { dev: DEV, cases: CASES, legacy: LEGACY, artwork: ARTWORK }),
+  async (page) => {
+    const out = await page.evaluate(inPage, { dev: DEV, cases: { ...CASES, ...STYLED_CASES }, legacy: LEGACY, artwork: ARTWORK });
+    // The styled documents play on pages of their own, as an output would show them.
+    if (out.styled) {
+      const context = await page.context().browser().newContext();
+      try {
+        for (const built of Object.values(out.styled)) built.played = await playStyled(context, built);
+      } finally {
+        await context.close();
+      }
+    }
+    return out;
+  },
 );
 
 const sha = (o) => hash(JSON.stringify(o));
@@ -256,6 +425,7 @@ const PINS = {
   'fixed:credits-3': 'f6535d6218476819',
 };
 
+if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
 if (process.env.CREDITS_PRINT_PINS) console.log(JSON.stringify(Object.fromEntries(Object.entries(R.pins).map(([k, v]) => [k, sha(v)]))));
 
 test('saved editable and original-artwork credits, and plain imports, build exactly as before', () => {
@@ -467,4 +637,152 @@ test('the model spells layout and playback as the proposal contract does', () =>
   assert.deepEqual(R.constants.layouts, values('layout'));
   assert.deepEqual(R.constants.playbacks, values('playback'));
   assert.deepEqual(R.constants.seconds, { min: 2, max: 60 });
+});
+
+// ── Row 19: role-above credits rendered in the artwork's own styling ─────────────────────────
+
+const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
+const ROLE_ABOVE = ['one', 'bold', 'grouped', 'roleGroup'];
+
+test('row 19: a role-above binding builds the styled engine, one Credits field holding the drawn list', () => {
+  for (const k of ROLE_ABOVE) {
+    const b = R.styled[k];
+    assert.equal(b.preview.layout, 'role-above', k);
+    assert.deepEqual(b.errors, [], k);
+    assert.equal(b.engine, 'styled', k);
+    assert.ok(b.js.includes('var NOACG_CREDITS_STYLE = '), `${k}: the styled runtime is emitted`);
+    assert.ok(!b.js.includes('function creditsSampleLines(') && !b.js.includes('function creditsArtwork('), `${k}: and neither other engine`);
+    assert.match(b.js, /"call":\s*"stopCreditsRoll"/, `${k}: Out stops the roll`);
+    assert.deepEqual(b.played.errors, [], `${k}: no page errors`);
+    assert.equal(b.played.holder, 'noacg-data-source', `${k}: the list lives in a hidden holder`);
+  }
+  // One textarea for the list, the drawn title as its own field, and Scroll speed: never a field per name.
+  assert.equal(R.styled.one.field.value, 'Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  assert.equal(R.styled.one.fieldCount, 3);
+  assert.equal(R.styled.bold.fieldCount, 2);
+});
+
+test('row 19: the sample list rebuilds exactly where and how the designer drew it', () => {
+  for (const k of ROLE_ABOVE) {
+    const { rows, sources } = R.styled[k].played.atRest;
+    assert.equal(rows.length, sources.length, k);
+    rows.forEach((row, i) => {
+      const src = sources[i];
+      assert.equal(row.text, src.text, `${k} ${i}`);
+      assert.equal(row.kind, src.mark.split(' ')[1], `${k} ${i}: kind`);
+      assert.ok(near(row.start.x, src.start.x) && near(row.start.y, src.start.y), `${k} ${i}: drawn at ${JSON.stringify(src.start)}, row at ${JSON.stringify(row.start)}`);
+      assert.deepEqual(row.look, src.look, `${k} ${i}: the look is the drawn layer's`);
+      assert.equal(row.id, null, `${k} ${i}: no id is copied`);
+    });
+  }
+});
+
+test('row 19: bold roles, and names drawn in a group of their own, keep their looks', () => {
+  const bold = R.styled.bold.played.atRest.rows;
+  assert.deepEqual(bold.map((r) => r.look.weight), ['700', '400', '400', '700', '400'], 'a stylesheet class sets the roles bold');
+  const grouped = R.styled.grouped.played.atRest.rows;
+  assert.deepEqual(grouped.map((r) => [r.look.fill, r.look.style, r.look.opacity]), [
+    ['rgb(255, 204, 0)', 'normal', 1],
+    ['rgb(153, 204, 255)', 'italic', 0.5],
+    ['rgb(153, 204, 255)', 'italic', 0.5],
+  ], 'the group\'s fill, italic and opacity travel with the names');
+  const roleGroup = R.styled.roleGroup.played.atRest.rows;
+  assert.deepEqual(roleGroup.map((r) => r.look.opacity), [0.5, 1, 1], 'a role\'s own group stays its own');
+});
+
+test('row 19: repeated roles and names follow the sample\'s spacing', () => {
+  const rows = R.styled.one.played.repeated;
+  assert.deepEqual(rows.map((r) => [r.kind, r.text]), [
+    ['role', 'Research'], ['name', 'Nia Vale'], ['name', 'Tomas Fen'], ['name', 'Ida Lake'],
+    ['role', 'Sound'], ['name', 'Ari Moss'],
+    ['role', 'Music'],
+    ['role', 'Research'], ['name', 'Sol Reed'],
+  ], 'the drawn roles carry no colon, so the rows carry none');
+  const ys = rows.map((r) => r.start.y);
+  const steps = ys.slice(1).map((y, i) => Math.round((y - ys[i]) * 100) / 100);
+  // credits-1: role to name 65, name to name 55, last name to the next role 150. A role with no
+  // names (Music) is followed at the group gap; the blank line before the second Research is a
+  // section break, which before a role is that same gap.
+  assert.deepEqual(steps, [65, 55, 55, 150, 65, 150, 150, 65]);
+  for (const r of rows) assert.ok(near(r.start.y - Math.round(r.start.y), 0), 'baselines sit on the drawn units');
+});
+
+test('row 19: a name too wide shrinks to its measured room, is reported past 55% and stops at the 30% floor', () => {
+  const p = R.styled.one.played;
+  // credits-1 centres every layer on x=400 in an 800-wide frame: a centred row may spend 400 to
+  // each side, less half its type (35/2) at each edge.
+  const room = 2 * 400 - 35;
+  const names = p.longFit.filter((f) => f.kind === 'name');
+  assert.equal(names.length, p.naturals.length);
+  const regimes = new Set();
+  names.forEach((fit, i) => {
+    const natural = p.naturals[i];
+    const want = Math.min(1, Math.max(0.3, room / natural));
+    assert.ok(Math.abs(fit.scale - want) < 0.005, `${fit.words.length} chars: scale ${fit.scale}, measured ${want}`);
+    assert.equal(fit.reported, want < 0.55, `${fit.words.length} chars: reported only past 55%`);
+    const width = p.longRows[i + 1].width;
+    if (want === 1) assert.ok(near(width, natural, 0.5), 'a name that fits is drawn at its own size');
+    else if (want > 0.3) assert.ok(width <= room + 0.5 && width >= room - 3, `shrunk to the room: ${width} of ${room}`);
+    else assert.ok(near(width, natural * 0.3, 1), 'at the floor it stops shrinking');
+    regimes.add(want === 1 ? 'fits' : want >= 0.55 ? 'shrinks' : want > 0.3 ? 'reported' : 'floor');
+  });
+  assert.deepEqual([...regimes].sort(), ['shrinks', 'fits', 'floor', 'reported'].sort(), 'the names cover every rung');
+  assert.deepEqual(p.overLong, [p.field], 'the overflow report names the one Credits field');
+  assert.deepEqual(p.overShort, [], 'and clears when the list fits again');
+});
+
+test('row 19: the roll keeps the source layers and their original text, and replays the same', () => {
+  for (const k of ROLE_ABOVE) {
+    const { take, atRest } = R.styled[k].played;
+    assert.equal(take.ok, true, k);
+    assert.equal(take.target, 'imported-design-credits-roll', `${k}: the roll moves its own group`);
+    assert.equal(take.sourcesKept, true, `${k}: the take leaves every source layer as it was`);
+    assert.deepEqual(take.second, take.first, `${k}: a second take measures the same roll`);
+    assert.equal(take.stopped, true, `${k}: Out stops the roll`);
+    assert.deepEqual(R.styled[k].played.reset.after, R.styled[k].played.reset.before, `${k}: a reset of inline styles leaves the rows as built`);
+    assert.ok(take.first.distance > 0 && take.first.duration > 0, k);
+    for (const src of atRest.sources) assert.equal(src.visibility, 'hidden', `${k}: a source layer is laid out, never painted`);
+  }
+  assert.equal(R.styled.one.played.take.first.step, 55, 'the pace rides the drawn name step');
+  // The source layers in the built html are the import's own text elements, word for word, with
+  // their attributes kept; the engine adds only its class and its mark.
+  for (const k of ROLE_ABOVE) {
+    const b = R.styled[k];
+    const doc = new Map();
+    for (const m of b.html.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) doc.set(m[2], m[1]);
+    for (const m of b.sourceMarkup.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)) {
+      const id = /data-noacg-candidate="([^"]+)"/.exec(m[1])?.[1];
+      if (!b.anchors.some((a) => a.candidateId === id)) continue;
+      const built = doc.get(m[2]);
+      assert.ok(built !== undefined, `${k}: ${m[2]} is still in the file as drawn`);
+      const attrs = (s) => [...s.matchAll(/([\w:-]+)="([^"]*)"/g)].filter(([, n]) => n !== 'class' && !n.startsWith('data-noacg')).map(([, n, v]) => `${n}=${v}`).sort();
+      assert.deepEqual(attrs(built), attrs(m[1]), `${k}: ${m[2]} keeps its attributes`);
+      assert.match(built, /data-noacg-credit="\d+ (role|name)"/);
+    }
+  }
+});
+
+test('row 19: what no row renders yet builds what it built before, never an untested picture', () => {
+  // Role beside is row 20, static row 22, cards row 23; a stale binding likewise. Each keeps the
+  // editable roll of its one list field, exactly as before row 19.
+  assert.deepEqual(R.fallbacks, { static: 'editable', cards: 'editable', stale: 'editable', staticBuildsEditable: true, staticSameAsUnstyled: true });
+});
+
+test('#1941: loose characters before the first run, and colour spellings, read as painted', () => {
+  // Point 2: "Dir" is painted in the text's own gold before the white run; the look is gold.
+  assert.equal(R.issue1941.loose.ok, true, R.issue1941.loose.message);
+  assert.equal(R.issue1941.looseLaid.ok, true, R.issue1941.looseLaid.message);
+  assert.deepEqual(R.issue1941.loose.style.anchors.map((a) => a.kind), ['role', 'name']);
+  // Point 3: white and #ffffff are one name look in the parsed reading as well.
+  assert.equal(R.issue1941.spellings.ok, true, R.issue1941.spellings.message);
+  assert.deepEqual(R.issue1941.spellings.style.anchors.map((a) => a.kind), ['role', 'name', 'name']);
+});
+
+test('row 19: the list holder keeps its line breaks through the editor\'s code formatter', async () => {
+  // The production page formats the template (src/format/formatCode.ts, the same options). A
+  // collapsed holder read as one line on any stage reload before the next update().
+  const formatted = await prettier.format(R.styled.one.html, { printWidth: 100, tabWidth: 2, endOfLine: 'lf', parser: 'html' });
+  const holder = new RegExp(`<div id="${R.styled.one.field.field}"[^>]*>([\\s\\S]*?)</div>`).exec(formatted);
+  assert.ok(holder, 'the holder is in the formatted html');
+  assert.equal(holder[1], R.styled.one.field.value);
 });
