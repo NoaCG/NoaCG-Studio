@@ -19,7 +19,7 @@ open alarm and incident issues each week as backup coverage.
 
 ## Coordinator defaults (owner may change)
 
-- cf18(c): re-qualification stops waiting after two audit restarts after cf11's final selector
+- cf18(c): re-qualification stops waiting after two audit restarts caused by selection misses after cf11's final selector
   change, or on 2026-12-31, and is then recorded as not met without relaxing any criterion.
 
 ## Owner instructions, verbatim

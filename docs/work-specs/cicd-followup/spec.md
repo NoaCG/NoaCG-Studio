@@ -15,7 +15,10 @@ suite is not assumed to speed up merging.
 ## Rules for every phase
 
 - Never weaken a check, test, limit or budget, and never write a test-maintenance entry or budget
-  exception to pass a gate. Quarantine is containment, not a fix.
+  exception to pass a gate. The one exception is a short dated extension the owner allowed (#1953
+  in cf09, #1863 in cf14, and a dated phase under the rule below): it is written only with the
+  reason, current cost or failure evidence, an owner and a reduction or repair plan, before the
+  old date passes, and the PR names this rule. Quarantine is containment, not a fix.
 - Flake fixes wait on observable application state or completion, and investigate product races.
   No arbitrary sleeps or extra retries as the main fix. Stability is shown under representative CI
   conditions before a quarantine is lifted.
@@ -78,7 +81,9 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 - **cf01.** (a) Every owner string for the growth, age and quarantine alarms and the quarantine
   incident list names `miwco` as primary owner and the weekly owner session as backup coverage.
   (b) An alarm or incident notification, raised by the live routing (a deliberately triggered test
-  alarm counts), is observed reaching `miwco`, with its receipt; #1951 closes only after that.
+  alarm counts), is observed reaching `miwco`, with its receipt. The alarm is raised by the workflow's own token
+  (not `miwco`'s), and the receipt is either the notification thread in `miwco`'s GitHub
+  notifications or the owner's confirmation on #1951; #1951 closes only after that.
   (c) Before cf01 closes, each quarantined spec in `e2e/quarantine.json` has one open incident
   issue carrying owner, impact, repair date and restoration criteria, coordinated with its existing
   owner. Issues that overlap #1924, #1946, #1603, #1778, #1805, #1874 or #1954 are merged or cross-linked
@@ -108,7 +113,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   the save rule); that needs the product fix.
   (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
   CI worker count, written in the phase brief before the run, large enough that the failure rate measured before
-  the fix would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
+  the fix (or, if it was not reproduced, the rate from CI history since it was quarantined or
+  reported) would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
   zero failures), and any
   quarantine is released only by the documented route. (c) Each incident issue carries owner,
   impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
@@ -119,7 +125,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   the product fix.
   (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
   CI worker count, written in the phase brief before the run, large enough that the failure rate measured before
-  the fix would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
+  the fix (or, if it was not reproduced, the rate from CI history since it was quarantined or
+  reported) would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
   zero failures), and any
   quarantine is released only by the documented route. (c) Each incident issue carries owner,
   impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
@@ -131,7 +138,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   or names it and leaves the setup fix to cf04.
   (b) Stability is shown under representative CI conditions (a repeat count on CI runners with the
   CI worker count, written in the phase brief before the run, large enough that the failure rate measured before
-  the fix would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
+  the fix (or, if it was not reproduced, the rate from CI history since it was quarantined or
+  reported) would give at least a 95% chance of one failure, with the rate and arithmetic shown, with
   zero failures), and any
   quarantine is released only by the documented route. (c) Each incident issue carries owner,
   impact, repair date and restoration criteria, and is closed when its spec leaves quarantine by
@@ -175,7 +183,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 - **cf14.** (a) The graphics tier cost is paid down before 2026-11-30, prioritising measured waste
   and critical-path impact, or, only if the remaining work cannot safely finish by then and the
   reason is recorded, a short dated extension is recorded with current cost evidence, an owner and
-  a concrete reduction plan (no automatic or indefinite renewal).
+  a concrete reduction plan (no automatic or indefinite renewal). Coverage is not weakened to meet a
+  limit.
 - **cf15.** (a) The documentation-only follow-ups (#1914, #1920, #1928, #1932, #1939, #1949, #1849,
   plus any documentation-only remainder of #1945 and #1953) are completed in one cleanup PR; behaviour changes are left to their implementation phase.
 - **cf16.** (a) Whether merge-queue validation already gives equivalent evidence for each exact
@@ -189,13 +198,13 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   and spend ceiling within existing capacity and budget constraints are written before execution. (b)
   One bounded three-plan trial measures completed work per unit time, queue delay, contention,
   retries and CI cost, and stops if contention or failure rates cross the thresholds written in (a). (c) Permanent
-  three-plan concurrency is enabled only if the trial shows a benefit.
+  three-plan concurrency is enabled only if the trial meets the success criteria written in (a).
 - **cf18.** (a) After the final selector change's clean audit window and every other
   prerequisite, a focused repeat of cicd-improvement ci15 is run, with the missing risky-change
   samples collected, and the other evidence cicd-improvement ci17 section 6 lists as missing
   (exact-commit replay drill, imported-design bench #1926, ci10 full-shard figure #1920) collected
   or recorded as still open. (b) Acceptance criteria are not relaxed to close the run. (c) If the
-  audit window restarts twice after cf11's final selector change, or has not completed clean by
+  audit window restarts twice because of selection misses after cf11's final selector change, or has not completed clean by
   2026-12-31, the phase stops waiting: it records re-qualification as not met, with the open misses,
   without relaxing any criterion. cf19 then takes the no-activation outcome with full protection
   retained, and cf20 reports re-qualification as open. (The limit is the coordinator's default;
