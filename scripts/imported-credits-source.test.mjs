@@ -108,6 +108,7 @@ const BUILT = await withBundledPage(
               legacy: show(legacy, L.candidates.find((c) => c.label === 'Credits').sample),
               nameFirst: show(synthetic.nameFirst, 'Alex Rivera'),
               nameFirstSwapped: show(synthetic.nameFirst, 'Alex Rivera', { swap: true }),
+              turned: show(synthetic.turned, 'Director'),
               hebrew: show(synthetic.hebrew, 'במאי'),
               hebrewSwapped: show(synthetic.hebrew, 'במאי', { swap: true }),
               title: show(drawn, R.importSvgMarkup(drawn).candidates[0].sample),
@@ -126,6 +127,9 @@ const BUILT = await withBundledPage(
         synthetic: {
           // Names in the left column, roles on the right: geometry alone cannot say which.
           nameFirst: `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff"><text x="100" y="100" font-size="40">Alex Rivera</text><text x="600" y="100" font-size="24" fill="#fc0">Director</text><text x="100" y="200" font-size="40">Ari Moss</text><text x="600" y="200" font-size="24" fill="#fc0">Sound</text></svg>`,
+          // Role beside, the whole block turned 8 degrees counterclockwise: a name right of its
+          // role sits higher in the artwork's frame than the role does.
+          turned: `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff"><g transform="translate(100 200) rotate(-8)"><text x="0" y="0" font-size="24" fill="#fc0">Director</text><text x="500" y="0" font-size="40">Alex Rivera</text><text x="0" y="100" font-size="24" fill="#fc0">Sound</text><text x="500" y="100" font-size="40">Ari Moss</text></g></svg>`,
           // Hebrew role beside its name: the role is on the right, where the line starts.
           hebrew: `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff"><text x="900" y="100" font-size="24" fill="#fc0" direction="rtl">במאי</text><text x="600" y="100" font-size="40" direction="rtl">דנה לוי</text><text x="900" y="200" font-size="24" fill="#fc0" direction="rtl">צילום</text><text x="600" y="200" font-size="40" direction="rtl">יוסי כהן</text><text x="600" y="250" font-size="40" direction="rtl">רות גל</text></svg>`,
         },
@@ -282,6 +286,9 @@ test('preview: ambiguous columns get one choice; right-to-left lines read from t
   assert.deepEqual(PREVIEW.nameFirst.list, [[{ type: 'group', role: 'Alex Rivera', names: ['Director'] }, { type: 'group', role: 'Ari Moss', names: ['Sound'] }]]);
   assert.deepEqual(PREVIEW.nameFirstSwapped.list, [[{ type: 'group', role: 'Director', names: ['Alex Rivera'] }, { type: 'group', role: 'Sound', names: ['Ari Moss'] }]]);
   assert.deepEqual(PREVIEW.nameFirstSwapped.anchors, ['Director:role', 'Alex Rivera:name', 'Sound:role', 'Ari Moss:name']);
+  // A turned block is read in its own frame: the first role keeps its name.
+  assert.equal(PREVIEW.turned.layout, 'role-beside');
+  assert.deepEqual(PREVIEW.turned.list, [[{ type: 'group', role: 'Director', names: ['Alex Rivera'] }, { type: 'group', role: 'Sound', names: ['Ari Moss'] }]]);
   // Hebrew: the role starts the line at the right, so it reads first without any choice (#1941).
   assert.equal(PREVIEW.hebrew.rtl, true);
   assert.equal(PREVIEW.hebrew.layout, 'role-beside');

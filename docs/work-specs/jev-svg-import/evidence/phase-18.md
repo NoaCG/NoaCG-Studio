@@ -41,7 +41,7 @@ Worktree from `66a61064f5f90acb4f68abef9738e38ea1ae9f3e` (PR #1948). Previous ve
 | Criterion | Evidence |
 |---|---|
 | Readable headings, roles, names from the declared list | `imported-credits-source` 4: the Sheet's tab reads as headings, roles and names, equal to the shipped parser's reading. e2e `the Credits preview reads roles and names…`: the wizard shows Réalisation / Léa Orme, Image / Noé Rivage, Émilie Lac; the artwork test shows NIGHT SKY first from the composed text |
-| Zero, one, several names; row order | Test 4: Director (one), Camera (three), Sound (none), sections in order. Test 6: a Hebrew role with two names, a swapped reading with a role of none |
+| Zero, one, several names; row order | Test 4: Director (one), Camera (three), Sound (none), sections in order. Test 6: a Hebrew role with two names, a swapped reading with a role of none, a turned block keeping each name |
 | One shared source through above/beside and static/roll/cards | Test 7: six styled bindings (credits-1 above, credits-2 beside, each playback) are valid against their drawings, have one list field `f0`, take the credits Sheet adapter and get the same list text |
 | Role above, role beside | Test 5: credits-1 reads role above with its anchors in order; credits-2 role beside. e2e: a role and its first name on one line, a second name below |
 | Ambiguous columns get one choice | Test 6: names drawn left of their roles read ambiguous; the choice swaps roles and names and the anchor kinds. e2e: the select offers the two readings; choosing flips the preview and back. Above is never ambiguous (test 5) |
@@ -68,8 +68,10 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
   render, because the step passes its text layers as a new array each time (now keyed on the ids);
   a column choice carried over to the next Credits layer picked (the preview now starts fresh per
   layer). Simplify: the layer-text reader is private and the fallback list is read only when used.
-  Not changed: the "at or below" filter compares the layers' frame y, so a block turned steeply
-  enough could include a title; the dev fixtures and the turned case are not affected.
+- Codex on `52b1f2ae` (P2, product defect, family: the anchors are compared in the block's own
+  frame, rule C6 of phase 16): the "at or below" filter compared artwork y, so a slightly turned
+  role-beside block lost its first role's name. The filter now undoes the block's turn as the
+  analysis does; test 6 adds the turned case, which fails on the old filter.
 
 ## Decisions
 

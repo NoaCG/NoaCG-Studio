@@ -954,9 +954,13 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
   const picked = all[candidateIds.indexOf(creditsId)];
   const own = (): CreditsPreview => ({ styled: false, list: readCreditsList(creditsLayerText(root, creditsId)) });
   if (!picked || picked.lines > 1) return own();
+  // "Below" in the block's own frame, as the analysis reads it: a turned block's lines are not
+  // level in the artwork's.
+  const [a, b, c, d] = picked.linear;
+  const down = (r: CreditsReading) => (-b * r.x + a * r.y) / (a * d - b * c || 1);
   const ids = candidateIds.filter((_, i) => {
     const r = all[i];
-    return r && r.y >= picked.y - 0.25 * Math.min(r.size, picked.size);
+    return r && down(r) >= down(picked) - 0.25 * Math.min(r.size, picked.size);
   });
   const readings = readCreditsAnchors(root, ids);
   const analysis = analyseCreditsStyle(readings, ids, choice);
