@@ -163,7 +163,8 @@
     "15",
     "16",
     "17",
-    "18"
+    "18",
+    "19"
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
@@ -320,6 +321,13 @@
       ],
       "from": "19",
       "note": "Inline opacity on a credits source in its own group is not kept by the styled engine; assigned to phase 21 (#1937)."
+    },
+    {
+      "forPhases": [
+        "20"
+      ],
+      "from": "19 checker + owner direction",
+      "note": "The wizard does not yet offer fixed artwork as a deliberate, explained choice for a credits import that could be styled. Owner direction: fixed artwork stays available for people who deliberately want it, and as a clearly explained fallback; the author must understand when imported text stays part of the artwork. Add that choice and wording alongside the Roles picker in the Credits preview (BehaviourSection.tsx, approved)."
     }
   ]
 }
