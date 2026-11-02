@@ -630,6 +630,184 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await expect(sources).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
 });
 
+// jev-svg-import row 21 (AC-13): continuous roll playback, built on a blank page the way the
+// wizard saves each binding, with the entrance the motion picker sets. `styled` reads the drawn
+// role and name layers from the first role down (rows 19 and 20); `block` keeps the same drawing
+// as fixed artwork, every one of those layers scrolling (#1962).
+type RollBuild = { layout: string; motion: string; engine: string | null; js: string; html: string };
+function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block', face: boolean): Promise<RollBuild[]> {
+  return page.evaluate(async ({ source, roleWord, as, face }) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+    const C = await import('/src/templates/importedDesign/creditsRoll.ts');
+    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const imp = importSvgMarkup(source);
+    const content = imp.candidates.find((c) => c.sample === roleWord)!.id;
+    const host = document.createElement('div');
+    host.innerHTML = imp.markup;
+    document.body.appendChild(host);
+    const preview = C.creditsPreview(host.firstElementChild!, imp.candidates.map((c) => c.id), content);
+    host.remove();
+    if (!preview.styled) throw new Error(`${roleWord} does not read as styled credits`);
+    const block = preview.anchors.map((a) => a.candidateId);
+    const all = imp.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+    const fields = as === 'styled' ? all.filter((f) => !block.includes(f.candidateId) || f.candidateId === content) : all;
+    const credits = fields.findIndex((f) => f.candidateId === content);
+    const svg = {
+      markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [],
+      fonts: face ? [{ family: 'Anton', fontId: 'anton' }] : [],
+      behaviour: as === 'styled'
+        ? { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback: 'roll' as const, anchors: preview.anchors } }
+        : { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, options: { artwork: true }, artworkLayers: block.filter((id) => id !== content) },
+    };
+    const template = IMPORTED_SVG.create({ designSvg: svg });
+    return (['drop', 'rise', 'pop'] as const).map((motion) => ({
+      layout: preview.layout, motion, engine: C.creditsEngine(svg), js: template.js,
+      html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: motion, motionOut: 'fade' } }), IMPORTED_SVG)),
+    }));
+  }, { source, roleWord, as, face });
+}
+
+/** Where the moving credits stand on screen at the start and at the end of the take, against the
+ *  artwork's frame: the styled rows as one group, or every layer of the fixed block. */
+function rollPoses(page: Page) {
+  return page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsTween: { pause(): void; progress(value?: number): number }; noacgCreditsLast: { distance: number } };
+    const rows = document.querySelector('.imported-design-credits-rows');
+    const moving = rows ? [rows] : [...document.querySelectorAll('.imported-design-credits')];
+    const extent = () => {
+      const boxes = moving.map((el) => el.getBoundingClientRect());
+      return { top: Math.min(...boxes.map((b) => b.top)), bottom: Math.max(...boxes.map((b) => b.bottom)) };
+    };
+    const frame = document.querySelector('.imported-design-art')!.getBoundingClientRect();
+    w.noacgCreditsTween.pause();
+    w.noacgCreditsTween.progress(0);
+    const start = extent();
+    w.noacgCreditsTween.progress(0.5);
+    const middle = extent();
+    w.noacgCreditsTween.progress(1);
+    const end = extent();
+    return { start, middle, end, frameTop: frame.top, frameBottom: frame.bottom, distance: w.noacgCreditsLast.distance, layers: moving.length };
+  });
+}
+
+test('styled credits, role above and role beside, enter and leave the whole frame, measure again when their faces land, and replay alike', async ({ page }) => {
+  test.slow(); // two layouts, three entrances, each taken twice
+  await page.goto('/app');
+  // The design ships its own face (Anton), held back until the take has measured in a fallback.
+  const ABOVE = readFileSync(ABOVE_CREDITS_SVG, 'utf8').replace('font-family="sans-serif"', 'font-family="Anton"');
+  const BESIDE = readFileSync(BESIDE_CREDITS_SVG, 'utf8').replace(/font-family="[^"]*"/, 'font-family="Anton"');
+  const builds = [...await buildRolls(page, ABOVE, 'Research', 'styled', true), ...await buildRolls(page, BESIDE, 'Réalisation', 'styled', true)];
+  expect(builds.map((b) => [b.layout, b.engine])).toEqual([...Array(3).fill(['role-above', 'styled']), ...Array(3).fill(['role-beside', 'styled'])]);
+  for (const b of builds) expect(b.js).toContain('function creditsSettle(tween)');
+  let release = () => {};
+  await page.route('**/fonts/anton*.woff2*', async (route) => {
+    await new Promise<void>((resolve) => { release = resolve; });
+    await route.fulfill({ body: readFileSync('public/fonts/anton.woff2'), contentType: 'font/woff2' });
+  });
+  for (const [i, b] of builds.entries()) {
+    const at = `${b.layout} after ${b.motion}`;
+    await page.goto('/robots.txt');
+    // A fresh url per document, so the face is fetched (and held) every time.
+    await page.setContent(b.html.replace(/fonts\/anton(-latin-ext)?\.woff2/g, `fonts/anton$1.woff2?take=${i}`));
+    await expect.poll(() => page.evaluate(() => document.fonts.status), `${at}: the face is on its way`).toBe('loading');
+    await page.evaluate(() => (window as unknown as { play(): void }).play());
+    await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: the roll starts`).toBe(true);
+    const early = await page.evaluate(async () => {
+      const w = window as unknown as { noacgCreditsTween: { progress(): number }; noacgCreditsLast: { distance: number } };
+      await new Promise((r) => setTimeout(r, 300));
+      return { distance: w.noacgCreditsLast.distance, reached: w.noacgCreditsTween.progress(), fonts: document.fonts.status };
+    });
+    expect(early.fonts, `${at}: measured before the face landed`).toBe('loading');
+    release();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsLast: { distance: number } }).noacgCreditsLast.distance), `${at}: measured again in the face`).not.toBe(early.distance);
+    // It carried on from where it was rather than starting again.
+    const reached = await page.evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
+    expect(reached, `${at}: the roll kept its progress`).toBeGreaterThanOrEqual(early.reached);
+    const settled = await rollPoses(page);
+    const say = `${at}: ${JSON.stringify(settled)}`;
+    // The defect sides: a row already showing at the start, or still showing at the end.
+    expect(settled.start.top, say).toBeGreaterThanOrEqual(settled.frameBottom - 0.5);
+    expect(settled.start.top, say).toBeLessThan(settled.frameBottom + 0.5);
+    expect(settled.end.bottom, say).toBeLessThanOrEqual(settled.frameTop + 0.5);
+    expect(settled.end.bottom, say).toBeGreaterThan(settled.frameTop - 0.5);
+    expect(settled.middle.top, say).toBeCloseTo((settled.start.top + settled.end.top) / 2, 0);
+    // Out, and the same take again: the same roll.
+    await page.evaluate(() => (window as unknown as { stop(): void }).stop());
+    await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: Out stops the roll`).toBeNull();
+    await page.evaluate(() => (window as unknown as { play(): void }).play());
+    await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: the replay starts`).toBe(true);
+    const replay = await rollPoses(page);
+    expect(Math.abs(replay.distance - settled.distance), `${at}: the replay measures the same roll: ${JSON.stringify(replay)}`).toBeLessThan(1);
+    expect(Math.abs(replay.start.top - replay.frameBottom), `${at}: replay start`).toBeLessThan(0.5);
+    expect(Math.abs(replay.end.bottom - replay.frameTop), `${at}: replay end`).toBeLessThan(0.5);
+  }
+});
+
+test('fixed-artwork credits drawn as separate layers enter and leave the whole frame as one block after Drop, Rise and Pop', async ({ page }) => {
+  // #1962 kept as artwork: every drawn role and name moves the same distance, the block's top
+  // starting at the frame's bottom and its bottom leaving at the frame's top, on every replay.
+  await page.goto('/app');
+  const builds = [
+    ...await buildRolls(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), 'Research', 'block', false),
+    ...await buildRolls(page, readFileSync(BESIDE_CREDITS_SVG, 'utf8'), 'Réalisation', 'block', false),
+  ];
+  expect(builds.map((b) => b.engine)).toEqual(Array(6).fill('artwork'));
+  for (const b of builds) {
+    const at = `${b.layout} block after ${b.motion}`;
+    await page.goto('about:blank');
+    await page.setContent(b.html);
+    for (const take of ['first', 'replay']) {
+      await page.evaluate(() => (window as unknown as { play(): void }).play());
+      await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}, ${take}: the roll starts after its entrance`).toBe(true);
+      const pose = await rollPoses(page);
+      const say = `${at}, ${take}: ${JSON.stringify(pose)}`;
+      expect(pose.layers, say).toBe(5);
+      expect(Math.abs(pose.start.top - pose.frameBottom), say).toBeLessThan(0.5);
+      expect(Math.abs(pose.end.bottom - pose.frameTop), say).toBeLessThan(0.5);
+      const travel = await page.evaluate(() => {
+        const w = window as unknown as { noacgCreditsTween: { progress(value: number): void } };
+        const texts = [...document.querySelectorAll('.imported-design-credits')];
+        w.noacgCreditsTween.progress(0);
+        const from = texts.map((t) => t.getBoundingClientRect().top);
+        w.noacgCreditsTween.progress(1);
+        return texts.map((t, i) => t.getBoundingClientRect().top - from[i]);
+      });
+      for (const d of travel) expect(Math.abs(d - travel[0]), `${at}, ${take}: one block: ${travel.join(', ')}`).toBeLessThan(0.5);
+      await page.evaluate(() => (window as unknown as { stop(): void }).stop());
+      await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}, ${take}: Out stops the roll`).toBeNull();
+    }
+  }
+});
+
+test('a source layer\'s own inline opacity in a group of its own still multiplies with the group (#1937)', async ({ page }) => {
+  await page.goto('/app');
+  const source = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff">
+  <rect width="1000" height="600" fill="#1d2433" />
+  <g opacity="0.5"><text x="100" y="150" font-size="24" fill="#ffcc00" style="opacity:0.8;text-decoration:underline">Director</text></g>
+  <text x="100" y="205" font-size="40">Alex Rivera</text>
+  <text x="100" y="260" font-size="40">Ida Lake</text>
+  <g opacity="0.5"><text x="100" y="380" font-size="24" fill="#ffcc00" style="opacity:0.8;text-decoration:underline">Sound</text></g>
+  <text x="100" y="435" font-size="40">Ari Moss</text>
+</svg>`;
+  const [built] = await buildRolls(page, source, 'Director', 'styled', false);
+  expect(built.engine).toBe('styled');
+  expect(built.js).toContain("row.style.removeProperty('opacity');");
+  await page.goto('about:blank');
+  await page.setContent(built.html);
+  const rows = page.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Director', 'Alex Rivera', 'Ida Lake', 'Sound', 'Ari Moss']);
+  const looks = await rows.evaluateAll((els) => els.map((el) => {
+    const cs = getComputedStyle(el);
+    return [el.getAttribute('data-noacg-credits'), cs.opacity, cs.textDecorationLine];
+  }));
+  expect(looks).toEqual([
+    ['role', '0.4', 'underline'], ['name', '1', 'none'], ['name', '1', 'none'], ['role', '0.4', 'underline'], ['name', '1', 'none'],
+  ]);
+});
+
 test('imported credits: one pasted list rolls through the Credits box in the sample\'s two looks', async ({ page }) => {
   test.slow(); // an import, a production, two takes and a paste, read in the renderer
   await openLegacyProduction(page, 'End credits', 'Friday Show');

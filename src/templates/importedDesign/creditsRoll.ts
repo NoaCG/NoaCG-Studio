@@ -469,7 +469,7 @@ function creditsSpeed() {
 /** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
  *  a live speed change. Each engine supplies `creditsSample()` (the layer whose parent the rows
  *  sit in) and `creditsRender()` (the rows and the name step they were built with). */
-function creditsTakeJs(): string {
+function creditsTakeJs(settle = false): string {
   return `// creditsWindow(sample): where the roll runs, as a rectangle in the rows' own space - the
 // Credits box where one is drawn, else the artwork's whole frame. Both are read through the
 // screen, so a box inside a moved or scaled group lands where it paints. Null until the design
@@ -555,9 +555,23 @@ function ${CREDITS_ROLL_CALL}() {
   var duration = distance / perSecond;
   noacgCreditsLast = { startY: startY, endY: endY, distance: distance, duration: duration, rows: rows.children.length, step: step, boxed: win.boxed };
   noacgCreditsBuiltAt = speed;
-  noacgCreditsTween = gsap.fromTo(roll, { y: startY }, { y: endY, duration: duration, ease: 'none' });
+  noacgCreditsTween = gsap.fromTo(roll, { y: startY }, { y: endY, duration: duration, ease: 'none' });${settle ? `
+  if (document.fonts && document.fonts.status === 'loading') creditsSettle(noacgCreditsTween);` : ''}
   return noacgCreditsTween;
-}
+}${settle ? `
+
+// creditsSettle(tween): the design's own faces were still loading at the take, so the rows were
+// measured in a fallback face. When the faces land, the take is measured again in them and
+// carries on from the share of the roll it had reached: the whole list still enters from below
+// the window and leaves above it. A new take or Out since then leaves it alone.
+function creditsSettle(tween) {
+  document.fonts.ready.then(function () {
+    if (noacgCreditsTween !== tween) return;
+    var reached = tween.progress();
+    var again = ${CREDITS_ROLL_CALL}();
+    if (again) again.progress(reached);
+  });
+}` : ''}
 
 // The operator's speed times the author's knob: the one number the take is built at, and the
 // one a live change is measured against.
@@ -628,22 +642,44 @@ export interface CreditsStyledConfig {
   /** Role beside only: the edge the name column lines up on (`align` is the role column's). A
    *  role and its first name share a baseline, so `roleToName` is 0. Absent, role above. */
   nameAlign?: CreditsAlign;
+  /** The design ships faces of its own (`svgFontCss`), which can land after the take: the take is
+   *  measured again when they do. Absent, nothing can arrive late and the runtime is as before. */
+  faces?: true;
+  /** A source layer sets `opacity` or `text-decoration` in its own inline style, which a copy
+   *  would carry and which would beat the look its groups give it: the copies drop them. Absent,
+   *  the runtime is as before. */
+  inlineLook?: true;
 }
+
+/** What only decides which lines the runtime carries; never part of the emitted spacing table. */
+type CreditsBuildFlags = 'faces' | 'inlineLook';
 
 /** What the styled runtime of a design is built with, or null when it builds another engine.
  *  A step the sample does not show falls back as the editable roll's do. */
 export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
   const style = styledCredits(svg);
   if (!style) return null;
+  const flags: Pick<CreditsStyledConfig, CreditsBuildFlags> = {};
+  if (svg.fonts.some((f) => f.fontId || f.customFont)) flags.faces = true;
+  if (sourcesSetOwnLook(svg.markup, style.anchors)) flags.inlineLook = true;
   if (style.layout === 'role-beside') {
     // Beside, every drawn line is a role and its first name, so the line step is the group gap;
     // a step neither shows (one drawn line) is left 0 for the runtime to take from the type.
     const nameToName = style.steps.nameToName ?? style.steps.groupGap ?? 0;
-    return { align: style.align.role, roleToName: 0, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix, nameAlign: style.align.name };
+    return { align: style.align.role, roleToName: 0, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix, nameAlign: style.align.name, ...flags };
   }
   const roleToName = style.steps.roleToName ?? style.steps.nameToName ?? 0;
   const nameToName = style.steps.nameToName ?? roleToName;
-  return { align: style.align.role, roleToName, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix };
+  return { align: style.align.role, roleToName, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix, ...flags };
+}
+
+/** Whether a source layer's own inline style sets what acts on the whole layer (#1937). */
+function sourcesSetOwnLook(markup: string, anchors: readonly DesignSvgCreditsAnchor[]): boolean {
+  const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+  return anchors.some((a) => {
+    const text = doc.querySelector(`[${SVG_CANDIDATE_ATTR}="${a.candidateId}"]`)?.closest('text');
+    return /(^|;)\s*(opacity|text-decoration)/i.test(text?.getAttribute('style') ?? '');
+  });
 }
 
 /** The stylesheet part: the drawn source layers are laid out, never painted. */
@@ -663,6 +699,7 @@ export function creditsStyledRuntimeJs(prefix: string, config: CreditsStyledConf
   // Role beside differs from role above in a few lines only: two edges, two columns of room. Role
   // above emits exactly what it did before role beside existed.
   const beside = (above: string, besideJs: string) => (config.nameAlign === undefined ? above : besideJs);
+  const { faces, inlineLook, ...table } = config;
   return `
 // ── Credits in the artwork's own styling (SVG) ────────────────────────────────────────────────
 // ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed. The role
@@ -676,7 +713,7 @@ var NOACG_CREDITS_LINES_PER_SECOND = ${CREDITS_LINES_PER_SECOND};
 
 // The drawing's spacing, in the layers' own units: role to its first name, name to name, and the
 // gap before the next role; and the edge every row lines up on.
-var NOACG_CREDITS_STYLE = ${JSON.stringify(config)};
+var NOACG_CREDITS_STYLE = ${JSON.stringify(table)};
 
 // Past this share of its size a row is reported too long, and it never shrinks below the floor
 // (the SVG fit ladder's numbers; CREDITS_OVERFLOW).
@@ -764,7 +801,11 @@ function creditsCopy(source, words) {
   }
   var own = (row.getAttribute('class') || '').split(' ').filter(function (c) { return c && c !== '${cls}'; });
   own.push('${cls}-row');
-  row.setAttribute('class', own.join(' '));
+  row.setAttribute('class', own.join(' '));${inlineLook ? `
+  // The layer's own opacity and underline are in the look its groups give it (creditsLookOf),
+  // which an inline value on the copy would beat.
+  row.style.removeProperty('opacity');
+  row.style.removeProperty('text-decoration-line');` : ''}
   var first = creditsFirstText(row);
   var texts = [];
   var walk = function (node) {
@@ -1032,7 +1073,7 @@ function stopCreditsRoll() {
   noacgCreditsTween = null;
 }
 
-${creditsTakeJs()}
+${creditsTakeJs(faces === true)}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the drawn widths decide where an aligned row starts.
