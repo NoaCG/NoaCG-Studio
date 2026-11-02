@@ -34,7 +34,16 @@
       "role": "build",
       "session": "session_017SdbwNvBTQ5LRmehLW4wwV",
       "nonce": "23-b-8f79",
-      "branch": "claude/plan-jev-svg-import-23-build"
+      "branch": "claude/plan-jev-svg-import-23-build",
+      "pr": 1974,
+      "head": "7e4109115fac3a059aed79908bb64139eb68a92a",
+      "stampRun": 41463482546,
+      "ciRun": 41460036550,
+      "so": "session_017SdbwRAFquF2NHL5cm2wbf A",
+      "soOther": [
+        "session_017SdbwNNwFe7XYTDtz8TkDr",
+        "session_017SdbwRFUsMbfCGQCjcyAnM"
+      ]
     }
   ],
   "owner": [],
