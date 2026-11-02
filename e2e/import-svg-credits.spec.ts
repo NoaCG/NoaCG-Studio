@@ -1098,9 +1098,17 @@ for (const layout of CARD_LAYOUTS) {
     // The last card holds: Next does nothing more.
     await page.waitForTimeout(1200);
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: the last card holds`).toEqual([expected.length - 1, false]);
-    // REPLAY: Out, then Take, starts from the first card again; Next off air does nothing.
-    await cardsDispatch(page, 'stop');
+    // REPLAY: a take starts from the first card, Out from a card that is not the last takes the
+    // cards off air, Next off air does nothing, and the next take starts from the first card.
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: a take starts on the first card`).toBe(0);
     await cardsDispatch(page, 'next');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: the second card`).toBe(1);
+    await cardsDispatch(page, 'stop');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: Out`).toBe(-1);
+    await cardsDispatch(page, 'next');
+    await page.waitForTimeout(1200);
+    expect([(await cardsState(page)).card, (await cardsState(page)).tween], `${at}: Next off air`).toEqual([-1, false]);
     await cardsDispatch(page, 'play');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: the replay starts on the first card`).toBe(0);
     expect((await cardsState(page)).rows.map((r) => r.text), at).toEqual(seen[0]);
@@ -1143,6 +1151,39 @@ for (const layout of CARD_LAYOUTS) {
     await expect.poll(async () => (await cardsState(page)).shown, `${at}: Next skips ahead`).toBe(2);
     // Its hold starts again; the last card has none.
     await expect.poll(async () => (await cardsState(page)).tween, `${at}: the hold after Next`).toBe(expected.length - 1 > 2);
+
+    // A NEW CARD TIME applies to the hold under way, counted from when that hold started: 8 at
+    // 1.5 s, then 4 at 3 s, turns at 4 s (counted from the change at 1.5 s it would be 5.5 s).
+    const time = await page.evaluate(() => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor('cardTime', null));
+    const setTime = (seconds: string) => page.evaluate(({ time, seconds }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [time]: seconds }), { time, seconds });
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: taken again`).toBe(0);
+    const taken = Date.now();
+    await page.waitForTimeout(1500);
+    await setTime('8');
+    await page.waitForTimeout(1500);
+    await setTime('4');
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: the changed time`, timeout: 8000 }).toBe(1);
+    const turned = Date.now() - taken;
+    expect(turned, `${at}: turned after the new time, counted from the hold's start`).toBeGreaterThanOrEqual(3900);
+    expect(turned, `${at}: not counted from the first change`).toBeLessThan(5000);
+
+    // OUT DURING A CHANGE: nothing half-faded is left for the next look at the graphic off air.
+    await cardsDispatch(page, 'next');
+    await cardsDispatch(page, 'stop');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: Out mid-change`).toBe(-1);
+    await write(list);
+    expect([(await cardsState(page)).shown, (await cardsState(page)).opacity], `${at}: off air after a cut-short change`).toEqual([0, '1']);
+
+    // A LIST THAT GROWS ON AIR: the only card holds with no timer, then gains cards and starts its hold.
+    await setTime('2');
+    await write(groups[0]);
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: one card`).toBe(0);
+    await page.waitForTimeout(2500);
+    expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: the only card holds`).toEqual([0, false]);
+    await write(list);
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown, it turns`, timeout: 5000 }).toBe(1);
   });
 }
 

@@ -645,11 +645,12 @@ function creditsCardsJs(): string {
 // The hold or the change under way, which Out's stopCreditsRoll() ends.
 var noacgCreditsTween = null;
 // The cards dealt from the list, each the rows from..to; the one on air, -1 off air; whether a
-// change is under way; and the card time the running hold was started with.
+// change is under way; the card time the running hold was started with, and when (GSAP's clock).
 var noacgCreditsCards = [];
 var noacgCreditsCard = -1;
 var noacgCreditsTurning = false;
 var noacgCreditsHold = null;
+var noacgCreditsSince = 0;
 // What the cards show now, for a reader: each card's rows, share and refusal, and the one shown.
 var noacgCreditsLast = null;
 
@@ -743,22 +744,39 @@ function creditsDeal() {
   }
   if (holder && typeof svgFitOver !== 'undefined') svgFitOver[holder.id] = over;
   noacgCreditsLast = { cards: cards.length ? report : [], card: noacgCreditsCard, shown: shown };
+  // Off air nothing is changing cards, so a change Out cut short leaves no half-faded card.
+  if (noacgCreditsCard < 0 && built && typeof gsap !== 'undefined') gsap.set(built.rows.parentNode, { opacity: 1 });
   if (document.fonts && document.fonts.status === 'loading') document.fonts.ready.then(creditsDeal);
   return built;
 }
 
-// creditsArm(after): hold the card on air for the card time, then change it. The last card holds
-// until Out, and with no card time every card waits for Next card.
+// creditsArm(after): hold the card on air for the card time, then change it; given AFTER, the
+// rest of a hold already under way. The last card holds until Out, and with no card time every
+// card waits for Next card.
 function creditsArm(after) {
   if (noacgCreditsTween) noacgCreditsTween.kill();
   noacgCreditsTween = null;
   noacgCreditsHold = creditsCardTime();
   if (noacgCreditsHold === null || noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || typeof gsap === 'undefined') return;
+  if (typeof after !== 'number') noacgCreditsSince = gsap.ticker.time;
   noacgCreditsTween = gsap.delayedCall(typeof after === 'number' ? after : noacgCreditsHold, creditsTurn);
 }
 
+// creditsShow(i): lay out card i on its own, keeping the report the deal made for every card.
+function creditsShow(i) {
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  var keep = holder && typeof svgFitOver !== 'undefined' ? svgFitOver[holder.id] : undefined;
+  creditsRender(1, noacgCreditsCards[i] || { from: 0, to: 0 });
+  if (holder && typeof svgFitOver !== 'undefined') svgFitOver[holder.id] = keep;
+  if (noacgCreditsLast) {
+    noacgCreditsLast.card = noacgCreditsCard;
+    noacgCreditsLast.shown = i;
+  }
+}
+
 // creditsTurn(): change to the next card - the one on air fades out, the next is laid out unseen
-// and fades in, and its hold starts.
+// and fades in, and its hold starts. A press while a change is under way is that change: one
+// press, one card.
 function creditsTurn() {
   if (noacgCreditsTurning || noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || !noacgCreditsRows || typeof gsap === 'undefined') return;
   if (noacgCreditsTween) noacgCreditsTween.kill();
@@ -769,7 +787,7 @@ function creditsTurn() {
   tl.to(face, { opacity: 0, duration: 0.4 / pace, ease: 'power2.in' }, 0);
   tl.call(function () {
     noacgCreditsCard += 1;
-    creditsDeal();
+    creditsShow(noacgCreditsCard);
   }, null, 0.4 / pace);
   tl.to(face, { opacity: 1, duration: 0.5 / pace, ease: 'power2.out' }, 0.4 / pace);
   tl.call(function () {
@@ -798,14 +816,18 @@ function ${CREDITS_NEXT_CALL}() {
 }
 
 // creditsDataUpdated(): update() wrote the fields - deal the cards again and show the one on air.
-// A new card time applies to the hold under way, counted from when that hold started.
+// A new card time applies to the hold under way, counted from when that hold started; a card
+// that was the last and now has cards after it starts its hold.
 function creditsDataUpdated() {
   creditsDeal();
-  if (noacgCreditsTurning || noacgCreditsCard < 0) return;
+  if (noacgCreditsTurning || noacgCreditsCard < 0 || typeof gsap === 'undefined') return;
   var hold = creditsCardTime();
+  if (!noacgCreditsTween) {
+    creditsArm();
+    return;
+  }
   if (hold === noacgCreditsHold) return;
-  var spent = noacgCreditsTween ? noacgCreditsTween.time() : 0;
-  creditsArm(hold === null ? undefined : Math.max(0, hold - spent));
+  creditsArm(hold === null ? undefined : Math.max(0, hold - (gsap.ticker.time - noacgCreditsSince)));
 }`;
 }
 
@@ -1351,7 +1373,8 @@ function stopCreditsRoll() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
   noacgCreditsTween = null;${cards('', `
   noacgCreditsCard = -1;
-  noacgCreditsTurning = false;`)}
+  noacgCreditsTurning = false;
+  if (noacgCreditsLast) noacgCreditsLast.card = -1;`)}
 }
 
 ${still(creditsTakeJs(faces === true), cards(creditsHoldJs(), creditsCardsJs()))}
