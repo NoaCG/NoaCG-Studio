@@ -8,11 +8,18 @@
 // the graphic is neither restarted nor stopped. Replace, empty (which clears), fill again, and
 // Pause then Resume (the source reconnecting) each reach air the same way. No text layout or
 // motion engine is added: the field is the import's own, fitted by its own ladder.
+//
+// Row 25 (AC-14): the same field when the Sheet fails on air. The page reads a local fake of the
+// export (e2e/fixtures/jev-sheet-server.mjs) that denies, never answers, drops the connection and
+// serves a sign-in page; each is said on the source line, writes nothing, and the field keeps its
+// last good lines with its motion running. The next good read reconnects with the newest lines.
+// No model is asked anything on the way.
 
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
+import { startSheetServer, csvOf as fakeCsv } from './fixtures/jev-sheet-server.mjs';
 
 const NOTICE_SVG = fileURLToPath(new URL('./fixtures/jev-svg/qualification/multiline.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGNoticeSheet000000000/edit#gid=0';
@@ -110,4 +117,71 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   await expect(program).toHaveAttribute('data-plays', '1');
   // A plain text field holds no list for a later take: nothing on the line waits.
   await expect(page.getByTestId('source-waiting')).toHaveCount(0);
+});
+
+test('a failing Sheet keeps the multiline field\'s last good lines on air, says why, and reconnects to the newest lines with no model request', async ({ page }) => {
+  test.setTimeout(120_000);
+  const fake = await startSheetServer();
+  const SHEET = '1NoaCGNoticeFake000000000';
+  const tab = (body: string) => fakeCsv(tabOf(body));
+  fake.set(SHEET, tab('Doors open at 18:00\nEntry from the courtyard'));
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, fake.routeTo());
+  const asked: string[] = [];
+  page.on('request', (r) => { if (/\/api\/ai\b|anthropic|openai|generativelanguage|ai-gateway/.test(r.url())) asked.push(r.url()); });
+  try {
+    await page.goto('/app');
+    await dropSvg(page, NOTICE_SVG);
+    await intoProduction(page, 'Notice', 'Notice night');
+    await settleDurableWrites(page);
+    await page.getByTestId('cue-connect').click();
+    const review = page.getByTestId('cue-connect-menu');
+    await review.getByTestId('cue-connect-link').fill(`https://docs.google.com/spreadsheets/d/${SHEET}/edit#gid=0`);
+    await review.getByTestId('cue-connect-read').click();
+    await review.getByTestId('cue-connect-label').fill('Notices');
+    await review.getByTestId('cue-connect-confirm').click();
+    const status = page.getByTestId('sources-line').getByTestId('source-status');
+    await expect(status).toContainText('checked');
+
+    await page.getByTestId('verb-take').click();
+    const program = page.getByTestId('program-stage');
+    const air = page.frameLocator('[data-testid="program-stage"] iframe');
+    const body = air.locator('#f1');
+    const words = () => body.evaluate((el) => (el.textContent ?? '').split(/\s+/).filter(Boolean).join(' '));
+    await expect.poll(words).toBe('Doors open at 18:00 Entry from the courtyard');
+    await expect(program).toHaveAttribute('data-plays', '1');
+    await air.locator('body').evaluate(() => {
+      const w = window as unknown as { gsap: { to(t: Element, v: object): unknown }; __spin: unknown };
+      w.__spin = w.gsap.to(document.querySelector('circle[cx="1000"]')!, { rotation: 360, svgOrigin: '1000 95', duration: 4, repeat: -1, ease: 'none' });
+    });
+    const spin = () => air.locator('body').evaluate(() => (window as unknown as { __spin: { totalTime(): number } }).__spin.totalTime());
+
+    // Each failure is said on the line, and the field keeps its last good lines on air.
+    const failures: [Parameters<typeof fake.mode>[1], RegExp][] = [
+      ['deny', /can’t read it \(not shared\) since/],
+      ['hang', /Google did not answer in 10 seconds since/],
+      ['reset', /not shared, or offline\) since/],
+      ['signin', /can’t read it \(not shared\) since/],
+    ];
+    let turned = await spin();
+    for (const [mode, said] of failures) {
+      fake.mode(SHEET, mode);
+      await expect(status, mode).toHaveText(said, { timeout: 25_000 });
+      expect(await words(), `${mode}: the last good lines stay on air`).toBe('Doors open at 18:00 Entry from the courtyard');
+      const now = await spin();
+      expect(now, `${mode}: the drawing's own motion keeps running`).toBeGreaterThan(turned);
+      turned = now;
+    }
+
+    // Reconnect: the newest lines arrive, the line is healthy again, nothing replays.
+    fake.set(SHEET, tab('Doors open at 19:00\nTickets at the door'));
+    await expect.poll(words, { timeout: 20_000, message: 'reconnected' }).toBe('Doors open at 19:00 Tickets at the door');
+    await expect(status).toContainText('checked');
+    await expect(program).toHaveAttribute('data-plays', '1');
+    expect(await spin()).toBeGreaterThan(turned);
+    expect(asked, 'no model request on any refresh').toEqual([]);
+  } finally {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await page.context().unrouteAll({ behavior: 'ignoreErrors' });
+    await fake.close();
+  }
 });
