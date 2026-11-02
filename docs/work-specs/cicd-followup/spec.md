@@ -30,8 +30,12 @@ suite is not assumed to speed up merging.
   genuinely related documentation-only changes are bundled.
 - Long audit and observation windows are tracked explicitly; pending goals are never labelled
   complete.
+- Phases cf07, cf09, cf05 and cf08 carry owner dates (2026-11-11 to 2026-11-16). If a dated phase
+  cannot PASS by its date, the coordinator records a dated extension under the incident or
+  exception policy before the date passes, never after.
+- Execution order is the numbered `## Phases` list; phase ids are names, not positions.
 
-## Measurement contract (used by cf03 and cf21)
+## Measurement contract (used by cf03, cf13 and cf20)
 
 From existing GitHub Actions history, with sample sizes, for comparable changes and workloads:
 
@@ -46,20 +50,20 @@ or did not reduce total turnaround.
 
 ## Phases
 
-1. [cf01] Route alarms and incidents to the accepted owner (#1951).
-2. [cf02] Archive finished worker sessions in the plan-run workflow.
-3. [cf03] Baseline merge turnaround, cost and flake waste.
-4. [cf04] Isolate configured backend stacks (#1865, #1829).
-5. [cf05] Fix the production-chat-intake and production-data flakes (#1924, #1603).
-6. [cf06] Fix the production-controls flakes (#1946, #1778).
-7. [cf07] Fix the late-send-abandoned flake (#1805).
-8. [cf08] Track and exercise the SVG import incidents (#1954, #1926, #1834).
-9. [cf09] Settle the offline tier exceptions (#1953).
-10. [cf10] Make the test-removal check see loop tests and expire exceptions (#1911).
-11. [cf11] Correct test selection for the three misses and similar dependencies (#1900, #1942, #1944, #1921).
-12. [cf12] Run the ten critical tests on every product change (#1895).
+1. [cf01] Route alarms and incidents to the accepted owner, and keep one incident record per quarantined spec (#1951, #1907, #1945).
+2. [cf07] Fix the late-send-abandoned flake (#1805).
+3. [cf09] Settle the offline tier exceptions (#1953).
+4. [cf05] Fix the production-chat-intake and production-data flakes (#1924, #1603).
+5. [cf08] Track and exercise the SVG import incidents (#1954, #1926, #1834).
+6. [cf04] Isolate configured backend stacks (#1865, #1829).
+7. [cf06] Fix the production-controls flakes (#1946, #1778).
+8. [cf03] Baseline merge turnaround, cost and flake waste.
+9. [cf12] Run the ten critical tests on every product change (#1895).
+10. [cf11] Correct test selection for the three misses and similar dependencies (#1900, #1942, #1944, #1921).
+11. [cf10] Make the test-removal check see loop tests and expire exceptions (#1911).
+12. [cf14] Pay down the graphics tier exception (#1863).
 13. [cf13] Shorten the measured critical path.
-14. [cf14] Pay down the graphics tier exception (#1863).
+14. [cf02] Archive finished worker sessions in the plan-run workflow.
 15. [cf15] Finish the cicd-improvement documentation follow-ups.
 16. [cf16] Assess the coverage model for catalog narrowing.
 17. [cf17] Run one bounded three-plan trial.
@@ -73,8 +77,12 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 
 - **cf01.** (a) Every owner string for the growth, age and quarantine alarms and the quarantine
   incident list names `miwco` as primary owner and the weekly owner session as backup coverage.
-  (b) A real alarm or incident notification is observed reaching `miwco`, with its receipt; #1951
-  closes only after that.
+  (b) An alarm or incident notification, raised by the live routing (a deliberately triggered test
+  alarm counts), is observed reaching `miwco`, with its receipt; #1951 closes only after that.
+  (c) Before cf01 closes, each quarantined spec in `e2e/quarantine.json` has one open incident
+  issue carrying owner, impact, repair date and restoration criteria, coordinated with its existing
+  owner. Issues that overlap #1924, #1946, #1603, #1778, #1805 or #1954 are merged or cross-linked
+  so each spec has exactly one tracking issue.
 - **cf02.** (a) `.agent-workflows/plan-run.md` says to archive a phase's builder, repairer,
   checker, diagnose and review sessions once its result and required handoff evidence are
   recorded, without disrupting active work.
@@ -93,9 +101,12 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
 - **cf08.** (a) #1954 and #1926 carry a named owner, target date and link to the JEV run, which
   keeps implementation; if JEV cannot take them promptly, a coordinated fix is split out. (b) CI
   exercises and reports the missing svg01 case. (c) #1834 is reviewed against current main: it lands
-  as an updated, policy-compliant quarantine with issue, owner and expiry, or is closed as obsolete.
+  as an updated, policy-compliant quarantine with issue, owner and expiry, or is closed as obsolete
+  or as a duplicate of an existing quarantine. A deterministic product regression is not
+  quarantined. A critical-test quarantine follows the incident process.
 - **cf09.** (a) Each offline exception expiring 2026-11-13 or 2026-11-16 is paid down, or extended
-  briefly with current cost evidence, an owner and a reduction plan. Coverage is not weakened to
+  briefly, only where pay-down is not practical before the expiry, with the reason recorded,
+  current cost evidence, an owner and a reduction plan. Coverage is not weakened to
   meet a limit.
 - **cf10.** (a) The test-removal check counts tests declared inside loops through reliable
   discovery or parsing, with a mutation-tested regression. (b) Exceptions are owned, justified and
@@ -104,31 +115,42 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   for shared core files (#1921) and the missing `covers` metadata are applied, with regression
   checks showing the affected tests are now selected. (c) Similar dependencies are inspected so the
   fix is not limited to three examples; incomplete information keeps selection broad. (d) All known
-  selector corrections land together, and the audit reset is recorded at that final change.
-- **cf12.** (a) The ten critical tests run on every product change while their measured cost stays
-  small, without running the same tests twice in one validation pipeline. (b) The 2-of-6 result
+  selector corrections, including cf12's change to selection, land before or with this phase's
+  final selector change, and the audit reset is recorded there. Any later phase that changes
+  selection states in its PR that it restarts the audit, and cf18's earliest date moves with it.
+- **cf12.** (a) The ten critical tests run on every product change while their measured added
+  minutes per product change, from cf03's M3, stay under a ceiling written in the phase brief
+  before the change lands, without running the same tests twice in one validation pipeline. (b) The 2-of-6 result
   from cicd-improvement ci11 is explained, with what the set does and does not protect, and the
   missed faults turned into worthwhile coverage improvements or recorded follow-ups.
-- **cf13.** (a) At least one optimization chosen from the cf03 ranking lands, with before and after
-  M1 to M5 on comparable changes showing its effect on total turnaround. (b) Obsolete PR runs are
+- **cf13.** (a) At least one optimization chosen from the cf03 ranking lands. Before and after M1
+  and M3 on comparable changes, with sample sizes stated and at least the sample size cf03 judged
+  sufficient, show M1 median or p95 lower or M3 lower beyond cf03's measured run-to-run spread, with
+  no regression in M4. If no candidate improves beyond that spread, the phase records the result,
+  reverts or keeps the change on cost grounds with its reason, and moves to the next ranked
+  candidate. It does not PASS on landing alone. (b) Obsolete PR runs are
   cancelled where safe, with required merge and coverage verification preserved.
 - **cf14.** (a) The graphics tier cost is paid down before 2026-11-30, prioritising measured waste
-  and critical-path impact, or a short dated extension is recorded with current cost evidence, an
-  owner and a concrete reduction plan.
-- **cf15.** (a) The documentation-only follow-ups (#1914, #1920, #1928, #1932, #1939, #1945, #1949,
-  #1953) are completed in one cleanup PR; behaviour changes are left to their implementation phase.
+  and critical-path impact, or, only if the remaining work cannot safely finish by then and the
+  reason is recorded, a short dated extension is recorded with current cost evidence, an owner and
+  a concrete reduction plan (no automatic or indefinite renewal).
+- **cf15.** (a) The documentation-only follow-ups (#1914, #1920, #1928, #1932, #1939, #1949, #1849,
+  plus any documentation-only remainder of #1945 and #1953) are completed in one cleanup PR; behaviour changes are left to their implementation phase.
 - **cf16.** (a) Whether merge-queue validation already gives equivalent evidence for each exact
   merged revision is established. (b) Total CI cost and capacity are estimated for full validation
   of every exact merged revision within 24 hours, with latency and CI-minute tradeoffs reported
   both ways. (c) A recommendation: adopt that model, or keep full pre-merge coverage and optimize
-  its execution. Full pre-merge testing stays until cf18 qualifies.
+  its execution. Full pre-merge testing stays until cf18 qualifies. (d) This phase changes no
+  coverage. Its recommendation is re-read against cf18's result before cf19 acts on it.
 - **cf17.** (a) Success criteria and a resource and spend ceiling are written before execution. (b)
   One bounded three-plan trial measures completed work per unit time, queue delay, contention,
   retries and CI cost, and stops if contention or failure rates materially worsen. (c) Permanent
   three-plan concurrency is enabled only if the trial shows a benefit.
 - **cf18.** (a) After the final selector change's clean audit window and every other
   prerequisite, a focused repeat of cicd-improvement ci15 is run, with the missing risky-change
-  samples collected. (b) Acceptance criteria are not relaxed to close the run.
+  samples collected, and the other evidence cicd-improvement ci17 section 6 lists as missing
+  (exact-commit replay drill, imported-design bench #1926, ci10 full-shard figure #1920) collected
+  or recorded as still open. (b) Acceptance criteria are not relaxed to close the run.
 - **cf19.** (a) A focused repeat of cicd-improvement ci16: activation only on a qualified cf18 PASS
   with still-current evidence, otherwise the no-activation outcome with retained protection.
 - **cf20.** (a) Before and after merge turnaround and CI cost with sample sizes; change in flaky
