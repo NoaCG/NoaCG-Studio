@@ -96,6 +96,9 @@ Mutations, each caught (job ids from this worker's queue):
   survived (j-0025, j-0026): the test wrote the list after the fade's midpoint, and the
   self-clear was unreachable once updates reconcile the hold. The test now writes 150 ms into the
   fade-out, and the self-clear was removed.
+- After the third round: the hold rule kept for updates and the take only, not for every deal
+  (j-0034): the test that deals again without an update, as a face landing does, fails at
+  "dealt again, it turns" in both layouts.
 
 ## Decisions
 
@@ -138,8 +141,8 @@ Mutations, each caught (job ids from this worker's queue):
 
 ## Verification on this worker
 
-- Browser, through the job queue: the new cards tests (j-0014), the mutation runs above, the
-  whole `e2e/import-svg-credits.spec.ts` 19/19 (j-0022, on the final engine), and with
+- Browser, through the job queue: the cards tests (j-0014, then j-0032), the mutation runs above, the
+  whole `e2e/import-svg-credits.spec.ts` 21/21 on the final head (j-0035), and with
   `e2e/import-svg-behaviour.spec.ts` (j-0011, 60 tests: one failure, row 22's walk pinning the
   "Plays as" options as two, updated to list Cards; the spec then passed whole, j-0012).
 - `node --test scripts/imported-credits-model.test.mjs scripts/imported-credits-source.test.mjs`:
@@ -176,6 +179,18 @@ Mutations, each caught (job ids from this worker's queue):
   CORRECTIONS, grade A-, nothing blocking. Acted on: a heading case in the cards tests, a comment
   and a limit for the one-card fallback, and the 0-second card time documented. The diff changed
   after it, so a fresh `/so` assesses the final head (PR body).
+
+- Codex on `4d5cae8` (1 finding, fixed): the deal that runs when a face lands re-dealt the cards
+  without the hold rule, so a list that needed a second card only in the real face never armed
+  a hold. Same family a third time. The model was corrected rather than patched again: the rule
+  now lives in the deal (`creditsKeepHold`, called by every deal on air), so no caller can miss
+  it; updates and the take simply deal. Class: product defect.
+- `/so` round 2, session `session_017SdbwRFUsMbfCGQCjcyAnM`, on `4d5cae8`: AGREE WITH
+  CORRECTIONS, grade A-, nothing blocking. Acted on: the 2 to 60 bound is now tested in the
+  wizard (1 becomes 2, 120 becomes 60, blank stays Next) and on air (a Card time of 1 holds at
+  least 1.9 s), and the repeated deals while a face loads are a Known limit. Kept: the
+  `Card time (s)` label is a literal (Scroll speed's is shared because the catalog's speed
+  fields share it; no catalog field reads this one).
 
 ## Known limits
 
