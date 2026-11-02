@@ -750,7 +750,7 @@ function creditsCopy(source, words) {
   };
   walk(row);
   for (var t = 0; t < texts.length; t++) texts[t].nodeValue = texts[t] === first ? words : '';
-  if (!first) row.appendChild(document.createTextNode(words));
+  if (!first) row.textContent = words;
   return { row: row, run: first ? first.parentNode : row };
 }
 

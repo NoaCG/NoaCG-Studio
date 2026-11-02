@@ -4,7 +4,7 @@
 // pace was set by (about thirty seconds), rolled from Illustrator's own output.
 // covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,creditsArtwork,artworkFields,svg,svgBind}.ts,endCredits/shared.ts}
 // covers: e2e/fixtures/{credits-roll,credits-artwork}.svg, e2e/fixtures/jev-svg/dev/{credits-1,credits-2}.svg
-// covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx}
+// covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx,MapSvgFieldsStep.tsx}
 // covers: src/components/wizard/draft/template.ts, src/blocks/motionPresets.ts
 // covers: src/components/home/CueActions.tsx
 
@@ -156,6 +156,11 @@ test('imported artwork credits preserve the complete design and roll off the who
   const preview = page.getByTestId('map-svg-credits-preview');
   await expect(preview).toHaveAttribute('data-layout', 'list');
   await expect(preview.locator('[data-credit]').first()).toHaveText('NIGHT SKY');
+  // Fixed artwork credits keep their rows' wording: every row of the text scrolls as artwork.
+  const artworkRows = page.locator('[data-testid^="map-svg-driven-"]');
+  await expect(artworkRows.first()).toContainText('scrolls as artwork');
+  await expect(artworkRows.filter({ hasText: 'sets the look' })).toHaveCount(0);
+  expect(await artworkRows.count()).toBe(await artworkRows.filter({ hasText: /, scrolls as artwork$/ }).count());
   await intoProduction(page, 'Night sky credits', 'Night sky');
   await settleDurableWrites(page);
   await page.getByTestId('verb-take').click();
@@ -352,6 +357,9 @@ test('the Credits preview reads roles and names off a role-beside drawing', asyn
   // is offered while role beside saves as artwork credits: it would change nothing the graphic
   // builds (row 20 renders role beside and offers it with that binding).
   await expect(page.getByTestId('map-svg-credits-roles')).toHaveCount(0);
+  // Role beside is not rendered in its own styling yet, so it saves as artwork credits, and the
+  // step says so on the Credits row exactly as before.
+  await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveText([/, scrolls as artwork$/]);
 });
 
 test('role-above credits drawn as separate layers roll in those layers\' own styling', async ({ page }) => {
@@ -372,6 +380,15 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await expect(preview.locator('[data-credit="role"]')).toHaveText(['Research', 'Sound']);
   // Role above is never ambiguous, so there is nothing to choose.
   await expect(page.getByTestId('map-svg-credits-roles')).toHaveCount(0);
+  // The other drawn layers are not fields of their own: their rows say what they become.
+  const sourceRows = page.locator('[data-testid^="map-svg-driven-"]');
+  await expect(sourceRows).toHaveText([
+    /, sets the look of every name in Credits$/,
+    /, sets the look of every name in Credits$/,
+    /, sets the look of every role in Credits$/,
+    /, sets the look of every name in Credits$/,
+  ]);
+  await expect(page.locator('[data-testid^="map-svg-row-"] input[type="checkbox"]:disabled')).toHaveCount(4);
   await intoProduction(page, 'Research credits', 'Research night');
   await settleDurableWrites(page);
 

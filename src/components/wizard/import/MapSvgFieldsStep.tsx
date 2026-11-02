@@ -13,6 +13,7 @@ import type {
 import {
   modeOfAxis,
   pollDrivenLayers,
+  styledCreditsOf,
   takenOff,
   svgDesignOptions,
 } from './draft';
@@ -193,6 +194,13 @@ export default function MapSvgFieldsStep({
     const design = draft.svgBehaviour?.kind === 'recipe' && draft.svgBehaviour.recipe === 'credits' ? svgDesignOptions(draft) : undefined;
     return new Set(design ? [...creditsArtworkFields(design)].map((i) => design.fields[i].candidateId) : []);
   }, [draft]);
+  // Credits drawn as separate role and name layers: each layer other than the Credits field sets
+  // the look of every role or name in the list, and is not a field of its own.
+  const creditsSources = useMemo(() => {
+    const b = draft.svgBehaviour;
+    const credits = b?.kind === 'recipe' ? styledCreditsOf(b) : undefined;
+    return new Map((credits?.anchors ?? []).filter((a) => b?.kind === 'recipe' && a.candidateId !== b.fields?.credits).map((a) => [a.candidateId, a.kind]));
+  }, [draft.svgBehaviour]);
   const stageRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [drawArmed, setDrawArmed] = useState(false);
@@ -1282,6 +1290,8 @@ export default function MapSvgFieldsStep({
                 title={
                   artworkCredit
                     ? 'This text scrolls as artwork.'
+                    : creditsSources.has(f.candidateId)
+                    ? creditsSourceLine(creditsSources.get(f.candidateId))
                     : driven
                     ? 'The vote writes this layer. To take it out, set its picker below to “not drawn”.'
                     : f.on
@@ -1298,7 +1308,7 @@ export default function MapSvgFieldsStep({
                    vote fills it, or the checklist becomes eight copies of one paragraph - which
                    is the reading problem he raised about this step in the same walk. */
                 <p className="map-svg-driven grow" data-testid={`map-svg-driven-${f.candidateId}`}>
-                  <strong>{f.title.trim() || 'This layer'}</strong>, {artworkCredit ? 'scrolls as artwork' : 'filled by the vote'}
+                  <strong>{f.title.trim() || 'This layer'}</strong>, {artworkCredit ? 'scrolls as artwork' : creditsSources.has(f.candidateId) ? creditsSourceLine(creditsSources.get(f.candidateId)) : 'filled by the vote'}
                 </p>
               ) : (
                 <>
@@ -1858,4 +1868,9 @@ export default function MapSvgFieldsStep({
 
     </div>
   );
+}
+
+/** A drawn credits role or name layer: its look is what every role or name in Credits takes. */
+function creditsSourceLine(kind: 'role' | 'name' | undefined): string {
+  return `sets the look of every ${kind === 'role' ? 'role' : 'name'} in Credits`;
 }
