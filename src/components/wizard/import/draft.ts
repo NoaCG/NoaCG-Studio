@@ -38,6 +38,13 @@ import {
 } from '../../../ai/svgInterpretation/apply';
 import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
 import { canonical } from '../../../model/publishedRecord';
+import { parseAnimData, spliceAnimData } from '../../../blocks/animData';
+import { carrySvgIdentity } from '../../../blocks/svgIdentity';
+import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, updateGraphic, type LibraryNameEntry, type LibrarySaveEffect } from '../../../model/library';
+import { freeName } from '../../../model/poolIdentity';
+import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
+import { PREFIX } from '../../../templates/importedDesign/shared';
+import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -2112,4 +2119,188 @@ export function svgProposalOfDraft(draft: SvgImportDraft): { proposal: SvgPropos
     };
   }
   return { proposal, omitted };
+}
+
+/** What reimporting a build over a saved SVG graphic gives: the template to save, its new Reset
+ *  target, and the earlier work it could not carry (spec "Reimport"; evidence/phase-27.md). */
+export interface SvgReimport {
+  template: SpxTemplate;
+  baseline: SpxTemplate;
+  unresolved: ReimportItem[];
+}
+
+/**
+ * REIMPORT CHANGED ARTWORK over a saved graphic, keeping its work: every verified-match layer
+ * keeps its field id (so production bindings, cue values and control entries still address it),
+ * keys and labels made after the earlier import come across, and an identity the editor minted on
+ * a keyed artwork layer moves to the same layer. Whatever has no verified target is returned in
+ * `unresolved`, for the caller to keep the earlier graphic instead of writing over it. Null when
+ * either side is not an SVG import: nothing here applies, and the save is the ordinary one.
+ */
+export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemplate }, built: SpxTemplate): SvgReimport | null {
+  const priorDoc = parseHtml(prior.template.html);
+  const priorArt = artOf(priorDoc);
+  if (!priorArt || !artOf(parseHtml(built.html))) return null;
+  const match = matchReimport(prior.template, prior.baseline, built);
+  const unresolved = [...match.unresolved];
+  let template = renameFields(built, match.rename);
+  const baseline = template;
+  const priorData = parseAnimData(prior.template.js);
+  const firstData = prior.baseline ? parseAnimData(prior.baseline.js) : null;
+  const builtData = parseAnimData(template.js);
+  // Action identities ride on the recipe, which names its events: a verified build answers the
+  // same ones. An action the walk itself drops (a behaviour profile the reader chose, such as a
+  // quiz with no Lock) is that choice, not lost work, so it is not listed.
+  if (priorData && builtData) {
+    const keys = carryKeys(priorData, firstData, builtData);
+    unresolved.push(...keys.unresolved);
+    // A key with no verified target is not written: on a field with no match (named with the
+    // field), or on a positional selector, which names a place rather than a layer.
+    const drop = (selector: string) => {
+      for (const step of [...keys.data.steps, ...(keys.data.machine?.groups ?? []).flatMap((g) => g.states.flatMap((st) => (st.timeline ? [st.timeline] : [])))]) {
+        delete step.layers[selector];
+      }
+    };
+    for (const id of match.gone) drop(`#${id}`);
+    for (const selector of keys.selectors) {
+      if (match.gone.some((id) => selector === `#${id}`)) continue;
+      // Only an id names one layer; the build's own `.imported-design-*` structure is stable, a
+      // designer's class may now gather other layers.
+      if (!selector.startsWith('#') && !selector.startsWith(`.${PREFIX}-`)) {
+        drop(selector);
+        unresolved.push({ kind: 'key', label: selector });
+        continue;
+      }
+      const doc = parseHtml(template.html);
+      let found: Element | null = null;
+      try { found = doc.querySelector(selector); } catch { /* not a selector this document answers */ }
+      const minted = /^#artwork-\d+$/.test(selector);
+      // A designer's own id names its layer in both versions; an identity the editor MINTED is
+      // ours, so a node of the new artwork wearing it proves nothing until its source key agrees.
+      if (found && !minted) continue;
+      // The same drawn layer, verified by its source key, takes the identity back.
+      const was = minted ? priorDoc.querySelector(selector) : null;
+      const art = artOf(doc);
+      const key = was && priorArt.contains(was) ? sourceKey(was, priorArt) : null;
+      const alike = (root: Element | null) => (key && root ? Array.from(root.querySelectorAll('*')).filter((el) => sourceKey(el, root) === key) : []);
+      // Verified only when the key occurs once on EACH side (R2): a twin in the earlier artwork
+      // may be the very layer the keys were on.
+      const twins = alike(art);
+      const verified = twins.length === 1 && alike(priorArt).length === 1;
+      if (found && verified && twins[0] === found) continue;
+      const carried = !found && verified ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
+      if (carried) template = carried;
+      else {
+        drop(selector);
+        unresolved.push({ kind: 'key', label: selector });
+      }
+    }
+    template = { ...template, js: spliceAnimData(template.js, keys.data) ?? template.js };
+  } else if (priorData && firstData && canonical(priorData) !== canonical(firstData)) {
+    unresolved.push({ kind: 'key', label: 'animation' });
+  }
+  template = carryTitles(template, prior.template, prior.baseline, match.matched);
+  // A key is named by what the reader knows it as: the field's title, else the designer's
+  // nearest named group, never a selector.
+  const named = (u: ReimportItem): ReimportItem => {
+    if (u.kind !== 'key' || u.label === 'animation') return u;
+    const field = prior.template.fields.find((f) => `#${f.field}` === u.label);
+    if (field) return { ...u, label: field.title || field.field };
+    let el: Element | null = null;
+    try { el = priorDoc.querySelector(u.label); } catch { /* not a selector */ }
+    for (let up = el?.parentElement; up && up !== priorArt; up = up.parentElement) {
+      const id = up.getAttribute('id');
+      if (id && !/^(?:f\d+|artwork-\d+)$/.test(id)) return { ...u, label: id.replace(/^layer-/, '') };
+    }
+    return { ...u, label: 'artwork' };
+  };
+  // Keys on a field already named as gone are said once, with the field.
+  const gone = new Set(match.unresolved.map((u) => u.label));
+  const seen = new Set<string>();
+  return {
+    template,
+    baseline,
+    unresolved: unresolved
+      .map(named)
+      .filter((u) => !(u.kind === 'key' && gone.has(u.label)))
+      .filter((u) => !seen.has(u.kind + u.label) && !!seen.add(u.kind + u.label)),
+  };
+}
+
+/** The working document as the reimport seam reads and writes it (the template store). */
+interface ReimportStore {
+  getState(): { template: SpxTemplate };
+  setState(patch: { template: SpxTemplate; baseline: SpxTemplate; sampleData: Record<string, string> }): void;
+}
+
+/** The library seam's reimport half (shell/walkState.ts `LibraryIo`): the working document is the
+ *  build, and `apply` makes the reconciled build the working document and its Reset target. */
+export function reimportIo(
+  store: ReimportStore,
+  sampleData: (template: SpxTemplate, existing: Record<string, string>) => Record<string, string>,
+): Pick<LibraryIo, 'reconcile' | 'keepCopy'> {
+  return {
+    reconcile: (id) => {
+      const held = graphicById(id);
+      const done = held ? svgReimported({ template: held.template, baseline: held.baseline }, store.getState().template) : null;
+      if (!done) return null;
+      return {
+        unresolved: done.unresolved,
+        apply: () => store.setState({ template: done.template, baseline: done.baseline, sampleData: sampleData(done.template, {}) }),
+      };
+    },
+    keepCopy: (id) => {
+      const copy = duplicateGraphic(id);
+      if (!copy.doc || copy.error) return false;
+      const name = freeName(graphicNameIndex().filter((g) => g.id !== copy.doc!.id).map((g) => g.name), copy.doc.name);
+      return name === copy.doc.name || !updateGraphic(copy.doc.id, { name }).error;
+    },
+  };
+}
+
+/** The Finish step's read of a reimport, cached on what it reads: the build and the held record. */
+let reviewCache: { built: SpxTemplate; id: string; at: string; result: SvgReimport | null } | null = null;
+
+/** What Finish says about a reimport over the graphic `name` holds (FinishStep `reimport`), or
+ *  null when the save is the ordinary one or carries everything. */
+export function finishReimport(built: SpxTemplate | null, name: string, library: LibraryNameEntry[], madeId: string | null, memory: WalkMemory) {
+  // The save's own test (`reimportTarget`), so Finish and the save agree.
+  const target = reimportTarget(librarySaveEffect(library, name, madeId), memory.made, library);
+  const held = built && target ? graphicById(target) : null;
+  if (!built || !held) return null;
+  if (reviewCache?.built !== built || reviewCache.id !== held.id || reviewCache.at !== held.updatedAt) {
+    reviewCache = { built, id: held.id, at: held.updatedAt, result: svgReimported({ template: held.template, baseline: held.baseline }, built) };
+  }
+  const unresolved = reviewCache.result?.unresolved ?? [];
+  if (unresolved.length === 0) return null;
+  // A Replace anyway tick belongs to the list it was given for, on this target.
+  const sig = JSON.stringify([held.id, held.updatedAt, unresolved]);
+  if (memory.replaceFor !== sig) {
+    memory.replaceFor = sig;
+    memory.replaceOver = false;
+  }
+  return {
+    sig,
+    unresolved,
+    separateName: freeName(library.map((g) => g.name), name),
+    copyName: freeName(library.map((g) => g.name), `${name} copy`),
+    replace: !!memory.replaceOver,
+    onReplace: (replace: boolean) => { memory.replaceOver = replace; },
+  };
+}
+
+/**
+ * THE RECORD A SAVE RECONCILES AGAINST, or null for a plain write (spec "Reimport", AC-15). Each
+ * door rebuilds the raw, positionally numbered build first, so reconciliation follows the RECORD,
+ * not the press: a save reconciles against any record it would write over, unless that record is
+ * still exactly what this walk last wrote by a plain write (its own fresh graphic, untouched).
+ * Whether the record is an SVG import at all is the reconcile's own question. The Finish review
+ * (`finishReimport`) and the save (shell/walkState.ts `saveBuiltGraphic`) ask this same function,
+ * so the sentence and the save decide alike.
+ */
+export function reimportTarget(effect: LibrarySaveEffect, made: MadeGraphic | null, index: LibraryNameEntry[]): string | null {
+  const target = effect.targetId;
+  if (!target) return null;
+  const plainOwn = made?.graphicId === target && !made.reconciled && made.at === index.find((g) => g.id === target)?.updatedAt;
+  return plainOwn ? null : target;
 }
