@@ -759,7 +759,11 @@ function creditsArm(after) {
   noacgCreditsHold = creditsCardTime();
   if (noacgCreditsHold === null || noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || typeof gsap === 'undefined') return;
   if (typeof after !== 'number') noacgCreditsSince = gsap.ticker.time;
-  noacgCreditsTween = gsap.delayedCall(typeof after === 'number' ? after : noacgCreditsHold, creditsTurn);
+  // A hold that has run out is no hold: it clears itself before it changes the card.
+  noacgCreditsTween = gsap.delayedCall(typeof after === 'number' ? after : noacgCreditsHold, function () {
+    noacgCreditsTween = null;
+    creditsTurn();
+  });
 }
 
 // creditsShow(i): lay out card i on its own, keeping the report the deal made for every card.
@@ -786,7 +790,8 @@ function creditsTurn() {
   var tl = gsap.timeline();
   tl.to(face, { opacity: 0, duration: 0.4 / pace, ease: 'power2.in' }, 0);
   tl.call(function () {
-    noacgCreditsCard += 1;
+    // The list may have changed during the fade: the next card is one of the cards dealt now.
+    noacgCreditsCard = Math.max(0, Math.min(noacgCreditsCard + 1, noacgCreditsCards.length - 1));
     creditsShow(noacgCreditsCard);
   }, null, 0.4 / pace);
   tl.to(face, { opacity: 1, duration: 0.5 / pace, ease: 'power2.out' }, 0.4 / pace);
@@ -816,18 +821,20 @@ function ${CREDITS_NEXT_CALL}() {
 }
 
 // creditsDataUpdated(): update() wrote the fields - deal the cards again and show the one on air.
-// A new card time applies to the hold under way, counted from when that hold started; a card
-// that was the last and now has cards after it starts its hold.
+// Then the hold is made true again: on air and between changes, a card with a card time and
+// cards after it has exactly one hold running, and any other card none. A new card time applies
+// to the hold under way, counted from when it started; a card that has gained cards after it
+// starts a hold. A change under way arms its own hold when it ends.
 function creditsDataUpdated() {
   creditsDeal();
   if (noacgCreditsTurning || noacgCreditsCard < 0 || typeof gsap === 'undefined') return;
   var hold = creditsCardTime();
-  if (!noacgCreditsTween) {
-    creditsArm();
+  if (hold === null || noacgCreditsCard >= noacgCreditsCards.length - 1) {
+    creditsArm();                    // arms nothing here, and ends any hold left running
     return;
   }
-  if (hold === noacgCreditsHold) return;
-  creditsArm(hold === null ? undefined : Math.max(0, hold - (gsap.ticker.time - noacgCreditsSince)));
+  if (!noacgCreditsTween) creditsArm();
+  else if (hold !== noacgCreditsHold) creditsArm(Math.max(0, hold - (gsap.ticker.time - noacgCreditsSince)));
 }`;
 }
 

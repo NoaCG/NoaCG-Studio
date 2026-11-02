@@ -1185,6 +1185,26 @@ for (const layout of CARD_LAYOUTS) {
     expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: the only card holds`).toEqual([0, false]);
     await write(list);
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown, it turns`, timeout: 5000 }).toBe(1);
+
+    // SHRUNK TO THE LAST, THEN GROWN: the card on air becomes the last (no hold), its old hold's
+    // time passes, and grown again it starts a hold and turns.
+    await write([...groups[0], '', ...groups[1]]);
+    await page.waitForTimeout(2500);
+    expect([(await cardsState(page)).shown, (await cardsState(page)).tween], `${at}: now the last card`).toEqual([1, false]);
+    await write(list);
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: grown again, it turns`, timeout: 5000 }).toBe(2);
+
+    // SHRUNK DURING A CHANGE: the change lands on a card that is still dealt, never on an empty one.
+    await setTime('');
+    await write([...groups[0], '', ...groups[1]]);
+    await cardsDispatch(page, 'play');
+    await expect.poll(async () => (await cardsState(page)).card, `${at}: taken, Next only`).toBe(0);
+    await cardsDispatch(page, 'next');
+    await expect.poll(async () => Number((await cardsState(page)).opacity), `${at}: fading to the second card`).toBeLessThan(0.9);
+    await write(groups[0]);
+    await expect.poll(async () => (await cardsState(page)).opacity, `${at}: the change ends`).toBe('1');
+    const landed = await cardsState(page);
+    expect([landed.card, landed.shown, landed.visibility, landed.rows.map((r) => r.text)], `${at}: landed on a dealt card`).toEqual([0, 0, 'visible', groups[0].map((t) => t.replace(/:$/, ''))]);
   });
 }
 
