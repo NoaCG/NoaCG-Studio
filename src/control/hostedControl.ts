@@ -1351,9 +1351,12 @@ function readSeqTail(data: unknown): SeqTail<SeqLogRow> | null {
 /** The operator page's numbered tail (proto 2): rows after `after` in seq order, or null when the
  *  read failed - which is "nothing known", never "nothing missed". */
 export async function hostedControlTailSeq(slug: string, after: number, epoch: string | null): Promise<SeqTail<SeqLogRow> | null> {
+  console.debug('[cf07] tail start');
   const sb = await getSupabase();
+  console.debug('[cf07] tail client', !!sb);
   if (!sb) return null;
   const { data, error } = await sb.rpc('control_tail_seq', { p_slug: slug, p_after: after, p_epoch: epoch });
+  console.debug('[cf07] tail done', error ? `error ${error.message}` : 'ok');
   if (error) return null;
   return readSeqTail(data);
 }
@@ -2148,6 +2151,7 @@ export function followSeqLog(opts: {
       if (frame) follower.offer(frame);
     },
     onStatus: (next) => {
+      console.debug('[cf07] follow status', next);
       status = next;
       if (next === 'SUBSCRIBED') {
         everJoined = true;
@@ -2242,6 +2246,7 @@ async function openSeqTopic(showId: string, state: SeqTopicState): Promise<void>
     for (const user of [...state.users]) user.onBatch(frame.payload);
   });
   ch.subscribe((status) => {
+    console.debug('[cf07] seq status', status, 'closed', state.closed, 'same', state.channel === ch, 'users', state.users.size);
     if (state.closed || state.channel !== ch) return;
     if (status === 'SUBSCRIBED') {
       state.everJoined = true;

@@ -214,6 +214,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
   };
 
   const refill = (): Promise<void> => {
+    console.debug('[cf07] refill', 'stopped', stopped, 'walk', walk !== null);
     if (stopped) return Promise.resolve();
     if (walk) {
       again = true;
@@ -223,7 +224,9 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
       try {
         for (let page = 0; page < MAX_TAIL_PAGES && !stopped; page += 1) {
           const asked = epoch;
+          console.debug('[cf07] refill read', cursor, asked);
           const answer = await opts.tail(cursor, asked);
+          console.debug('[cf07] refill answer', answer === null ? 'null' : `${answer.rows.length} rows epoch ${answer.epoch} reset ${answer.reset ?? false}`, 'stopped', stopped, 'epoch now', epoch);
           if (stopped || !answer) return;
           // A frame moved this follower to another epoch while the read was out: the answer
           // describes a log it has left.
@@ -269,6 +272,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
       noteBusy();
     },
     joined() {
+      console.debug('[cf07] joined', 'stopped', stopped, 'joinedBefore', joinedBefore, 'walk', walk !== null);
       if (stopped) return;
       if (!joinedBefore) {
         joinedBefore = true;
