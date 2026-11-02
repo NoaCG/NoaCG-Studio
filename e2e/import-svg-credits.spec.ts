@@ -646,7 +646,7 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
   const playback = page.getByTestId('map-svg-credits-playback');
   await expect(playback).toHaveValue('roll');
-  await expect(playback.locator('option')).toHaveText(['Roll', 'Hold still']);
+  await expect(playback.locator('option')).toHaveText(['Roll', 'Hold still', 'Cards']);
   await playback.selectOption('static');
   // The one class of list a still page cannot show is named where the choice is made.
   await expect(page.getByTestId('map-svg-credits-still')).toHaveText('A list too long for the page is not shown, and its field says so.');
