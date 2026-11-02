@@ -29,9 +29,8 @@ Worktree from `66a61064f5f90acb4f68abef9738e38ea1ae9f3e` (PR #1948). Previous ve
   - `creditsLayerText`: a layer's drawn lines, read the way the editable roll reads its sample.
 - `BehaviourSection.tsx`: under the Credits picker, a "Credits preview": headings, each role with
   its names, loose names, in order. Beside, a role shares its line with its first name and later
-  names stay in the name column; above, names follow under their role. Where the columns are
-  ambiguous, one select names the roles each reading gives ("Roles: Réalisation, Image" or
-  "Roles: Léa Orme, Noé Rivage").
+  names stay in the name column; above, names follow under their role. No column select is shown
+  yet (Decisions).
 - No change to `contentFormats.ts` or `designTypes.ts`: the Sheet adapter already writes the native
   grammar into the one list field (row 17), and the stored model already holds the anchor kinds
   the choice decides.
@@ -44,7 +43,7 @@ Worktree from `66a61064f5f90acb4f68abef9738e38ea1ae9f3e` (PR #1948). Previous ve
 | Zero, one, several names; row order | Test 4: Director (one), Camera (three), Sound (none), sections in order. Test 6: a Hebrew role with two names, a swapped reading with a role of none, a turned block keeping each name |
 | One shared source through above/beside and static/roll/cards | Test 7: six styled bindings (credits-1 above, credits-2 beside, each playback) are valid against their drawings, have one list field `f0`, take the credits Sheet adapter and get the same list text |
 | Role above, role beside | Test 5: credits-1 reads role above with its anchors in order; credits-2 role beside. e2e: a role and its first name on one line, a second name below |
-| Ambiguous columns get one choice | Test 6: names drawn left of their roles read ambiguous; the choice swaps roles and names and the anchor kinds. e2e: the select offers the two readings; choosing flips the preview and back. Above is never ambiguous (test 5) |
+| Ambiguous columns get one choice | Test 6: names drawn left of their roles read ambiguous; the one answer (`CreditsChoice.swap`) swaps roles, names and anchor kinds, and a binding saved with either answer validates. Above is never ambiguous (test 5). The wizard offers no select until the answer can be saved (Decisions; #1937); e2e asserts none is shown |
 | No JSON/JSONata, no field per person, native grammar | e2e: no `{` in the preview and one Credits picker. The preview reads `CREDITS_PARSER_JS`; no field, store or format added |
 | Later rows render | Nothing renders here: `creditsEngine` and the assembler are unchanged. `imported-credits-model` 19/19, including the pins of the editable roll, the artwork roll and the plain credits drawings; `check:catalog-emit` PASS (528) |
 
@@ -82,6 +81,12 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
   the preview reads the field rather than the Sheet (Decisions) and picking a lower layer shortens
   the list (Known limits).
 
+- `/so` on `9cfba229` (session `session_017SdbwLw1kkm8MRtLYEWTH5`, AGREE WITH CORRECTIONS, B+):
+  the Roles select changed only the preview, against the invariant above. Fixed by its option (a):
+  the select is withheld until the answer can be saved (#1937). Its points 2 (the preview reads
+  roles and names while the saved graphic rolls artwork; rows 19 to 23 render) and 3 (the list
+  starts at the picked layer) are documented limits.
+
 ## Decisions
 
 - **The preview reads the field's list, not a Sheet.** The Credits field is the declared list
@@ -90,7 +95,14 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
 - **The choice reads lines the other way.** It decides which look is the role and the reading order
   on a line together, which is what a name-first or right-to-left drawing needs. It is offered only
   when both readings succeed and differ.
-- **The choice is held by the step, not saved.** The wizard writes no styled binding yet: every new
+- **No column select in the wizard yet, a departure from AC-23's wording.** The binding invariant
+  `wizard/offer-control-can-change-graphic-front` says to hide a control that cannot change the
+  built graphic. New credits imports are saved as artwork credits, which never read roles, so a
+  select would only flip the preview. The model takes the one answer and validation accepts it;
+  the select is offered by the row that saves the styled binding (#1937), which needs
+  `BehaviourSection.tsx` and `draft.ts`. Found by `/so` on `9cfba229` (B+); an earlier head showed
+  the select.
+- **The answer is not saved.** The wizard writes no styled binding yet: every new
   credits import is `options.artwork` (`draft.ts`), and the assembler does not build `styled`. The
   choice's output is the anchor kinds `DesignSvgCredits` already stores, and validation accepts
   either answer. Writing the binding, with the answer, needs `draft.ts` (and the choice lifted out
@@ -100,7 +112,7 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
 - **Anchors are the picked layer's line and every text layer below it.** A title above the list is
   artwork in every dev fixture. A layer that is not part of a two-look drawing previews as its own
   text, never a guess.
-- **Ordinary review scenario.** Pure readers and a display with one local choice; no state rule.
+- **Ordinary review scenario.** Pure readers and a display; no state rule.
 
 ## #1941
 
@@ -111,7 +123,7 @@ Mutation: reading every line left to right (main's rule) fails test 6 and passes
 
 ## Known limits
 
-- The column choice is not saved (see Decisions; #1937).
+- The column choice is not offered or saved in the wizard yet (see Decisions; #1937).
 - The list starts at the layer picked as Credits: picking a lower role (Image in credits-2) leaves
   the roles above it out of the preview, as a title drawn above is left out. The author picks the
   first role; the e2e does.

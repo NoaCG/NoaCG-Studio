@@ -324,10 +324,9 @@ async function openLegacyProduction(page: Page, graphic: string, production: str
   await openProductionWithCurrent(page, production);
 }
 
-test('the Credits preview reads roles and names off a role-beside drawing, with one choice for its columns', async ({ page }) => {
+test('the Credits preview reads roles and names off a role-beside drawing', async ({ page }) => {
   // AC-23 (jev-svg-import row 18): the list the Credits layer declares, read by the shipped
-  // parser, as headings, roles and their names. A drawing's two columns could each be the roles,
-  // so the author answers that once; the list and its order never change with the answer.
+  // parser, as headings, roles and their names, laid out as the drawing sets them.
   await page.goto('/app');
   await dropSvg(page, BESIDE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
@@ -348,13 +347,10 @@ test('the Credits preview reads roles and names off a role-beside drawing, with 
   await expect(preview).not.toContainText('{');
   await expect(page.locator('[data-testid^="map-svg-recipe-credits"]')).toHaveCount(1);
 
-  const roles = page.getByTestId('map-svg-credits-roles');
-  await expect(roles.locator('option')).toHaveText(['Roles: Réalisation, Image', 'Roles: Léa Orme, Noé Rivage']);
-  await roles.selectOption({ index: 1 });
-  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Léa Orme', 'Noé Rivage', 'Émilie Lac']);
-  await expect(preview.locator('[data-credit="name"]')).toHaveText(['Réalisation', 'Image']);
-  await roles.selectOption({ index: 0 });
-  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Réalisation', 'Image']);
+  // Either column could be the roles here, and the model takes that one answer, but no control
+  // is offered while new credits imports are saved as artwork credits: it would change nothing
+  // the graphic builds (#1937 offers it with the styled binding).
+  await expect(page.getByTestId('map-svg-credits-roles')).toHaveCount(0);
 });
 
 test('imported credits: one pasted list rolls through the Credits box in the sample\'s two looks', async ({ page }) => {

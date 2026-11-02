@@ -47,7 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import { creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
+import { creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
@@ -114,8 +114,11 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * or several names, and loose names, in the list's order, read from the one list the Credits
  * layer declares by the parser every credits roll ships (`creditsPreview`). The same text is what
  * a linked Sheet writes into that field, so the preview and the source cannot disagree. Where
- * roles and names are drawn as separate layers it also shows the drawing's layout, and where the
- * two columns could each be the roles it asks the one question geometry cannot answer.
+ * roles and names are drawn as separate layers it also shows the drawing's layout.
+ *
+ * NO COLUMN CHOICE YET. Where either column could be the roles, the model takes the author's one
+ * answer (`CreditsChoice`), but new credits imports are saved as artwork credits, which never read
+ * roles, so a select here would change nothing built: it is offered with the styled binding (#1937).
  */
 function CreditsListPreview({ stage, layers, creditsId, measured }: {
   stage: RefObject<HTMLDivElement | null>;
@@ -124,32 +127,19 @@ function CreditsListPreview({ stage, layers, creditsId, measured }: {
   /** Changes whenever the step's render was measured again (a font landed, a new file). */
   measured: unknown;
 }) {
-  const [swap, setSwap] = useState(false);
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
-  const previews = useMemo(() => {
+  const shown = useMemo(() => {
     const root = stage.current?.querySelector('svg');
-    if (!root) return null;
-    return [false, true].map((s) => creditsPreview(root, idKey.split('\n'), creditsId, { swap: s }));
+    return root ? creditsPreview(root, idKey.split('\n'), creditsId) : null;
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);
-  if (!previews) return null;
-  const read = previews[0];
-  const ambiguous = read.styled && read.ambiguous;
-  const shown: CreditsPreview = ambiguous && swap ? previews[1] : read;
-  const roleNames = (p: CreditsPreview) =>
-    p.list.flat().flatMap((item) => (item.type === 'group' ? [item.role] : [])).slice(0, 2).join(', ');
+  if (!shown) return null;
   const beside = shown.styled && shown.layout === 'role-beside';
   return (
     <div className="save-field" data-testid="map-svg-credits-preview" data-layout={shown.styled ? shown.layout : 'list'}>
       <span>Credits preview</span>
-      {ambiguous && (
-        <select value={swap ? 'swap' : 'read'} onChange={(e) => setSwap(e.target.value === 'swap')} data-testid="map-svg-credits-roles">
-          <option value="read">Roles: {roleNames(previews[0])}</option>
-          <option value="swap">Roles: {roleNames(previews[1])}</option>
-        </select>
-      )}
       <div dir={shown.styled && shown.rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
         {shown.list.map((section, at) => (
           <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
@@ -1274,8 +1264,6 @@ export default function BehaviourSection({
               <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
               {generic.recipe === 'credits' && generic.fields?.credits && (
                 <CreditsListPreview
-                  // A choice belongs to the layer it was made for.
-                  key={generic.fields.credits}
                   stage={stageRef}
                   layers={textLayers}
                   creditsId={generic.fields.credits}
