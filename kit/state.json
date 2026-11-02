@@ -40,7 +40,7 @@
  },
  "carry": {
   "cf03": "#1964: apply the two cf13 sample-window notes in a reviewed spec change before cf03 starts.",
-  "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954."
+  "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed."
  },
  "waitingOn": null,
  "inFlight": [
