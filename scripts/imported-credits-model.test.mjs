@@ -108,6 +108,8 @@ const STYLED_CASES = {
   namesLeftNameTitle: svg(`${t(100, 40, 40, 'THE TEAM')}${t(100, 100, 40, 'Alex Rivera')}${t(600, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 155, 40, 'Ida Lake')}${t(100, 270, 40, 'Ari Moss')}${t(600, 270, 24, 'Sound', ' fill="#fc0"')}`),
   // A role with no names among others (consecutive role lines), and a right-to-left drawing with
   // the names on the right, the roles on the left, and a last name on its own line.
+  tightThree: svg(`${t(100, 120, 24, 'Director', ' fill="#fc0"')}${t(100, 175, 40, 'Alex Rivera')}${t(100, 225, 24, 'Sound', ' fill="#fc0"')}${t(100, 280, 40, 'Ari Moss')}${t(100, 330, 40, 'Bo Lind')}${t(100, 380, 24, 'Editor', ' fill="#fc0"')}${t(100, 435, 40, 'Sol Reed')}`),
+  tightThreeCodex: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 170, 40, 'Alex Rivera')}${t(100, 220, 24, 'Sound', ' fill="#fc0"')}${t(100, 290, 40, 'Ari Moss')}${t(100, 340, 24, 'Editor', ' fill="#fc0"')}${t(100, 410, 40, 'Sol Reed')}`),
   evenTitledName: svg(`${t(100, 40, 40, 'THE TEAM')}${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 160, 40, 'Alex Rivera')}${t(100, 220, 24, 'Sound', ' fill="#fc0"')}${t(100, 280, 40, 'Ari Moss')}`),
   tightTitledName: svg(`${t(100, 30, 40, 'THE TEAM')}${t(100, 100, 24, 'Director', ' fill="#fc0"')}${t(100, 170, 40, 'Alex Rivera')}${t(100, 220, 24, 'Sound', ' fill="#fc0"')}${t(100, 290, 40, 'Ari Moss')}`),
   evenCentredTitled: svg(`${t(500, 40, 40, 'THE TEAM', ' text-anchor="middle"')}${t(500, 100, 24, 'Director', ' fill="#fc0" text-anchor="middle"')}${t(500, 160, 40, 'Alex Rivera', ' text-anchor="middle"')}${t(500, 220, 24, 'Sound', ' fill="#fc0" text-anchor="middle"')}${t(500, 280, 40, 'Ari Moss', ' text-anchor="middle"')}`),
@@ -418,6 +420,8 @@ async function inPage({ dev, cases, legacy, artwork }) {
     evenFirst: previewOf(cases.evenAbove, 'Director'),
     tightFirst: previewOf(cases.tightAbove, 'Director'),
     evenMiddle: previewOf(cases.evenThree, 'Sound'),
+    tightMiddle: previewOf(cases.tightThree, 'Sound'),
+    tightMiddleCodex: previewOf(cases.tightThreeCodex, 'Sound'),
     evenTitledName: previewOf(cases.evenTitledName, 'Director'),
     tightTitledName: previewOf(cases.tightTitledName, 'Director'),
     evenCentredTitled: previewOf(cases.evenCentredTitled, 'Director'),
@@ -1136,6 +1140,10 @@ test('row 20: a role with no names keeps roles as roles; a right-to-left questio
   for (const k of ['evenFirst', 'tightFirst', 'evenTitledName', 'tightTitledName', 'evenCentredTitled']) assert.deepEqual(groups(P[k]), [['Director', ['Alex Rivera']], ['Sound', ['Ari Moss']]], k);
   // ...and a later role picked on an evenly spaced page reads from itself, as on main.
   assert.deepEqual(groups(P.evenMiddle), [['Sound', ['Ari Moss']], ['Editor', ['Sol Reed']]]);
+  // ...and on pages with tighter groups than the role-to-name step (the reading from the name
+  // above would only hold by inventing roles with no names).
+  assert.deepEqual(groups(P.tightMiddle), [['Sound', ['Ari Moss', 'Bo Lind']], ['Editor', ['Sol Reed']]]);
+  assert.deepEqual(groups(P.tightMiddleCodex), [['Sound', ['Ari Moss']], ['Editor', ['Sol Reed']]]);
   assert.deepEqual(groups(P.emptyProducer), [['Producer', []], ['Editor', ['Mia Holt']]]);
   assert.deepEqual(groups(P.emptyName), [['Director', ['Alex Rivera']], ['Producer', []], ['Editor', ['Mia Holt']]], 'a name reads from its own role');
   // Right to left, the drawn reading takes the right column (the names) for roles and fails on

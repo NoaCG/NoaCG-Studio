@@ -1519,12 +1519,11 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
         .sort((p, q) => down(q) - down(p))[0] ?? picked;
     analysis = analyse(from(ownRole));
   } else {
-    // ROLE ABOVE: the picked layer is the first role, as row 19 read it, unless that reading
-    // breaks what any credits page draws (the air between groups is wider than the step from a
-    // role to its first name) AND a layer in the block's other look is drawn above it. Then the
-    // reading is taken from that layer, and kept only where the picked layer is a name of that
-    // role; otherwise the picked layer's own reading stands, as the preview shows. Nothing is
-    // inferred from runs of one look, which a role with no names also makes.
+    // ROLE ABOVE: the picked layer is the role, as row 19 read it, unless that reading breaks what
+    // credits pages draw (the air between groups is wider than the step from a role to its first
+    // name) and a layer in the block's other look is drawn above; then the reading from that
+    // layer is tried. Nothing is inferred from runs of one look, which a role with no names also
+    // makes.
     const sound = (x: CreditsAnalysis) =>
       x.ok && !(x.style.steps.roleToName !== undefined && x.style.steps.groupGap !== undefined && x.style.steps.roleToName >= x.style.steps.groupGap);
     const block = from(picked);
@@ -1535,9 +1534,13 @@ export function creditsPreview(root: Element, candidateIds: readonly string[], c
     const role = sound(analysis) ? undefined : all
       .filter((r): r is CreditsReading => !!r && r.look !== picked.look && blockLooks.has(r.look) && down(r) < down(picked) && !near(r, picked))
       .sort((p, q) => down(q) - down(p))[0];
+    // That reading is taken where it holds, makes the picked layer a name of that role, and
+    // leaves no more roles without names than the picked layer's own reading: a later role on a
+    // page with tight groups reads from the name above it only by inventing roles with none.
     if (role) {
       const wider = analyse(from(role));
-      if (sound(wider) && wider.ok && wider.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name') {
+      const bare = (x: CreditsAnalysis) => (x.ok ? x.style.anchors.filter((a, i, all) => a.kind === 'role' && all[i + 1]?.kind !== 'name').length : Infinity);
+      if (sound(wider) && wider.ok && wider.style.anchors.find((x) => x.candidateId === creditsId)?.kind === 'name' && bare(wider) <= bare(analysis)) {
         analysis = wider;
       }
     }

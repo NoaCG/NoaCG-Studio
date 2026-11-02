@@ -43,9 +43,11 @@ main: that SHA. CI, configured-suite, Post-landing and Quarantine all succeeded 
   - ROLE ABOVE: the picked layer is the first role, as row 19 read it, unless that reading breaks
     what any credits page draws (the air between groups is wider than the step from a role to
     its first name) AND a layer in the block's other look is drawn above it. Then the reading is
-    taken from the nearest such layer, and kept only where the picked layer reads as a name of
-    that role. Otherwise the picked layer's own reading stands, as on `main`, however the page is
-    spaced.
+    taken from the nearest such layer. It is kept only where it holds, makes the picked layer a
+    name of that role, and leaves no more roles without names than the picked layer's own
+    reading. A later role on a page with tight groups reads from the name above it only by
+    inventing roles with no names, so it keeps its own reading. Otherwise the picked layer's own
+    reading stands, as on `main`, however the page is spaced.
     Nothing is inferred from runs of one look, since a role with no names also makes them.
   - `ambiguous` is true wherever a line holds a role and a name, whether or not the drawn
     reading of the picked block works. A title above does not hide it. Every preview, styled or
@@ -102,7 +104,7 @@ Mutations, each caught:
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail. The output is identical to a clean
   worktree of `origin/main` on this machine, apart from paths and timings (row 19 recorded the same).
 - Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 9/9 after each round (j-0001,
-  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, j-0014, and j-0015 on the final code). Mutation runs j-0003 and j-0006
+  j-0007, j-0008, j-0009, j-0010, j-0011, j-0012, j-0013, j-0014, j-0015, and j-0017 on the final code). Mutation runs j-0003 and j-0006
   above. `check-e2e-protection --changed origin/main`: OK.
 - Before the review rounds, the wizard was walked on this worktree's dev server with credits-2:
   the Roles question (Left) and the two columns showed, with no console errors.
@@ -181,6 +183,14 @@ Mutations, each caught:
   - Non-blocking: the fixed-artwork departure (#1958), and the documented limits below.
   - It found role beside, the column answer, the names-left drawing, headings beside, overflow
     and name picks correct. Every role pick with nothing drawn above it matched `main`.
+- Codex on `c383116` (P2, product defect, same family), and `/so` on `c383116` (session
+  `session_017SdbwQuDDf14T4bEAfdEEp`, AGREE WITH CORRECTIONS, B+): on a page with tighter groups
+  than the role-to-name step, a middle role picked read from the name above it, with the kinds
+  reversed. The `/so` probe compared main and head on 3,660 picks over 636 drawings, and a
+  spacing sweep of 1,350 more. Fixed by its suggestion: the reading from above is taken only if
+  it leaves no more roles without names than the picked layer's own reading (tests: two tight
+  three-group pages, `Sound` reading as on `main`). Its non-blocking points 2 and 3 are in
+  Known limits. It confirmed role beside, the column question and name picks correct.
 - **Repeated family, reassessed.** Three rounds found variants of one missing rule: how a single
   picked layer's identity, and the column question, are decided. Rather than patch a fourth time,
   the rule model was rewritten (What changed, `creditsPreview`):
@@ -234,6 +244,12 @@ Mutations, each caught:
   covers a reading that keeps the group-air rule (for example a single group with even steps),
   and a page drawn with no more air between groups than between a role and its name. Any role
   picked reads as on `main`. The preview shows each case, and the author picks the first role.
+- A name whose block below holds only names (the last name of a drawing, or a later name of a
+  single-group page) falls back, as on `main`. Its line repeats the analysis's reason ("Credits
+  need at least one role and one name drawn" or "Roles and names share one look"), which does
+  not describe the whole page. The author picks the first role.
+- On a role-beside page, a title in the role look, if picked, becomes a styled role with no
+  names. The preview shows it.
 - Role above: picking a last role that has no names (Director with names, then Producer alone)
   reads the name above it as a role and Producer as its name. The preview shows it, and the
   advice to pick the first role covers it.
