@@ -15,7 +15,14 @@ Plan run #1967 (cicd-followup), phase cf01. Builder session on branch
   - Assignment is the routing. GitHub notifies the assignee when an alarm issue opens or is first
     routed, keeps them subscribed to later comments, and re-assigning an existing assignee sends
     nothing, so a rolling update does not mail again. The answer is checked: GitHub returns the
-    issue unchanged for a login it cannot assign, and that is an error, not a quiet success.
+    issue unchanged for a login it cannot assign, and that is an error, not a quiet success. Once
+    the alarm itself is written, a refused route is a `::warning` in the run, not a failed job
+    (`routeOrWarn`): quarantine.yml's spec jobs depend on the job its reports run in, and post-land
+    would otherwise go red on every landing. The weekly `list` flags the issue as not routed.
+  - A carried growth breach follows the recorded owner (`carryBreaches`), keeping its first date
+    and its one correction, so the ownership change reaches breaches already open.
+  - The stale quarantine issue is now found by exact title, as the incident issue already was,
+    because the issue it finds is now assigned to the owner.
   - The ceilings file moves to version 2 with a revision citing the owner's decision on #1951
     (`issuecomment-6570085219`), because the file's own rule lets a non-ledger field change only
     that way. No ceiling, estimate or measurement moves; a test pins that.
@@ -34,6 +41,11 @@ Plan run #1967 (cicd-followup), phase cf01. Builder session on branch
     before this the weekly session never saw them.
   - Incident records went on the existing issues as comments (not body rewrites of issues others
     wrote), and each issue is assigned to `miwco`.
+- **Review round (/check, 10 findings, all confirmed and fixed):** routing failure no longer fails
+  a job after the alarm is written; routing runs after the change comment so a failure cannot lose
+  it; exact-title stale lookup; carried breaches follow the owner; `list` reads only bot or member
+  issues, refuses past 1,000 open issues instead of answering "none", and flags a missed or
+  overdue date; `issueNumber` reports plain text clearly.
 - **Traps met:** `gh issue` body edits by shell were refused by the session's permission
   classifier; the GitHub tools wrote the comments and assignments. A top-level `await` in a CLI
   that imports a module importing it back deadlocks silently ("unsettled top-level await"); the
@@ -114,7 +126,8 @@ after 20 passes. #1924 stays open for the root cause either way.
 - `npm run gates -- run --changed origin/main`: 14 gates, 6 test files, 267 tests, all pass.
 - `node --test scripts/alarm-owner.test.mjs`: 8 pass (owner text, incident rows, reviewed
   revision with no ceiling moved, routing on open and update and not on close, a refused route
-  throws, the test alarm's label and route, the weekly list's titles).
+  throws and, after the alarm is written, warns, the test alarm's label and route, the weekly
+  list's titles). `growth-controls.test.mjs` adds a carried breach following the new owner.
 - `npm run check:workflows`: 25 validated, `alarm-test.yml` included.
 - `npx eslint` on the changed scripts: clean.
 - `node scripts/alarm-owner.mjs list` (live, read-only): lists #1907 and #1892, both not yet routed.

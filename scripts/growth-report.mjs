@@ -39,7 +39,7 @@ import { knownCoversOnDisk } from './e2e-capacity.mjs';
 import { CONFIGURED_HEADERS, SPEC_HEADERS } from './e2e-lists.mjs';
 import { quarantineIncidents, readStore, STORE_PATH as QUARANTINE_STORE } from './e2e-quarantine.mjs';
 import { measured } from './measured.mjs';
-import { alarmOwner, routeToOwner } from './alarm-owner.mjs';
+import { alarmOwner, routeOrWarn } from './alarm-owner.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = process.env.GH_REPO || process.env.GITHUB_REPOSITORY || 'NoaCG/NoaCG-Studio';
@@ -479,16 +479,18 @@ export function collect({ days = 7, budget = 550, now = new Date().toISOString()
   return built;
 }
 
+/** Who may have opened an alarm issue: a bot or a repository member, never an outsider. */
+export const trustedAuthor = (i) => i.user?.type === 'Bot' || ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(i.author_association);
+
 /**
  * An open alarm issue by exact title. It may have been opened by the workflow token, an app, or
  * the coordinator's own account on a plan-run check-in, so any bot or repository member counts;
  * an outsider's issue with the same title is never taken for it.
  */
 export function findIssue(title, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
-  const trusted = (i) => i.user?.type === 'Bot' || ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(i.author_association);
   for (let page = 1; page <= 10; page++) {
     const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&per_page=100&page=${page}`]) || '[]');
-    const found = list.find((i) => i.title === title && !i.pull_request && trusted(i));
+    const found = list.find((i) => i.title === title && !i.pull_request && trustedAuthor(i));
     if (found || list.length < 100) return found ?? null;
   }
   // Unread pages could hold the alarm: guessing "none" would open a duplicate or leave one open.
@@ -503,8 +505,9 @@ export function findIssue(title, gh = (args) => execFileSync('gh', args, { encod
 export function rollingIssue(title, body, login, gh = (args) => execFileSync('gh', args, { encoding: 'utf8', windowsHide: true })) {
   const found = findIssue(title, gh);
   // A raised alarm is routed to its owner (scripts/alarm-owner.mjs); a closed one needs no one.
-  if (body && found) { gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${body}`]); routeToOwner(found.number, { login, repo: REPO, gh }); return `updated #${found.number}`; }
-  if (body) { const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-f', `body=${body}`])); routeToOwner(made.number, { login, repo: REPO, gh }); return `opened #${made.number}`; }
+  // A refused route warns: the alarm is already written.
+  if (body && found) { gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', `body=${body}`]); return `updated #${found.number}; ${routeOrWarn(found.number, { login, repo: REPO, gh })}`; }
+  if (body) { const made = JSON.parse(gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-f', `body=${body}`])); return `opened #${made.number}; ${routeOrWarn(made.number, { login, repo: REPO, gh })}`; }
   if (found) { gh(['api', '-X', 'POST', `repos/${REPO}/issues/${found.number}/comments`, '-f', 'body=Nothing overdue any more; closing.']); gh(['api', '-X', 'PATCH', `repos/${REPO}/issues/${found.number}`, '-f', 'state=closed']); return `closed #${found.number}`; }
   return 'nothing to raise';
 }

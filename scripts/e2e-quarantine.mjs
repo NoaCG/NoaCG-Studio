@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ghJsonLines, mainPushRuns } from './ci-failure-set.mjs';
 import { planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
-import { alarmOwner, issueNumber, routeToOwner } from './alarm-owner.mjs';
+import { alarmOwner, routeOrWarn } from './alarm-owner.mjs';
 import { alreadyQueued, configureBotIdentity, queuePullRequest, spawnRunner } from './queue-pr.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -542,9 +542,10 @@ function main(argv) {
       return 2;
     }
     const gh = spawnRunner('gh');
-    const route = (number) => routeToOwner(number, { login: alarmOwner().login, repo, gh: (args) => gh(args).out });
-    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${STALE_ISSUE_TITLE}" in:title`, '--json', 'number,body', '--jq', '.[0]']).out;
-    const existing = found ? JSON.parse(found) : null;
+    const login = alarmOwner().login;
+    const route = (number) => routeOrWarn(number, { login, repo, gh: (args) => gh(args).out });
+    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${STALE_ISSUE_TITLE}" in:title`, '--json', 'number,body,title', '--jq', `[.[] | select(.title == "${STALE_ISSUE_TITLE}")][0]`]).out;
+    const existing = found && found !== 'null' ? JSON.parse(found) : null;
     if (stale.length === 0) {
       if (existing) {
         gh(['issue', 'close', '-R', repo, String(existing.number), '--comment', `Every quarantined spec is now younger than ${STALE_AFTER_DAYS} days or released (${runUrl || 'quarantine.yml'}).`]);
@@ -561,11 +562,11 @@ function main(argv) {
     }
     if (existing) {
       gh(['issue', 'edit', '-R', repo, String(existing.number), '--body', body]);
-      route(existing.number);
       gh(['issue', 'comment', '-R', repo, String(existing.number), '--body', `The stale set changed: ${stale.map((e) => e.spec).join(', ')}.`]);
+      route(existing.number);
       console.log(`::warning title=Quarantine::#${existing.number} updated - ${stale.length} spec(s) older than ${STALE_AFTER_DAYS} days.`);
     } else {
-      route(issueNumber(gh(['issue', 'create', '-R', repo, '--title', STALE_ISSUE_TITLE, '--body', body, '--label', 'dev']).out));
+      route(gh(['issue', 'create', '-R', repo, '--title', STALE_ISSUE_TITLE, '--body', body, '--label', 'dev']).out);
       console.log(`::warning title=Quarantine::opened "${STALE_ISSUE_TITLE}" - ${stale.length} spec(s).`);
     }
     return 0;
@@ -598,7 +599,8 @@ function main(argv) {
       return 2;
     }
     const gh = spawnRunner('gh');
-    const route = (number) => routeToOwner(number, { login: alarmOwner().login, repo, gh: (args) => gh(args).out });
+    const login = alarmOwner().login;
+    const route = (number) => routeOrWarn(number, { login, repo, gh: (args) => gh(args).out });
     const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${INCIDENT_ISSUE_TITLE}" in:title`, '--json', 'number,body,title', '--jq', `[.[] | select(.title == "${INCIDENT_ISSUE_TITLE}")][0]`]).out;
     const existing = found && found !== 'null' ? JSON.parse(found) : null;
     const action = incidentIssueAction(incidents, existing, todayIso);
@@ -606,10 +608,10 @@ function main(argv) {
       gh(['issue', 'close', '-R', repo, String(existing.number), '--comment', `The quarantine holds no spec: every incident is repaired (${runUrl || 'quarantine.yml'}).`]);
     } else if (action.kind === 'edit') {
       gh(['issue', 'edit', '-R', repo, String(existing.number), '--body', action.body]);
-      route(existing.number);
       gh(['issue', 'comment', '-R', repo, String(existing.number), '--body', `The incident set changed: ${incidents.map((i) => `${i.spec} (${i.severity}${i.overdue ? ', overdue' : ''})`).join(', ')}.`]);
+      route(existing.number);
     } else if (action.kind === 'create') {
-      route(issueNumber(gh(['issue', 'create', '-R', repo, '--title', INCIDENT_ISSUE_TITLE, '--body', action.body, '--label', 'dev']).out));
+      route(gh(['issue', 'create', '-R', repo, '--title', INCIDENT_ISSUE_TITLE, '--body', action.body, '--label', 'dev']).out);
     } else if (existing) {
       route(existing.number);
     }

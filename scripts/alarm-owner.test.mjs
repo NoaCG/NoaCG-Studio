@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { alarmOwner, issueNumber, isOwnedAlarm, ownedAlarmTitles, raiseTestAlarm, routeToOwner, testAlarmBody, TEST_ALARM_PREFIX } from './alarm-owner.mjs';
+import { alarmOwner, issueNumber, isOwnedAlarm, ownedAlarmTitles, raiseTestAlarm, routeOrWarn, routeToOwner, testAlarmBody, TEST_ALARM_PREFIX } from './alarm-owner.mjs';
 import { ledgerChanges } from './growth-controls.mjs';
 import { AGE_ISSUE, rollingIssue, WEEKLY_ISSUE } from './growth-report.mjs';
 import { incidentIssueBody, quarantineIncidents } from './e2e-quarantine.mjs';
@@ -60,12 +60,12 @@ test('(a) the owner change is a reviewed revision of the ceilings, with no ceili
 
 test('(b) a raised or updated rolling alarm is assigned to the owner; a closed one is not', () => {
   const opened = fakeGh();
-  assert.equal(rollingIssue(WEEKLY_ISSUE, 'body', 'miwco', opened.gh), 'opened #77');
+  assert.equal(rollingIssue(WEEKLY_ISSUE, 'body', 'miwco', opened.gh), 'opened #77; #77 routed to miwco');
   assert.deepEqual(opened.assigned(), [[77, 'assignees[]=miwco']]);
 
   const existing = { number: 12, title: AGE_ISSUE, user: { type: 'Bot' }, author_association: 'NONE' };
   const updated = fakeGh({ issues: [existing] });
-  assert.equal(rollingIssue(AGE_ISSUE, 'new body', 'miwco', updated.gh), 'updated #12');
+  assert.equal(rollingIssue(AGE_ISSUE, 'new body', 'miwco', updated.gh), 'updated #12; #12 routed to miwco');
   assert.deepEqual(updated.assigned(), [[12, 'assignees[]=miwco']]);
 
   const closed = fakeGh({ issues: [existing] });
@@ -73,10 +73,17 @@ test('(b) a raised or updated rolling alarm is assigned to the owner; a closed o
   assert.deepEqual(closed.assigned(), []);
 });
 
-test('(b) a route GitHub did not take is an error, not a quiet success', () => {
+test('(b) a route GitHub did not take is an error, never a quiet success, and never undoes the alarm', (t) => {
   const refused = fakeGh({ assignable: false });
   assert.throws(() => routeToOwner(5, { login: 'miwco', gh: refused.gh }), /could not be assigned to miwco/);
-  assert.throws(() => rollingIssue(WEEKLY_ISSUE, 'body', 'miwco', refused.gh), /not routed/);
+  // Once the alarm is written, a refused route warns in the run instead of failing the job.
+  const logged = [];
+  t.mock.method(console, 'log', (line) => logged.push(line));
+  assert.match(rollingIssue(WEEKLY_ISSUE, 'body', 'miwco', refused.gh), /^opened #77; not routed: issue #77 could not be assigned to miwco/);
+  assert.match(routeOrWarn('https://github.com/NoaCG/NoaCG-Studio/issues/9', { login: 'miwco', gh: refused.gh }), /not routed: issue #9/);
+  assert.match(routeOrWarn('created, no url', { login: 'miwco', gh: refused.gh }), /not routed: no issue number/);
+  assert.ok(logged.every((l) => l.startsWith('::warning title=Alarm routing::')) && logged.length === 3);
+  assert.equal(routeOrWarn('https://github.com/NoaCG/NoaCG-Studio/issues/9', { login: 'miwco', gh: fakeGh().gh }), '#9 routed to miwco');
 });
 
 test('(b) the test alarm is labelled, carries no @mention, and is routed like a real alarm', () => {
@@ -106,4 +113,5 @@ test('issue numbers are read from a gh URL or a REST answer', () => {
   assert.equal(issueNumber('https://github.com/NoaCG/NoaCG-Studio/issues/1907\n'), 1907);
   assert.equal(issueNumber('{"number": 12}'), 12);
   assert.throws(() => issueNumber('{}'), /no issue number/);
+  assert.throws(() => issueNumber('plain text'), /no issue number/);
 });

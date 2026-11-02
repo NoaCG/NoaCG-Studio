@@ -41,7 +41,8 @@ export function alarmOwner(ceilings = JSON.parse(readFileSync(path.join(ROOT, 's
 export function issueNumber(answer) {
   const m = /\/issues\/(\d+)\s*$/.exec(String(answer ?? '').trim());
   if (m) return Number(m[1]);
-  const n = Number(JSON.parse(String(answer))?.number);
+  let n = NaN;
+  try { n = Number(JSON.parse(String(answer))?.number); } catch { /* not JSON either */ }
   if (!Number.isSafeInteger(n) || n < 1) throw new Error(`no issue number in "${String(answer).slice(0, 80)}"`);
   return n;
 }
@@ -52,6 +53,21 @@ export function routeToOwner(number, { login, repo = REPO, gh = ghText }) {
   const took = (answer.assignees ?? []).some((a) => String(a?.login).toLowerCase() === login.toLowerCase());
   if (!took) throw new Error(`issue #${number} could not be assigned to ${login}: the alarm is not routed to its owner`);
   return `#${number} routed to ${login}`;
+}
+
+/**
+ * Route an alarm that is already raised, warning instead of throwing: the alarm itself is written,
+ * so a refused assignment must not fail the job that wrote it (quarantine.yml's spec jobs need
+ * the job the quarantine reports run in). The warning names it in the run, and `list` flags the
+ * issue as not routed in the weekly backup review.
+ */
+export function routeOrWarn(issue, options) {
+  // `issue` is a number, or the answer that created it (a `gh issue create` URL).
+  try { return routeToOwner(typeof issue === 'number' ? issue : issueNumber(issue), options); } catch (e) {
+    const why = String(e?.message ?? e).split('\n')[0];
+    console.log(`::warning title=Alarm routing::${why}`);
+    return `not routed: ${why}`;
+  }
 }
 
 /** The body of a test alarm: what it is, who raised it, and what the owner does with it. Pure.
@@ -79,6 +95,7 @@ export function raiseTestAlarm({ ceilings, runUrl = '', now = new Date().toISOSt
 /** Whether an open issue is one of the owned alarms (or a test of their routing). Pure. */
 export function isOwnedAlarm(title, titles) {
   const t = String(title ?? '');
+  // Exact titles only (a plan's phase alarm adds ": <plan>"), so an issue that merely mentions one is not taken for it.
   return titles.some((known) => t === known || t.startsWith(`${known}: `)) || t.startsWith(TEST_ALARM_PREFIX);
 }
 
@@ -100,17 +117,23 @@ async function main() {
     console.log(`::notice title=Test alarm::opened #${number} and routed it to ${alarmOwner(ceilings).login}`);
   } else if (command === 'list') {
     const titles = await ownedAlarmTitles();
+    const { trustedAuthor } = await import('./growth-report.mjs');
     const { login } = alarmOwner();
     const open = [];
-    for (let page = 1; page <= 10; page++) {
+    // Only an issue a bot or a repository member opened is an alarm, as growth-report's findIssue
+    // has it; unread pages are not "none", so past ten pages the list refuses to answer.
+    let complete = false;
+    for (let page = 1; page <= 10 && !complete; page++) {
       const list = JSON.parse(ghText(['api', '-X', 'GET', `repos/${REPO}/issues?state=open&per_page=100&page=${page}`]) || '[]');
-      open.push(...list.filter((i) => !i.pull_request && isOwnedAlarm(i.title, titles)));
-      if (list.length < 100) break;
+      open.push(...list.filter((i) => !i.pull_request && trustedAuthor(i) && isOwnedAlarm(i.title, titles)));
+      complete = list.length < 100;
     }
+    if (!complete) throw new Error('more than 1,000 open issues: cannot tell which owned alarms are open');
     if (open.length === 0) console.log('No owned alarm issue is open.');
     for (const i of open) {
       const to = (i.assignees ?? []).map((a) => a.login);
-      console.log(`#${i.number} ${i.title} (updated ${String(i.updated_at).slice(0, 10)}${to.includes(login) ? '' : `; NOT routed to ${login}`})`);
+      const missed = /\(missed\)|\*\*overdue\*\*/.test(String(i.body ?? '')) ? '; holds a MISSED or OVERDUE date' : '';
+      console.log(`#${i.number} ${i.title} (updated ${String(i.updated_at).slice(0, 10)}${missed}${to.includes(login) ? '' : `; NOT routed to ${login}`})`);
     }
   } else {
     console.error('usage: alarm-owner.mjs test-alarm --run <url> | list');

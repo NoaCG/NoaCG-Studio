@@ -340,6 +340,8 @@ test('(e) a breach gets an owner, a dated correction, then a growth stop if one 
   assert.equal(w2.breaches[0].state, 'stopped');
   assert.equal(w2.breaches[0].corrections, 1, 'one bounded correction, not a second');
   assert.deepEqual(Object.keys(w2.stops), ['backend']);
+  const handed = carryBreaches({ previous: w1.breaches, current: [{ key: 'cost:backend', detail: 'x' }], today: '2026-11-09', owner: 'miwco' });
+  assert.deepEqual([handed.breaches[0].owner, handed.breaches[0].due], ['miwco', '2026-11-09'], 'a carried breach follows the recorded owner and keeps its date');
   const w3 = carryBreaches({ previous: w2.breaches, current: [], today: '2026-11-16', owner: 'coordinator' });
   assert.deepEqual(w3.cleared, ['cost:backend']);
   assert.deepEqual(w3.stops, {}, 'back in bounds, growth resumes');
