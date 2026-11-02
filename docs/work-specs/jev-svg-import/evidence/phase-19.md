@@ -129,4 +129,4 @@ On a fresh branch from `origin/main`, landed through the merge queue:
 
 A revert returns new credits imports to the original-text roll. A graphic saved with a styled
 binding in between then builds the editable roll: its list in the Credits layer's one look, and
-the other drawn role and name layers shown as drawn. Re-saving it from the wizard repairs it.
+the other drawn role and name layers shown as drawn.
