@@ -42,18 +42,25 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci16 builder receipt (session_017SdbwMxcHZ24rak29S7scX)",
-    "eta": "2026-11-02T02:00:00Z"
+    "what": "PR #1948 merge queue, then ci16 checker",
+    "eta": "2026-11-02T01:15:00Z"
   },
   "inFlight": [
     {
       "phase": "ci16",
-      "step": "build",
+      "step": "landing",
       "session": "session_017SdbwMxcHZ24rak29S7scX",
       "nonce": "ci16-b-30a5",
       "branch": "claude/plan-cicd-improvement-ci16-build",
       "launchedAt": "2026-11-02T00:38:18Z",
-      "note": "No-activation outcome only (ci15 NOT QUALIFIED); evidence file recording retained protection and blockers."
+      "note": "No-activation evidence; auto-merge on 00:49Z.",
+      "pr": 1948,
+      "reviewedHead": "27cecea1dbc5d82740b3bef58a2f204509842ed2",
+      "stampRun": 41369171403,
+      "so": "session_017SdbwMgyhBxSj76VPBHE7H",
+      "followUps": [
+        1949
+      ]
     }
   ],
   "owner": [],
@@ -376,7 +383,8 @@
     1942,
     1944,
     1945,
-    1946
+    1946,
+    1949
   ],
   "neighbours": {
     "jev": "JEV plan run live (recovery ref claude/noacg-recovery/plan-jev-svg-import-2026-10-31, PR #1853 touches only its evidence and e2e/fixtures/jev-svg at 12:00Z); serialize shared CI files",
