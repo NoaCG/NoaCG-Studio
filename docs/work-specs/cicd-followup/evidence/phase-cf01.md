@@ -21,8 +21,10 @@ Plan run #1967 (cicd-followup), phase cf01. Builder session on branch
     would otherwise go red on every landing. The weekly `list` flags the issue as not routed.
   - A carried growth breach follows the recorded owner (`carryBreaches`), keeping its first date
     and its one correction, so the ownership change reaches breaches already open.
-  - The stale quarantine issue is now found by exact title, as the incident issue already was,
-    because the issue it finds is now assigned to the owner.
+  - Every alarm issue is found the same way before it is assigned: exact title, opened by a bot
+    or a repository member (`findAlarmIssue`, which growth-report's `findIssue` now calls). The
+    two quarantine lookups used a title search instead, which could have assigned `miwco` to an
+    outsider's issue.
   - The ceilings file moves to version 2 with a revision citing the owner's decision on #1951
     (`issuecomment-6570085219`), because the file's own rule lets a non-ledger field change only
     that way. No ceiling, estimate or measurement moves; a test pins that.
@@ -46,6 +48,13 @@ Plan run #1967 (cicd-followup), phase cf01. Builder session on branch
   it; exact-title stale lookup; carried breaches follow the owner; `list` reads only bot or member
   issues, refuses past 1,000 open issues instead of answering "none", and flags a missed or
   overdue date; `issueNumber` reports plain text clearly.
+- **Codex round (head 1d54000a, 1 finding, P2, confirmed and fixed):** a growth breach past its
+  one correction renders as `(stopped)`, which `list` did not flag. `pastDate` now reads each
+  alarm's own words, `(missed)`, `**overdue**` and `** (stopped)`, with a test per form.
+  Family: the backup review must see every past-date state. Class: product defect (tooling).
+- **/so round (head 1d54000a, grade A-, AGREE):** the stale lookup lacked the trusted-author check
+  (fixed above); the overdue flag reads alarm text (kept, now one pure function tested against the
+  renderers' exact lines); the `ci04-catalog-gate` owner text stays on purpose (decisions above).
 - **Traps met:** `gh issue` body edits by shell were refused by the session's permission
   classifier; the GitHub tools wrote the comments and assignments. A top-level `await` in a CLI
   that imports a module importing it back deadlocks silently ("unsettled top-level await"); the

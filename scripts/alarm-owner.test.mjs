@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { alarmOwner, issueNumber, isOwnedAlarm, ownedAlarmTitles, raiseTestAlarm, routeOrWarn, routeToOwner, testAlarmBody, TEST_ALARM_PREFIX } from './alarm-owner.mjs';
+import { alarmOwner, issueNumber, isOwnedAlarm, pastDate, ownedAlarmTitles, raiseTestAlarm, routeOrWarn, routeToOwner, testAlarmBody, TEST_ALARM_PREFIX } from './alarm-owner.mjs';
 import { ledgerChanges } from './growth-controls.mjs';
 import { AGE_ISSUE, rollingIssue, WEEKLY_ISSUE } from './growth-report.mjs';
 import { incidentIssueBody, quarantineIncidents } from './e2e-quarantine.mjs';
@@ -114,4 +114,17 @@ test('issue numbers are read from a gh URL or a REST answer', () => {
   assert.equal(issueNumber('{"number": 12}'), 12);
   assert.throws(() => issueNumber('{}'), /no issue number/);
   assert.throws(() => issueNumber('plain text'), /no issue number/);
+});
+
+test('the weekly backup review sees an alarm past its date in each alarm\'s own words', () => {
+  const store = { specs: { 'e2e/a.spec.ts': { since: '2026-10-01', count: 1 } } };
+  const overdue = incidentIssueBody(quarantineIncidents(store, { headers: new Map(), today: '2026-11-02', owner: 'o' }), '2026-11-02');
+  assert.ok(pastDate(overdue), 'a quarantine incident past its repair date');
+  const onTime = incidentIssueBody(quarantineIncidents(store, { headers: new Map(), today: '2026-10-02', owner: 'o' }), '2026-10-02');
+  assert.ok(!pastDate(onTime));
+  // growth-controls.mjs weeklyMarkdown and growth-report.mjs ages, line for line.
+  assert.ok(pastDate('- **cost:backend** (stopped): x. Owner o; growth stopped in backend until measured back in bounds.'));
+  assert.ok(!pastDate('- **cost:backend** (correcting): x. Owner o; correction due 2026-11-09.'));
+  assert.ok(pastDate('- prReady #1834 unfinished. Owner o; act by 2026-11-01 (missed).'));
+  assert.ok(!pastDate('- prReady #1834 unfinished. Owner o; act by 2026-11-09.'));
 });

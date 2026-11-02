@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 
 import { ghJsonLines, mainPushRuns } from './ci-failure-set.mjs';
 import { planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
-import { alarmOwner, routeOrWarn } from './alarm-owner.mjs';
+import { alarmOwner, findAlarmIssue, routeOrWarn } from './alarm-owner.mjs';
 import { alreadyQueued, configureBotIdentity, queuePullRequest, spawnRunner } from './queue-pr.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -544,8 +544,8 @@ function main(argv) {
     const gh = spawnRunner('gh');
     const login = alarmOwner().login;
     const route = (number) => routeOrWarn(number, { login, repo, gh: (args) => gh(args).out });
-    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${STALE_ISSUE_TITLE}" in:title`, '--json', 'number,body,title', '--jq', `[.[] | select(.title == "${STALE_ISSUE_TITLE}")][0]`]).out;
-    const existing = found && found !== 'null' ? JSON.parse(found) : null;
+    // Exact title, opened by a bot or member: the issue found is assigned to the owner.
+    const existing = findAlarmIssue(STALE_ISSUE_TITLE, { repo, gh: (args) => gh(args).out });
     if (stale.length === 0) {
       if (existing) {
         gh(['issue', 'close', '-R', repo, String(existing.number), '--comment', `Every quarantined spec is now younger than ${STALE_AFTER_DAYS} days or released (${runUrl || 'quarantine.yml'}).`]);
@@ -601,8 +601,7 @@ function main(argv) {
     const gh = spawnRunner('gh');
     const login = alarmOwner().login;
     const route = (number) => routeOrWarn(number, { login, repo, gh: (args) => gh(args).out });
-    const found = gh(['issue', 'list', '-R', repo, '--state', 'open', '--search', `"${INCIDENT_ISSUE_TITLE}" in:title`, '--json', 'number,body,title', '--jq', `[.[] | select(.title == "${INCIDENT_ISSUE_TITLE}")][0]`]).out;
-    const existing = found && found !== 'null' ? JSON.parse(found) : null;
+    const existing = findAlarmIssue(INCIDENT_ISSUE_TITLE, { repo, gh: (args) => gh(args).out });
     const action = incidentIssueAction(incidents, existing, todayIso);
     if (action.kind === 'close') {
       gh(['issue', 'close', '-R', repo, String(existing.number), '--comment', `The quarantine holds no spec: every incident is repaired (${runUrl || 'quarantine.yml'}).`]);

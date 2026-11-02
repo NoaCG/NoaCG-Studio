@@ -47,6 +47,24 @@ export function issueNumber(answer) {
   return n;
 }
 
+/** Who may have opened an alarm issue: a bot or a repository member, never an outsider. */
+export const trustedAuthor = (i) => i.user?.type === 'Bot' || ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(i.author_association);
+
+/**
+ * An open alarm issue by exact title. It may have been opened by the workflow token, an app, or
+ * the coordinator's own account on a plan-run check-in, so any bot or repository member counts;
+ * an outsider's issue with the same title is never taken for it, and so never assigned.
+ */
+export function findAlarmIssue(title, { repo = REPO, gh = ghText } = {}) {
+  for (let page = 1; page <= 10; page++) {
+    const list = JSON.parse(gh(['api', '-X', 'GET', `repos/${repo}/issues?state=open&per_page=100&page=${page}`]) || '[]');
+    const found = list.find((i) => i.title === title && !i.pull_request && trustedAuthor(i));
+    if (found || list.length < 100) return found ?? null;
+  }
+  // Unread pages could hold the alarm: guessing "none" would open a duplicate or leave one open.
+  throw new Error(`more than 1,000 open issues: cannot tell whether "${title}" is open`);
+}
+
 /** Assign alarm issue `number` to the owner, and check GitHub's answer says it took. */
 export function routeToOwner(number, { login, repo = REPO, gh = ghText }) {
   const answer = JSON.parse(gh(['api', '-X', 'POST', `repos/${repo}/issues/${number}/assignees`, '-f', `assignees[]=${login}`]) || '{}');
@@ -99,6 +117,15 @@ export function isOwnedAlarm(title, titles) {
   return titles.some((known) => t === known || t.startsWith(`${known}: `)) || t.startsWith(TEST_ALARM_PREFIX);
 }
 
+/**
+ * Whether an alarm body holds an item past its date, in each alarm's own words: an age action
+ * "(missed)" (growth-report.mjs `ages`), a quarantine incident "**overdue**" (e2e-quarantine.mjs),
+ * a growth breach "(stopped)" after its one correction (growth-controls.mjs `weeklyMarkdown`). Pure.
+ */
+export function pastDate(body) {
+  return /\(missed\)|\*\*overdue\*\*|\*\* \(stopped\)/.test(String(body ?? ''));
+}
+
 /** The owned alarm titles, read from the scripts that keep the issues so the list cannot drift. */
 export async function ownedAlarmTitles() {
   const { AGE_ISSUE, PHASE_AGE_ISSUE, WEEKLY_ISSUE } = await import('./growth-report.mjs');
@@ -117,7 +144,6 @@ async function main() {
     console.log(`::notice title=Test alarm::opened #${number} and routed it to ${alarmOwner(ceilings).login}`);
   } else if (command === 'list') {
     const titles = await ownedAlarmTitles();
-    const { trustedAuthor } = await import('./growth-report.mjs');
     const { login } = alarmOwner();
     const open = [];
     // Only an issue a bot or a repository member opened is an alarm, as growth-report's findIssue
@@ -132,8 +158,8 @@ async function main() {
     if (open.length === 0) console.log('No owned alarm issue is open.');
     for (const i of open) {
       const to = (i.assignees ?? []).map((a) => a.login);
-      const missed = /\(missed\)|\*\*overdue\*\*/.test(String(i.body ?? '')) ? '; holds a MISSED or OVERDUE date' : '';
-      console.log(`#${i.number} ${i.title} (updated ${String(i.updated_at).slice(0, 10)}${missed}${to.includes(login) ? '' : `; NOT routed to ${login}`})`);
+      const late = pastDate(i.body) ? '; past its date: MISSED, OVERDUE or STOPPED' : '';
+      console.log(`#${i.number} ${i.title} (updated ${String(i.updated_at).slice(0, 10)}${late}${to.includes(login) ? '' : `; NOT routed to ${login}`})`);
     }
   } else {
     console.error('usage: alarm-owner.mjs test-alarm --run <url> | list');
