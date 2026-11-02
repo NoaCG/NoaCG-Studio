@@ -76,7 +76,7 @@ a manual Next.
 | Roll, still page and fixed artwork unchanged | The emitted styled runtime for six configurations (roll, roll with faces, still, still with faces, beside roll, beside still) hashes the same on this branch and on main (`1fcac77a…`). Node pins of the editable roll, the artwork roll, the three plain drawings and `ROLE_ABOVE_PINS` pass unchanged; a stale binding still builds the editable roll byte for byte |
 | Native presets are not the proof | Every check above builds the imported SVG (credits-1, credits-2) and reads its own rows; no catalog preset is used |
 
-Mutations, each caught (the jobs are in Verification):
+Mutations, each caught (job ids from this worker's queue):
 
 - No paging inside a section (every group fits): both layout tests fail at the deal (role above
   `[4, 16]` at share 0.52, beside at 0.33) (j-0006).
@@ -87,7 +87,8 @@ Mutations, each caught (the jobs are in Verification):
 - The wizard never saving cards: the walk fails at the Cards hint (j-0010).
 - After review: a card that gains cards after it on air never starting its hold (j-0018); a
   second time change counted from the first change rather than the hold's start (j-0019); no
-  opacity reset off air after Out cut a change short (j-0020). Results in Verification.
+  opacity reset off air after Out cut a change short (j-0021, once the test took Out while the
+  card was part-faded; at j-0020 it took Out before the fade began and missed it).
 
 ## Decisions
 
@@ -127,6 +128,19 @@ Mutations, each caught (the jobs are in Verification):
   rebuild in place today. Holding a snapshot until the next take is row 24's.
 - **Ordinary review scenario.** A new playback renderer, one press and a wizard select. The
   press rides the existing structural machine; no state rule changes.
+
+## Verification on this worker
+
+- Browser, through the job queue: the new cards tests (j-0014), the mutation runs above, the
+  whole `e2e/import-svg-credits.spec.ts` 19/19 (j-0022, on the final engine), and with
+  `e2e/import-svg-behaviour.spec.ts` (j-0011, 60 tests: one failure, row 22's walk pinning the
+  "Plays as" options as two, updated to list Cards; the spec then passed whole, j-0012).
+- `node --test scripts/imported-credits-model.test.mjs scripts/imported-credits-source.test.mjs`:
+  59/59, pins unchanged.
+- The emitted styled runtime for roll and still configurations hashes the same as on main.
+- `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
+- `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
+  `check-e2e-protection --changed origin/main`: OK. `check:client-neutral`, `check:copy`: pass.
 
 ## Review rounds
 
