@@ -61,7 +61,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-02T15:55:30Z"
+    "checkinAt": "2026-11-02T16:36:04Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
@@ -223,7 +223,8 @@
     "2026-11-02T11:2xZ row 21: CI attempt 1 failed only e2e/import-svg.spec.ts:988 (released from quarantine by #1963 at 10:38Z; #1915 fail-then-pass). Re-ran failed jobs once; attempt 2 green. Reported to the cicd coordinator.",
     "2026-11-02T11:45Z row 22: approved recipe.ts and importedDesign/behaviour.ts so RecipeContext carries the credits binding and Scroll speed is hidden for static styled credits (native unchanged, test both). Static overflow policy accepted: phase 16 CREDITS_OVERFLOW tall policy (shrink to fit, reported past 55%, below 30% floor not shown on air with Too long for the design on the field before Take); wizard select Roll / Hold still.",
     "2026-11-02T11:47Z row 22: approved scripts/imported-credits-model.test.mjs edit of the row-19 placeholder case only (not-yet example moves to cards/stale; add an assertion that static styled builds the hold engine; pins untouched; quote old/new in PR).",
-    "2026-11-02T13:10Z row 23 advance policy: option B per spec (\"Cards default to operator Next; optional timed advancement requires an explicit profile value\"): no advance = Next only (Control tab + OGraf custom action, on the one-state parallel group primitive); with advance = timer plus Next; wizard says SPX/hosts without custom actions need a card time; last card holds until Out. Native credits-pages preset is timer-only and stays unchanged."
+    "2026-11-02T13:10Z row 23 advance policy: option B per spec (\"Cards default to operator Next; optional timed advancement requires an explicit profile value\"): no advance = Next only (Control tab + OGraf custom action, on the one-state parallel group primitive); with advance = timer plus Next; wizard says SPX/hosts without custom actions need a card time; last card holds until Out. Native credits-pages preset is timer-only and stays unchanged.",
+    "2026-11-02T15:31Z row 24: approved (1) re-take only the five ROLE_ABOVE_PINS roll hashes with main-to-branch emitted-js diff showing only the snapshot rule plus a new node assertion; any other hash moving = stop; (2) row 19 walk and row 23 grow/shrink assertions changed to snapshot-until-next-Take, quoting old/new; (3) ProductionPage.tsx one line passing onAir/log to SourcesLine. Held-still: in-place refit on air (last-minute corrections reach air)."
   ],
   "ownerOpen": [
     {
