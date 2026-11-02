@@ -93,7 +93,7 @@ at 0.4, underlined. A fix in the runtime was written and removed, since nothing 
 
 ## Review rounds
 
-- `/check` on the head before `3ecdf53` (delegated review, 9 findings; 3 fixed, 6 kept):
+- `/check` on `8d5b768` (delegated review, 9 findings; 3 fixed, 6 kept):
   - Fixed: the test's held font kept one resolver and could release before this document's
     request arrived (now every request is held and the release waits for this one); a paused roll
     resumed when the faces landed (now it stays paused); these notes overstated what can arrive
