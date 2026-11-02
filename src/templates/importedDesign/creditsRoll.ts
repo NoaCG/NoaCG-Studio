@@ -645,23 +645,14 @@ export interface CreditsStyledConfig {
   /** The design ships faces of its own (`svgFontCss`), which can land after the take: the take is
    *  measured again when they do. Absent, nothing can arrive late and the runtime is as before. */
   faces?: true;
-  /** A source layer sets `opacity` or `text-decoration` in its own inline style, which a copy
-   *  would carry and which would beat the look its groups give it: the copies drop them. Absent,
-   *  the runtime is as before. */
-  inlineLook?: true;
 }
-
-/** What only decides which lines the runtime carries; never part of the emitted spacing table. */
-type CreditsBuildFlags = 'faces' | 'inlineLook';
 
 /** What the styled runtime of a design is built with, or null when it builds another engine.
  *  A step the sample does not show falls back as the editable roll's do. */
 export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
   const style = styledCredits(svg);
   if (!style) return null;
-  const flags: Pick<CreditsStyledConfig, CreditsBuildFlags> = {};
-  if (svg.fonts.some((f) => f.fontId || f.customFont)) flags.faces = true;
-  if (sourcesSetOwnLook(svg.markup, style.anchors)) flags.inlineLook = true;
+  const flags: Pick<CreditsStyledConfig, 'faces'> = svg.fonts.some((f) => f.fontId || f.customFont) ? { faces: true } : {};
   if (style.layout === 'role-beside') {
     // Beside, every drawn line is a role and its first name, so the line step is the group gap;
     // a step neither shows (one drawn line) is left 0 for the runtime to take from the type.
@@ -671,15 +662,6 @@ export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null 
   const roleToName = style.steps.roleToName ?? style.steps.nameToName ?? 0;
   const nameToName = style.steps.nameToName ?? roleToName;
   return { align: style.align.role, roleToName, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix, ...flags };
-}
-
-/** Whether a source layer's own inline style sets what acts on the whole layer (#1937). */
-function sourcesSetOwnLook(markup: string, anchors: readonly DesignSvgCreditsAnchor[]): boolean {
-  const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
-  return anchors.some((a) => {
-    const text = doc.querySelector(`[${SVG_CANDIDATE_ATTR}="${a.candidateId}"]`)?.closest('text');
-    return /(^|;)\s*(opacity|text-decoration)/i.test(text?.getAttribute('style') ?? '');
-  });
 }
 
 /** The stylesheet part: the drawn source layers are laid out, never painted. */
@@ -699,7 +681,8 @@ export function creditsStyledRuntimeJs(prefix: string, config: CreditsStyledConf
   // Role beside differs from role above in a few lines only: two edges, two columns of room. Role
   // above emits exactly what it did before role beside existed.
   const beside = (above: string, besideJs: string) => (config.nameAlign === undefined ? above : besideJs);
-  const { faces, inlineLook, ...table } = config;
+  // `faces` decides which lines the take carries; it is not part of the spacing table.
+  const { faces, ...table } = config;
   return `
 // ── Credits in the artwork's own styling (SVG) ────────────────────────────────────────────────
 // ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed. The role
@@ -801,11 +784,7 @@ function creditsCopy(source, words) {
   }
   var own = (row.getAttribute('class') || '').split(' ').filter(function (c) { return c && c !== '${cls}'; });
   own.push('${cls}-row');
-  row.setAttribute('class', own.join(' '));${inlineLook ? `
-  // The layer's own opacity and underline are in the look its groups give it (creditsLookOf),
-  // which an inline value on the copy would beat.
-  row.style.removeProperty('opacity');
-  row.style.removeProperty('text-decoration-line');` : ''}
+  row.setAttribute('class', own.join(' '));
   var first = creditsFirstText(row);
   var texts = [];
   var walk = function (node) {

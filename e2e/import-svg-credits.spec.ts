@@ -681,7 +681,9 @@ function rollPoses(page: Page) {
       const boxes = moving.map((el) => el.getBoundingClientRect());
       return { top: Math.min(...boxes.map((b) => b.top)), bottom: Math.max(...boxes.map((b) => b.bottom)) };
     };
-    const frame = document.querySelector('.imported-design-art')!.getBoundingClientRect();
+    // The styled roll runs through the artwork's frame (no Credits box is drawn); the fixed
+    // artwork through the whole output, as its engine measures it.
+    const frame = (rows ? document.querySelector('.imported-design-art')! : document.body).getBoundingClientRect();
     w.noacgCreditsTween.pause();
     w.noacgCreditsTween.progress(0);
     const start = extent();
@@ -711,7 +713,8 @@ test('styled credits, role above and role beside, enter and leave the whole fram
     const at = `${b.layout} after ${b.motion}`;
     await page.goto('/robots.txt');
     // A fresh url per document, so the face is fetched (and held) every time.
-    await page.setContent(b.html.replace(/fonts\/anton(-latin-ext)?\.woff2/g, `fonts/anton$1.woff2?take=${i}`));
+    // Not waiting for load, which waits for the held face.
+    await page.setContent(b.html.replace(/fonts\/anton(-latin-ext)?\.woff2/g, `fonts/anton$1.woff2?take=${i}`), { waitUntil: 'domcontentloaded' });
     await expect.poll(() => page.evaluate(() => document.fonts.status), `${at}: the face is on its way`).toBe('loading');
     await page.evaluate(() => (window as unknown as { play(): void }).play());
     await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: the roll starts`).toBe(true);
@@ -782,7 +785,9 @@ test('fixed-artwork credits drawn as separate layers enter and leave the whole f
   }
 });
 
-test('a source layer\'s own inline opacity in a group of its own still multiplies with the group (#1937)', async ({ page }) => {
+test('a source layer drawn with its own inline opacity, in a group of its own, rolls at both opacities multiplied (#1937)', async ({ page }) => {
+  // The import moves every inline style onto a class (svgImport.ts `hoistInlineStyles`), and the
+  // roll's own row rule outranks a class, so the copies never carry an inline value that beats it.
   await page.goto('/app');
   const source = `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="sans-serif" fill="#fff">
   <rect width="1000" height="600" fill="#1d2433" />
@@ -794,7 +799,6 @@ test('a source layer\'s own inline opacity in a group of its own still multiplie
 </svg>`;
   const [built] = await buildRolls(page, source, 'Director', 'styled', false);
   expect(built.engine).toBe('styled');
-  expect(built.js).toContain("row.style.removeProperty('opacity');");
   await page.goto('about:blank');
   await page.setContent(built.html);
   const rows = page.locator('.imported-design-credits-row');
