@@ -388,7 +388,8 @@ test('walking back after a clean reimport, a removed layer is reviewed on Finish
   await page.getByTestId('wz-skip-to-finish').click();
   await page.getByTestId('wz-finish-name').fill('Guest');
   // The record is this walk's own now, and the save still reconciles against it: Finish says so.
-  await expect(page.getByTestId('wz-finish-reimport')).toContainText('Not carried over to this version: Job title.');
+  // Version three has neither the badge nor the role.
+  await expect(page.getByTestId('wz-finish-reimport')).toContainText('Not carried over to this version: badge, Job title.');
   await expect(page.getByTestId('wz-finish-name-yours')).toHaveCount(0);
   const pick = page.getByTestId('wz-finish-production');
   await pick.selectOption((await pick.locator('option', { hasText: 'Show' }).getAttribute('value'))!);
