@@ -56,10 +56,8 @@
  ],
  "owner": [
   {
-   "item": "cf01(b) test-alarm receipt on #1951 (alarm #1971)",
-   "askedAt": "2026-11-02T11:43:00Z",
-   "comment": 6576269914,
-   "fallbackAt": "2026-11-04T11:43:00Z"
+   "what": "confirm the test alarm #1971 reached you (cf01(b)); without a reply by 2026-11-04T11:43Z cf01 passes on routing alone",
+   "where": "https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6576269914"
   }
  ],
  "fixes": [],
