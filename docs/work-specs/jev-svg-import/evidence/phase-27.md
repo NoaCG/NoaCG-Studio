@@ -70,6 +70,14 @@ PR challenged them against that code. Rules found after coding are marked (after
   so a second door press updates that graphic and never renames it back over the earlier one.
 - **R13 (after, from `/so`) A key on a positional selector is unresolved**: it names a place, not
   a layer (R5).
+- **R14 (after, rule-model reassessment) Reconciliation follows the record, not the press.** Each
+  door rebuilds the raw, positionally numbered build, so a save reconciles against any record it
+  would write over, unless that record is still exactly what this walk last wrote by a plain write
+  (`reimportTarget`). This replaces "only a save over a graphic this walk never opened".
+- **R15 (after) What a save learned is part of the walk's memory**: the record it reconciled and
+  the record's write time sit on the walk's `MadeGraphic`, so walk-back and rename keep them.
+- **R16 (after) Finish's review asks the save's own question** (`reimportTarget`); should the two
+  documents still disagree, the save errs to a separate graphic.
 
 ## What landed
 
@@ -92,17 +100,19 @@ PR challenged them against that code. Rules found after coding are marked (after
 
 ## Verification on this worker
 
-- `e2e/import-svg-reimport.spec.ts` 6/6; with `import-name-collision`, `wizard-finish` and
-  `jev-svg-preparation`: 40/40 after the `/so` fixes (j-0016). `editor-fidelity-trim` with the
+- `e2e/import-svg-reimport.spec.ts` 7/7; with `import-name-collision`, `wizard-finish`,
+  `jev-svg-preparation` and `wizard-draft-guard`: 49/49 on the head with R14 to R16 (j-0020).
+  40/40 after the first `/so` fixes (j-0016). `editor-fidelity-trim` with the
   first three: 47/47 earlier on this branch (j-0007).
 - Mutations, each reverted: no id rename fails the matcher test and the first journey; no
   reconcile on save fails the second journey (the earlier graphic is written over); no
   deleted-track rule fails the matcher test; no Finish name follow-up fails the second journey at
-  the name check.
+  the name check; no R14 (reconcile on the `over` effect only) fails the first journey at the
+  field ids.
 - `npx tsc --noEmit`, eslint on the changed files, depcruise over the wizard,
   `npm run gates -- run --changed origin/main` (includes the CreationWizard line budget),
-  `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply` and
-  `wizard-draft`: pass.
+  `check-e2e-protection`, `node --test` on `e2e-affected`, `import-drop`, `jev-svg-apply`,
+  `wizard-draft`, `wizard-walk-state`, `wizard-walks` and `wizard-kit-moves`: pass.
 - Not run here: the configured suite and the full e2e set (CI), a production build (no build
   input changed).
 
@@ -115,8 +125,8 @@ PR challenged them against that code. Rules found after coding are marked (after
   layer ids (the build replaced them with `fN`), so the key is read from what both sides keep.
   A moved or restyled layer is therefore unresolved: safe, and stated as the limit below.
 - **Review on Finish's existing warning**, no new step, two short sentences and one checkbox.
-- **Only a save over a graphic this walk never opened reconciles.** A second press of the same
-  walk writes over its own record as before.
+- **A walk's own fresh graphic keeps today's plain write** on a second press, as long as nothing
+  else has written to it (R14); every other save over a record reconciles.
 
 ## Limits
 
@@ -129,6 +139,13 @@ PR challenged them against that code. Rules found after coding are marked (after
   drive it. The editor's own add-field has the same property today.
 - A graphic keyed before the editor minted `artwork-N` identities addresses those layers by
   position; such keys are listed as not carried (R13).
+- "Edit this graphic" saves nothing: it opens the rebuilt, positionally numbered build in the
+  editor under the held name. The editor's own Save mints a new record for an unsaved document
+  (`saveGraphicAs` always mints), so the earlier graphic is never written over, but that new
+  graphic carries no reconciled work. Filed as #1986 (P3, editor).
+- CSS and script renames touch exact quoted or `#`-prefixed field ids, so a stylesheet colour
+  spelled `#f12` would be renamed when field `f12` is (13 or more fields and that exact colour).
+- If keeping the copy succeeds and the save then fails, a spare copy is left in the library.
 
 - Keys only: a step's duration or default ease changed after the import is the new walk's again.
 
@@ -149,6 +166,16 @@ PR challenged them against that code. Rules found after coding are marked (after
   is why the glue stays in the wizard). (5) the copy name now takes a free name; markup renames
   touch id attributes, `url(#…)` and the definition only, never a colour like `fill="#f12"`;
   positional keys are unresolved (R13). Two limits added above.
+
+- Final `/so` on `9ab30dbc` (`session_017SdbwM5iPfFH8aUWSbyRTL`): AGREE WITH CORRECTIONS, grade B.
+  Blocking, class product defect (data loss), family R3/R4/R9, the second in the "later press"
+  family after R12: after a clean reimport a second press is an update of the same record and
+  wrote the raw build back over it. Repeated family, so a read-only rule-model reassessment came
+  first (`session_017SdbwMqKjCHbjmbmz21QrV`, AGREE WITH CORRECTIONS): key the rule on the record's
+  state, keep it on the walk's snapshot, let Finish use the same test. Taken as R14 to R16. The
+  first journey now presses Export and then Add to the production; with R14 removed it fails at
+  the field ids. A fifth test pins the rule's four states. Its non-blocking points are listed
+  under Limits.
 
 ## Traps
 
