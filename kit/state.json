@@ -42,34 +42,10 @@
     "rearm": "check-in trig_01Fuv5cBhW2aDhhfPdT4PZ6U re-armed 08:46:50Z to 09:17Z; fired 09:17:40Z into this session (live bounded re-arm)"
   },
   "waitingOn": {
-    "what": "ci17 checker verdict (session_017SdbwQZbkuarTQBc9U8kaD)",
-    "eta": "2026-11-02T03:00:00Z"
+    "what": "nothing: run finished 2026-11-02T02:24Z; owner decisions open in #1951 and #1895",
+    "eta": null
   },
-  "inFlight": [
-    {
-      "phase": "ci17",
-      "step": "check",
-      "session": "session_017SdbwQgWjrdBuyYC8WvH5a",
-      "nonce": "ci17-b-1689",
-      "branch": "claude/plan-cicd-improvement-ci17-build",
-      "launchedAt": "2026-11-02T01:24:13Z",
-      "note": "Final report: AC-3 pass, AC-4 fail, AC-1/2/5/6/8/9 unverified; converge open exit 1; #1951 P1 owner decision on alarm ownership.",
-      "pr": 1952,
-      "reviewedHead": "d56ca9dbe66cf53b3314397766c84269078fc4ef",
-      "stampRun": 41374876810,
-      "so": "session_017SdbwPLVSfsov82Rk5Uyp3",
-      "followUps": [
-        1951,
-        1953
-      ],
-      "mergeSha": "87ca1b807e03317becad2812b9c5c551ccaf5070",
-      "landedAt": "2026-11-02T02:01:56Z",
-      "queueRun": 41374944537,
-      "repairOwnerComment": 6567215608,
-      "checker": "session_017SdbwQZbkuarTQBc9U8kaD",
-      "actor": "checker-ci17-ci17-c-088e"
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -368,6 +344,22 @@
       "postLand": "CI 41369851039, configured-suite 41369851064, Post-landing 41369850980, Quarantine 41369850984, Push on main 41369850941 success; repair ownership complete",
       "pass": "2026-11-02T01:21Z by checker-ci16-ci16-c-52c1 (session_017SdbwLn3GVGq5bHzeBdr53)",
       "archived": 3
+    },
+    {
+      "phase": "ci17",
+      "pr": 1952,
+      "mergeSha": "87ca1b807e03317becad2812b9c5c551ccaf5070",
+      "builder": "session_017SdbwQgWjrdBuyYC8WvH5a",
+      "reviewedHead": "d56ca9dbe66cf53b3314397766c84269078fc4ef",
+      "repairOwnerComment": 6567215608,
+      "followUps": [
+        1951,
+        1953
+      ],
+      "candidate": "final report: AC-3 pass, AC-4 fail, six unverified; converge open exit 1; run concluded with unmet and pending goals",
+      "postLand": "CI 41375511903, configured-suite 41375511853, Post-landing 41375512011, Quarantine 41375511778, Push on main 41375511549 success; repair ownership complete",
+      "pass": "2026-11-02T02:22Z by checker-ci17-ci17-c-088e (session_017SdbwQZbkuarTQBc9U8kaD)",
+      "archived": 5
     }
   ],
   "coordinatorNotes": [
@@ -504,6 +496,11 @@
       "at": "2026-11-01T18:59Z",
       "phase": "ci11",
       "decision": "Checker first verdict FAIL blocked (unrelated red exact-merge job without a tracking issue). Coordinator opened #1924 (third quarantine of production-chat-intake) and the same checker re-judged PASS under the limited unrelated-failure exception. #1895 evidence for ci17: the critical set catches F1 and F8 only; under F2 its one red was noise (passes 4/4 with and without the fault)."
+    },
+    {
+      "at": "2026-11-02T02:24Z",
+      "phase": "run",
+      "decision": "All 18 phases PASS; run finished with unmet and pending goals (converge open, exit 1). Check-in and block-renewal triggers disabled. Repair ownership complete on every run PR."
     }
   ]
 }
