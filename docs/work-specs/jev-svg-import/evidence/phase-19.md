@@ -68,14 +68,18 @@ save disabled the role-above walk fails (j-0003).
 
 ## Verification on this worker
 
-- `node --test scripts/imported-credits-model.test.mjs`: 27/27 (after the review fixes too).
+- `node --test scripts/imported-credits-model.test.mjs`: 28/28 on the final head.
 - `npx tsc --noEmit -p .`, `npx eslint` on the changed files: pass.
 - `npm run gates -- run --changed origin/main`: pass. `npm run check:catalog-emit`: PASS, 528.
 - `scripts/svg-import-passes.test.mjs`: 18 pass, 4 fail, and the whole output is identical on an
   unmodified worktree of `516ec2c` (this machine's Chromium build; CI is the authority for the
   corpus records). No record regenerated.
-- Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 6/6 (j-0001, j-0002 after the
-  checklist line). `check-e2e-protection --changed origin/main`: OK.
+- Browser, through the job queue: `e2e/import-svg-credits.spec.ts` 6/6 (j-0001; j-0002 after the
+  checklist line; j-0004 2 failed, see Review rounds; j-0005 and j-0006 6/6, the last on the
+  formatter fix). Mutation: with the wizard's save disabled the role-above walk fails (j-0003).
+  `check-e2e-protection --changed origin/main`: OK.
+- Draft-path byte comparison (credits-roll, credits-artwork, credits-1 to 3 without a styled
+  reading): identical hashes on this branch and on `516ec2c`; with the reading, credits-1 differs.
 
 ## Review rounds
 
@@ -102,7 +106,7 @@ save disabled the role-above walk fails (j-0003).
   Cause found, not re-run away: the production page formats the template, and the formatter
   turned the list holder's line breaks into spaces, so a stage reload before the next `update()`
   read the list as one line (the styled walk's failure showed exactly that text; the editable
-  walk's second take found no roll). The styled holder now carries `prettier-ignore`, as the
+  walk's second take finding no roll is consistent with the same reload). The styled holder now carries `prettier-ignore`, as the
   artwork roll's markup does, and a test formats the built html with the app's options and finds
   the list intact (mutation: without the guard it fails). The editable roll has the same holder;
   its bytes are pinned here, so it is a follow-up (#1955).
