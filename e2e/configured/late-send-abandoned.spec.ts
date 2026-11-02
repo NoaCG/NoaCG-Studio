@@ -75,6 +75,24 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
     ws.on('close', () => diag.push(`${Date.now() - t0}ms ws close`));
   });
   op.on('request', (r) => { if (/control_tail_seq/.test(r.url())) diag.push(`${Date.now() - t0}ms tail_seq request`); });
+  context.on('request', (r) => {
+    if (/control_tail_seq/.test(r.url())) diag.push(`${Date.now() - t0}ms context request from ${r.frame().page() === op ? 'op' : r.frame().page() === page ? 'page' : r.frame().page() === air ? 'air' : 'other'}`);
+  });
+  op.on('requestfinished', (r) => { if (/control_tail_seq/.test(r.url())) diag.push(`${Date.now() - t0}ms tail_seq finished`); });
+  const cdp = await context.newCDPSession(op);
+  await cdp.send('Network.enable');
+  cdp.on('Network.requestWillBeSent', (e: { request: { url: string } }) => {
+    if (/control_tail_seq/.test(e.request.url)) diag.push(`${Date.now() - t0}ms cdp requestWillBeSent`);
+  });
+  await op.addInitScript(() => {
+    const w = window as unknown as { fetch: typeof fetch };
+    const real = w.fetch.bind(window);
+    w.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (/control_tail_seq/.test(url)) console.debug('[cf07] page fetch tail_seq');
+      return real(input, init);
+    };
+  });
   op.on('console', (m) => diag.push(`${Date.now() - t0}ms console ${m.type()} ${m.text().slice(0, 300)}`));
   const printDiag = () => console.log(`[cf07 diag]\n${diag.join('\n')}`);
   await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
