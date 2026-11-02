@@ -96,6 +96,8 @@ save disabled the role-above walk fails (j-0003).
   - The colour probe compared against a spelt sentinel: it now reads the canvas's own spelling back.
   - The checklist and the draft each derived the source layers: one helper (`creditsSourceLayers`).
   - The role suffix was read by parsing the markup again: it now comes with the style.
+  - Not changed: a styled binding that falls back shows its other drawn layers as artwork, not as
+    fields (Known limits).
 - Browser run j-0004 (after the review fixes) failed twice and passed 6/6 unchanged in j-0005.
   Cause found, not re-run away: the production page formats the template, and the formatter
   turned the list holder's line breaks into spaces, so a stage reload before the next `update()`
@@ -103,9 +105,7 @@ save disabled the role-above walk fails (j-0003).
   walk's second take found no roll). The styled holder now carries `prettier-ignore`, as the
   artwork roll's markup does, and a test formats the built html with the app's options and finds
   the list intact (mutation: without the guard it fails). The editable roll has the same holder;
-  its bytes are pinned here, so it is a follow-up (see Follow-ups).
-  - Not changed: a styled binding that falls back shows its other drawn layers as artwork, not as
-    fields (Known limits).
+  its bytes are pinned here, so it is a follow-up (#1955).
 
 ## Decisions
 
@@ -157,6 +157,7 @@ save disabled the role-above walk fails (j-0003).
 
 - Rows 20 to 23 (#1937): role beside with the Roles choice (phase 20), roll qualification (21),
   static (22), cards (23), each adding its entry to `CREDITS_RENDERED`.
+- #1955 (P3): the editable roll's list holder loses its line breaks through the code formatter.
 
 ## Revert
 
