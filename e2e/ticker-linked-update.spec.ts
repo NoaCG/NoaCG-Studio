@@ -307,6 +307,7 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
     ['delete', ['Story five', 'Story four']],
   ];
   let previous = first;
+  let heldOnScreen = 0;
   for (const [what, items] of steps) {
     const from = await record(air);
     server.set(SHEET, lines(...items));
@@ -326,23 +327,32 @@ test('a linked flip hands over at its item boundary: the story on screen keeps i
     const onScreen = lastBefore.showing.length === 1 ? turns(history).find((x) => x.from <= lastBefore.t && x.to >= lastBefore.t) : undefined;
     if (onScreen) {
       expect(onScreen.to - onScreen.from, `${what}: the story on screen kept its turn`).toBeGreaterThan(turnMs - 120);
+      heldOnScreen += 1;
     }
+    // The story whose turn was under way: on screen, or still flipping in (below).
+    let finishing = onScreen?.text;
     let after = seen.filter((x) => x.from > landed);
     // A story still flipping in when the edit landed had begun its turn: it plays the whole turn
     // and the new list starts after it.
     if (after[0] && !items.includes(after[0].text)) {
       expect(previous, `${what}: a story finishing its turn is from the list before`).toContain(after[0].text);
       expect(after[0].to - after[0].from, `${what}: and keeps its whole turn`).toBeGreaterThan(turnMs - 120);
+      finishing = after[0].text;
       after = after.slice(1);
     }
     expect(after.length, `${what}: the new list started at the boundary`).toBeGreaterThan(0);
     expect(items, `${what}: what came next is the new list`).toContain(after[0].text);
+    // When the story finishing its turn is in the new list too, the one after it there comes next.
+    const at = finishing === undefined ? -1 : items.indexOf(finishing);
+    if (at >= 0) expect(after[0].text, `${what}: the story after ${finishing} in the new list comes next`).toBe(items[(at + 1) % items.length]);
     for (let i = 1; i < seen.length; i++) expect(seen[i].text, `${what}: no story twice in a row`).not.toBe(seen[i - 1].text);
     expect(seen.some((x) => x.text === '<two>'), `${what}: never two stories at once`).toBe(false);
     expect(longestBlank(run), `${what}: no blank longer than the flip's own`).toBeLessThanOrEqual(ownGap + 120);
     expect(await plays(page), `${what}: no entrance replayed`).toBe('1');
     previous = items;
   }
+  // An edit landing between two stories proves no handover; at least one has to land on a story.
+  expect(heldOnScreen, 'at least one edit landed while a story was on screen').toBeGreaterThan(0);
 
   // EMPTY clears on purpose; FILLED AGAIN the stories come back without a Take.
   server.set(SHEET, '');
