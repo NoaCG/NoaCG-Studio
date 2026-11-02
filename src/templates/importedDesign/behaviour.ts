@@ -23,6 +23,7 @@ import type { SpxField } from '../../model/types';
 import type { FieldKind } from '../../model/fieldModel';
 import type {
   DesignSvg,
+  DesignSvgCredits,
   DesignSvgExtra,
   DesignSvgRecipeBehaviour,
   DesignSvgPollBehaviour,
@@ -41,6 +42,7 @@ import { recipeById } from '../behaviours/registry';
 import { behaviourDataJs, behaviourRuntimeJs, LOOK_CLASS, lookCss } from './behaviourRuntime';
 import { countdownIndex } from './artworkFields';
 import { PREFIX } from './shared';
+import { styledCredits } from './creditsRoll';
 
 // ── The module interface (the seam svg.ts speaks) ────────────────────────────────────────────
 
@@ -101,6 +103,8 @@ export interface BehaviourBinding {
   rowLabels?: Record<string, string>;
   fields: Record<string, number | Record<string, number>>;
   layers: Record<string, string | Record<string, string>>;
+  /** Credits only: the styled binding, where the design builds it (`RecipeContext.credits`). */
+  credits?: DesignSvgCredits;
 }
 
 /**
@@ -124,7 +128,11 @@ export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
   else if (behaviour?.kind === 'poll') out.push(voteBinding(behaviour));
   else if (behaviour?.kind === 'timer') out.push(countdownBinding(svg, behaviour));
   else if (behaviour?.kind === 'score') out.push(scoreBinding(behaviour));
-  else if (behaviour?.kind === 'recipe') out.push(recipeBinding(behaviour));
+  else if (behaviour?.kind === 'recipe') {
+    const binding = recipeBinding(behaviour);
+    // A styled credits binding that builds (not one gone stale, which builds the editable roll).
+    out.push(behaviour.credits && styledCredits(svg) ? { ...binding, credits: behaviour.credits } : binding);
+  }
   for (const extra of svg.extras ?? []) {
     const binding = extraBinding(svg, extra);
     if (binding) out.push(binding);
@@ -361,6 +369,7 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
   const ctx: RecipeContext = {
     rows,
     options,
+    ...(binding.credits ? { credits: binding.credits } : {}),
     name,
     slug,
     ns,

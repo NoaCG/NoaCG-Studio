@@ -40,7 +40,8 @@ export const creditsRecipe: BehaviourRecipe = {
   category: 'end-credits',
   defaultZone: 'mid-center',
   roles: rolesOf(CREDITS_RECIPE_ID),
-  fields: () => [{ key: CREDITS_SPEED_KEY, label: SPEED_FIELD_TITLES.scroll, kind: 'number', value: CREDITS_SPEED_DEFAULT }],
+  // A still page does not move, so it has no Scroll speed to offer.
+  fields: (ctx) => (ctx.credits?.playback === 'static' ? [] : [{ key: CREDITS_SPEED_KEY, label: SPEED_FIELD_TITLES.scroll, kind: 'number', value: CREDITS_SPEED_DEFAULT }]),
   // The artwork engine waits for the current entrance to settle before measuring the roll.
   // The recipe only names the call; old editable rolls keep their original immediate take.
   path: () => ({ entrance: 'Rolling', entranceCalls: [CREDITS_ROLL_CALL] }),

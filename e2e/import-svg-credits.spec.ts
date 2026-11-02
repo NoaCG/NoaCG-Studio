@@ -630,10 +630,11 @@ test('role-above credits drawn as separate layers roll in those layers\' own sty
   await expect(sources).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
 });
 
-test('role-above credits chosen to hold still air as one still page, and a list too long for it says so on the production page', async ({ page }) => {
+test('role-above credits chosen to hold still air as one still page, and a list too long for it says so before the take', async ({ page }) => {
   // jev-svg-import row 22 (AC-13): "Plays as: Hold still" saves the styled binding as a still
-  // page. On air the rows stand where they were drawn; a list too long for the page even at the
-  // floor is not shown, and the cue says in words which field is too long.
+  // page, with no Scroll speed to offer. A list too long for the page even at the floor is named
+  // too long on its field before the take, and on Take the page is not shown. A fitting list
+  // stands where the rows were drawn.
   await page.goto('/app');
   await dropSvg(page, ABOVE_CREDITS_SVG);
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
@@ -644,33 +645,44 @@ test('role-above credits chosen to hold still air as one still page, and a list 
   await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
   const playback = page.getByTestId('map-svg-credits-playback');
   await expect(playback).toHaveValue('roll');
+  await expect(playback.locator('option')).toHaveText(['Roll', 'Hold still']);
   await playback.selectOption('static');
   await intoProduction(page, 'Research page', 'Research still');
   await settleDurableWrites(page);
 
+  // One list field and the drawn title; a still page has no Scroll speed.
   const credits = page.getByTestId('cue-field-f1');
   await expect(credits).toHaveValue('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue('PRODUCTION');
+  await expect(page.getByTestId('cue-field-f2')).toHaveCount(0);
+
+  // Two hundred names cannot stand on one page even at the floor: before any take, the field
+  // says so in words.
+  const tooLong = ['Research:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n');
+  await credits.fill(tooLong);
+  await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
+  await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
+  // On Take the page is not shown: nothing clipped, nothing rolling.
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
-  const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   const state = () => air.locator('.imported-design-credits-roll').evaluate((roll) => {
     const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsLast: { still?: boolean; refused?: boolean } | null };
     return { tween: w.noacgCreditsTween, last: w.noacgCreditsLast, moved: getComputedStyle(roll).transform, shown: getComputedStyle(roll.querySelector('.imported-design-credits-rows')!).visibility };
   });
-  await expect.poll(async () => (await state()).last?.still).toBe(true);
-  expect(await state()).toMatchObject({ tween: null, moved: 'none', shown: 'visible' });
-  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240], ['name', 295], ['role', 445], ['name', 510]]);
-
-  // Two hundred names cannot stand on one page even at the floor: the page is not shown, and the
-  // cue names the Credits field as too long rather than airing a clipped or rolling list.
-  await credits.fill(['Research:', ...Array.from({ length: 200 }, (_, i) => `Name Number ${i + 1}`)].join('\n'));
-  await page.getByTestId('verb-update').click();
-  await expect.poll(async () => (await state()).shown).toBe('hidden');
+  await expect.poll(async () => (await state()).last).toEqual({ still: true, rows: 201, scale: 1, refused: true });
+  expect(await state()).toMatchObject({ tween: null, moved: 'none', shown: 'hidden' });
   await expect(page.getByTestId('cue-field-over-f1')).toBeVisible();
-  await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
-  expect((await state()).tween).toBeNull();
+
+  // The drawn list again, on Update: the page shows, still, where the rows were drawn.
+  await credits.fill('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+  await page.getByTestId('verb-update').click();
+  const rows = air.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect.poll(async () => (await state()).shown).toBe('visible');
+  expect(await state()).toMatchObject({ tween: null, moved: 'none' });
+  expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240], ['name', 295], ['role', 445], ['name', 510]]);
+  await expect(page.getByTestId('cue-field-over-f1')).toHaveCount(0);
 });
 
 // jev-svg-import row 21 (AC-13): continuous roll playback, built on a blank page the way the

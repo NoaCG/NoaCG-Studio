@@ -517,16 +517,30 @@ async function inPage({ dev, cases, legacy, artwork }) {
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
   const fallbacks = {
-    static: notYet({ ...good, playback: 'static' }),
     cards: notYet({ ...good, playback: 'cards' }),
     stale: notYet({ ...good, anchors: [...good.anchors].reverse() }),
   };
-  const staticBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'static' }) });
+  const cardsBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'cards' }) });
   // ...which is the editable roll it built before any styled engine existed, byte for byte.
-  fallbacks.staticBuildsEditable = staticBuild.js.includes('function creditsSampleLines(') && !staticBuild.js.includes('NOACG_CREDITS_STYLE');
+  fallbacks.cardsBuildsEditable = cardsBuild.js.includes('function creditsSampleLines(') && !cardsBuild.js.includes('NOACG_CREDITS_STYLE');
   const unstyled = binding(good);
   delete unstyled.behaviour.credits;
-  fallbacks.staticSameAsUnstyled = JSON.stringify(staticBuild) === JSON.stringify(I.IMPORTED_SVG.create({ designSvg: unstyled }));
+  fallbacks.cardsSameAsUnstyled = JSON.stringify(cardsBuild) === JSON.stringify(I.IMPORTED_SVG.create({ designSvg: unstyled }));
+  // Row 22: a static binding builds the still page in the styled engine: no roll, no Scroll
+  // speed, while the roll of the same binding keeps both.
+  const speedOf = (tpl) => tpl.fields.some((f) => f.title === 'Scroll speed (%)');
+  const staticBuild = I.IMPORTED_SVG.create({ designSvg: binding({ ...good, playback: 'static' }) });
+  const rollBuild = I.IMPORTED_SVG.create({ designSvg: binding(good) });
+  const still = {
+    engine: C.creditsEngine(binding({ ...good, playback: 'static' })),
+    styled: staticBuild.js.includes('var NOACG_CREDITS_STYLE'),
+    editable: staticBuild.js.includes('function creditsSampleLines('),
+    holds: staticBuild.js.includes('ONE PASTED LIST holds still on the page'),
+    rolls: staticBuild.js.includes('gsap.fromTo(roll'),
+    speed: speedOf(staticBuild),
+    rollRolls: rollBuild.js.includes('gsap.fromTo(roll'),
+    rollSpeed: speedOf(rollBuild),
+  };
   // #1941: loose characters before the first run, and colour spellings in the parsed reading.
   const loose = analyse(cases.loose, parsed);
   const looseLaid = analyse(cases.loose, laidOut);
@@ -537,6 +551,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     fixedBlocks,
     previews,
     fallbacks,
+    still,
     issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
     pins,
     devResults,
@@ -936,9 +951,13 @@ test('row 19: the roll keeps the source layers and their original text, and repl
 });
 
 test('row 19: what no row renders yet builds what it built before, never an untested picture', () => {
-  // Static is row 22, cards row 23; a stale binding likewise. Each keeps the
-  // editable roll of its one list field, exactly as before row 19.
-  assert.deepEqual(R.fallbacks, { static: 'editable', cards: 'editable', stale: 'editable', staticBuildsEditable: true, staticSameAsUnstyled: true });
+  // Cards are row 23; a stale binding likewise. Each keeps the editable roll of its one list
+  // field, exactly as before row 19.
+  assert.deepEqual(R.fallbacks, { cards: 'editable', stale: 'editable', cardsBuildsEditable: true, cardsSameAsUnstyled: true });
+});
+
+test('row 22: a static binding builds the still page, without the roll or its Scroll speed', () => {
+  assert.deepEqual(R.still, { engine: 'styled', styled: true, editable: false, holds: true, rolls: false, speed: false, rollRolls: true, rollSpeed: true });
 });
 
 test('#1941: loose characters before the first run, and colour spellings, read as painted', () => {
