@@ -600,6 +600,9 @@ export interface CreditsStyledConfig {
   groupGap: number;
   /** What the drawn roles end with (`:` or nothing), so a row reads as the drawing does. */
   roleSuffix: string;
+  /** Role beside only: the edge the name column lines up on (`align` is the role column's). A
+   *  role and its first name share a baseline, so `roleToName` is 0. Absent, role above. */
+  nameAlign?: CreditsAlign;
 }
 
 /** What the styled runtime of a design is built with, or null when it builds another engine.
@@ -607,6 +610,12 @@ export interface CreditsStyledConfig {
 export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
   const style = styledCredits(svg);
   if (!style) return null;
+  if (style.layout === 'role-beside') {
+    // Beside, every drawn line is a role and its first name, so the line step is the group gap;
+    // a step neither shows (one drawn line) is left 0 for the runtime to take from the type.
+    const nameToName = style.steps.nameToName ?? style.steps.groupGap ?? 0;
+    return { align: style.align.role, roleToName: 0, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix, nameAlign: style.align.name };
+  }
   const roleToName = style.steps.roleToName ?? style.steps.nameToName ?? 0;
   const nameToName = style.steps.nameToName ?? roleToName;
   return { align: style.align.role, roleToName, nameToName, groupGap: style.steps.groupGap ?? nameToName, roleSuffix: style.roleSuffix };
@@ -626,6 +635,9 @@ export function creditsStyledCss(prefix: string): string {
 /** The styled engine, emitted once for a design whose styled binding builds (`styledCredits`). */
 export function creditsStyledRuntimeJs(prefix: string, config: CreditsStyledConfig): string {
   const cls = creditsClass(prefix);
+  // Role beside differs from role above in a few lines only: two edges, two columns of room. Role
+  // above emits exactly what it did before role beside existed.
+  const beside = (above: string, besideJs: string) => (config.nameAlign === undefined ? above : besideJs);
   return `
 // ── Credits in the artwork's own styling (SVG) ────────────────────────────────────────────────
 // ONE PASTED LIST rolls through the frame, bottom to top, at the operator's Scroll speed. The role
@@ -681,15 +693,16 @@ function creditsAt(m, x, y) {
   return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
 }
 
-// creditsEdge(el): where a drawn layer's aligned edge meets its baseline, in its own units: along
+// creditsEdge(el${beside('', ', kind')}): where a drawn layer's aligned edge meets its baseline, in its own units: along
 // its ADVANCE, which is what text-anchor places (the ink box starts a side bearing away). start is
-// the right end of right-to-left text, as text-anchor reads it.
-function creditsEdge(el) {
+// the right end of right-to-left text, as text-anchor reads it.${beside('', `
+// A name lines up on the name column's edge, everything else on the role column's.`)}
+function creditsEdge(el${beside('', ', kind')}) {
   if (!el.getNumberOfChars || el.getNumberOfChars() === 0) return null;
   var advance = el.getComputedTextLength();
   var at = el.getStartPositionOfChar(0);
   var rtl = getComputedStyle(el).direction === 'rtl';
-  var edge = NOACG_CREDITS_STYLE.align;
+  var edge = ${beside('NOACG_CREDITS_STYLE.align', "kind === 'name' ? NOACG_CREDITS_STYLE.nameAlign : NOACG_CREDITS_STYLE.align")};
   var f = edge === 'start' ? 0 : edge === 'middle' ? 0.5 : 1;
   if (rtl) f = 1 - f;
   return { x: (rtl ? at.x - advance : at.x) + f * advance, y: at.y };
@@ -796,7 +809,7 @@ function creditsRender() {
   var sources = {};
   for (var i = 0; i < anchors.length; i++) if (!sources[anchors[i].kind]) sources[anchors[i].kind] = anchors[i].el;
   if (!sources.role || !sources.name || !container) return null;
-  // THE SHARED EDGE, the mean over every drawn layer in the first role's frame: the drawing put
+${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first role's frame: the drawing put
   // them all on one aligned edge, and the rows keep it.
   var sum = 0;
   for (var j = 0; j < anchors.length; j++) {
@@ -806,7 +819,27 @@ function creditsRender() {
     sum += creditsAt(m, edge.x, edge.y).x;
   }
   var x = sum / anchors.length;
-  var top = creditsEdge(ref).y;
+`, `  // TWO COLUMNS, EACH ON ITS OWN EDGE: the mean over the drawn roles, and over the drawn names,
+  // in the first role's frame; the rows keep both. The ends of the drawn layers say where each
+  // column's ink reaches, so the columns meet halfway across the gutter the drawing left.
+  var sums = { role: 0, name: 0 };
+  var counts = { role: 0, name: 0 };
+  var ink = { role: [Infinity, -Infinity], name: [Infinity, -Infinity] };
+  for (var j = 0; j < anchors.length; j++) {
+    var kindJ = anchors[j].kind;
+    var m = creditsFrom(anchors[j].el, ref);
+    var edge = creditsEdge(anchors[j].el, kindJ);
+    if (!m || !edge || !sums.hasOwnProperty(kindJ)) return null;
+    sums[kindJ] += creditsAt(m, edge.x, edge.y).x;
+    counts[kindJ] += 1;
+    var drawn = anchors[j].el.getBBox();
+    var ends = [creditsAt(m, drawn.x, edge.y).x, creditsAt(m, drawn.x + drawn.width, edge.y).x];
+    ink[kindJ][0] = Math.min(ink[kindJ][0], ends[0], ends[1]);
+    ink[kindJ][1] = Math.max(ink[kindJ][1], ends[0], ends[1]);
+  }
+  if (!counts.role || !counts.name) return null;
+  var xs = { role: sums.role / counts.role, name: sums.name / counts.name };
+`)}  var top = creditsEdge(ref).y;
   var toContainer = creditsFrom(ref, container);
   if (!toContainer) return null;
   var rows = noacgCreditsRows;
@@ -848,19 +881,30 @@ function creditsRender() {
     frames[kind] = creditsFrom(sources[kind], ref);
     if (!frames[kind]) return null;
     var look = creditsLookOf(sources[kind], container);
-    var where = sel + '[data-noacg-credits="' + kind + '"]';
-    base += where + ' {' + look.paint + ';' + look.whole + ';text-anchor:' + S.align + ' !important}\\n';
-    base += where + ' [data-noacg-run] {' + look.paint + ';text-anchor:' + S.align + ' !important}\\n';
+    var where = sel + '[data-noacg-credits="' + kind + '"]';${beside('', `
+    var anchor = kind === 'name' ? S.nameAlign : S.align;`)}
+    base += where + ' {' + look.paint + ';' + look.whole + ';text-anchor:' + ${beside('S.align', 'anchor')} + ' !important}\\n';
+    base += where + ' [data-noacg-run] {' + look.paint + ';text-anchor:' + ${beside('S.align', 'anchor')} + ' !important}\\n';
   }
-  noacgCreditsSheet.textContent = base;
+  noacgCreditsSheet.textContent = base;${beside('', `
+  // A drawing of one line shows no step: the next line comes 1.2 of the drawn name type down.
+  if (!S.nameToName) {
+    var nameFrame = frames.name;
+    // The size of the run that paints the name, as the copies are painted.
+    var nameRun = creditsFirstText(sources.name);
+    var line = 1.2 * (parseFloat(getComputedStyle(nameRun ? nameRun.parentNode : sources.name).fontSize) || 16) * Math.sqrt(Math.abs(nameFrame.a * nameFrame.d - nameFrame.b * nameFrame.c));
+    S = { align: S.align, nameAlign: S.nameAlign, roleToName: 0, nameToName: line, groupGap: S.groupGap || line, roleSuffix: S.roleSuffix };
+  }`)}
   // FIRST PASS: every row, spaced as drawn, appended at once.
   var made = [];
   var y = top;
   var prev = null;
-  var sectionBreak = false;
-  var paint = function (kind, words) {
+  var sectionBreak = false;${beside('', `
+  // A heading spans both columns: the line after it steps down, and its room is the whole window.
+  var prevHeading = false;`)}
+  var paint = function (kind, words${beside('', ', heading')}) {
     if (made.length > 0) {
-      y += kind === 'role' ? S.groupGap : prev === 'role' ? S.roleToName : S.nameToName;
+      y += kind === 'role' ? S.groupGap : prev === 'role'${beside('', ' && !prevHeading')} ? S.roleToName : S.nameToName;
       // A blank line before a name adds the air the drawing gives a group, or one name step.
       if (sectionBreak && kind !== 'role') {
         var air = S.groupGap - S.nameToName;
@@ -871,15 +915,16 @@ function creditsRender() {
     var copy = creditsCopy(sources[kind], words);
     var row = copy.row;
     row.setAttribute('transform', 'matrix(' + [m.a, m.b, m.c, m.d, m.e, m.f].join(' ') + ')');
-    var p = creditsAt(m.inverse(), x, y);
+    var p = creditsAt(m.inverse(), ${beside('x', 'xs[kind]')}, y);
     row.setAttribute('x', p.x.toFixed(2));
     row.setAttribute('y', p.y.toFixed(2));
     row.setAttribute('data-noacg-credits', kind);
     row.setAttribute('data-noacg-row', String(made.length));
     if (copy.run !== row) copy.run.setAttribute('data-noacg-run', '');
     rows.appendChild(row);
-    made.push({ row: row, run: copy.run, kind: kind, words: words, m: m });
-    prev = kind;
+    made.push({ row: row, run: copy.run, kind: kind, words: words, m: m${beside('', ', heading: !!heading')} });
+    prev = kind;${beside('', `
+    prevHeading = !!heading;`)}
     sectionBreak = false;
   };
   for (var s = 0; s < sections.length; s++) {
@@ -890,7 +935,7 @@ function creditsRender() {
         paint('role', entry.role + S.roleSuffix);
         for (var k = 0; k < entry.names.length; k++) paint('name', entry.names[k]);
       } else if (entry.type === 'heading') {
-        paint('role', entry.text);
+        paint('role', entry.text${beside('', ', true')});
       } else {
         paint('name', entry.text);
       }
@@ -908,7 +953,17 @@ function creditsRender() {
     lo = Math.min(c[0].x, c[1].x, c[2].x, c[3].x);
     hi = Math.max(c[0].x, c[1].x, c[2].x, c[3].x);
   }
-  noacgCreditsFit = [];
+${beside('', `  // Beside, a column's room ends where the two columns meet; the window bounds its outer side.
+  var span = null;
+  if (lo !== null) {
+    var leftKind = ink.role[0] + ink.role[1] <= ink.name[0] + ink.name[1] ? 'role' : 'name';
+    var rightKind = leftKind === 'role' ? 'name' : 'role';
+    var meet = (ink[leftKind][1] + ink[rightKind][0]) / 2;
+    span = {};
+    span[leftKind] = [lo, meet];
+    span[rightKind] = [meet, hi];
+  }
+`)}  noacgCreditsFit = [];
   var over = false;
   var sizes = '';
   for (var r = 0; r < made.length; r++) {
@@ -921,8 +976,13 @@ function creditsRender() {
       var size = parseFloat(getComputedStyle(one.run).fontSize) || 16;
       var margin = 0.5 * size * scale;
       var rtl = getComputedStyle(one.row).direction === 'rtl';
-      var side = S.align === 'middle' ? 'middle' : (S.align === 'start') !== rtl ? 'left' : 'right';
-      var room = side === 'middle' ? 2 * Math.min(x - lo, hi - x) - 2 * margin : side === 'left' ? hi - x - margin : x - lo - margin;
+${beside(`      var side = S.align === 'middle' ? 'middle' : (S.align === 'start') !== rtl ? 'left' : 'right';
+      var room = side === 'middle' ? 2 * Math.min(x - lo, hi - x) - 2 * margin : side === 'left' ? hi - x - margin : x - lo - margin;`, `      var A = one.kind === 'name' ? S.nameAlign : S.align;
+      var X = xs[one.kind];
+      var L = one.heading ? lo : span[one.kind][0];
+      var H = one.heading ? hi : span[one.kind][1];
+      var side = A === 'middle' ? 'middle' : (A === 'start') !== rtl ? 'left' : 'right';
+      var room = side === 'middle' ? 2 * Math.min(X - L, H - X) - 2 * margin : side === 'left' ? H - X - margin : X - L - margin;`)}
       var width = box.width * scale;
       if (width > room) {
         fit.scale = Math.max(NOACG_CREDITS_FLOOR, room / width);
@@ -1390,37 +1450,93 @@ export function readCreditsList(text: string): CreditsListItem[][] {
 /** What the wizard previews for the layer picked as Credits. */
 export type CreditsPreview =
   | { styled: true; layout: CreditsLayout; rtl: boolean; ambiguous: boolean; anchors: DesignSvgCreditsAnchor[]; list: CreditsListItem[][] }
-  | { styled: false; list: CreditsListItem[][] };
+  | { styled: false; list: CreditsListItem[][]; reason: string; ambiguous: boolean; rtl: boolean };
 
 /**
  * THE PREVIEW OF THE ONE CREDITS LIST the picked layer declares. Where the picked layer is one
  * line of roles and names drawn as separate layers, the anchors are every text layer read at or
  * below it (a title drawn above stays artwork) and the list is the one
  * `analyseCreditsStyle` writes; the layout is the drawing's, and `ambiguous` says whether the
- * columns need the author's one choice. Anything else previews the layer's own text as the list.
- * Either way the list is read by the shipped parser, never a second grammar.
+ * columns need the author's one choice. A NAME picked reads the block from its own role, as that
+ * role picked would. Anything else
+ * previews the layer's own text as the list, with the reason it stays artwork. Either way the
+ * list is read by the shipped parser, never a second grammar.
  */
 export function creditsPreview(root: Element, candidateIds: readonly string[], creditsId: string, choice: CreditsChoice = {}): CreditsPreview {
   const all = readCreditsAnchors(root, candidateIds);
   const picked = all[candidateIds.indexOf(creditsId)];
-  const own = (): CreditsPreview => ({ styled: false, list: readCreditsList(creditsLayerText(root, creditsId)) });
-  if (!picked || picked.lines > 1) return own();
+  // Whether the columns could be read either way, and whether the drawing reads right to left:
+  // facts of the drawing, carried by every preview so the question reads the same either way.
+  let ambiguous = false;
+  let rtl = false;
+  const own = (reason: string): CreditsPreview => ({ styled: false, list: readCreditsList(creditsLayerText(root, creditsId)), reason, ambiguous, rtl });
+  if (!picked) return own('This layer is not a text layer of the artwork.');
+  if (picked.lines > 1) return own('Its lines are one text layer, so no role or name look can be told apart.');
   // "Below" in the block's own frame, as the analysis reads it: a turned block's lines are not
   // level in the artwork's.
   const [a, b, c, d] = picked.linear;
   const down = (r: CreditsReading) => (-b * r.x + a * r.y) / (a * d - b * c || 1);
-  const ids = candidateIds.filter((_, i) => {
-    const r = all[i];
-    return r && down(r) >= down(picked) - 0.25 * Math.min(r.size, picked.size);
-  });
-  const readings = readCreditsAnchors(root, ids);
-  const analysis = analyseCreditsStyle(readings, ids, choice);
-  if (!analysis.ok || !analysis.style.anchors.some((a) => a.candidateId === creditsId)) return own();
+  // Every text layer read at or below a line, with its reading taken from `all`.
+  const from = (top: CreditsReading) => {
+    const at = candidateIds.flatMap((id, i) => {
+      const r = all[i];
+      return r && down(r) >= down(top) - 0.25 * Math.min(r.size, top.size) ? [{ id, r }] : [];
+    });
+    return { ids: at.map((x) => x.id), readings: at.map((x) => x.r) };
+  };
+  const near = (p: CreditsReading, q: CreditsReading) => Math.abs(down(p) - down(q)) <= 0.25 * Math.min(p.size, q.size);
+  // THE DRAWING: the picked layer, everything below it, and the layers above, nearest first,
+  // while the whole stays within two looks. A layer's identity, role or name, is read off the
+  // whole drawing, never from where the reading of one block happens to start.
+  const looks = new Set(from(picked).readings.map((r) => r.look));
+  let top = picked;
+  const above = all
+    .filter((r): r is CreditsReading => !!r && down(r) < down(picked) && !near(r, picked))
+    .sort((p, q) => down(q) - down(p));
+  for (const r of above) {
+    if (!looks.has(r.look) && looks.size >= 2) break;
+    looks.add(r.look);
+    top = r;
+  }
+  const region = from(top);
+  const across = (r: CreditsReading) => (d * r.x - c * r.y) / (a * d - b * c || 1);
+  const lineOf = (r: CreditsReading) => region.readings.filter((q) => near(q, r));
+  // ROLE BESIDE: a line holding two layers in the two looks makes the roles a COLUMN. Geometry
+  // cannot tell the columns apart, so the drawing always gets the question, and the answer
+  // decides the ROLE LOOK: the first layer read on the first such line, or the other column's.
+  // A role picked starts the block; a name picked reads from its own role, the nearest layer
+  // at or above it in the role look.
+  const pair = region.readings.map(lineOf).find((line) => new Set(line.map((q) => q.look)).size === 2);
+  ambiguous = !!pair && looks.size === 2;
+  rtl = (pair ?? [picked]).every((r) => r.rtl === true);
+  const analyse = (x: { ids: string[]; readings: CreditsReading[] }) => analyseCreditsStyle(x.readings, x.ids, choice);
+  let analysis: CreditsAnalysis;
+  if (pair) {
+    const leftward = rtl !== (choice.swap === true);
+    const roleLook = [...pair].sort((p, q) => (leftward ? across(q) - across(p) : across(p) - across(q)))[0].look;
+    const ownRole = picked.look === roleLook
+      ? picked
+      : all
+        .filter((r): r is CreditsReading => !!r && r.look === roleLook && (down(r) < down(picked) || near(r, picked)))
+        .sort((p, q) => down(q) - down(p))[0] ?? picked;
+    analysis = analyse(from(ownRole));
+    // A line in both looks above credits that read role above (a two-word title) is not a column:
+    // there the pick reads exactly as row 19 read it.
+    if (!analysis.ok || analysis.style.layout !== 'role-beside') analysis = analyse(from(picked));
+  } else {
+    // ROLE ABOVE: the picked layer is the role, exactly as row 19 read it. A name and a later role
+    // can be drawn alike (tight groups, roles with no names), so nothing here re-reads a pick from
+    // the layers above it: any such guess airs roles as names for some drawing. The preview shows
+    // what the pick reads, and the first role reads the whole block.
+    analysis = analyse(from(picked));
+  }
+  if (!analysis.ok) return own(analysis.message);
+  if (!analysis.style.anchors.some((x) => x.candidateId === creditsId)) return own('This layer is not part of the roles and names drawn below it.');
   return {
     styled: true,
     layout: analysis.style.layout,
-    rtl: readings.every((r) => r?.rtl === true),
-    ambiguous: creditsColumnsAmbiguous(readings, ids),
+    rtl,
+    ambiguous,
     anchors: analysis.style.anchors,
     list: readCreditsList(analysis.style.list),
   };
@@ -1449,14 +1565,14 @@ export function creditsEngine(svg: DesignSvg): 'styled' | 'artwork' | 'editable'
 }
 
 /**
- * THE LAYOUTS AND PLAYBACKS THE STYLED ENGINE RENDERS. Row 19 renders role above as a roll; role
- * beside (row 20), static (row 22) and cards (row 23) are added by the rows that render them. A
+ * THE LAYOUTS AND PLAYBACKS THE STYLED ENGINE RENDERS. Row 19 renders role above as a roll, row
+ * 20 role beside; static (row 22) and cards (row 23) are added by the rows that render them. A
  * binding nothing renders yet keeps building the editable roll of its one list field, as it did
  * before, never an untested picture; the wizard saves only what is rendered.
  */
 export const CREDITS_RENDERED: Readonly<Record<CreditsLayout, readonly CreditsPlayback[]>> = {
   'role-above': ['roll'],
-  'role-beside': [],
+  'role-beside': ['roll'],
 };
 
 /** The style a saved styled binding builds with, or null when it builds anything else. */

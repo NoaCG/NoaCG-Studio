@@ -47,7 +47,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
-import { CREDITS_RENDERED, creditsPreview, type CreditsListItem } from '../../../templates/importedDesign/creditsRoll';
+import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
@@ -117,55 +117,85 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
  * a linked Sheet writes into that field, so the preview and the source cannot disagree. Where
  * roles and names are drawn as separate layers it also shows the drawing's layout.
  *
- * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above, as a
- * roll), the graphic is built in those layers' own styling: the reading is handed to the draft as
- * the binding, its anchors exactly as previewed. Anything else saves the original-text roll.
+ * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above or
+ * role beside, as a roll), the graphic is built in those layers' own styling by default: the
+ * reading is handed to the draft as the binding, its anchors exactly as previewed. Anything else
+ * saves the original-text roll, and the preview says in one line why. No fixed-artwork choice is
+ * offered for credits that can be styled: the artwork roll moves only the Credits layer's own
+ * text, so for separate role and name layers it would half-scroll (#1958).
  *
- * NO COLUMN CHOICE YET. Only role beside can be read both ways (`CreditsChoice`), and the styled
- * engine does not render role beside yet, so a select here would change nothing built: it comes
- * with role beside (jev-svg-import row 20, #1937).
+ * ONE COLUMN CHOICE. Only role beside can be read both ways (`CreditsChoice`); where it can, the
+ * author answers which column holds the roles. The answer changes the preview and the saved
+ * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
  */
-function CreditsListPreview({ stage, layers, creditsId, measured, saved, onStyled }: {
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, onPatch }: {
   stage: RefObject<HTMLDivElement | null>;
   layers: SvgImportResult['candidates'];
   creditsId: string;
   /** Changes whenever the step's render was measured again (a font landed, a new file). */
   measured: unknown;
-  /** The styled binding the draft holds now, and how to replace it. */
+  /** What the draft holds now - the styled binding, the pick it was read for, the column answer -
+   *  and how to change it. */
   saved: DesignSvgCredits | undefined;
-  onStyled: (credits: DesignSvgCredits | undefined) => void;
+  savedFor: string | undefined;
+  swap: boolean;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap'>) => void;
 }) {
   // The parent passes a fresh list every render; the ids are what the reading depends on.
   const idKey = layers.map((c) => c.id).join('\n');
-  const shown = useMemo(() => {
+  const readings = useMemo(() => {
     const root = stage.current?.querySelector('svg');
-    return root ? creditsPreview(root, idKey.split('\n'), creditsId) : null;
+    if (!root) return null;
+    const ids = idKey.split('\n');
+    const read = creditsPreview(root, ids, creditsId);
+    return { read, swapped: read.ambiguous ? creditsPreview(root, ids, creditsId, { swap: true }) : null };
     // `measured` stands for the stage's render, which a ref cannot announce.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, idKey, creditsId, measured]);
-  const styled: DesignSvgCredits | undefined = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll')
-    ? { v: 1, layout: shown.layout, playback: 'roll', anchors: shown.anchors }
+  // The question is asked only where an answer gives styled credits and the two answers read
+  // differently; a pick neither reading can style (a title) is the fallback either way.
+  const key = (p: CreditsPreview) => (p.styled ? JSON.stringify(p.anchors) : '');
+  const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled) && key(readings.read) !== key(readings.swapped);
+  const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
+  const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
+  const styled: DesignSvgCredits | undefined = reading
+    ? { v: 1, layout: reading.layout, playback: 'roll', anchors: reading.anchors }
     : undefined;
-  const wantKey = styled ? JSON.stringify(styled) : '';
-  const savedKey = saved ? JSON.stringify(saved) : '';
+  // A binding belongs to the pick it was read for, so the same anchors for another pick are new.
+  const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
+  const savedKey = saved ? `${savedFor} ${JSON.stringify(saved)}` : '';
   useEffect(() => {
-    if (shown && wantKey !== savedKey) onStyled(styled);
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined });
     // The keys stand for the two bindings; the callback is the parent's patch of this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shown, wantKey, savedKey]);
   if (!shown) return null;
   const beside = shown.styled && shown.layout === 'role-beside';
+  // The drawing's direction, not the shown reading's, so the labels stay put whichever works.
+  const rtl = readings?.read.rtl ?? false;
   return (
-    <div className="save-field" data-testid="map-svg-credits-preview" data-layout={shown.styled ? shown.layout : 'list'}>
-      <span>Credits preview</span>
-      <div dir={shown.styled && shown.rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
-        {shown.list.map((section, at) => (
-          <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
-            {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
-          </div>
-        ))}
+    <>
+      {asks && (
+        <label className="save-field">
+          <span>Which column contains the roles?</span>
+          <select value={swap ? 'other' : 'first'} onChange={(e) => onPatch({ creditsSwap: e.target.value === 'other' ? true : undefined })} data-testid="map-svg-credits-roles">
+            <option value="first">{rtl ? 'Right' : 'Left'}</option>
+            <option value="other">{rtl ? 'Left' : 'Right'}</option>
+          </select>
+        </label>
+      )}
+      <div className="save-field" data-testid="map-svg-credits-preview" data-layout={shown.styled ? shown.layout : 'list'}>
+        <span>Credits preview</span>
+        <div dir={rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
+          {shown.list.map((section, at) => (
+            <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
+              {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
+            </div>
+          ))}
+        </div>
+        {!shown.styled && <p className="hint" data-testid="map-svg-credits-fallback">Fixed artwork: {shown.reason}</p>}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -1287,7 +1317,9 @@ export default function BehaviourSection({
                   creditsId={generic.fields.credits}
                   measured={layerBoxes}
                   saved={generic.credits}
-                  onStyled={(credits) => patchGeneric({ credits })}
+                  savedFor={generic.creditsFor}
+                  swap={!!generic.creditsSwap}
+                  onPatch={patchGeneric}
                 />
               )}
             </>
