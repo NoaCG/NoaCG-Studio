@@ -33,7 +33,7 @@ suite is not assumed to speed up merging.
   genuinely related documentation-only changes are bundled.
 - Long audit and observation windows are tracked explicitly; pending goals are never labelled
   complete.
-- Phases cf07, cf09, cf05, cf08 and cf14 carry owner dates: each phase's date is the earliest repair
+- Phases cf07, cf09, cf08, cf05 and cf14 carry owner dates: each phase's date is the earliest repair
   due or expiry date in its issues (cf07: #1805, 2026-11-11; cf09: #1953, 2026-11-13 and 2026-11-16;
   cf05: the repair dates cf01(c) records for #1924 and #1603; cf08: #1954, 2026-11-14; cf14: #1863,
   2026-11-30). If a dated phase
@@ -60,8 +60,8 @@ or did not reduce total turnaround.
 1. [cf01] Route alarms and incidents to the accepted owner, and keep one incident record per quarantined spec (#1951, #1907, #1945).
 2. [cf07] Fix the late-send-abandoned flake (#1805).
 3. [cf09] Settle the offline tier exceptions (#1953).
-4. [cf05] Fix the production-chat-intake and production-data flakes (#1924, #1603).
-5. [cf08] Track and exercise the SVG import incidents (#1954, #1926, #1834).
+4. [cf08] Track and exercise the SVG import incidents (#1954, #1926, #1834).
+5. [cf05] Fix the production-chat-intake and production-data flakes (#1924, #1603).
 6. [cf04] Isolate configured backend stacks (#1865, #1829).
 7. [cf06] Fix the production-controls flakes (#1946, #1778).
 8. [cf03] Baseline merge turnaround, cost and flake waste.
@@ -88,13 +88,15 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   alarm counts), is observed reaching `miwco`, with its receipt. The alarm is raised by the workflow's own token
   (not `miwco`'s), and the receipt is either the notification thread in `miwco`'s GitHub
   notifications or the owner's confirmation on #1951; #1951 closes only after that. The coordinator asks the owner for the receipt on #1951 in the
-  same turn the test alarm is raised.
+  same turn the test alarm is raised. If the receipt has not arrived 48 hours after it is asked
+  for, cf01 PASSES on (a), (c) and the raised alarm; #1951 stays open with delivery unverified,
+  the weekly owner session asks again, and cf20 reports alarm delivery as open.
   (c) Before cf01 closes, each quarantined spec in `e2e/quarantine.json` has one open incident
   issue carrying owner, impact, repair date and restoration criteria, coordinated with its existing
   owner. Issues that overlap #1924, #1946, #1603, #1778, #1805, #1874 or #1954 are merged or cross-linked
   so each spec has exactly one tracking issue. Each incident issue records whether the spec is a
   critical test and how many merge failures it caused; a critical spec's repair date is no later
-  than any non-critical one's.
+  than any non-critical one's. Every repair date it sets is no later than 2026-11-30.
 - **cf02.** (a) `.agent-workflows/plan-run.md` says to archive a phase's builder, repairer,
   checker, diagnose and review sessions once its result and required handoff evidence are
   recorded, without disrupting active work (on main since 78c1cd8); the checker confirms the text
@@ -191,13 +193,18 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   no regression in M2 waiting time, M2 execution time or M4. The before side of each comparison is
   the merges after the last earlier landing that changed CI (this run's or any other: workflows, e2e selection
   or quarantine scripts, `covers` metadata) landed and before the candidate lands;
-  cf03's baseline is not the before side. If no candidate improves beyond that spread, the phase records the result,
+  cf03's baseline is not the before side. The after side is the merges after the candidate lands
+  and before the next landing that changes CI. If either side cannot reach cf03's minimum sample
+  size within 7 days of the candidate's start, the candidate is recorded as unmeasured with the
+  sample sizes it reached, counts toward the three, and goes to cf20(c). If no candidate improves beyond that spread, the phase records the result,
   reverts or keeps the change on cost grounds with its reason, and moves to the next ranked
   candidate. Candidates are tried in ranked order, at most three; untried candidates go to cf20(c)
   as measured next steps. It does not PASS on landing alone. If every tried candidate (at most three) has failed to show an
   improvement beyond the spread, the phase PASSES with that negative result recorded, the speed goal
   stays open, and cf20 reports it as open. (b) Obsolete PR runs are
-  cancelled where safe, with required merge and coverage verification preserved.
+  cancelled where safe: Actions history after the change shows superseded PR runs cancelled and no
+  merge-queue or exact-merge coverage run cancelled. If existing concurrency settings already do
+  this for every PR workflow, the phase cites those workflow lines and changes nothing.
 - **cf14.** (a) The graphics tier cost is paid down before 2026-11-30, prioritising measured waste
   and critical-path impact, or, only if the remaining work cannot safely finish by then and the
   reason is recorded, a short dated extension is recorded with current cost evidence, an owner and
