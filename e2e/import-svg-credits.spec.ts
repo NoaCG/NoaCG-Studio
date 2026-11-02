@@ -1048,26 +1048,31 @@ const CARD_LAYOUTS = [
   // last line; 540 tall, so one group of three names fills a card.
   { source: readFileSync(BESIDE_CREDITS_SVG, 'utf8'), role: 'Réalisation', top: 195, limit: 512.5, perCard: 1, cast: 15 },
 ];
+const LAYOUT_NAME = (layout: (typeof CARD_LAYOUTS)[number]) => (layout.role === 'Research' ? 'role above' : 'role beside');
+/** One layout built as cards (Next only, or with a card time), on a blank page, with its lists. */
+async function cardsPage(page: Page, layout: (typeof CARD_LAYOUTS)[number], advance?: number) {
+  await page.goto('/app');
+  const [build] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards', advance);
+  expect(build.engine, build.layout).toBe('styled');
+  await page.goto('/robots.txt');
+  await page.setContent(build.html);
+  const field = await page.evaluate(() => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor('credits', null));
+  const write = (list: string[]) => page.evaluate(({ field, list }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [field]: list }), { field, list: list.join('\n') });
+  const groups = [0, 1, 2, 3, 4].map((g) => names(`Role ${g + 1}:`, 3, 3 * g + 1));
+  const list = [...groups[0], '', ...groups.slice(1).flat()];
+  const expected = [groups[0]];
+  for (let g = 1; g < groups.length; g += layout.perCard) expected.push(groups.slice(g, g + layout.perCard).flat());
+  return { build, at: build.layout, write, groups, list, expected };
+}
 for (const layout of CARD_LAYOUTS) {
-  test(`styled credits as cards, ${layout.role === 'Research' ? 'role above' : 'role beside'}: page boundaries, whole groups, long cards, ordering, both advances and replay`, async ({ page }) => {
-    await page.goto('/app');
-    const [onNext] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards');
-    const [timed] = await buildRolls(page, layout.source, layout.role, 'styled', false, 'cards', 2);
-    const at = onNext.layout;
-    expect([onNext.engine, timed.engine], at).toEqual(['styled', 'styled']);
+  test(`styled credits as cards, ${LAYOUT_NAME(layout)}: page boundaries, whole groups, long cards, ordering, Next card and replay`, async ({ page }) => {
+    const { build: onNext, at, write, groups, list, expected } = await cardsPage(page, layout);
     expect(onNext.js, at).not.toContain('gsap.fromTo(roll');
-    await page.goto('/robots.txt');
-    await page.setContent(onNext.html);
     const { field } = await stillPage(page);
-    const write = (list: string[]) => page.evaluate(({ field, list }) => (window as unknown as { update(d: Record<string, string>): void }).update({ [field]: list }), { field, list: list.join('\n') });
 
     // PAGE BOUNDARIES: a blank line starts a new card; within one, whole groups fill each card.
-    const groups = [0, 1, 2, 3, 4].map((g) => names(`Role ${g + 1}:`, 3, 3 * g + 1));
-    const list = [...groups[0], '', ...groups.slice(1).flat()];
     await write(list);
     const rest = await cardsState(page);
-    const expected = [groups[0]];
-    for (let g = 1; g < groups.length; g += layout.perCard) expected.push(groups.slice(g, g + layout.perCard).flat());
     expect(rest.cards.map((c) => c.rows), `${at}: dealt ${JSON.stringify(rest.cards)}`).toEqual(expected.map((c) => c.length));
     // Off air the first card is shown.
     expect([rest.card, rest.shown, rest.tween], at).toEqual([-1, 0, false]);
@@ -1138,9 +1143,11 @@ for (const layout of CARD_LAYOUTS) {
     await write(list);
     expect((await cardsState(page)).over, `${at}: the report clears`).toEqual([]);
 
+  });
+
+  test(`styled credits as cards, ${LAYOUT_NAME(layout)}: the card time, Next during a timed card, and live updates on air`, async ({ page }) => {
+    const { at, write, groups, list, expected } = await cardsPage(page, layout, 2);
     // AUTOMATIC ADVANCE: the author's two seconds per card, and Next still skips ahead.
-    await page.goto('/robots.txt');
-    await page.setContent(timed.html);
     await write(list);
     await cardsDispatch(page, 'play');
     const started = Date.now();
