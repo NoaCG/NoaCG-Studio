@@ -114,6 +114,21 @@ save disabled the role-above walk fails (j-0003).
   artwork roll's markup does, and a test formats the built html with the app's options and finds
   the list intact (mutation: without the guard it fails). The editable roll has the same holder;
   its bytes are pinned here, so it is a follow-up (#1955).
+- Codex on `594313f` (2 x P2, family: the copies' look, rule "a row is painted as its source
+  layer"; class: product defect, both):
+  - a translucent group's opacity was applied to the row and again to its run, compounding;
+  - a look set through the layer's id was lost, because a copy carries no id.
+  The look is now always the page's resolved values of the run that paints the first character,
+  for the row and that run, and opacity and underline act on the row only. Test `idGroup`
+  (id-selected bold gold role, names in a 0.5 group) fails on either old rule.
+- `/so` on `594313f` (session `session_017SdbwQQfzUDXPix2f3geEt`, AGREE WITH CORRECTIONS, B+):
+  blocking point 1 was the Factory gates failure above, already corrected at the root in `ddbc5c6`
+  without the test edit it proposed (no assertion changed). Its points 2 to 6 are documented limits.
+- Build on `594313f` failed `e2e-affected` "the Import-graphic folder plans the import road":
+  naming `MapSvgFieldsStep.tsx` in this spec's covers header added it to that folder's pinned
+  plan. That planner list is CI selection, owned by the cicd-improvement run, so the header no
+  longer names the file; the spec still runs for `draft.ts` and `BehaviourSection.tsx`, which
+  drive the same checklist line.
 
 ## Decisions
 

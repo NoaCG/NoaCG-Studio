@@ -4,7 +4,7 @@
 // pace was set by (about thirty seconds), rolled from Illustrator's own output.
 // covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,creditsArtwork,artworkFields,svg,svgBind}.ts,endCredits/shared.ts}
 // covers: e2e/fixtures/{credits-roll,credits-artwork}.svg, e2e/fixtures/jev-svg/dev/{credits-1,credits-2}.svg
-// covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx,MapSvgFieldsStep.tsx}
+// covers: src/components/wizard/import/{draft.ts,BehaviourSection.tsx}
 // covers: src/components/wizard/draft/template.ts, src/blocks/motionPresets.ts
 // covers: src/components/home/CueActions.tsx
 

@@ -84,6 +84,9 @@ const CASES = {
 const STYLED_CASES = {
   bold: svg(`<style>.r{font-weight:700;fill:#fc0}</style>${t(500, 100, 24, 'Director', ' class="r" text-anchor="middle"')}${t(500, 160, 40, 'Alex Rivera', ' text-anchor="middle"')}${t(500, 210, 40, 'Ida Lake', ' text-anchor="middle"')}${t(500, 330, 24, 'Sound', ' class="r" text-anchor="middle"')}${t(500, 390, 40, 'Ari Moss', ' text-anchor="middle"')}`),
   grouped: svg(`${t(100, 100, 24, 'Director', ' fill="#fc0"')}<g fill="#9cf" opacity="0.5" font-style="italic">${t(100, 160, 40, 'Alex Rivera')}${t(100, 210, 40, 'Ida Lake')}</g>`),
+  // Styles set through the layers' ids (a copy has none), and names whose runs sit in a translucent
+  // group: the group's opacity is the row's once, never again on its run.
+  idGroup: svg(`<style>#rl{fill:#fc0;font-weight:700}</style><text id="rl" x="100" y="100" font-size="24"><tspan>Director</tspan></text><g opacity="0.5"><text x="100" y="160" font-size="40"><tspan>Alex Rivera</tspan></text><text x="100" y="210" font-size="40"><tspan>Ida Lake</tspan></text></g>`),
   // The first role in a translucent group of its own: names built beside it must not take it.
   roleGroup: svg(`<g opacity="0.5">${t(100, 100, 24, 'Director', ' fill="#fc0"')}</g>${t(100, 160, 40, 'Alex Rivera')}${t(100, 210, 40, 'Ida Lake')}`),
   // Loose characters painted before the first run take the text's look, not the run's.
@@ -349,6 +352,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     bold: styledOf(cases.bold, 'Director'),
     grouped: styledOf(cases.grouped, 'Director'),
     roleGroup: styledOf(cases.roleGroup, 'Director'),
+    idGroup: styledOf(cases.idGroup, 'Director'),
   };
   // What does NOT build styled: a playback or layout no row renders yet, and a stale binding.
   const notYet = (credits) => C.creditsEngine({ ...binding(credits) });
@@ -642,7 +646,7 @@ test('the model spells layout and playback as the proposal contract does', () =>
 // ── Row 19: role-above credits rendered in the artwork's own styling ─────────────────────────
 
 const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
-const ROLE_ABOVE = ['one', 'bold', 'grouped', 'roleGroup'];
+const ROLE_ABOVE = ['one', 'bold', 'grouped', 'roleGroup', 'idGroup'];
 
 test('row 19: a role-above binding builds the styled engine, one Credits field holding the drawn list', () => {
   for (const k of ROLE_ABOVE) {
@@ -688,6 +692,12 @@ test('row 19: bold roles, and names drawn in a group of their own, keep their lo
   ], 'the group\'s fill, italic and opacity travel with the names');
   const roleGroup = R.styled.roleGroup.played.atRest.rows;
   assert.deepEqual(roleGroup.map((r) => r.look.opacity), [0.5, 1, 1], 'a role\'s own group stays its own');
+  const idGroup = R.styled.idGroup.played.atRest.rows;
+  assert.deepEqual(idGroup.map((r) => [r.look.fill, r.look.weight, r.look.opacity]), [
+    ['rgb(255, 204, 0)', '700', 1],
+    ['rgb(255, 255, 255)', '400', 0.5],
+    ['rgb(255, 255, 255)', '400', 0.5],
+  ], 'an id-selected look reaches the copies, and a group\'s opacity applies once');
 });
 
 test('row 19: repeated roles and names follow the sample\'s spacing', () => {

@@ -742,24 +742,29 @@ function creditsCopy(source, words) {
   return { row: row, run: first ? first.parentNode : row };
 }
 
-// creditsLookOf(source, container): what a copy placed in the shared group would lose when its
-// source sits in a group of its own: the inherited look, and the opacity of the groups between.
-// Empty when the source is drawn straight in the shared group, which is how layers usually are.
+// creditsLookOf(source, container): the drawn layer's look as the page resolved it, for its
+// copies. A copy carries no id and sits in the shared group, so a style set through the layer's id
+// or through a group of its own would not reach it: the painting properties of the run that paints
+// the first character (for the row and that run alike), and what acts on the whole layer from its
+// own element and groups (opacity multiplied, an underline drawn through), for the row only.
 function creditsLookOf(source, container) {
-  if (source.parentNode === container) return '';
   var first = creditsFirstText(source);
   var cs = getComputedStyle(first ? first.parentNode : source);
   var props = ['font-family', 'font-size', 'font-weight', 'font-style', 'fill', 'fill-opacity', 'stroke', 'stroke-opacity', 'stroke-width', 'letter-spacing', 'text-transform', 'direction'];
-  var out = [];
-  for (var i = 0; i < props.length; i++) out.push(props[i] + ':' + cs.getPropertyValue(props[i]));
-  var opacity = parseFloat(getComputedStyle(source).opacity);
-  if (!isFinite(opacity)) opacity = 1;
-  for (var el = source.parentNode; el && el !== container; el = el.parentNode) {
-    var v = parseFloat(getComputedStyle(el).opacity);
+  var paint = [];
+  for (var i = 0; i < props.length; i++) paint.push(props[i] + ':' + cs.getPropertyValue(props[i]));
+  var opacity = 1;
+  var lines = [];
+  for (var el = source; el && el !== container; el = el.parentNode) {
+    var own = getComputedStyle(el);
+    var v = parseFloat(own.opacity);
     if (isFinite(v)) opacity *= v;
+    var line = own.getPropertyValue('text-decoration-line');
+    if (line && line !== 'none' && lines.indexOf(line) < 0) lines.push(line);
   }
-  if (opacity < 1) out.push('opacity:' + opacity);
-  return out.join(';');
+  var whole = ['opacity:' + opacity];
+  if (lines.length) whole.push('text-decoration-line:' + lines.join(' '));
+  return { paint: paint.join(';'), whole: whole.join(';') };
 }
 
 // creditsShared(anchors): the nearest group holding every source layer - the rows are built in
@@ -833,7 +838,7 @@ function creditsRender() {
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);
   var S = NOACG_CREDITS_STYLE;
-  // One look rule per kind: what a copy outside its source's group needs, and the shared edge.
+  // One look rule per kind, and the shared edge every row is anchored on.
   var sel = '.${cls}-rows > .${cls}-row';
   var base = '';
   var kinds = ['role', 'name'];
@@ -844,7 +849,8 @@ function creditsRender() {
     if (!frames[kind]) return null;
     var look = creditsLookOf(sources[kind], container);
     var where = sel + '[data-noacg-credits="' + kind + '"]';
-    base += where + ', ' + where + ' [data-noacg-run] {' + (look ? look + ';' : '') + 'text-anchor:' + S.align + ' !important}\\n';
+    base += where + ' {' + look.paint + ';' + look.whole + ';text-anchor:' + S.align + ' !important}\\n';
+    base += where + ' [data-noacg-run] {' + look.paint + ';text-anchor:' + S.align + ' !important}\\n';
   }
   noacgCreditsSheet.textContent = base;
   // FIRST PASS: every row, spaced as drawn, appended at once.
