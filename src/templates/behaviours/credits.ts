@@ -68,7 +68,7 @@ function cardsMachine(): TypeMachine {
 export const creditsRecipe: BehaviourRecipe = {
   id: CREDITS_RECIPE_ID,
   name: 'Credits roll',
-  description: 'Your original text scrolls from below the frame until it clears the top on Take.',
+  description: 'An editable list of roles and names in the look you drew; it rolls, holds still or plays as cards.',
   category: 'end-credits',
   defaultZone: 'mid-center',
   roles: rolesOf(CREDITS_RECIPE_ID),

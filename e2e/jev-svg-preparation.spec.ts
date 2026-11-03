@@ -225,6 +225,8 @@ test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async 
 test('credits are one choice: the list is picked, previewed and editable', async ({ page }) => {
   await page.goto('/app');
   await dropSvg(page, dev('credits-1'));
+  // The choice says what credits now are, not only the fixed-artwork roll (#2001).
+  await expect(page.getByTestId('map-svg-behaviour-kind').locator('option[value="credits"]')).toContainText('An editable list of roles and names');
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   // Six text layers: the title reads as no list, so the first role is picked for the author.
   const preview = page.getByTestId('map-svg-credits-preview');
