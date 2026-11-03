@@ -119,8 +119,9 @@ Files are in `e2e/fixtures/jev-svg/dev/`. Import graphic, drop the file, then:
 
 - `e2e/jev-svg-preparation.spec.ts` through the job queue: 11 of 11 (six new or extended walks,
   five unchanged).
-- Mutations: see the PR body.
-- `npx tsc --noEmit` and eslint on the changed files: clean.
+- Mutations, through the job queue, each failing a walk on a real assertion: no credits pre-pick (the preview is missing), no clock summary part ("it just comes on and off"), the credits line ignoring Plays as (still reads Scroll speed).
+- `e2e/import-svg-credits.spec.ts`, `import-svg-behaviour.spec.ts`, `imported-credits-live-data.spec.ts` and `import-svg.spec.ts`: 138 of 139; the one failure was the known #1988 timing bound (`import-svg-credits.spec.ts:1183`, 5003 ms against 5000), which passed alone on the same tree. After the review fix, the row spec and the credits spec again: 32 of 32.
+- `npx tsc --noEmit` and eslint on the changed files: clean. `check-e2e-protection`: OK.
 
 ## Traps
 

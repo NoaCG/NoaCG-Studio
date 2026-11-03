@@ -25,6 +25,7 @@ import {
   svgClockRows,
   svgClockTarget,
   svgCountdownDrawn,
+  styledCreditsOf,
 } from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
@@ -272,8 +273,6 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
   );
 }
 
-/** One heading, role group or loose name. Beside, a role and its first name share a line and
- *  later names stay in the name column; above, the names follow under their role. */
 /** Whether picking `creditsId` as Credits gives the editable list in the drawn styling, read as
  *  the preview reads it (either column answer counts). */
 function readsAsStyledList(root: Element, ids: readonly string[], creditsId: string): boolean {
@@ -284,12 +283,16 @@ function readsAsStyledList(root: Element, ids: readonly string[], creditsId: str
 
 /** What the operator gets for credits, for the author's Show as and Plays as answers (#2001). */
 function creditsButtons(b: SvgRecipeDraft): string {
-  if (!b.credits || b.creditsArtwork) return 'Scroll speed (%)';
-  if (b.credits.playback === 'static') return 'the list to edit';
-  if (b.credits.playback === 'cards') return 'the list to edit, Card time (s) and Next card';
+  // The binding the saved graphic will carry, by the draft's own rule: none means fixed artwork.
+  const styled = styledCreditsOf(b);
+  if (!styled || b.creditsArtwork) return 'Scroll speed (%)';
+  if (styled.playback === 'static') return 'the list to edit';
+  if (styled.playback === 'cards') return 'the list to edit, Card time (s) and Next card';
   return 'the list to edit and Scroll speed (%)';
 }
 
+/** One heading, role group or loose name. Beside, a role and its first name share a line and
+ *  later names stay in the name column; above, the names follow under their role. */
 function CreditsPreviewItem({ item, beside, first }: { item: CreditsListItem; beside: boolean; first: boolean }) {
   const whole = { gridColumn: '1 / -1' };
   if (item.type === 'heading') return <strong style={whole} data-credit="heading">{item.text}</strong>;
