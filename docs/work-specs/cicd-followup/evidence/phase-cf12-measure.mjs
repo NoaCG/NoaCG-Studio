@@ -19,7 +19,9 @@
 //
 // A change's added minutes are the sum over its runs (superseded and failed runs included: they
 // were paid for). The change is a product change when any of its runs printed the notice. The verdict
-// waits for MIN_N product changes and judges their mean against the 22.5-minute ceiling. Each pass
+// waits for a complete pass and MIN_N product changes, and judges their mean against the 22.5-minute
+// ceiling. Not counted: the E2E retry job, which re-runs only failed specs on merge groups (a
+// flaky journey's second run there is a flake cost, M4, not this rule's per-change cost). Each pass
 // makes at most --max-calls API calls and caches every read of a completed run, so repeat it until
 // it prints "complete". Reads metadata and annotations only, no logs. Prints JSON.
 import { execFileSync } from 'node:child_process';
@@ -137,7 +139,8 @@ try {
   }
   for (const pr of pulls.sort((a, b) => a.merged_at.localeCompare(b.merged_at))) {
     const branch = encodeURIComponent(pr.head.ref);
-    const mine = api(`${REPO}/actions/workflows/ci.yml/runs?branch=${branch}&event=pull_request&per_page=100`, { immutable: true }).workflow_runs
+    // Not cached: a run still in progress at one pass must be read again at the next.
+    const mine = api(`${REPO}/actions/workflows/ci.yml/runs?branch=${branch}&event=pull_request&per_page=100`).workflow_runs
       .filter((r) => r.created_at > SINCE && r.created_at <= pr.merged_at);
     const groups = groupRuns.filter((r) => r.head_branch?.includes(`/pr-${pr.number}-`) && r.created_at > SINCE && r.created_at <= pr.merged_at);
     const runs = [];
@@ -162,8 +165,10 @@ result.max = per.length ? Math.max(...per) : null;
 result.minN = MIN_N;
 // Whether the plan job's notice was seen at all: n 0 with no notice is a broken pipe, not a cheap rule.
 result.noticeRuns = result.changes.reduce((s, c) => s + c.runs.length, 0);
-result.underCeiling = per.length < MIN_N ? null : result.mean <= CEILING;
-if (per.length < MIN_N) result.verdict = `not yet: ${per.length} of ${MIN_N} product changes measured`;
+// No verdict from a partial pass: the budget can stop before the newest changes are read.
+result.underCeiling = !result.complete || per.length < MIN_N ? null : result.mean <= CEILING;
+if (!result.complete) result.verdict = `not yet: collection incomplete (${per.length} changes so far); run again`;
+else if (per.length < MIN_N) result.verdict = `not yet: ${per.length} of ${MIN_N} product changes measured`;
 else result.verdict = result.underCeiling ? `under the ${CEILING}-minute ceiling` : `OVER the ${CEILING}-minute ceiling: revert the rule and tell the owner`;
 console.log(JSON.stringify(result, null, 1));
 console.error(result.complete ? 'complete' : `stopped at ${calls} calls; run again to continue`);

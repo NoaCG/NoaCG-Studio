@@ -34,7 +34,7 @@ Acceptance, verbatim:
 - **Measured after enabling:** not yet possible. The rule has to land before a product change can
   run it. `phase-cf12-measure.mjs` measures it from each run's own annotation and job times
   (section 3.3). The verdict waits for at least 12 product changes, and is read no later than
-  2026-11-17, by the plan-run coordinator. This phase's result states n and the mean. If the mean goes over 22.5, the rule
+  14 days after enabling (2026-11-17 at the latest if it lands today), by the plan-run coordinator. This phase's result states n and the mean. If the mean goes over 22.5, the rule
   is reverted (one commit) and the owner is told, as (a) requires.
 - **(b) The 2-of-6 result** (section 4): the critical set is a smoke layer over each contract's
   main road. It caught F1 and F8, the two faults on that road. It missed F2 to F5, which sit on
@@ -145,15 +145,19 @@ the `Critical journeys` notice is a product-change run. Its added minutes are:
 
 A change's figure is the sum over its runs and each run's attempts, superseded, failed and re-run work included. A re-run attempt's copied jobs are counted once, as cf03 does, and an attempt that re-ran only some shards pays the extra setup in proportion (Codex review on `a124b3dc`). The phase result
 states n, the mean and the median against 22.5. It was checked against the hour before enabling,
-where no run carries the notice: `n 0`, 20 calls.
+where no run carries the notice: `n 0`, 20 calls. The verdict also waits for a complete pass: when
+the call budget stops a pass early, it prints `not yet: collection incomplete` (checked with
+`--max-calls 2`; Codex review on `45f3fc62`). The PR-run lists are read fresh on every pass, so a run
+still in progress is read again later. The E2E retry job is not counted: it re-runs only failed
+specs on merge groups, which is a flake cost (M4), not this rule's per-change cost.
 
 **When, how many, and who.**
 
 - **Sample size.** The verdict waits for at least **12 product changes** measured after enabling.
   That is cf03's minimum sample per side for an M3 median (section 5.1). Below 12 the script prints
   `not yet` and judges nothing.
-- **When.** The measurement is read once 12 changes exist, and no later than **2026-11-17**, 14
-  days after enabling. If fewer than 12 product changes have landed by that date, the result
+- **When.** The measurement is read once 12 changes exist, and no later than 14 days after the
+  enabling merge (**2026-11-17** if it lands on 2026-11-03; the 14 days govern if landing slips). If fewer than 12 product changes have landed by that date, the result
   records the n reached and its mean. It is judged on that mean and says plainly that the sample
   is short.
 - **Who.** The cicd-followup plan-run coordinator runs it. It is a checker step of this phase, and
