@@ -28,23 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "phase 28 checker session_017SdbwN4CtSirkyhAdaF43T",
-  "inFlight": [
-    {
-      "phase": 28,
-      "role": "check",
-      "pr": 1993,
-      "mergeSha": "5dbc3f642c7cb848cdb15665e04a75b6945bfdb6",
-      "checker": "session_017SdbwN4CtSirkyhAdaF43T",
-      "nonce": "28-c-58e4",
-      "builder": "session_017SdbwLcpdhoLX7EuHQsuSL",
-      "soSessions": [
-        "session_017SdbwNtuKLcq5LiF3wVJNQ",
-        "session_017SdbwNnYqBAeFWfHjTHGQW",
-        "session_017SdbwP8Lx9uikw6oLzXoTu",
-        "session_017SdbwRLBe7r3vbj71Ewh8A"
-      ]
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -194,7 +178,8 @@
     "24",
     "25",
     "26",
-    "27"
+    "27",
+    "28"
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
