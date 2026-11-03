@@ -31,6 +31,11 @@ import {
   expectedFor,
   fetchConfiguration,
   freezeManifest,
+  readerGraph,
+  checkChain,
+  frozenRecord,
+  isBaseline,
+  VISION_BASELINE_MODEL,
   ledgerSpent,
   loadServer,
   mapRegionsToLayers,
@@ -83,6 +88,7 @@ test('M1: anything outside the closed schema refuses the whole file', () => {
     'candidate-keys': withConfig((c) => { c.candidates[3].url = 'http://x'; }),
     'primary-not-preregistered': withConfig((c) => { c.primary = 'haiku'; }),
     threshold: withConfig((c) => { c.threshold = 1; }),
+    'deterministic-id': withConfig((c) => { c.candidates[0].id = 'baseline'; }),
   };
   for (const [reason, text] of Object.entries(cases)) {
     assert.deepEqual(validateConfiguration(text), { ok: false, reason }, reason);
@@ -92,6 +98,8 @@ test('M1: anything outside the closed schema refuses the whole file', () => {
     const text = withConfig((c) => edit(c.candidates.find((x) => x.id === PRIMARY.id)));
     assert.equal(validateConfiguration(text).reason, 'primary-not-preregistered');
   }
+  // No model arm may take the baseline's id.
+  assert.equal(validateConfiguration(withConfig((c) => { c.candidates[0].id = 'det'; c.candidates[3].id = 'deterministic'; })).reason, 'deterministic-id');
   // A kind that does not match its route: a decision model sent through chat completions.
   assert.equal(validateConfiguration(withConfig((c) => { c.candidates[3].kind = 'chat'; delete c.candidates[3].preview; })).reason, 'route-not-admitted');
 });
@@ -148,14 +156,18 @@ test('M2: the configuration is read from one resolved commit by git plumbing; th
 
 // ---- M3: frozen scoring and primary ----
 
-test('M3: the freeze manifest hashes every source that decides a result, and moves with any of them', () => {
-  const m = freezeManifest();
-  for (const rel of ['scripts/jev-svg-eval.mjs', 'src/ai/svgInterpretation/questions.ts', 'api/_lib/aiDecisionGateway.ts', '.github/workflows/jev-svg-eval.yml']) {
+test('M3: the freeze manifest hashes every source that decides a result, the reader\'s graph included, and moves with any of them', async () => {
+  const graph = await readerGraph();
+  for (const rel of ['src/assets/svgImport.ts', 'src/components/wizard/import/draft.ts', 'src/ai/svgInterpretation/evidence.ts']) assert.ok(graph.includes(rel), rel);
+  const m = freezeManifest(undefined, graph);
+  for (const rel of ['scripts/jev-svg-eval.mjs', 'src/ai/svgInterpretation/questions.ts', 'api/_lib/aiDecisionGateway.ts', '.github/workflows/jev-svg-eval.yml', 'scripts/svg-import-passes.test.mjs', 'src/assets/svgImport.ts', 'src/components/wizard/import/draft.ts']) {
     assert.match(m.files[rel], /^[0-9a-f]{64}$/, rel);
   }
   assert.deepEqual(m.primary, PRIMARY);
-  const moved = freezeManifest((rel) => (rel === 'scripts/jev-svg-eval.mjs' ? Buffer.from('tuned') : readFileSync(root(rel))));
-  assert.notEqual(moved.sha256, m.sha256);
+  for (const changed of ['scripts/jev-svg-eval.mjs', 'src/components/wizard/import/draft.ts']) {
+    const moved = freezeManifest((rel) => (rel === changed ? Buffer.from('tuned') : readFileSync(root(rel))), graph);
+    assert.notEqual(moved.sha256, m.sha256, changed);
+  }
 });
 
 test('M3: the harness price snapshot equals the server audited decision prices', () => {
@@ -270,11 +282,11 @@ test('M8: a missing receipt, an unsettled or over-bound batch, or an unknown cha
 test('M9: settled costs: the closing reading waits for two equal readings that already show the reported spend', async () => {
   const readings = [credits(6.9, 48.1), credits(6.8, 48.2), credits(6.8, 48.2)];
   let i = 0;
-  const s = await settledCredits(async () => readings[Math.min(i++, readings.length - 1)], { before: credits(6.9, 48.1), reportedUsd: 0.1, sleep: async () => {} });
+  const s = await settledCredits(async () => readings[Math.min(i++, readings.length - 1)], { before: credits(6.9, 48.1), knownUsd: 0.1, sleep: async () => {} });
   assert.equal(s.stable, true);
   assert.deepEqual(s.credits, credits(6.8, 48.2));
   // The balance never shows the reported spend: unsettled after the bounded tries.
-  const lag = await settledCredits(async () => credits(6.9, 48.1), { before: credits(6.9, 48.1), reportedUsd: 0.1, tries: 3, sleep: async () => {} });
+  const lag = await settledCredits(async () => credits(6.9, 48.1), { before: credits(6.9, 48.1), knownUsd: 0.1, tries: 3, sleep: async () => {} });
   assert.equal(lag.stable, false);
   const failing = await settledCredits(async () => { throw new Error('down'); }, { tries: 2, sleep: async () => {} });
   assert.deepEqual(failing, { credits: null, stable: false });
@@ -506,7 +518,12 @@ test('M12: the decision rule: limited go names only qualifying families; any har
   const invalid = good.map((r) => (r.design === 'a1' ? { ...r, score: { ...r.score, invalidRefs: 1 } } : r));
   assert.equal(decide([...det, ...invalid]).verdict, 'no-go');
   assert.deepEqual(decide([...det, ...good.map((r) => ({ ...r, fellBack: 'unavailable' }))]).reasons, ['primary-unusable']);
+  // One primary answer that never came (here: never admitted) leaves the run incomplete.
+  const partial = good.map((r) => (r.design === 'c1' ? { ...r, fellBack: 'not-admitted' } : r));
+  assert.deepEqual(decide([...det, ...partial]).reasons, ['primary-incomplete:c1']);
   assert.deepEqual(decide([...det, ...det.map((r) => ({ ...r, arm: PRIMARY.id }))]).reasons, ['no-family-qualifies']);
+  // A run metering stopped is no go, whatever its completed rows show.
+  assert.deepEqual(decide([...det, ...good], PRIMARY.id, 'jev-structured: partition-cap'), { verdict: 'no-go', families: [], reasons: ['evaluation-stopped:jev-structured: partition-cap'] });
 });
 
 test('M12: the image task\'s rectangles map onto SVG text layers by overlap; what it cannot express is reported', () => {
@@ -601,10 +618,15 @@ test('workflow: manual, main only, one non-cancelling group, the protected envir
   assert.match(yml, /retention-days: 90/);
   // One receipt chain: the newest ledger run, or a first baseline only when none exists; a dry
   // run's ledger is uploaded under another name.
-  const chain = yml.slice(yml.indexOf('- name: Fetch the previous ledger'), yml.indexOf('- name: Decode the sealed holdout'));
+  const chain = yml.slice(yml.indexOf('- name: Check the receipt chain'), yml.indexOf('- name: Decode the sealed holdout'));
   assert.match(chain, /if: inputs\.mode != 'dry-run'/);
-  assert.match(chain, /receipts_run_id must be the newest ledger's run/);
-  assert.match(chain, /the baseline is never reset/);
+  assert.match(chain, /node scripts\/jev-svg-eval\.mjs chain /);
+  assert.match(chain, /"Run the harness"/);
+  assert.match(yml, /^run-name: Jev SVG evaluation \(\$\{\{ inputs\.mode \}\}\)$/m);
+  // The harness step keeps the name the chain check looks for.
+  assert.match(yml, /- name: Run the harness\n/);
+  // The holdout's frozen hashes come from the ledger, never from a typed input.
+  assert.doesNotMatch(yml, /frozen_config_sha256|frozen_manifest_sha256/);
   assert.match(yml, /inputs\.mode == 'dry-run' && 'jev-svg-eval-dry-run-ledger' \|\| 'jev-svg-eval-ledger'/);
 });
 
@@ -647,4 +669,52 @@ test('every admitted route is priced, and each attempt\'s ceiling is positive', 
   assert.equal(attemptCeilingUsd('unknown/model', { bytes: 1, outputTokens: 1 }), null);
   assert.equal(CAP.totalUsd, 5);
   assert.deepEqual(CAP.partitionUsd, { development: 2, holdout: 3 });
+});
+
+// ---- M13: one receipt chain across runs ----
+
+test('M13: a paid run continues only the newest ledger; a lost run blocks paid work until a reconcile names it', () => {
+  const run = (id, mode, hasLedger, harnessStarted = true) => ({ id: String(id), mode, hasLedger, harnessStarted });
+  // Newest first.
+  const chain = [run(9, 'dry-run', false), run(8, 'development', true), run(7, 'reconcile', true), run(6, 'development', true)];
+  assert.deepEqual(checkChain(chain, { mode: 'development', receiptsRunId: '8' }), { ok: true });
+  assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '6' }).reason, 'not-newest-ledger:8');
+  assert.equal(checkChain(chain, { mode: 'holdout', establish: true }).reason, 'baseline-exists');
+  assert.deepEqual(checkChain([run(3, 'dry-run', false)], { mode: 'development', establish: true }), { ok: true });
+  assert.equal(checkChain([], { mode: 'development', receiptsRunId: '' }).reason, 'missing-baseline');
+  assert.deepEqual(checkChain([], { mode: 'dry-run' }), { ok: true });
+  // The very first paid run was lost: no ledger anywhere, but a baseline cannot be set again.
+  assert.equal(checkChain([run(1, 'development', false)], { mode: 'development', establish: true }).reason, 'baseline-exists');
+  // A paid run that never started its harness spent nothing and blocks nothing.
+  assert.equal(checkChain([run(2, 'development', false, false), run(1, 'development', true)], { mode: 'development', receiptsRunId: '1' }).ok, true);
+  // Lost after the newest ledger: refused until a reconcile names exactly the lost runs.
+  const lost = [run(11, 'holdout', false), run(10, 'development', false), ...chain];
+  assert.equal(checkChain(lost, { mode: 'development', receiptsRunId: '8' }).reason, 'missing-receipt:11,10');
+  assert.equal(checkChain(lost, { mode: 'reconcile', receiptsRunId: '8', lostRuns: ['10'] }).reason, 'missing-receipt:11,10');
+  assert.deepEqual(checkChain(lost, { mode: 'reconcile', receiptsRunId: '8', lostRuns: ['11', '10'] }), { ok: true });
+  // Once reconciled, that run's ledger is the newest and the lost runs lie behind it.
+  assert.deepEqual(checkChain([run(12, 'reconcile', true), ...lost], { mode: 'development', receiptsRunId: '12' }), { ok: true });
+});
+
+test('M13: reconciling a lost run charges the whole drop to its partition and counts its attempts', () => {
+  const { ledger, after } = appendClosed(newLedger({ credits: START, runId: '1', mainSha: null, manifest }), START, plan(req(1)), 0.01);
+  const now = credits(after.balance - 1.2, after.totalUsed + 1.2);
+  const r = reconcileLedger(ledger, now, { reason: 'runner lost; gateway shows 40 attempts', runId: '5', lost: { runs: ['4'], partition: 'development', attempts: 40 } });
+  const lostBatch = r.batches.at(-1);
+  assert.deepEqual([lostBatch.partition, lostBatch.attempts, lostBatch.reconciled], ['development', 40, true]);
+  assert.ok(Math.abs(lostBatch.settledUsd - 1.2) < 1e-9);
+  assert.equal(admitBatch(r, now, plan(req(1, 0.8)), { manifest }).reason, 'partition-cap');
+  assert.equal(admitBatch(r, now, plan(req(1, 0.7)), { manifest }).ok, true);
+  assert.throws(() => reconcileLedger(ledger, now, { reason: 'no partition given here', lost: { runs: ['4'], attempts: 1 } }), /partition/);
+});
+
+test('M13: the holdout is held to the freeze recorded in the ledger; baselines are known by model, not by name', () => {
+  const ledger = newLedger({ credits: START, runId: '1', mainSha: 'a'.repeat(40), workflowRef: 'NoaCG/NoaCG-Studio/.github/workflows/jev-svg-eval.yml@refs/heads/main', manifest });
+  assert.equal(ledger.baseline.workflowRef.endsWith('@refs/heads/main'), true);
+  assert.equal(frozenRecord(ledger), null);
+  const frozen = reconcileLedger(ledger, START, { reason: 'row 33 freeze of the primary', runId: '2', frozen: { configSha256: 'c'.repeat(64), manifestSha256: manifest.sha256 } });
+  assert.deepEqual(frozenRecord(frozen), { configSha256: 'c'.repeat(64), manifestSha256: manifest.sha256 });
+  assert.equal(isBaseline({ id: 'gemini-vision', kind: 'chat', model: 'openai/gpt-6-luna' }), false);
+  assert.equal(isBaseline({ id: 'anything', kind: 'vision', model: VISION_BASELINE_MODEL }), true);
+  assert.equal(isBaseline({ id: 'deterministic', kind: 'deterministic' }), true);
 });

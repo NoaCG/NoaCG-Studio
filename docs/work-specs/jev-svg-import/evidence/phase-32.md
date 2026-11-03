@@ -43,7 +43,7 @@ main: that SHA. Revert this row after it lands with `git revert -m 1 <merge sha>
   and reader-made ids, and the mapping of answers to a proposal.
 - `docs/work-specs/jev-svg-import/evaluation/prompts.json`: the configuration rows 33 tunes.
 
-## Rules (M1 to M12, each pinned by a test in `scripts/jev-svg-eval.test.mjs`)
+## Rules (M1 to M13, each pinned by a test in `scripts/jev-svg-eval.test.mjs`)
 
 1. **M1** The configuration is data under a closed schema: fixed keys, at most 16 KiB, instructions
    that are plain lines with no URL, markup, template or code syntax (`{layer}` is the one
@@ -56,11 +56,9 @@ main: that SHA. Revert this row after it lands with `git revert -m 1 <merge sha>
    image task contract, the workflow). The decision prices in the harness must equal the server's
    audited prices or nothing runs.
 4. **M4** The first paid run records the original balance baseline (balance, lifetime usage, run
-   id, main SHA, environment, manifest). It is never reset: the workflow allows
-   `establish_baseline` only while no run of it has left a ledger, and otherwise requires
-   `receipts_run_id` to be the newest ledger's run, so the chain cannot fork. A dry run's ledger
-   is uploaded under another name and is refused by a paid run. Each batch receipt records the
-   balance before and after, its debit and settled cost.
+   id, main SHA, workflow ref, environment, manifest). It is never reset (M13). A dry run's
+   ledger is uploaded under another name and is refused by a paid run and by reconcile. Each
+   batch receipt records the balance before and after, its debit and settled cost.
 5. **M5** Spent is the largest of the balance drop, the lifetime-usage rise and the settled
    receipts, so other consumers' spend counts. A batch is admitted only if its priced maximum fits
    both the remaining $5 and its partition ($2 development, $3 holdout).
@@ -80,14 +78,25 @@ main: that SHA. Revert this row after it lands with `git revert -m 1 <merge sha>
    new money as acknowledged (never moving the baseline), and may accept a new harness manifest
    when a reviewed fix landed on main through its owning row.
 9. **M9** A closing reading counts only when two readings agree and already show the spend the
-   provider reported.
+   provider reported for answered calls; a worst-case charge for an unknown bill counts as spend
+   but is not waited for.
 10. **M10** Evidence passes the server's `svgEvidenceRefusal`; text only with `includeText === true`.
     Questions name only reader-made ids (`t3`), never anything the artwork says, and stay within the
     adapter's 32-question bound; text layers past it keep the deterministic decision.
 11. **M11** Provider calls are strictly serial (a wrapper refuses a second call in flight). Every
     body pins zero data retention, no prompt training and the route's own providers, with no
     fallback model list. A refused or failed request falls back to the deterministic proposal.
-12. **M12** Scoring and the decision rule, below.
+12. **M12** Scoring and the decision rule, below. Only the deterministic arm may hold the id
+    `deterministic`, which the rule pairs on.
+13. **M13** One receipt chain across runs (`checkChain`, fed by the workflow from the Actions API;
+    every run is titled with its mode). Only the very first paid run may set the baseline: refused
+    once any run left a ledger or any paid run started its harness. Every other paid or reconcile
+    run must name the newest ledger's run. A paid run that started its harness and left no ledger
+    (a lost runner) refuses every later paid run until a reconcile names exactly the lost runs; that
+    reconcile charges the whole balance drop since the newest reading to the partition named and
+    records the attempts a person read from the gateway's records. Row 33 records its freeze
+    (configuration and manifest hashes) with `reconcile` + `freeze`; the holdout run is held to that
+    record, not to a typed input. The challenger limit knows baselines by kind and model.
 
 ## Scoring (frozen, `jev-svg-score/1`)
 
@@ -104,7 +113,9 @@ Behaviour families are scoreboard, clock, quiz and credits; a lower third is no 
 Decision rule (primary against deterministic only), as the spec words it: no go on any invalid
 reference, an unusable primary, or a consequential-error increase in any stratum (summed over its
 designs); otherwise a family qualifies when at least two of its designs need fewer corrections
-plus decisions and none of its designs increases consequential errors.
+plus decisions and none of its designs increases consequential errors. A run that metering
+stopped, or in which any primary answer never came (not admitted, outage, refusal), is no go:
+a deterministic stand-in is never scored as the model's.
 Only `limited-go` with named families or `no-go`. The verdict applies to the holdout run only; the
 development report marks it indicative.
 
@@ -159,13 +170,24 @@ From the `/check` review (delegated, 10 findings, 9 fixed, 1 a documentation mis
   unasked layer now keeps it (M10). Names are bounded in UTF-16 units, as the server counts
   them. Text line counts read relative `dy` lines.
 - The configuration step printed nothing when it refused; it now prints the reason.
+From the PR bot review of `d996455` (three findings, all fixed): the baseline id is reserved for
+the deterministic arm; a run metering stopped is no go; the freeze manifest covers the reader's
+whole import graph (the 51-file harness page, `svgImport.ts`, the wizard draft and every module
+they load, about 200 files) plus the harness scripts, lockfile and labels.
+
+From the first `/so` (`session_017SdbwNtTXQYJjQnVa24wVG`, B+ on `d996455`, 2 blocking, 5
+non-blocking, all addressed): a lost runner could reset or fork the chain (M13); a run with a
+missing primary answer could still qualify a family (M12); the challenger limit trusted names
+(M13); one retried 5xx suspended a run (M9); the holdout freeze was a typed input (M13); the
+freeze missed `contract.ts` and `aiModelCatalog.ts`; the baseline did not store the workflow ref.
+
 - Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
   harmed design stops its family from qualifying. The notes and docstring said "or design" and
   were corrected.
 
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 25 of 25 pass (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 28 of 28 pass (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle
@@ -177,6 +199,16 @@ From the `/check` review (delegated, 10 findings, 9 fixed, 1 a documentation mis
   mock answers.
 - A paid mode given the dry run's ledger refuses before any network call.
 - `npm run gates -- run --changed origin/main`, eslint and `tsc --noEmit` clean.
+
+## Known limits
+
+- A paid run whose harness fails before writing its ledger (for example a configuration refused
+  at start) reads as lost: a reconcile with zero attempts closes it. Safe, and rare.
+- The freeze covers the reader's graph and the lockfile, so a change on main to the importer or a
+  dependency between rows 33 and 34 refuses the holdout until row 33's freeze is redone. That is
+  the intended protection against comparing two instruments.
+- Whether a byte per token bounds Jev's and GPT-6 Luna's billing (reasoning included) is checked by
+  row 33's first settled receipts against their priced maximums; an over-bound receipt suspends.
 
 ## Traps
 

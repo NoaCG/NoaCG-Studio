@@ -24,7 +24,10 @@
 //   node scripts/jev-svg-eval.mjs fetch-config --ref <branch or sha> --out <file>
 //   node scripts/jev-svg-eval.mjs freeze
 //   node scripts/jev-svg-eval.mjs run --mode dry-run|development|holdout --config <file> --config-sha <sha> ...
+//   node scripts/jev-svg-eval.mjs chain --runs <runs.json> --mode <mode> --receipts-run-id <id> ...
 //   node scripts/jev-svg-eval.mjs reconcile --ledger <in> --ledger-out <out> --reason <words>
+//        [--accept-manifest] [--freeze --config <file> --config-sha <sha>]
+//        [--lost-runs <ids> --lost-partition <p> --lost-attempts <n>]
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -71,8 +74,10 @@ export const ROUTES = Object.freeze({
   'google/gemini-2.5-flash-lite': { kind: 'vision', input: 0.1, output: 0.4, context: 1_048_576, image: 8_000, providers: ['google', 'vertex'] },
 });
 
-/** Established baselines: reported, never chosen, and not counted against the challenger limit. */
-export const BASELINES = Object.freeze(['deterministic', 'gemini-vision']);
+/** Established baselines, by what they are rather than by name: today's deterministic import and
+ *  the existing image task's route. Reported, never chosen, not counted as challengers. */
+export const VISION_BASELINE_MODEL = 'google/gemini-2.5-flash-lite';
+export const isBaseline = (c) => c.kind === 'deterministic' || (c.kind === 'vision' && c.model === VISION_BASELINE_MODEL);
 /** At most this many reporting-only challengers go into the holdout beside primary and baselines. */
 export const HOLDOUT_CHALLENGERS = 2;
 
@@ -139,6 +144,8 @@ export function validateConfiguration(bytes) {
   for (const c of config.candidates) {
     if (!isRecord(c) || !CANDIDATE_ID.test(c.id) || ids.has(c.id)) return { ok: false, reason: 'candidate-id' };
     ids.add(c.id);
+    // The baseline is found by its id: only the deterministic arm may hold it, and it holds no other.
+    if ((c.kind === 'deterministic') !== (c.id === 'deterministic')) return { ok: false, reason: 'deterministic-id' };
     if (c.kind === 'deterministic') {
       if (!keysExactly(c, ['id', 'kind'])) return { ok: false, reason: 'candidate-keys' };
       continue;
@@ -186,22 +193,56 @@ export function fetchConfiguration(ref, { git = (args) => execFileSync('git', ar
 
 // ---- Freeze ----
 
-/** The sources whose bytes decide a result. Their hashes are the frozen manifest: rows 33 and
- *  34 refuse to run when any differs from the ledger's baseline, so no harness, scorer or adapter
- *  change lands mid-evaluation. */
+/** The sources whose bytes decide a result. Their hashes, with the reader's whole import graph
+ *  (`readerGraph`), are the frozen manifest: rows 33 and 34 refuse to run when any differs from
+ *  the ledger's baseline, so no harness, scorer, adapter, reader or deterministic-proposal change
+ *  lands mid-evaluation unnoticed. */
 export const FROZEN_SOURCES = Object.freeze([
   'scripts/jev-svg-eval.mjs',
+  'scripts/svg-import-passes.test.mjs',
+  'scripts/catalog-emit.mjs',
+  'scripts/driven-clock.mjs',
+  'scripts/ladder-values.mjs',
+  'scripts/rolldown-raw.mjs',
+  'scripts/api-runtime-build.mjs',
+  'package-lock.json',
+  'e2e/fixtures/jev-svg/dev.expect.json',
+  'e2e/fixtures/jev-svg/regression.manifest.json',
   'src/ai/svgInterpretation/evidence.ts',
   'src/ai/svgInterpretation/questions.ts',
+  'src/ai/svgInterpretation/contract.ts',
   'api/_lib/aiDecisionGateway.ts',
+  'api/_lib/aiModelCatalog.ts',
   'api/_lib/aiSvgInterpretationProfile.ts',
   'api/_lib/aiGateway.ts',
   'src/ai/importAnalysis/contract.ts',
   '.github/workflows/jev-svg-eval.yml',
 ]);
 
-export function freezeManifest(read = (rel) => readFileSync(root(rel))) {
-  const files = Object.fromEntries(FROZEN_SOURCES.map((rel) => [rel, sha256(read(rel))]));
+/**
+ * Every repository file the in-page reader and the wizard's draft load: the modules the 51-file
+ * harness page bundles, and the evidence reader, as rolldown resolves them.
+ */
+export async function readerGraph() {
+  const { SPECS } = await import('./svg-import-passes.test.mjs?library');
+  const { rolldown } = await import('rolldown');
+  const { rawSuffix } = await import('./rolldown-raw.mjs');
+  const files = new Set();
+  for (const entry of [...SPECS.map((s) => s.entry), root('src/ai/svgInterpretation/evidence.ts')]) {
+    const bundle = await rolldown({ input: entry, platform: 'browser', plugins: [rawSuffix], logLevel: 'silent' });
+    const { output } = await bundle.generate({ format: 'iife', name: 'GRAPH', codeSplitting: false });
+    await bundle.close();
+    for (const id of output[0].moduleIds) {
+      const rel = path.relative(ROOT, id.split('?')[0]).split(path.sep).join('/');
+      if (!rel.startsWith('..') && !rel.startsWith('node_modules/') && existsSync(root(rel))) files.add(rel);
+    }
+  }
+  return [...files].sort();
+}
+
+export function freezeManifest(read = (rel) => readFileSync(root(rel)), graph = []) {
+  const sources = [...new Set([...FROZEN_SOURCES, ...graph])].sort();
+  const files = Object.fromEntries(sources.map((rel) => [rel, sha256(read(rel))]));
   return { scoring: SCORING_VERSION, primary: PRIMARY, files, sha256: sha256(JSON.stringify(files)) };
 }
 
@@ -233,17 +274,18 @@ export async function readCredits(key, fetchImpl = fetch) {
 
 /**
  * A SETTLED reading: the balance must read the same twice in a row and already show at least
- * the spend the provider reported. Usage lands in the balance after the call returns, so a
+ * the spend the provider reported for answered calls (`knownUsd`; a worst-case charge for an
+ * unknown bill is spend counted, not spend the balance must show). Usage lands in the balance after the call returns, so a
  * reading taken at once can understate the batch; an unsettled reading is recorded as such and
  * suspends the next batch.
  */
-export async function settledCredits(read, { before, reportedUsd = 0, tries = 8, intervalMs = 15_000, sleep } = {}) {
+export async function settledCredits(read, { before, knownUsd = 0, tries = 8, intervalMs = 15_000, sleep } = {}) {
   const wait = sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   let last = null;
   for (let i = 0; i < tries; i++) {
     const now = await read().catch(() => null);
     if (now && last && Math.abs(now.balance - last.balance) < EPS && Math.abs(now.totalUsed - last.totalUsed) < EPS
-      && (!before || before.balance - now.balance >= reportedUsd - 1e-6)) {
+      && (!before || before.balance - now.balance >= knownUsd - 1e-6)) {
       return { credits: now, stable: true };
     }
     last = now;
@@ -252,12 +294,12 @@ export async function settledCredits(read, { before, reportedUsd = 0, tries = 8,
   return { credits: last, stable: false };
 }
 
-export function newLedger({ credits, runId, mainSha, manifest, environment = ENVIRONMENT, mock = false, at = new Date().toISOString() }) {
+export function newLedger({ credits, runId, mainSha, workflowRef = null, manifest, environment = ENVIRONMENT, mock = false, at = new Date().toISOString() }) {
   if (!parseCredits({ balance: credits?.balance, total_used: credits?.totalUsed })) throw new Error('baseline needs a credits reading');
   return {
     schema: LEDGER_SCHEMA,
     mock,
-    baseline: { balance: credits.balance, totalUsed: credits.totalUsed, at, runId, mainSha, environment, manifest },
+    baseline: { balance: credits.balance, totalUsed: credits.totalUsed, at, runId, mainSha, workflowRef, environment, manifest },
     acknowledgedTopUpUsd: 0,
     batches: [],
     reconciliations: [],
@@ -272,6 +314,9 @@ export function ledgerSpent(ledger, credits) {
   const used = credits.totalUsed - ledger.baseline.totalUsed;
   return Math.max(drop, used, settled, 0);
 }
+
+/** The freeze row 33 recorded, if any: the newest reconciliation that carries one. */
+export const frozenRecord = (ledger) => [...ledger.reconciliations].reverse().find((r) => r.frozen)?.frozen ?? null;
 
 export function partitionSpent(ledger, partition) {
   return ledger.batches.filter((b) => b.partition === partition).reduce((s, b) => s + (b.settledUsd ?? b.maxUsd), 0);
@@ -360,10 +405,30 @@ export function closeBatch(receipt, { settled, attempts, reportedUsd, unknownCha
  * recorded as acknowledged so the baseline itself never moves. A missing receipt is closed at
  * its priced maximum. The reason is kept. A reviewed fix that landed on main through its owning
  * row changes the harness manifest; passing `manifest` accepts it here, in the record, rather
- * than resetting anything.
+ * than resetting anything. `frozen` records the end-of-row-33 freeze (configuration and manifest
+ * hashes) that the holdout run is held to; `lost` closes runs that left no ledger.
  */
-export function reconcileLedger(ledger, credits, { reason, runId, manifest, at = new Date().toISOString() }) {
+export function reconcileLedger(ledger, credits, { reason, runId, manifest, frozen, lost, at = new Date().toISOString() }) {
   if (typeof reason !== 'string' || reason.trim().length < 8) throw new Error('a reconciliation needs a reason');
+  if (lost) {
+    // Runs that started paid work and left no ledger: their spend is the whole drop since the
+    // newest reading on record, all charged to the partition named, with the attempts a person
+    // read from the gateway's own records.
+    if (!Array.isArray(lost.runs) || lost.runs.length === 0 || !['development', 'holdout'].includes(lost.partition)
+      || !Number.isInteger(lost.attempts) || lost.attempts < 0) throw new Error('a lost run needs its run ids, partition and attempts');
+    const rec = ledger.reconciliations.at(-1);
+    const last = rec && rec.afterBatches >= ledger.batches.length ? rec.credits : (ledger.batches.at(-1)?.after ?? ledger.baseline);
+    const debit = last.balance - credits.balance;
+    ledger = {
+      ...ledger,
+      batches: [...ledger.batches, {
+        index: ledger.batches.length, lostRuns: lost.runs, partition: lost.partition,
+        before: { balance: last.balance, totalUsed: last.totalUsed }, after: { balance: credits.balance, totalUsed: credits.totalUsed },
+        debitUsd: debit, settledUsd: Math.max(debit, 0), maxUsd: Math.max(debit, 0), plannedAttempts: lost.attempts, attempts: lost.attempts,
+        suspended: 'lost-run', reconciled: true,
+      }],
+    };
+  }
   const sum = ledger.baseline.balance + ledger.baseline.totalUsed + ledger.acknowledgedTopUpUsd;
   const arrived = Math.max(0, credits.balance + credits.totalUsed - sum);
   const batches = ledger.batches.map((b) => {
@@ -374,8 +439,46 @@ export function reconcileLedger(ledger, credits, { reason, runId, manifest, at =
     ...ledger,
     batches,
     acknowledgedTopUpUsd: ledger.acknowledgedTopUpUsd + arrived,
-    reconciliations: [...ledger.reconciliations, { at, runId, afterBatches: batches.length, reason: reason.trim().slice(0, 400), credits, arrivedUsd: arrived, ...(manifest ? { manifest } : {}) }],
+    reconciliations: [...ledger.reconciliations, {
+      at, runId, afterBatches: batches.length, reason: reason.trim().slice(0, 400), credits, arrivedUsd: arrived,
+      ...(manifest ? { manifest } : {}),
+      ...(frozen ? { frozen } : {}),
+    }],
   };
+}
+
+// ---- The chain of runs ----
+
+const MODES = ['dry-run', 'development', 'holdout', 'reconcile'];
+
+/**
+ * Is this dispatch allowed to continue the receipt chain? `runs` are this workflow's earlier
+ * runs on main, newest first: `{ id, mode, hasLedger, harnessStarted }`. A paid run that started
+ * its harness and left no ledger is LOST: its spend and attempts are unknown, so every later paid
+ * run is refused until a reconcile names it. Only the very first paid run may set a baseline;
+ * every other run continues the newest ledger, so the chain cannot fork or restart.
+ */
+export function checkChain(runs, { mode, receiptsRunId = '', establish = false, lostRuns = [] }) {
+  const refuse = (reason) => ({ ok: false, reason });
+  if (!MODES.includes(mode)) return refuse('mode');
+  if (mode === 'dry-run') return { ok: true };
+  const paidStarted = runs.filter((r) => (r.mode === 'development' || r.mode === 'holdout') && r.harnessStarted);
+  const newest = runs.findIndex((r) => r.hasLedger);
+  if (establish) {
+    if (mode === 'reconcile') return refuse('establish-in-reconcile');
+    if (newest >= 0 || paidStarted.length > 0 || receiptsRunId) return refuse('baseline-exists');
+    return { ok: true };
+  }
+  if (newest < 0) return refuse('missing-baseline');
+  if (String(receiptsRunId) !== String(runs[newest].id)) return refuse(`not-newest-ledger:${runs[newest].id}`);
+  const lost = runs.slice(0, newest).filter((r) => (r.mode === 'development' || r.mode === 'holdout') && r.harnessStarted && !r.hasLedger).map((r) => String(r.id));
+  const named = [...new Set(lostRuns.map(String))].sort();
+  if (mode === 'reconcile') {
+    if (named.join(',') !== [...lost].sort().join(',')) return refuse(`missing-receipt:${lost.join(',') || 'none'}`);
+    return { ok: true };
+  }
+  if (lost.length > 0) return refuse(`missing-receipt:${lost.join(',')}`);
+  return { ok: true };
 }
 
 // ---- Pricing a request ----
@@ -441,14 +544,21 @@ export function scoreDesign(expected, proposal, inventory) {
  * deterministic only. No go on any accepted invalid reference, an unusable primary, or a
  * consequential-error increase in any stratum (summed over its designs). Otherwise a family
  * qualifies when at least two of its designs need fewer corrections plus decisions and none of
- * its designs increases consequential errors. Never a full go.
+ * its designs increases consequential errors. A run stopped by metering (cap, suspension,
+ * refusal) is no go. Never a full go.
  */
-export function decide(rows, primary = PRIMARY.id) {
+export function decide(rows, primary = PRIMARY.id, stopped = null) {
+  // An evaluation that metering stopped is incomplete: its fallback rows cannot qualify anything.
+  if (stopped) return { verdict: 'no-go', families: [], reasons: [`evaluation-stopped:${stopped}`] };
   const reasons = [];
   const by = (arm) => rows.filter((r) => r.arm === arm);
   const prim = by(primary);
   const det = new Map(by('deterministic').map((r) => [r.design, r]));
   if (prim.length === 0 || prim.every((r) => r.fellBack)) return { verdict: 'no-go', families: [], reasons: ['primary-unusable'] };
+  // A primary answer that never came (not admitted, outage, refusal) leaves the evaluation
+  // incomplete: its deterministic stand-in would be scored as the model's.
+  const missing = prim.filter((r) => r.fellBack).map((r) => r.design);
+  if (missing.length > 0) return { verdict: 'no-go', families: [], reasons: [`primary-incomplete:${missing.join(',')}`] };
   if (prim.some((r) => r.score.invalidRefs > 0)) reasons.push('invalid-reference');
   const strata = [...new Set(prim.map((r) => r.stratum))];
   const families = [];
@@ -589,7 +699,7 @@ export async function callArm(arm, design, config, plan, deps) {
     const unknown = !outcome.ok && ['timeout', 'unavailable', 'malformed_response'].includes(outcome.reason) ? 1 : 0;
     if (!outcome.ok) return fallback(outcome.reason, { attempts: outcome.attempts, reportedUsd: outcome.costUsd, unknown, ms });
     const proposal = deps.readSvgAnswers(design.set, outcome.answers, config.threshold, design.deterministic.fieldsOn);
-    return { proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, unknown: 0, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } };
+    return { proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, knownUsd: outcome.attempts === 1 ? outcome.costUsd : 0, unknown: 0, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } };
   }
   const keys = Object.keys(design.set.questions);
   const worstAttempt = plan.maxUsd / CAP.attemptsPerRequest;
@@ -613,6 +723,7 @@ export async function callArm(arm, design, config, plan, deps) {
     const priced = attemptCeilingUsd(arm.model, { bytes: usage.inputTokens - FRAMING_TOKENS, outputTokens: usage.outputTokens });
     // A failed earlier attempt that may have been billed is charged at its worst case.
     const earlier = sent.slice(0, -1).filter(maybeBilled).length * worstAttempt;
+    const knownUsd = usage.estimatedCost?.amount ?? priced ?? 0;
     const reportedUsd = (usage.estimatedCost?.amount ?? priced ?? worstAttempt) + earlier;
     if (arm.kind === 'chat') {
       const answers = {};
@@ -621,10 +732,10 @@ export async function callArm(arm, design, config, plan, deps) {
         if (typeof p !== 'number' || !(p >= 0 && p <= 1)) return fallback('answers_invalid', { attempts, reportedUsd, ms });
         answers[k] = { type: 'boolean', probability: p };
       }
-      return { proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, unknown: 0, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
+      return { proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, knownUsd, unknown: 0, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
     }
     const mapped = mapRegionsToLayers(result.output, design.evidence);
-    return { proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, unknown: 0, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
+    return { proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, knownUsd, unknown: 0, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
   } catch (error) {
     // Every sent attempt that may have been billed has an unknown bill: charged at its worst
     // case, and flagged. A refusal before inference is charged nothing.
@@ -690,6 +801,7 @@ export async function runArms({ arms, designs, config, partition, ledger, deps }
       }
       let attempts = 0;
       let reportedUsd = 0;
+      let knownUsd = 0;
       let unknown = 0;
       for (const { d, plan } of planned) {
         const result = (stopped || !receipt) && !plan.refused
@@ -697,11 +809,12 @@ export async function runArms({ arms, designs, config, partition, ledger, deps }
           : await callArm(arm, d, config, plan, callDeps);
         attempts += result.attempts;
         reportedUsd += result.reportedUsd;
+        knownUsd += result.knownUsd ?? 0;
         unknown += result.unknown ?? 0;
         rows.push({ arm: arm.id, design: d.id, stratum: d.stratum, ...result });
       }
       if (receipt) {
-        const settled = await deps.settledCredits({ before: receipt.before, reportedUsd });
+        const settled = await deps.settledCredits({ before: receipt.before, knownUsd });
         const closed = closeBatch(receipt, { settled, attempts, reportedUsd, unknownCharges: unknown });
         ledger.current = { ...ledger.current, batches: [...ledger.current.batches.slice(0, -1), closed] };
         deps.saveLedger(ledger.current);
@@ -915,14 +1028,12 @@ async function run(args) {
   const { config } = verdict;
   const configSha = args['config-sha'];
   if (!SHA.test(configSha ?? '')) throw new Error('--config-sha must be the resolved 40-character commit');
-  const manifest = freezeManifest();
+  const manifest = freezeManifest(undefined, await readerGraph());
   const paid = mode !== 'dry-run';
 
   // The holdout is evaluated once, with the frozen configuration and harness only.
   if (mode === 'holdout') {
-    if (args['frozen-config-sha256'] !== verdict.sha256) throw new Error('configuration differs from the frozen one');
-    if (args['frozen-manifest-sha256'] !== manifest.sha256) throw new Error('harness differs from the frozen manifest');
-    const challengers = config.candidates.filter((c) => c.id !== PRIMARY.id && !BASELINES.includes(c.id));
+    const challengers = config.candidates.filter((c) => c.id !== PRIMARY.id && !isBaseline(c));
     if (challengers.length > HOLDOUT_CHALLENGERS) throw new Error('more reporting challengers than the holdout admits');
   }
 
@@ -947,10 +1058,16 @@ async function run(args) {
     ledger.current = JSON.parse(readFileSync(args.ledger, 'utf8'));
     if (ledger.current.schema !== LEDGER_SCHEMA) throw new Error('not an evaluation ledger');
     if (ledger.current.mock || ledger.current.baseline.runId === 'local') throw new Error('a dry-run or local ledger never continues into a paid run');
-    if (mode === 'holdout' && ledger.current.batches.some((b) => b.partition === 'holdout')) throw new Error('the holdout was already evaluated');
+    if (mode === 'holdout') {
+      if (ledger.current.batches.some((b) => b.partition === 'holdout')) throw new Error('the holdout was already evaluated');
+      const frozen = frozenRecord(ledger.current);
+      if (!frozen) throw new Error('no freeze is recorded in the ledger: row 33 records it with reconcile --freeze');
+      if (frozen.configSha256 !== verdict.sha256) throw new Error('configuration differs from the frozen one');
+      if (frozen.manifestSha256 !== manifest.sha256) throw new Error('harness differs from the frozen manifest');
+    }
   } else if (args['establish-baseline'] || !paid) {
     const credits = await readCreditsNow();
-    ledger.current = newLedger({ credits, runId: process.env.GITHUB_RUN_ID ?? 'local', mainSha: process.env.GITHUB_SHA ?? null, manifest, mock: !paid });
+    ledger.current = newLedger({ credits, runId: process.env.GITHUB_RUN_ID ?? 'local', mainSha: process.env.GITHUB_SHA ?? null, workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null, manifest, mock: !paid });
   } else {
     throw new Error('missing-baseline: pass the previous run\'s ledger, or --establish-baseline for the very first paid run');
   }
@@ -1039,9 +1156,9 @@ async function run(args) {
       configCommit: configSha,
       configSha256: verdict.sha256,
       manifest,
-      stopped: main.stopped ?? slice.stopped,
+      stopped: main.stopped ?? slice.stopped ?? null,
       refusedDesigns: read.filter((d) => d.refused).map((d) => d.id),
-      decision: decide(rows),
+      decision: decide(rows, PRIMARY.id, main.stopped ?? slice.stopped ?? null),
       verdictApplies: mode === 'holdout',
       rows: rows.map(({ proposal, ...r }) => ({ ...r, fieldsOn: proposal.fieldsOn.length, families: proposal.families })),
       regression: slice.rows.map((r) => ({ arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: byId.get(r.design).sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null })),
@@ -1065,7 +1182,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a.startsWith('--')) out._.push(a);
-    else if (['--establish-baseline', '--regression', '--accept-manifest'].includes(a)) out[a.slice(2)] = true;
+    else if (['--establish-baseline', '--regression', '--accept-manifest', '--freeze'].includes(a)) out[a.slice(2)] = true;
     else out[a.slice(2)] = argv[++i];
   }
   return out;
@@ -1088,20 +1205,46 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.log(JSON.stringify({ ok: true, commit: v.commit, sha256: v.sha256 }));
     }
   } else if (command === 'freeze') {
-    console.log(JSON.stringify(freezeManifest(), null, 2));
+    const m = freezeManifest(undefined, await readerGraph());
+    console.log(JSON.stringify({ ...m, files: Object.keys(m.files).length }, null, 2));
   } else if (command === 'run') {
     await run(args);
+  } else if (command === 'chain') {
+    const runs = JSON.parse(readFileSync(args.runs, 'utf8'));
+    const v = checkChain(runs, {
+      mode: args.mode,
+      receiptsRunId: args['receipts-run-id'] ?? '',
+      establish: args.establish === 'true',
+      lostRuns: (args['lost-runs'] ?? '').split(',').map((x) => x.trim()).filter(Boolean),
+    });
+    console.log(JSON.stringify(v));
+    if (!v.ok) process.exitCode = 1;
   } else if (command === 'reconcile') {
     const key = process.env.AI_GATEWAY_API_KEY ?? '';
     if (!key || !args.ledger || !existsSync(args.ledger)) throw new Error('reconcile needs the key and the ledger');
     const ledger = JSON.parse(readFileSync(args.ledger, 'utf8'));
+    if (ledger.mock) throw new Error('a dry-run ledger is never reconciled into the chain');
     const settled = await settledCredits(() => readCredits(key));
     if (!settled.stable) throw new Error('the balance has not settled; reconcile later');
-    const next = reconcileLedger(ledger, settled.credits, { reason: args.reason, runId: process.env.GITHUB_RUN_ID ?? 'local', ...(args['accept-manifest'] ? { manifest: freezeManifest() } : {}) });
+    const current = args['accept-manifest'] || args.freeze ? freezeManifest(undefined, await readerGraph()) : null;
+    let frozen = null;
+    if (args.freeze) {
+      const v = validateConfiguration(readFileSync(args.config));
+      if (!v.ok) throw new Error(`configuration refused: ${v.reason}`);
+      frozen = { configSha256: v.sha256, configCommit: args['config-sha'], manifestSha256: current.sha256 };
+    }
+    const lostRuns = (args['lost-runs'] ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    const next = reconcileLedger(ledger, settled.credits, {
+      reason: args.reason,
+      runId: process.env.GITHUB_RUN_ID ?? 'local',
+      ...(args['accept-manifest'] ? { manifest: current } : {}),
+      ...(frozen ? { frozen } : {}),
+      ...(lostRuns.length ? { lost: { runs: lostRuns, partition: args['lost-partition'], attempts: Number(args['lost-attempts']) } } : {}),
+    });
     writeFileSync(args['ledger-out'], `${JSON.stringify(next, null, 2)}\n`);
     console.log(`[jev-svg-eval] reconciled; acknowledged new money ${next.acknowledgedTopUpUsd.toFixed(6)} USD`);
   } else {
-    console.error('usage: node scripts/jev-svg-eval.mjs config|fetch-config|freeze|run|reconcile ...');
+    console.error('usage: node scripts/jev-svg-eval.mjs config|fetch-config|freeze|chain|run|reconcile ...');
     process.exitCode = 1;
   }
 }

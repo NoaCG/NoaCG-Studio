@@ -14,8 +14,11 @@ name: Jev SVG evaluation
 #   dry-run      mock gateway and mock balance; reads no secret. Proves the pipeline and metering.
 #   development  paid; development designs only; continues the ledger of `receipts_run_id`, or
 #                `establish_baseline` on the very first paid run.
-#   holdout      paid, once; needs the frozen configuration and harness hashes from row 33.
+#   holdout      paid, once; held to the freeze row 33 recorded in the ledger.
 #   reconcile    reads the balance and clears a suspension with a written reason; sends nothing.
+#                Also records row 33's freeze (`freeze`), accepts a reviewed harness change
+#                (`accept_manifest`) or closes runs lost without a ledger (`lost_runs`).
+run-name: Jev SVG evaluation (${{ inputs.mode }})
 on:
   workflow_dispatch:
     inputs:
@@ -43,16 +46,25 @@ on:
         required: false
         type: boolean
         default: false
-      frozen_config_sha256:
-        description: Holdout only - the configuration hash frozen at the end of row 33
-        required: false
-        type: string
-      frozen_manifest_sha256:
-        description: Holdout only - the harness manifest hash frozen at the end of row 33
-        required: false
-        type: string
       reconcile_reason:
         description: Reconcile only - what was checked and why the ledger may continue
+        required: false
+        type: string
+      freeze:
+        description: Reconcile only - record this configuration and the harness as frozen (end of row 33)
+        required: false
+        type: boolean
+        default: false
+      lost_runs:
+        description: Reconcile only - comma-separated ids of paid runs that left no ledger
+        required: false
+        type: string
+      lost_partition:
+        description: Reconcile only - the partition those lost runs spent from
+        required: false
+        type: string
+      lost_attempts:
+        description: Reconcile only - provider attempts those runs made, read from the gateway's records
         required: false
         type: string
       accept_manifest:
@@ -101,7 +113,6 @@ jobs:
 
       - name: Resolve the configuration (data only)
         id: config
-        if: inputs.mode != 'reconcile'
         env:
           CONFIGURATION_REF: ${{ inputs.configuration_ref }}
         run: |
@@ -113,36 +124,39 @@ jobs:
           commit="$(printf '%s' "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!j.ok)process.exit(1);process.stdout.write(j.commit)})')"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
 
-      # One receipt chain: a paid run continues the NEWEST ledger this workflow left, and only the
-      # very first paid run may establish a baseline. A stale run id would fork the chain and
-      # hide earlier batches from the partition, attempt and holdout-once checks.
-      - name: Fetch the previous ledger
+      # One receipt chain: a paid run continues the NEWEST ledger this workflow left; only the very
+      # first paid run may establish a baseline; a paid run that started its harness and left no
+      # ledger (a lost runner) refuses every later paid run until a reconcile names it.
+      - name: Check the receipt chain and fetch the previous ledger
         if: inputs.mode != 'dry-run'
         env:
           GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode }}
           RUN_ID: ${{ inputs.receipts_run_id }}
           ESTABLISH: ${{ inputs.establish_baseline }}
+          LOST_RUNS: ${{ inputs.lost_runs }}
         run: |
-          latest=""
+          runs="$RUNNER_TEMP/runs.json"
+          echo '[' > "$runs"
+          first=1
           for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?branch=main&event=workflow_dispatch&per_page=100" --jq '.workflow_runs[].id'); do
             [ "$id" = "$GITHUB_RUN_ID" ] && continue
-            n="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "jev-svg-eval-ledger")] | length')"
-            if [ "$n" != "0" ]; then latest="$id"; break; fi
+            title="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.display_title')"
+            mode="$(printf '%s' "$title" | sed -nE 's/^Jev SVG evaluation \((dry-run|development|holdout|reconcile)\)$/\1/p')"
+            ledger="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "jev-svg-eval-ledger")] | length')"
+            started="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" --jq '[.jobs[].steps[]? | select(.name == "Run the harness" and .conclusion != "skipped" and .status != "queued" and .status != "pending")] | length')"
+            [ "$first" = 1 ] || echo ',' >> "$runs"
+            first=0
+            printf '{"id":"%s","mode":"%s","hasLedger":%s,"harnessStarted":%s}\n' "$id" "${mode:-unknown}" \
+              "$([ "$ledger" != "0" ] && echo true || echo false)" "$([ "$started" != "0" ] && echo true || echo false)" >> "$runs"
           done
-          if [ "$ESTABLISH" = "true" ]; then
-            [ -z "$latest" ] && [ -z "$RUN_ID" ] || { echo "FAIL: a ledger exists (run $latest); the baseline is never reset"; exit 1; }
-            exit 0
+          echo ']' >> "$runs"
+          node scripts/jev-svg-eval.mjs chain --runs "$runs" --mode "$MODE" --receipts-run-id "$RUN_ID" \
+            --establish "$ESTABLISH" --lost-runs "$LOST_RUNS"
+          if [ "$ESTABLISH" != "true" ]; then
+            gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n jev-svg-eval-ledger -D "$RUNNER_TEMP/ledger-in"
+            test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: missing-receipt: that run left no ledger"; exit 1; }
           fi
-          [ -n "$latest" ] || { echo "FAIL: missing-baseline: no ledger yet; the first paid run sets establish_baseline"; exit 1; }
-          [ "$RUN_ID" = "$latest" ] || { echo "FAIL: receipts_run_id must be the newest ledger's run, $latest"; exit 1; }
-          [[ "$RUN_ID" =~ ^[0-9]{1,20}$ ]] || { echo "FAIL: receipts_run_id is not a run id"; exit 1; }
-          run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
-          printf '%s' "$run" | node -e '
-            let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);
-            const ok=r.path===".github/workflows/jev-svg-eval.yml"&&r.head_branch==="main"&&r.event==="workflow_dispatch"&&r.repository.full_name===process.env.GITHUB_REPOSITORY;
-            if(!ok){console.log("FAIL: that run is not this main workflow");process.exit(1)}})'
-          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n jev-svg-eval-ledger -D "$RUNNER_TEMP/ledger-in"
-          test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: missing-receipt: that run left no ledger"; exit 1; }
 
       - name: Decode the sealed holdout
         if: inputs.mode == 'holdout'
@@ -168,8 +182,6 @@ jobs:
           CONFIG_COMMIT: ${{ steps.config.outputs.commit }}
           ESTABLISH: ${{ inputs.establish_baseline }}
           REGRESSION: ${{ inputs.regression }}
-          FROZEN_CONFIG: ${{ inputs.frozen_config_sha256 }}
-          FROZEN_MANIFEST: ${{ inputs.frozen_manifest_sha256 }}
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           args=(run --mode "$MODE" --config "$RUNNER_TEMP/prompts.json" --config-sha "$CONFIG_COMMIT"
@@ -177,7 +189,7 @@ jobs:
           if [ "$MODE" != "dry-run" ] && [ -s "$RUNNER_TEMP/ledger-in/ledger.json" ]; then args+=(--ledger "$RUNNER_TEMP/ledger-in/ledger.json"); fi
           if [ "$ESTABLISH" = "true" ]; then args+=(--establish-baseline); fi
           if [ "$REGRESSION" = "true" ]; then args+=(--regression); fi
-          if [ "$MODE" = "holdout" ]; then args+=(--holdout-zip "$RUNNER_TEMP/holdout.zip" --frozen-config-sha256 "$FROZEN_CONFIG" --frozen-manifest-sha256 "$FROZEN_MANIFEST"); fi
+          if [ "$MODE" = "holdout" ]; then args+=(--holdout-zip "$RUNNER_TEMP/holdout.zip"); fi
           node scripts/jev-svg-eval.mjs "${args[@]}"
 
       - name: Reconcile the ledger
@@ -186,11 +198,18 @@ jobs:
           AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
           REASON: ${{ inputs.reconcile_reason }}
           ACCEPT_MANIFEST: ${{ inputs.accept_manifest }}
+          FREEZE: ${{ inputs.freeze }}
+          CONFIG_COMMIT: ${{ steps.config.outputs.commit }}
+          LOST_RUNS: ${{ inputs.lost_runs }}
+          LOST_PARTITION: ${{ inputs.lost_partition }}
+          LOST_ATTEMPTS: ${{ inputs.lost_attempts }}
         run: |
           test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: reconcile needs receipts_run_id"; exit 1; }
           mkdir -p "$RUNNER_TEMP/out"
           args=(reconcile --ledger "$RUNNER_TEMP/ledger-in/ledger.json" --ledger-out "$RUNNER_TEMP/out/ledger.json" --reason "$REASON")
           if [ "$ACCEPT_MANIFEST" = "true" ]; then args+=(--accept-manifest); fi
+          if [ "$FREEZE" = "true" ]; then args+=(--freeze --config "$RUNNER_TEMP/prompts.json" --config-sha "$CONFIG_COMMIT"); fi
+          if [ -n "$LOST_RUNS" ]; then args+=(--lost-runs "$LOST_RUNS" --lost-partition "$LOST_PARTITION" --lost-attempts "$LOST_ATTEMPTS"); fi
           node scripts/jev-svg-eval.mjs "${args[@]}"
 
       - name: Remove the holdout archive
