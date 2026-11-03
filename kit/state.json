@@ -31,22 +31,37 @@
   "inFlight": [
     {
       "phase": 40,
-      "role": "build",
-      "session": "session_017SdbwN9iH4CivMRXX6BdaM",
-      "nonce": "40-b-3e6f",
-      "branch": "claude/plan-jev-svg-import-40-build",
-      "source": "b4870de1fa17ce6f338681f31c83efed90c87d25",
-      "startedAt": "2026-11-03T22:31:53Z",
+      "role": "check",
+      "session": "session_017SdbwQB8QcsgxX6YiXePgA",
+      "nonce": "40-c-a21e",
+      "actor": "checker-40-40-c-a21e",
+      "mergeSha": "134413ba412245c2f15d825e2066106e6235f461",
       "pr": 2046,
-      "head": "614aeb2cdf1cce49809584b5ae6bab9494bdbd01",
-      "ciRun": 41734267927,
-      "stampRun": 41735303822,
-      "so": "session_017SdbwQV8PDjDxTAm2vgB8g A",
+      "builder": "session_017SdbwN9iH4CivMRXX6BdaM",
       "soSessions": [
         "session_017SdbwQV8PDjDxTAm2vgB8g",
         "session_017SdbwPe4sWQhjBGBo4FV4R"
       ],
-      "safetyNet": "trig_019abz9bkSbvYUbW9cwbDY2e"
+      "startedAt": "2026-11-03T23:08:10Z",
+      "build": {
+        "phase": 40,
+        "role": "build",
+        "session": "session_017SdbwN9iH4CivMRXX6BdaM",
+        "nonce": "40-b-3e6f",
+        "branch": "claude/plan-jev-svg-import-40-build",
+        "source": "b4870de1fa17ce6f338681f31c83efed90c87d25",
+        "startedAt": "2026-11-03T22:31:53Z",
+        "pr": 2046,
+        "head": "614aeb2cdf1cce49809584b5ae6bab9494bdbd01",
+        "ciRun": 41734267927,
+        "stampRun": 41735303822,
+        "so": "session_017SdbwQV8PDjDxTAm2vgB8g A",
+        "soSessions": [
+          "session_017SdbwQV8PDjDxTAm2vgB8g",
+          "session_017SdbwPe4sWQhjBGBo4FV4R"
+        ],
+        "safetyNet": "trig_019abz9bkSbvYUbW9cwbDY2e"
+      }
     }
   ],
   "owner": [],
