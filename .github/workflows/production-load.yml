@@ -32,10 +32,10 @@ jobs:
     name: Read the production database's load
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # For its token only. A deployment record every 30 minutes would wake deploy-verify each time.
-    environment:
-      name: production
-      deployment: false
+    # For its token only. The deployment record this leaves is bookkeeping, which deploy-verify's
+    # `if:` skips, as it does for post-land.yml's. `deployment: false` would avoid the record, but
+    # the validator behind scripts/check-workflows.mjs does not know that key yet.
+    environment: production
     steps:
       - uses: actions/checkout@v5
 
