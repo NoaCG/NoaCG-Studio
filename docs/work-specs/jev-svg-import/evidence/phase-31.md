@@ -86,14 +86,18 @@ The coordinator approved both before they were pushed, for these purposes only:
    inference is charged nothing.
 5. A cancel stops the current attempt and starts no new one.
 6. An answer counts only if every question is answered once, with its own type and options, and
-   nothing else, and it came from the requested model and an allowed provider. Otherwise the
-   request fails and is not retried.
+   nothing else, and it names the requested model. Otherwise the request fails and is not
+   retried. The provider check is a backup: it refuses a reported provider outside `only`, and
+   accepts an answer that reports none, because the gateway itself enforces the `only` list sent
+   with the request.
 7. Every refusal and failure says `fallback: 'deterministic'`: the caller keeps the deterministic
    import's proposal.
 8. The key appears only in the Authorization header: no outcome, ledger record or error carries
    it, and no provider body is copied into one.
-9. SVG names and text are values in `state`. The questions are the server's own and never contain
-   anything from the artwork.
+9. SVG names and text are values in `state`. The questions must be the server's own and never
+   contain anything from the artwork. `runSvgInterpretation` takes them from its caller, so this
+   rule binds the caller: row 35 builds them on the server and never passes questions from a
+   request body.
 
 ## Rules found after coding
 
@@ -114,18 +118,37 @@ Not changed, with reasons:
 
 ## Verification
 
-- `api/_lib/aiDecisionGateway.test.ts`: 23 tests, mocked fetch only, no network. Each point of the
+- `api/_lib/aiDecisionGateway.test.ts`: 30 tests, mocked fetch only, no network. Each point of the
   row: payloads (body shape, strict answers), audited prices and routes, size limits (evidence,
   questions, whole request, per-route context), reservations (book, settle, release, in-flight
   hold, duplicate, exhausted allowance), cancellation (in flight and before start), bounded retry
   (503, 429, timeout, refusals), fail-closed privacy (no consent, text without the choice, a
-  preview key, unknown route, unknown price, kill switch, no key).
+  preview key, unknown route, unknown price, kill switch, no key, no durable ledger, no
+  entitlement, a lookup that throws).
 - Mutation: removing the consent check, the include-text check, the kill switch, the answer type
   check, the name bound, the size bound, either cost ceiling, the 5xx charge, the cancel check,
   or the release on failure each fails a test. Adding a decision-fallback `models` list fails a
   test.
-- Existing `aiTaskRegistry`, `aiGateway` and `aiLite` suites: 89 pass, unchanged.
+- `npm run test:ai-gateway`, the whole AI suite with the new file: 416 of 416 pass. (Before the
+  new file was listed, the three suites it sits beside, `aiTaskRegistry`, `aiGateway` and
+  `aiLite`, passed 89 of 89 unchanged.)
 - No paid call, no network call to a model, no migration.
+
+## Open points and where they go
+
+From the final /so (A-, no blocking point). Owner rule, verbatim: "A- may land when every
+remaining point is non-blocking and is either assigned to a later phase or a documented, safe
+limit".
+
+- **Row 33**, first paid call: confirm the real `/v1/evaluate` reply shape, the model name it
+  reports and whether it reports the serving provider (rule 6 and the `route_changed` note above).
+- **Row 35**: build the questions on the server (rule 9). Decide whether the shared
+  `import-analysis` allowance stays, and keep SVG generations apart from image-analysis outcome
+  reports: `api/_lib/importAnalysis/outcome.ts` accepts any generation id of that profile, so its
+  numbers would mix the two kinds; only the `model` column tells them apart.
+- **Documented safe limit**: a reused idempotency key is refused as `duplicate` after a failure
+  or a cancel too, as on the existing analysis endpoint. The client makes a new key for each user
+  retry (row 35).
 
 ## Traps
 

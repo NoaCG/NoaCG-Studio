@@ -562,6 +562,15 @@ test('an account without the graphic-analysis entitlement is refused before anyt
   assert.equal((await records(store)).length, 0);
 });
 
+test('without a durable ledger, nothing is booked or sent', async () => {
+  const { fetchImpl, sent } = provider(served());
+  const { deps } = harness({ fetchImpl });
+  // The default store, with no Supabase or evaluation ledger configured in the test environment.
+  const result = await runSvgInterpretation(input(), { ...deps, store: undefined });
+  assert.deepEqual([!result.ok && result.reason, !result.ok && result.fallback], ['not_configured', 'deterministic']);
+  assert.equal(sent.length, 0);
+});
+
 test('a lookup that throws is a refusal, never a call', async () => {
   const { fetchImpl, sent } = provider(served());
   const boom = async () => { throw new Error('lookup failed'); };
