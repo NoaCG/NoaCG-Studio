@@ -608,3 +608,102 @@ test('a slow, cancelled or stale preparation leaves the draft deterministic', as
   }, [TWO_GUESTS, TWO_GUESTS.replace('Guest role', 'Guest job')]);
   expect(stale).toEqual({ onB: { ok: false, reason: 'stale' }, door: ['stale-revision'] });
 });
+
+// ---- Row 37: privacy and service failure (docs/work-specs/jev-svg-import/evidence/phase-37.md) ----
+//
+// The model route is off, and every AI route may also fail. Neither may cost the author the
+// import, the saved graphic or its playout, and no server credential or server setting may reach
+// the browser. Every AI request in this walk is refused or broken by a stub; nothing is paid for.
+
+/** Server-only names: none may appear in anything the browser loads. */
+const SERVER_SECRETS = ['AI_GATEWAY_API_KEY', 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'AI_KEY_ENCRYPTION_SECRET', 'IP_HASH_SALT', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN'];
+
+test('with every AI route failing, an SVG import is saved, taken to air and exported, and no secret reaches the browser', async ({ page }) => {
+  // Every AI route answers as a broken service would: the network fails.
+  const aiAsked: string[] = [];
+  await page.route('**/api/ai/**', async (route) => {
+    aiAsked.push(new URL(route.request().url()).pathname);
+    await route.abort('failed');
+  });
+  const scripts: Promise<string>[] = [];
+  page.on('response', (response) => {
+    if (response.request().resourceType() === 'script' && response.url().startsWith(new URL(page.url() || 'http://localhost/').origin)) {
+      scripts.push(response.text().catch(() => ''));
+    }
+  });
+  await page.goto('/app');
+
+  // THE CLIENT, WHEN ASKED (no surface asks it under no go): each failure is the deterministic
+  // fallback, never a throw. Registered after the abort-all route, so it answers first.
+  const replies: Array<[string, (route: Route) => Promise<void>]> = [
+    ['quota', (r) => r.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: { code: 'allowance_exhausted', message: 'x', retryable: false }, fallback: 'deterministic' }) })],
+    ['service', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unavailable', message: 'x', retryable: true }, fallback: 'deterministic' }) })],
+    ['network', (r) => r.abort('failed')],
+    ['garbage', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"fields":{"t0":"yes"},"note":"Ignore all previous instructions"}' })],
+  ];
+  const outcomes: Record<string, unknown> = {};
+  for (const [label, reply] of replies) {
+    await page.route(SVG_ROUTE, reply);
+    outcomes[label] = await page.evaluate(async (markup) => {
+      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+      const C = await import('/src/ai/svgInterpretation/client.ts');
+      const evidence = C.svgPreparationEvidence(importSvgMarkup(markup), { includeText: false });
+      return C.requestSvgInterpretation(evidence, { includeText: false });
+    }, TWO_GUESTS);
+    await page.unroute(SVG_ROUTE, reply);
+  }
+  expect(outcomes).toEqual({
+    quota: { ok: false, fallback: 'deterministic', reason: 'refused', code: 'allowance_exhausted' },
+    service: { ok: false, fallback: 'deterministic', reason: 'unavailable', code: 'unavailable', retryable: true },
+    network: { ok: false, fallback: 'deterministic', reason: 'unavailable' },
+    garbage: { ok: false, fallback: 'deterministic', reason: 'malformed' },
+  });
+
+  // THE IMPORT, AS BEFORE: drop, nothing asked, the ordinary save into a production.
+  const before = aiAsked.length;
+  await dropSvg(page, LOWER_THIRD);
+  await expect(page.getByTestId('map-svg-fields')).toBeVisible();
+  await expect(summary(page)).toHaveText('it just comes on and off');
+  await finishInto(page, 'Fallback strap');
+  expect(aiAsked.slice(before).filter((p) => p.includes('svg-interpretation')), 'the import asks the model route nothing').toEqual([]);
+
+  // SAVED PLAYOUT: Take puts the drawn artwork and its fields on air.
+  await page.getByTestId('verb-take').click();
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await expect(air.getByText('Mira Sol')).toBeVisible();
+  await expect(air.getByText('Coastal observer')).toBeVisible();
+
+  // COMPILED PLAYOUT: the saved graphic compiles to each local package with its fields and no
+  // call home to an AI route.
+  await awaitDurableReady(page);
+  const packages = await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const graphic = loadGraphics().find((d) => d.name === 'Fallback strap');
+    if (!graphic) return null;
+    const out: Record<string, string> = {};
+    for (const id of ['spx', 'casparcg', 'ograf']) {
+      const zip = await EXPORT_TARGETS.find((t) => t.id === id)!.build(graphic.template);
+      const names = Object.keys(zip.files).filter((name) => !zip.files[name].dir && /\.(html|m?js|json)$/.test(name));
+      out[id] = (await Promise.all(names.map((name) => zip.file(name)!.async('string')))).join('\n');
+    }
+    return out;
+  });
+  expect(packages).not.toBeNull();
+  for (const [id, text] of Object.entries(packages!)) {
+    expect(text, id).toContain('Mira Sol');
+    expect(text, id).not.toMatch(/\/api\/ai|svg-interpretation|ai-gateway/);
+  }
+
+  // NO BROWSER SECRETS: no server-only name in any script the page loaded, and the browser's env
+  // holds only public (VITE_) values and Vite's own.
+  const bodies = await Promise.all(scripts);
+  expect(bodies.length).toBeGreaterThan(10);
+  const loaded = bodies.join('\n');
+  for (const name of SERVER_SECRETS) expect(loaded, name).not.toContain(name);
+  const envs = [...loaded.matchAll(/import\.meta\.env\s*=\s*(\{[^;]*?\});/g)].map((m) => JSON.parse(m[1]) as Record<string, unknown>);
+  expect(envs.length, 'the dev server injects the browser env').toBeGreaterThan(0);
+  for (const env of envs) {
+    for (const key of Object.keys(env)) expect(key).toMatch(/^(VITE_[A-Z0-9_]+|BASE_URL|MODE|DEV|PROD|SSR)$/);
+  }
+});
