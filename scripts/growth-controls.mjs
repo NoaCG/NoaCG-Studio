@@ -183,7 +183,8 @@ const joinPath = (from, rel) => {
 const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', '[\'"`]work' + 'flow[\'"`]\\s*,\\s*[\'"`]run[\'"`]', 'create' + 'WorkflowDispatch', '[/]dispatches\\b', 'uses:\\s*[\'"]?[.][/][.]github[/]workflows[/]'].join('|'));
 
 /**
- * The workflow files some per-landing workflow starts: by `gh workflow run` (or its argument array,
+ * The workflow files some per-landing or scheduled workflow starts (one a schedule starts keeps the
+ * old floor of a run per landing): by `gh workflow run` (or its argument array,
  * `['workflow', 'run', ...]`), a dispatch API call
  * (`createWorkflowDispatch`, `.../dispatches`) or a reusable-workflow `uses:`. From each per-landing
  * workflow it follows what the steps run: repository files named by path (scripts, and the files
@@ -272,7 +273,9 @@ export function landingDispatched({ workflows = {}, read = () => null }, e, { li
   for (let grew = true; grew;) {
     grew = false;
     for (const w of Object.keys(workflows)) {
-      if (cadence(shapes[w], e, { dispatched: dispatched.has(w) }).runs < 1) continue;
+      // A scheduled workflow is a source too: what it starts runs, even if not on a landing.
+      const c = cadence(shapes[w], e, { dispatched: dispatched.has(w) });
+      if (c.runs < 1 && c.daily === 0) continue;
       if (!(w in found)) found[w] = dispatchers(w);
       for (const f of Object.keys(workflows)) {
         if (f === w || dispatched.has(f)) continue;

@@ -479,11 +479,11 @@ test('(b) a manual-only workflow costs no run per landing unless a per-landing w
     return priceAdditions({ workflows: Object.fromEntries(Object.entries({ 'm.yml': manual, ...extra }).map(([f, head]) => [f, { base: '', head }])), estimates: e, repo });
   };
   assert.deepEqual(price({ 'm.yml': manual }), [], 'nothing starts it on a landing');
-  // A comment naming the command is not a step; neither is a dispatch from a scheduled workflow.
+  // A comment naming the command is not a step.
   const commented = { 'ci.yml': ci.replace('jobs:', '# gh workflow run m.yml\njobs:'), 'm.yml': manual };
   assert.deepEqual(priceAdditions({ workflows: { 'm.yml': { base: '', head: manual } }, estimates: e, repo: { head: { workflows: commented } } }), []);
   const nightly = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  go:\n    steps:\n      - run: gh workflow run m.yml\n";
-  assert.deepEqual(price({ 'm.yml': manual, 'nightly.yml': nightly }), []);
+  assert.equal(price({ 'm.yml': manual, 'nightly.yml': nightly }).find((i) => i.id === 'job:m.yml/Manual')?.perLanding, e.newJobMinutes, 'what a schedule starts keeps a run per landing');
   // Started per landing, by a step, by name, by a script the step runs, or through a chain.
   const step = ci.replace('npm test', 'gh workflow run m.yml --ref main');
   assert.equal(priceAdditions({ workflows: { 'm.yml': { base: '', head: manual } }, estimates: e, repo: { head: { workflows: { 'ci.yml': step, 'm.yml': manual } } } })[0].perLanding, e.newJobMinutes);
