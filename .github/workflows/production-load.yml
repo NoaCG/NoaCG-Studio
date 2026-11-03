@@ -1,0 +1,94 @@
+# The production database's load, read every 30 minutes (docs/work-specs/production-load-watch).
+#
+# On 2026-11-03 production stalled and crashed about 1.5 hours before Supabase's warning email, and
+# nothing here looked at memory or disk. scripts/production-load.mjs only reads. A finding files
+# the rolling issue (docs/DEPLOYMENT.md), a repeat of the same finding adds no comment, and the next
+# healthy run closes it. GitHub delays scheduled runs, so this is an early warning and not a pager.
+#
+# NOT WATCHED BY nightly-drift.yml, whose matrix entry the overhead tier refused. It runs under the
+# production-load-watch exception in scripts/growth-ceilings.json; #2019 decides its future before
+# that expires on 2026-12-03, including whether it joins that watch.
+
+name: production-load
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write # the rolling issue
+
+concurrency:
+  group: production-load
+  cancel-in-progress: false
+
+env:
+  ISSUE_TITLE: Production database load is red
+
+jobs:
+  watch:
+    name: Read the production database's load
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # For its token only. The deployment record this leaves is bookkeeping, which deploy-verify's
+    # `if:` skips, as it does for post-land.yml's. `deployment: false` would avoid the record, but
+    # the validator behind scripts/check-workflows.mjs does not know that key yet.
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+
+      # No install: the script imports Node builtins and one local file.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Read the load
+        id: load
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+        run: node scripts/production-load.mjs
+
+      - name: File / update the load issue
+        if: ${{ steps.load.outputs.state != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATE: ${{ steps.load.outputs.state }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # Closed with its comment end, so "memory" does not match an earlier "memory swap".
+          MARKER="<!-- production-load-state: ${STATE} -->"
+          BODY="$(cat load-report.md; printf '\n\nThe database may need attention before it stalls. Compute size and recent activity are the first things to check.\n\nRun: %s\n\n%s' "$RUN_URL" "$MARKER")"
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -z "$EXISTING" ]; then
+            gh issue create --title "$ISSUE_TITLE" --body "$BODY"
+            exit 0
+          fi
+          LAST="$(gh issue view "$EXISTING" --json comments,body --jq '(.comments | map(.body) | last) // .body')"
+          if printf '%s' "$LAST" | grep -qF "$MARKER"; then
+            echo "::notice title=Same finding already reported::${MARKER} is already the latest word on issue #${EXISTING}, so this run adds no comment. The run is still red."
+            exit 0
+          fi
+          gh issue comment "$EXISTING" --body "$BODY"
+
+      - name: Close the load issue
+        if: ${{ steps.load.outcome == 'success' && steps.load.outputs.state == '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          EXISTING="$(gh issue list --state open --search "\"$ISSUE_TITLE\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" --comment "Healthy again: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+      - name: Fail the run when something is wrong
+        if: ${{ steps.load.outputs.state != '' }}
+        env:
+          STATE: ${{ steps.load.outputs.state }}
+        run: |
+          echo "::error title=Production database load::${STATE}"
+          exit 1

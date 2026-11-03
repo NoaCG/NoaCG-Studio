@@ -80,6 +80,7 @@
     "test:e2e:runs": "node scripts/e2e-runs.mjs --all",
     "queue": "node scripts/jobs.mjs add",
     "jobs": "node scripts/jobs.mjs",
+    "load": "node --env-file-if-exists=.env scripts/production-load.mjs",
     "queue:merge": "node scripts/jobs.mjs add-merge",
     "stamp": "node scripts/check-stamp.mjs",
     "requeue": "node scripts/jobs.mjs requeue",
