@@ -16,6 +16,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tierOfJob } from '../../../../scripts/growth-controls.mjs';
 
+// The window: the same two values as phase-cf03-collect.mjs (that file runs on import, so it is not imported).
 const FROM = '2026-10-24T10:00:45Z';
 const UNTIL = '2026-11-03T12:00:00Z';
 const CI = '.github/workflows/ci.yml';
@@ -39,7 +40,7 @@ export const SIDE_RULE = [
   { what: 'ci.yml outside the configured jobs', test: (f, ci) => f === CI && ci.other, metrics: ['m1', 'm2', 'm3'], groups: 'all' },
   { what: 'ci.yml configured jobs', test: (f, ci) => f === CI && ci.configured, metrics: ['m1', 'm3'], groups: CFG },
   { what: 'shared job setup actions', test: (f) => /^\.github\/actions\/(node-modules|playwright-chromium)\//.test(f), metrics: ['m1', 'm2', 'm3'], groups: 'all' },
-  { what: 'dependencies (lockfile or package.json versions), the build script, the gate runner', test: (f, ci) => f === 'package-lock.json' || (f === 'package.json' && ci.pkg) || f === 'scripts/gates.mjs', metrics: ['m1', 'm2', 'm3'], groups: 'all' },
+  { what: 'dependencies (lockfile or package.json versions), the build script, the gate, factory and E2E retry runners', test: (f, ci) => f === 'package-lock.json' || (f === 'package.json' && ci.pkg) || f === 'scripts/gates.mjs' || f === 'scripts/factory.mjs' || f === 'scripts/e2e-retry.mjs', metrics: ['m1', 'm2', 'm3'], groups: 'all' },
   { what: 'E2E planner, selection code, shard packing, offline Playwright config', test: (f) => (/^scripts\/(e2e-affected[^/]*|e2e-traced)\.mjs$/.test(f) && notTest(f)) || f === 'scripts/e2e-durations.json' || f === 'playwright.config.ts', metrics: ['m1', 'm2', 'm3'], groups: 'all' },
   { what: 'catalog gate code and config', test: (f) => (/^scripts\/(catalog-[^/]*|e2e-run-integrity)\.mjs$/.test(f) && notTest(f)) || f === 'playwright.catalog.config.ts', metrics: ['m1', 'm2', 'm3'], groups: SHARDED },
   { what: 'configured suite definition: workflow, stack action, selection, packing, verdict, stack script, live config, stack config', test: (f) => CFG_DEF(f) || (/^scripts\/configured-selection[^/]*\.mjs$/.test(f) && notTest(f)), metrics: ['m1', 'm3'], groups: CFG },
@@ -47,6 +48,8 @@ export const SIDE_RULE = [
   { what: 'post-landing workflows', test: (f) => /^\.github\/workflows\/(post-land|quarantine|deploy-verify)\.yml$/.test(f), metrics: ['m3'], groups: 'all' },
 ];
 const GROUPS = ['none', 'small', 'cap', 'none+cfg', 'small+cfg', 'cap+cfg'];
+
+export const changedFiles = (sha) => execFileSync('git', ['diff', '--name-only', `${sha}^1`, sha], { encoding: 'utf8' }).split('\n').filter(Boolean);
 
 // Which ci.yml jobs a merge's diff touches: hunks inside the `configured`/`configured-verdict` job
 // blocks, or anywhere else (another job, triggers, concurrency, env).
@@ -68,8 +71,7 @@ function ciTouched(sha) {
 }
 
 /** What a merge ends: { metric: [groups] } under SIDE_RULE, with the rule entries that matched. */
-export function sideEnds(sha) {
-  const files = execFileSync('git', ['diff', '--name-only', `${sha}^1`, sha], { encoding: 'utf8' }).split('\n').filter(Boolean);
+export function sideEnds(sha, files = changedFiles(sha)) {
   const ci = files.includes(CI) ? ciTouched(sha) : { configured: false, other: false };
   // package.json counts when a changed line is a dependency version or the build script, not when
   // a script entry is added for a tool (most package.json edits).
@@ -87,12 +89,17 @@ export function sideEnds(sha) {
   return { ends, why };
 }
 
-// Sides: B before ci01, D while the cicd-improvement rows landed, A after the last of them.
+// Sides: B before ci01, D while the cicd-improvement rows landed, A after the last of them. Each
+// boundary is the landing PR's merged_at, when it reached main (its merge commit's own time is
+// earlier, while it waited in the queue).
+export const CI01_AT = '2026-10-31T10:07:34Z'; // #1848
+export const CI16_AT = '2026-11-02T00:56:41Z'; // #1948
+export const CF04_AT = '2026-11-03T09:50:01Z'; // #2014
 export function side(t) {
-  if (t < '2026-10-31T10:00:45Z') return 'B';
-  if (t < '2026-11-02T00:49:40Z') return 'D';
-  if (t < '2026-11-03T09:37:00Z') return 'A';
-  return 'A2'; // after cf04, the first CI-changing landing of this run
+  if (t < CI01_AT) return 'B';
+  if (t < CI16_AT) return 'D';
+  if (t < CF04_AT) return 'A';
+  return 'A2'; // after cf04, the first landing of this run that ends a side
 }
 
 const min = (a, b) => (new Date(b) - new Date(a)) / 60000;
@@ -125,11 +132,12 @@ export const groupOf = (r) => `${r.bucket}${r.configured_jobs > 0 ? '+cfg' : ''}
 
 // Reference records for a group's spread: side B when it holds at least 12 of the group, otherwise
 // every record measured after ci06 landed (the configured groups exist only from then).
-export const CI06_AT = '2026-10-31T21:15:44Z';
+export const CI06_AT = '2026-10-31T21:28:08Z'; // #1872 merged_at
 export function reference(records, g) {
   const b = records.filter((r) => r.side === 'B' && groupOf(r) === g);
-  if (b.length >= 12) return { basis: 'B', records: b };
-  return { basis: 'after ci06', records: records.filter((r) => r.side_at >= CI06_AT && groupOf(r) === g) };
+  const bySideAt = (list) => [...list].sort((x, y) => x.side_at.localeCompare(y.side_at));
+  if (b.length >= 12) return { basis: 'B', records: bySideAt(b) };
+  return { basis: 'after ci06', records: bySideAt(records.filter((r) => r.side_at >= CI06_AT && groupOf(r) === g)) };
 }
 
 // ---- derive ----
@@ -174,21 +182,27 @@ function derive(cache, out) {
   const runs = Object.values(read('runs.json').items);
   // A re-run attempt lists every job of the run again: the ones it did not re-run are copies of the
   // earlier attempt with the same name and the same start and end times. Only the first is real.
+  const parsed = new Map();
   const jobsRaw = (r) => {
     const f = join(cache, 'jobs', `${r.id}-${r.run_attempt}.json`);
-    return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
+    if (!parsed.has(f)) parsed.set(f, existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null);
+    return parsed.get(f);
   };
+  const deduped = new Map();
   const jobsOf = (r) => {
-    const f = join(cache, 'jobs', `${r.id}-${r.run_attempt}.json`);
-    if (!existsSync(f)) return null;
+    const raw = jobsRaw(r);
+    if (!raw) return null;
+    if (deduped.has(raw)) return deduped.get(raw);
     const seen = new Set();
-    return JSON.parse(readFileSync(f, 'utf8')).sort((a, b) => (a.run_attempt ?? 1) - (b.run_attempt ?? 1)).filter((j) => {
+    const out = [...raw].sort((a, b) => (a.run_attempt ?? 1) - (b.run_attempt ?? 1)).filter((j) => {
       if (!j.started_at) return true;
       const k = `${j.name}|${j.started_at}|${j.completed_at}`;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
+    deduped.set(raw, out);
+    return out;
   };
   const runMinutes = (r) => {
     const js = jobsOf(r);
@@ -198,7 +212,7 @@ function derive(cache, out) {
   };
   const records = [];
   for (const p of pulls) {
-    const files = execFileSync('git', ['diff', '--name-only', `${p.merge_sha}^1`, p.merge_sha], { encoding: 'utf8' }).split('\n').filter(Boolean);
+    const files = changedFiles(p.merge_sha);
     const ev = read(`events/${p.number}.json`);
     const inPr = (r) => r.created_at >= new Date(new Date(p.created_at).getTime() - 60000).toISOString() && r.created_at <= p.merged_at;
     const branchRuns = runs.filter((r) => r.head_branch === p.head_ref && inPr(r) && r.event !== 'merge_group' && r.event !== 'push');
@@ -268,7 +282,8 @@ function derive(cache, out) {
       if ((r.path ?? '').includes('codeql')) { tiers.codeql += runMinutes(r).minutes; continue; }
       const js = jobsOf(r);
       if (js) for (const j of js) tiers[tierOfJob(r.path, j.name)] += jobMinutes(j);
-      else tiers[tierOfJob(r.path, '')] += runMinutes(r).minutes;
+      // quarantine.yml's one job is `Quarantine (...)`, offline; every other unread run is one job of its workflow's tier.
+      else tiers[tierOfJob(r.path, r.path.endsWith('quarantine.yml') ? 'Quarantine (' : '')] += runMinutes(r).minutes;
     }
     const heads = new Set(prRuns.filter((r) => r.path === CI).map((r) => r.head_sha)).size;
     m3.approx = [...prRuns, ...prOther, ...queueAll, ...landRuns].filter((r) => !runMinutes(r).exact).reduce((s, r) => s + runMinutes(r).minutes, 0);
@@ -292,7 +307,13 @@ function derive(cache, out) {
       if (!bySha.has(k)) bySha.set(k, []);
       bySha.get(k).push(...js.map((j) => ({ ...j, run: r })));
     }
-    const caps = { Build: 15, 'E2E plan': 5, 'Factory gates': 20, 'CI gate': 5 };
+    // timeout-minutes of each job, from ci.yml and configured-suite.yml at 561cd60c.
+    const capOf = (path, n) => {
+      if (path === CONFIGURED) return /^Configured shard plan/.test(n) ? 5 : /^Configured E2E shard/.test(n) ? 40 : /^Configured E2E/.test(n) ? 20 : /^Configured quarantine/.test(n) ? 10 : null;
+      const k = jobKey(n);
+      return { build: 15, plan: 5, e2e: 20, 'e2e-retry': 45, 'e2e-catalog': 25, 'guided-mod': 10, factory: 20, rerun: 35, 'e2e-report': 10, configured: 40, 'configured-verdict': 15, gate: 5, reviewed: 5 }[k]
+        ?? (/^Vercel accepted/.test(n) ? 10 : /^After the gate/.test(n) ? 10 : null);
+    };
     for (const [, js] of bySha) {
       const byName = new Map();
       for (const j of js) {
@@ -311,7 +332,7 @@ function derive(cache, out) {
           if (!ok || j === ok || (j.started_at ?? '') > (ok.started_at ?? '')) continue;
           if (j.conclusion !== 'failure' && j.conclusion !== 'cancelled' && j.conclusion !== 'timed_out') continue;
           const mins = jobMinutes(j);
-          const cap = caps[n] ?? (/^E2E \d/.test(n) ? 20 : /^Configured/.test(n) ? 40 : null);
+          const cap = capOf(j.run.path, n);
           const isHang = cap && mins >= cap - 0.5;
           if (isHang) { waste.hang += mins; hangs.push({ job: n, run: j.run.id, attempt: j.run_attempt, minutes: +mins.toFixed(1) }); }
           else { waste.flake += mins; flakes.push({ job: n, run: j.run.id, attempt: j.run_attempt, conclusion: j.conclusion, minutes: +mins.toFixed(1) }); }
@@ -376,7 +397,7 @@ function derive(cache, out) {
     }
     const sideAt = finalRun ? finalRun.created_at : p.merged_at;
     const r2 = (x) => (x == null ? null : +x.toFixed(2));
-    const { ends, why } = sideEnds(p.merge_sha);
+    const { ends, why } = sideEnds(p.merge_sha, files);
     records.push({
       ends, ends_why: why,
       number: p.number, merged_at: p.merged_at, merge_sha: p.merge_sha, head_ref: p.head_ref, side: side(sideAt), side_at: sideAt,
@@ -549,7 +570,7 @@ function report(recordsPath) {
     'Build with warm lint and type caches': (e) => ({ ...e, ...(e.build ? { build: 0.4 + BUILD_CACHE * (e.build - 0.4) } : {}) }),
     'E2E shards balanced': (e, c) => ({ ...e, ...(e.e2e && c.e2eShards ? { e2e: e.e2e - (c.e2eShards.max - c.e2eShards.mean), 'e2e-retry': e['e2e-retry'] ? e['e2e-retry'] - (c.e2eShards.max - c.e2eShards.mean) : undefined } : {}) }),
   };
-  transforms['configured stack start halved'] = (e) => ({ ...e, ...(e['configured-verdict'] > 1.5 ? { 'configured-verdict': e['configured-verdict'] - CFG_SETUP / 2, configured: e.configured - CFG_SETUP / 2 } : {}) });
+  transforms['configured stack start halved'] = (e) => ({ ...e, ...(e['configured-verdict'] > 1.5 ? { 'configured-verdict': e['configured-verdict'] - CFG_SETUP / 2, configured: (e.configured ?? 0) - CFG_SETUP / 2 } : {}) });
   transforms['configured bins halved + catalog in two'] = (e, c) => transforms['catalog gate in two jobs'](transforms['configured bins halved'](e, c), c);
   transforms['the four chain changes together'] = (e, c) => ['configured bins halved', 'catalog gate in two jobs', 'Build split in parallel jobs', 'E2E shards balanced'].reduce((acc, k) => transforms[k](acc, c), e);
   const latest = (e) => Math.max(...Object.values(e).filter((x) => typeof x === 'number'));

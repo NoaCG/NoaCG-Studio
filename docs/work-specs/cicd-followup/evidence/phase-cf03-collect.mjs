@@ -17,7 +17,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO = 'NoaCG/NoaCG-Studio';
-export const FROM = '2026-10-24T10:00:45Z'; // seven days before ci01 landed (139a9724)
+export const FROM = '2026-10-24T10:00:45Z'; // seven days before ci01 (139a9724); phase-cf03-baseline.mjs repeats FROM and UNTIL
 export const UNTIL = '2026-11-03T12:00:00Z';
 const RUN_DAYS_FROM = '2026-10-17'; // PR runs of PRs opened up to a week before the window
 const JOB_WORKFLOWS = new Set(['.github/workflows/ci.yml', '.github/workflows/configured-suite.yml']);
@@ -79,14 +79,31 @@ function pulls() {
   return Object.values(state.items).filter((p) => p.merged_at >= FROM && p.merged_at < UNTIL);
 }
 
-// 2. Every workflow run created on each day (all workflows, all events).
+// 2. Every workflow run created in each day (all workflows, all events). GitHub returns at most
+// 1,000 runs for one filtered listing, so a day with more is split into six-hour ranges, then hours.
+// A range is cached as done only once it ended an hour before it was listed and every run in it had
+// completed: a run still going is listed again, with its final status and attempt, on a later pass.
 function runs() {
-  const state = load('runs.json', { days: {}, items: {} });
-  for (const day of days(RUN_DAYS_FROM, UNTIL)) {
-    const d = state.days[day] ?? { page: 1, done: false };
-    // Today's runs are still moving; only a finished day is cached as done.
+  const state = load('runs.json', { ranges: {}, items: {} });
+  const queue = days(RUN_DAYS_FROM, UNTIL).map((d) => ({ key: d, end: `${d}T23:59:59Z` }));
+  while (queue.length) {
+    const { key, end } = queue.shift();
+    const d = state.ranges[key] ?? { page: 1, done: false, split: false, open: 0 };
+    if (d.split) { queue.unshift(...d.parts); continue; }
+    const listedAt = new Date().toISOString();
     while (!d.done) {
-      const res = api(`repos/${REPO}/actions/runs?created=${day}&per_page=100&page=${d.page}`);
+      const res = api(`repos/${REPO}/actions/runs?created=${encodeURIComponent(key)}&per_page=100&page=${d.page}`);
+      if (d.page === 1 && res.total_count > 1000) {
+        const day = key.slice(0, 10);
+        const hours = key.length === 10 ? [0, 6, 12, 18].map((h) => [h, h + 5]) : (() => { const h0 = Number(key.slice(11, 13)); return Array.from({ length: 6 }, (_, i) => [h0 + i, h0 + i]); })();
+        const pad = (n) => String(n).padStart(2, '0');
+        d.split = true;
+        d.parts = hours.map(([h1, h2]) => ({ key: `${day}T${pad(h1)}:00:00Z..${day}T${pad(h2)}:59:59Z`, end: `${day}T${pad(h2)}:59:59Z` }));
+        state.ranges[key] = d;
+        save('runs.json', state);
+        queue.unshift(...d.parts);
+        break;
+      }
       for (const r of res.workflow_runs) {
         state.items[r.id] = {
           id: r.id, name: r.name, path: r.path, event: r.event, head_branch: r.head_branch,
@@ -94,10 +111,19 @@ function runs() {
           created_at: r.created_at, run_started_at: r.run_started_at, updated_at: r.updated_at,
           display_title: r.display_title,
         };
+        if (r.status !== 'completed' && r.created_at < UNTIL) d.open += 1;
       }
       d.page += 1;
-      if (res.workflow_runs.length < 100 || (d.page - 1) * 100 >= res.total_count) d.done = true;
-      state.days[day] = d;
+      if (res.workflow_runs.length < 100 || (d.page - 1) * 100 >= res.total_count) {
+        const last = end < UNTIL ? end : UNTIL; // only runs before the window end matter
+        const settled = d.open === 0 && new Date(last).getTime() + 3600000 < new Date(listedAt).getTime();
+        if (settled) d.done = true;
+        else Object.assign(d, { page: 1, open: 0, relist: true });
+        state.ranges[key] = d;
+        save('runs.json', state);
+        break;
+      }
+      state.ranges[key] = d;
       save('runs.json', state);
     }
   }
