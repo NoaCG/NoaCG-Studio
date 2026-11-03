@@ -50,7 +50,8 @@ const RUNNERS = [
 // scripts move M1 only for the +cfg groups (and M3 for all, the suite runs on every landing), the
 // catalog gate's only for the sharded groups (e2e-run-integrity is not one of them: the configured
 // jobs and every offline Playwright run use it as their reporter).
-const rootScope = (f) => (/^scripts\/configured-/.test(f) ? { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true }
+const rootScope = (f) => (/^scripts\/configured-/.test(f) || f === 'playwright.live.config.ts' ? { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true }
+  : f === 'playwright.catalog.config.ts' ? { metrics: ['m1', 'm2', 'm3'], groups: SHARDED }
   : /^scripts\/catalog-/.test(f) ? { metrics: ['m1', 'm2', 'm3'], groups: SHARDED } : null);
 
 const showCache = new Map();
@@ -61,6 +62,7 @@ function show(sha, path) {
   }
   return showCache.get(k);
 }
+const PLAYWRIGHT_CONFIGS = ['playwright.config.ts', 'playwright.catalog.config.ts', 'playwright.live.config.ts'];
 const SCRIPT_REF = /\bscripts\/[\w./-]+\.(?:mjs|cjs|js)\b/g;
 // Roots: scripts a runner's text names, directly, through `npm run <name>` (also inside the local
 // actions it uses and inside the package.json scripts those name), and through npm's install hooks
@@ -80,7 +82,11 @@ function rootsOf(sha, runner) {
       texts.push(show(sha, `${m[1]}/action.yml`) ?? '');
     }
   }
-  return new Set(texts.flatMap((t) => [...t.matchAll(SCRIPT_REF)].map((m) => m[0])).filter(notTest));
+  const roots = new Set(texts.flatMap((t) => [...t.matchAll(SCRIPT_REF)].map((m) => m[0])).filter(notTest));
+  // The Playwright configs the runner's npm entries or text use are roots too: their imports pick
+  // workers, reporters and global setup for every shard.
+  for (const cfg of PLAYWRIGHT_CONFIGS) if (texts.some((t) => t.includes(cfg) || (cfg === 'playwright.config.ts' && /\bplaywright test\b(?![^\n]*--config)/.test(t)))) roots.add(cfg);
+  return { roots, names: seenNames };
 }
 // The import closure of a set of scripts: static and dynamic relative imports, resolved in the tree.
 function closure(sha, roots) {
@@ -92,11 +98,14 @@ function closure(sha, roots) {
     if (text == null) continue;
     seen.add(f);
     const dir = f.split('/').slice(0, -1);
-    for (const m of text.matchAll(/(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/g)) {
+    // A Playwright config also names its reporters and global setup as path strings, not imports.
+    const pathRe = /^playwright[^/]*\.config\.ts$/.test(f) ? /['"](\.{1,2}\/[^'"]+\.(?:mjs|cjs|js|ts))['"]/g
+      : /(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/g;
+    for (const m of text.matchAll(pathRe)) {
       const parts = [...dir];
       for (const seg of m[1].split('/')) { if (seg === '..') parts.pop(); else if (seg !== '.') parts.push(seg); }
       const target = parts.join('/');
-      if (/\.(mjs|cjs|js|json)$/.test(target) && !seen.has(target)) stack.push(target);
+      if (/\.(mjs|cjs|js|json|ts)$/.test(target) && !seen.has(target)) stack.push(target);
     }
   }
   return seen;
@@ -105,8 +114,8 @@ const closureCache = new Map();
 function runnerClosures(sha) {
   if (!closureCache.has(sha)) {
     closureCache.set(sha, RUNNERS.map((r) => {
-      const roots = [...rootsOf(sha, r.file)];
-      return { runner: r, perRoot: roots.map((root) => ({ root, files: closure(sha, [root]) })) };
+      const { roots, names } = rootsOf(sha, r.file);
+      return { runner: r, names, perRoot: [...roots].map((root) => ({ root, files: closure(sha, [root]) })) };
     }));
   }
   return closureCache.get(sha);
@@ -128,7 +137,18 @@ function matchedEntries(sha, files, ci) {
     else if (f === 'playwright.catalog.config.ts') add(`${f}`, { metrics: ['m1', 'm2', 'm3'], groups: SHARDED });
     else if (f === 'playwright.live.config.ts' || f === 'supabase/config.toml') add(`${f}`, { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true });
   }
-  const code = files.filter((f) => /\.(mjs|cjs|js|json)$/.test(f) && notTest(f) && !f.startsWith('.github/'));
+  // A package.json script entry a runner reaches (`npm run`, install hooks) whose command changed.
+  if (files.includes('package.json')) {
+    const pkgAt = (x) => JSON.parse(show(x, 'package.json') ?? '{"scripts":{}}').scripts ?? {};
+    const now = pkgAt(sha); const before = pkgAt(`${sha}^1`);
+    for (const sideSha of [sha, `${sha}^1`]) {
+      for (const { runner, names } of runnerClosures(sideSha)) {
+        const hit = [...names].find((n) => now[n] !== before[n]);
+        if (hit) add(`package.json "${hit}" (run by ${runner.file.split('/').pop()})`, { metrics: runner.metrics, groups: runner.groups, alsoM3All: runner.alsoM3All });
+      }
+    }
+  }
+  const code = files.filter((f) => /\.(mjs|cjs|js|json|ts)$/.test(f) && notTest(f) && !/\.(test|spec)\.ts$/.test(f) && !f.startsWith('.github/'));
   if (code.length) {
     for (const sideSha of [sha, `${sha}^1`]) {
       for (const { runner, perRoot } of runnerClosures(sideSha)) {
