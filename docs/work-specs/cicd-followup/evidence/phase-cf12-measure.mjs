@@ -135,23 +135,39 @@ function runAdded(run) {
 
 const result = { since: SINCE, ceiling: CEILING, complete: false, calls: 0, changes: [] };
 try {
+  // Every read that lists history must prove it reached the end, or the pass is incomplete: a list
+  // that stops early drops the OLDEST entries (newest first), the first changes after enabling.
+  let truncated = 0;
   const pulls = [];
-  for (let page = 1; page <= 5; page += 1) {
+  let reachedSince = false;
+  for (let page = 1; page <= 30; page += 1) {
     const batch = api(`${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
     pulls.push(...batch.filter((p) => p.merged_at && p.merged_at > SINCE));
-    if (batch.length < 100 || batch.every((p) => p.updated_at < SINCE)) break;
+    if (batch.length < 100 || batch.some((p) => p.updated_at < SINCE)) {
+      reachedSince = true;
+      break;
+    }
   }
-  // Every merge-group run since enabling, read once per pass and paged to the end (newest first,
-  // so one page would drop the earliest changes' runs once more than 100 exist).
-  // Every ci.yml run since enabling, by event, read once per pass and paged to the end. One shared
-  // list, not a read per change, so the calls a pass needs grow with the run count / 100, not with
-  // the number of merged changes, and a pass over a cached history can finish within the budget.
+  if (!reachedSince) truncated += 1;
+  // Every ci.yml run since enabling, by event, read once per pass as one shared list (calls grow with
+  // the run count, not with the number of changes). GitHub serves at most 1,000 results for a
+  // filtered runs query, so the window is read one UTC day at a time, and a day whose collected runs
+  // fall short of its `total_count` (or that reaches the cap) marks the pass incomplete.
+  const days = [];
+  for (let d = Date.parse(`${SINCE.slice(0, 10)}T00:00:00Z`); d <= Date.now(); d += 86_400_000) days.push(new Date(d).toISOString().slice(0, 10));
   const runsSince = (event) => {
     const all = [];
-    for (let page = 1; ; page += 1) {
-      const batch = api(`${REPO}/actions/workflows/ci.yml/runs?event=${event}&created=${encodeURIComponent(`>=${SINCE}`)}&per_page=100&page=${page}`).workflow_runs;
-      all.push(...batch);
-      if (batch.length < 100) break;
+    for (const day of days) {
+      let total = 0;
+      let got = 0;
+      for (let page = 1; ; page += 1) {
+        const body = api(`${REPO}/actions/workflows/ci.yml/runs?event=${event}&created=${day}&per_page=100&page=${page}`);
+        total = body.total_count ?? 0;
+        got += body.workflow_runs.length;
+        all.push(...body.workflow_runs.filter((r) => r.created_at > SINCE));
+        if (body.workflow_runs.length < 100) break;
+      }
+      if (got < total || total >= 1000) truncated += 1;
     }
     return all;
   };
@@ -175,7 +191,8 @@ try {
     result.changes.push({ number: pr.number, merged_at: pr.merged_at, runs, minutes: Number(runs.reduce((s, r) => s + r.minutes, 0).toFixed(2)) });
   }
   result.pending = pending;
-  result.complete = pending === 0;
+  result.truncated = truncated;
+  result.complete = pending === 0 && truncated === 0;
 } catch (error) {
   if (!(error instanceof Budget)) throw error;
 }
