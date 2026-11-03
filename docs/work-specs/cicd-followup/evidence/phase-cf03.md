@@ -196,7 +196,7 @@ per landing) run on `main` and are not attributed to a merge here.
 | | B (122) | D (44) | A (34) |
 | --- | --- | --- | --- |
 | Merges with a fail-then-pass job | 7 (5.7%) | 10 (22.7%) | 5 (14.7%) |
-| Merges with a hang (job at its cap, then passed) | 1 | 0 | 1 (#1991) |
+| Merges with a hang (job at its cap, then passed) | 1 | 0 | 1 (#1985, tracked in #1991) |
 | Merges with a real re-run attempt (attempts) | 8 (10) | 11 (11) | 6 (7) |
 | E2E retry jobs that passed (a spec failed, then passed in-run) | 4 | 3 | 1 |
 | Dequeues / merges with more than one merge group | 1 / 1 | 2 / 2 | 0 / 0 |
@@ -305,7 +305,7 @@ groups follow from who runs the file:
 | `package-lock.json`, a dependency version or the `build` script in package.json, the build's configs (`eslint.config.js`, `tsconfig*.json`, `vite.config.ts`, `.dependency-cruiser.cjs`) | M1, M2, M3 | all |
 | `scripts/e2e-durations.json`, `playwright.config.ts` | M1, M2, M3 | all |
 | `playwright.catalog.config.ts` | M1, M2, M3 | `small`, `cap` and their `+cfg` |
-| a script in the import closure of a script ci.yml runs | M1, M2, M3 | all; for a `scripts/catalog-*` or `e2e-run-integrity` root only the sharded groups; for a `scripts/configured-*` root M1 for `+cfg` and M3 for all |
+| a script in the import closure of a script ci.yml runs | M1, M2, M3 | all; for a `scripts/catalog-*` root only the sharded groups (`e2e-run-integrity` counts for all: the configured jobs and every offline Playwright run use it as their reporter); for a `scripts/configured-*` root M1 for `+cfg` and M3 for all |
 | a script in the closure of a script only configured-suite.yml runs | M1 (`+cfg`), M3 (all) | as shown |
 | a script in the closure of a script only post-land.yml, quarantine.yml or deploy-verify.yml runs | M3 | all |
 
@@ -332,7 +332,7 @@ on B #1658 and #1766 (post-land scripts, M3 only), #1675 and #1816 (configured-s
 `+cfg`, M3 of all), #1683 (ci.yml and deploy-verify.yml), #1687 (a library every CI script
 imports), #1724 (dependency-cruiser config, production-pack build step), #1756, #1804, #1589,
 #1837, #1838, #1841 (dependencies); on D #1854 (ci03), #1861 (ci04), #1866 (ci05), #1872 (ci06),
-#1880 (ci18), #1896 (ci07), #1922 (ci11), #1927 (ci12, sharded groups only); on A #1970 (cf01),
+#1880 (ci18), #1896 (ci07), #1922 (ci11), #1927 (ci12); on A #1970 (cf01),
 #2012 (the capacity code the planner imports) and #2014 (cf04). ci01, ci02, ci08, ci09, ci10, ci13
 to ci17, cf07 and cf09 end nothing.
 
@@ -463,6 +463,9 @@ effect above a spread is rank 7 on `none` (the main-push suite, 186 median per `
 about 11 spreads), and that candidate is ruled out for cf13 by the coverage rule, not by the
 spread. So cf13 claims on M1, and an M3-only candidate it can try has no measurable M3 effect. Most of the M3 spread is how many heads a PR pushed (3.1 to 4.5 per merge on
 average, each a full PR run), not run-to-run noise of one run.
+
+Rank 4 pays only after rank 1, and rank 3 needs more than the minimum n per side (its effect is
+1.7 spreads, not 2); cf13 reads both as conditional when it picks its at most three.
 
 All four chain changes together (ranks 1, 2, 4, 6): M1 median 13.1 to 8.3 and p95 18.5 to 17.1;
 `cap+cfg` 14.6 to 8.9, `none` 6.2 to 3.8; M2 execution 6.6 to 4.2, p95 13.3 to 9.8.

@@ -48,9 +48,10 @@ const RUNNERS = [
 ];
 // A root script's own scope, where it is narrower than its workflow's: the configured suite's
 // scripts move M1 only for the +cfg groups (and M3 for all, the suite runs on every landing), the
-// catalog gate's only for the sharded groups.
+// catalog gate's only for the sharded groups (e2e-run-integrity is not one of them: the configured
+// jobs and every offline Playwright run use it as their reporter).
 const rootScope = (f) => (/^scripts\/configured-/.test(f) ? { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true }
-  : /^scripts\/(catalog-|e2e-run-integrity)/.test(f) ? { metrics: ['m1', 'm2', 'm3'], groups: SHARDED } : null);
+  : /^scripts\/catalog-/.test(f) ? { metrics: ['m1', 'm2', 'm3'], groups: SHARDED } : null);
 
 const showCache = new Map();
 function show(sha, path) {
