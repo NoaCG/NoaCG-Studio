@@ -27,14 +27,19 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 31 builder session_017SdbwQze9p4ppJD7BYHsSX",
+  "waitingOn": "PR #2002 in merge queue",
   "inFlight": [
     {
       "phase": 31,
-      "role": "build",
-      "session": "session_017SdbwQze9p4ppJD7BYHsSX",
-      "nonce": "31-b-c1a9",
-      "branch": "claude/plan-jev-svg-import-31-build"
+      "pr": 2002,
+      "head": "e550331d075b99c157e465f1946e75357baff054",
+      "stampRun": 41589555051,
+      "ciRun": 41587686317,
+      "so": "session_017SdbwMddmHMEjE7k85v5mM A- (standing owner rule)",
+      "soOther": [
+        "session_017SdbwP8hHa5Z7YHPj3UWnq"
+      ],
+      "builder": "session_017SdbwQze9p4ppJD7BYHsSX"
     }
   ],
   "owner": [],
@@ -416,6 +421,42 @@
       ],
       "from": "22",
       "note": "#1973: prove the still page take refit when a face lands late, and refit once per landing (row 22 /so points 1-2)."
+    },
+    {
+      "forPhases": [
+        "32"
+      ],
+      "from": "31",
+      "note": "executeDecisionRequest takes maxAttempts from its caller; the harness must cap it at 2 (ledger attempt_count <= 2) or call through the SVG task (PR #2002 /so point 1)."
+    },
+    {
+      "forPhases": [
+        "33"
+      ],
+      "from": "31",
+      "note": "Confirm the /v1/evaluate reply shape on the first bounded paid call: score indexing, score probability keys, reported model name, billing per request vs per question; a wrong guess fails closed (PR #2002 /so point 3)."
+    },
+    {
+      "forPhases": [
+        "35",
+        "36"
+      ],
+      "from": "31",
+      "note": "Make AI_SVG_DISCLOSURE match what is sent (ids, kinds, hierarchy as well as layer names, positions, text lengths); server-built questions; shared import-analysis allowance; keep SVG outcomes apart from image-analysis outcomes (PR #2002 /so points 5 and first round)."
+    },
+    {
+      "forPhases": [
+        "37"
+      ],
+      "from": "31",
+      "note": "Settings and entitlement read as defaults on a database error (kill switch reads off, free plan allows the task). Safe only while AI_TASK_SVG_INTERPRETATION_ENABLED is off; qualify or close it before the route can be on (PR #2002 /so point 2)."
+    },
+    {
+      "forPhases": [
+        "35"
+      ],
+      "from": "31",
+      "note": "The api build cannot import src/ai/svgInterpretation/contract.ts (TS5097 plus DOM types): a row 35 trap."
     }
   ]
 }
