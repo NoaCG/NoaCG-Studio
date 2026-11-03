@@ -1,0 +1,197 @@
+name: Jev SVG evaluation
+
+# The comparison and metering harness for docs/work-specs/jev-svg-import (rows 32 to 34, AC-7).
+# Manual only, main only, in the protected `jev-svg-evaluation` environment. Rules:
+# docs/work-specs/jev-svg-import/evidence/phase-32.md.
+#
+# Trust boundary: everything that runs is this workflow and the harness at the main commit that
+# was dispatched. `configuration_ref` names a branch (or commit); the harness resolves it once to
+# a commit and reads only docs/work-specs/jev-svg-import/evaluation/prompts.json at it, as bytes,
+# through git plumbing, then validates it against a closed schema. No branch is checked out, no
+# branch file is imported or executed, and no package is installed from a branch.
+#
+# Modes:
+#   dry-run      mock gateway and mock balance; reads no secret. Proves the pipeline and metering.
+#   development  paid; development designs only; continues the ledger of `receipts_run_id`, or
+#                `establish_baseline` on the very first paid run.
+#   holdout      paid, once; needs the frozen configuration and harness hashes from row 33.
+#   reconcile    reads the balance and clears a suspension with a written reason; sends nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: dry-run, development, holdout or reconcile
+        required: true
+        type: choice
+        options: [dry-run, development, holdout, reconcile]
+        default: dry-run
+      configuration_ref:
+        description: Branch or commit holding the configuration JSON (read as data only)
+        required: true
+        type: string
+      receipts_run_id:
+        description: Run id of the previous run of this workflow whose ledger continues (paid modes)
+        required: false
+        type: string
+      establish_baseline:
+        description: First paid run only - record the original balance baseline
+        required: false
+        type: boolean
+        default: false
+      regression:
+        description: Also report the 51-file non-blind regression slice
+        required: false
+        type: boolean
+        default: false
+      frozen_config_sha256:
+        description: Holdout only - the configuration hash frozen at the end of row 33
+        required: false
+        type: string
+      frozen_manifest_sha256:
+        description: Holdout only - the harness manifest hash frozen at the end of row 33
+        required: false
+        type: string
+      reconcile_reason:
+        description: Reconcile only - what was checked and why the ledger may continue
+        required: false
+        type: string
+      accept_manifest:
+        description: Reconcile only - accept the harness now on main (a reviewed fix landed through its owning row)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+# One evaluation at a time, never cancelled: GitHub serializes this group. It is not a queue,
+# so the coordinator checks for an in-flight run before dispatching.
+concurrency:
+  group: jev-svg-evaluation
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    if: github.repository == 'NoaCG/NoaCG-Studio' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: jev-svg-evaluation
+    steps:
+      - name: Refuse any workflow but main's
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          test "$WORKFLOW_REF" = "NoaCG/NoaCG-Studio/.github/workflows/jev-svg-eval.yml@refs/heads/main" \
+            || { echo "FAIL: this workflow runs only from main"; exit 1; }
+
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      - uses: ./.github/actions/playwright-chromium
+        if: inputs.mode != 'reconcile'
+
+      - name: Resolve the configuration (data only)
+        id: config
+        env:
+          CONFIGURATION_REF: ${{ inputs.configuration_ref }}
+        run: |
+          out="$(node scripts/jev-svg-eval.mjs fetch-config --ref "$CONFIGURATION_REF" --out "$RUNNER_TEMP/prompts.json")"
+          echo "$out"
+          commit="$(printf '%s' "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!j.ok)process.exit(1);process.stdout.write(j.commit)})')"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch the previous ledger
+        if: inputs.mode != 'dry-run' && inputs.receipts_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.receipts_run_id }}
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]{1,20}$ ]] || { echo "FAIL: receipts_run_id is not a run id"; exit 1; }
+          run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
+          printf '%s' "$run" | node -e '
+            let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);
+            const ok=r.path===".github/workflows/jev-svg-eval.yml"&&r.head_branch==="main"&&r.event==="workflow_dispatch"&&r.repository.full_name===process.env.GITHUB_REPOSITORY;
+            if(!ok){console.log("FAIL: that run is not this main workflow");process.exit(1)}})'
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n jev-svg-eval-ledger -D "$RUNNER_TEMP/ledger-in"
+          test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: missing-receipt: that run left no ledger"; exit 1; }
+
+      - name: Decode the sealed holdout
+        if: inputs.mode == 'holdout'
+        env:
+          JEV_SVG_HOLDOUT_ZIP_BASE64: ${{ secrets.JEV_SVG_HOLDOUT_ZIP_BASE64 }}
+        shell: python
+        run: |
+          import base64, os, sys
+          sealed = os.environ.get('JEV_SVG_HOLDOUT_ZIP_BASE64', '')
+          if not sealed:
+              sys.exit('FAIL: sealed holdout unavailable')
+          path = os.path.join(os.environ['RUNNER_TEMP'], 'holdout.zip')
+          with open(path, 'wb') as f:
+              f.write(base64.b64decode(''.join(sealed.split()), validate=True))
+          print('decoded; the harness verifies every digest before opening it')
+
+      - name: Run the harness
+        if: inputs.mode != 'reconcile'
+        env:
+          # Paid modes only. The dry run never receives the key.
+          AI_GATEWAY_API_KEY: ${{ (inputs.mode == 'development' || inputs.mode == 'holdout') && secrets.AI_GATEWAY_API_KEY || '' }}
+          MODE: ${{ inputs.mode }}
+          CONFIG_COMMIT: ${{ steps.config.outputs.commit }}
+          ESTABLISH: ${{ inputs.establish_baseline }}
+          REGRESSION: ${{ inputs.regression }}
+          FROZEN_CONFIG: ${{ inputs.frozen_config_sha256 }}
+          FROZEN_MANIFEST: ${{ inputs.frozen_manifest_sha256 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          args=(run --mode "$MODE" --config "$RUNNER_TEMP/prompts.json" --config-sha "$CONFIG_COMMIT"
+                --ledger-out "$RUNNER_TEMP/out/ledger.json" --report "$RUNNER_TEMP/out/report.json")
+          if [ "$MODE" != "dry-run" ] && [ -s "$RUNNER_TEMP/ledger-in/ledger.json" ]; then args+=(--ledger "$RUNNER_TEMP/ledger-in/ledger.json"); fi
+          if [ "$ESTABLISH" = "true" ]; then args+=(--establish-baseline); fi
+          if [ "$REGRESSION" = "true" ]; then args+=(--regression); fi
+          if [ "$MODE" = "holdout" ]; then args+=(--holdout-zip "$RUNNER_TEMP/holdout.zip" --frozen-config-sha256 "$FROZEN_CONFIG" --frozen-manifest-sha256 "$FROZEN_MANIFEST"); fi
+          node scripts/jev-svg-eval.mjs "${args[@]}"
+
+      - name: Reconcile the ledger
+        if: inputs.mode == 'reconcile'
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          REASON: ${{ inputs.reconcile_reason }}
+          ACCEPT_MANIFEST: ${{ inputs.accept_manifest }}
+        run: |
+          test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: reconcile needs receipts_run_id"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/out"
+          args=(reconcile --ledger "$RUNNER_TEMP/ledger-in/ledger.json" --ledger-out "$RUNNER_TEMP/out/ledger.json" --reason "$REASON")
+          if [ "$ACCEPT_MANIFEST" = "true" ]; then args+=(--accept-manifest); fi
+          node scripts/jev-svg-eval.mjs "${args[@]}"
+
+      - name: Remove the holdout archive
+        if: always()
+        run: rm -f "$RUNNER_TEMP/holdout.zip"
+
+      # The ledger is the receipt chain: kept 90 days and copied into the row's evidence.
+      - name: Keep the ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jev-svg-eval-ledger
+          path: ${{ runner.temp }}/out/ledger.json
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jev-svg-eval-report
+          path: ${{ runner.temp }}/out/report.json
+          retention-days: 90
+          if-no-files-found: ignore
