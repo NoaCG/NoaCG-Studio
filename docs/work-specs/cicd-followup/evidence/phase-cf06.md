@@ -70,9 +70,10 @@ readiness view reads `now`). The test first touches Playwright's clock with `pau
 page is up, and a clock installed that late fakes only the timers made after it. So the header
 clock's interval stayed a REAL timer: it kept firing every real second while the test believed
 time was frozen, and each tick after a `runFor` had moved the fake `Date` changed `now` and
-rendered the page. React 19 renders pending default-lane updates together with the sync update
-of the block's store subscription (`useSyncExternalStore`), so a tick that was still waiting to
-render when the measurement's answer arrived committed in the same batch. On a loaded runner the
+rendered the page. A tick still waiting to render when the measurement's answer arrived could
+commit with the block's redraw (the block reads its store part through `useSyncExternalStore`,
+and React renders the pending page update in the same pass), which is the injection's result
+below. On a loaded runner the
 tick's render waits longer, which is why it showed on CI and not here (10 of 10 passed locally
 before the fix).
 
@@ -100,7 +101,8 @@ a real tick is always close to the measurement's answer:
    waits until the page has stopped rendering (300 ms of real time with no change to
    `data-renders`), then steps the fake clock 20 ms at a time until the page renders (one tick,
    at most a second), and opens the block right after it. The measurement then takes 411 ms of
-   fake time (150 + 10 + 249 + 2), and the next tick is at least 980 ms off.
+   fake time (160 + 249 + 2), and the next tick is more than 900 ms off (the render can show one
+   20 ms step late).
 
 The assertion itself is unchanged. No timeout, retry or sleep was added; the 300 ms poll is a
 settle check on `data-renders`, like the one in `playout-air-contract.spec.ts`.
