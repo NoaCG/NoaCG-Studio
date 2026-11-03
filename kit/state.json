@@ -45,7 +45,16 @@
         "session_017SdbwMVZr8UVAMefhBBGRE",
         "session_017SdbwMKVroFdqpNTEfW77w",
         "session_017SdbwPGZoFtVEaNrw13yEh"
-      ]
+      ],
+      "waiting": {
+        "on": "backend-tier evidence complete (Rule X9, growth-controls.mjs:614): weekly growth report published + durations refresh #1503",
+        "watch": [
+          "weekly-audit run 41704224273 (dispatched 19:32Z)",
+          "PR #1503 bot/e2e-durations awaiting stamp"
+        ],
+        "decided": "(b) push owner-reviewed exception 10a7c76e now",
+        "at": "2026-11-03T19:42Z"
+      }
     }
   ],
   "owner": [],
