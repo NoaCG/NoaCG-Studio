@@ -256,3 +256,78 @@ export function approvedModelPrices(): Record<string, ModelPrice> {
   for (const entry of APPROVED_MODEL_CATALOG) prices[modelRouteKey(entry.route)] = { ...entry.price };
   return prices;
 }
+
+// ── Decision-model candidates (docs/work-specs/jev-svg-import/spec.md, row 31) ─────────────
+//
+// A DECISION model answers typed questions (boolean, choice, score) about a piece of state with
+// probabilities instead of text. The gateway serves it from `POST /v1/evaluate`, never from Chat
+// Completions, so it cannot be an entry above: every entry there is reached by the chat adapter,
+// and every entry there records a ZDR verification made by a real call. These are CANDIDATES for
+// the SVG interpretation evaluation. No paid call has been made to any of them, so nothing here
+// is a promotion: the evaluation (rows 33 and 34) decides whether one is qualified, and until
+// that verdict the task that may use one stays off.
+//
+// The numbers are the live gateway listing (`GET /v1/models`, free and unauthenticated), read on
+// 2026-11-03. Both models bill input tokens only.
+
+export interface DecisionModelEntry {
+  route: ModelRoute;
+  price: ModelPrice;
+  contextWindow: number;
+  /** What the listing CLAIMS about zero data retention across its providers. A claim, not a
+   *  verification: a task still sends `zeroDataRetention: true` and the gateway refuses the call
+   *  when no provider qualifies. */
+  listedZdr: 'all' | 'some' | 'none';
+  /** The listing accepts image input. This row admits structured state only, so the decision
+   *  adapter refuses images whatever this says; it is recorded for the comparison in row 32. */
+  listedImageInput: boolean;
+  auditedOn: string;
+  notes: string;
+}
+
+export const DECISION_MODEL_CANDIDATES: readonly DecisionModelEntry[] = [
+  {
+    route: { provider: 'vercel', model: 'typesafe-ai/jev-1.14.0' },
+    price: { inputPerMillion: 0.042, outputPerMillion: 0 },
+    contextWindow: 32_000,
+    listedZdr: 'all',
+    listedImageInput: true,
+    auditedOn: '2026-11-03',
+    notes: 'The pre-registered primary SVG interpretation candidate (decisions.md, decision 6). '
+      + 'Pinned version, never the floating `typesafe-ai/jev` alias, so a provider release cannot '
+      + 'change the model under a frozen evaluation. One provider (typesafe-ai), listed ZDR and '
+      + 'no-training, us region.',
+  },
+  {
+    route: { provider: 'vercel', model: 'baseten/elephant-1' },
+    price: { inputPerMillion: 0.035, outputPerMillion: 0 },
+    contextWindow: 16_384,
+    listedZdr: 'all',
+    listedImageInput: false,
+    auditedOn: '2026-11-03',
+    notes: 'Reporting-only comparison (spec, AI route and data policy: "Elephant text"). Text '
+      + 'input only. One provider (baseten), listed ZDR and no-training, us region.',
+  },
+];
+
+const decisionByRouteKey = new Map(DECISION_MODEL_CANDIDATES.map((entry) => [modelRouteKey(entry.route), entry]));
+
+export function decisionModelEntry(route: ModelRoute): DecisionModelEntry | null {
+  return decisionByRouteKey.get(modelRouteKey(route)) ?? null;
+}
+
+/** May NoaCG fund a call to this decision route? Listed here, on the funded transport, and
+ *  inside the same per-million ceiling as a text route. Decision models bill per token like a
+ *  text route, so the ceiling sees the whole bill, unlike an image route. */
+export function fundedDecisionRoute(route: ModelRoute, price?: ModelPrice | null): boolean {
+  const entry = decisionModelEntry(route);
+  if (!entry || entry.route.provider !== FUNDED_ROUTE_PROVIDER) return false;
+  return fundedRoutePrice(price ?? entry.price);
+}
+
+/** The decision candidates' audited prices, keyed `provider:model`. */
+export function decisionModelPrices(): Record<string, ModelPrice> {
+  const prices: Record<string, ModelPrice> = {};
+  for (const entry of DECISION_MODEL_CANDIDATES) prices[modelRouteKey(entry.route)] = { ...entry.price };
+  return prices;
+}
