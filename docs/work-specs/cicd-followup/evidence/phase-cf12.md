@@ -161,7 +161,10 @@ everything as it is now:
 - a read is cached only when it can no longer change. That means a completed run's jobs keyed by
   its `run_attempt`, so a re-run is read again, and a job's annotations, since a job id belongs to
   one attempt;
-- lists (pulls, runs) are read fresh each pass;
+- lists (pulls, runs) are read fresh each pass, as shared paged lists. That is all ci.yml
+  pull_request and merge_group runs since enabling, not one read per change. A pass over a cached
+  history then costs a few calls: since 12:00 on 2026-11-03, the first pass made 82 calls and the
+  repeat made 4 (Codex review on `ef15f0eb`);
 - a run still in progress counts as `pending` and keeps the pass incomplete.
 
 The E2E retry job is not counted: it re-runs only failed

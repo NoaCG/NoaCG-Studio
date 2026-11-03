@@ -143,18 +143,23 @@ try {
   }
   // Every merge-group run since enabling, read once per pass and paged to the end (newest first,
   // so one page would drop the earliest changes' runs once more than 100 exist).
-  const groupRuns = [];
-  for (let page = 1; ; page += 1) {
-    const batch = api(`${REPO}/actions/workflows/ci.yml/runs?event=merge_group&created=${encodeURIComponent(`>=${SINCE}`)}&per_page=100&page=${page}`).workflow_runs;
-    groupRuns.push(...batch);
-    if (batch.length < 100) break;
-  }
+  // Every ci.yml run since enabling, by event, read once per pass and paged to the end. One shared
+  // list, not a read per change, so the calls a pass needs grow with the run count / 100, not with
+  // the number of merged changes, and a pass over a cached history can finish within the budget.
+  const runsSince = (event) => {
+    const all = [];
+    for (let page = 1; ; page += 1) {
+      const batch = api(`${REPO}/actions/workflows/ci.yml/runs?event=${event}&created=${encodeURIComponent(`>=${SINCE}`)}&per_page=100&page=${page}`).workflow_runs;
+      all.push(...batch);
+      if (batch.length < 100) break;
+    }
+    return all;
+  };
+  const groupRuns = runsSince('merge_group');
+  const prRuns = runsSince('pull_request');
   let pending = 0;
   for (const pr of pulls.sort((a, b) => a.merged_at.localeCompare(b.merged_at))) {
-    const branch = encodeURIComponent(pr.head.ref);
-    // Not cached: a run still in progress at one pass must be read again at the next.
-    const mine = api(`${REPO}/actions/workflows/ci.yml/runs?branch=${branch}&event=pull_request&per_page=100`).workflow_runs
-      .filter((r) => r.created_at > SINCE && r.created_at <= pr.merged_at);
+    const mine = prRuns.filter((r) => r.head_branch === pr.head.ref && r.created_at > SINCE && r.created_at <= pr.merged_at);
     const groups = groupRuns.filter((r) => r.head_branch?.includes(`/pr-${pr.number}-`) && r.created_at > SINCE && r.created_at <= pr.merged_at);
     const runs = [];
     for (const run of [...mine, ...groups]) {
