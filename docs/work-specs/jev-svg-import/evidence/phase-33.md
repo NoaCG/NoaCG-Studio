@@ -129,6 +129,20 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
    Regression slice: 50 of 51 read (`geometry-unescaped-ampersand` refused by the importer, as
    in row 32); deterministic matches the sidecar's text-field count on 50 of 50, Jev on 41 of 50.
 
+7. **Reconcile accepting the reviewed harness change**, run `41630691746`, main
+   `4130a081f35f70e4d05dff3b314863127aec465b` (PR #2018 for #2017: a refused attempt now records
+   its HTTP status, error type and gateway code; request shape unchanged). Accepted manifest
+   `341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db` after 55 batches. Balance
+   6.907668391, lifetime used 48.092331609, the same as run 6's last receipt; no new money.
+8. **Vision run**, run `41630941605`, configuration `f8aa571c` (deterministic, the primary, which
+   the schema requires, and `gemini-vision`; prompts as committed). 24 batches, 36 attempts, no
+   suspension. Balance 6.907668391 to 6.905229415; settled $0.002438976, all Jev's (priced
+   maximum $0.1120). **All 18 image requests refused again**, each with the same record:
+   `{"attempt": 1, "status": 400, "type": "AI_APICallError", "code": null}`. A 400 with no
+   gateway code is not a refused model or key (404 or 401/403) and not one of the gateway's
+   classified provider-policy refusals, so it points at the request as the provider receives it.
+   Jev in this run: 65 / 21, lower third and quiz worse.
+
 Indicative development result for the primary against deterministic (18 designs; corrections
 plus decisions / consequential errors, summed; strata with a consequential increase):
 
