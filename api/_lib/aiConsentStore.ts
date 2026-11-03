@@ -50,3 +50,21 @@ export async function recordAiConsent(userId: string, noticeVersion: string): Pr
     );
   if (error) throw new Error('AI consent record failed: ' + error.message);
 }
+
+/**
+ * Has this signed-in user accepted the CURRENT notice? The consent boundary a server-side AI task
+ * checks before it builds a request. Fails closed: no record, an older version, or a lookup that
+ * throws (storage down, not configured) all answer no, so a failure to read consent never reads
+ * as consent. `read` is injectable so tests need no database.
+ */
+export async function hasCurrentAiConsent(
+  userId: string,
+  noticeVersion: string,
+  read: (userId: string) => Promise<AiConsentRecord | null> = readAiConsent,
+): Promise<boolean> {
+  try {
+    return (await read(userId))?.noticeVersion === noticeVersion;
+  } catch {
+    return false;
+  }
+}

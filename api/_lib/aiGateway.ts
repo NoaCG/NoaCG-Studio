@@ -877,7 +877,7 @@ function modelUnavailableForKey(body: string): boolean {
   return /no longer available|not found for api version|is not supported for|models\/[^"']+ is not found/i.test(body);
 }
 
-function providerFailure(status: number, body = ''): GatewayError {
+export function providerFailure(status: number, body = ''): GatewayError {
   if (status === 408) return new GatewayError('timeout', 'The AI provider timed out.', 504, true);
   if (status === 404 || (status === 400 && modelUnavailableForKey(body))) {
     if (modelUnavailableForKey(body)) {
