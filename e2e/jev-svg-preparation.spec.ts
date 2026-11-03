@@ -803,7 +803,10 @@ test('row 38: unfamiliar artwork is imported, corrected once, taken, updated, ta
   // UPDATE, ON AIR: a typed change is a draft until the explicit Update; air keeps the aired value.
   await page.getByTestId('cue-field-f2').fill('Mech United');
   await expect(unsent).toContainText('not on PROGRAM yet');
+  // Held a beat, so a draft that leaked to air after the keystroke would have arrived.
+  await page.waitForTimeout(1000);
   await expect(air.locator('#f2')).toHaveText('Mech');
+  await expect(unsent).toContainText('not on PROGRAM yet');
   await page.getByTestId('verb-update').click();
   await expect(air.locator('#f2')).toHaveText('Mech United');
   await expect(unsent).not.toContainText('not on PROGRAM yet');
