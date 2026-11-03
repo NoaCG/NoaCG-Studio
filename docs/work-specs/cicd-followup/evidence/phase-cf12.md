@@ -153,7 +153,18 @@ states n, the mean and the median against 22.5. It was checked against the hour 
 where no run carries the notice: `n 0`, 20 calls. The verdict also waits for a complete pass: when
 the call budget stops a pass early, it prints `not yet: collection incomplete` (checked with
 `--max-calls 2`; Codex review on `45f3fc62`). The PR-run lists are read fresh on every pass, so a run
-still in progress is read again later. The E2E retry job is not counted: it re-runs only failed
+still in progress is read again later. **The collection rule** (written after three review rounds on the script found variants of one
+gap: reading a changing history as if it were final). The verdict comes only from a pass that read
+everything as it is now:
+
+- every run of every merged change, completed, at its current attempt;
+- a read is cached only when it can no longer change. That means a completed run's jobs keyed by
+  its `run_attempt`, so a re-run is read again, and a job's annotations, since a job id belongs to
+  one attempt;
+- lists (pulls, runs) are read fresh each pass;
+- a run still in progress counts as `pending` and keeps the pass incomplete.
+
+The E2E retry job is not counted: it re-runs only failed
 specs on merge groups, which is a flake cost (M4), not this rule's per-change cost.
 
 **When, how many, and who.**

@@ -51,9 +51,14 @@ const REPO = 'repos/NoaCG/NoaCG-Studio';
 let calls = 0;
 class Budget extends Error {}
 
-/** One REST read; `immutable` reads are cached for good, the rest only for this pass. */
-function api(path, { immutable = false } = {}) {
-  const file = join(CACHE, `${path.replace(/[^a-z0-9]+/gi, '_')}.json`);
+/**
+ * One REST read. THE CACHE RULE: a read is cached only when what it returns can no longer change.
+ * That is a completed run's jobs AT ONE ATTEMPT (`version` is the run's `run_attempt`, so a later
+ * re-run reads afresh), or one job's annotations (a job id belongs to one attempt). Lists of pulls
+ * and runs can still grow or change state, so they are read fresh on every pass.
+ */
+function api(path, { immutable = false, version = '' } = {}) {
+  const file = join(CACHE, `${path.replace(/[^a-z0-9]+/gi, '_')}${version ? `_v${version}` : ''}.json`);
   if (immutable && existsSync(file)) return JSON.parse(readFileSync(file, 'utf8'));
   if (calls >= MAX_CALLS) throw new Budget();
   calls += 1;
@@ -77,7 +82,7 @@ const NOTICE = /product change: (?:added (\d+) critical spec\(s\) \(([\d.]+) of 
 function runJobs(run) {
   const all = [];
   for (let page = 1; ; page += 1) {
-    const batch = api(`${REPO}/actions/runs/${run.id}/jobs?per_page=100&filter=all&page=${page}`, { immutable: true }).jobs;
+    const batch = api(`${REPO}/actions/runs/${run.id}/jobs?per_page=100&filter=all&page=${page}`, { immutable: true, version: String(run.run_attempt ?? 1) }).jobs;
     all.push(...batch);
     if (batch.length < 100) break;
   }
@@ -144,6 +149,7 @@ try {
     groupRuns.push(...batch);
     if (batch.length < 100) break;
   }
+  let pending = 0;
   for (const pr of pulls.sort((a, b) => a.merged_at.localeCompare(b.merged_at))) {
     const branch = encodeURIComponent(pr.head.ref);
     // Not cached: a run still in progress at one pass must be read again at the next.
@@ -152,14 +158,19 @@ try {
     const groups = groupRuns.filter((r) => r.head_branch?.includes(`/pr-${pr.number}-`) && r.created_at > SINCE && r.created_at <= pr.merged_at);
     const runs = [];
     for (const run of [...mine, ...groups]) {
-      if (run.status !== 'completed') continue;
+      // A run still going (a re-run in progress) is not measured yet, and the pass is not complete.
+      if (run.status !== 'completed') {
+        pending += 1;
+        continue;
+      }
       const added = runAdded(run);
       if (added) runs.push(added);
     }
     if (!runs.length) continue;
     result.changes.push({ number: pr.number, merged_at: pr.merged_at, runs, minutes: Number(runs.reduce((s, r) => s + r.minutes, 0).toFixed(2)) });
   }
-  result.complete = true;
+  result.pending = pending;
+  result.complete = pending === 0;
 } catch (error) {
   if (!(error instanceof Budget)) throw error;
 }
