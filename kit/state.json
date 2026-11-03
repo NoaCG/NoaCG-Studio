@@ -36,7 +36,10 @@
       "nonce": "36-b-9551",
       "branch": "claude/plan-jev-svg-import-36-build",
       "source": "6d695e97c8d67f82f741d65b4e69ec7cec63653a",
-      "startedAt": "2026-11-03T15:29:25Z"
+      "startedAt": "2026-11-03T15:29:25Z",
+      "approvedDepartures": [
+        "src/templates/behaviours/credits.ts:71 credits recipe description (closes half of #2001)"
+      ]
     }
   ],
   "owner": [],
@@ -84,7 +87,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-03T15:56:08Z"
+    "checkinAt": "2026-11-03T16:27:10Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
