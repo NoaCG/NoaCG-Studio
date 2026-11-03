@@ -20,7 +20,9 @@ const REPO = 'NoaCG/NoaCG-Studio';
 export const FROM = '2026-10-24T10:00:45Z'; // seven days before ci01 (139a9724); phase-cf03-baseline.mjs repeats FROM and UNTIL
 export const UNTIL = '2026-11-03T12:00:00Z';
 const RUN_DAYS_FROM = '2026-10-17'; // PR runs of PRs opened up to a week before the window
-const JOB_WORKFLOWS = new Set(['.github/workflows/ci.yml', '.github/workflows/configured-suite.yml']);
+// Workflows whose jobs are read (every attempt): the multi-job ones a change runs. Others have one job,
+// and their run duration stands for it.
+const JOB_WORKFLOWS = new Set(['ci.yml', 'configured-suite.yml', 'quarantine.yml', 'post-land.yml', 'deploy-verify.yml'].map((w) => `.github/workflows/${w}`));
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => (args.includes(name) ? args[args.indexOf(name) + 1] : dflt);
@@ -85,6 +87,7 @@ function pulls() {
 // completed: a run still going is listed again, with its final status and attempt, on a later pass.
 function runs() {
   const state = load('runs.json', { ranges: {}, items: {} });
+  let unsettled = 0;
   const queue = days(RUN_DAYS_FROM, UNTIL).map((d) => ({ key: d, end: `${d}T23:59:59Z` }));
   while (queue.length) {
     const { key, end } = queue.shift();
@@ -118,7 +121,7 @@ function runs() {
         const last = end < UNTIL ? end : UNTIL; // only runs before the window end matter
         const settled = d.open === 0 && new Date(last).getTime() + 3600000 < new Date(listedAt).getTime();
         if (settled) d.done = true;
-        else Object.assign(d, { page: 1, open: 0, relist: true });
+        else { Object.assign(d, { page: 1, open: 0, relist: true }); unsettled += 1; }
         state.ranges[key] = d;
         save('runs.json', state);
         break;
@@ -127,7 +130,7 @@ function runs() {
       save('runs.json', state);
     }
   }
-  return Object.values(state.items);
+  return { list: Object.values(state.items), unsettled };
 }
 
 // 3. Jobs (all attempts) of every completed ci.yml and configured-suite.yml run tied to a sampled merge.
@@ -193,10 +196,12 @@ function events(merges) {
 
 try {
   const merges = pulls();
-  const runList = runs();
+  const { list: runList, unsettled } = runs();
   events(merges);
   const n = await jobs(runList, merges);
-  console.log(JSON.stringify({ pass: 'complete', calls, merges: merges.length, runs: runList.length, jobRuns: n }));
+  // A range with a run still going is listed again next pass; until then the collection is not complete.
+  const pass = unsettled ? 'again' : 'complete';
+  console.log(JSON.stringify({ pass, calls, merges: merges.length, runs: runList.length, jobRuns: n, unsettledRanges: unsettled }));
 } catch (e) {
   if (!(e instanceof Budget)) throw e;
   console.log(JSON.stringify({ pass: 'budget', calls, jobRunsLeft: e.left ?? 'not yet counted' }));

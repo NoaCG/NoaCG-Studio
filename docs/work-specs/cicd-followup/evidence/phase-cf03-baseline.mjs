@@ -282,8 +282,7 @@ function derive(cache, out) {
       if ((r.path ?? '').includes('codeql')) { tiers.codeql += runMinutes(r).minutes; continue; }
       const js = jobsOf(r);
       if (js) for (const j of js) tiers[tierOfJob(r.path, j.name)] += jobMinutes(j);
-      // quarantine.yml's one job is `Quarantine (...)`, offline; every other unread run is one job of its workflow's tier.
-      else tiers[tierOfJob(r.path, r.path.endsWith('quarantine.yml') ? 'Quarantine (' : '')] += runMinutes(r).minutes;
+      else tiers[tierOfJob(r.path, '')] += runMinutes(r).minutes;
     }
     const heads = new Set(prRuns.filter((r) => r.path === CI).map((r) => r.head_sha)).size;
     m3.approx = [...prRuns, ...prOther, ...queueAll, ...landRuns].filter((r) => !runMinutes(r).exact).reduce((s, r) => s + runMinutes(r).minutes, 0);
