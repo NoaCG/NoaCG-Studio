@@ -19,10 +19,8 @@
   "candidates": [
     { "id": "deterministic", "kind": "deterministic" },
     { "id": "jev-structured", "kind": "decision", "model": "typesafe-ai/jev-1.14.0" },
-    { "id": "jev-preview", "kind": "decision", "model": "typesafe-ai/jev-1.14.0", "preview": true },
     { "id": "elephant", "kind": "decision", "model": "baseten/elephant-1" },
     { "id": "haiku", "kind": "chat", "model": "anthropic/claude-haiku-5.5" },
-    { "id": "luna", "kind": "chat", "model": "openai/gpt-6-luna" },
     { "id": "gemini-vision", "kind": "vision", "model": "google/gemini-2.5-flash-lite" }
   ]
 }
