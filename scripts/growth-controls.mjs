@@ -170,6 +170,8 @@ export function cadence(shape, e, { dispatched = true } = {}) {
   return { runs, daily: shape.crons.reduce((n, c) => n + cronRunsPerDay(c), 0) };
 }
 
+const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** `rel` resolved against the folder of repository file `from` (posix, no I/O). */
 const joinPath = (from, rel) => {
   const out = from.split('/').slice(0, -1);
@@ -202,17 +204,19 @@ export function landingDispatched({ workflows = {}, read = () => null }, e, { li
     if (!texts.has(node)) {
       let src = null;
       const npm = /^npm:(.+)$/.exec(node);
-      if (npm) { try { src = JSON.parse(read('package.json') ?? 'null')?.scripts?.[npm[1]] ?? null; } catch { src = null; } }
+      if (npm) { try { src = JSON.parse(read('package.json') ?? 'null')?.scripts?.[npm[1]]; } catch { /* no package.json script */ } }
       else if (node.endsWith('/')) src = read(`${node}action.yml`) ?? read(`${node}action.yaml`);
-      else src = read(node) ?? (/\.\w+$/.test(node) ? null : ['.mjs', '.js', '.ts', '.cjs'].map((x) => read(node + x)).find((t) => t != null) ?? null);
-      texts.set(node, src === null || src === undefined ? null : code(src));
+      else src = read(node) ?? (/\.\w+$/.test(node) ? null : ['.mjs', '.js', '.ts', '.cjs'].map((x) => read(node + x)).find((t) => t != null));
+      texts.set(node, src == null ? null : code(src));
     }
     return texts.get(node);
   };
   // What a text leads to, each with the line that leads there: files it names by path or imports,
   // npm scripts it runs, local actions. Product, test and docs trees run in no workflow step.
   const ignored = /^(src|e2e|api|docs|public|supabase|contracts)\//;
-  const next = (node, text) => text.split('\n').flatMap((line) => [
+  const edges = new Map();
+  const next = (node, text) => edges.get(node) ?? edges.set(node, edgesOf(node, text)).get(node);
+  const edgesOf = (node, text) => text.split('\n').flatMap((line) => [
     ...[...line.matchAll(/(?<![\w./-])(?:\.\/)?((?:\.github\/)?[\w-]+(?:\/[\w.-]+)*\/[\w.-]+\.(?:mjs|cjs|js|ts|sh|py))\b/g)].map((m) => [m[1], line]),
     // An import (no line): what the importer hands down can be anywhere in its text.
     ...[...line.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)].map((m) => [joinPath(node.startsWith('npm:') ? 'x' : node, m[1]), null]),
@@ -255,12 +259,11 @@ export function landingDispatched({ workflows = {}, read = () => null }, e, { li
     }
     return out;
   };
-  const escape = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const names = Object.fromEntries(Object.entries(workflows).map(([f, t]) => {
     const title = /^name:[ \t]*(['"]?)(.+?)\1[ \t]*(?:#.*)?$/m.exec(String(t ?? ''))?.[2];
-    const byFile = new RegExp(`(?<![\\w.-])${escape(f)}(?![\\w.-])`);
-    const byTitle = title ? new RegExp(`gh\\s+workflow\\s+run\\s+['"]?${escape(title)}(?![\\w.-])`) : null;
-    return [f, (t) => byFile.test(t) || (byTitle !== null && byTitle.test(t))];
+    const byFile = new RegExp(`(?<![\\w.-])${escapeRe(f)}(?![\\w.-])`);
+    const byTitle = title ? new RegExp(`gh\\s+workflow\\s+run\\s+['"]?${escapeRe(title)}(?![\\w.-])`) : null;
+    return [f, (t) => byFile.test(t) || byTitle?.test(t)];
   }));
   const shapes = Object.fromEntries(Object.entries(workflows).map(([f, t]) => [f, workflowShape(t)]));
   const found = {};
@@ -302,18 +305,22 @@ export function priceAdditions({ added = [], workflows = {}, estimates, repo }) 
   }
   // What per-landing workflows start, before and after the change. Without the repository's
   // workflows (`repo`), a manual workflow counts as started on every landing.
-  const baseStarts = repo?.base ? landingDispatched(repo.base, e) : null;
+  // The base side is searched only when its answer can change a price.
+  let base_;
+  const baseStarts = () => (base_ ??= repo?.base ? landingDispatched(repo.base, e) : null);
   const headStarts = repo?.head ? landingDispatched(repo.head, e) : null;
+  const manualOnly = (text) => { const t = workflowShape(text).triggers; return t.size === 1 && t.has('workflow_dispatch'); };
   // A manual workflow the change does not touch, which a landing now starts and did not before.
   const priced = { ...workflows };
   for (const f of headStarts ?? []) {
-    if (priced[f] || baseStarts?.has(f) !== false || repo.base.workflows?.[f] === undefined) continue;
-    priced[f] = { base: repo.base.workflows[f], head: repo.head.workflows[f] };
+    const was = repo.base?.workflows?.[f];
+    if (priced[f] || was === undefined || !manualOnly(was) || !baseStarts() || baseStarts().has(f)) continue;
+    priced[f] = { base: was, head: repo.head.workflows[f] };
   }
   for (const [wf, { base, head, baseFile = wf }] of Object.entries(priced)) {
     const before = workflowShape(base);
     const after = workflowShape(head);
-    const was = cadence(before, e, { dispatched: !baseStarts || baseStarts.has(baseFile) });
+    const was = cadence(before, e, { dispatched: !manualOnly(base) || !baseStarts() || baseStarts().has(baseFile) });
     const now = cadence(after, e, { dispatched: !headStarts || headStarts.has(wf) });
     // A renamed key or a renamed display name is the same job, not a new one. A removed job earns
     // no credit: pricing it would let a cheap removal pay for an expensive addition.
@@ -361,7 +368,7 @@ export function coverJobs(measurement) {
   return (cover) => {
     const job = /^job:([^/]+)\/(.+)$/.exec(cover);
     if (!job) return [];
-    const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+    const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map(escapeRe).join('.*')}$`);
     // Only the cover's own tier: a pattern that also matches another tier's jobs never moves
     // their measured cost into this tier's credit.
     const tier = tierOfJob(job[1], job[2]);
