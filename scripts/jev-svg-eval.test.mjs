@@ -449,6 +449,40 @@ test('M11: two attempts per request at most, whatever the plan says; a transient
   assert.ok(out.reportedUsd > 0 && out.reportedUsd <= p.maxUsd + 1e-12);
 });
 
+test('#2017: a refused attempt records its HTTP status and the gateway error type and code, never its text, on the row and the ledger', async () => {
+  const gateway = mockGateway();
+  const SECRET_TEXT = 'Gemini said no for key sk-live-should-never-be-kept';
+  const refuse = (status, error) => new Response(JSON.stringify({ error: { message: SECRET_TEXT, ...error } }), { status });
+  const fetchImpl = async (url, init) => {
+    const body = JSON.parse(init.body);
+    if (body.model === 'google/gemini-2.5-flash-lite') return refuse(404, { type: 'model_not_found', code: 'not_found' });
+    if (body.model === PRIMARY.model) return refuse(400, { type: 'invalid_request_error', code: 'has spaces, so not a token' });
+    if (body.model === 'anthropic/claude-haiku-5.5') return new Response('<html>not json</html>', { status: 403 });
+    return gateway.fetchImpl(url, init);
+  };
+  const ledger = { current: newLedger({ credits: await gateway.readCredits(), runId: 't', mainSha: null, manifest }) };
+  const { rows, stopped } = await runArms({ arms: ARMS, designs: DESIGNS, config: CONFIG, partition: 'development', ledger, deps: harnessDeps(gateway, ledger, { fetchImpl }) });
+  assert.equal(stopped, null);
+  const of = (arm) => rows.filter((r) => r.arm === arm);
+  for (const r of of('gemini-vision')) {
+    assert.equal(r.fellBack, 'provider_rejected');
+    assert.deepEqual(r.refusals, [{ attempt: 1, status: 404, type: 'model_not_found', code: 'not_found' }]);
+    assert.equal(r.classified, 'The AI provider does not know that model id.');
+  }
+  // A code that is not a short token is dropped; a body that is not JSON keeps the status alone.
+  for (const r of of(PRIMARY.id)) assert.deepEqual(r.refusals.map(({ status, type, code }) => [status, type, code])[0], [400, 'invalid_request_error', null]);
+  for (const r of of('haiku')) assert.deepEqual(r.refusals, [{ attempt: 1, status: 403, type: null, code: null }]);
+  // A served arm carries no refusals.
+  assert.ok(of('elephant').every((r) => r.refusals === undefined && !r.fellBack));
+  // The ledger names the refused request and what the gateway said.
+  const vision = ledger.current.batches.filter((b) => b.arm === 'gemini-vision');
+  assert.equal(vision.length, DESIGNS.length);
+  for (const [i, b] of vision.entries()) assert.deepEqual(b.refusals, [{ request: `gemini-vision/${DESIGNS[i].id}`, attempt: 1, status: 404, type: 'model_not_found', code: 'not_found' }]);
+  assert.ok(ledger.current.batches.filter((b) => b.arm === 'elephant').every((b) => b.refusals === undefined));
+  // Never the message text, anywhere.
+  assert.doesNotMatch(JSON.stringify({ rows, ledger: ledger.current }), /sk-live|Gemini said/);
+});
+
 test('M11: a missing receipt or new money stops the run before any further provider call', async () => {
   const gateway = mockGateway();
   const base = newLedger({ credits: await gateway.readCredits(), runId: 't', mainSha: null, manifest });

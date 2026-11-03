@@ -394,9 +394,11 @@ export function admitBatch(ledger, credits, plan, { manifest } = {}) {
  * or an unsettled reading, a balance that rose, a cost past the batch's priced maximum, or more
  * attempts than planned. A suspension is cleared only by `reconcile`.
  */
-export function closeBatch(receipt, { settled, attempts, reportedUsd, unknownCharges }) {
+export function closeBatch(receipt, { settled, attempts, reportedUsd, unknownCharges, refusals = [] }) {
   const after = settled.credits;
-  const out = { ...receipt, attempts, reportedUsd, unknownCharges };
+  // Each refused attempt's request, status and gateway error code: what the gateway said, so
+  // a refusal's cause can be read from the ledger rather than guessed (#2017).
+  const out = { ...receipt, attempts, reportedUsd, unknownCharges, ...(refusals.length ? { refusals } : {}) };
   if (!after) return { ...out, after: null, suspended: 'no-reading' };
   out.after = { balance: after.balance, totalUsed: after.totalUsed };
   const debit = receipt.before.balance - after.balance;
@@ -761,16 +763,42 @@ export function planRequest(arm, design, config, deps) {
  *  a server failure or no response; no for a refusal before inference (any other 4xx). */
 const maybeBilled = (status) => status === null || status === 408 || status >= 500 || (status >= 200 && status < 300);
 
-/** Wrap a fetch to record each sent attempt's HTTP status, or null when it never answered. */
+/** A gateway error identifier, kept only when it is a short token: never message text. */
+const errorToken = (value) => (typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(value) ? value : null);
+
+/**
+ * What a refused attempt's body says about the refusal: the gateway's error `type` and `code`
+ * (OpenAI-compatible `{ error: { type, code } }`), each only when it is a short token. The body
+ * is read from a clone, so the caller still gets the whole response, and nothing else of it
+ * (message, headers, provider text) is kept.
+ */
+export async function refusalOf(response) {
+  let type = null;
+  let code = null;
+  try {
+    const body = JSON.parse((await response.clone().text()).slice(0, 8_000));
+    const error = body && typeof body.error === 'object' && body.error !== null ? body.error : body;
+    type = errorToken(error?.type);
+    code = errorToken(typeof error?.code === 'number' ? String(error.code) : error?.code);
+  } catch {
+    // Not JSON, or unreadable: the status alone is recorded.
+  }
+  return { status: response.status, type, code };
+}
+
+/** Wrap a fetch to record each sent attempt's HTTP status, or null when it never answered, and
+ *  for every refused attempt its status and the gateway's error type and code (#2017). */
 function recordingFetch(fetchImpl) {
   const sent = [];
+  const refusals = [];
   const wrapped = async (...args) => {
     const at = sent.push(null) - 1;
     const response = await fetchImpl(...args);
     sent[at] = response.status;
+    if (!response.ok) refusals.push({ attempt: at + 1, ...(await refusalOf(response)) });
     return response;
   };
-  return { sent, fetch: wrapped };
+  return { sent, refusals, fetch: wrapped };
 }
 
 /**
@@ -786,11 +814,13 @@ const unknownCharges = (sent, billRead) => sent.slice(0, billRead ? -1 : undefin
  * deterministic fallback), attempts, reported cost and whether a sent attempt's bill is unknown.
  */
 export async function callArm(arm, design, config, plan, deps) {
-  const fallback = (reason, extra = {}) => ({ proposal: design.deterministic, fellBack: reason, attempts: 0, reportedUsd: 0, unknown: 0, ...extra });
-  if (plan.refused) return fallback(plan.refused);
+  if (plan.refused) return { proposal: design.deterministic, fellBack: plan.refused, attempts: 0, reportedUsd: 0, unknown: 0 };
   const started = deps.now();
+  const recorder = recordingFetch(deps.fetchImpl);
+  // Every refused attempt's status and gateway error code ride on the row, served or not.
+  const withRefusals = (row) => (recorder.refusals.length ? { ...row, refusals: recorder.refusals } : row);
+  const fallback = (reason, extra = {}) => withRefusals({ proposal: design.deterministic, fellBack: reason, attempts: 0, reportedUsd: 0, unknown: 0, ...extra });
   if (arm.kind === 'decision') {
-    const recorder = recordingFetch(deps.fetchImpl);
     const outcome = await deps.executeDecisionRequest(
       { route: { provider: 'vercel', model: arm.model }, state: design.evidence, questions: design.set.questions },
       { price: { inputPerMillion: ROUTES[arm.model].input, outputPerMillion: ROUTES[arm.model].output }, maxAttempts: Math.min(plan.attempts, CAP.attemptsPerRequest), timeoutMs: 30_000, gateway: armGateway(arm.model) },
@@ -804,11 +834,11 @@ export async function callArm(arm, design, config, plan, deps) {
     const unknown = unknownCharges(recorder.sent, billRead) > 0 ? 1 : 0;
     if (!outcome.ok) return fallback(outcome.reason, { attempts: outcome.attempts, reportedUsd: outcome.costUsd, unknown, ms });
     const proposal = deps.readSvgAnswers(design.set, outcome.answers, config.threshold, design.deterministic.fieldsOn);
-    return { proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, knownUsd: billRead && outcome.attempts === 1 ? outcome.costUsd : 0, unknown, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } };
+    return withRefusals({ proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, knownUsd: billRead && outcome.attempts === 1 ? outcome.costUsd : 0, unknown, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } });
   }
   const keys = Object.keys(design.set.questions);
   const worstAttempt = plan.maxUsd / CAP.attemptsPerRequest;
-  const { sent, fetch: counting } = recordingFetch(deps.fetchImpl);
+  const { sent, fetch: counting } = recorder;
   try {
     const result = await deps.executeGatewayRequest(
       { route: { provider: 'vercel', model: arm.model }, request: plan.request },
@@ -834,16 +864,22 @@ export async function callArm(arm, design, config, plan, deps) {
         if (typeof p !== 'number' || !(p >= 0 && p <= 1)) return fallback('answers_invalid', { attempts, reportedUsd, unknown, ms });
         answers[k] = { type: 'boolean', probability: p };
       }
-      return { proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
+      return withRefusals({ proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } });
     }
     const mapped = mapRegionsToLayers(result.output, design.evidence);
-    return { proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
+    return withRefusals({ proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } });
   } catch (error) {
     // Every sent attempt that may have been billed has an unknown bill: charged at its worst
     // case, and flagged. A refusal before inference is charged nothing.
-    const code = typeof error?.code === 'string' ? error.code : 'unavailable';
+    // A GatewayError's message is NoaCG's own fixed wording for the class of refusal (it tells
+    // "not available for this key" from "unknown model id", both a 404), never provider text.
+    const gatewayError = typeof error?.code === 'string';
+    const code = gatewayError ? error.code : 'unavailable';
     const billed = unknownCharges(sent, false);
-    return fallback(code, { attempts: sent.length, reportedUsd: billed * worstAttempt, unknown: billed > 0 ? 1 : 0, ms: deps.now() - started });
+    return fallback(code, {
+      attempts: sent.length, reportedUsd: billed * worstAttempt, unknown: billed > 0 ? 1 : 0, ms: deps.now() - started,
+      ...(gatewayError && typeof error.message === 'string' ? { classified: error.message.slice(0, 200) } : {}),
+    });
   }
 }
 
@@ -905,6 +941,7 @@ export async function runArms({ arms, designs, config, partition, ledger, deps }
       let reportedUsd = 0;
       let knownUsd = 0;
       let unknown = 0;
+      const refusals = [];
       for (const { d, plan } of planned) {
         const result = (stopped || !receipt) && !plan.refused
           ? { proposal: d.deterministic, fellBack: 'not-admitted', attempts: 0, reportedUsd: 0, unknown: 0 }
@@ -913,11 +950,12 @@ export async function runArms({ arms, designs, config, partition, ledger, deps }
         reportedUsd += result.reportedUsd;
         knownUsd += result.knownUsd ?? 0;
         unknown += result.unknown ?? 0;
+        for (const r of result.refusals ?? []) refusals.push({ request: `${arm.id}/${d.id}`, ...r });
         rows.push({ arm: arm.id, design: d.id, stratum: d.stratum, ...result });
       }
       if (receipt) {
         const settled = await deps.settledCredits({ before: receipt.before, knownUsd });
-        const closed = closeBatch(receipt, { settled, attempts, reportedUsd, unknownCharges: unknown });
+        const closed = closeBatch(receipt, { settled, attempts, reportedUsd, unknownCharges: unknown, refusals });
         ledger.current = { ...ledger.current, batches: [...ledger.current.batches.slice(0, -1), closed] };
         deps.saveLedger(ledger.current);
         if (closed.suspended) stopped = `${arm.id}: ${closed.suspended}`;
@@ -1310,7 +1348,7 @@ async function runWith(args, server) {
       decision: decide(rows, PRIMARY.id, main.stopped ?? slice.stopped ?? null, read.filter((d) => d.refused && d.label).map((d) => d.id)),
       verdictApplies: mode === 'holdout',
       rows: rows.map(({ proposal, ...r }) => ({ ...r, fieldsOn: proposal.fieldsOn.length, families: proposal.families })),
-      regression: slice.rows.map((r) => ({ arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: byId.get(r.design).sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null })),
+      regression: slice.rows.map((r) => ({ arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: byId.get(r.design).sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null, ...(r.refusals ? { refusals: r.refusals } : {}) })),
       spend: {
         spentUsd: ledgerSpent(ledger.current, await readCreditsNow().catch(() => ledger.current.batches.at(-1)?.after ?? ledger.current.baseline)),
         batches: ledger.current.batches.length,
