@@ -96,7 +96,8 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
 
   // AN ON-AIR DRAFT stays off the output until the explicit Update.
   await page.getByTestId('cue-field-f2').fill('Mech United');
-  await expect(page.getByTestId('cue-unsent')).toContainText('not on PROGRAM yet');
+  // A published production says "on air"; the offline walk's monitor says "on PROGRAM".
+  await expect(page.getByTestId('cue-unsent')).toContainText('not on air yet');
   await page.waitForTimeout(1500);
   await expect(graphic.locator('#f2'), 'RENDERER STATE: a draft is not on the output').toHaveText('Mech');
   await page.getByTestId('verb-update').click();

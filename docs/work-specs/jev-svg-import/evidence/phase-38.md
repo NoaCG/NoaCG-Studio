@@ -133,3 +133,9 @@ Measured with the existing primitives only, recorded as the `notice-zones` annot
   "no replayed entrance" check read the activity log, which a replayed `play` would not change.
   The walk now reads the program stage's own `data-plays`: 1 after the Take, still 1 after Update,
   a stepper and Start. A temporary Re-take press in the walk fails it (received 2, j-0011).
+- CI on `f1781999` (run 41698137745): configured selection triggered, subset, 1 spec
+  (`svg-import-journey.spec.ts`). It failed at the on-air draft step, class faulty test
+  expectation: a published production's note reads "1 change not on air yet. Press ✎ Update",
+  where the offline monitor says "not on PROGRAM yet" (`CueEditor.tsx`, `rehearsing`). Every step
+  before it passed on the real output: nothing visible before Take, Take, the prepared name on the
+  output and the source's fills. The walk now expects the published wording.
