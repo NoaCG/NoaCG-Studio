@@ -175,6 +175,22 @@ everything as it is now:
   past the enabling time, with no page cap (the call budget bounds it, and a stopped pass is incomplete) (the final `/so` on
   `d426efd6`).
 
+The fourth clause: **every read is checked against itself, and pages are not a snapshot.**
+
+- Run lists are kept once per run id, and a day's distinct runs are compared with its
+  `total_count`.
+- The pulls list is kept once per number, and its first page is read again at the end, so a merged
+  change that moved there mid-paging is caught as incomplete.
+- A run's jobs are trusted and cached only when they show every job completed and no attempt newer
+  than the run list said. Otherwise the run is `pending`.
+- Pull request runs are matched by branch and, where GitHub links one, by pull request number.
+
+(The fresh `/so` on `f4852099` found the first and third, and the second as a variant.)
+
+On a 15-shard plan the added minutes lengthen shards rather than adding one. The cost is counted
+through test-step time, and the planner's over-cap warning still reports a shard that gets too
+long.
+
 The E2E retry job is not counted: it re-runs only failed
 specs on merge groups, which is a flake cost (M4), not this rule's per-change cost.
 

@@ -57,15 +57,19 @@ class Budget extends Error {}
  * re-run reads afresh), or one job's annotations (a job id belongs to one attempt). Lists of pulls
  * and runs can still grow or change state, so they are read fresh on every pass.
  */
-function api(path, { immutable = false, version = '' } = {}) {
+function api(path, { immutable = false, version = '', settled = () => true } = {}) {
   const file = join(CACHE, `${path.replace(/[^a-z0-9]+/gi, '_')}${version ? `_v${version}` : ''}.json`);
   if (immutable && existsSync(file)) return JSON.parse(readFileSync(file, 'utf8'));
   if (calls >= MAX_CALLS) throw new Budget();
   calls += 1;
   const out = JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
-  if (immutable) writeFileSync(file, JSON.stringify(out));
+  // Checked against itself: a read is cached only when its own content shows it settled.
+  if (immutable && settled(out)) writeFileSync(file, JSON.stringify(out));
   return out;
 }
+
+/** Thrown when a read shows its run is still moving (a re-run started after the list was read). */
+class Moving extends Error {}
 
 const minutes = (a, b) => (Date.parse(b) - Date.parse(a)) / 60000;
 const median = (xs) => {
@@ -82,7 +86,11 @@ const NOTICE = /product change: (?:added (\d+) critical spec\(s\) \(([\d.]+) of 
 function runJobs(run) {
   const all = [];
   for (let page = 1; ; page += 1) {
-    const batch = api(`${REPO}/actions/runs/${run.id}/jobs?per_page=100&filter=all&page=${page}`, { immutable: true, version: String(run.run_attempt ?? 1) }).jobs;
+    const attempt = run.run_attempt ?? 1;
+    const settled = (body) => body.jobs.every((j) => j.status === 'completed' && (j.run_attempt ?? 1) <= attempt);
+    const body = api(`${REPO}/actions/runs/${run.id}/jobs?per_page=100&filter=all&page=${page}`, { immutable: true, version: String(attempt), settled });
+    if (!settled(body)) throw new Moving();
+    const batch = body.jobs;
     all.push(...batch);
     if (batch.length < 100) break;
   }
@@ -142,13 +150,20 @@ try {
   // Every read that lists history must prove it reached the end, or the pass is incomplete: a list
   // that stops early drops the OLDEST entries (newest first), the first changes after enabling.
   let truncated = 0;
-  const pulls = [];
+  // Pages are not a snapshot: an entry can move between two page reads. Each list is kept once per
+  // id, and the pulls list (sorted by update time) is checked by reading its first page again: a
+  // merged change that moved there while the later pages were read would otherwise be skipped.
+  const merged = (batch) => batch.filter((p) => p.merged_at && p.merged_at > SINCE);
+  const pullsBy = new Map();
+  const pullsPage = (page) => api(`${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
   // No page cap: the call budget bounds the pass, and a pass that stops early is incomplete.
   for (let page = 1; ; page += 1) {
-    const batch = api(`${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
-    pulls.push(...batch.filter((p) => p.merged_at && p.merged_at > SINCE));
+    const batch = pullsPage(page);
+    for (const p of merged(batch)) pullsBy.set(p.number, p);
     if (batch.length < 100 || batch.some((p) => p.updated_at < SINCE)) break;
   }
+  if (merged(pullsPage(1)).some((p) => !pullsBy.has(p.number))) truncated += 1;
+  const pulls = [...pullsBy.values()];
   // Every ci.yml run since enabling, by event, read once per pass as one shared list (calls grow with
   // the run count, not with the number of changes). GitHub serves at most 1,000 results for a
   // filtered runs query, so the window is read one UTC day at a time, and a day whose collected runs
@@ -156,26 +171,33 @@ try {
   const days = [];
   for (let d = Date.parse(`${SINCE.slice(0, 10)}T00:00:00Z`); d <= Date.now(); d += 86_400_000) days.push(new Date(d).toISOString().slice(0, 10));
   const runsSince = (event) => {
-    const all = [];
+    const all = new Map();
     for (const day of days) {
       let total = 0;
-      let got = 0;
+      const got = new Set();
       for (let page = 1; ; page += 1) {
         const body = api(`${REPO}/actions/workflows/ci.yml/runs?event=${event}&created=${day}&per_page=100&page=${page}`);
         total = body.total_count ?? 0;
-        got += body.workflow_runs.length;
-        all.push(...body.workflow_runs.filter((r) => r.created_at > SINCE));
+        for (const r of body.workflow_runs) {
+          got.add(r.id);
+          if (r.created_at > SINCE) all.set(r.id, r);
+        }
         if (body.workflow_runs.length < 100) break;
       }
-      if (got < total || total >= 1000) truncated += 1;
+      // Distinct runs: a run repeated across a page boundary counts once, so a run pushed off a page
+      // by a newer one shows up as a shortfall here.
+      if (got.size < total || total >= 1000) truncated += 1;
     }
-    return all;
+    return [...all.values()];
   };
   const groupRuns = runsSince('merge_group');
   const prRuns = runsSince('pull_request');
   let pending = 0;
   for (const pr of pulls.sort((a, b) => a.merged_at.localeCompare(b.merged_at))) {
-    const mine = prRuns.filter((r) => r.head_branch === pr.head.ref && r.created_at > SINCE && r.created_at <= pr.merged_at);
+    // By branch and, where GitHub links it, by pull request number, so an earlier PR on a reused
+    // branch name is not counted here.
+    const mine = prRuns.filter((r) => r.head_branch === pr.head.ref && r.created_at > SINCE && r.created_at <= pr.merged_at
+      && (!(r.pull_requests ?? []).length || r.pull_requests.some((p) => p.number === pr.number)));
     const groups = groupRuns.filter((r) => r.head_branch?.includes(`/pr-${pr.number}-`) && r.created_at > SINCE && r.created_at <= pr.merged_at);
     const runs = [];
     for (const run of [...mine, ...groups]) {
@@ -184,7 +206,14 @@ try {
         pending += 1;
         continue;
       }
-      const added = runAdded(run);
+      let added;
+      try {
+        added = runAdded(run);
+      } catch (error) {
+        if (!(error instanceof Moving)) throw error;
+        pending += 1; // its jobs show a re-run started after the list was read
+        continue;
+      }
       if (added) runs.push(added);
     }
     if (!runs.length) continue;
