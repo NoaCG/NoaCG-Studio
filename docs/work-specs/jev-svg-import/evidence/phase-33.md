@@ -21,7 +21,9 @@ or decoded. The development result is indicative; the verdict belongs to row 34.
 
 ## Pinned main
 
-Worktree from `531f856e13379ccffe8edc2df381cf6c2503f393`. Previous verified main: that SHA.
+Worktree from `531f856e13379ccffe8edc2df381cf6c2503f393`; `origin/main` at
+`4130a081f35f70e4d05dff3b314863127aec465b` (PR #2018, the harness fix for #2017) was merged in
+before the freeze, and the freeze ran on it. Previous verified main: `4130a081`.
 Revert this row after it lands with `git revert -m 1 <merge sha>`; the Actions ledger and the
 freeze it records are not undone by a revert (they live in the protected workflow's artifacts).
 
@@ -141,7 +143,19 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
    `{"attempt": 1, "status": 400, "type": "AI_APICallError", "code": null}`. A 400 with no
    gateway code is not a refused model or key (404 or 401/403) and not one of the gateway's
    classified provider-policy refusals, so it points at the request as the provider receives it.
-   Jev in this run: 65 / 21, lower third and quiz worse.
+   Jev in this run: 65 / 21, lower third and quiz worse. The coordinator decided to record the
+   image arm as refused, a stated gap, and to freeze the five-arm configuration unchanged so row
+   34 reports the arm as refused instead of dropping it; the 400 itself is #2022.
+9. **Pre-freeze dry run**, run `41634521453`, main `4130a081` (the freeze's commit),
+   configuration `a41861d2`, regression on. Mock only, passed.
+10. **Freeze**, run `41634756346`, `reconcile` with `freeze` on main `4130a081`, after 79 batches.
+    Balance 6.905229415, lifetime used 48.094770585 (no change since run 8; arrived $0). The
+    ledger records the reason and `frozen`: configuration SHA-256
+    `b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7` at configuration commit
+    `a41861d21be5c13d2e0a8344644ea50606e2463d`, harness manifest
+    `341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db`. Ledger artifact
+    `jev-svg-eval-ledger` of that run, kept to 2027-02-01: row 34 continues from run
+    `41634756346`.
 
 Indicative development result for the primary against deterministic (18 designs; corrections
 plus decisions / consequential errors, summed; strata with a consequential increase):
@@ -175,6 +189,26 @@ single holdout run carries the same noise; its report should say so.
 By the rule above, **tune 1 is chosen** (one stratum worse against two). Its questions go into
 the committed `prompts.json` with all five arms (behaviour questions changed, field question,
 criteria, chat system and threshold as row 32).
+
+## Frozen for row 34
+
+- Configuration: `docs/work-specs/jev-svg-import/evaluation/prompts.json` as this PR lands it
+  (git blob `34ad88f0`, the same bytes as configuration commit `a41861d2`), SHA-256
+  `b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7`. Primary `jev-structured`
+  (`typesafe-ai/jev-1.14.0`, decision, no pixels); reporting challengers `elephant` and `haiku`;
+  baselines `deterministic` and `gemini-vision`, with the models in the Configuration table above.
+  Threshold 0.5. Prompts are the tune 1 behaviour questions and row 32's field question,
+  criteria and chat system.
+- Scoring `jev-svg-score/1` (row 32, unchanged).
+- Harness manifest `341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db` (229 files,
+  main `4130a081`). Among them: `scripts/jev-svg-eval.mjs` `f732660e…8928f`, the decision adapter
+  `api/_lib/aiDecisionGateway.ts` `ca71a3a2…16a1`, the chat adapter `api/_lib/aiGateway.ts`
+  `35abef85…f82`, the routes and prices `api/_lib/aiModelCatalog.ts` `f96962bd…6fb`,
+  `src/ai/svgInterpretation/questions.ts` `89d09be3…aa9d`, `evidence.ts` `631d46ec…2a92`, the
+  workflow `bc3e2e6f…ec6f`, the development labels `49813b69…815f`. The full list is in each run's
+  report and in the ledger.
+- Any change on main to a file in the manifest before row 34 refuses the holdout until a reviewed
+  `accept_manifest` reconcile and a new freeze (row 32's protection, intended).
 
 ## Decisions
 
@@ -213,18 +247,26 @@ The development partition only. Holdout spend is $0, and the holdout was never r
 | 41620813617 | development | 0.002438976 | 18 |
 | 41621404623 | development | 0.002566236 | 18 |
 | 41621970771 | development | 0.021113283 | 122 |
-| total so far | | 0.028468263 | 176 of 500 |
+| 41630691746 | reconcile (accept manifest) | 0 | 0 |
+| 41630941605 | development | 0.002438976 | 36 |
+| 41634521453 | dry-run (mock) | 0 | 0 real |
+| 41634756346 | reconcile (freeze) | 0 | 0 |
+| total | | 0.030907239 | 212 of 500 |
 
-Balance 6.936136654 at the baseline, 6.907668391 after run 6; the drop equals the summed
-receipts, so no other consumer spent on the shared balance during the row.
+Balance 6.936136654 at the baseline, 6.905229415 at the freeze; the drop ($0.030907239) equals the
+summed receipts, so no other consumer spent on the shared balance during the row. Left for row
+34: $1.969 of the development partition, the whole $3 holdout partition, 288 attempts (the holdout
+plans at most 144).
 
 ## Open points and where they go
 
-- **#2017** (coordinator, fix builder): the image arm was refused on every request; the harness
-  needs to record a refused attempt's HTTP status and gateway error code, and fix the cause if
-  it is the request shape. This row then accepts the reviewed harness change by reconcile, runs
-  the image arm once, and freezes; if the provider refuses this model for this key, the image arm
-  is a recorded gap.
+- **Stated gap in AC-7's relevant-vision comparison.** The image arm (`gemini-vision`, the
+  existing import-analysis route) was refused on all 18 requests in runs `41621970771` and
+  `41630941605`: HTTP 400, `AI_APICallError`, no gateway code, cause not established. #2017
+  (closed by PR #2018) made the harness record that; #2022 (P1) owns the 400 and whether
+  production image analysis is affected. The arm stays in the frozen configuration, so row 34
+  reports it as refused. If #2022 is fixed before row 34, using the image arm needs a reviewed
+  harness change, `accept_manifest` and a new freeze, which the coordinator decides.
 - **#2015** (rows 31 and 35): a fixed gateway fee per request that the reported cost leaves out.
 - **Row 34**: Jev's answers vary between runs on identical input, so its single holdout run
   carries that noise; report it beside the verdict.
