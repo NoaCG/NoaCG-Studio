@@ -314,8 +314,10 @@ test('an imported clock starts, holds and resets from the server on two real out
 /** The fast road's delivery spread the issue expects, with room for a loaded runner. The bound
  *  only catches a gross fault: what tells the two roads apart is 0 against more than 0. Rows
  *  stamped with the server's time give both outputs the same origin to the millisecond (as the
- *  Start above does); rows stamped by each output's arrival give a few to tens of ms here. Both
- *  outputs share one machine and one clock, so this is a lower bound on what two machines see. */
+ *  Start above does); rows stamped by each output's arrival would give a few to tens of ms here.
+ *  An output on the numbered log (protocol 2) never joins the fast road, so on this path every
+ *  row carries its server time and 0 is expected; #1886 can only arise on a protocol 1 output.
+ *  Both outputs share one machine and one clock, so this is a lower bound on what two machines see. */
 const FAST_ROAD_SPREAD_MS = 1_500;
 
 /** Seconds a clock text shows, `12:08` read as 728. */

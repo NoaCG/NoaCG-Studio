@@ -78,9 +78,18 @@ fast road, which carries no server time, so each output stamps that row with its
   on this path.** A spread of exactly 0 means both outputs stamped each row with the same server
   `created_at`; a fast-road frame carries none, and the renderer then falls back to its own clock
   (`rowInstant`, `src/control/matchClockWire.ts`), which would give a few to tens of ms here. So on
-  this stack these rows reached both outputs through their durable, server-stamped copy. The test
-  cannot tell whether the fast road did not carry them or was not joined on the local stack; the
-  issue's mechanism is still in the code, so #1886 stays open as filed.
+  this stack these rows reached both outputs through their durable, server-stamped copy.
+- **Why, read in code: that is by design on protocol 2.** A hosted output that resolves its
+  production on the numbered log (protocol 2, migration 0071) never joins the fast road:
+  `src/output/main.ts` (the `seqMode` branch, "No fast road") follows `seq-<show>`, and only the
+  protocol 1 branch passes `onCommand`; `followControlLog`'s `seq` option in
+  `src/control/hostedControl.ts` says the same for every protocol 2 follower. Every numbered row
+  carries the server's `created_at` (`0071_command_sequence.sql`). So #1886's race (a fast copy
+  stamped on arrival, the durable copy dropped as a duplicate) can only happen on an output that
+  follows protocol 1: a server without the numbered log, or a resolve marked legacy.
+- **Recommendation to the coordinator:** re-scope #1886 to protocol 1 outputs, or close it if no
+  protocol 1 output remains in production. This row changes no product file and does not edit
+  the issue.
 - Both outputs share one machine and one clock, so this setup is a lower bound: the issue's real
   risk, clocks that differ between machines, cannot show here. The reboot number is the issue's
   "a reload can move it" case; at 0 ms it did not move.
@@ -148,6 +157,14 @@ fast road, which carries no server time, so each output stamps that row with its
   stack's port 54322 (#1865); its one re-run was cancelled by the push of `ddefc4df`.
 - CI on `ddefc4df` (run 41566156768): every job green except Reviewed (the coordinator's stamp);
   configured selection triggered, subset, 1 spec (`scorebug-output.spec.ts`, 3 passed).
+- PR review bot on `6a7fdfa7` (one manual request): no findings. CI on `6a7fdfa7` (run
+  41567097709): CI gate green, configured 1 spec, 3 passed, the same 0 / 0 / 0 ms.
+- Final `/so` on `6a7fdfa7` (`session_017SdbwR3jBipuFcw1hsBtb9`): AGREE WITH CORRECTIONS, A-.
+  Points 2 and 3 confirm the earlier two are resolved. Point 1, blocking, notes only (class
+  faulty test expectation, family #1886 evidence): "the test cannot tell" was wrong, the code
+  tells (protocol 2 outputs never join the fast road). Taken above and in the spec's comment.
+  Points 4 to 6 non-blocking: the 1.5 s bound stays a safety net; scope clean; the SPX control
+  page as a second tab stays a documented limit (Limits).
 
 ## Revert
 
