@@ -811,6 +811,13 @@
       ],
       "from": "38",
       "note": "Optional challenge: three notice zones NOT passed (text per zone works; per-zone entrance/exit unsupported); mark unqualified in the release kit. Checker non-blocking notes: operator labels show raw layer ids; decorative text is offered as editable (see PR #2038 comment 6614977004)."
+    },
+    {
+      "forPhases": [
+        "40"
+      ],
+      "from": "39 checker",
+      "note": "phase-39.md labels the landing as 8b5ca96f; the matrix landing is 2286c5c1 (CI push 41725517982, configured-suite 41725517940, Quarantine 41725517943, Post-landing 41725517949). test:ai-gateway runs in the Build job, not Factory gates. Correct both in the release evidence. E2E 1/15 red once on #1750 (editor-canvas-transforms:270, unrelated)."
     }
   ]
 }
