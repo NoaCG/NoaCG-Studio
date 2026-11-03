@@ -29,17 +29,18 @@
 //   - Cleanup: `down` (a step with `if: always()`, so it runs after a failure or a cancellation)
 //     stops every stack this owner claimed, then proves nothing is left: no container, volume or
 //     network of the project, no process of ours, no socket listening on or owned on the block,
-//     and each port binds. Only then are the reservation and the claim given back.
+//     and each port binds. An ownerless TIME_WAIT socket left on the block is counted, not ignored:
+//     it can block Docker's bind for 60 s, so allocation skips a block that has one. Only then are the reservation and the claim given back.
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync, appendFileSync } from 'node:fs';
 import net from 'node:net';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const CLAIMS_ROOT = '/tmp/noacg-configured-stacks';
-export const BASE_PORT = 54320; // the CLI's default block: shadow 54320 ... pooler 54329
+export const BASE_PORT = 54320; // the CLI's default block: shadow 54320 ... pooler 54329, every port set in it
 export const SLOTS = 10;
-const RESERVED = '/proc/sys/net/ipv4/ip_local_reserved_ports';
+export const RESERVED = '/proc/sys/net/ipv4/ip_local_reserved_ports';
 const PROJECT_LABEL = 'com.supabase.cli.project';
 
 /** The ten-port block of slot k, and the port each published service takes in it. */
@@ -48,7 +49,8 @@ export function slotPorts(slot) {
   const b = BASE_PORT + 100 * slot;
   return {
     first: b, last: b + 9,
-    shadow: b, api: b + 1, db: b + 2, studio: b + 3, inbucket: b + 4, analytics: b + 7, pooler: b + 9,
+    shadow: b, api: b + 1, db: b + 2, studio: b + 3, inbucket: b + 4, smtp: b + 5, pop3: b + 6,
+    analytics: b + 7, vector: b + 8, pooler: b + 9,
   };
 }
 
@@ -88,7 +90,10 @@ export function slotConfig(text, slot) {
   for (const [table, key, value] of [
     ['api', 'port', p.api], ['db', 'port', p.db], ['db', 'shadow_port', p.shadow],
     ['db.pooler', 'port', p.pooler], ['studio', 'port', p.studio],
-    ['inbucket', 'port', p.inbucket], ['analytics', 'port', p.analytics],
+    // smtp_port and pop3_port stay unset: set, the CLI would publish them. Unset, they are not, and
+    // ready() fails any port a container publishes outside the block.
+    ['inbucket', 'port', p.inbucket],
+    ['analytics', 'port', p.analytics], ['analytics', 'vector_port', p.vector],
   ]) out = setTomlKey(out, table, key, value);
   return out;
 }
@@ -140,7 +145,12 @@ function run(cmd, args, opts = {}) {
   const r = spawnSync(cmd, args, { encoding: 'utf8', ...opts, windowsHide: true });
   return { code: r.status ?? 1, out: r.stdout ?? '', err: (r.stderr ?? '') + (r.error ? String(r.error) : '') };
 }
-const ss = (withProcesses) => run('sudo', ['-n', 'ss', withProcesses ? '-Htanp' : '-Htan']).out;
+/** Every TCP socket on the host, with its owner. A failed read throws: an empty answer would read as "free". */
+function ss() {
+  const r = run('sudo', ['-n', 'ss', '-Htanp']);
+  if (r.code !== 0) throw new Error(`sudo -n ss -Htanp failed (${r.code}): ${r.err.trim()}`);
+  return r.out;
+}
 
 function claimedSlots() {
   if (!existsSync(CLAIMS_ROOT)) return [];
@@ -175,7 +185,7 @@ function exportEnv(pairs) {
 
 function diagnose(p, projectId) {
   console.log(`--- sockets on ports ${p.first}-${p.last} (sudo ss -tanp) ---`);
-  console.log(socketsOn(ss(true), p.first, p.last).join('\n') || '(none)');
+  console.log(socketsOn(ss(), p.first, p.last).join('\n') || '(none)');
   console.log(`--- containers of ${projectId} ---`);
   console.log(run('docker', ['ps', '-a', '--filter', `label=${PROJECT_LABEL}=${projectId}`, '--format', '{{.Names}}\t{{.Status}}\t{{.Ports}}']).out || '(none)');
 }
@@ -186,13 +196,22 @@ function allocate(owner) {
   console.log(`ephemeral range (ip_local_port_range): ${readFileSync('/proc/sys/net/ipv4/ip_local_port_range', 'utf8').trim()}`);
   for (let slot = 0; slot < SLOTS; slot++) {
     const dir = join(CLAIMS_ROOT, `slot-${slot}`);
-    try { mkdirSync(dir); } catch (e) { if (e.code === 'EEXIST') continue; throw e; }
     const p = slotPorts(slot);
     const state = { owner, slot, projectId: projectIdOf(slot), ports: p, workdir: dir, claimedAt: new Date().toISOString() };
-    writeFileSync(join(dir, 'state.json'), JSON.stringify(state, null, 2));
+    // The claim and its state appear together: written aside, then renamed onto the slot's name,
+    // which fails while another claim (never empty) holds it. No claim exists without its owner.
+    const draft = join(CLAIMS_ROOT, `.draft-${process.pid}-${slot}`);
+    rmSync(draft, { recursive: true, force: true });
+    mkdirSync(draft);
+    writeFileSync(join(draft, 'state.json'), JSON.stringify(state, null, 2));
+    try { renameSync(draft, dir); } catch (e) {
+      rmSync(draft, { recursive: true, force: true });
+      if (e.code === 'ENOTEMPTY' || e.code === 'EEXIST') continue;
+      throw e;
+    }
     syncReservations();
     // Checked AFTER the reservation, so no autobind can take a port between the check and the start.
-    const used = socketsOn(ss(true), p.first, p.last);
+    const used = socketsOn(ss(), p.first, p.last);
     if (used.length === 0) return state;
     console.log(`::warning title=Ports ${p.first}-${p.last} in use::slot ${slot} skipped, its ports are already used by:%0A${used.join('%0A')}`);
     rmSync(dir, { recursive: true, force: true });
@@ -201,14 +220,22 @@ function allocate(owner) {
   throw new Error(`no free slot: all ${SLOTS} blocks from ${BASE_PORT} are claimed or in use`);
 }
 
-function stackEnv(state) {
-  return { ...process.env, SUPABASE_WORKDIR: state.workdir };
+function stackEnv(workdir) {
+  return { ...process.env, SUPABASE_WORKDIR: workdir };
 }
 
-function statusOf(state) {
-  const r = run('supabase', ['status', '-o', 'json'], { env: stackEnv(state) });
+/** `supabase status -o json` of the stack in `workdir`. */
+export function stackStatus(workdir) {
+  const r = run('supabase', ['status', '-o', 'json'], { env: stackEnv(workdir) });
   if (r.code !== 0) throw new Error(`supabase status failed: ${r.err.trim()}`);
-  return JSON.parse(r.out.slice(r.out.indexOf('{')));
+  const at = r.out.indexOf('{');
+  if (at === -1) throw new Error(`supabase status printed no JSON: ${r.out.trim().slice(0, 200)}`);
+  return JSON.parse(r.out.slice(at));
+}
+
+/** Every claim on the host with its state. */
+export function readClaims() {
+  return claimedSlots().map((s) => JSON.parse(readFileSync(join(CLAIMS_ROOT, `slot-${s}`, 'state.json'), 'utf8')));
 }
 
 /** One readiness check after `supabase start` returned. Throws with what is not ready. */
@@ -225,7 +252,7 @@ async function ready(state) {
   }
   for (const port of published) if (port < p.first || port > p.last) problems.push(`a container of ${projectId} publishes ${port}, outside its block ${p.first}-${p.last}`);
   for (const port of [p.api, p.db]) if (!published.has(port)) problems.push(`nothing publishes ${port}`);
-  const status = statusOf(state);
+  const status = stackStatus(state.workdir);
   if (!String(status.API_URL ?? '').endsWith(`:${p.api}`)) problems.push(`supabase status reports API_URL ${status.API_URL}, not port ${p.api}`);
   try {
     const res = await fetch(`${status.API_URL}/rest/v1/`, { headers: { apikey: status.ANON_KEY } });
@@ -250,7 +277,7 @@ async function up(args) {
   // Before the start, so a later step (and `down`) reaches this stack even if the start fails.
   exportEnv({ SUPABASE_WORKDIR: workdir, NOACG_STACK_PROJECT: projectId, NOACG_STACK_SLOT: String(slot) });
   console.log(`::notice title=Local stack slot ${slot}::project ${projectId}, ports ${p.first}-${p.last} reserved and free, owner ${owner}`);
-  const start = spawnSync('supabase', ['start', '-x', exclude], { stdio: 'inherit', windowsHide: true, env: stackEnv(state) });
+  const start = spawnSync('supabase', ['start', '-x', exclude], { stdio: 'inherit', windowsHide: true, env: stackEnv(workdir) });
   if (start.status !== 0) {
     diagnose(p, projectId);
     throw new Error(`supabase start failed (exit ${start.status ?? start.signal}); not retried - the diagnosis is above, and the cleanup step takes the stack down`);
@@ -309,14 +336,15 @@ async function teardown(state) {
   }
   // Until they have exited (observable in /proc), at most 15 s; one still there is reported below.
   for (const until = Date.now() + 15_000; ourProcesses(workdir).length && Date.now() < until;) await new Promise((r) => setTimeout(r, 200));
-  const stop = run('supabase', ['stop', '--no-backup'], { env: { ...process.env, SUPABASE_WORKDIR: workdir } });
+  const stop = run('supabase', ['stop', '--no-backup'], { env: stackEnv(workdir) });
   console.log(stop.out.trim(), stop.err.trim());
   // What the CLI could not remove, removed by this project's label - never anything else.
   const label = `label=${PROJECT_LABEL}=${projectId}`;
   const left = (kind) => run('docker', [kind, 'ls', ...(kind === 'container' ? ['-a'] : []), '-q', '--filter', label]).out.trim().split('\n').filter(Boolean);
-  if (left('container').length) run('docker', ['rm', '-f', '-v', ...left('container')]);
-  if (left('volume').length) run('docker', ['volume', 'rm', '-f', ...left('volume')]);
-  if (left('network').length) run('docker', ['network', 'rm', ...left('network')]);
+  for (const [kind, remove] of [['container', ['rm', '-f', '-v']], ['volume', ['volume', 'rm', '-f']], ['network', ['network', 'rm']]]) {
+    const ids = left(kind);
+    if (ids.length) run('docker', [...remove, ...ids]);
+  }
   for (const kind of ['container', 'volume', 'network']) {
     const n = left(kind).length;
     if (n) problems.push(`${n} ${kind}(s) of ${projectId} remain`);
@@ -325,7 +353,7 @@ async function teardown(state) {
   if (named.length) problems.push(`containers named for ${projectId} remain: ${named.join(', ')}`);
   const procs = ourProcesses(workdir);
   if (procs.length) problems.push(`processes of this stack remain: ${procs.join(', ')}`);
-  const sockets = socketsOn(ss(true), p.first, p.last);
+  const sockets = socketsOn(ss(), p.first, p.last);
   const held = holding(sockets);
   if (held.length) problems.push(`ports still held:\n${held.join('\n')}`);
   for (let port = p.first; port <= p.last; port++) {
@@ -335,16 +363,14 @@ async function teardown(state) {
   if (problems.length === 0) {
     rmSync(workdir, { recursive: true, force: true });
     syncReservations();
-    console.log(`::notice title=Local stack slot ${slot} cleaned up::${projectId}: 0 containers, 0 volumes, 0 networks, no process; ports ${p.first}-${p.last} not held and each binds (${sockets.length - held.length} TIME_WAIT socket(s) without an owner); reservation and claim released.`);
+    console.log(`::notice title=Local stack slot ${slot} cleaned up::${projectId}: 0 containers, 0 volumes, 0 networks, no process; ports ${p.first}-${p.last} not held and each binds; ${sockets.length - held.length} ownerless TIME_WAIT socket(s) left (a new allocation skips a block until they expire); reservation and claim released.`);
   }
   return problems;
 }
 
 async function down(args) {
   const owner = args.owner ?? defaultOwner();
-  const mine = claimedSlots().map((s) => {
-    try { return JSON.parse(readFileSync(join(CLAIMS_ROOT, `slot-${s}`, 'state.json'), 'utf8')); } catch { return null; }
-  }).filter((st) => st && (st.owner === owner || st.owner.startsWith(`${owner}/`)));
+  const mine = readClaims().filter((st) => st.owner === owner || st.owner.startsWith(`${owner}/`));
   if (mine.length === 0) { console.log(`No local stack was claimed by ${owner}; nothing to clean up.`); return; }
   const problems = [];
   for (const st of mine) problems.push(...(await teardown(st)).map((x) => `slot ${st.slot}: ${x}`));

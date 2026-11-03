@@ -416,4 +416,7 @@ test('ci06: the configured jobs run on the planner flag and read no hosted secre
   const teardown = /- name: Take the local stack down and prove it gone\n\s*if: always\(\)\n\s*run: '\[ ! -f scripts\/configured-stack\.mjs \] \|\| node scripts\/configured-stack\.mjs down'/;
   assert.match(shards, teardown);
   assert.match(suite, teardown);
+  assert.match(readFileSync(new URL('../.github/workflows/endurance.yml', import.meta.url), 'utf8'), teardown);
+  // ...after the tree-clean guard, so a cleanup failure cannot skip it.
+  assert.ok(shards.indexOf('name: Take the local stack down') > shards.indexOf('name: Tests left the tree clean'));
 });

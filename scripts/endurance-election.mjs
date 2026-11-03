@@ -61,7 +61,10 @@ if (!(await signedIn.json()).access_token) throw new Error('the account cannot s
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 const { projected, ...size } = measureFixture(minutes);
-const container = run('docker', ['ps', '--filter', 'name=supabase_db', '--format', '{{.Names}}']).stdout.trim().split('\n')[0];
+// This job's stack only, by its project label (scripts/configured-stack.mjs exports it): another
+// stack on the host is not the one the run writes to.
+const project = env.NOACG_STACK_PROJECT ? ['--filter', `label=com.supabase.cli.project=${env.NOACG_STACK_PROJECT}`] : [];
+const container = run('docker', ['ps', ...project, '--filter', 'name=supabase_db', '--format', '{{.Names}}']).stdout.trim().split('\n')[0];
 const sql = `select octet_length(($endurance$${JSON.stringify(projected)}$endurance$::jsonb)::text);`;
 const measured = container ? run('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-d', 'postgres', '-tA'], { input: sql }) : null;
 size.jsonbBytes = measured?.status === 0 ? Number(measured.stdout.trim()) : null;

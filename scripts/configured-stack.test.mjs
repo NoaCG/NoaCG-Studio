@@ -35,9 +35,10 @@ test('the slot config renames the project and moves every published port into th
   assert.match(table('studio'), /^port = 54623$/m);
   assert.match(table('inbucket'), /^port = 54624$/m);
   assert.match(table('analytics'), /^port = 54627$/m);
+  assert.match(table('analytics'), /^vector_port = 54628$/m);
   assert.match(table('db.pooler'), /^port = 54629$/m);
   // Nothing else moved: the rest of the file is the source line for line.
-  const strip = (t) => t.split('\n').filter((l) => !/^\s*(project_id|port|shadow_port)\s*=/.test(l) && !/^\[(inbucket|analytics|db\.pooler)\]$/.test(l.trim()) && l.trim() !== '');
+  const strip = (t) => t.split('\n').filter((l) => !/^\s*(project_id|port|shadow_port|vector_port)\s*=/.test(l) && !/^\[(inbucket|analytics|db\.pooler)\]$/.test(l.trim()) && l.trim() !== '');
   assert.deepEqual(strip(out), strip(source));
   // And no default port survives anywhere a key sets one.
   assert.doesNotMatch(out, /^\s*\w*port\s*=\s*543\d\d/m);

@@ -15,24 +15,12 @@
 // Diagnostics only: never part of a pull request's checks.
 import { spawn, spawnSync } from 'node:child_process';
 import net from 'node:net';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { CLAIMS_ROOT, defaultOwner } from './configured-stack.mjs';
+import { readFileSync } from 'node:fs';
+import { defaultOwner, readClaims as claims, RESERVED, stackStatus as status } from './configured-stack.mjs';
 
 const mode = process.argv[2];
 const minutes = Number(process.argv[process.argv.indexOf('--minutes') + 1] || 1);
 const job = defaultOwner();
-
-function claims() {
-  return readdirSync(CLAIMS_ROOT).filter((n) => /^slot-\d+$/.test(n))
-    .map((n) => JSON.parse(readFileSync(join(CLAIMS_ROOT, n, 'state.json'), 'utf8')));
-}
-
-function status(workdir) {
-  const r = spawnSync('supabase', ['status', '-o', 'json'], { encoding: 'utf8', windowsHide: true, env: { ...process.env, SUPABASE_WORKDIR: workdir } });
-  if (r.status !== 0) throw new Error(`supabase status for ${workdir}: ${r.stderr}`);
-  return JSON.parse(r.stdout.slice(r.stdout.indexOf('{')));
-}
 
 function node(args, owner) {
   return new Promise((done) => {
@@ -101,7 +89,6 @@ function publish(port) {
 }
 
 const RANGE = '/proc/sys/net/ipv4/ip_local_port_range';
-const RESERVED = '/proc/sys/net/ipv4/ip_local_reserved_ports';
 function sysctl(path, value) {
   const r = spawnSync('sudo', ['-n', 'tee', path], { input: `${value}\n`, encoding: 'utf8', windowsHide: true });
   if (r.status !== 0) throw new Error(`sudo tee ${path}: ${r.stderr}`);
