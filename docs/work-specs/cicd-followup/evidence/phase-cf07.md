@@ -93,6 +93,19 @@ on this branch at `0bd3e24d` (the fix and the brief), `trial:late-send-abandoned
 with the local stack: **40 of 40 runs passed, 0 failed, exactly 40 ran** (21.4 minutes of
 Playwright, retries off, one worker). The same runner and spec failed 9 of 40 before the fix.
 
+Review then changed the watcher (a read now closes when its whole answer has arrived, and any
+answered status counts, as Playwright's `requestfinished` did), so the trial ran again on the
+final code, with the same brief:
+
+| Run | Head | Result |
+| --- | --- | --- |
+| [41542195497](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41542195497) | `0bd3e24d` (first fix) | 40 of 40 passed, verdict PASS |
+| [41545991150](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41545991150) | `f5df58a1` (review fixes) | 40 of 40 passed, 0 failed; the trial script judged it FAIL because it counted each repetition as its own test (fixed in `35063d76`, and the fixed judge reads this run's report as 1 test, 40 runs, 40 passed) |
+| [41549389402](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41549389402) | `35063d76` (final code) | **40 of 40 passed, 0 failed, exactly 40 ran, verdict PASS** (22.1 minutes) |
+
+The spec and helper are the same in the last two runs; only the trial's judge changed between
+them. 120 runs of the fixed spec, zero failures.
+
 The quarantine is not touched by hand. `e2e/quarantine.json` still lists the spec; the configured
 suite runs it on every push to `main` and posts `noacg/quarantine/<spec>`, and
 `scripts/e2e-quarantine.mjs release-due` queues its release after `RELEASE_AFTER` (20)
@@ -131,3 +144,5 @@ closes. Nothing in this PR closes it.
     trial's dispatch runs the branch's own `package.json`, so its count must be committed first.
   - `gh api ... --jq` takes no `--arg`; a loop built that way fails before calling the API.
   - The repo's commit hook refuses attribution trailers.
+  - Playwright's JSON report lists each `--repeat-each` repetition as its own spec entry with its
+    own id; count tests by file, line and title.
