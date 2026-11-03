@@ -397,6 +397,23 @@ test('a ledger write that throws after start still stops the sandbox', async () 
   assert.equal(session.stops, 1);
 });
 
+test('ending a job whose ledger write throws still stops the sandbox, and the error surfaces', async () => {
+  const session = new FakeSession('running');
+  const store = await memoryStore();
+  const record = job();
+  await store.create(record);
+  const failing = Object.create(store) as typeof store;
+  failing.update = async () => {
+    throw new Error('render jobs update failed');
+  };
+  const executor = new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps);
+
+  await assert.rejects(endJob(record, { state: 'cancelled' }, failing, executor), /update failed/);
+
+  assert.equal(session.stops, 1);
+  assert.equal((await store.get(record.id))?.state, 'provisioning');
+});
+
 test('a cancel that read the job before the launch wrote its ref still stops the sandbox', async () => {
   const session = new FakeSession('running');
   const store = await memoryStore();
@@ -440,9 +457,40 @@ function shortTimeouts(t: TestContext): number[] {
 }
 
 function assertBounded(limits: number[]) {
-  assert.equal(limits.length, 1);
-  assert.ok(limits[0] > 0 && limits[0] <= 30_000, `limit was ${limits[0]} ms`);
+  assert.ok(limits.length > 0);
+  for (const ms of limits) assert.ok(ms > 0 && ms <= 30_000, `limit was ${ms} ms`);
 }
+
+class HungReadSession extends FakeSession {
+  async readFileToBuffer(_file?: { path: string }, opts?: { signal: AbortSignal }): Promise<Buffer | null> {
+    return hang<Buffer | null>(opts?.signal);
+  }
+}
+
+test('a hung progress read cannot hold up a status answer: the job waits for the next poll', { timeout: 2000 }, async (t) => {
+  const limits = shortTimeouts(t);
+  const store = await memoryStore();
+  const record = job();
+  await store.create(record);
+  const { deps } = fakeDeps(new FakeSandbox('sbx-test', new HungReadSession('running')));
+
+  const after = await reconcileJob(record, store, new SandboxExecutor(deps));
+
+  assert.equal(after.state, 'provisioning');
+  assertBounded(limits);
+});
+
+test('a hung lookup cannot hold up a progress read', { timeout: 2000 }, async (t) => {
+  const limits = shortTimeouts(t);
+  const deps: SandboxDeps = {
+    ...fakeDeps(new FakeSandbox('sbx-test', new FakeSession('running'))).deps,
+    get: (_name, signal) => hang<SandboxLike>(signal),
+  };
+
+  assert.equal(await new SandboxExecutor(deps).readProgress(job()), null);
+
+  assertBounded(limits);
+});
 
 test('a hung stop cannot hold up the status answer that finishes a job', { timeout: 2000 }, async (t) => {
   const limits = shortTimeouts(t);

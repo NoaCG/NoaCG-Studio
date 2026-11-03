@@ -69,7 +69,7 @@ export function sandboxNameOf(ref: string | null): string | null {
 /** The slice of a 3.x Session used here. Session calls never resume a stopped sandbox. */
 export interface SandboxSessionLike {
   readonly status: string;
-  readFileToBuffer(file: { path: string }): Promise<Buffer | null>;
+  readFileToBuffer(file: { path: string }, opts: { signal: AbortSignal }): Promise<Buffer | null>;
   stop(opts: { signal: AbortSignal }): Promise<unknown>;
 }
 
@@ -89,7 +89,7 @@ export interface SandboxDeps {
   /** A provisioned sandbox, plus the step that uploads the composition bundle to it. */
   provision(timeoutInMilliseconds: number): Promise<{ sandbox: SandboxLike; addBundle(): Promise<void> }>;
   /** Look a sandbox up without resuming it. */
-  get(name: string, signal?: AbortSignal): Promise<SandboxLike>;
+  get(name: string, signal: AbortSignal): Promise<SandboxLike>;
 }
 
 const sdkDeps: SandboxDeps = {
@@ -109,8 +109,8 @@ const sdkDeps: SandboxDeps = {
 
 const ENDED = new Set(['stopping', 'stopped', 'failed', 'aborted']);
 
-/** How long a stop may hold up the answer that finishes a job. Live, a poll with its stop took 2.8 s. */
-const STOP_TIMEOUT_MS = 10_000;
+/** How long a progress read, or a stop, may hold up a status answer. Live, a whole poll with its stop took 2.8 s. */
+const SANDBOX_CALL_TIMEOUT_MS = 10_000;
 
 /** A failed stop bills the VM to its timeout, so it is logged, unless the session had already
  *  ended by the time the stop arrived. It is not retried later (issue #2026): the SDK has already
@@ -150,14 +150,14 @@ export class SandboxExecutor implements RenderExecutor {
       });
     } catch (err) {
       // A failed launch must not leave a billed VM running.
-      await sandbox.stop({ signal: AbortSignal.timeout(STOP_TIMEOUT_MS) }).catch(logStopFailure);
+      await sandbox.stop({ signal: AbortSignal.timeout(SANDBOX_CALL_TIMEOUT_MS) }).catch(logStopFailure);
       throw err;
     }
     return { executorRef: REF_PREFIX + sandbox.name };
   }
 
   /** The job's live session, or null when it has none (1.x ref, stopped, expired, gone). */
-  private async liveSession(job: JobRecord, signal?: AbortSignal): Promise<SandboxSessionLike | null> {
+  private async liveSession(job: JobRecord, signal: AbortSignal): Promise<SandboxSessionLike | null> {
     const name = sandboxNameOf(job.executorRef);
     if (!name) return null;
     const session = (await this.deps.get(name, signal)).currentSession();
@@ -166,9 +166,10 @@ export class SandboxExecutor implements RenderExecutor {
 
   async readProgress(job: JobRecord): Promise<ExecutorProgress | null> {
     try {
-      const session = await this.liveSession(job);
+      const signal = AbortSignal.timeout(SANDBOX_CALL_TIMEOUT_MS);
+      const session = await this.liveSession(job, signal);
       if (!session) return null;
-      const buf = await session.readFileToBuffer({ path: PROGRESS_PATH });
+      const buf = await session.readFileToBuffer({ path: PROGRESS_PATH }, { signal });
       if (!buf) return { state: 'provisioning', progress: 0 }; // worker not writing yet
       const p = JSON.parse(buf.toString('utf8')) as ProgressFile;
       if (p.state === 'complete' && p.blobUrl) {
@@ -189,7 +190,7 @@ export class SandboxExecutor implements RenderExecutor {
 
   async stop(job: JobRecord): Promise<void> {
     try {
-      const signal = AbortSignal.timeout(STOP_TIMEOUT_MS);
+      const signal = AbortSignal.timeout(SANDBOX_CALL_TIMEOUT_MS);
       await (await this.liveSession(job, signal))?.stop({ signal });
     } catch (err) {
       logStopFailure(err);

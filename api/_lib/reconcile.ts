@@ -76,13 +76,18 @@ export async function launchJob(
 
 /** Mark a job ended, then stop its executor through the row the write returned. In this order, a
  *  launch finishing at the same moment cannot lose the handle: if its write came first the row
- *  holds the handle, and if it came second launchJob stops the render itself.
+ *  holds the handle, and if it came second launchJob stops the render itself. A write that throws
+ *  still stops the render, and the job stays open for the next look at it.
  *  The stop is awaited: Vercel freezes a function once it has answered, so a stop left floating
  *  often never reaches the sandbox, and the VM bills to its timeout. Idempotent, and never throws. */
 export async function endJob(job: JobRecord, patch: Partial<JobRecord>, store: JobStore, executor: RenderExecutor): Promise<JobRecord> {
-  const updated = await store.update(job.id, patch, { guardNonTerminal: true });
-  await executor.stop(updated ?? job);
-  return updated ?? job;
+  let updated: JobRecord | null = null;
+  try {
+    updated = await store.update(job.id, patch, { guardNonTerminal: true });
+    return updated ?? job;
+  } finally {
+    await executor.stop(updated ?? job);
+  }
 }
 
 /** Pull the executor's latest truth into the store and return the fresh record. */

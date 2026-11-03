@@ -109,8 +109,8 @@ Sandbox launches run under `waitUntil` AFTER the 202 — no request waits on VM
 provisioning. `status` reconciles executor progress into the job, finalizes completion,
 and fails lost jobs past their deadline. `cancel` marks the job ended, then stops the
 executor; a job that ends while the executor is still starting has its sandbox stopped by
-the launch itself. `complete` is the worker-secret callback. `cleanup` (cron, CRON_SECRET) sweeps expired outputs and stale
-jobs.
+the launch itself. `complete` is the worker-secret callback. `cleanup` (cron, CRON_SECRET)
+sweeps expired outputs and stale jobs.
 
 Job ledger: `render_jobs` in Supabase (migration 0007) when a Supabase secret key is set —
 `SUPABASE_SECRET_KEY` (the new `sb_secret_…` key, preferred) or the legacy service_role JWT
