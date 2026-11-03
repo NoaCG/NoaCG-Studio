@@ -772,7 +772,7 @@ const errorToken = (value) => (typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,
  * a clone's body, so the caller still gets the whole response; nothing else of it (message,
  * headers, provider text) is kept. An error body past 1 MB is not parsed.
  */
-async function refusalOf(status, text) {
+export async function refusalOf(status, text) {
   let type = null;
   let code = null;
   try {
@@ -895,6 +895,15 @@ async function sendRequest(arm, design, config, plan, deps, recorder) {
       ...(deps.GatewayError && error instanceof deps.GatewayError ? { classified: error.message.slice(0, 200) } : {}),
     });
   }
+}
+
+/** One regression-slice row of the report: what it proposed against what its sidecar expects,
+ *  and, when it fell back or was refused, why (#2017). */
+export function regressionRow(r, sidecar) {
+  return {
+    arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null,
+    ...(r.refusals ? { refusals: r.refusals } : {}), ...(r.classified ? { classified: r.classified } : {}),
+  };
 }
 
 /** Group requests into bounded batches: one arm, one stratum at a time; one request per batch
@@ -1363,7 +1372,7 @@ async function runWith(args, server) {
       decision: decide(rows, PRIMARY.id, main.stopped ?? slice.stopped ?? null, read.filter((d) => d.refused && d.label).map((d) => d.id)),
       verdictApplies: mode === 'holdout',
       rows: rows.map(({ proposal, ...r }) => ({ ...r, fieldsOn: proposal.fieldsOn.length, families: proposal.families })),
-      regression: slice.rows.map((r) => ({ arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: byId.get(r.design).sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null, ...(r.refusals ? { refusals: r.refusals } : {}), ...(r.classified ? { classified: r.classified } : {}) })),
+      regression: slice.rows.map((r) => regressionRow(r, byId.get(r.design).sidecar)),
       spend: {
         spentUsd: ledgerSpent(ledger.current, await readCreditsNow().catch(() => ledger.current.batches.at(-1)?.after ?? ledger.current.baseline)),
         batches: ledger.current.batches.length,

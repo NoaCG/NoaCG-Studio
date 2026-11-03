@@ -48,6 +48,8 @@ import {
   openHoldout,
   planRequest,
   reconcileLedger,
+  refusalOf,
+  regressionRow,
   runArms,
   scoreDesign,
   settledCredits,
@@ -492,6 +494,21 @@ test('#2017: a refused attempt records its HTTP status and the gateway error typ
   }
   // Never the message text, anywhere.
   assert.doesNotMatch(JSON.stringify({ rows, ledger: ledger.current }), /sk-live|Gemini said/);
+});
+
+test('#2017: only short tokens survive from an error body; a body past 1 MB is not parsed; the regression slice keeps the cause', async () => {
+  const body = (error) => Promise.resolve(JSON.stringify({ error }));
+  assert.deepEqual(await refusalOf(400, body({ type: 'not a token: provider text', code: 'bad_request' })), { status: 400, type: null, code: 'bad_request' });
+  assert.deepEqual(await refusalOf(429, body({ type: 'rate_limit', code: 429 })), { status: 429, type: 'rate_limit', code: '429' });
+  // A top-level { type, code } (no error object) is read the same way.
+  assert.deepEqual(await refusalOf(404, Promise.resolve(JSON.stringify({ type: 'model_not_found', code: 'x'.repeat(65) }))), { status: 404, type: 'model_not_found', code: null });
+  assert.deepEqual(await refusalOf(400, body({ type: 'invalid_request_error', message: 'x'.repeat(1_000_001) })), { status: 400, type: null, code: null });
+  assert.deepEqual(await refusalOf(502, Promise.reject(new Error('stream lost'))), { status: 502, type: null, code: null });
+
+  const refusals = [{ attempt: 1, status: 404, type: 'model_not_found', code: null }];
+  const row = regressionRow({ arm: PRIMARY.id, design: 'r1', proposal: { fieldsOn: ['a'] }, fellBack: 'provider_rejected', refusals, classified: 'The AI provider does not know that model id.' }, { expect: { textFields: 2 } });
+  assert.deepEqual(row, { arm: PRIMARY.id, design: 'r1', fieldsOn: 1, expectedTextFields: 2, fellBack: 'provider_rejected', refusals, classified: 'The AI provider does not know that model id.' });
+  assert.deepEqual(regressionRow({ arm: 'deterministic', design: 'r1', proposal: { fieldsOn: [] } }, {}), { arm: 'deterministic', design: 'r1', fieldsOn: 0, expectedTextFields: null, fellBack: null });
 });
 
 test('M11: a missing receipt or new money stops the run before any further provider call', async () => {
