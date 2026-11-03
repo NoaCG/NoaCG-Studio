@@ -173,8 +173,9 @@ export class SandboxExecutor implements RenderExecutor {
   async stop(job: JobRecord): Promise<void> {
     try {
       await (await this.liveSession(job))?.stop();
-    } catch {
-      // already stopped/expired — stop is idempotent
+    } catch (err) {
+      // Ended sessions were skipped above, so this is usually a real failure: the VM bills to its timeout.
+      console.error('sandbox stop failed:', (err as Error).message);
     }
   }
 }
