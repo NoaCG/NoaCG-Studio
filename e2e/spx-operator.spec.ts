@@ -389,7 +389,7 @@ async function importedSpx(page: Page, svg: string, name: string, choose: () => 
     const zip = await spxTarget.build(loadGraphics().find((g) => g.name === name)!.template);
     const out: Record<string, string> = {};
     for (const n of Object.keys(zip.files)) {
-      if (!zip.files[n].dir && /\.(html|js|css)$/.test(n)) out[n] = await zip.file(n)!.async('string');
+      if (!zip.files[n].dir && /\.(s?html|js|css)$/.test(n)) out[n] = await zip.file(n)!.async('string');
     }
     return out;
   }, name);
@@ -414,7 +414,7 @@ test('an imported clock and imported cards made by the import road run on SPX\'s
   // SPX's rundown offers the fields; the clock buttons live on the package's control page.
   const definition = (html: string) => JSON.parse(html.match(/SPXGCTemplateDefinition = (\{[\s\S]*?\n\});/)![1]) as { DataFields: Array<{ field: string; ftype: string; value: string }> };
   expect(definition(files['spx_count_up/spx_count_up.html']).DataFields.map((f) => f.ftype)).not.toContain('button');
-  expect(Object.keys(files)).toContain('spx_count_up/controlpanel.shtml');
+  expect(files['spx_count_up/controlpanel.shtml']).toContain('clock_start');
 
   const air = await context.newPage();
   const errors: string[] = [];
