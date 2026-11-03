@@ -22,6 +22,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/backend/teamProductions.ts, src/backend/assets.ts, src/backend/pacing.ts
 
 import { publishProduction } from '../_publish';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
@@ -574,6 +575,47 @@ test.describe('teams: the share door', () => {
         await owner.reload();
         await expect(owner.getByTestId('dataset-name')).toHaveCount(1, { timeout: 20_000 });
         await expectTeamInSetup(owner, teamName, 'Ben Teammate');
+
+        // A file in a team production lives in Storage, not in the row (0106). A adds one; the row
+        // holds a reference; B's copy holds the bytes; somebody outside the team cannot read it.
+        const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/AAAMEAQDtAb2rAAAAAElFTkSuQmCC';
+        const heldAsset = (page: Page) => page.evaluate(async (id) => {
+          const { loadTeamShows } = await import('/src/model/teamShows.ts');
+          const show = loadTeamShows().find((s) => s.id === id) as unknown as { e2eAsset?: { data?: string } } | undefined;
+          return show?.e2eAsset?.data ?? null;
+        }, showId);
+        const rowAsset = (page: Page) => page.evaluate(async (id) => {
+          const { getSupabase } = await import('/src/backend/supabase.ts');
+          const sb = await getSupabase();
+          const { data } = await sb!.from('team_productions').select('asset:doc->e2eAsset->>data').eq('id', id).maybeSingle();
+          return (data as { asset?: string } | null)?.asset ?? null;
+        }, showId);
+        await owner.evaluate(async ({ id, data }) => {
+          const { loadTeamShows, writeTeamShow } = await import('/src/model/teamShows.ts');
+          const show = loadTeamShows().find((s) => s.id === id)!;
+          writeTeamShow({ ...show, e2eAsset: { path: 'e2e.png', data } } as typeof show);
+        }, { id: showId, data: png });
+        await expect.poll(() => rowAsset(owner), { timeout: 20_000 }).toMatch(/^spx-storage:team\/[0-9a-f-]{36}\/[0-9a-f]{8}-\d+$/);
+        const assetKey = (await rowAsset(owner))!.slice('spx-storage:'.length);
+        expect(await heldAsset(owner)).toBe(png);
+        await mate.evaluate(async () => {
+          const { refreshTeams } = await import('/src/backend/teamProductions.ts');
+          await refreshTeams();
+        });
+        await expect.poll(() => heldAsset(mate), { timeout: 30_000 }).toBe(png);
+        await mintAccount(E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
+        const strangerContext = await browser.newContext();
+        const stranger = await strangerContext.newPage();
+        await signInAs(stranger, E2E_THIRD_EMAIL, E2E_THIRD_PASSWORD);
+        const strangerRead = await stranger.evaluate(async (key) => {
+          const { getSupabase } = await import('/src/backend/supabase.ts');
+          const sb = await getSupabase();
+          const read = await sb!.storage.from('user-assets').download(key);
+          const write = await sb!.storage.from('user-assets').upload(key.replace(/[^/]+$/, 'stranger'), new Blob(['x']));
+          return { read: read.data === null, write: write.data === null };
+        }, assetKey);
+        expect(strangerRead).toEqual({ read: true, write: true });
+        await strangerContext.close();
 
         // B gets BACK to the team from Home, owning nothing: the band's door opens the team with
         // its members, the link to pass on and Leave - and B changes the name teammates see, in
