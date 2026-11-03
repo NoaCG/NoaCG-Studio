@@ -3,8 +3,11 @@
 # On 2026-11-03 production stalled and crashed about 1.5 hours before Supabase's warning email, and
 # nothing here looked at memory or disk. scripts/production-load.mjs only reads. A finding files
 # the rolling issue (docs/DEPLOYMENT.md), a repeat of the same finding adds no comment, and the next
-# healthy run closes it. nightly-drift.yml watches this schedule. GitHub delays scheduled runs, so
-# this is an early warning and not a pager.
+# healthy run closes it. GitHub delays scheduled runs, so this is an early warning and not a pager.
+#
+# NOT WATCHED BY nightly-drift.yml, whose matrix entry the overhead tier refused. It runs under the
+# production-load-watch exception in scripts/growth-ceilings.json; #2019 decides its future before
+# that expires on 2026-12-03, including whether it joins that watch.
 
 name: production-load
 

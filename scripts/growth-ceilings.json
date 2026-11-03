@@ -137,6 +137,20 @@
       "from": "2026-10-31",
       "expires": "2026-11-30",
       "repayment": "#1862"
+    },
+    {
+      "id": "production-load-watch",
+      "tier": "overhead",
+      "covers": [
+        "job:production-load.yml/Read the production database's load"
+      ],
+      "perDay": 288,
+      "owner": "miwco",
+      "reviewed": "https://github.com/NoaCG/NoaCG-Studio/issues/2019#issuecomment-6602994331",
+      "protects": "safe and reliable playout, by warning about production database load before a stall like the one on 2026-11-03",
+      "from": "2026-11-03",
+      "expires": "2026-12-03",
+      "repayment": "#2019"
     }
   ]
 }
