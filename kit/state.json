@@ -28,7 +28,24 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "PR #2023 in merge queue",
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": 34,
+      "role": "build",
+      "session": "session_017SdbwPaN7wZngcoym7Jcye",
+      "nonce": "34-b-0fce",
+      "branch": "claude/plan-jev-svg-import-34-build",
+      "source": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321",
+      "startedAt": "2026-11-03T13:14:11Z",
+      "evalRuns": [],
+      "frozen": {
+        "config": "b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7",
+        "ref": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+        "manifest": "341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db",
+        "newestLedger": 41634756346
+      }
+    }
+  ],
   "owner": [],
   "fixes": [
     {
