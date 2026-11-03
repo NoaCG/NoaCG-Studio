@@ -568,6 +568,7 @@ async function controlState(page: Page, graphic: string) {
       id: g.id,
       fields: g.template.fields.map((f) => `${f.field} ${f.title}`),
       targets: targets(g.template.js),
+      poolFields: pooled.template.fields.map((f) => `${f.field} ${f.title}`),
       poolTargets: targets(pooled.template.js),
       profile: show.profile ?? null,
     };
@@ -633,7 +634,9 @@ test('pinned, hidden and renamed controls keep their choices and their targets t
   const after = await controlState(page, 'Board');
   expect(after.fields.filter((f) => !f.endsWith(' badge'))).toEqual(arranged.fields);
   expect(after.fields.length, 'the badge is a field of its own').toBe(arranged.fields.length + 1);
-  expect({ ...after, fields: arranged.fields }).toEqual(arranged);
+  expect({ ...after, fields: arranged.fields, poolFields: arranged.poolFields }).toEqual(arranged);
+  // The production's copy is the new build too, badge included.
+  expect(after.poolFields).toEqual(after.fields);
   expect(after.poolTargets).toEqual(after.targets);
   await expectArranged(page, 'score3', 'score1', 'Reds score', 'newGame');
 

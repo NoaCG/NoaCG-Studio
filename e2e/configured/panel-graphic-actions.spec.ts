@@ -34,6 +34,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addToProductionFromFinish } from '../_create';
+import { settleDurableWrites } from '../_durable';
 import { publishProduction } from '../_publish';
 import { SCORE_SVG, dropSvg, intoProduction } from '../_svg-import';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
@@ -303,6 +304,7 @@ test('a panel press on a renamed control of a reimported score board reaches the
 
   // Reopen, then reimport the same board with a badge drawn first (a fresh build would number
   // every field after it one higher) under the same name, into the same production.
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('cue-action-score1')).toHaveText('⚡ Reds score');

@@ -49,7 +49,7 @@ and every matched field keeps its id (R3), so each control's `adjust`, `set`, `a
 
 ## Verification
 
-- `e2e/import-svg-reimport.spec.ts` 13/13 on this worker (j-0005).
+- `e2e/import-svg-reimport.spec.ts` 13/13 on this worker (j-0005; again after the review fixes, j-0006).
 - Mutation, reverted: `svgReimported` returning the raw build fails the new journey at the field
   ids (every id one higher), so it does not pass without row 27's id keeping (j-0004).
 - `npx tsc --noEmit`, eslint on both specs, `check-e2e-protection --changed origin/main`: pass.
@@ -77,6 +77,18 @@ and every matched field keeps its id (R3), so each control's `adjust`, `set`, `a
 
 - After the badge is added, the library graphic's field list grows by one; compare the other
   fields, not the whole list.
+
+## Review rounds
+
+- `/check` inline review: no findings.
+- Fresh read-only `/so` on `bbe7ac9b` (`session_017SdbwP8Lx9uikw6oLzXoTu`): AGREE WITH
+  CORRECTIONS, grade A-, nothing blocking. Both points taken. (1) class faulty test expectation,
+  family durable writes (`e2e/_durable.ts`): the configured test reloaded without settling the
+  arrangement's writes, a possible CI flake; it now settles first. (2) the pool copy's targets
+  equal the library's even if the pool were never updated; the journey now checks the pool copy
+  has the badge field too.
+- CI on `bbe7ac9b` (run 41557119175): CI gate green; configured selection triggered, one spec
+  (`panel-graphic-actions.spec.ts`, 4 tests passed, the new one in 31.5 s).
 
 ## Revert
 
