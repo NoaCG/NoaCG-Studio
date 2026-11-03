@@ -68,7 +68,10 @@
           "pricedMax": 0.2102,
           "at": "2026-11-03T13:22Z",
           "paid": true,
-          "note": "THE ONE HOLDOUT RUN"
+          "note": "THE ONE HOLDOUT RUN; jev 58/25 vs det 48/17; quiz 0->5, credits 3->6 consequential; elephant 73/14, haiku 39/9 reporting only; vision refused 18/18",
+          "settled": 0.015024036,
+          "attempts": 72,
+          "verdict": "NO GO"
         }
       ],
       "frozen": {
@@ -77,7 +80,13 @@
         "manifest": "516dcef08fc4ad6d309b405a5fda8ab7a166fa18ee257421782c471816224062",
         "newestLedger": 41643035479,
         "main": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321"
-      }
+      },
+      "spent": {
+        "development": 0.030907239,
+        "holdout": 0.015024036,
+        "total": 0.045931275
+      },
+      "attempts": 284
     }
   ],
   "owner": [],
@@ -699,6 +708,15 @@
       ],
       "from": "33",
       "note": "Report Jev with and without pixels as unqualified and not run (#2006); report the image arm as refused (HTTP 400, #2022); the per-request fee #2015; Jev non-repeatable on 6/18 identical inputs; one prompt sentence was fitted to development design lower-third-1 (documented). Frozen config b2609a84 at a41861d2, manifest 341b82e7, freeze run 41634756346 on main 4130a081; ledger newest run 41634756346."
+    },
+    {
+      "forPhases": [
+        "35",
+        "36",
+        "37"
+      ],
+      "from": "34",
+      "note": "Holdout verdict NO GO (run 41643649692): Jev consequential errors rose in quiz (0 to 5) and credits (3 to 6). The model route stays OFF; rows 35 to 37 continue product acceptance with no model proposals reaching users. Exposed holdout is regression evidence only; no tuning. Reporting-only elephant 73/14 is not a selection."
     }
   ]
 }
