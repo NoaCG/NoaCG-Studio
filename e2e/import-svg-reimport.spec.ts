@@ -391,12 +391,12 @@ async function state(page: Page) {
 }
 
 /** From a fresh visit to the Finish step of the next version, named like the saved graphic. */
-async function reimportToFinish(page: Page, file: string): Promise<void> {
+async function reimportToFinish(page: Page, file: string, name = 'Guest'): Promise<void> {
   await page.goto('/app');
   await dropSvg(page, file);
   await page.getByTestId('wz-skip-to-finish').click();
   await expect(page.getByTestId('wz-stepcount')).toContainText('5');
-  await page.getByTestId('wz-finish-name').fill('Guest');
+  await page.getByTestId('wz-finish-name').fill(name);
   const pick = page.getByTestId('wz-finish-production');
   await pick.selectOption((await pick.locator('option', { hasText: 'Show' }).getAttribute('value'))!);
 }
@@ -534,4 +534,122 @@ test('walking back after a clean reimport, a removed layer is reviewed on Finish
   const now = await state(page);
   expect(now.library.find((g) => g.id === reconciled.id)).toEqual(reconciled);
   expect(now.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest 2']);
+});
+
+// ── CONTROL ARRANGEMENTS (row 28, AC-25) ──────────────────────────────────────────────────────
+// A production pins, hides and renames a graphic's ⚡ controls (home/ActionArranger.tsx). That
+// arrangement is keyed by the pool graphic's name and each control's event name, and each control
+// moves the fields its declaration names. A reimport of matching artwork keeps both, so the
+// arrangement still sits on the same controls and every control still moves the same field.
+
+/** What the production arranged, and what each control of the saved graphic declares it moves:
+ *  its event name, its label, and the fields (id and title) it writes or reads. */
+async function controlState(page: Page, graphic: string) {
+  await awaitDurableReady(page);
+  return page.evaluate(async (name) => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { eventButtons } = await import('/src/control/controlModel.ts');
+    const g = loadGraphics().find((d) => d.name === name)!;
+    const show = loadShows()[0];
+    const pooled = show.graphics.find((d) => d.name === name)!;
+    const title = (id: string) => `${id} ${g.template.fields.find((f) => f.field === id)?.title ?? '?'}`;
+    const targets = (js: string) =>
+      eventButtons(js).map((b) => ({
+        event: b.event,
+        label: b.label,
+        adjust: Object.entries(b.adjust ?? {}).map(([k, d]) => `${title(k)} ${d}`),
+        set: Object.entries(b.set ?? {}).map(([k, v]) => `${title(k)} = ${v}`),
+        add: Object.entries(b.add ?? {}).map(([k, src]) => `${title(k)} + ${title(src)}`),
+        remove: Object.entries(b.remove ?? {}).map(([k, src]) => `${title(k)} - ${title(src)}`),
+        payload: (b.payload ?? []).map(title),
+      }));
+    return {
+      id: g.id,
+      fields: g.template.fields.map((f) => `${f.field} ${f.title}`),
+      targets: targets(g.template.js),
+      poolFields: pooled.template.fields.map((f) => `${f.field} ${f.title}`),
+      poolTargets: targets(pooled.template.js),
+      profile: show.profile ?? null,
+    };
+  }, graphic);
+}
+
+/** The block as the operator sees it: pinned on top, the renamed control in its section under
+ *  the production's word, the hidden one behind More. */
+async function expectArranged(page: Page, pin: string, rename: string, word: string, hide: string) {
+  await expect(page.getByTestId('cue-actions-pinned').getByTestId(`cue-action-${pin}`)).toBeVisible();
+  await expect(page.getByTestId('cue-actions-pinned').locator('.pd-action')).toHaveCount(1);
+  await expect(page.getByTestId(`cue-action-${rename}`)).toHaveText(`⚡ ${word}`);
+  const more = page.getByTestId('cue-actions-more');
+  await expect(more.locator('.pd-action')).toHaveCount(1);
+  await expect(more.getByTestId(`cue-action-${hide}`)).toHaveCount(1);
+}
+
+test('pinned, hidden and renamed controls keep their choices and their targets through save, reopen and a matching reimport', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  await dropSvg(page, SCORE_SVG);
+  await intoProduction(page, 'Board', 'Show');
+  await settleDurableWrites(page);
+  const imported = await controlState(page, 'Board');
+  expect(imported.profile).toBeNull();
+  const declared = imported.targets.map((t) => t.event);
+  expect(declared).toEqual(expect.arrayContaining(['score1', 'score3', 'newGame']));
+  // The canonical targets as the import declared them: Team 1's point moves Team 1's score.
+  expect(imported.targets.find((t) => t.event === 'score1')!.adjust).toEqual([`${imported.fields.find((f) => f.endsWith(' Score 1'))} 1`]);
+
+  // Arrange on the block, as the operator does: pin Team 3's point, rename Team 1's, hide New game.
+  await page.getByTestId('cue-actions-arrange').click();
+  await page.getByTestId('arrange-pin-score3').click();
+  await page.getByTestId('arrange-name-score1').fill('Reds score');
+  await page.getByTestId('arrange-name-score1').press('Enter');
+  await page.getByTestId('arrange-hide-newGame').click();
+  await page.getByTestId('cue-actions-arrange').click();
+  await expectArranged(page, 'score3', 'score1', 'Reds score', 'newGame');
+  await settleDurableWrites(page);
+  const arranged = await controlState(page, 'Board');
+  expect(arranged.profile).toEqual({
+    v: 1,
+    arrange: { Board: { newGame: { hidden: true }, score1: { name: 'Reds score' }, score3: { pinned: true } } },
+  });
+
+  // Save and reopen: the arrangement is the production's own record.
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await expectArranged(page, 'score3', 'score1', 'Reds score', 'newGame');
+  expect(await controlState(page, 'Board')).toEqual(arranged);
+
+  // Reimport matching artwork over the saved graphic: the same board with a LIVE badge drawn
+  // before everything, so a fresh build numbers it first and every field id after it would move.
+  const again = readFileSync(SCORE_SVG, 'utf8').replace(/<svg([^>]*)>/, '<svg$1><text x="20" y="30" font-size="20" id="badge">LIVE</text>');
+  await reimportToFinish(page, asFile(again, 'board'), 'Board');
+  await expect(page.getByTestId('wz-finish-name-taken')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
+  await pressAdd(page);
+  await settleDurableWrites(page);
+
+  // The same graphic, the same fields, the same controls moving the same fields, in the library
+  // and in the production's pool, and the arrangement untouched.
+  const after = await controlState(page, 'Board');
+  expect(after.fields.filter((f) => !f.endsWith(' badge'))).toEqual(arranged.fields);
+  expect(after.fields.length, 'the badge is a field of its own').toBe(arranged.fields.length + 1);
+  expect({ ...after, fields: arranged.fields, poolFields: arranged.poolFields }).toEqual(arranged);
+  // The production's copy is the new build too, badge included.
+  expect(after.poolFields).toEqual(after.fields);
+  expect(after.poolTargets).toEqual(after.targets);
+  await expectArranged(page, 'score3', 'score1', 'Reds score', 'newGame');
+
+  // The renamed control still moves Team 1's score on air, and the pinned one Team 3's.
+  const one = imported.fields.find((f) => f.endsWith(' Score 1'))!.split(' ')[0];
+  const three = imported.fields.find((f) => f.endsWith(' Score 3'))!.split(' ')[0];
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  await page.getByTestId('cue-action-score1').click();
+  await expect(page.getByTestId(`cue-field-${one}`)).toHaveValue('1');
+  await expect(air.locator(`#${one}`)).toHaveText('1');
+  await page.getByTestId('cue-actions-pinned').getByTestId('cue-action-score3').click();
+  await expect(air.locator(`#${three}`)).toHaveText('1');
+  await expect(air.locator(`#${one}`)).toHaveText('1');
 });
