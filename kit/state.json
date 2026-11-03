@@ -47,13 +47,11 @@
  "waitingOn": null,
  "inFlight": [
   {
-   "phase": "cf06",
-   "step": "check",
-   "session": "session_017SdbwR19RFNhUmVVKo2LDQ",
-   "nonce": "cf06-c-ab68",
-   "launchedAt": "2026-11-03T13:04:42Z",
-   "mergeSha": "8b5dcb8d38c8cac2d794d5ffb9c67942d00056f9",
-   "pr": 2016
+   "phase": "cf03",
+   "step": "prerequisite",
+   "what": "#1964 spec change PR #2028 under /so review",
+   "session": "session_017SdbwRMHsJ2J6JcwRNzeGy",
+   "launchedAt": "2026-11-03T13:25:33Z"
   }
  ],
  "owner": [],
@@ -135,6 +133,11 @@
    "phase": "cf04",
    "verdict": "PASS",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2014#issuecomment-6600784535"
+  },
+  {
+   "phase": "cf06",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2016#issuecomment-6604988512"
   }
  ],
  "decisions": [
