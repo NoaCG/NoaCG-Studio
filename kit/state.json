@@ -28,28 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "phase 32 checker session_017SdbwN3h8S1fH4K66pN1wE",
-  "inFlight": [
-    {
-      "phase": 32,
-      "role": "check",
-      "pr": 2005,
-      "mergeSha": "531f856e13379ccffe8edc2df381cf6c2503f393",
-      "checker": "session_017SdbwN3h8S1fH4K66pN1wE",
-      "nonce": "32-c-1d27",
-      "builder": "session_017SdbwN5DfB1t4AiShMs23v",
-      "soSessions": [
-        "session_017SdbwLwneG4uEjSJuLnQZD",
-        "session_017SdbwMVkkdVbG8H9AwuKjj",
-        "session_017SdbwMX87NzFxFaFTm2SCP",
-        "session_017SdbwNaMbpxaxHabZpMZKy",
-        "session_017SdbwNpjHbPHzgZKGynAg1",
-        "session_017SdbwNtTXQYJjQnVa24wVG",
-        "session_017SdbwPUKVTgH9GBgsnBG8M",
-        "session_017SdbwQw1cqDw2wjiNDqcxh",
-        "session_017SdbwRE14vBg7MZ9kniiW3"
-      ]
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -203,7 +182,8 @@
     "28",
     "29",
     "30",
-    "31"
+    "31",
+    "32"
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
