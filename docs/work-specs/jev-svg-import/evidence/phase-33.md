@@ -92,6 +92,10 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
 
    Settled $0.002349768 (balance drop and lifetime-usage rise agree). Every settled cost is within
    its priced maximum (the closest is 49% of it).
+4. **Tuning run 1**, run `41620813617`, configuration `6f97fcfd` (primary only; the four behaviour
+   questions reworded to name the structure of each family and what is not it). Six batches,
+   18 attempts, no suspension. Balance 6.933786886 to 6.931347910; settled $0.002438976 (priced
+   maximum $0.006769). Every batch again debited exactly $0.000225 above the reported cost.
 
 ## Decisions
 
