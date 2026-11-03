@@ -99,4 +99,12 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
 
 ## Decisions
 
+- **Choice between tune 1 and tune 2, written before tune 2's result was read** (run
+  `41621404623`, dispatched 2026-11-03T10:42Z). Development designs only, primary against
+  deterministic: (1) fewer strata with a consequential-error increase; then (2) fewer
+  consequential errors in all; then (3) fewer corrections plus decisions; then (4) tune 1, the
+  shorter wording. No third tuning round: two rounds on 18 designs is already as far as this
+  corpus supports tuning without fitting it. The winner goes into one full development
+  comparison (all five arms and the 51-file slice) and is then frozen unchanged.
+
 ## Traps
