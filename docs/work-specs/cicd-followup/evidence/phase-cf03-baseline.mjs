@@ -26,31 +26,115 @@ const CONFIGURED = '.github/workflows/configured-suite.yml';
 const MANUAL_ONLY = /^\.github\/workflows\/(endurance|alarm-test|jev-svg-qualification|rerecord-screenshots|jev-svg-eval)\.yml$/;
 
 // ---- which landings end a before or after side (phase-cf03.md section 4.2) ----
-// A rule over the merge's changed paths. Each entry: the paths, the metrics it can move and the
-// groups it can move them for ('all', or a predicate on the group name). Anything that matches no
-// entry is workload drift that landed throughout the reference window and is inside the spread.
+// A landing ends a side when it changes how CI runs a change: a per-change workflow or action, a
+// script one of them runs, any module such a script imports (its import closure, read from the
+// merge commit), a data file the planner packs from, a Playwright or stack config, the dependencies
+// or the build's toolchain. The group and metric follow from who runs the file. Anything else is
+// workload that landed throughout the reference window and is inside the spread.
 const CFG = (g) => g.endsWith('+cfg');
 const SHARDED = (g) => !g.startsWith('none');
-const notTest = (f) => !f.endsWith('.test.mjs');
+const ALL = 'all';
+const notTest = (f) => !/\.test\.m?js$/.test(f);
 // What `npm run build` runs besides the gates: its configs and build steps (the Build job is the
-// critical path of most runs).
-const BUILD_TOOLCHAIN = /^(eslint\.config\.js|tsconfig[^/]*\.json|vite\.config\.ts|\.dependency-cruiser\.cjs|scripts\/(build-player-host|build-production-pack|prerender|write-version|check-client-secrets)\.mjs)$/;
-// How the configured suite runs. Its specs, shared helper and schema migrations are workload: they
-// change at product pace and are inside the spread (section 4.2).
-const CFG_DEF = (f) => f === CONFIGURED || f.startsWith('.github/actions/configured-stack/')
-  || (/^scripts\/configured-(shards|verdict|stack)[^/]*\.mjs$/.test(f) && notTest(f)) || f === 'playwright.live.config.ts' || f === 'supabase/config.toml';
-export const SIDE_RULE = [
-  { what: 'ci.yml outside the configured jobs', test: (f, ci) => f === CI && ci.other, metrics: ['m1', 'm2', 'm3'], groups: 'all' },
-  { what: 'ci.yml configured jobs', test: (f, ci) => f === CI && ci.configured, metrics: ['m1', 'm3'], groups: CFG },
-  { what: 'shared job setup actions', test: (f) => /^\.github\/actions\/(node-modules|playwright-chromium)\//.test(f), metrics: ['m1', 'm2', 'm3'], groups: 'all' },
-  { what: 'dependencies (lockfile or package.json versions), the build script and the toolchain it runs, the gate, factory and E2E retry runners', test: (f, ci) => f === 'package-lock.json' || (f === 'package.json' && ci.pkg) || f === 'scripts/gates.mjs' || f === 'scripts/factory.mjs' || f === 'scripts/e2e-retry.mjs'
-    || BUILD_TOOLCHAIN.test(f), metrics: ['m1', 'm2', 'm3'], groups: 'all' },
-  { what: 'E2E planner, selection and quarantine code, shard packing, offline Playwright config', test: (f) => (/^scripts\/(e2e-affected[^/]*|e2e-traced|e2e-quarantine)\.mjs$/.test(f) && notTest(f)) || f === 'scripts/e2e-durations.json' || f === 'playwright.config.ts', metrics: ['m1', 'm2', 'm3'], groups: 'all' },
-  { what: 'catalog gate code and config', test: (f) => (/^scripts\/(catalog-[^/]*|e2e-run-integrity)\.mjs$/.test(f) && notTest(f)) || f === 'playwright.catalog.config.ts', metrics: ['m1', 'm2', 'm3'], groups: SHARDED },
-  { what: 'configured suite definition: workflow, stack action, selection, packing, verdict, stack script, live config, stack config', test: (f) => CFG_DEF(f) || (/^scripts\/configured-selection[^/]*\.mjs$/.test(f) && notTest(f)), metrics: ['m1', 'm3'], groups: CFG },
-  { what: 'configured suite on main (every landing pays it)', test: CFG_DEF, metrics: ['m3'], groups: 'all' },
-  { what: 'post-landing workflows', test: (f) => /^\.github\/workflows\/(post-land|quarantine|deploy-verify)\.yml$/.test(f), metrics: ['m3'], groups: 'all' },
+// critical path of most runs). Its scripts are also reached as roots below.
+const BUILD_TOOLCHAIN = /^(eslint\.config\.js|tsconfig[^/]*\.json|vite\.config\.ts|\.dependency-cruiser\.cjs)$/;
+// Per-change workflows and the metrics and groups a change to what they run can move.
+const RUNNERS = [
+  { file: CI, metrics: ['m1', 'm2', 'm3'], groups: ALL },
+  { file: CONFIGURED, metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true },
+  { file: '.github/workflows/post-land.yml', metrics: ['m3'], groups: ALL },
+  { file: '.github/workflows/quarantine.yml', metrics: ['m3'], groups: ALL },
+  { file: '.github/workflows/deploy-verify.yml', metrics: ['m3'], groups: ALL },
 ];
+// A root script's own scope, where it is narrower than its workflow's: the configured suite's
+// scripts move M1 only for the +cfg groups (and M3 for all, the suite runs on every landing), the
+// catalog gate's only for the sharded groups.
+const rootScope = (f) => (/^scripts\/configured-/.test(f) ? { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true }
+  : /^scripts\/(catalog-|e2e-run-integrity)/.test(f) ? { metrics: ['m1', 'm2', 'm3'], groups: SHARDED } : null);
+
+const showCache = new Map();
+function show(sha, path) {
+  const k = `${sha}:${path}`;
+  if (!showCache.has(k)) {
+    try { showCache.set(k, execFileSync('git', ['show', k], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 })); } catch { showCache.set(k, null); }
+  }
+  return showCache.get(k);
+}
+const SCRIPT_REF = /\bscripts\/[\w./-]+\.(?:mjs|cjs|js)\b/g;
+// Roots: scripts a runner's text names, directly, through `npm run <name>` in package.json, or
+// through a local action it uses.
+function rootsOf(sha, runner) {
+  const text = show(sha, runner) ?? '';
+  const pkg = JSON.parse(show(sha, 'package.json') ?? '{"scripts":{}}').scripts ?? {};
+  const texts = [text];
+  for (const m of text.matchAll(/npm (?:run(?:-script)?|test)\s+([\w:.-]+)/g)) if (pkg[m[1]]) texts.push(pkg[m[1]]);
+  for (const m of text.matchAll(/uses:\s*\.\/(\.github\/actions\/[\w.-]+)/g)) texts.push(show(sha, `${m[1]}/action.yml`) ?? '');
+  return new Set(texts.flatMap((t) => [...t.matchAll(SCRIPT_REF)].map((m) => m[0])).filter(notTest));
+}
+// The import closure of a set of scripts: static and dynamic relative imports, resolved in the tree.
+function closure(sha, roots) {
+  const seen = new Set(); const stack = [...roots];
+  while (stack.length) {
+    const f = stack.pop();
+    if (seen.has(f)) continue;
+    const text = show(sha, f);
+    if (text == null) continue;
+    seen.add(f);
+    const dir = f.split('/').slice(0, -1);
+    for (const m of text.matchAll(/(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/g)) {
+      const parts = [...dir];
+      for (const seg of m[1].split('/')) { if (seg === '..') parts.pop(); else if (seg !== '.') parts.push(seg); }
+      const target = parts.join('/');
+      if (/\.(mjs|cjs|js|json)$/.test(target) && !seen.has(target)) stack.push(target);
+    }
+  }
+  return seen;
+}
+const closureCache = new Map();
+function runnerClosures(sha) {
+  if (!closureCache.has(sha)) {
+    closureCache.set(sha, RUNNERS.map((r) => {
+      const roots = [...rootsOf(sha, r.file)];
+      return { runner: r, perRoot: roots.map((root) => ({ root, files: closure(sha, [root]) })) };
+    }));
+  }
+  return closureCache.get(sha);
+}
+
+/** The rule entries a merge's changes match: { what, metrics, groups, alsoM3All }. */
+function matchedEntries(sha, files, ci) {
+  const out = [];
+  const add = (what, scope) => out.push({ what, ...scope });
+  for (const f of files) {
+    if (f === CI) {
+      if (ci.other) add('ci.yml outside the configured jobs', { metrics: ['m1', 'm2', 'm3'], groups: ALL });
+      if (ci.configured) add('ci.yml configured jobs', { metrics: ['m1', 'm3'], groups: CFG });
+    } else if (f === CONFIGURED || f.startsWith('.github/actions/configured-stack/')) add(`${f}`, { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true });
+    else if (f.startsWith('.github/actions/')) add(`${f}`, { metrics: ['m1', 'm2', 'm3'], groups: ALL });
+    else if (RUNNERS.some((r) => r.file === f)) add(`${f}`, { metrics: ['m3'], groups: ALL });
+    else if (f === 'package-lock.json' || (f === 'package.json' && ci.pkg) || BUILD_TOOLCHAIN.test(f)) add(`${f} (dependencies or build toolchain)`, { metrics: ['m1', 'm2', 'm3'], groups: ALL });
+    else if (f === 'scripts/e2e-durations.json' || f === 'playwright.config.ts') add(`${f} (shard packing, offline E2E config)`, { metrics: ['m1', 'm2', 'm3'], groups: ALL });
+    else if (f === 'playwright.catalog.config.ts') add(`${f}`, { metrics: ['m1', 'm2', 'm3'], groups: SHARDED });
+    else if (f === 'playwright.live.config.ts' || f === 'supabase/config.toml') add(`${f}`, { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true });
+  }
+  const code = files.filter((f) => /\.(mjs|cjs|js|json)$/.test(f) && notTest(f) && !f.startsWith('.github/'));
+  if (code.length) {
+    for (const sideSha of [sha, `${sha}^1`]) {
+      for (const { runner, perRoot } of runnerClosures(sideSha)) {
+        for (const { root, files: cl } of perRoot) {
+          const hit = code.find((f) => cl.has(f));
+          if (!hit) continue;
+          const scopeKey = JSON.stringify(rootScope(root) ?? runner);
+          if (out.some((e) => e.file === hit && e.scopeKey === scopeKey)) continue; // one line per file and scope
+          const scope = rootScope(root) ?? runner;
+          add(`${hit} (run by ${runner.file.split('/').pop()} via ${root})`, { metrics: scope.metrics, groups: scope.groups, alsoM3All: scope.alsoM3All, file: hit, scopeKey });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 const GROUPS = ['none', 'small', 'cap', 'none+cfg', 'small+cfg', 'cap+cfg'];
 
 export const changedFiles = (sha) => execFileSync('git', ['diff', '--name-only', `${sha}^1`, sha], { encoding: 'utf8' }).split('\n').filter(Boolean);
@@ -74,23 +158,21 @@ function ciTouched(sha) {
   return out;
 }
 
-/** What a merge ends: { metric: [groups] } under SIDE_RULE, with the rule entries that matched. */
+/** What a merge ends: { metric: [groups] }, with the rule entries that matched. */
 export function sideEnds(sha, files = changedFiles(sha)) {
   const ci = files.includes(CI) ? ciTouched(sha) : { configured: false, other: false };
   // package.json counts when a changed line is a dependency version or the build script, not when
   // a script entry is added for a tool (most package.json edits).
   ci.pkg = files.includes('package.json') && execFileSync('git', ['diff', '-U0', `${sha}^1`, sha, '--', 'package.json'], { encoding: 'utf8' })
     .split('\n').some((l) => /^[+-]\s*"(build|[@\w./-]+)":\s*"(\^|~|\d|npm:|file:|git|https?:|\*|latest)/.test(l) || /^[+-]\s*"build":/.test(l));
-  const ends = {}; const why = [];
-  for (const rule of SIDE_RULE) {
-    if (!files.some((f) => rule.test(f, ci))) continue;
-    why.push(rule.what);
-    for (const m of rule.metrics) {
-      const gs = rule.groups === 'all' ? GROUPS : GROUPS.filter(rule.groups);
-      ends[m] = [...new Set([...(ends[m] ?? []), ...gs])];
-    }
+  const ends = {}; const why = new Set();
+  for (const e of matchedEntries(sha, files, ci)) {
+    why.add(e.what);
+    const gs = e.groups === ALL ? GROUPS : GROUPS.filter(e.groups);
+    for (const m of e.metrics) ends[m] = [...new Set([...(ends[m] ?? []), ...(m === 'm3' && e.alsoM3All ? GROUPS : gs)])];
   }
-  return { ends, why };
+  for (const m of Object.keys(ends)) ends[m] = GROUPS.filter((g) => ends[m].includes(g));
+  return { ends, why: [...why] };
 }
 
 // Sides: B before ci01, D while the cicd-improvement rows landed, A after the last of them. Each

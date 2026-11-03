@@ -38,7 +38,7 @@ minimum sample sizes unchanged.
   minutes: 28% of all CI minutes before, 18% after.
 - **The ranked candidates** (section 7) put halving the configured selection's stack size first
   (15-shard M1 14.6 to 12.0 minutes, above the 1.26 spread), then splitting the Build job
-  (small-change M1 6.2 to 3.8, above the 0.96 spread). No candidate moves the M1 p95 much: the
+  (small-change M1 6.2 to 3.8, above the 1.19 spread). No candidate moves the M1 p95 much: the
   p95 is set by fail-then-pass re-runs and long single runs.
 
 ## 1. Definitions and data
@@ -112,10 +112,10 @@ marked under the section 4.2 rule:
 
 | Landing | Merge | Ends sides for |
 | --- | --- | --- |
-| cf01, #1970 | 80759a01 | M1, M2 and M3 of every group (`scripts/e2e-quarantine.mjs`, quarantine code ci.yml runs) |
+| cf01, #1970 | 80759a01 | M1, M2 and M3 of every group (`scripts/e2e-quarantine.mjs` and libraries CI scripts import) |
 | cf07, #1990 | 27c737a2 | nothing: configured specs, their shared helper and a trial tool are workload |
 | cf09, #1995 | 0b73b488 | nothing: documentation only |
-| #2012, overhead price | a090662a | nothing: it changes how the capacity line prices manual-only workflows, not what runs |
+| #2012, overhead price | a090662a | M1, M2 and M3 of every group: the planner imports the capacity code it changes (its effect on timing is nil, but the rule counts what CI runs) |
 | cf04, #2014 | e6a3bc1c | M1 of the `+cfg` groups, M3 of every group (configured job and stack action) |
 
 ## 3. (a) M1 to M5
@@ -271,39 +271,53 @@ comparison yet.
 ### 4.2 Which landings end a side
 
 `node docs/work-specs/cicd-followup/evidence/phase-cf03-baseline.mjs rule <merge-sha>` applies this
-rule to a merge (`SIDE_RULE` in the script). A landing ends a side only for the metrics and groups
-of the entries its changed paths match:
+rule to a merge (`sideEnds` in the script; each record's `ends` and `ends_why` hold its result).
 
-| Changed paths | Ends | For groups |
+**The rule.** A landing ends a side when it changes how CI runs a change: a per-change workflow or
+local action, a script one of them runs, any module such a script imports, a data file or config
+the jobs read, the dependencies or the build's toolchain. "A script one of them runs" is read from
+the merge commit (and its parent): every `scripts/...` path named in ci.yml, configured-suite.yml,
+post-land.yml, quarantine.yml or deploy-verify.yml, directly, through `npm run <name>` in
+package.json, or through a local action they use. "Any module it imports" is that script's import
+closure (static and dynamic relative imports, followed until nothing new is found). The metrics and
+groups follow from who runs the file:
+
+| A change to | Ends | For groups |
 | --- | --- | --- |
 | ci.yml outside the configured jobs (another job, triggers, concurrency, env) | M1, M2, M3 | all |
 | ci.yml configured jobs (`configured`, `configured-verdict`) | M1, M3 | `+cfg` |
-| `.github/actions/node-modules`, `.github/actions/playwright-chromium` | M1, M2, M3 | all |
-| `package-lock.json`, a dependency version or the `build` script in package.json, the toolchain the build runs (`eslint.config.js`, `tsconfig*.json`, `vite.config.ts`, `.dependency-cruiser.cjs`, `scripts/{build-player-host,build-production-pack,prerender,write-version,check-client-secrets}.mjs`), the runners `scripts/gates.mjs`, `scripts/factory.mjs`, `scripts/e2e-retry.mjs` | M1, M2, M3 | all |
-| E2E planner, selection and quarantine code (`scripts/e2e-affected*.mjs`, `scripts/e2e-traced.mjs`, `scripts/e2e-quarantine.mjs`), `scripts/e2e-durations.json`, `playwright.config.ts` | M1, M2, M3 | all |
-| catalog gate code and config (`scripts/catalog-*.mjs`, `scripts/e2e-run-integrity.mjs`, `playwright.catalog.config.ts`) | M1, M2, M3 | `small`, `cap` and their `+cfg` |
-| configured suite definition (configured-suite.yml, `.github/actions/configured-stack/`, `scripts/configured-{selection,shards,verdict,stack}*.mjs`, `playwright.live.config.ts`, `supabase/config.toml`) | M1 | `+cfg` |
-| the same, except selection | M3 | all (every landing pays the configured suite on `main`) |
+| configured-suite.yml, `.github/actions/configured-stack/`, `playwright.live.config.ts`, `supabase/config.toml` | M1 (`+cfg`), M3 (all) | as shown |
+| any other `.github/actions/` action | M1, M2, M3 | all |
 | post-land.yml, quarantine.yml, deploy-verify.yml | M3 | all |
+| `package-lock.json`, a dependency version or the `build` script in package.json, the build's configs (`eslint.config.js`, `tsconfig*.json`, `vite.config.ts`, `.dependency-cruiser.cjs`) | M1, M2, M3 | all |
+| `scripts/e2e-durations.json`, `playwright.config.ts` | M1, M2, M3 | all |
+| `playwright.catalog.config.ts` | M1, M2, M3 | `small`, `cap` and their `+cfg` |
+| a script in the import closure of a script ci.yml runs | M1, M2, M3 | all; for a `scripts/catalog-*` or `e2e-run-integrity` root only the sharded groups; for a `scripts/configured-*` root M1 for `+cfg` and M3 for all |
+| a script in the closure of a script only configured-suite.yml runs | M1 (`+cfg`), M3 (all) | as shown |
+| a script in the closure of a script only post-land.yml, quarantine.yml or deploy-verify.yml runs | M3 | all |
 
 Test files (`*.test.mjs`) never match. Nothing else ends a side: quarantine entries and releases
 (`e2e/quarantine.json`), selection-map refreshes (`scripts/e2e-traced.json`), `covers:` edits,
 spec bodies and shared spec helpers, schema migrations, product code, new gate tests, docs,
-scheduled-only and manual-only workflows, and scripts that only estimate or report
-(`e2e-capacity`, `growth-*`). These are workload that changes at product pace: on side B, 54 of
-the 122 merges were such landings (25 quarantine, 6 selection-map, 23 `covers:`), so the spread
-below already contains their effect. (A merge can count in two of these kinds.)
+scheduled-only and manual-only workflows and scripts no per-change workflow reaches. These are
+workload that changes at product pace: on side B, 54 of the 122 merges were such landings (25
+quarantine, 6 selection-map, 23 `covers:`), so the spread below already contains their effect. (A
+merge can count in two of these kinds.) The closure is wide, because many CI scripts import shared
+libraries; a landing that touches one of them ends sides even when it cannot change a job's time.
+That is the intended side of the error: a side that ends early is recorded as unmeasured, never a
+wrong comparison.
 
-Applied to the window, the rule ends sides at 20 merges (each record's `ends` and `ends_why`):
-on B #1675, #1683, #1724 (dependency-cruiser config, production-pack build step), #1756, #1804,
-#1816, #1589, #1837, #1838, #1841; on D #1854 (ci03), #1861 (ci04),
-#1866 (ci05), #1872 (ci06), #1880 (ci18), #1896 (ci07), #1922 (ci11), #1927 (ci12, sharded groups
-only); on A #1970 (cf01: `scripts/e2e-quarantine.mjs`) and #2014 (cf04). ci01, ci02, ci08, ci09, ci10, ci13 to ci17, cf07, cf09 and #2012
-end nothing.
+Applied to the window, the rule ends sides at 25 merges:
+on B #1658 and #1766 (post-land scripts, M3 only), #1675, #1683, #1687 (a library every CI
+script imports), #1724 (dependency-cruiser config, production-pack build step), #1756, #1804,
+#1816, #1589, #1837, #1838, #1841; on D #1854 (ci03), #1861 (ci04), #1866 (ci05), #1872 (ci06),
+#1880 (ci18), #1896 (ci07), #1922 (ci11), #1927 (ci12, sharded groups only); on A #1970 (cf01),
+#2012 (the capacity code the planner imports) and #2014 (cf04). ci01, ci02, ci08, ci09, ci10, ci13
+to ci17, cf07 and cf09 end nothing.
 
 **Where cf13's before sides start today.** By the rule: for the `+cfg` groups' M1 and every group's
 M3, after cf04 (#2014, one merge since in this window, #2018); for M1 and M2 of `none`, `small`
-and `cap`, after cf01 (#1970, merged 2026-11-02T11:41:59Z), unless a later landing ends them. cf13
+and `cap`, after #2012 (merged 2026-11-03T09:21:43Z), unless a later landing ends them. cf13
 needs at least the minimum n of section 5.1 on its before side, counted from there, before its
 candidate lands (for example 8 `cap+cfg` merges after cf04 for M1); the baseline sides here are not
 its before side.
@@ -319,7 +333,7 @@ such landing. A merge's time is the creation of its final head's PR run (`side_a
 
 | Group | Reference | n | Metric | Median | Spread | Min n per side, median | Min n per side, p95 |
 | --- | --- | ---: | --- | ---: | ---: | ---: | ---: |
-| none | B | 68 | M1 | 5.2 | 0.96 | 11 | 20 |
+| none | B | 68 | M1 | 5.2 | 1.19 | 8 | 20 |
 | | | | M2 wait | 0.7 | 0.06 | 9 | over 120 |
 | | | | M2 execution | 5.2 | 0.93 | 9 | 20 |
 | | | | M3 | 251.6 | 16.75 | 12 | over 120 |
@@ -347,7 +361,7 @@ after ci06, and a later `cap` change is compared with these values.
   computed inside the longest stretch of the reference with no landing that ends that group's
   side for that metric (section 4.2), and the larger of the two is the spread: a larger spread
   makes an improvement harder to claim, never easier. (Whole and clean values: none M1 0.93 and
-  0.96 over 22 merges; cap M1 2.19 and 2.59 over 18; cap+cfg M1 0.98 and 1.26 over 10; all in the
+  1.19 over 18 merges; cap M1 2.19 and 2.59 over 18; cap+cfg M1 0.98 and 1.26 over 10; all in the
   report output.)
 - **Minimum sample size per side.** The smallest n (at least 8, and at least 20 for a p95, below
   which the nearest-rank p95 is the sample maximum) for which, drawing n merges with replacement
@@ -398,7 +412,7 @@ cluster (14.6), so the per-group effect is the one to compare with the spread.
 | Rank | Candidate | Category | M1 median, p95 (all) | M1 by group | M2 execution median, p95 | M3 per merge | M1 effect above the spread? |
 | ---: | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Pack the PR's selected configured specs at five measured minutes per stack instead of ten | shard balance | 13.1 to 9.7 (-3.4), p95 0 | cap+cfg 14.6 to 12.0 (-2.6) | 0 | about +29 (4 more stack starts of 2.3 per PR run, 3.1 heads), 4% of cap+cfg M3 | yes: -2.6 against 1.26 |
-| 2 | Run the Build step's parts as parallel jobs (gates' tests, ESLint, tsc plus the rest) | shard balance | 0, p95 0 | none 6.2 to 3.8 (-2.4), small 6.3 to 4.8 | 6.6 to 4.8 (-1.8), p95 0 | about +5 (two more job setups of 0.5, about 5 runs per merge) | yes: -2.4 against 0.96 (none) |
+| 2 | Run the Build step's parts as parallel jobs (gates' tests, ESLint, tsc plus the rest) | shard balance | 0, p95 0 | none 6.2 to 3.8 (-2.4), small 6.3 to 4.8 | 6.6 to 4.8 (-1.8), p95 0 | about +5 (two more job setups of 0.5, about 5 runs per merge) | yes: -2.4 against 1.19 (none) |
 | 3 | Persist ESLint and tsc caches between runs | cache misses | 0, p95 0 | none 6.2 to 4.2 (-2.0), small 6.3 to 5.3 | 6.6 to 4.8 (-1.8) | about -10 (2 minutes off each Build) | yes for `none`. Risk: type-aware lint results cached for files whose types changed; it must key on more than file content |
 | 4 | Split the catalog calibration gate into two jobs | shard balance | 0 alone; with rank 1, 13.1 to 8.5 (-4.6) | with rank 1, cap+cfg 14.6 to 10.2 (-4.4) | -0.1 median; the 30% of groups it leads drop from 11.7 to the E2E shard at about 9.5 | +0.9 per run where it runs | alone, no; it is the next limit after rank 1 |
 | 5 | Halve the configured stack start (1.77 minutes median per configured job) | setup | 13.1 to 12.5 (-0.6) | cap+cfg 14.6 to 13.7 (-0.9) | 0 | about -16 (1 minute per configured job: 4 per PR run, 3.1 heads, plus 4 on the main push suite) | no: -0.9 against 1.26 |
@@ -424,7 +438,9 @@ gate waits for the next input, the catalog gate at 11.2, then the offline shards
 14.6 to 12.0 alone and 10.2 with rank 4. **Rank 2**: Build ends at 0.4 + 0.58 x (end - 0.4), the
 0.58 being the gates' share 55% plus job overhead (section 3.5): 6.2 to 3.8 on the `none` median.
 **Rank 3**: the Build step without 35% (ESLint and tsc warm: 121 s to 3.5 s and 32 s to 4 s
-locally on an unchanged tree). **Rank 5**: configured finish minus 1.0. **Rank 6**: offline E2E
+locally on an unchanged tree). **Rank 5**: configured finish minus 1.0. **Rank 4**: catalog finish minus half of (finish minus 0.9 of setup), where it ran: 11.2 -
+0.5 x (11.2 - 0.9) = 6.05 on the `cap+cfg` median, so with rank 1 the gate then waits for the
+offline shards at 9.7. **Rank 6**: offline E2E
 finish minus (slowest shard minus the mean shard) per run.
 
 **The five categories.**
@@ -492,9 +508,10 @@ re-listing changed no M3 value; the extra job reads moved M3 by about 1 minute p
     person or the coordinator, whose timing no CI change controls. Both are reported (section
     3.1); cf13 compares the CI gate figure.
   - Groups by shard bucket and configured jobs, not by path class (section 4.1).
-  - The rule in 4.2 lists what ends a side; everything else is workload inside the spread. When
-    unsure, a path was put in the rule (a side that ends early is recorded as unmeasured, never a
-    wrong comparison).
+  - The rule in 4.2 is defined by what CI runs (workflows, the scripts they name and those scripts'
+    import closure), not by a list of paths: two reviews in a row found paths a list had missed.
+    Everything else is workload inside the spread. A side that ends early is recorded as
+    unmeasured, never a wrong comparison.
   - The larger of the whole-reference and clean-stretch spreads is used.
   - Side boundaries are landing PRs' `merged_at`, not merge commit times.
   - Manual-only workflows are outside M3, as #2012 prices them.
