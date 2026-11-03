@@ -324,6 +324,8 @@ function followOtherTabsConfirmations(): void {
 
 let started = false;
 
+const FOCUS_PASS_GAP_MS = 30_000;
+
 /** Begin auto-sync: a pass whenever a session arrives, then a debounced push after every local
  *  data change. No-op in offline mode (never even attaches the listener). Idempotent.
  *
@@ -349,12 +351,20 @@ export function startAutoSync(): void {
   window.addEventListener('online', () => void syncNow());
   window.addEventListener('offline', () => setState({ phase: 'pending', firstPass: !checkedThisPage, detail: 'Offline. This revision is not confirmed saved to cloud.' }));
   // At most every 30 s: an operator moving between OBS and this window focuses it constantly, and a
-  // pass is six reads over every stored body of the account.
+  // pass is six reads over every stored body of the account. A focus inside the gap runs at its end,
+  // so work from another device still arrives without another window switch.
   let lastFocusPass = 0;
-  window.addEventListener('focus', () => {
-    if (running || !focusPassDue(lastFocusPass, 30_000, Date.now())) return;
+  let focusLater: ReturnType<typeof setTimeout> | undefined;
+  const focusPass = () => {
+    focusLater = undefined;
+    if (running) return;
     lastFocusPass = Date.now();
     void syncNow();
+  };
+  window.addEventListener('focus', () => {
+    if (focusLater !== undefined) return;
+    if (focusPassDue(lastFocusPass, FOCUS_PASS_GAP_MS, Date.now())) focusPass();
+    else focusLater = setTimeout(focusPass, lastFocusPass + FOCUS_PASS_GAP_MS - Date.now());
   });
   // Tracked by ACCOUNT, not by signed-in-ness: a different account signing in over a live
   // session is a change of library even though "signed in" never went false in between.

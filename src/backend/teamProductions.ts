@@ -195,9 +195,12 @@ function withoutAssets(sb: Backend, doc: Show, teamId: string): Promise<unknown>
 }
 
 /** A stored document with its files back. Throws when a download fails, so the read is retried with
- *  what is on screen intact; an object that is really gone keeps its reference. */
-async function withAssets(sb: Backend, doc: Show): Promise<Show> {
+ *  what is on screen intact; an object that is really gone keeps its reference. Only this team's
+ *  folder is read: a member could write any key into a shared document, and this account's rights
+ *  would fetch a file from its own folder, which its next save would then copy to the team. */
+async function withAssets(sb: Backend, doc: Show, teamId: string): Promise<Show> {
   return await rehydrateSharedAssets(doc, async (key) => {
+    if (!key.startsWith(`team/${teamId}/`)) return null;
     const known = knownAssets.get(key);
     if (known) return known;
     const { data, error } = await sb.storage.from(ASSET_BUCKET).download(key);
@@ -236,7 +239,7 @@ async function fetchTeamProductionDocs(ids: string[]): Promise<{ rows: DocRow[];
     .in('id', ids);
   if (error) return { rows: [], error: error.message };
   try {
-    const rows = await Promise.all(((data ?? []) as DocRow[]).map(async (row) => ({ ...row, doc: await withAssets(sb, row.doc) })));
+    const rows = await Promise.all(((data ?? []) as DocRow[]).map(async (row) => ({ ...row, doc: await withAssets(sb, row.doc, row.team_id) })));
     return { rows, error: null };
   } catch (failed) {
     return { rows: [], error: failed instanceof Error ? failed.message : String(failed) };
@@ -263,7 +266,7 @@ async function saveTeamProduction(
   return {
     answer: a.saved
       ? { saved: true, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null }
-      : { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show) },
+      : { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show, teamId) },
     error: null,
   };
 }
@@ -416,7 +419,8 @@ export function refreshTeams(): Promise<void> {
       do {
         refreshAgain = false;
         await refreshOnce();
-      } while (refreshAgain && running);
+        // A read that just failed has set its own wait; a call queued behind it does not jump that.
+      } while (refreshAgain && running && Date.now() >= readsResumeAt);
     } finally {
       refreshing = null;
     }

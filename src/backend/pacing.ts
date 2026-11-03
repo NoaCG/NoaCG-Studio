@@ -12,16 +12,18 @@ export function backoffDelay(failures: number, baseMs: number, maxMs: number, ra
 
 /** One request at a time, for a beat that must not stack up behind a hung one. A request out for
  *  longer than `staleMs` no longer holds the next back, so one lost answer cannot stop the beat. */
-export function oneAtATime(staleMs: number, now: () => number = Date.now): { begin(): boolean; end(): void } {
-  let since: number | null = null;
+export function oneAtATime(staleMs: number, now: () => number = Date.now): { begin(): (() => void) | null } {
+  let current: { since: number } | null = null;
   return {
+    /** The function that ends this request, or null to skip this beat. A stale request that answers
+     *  late ends only itself, never the newer one out now. */
     begin() {
-      if (since !== null && now() - since < staleMs) return false;
-      since = now();
-      return true;
-    },
-    end() {
-      since = null;
+      if (current && now() - current.since < staleMs) return null;
+      const mine = { since: now() };
+      current = mine;
+      return () => {
+        if (current === mine) current = null;
+      };
     },
   };
 }

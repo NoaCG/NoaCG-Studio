@@ -159,6 +159,24 @@ test('team flush refuses cloud confirmation when the browser-storage commit fail
   assert.equal(h.controller.getTeamState().saving.show, 'failed');
 });
 
+test('a reference outside this team\'s folder is never downloaded with the reader\'s rights', async () => {
+  const private_ = `${assets.STORAGE_SENTINEL}reader-uid/abcd1234`;
+  const graphic = data => [{ id: 'g', template: { assets: [{ path: 'a.png', data }] } }];
+  const h = harness(false, [], {
+    from: () => ({
+      upload: async () => ({ error: null }),
+      download: async () => { throw new Error('must not read outside the team folder'); },
+    }),
+  });
+  h.answers.push(
+    { data: { saved: false, updated_at: 'teammate', doc: { ...h.local(), graphics: graphic(private_) } }, error: null },
+    { data: { saved: true, updated_at: 'inverse' }, error: null },
+  );
+  const expected = history.rundownSlice(h.local());
+  await h.controller.restoreTeamRundown('show', expected, expected, () => true);
+  assert.equal(h.local().graphics[0].template.assets[0].data, private_);
+});
+
 test('a failed save waits longer each time, and one success returns to the normal rate', async () => {
   const h = harness();
   h.answers.push({ data: null, error: { message: 'canceling statement due to statement timeout' } });

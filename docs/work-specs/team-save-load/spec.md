@@ -39,6 +39,7 @@ stack up behind a hung request, and regaining window focus runs personal sync at
   several people's files now share one folder and the hash is 32-bit.
 - A tab opened before this change shows these assets as missing until it reloads. Its saves keep
   the references intact.
+- A client reads only its own team's folder, whatever key a document names.
 
 ### AC-1: A team save leaves its images and fonts out of the request
 
@@ -63,7 +64,7 @@ ceiling, and one success returns to the normal rate.
 ### AC-5: Renewals do not stack, and focus does not hammer sync
 
 Node test (`scripts/backend-pacing.test.mjs`): one hung renewal holds later beats back until it is
-stale, and focus within 30 s of the last pass runs nothing.
+stale, and focus within 30 s of the last focus pass waits for the end of that gap.
 
 ### AC-6: The migration is additive and bounded
 
