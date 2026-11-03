@@ -199,6 +199,9 @@ the spec straight back through the documented route.
 - Local, cloud worker, job queue, 2 workers, retries 0: the four changed tests, 5 times each,
   20 of 20 passed. Before the fix, the Adjust test alone 10 of 10. Fault injections and mutation
   test as in (a), each reverted before commit.
+- After `/so`'s correction (the assertion that the tick was seen): the Adjust test 8 of 8 locally.
+  The CI repeat runs above are of `595730d4`, before that one-line assertion; it only refuses a
+  run the loop failed to align, so it cannot make an aligned run fail.
 - `npm run gates -- run --changed origin/main`: 14 gates, 44 tests, all pass. `eslint` on the
   spec clean, `tsc --noEmit` clean, `check-e2e-protection --changed origin/main` OK.
 - Not run locally: the whole spec file (the job queue allows one broader job per source state, and
