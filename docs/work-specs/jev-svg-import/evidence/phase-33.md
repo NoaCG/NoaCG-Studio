@@ -115,15 +115,16 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
    | jev-structured, 51-file slice | 1 | 50 | 0.003013 | 0.006763 | 40% |
 
    Jev's costs and token counts repeat tune 1's run (run 4) exactly, batch for batch, so it was
-   sent the same input; its answers did not repeat (below). The fixed $0.000075 per request shows on every arm that was
-   served (Elephant and Haiku too, and 50 times on the slice), so it is a gateway fee per request,
+   sent the same input; its answers did not repeat (below). The fixed $0.000075 per request
+   shows on every arm that was served (Elephant and Haiku too, and 50 times on the slice), so it is a gateway fee per request,
    not a `/v1/evaluate` one (#2015).
 
    **Every Gemini vision request was refused** (`provider_rejected`, one attempt each, nothing
    billed), so every image row fell back to the deterministic proposal and scores the same as
    it. The harness records no HTTP status or error body for a refusal, so the cause cannot be
-   read from the run. A fix is harness or route code, not configuration, so this row cannot make
-   it (see Open points).
+   read from the run. A fix is harness or route code, not configuration, so this row does not
+   make it: reported to the coordinator, who filed #2017 and gave the fix to its own builder on
+   main before any further evaluation.
 
    Regression slice: 50 of 51 read (`geometry-unescaped-ampersand` refused by the importer, as
    in row 32); deterministic matches the sidecar's text-field count on 50 of 50, Jev on 41 of 50.
@@ -171,4 +172,55 @@ criteria, chat system and threshold as row 32).
   corpus supports tuning without fitting it. The winner goes into one full development
   comparison (all five arms and the 51-file slice) and is then frozen unchanged.
 
+- **Elephant-1 and Haiku 5.5 as the two reporting challengers** (above), chosen before any paid
+  call. Both show no stratum worse in development; that does not make either a candidate. The
+  pre-registered rule lets only structured Jev decide, and a challenger is never chosen after
+  results are seen.
+- **The first paid batch was the primary alone** (six batches, $0.006 worst case), to see the
+  real reply shape, settle time and receipts before spending on the other arms.
+- **Spend order kept the holdout's room.** After row 33 the attempt count must leave the
+  holdout's 144 planned attempts and its $3 partition untouched; see Spend below.
+- **Answers to row 31's open point** (the `/v1/evaluate` reply shape): every Jev and Elephant
+  answer passed the adapter's strict check, so the reply names the exact pinned model (no
+  `route_changed`), answers each question once with its type, and reports usage per request
+  (input and output tokens, output priced $0). The gateway's reported cost is input tokens times
+  the listed price, billed per request, not per question, plus the fixed fee of #2015. Settling a
+  batch took two readings (about 15 seconds); a full development run takes about 12 minutes.
+
+## Spend
+
+The development partition only. Holdout spend is $0, and the holdout was never read.
+
+| run | mode | settled USD | attempts |
+| --- | --- | --- | --- |
+| 41619506329 | dry-run (mock) | 0 | 0 real |
+| 41619730746 | baseline | 0 | 0 |
+| 41620061986 | development | 0.002349768 | 18 |
+| 41620813617 | development | 0.002438976 | 18 |
+| 41621404623 | development | 0.002566236 | 18 |
+| 41621970771 | development | 0.021113283 | 122 |
+| total so far | | 0.028468263 | 176 of 500 |
+
+Balance 6.936136654 at the baseline, 6.907668391 after run 6; the drop equals the summed
+receipts, so no other consumer spent on the shared balance during the row.
+
+## Open points and where they go
+
+- **#2017** (coordinator, fix builder): the image arm was refused on every request; the harness
+  needs to record a refused attempt's HTTP status and gateway error code, and fix the cause if
+  it is the request shape. This row then accepts the reviewed harness change by reconcile, runs
+  the image arm once, and freezes; if the provider refuses this model for this key, the image arm
+  is a recorded gap.
+- **#2015** (rows 31 and 35): a fixed gateway fee per request that the reported cost leaves out.
+- **Row 34**: Jev's answers vary between runs on identical input, so its single holdout run
+  carries that noise; report it beside the verdict.
+
 ## Traps
+
+- An Actions artifact download link is signed and short-lived: fetch it, use it at once, and
+  never print or store it. A link fetched for one artifact can fail authentication for the next
+  minute's download; fetch a fresh one.
+- The push hook reads `<sha>:refs/heads/<branch>` as a possible write to `main`. Point a local
+  branch at the commit and push `refs/heads/<branch>:refs/heads/<branch>`.
+- `prompts.json` on the configuration branch and on this PR's branch must be byte-identical for
+  the frozen hash to describe what lands: compare the blob ids (`git rev-parse <ref>:<path>`).
