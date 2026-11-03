@@ -398,7 +398,9 @@ export function closeBatch(receipt, { settled, attempts, reportedUsd, unknownCha
   out.after = { balance: after.balance, totalUsed: after.totalUsed };
   const debit = receipt.before.balance - after.balance;
   out.debitUsd = debit;
-  out.settledUsd = Math.max(debit, reportedUsd, 0);
+  // A top-up during the batch hides spend from the balance, not from lifetime usage.
+  out.usageRiseUsd = after.totalUsed - receipt.before.totalUsed;
+  out.settledUsd = Math.max(debit, out.usageRiseUsd, reportedUsd, 0);
   if (!settled.stable) out.suspended = 'unsettled';
   else if (debit < -EPS) out.suspended = 'balance-increase';
   else if (out.settledUsd > receipt.maxUsd + EPS) out.suspended = 'over-bound';
@@ -467,7 +469,7 @@ const MAIN_WORKFLOW_REF = `NoaCG/NoaCG-Studio/${WORKFLOW_PATH}@refs/heads/main`;
 
 /**
  * Is this dispatch allowed to continue the receipt chain? `runs` are every earlier run of this
- * workflow, any branch, newest first: `{ id, number, branch, event, path, mode, hasLedger,
+ * workflow, any branch, newest first: `{ id, number, branch, onMain, event, path, mode, hasLedger,
  * harnessStarted, holdoutStarted }`, where `harnessStarted` means any attempt started its harness or reconcile
  * step and `holdoutStarted` that any attempt started decoding the sealed holdout. Rules C1-C6 in
  * phase-32.md:
@@ -492,10 +494,11 @@ export function checkChain(runs, { mode, receiptsRunId = '', establish = false, 
     const numbers = new Set(runs.map((r) => Number(r.number)));
     for (let n = 1; n < Number(currentNumber); n++) if (!numbers.has(n)) return refuse(`run-missing:${n}`);
   }
-  // Only main's own dispatches of this workflow are part of the chain. A run from another branch
-  // could carry an edited copy of the workflow and upload a forged ledger or freeze; it counts
-  // for the run-number check above and for nothing else.
-  runs = runs.filter((r) => r.branch === 'main' && r.event === 'workflow_dispatch' && r.path === WORKFLOW_PATH);
+  // Only main's own dispatches of this workflow are part of the chain. A run from another branch,
+  // or from a tag that happens to be called `main`, could carry an edited copy of the workflow and
+  // upload a forged ledger or freeze; it counts for the run-number check above and nothing else.
+  // `onMain` says main contains the run's commit (the workflow asks GitHub's compare API).
+  runs = runs.filter((r) => r.branch === 'main' && r.onMain === true && r.event === 'workflow_dispatch' && r.path === WORKFLOW_PATH);
   const paid = (r) => r.mode === 'development' || r.mode === 'holdout';
   const chained = (r) => paid(r) || r.mode === 'reconcile';
   const holdoutStarted = runs.some((r) => r.holdoutStarted);
@@ -774,12 +777,13 @@ export async function callArm(arm, design, config, plan, deps) {
       plan.prepared,
     );
     const ms = deps.now() - started;
-    // The adapter reads the bill of every answer it parsed: success, invalid answers, route changed.
-    const billRead = outcome.ok || outcome.reason === 'answers_invalid' || outcome.reason === 'route_changed';
+    // The adapter falls back to the worst case when an answer reports neither cost nor usage, so
+    // a bill counts as read only when usage came back with it (zero input tokens means none did).
+    const billRead = (outcome.ok || outcome.reason === 'answers_invalid' || outcome.reason === 'route_changed') && outcome.inputTokens > 0;
     const unknown = unknownCharges(recorder.sent, billRead) > 0 ? 1 : 0;
     if (!outcome.ok) return fallback(outcome.reason, { attempts: outcome.attempts, reportedUsd: outcome.costUsd, unknown, ms });
     const proposal = deps.readSvgAnswers(design.set, outcome.answers, config.threshold, design.deterministic.fieldsOn);
-    return { proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, knownUsd: outcome.attempts === 1 ? outcome.costUsd : 0, unknown, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } };
+    return { proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, knownUsd: billRead && outcome.attempts === 1 ? outcome.costUsd : 0, unknown, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } };
   }
   const keys = Object.keys(design.set.questions);
   const worstAttempt = plan.maxUsd / CAP.attemptsPerRequest;

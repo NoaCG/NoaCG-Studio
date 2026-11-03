@@ -73,8 +73,9 @@ permissions:
   contents: read
   actions: read
 
-# One evaluation at a time, never cancelled: GitHub serializes this group. It is not a queue,
-# so the coordinator checks for an in-flight run before dispatching.
+# One evaluation at a time: GitHub serializes this group and never cancels a running one. It is not
+# a queue: a newer dispatch replaces an older one still waiting (which never started a step, so
+# spent nothing), so the coordinator checks for an in-flight run before dispatching.
 concurrency:
   group: jev-svg-evaluation
   cancel-in-progress: false
@@ -139,7 +140,14 @@ jobs:
           first=1
           for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?per_page=100" --jq '.workflow_runs[].id'); do
             [ "$id" = "$GITHUB_RUN_ID" ] && continue
-            meta="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '{number: .run_number, branch: .head_branch, event: .event, path: .path, title: .display_title}')"
+            meta="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '{number: .run_number, branch: .head_branch, sha: .head_sha, event: .event, path: .path, title: .display_title}')"
+            sha="$(printf '%s' "$meta" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s).sha;process.stdout.write(/^[0-9a-f]{40}$/.test(v)?v:"")})')"
+            # A tag called `main` reports head_branch "main" too; main must contain the run's commit.
+            onmain=false
+            if [ -n "$sha" ]; then
+              cmp="$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq '.status' 2>/dev/null || true)"
+              if [ "$cmp" = "ahead" ] || [ "$cmp" = "identical" ]; then onmain=true; fi
+            fi
             mode="$(printf '%s' "$meta" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const m=/^Jev SVG evaluation \((dry-run|development|holdout|reconcile)\)$/.exec(JSON.parse(s).title||"");process.stdout.write(m?m[1]:"unknown")})')"
             ledger="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "jev-svg-eval-ledger")] | length')"
             # Every attempt of the run, not only the newest: a refused re-run must not hide its first attempt.
@@ -150,9 +158,9 @@ jobs:
             [ "$first" = 1 ] || echo ',' >> "$runs"
             first=0
             printf '%s' "$meta" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const m=JSON.parse(s);
-              process.stdout.write(JSON.stringify({id:process.argv[1],number:m.number,branch:m.branch,event:m.event,path:m.path,mode:process.argv[2],
+              process.stdout.write(JSON.stringify({id:process.argv[1],number:m.number,branch:m.branch,onMain:process.argv[6]==="true",event:m.event,path:m.path,mode:process.argv[2],
               hasLedger:process.argv[3]!=="0",harnessStarted:process.argv[4]==="true",holdoutStarted:process.argv[5]==="true"})+"\n")})' \
-              "$id" "$mode" "$ledger" "$started" "$decoded" >> "$runs"
+              "$id" "$mode" "$ledger" "$started" "$decoded" "$onmain" >> "$runs"
           done
           echo ']' >> "$runs"
           node scripts/jev-svg-eval.mjs chain --runs "$runs" --mode "$MODE" --receipts-run-id "$RUN_ID" \

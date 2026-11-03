@@ -91,7 +91,8 @@ with its mode). This is the corrected model from the repeated-family reassessmen
 
 - **C1** The chain's unit is a run attempt: every non-dry mode refuses `GITHUB_RUN_ATTEMPT` other
   than 1, in the chain step and in the harness. Only main's own `workflow_dispatch` runs of this
-  workflow file belong to the chain: a run from another branch (an edited copy of the workflow)
+  workflow file, whose commit main contains, belong to the chain: a run from another branch or a
+  tag called `main` (an edited copy of the workflow)
   counts for the run-number check and nothing else, and a ledger whose baseline was not written by
   main's workflow is refused. The run list counts every attempt
   (`jobs?filter=all`), so a refused re-run cannot hide its first attempt. Run numbers before this
@@ -229,13 +230,22 @@ non-blocking): runs from other branches could supply a forged ledger or freeze (
 deleted run and expired artifacts block the chain (fail-safe, documented under Known limits); the
 regression slice could spend the holdout budget (now refused in holdout mode).
 
+From the PR bot review of `1647f89` (two findings, fixed): a Jev answer without usage is an
+unread bill (the adapter had charged its worst case, which the settle check then waited for); a
+batch overlapping a top-up settles at the lifetime-usage rise, and its over-bound check uses it.
+
+From the second final `/so` (`session_017SdbwMVkkdVbG8H9AwuKjj`, B+ on `1647f89`, A- once its
+blocking point was fixed): a tag called `main` passed the branch filter; main must now contain
+the run's commit (C1). Its three non-blocking points: the concurrency comment corrected; the
+settle-time headroom and the declared environment documented under Known limits.
+
 - Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
   harmed design stops its family from qualifying. The notes and docstring said "or design" and
   were corrected.
 
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 31 of 31 pass (after the final fixes) (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 33 of 33 pass (after the final fixes) (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle
@@ -261,6 +271,12 @@ regression slice could spend the holdout budget (now refused in holdout mode).
   spent); do not delete runs of this workflow, and lifting the block takes a reviewed change.
 - Ledger artifacts are kept 90 days. Row 34 runs within 90 days of the newest ledger, or that
   ledger is copied into row evidence first; an expired one refuses every later run (safe).
+- Settling a batch takes at least two balance readings 15 seconds apart and at most eight. With
+  the regression slice (43 batches) a run can approach the 60-minute job limit; a timeout fails
+  safe (an open receipt, then a reconcile). Row 33 checks the real settle time on its first
+  receipts and dispatches the slice on its own if needed.
+- The baseline's `environment` is the name the job declares, not something the run observed;
+  row 33's first run in the protected environment shows it.
 - The non-blind regression slice is refused in holdout mode, so it never spends the holdout's $3;
   it runs in a development dispatch.
 - The freeze covers the reader's graph and the lockfile, so a change on main to the importer or a

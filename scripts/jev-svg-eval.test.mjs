@@ -692,7 +692,7 @@ test('every admitted route is priced, and each attempt\'s ceiling is positive', 
 test('M13: a paid run continues only the newest ledger; a lost run blocks paid work until a reconcile names it', () => {
   // Newest first; run numbers count down with them.
   const run = (id, mode, hasLedger, harnessStarted = true, holdoutStarted = false, branch = 'main') => ({
-    id: String(id), number: Number(id), branch, event: 'workflow_dispatch', path: '.github/workflows/jev-svg-eval.yml', mode, hasLedger, harnessStarted, holdoutStarted,
+    id: String(id), number: Number(id), branch, onMain: branch === 'main', event: 'workflow_dispatch', path: '.github/workflows/jev-svg-eval.yml', mode, hasLedger, harnessStarted, holdoutStarted,
   });
   const ok = (lost = [], lostPartitions = []) => ({ ok: true, lost, lostPartitions });
   const chain = [run(9, 'dry-run', false), run(8, 'development', true), run(7, 'reconcile', true), run(6, 'development', true),
@@ -734,6 +734,10 @@ test('M13: a paid run continues only the newest ledger; a lost run blocks paid w
   assert.equal(checkChain(forged, { mode: 'development', receiptsRunId: '10', ...at(11) }).reason, 'not-newest-ledger:8');
   assert.deepEqual(checkChain(forged, { mode: 'holdout', receiptsRunId: '8', ...at(11) }), ok());
   assert.deepEqual(checkChain([{ ...run(10, 'development', true), event: 'push' }, ...chain], { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
+  // A tag named `main` reports head_branch "main"; main does not contain its commit.
+  const tagged = [{ ...run(10, 'reconcile', true, true, true), onMain: false }, ...chain];
+  assert.deepEqual(checkChain(tagged, { mode: 'holdout', receiptsRunId: '8', ...at(11) }), ok());
+  assert.equal(checkChain(tagged, { mode: 'development', receiptsRunId: '10', ...at(11) }).reason, 'not-newest-ledger:8');
   // A holdout run refused at its freeze gate never decoded the secret: the holdout is not consumed.
   assert.deepEqual(checkChain([run(10, 'holdout', true, false, false), ...chain], { mode: 'holdout', receiptsRunId: '10', ...at(11) }), ok());
 });
@@ -787,6 +791,29 @@ test('C6: an answer that reports no usage or cost is an unread bill, charged its
   const known = await callArm(arm, d, CONFIG, p, priced);
   assert.equal(known.unknown, 0);
   assert.ok(Math.abs(known.reportedUsd - 0.0002) < 1e-12);
+});
+
+test('C6: a Jev answer with no usage is an unread bill and is not waited for when settling', async () => {
+  const arm = ARMS.find((x) => x.id === PRIMARY.id);
+  const d = DESIGNS[0];
+  const keys = Object.keys(d.set.questions);
+  const body = (usage) => JSON.stringify({ model: arm.model, answers: Object.fromEntries(keys.map((k) => [k, { type: 'boolean', probability: 0.8 }])), ...(usage ? { usage } : {}) });
+  const deps = harnessDeps(mockGateway(), null, { fetchImpl: async () => new Response(body(null), { status: 200 }) });
+  const p = planRequest(arm, d, CONFIG, deps);
+  const bare = await callArm(arm, d, CONFIG, p, deps);
+  assert.deepEqual([bare.fellBack, bare.unknown, bare.knownUsd], [undefined, 1, 0]);
+  assert.ok(bare.reportedUsd > 0);
+  const read = await callArm(arm, d, CONFIG, p, harnessDeps(mockGateway(), null, { fetchImpl: async () => new Response(body({ inputTokens: 800, outputTokens: 0 }), { status: 200 }) }));
+  assert.deepEqual([read.unknown, read.knownUsd > 0], [0, true]);
+});
+
+test('M8: a batch overlapping a top-up settles at the lifetime-usage rise, and an over-bound one suspends', () => {
+  const ledger = newLedger({ credits: credits(10, 0), runId: '1', mainSha: null, manifest });
+  const a = admitBatch(ledger, credits(10, 0), plan(req(1, 0.5)), { manifest });
+  // $2 topped up while the batch spent $2.01: the balance moved by a cent.
+  const closed = settle(a.receipt, credits(9.99, 2.01));
+  assert.ok(Math.abs(closed.settledUsd - 2.01) < 1e-9);
+  assert.equal(closed.suspended, 'over-bound');
 });
 
 test('C6: one unknown-bill rule for every arm: a retried 5xx is flagged; a refusal before inference is not', async () => {
