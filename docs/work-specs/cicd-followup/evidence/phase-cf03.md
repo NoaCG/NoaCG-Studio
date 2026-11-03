@@ -292,7 +292,9 @@ the merge commit (and its parent): every `scripts/...` path named in ci.yml, con
 post-land.yml, quarantine.yml or deploy-verify.yml, directly, through a local action they use,
 or through `npm run <name>` in any of those texts or in the package.json scripts they reach, plus
 npm's install hooks (`postinstall` and its siblings) wherever a text installs; all followed until
-nothing new is found. The three Playwright configs those texts use are roots too, and their
+nothing new is found. Every Playwright config those texts name (`playwright*.config.ts`, and `playwright.config.ts`
+when `playwright test` runs without `--config`) is a root too, with its runner's scope (the
+production config, run by deploy-verify.yml, ends M3), and their
 closure also follows the reporter and global-setup paths they name as strings (so
 `scripts/e2e-workers.mjs`, `e2e/_offline-guard.ts` and `e2e/catalog/_bench-scope.mjs` are in it).
 A change to the command of any package.json entry a runner reaches that way ends that runner's

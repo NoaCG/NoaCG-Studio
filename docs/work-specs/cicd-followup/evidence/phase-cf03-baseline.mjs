@@ -62,7 +62,6 @@ function show(sha, path) {
   }
   return showCache.get(k);
 }
-const PLAYWRIGHT_CONFIGS = ['playwright.config.ts', 'playwright.catalog.config.ts', 'playwright.live.config.ts'];
 const SCRIPT_REF = /\bscripts\/[\w./-]+\.(?:mjs|cjs|js)\b/g;
 // Roots: scripts a runner's text names, directly, through `npm run <name>` (also inside the local
 // actions it uses and inside the package.json scripts those name), and through npm's install hooks
@@ -83,9 +82,14 @@ function rootsOf(sha, runner) {
     }
   }
   const roots = new Set(texts.flatMap((t) => [...t.matchAll(SCRIPT_REF)].map((m) => m[0])).filter(notTest));
-  // The Playwright configs the runner's npm entries or text use are roots too: their imports pick
-  // workers, reporters and global setup for every shard.
-  for (const cfg of PLAYWRIGHT_CONFIGS) if (texts.some((t) => t.includes(cfg) || (cfg === 'playwright.config.ts' && /\bplaywright test\b(?![^\n]*--config)/.test(t)))) roots.add(cfg);
+  // The Playwright configs the runner's texts use are roots too: their imports and the reporter and
+  // global-setup paths they name pick workers, reporters and setup for every shard.
+  // Any `playwright*.config.ts` the texts name, plus the default config when `playwright test` runs
+  // without `--config`.
+  for (const t of texts) {
+    for (const m of t.matchAll(/\bplaywright[\w.-]*\.config\.ts\b/g)) roots.add(m[0]);
+    if (/\bplaywright test\b(?![^\n]*--config)/.test(t)) roots.add('playwright.config.ts');
+  }
   return { roots, names: seenNames };
 }
 // The import closure of a set of scripts: static and dynamic relative imports, resolved in the tree.
