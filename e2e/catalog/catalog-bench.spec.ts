@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { toApp, HELPERS } from '../_bench';
 import { ONLY_DESIGNS, SCOPE_NOTE, categoryOutOfScope } from '../_catalogScope';
 import { BENCH_CATEGORIES, REPORT, benchSlices, unitLabel } from './_bench-scope.mjs';
@@ -14,6 +15,17 @@ import { BENCH_CATEGORIES, REPORT, benchSlices, unitLabel } from './_bench-scope
 
 // The categories and slice budgets live in e2e/catalog/_bench-scope.mjs, beside the reporter that
 // checks a run measured every selected design: the two must agree, so there is one list.
+
+// A DESIGN THAT ONLY EXISTS WITH THE USER'S FILE is benched with a real file. svg01's create()
+// without an SVG renders the preview stand-in (svg.ts NO_SVG): a plain plate with no text and no
+// picture, which never reaches air because the door always takes a file first. The bench counts
+// what a viewer can read, so the stand-in read as "not visible after play()" and "does not come
+// back on replay" (#1926), while every real file passes. So svg01 is benched as it ships: this
+// file, through the import a drop takes (importSvgMarkup, svgDraftFromImport, svgDesignOptions).
+// The rules are unchanged; only the input is the one a user gives it.
+const ARTWORK: Record<string, string> = {
+  svg01: readFileSync('e2e/fixtures/illustrator-lower-third.svg', 'utf8'),
+};
 test.describe('catalog calibration tripwire', () => {
   for (const category of BENCH_CATEGORIES) {
     const slices = benchSlices(category);
@@ -34,19 +46,29 @@ test.describe('catalog calibration tripwire', () => {
         // The SLICE ASSIGNMENT is unchanged by scoping - variant i still belongs to slice
         // i % slices - so a scoped run measures exactly the designs a full run would, in the
         // same units. Only the ones nobody asked for are dropped.
-        const rows = await page.evaluate(`(async (category, slice, slices, only) => { ${HELPERS}
+        const rows = await page.evaluate(`(async (category, slice, slices, only, artwork) => { ${HELPERS}
           const { CATALOG } = await import('/src/templates/catalog.ts');
+          async function made(v) {
+            if (!artwork[v.id]) return v.create();
+            const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+            const { svgDraftFromImport, svgDesignOptions } = await import('/src/components/wizard/import/draft.ts');
+            const draft = svgDraftFromImport(importSvgMarkup(artwork[v.id]), {
+              resolution: { width: 1920, height: 1080 },
+              previous: { name: '', designSvg: null },
+            });
+            return v.create({ designSvg: svgDesignOptions(draft) });
+          }
           const out = [];
           const all = CATALOG[category] || [];
           for (let i = 0; i < all.length; i++) {
             if (i % slices !== slice) continue;
             const v = all[i];
             if (only && only.indexOf(v.id) < 0) continue;
-            const res = await bench(v.create());
+            const res = await bench(await made(v));
             out.push({ id: v.id, ok: res.ok, errors: res.errors.map((e) => e.rule + ': ' + e.message) });
           }
           return out;
-        })(${JSON.stringify(category)}, ${slice}, ${slices}, ${JSON.stringify(ONLY_DESIGNS)})`);
+        })(${JSON.stringify(category)}, ${slice}, ${slices}, ${JSON.stringify(ONLY_DESIGNS)}, ${JSON.stringify(ARTWORK)})`);
         const measured = rows as { id: string; ok: boolean; errors: string[] }[];
         // WHAT THIS UNIT MEASURED, for the scope guard, before any assertion can stop the test: a
         // unit that fails still measured its designs, and the guard checks the run's units
