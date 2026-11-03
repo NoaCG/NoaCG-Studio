@@ -70,7 +70,7 @@ export function sandboxNameOf(ref: string | null): string | null {
 export interface SandboxSessionLike {
   readonly status: string;
   readFileToBuffer(file: { path: string }): Promise<Buffer | null>;
-  stop(): Promise<unknown>;
+  stop(opts: { signal: AbortSignal }): Promise<unknown>;
 }
 
 /** The slice of a 3.x Sandbox used here. */
@@ -82,29 +82,45 @@ export interface SandboxLike {
   update(params: { persistent: boolean }): Promise<void>;
   writeFiles(files: { path: string; content: Buffer }[]): Promise<void>;
   runCommand(params: { cmd: string; args: string[]; env: Record<string, string>; detached: true }): Promise<unknown>;
-  stop(): Promise<unknown>;
+  stop(opts: { signal: AbortSignal }): Promise<unknown>;
 }
 
 export interface SandboxDeps {
   /** A provisioned sandbox, plus the step that uploads the composition bundle to it. */
   provision(timeoutInMilliseconds: number): Promise<{ sandbox: SandboxLike; addBundle(): Promise<void> }>;
   /** Look a sandbox up without resuming it. */
-  get(name: string): Promise<SandboxLike>;
+  get(name: string, signal?: AbortSignal): Promise<SandboxLike>;
 }
 
 const sdkDeps: SandboxDeps = {
   async provision(timeoutInMilliseconds) {
     const { createSandbox, addBundleToSandbox } = await import('@remotion/vercel');
+    // If this throws after creating the VM there is no handle to stop it, and Remotion does not
+    // clean up. Accepted (issue #2026): the VM ends at this timeout, and avoiding it would mean
+    // copying Remotion's provisioning, whose steps it does not export.
     const sandbox = await createSandbox({ resources: { vcpus: 4 }, timeoutInMilliseconds });
     return { sandbox, addBundle: () => addBundleToSandbox({ sandbox, bundleDir: BUNDLE_DIR }) };
   },
-  async get(name) {
+  async get(name, signal) {
     const { Sandbox } = await import('@vercel/sandbox');
-    return Sandbox.get({ name, resume: false });
+    return Sandbox.get({ name, resume: false, signal });
   },
 };
 
 const ENDED = new Set(['stopping', 'stopped', 'failed', 'aborted']);
+
+/** How long a stop may hold up the answer that finishes a job. Live, a poll with its stop took 2.8 s. */
+const STOP_TIMEOUT_MS = 10_000;
+
+/** A failed stop bills the VM to its timeout, so it is logged, unless the session had already
+ *  ended by the time the stop arrived. It is not retried later (issue #2026): the SDK has already
+ *  retried, and the only sweep is a daily cron, which runs long after the VM's own timeout. */
+function logStopFailure(err: unknown): void {
+  const { response, json, message } = err as { response?: { status?: number }; json?: { error?: { code?: string } }; message?: string };
+  const status = response?.status;
+  if (status === 404 || status === 410 || json?.error?.code === 'sandbox_stopping') return;
+  console.error('sandbox stop failed:', status ?? '', message ?? err);
+}
 
 export class SandboxExecutor implements RenderExecutor {
   id = 'sandbox' as const;
@@ -133,17 +149,18 @@ export class SandboxExecutor implements RenderExecutor {
         detached: true,
       });
     } catch (err) {
-      await sandbox.stop().catch(() => {}); // a failed launch must not leave a billed VM running
+      // A failed launch must not leave a billed VM running.
+      await sandbox.stop({ signal: AbortSignal.timeout(STOP_TIMEOUT_MS) }).catch(logStopFailure);
       throw err;
     }
     return { executorRef: REF_PREFIX + sandbox.name };
   }
 
   /** The job's live session, or null when it has none (1.x ref, stopped, expired, gone). */
-  private async liveSession(job: JobRecord): Promise<SandboxSessionLike | null> {
+  private async liveSession(job: JobRecord, signal?: AbortSignal): Promise<SandboxSessionLike | null> {
     const name = sandboxNameOf(job.executorRef);
     if (!name) return null;
-    const session = (await this.deps.get(name)).currentSession();
+    const session = (await this.deps.get(name, signal)).currentSession();
     return ENDED.has(session.status) ? null : session;
   }
 
@@ -172,10 +189,10 @@ export class SandboxExecutor implements RenderExecutor {
 
   async stop(job: JobRecord): Promise<void> {
     try {
-      await (await this.liveSession(job))?.stop();
+      const signal = AbortSignal.timeout(STOP_TIMEOUT_MS);
+      await (await this.liveSession(job, signal))?.stop({ signal });
     } catch (err) {
-      // Ended sessions were skipped above, so this is usually a real failure: the VM bills to its timeout.
-      console.error('sandbox stop failed:', (err as Error).message);
+      logStopFailure(err);
     }
   }
 }

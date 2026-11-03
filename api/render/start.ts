@@ -10,6 +10,7 @@ import { apiError, bearerToken, ipHash, json, methodGuard, newSecret, readJson, 
 import { verifyUser } from '../_lib/auth.js';
 import { getJobStore, type JobRecord } from '../_lib/jobStore.js';
 import { getExecutor } from '../_lib/executor.js';
+import { launchJob } from '../_lib/reconcile.js';
 import { admitGlobally } from '../_lib/admission.js';
 import { checkStartRateLimit } from '../_lib/rateLimit.js';
 import { resolveUserEntitlement } from '../_lib/entitlements.js';
@@ -173,24 +174,7 @@ export default {
     }
 
     const executor = await getExecutor();
-    const launch = async () => {
-      const { executorRef, immediateOutput } = await executor.start(job, manifest, { workerSecret });
-      if (immediateOutput) {
-        const expiresAt = Date.now() + RENDER_CONFIG.outputTtlMs[tier];
-        await store.update(
-          job.id,
-          {
-            state: 'complete',
-            executorRef,
-            expiresAt,
-            output: { ...immediateOutput, downloadUrl: immediateOutput.url, expiresAt: new Date(expiresAt).toISOString() },
-          },
-          { guardNonTerminal: true },
-        );
-      } else {
-        await store.update(job.id, { state: 'provisioning', executorRef }, { guardNonTerminal: true });
-      }
-    };
+    const launch = () => launchJob(job, manifest, { workerSecret }, store, executor);
     const markLaunchFailed = async (err: unknown) => {
       console.error('render start failed:', err);
       await store.update(
