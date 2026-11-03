@@ -16,7 +16,7 @@ import { test, expect, type Page, type Route } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg, intoProduction } from './_svg-import';
-import { awaitDurableReady } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { addToProductionFromFinish } from './_create';
 
 /** Two guests, two plates, the same words in the same places: only the position tells them apart. */
@@ -706,4 +706,202 @@ test('with every AI route failing, an SVG import is saved, taken to air and expo
   for (const env of envs) {
     for (const key of Object.keys(env)) expect(key).toMatch(/^(VITE_[A-Z0-9_]+|BASE_URL|MODE|DEV|PROD|SSR)$/);
   }
+});
+
+// ---- Row 38: the complete unfamiliar-artwork journey (docs/work-specs/jev-svg-import/evidence/phase-38.md) ----
+//
+// AC-26 through the existing UI only, on the no-go path (row 34): no model, no paid or Gateway
+// call. The artwork is a labeled corpus design no earlier walk used (`score-clock-2`: Polish layer
+// names, two look-alike name layers and two look-alike score layers), so nothing here was tuned
+// on it. A fresh checker runs this section alone with
+//   node scripts/jobs.mjs add "npm run test:e2e -- e2e/jev-svg-preparation.spec.ts -g 'row 38'" --cap 5
+// and the hosted half (the isolated software output, disconnected and recovered) with the
+// configured spec `e2e/configured/svg-import-journey.spec.ts`.
+//
+// Four things are read apart, and each is named where it is read:
+//   COMMAND ACCEPTANCE   the production page took the press (its activity log, its fields)
+//   RENDERER STATE       what the PROGRAM renderer's document holds
+//   VISUAL FIDELITY      the drawn artwork on air keeps the source's shapes and fills
+//   PACKAGE CONFORMANCE  the saved graphic exports to an OGraf package the existing validator passes
+
+const JOURNEY = fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-2.svg', import.meta.url));
+const NOTICE_ZONES = fileURLToPath(new URL('./fixtures/jev-svg/qualification/notice-zones.svg', import.meta.url));
+/** The drawn plates of `score-clock-2`, as the source file paints them. */
+const JOURNEY_PAINT = { backdrop: 'rgb(18, 32, 54)', dial: 'rgb(90, 64, 91)', left: 'rgb(51, 89, 97)', right: 'rgb(109, 81, 57)' };
+
+/** VISUAL FIDELITY: the fills of the drawn shapes on the PROGRAM renderer, in drawing order. */
+async function airPaint(page: Page): Promise<string[]> {
+  return page.frameLocator('[data-testid="program-stage"] iframe').locator('.imported-design svg rect, .imported-design svg circle')
+    .evaluateAll((els) => els.map((el) => getComputedStyle(el).fill));
+}
+
+/** PACKAGE CONFORMANCE: the saved graphic's OGraf package, read by the existing validator. */
+async function ografErrors(page: Page, graphic: string): Promise<{ errors: string[]; files: number } | null> {
+  await awaitDurableReady(page);
+  return page.evaluate(async (name) => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { EXPORT_TARGETS } = await import('/src/export/registry.ts');
+    const { validateOgrafPackage } = await import('/src/export/targets/ografSchema.ts');
+    const saved = loadGraphics().find((d) => d.name === name);
+    if (!saved) return null;
+    const zip = await EXPORT_TARGETS.find((t) => t.id === 'ograf')!.build(saved.template);
+    const files = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
+    const manifestName = files.find((n) => n.endsWith('.ograf.json'));
+    if (!manifestName) return { errors: ['no .ograf.json in the package'], files: files.length };
+    const manifest = JSON.parse(await zip.file(manifestName)!.async('string'));
+    // The zip wraps the package in one folder; the manifest names its files from there.
+    const root = manifestName.slice(0, manifestName.lastIndexOf('/') + 1);
+    const relative = files.filter((n) => n.startsWith(root)).map((n) => n.slice(root.length));
+    return { errors: validateOgrafPackage(manifest, relative), files: relative.length };
+  }, graphic);
+}
+
+test('row 38: unfamiliar artwork is imported, corrected once, taken, updated, taken out, reopened and replaced', async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  await dropSvg(page, JOURNEY);
+
+  // ONE MATERIAL AMBIGUITY, ONE CORRECTION. The artwork cannot say which way its time runs; that is
+  // the only question, and the scores and names need nothing.
+  await expect(summary(page)).toHaveText('the time stays as typed · 2 numbers, each with + and −');
+  await expect(page.getByTestId('map-svg-fields')).toContainText('5 of 5 editable on air');
+  await page.getByTestId('map-svg-clock-mode').selectOption('count-up');
+  await expect(summary(page)).toHaveText('a clock counting up · 2 numbers, each with + and −');
+
+  // PREVIEW: the wizard's own preview draws the artwork with its words.
+  const preview = page.frameLocator('.wz-preview iframe').first();
+  await expect(preview.getByText('Wrzos')).toBeVisible();
+  await expect(preview.getByText('Mech')).toBeVisible();
+
+  // SAVE: the ordinary Finish into a new production.
+  await finishInto(page, 'Wrzos v Mech');
+  const show = 'Wrzos v Mech show';
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const log = page.getByTestId('action-log-row');
+  const live = page.getByTestId('live-cue-chip');
+  const unsent = page.getByTestId('cue-unsent');
+
+  // PREPARE, OFF AIR: a typed name stays a draft; nothing is on air until Take.
+  await expect(live).toContainText('nothing on air');
+  await page.getByTestId('cue-field-f1').fill('Wrzos FC');
+  await expect(live).toContainText('nothing on air');
+  // The monitor keeps the graphic's document loaded off air: it is not showing, and the draft is not in it.
+  await page.waitForTimeout(1000);
+  const offAir = await air.locator('.imported-design').evaluateAll((els) => els.map((el) => Number(getComputedStyle(el).opacity)));
+  expect(offAir.length > 0 && offAir.every((o) => o < 0.1), `nothing visible off air (opacity ${offAir.join(', ')})`).toBe(true);
+  await expect(air.locator('#f1')).not.toHaveText('Wrzos FC');
+
+  // TAKE: the prepared value airs. Command acceptance, then renderer state.
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  await expect(air.locator('#f1')).toHaveText('Wrzos FC');
+  await expect(air.locator('#f2')).toHaveText('Mech');
+  // VISUAL FIDELITY: every drawn plate keeps the source's fill, in the source's order.
+  expect(await airPaint(page)).toEqual([JOURNEY_PAINT.backdrop, JOURNEY_PAINT.dial, JOURNEY_PAINT.left, JOURNEY_PAINT.right]);
+  await info.attach('row-38-on-air', { body: await page.getByTestId('program-stage').screenshot(), contentType: 'image/png' });
+
+  // UPDATE, ON AIR: a typed change is a draft until the explicit Update; air keeps the aired value.
+  await page.getByTestId('cue-field-f2').fill('Mech United');
+  await expect(unsent).toContainText('not on PROGRAM yet');
+  await expect(air.locator('#f2')).toHaveText('Mech');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f2')).toHaveText('Mech United');
+  await expect(unsent).not.toContainText('not on PROGRAM yet');
+  // A live stepper is its own explicit apply: it moves air on its press, without replaying the entrance.
+  await page.getByTestId('live-numbers').getByTestId('live-number-f3-up').click();
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue('1');
+  await expect(air.locator('#f3')).toHaveText('1');
+  await expect(log.filter({ hasText: 'Played in' })).toHaveCount(1);
+  // The corrected ambiguity works: Start counts up from the drawn 00:00.
+  await page.getByTestId('cue-action-clock_start').click();
+  await expect.poll(async () => ((await air.locator('#f0').textContent()) ?? '').trim(), { timeout: 5000 }).not.toBe('00:00');
+
+  // TAKE OUT.
+  await page.getByTestId('verb-out').click();
+  await expect(live).toContainText('nothing on air');
+
+  // REOPEN: the production's record holds what was prepared and aired.
+  await page.waitForTimeout(300);
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('Wrzos FC');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Mech United');
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue('1');
+  const before = await ografErrors(page, 'Wrzos v Mech');
+  expect(before, 'PACKAGE CONFORMANCE before the replacement').toEqual({ errors: [], files: expect.any(Number) });
+
+  // REPLACE THE ARTWORK: the designer recolours the dial and the same graphic is imported again
+  // under its name (row 27's matcher, reused, not re-proved). Nothing is unresolved, so Finish says
+  // only that it saves over the held name, and the production keeps its cue and values.
+  const recoloured = info.outputPath('score-clock-2-v2.svg');
+  writeFileSync(recoloured, readFileSync(JOURNEY, 'utf8').replace('#5a405b', '#1f6b3a'));
+  await page.goto('/app');
+  await dropSvg(page, recoloured);
+  await page.getByTestId('map-svg-clock-mode').selectOption('count-up');
+  await page.getByTestId('wz-skip-to-finish').click();
+  await expect(page.getByTestId('wz-stepcount')).toContainText('5');
+  await page.getByTestId('wz-finish-name').fill('Wrzos v Mech');
+  await expect(page.getByTestId('wz-finish-name-taken')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
+  const pick = page.getByTestId('wz-finish-production');
+  await pick.selectOption((await pick.locator('option', { hasText: show }).getAttribute('value'))!);
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue('Wrzos FC');
+  await expect(page.getByTestId('cue-field-f2')).toHaveValue('Mech United');
+
+  // The replaced artwork airs with the production's values, and only the dial changed.
+  await page.getByTestId('verb-take').click();
+  await expect(air.locator('#f1')).toHaveText('Wrzos FC');
+  await expect(air.locator('#f2')).toHaveText('Mech United');
+  expect(await airPaint(page)).toEqual([JOURNEY_PAINT.backdrop, 'rgb(31, 107, 58)', JOURNEY_PAINT.left, JOURNEY_PAINT.right]);
+  await page.getByTestId('verb-out').click();
+  await expect(live).toContainText('nothing on air');
+  const library = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics().map((g) => g.name));
+  expect(library, 'one graphic, replaced in place').toEqual(['Wrzos v Mech']);
+  expect(await ografErrors(page, 'Wrzos v Mech'), 'PACKAGE CONFORMANCE after the replacement').toEqual({ errors: [], files: expect.any(Number) });
+});
+
+// THE OPTIONAL CHALLENGE, A BOUNDED DIAGNOSTIC: three notice zones operated independently with the
+// existing primitives. What it measures is recorded as the `notice-zones` annotation; only what
+// the primitives really do is asserted, and the challenge is never reported as passed.
+test('row 38 diagnostic: three notice zones, each zone\'s words operated alone; per-zone on and off is not offered', async ({ page }, info) => {
+  await page.goto('/app');
+  await dropSvg(page, NOTICE_ZONES);
+  // The artwork settles nothing to ask: three plates, each a heading and a body.
+  await expect(summary(page)).toHaveText('it just comes on and off');
+  await finishInto(page, 'Notices');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const bodies = ['f1', 'f3', 'f5'];
+  await page.getByTestId('verb-take').click();
+  for (const f of bodies) await expect(air.locator(`#${f}`)).toHaveText('No current notice');
+
+  // WORKS: each zone's words change alone, through the ordinary staged Update.
+  const words: Record<string, string> = { f1: 'Line 4 diverted', f3: 'Fog after 18:00', f5: 'Gate B closed' };
+  const shown = new Map(bodies.map((f) => [f, 'No current notice']));
+  for (const f of bodies) {
+    await page.getByTestId(`cue-field-${f}`).fill(words[f]);
+    await page.getByTestId('verb-update').click();
+    shown.set(f, words[f]);
+    for (const g of bodies) await expect(air.locator(`#${g}`), `${f} changed, ${g} read`).toHaveText(shown.get(g)!);
+  }
+  // A zone cleared to nothing clears its words only; its plate is the artwork's and stays drawn.
+  await page.getByTestId('cue-field-f3').fill('');
+  await page.getByTestId('verb-update').click();
+  await expect(air.locator('#f3')).toHaveText('');
+  await expect(air.locator('#f1')).toHaveText(words.f1);
+
+  // NOT OFFERED: no control takes one zone on or off. The graphic's only verbs act on all three.
+  const zoneControls = await page.locator('[data-testid^="cue-action-"]').count();
+  const plates = await air.locator('.imported-design svg g rect').count();
+  await page.getByTestId('verb-out').click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  info.annotations.push({
+    type: 'notice-zones',
+    description:
+      `optional challenge NOT passed. Works with existing primitives: each zone's text changes alone (3 of 3) and clears alone. ` +
+      `Unsupported: a zone's own entrance, exit or visibility; ${zoneControls} per-zone controls offered, ${plates} plates drawn whenever the graphic is on air, and Take and Out move all three together. ` +
+      'No engine was added for it (spec, "Goal and boundaries").',
+  });
 });
