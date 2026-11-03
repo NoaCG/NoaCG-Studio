@@ -49,10 +49,11 @@
    "phase": "cf12",
    "kind": "dependency",
    "what": "post-landing cost measurement of PR #2037 (12 product changes opened after 2026-11-03T19:30Z and 7 days)",
-   "earliest": "2026-11-10T19:30:00Z",
+   "earliest": "when n>=12 product changes opened after enabling are measured (owner chose no 7-day minimum, 2026-11-03)",
    "latest": "2026-11-17T19:30:00Z",
    "mergeSha": "e15e8d68a634a23e91d5939130fa1df776178979",
-   "pr": 2037
+   "pr": 2037,
+   "rule": "run phase-cf12-measure.mjs --final once n>=12"
   }
  ],
  "inFlight": [],
@@ -155,6 +156,11 @@
   {
    "at": "2026-11-02T21:24Z",
    "what": "Email route dropped: trigger-started sessions had no GitHub access (403) and the emails held only a session link; owner prefers Claude Code. Daily wake trig_01AMdUqAkdtQgPQ5FmwLtL6U (06:37 Helsinki) into persistent session session_017SdbwQfGaKDTYKsFgzGxY6 with repo access; no email or push."
+  },
+  {
+   "at": "2026-11-03T19:55Z",
+   "by": "owner (coordinator session)",
+   "what": "cf12: judge the cost measurement once 12 product changes opened after enabling are measured, dropping the builder's 7-day minimum; plan order kept (option 1 of 2; option 2 was changing the ledger tool to allow parallel phases)"
   }
  ],
  "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
