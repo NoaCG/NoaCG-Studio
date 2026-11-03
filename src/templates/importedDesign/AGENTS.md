@@ -209,13 +209,15 @@ adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in t
   `choice` - `DesignSvg.extras`), each namespaced by its name (`ctx.ns` / `ctx.nsId`); the parts
   merge into one table, one runtime and one machine (`composeParts`).
 
-- **New credits imports scroll the original text subtree** (`creditsArtwork.ts`, additive
-  `options.artwork: true`). Bind it by class, keep its glyph runs/transforms/spacing, and move a
-  wrapper after fonts settle. The output frame clips it; text outside the SVG artboard is kept.
+- **Credits read as roles and names build styled** (`behaviour.credits`, `styledCredits`); **fixed
+  artwork scrolls the original text subtree** (`creditsArtwork.ts`, additive `options.artwork:
+  true`, by the author's choice or where the drawing reads as no roles and names), and a block
+  kept as artwork by choice names its other layers in `artworkLayers` so it moves as one. Bind it
+  by class, keep its glyph runs/transforms/spacing, and move a wrapper after fonts settle. The output frame clips it; text outside the SVG artboard is kept.
   Hide its inert data fields, protect every candidate in that text from writes/fit, and cancel
-  pending/active motion on Out. Bindings without the marker retain the legacy editable
+  pending/active motion on Out. Bindings with neither retain the legacy editable
   `creditsRoll.ts` engine: one pasted field, the shared `CREDITS_PARSER_JS`, title/name sample
-  styles and an optional Credits box. The recipe's entrance calls `noacgCreditsRoll` in both.
+  styles and an optional Credits box. The recipe's entrance calls `noacgCreditsRoll` in all three.
 
 E2E: import-svg-behaviour (vote: fixtures/svg-corpus/illustrator-live-vote-band.svg; score:
 illustrator-four-team-scoreboard.svg; countdown: illustrator-question-timer-board.svg) +

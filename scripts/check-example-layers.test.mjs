@@ -223,3 +223,29 @@ test('the cheat sheet is five lines and renders the same into every form', () =>
   assert.ok(html.includes('<code>Answer box A</code>') && html.includes('Save a Copy &gt; SVG'));
   assert.equal(renderCheat('no markers here', ctx.system.cheatSheet, 'md'), null);
 });
+
+test('the credits examples are the fixed-artwork case the docs say they are', async () => {
+  // jev-svg-import row 30 (AC-18). Credits drawn as one text object holding every line cannot be
+  // read as roles and names (creditsPreview refuses a layer that draws several lines), so they
+  // scroll as fixed artwork; credits stay editable only when each role and each name is a layer of
+  // its own. The docs say the downloadable examples are the first kind. This holds the files to
+  // that sentence: the taught Credits name is read by the importer's own words, and the text it
+  // names draws more than one baseline.
+  const { parseSvg, layerName } = await import('./check-example-layers.mjs');
+  const { matchesRole } = await import('./behaviour-docs.mjs');
+  const role = ctx.words.credits.roles.find((r) => r.id === 'credits');
+  const taught = ctx.system.simpleTypes.find((t) => t.type === 'credits').fields.filter((f) => matchesRole(role, f));
+  assert.deepEqual(taught, ['Credits'], 'the one credits field the system teaches is the one the importer reads');
+  const texts = (el) => (el.tag === 'text' ? [el] : el.children.flatMap(texts));
+  const baselines = (el) => new Set([el, ...el.children.flatMap(function all(c) { return [c, ...c.children.flatMap(all)]; })]
+    .map((n) => n.attrs.y).filter((y) => y !== undefined)).size;
+  for (const file of ['public/docs/examples/end-credits.svg', 'docs/tutorials/svg-examples/SVG/end-credits.svg']) {
+    const named = texts(parseSvg(readFileSync(path.join(ROOT, file), 'utf8'))).filter((t) => layerName(t) === 'Credits');
+    assert.equal(named.length, 1, `${file} has one Credits text`);
+    assert.ok(baselines(named[0]) > 1, `${file}: its Credits text draws several lines, so it scrolls as fixed artwork`);
+  }
+  const page = readFileSync(path.join(ROOT, 'docs.html'), 'utf8');
+  const section = page.slice(page.indexOf('<section id="end-credits"'), page.indexOf('<!-- ── TICKER'));
+  assert.match(section, /This example scrolls as fixed artwork/);
+  assert.match(readFileSync(path.join(ROOT, 'docs/SVG_AUTHORING.md'), 'utf8'), /Draw the whole list as one text object instead and it scrolls as fixed artwork/);
+});

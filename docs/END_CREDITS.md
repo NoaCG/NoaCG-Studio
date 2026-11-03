@@ -117,21 +117,30 @@ hands that decision to you as **Emphasis** in the wizard's Style step:
 In the generated code it is one class on `.credits-box`
 (`credits-box--emph-role` / `credits-box--emph-name`), so it can also be flipped by hand later.
 
-## Imported SVG credits: the original artwork
+## Imported SVG credits: editable in your styling, or fixed artwork
 
-Draw the whole list in one text object in Illustrator, Figma or Inkscape. Name it `Credits`,
-export as SVG with live text, and choose **Credits roll** at import. No Credits box or special
-punctuation is needed. Long text may extend below the artboard; keep the artboard at the
-output frame size and include the complete object in the export.
+Imported credits are the same one list. How they are drawn decides whether it stays editable.
+`docs/SVG_AUTHORING.md` section 9 is the designer's guide; in short:
 
-On Take, the original text starts below the output frame and moves upwards at a constant pace
-until its final line clears the top. Its fonts, glyph runs, alignment, transforms, line breaks
-and spacing stay as drawn. Take again starts a new roll; Out cancels it.
+- **Editable, in the design's styling** (the default where the drawing can be read). Each role
+  and each name is its own one-line text layer, in one role look and one name look, the role
+  above its names or beside its first name. Choose **Credits roll** at import and pick the first
+  role. The operator gets this page's list format in one field, so a paste from a spreadsheet,
+  a linked Google Sheet or a last-minute edit on the production page all work, and every row
+  copies the drawn role or name look. **Plays as** is a roll, one still page, or cards. A roll or
+  cards on air keep the list they took until the next Take.
+- **Fixed artwork.** The text stays part of the artwork: it scrolls as drawn and cannot be
+  edited on the production page. It is a deliberate choice (**Show as: Fixed artwork**), and
+  then every role and name layer of the block scrolls as one piece. It is also the fallback
+  where the drawing cannot be read as roles and names, such as one text object holding every
+  line, and the import step says why in one line. To change a name, edit the source and import
+  it again.
 
-**Scroll speed (%)** is the playout control. At 100 the text travels 90 output pixels per second
-in a 1080-high frame; 200 doubles that pace and 50 halves it. A live speed change keeps the roll
-in place. To change or add names, edit the Illustrator source and import the SVG again. New
-imports do not expose an editable Credits text field.
+A fixed-artwork roll starts below the output frame and moves upwards at a constant pace until
+its final line clears the top, with its fonts, glyph runs, alignment, transforms, line breaks
+and spacing as drawn. Take again starts a new roll; Out cancels it. At **Scroll speed (%)** 100
+the text travels 90 output pixels per second in a 1080-high frame; 200 doubles that pace and
+50 halves it. A live speed change keeps the roll in place.
 
 Previously saved editable SVG credits keep their pasted-list field, parser, styling and
 optional Credits box. The catalog credits described above also keep their editable lists.
@@ -144,9 +153,12 @@ optional Credits box. The catalog credits described above also keep their editab
   alike. It escapes every value **on the way out** through its `escape` argument (`escapeHtml` by
   default), so a design's own row builders are safe to rewrite without remembering the rule; a
   renderer that writes `textContent` passes the identity.
-- New imported artwork rolls use `src/templates/importedDesign/creditsArtwork.ts`, selected
-  by the additive `DesignSvg.behaviour.options.artwork` marker. They move the original text
-  subtree and do not emit the parser. Bindings without the marker retain the legacy engine.
+- Imported credits read as roles and names save a `DesignSvg.behaviour.credits` binding and
+  build in the drawn styling (`styledCredits` in `src/templates/importedDesign/creditsRoll.ts`),
+  with the parser. Fixed artwork uses `src/templates/importedDesign/creditsArtwork.ts`, selected
+  by the additive `DesignSvg.behaviour.options.artwork` marker, with `artworkLayers` naming the
+  other layers of a block kept as artwork by choice. It moves the original text and does not
+  emit the parser. Bindings with neither retain the legacy editable engine.
 - It produces `{ type: 'group', role, names[] }`, plus `heading` and `entry`. A design that
   defines `renderCreditGroup(group)` receives the group whole - the only way one role can lay out
   above or beside several names. A design without one is served the group flattened into the

@@ -941,8 +941,8 @@
   },
   "credits": {
     "name": "The credits roll",
-    "verbs": "the original artwork scrolls from below the frame until it leaves the top",
-    "buttons": "Scroll speed (%); Take starts the complete roll and Out clears it",
+    "verbs": "the credits play in the look you drew, as a roll, a still page or cards",
+    "buttons": "one list of roles and names to paste or edit, plus Scroll speed (%) on a roll, or Card time (s) and Next card on cards. Credits kept as fixed artwork get Scroll speed (%) alone",
     "roles": [
       {
         "id": "credits",
@@ -959,7 +959,7 @@
           "Lopputekstit",
           "Eftertexter"
         ],
-        "what": "the complete text artwork, with its fonts, alignment and spacing preserved; edit it in the design app and import its SVG again"
+        "what": "the layer the credits are read from: a role or a name, when each role and each name is its own text layer, or one text object holding every line, which scrolls as fixed artwork"
       },
       {
         "id": "box",
@@ -973,7 +973,7 @@
           "Credits window",
           "Lopputekstit laatikko"
         ],
-        "what": "a window used by older editable credits; new artwork rolls use the whole frame and need no box"
+        "what": "a window used only by credits saved before; new imports use the whole frame and need no box"
       }
     ]
   }

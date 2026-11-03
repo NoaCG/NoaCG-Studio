@@ -496,8 +496,8 @@
 <tr><td>Count</td><td><code>Count</code></td><td><code>Calls</code>, <code>So far</code></td><td>how many numbers have been called, written by the board</td></tr>
 <tr><td colspan="4" class="doc-words-rows">Five to ninety numbers, one Called layer each. Name the numeral on each tile Number 1, Number 2 and so on, and it stays your drawing instead of arriving as a field.</td></tr>
 <tr class="doc-words-type"><th colspan="4">Credits roll</th></tr>
-<tr><td>Credits</td><td><code>Credits</code></td><td><code>Credit list</code>, <code>End credits</code>, <code>Lopputekstit</code>, <code>Eftertexter</code></td><td>the complete text artwork, with its fonts, alignment and spacing preserved; edit it in the design app and import its SVG again</td></tr>
-<tr><td>Credits box</td><td><code>Credits box</code></td><td><code>Credits panel</code>, <code>Credits window</code>, <code>Lopputekstit laatikko</code></td><td>a window used by older editable credits; new artwork rolls use the whole frame and need no box</td></tr>
+<tr><td>Credits</td><td><code>Credits</code></td><td><code>Credit list</code>, <code>End credits</code>, <code>Lopputekstit</code>, <code>Eftertexter</code></td><td>the layer the credits are read from: a role or a name, when each role and each name is its own text layer, or one text object holding every line, which scrolls as fixed artwork</td></tr>
+<tr><td>Credits box</td><td><code>Credits box</code></td><td><code>Credits panel</code>, <code>Credits window</code>, <code>Lopputekstit laatikko</code></td><td>a window used only by credits saved before; new imports use the whole frame and need no box</td></tr>
 </table></div>
 <!-- behaviour-words:end -->
 
@@ -510,7 +510,7 @@
                 it a field the operator can swap. Pictures without it start unticked.</li>
               <li>Text drawn as a plain number, such as <code>84</code>, becomes a number field with
                 + and &minus; buttons.</li>
-              <li>Text drawn as a time, such as <code>05:00</code>, can become a
+              <li>Text drawn as a time, such as <code>05:00</code>, can become a clock or a
                 <a href="#countdowns">countdown</a>.</li>
               <li>Give every layer its own name. If two layers are both called <code>Bar</code>, the
                 second one becomes <code>Bar 2</code>.</li>
@@ -521,11 +521,11 @@
               the text, then wraps it onto a new line, then makes it smaller. Nothing is cut off.
             </p>
 
-            <h4 id="svg-layers-credits">Credits: scroll your artwork</h4>
+            <h4 id="svg-layers-credits">Credits: editable or fixed artwork</h4>
             <p>
-              Draw the complete list in one text object named <code>Credits</code>.
-              It scrolls upwards with its original layout. Edit names in Illustrator and import
-              the SVG again. See
+              Draw each role and each name as its own text layer, in one role look and one name
+              look, and the credits stay an editable list in your styling. Draw the whole list as
+              one text object and it scrolls as fixed artwork. No special names are needed. See
               <a href="#end-credits">End credits</a>.
             </p>
           </section>
@@ -849,8 +849,9 @@
                 </ul>
                 <p>
                   The wizard picks Countdown when the file has the time layer and at least one of
-                  the four named layers. With only the time layer, choose Countdown in
-                  <strong>What it does</strong> yourself.
+                  the four named layers. With only the time layer, the Fields step offers a
+                  <strong>Clock</strong> instead: it counts up, counts down from its time, or
+                  counts down to a set date and time. A clock can sit beside a score tracker.
                 </p>
               </div>
             </div>
@@ -884,8 +885,8 @@
           <!-- ── END CREDITS ── -->
           <section id="end-credits" class="doc-type">
             <h3 class="doc-kind">End credits</h3>
-            <p>Draw the complete credits in Illustrator, import the SVG and choose Credits roll.
-              Take scrolls the original layout from below the frame until its last line leaves the top.</p>
+            <p>Credits are one list of roles and names. Draw them so they stay easy to edit, or
+              keep them as fixed artwork. Import the SVG and choose Credits roll.</p>
             <figure class="doc-shot">
               <img src="/docs/type-end-credits.png" width="960" height="540" loading="lazy"
                 alt="The Illustrator credits artwork: a centred show title and production team. The complete text continues below the artboard." />
@@ -908,7 +909,8 @@
               <div>
                 <h4>Layer names</h4>
                 <ul>
-                  <li><code>Credits</code>: one long text object containing the complete layout.</li>
+                  <li><code>Credits</code>: one long text object containing the complete layout.
+                    This example scrolls as fixed artwork.</li>
                   <li>Keep its fonts, alignment, line breaks and spacing as you want them on air.</li>
                   <li>Keep the artboard at the output size. Text below it is included in the roll.</li>
                 </ul>
@@ -923,12 +925,29 @@
                 alt="The SVG import step with the Credits text assigned to the credits roll." />
               <figcaption>The text keeps its layout. Scroll speed is the playout control.</figcaption>
             </figure>
-            <h4 id="credits-colon">A scrolling roll</h4>
+            <h4 id="credits-editable">Editable credits in your styling</h4>
+            <ul>
+              <li>Draw a short sample with each role and each name as its own one-line text layer.</li>
+              <li>Give every role one look and every name another: font, size or colour.</li>
+              <li>Put each role above its names, or beside its first name with the later names
+                under it.</li>
+              <li>In the Fields step pick the first role. The Credits preview shows the roles and
+                names it read. <strong>Plays as</strong> is a roll, one still page, or cards.</li>
+            </ul>
             <p>
-              Scroll speed controls the pace. Each Take restarts the complete roll, and Out clears it.
-              The imported artwork stays as drawn; it does not become an editable playout text list.
+              The operator gets one list to paste or edit, kept in your styling. A paste from Google
+              Sheets or Excel works, and the list can be linked to a Google Sheet. A roll or cards
+              on air keep the list they took; the next Take shows the new one.
             </p>
-            <p>The built-in catalog credits designs have an editable list instead, written like this:</p>
+            <h4 id="credits-colon">Fixed artwork</h4>
+            <p>
+              The text stays part of the artwork: it scrolls exactly as drawn and cannot be edited
+              on the production page. That happens when you choose <strong>Show as: Fixed
+              artwork</strong>, or when the drawing cannot be read as roles and names, such as one
+              text object holding every line. The Fields step says which, in one line.
+              Scroll speed controls the pace. Each Take restarts the roll, and Out clears it.
+            </p>
+            <p>The editable list, in imported credits and in the catalog credits designs, is written like this:</p>
             <pre><code>Director: Alex Rivera
 
 Camera Operators:
