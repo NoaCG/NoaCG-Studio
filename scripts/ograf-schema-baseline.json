@@ -4,7 +4,16 @@
   "files": {
     "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json": {
       "sha256": "f9bba3e2c26d5ab0e8de29d342b535024d7a6d6c89583143f247a71708ddd1b8",
-      "bytes": 14553
+      "bytes": 14553,
+      "reviewed": [
+        {
+          "sha256": "69d2ec159df9227dac2715cf3b9e950cd42fd3221385f9797116e7bf085ce216",
+          "bytes": 14575,
+          "commit": "b23d7eeea0ce5599ce31e3b23e77b94719f1edbe",
+          "date": "2026-11-03",
+          "change": "the description of the schema property now names load() and updateAction(); no rule moved"
+        }
+      ]
     },
     "https://ograf.ebu.io/v1/specification/json-schemas/lib/action.json": {
       "sha256": "f83db0ad6aadfb5ca590ef89bf6f64f04f9e55ec5a1b0e8c7e96271e470942fa",

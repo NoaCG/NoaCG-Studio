@@ -99,7 +99,7 @@ back.
 | Claim | The proof | Checked |
 |---|---|---|
 | Our packages satisfy the published EBU manifest schema | `npm run check:ograf-schema` fetches all seven schema files from ograf.ebu.io and validates with a real JSON-Schema engine (ajv, draft 2020-12) | 2026-08-29, clean |
-| Our own validator matches the published schema and is not just rubber-stamping | the same command runs an eight-mutation battery through both validators and reports any disagreement | 2026-08-29, no disagreements |
+| Our own validator matches the published schema and is not just rubber-stamping | the same command runs a mutation battery through both validators and reports any disagreement | 2026-11-03, no disagreements |
 | Every graphic in the catalog exports a conformant manifest, in all three export intents | `e2e/ograf-conformance.spec.ts`, on every CI run | 2026-08-29, 8 tests pass |
 | The `/ograf` starters still build and validate | `e2e/ograf-starters.spec.ts` downloads a real starter and reads its manifest | 2026-08-29, 3 tests pass |
 | A stranger's OGraf package loads and runs in our host, and ours in theirs | `e2e/ograf-contract.spec.ts` | 2026-08-29, 4 tests pass |
