@@ -23,6 +23,9 @@ import type { AiThread } from '../../../model/aiThread';
 import type { GenerationSpec } from '../../../model/generationSpec';
 import type { ImportedTemplateResult } from '../../../model/importTemplate';
 import type { LibraryNameEntry, librarySaveEffect } from '../../../model/library';
+import { reimportTarget } from '../import';
+import { freeName } from '../../../model/poolIdentity';
+import type { ReimportItem } from '../../../templates/importedDesign/reimport';
 import type { Show } from '../../../model/shows';
 import type { SpxTemplate } from '../../../model/types';
 import type { TemplateVariant } from '../../../model/wizard';
@@ -77,6 +80,11 @@ export interface MadeGraphic {
    *  rather than to the Home page a plain wizard close would rewind to. Null when the door
    *  kept the wizard open (export), where there is nothing to walk back from. */
   landedOn: Route | null;
+  /** REIMPORT: this walk's last write to the record was a reimport reconcile. */
+  reconciled?: boolean;
+  /** The record's `updatedAt` right after this walk's last write, so a later press can tell
+   *  whether anything else has written to it since. */
+  at?: string;
 }
 
 /**
@@ -115,6 +123,10 @@ export interface WalkMemory {
   /** The walk's mint still in flight. A door pressed again waits for it, so it decides with the
    *  record that mint made, under whatever name Finish then carries (#1384). */
   minting?: Promise<void>;
+  /** The reader reviewed what a reimport cannot carry and ticked Replace anyway on Finish. */
+  replaceOver?: boolean;
+  /** The list that tick was given to (FinishStep `reimport.sig`): a different list clears it. */
+  replaceFor?: string;
 }
 
 export interface WalkState {
@@ -559,9 +571,17 @@ export function rememberWalk(memory: WalkMemory, state: WalkState): void {
 /** What the door actually produced, once it has: the warning names it, and a second pass down
  *  the same walk writes over it. */
 export function noteMade(memory: WalkMemory, made: MadeGraphic): void {
-  if (memory.finished) memory.finished.made = made;
-  memory.made = made;
+  // What the save learned about the record (a reconcile, its write time) stays with it when a
+  // door notes the same record afterwards.
+  const prev = memory.made;
+  const learned = prev && prev.graphicId === made.graphicId
+    ? { ...(prev.reconciled ? { reconciled: true } : {}), ...(prev.at ? { at: prev.at } : {}) }
+    : {};
+  const next = Object.keys(learned).length ? { ...learned, ...made } : made;
+  if (memory.finished) memory.finished.made = next;
+  memory.made = next;
 }
+
 
 /** The library as the save sees it: the name index, the effect rule, and the two writes. */
 export interface LibraryIo {
@@ -573,6 +593,13 @@ export interface LibraryIo {
   saveCurrent(name: string): Promise<'saved' | 'needs-name' | 'failed'>;
   /** Mint a new record under `name`. A failure with `graphicId` minted that record all the same. */
   saveAs(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }>;
+  /** REIMPORT (spec "Reimport", AC-15): the working build read against record `id` before a save
+   *  writes over it. `apply` puts the reconciled build (earlier ids, keys and labels kept) in the
+   *  working document; `unresolved` is the earlier work it could not carry. Null when this is not
+   *  an SVG import over an SVG import, and the save is the ordinary one. */
+  reconcile?(id: string): { unresolved: ReimportItem[]; apply(): void } | null;
+  /** Keep record `id` as its own library entry, so a reviewed replace leaves it recoverable. */
+  keepCopy?(id: string): boolean;
 }
 
 /**
@@ -589,7 +616,9 @@ export interface LibraryIo {
  *
  * It is NOT a silent overwrite: the production door confirms every press, and the Finish step's
  * warning says which of the four things this one does before it happens — both read
- * `librarySaveEffect`, so the sentence and the write cannot disagree.
+ * `librarySaveEffect`, so the sentence and the write cannot disagree. A REIMPORT is read twice, on
+ * Finish's build and here on the saved one; should the two ever differ, this save errs to the safe
+ * side (a separate graphic, never a write over unresolved work).
  *
  * A RENAME mid-walk moves the record THIS WALK MADE onto the new name. It never resolves the new
  * name against the library, because that reaches across to whatever graphic already carries it
@@ -601,6 +630,8 @@ export async function saveBuiltGraphic(
   memory: WalkMemory,
   name: string,
   lib: LibraryIo,
+  /** The reader reviewed what a reimport cannot carry and chose to write over all the same. */
+  opts: { replace?: boolean } = {},
 ): Promise<{ ok: boolean; error: string | null }> {
   // Pressed again while its mint was pending, under a new name, the door found neither the
   // record (not noted yet) nor the name, and minted a second (#1384). Only a MINT is waited for:
@@ -610,9 +641,12 @@ export async function saveBuiltGraphic(
   const over = effect.targetId;
   // Whatever a mint made is this walk's record from then on, its link write landed or not, so
   // the next pass writes over it, under whatever name Finish then carries (#1367, #1384).
-  const mint = () => {
-    const run = lib.saveAs(name).then((minted) => {
-      if (minted.graphicId) noteMade(memory, { name, graphicId: minted.graphicId, production: null, landedOn: null });
+  const mint = (as = name) => {
+    const run = lib.saveAs(as).then((minted) => {
+      if (minted.graphicId) {
+        const at = lib.index().find((g) => g.id === minted.graphicId)?.updatedAt;
+        noteMade(memory, { name: as, graphicId: minted.graphicId, production: null, landedOn: null, ...(at ? { at } : {}) });
+      }
       return minted;
     });
     const done = () => { if (memory.minting === minting) memory.minting = undefined; };
@@ -621,9 +655,26 @@ export async function saveBuiltGraphic(
     return run;
   };
   if (!over) return mint();
+  // REIMPORT (`reimportTarget`). Work the reconcile cannot carry is never written over: by
+  // default the new artwork becomes a separate graphic beside it, and a reader who reviewed the
+  // list and replaces anyway keeps the earlier one as its own entry first.
+  const reimport = reimportTarget(effect, memory.made, lib.index()) ? lib.reconcile?.(over) ?? null : null;
+  if (reimport?.unresolved.length && !opts.replace) return mint(freeName(lib.index().map((g) => g.name), name));
+  if (reimport?.unresolved.length && !lib.keepCopy?.(over)) {
+    return { ok: false, error: `The earlier “${name}” could not be kept, so nothing was saved over it.` };
+  }
+  // A tick is spent by the save it was given for; a later press needs its own review.
+  if (reimport?.unresolved.length) memory.replaceOver = false;
+  reimport?.apply();
   lib.linkTo(over);
   const result = await lib.saveCurrent(name);
-  if (result === 'saved') return { ok: true, error: null };
+  if (result === 'saved') {
+    const at = lib.index().find((g) => g.id === over)?.updatedAt;
+    const { reconciled: _was, at: _then, ...made } = memory.made?.graphicId === over ? memory.made : { name, graphicId: over, production: null, landedOn: null };
+    memory.made = null;
+    noteMade(memory, { ...made, ...(reimport ? { reconciled: true } : {}), ...(at ? { at } : {}) });
+    return { ok: true, error: null };
+  }
   // 'needs-name' means the record went between the check above and the write (deleted on
   // another device or tab). Minting is then the right answer, not an error - the work is what
   // matters, and there is no longer anything to write over.
