@@ -352,7 +352,9 @@ test('an imported duration on two real outputs: the Take and a running correctio
   // ── A CORRECTION typed while it runs: both outputs count from the typed time. ──
   await page.getByTestId('cue-field-f2').fill('10:00');
   await page.getByTestId('verb-update').click();
-  await Promise.all([a, b].map((o) => expect.poll(async () => secondsOf((await clockIn(o)).text), { timeout: 20_000 }).toBeLessThanOrEqual(600)));
+  // 10:00 down to 9:20 is the correction; the uncorrected count could not be under 10:00 this soon.
+  const corrected = async (o: FrameLocator) => { const s = secondsOf((await clockIn(o)).text); return s >= 560 && s <= 600; };
+  await Promise.all([a, b].map((o) => expect.poll(() => corrected(o), { timeout: 20_000 }).toBe(true)));
   await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBe(takeA)));
   const [fixA, fixB] = (await origins()) as number[];
   const correctionSpread = Math.abs(fixA - fixB);
