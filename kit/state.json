@@ -47,11 +47,11 @@
  "waitingOn": null,
  "inFlight": [
   {
-   "phase": "cf05",
-   "step": "check",
-   "session": "session_017SdbwPT2rVVf697f4Ho8WN",
-   "nonce": "cf05-c-7e3d",
-   "launchedAt": "2026-11-03T07:44:29Z"
+   "phase": "cf04",
+   "step": "build",
+   "session": "session_017SdbwQNSntdLhES7vQhz7R",
+   "nonce": "cf04-b-756a",
+   "launchedAt": "2026-11-03T08:08:51Z"
   }
  ],
  "owner": [],
@@ -109,6 +109,11 @@
    "phase": "cf08",
    "verdict": "PASS",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1998#issuecomment-6595432288"
+  },
+  {
+   "phase": "cf05",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2003#issuecomment-6598557578"
   }
  ],
  "decisions": [
