@@ -112,8 +112,8 @@ with its mode). This is the corrected model from the repeated-family reassessmen
 - **C5** The holdout's gate runs before the secret is decoded, so every refusal leaves it unopened:
   no regression slice on the holdout budget, at most two reporting challengers beside the primary
   and baselines, a freeze recorded in the ledger by `reconcile` + `freeze` (which itself refuses a
-  configuration over the challenger limit), and this configuration and harness exactly the frozen
-  ones. The holdout
+  configuration over the challenger limit, and a harness the ledger has not accepted), and this
+  configuration and harness exactly the frozen and accepted ones. The holdout
   is consumed once any run started decoding it: from then on holdout mode and any freeze are
   refused. The challenger limit knows baselines by kind and model.
 - **C6** One unknown-bill rule for every arm: a sent attempt that may have been billed (a 2xx, a 408,
@@ -255,6 +255,11 @@ whose files are `prompts.json` only. Fixed here (#2009): the gate before decodin
 regression input and more than two challengers, and the freeze refuses a configuration over the
 limit. The committed development configuration declares four challengers, so row 33 trims it to
 two before its freeze.
+
+From the PR bot review of `c48fbdf` (one finding, fixed): a freeze of a harness the ledger had
+not accepted would pass the gate and then be refused by the first paid batch, after decoding. The
+freeze now requires the accepted harness (or accepts it in the same reconcile), and the gate
+checks it too.
 
 - Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
   harmed design stops its family from qualifying. The notes and docstring said "or design" and

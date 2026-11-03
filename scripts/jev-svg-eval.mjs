@@ -322,6 +322,10 @@ export function ledgerSpent(ledger, credits) {
   return Math.max(drop, used, settled, 0);
 }
 
+/** The harness manifest the ledger currently accepts: the newest one a reconciliation accepted,
+ *  else the baseline's. A batch runs only under it. */
+export const acceptedManifest = (ledger) => [...ledger.reconciliations].reverse().find((r) => r.manifest)?.manifest ?? ledger.baseline.manifest;
+
 /** The freeze row 33 recorded, if any: the newest reconciliation that carries one. */
 export const frozenRecord = (ledger) => [...ledger.reconciliations].reverse().find((r) => r.frozen)?.frozen ?? null;
 
@@ -354,8 +358,7 @@ export function admitBatch(ledger, credits, plan, { manifest } = {}) {
   if (credits.totalUsed < last.totalUsed - EPS) return refuse('usage-decrease');
   const sum = ledger.baseline.balance + ledger.baseline.totalUsed + ledger.acknowledgedTopUpUsd;
   if (credits.balance + credits.totalUsed > sum + 1e-6) return refuse('top-up');
-  const accepted = [...ledger.reconciliations].reverse().find((r) => r.manifest)?.manifest ?? ledger.baseline.manifest;
-  if (manifest && accepted?.sha256 !== manifest.sha256) return refuse('harness-changed');
+  if (manifest && acceptedManifest(ledger)?.sha256 !== manifest.sha256) return refuse('harness-changed');
   if (!['development', 'holdout'].includes(plan.partition)) return refuse('partition');
   if (!Array.isArray(plan.requests) || plan.requests.length === 0) return refuse('empty-batch');
   for (const r of plan.requests) {
@@ -553,6 +556,8 @@ export function holdoutGate(ledger, { configSha256, manifestSha256, config = nul
   if (!frozen) return 'no-freeze';
   if (frozen.configSha256 !== configSha256) return 'config-not-frozen';
   if (frozen.manifestSha256 !== manifestSha256) return 'harness-not-frozen';
+  // The first paid batch would refuse a harness the ledger has not accepted, after decoding.
+  if (acceptedManifest(ledger)?.sha256 !== manifestSha256) return 'harness-not-accepted';
   return null;
 }
 
@@ -1405,6 +1410,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const v = validateConfiguration(readFileSync(args.config));
       if (!v.ok) throw new Error(`configuration refused: ${v.reason}`);
       if (holdoutConfigRefusal(v.config)) throw new Error('this configuration has more reporting challengers than the holdout admits; it cannot be frozen');
+      if (!args['accept-manifest'] && acceptedManifest(ledger)?.sha256 !== current.sha256) {
+        throw new Error('the harness on main is not the one the ledger accepts; freeze with accept_manifest after a reviewed change');
+      }
       frozen = { configSha256: v.sha256, configCommit: args['config-sha'], manifestSha256: current.sha256 };
     }
     const next = reconcileLedger(ledger, settled.credits, {

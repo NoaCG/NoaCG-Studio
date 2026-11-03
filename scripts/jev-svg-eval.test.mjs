@@ -37,6 +37,7 @@ import {
   partitionSpent,
   holdoutGate,
   holdoutConfigRefusal,
+  acceptedManifest,
   isBaseline,
   VISION_BASELINE_MODEL,
   ledgerSpent,
@@ -769,6 +770,13 @@ test('C5: the holdout gate runs before the secret is decoded and needs the recor
   assert.equal(holdoutConfigRefusal(three), 'too-many-challengers');
   assert.equal(holdoutConfigRefusal(holdoutConfig), null);
   assert.equal(holdoutGate(frozen, { configSha256: hashes.configSha256, manifestSha256: hashes.manifestSha256 }), 'no-config');
+  // A freeze of a harness the ledger has not accepted would pass every other check and then be
+  // refused by the first paid batch, after decoding: the gate refuses it first.
+  const unaccepted = reconcileLedger(base, START, { reason: 'freeze without accepting the new harness', runId: '3', frozen: { ...hashes, manifestSha256: 'n'.repeat(64) } });
+  assert.equal(holdoutGate(unaccepted, { ...hashes, manifestSha256: 'n'.repeat(64) }), 'harness-not-accepted');
+  const accepted = reconcileLedger(base, START, { reason: 'reviewed fix accepted and frozen', runId: '3', manifest: { sha256: 'n'.repeat(64) }, frozen: { ...hashes, manifestSha256: 'n'.repeat(64) } });
+  assert.equal(holdoutGate(accepted, { ...hashes, manifestSha256: 'n'.repeat(64) }), null);
+  assert.equal(acceptedManifest(accepted).sha256, 'n'.repeat(64));
 });
 
 test('C5: the workflow refuses holdout misconfigurations in the step before decoding', () => {
