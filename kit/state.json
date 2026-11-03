@@ -36,7 +36,16 @@
       "nonce": "35-b-f92d",
       "branch": "claude/plan-jev-svg-import-35-build",
       "source": "3215c7ac731f463c8e6d056612ec8f29b5db8d0e",
-      "startedAt": "2026-11-03T14:21:21Z"
+      "startedAt": "2026-11-03T14:21:21Z",
+      "pr": 2030,
+      "head": "0b1d9581de349e21aa84c4b5f12dc399c1c996f7",
+      "ciRun": 41657043081,
+      "stampRun": 41659886280,
+      "so": "session_017SdbwPVoHy1qXmUALLTmY8 A",
+      "soSessions": [
+        "session_017SdbwPVoHy1qXmUALLTmY8"
+      ],
+      "safetyNet": "trig_01GgpzZHuGkJduB2ie12VVRe"
     }
   ],
   "owner": [],
