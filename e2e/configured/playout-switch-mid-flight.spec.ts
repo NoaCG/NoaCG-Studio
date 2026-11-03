@@ -34,7 +34,7 @@ const ANSWER_MS = 900;
 
 test('a Take answered after a switch to another production stands there and leaves the new one alone', async ({ page }) => {
   test.setTimeout(240_000);
-  const logReady = watchLogReads(page);
+  const logReady = await watchLogReads(page);
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
