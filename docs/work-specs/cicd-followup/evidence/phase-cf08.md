@@ -14,11 +14,16 @@ from `0b73b488`. Acceptance is in [spec.md](../spec.md), cf08 (a) to (d).
 ## (a) Owner, target date and the JEV run
 
 The JEV coordinator (jev-svg-import, #1850) was asked at the start of cf08, by `send_message`,
-whether it accepts #1954 and #1926 with a named owner and a target date. JEV_ANSWER
+whether it accepts #1954 and #1926 with a named owner and a target date. It answered at 02:41 UTC
+(and again at 02:56): no for both, because no JEV row's allowlist covers those files and the run
+may not widen its scope; cf08 should go ahead. It also confirmed no JEV branch touches
+`WizardPreview.tsx`, `e2e/import-svg.spec.ts` or the catalog bench (its only open PR, #1996, does
+not).
 
 Each issue carries a comment with: operational owner `miwco`, with the weekly owner session as
-backup (#1951); implementation with the JEV run (#1850); target date 2026-11-14 (#1954's repair
-date, used for both); and this PR as the coordinated fix.
+backup (#1951); the JEV run's answer (#1850); target date 2026-11-14 (#1954's repair date, used
+for both); and this PR as the coordinated fix: [#1954](https://github.com/NoaCG/NoaCG-Studio/issues/1954#issuecomment-6594479098),
+[#1926](https://github.com/NoaCG/NoaCG-Studio/issues/1926#issuecomment-6594480206).
 
 **Departure from the wording.** The acceptance says that without JEV acceptance "a coordinated
 fix is split out as an issue". cf08 found both root causes and fixes both in this PR, so the
