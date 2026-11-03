@@ -78,6 +78,17 @@
           "receipts": 41620813617,
           "pricedMax": 0.008,
           "at": "2026-11-03T10:42Z",
+          "paid": true,
+          "settled": 0.002566236
+        },
+        {
+          "run": 41621970771,
+          "mode": "development",
+          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+          "receipts": 41621404623,
+          "regression": true,
+          "pricedMax": 0.2271,
+          "at": "2026-11-03T10:46Z",
           "paid": true
         }
       ],
@@ -87,7 +98,7 @@
         "lifetime": 48.063863346,
         "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
       },
-      "spent": 0.004788744
+      "spent": 0.00735498
     }
   ],
   "owner": [],
