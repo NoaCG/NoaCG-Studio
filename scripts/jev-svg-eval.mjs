@@ -803,9 +803,7 @@ function recordingFetch(fetchImpl) {
     const response = await fetchImpl(...args);
     sent[at] = response.status;
     if (!response.ok) {
-      const text = response.clone().text();
-      text.catch(() => {});
-      pending.push(refusalOf(response.status, text).then((r) => ({ attempt: at + 1, ...r })));
+      pending.push(refusalOf(response.status, response.clone().text()).then((r) => ({ attempt: at + 1, ...r })));
     }
     return response;
   };
@@ -826,12 +824,14 @@ const unknownCharges = (sent, billRead) => sent.slice(0, billRead ? -1 : undefin
  */
 export async function callArm(arm, design, config, plan, deps) {
   const recorder = recordingFetch(deps.fetchImpl);
+  const row = await sendRequest(arm, design, config, plan, deps, recorder);
   // Every non-2xx attempt's status and gateway error code ride on the row, served or not.
-  const withRefusals = async (row) => {
-    const refusals = await recorder.refusals();
-    return refusals.length ? { ...row, refusals } : row;
-  };
-  const fallback = (reason, extra = {}) => withRefusals({ proposal: design.deterministic, fellBack: reason, attempts: 0, reportedUsd: 0, unknown: 0, ...extra });
+  const refusals = await recorder.refusals();
+  return refusals.length ? { ...row, refusals } : row;
+}
+
+async function sendRequest(arm, design, config, plan, deps, recorder) {
+  const fallback = (reason, extra = {}) => ({ proposal: design.deterministic, fellBack: reason, attempts: 0, reportedUsd: 0, unknown: 0, ...extra });
   if (plan.refused) return fallback(plan.refused);
   const started = deps.now();
   if (arm.kind === 'decision') {
@@ -848,7 +848,7 @@ export async function callArm(arm, design, config, plan, deps) {
     const unknown = unknownCharges(recorder.sent, billRead) > 0 ? 1 : 0;
     if (!outcome.ok) return fallback(outcome.reason, { attempts: outcome.attempts, reportedUsd: outcome.costUsd, unknown, ms });
     const proposal = deps.readSvgAnswers(design.set, outcome.answers, config.threshold, design.deterministic.fieldsOn);
-    return withRefusals({ proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, knownUsd: billRead && outcome.attempts === 1 ? outcome.costUsd : 0, unknown, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } });
+    return { proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, knownUsd: billRead && outcome.attempts === 1 ? outcome.costUsd : 0, unknown, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } };
   }
   const keys = Object.keys(design.set.questions);
   const worstAttempt = plan.maxUsd / CAP.attemptsPerRequest;
@@ -878,10 +878,10 @@ export async function callArm(arm, design, config, plan, deps) {
         if (typeof p !== 'number' || !(p >= 0 && p <= 1)) return fallback('answers_invalid', { attempts, reportedUsd, unknown, ms });
         answers[k] = { type: 'boolean', probability: p };
       }
-      return withRefusals({ proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } });
+      return { proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
     }
     const mapped = mapRegionsToLayers(result.output, design.evidence);
-    return withRefusals({ proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } });
+    return { proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
   } catch (error) {
     // Every sent attempt that may have been billed has an unknown bill: charged at its worst
     // case, and flagged. A refusal before inference is charged nothing.
