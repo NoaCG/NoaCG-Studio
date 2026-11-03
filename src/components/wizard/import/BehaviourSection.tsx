@@ -1,7 +1,8 @@
-import { useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
   SvgBehaviourDraft,
+  SvgClockDraft,
   SvgExtraDraft,
   SvgPollDraft,
   SvgQuizDraft,
@@ -20,10 +21,18 @@ import {
   emptyTimerDraft,
   extraLayerName,
   scoreDrawnPool,
+  svgClockOption,
+  svgClockRows,
+  svgClockTarget,
+  svgCountdownDrawn,
 } from './draft';
 import { SCORE_MAX_ROWS } from '../../../templates/behaviours/score';
 import { BEHAVIOUR_WORDS, rolesOf, type RecipeRole } from '../../../templates/behaviours/recipe';
 import { BEHAVIOUR_RECIPES, recipeById } from '../../../templates/behaviours/registry';
+import { CLOCK_PICKER_MODES } from '../../../templates/behaviours/clock';
+import { quizHasNoLock } from '../../../templates/behaviours/quiz';
+import { formatClockTarget, localTimeZone, parseClockTarget, proposeClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
+import { svgSourceRevision } from '../../../ai/svgInterpretation/contract';
 import {
   clearFill,
   fillGap,
@@ -38,6 +47,9 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
+import { CREDITS_CARD_SECONDS } from '../../../templates/behaviours/credits';
+import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
+import type { DesignSvgCredits } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import SectionHead from '../SectionHead';
 
@@ -99,6 +111,187 @@ function behaviourNoun(b: SvgBehaviourDraft): string {
   const words = BEHAVIOUR_WORDS[recipeIdOf(b)];
   return words ? `a ${words.name.toLowerCase().replace(/^the /, '')}` : recipeIdOf(b);
 }
+/**
+ * THE CREDITS LIST AS IT WILL READ (jev-svg-import AC-23): headings, each role with its zero, one
+ * or several names, and loose names, in the list's order, read from the one list the Credits
+ * layer declares by the parser every credits roll ships (`creditsPreview`). The same text is what
+ * a linked Sheet writes into that field, so the preview and the source cannot disagree. Where
+ * roles and names are drawn as separate layers it also shows the drawing's layout.
+ *
+ * WHAT IS SAVED. Where the drawing reads as a layout the styled engine renders (role above or
+ * role beside, as a roll or held still on one page, the author's "Plays as"), the graphic is
+ * built in those layers' own styling by default: the
+ * reading is handed to the draft as the binding, its anchors exactly as previewed. Anything else
+ * saves the original-text roll, and the preview says in one line why. Credits that can be styled
+ * may deliberately be kept as fixed artwork instead: the whole drawn block then scrolls as drawn
+ * (`artworkLayers`, #1958), and one line says its text cannot be edited.
+ *
+ * ONE COLUMN CHOICE. Only role beside can be read both ways (`CreditsChoice`); where it can, the
+ * author answers which column holds the roles. The answer changes the preview and the saved
+ * anchor kinds, which is what the live graphic copies; the draft keeps the answer itself.
+ */
+function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFor, swap, fixed, still, cards, advance, onPatch }: {
+  stage: RefObject<HTMLDivElement | null>;
+  layers: SvgImportResult['candidates'];
+  creditsId: string;
+  /** Changes whenever the step's render was measured again (a font landed, a new file). */
+  measured: unknown;
+  /** What the draft holds now - the styled binding, the pick it was read for, the column answer -
+   *  and how to change it. */
+  saved: DesignSvgCredits | undefined;
+  savedFor: string | undefined;
+  swap: boolean;
+  /** The author chose fixed artwork for credits that could be styled. */
+  fixed: boolean;
+  /** The author chose a still page rather than the roll. */
+  still: boolean;
+  /** The author chose cards, and the seconds each holds where stated. */
+  cards: boolean;
+  advance: number | undefined;
+  onPatch: (patch: Pick<SvgRecipeDraft, 'credits' | 'creditsFor' | 'creditsSwap' | 'creditsArtwork' | 'creditsStill' | 'creditsCards' | 'creditsAdvance'>) => void;
+}) {
+  // The parent passes a fresh list every render; the ids are what the reading depends on.
+  const idKey = layers.map((c) => c.id).join('\n');
+  const readings = useMemo(() => {
+    const root = stage.current?.querySelector('svg');
+    if (!root) return null;
+    const ids = idKey.split('\n');
+    const read = creditsPreview(root, ids, creditsId);
+    return { read, swapped: read.ambiguous ? creditsPreview(root, ids, creditsId, { swap: true }) : null };
+    // `measured` stands for the stage's render, which a ref cannot announce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, idKey, creditsId, measured]);
+  // The question is asked only where an answer gives styled credits and the two answers read
+  // differently; a pick neither reading can style (a title) is the fallback either way.
+  const key = (p: CreditsPreview) => (p.styled ? JSON.stringify(p.anchors) : '');
+  const asks = !!readings?.swapped && (readings.read.styled || readings.swapped.styled) && key(readings.read) !== key(readings.swapped);
+  const shown = readings ? (swap && asks && readings.swapped ? readings.swapped : readings.read) : null;
+  const reading = shown?.styled && CREDITS_RENDERED[shown.layout].includes('roll') ? shown : null;
+  const stills = !!reading && CREDITS_RENDERED[reading.layout].includes('static');
+  const decks = !!reading && CREDITS_RENDERED[reading.layout].includes('cards');
+  const playback = cards && decks ? 'cards' : still && stills ? 'static' : 'roll';
+  const timed = playback === 'cards' && advance !== undefined;
+  const styled: DesignSvgCredits | undefined = reading
+    ? { v: 1, layout: reading.layout, playback, ...(timed ? { advance } : {}), anchors: reading.anchors }
+    : undefined;
+  // A binding belongs to the pick it was read for, so the same anchors for another pick are new.
+  const wantKey = styled ? `${creditsId} ${JSON.stringify(styled)}` : '';
+  const savedKey = saved ? `${savedFor} ${JSON.stringify(saved)}` : '';
+  useEffect(() => {
+    // A pick that cannot be styled has no choice to make, so an earlier Fixed artwork or Hold
+    // still answer goes with it rather than coming back unseen on the next stylable pick.
+    if (shown && wantKey !== savedKey) onPatch({ credits: styled, creditsFor: styled ? creditsId : undefined, ...(styled ? {} : { creditsArtwork: undefined, creditsStill: undefined, creditsCards: undefined, creditsAdvance: undefined }) });
+    // The keys stand for the two bindings; the callback is the parent's patch of this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, wantKey, savedKey]);
+  if (!shown) return null;
+  const beside = shown.styled && shown.layout === 'role-beside';
+  // The drawing's direction, not the shown reading's, so the labels stay put whichever works.
+  const rtl = readings?.read.rtl ?? false;
+  // Only credits that can be styled offer the choice; the one that cannot is fixed artwork anyway.
+  const artwork = !!reading && fixed;
+  return (
+    <>
+      {reading && (
+        <label className="save-field">
+          <span>Show as</span>
+          <select
+            value={artwork ? 'artwork' : 'editable'}
+            onChange={(e) => onPatch({ creditsArtwork: e.target.value === 'artwork' ? true : undefined })}
+            data-testid="map-svg-credits-engine"
+          >
+            <option value="editable">Editable, in this design&apos;s styling</option>
+            <option value="artwork">Fixed artwork</option>
+          </select>
+        </label>
+      )}
+      {stills && !artwork && (
+        <label className="save-field">
+          <span>Plays as</span>
+          <select
+            value={playback}
+            onChange={(e) => onPatch({ creditsStill: e.target.value === 'static' ? true : undefined, creditsCards: e.target.value === 'cards' ? true : undefined })}
+            data-testid="map-svg-credits-playback"
+          >
+            <option value="roll">Roll</option>
+            <option value="static">Hold still</option>
+            {decks && <option value="cards">Cards</option>}
+          </select>
+          {playback === 'static' && <span className="hint" data-testid="map-svg-credits-still">A list too long for the page is not shown, and its field says so.</span>}
+          {playback === 'cards' && <span className="hint" data-testid="map-svg-credits-cards">A blank line starts a new card. A card too long for the page is not shown, and its field says so.</span>}
+        </label>
+      )}
+      {playback === 'cards' && !artwork && (
+        <label className="save-field">
+          <span>Seconds per card</span>
+          <input
+            type="number"
+            min={CREDITS_CARD_SECONDS.min}
+            max={CREDITS_CARD_SECONDS.max}
+            placeholder="Next card"
+            defaultValue={advance ?? ''}
+            // Kept as typed until it leaves the field, so 15 can be typed through 1; a time out of
+            // bounds is brought into them there, and blank is Next card.
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (e.target.value === '' || (n >= CREDITS_CARD_SECONDS.min && n <= CREDITS_CARD_SECONDS.max)) onPatch({ creditsAdvance: e.target.value === '' ? undefined : n });
+            }}
+            onBlur={(e) => {
+              const n = e.target.value === '' ? NaN : Number(e.target.value);
+              const held = Number.isFinite(n) ? Math.min(CREDITS_CARD_SECONDS.max, Math.max(CREDITS_CARD_SECONDS.min, n)) : undefined;
+              e.target.value = held === undefined ? '' : String(held);
+              onPatch({ creditsAdvance: held });
+            }}
+            data-testid="map-svg-credits-advance"
+          />
+          <span className="hint" data-testid="map-svg-credits-advance-hint">Blank waits for Next card; playout systems without custom actions need a card time.</span>
+        </label>
+      )}
+      {asks && !artwork && (
+        <label className="save-field">
+          <span>Which column contains the roles?</span>
+          <select value={swap ? 'other' : 'first'} onChange={(e) => onPatch({ creditsSwap: e.target.value === 'other' ? true : undefined })} data-testid="map-svg-credits-roles">
+            <option value="first">{rtl ? 'Right' : 'Left'}</option>
+            <option value="other">{rtl ? 'Left' : 'Right'}</option>
+          </select>
+        </label>
+      )}
+      <div className="save-field" data-testid="map-svg-credits-preview" data-layout={shown.styled ? shown.layout : 'list'}>
+        <span>Credits preview</span>
+        <div dir={rtl ? 'rtl' : undefined} data-testid="map-svg-credits-list">
+          {shown.list.map((section, at) => (
+            <div key={at} style={{ display: 'grid', gridTemplateColumns: beside ? 'auto 1fr' : '1fr', columnGap: '1em', marginBottom: '0.5em' }}>
+              {section.map((item, i) => <CreditsPreviewItem key={i} item={item} beside={beside} first={i === 0} />)}
+            </div>
+          ))}
+        </div>
+        {!shown.styled && <p className="hint" data-testid="map-svg-credits-fallback">Fixed artwork: {shown.reason}</p>}
+        {artwork && <p className="hint" data-testid="map-svg-credits-fixed">The text stays part of the artwork and cannot be edited on the production page.</p>}
+      </div>
+    </>
+  );
+}
+
+/** One heading, role group or loose name. Beside, a role and its first name share a line and
+ *  later names stay in the name column; above, the names follow under their role. */
+function CreditsPreviewItem({ item, beside, first }: { item: CreditsListItem; beside: boolean; first: boolean }) {
+  const whole = { gridColumn: '1 / -1' };
+  if (item.type === 'heading') return <strong style={whole} data-credit="heading">{item.text}</strong>;
+  if (item.type === 'entry') return <span style={beside ? { gridColumn: 2 } : undefined} data-credit="name">{item.text}</span>;
+  return (
+    <>
+      <span className="hint" style={beside ? { gridColumn: 1, gridRow: `span ${Math.max(1, item.names.length)}` } : first ? undefined : { marginTop: '0.4em' }} data-credit="role">
+        {item.role}
+      </span>
+      {item.names.map((name, i) => (
+        <span key={i} style={beside ? { gridColumn: 2 } : undefined} data-credit="name">
+          {name}
+        </span>
+      ))}
+    </>
+  );
+}
+
 function behaviourSummaryLine(b: SvgBehaviourDraft): string {
   const words = BEHAVIOUR_WORDS[recipeIdOf(b)];
   return words ? `${behaviourNoun(b)}: ${words.verbs}` : recipeIdOf(b);
@@ -111,13 +304,19 @@ function RecipeOptions({
   recipeId,
   values,
   onChange,
+  hide = [],
+  children,
 }: {
   recipeId: string;
   values: Record<string, boolean>;
   onChange: (values: Record<string, boolean>) => void;
+  /** Options the chosen variant does not have (a no-Lock quiz has no lock and no timer). */
+  hide?: string[];
+  /** A recipe's own extra choice, in the same row. */
+  children?: ReactNode;
 }) {
-  const options = recipeById(recipeId)?.options ?? [];
-  if (options.length === 0) return null;
+  const options = (recipeById(recipeId)?.options ?? []).filter((o) => !hide.includes(o.key));
+  if (options.length === 0 && !children) return null;
   return (
     <div className="map-svg-row" data-testid="map-svg-options">
       {options.map((o) => (
@@ -131,7 +330,40 @@ function RecipeOptions({
           <span>{o.label}</span>
         </label>
       ))}
+      {children}
     </div>
+  );
+}
+
+/**
+ * THE TRUE NO-LOCK QUIZ (behaviours/quiz.ts `quizHasNoLock`). Unticking "Require lock" keeps the
+ * lock as an optional beat; this removes it. Ticking it hides the lock and timer options and the
+ * Locked in picker, and clears the timer, whose arrow starts at the lock. The Locked in layer stays
+ * bound: it is the drawing of a moment this board never reaches, so no rule shows it and it stays
+ * hidden on air, even when the designer left it visible. Its text rows are NOT touched: switching
+ * one off would renumber every later field, and a saved cue keyed to those ids would read its
+ * values into the wrong fields. Unticking No lock gives back the options as they were before the
+ * tick (remembered for this visit to the step and this artwork).
+ */
+function NoLockOption({ values, onChange }: { values: Record<string, boolean>; onChange: (values: Record<string, boolean>) => void }) {
+  return (
+    <label className="save-field" title="Pick, then Reveal correct.">
+      <input
+        type="checkbox"
+        checked={quizHasNoLock(values)}
+        onChange={(e) => {
+          const next = { ...values };
+          delete next.noLock;
+          if (e.target.checked) {
+            delete next.autoReveal;
+            Object.assign(next, { lock: false, noLock: true });
+          }
+          onChange(next);
+        }}
+        data-testid="map-svg-option-noLock"
+      />
+      <span>No lock at all</span>
+    </label>
   );
 }
 
@@ -248,6 +480,14 @@ export default function BehaviourSection({
   // asking a second time here would be a second answer to one question
   // (docs/GRAPHIC_BEHAVIOUR_PLAN.md §13).
   const timer = behaviour?.kind === 'timer' ? behaviour : null;
+  // ONE CLOCK CHOICE PER IMPORT. The CLOCK is a part beside the behaviour, not one of them
+  // (templates/behaviours/clock.ts), so a score tracker and a clock are one graphic. The old
+  // COUNTDOWN stays the choice only where the file drew the moments only it paints, which is when
+  // the names propose it, or where the draft already holds one (draft.ts `svgClockRows`).
+  const countdownDrawn = useMemo(() => svgCountdownDrawn(draft.designSvg), [draft.designSvg]);
+  const clockRows = svgClockRows(draft);
+  const clock = svgClockOption(draft) ? draft.svgClock : null;
+  const setClock = (next: SvgClockDraft | null) => onDraft({ svgClock: next });
   // ANY OTHER RECIPE WITHOUT ROWS - the meter, the alert - is held generically and its pickers are
   // read off the recipe's own roles, so a recipe added tomorrow needs no new block here.
   const generic = behaviour?.kind === 'recipe' ? behaviour : null;
@@ -272,6 +512,19 @@ export default function BehaviourSection({
   // is bound to and touching the select loses that binding.
   const scoreDrawn = scoreDrawnPool(draft.designSvg ?? { groups: [], shapes: [] });
 
+  /** The quiz as it was before No lock was ticked, so unticking gives exactly that back. */
+  const beforeNoLock = useRef<{ art: string; options: Record<string, boolean> } | null>(null);
+  const toggleNoLock = (options: Record<string, boolean>) => {
+    if (!quiz) return;
+    // The memory belongs to this artwork and lock layer; another one's is never restored here.
+    const art = `${quiz.locked}\n${draft.designSvg?.markup ?? ''}`;
+    if (quizHasNoLock(options)) beforeNoLock.current = { art, options: quiz.options ?? {} };
+    else {
+      if (beforeNoLock.current?.art === art) options = beforeNoLock.current.options;
+      beforeNoLock.current = null;
+    }
+    patchQuiz({ options });
+  };
   const patchQuiz = (patch: Partial<SvgQuizDraft>) => {
     if (quiz) onDraft({ svgBehaviour: { ...quiz, ...patch } });
   };
@@ -601,7 +854,7 @@ export default function BehaviourSection({
               <option value="quiz">Quiz. Select an answer, lock it in, reveal it.</option>
               <option value="poll">Live vote. The room votes; the bars move; you show the result.</option>
               <option value="score">Score tracker. A point per press, per team, and a new game.</option>
-              <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>
+              {(timer || countdownDrawn) && <option value="timer">Countdown. It starts on air; you hold it, let it go, reset it.</option>}
               {/* Every other recipe, from the registry: a recipe added tomorrow is offered here
                   with no new line, in the words its declaration carries. */}
               {BEHAVIOUR_RECIPES.filter((r) => !r.instanced && !LEGACY_RECIPES.has(r.id)).map((r) => (
@@ -611,6 +864,59 @@ export default function BehaviourSection({
               ))}
             </select>
           </label>
+          {clockRows.length > 0 && (
+            <div className="map-svg-row">
+              <label className="save-field grow">
+                <span>Clock</span>
+                <select
+                  value={clock?.mode ?? 'none'}
+                  onChange={(e) => {
+                    const mode = e.target.value;
+                    const found = CLOCK_PICKER_MODES.find((m) => m.mode === mode);
+                    if (!found) return setClock(null);
+                    const row = clockRows.find((f) => f.candidateId === clock?.candidateId) ?? clockRows[0];
+                    setClock({ candidateId: row.candidateId, mode: found.mode, revision: svgSourceRevision(draft.designSvg?.markup ?? ''), ...(found.mode === 'target-time'
+                      ? clock?.target
+                        ? { target: clock.target, targetProposed: clock.targetProposed }
+                        : { target: proposeClockTarget(localTimeZone(), Date.now()) ?? undefined, targetProposed: true }
+                      : {}) });
+                  }}
+                  data-testid="map-svg-clock-mode"
+                >
+                  <option value="none">No clock.</option>
+                  {CLOCK_PICKER_MODES.map((m) => (
+                    <option key={m.mode} value={m.mode}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {clock && clockRows.length > 1 && (
+                <label className="save-field grow">
+                  <span>Time layer</span>
+                  <select
+                    value={clock.candidateId}
+                    onChange={(e) => setClock({ ...clock, candidateId: e.target.value })}
+                    onFocus={() => setHoverId(clock.candidateId)}
+                    data-testid="map-svg-clock-layer"
+                  >
+                    {clockRows.map((f) => (
+                      <option key={f.candidateId} value={f.candidateId}>
+                        {f.title || f.sample}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+          {clock?.mode === 'target-time' && (
+            <ClockTargetFields
+              target={clock.target}
+              proposed={clock.targetProposed === true}
+              onTarget={(target, proposed) => setClock({ ...clock, target, targetProposed: proposed || undefined })}
+            />
+          )}
           {/* THE HIDDEN LAYERS DID NOT ARRIVE. Illustrator's Export As writes no hidden layer at
               all (measured on 30.1, https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/illustrator-export-as-drops-hidden-layers.md), so
               a quiz drawn with twelve moments arrives as a quiz with none and every picker reads
@@ -1077,11 +1383,34 @@ export default function BehaviourSection({
                 </>
               )}
               <RecipeOptions recipeId={generic.recipe} values={generic.options} onChange={(options) => patchGeneric({ options })} />
+              {generic.recipe === 'credits' && generic.fields?.credits && (
+                <CreditsListPreview
+                  stage={stageRef}
+                  layers={textLayers}
+                  creditsId={generic.fields.credits}
+                  measured={layerBoxes}
+                  saved={generic.credits}
+                  savedFor={generic.creditsFor}
+                  swap={!!generic.creditsSwap}
+                  fixed={!!generic.creditsArtwork}
+                  still={!!generic.creditsStill}
+                  cards={!!generic.creditsCards}
+                  advance={generic.creditsAdvance}
+                  onPatch={patchGeneric}
+                />
+              )}
             </>
           )}
           {quiz && (
             <>
-              <RecipeOptions recipeId="quiz" values={quiz.options ?? {}} onChange={(options) => patchQuiz({ options })} />
+              <RecipeOptions
+                recipeId="quiz"
+                values={quiz.options ?? {}}
+                onChange={(options) => patchQuiz({ options })}
+                hide={quizHasNoLock(quiz.options) ? ['lock', 'autoReveal'] : []}
+              >
+                <NoLockOption values={quiz.options ?? {}} onChange={toggleNoLock} />
+              </RecipeOptions>
               <div className="map-svg-row hinted">
                 <label className="save-field grow">
                   <span>Question</span>
@@ -1168,6 +1497,7 @@ export default function BehaviourSection({
                   </div>
                 </div>
               ))}
+              {!quizHasNoLock(quiz.options) && (
               <label className="save-field">
                 <span>Locked in</span>
                 <select
@@ -1185,6 +1515,7 @@ export default function BehaviourSection({
                 </select>
                 {hintFor('locked', undefined, quiz.locked, 'map-svg-quiz-locked')}
               </label>
+              )}
             </>
           )}
         </div>
@@ -1245,5 +1576,116 @@ export default function BehaviourSection({
         </div>
       )}
     </>
+  );
+}
+
+/** The zones the runtime knows, read once. */
+const RUNTIME_ZONES: readonly string[] = (Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] }).supportedValuesOf?.('timeZone') ?? [];
+
+/** The zones the target can be set in: the runtime's list, with the author's own and the stored one on it. */
+function timeZones(...own: string[]): string[] {
+  return [...new Set([...own, ...RUNTIME_ZONES])];
+}
+
+/** An instant as the target's line names it, in `zone`. */
+function targetFormat(zone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+}
+
+/** What the line under the fields says for a target that does not resolve. */
+const TARGET_UNRESOLVED: Record<'gap' | 'time' | 'date' | 'zone', string> = {
+  gap: 'The clocks skip that time. Choose another.',
+  time: 'Choose a time.',
+  date: 'Choose another date.',
+  zone: 'Choose another zone.',
+};
+
+/**
+ * A TARGET TIME'S INSTANT (control/clockTarget.ts): a time, an optional date and a zone. A time
+ * alone is the next one, and the line under the fields says which day and zone that is. A time the
+ * clocks skip asks for another; one they repeat asks which. Only a resolved instant reaches the
+ * draft, so a clock never counts to a time that does not exist.
+ */
+function ClockTargetFields({ target, proposed, onTarget }: { target?: string; proposed: boolean; onTarget: (target: string, proposed: boolean) => void }) {
+  const stored = useMemo(() => parseClockTarget(target), [target]);
+  const local = localTimeZone();
+  const [time, setTime] = useState(stored?.time ?? '');
+  // A proposed date stays implicit (T1): a time typed alone is its next occurrence.
+  const [date, setDate] = useState(proposed ? '' : (stored?.date ?? ''));
+  const [zone, setZone] = useState(stored?.zone ?? local);
+  const zones = useMemo(() => timeZones(local, zone), [local, zone]);
+  const [result, setResult] = useState<ClockTargetResolution | null>(null);
+  const apply = (next: { time?: string; date?: string; zone?: string; fold?: 'earlier' | 'later' }) => {
+    const input = { time, date, zone, ...next };
+    setTime(input.time);
+    setDate(input.date);
+    setZone(input.zone);
+    const r = resolveClockTarget(input, Date.now());
+    setResult(r);
+    // Only an instant reaches the draft: until a new one resolves, the last one stands.
+    if (r.kind === 'resolved') onTarget(formatClockTarget(r), r.proposed);
+  };
+  const format = useMemo(() => targetFormat(zone), [zone]);
+  // T10: the line names what the graphic would store NOW, kept current while the step is open.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, []);
+  const counting = parseClockTarget(svgClockTarget({ target, targetProposed: proposed }, now));
+  const at = counting?.at;
+  // Named in its OWN zone: while the author tries another zone the stored instant has not moved.
+  const countingZone = counting?.zone ?? zone;
+  const countingFormat = countingZone === zone ? format : targetFormat(countingZone);
+  const counts = at === undefined ? '' : `${countingFormat.format(at)}${at <= now ? ', already past: it shows 0:00' : ''}`;
+  // A proposal whose next occurrence the clocks repeat asks which, as a typed one does (#1894):
+  // left alone it would keep its passed instant and show 0:00.
+  const again = !result && proposed && stored && at !== undefined && at <= now ? resolveClockTarget({ time: stored.time, zone: stored.zone }, now) : null;
+  const fold = result?.kind === 'fold' ? result : again?.kind === 'fold' ? again : null;
+  const reads = ((): string | null => {
+    // Until another instant resolves, the last one stands: the line says so (#1894).
+    const still = counts && `It still counts to ${counts}.`;
+    if (fold) return still || null;
+    if (result && result.kind !== 'resolved' && result.kind !== 'fold') return [TARGET_UNRESOLVED[result.kind === 'gap' ? 'gap' : result.reason], still].filter(Boolean).join(' ');
+    return counts || null;
+  })();
+  return (
+    <div className="map-svg-row" data-testid="map-svg-clock-target">
+      <label className="save-field">
+        <span>Time</span>
+        <input type="time" value={time} onChange={(e) => apply({ time: e.target.value })} data-testid="map-svg-clock-target-time" />
+      </label>
+      <label className="save-field">
+        <span>Date</span>
+        <input type="date" value={date} onChange={(e) => apply({ date: e.target.value })} data-testid="map-svg-clock-target-date" />
+      </label>
+      <label className="save-field grow">
+        <span>Zone</span>
+        <select value={zone} onChange={(e) => apply({ zone: e.target.value })} data-testid="map-svg-clock-target-zone">
+          {zones.map((z) => (
+            <option key={z} value={z}>
+              {z}
+            </option>
+          ))}
+        </select>
+      </label>
+      {fold && (
+        <label className="save-field grow">
+          <span>Which one</span>
+          <select value="" onChange={(e) => apply({ fold: e.target.value as 'earlier' | 'later' })} data-testid="map-svg-clock-target-fold">
+            <option value="" disabled>
+              The clocks go back: choose
+            </option>
+            <option value="earlier">{format.format(fold.earlier)}</option>
+            <option value="later">{format.format(fold.later)}</option>
+          </select>
+        </label>
+      )}
+      {reads && (
+        <p className="map-svg-note" data-testid="map-svg-clock-target-reads">
+          {reads}
+        </p>
+      )}
+    </div>
   );
 }

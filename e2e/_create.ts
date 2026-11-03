@@ -49,8 +49,7 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
     const { setDefaultBrand } = await import('/src/model/brand.ts');
     const { createLook } = await import('/src/model/packets.ts');
     const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-    const { saveProject } = await import('/src/model/project.ts');
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { flushPendingProject, useTemplateStore } = await import('/src/store/templateStore.ts');
     const { useDocKindStore } = await import('/src/store/docKindStore.ts');
 
     const cat = s.category
@@ -97,16 +96,13 @@ export async function bootstrapGraphic(page: Page, spec: string | CreateSpec = '
     setDefaultBrand(made.id);
 
     // The production autosaver intentionally waits 800 ms, but this direct bootstrap can
-    // reach a reload assertion sooner than a person can finish the wizard. Persist the same
-    // working-slot payload now so returning-user tests start from a durable created project.
-    const created = useTemplateStore.getState();
-    saveProject(
-      created.template,
-      created.baseline,
-      { graphicId: created.saved.graphicId, dirty: created.saved.dirty },
-      created.aiSpec,
-      created.aiThread,
-    );
+    // reach a reload assertion sooner than a person can finish the wizard. Write that pending
+    // autosave now, through the store's own flush, so returning-user tests start from a durable
+    // created project. Flushing (rather than a second save beside the timer) also takes the
+    // timer down: a stray autosave left pending here lands 800 ms later inside whatever the
+    // spec is doing by then, and in a spec that has just made storage refuse writes it is a
+    // second refused write the app rightly announces over the page (#1603).
+    flushPendingProject();
     await commitDurableWrites();
   }, wanted);
   await expect(page.locator('.wz-modal')).toBeHidden();

@@ -7,6 +7,7 @@
 //   // covers: src/components/wizard/**, !src/components/wizard/import/**
 //   // covers: none - <why no source change should select this spec>
 //   // focus
+//   // critical: production-playout
 //
 // - `covers:` takes comma-separated globs (`*`, `**`, `?`, `[...]`, `{a,b}`; dotfiles match).
 //   Several lines are a union. A glob written `!glob` EXCLUDES, and only from the globs on its
@@ -21,6 +22,11 @@
 //   rest (scripts/nightly-triage.mjs). The token keeps its sprint-era spelling for now; a member
 //   is a journey a shared change must not break, and the list is reviewed as one
 //   (docs/work-specs/e2e-suite-budget/evidence/selection-audit.md).
+//
+// - `critical: <contract>[, <contract>]` makes the spec a CRITICAL JOURNEY for those D2 contracts
+//   (scripts/e2e-contracts.mjs, cicd-improvement ci07): the small set a product change must keep
+//   green. A critical journey is always in the shared-change set as well (`focus`), so the two sets
+//   stay distinct and no escalation plans fewer than the critical journeys.
 //
 // Configured specs (`e2e/configured/*.spec.ts`) may carry `covers:` too: those globs are the
 // CONFIGURED TRIGGERS - files whose behaviour the offline suite structurally cannot cover, so the
@@ -124,7 +130,7 @@ function lineMatcher(globs) {
 }
 
 /**
- * The declarations in a spec's header: `{ covers: [{ globs, test }], none, focus }`.
+ * The declarations in a spec's header: `{ covers: [{ globs, test }], none, focus, critical }`.
  *
  * Read from the LEADING comment block only - `//` lines and blank lines before the first line of
  * code - so prose further down that happens to say "covers" is never a declaration. Inside that
@@ -132,7 +138,7 @@ function lineMatcher(globs) {
  * the line: a misspelt `// cover:` quietly covering nothing is the failure this exists to stop.
  */
 export function parseSpecHeader(text, file = '<spec>') {
-  const out = { covers: [], none: null, focus: false };
+  const out = { covers: [], none: null, focus: false, critical: [] };
   const lines = String(text ?? '').split(/\r?\n/);
   const refuse = (n, why) => {
     throw new Error(`${file}:${n + 1}: malformed spec header - ${why}`);
@@ -149,6 +155,14 @@ export function parseSpecHeader(text, file = '<spec>') {
       refuse(n, `a wrapped covers list - start the continuation with its own \`// covers:\`, got \`${line}\``);
     }
     afterCovers = false;
+    // A critical-journey line: `critical: <contract>, <contract>`. Anything that starts like one and
+    // does not parse is refused, so a misspelt id never quietly drops a journey from the set.
+    if (/^critical\s*(?::|$|-\s)/i.test(body)) {
+      const crit = /^critical:\s*([a-z][a-z0-9-]*(?:\s*,\s*[a-z][a-z0-9-]*)*)\s*$/.exec(body);
+      if (!crit) refuse(n, `write \`// critical: <contract>[, <contract>]\` with contract ids from scripts/e2e-contracts.mjs, got \`${line}\``);
+      out.critical.push(...splitList(crit[1]));
+      continue;
+    }
     // What LOOKS like a declaration: the keyword with a colon, a covers keyword followed by a
     // path, the focus keyword alone or with a colon, or `focus - <reason>`. Prose that merely
     // starts with the word ("covers the viewport", "focus set, like...") is left alone.
@@ -212,21 +226,46 @@ export const COVERAGE = coverageOf(SPEC_HEADERS);
 /** SPRINT FOCUS - the student-critical spec set (docs/GOALS_ARCHIVE.md "Student release"). */
 export const FOCUS = [...SPEC_HEADERS].filter(([, h]) => h.focus).map(([spec]) => spec);
 
-// THE CONFIGURED SUITE'S OWN FILES. These trigger the configured-suite line for every change, not
-// for one spec's sake, so they are the one part of the trigger list no configured spec's header
-// holds. `e2e/configured/**` is ignored by the offline plan outright (those specs need a real
-// Supabase project and a throwaway account), which is exactly why a change there must still say
-// the configured suite is owed.
-export const CONFIGURED_SUITE_FILES = [/^e2e\/configured\//, /^playwright\.live\.config\.ts$/];
-
 /**
- * THE CONFIGURED SUITE'S TRIGGERS: its own files, plus every `covers:` line a configured spec
- * declares. The offline plan pins the ABSENCE of a hosted-only surface, so a change to one of
- * these reports "covered" while the live path breaks; naming the trigger turns that hole into a
- * printed line, and it is then a decision rather than an oversight.
+ * THE CONFIGURED SPECS' HEADERS. The offline plan pins the ABSENCE of a hosted-only surface, so a
+ * change to what a configured spec covers reports "covered" offline while the live path breaks;
+ * each configured spec's `covers:` lines select it for ci.yml's configured job (cicd-improvement
+ * ci06). `e2e/configured/**` is ignored by the offline plan outright, which is exactly why the
+ * configured selection is asked before that ignore list.
  */
 export const CONFIGURED_HEADERS = readSpecHeaders('e2e/configured');
-export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED_HEADERS.values()].flatMap((h) => h.covers)];
+
+/** The configured specs on disk (bare names), and which of them each changed file's header selects. */
+export const CONFIGURED_SPECS = [...CONFIGURED_HEADERS.keys()];
+export const CONFIGURED_COVERAGE = coverageOf(CONFIGURED_HEADERS);
+
+/**
+ * THE CONFIGURED SUITE'S SHARED GROUND (cicd-improvement ci06). A change here can move every
+ * configured spec at once, so it selects the WHOLE configured set rather than the specs a header
+ * names: the suite's helpers and expectations (anything under e2e/configured/ but a spec or its
+ * baselines), its config, the local stack it runs on (supabase/: config, migrations, seed), the
+ * workflows and shared actions that bring that stack up and judge it, and the dependency manifests.
+ * The toolchain scripts (planner, shard packer, verdict, reporter) are added by import closure in
+ * scripts/e2e-affected.mjs (`configuredToolchain`), so a script they start importing is covered too.
+ */
+/**
+ * THE BACKEND-FACING SOURCE (ci06): the serverless API and the browser's backend client. A
+ * configured header that names one of these files selects its specs; one that NO configured header
+ * names is an uncertain dependency of the configured suite (a shared server module such as
+ * api/_lib/http.ts or auth.ts, or a new route) and selects the whole set, as an unmapped file
+ * escalates the offline plan. Tests beside the code are not the backend.
+ */
+export const CONFIGURED_BACKEND = [/^api\/(?!.*\.test\.[cm]?[jt]s$).+\.[cm]?[jt]sx?$/, /^src\/backend\/(?!.*\.test\.[cm]?[jt]s$).+\.[cm]?[jt]sx?$/];
+
+export const CONFIGURED_FULL = [
+  /^e2e\/configured\/(?![^/]+\.spec\.ts(?:-snapshots\/|$))/,
+  /^playwright\.live\.config\.ts$/,
+  /^supabase\//,
+  /^\.github\/workflows\/(?:ci|configured-suite)\.yml$/,
+  /^\.github\/actions\//,
+  /^package(?:-lock)?\.json$/,
+  /^vite\.config\.ts$/,
+];
 
 /**
  * THE BUILD'S REFUSALS, as a pure function so each one can be driven with a fixture.
@@ -238,6 +277,7 @@ export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED
  *    naming a path that moved matches nothing and is silent - the file then falls through to
  *    whatever else covers it, which is the run-FEWER failure with no alarm attached.
  * 3. Every spec a central rule names exists on disk.
+ * 4. Every configured spec declares `covers:` or `none - <why>` (no central rule applies there).
  *
  * @param {{ headers: Map<string, object>, configured?: Map<string, object>, files: string[],
  *           specsOnDisk: string[], central?: [RegExp, string[]][] }} input
@@ -250,6 +290,13 @@ export function auditSpecHeaders({ headers, configured = new Map(), files, specs
   for (const [spec, h] of headers) {
     if (h.covers.length === 0 && h.none === null && !centralSpecs.has(spec)) {
       problems.push(`e2e/${spec} declares no \`// covers:\` - name the source it covers (\`// covers: src/area/**\`), or say \`// covers: none - <why>\``);
+    }
+  }
+  // The configured suite has no central rules: its selected PR job (ci.yml, cicd-improvement ci06)
+  // plans a configured spec only from its own header, so a spec with none would run only per landing.
+  for (const [spec, h] of configured) {
+    if (h.covers.length === 0 && h.none === null) {
+      problems.push(`e2e/configured/${spec} declares no \`// covers:\` - name the source it covers, or say \`// covers: none - <why>\``);
     }
   }
   const lists = [...[...headers].map(([s, h]) => [`e2e/${s}`, h]), ...[...configured].map(([s, h]) => [`e2e/configured/${s}`, h])];

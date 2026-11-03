@@ -5,6 +5,7 @@
 // and `designArt` members of WizardOptions.
 
 import type { CustomFont } from '../../model/fonts';
+import type { CREDITS_LAYOUTS, CREDITS_PLAYBACKS } from '../behaviours/credits';
 
 /**
  * An imported SVG graphic: the sanitized markup (candidates tagged with
@@ -45,8 +46,8 @@ export interface DesignSvg {
   /**
    * The SWITCHES and CHOICES bound to the artwork beside (or instead of) a behaviour
    * (docs/SVG_BEHAVIOUR_PLAN.md §7c): a hidden layer the operator shows and hides, or a set of
-   * hidden layers of which one shows at a time. Any number; each compiles as its own parallel
-   * group under its own name. Absent = none, which every import before this had.
+   * hidden layers of which one shows at a time - and at most one CLOCK. Each compiles as its own
+   * parallel group under its own name. Absent = none, which every import before this had.
    */
   extras?: DesignSvgExtra[];
   /**
@@ -154,6 +155,48 @@ export interface DesignSvgRecipeBehaviour {
   rows?: string[];
   /** The recipe's structural options as chosen (a checkbox each). */
   options?: Record<string, boolean>;
+  /** The credits recipe only: credits written into the artwork's own repeated role and name
+   *  styling. ADDITIVE: absent keeps the editable roll or, with `options.artwork`, the original
+   *  artwork roll, exactly as saved. The two engines never combine. */
+  credits?: DesignSvgCredits;
+  /** The credits recipe with `options.artwork` only: the other text layers that scroll with the
+   *  Credits text as one block, as candidate ids - the role and name layers of credits drawn as
+   *  separate layers, kept as fixed artwork by the author's choice. ADDITIVE: absent, the Credits
+   *  text scrolls alone, exactly as saved. */
+  artworkLayers?: string[];
+}
+
+/**
+ * IMPORTED CREDITS IN THE ARTWORK'S OWN STYLING (templates/importedDesign/creditsRoll.ts
+ * `analyseCreditsStyle`). The designer draws a few roles and names as separate text layers; their
+ * looks and spacing are the style, and the operator's credits are ONE list in the native format
+ * (docs/END_CREDITS.md), carried by the recipe's one `credits` field, never a field per name.
+ *
+ * Only the author's choices and the source anchors are stored. Looks, alignment and spacing are
+ * read off the markup again on every build, so they cannot drift from the artwork they describe.
+ */
+export interface DesignSvgCredits {
+  /** The shape's version. */
+  v: 1;
+  /** How a role sits against its names, as the drawing shows it and the author confirmed. */
+  layout: CreditsLayout;
+  /** How the list plays. Chosen by the author: artwork does not say. */
+  playback: CreditsPlayback;
+  /** Cards only: seconds each card holds before the next. Absent = the operator's Next. */
+  advance?: number;
+  /** The drawn role and name layers the style is read from, in reading order. */
+  anchors: DesignSvgCreditsAnchor[];
+}
+
+export type CreditsLayout = (typeof CREDITS_LAYOUTS)[number];
+export type CreditsPlayback = (typeof CREDITS_PLAYBACKS)[number];
+
+/** One drawn layer the credits style is read from. */
+export interface DesignSvgCreditsAnchor {
+  /** The text layer's data-noacg-candidate marker value in the markup. */
+  candidateId: string;
+  /** What the layer shows in the sample. */
+  kind: 'role' | 'name';
 }
 
 /**
@@ -317,7 +360,26 @@ export type DesignSvgExtra =
       name: string;
       /** Two or more options, each a hidden layer with the word the operator presses. */
       options: { label: string; layer: string }[];
-    };
+    }
+  | DesignSvgClock;
+
+/**
+ * THE CLOCK on the artwork's own time layer (templates/behaviours/clock.ts): an INSTANCED part,
+ * so it sits beside a score tracker or any other one full recipe. One per graphic. A saved
+ * `timer` behaviour is the older countdown and stays exactly that; nothing converts one into this.
+ */
+export interface DesignSvgClock {
+  kind: 'clock';
+  /** The operator's word for it - the section its buttons sit under. */
+  name: string;
+  /** The candidate id of the ticked text row that shows the time. */
+  field: string;
+  /** How it counts, chosen once by the author: never switched on air. */
+  mode: 'count-up' | 'duration' | 'target-time';
+  /** A target time's instant with its zone, `2026-11-14T19:00:00+02:00[Europe/Helsinki]`
+   *  (control/clockTarget.ts). Absent on the other modes. */
+  target?: string;
+}
 
 /** One outlined-text group hidden in favour of a placed HTML field. */
 export interface DesignSvgOutline {

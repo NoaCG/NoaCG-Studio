@@ -21,6 +21,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   workers: 1,
   retries: 0,
+  // A committed `test.only` would drop every other test in the run; on CI it fails the run instead
+  // (cicd-improvement ci05; eslint.config.js refuses it before it is committed).
+  forbidOnly: Boolean(process.env.CI),
   reporter: [['list']],
   outputDir: 'endurance-output/test-results',
   use: {

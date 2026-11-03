@@ -1,0 +1,167 @@
+{
+  "$comment": "cicd-improvement ci11 fault matrix (phase-ci11.md section 2). Each fault is exact string replacements (each find occurs once in its file), applied, run, then reverted; the correction is the unpatched tree. Run from the repository root through scripts/jobs.mjs with --cap 5.",
+  "faults": [
+    {
+      "id": "F1",
+      "source": "f68362db1",
+      "edits": [
+        {
+          "file": "src/model/durableStore.ts",
+          "find": "    startCrossTabInvalidation();\n  } catch {",
+          "replace": "    // FAULT F1: no cross-tab invalidation (pre-f68362db1)\n  } catch {"
+        }
+      ],
+      "run": "npm run test:e2e -- e2e/cross-tab.spec.ts",
+      "fault": "3 failed",
+      "fix": "3 passed"
+    },
+    {
+      "id": "F2",
+      "source": "c2aedf447 (#1402)",
+      "edits": [
+        {
+          "file": "src/model/project.ts",
+          "find": "  if (!reservation || reservation.baseline !== baseline || (!reservation.minting && graphicIdTaken(reservation.id))) {",
+          "replace": "  if (!reservation || reservation.baseline !== baseline) { // FAULT F2 (pre-c2aedf447)"
+        }
+      ],
+      "run": "npm run test:e2e -- e2e/save-transaction.spec.ts --grep \"reservation owner\"",
+      "fault": "5 failed, 3 passed",
+      "fix": "8 passed"
+    },
+    {
+      "id": "F3",
+      "source": "eb09063fe",
+      "edits": [
+        {
+          "file": "src/store/saveActions.ts",
+          "find": "  return hasUnsavedWork() || failed ? saveCurrentGraphic() : 'saved';",
+          "replace": "  return hasUnsavedWork() ? saveCurrentGraphic() : 'saved'; // FAULT F3 (pre-eb09063fe)"
+        },
+        {
+          "file": "src/components/save/SaveDialogs.tsx",
+          "find": "  const unsaved = useTemplateStore((s) => hasUnsavedWork(s) || s.saved.status === 'failed');",
+          "replace": "  const unsaved = useTemplateStore((s) => hasUnsavedWork(s)); // FAULT F3b (pre-eb09063fe)"
+        }
+      ],
+      "run": "npm run test:e2e -- e2e/save-transaction-leave.spec.ts",
+      "fault": "1 failed, 18 passed (both edits; the SaveDialogs.tsx edit alone gives the same)",
+      "fix": "19 passed",
+      "notReproduced": "the saveActions.ts edit alone: 19 passed"
+    },
+    {
+      "id": "F4",
+      "source": "c48a1ac27 and the #989 fix",
+      "edits": [
+        {
+          "file": "src/export/targets/ograf.ts",
+          "find": "    if (this._endTemplate) this._endTemplate();\n    this._endTemplate = null;",
+          "replace": "    this._endTemplate = null; // FAULT F4 (pre-#989/#998)"
+        }
+      ],
+      "run": "npm run test:e2e -- e2e/ograf-lifecycle.spec.ts --grep dispose",
+      "fault": "2 failed",
+      "fix": "2 passed"
+    },
+    {
+      "id": "F5",
+      "source": "100d43a22",
+      "edits": [
+        {
+          "file": "src/output/stage.ts",
+          "find": "      release(frame);\n      if (frame.current) for (const cb of heldCbs) cb();\n      return;",
+          "replace": "      // FAULT F5: held frame not released (pre-100d43a22)\n      if (frame.current) for (const cb of heldCbs) cb();\n      return;"
+        }
+      ],
+      "run": "npm run test:e2e -- e2e/output-font-hold.spec.ts",
+      "fault": "1 failed, 1 passed",
+      "fix": "2 passed"
+    },
+    {
+      "id": "F6",
+      "source": "2f64ce14f",
+      "edits": [
+        {
+          "file": "src/backend/syncController.ts",
+          "find": "  if (elsewhere) return;\n  if (debounce) clearTimeout(debounce);",
+          "replace": "  // FAULT F6: every tab runs a pass for an adopted write (pre-2f64ce14f)\n  if (debounce) clearTimeout(debounce);"
+        }
+      ],
+      "run": "npx playwright test --config=playwright.live.config.ts e2e/configured/sync-one-pass-per-edit.spec.ts, on the local Supabase stack (CLI 2.111.0) with the configured job's local accounts",
+      "fault": "2 failed",
+      "fix": "2 passed"
+    },
+    {
+      "id": "F7",
+      "source": "realistic: a migration widening a select policy",
+      "sql": {
+        "apply": "create policy ci11_fault_leak on public.documents for select to authenticated using (true);",
+        "revert": "drop policy ci11_fault_leak on public.documents;"
+      },
+      "run": "npx playwright test --config=playwright.live.config.ts e2e/configured/shared-lab-computer.spec.ts, on the local Supabase stack",
+      "fault": "1 failed",
+      "fix": "1 passed"
+    },
+    {
+      "id": "F8",
+      "source": "the 2026-07-20 single-file font defect (src/export/AGENTS.md, dangling-refs instance 1)",
+      "edits": [
+        {
+          "file": "src/export/bundledFonts.ts",
+          "find": "  const files = referencedFontFiles(css);\n  if (files.length === 0) return { css, embedded: [] };",
+          "replace": "  const files = referencedFontFiles(css);\n  return { css, embedded: [] }; // FAULT F8: single-file export ships no font bytes (pre-2026-07-20)"
+        }
+      ],
+      "run": "npm run test:e2e -- e2e/exports.spec.ts",
+      "fault": "3 failed, 15 passed",
+      "fix": "18 passed"
+    },
+    {
+      "id": "F9",
+      "source": "realistic: the band padding removed",
+      "edits": [
+        {
+          "file": "src/templates/lowerThirds/lt63.ts",
+          "find": "  padding: calc(15px * var(--scale)) calc(128px * var(--scale)) calc(15px * var(--scale)) calc(120px * var(--scale));",
+          "replace": "  padding: 0; /* PROBE F9c: text on the frame edge */"
+        }
+      ],
+      "run": "node scripts/catalog-specs.mjs --only lt63 (the battery catalog-affected prints for the slice), and npx playwright test --config=playwright.catalog.config.ts e2e/catalog/long-value-containment.spec.ts unscoped",
+      "fault": "long-value-containment failed, scoped and unscoped, naming lt63",
+      "fix": "passed"
+    },
+    {
+      "id": "F10",
+      "source": "realistic: the output's package request drops its revision",
+      "edits": [
+        {
+          "file": "src/backend/productionOgraf.ts",
+          "find": "        body: JSON.stringify({ version, revision }),",
+          "replace": "        body: JSON.stringify({ version }), // FAULT F10: the package revision is never sent"
+        }
+      ],
+      "run": "npx playwright test --config=playwright.live.config.ts e2e/configured/ograf-rundown.spec.ts, on the local Supabase stack; the file plans configured: subset (9 specs)",
+      "fault": "2 failed",
+      "fix": "2 passed"
+    },
+    {
+      "id": "F9-historical",
+      "source": "43ead1042",
+      "edits": [
+        {
+          "file": "src/templates/lowerThirds/lt63.ts",
+          "find": "  padding: calc(15px * var(--scale)) calc(128px * var(--scale)) calc(15px * var(--scale)) calc(120px * var(--scale));",
+          "replace": "  padding: calc(15px * var(--scale)) calc(120px * var(--scale)); /* FAULT F9: no trailing reserve (pre-43ead1042) */"
+        },
+        {
+          "file": "src/templates/lowerThirds/lt63.ts",
+          "find": "  min-width: 0;                    /* the columns may shrink, so the row stays inside the band's measure */",
+          "replace": "  /* FAULT F9b: the columns keep their min-content width (pre-43ead1042) */"
+        }
+      ],
+      "run": "as F9",
+      "fault": "NOT REPRODUCED: long-value-containment passed, scoped to lt63 with either edit alone or both, and unscoped with both",
+      "fix": "passed"
+    }
+  ]
+}

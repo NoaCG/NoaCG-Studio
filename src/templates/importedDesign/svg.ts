@@ -40,11 +40,13 @@ import {
   zoneCssText,
 } from '../shared/base';
 import { clockRuntimeJs } from '../shared/clock';
+import { matchClockJs } from '../shared/matchClock';
+import { CLOCK_TIME } from '../behaviours/clock';
 import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
-import { countdownIndex, svgFields } from './artworkFields';
-import { creditsArtworkFields, creditsIndex, creditsRollCss, creditsRollRuntimeJs, isArtworkCredits } from './creditsRoll';
+import { boundClock, countdownIndex, svgFields } from './artworkFields';
+import { creditsArtworkFields, creditsArtworkLayers, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
 import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
@@ -182,6 +184,77 @@ const SVG_FIT_HOOK = `  // The fit ladder re-measures here - every text layer, t
   // placed on it alike (no-op otherwise).
   if (typeof fitSvgText === 'function') fitSvgText();`;
 
+/**
+ * THE CLOCK'S HALF OF update() (templates/behaviours/clock.ts). The time layer IS the clock's
+ * field, so once update() has written the operator's value into it the match clock adopts that
+ * value as the clock's own truth: a changed time corrects it, a resend is painted over with the
+ * running time (`matchClockUpdate`). Before the fit, so the ladder measures the time on air and
+ * never a raw wire value.
+ *
+ * A DURATION also takes its LENGTH from the field: a time typed while the graphic is OFF AIR is
+ * what the next Take, and every Reset after it, counts down from, as the countdown's minutes were,
+ * so an operator sets the length without a second field. On air every typed time is a correction,
+ * paused or running, and leaves the length alone. Off air is the machine's own answer: its main
+ * group rests in its off state before the Take and after the Out (blocks/animMachine.ts
+ * `MAIN_GROUP_ID`, `OFF_STATE_ID`; written out, since templates import nothing from blocks/).
+ * Only a `CLOCK_TIME` is a length; anything else stays a correction.
+ */
+function importedClockJs(duration: boolean): string {
+  return `// ---- The clock's field (the time layer IS it) ----
+// THE FIT'S LINE SURVIVES THE TICK. A time the fit centred in its box rides one tspan whose dy
+// carries the snap (svgPaintLines), and the match clock's paint replaces the whole text every
+// second, which would drop the line back to its drawn baseline. So the paint is wrapped: the
+// new time goes into that same tspan, and the fit's size and squeeze on the layer stay as set.
+var importedClockMatchPaint = paintMatchClock;
+paintMatchClock = function () {
+  var el = matchClockEl();
+  var line = el && el.children.length === 1 && el.firstElementChild.tagName === 'tspan' ? el.firstElementChild : null;
+  importedClockMatchPaint();
+  if (line && el.firstElementChild !== line) {
+    line.textContent = el.textContent;
+    el.textContent = '';
+    el.appendChild(line);
+  }
+};
+
+// importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
+${duration ? `var importedClockLast = null;     // the clock field's last value, to tell a typed time from a resend
+var importedClockTakeAt = null;   // the origin the wire last stamped, for the next start
+` : ''}function importedClockUpdate(fields) {
+  var el = matchClockEl();
+  if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
+  matchClockUpdate(el.id, fields[el.id]);
+${duration ? `  // A duration's length is a time the operator typed while the graphic was off air.
+  var value = String(fields[el.id] == null ? '' : fields[el.id]).trim();
+  if (value === importedClockLast) return;
+  importedClockLast = value;
+  var offAir = typeof noacgMachineState === 'function' && noacgMachineState().groups.main === 'off';
+  if (offAir && /${CLOCK_TIME.source}/.test(value)) el.setAttribute('data-start', value);
+  // ON THE WIRE the length rides after the origin ("0:21@/0:30/0:30", control/matchClockWire.ts), so a
+  // reload and every output learn it; and the origin the wire last stamped is kept for the next
+  // start (below): the Take's, which the entrance would otherwise mint again on its first frame.
+  var at = value.indexOf('@');
+  var length = at === -1 ? '' : (value.slice(at + 1).split('/')[1] || '');
+  if (/${CLOCK_TIME.source}/.test(length)) el.setAttribute('data-start', length);
+  importedClockTakeAt = matchClockOriginOf(value);
+` : ''}}${duration ? `
+
+// THE TAKE'S ORIGIN. The entrance starts a duration (resetMatchClock, startMatchClock) on its first
+// frame, off air or on a re-take; its start counts from the origin the wire last stamped when there
+// is one, and from now otherwise (a playout host with no wire), so every output counts the same
+// second.
+var importedClockMatchStart = startMatchClock;
+startMatchClock = function () {
+  if (importedClockTakeAt !== null) {
+    matchClockAt = importedClockTakeAt;
+    importedClockTakeAt = null;
+  }
+  importedClockMatchStart();
+};` : ''}`;
+}
+const IMPORTED_CLOCK_HOOK = `  // The clock adopts its own field's value before the fit measures it (no-op otherwise).
+  if (typeof importedClockUpdate === 'function') importedClockUpdate(fields);`;
+
 /** The preset to build with - always one of this category's, whatever a carried-over draft says. */
 function designPreset(id: string): AnimPreset {
   return DESIGN_PRESETS.find((p) => p.id === id) ?? DESIGN_PRESETS[0];
@@ -191,6 +264,8 @@ function designPreset(id: string): AnimPreset {
 export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const svg = o.designSvg ?? NO_SVG;
   const artworkRoll = isArtworkCredits(svg);
+  // Credits in the artwork's own role and name layers, where a saved styled binding builds.
+  const styledCredits = artworkRoll ? null : styledCreditsConfig(svg);
   const name = 'Imported SVG design';
   const artworkFields = svgFields(svg);
   // The behaviour's own fields sit AFTER the artwork's, and that order is load-bearing: the
@@ -223,6 +298,9 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   // hidden data source the runtime reads - the exact contract every catalog countdown uses.
   const clock = countdownIndex(svg);
   const clockField = clock === -1 ? null : artworkFields[clock];
+  // The CLOCK part drives the match clock through its own time layer (svgBind.ts), and never the
+  // countdown engine above: `countdownIndex` is -1 on a design that carries it.
+  const matchClock = boundClock(svg);
   const clockHolder = clockField
     ? `
     <!-- ${escapeHtml(clockField.title)} (${clockField.field}) - the countdown's length in minutes, written by SPX
@@ -238,6 +316,13 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
   const creditsField = credits === -1 ? null : artworkFields[credits];
   const creditsHolder = artworkRoll
     ? artworkFields.filter((_, i) => artworkCredits.has(i)).map((field) => `\n    <div id="${field.field}" class="${DATA_SOURCE_CLASS}"></div>`).join('')
+    : creditsField && styledCredits
+    ? `
+    <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per role or name,
+         written by SPX and drawn by the credits engine in template.js in your own role and name
+         layers. Its line breaks are the list, so the code formatter leaves it as written. -->
+    <!-- prettier-ignore -->
+    <div id="${creditsField.field}" class="${DATA_SOURCE_CLASS}">${escapeHtml(creditsField.value)}</div>`
     : creditsField
     ? `
     <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per name, written
@@ -300,7 +385,7 @@ ${dataSourceCss}
 ` : ''}${behaviour?.css ? `
 ${behaviour.css}
 ` : ''}${creditsField ? `
-${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
+${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PREFIX) : creditsRollCss(PREFIX)}
 ` : ''}`;
 
   const preset = designPreset(o.animation.presetId);
@@ -338,7 +423,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
   const js =
     runtimeJs(name, preset.emit(cfg)).replace(
       PLACED_TEXT_HOOK,
-      `${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}`,
+      `${matchClock ? `${IMPORTED_CLOCK_HOOK}\n` : ''}${SVG_FIT_HOOK}${behaviour ? `\n${behaviour.updateHook}` : ''}${clockField ? `\n${clockHook}` : ''}${creditsField ? `\n${creditsHook}` : ''}`,
     ) +
     SVG_FIT_JS +
     // The relationship TABLE rides only for a design that declares something in it - a growth
@@ -357,18 +442,19 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
       : '') +
     '\n' +
     (clockField ? `\n${clockRuntimeJs(PREFIX, clockField.field)}\n` : '') +
+    (matchClock ? `\n${matchClockJs(PREFIX, { target: matchClock.mode === 'target-time' })}\n\n${importedClockJs(matchClock.mode === 'duration')}\n` : '') +
     // The point shifters a path panel grows by and a path gauge fills by.
     (grows || behaviour?.fillsGauge ? `\n${SHAPE_SHIFT_JS}` : '') +
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
-    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height) : creditsRollRuntimeJs(PREFIX)}` : '') +
+    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height, creditsArtworkLayers(svg).length > 0) : styledCredits ? creditsStyledRuntimeJs(PREFIX, styledCredits) : creditsRollRuntimeJs(PREFIX)}` : '') +
     SVG_FIT_BOOT;
 
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA
   // (the step-calls model, docs/STATE_MACHINE_SCHEMA.md): startClock as the entrance lands,
   // stopClock the moment the exit begins - exactly what the catalog's countdown presets emit.
-  const withLifecycleCalls = clockField || artworkRoll
+  const withLifecycleCalls = clockField || artworkRoll || styledCredits
     ? (data: AnimData): AnimData => {
         const steps = data.steps.map((s) => ({ ...s }));
         const enter = steps[0];
@@ -377,7 +463,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : creditsRollCss(PREFIX)}
           enter.calls = [...(enter.calls ?? []), { time: enter.duration, call: 'startClock' }];
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopClock' }];
         }
-        if (artworkRoll) {
+        if (artworkRoll || styledCredits) {
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopCreditsRoll' }];
         }
         return { ...data, steps };

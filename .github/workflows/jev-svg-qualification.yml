@@ -5,6 +5,8 @@ on:
 
 # This is a preparation probe, never an evaluation or a run trigger.
 # It executes no repository/branch code and never opens the sealed archive.
+# Changes to it land through a reviewed PR and the merge queue; jev-svg-import phase 1 proved that
+# route from a cloud worker (docs/work-specs/jev-svg-import/evidence/phase-01.md).
 permissions: {}
 
 concurrency:

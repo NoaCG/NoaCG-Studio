@@ -8,17 +8,26 @@
 import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
 import { importAnalysisProfile, type ImportAnalysisProfile } from './aiImportAnalysisProfile.js';
 import { proProfile, type ProProfile } from './aiProProfile.js';
+import { svgInterpretationProfile, type SvgInterpretationProfile } from './aiSvgInterpretationProfile.js';
 // fundedModelRoute subsumes approvedModelRoute: it looks the entry up in the catalog AND
 // applies the funded-route rule, so the gate below needs only the one predicate.
-import { approvedModelRoute, approvedTextRoute, fundedModelRoute, modelRouteKey } from './aiModelCatalog.js';
+import {
+  approvedModelRoute,
+  approvedTextRoute,
+  decisionModelEntry,
+  fundedDecisionRoute,
+  fundedModelRoute,
+  modelRouteKey,
+} from './aiModelCatalog.js';
 import type { ModelPrice } from './aiGateway.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 import { IMPORT_ANALYSIS_LIMITS } from '../../src/ai/importAnalysis/contract.js';
 
-export type AiTaskId = 'lite-design-spec' | 'imported-graphic-analysis' | 'pro-generate';
+export type AiTaskId = 'lite-design-spec' | 'imported-graphic-analysis' | 'pro-generate' | 'svg-interpretation';
 export const LITE_TASK_ID: AiTaskId = 'lite-design-spec';
 export const IMPORT_ANALYSIS_TASK_ID: AiTaskId = 'imported-graphic-analysis';
 export const PRO_TASK_ID: AiTaskId = 'pro-generate';
+export const SVG_INTERPRETATION_TASK_ID: AiTaskId = 'svg-interpretation';
 
 export type AiTaskTier = 'anonymous' | 'free' | 'byo' | 'paid';
 
@@ -44,7 +53,11 @@ export interface TaskRoutePolicy {
   prices: Record<string, ModelPrice>;
   gatewayProviders: string[];
   requireZdr: boolean;
-  structuredMode: 'json-schema' | 'tool';
+  /** How the structured answer is obtained. `decision` is a native decision model behind the
+   *  gateway's `/v1/evaluate` (api/_lib/aiDecisionGateway.ts): typed questions answered with
+   *  probabilities, never a model name swapped into chat completions. A `decision` task routes
+   *  only to decision candidates, and no other task may route to one. */
+  structuredMode: 'json-schema' | 'tool' | 'decision';
   maxProviderCostUsd: number;
   /**
    * Which of this task's routes are called for IMAGE output, and are therefore exempt from
@@ -228,10 +241,50 @@ export function proTaskProfile(profile: ProProfile = proProfile()): TaskProfile 
   };
 }
 
+/**
+ * The SVG interpretation task (docs/work-specs/jev-svg-import/spec.md, row 31): typed questions
+ * about an imported SVG's bounded inventory, answered by a decision model. Off by default and
+ * until the evaluation's verdict; its data policy and evidence bounds live in
+ * aiSvgInterpretationProfile.ts. It books against the graphic-analysis ledger profile and
+ * allowance (that file says why), so `ledger.profile` is `import-analysis`.
+ */
+export function svgInterpretationTaskProfile(profile: SvgInterpretationProfile = svgInterpretationProfile()): TaskProfile {
+  return {
+    taskId: SVG_INTERPRETATION_TASK_ID,
+    enabled: profile.enabled,
+    schema: { id: 'svg-interpretation-decision', version: profile.promptVersion },
+    tiers: ['free'],
+    limits: {
+      // A decision model answers with probabilities: no text output to budget. The adapter
+      // bounds the request by its serialized size instead (SVG_DECISION_LIMITS.requestBytes).
+      outputTokens: 0,
+      repairOutputTokens: 0,
+      estimatedInputTokens: 24_000,
+      maxImages: 0,
+      maxImageResolution: null,
+    },
+    timeoutMs: profile.timeoutMs,
+    maxAttempts: profile.maxAttempts,
+    retryLimit: 1,
+    routePolicy: {
+      primary: profile.route,
+      // No fallback: one pre-registered candidate, and no automatic cascade (spec).
+      fallbacks: [],
+      prices: profile.prices,
+      gatewayProviders: profile.gatewayProviders,
+      requireZdr: profile.requireZdr,
+      structuredMode: 'decision',
+      maxProviderCostUsd: profile.maxProviderCostUsd,
+    },
+    ledger: { kind: 'ai_generations', profile: profile.id },
+  };
+}
+
 const TASKS: Record<AiTaskId, () => TaskProfile> = {
   'lite-design-spec': () => liteTaskProfile(),
   'imported-graphic-analysis': () => importAnalysisTaskProfile(),
   'pro-generate': () => proTaskProfile(),
+  'svg-interpretation': () => svgInterpretationTaskProfile(),
 };
 
 export function taskProfile(taskId: AiTaskId): TaskProfile {
@@ -250,6 +303,10 @@ function declaredImageRoute(policy: TaskRoutePolicy, route: ModelRoute): boolean
 }
 
 function routeConfigured(policy: TaskRoutePolicy, route: ModelRoute): boolean {
+  // A decision route speaks a different endpoint, so the two kinds never mix in either
+  // direction: a decision task names only decision candidates, and a text task pointed at one
+  // (an env edit) is refused here rather than on the first call.
+  if ((policy.structuredMode === 'decision') !== Boolean(decisionModelEntry(route))) return false;
   if (route.provider !== 'vercel') return true;
   // A catalogued route that produces IMAGES cannot serve a task that did not ASK for one -
   // every text task here sends a text request and reads a structured answer. This is the
@@ -276,9 +333,13 @@ function noacgFunded(task: TaskProfile): boolean {
  *  ceiling, for the reason `TaskRoutePolicy.imageRoutes` states: the ceiling measures text
  *  tokens and would clear or refuse an image route on a rule that misses most of its bill.
  *  What bounds it is `maxProviderCostUsd`, booked per generation. Approval is NOT waived -
- *  an unaudited image model is refused exactly as before. */
+ *  an unaudited image model is refused exactly as before.
+ *
+ *  A DECISION route bills per token like a text route, so the same price ceiling applies, read
+ *  against the decision-candidate list instead of the approved chat catalog. */
 function fundedRoute(policy: TaskRoutePolicy, route: ModelRoute): boolean {
   if (declaredImageRoute(policy, route)) return approvedModelRoute(route);
+  if (policy.structuredMode === 'decision') return fundedDecisionRoute(route, policy.prices[modelRouteKey(route)] ?? null);
   return fundedModelRoute(route, policy.prices[modelRouteKey(route)] ?? null);
 }
 

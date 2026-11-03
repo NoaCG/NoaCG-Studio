@@ -1,0 +1,425 @@
+// covers: src/templates/importedDesign/creditsRoll.ts, src/templates/importedDesign/svg.ts
+// covers: src/control/contentFormats.ts, src/components/home/SourcesLine.tsx
+// covers: e2e/fixtures/jev-svg/dev/credits-1.svg
+//
+// LINKED CREDITS ON AIR (jev-svg-import row 24, AC-14 and AC-24). A Sheet connected to imported
+// credits keeps the prepared list current, and what is on air follows one rule per playback:
+//
+//  - A ROLL OR CARDS ON AIR KEEP THE LIST THEY TOOK. A refresh reaches the graphic, which holds it
+//    for the next Take: the moving rows and the card on screen do not change under the viewer,
+//    the roll is not restarted, and the production page says newer data shows on the next Take.
+//    A new Scroll speed or Card time still acts on air, as before.
+//  - A STILL PAGE shows a refresh at once: nothing moves, so nothing replays.
+//  - OFF AIR the prepared rows follow every write, and the next Take airs the newest list. An
+//    empty Sheet clears the list at that Take; filled again, the list comes back.
+//
+// And #1973: a still page whose face starts loading at its Take, after the load-time refit had
+// already run, is fitted again when the face lands, once however many updates came meanwhile.
+//
+// Row 25 (AC-14): a FAILING SHEET. Read from a local fake of the export
+// (e2e/fixtures/jev-sheet-server.mjs), a denial, a read that never answers, a dropped connection
+// and a sign-in page are each said on the source line and write nothing: the prepared rows keep
+// the last good list. The next good read reconnects, the rows follow, the Take airs the newest
+// list in the drawn looks, and no model is asked anything on the way.
+
+import { test, expect, type Page } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { settleDurableWrites } from './_durable';
+import { dropSvg, intoProduction } from './_svg-import';
+import { startSheetServer, csvOf, MODEL_REQUEST, PAGE_FAILURES } from './fixtures/jev-sheet-server.mjs';
+
+const ABOVE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGCreditsSheet00000000/edit#gid=0';
+
+/** A Sheet tab the test edits: every read answers what it holds now. */
+async function stubSheet(page: Page, rows: string[][]) {
+  const tab = { csv: csvOf(rows) };
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: tab.csv }),
+  );
+  return { set: (next: string[][]) => { tab.csv = csvOf(next); } };
+}
+
+/** Walk credits-1 through the wizard as role-above styled credits, played as `playback`. */
+async function styledCreditsProduction(page: Page, playback: 'roll' | 'cards', name: string) {
+  await page.goto('/app');
+  await dropSvg(page, ABOVE_CREDITS_SVG);
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  const picker = page.getByTestId('map-svg-recipe-credits');
+  const role = await picker.locator('option').evaluateAll((options) =>
+    (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
+  await picker.selectOption(role);
+  await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
+  await page.getByTestId('map-svg-credits-playback').selectOption(playback);
+  await intoProduction(page, name, `${name} night`);
+  await settleDurableWrites(page);
+}
+
+/** Connect the stubbed Sheet to the selected cue, as the operator does. */
+async function connectSheet(page: Page, label: string, link = SHEET_URL) {
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill(link);
+  await review.getByTestId('cue-connect-read').click();
+  await review.getByTestId('cue-connect-label').fill(label);
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(page.getByTestId('sources-line')).toContainText('checked');
+}
+
+const TAB = [['Role', 'Name'], ['Research', 'Nia Vale'], ['', 'Tomas Fen'], ['Sound', 'Ari Moss']];
+const NEWER = [['Role', 'Name'], ['Camera', 'Jonas Berg'], ['', 'Ida Lake'], ['Director', 'Alex Rivera']];
+
+test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and the next Take airs it; empty clears and fills again', async ({ page }) => {
+  test.setTimeout(120_000);
+  const sheet = await stubSheet(page, TAB);
+  await styledCreditsProduction(page, 'roll', 'Live roll');
+  await connectSheet(page, 'Crew');
+  // The list field follows the Sheet through the credits adapter.
+  await expect(page.getByTestId('cue-connected-mark').first()).toBeVisible();
+
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  const roll = () => air.locator('.imported-design-credits-roll').evaluate(() => {
+    const w = window as unknown as { noacgCreditsTween: { progress(): number; __mark?: number } | null; noacgCreditsWaiting: boolean };
+    return { mark: w.noacgCreditsTween?.__mark ?? null, progress: w.noacgCreditsTween?.progress() ?? null, waiting: w.noacgCreditsWaiting };
+  });
+  await expect.poll(async () => (await roll()).progress).not.toBeNull();
+  // Mark the running roll, so a restarted one is told apart from the one taken.
+  await air.locator('.imported-design-credits-roll').evaluate(() => {
+    (window as unknown as { noacgCreditsTween: { __mark?: number } }).noacgCreditsTween.__mark = 1;
+  });
+  const waitingLine = page.getByTestId('source-waiting');
+  await expect(waitingLine).toHaveCount(0);
+
+  // THE SHEET CHANGES while the list rolls: the refresh reaches the graphic, which keeps the rows
+  // it took and keeps rolling them; the production page says the newer data shows on the next Take.
+  const before = await roll();
+  sheet.set(NEWER);
+  await expect.poll(() => roll().then((r) => r.waiting), { timeout: 20_000, message: 'the refresh reached the graphic' }).toBe(true);
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  const during = await roll();
+  expect(during.mark, 'the roll taken is the roll running').toBe(1);
+  expect(during.progress!, 'the roll was not restarted').toBeGreaterThan(before.progress!);
+  await expect(waitingLine).toHaveText('· Newer data shows on the next Take');
+  await expect(waitingLine).toHaveAttribute('title', 'On air: Live roll');
+
+  // THE NEXT TAKE airs the newest list, from the start of a new roll, and the line clears.
+  await page.getByTestId('verb-retake').click();
+  await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+  await expect.poll(async () => (await roll()).mark).toBeNull();
+  expect((await roll()).waiting).toBe(false);
+  await expect(waitingLine).toHaveCount(0);
+
+  // EMPTY: the Sheet emptied while on air waits as any change does; the next Take clears the list.
+  sheet.set([['Role', 'Name']]);
+  await expect.poll(() => roll().then((r) => r.waiting), { timeout: 20_000 }).toBe(true);
+  await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+  await page.getByTestId('verb-retake').click();
+  await expect(rows).toHaveCount(0);
+  // FILLED AGAIN: off air the prepared rows follow at once; the Take airs them.
+  await page.getByTestId('verb-out').click();
+  sheet.set(TAB);
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'], { timeout: 20_000 });
+  await expect(waitingLine).toHaveCount(0);
+  await page.getByTestId('verb-take').click();
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  // The drawn styling carries every list: roles in the role look, names in the name look.
+  const looks = await rows.evaluateAll((els) => els.map((el) => [el.getAttribute('data-noacg-credits'), getComputedStyle(el).fill, getComputedStyle(el).fontSize]));
+  expect(looks).toEqual([
+    ['role', 'rgb(237, 188, 113)', '25px'],
+    ['name', 'rgb(255, 255, 255)', '35px'],
+    ['name', 'rgb(255, 255, 255)', '35px'],
+    ['role', 'rgb(237, 188, 113)', '25px'],
+    ['name', 'rgb(255, 255, 255)', '35px'],
+  ]);
+
+  // PAUSE holds what is prepared; RESUME reads again, and on air the change waits for a Take.
+  await page.getByTestId('source-pause').click();
+  await expect(page.getByTestId('sources-line')).toContainText('paused');
+  sheet.set(NEWER);
+  await page.waitForTimeout(6000);
+  expect((await roll()).waiting, 'paused: nothing read').toBe(false);
+  await page.getByTestId('source-pause').click();
+  await expect.poll(() => roll().then((r) => r.waiting), { timeout: 20_000 }).toBe(true);
+  await expect(waitingLine).toBeVisible();
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+});
+
+test('cards on air keep the cards they took: a refresh waits for the next Take, Next card turns the cards taken', async ({ page }) => {
+  test.setTimeout(120_000);
+  const sheet = await stubSheet(page, [['Role', 'Name'], ['Research', 'Nia Vale'], ['', 'Tomas Fen'], ['', ''], ['Sound', 'Ari Moss']]);
+  await styledCreditsProduction(page, 'cards', 'Live cards');
+  await connectSheet(page, 'Crew cards');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
+  const waiting = () => air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsWaiting: boolean }).noacgCreditsWaiting);
+
+  sheet.set([['Role', 'Name'], ['Camera', 'Jonas Berg'], ['', ''], ['Director', 'Alex Rivera'], ['', ''], ['Editor', 'Mia Holt']]);
+  await expect.poll(waiting, { timeout: 20_000, message: 'the refresh reached the graphic' }).toBe(true);
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
+  await expect(page.getByTestId('source-waiting')).toHaveText('· Newer data shows on the next Take');
+  // The prepared cue follows the refresh: PREVIEW shows the newer first card meanwhile.
+  await expect(page.frameLocator('[data-testid="production-preview"] iframe').locator('.imported-design-credits-row')).toHaveText(['Camera', 'Jonas Berg']);
+  // Next card turns to the second card of the list taken, not of the newer one.
+  await page.getByTestId('cue-actions').getByRole('button', { name: /Next card$/ }).click();
+  await expect(rows).toHaveText(['Sound', 'Ari Moss']);
+  // The next Take deals the newer list from its first card.
+  await page.getByTestId('verb-retake').click();
+  await expect(rows).toHaveText(['Camera', 'Jonas Berg']);
+  await expect(page.getByTestId('source-waiting')).toHaveCount(0);
+  await page.getByTestId('cue-actions').getByRole('button', { name: /Next card$/ }).click();
+  await expect(rows).toHaveText(['Director', 'Alex Rivera']);
+});
+
+test('a failing Sheet keeps the prepared credits as last read and says why; the reconnect brings the newest, and the Take airs it with no model request', async ({ page }) => {
+  test.setTimeout(120_000);
+  const fake = await startSheetServer();
+  const SHEET = '1NoaCGCreditsFake00000000';
+  fake.set(SHEET, csvOf(TAB));
+  await fake.route(page.context());
+  const asked: string[] = [];
+  page.on('request', (r) => { if (MODEL_REQUEST.test(r.url())) asked.push(r.url()); });
+  try {
+    await styledCreditsProduction(page, 'roll', 'Failing roll');
+    await connectSheet(page, 'Crew', `https://docs.google.com/spreadsheets/d/${SHEET}/edit#gid=0`);
+    const status = page.getByTestId('sources-line').getByTestId('source-status');
+    const air = page.frameLocator('[data-testid="program-stage"] iframe');
+    const rows = air.locator('.imported-design-credits-row');
+    await page.getByTestId('verb-take').click();
+    await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+    // Off air the prepared rows follow every write, so a write that should not happen would show.
+    await page.getByTestId('verb-out').click();
+
+    for (const [mode, said] of PAGE_FAILURES) {
+      fake.mode(SHEET, mode);
+      await expect(status, mode).toHaveText(said, { timeout: 25_000 });
+      await expect(rows, `${mode}: the last good list is kept`).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+    }
+
+    // Reconnect: the newest list arrives off air, and the Take airs it in the drawn looks.
+    fake.set(SHEET, csvOf(NEWER));
+    await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera'], { timeout: 20_000 });
+    await expect(status).toContainText('checked');
+    await page.getByTestId('verb-take').click();
+    await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+    const looks = await rows.evaluateAll((els) => els.map((el) => [el.getAttribute('data-noacg-credits'), getComputedStyle(el).fill]));
+    expect(looks.map((l) => l.join(' '))).toEqual(['role rgb(237, 188, 113)', 'name rgb(255, 255, 255)', 'name rgb(255, 255, 255)', 'role rgb(237, 188, 113)', 'name rgb(255, 255, 255)']);
+    expect(asked, 'no model request on any refresh').toEqual([]);
+  } finally {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await page.context().unrouteAll({ behavior: 'ignoreErrors' });
+    await fake.close();
+  }
+});
+
+// ── The same rules on a blank page, built as the wizard saves each binding ─────────────────────
+
+type Built = { js: string; html: string };
+function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 'cards', face: boolean, advance?: number): Promise<Built> {
+  return page.evaluate(async ({ source, playback, face, advance }) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+    const C = await import('/src/templates/importedDesign/creditsRoll.ts');
+    const { initialDraft, mergeDraft } = await import('/src/components/wizard/draft/core.ts');
+    const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const imp = importSvgMarkup(source);
+    const content = imp.candidates.find((c) => c.sample === 'Research')!.id;
+    const host = document.createElement('div');
+    host.innerHTML = imp.markup;
+    document.body.appendChild(host);
+    const preview = C.creditsPreview(host.firstElementChild!, imp.candidates.map((c) => c.id), content);
+    host.remove();
+    const block = preview.anchors.map((a) => a.candidateId);
+    const all = imp.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+    const fields = all.filter((f) => !block.includes(f.candidateId) || f.candidateId === content);
+    const credits = fields.findIndex((f) => f.candidateId === content);
+    const svg = {
+      markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [],
+      fonts: face ? [{ family: 'Anton', fontId: 'anton' }] : [],
+      behaviour: { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback, ...(advance === undefined ? {} : { advance }), anchors: preview.anchors } },
+    };
+    const template = IMPORTED_SVG.create({ designSvg: svg });
+    return { js: template.js, html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: 'rise', motionOut: 'fade' } }), IMPORTED_SVG)) };
+  }, { source, playback, face, advance });
+}
+
+const rowTexts = (page: Page) => page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent));
+const call = (page: Page, data: Record<string, string> | null, verb?: 'play' | 'stop') => page.evaluate(({ data, verb }) => {
+  const w = window as unknown as { update(d: Record<string, string>): void; play(): void; stop(): void };
+  if (data) w.update(data);
+  if (verb) w[verb]();
+}, { data, verb });
+const fieldFor = (page: Page, role: string) => page.evaluate((role) => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor(role, null), role);
+const LIST = 'Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss';
+const OTHER = 'Camera:\nJonas Berg\nIda Lake\nDirector:\nAlex Rivera';
+
+test('a roll on air keeps its list through updates, a new speed and its faces landing; Out lets the rows follow again', async ({ page }) => {
+  await page.goto('/app');
+  const ABOVE = readFileSync(ABOVE_CREDITS_SVG, 'utf8').replace('font-family="sans-serif"', 'font-family="Anton"');
+  const built = await buildCredits(page, ABOVE, 'roll', true);
+  const held: (() => void)[] = [];
+  await page.route('**/fonts/anton*.woff2*', async (route) => {
+    await new Promise<void>((resolve) => { held.push(resolve); });
+    await route.fulfill({ body: readFileSync('public/fonts/anton.woff2'), contentType: 'font/woff2' });
+  });
+  await page.goto('/robots.txt');
+  await page.setContent(built.html, { waitUntil: 'domcontentloaded' });
+  await expect.poll(() => page.evaluate(() => document.fonts.status), 'the face is on its way').toBe('loading');
+  const field = await fieldFor(page, 'credits');
+  const speed = await fieldFor(page, 'scrollSpeed');
+  await call(page, { [field]: LIST }, 'play');
+  await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween)).toBe(true);
+  const state = () => page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsTween: { progress(): number; timeScale(): number; __mark?: number } | null; noacgCreditsWaiting: boolean; noacgCreditsLast: { distance: number } };
+    return { mark: w.noacgCreditsTween?.__mark ?? null, progress: w.noacgCreditsTween?.progress() ?? null, scale: w.noacgCreditsTween?.timeScale() ?? null, waiting: w.noacgCreditsWaiting, distance: w.noacgCreditsLast.distance };
+  });
+  await page.evaluate(() => { (window as unknown as { noacgCreditsTween: { __mark?: number } }).noacgCreditsTween.__mark = 1; });
+
+  // An update on air: the rows the take built stay; nothing restarts.
+  const first = await state();
+  await call(page, { [field]: OTHER });
+  expect(await rowTexts(page)).toEqual(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  const kept = await state();
+  expect([kept.mark, kept.waiting], 'the roll taken keeps running, a newer list waiting').toEqual([1, true]);
+  expect(kept.progress!).toBeGreaterThanOrEqual(first.progress!);
+  // The same list as taken again: nothing waits any more.
+  await call(page, { [field]: LIST });
+  expect((await state()).waiting).toBe(false);
+  await call(page, { [field]: OTHER });
+
+  // A new Scroll speed still acts on the roll on air, from this frame.
+  await call(page, { [speed]: '200' });
+  const faster = await state();
+  expect([faster.mark, faster.scale], 'the speed changed the running roll').toEqual([1, 2]);
+
+  // The faces land: the take is measured again in them, from where it was, with the list it took.
+  await expect.poll(() => held.length > 0, 'the face request is held').toBe(true);
+  for (const resolve of held.splice(0)) resolve();
+  await expect.poll(async () => (await state()).distance, 'measured again in the face').not.toBe(first.distance);
+  expect(await rowTexts(page), 'the settled roll keeps the list it took').toEqual(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  expect((await state()).waiting).toBe(true);
+
+  // Out: off air, the rows follow every write; the next take airs the newest list.
+  await call(page, null, 'stop');
+  await expect.poll(async () => (await state()).waiting).toBe(false);
+  await call(page, { [field]: OTHER });
+  expect(await rowTexts(page)).toEqual(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+  await call(page, null, 'play');
+  await expect.poll(async () => (await state()).progress).not.toBeNull();
+  expect(await rowTexts(page)).toEqual(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+  expect((await state()).mark).toBeNull();
+});
+
+test('cards on air keep the cards they took, while a new card time still applies; the next take deals the newer list', async ({ page }) => {
+  await page.goto('/app');
+  const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), 'cards', false);
+  await page.goto('/robots.txt');
+  await page.setContent(built.html);
+  const field = await fieldFor(page, 'credits');
+  const time = await fieldFor(page, 'cardTime');
+  const cards = () => page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsCards: { from: number; to: number }[]; noacgCreditsCard: number; noacgCreditsWaiting: boolean; noacgCreditsTween: unknown };
+    return { cards: w.noacgCreditsCards.length, card: w.noacgCreditsCard, waiting: w.noacgCreditsWaiting, hold: !!w.noacgCreditsTween };
+  });
+  await call(page, { [field]: 'Research:\nNia Vale\n\nSound:\nAri Moss' }, 'play');
+  await expect.poll(async () => (await cards()).card).toBe(0);
+  expect(await rowTexts(page)).toEqual(['Research', 'Nia Vale']);
+
+  // Three cards written on air: the two cards taken stay dealt; the one on screen is unchanged.
+  await call(page, { [field]: 'Camera:\nJonas Berg\n\nDirector:\nAlex Rivera\n\nEditor:\nMia Holt' });
+  expect(await cards()).toEqual({ cards: 2, card: 0, waiting: true, hold: false });
+  expect(await rowTexts(page)).toEqual(['Research', 'Nia Vale']);
+  // A card time set on air starts the hold of the cards taken, and turns to their second card.
+  await call(page, { [time]: '2' });
+  expect((await cards()).hold, 'the card time applies on air').toBe(true);
+  await expect.poll(async () => (await cards()).card, { timeout: 5000 }).toBe(1);
+  await expect.poll(() => rowTexts(page)).toEqual(['Sound', 'Ari Moss']);
+  // The next take deals the newer list, from its first card.
+  await call(page, null, 'play');
+  await expect.poll(async () => (await cards()).card).toBe(0);
+  expect(await cards()).toMatchObject({ cards: 3, waiting: false });
+  expect(await rowTexts(page)).toEqual(['Camera', 'Jonas Berg']);
+});
+
+test('a still page shows an update on air at once, where the drawing put it', async ({ page }) => {
+  // The held-still decision (phase 24): nothing on a still page moves, so an update has no
+  // motion to replay, and a last-minute correction reaches air at once, refitted in place.
+  await page.goto('/app');
+  const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), 'static', false);
+  expect(built.js, 'a still page holds no list of its own').not.toContain('noacgCreditsHeld');
+  await page.goto('/robots.txt');
+  await page.setContent(built.html);
+  const field = await fieldFor(page, 'credits');
+  await call(page, { [field]: LIST }, 'play');
+  await expect.poll(() => rowTexts(page)).toEqual(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await call(page, { [field]: OTHER });
+  expect(await rowTexts(page)).toEqual(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+  const still = await page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsLast: unknown };
+    return { tween: w.noacgCreditsTween, last: w.noacgCreditsLast, moved: getComputedStyle(document.querySelector('.imported-design-credits-roll')!).transform };
+  });
+  expect(still).toEqual({ tween: null, last: { still: true, rows: 5, scale: 1, refused: false }, moved: 'none' });
+});
+
+test('#1973: a still page whose face starts loading at its take is fitted again when it lands, once per landing', async ({ page }) => {
+  // The drawing names no face of its own until the test points the drawn layers at Anton after
+  // the load-time refit has run: the take is then the first layout in the face, so only the
+  // take's own refit can fit the page again when the face lands.
+  await page.goto('/app');
+  const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), 'static', true);
+  const held: (() => void)[] = [];
+  await page.route('**/fonts/anton*.woff2*', async (route) => {
+    await new Promise<void>((resolve) => { held.push(resolve); });
+    await route.fulfill({ body: readFileSync('public/fonts/anton.woff2'), contentType: 'font/woff2' });
+  });
+  await page.goto('/robots.txt');
+  await page.setContent(built.html);
+  await page.evaluate(() => document.fonts.ready);
+  expect(await page.evaluate(() => document.fonts.status), 'nothing loading before the take').toBe('loaded');
+  const field = await fieldFor(page, 'credits');
+  const list = ['Research:', ...Array.from({ length: 12 }, (_, i) => `Name Number ${i + 1}`)].join('\n');
+  // Count the page's fits from here on.
+  await page.evaluate(() => {
+    const w = window as unknown as { creditsHold(): unknown; __fits: number };
+    const hold = w.creditsHold;
+    w.__fits = 0;
+    w.creditsHold = function () { w.__fits += 1; return hold(); };
+    for (const el of document.querySelectorAll('[data-noacg-credit]')) el.setAttribute('font-family', 'Anton');
+  });
+  await call(page, { [field]: list }, 'play');
+  expect(await page.evaluate(() => document.fonts.status), 'the take set the rows in the face, which is loading').toBe('loading');
+  const early = await page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => (el as SVGTextElement).getComputedTextLength()));
+  // Three more updates while the face loads.
+  for (let i = 0; i < 3; i++) await call(page, { [field]: list });
+  const before = await page.evaluate(() => (window as unknown as { __fits: number }).__fits);
+  await expect.poll(() => held.length > 0, 'the face request is held').toBe(true);
+  for (const resolve of held.splice(0)) resolve();
+  await expect.poll(() => page.evaluate(() => document.fonts.status)).toBe('loaded');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __fits: number }).__fits - 0), 'fitted again when the face landed').toBeGreaterThan(before);
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => (window as unknown as { __fits: number }).__fits), 'once per landing').toBe(before + 1);
+  const late = await page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => (el as SVGTextElement).getComputedTextLength()));
+  expect(late, 'the rows are now set in the face').not.toEqual(early);
+  // Fitted by the still page's rule in the face: its last ink inside the room, the room spent.
+  const fit = await page.evaluate(() => {
+    const art = (document.querySelector('[data-noacg-credit]') as SVGGraphicsElement).ownerSVGElement!;
+    const bottoms = [...document.querySelectorAll('.imported-design-credits-row')].map((el) => {
+      const t = el as SVGTextElement;
+      const m = art.getScreenCTM()!.inverse().multiply(t.getScreenCTM()!);
+      const b = t.getBBox();
+      return m.b * b.x + m.d * (b.y + b.height) + m.f;
+    });
+    return { bottom: Math.max(...bottoms), scale: (window as unknown as { noacgCreditsLast: { scale: number } }).noacgCreditsLast.scale };
+  });
+  expect(fit.scale, JSON.stringify(fit)).toBeLessThan(1);
+  expect(fit.bottom, JSON.stringify(fit)).toBeLessThanOrEqual(772.5 + 0.5);
+  expect(fit.bottom, JSON.stringify(fit)).toBeGreaterThan(772.5 - 2);
+});

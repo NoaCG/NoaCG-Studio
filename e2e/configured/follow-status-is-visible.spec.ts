@@ -1,3 +1,5 @@
+// covers: src/control/logFollow.ts
+
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';

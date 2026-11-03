@@ -10,6 +10,7 @@
 // covers: src/components/home/CueAdjust.tsx, src/control/cueAdjust.ts, src/control/adjustGeometry.ts, src/model/adjust.ts
 // covers: src/components/home/ProductionLook.tsx, src/control/productionLook.ts
 // focus
+// critical: production-playout
 
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';

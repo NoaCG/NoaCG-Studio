@@ -32,8 +32,9 @@ What stays central in `scripts/e2e-affected.mjs`, each for a reason no spec head
 | `CORE` | the shared foundations whose change runs the full suite. The claim is "most specs", which is a fact about the file, not about any spec. |
 | `IGNORE` | files no spec can observe. There is no spec to hold them. |
 | `CATALOG_TRIGGERS` | raise the catalog calibration gate, a separate Playwright config over the whole catalog: one flag, not a spec a header could name. |
+| catalog reach (`checkoutCatalogReach`) | the source the catalog specs render through, read off their Node imports and their in-page `import('/src/...')` calls. A file in it raises the catalog gate whatever else the plan does. Under sprint focus an escalation raises the gate unless every escalating file is a `src/` module outside that reach; a file the walk cannot see (a dependency manifest, the build config, a `public/` asset, an unknown root file) or an unknown reach raises it. |
 | `CENTRAL` (`cli/`, `.claude-plugin/`, `benchmarks/agent/`) | source that is known and selects NO spec. Without the row it would read as unmapped and escalate. |
-| `CONFIGURED_SUITE_FILES` (`scripts/e2e-lists.mjs`) | the configured suite's own files trigger its line for every change, not for one spec's sake. Every other configured trigger is in a configured spec's header. |
+| `CONFIGURED_FULL` (`scripts/e2e-lists.mjs`) and the configured toolchain (`configuredToolchain`) | the configured suite's shared ground (its helpers, live config, `supabase/`, the workflows and actions that run it, dependency manifests, the planner and verdict) selects every configured spec, not one spec's sake. Every other configured selection is in a configured spec's header. |
 
 Every row of the old map that named a spec moved into those specs' headers, the wide ones included.
 `src/templates/**` is now written in 53 headers and the wizard directory in 40. That was a judgement,
@@ -68,7 +69,7 @@ removes one, and it never makes an unknown file look mapped: an unmapped path st
 | the map | what the plan does |
 |---|---|
 | fresh, file executed by fewer than half the traced specs | adds those specs, and says which ones it added |
-| fresh, file executed by more than half (`BROAD_SHARE`) | keeps the covers selection and names the file (`BROAD_ESCALATES` switches this to a core-style escalation) |
+| fresh, file executed by more than half (`BROAD_SHARE`) | escalates like core (the focus set under sprint focus) and names the file; `BROAD_ESCALATES` switched off keeps only its covers selection |
 | missing, unreadable, or older than `MAX_AGE_DAYS` (3) | escalates every file that would have asked it, and the CI plan annotates the run with the reason |
 | `cli/` and other CENTRAL source | never asked: the browser cannot see it |
 
@@ -80,9 +81,12 @@ that spec (`docs/work-specs/e2e-traced-selection/evidence/`).
 Why executed, not loaded: the app imports most of `src/` eagerly, so every spec loads 600 or more
 of its files. A load map would select nearly the whole suite for any change.
 
-Why broad files keep their headers: 276 of 1190 files are executed by most specs, because most
-specs walk the wizard and open the editor. Replayed over 150 landings with sprint focus, the narrow
-union costs +13% planned test-minutes, escalating broad files +25%, and a plain union +65%.
+Why broad files escalate: a file most specs execute is one whose change can break most specs, and
+its header rarely says so (`CanvasGuides.tsx` runs in 213 of 241 traced specs and its header named
+1). Broad files kept their headers from 2026-10-10 to 2026-10-31 to save cost: replayed over 150
+landings with sprint focus, the narrow union cost +13% planned test-minutes and escalating broad
+files +25%. The cicd-improvement ci04 row reversed that as safety work; its evidence
+(`docs/work-specs/cicd-improvement/evidence/phase-ci04.md`) has the remeasured cost.
 
 What the map cannot see stays the headers' job: files a spec reads from Node (a baseline, a
 fixture), what the dev server's own handlers run, and pages a spec opens in a context of its own.
@@ -106,14 +110,17 @@ run is unaffected. Its membership review, with a reason per entry, is owed
 | `scripts/*.test.mjs` | nothing | a test cannot change the thing it tests, and each of these is named in the `node --test` block of `npm run build`, so it has a gate that runs on every change. |
 | `scripts/` otherwise | nothing, except the named suite-critical files and every module the dev server loads, which plan their headers or escalate | local tooling the app never loads. **The exception list is load-bearing**: `dev-port`, `port-registry`, `e2e-runs`, `e2e-workers`, `build-player-host`, `e2e-affected` and `e2e-lists` are imported by the Playwright configs or by globalSetup, so a fault in one breaks every spec rather than one flow. They escalate. Measured the hard way on 2026-08-06: a rewrite of `e2e-runs` produced `mode: none` and a green gate that ran zero specs. The dev server's own modules are not listed: everything `vite.config.ts` imports, followed through their imports (`importClosure`), is read off the code, so a new plugin is covered with no edit (#957). |
 | a file imported `?raw` | its own headers plus everything its importer plans | the text is inlined into the importer (the SVG runtime into `svg.ts`, GSAP and Lottie into every document), and the traced map never sees a string module run (#1138). |
+| a file a spec reads by path or opens by route (a fixture, `output.html`, a font, a `scripts/` file a spec imports) | whatever its own rules plan, plus every spec that reads it | read off each spec and e2e module it imports (`readerIndex`): `new URL(..., import.meta.url)`, path-shaped string and template literals, and a root page's route (`/output?production=...`). Asked before IGNORE, so `scripts/fixtures/` is covered. It only adds: an unmapped fixture still escalates, and a path assembled at run time is not seen (cicd-improvement ci05). Before it, `output.html` planned 1 spec while 15 open `/output`. |
 | one `e2e/*.spec.ts` | that spec | the median spec is 0.5 minutes and the heaviest 5.0, so this is usually the cheapest plan the gate can produce. |
 | `e2e/_*` (shared helpers) | the specs that import it, directly or through another helper, plus the catalog gate when a catalog spec does; the focus set or full suite only for a helper a config loads (`_offline-guard`, `_trace`), one such a helper imports (`_env-probe`), or one nothing imports | a helper is Node code its importers load, so it can move only them (`helperReach`). Until #994 every helper escalated, and under sprint focus `_ografParity.ts` ran none of its three importers. The broad ones stay broad: `_create.ts` plans 121 specs. |
 | `e2e/configured/**` | nothing here | see "the configured tier" below. |
 | a wizard step | 37 specs, 36.2 min | the wizard rule names the surfaces the wizard specs drive, plus the components that MOUNT the shared pickers. Wide because the wizard IS the primary creation flow, not because nobody looked: `src/components/AGENTS.md` carries the per-surface split and the specs' own headers name the exceptions individually. |
 | one catalog design | 46 specs, 45.6 min, plus the catalog calibration gate | the pack specs ITERATE the catalog, so a design added, renamed or re-declared changes what they assert. Six of them were reachable from no template path at all until 2026-08-08, and ten designs landed green because of it. |
-| a shared foundation (`src/store`, `src/model`, `src/preview`, `src/validation`, the app shell, the router, `src/styles`, `package-lock.json`) | the focus set (55 specs, 36.9 min) under sprint focus; the full suite otherwise | genuine fan-out. Each is imported by most of the app, so no smaller claim can be made honestly. |
-| a path no rule recognises | the focus set under sprint focus; the full suite otherwise | the safe direction. It is also a REPORT: the plan names every unmapped file, and a file that keeps appearing there is a missing `covers:` line, not a fact of life. |
-| only the WORDING of a `.tsx`, `.jsx` or `.html` file, or only the PAINT of classes in a `.css` file | the specs whose source or helpers name the old or new wording (or the class), plus covering specs with screenshot baselines, plus covering specs that measure geometry when the wording grew | words can only break a spec that reads them, or a fit when they get longer. `scripts/e2e-affected-copy.mjs` takes this path only when the code left once the words are set aside is token-for-token identical and every word kept its place; a changed condition, handler, test id, class, compared, indexed or called-with string, a moved label, a non-paint CSS property, or anything its scanner cannot follow plans as before. Never for `src/templates`, `src/blocks`, `src/assets` or plain `.ts`. Measured on the 2026-10-07 wizard copy rows: `claude/i-wizard-leftovers` (cuts only) went from 43 spec files (544 tests) to 1 (3 tests); `ba939f4c7` (one FinishStep sentence made longer) from 47 (635) to 33 (536). `claude/e-wizard-copy`'s commit also changed conditions in eight files and still plans 51. |
+| a shared foundation (`src/store`, `src/model`, `src/preview`, `src/validation`, the app shell, the router, `src/styles`, `package-lock.json`) | the focus set (55 specs, 36.9 min) under sprint focus, plus the specs the file's own `covers:` headers name (since cicd-improvement ci11: `src/model/project.ts` dropped `save-transaction.spec.ts`, the one spec that fails on the #1402 regression), plus the catalog gate unless the catalog reach proves the file outside it (`src/styles` is; `src/model/easings.ts`, `src/preview/composeDocument.ts` and `package.json` are not); the full suite and the catalog gate otherwise | genuine fan-out. Each is imported by most of the app, so no smaller claim can be made honestly. |
+| a renamed file | both its old and its new path | `git diff --name-only` printed only the new path, so a file moved out of `src/preview/` planned what its new home selects (3c64200e3). |
+| `src/components/spaceKey.ts` | the focus set under sprint focus, plus the specs its headers name | keyboard ownership for every surface; `ESCALATES_WITH_HEADERS` lets a header add a spec and never cancel the escalation. |
+| a path no rule recognises | the focus set under sprint focus, plus the catalog gate unless it is a `src/` module outside the catalog reach; the full suite otherwise | the safe direction. It is also a REPORT: the plan names every unmapped file, and a file that keeps appearing there is a missing `covers:` line, not a fact of life. |
+| only the WORDING of a `.tsx`, `.jsx` or `.html` file, or only the PAINT of classes in a `.css` file | the specs whose source or helpers name the old or new wording (or the class), plus covering specs with screenshot baselines, plus covering specs that measure geometry when the wording grew | words can only break a spec that reads them, or a fit when they get longer. `scripts/e2e-affected-copy.mjs` takes this path only when the code left once the words are set aside is token-for-token identical and every word kept its place; a changed condition, handler, test id, class, compared, indexed or called-with string, a moved label, a non-paint CSS property, or anything its scanner cannot follow plans as before. Never for `src/templates`, `src/blocks`, `src/assets` or plain `.ts`. A spec's regex literal that holds literal wording (`/save/i`) is run against the old and new wording, as Playwright would match it, not compared as a phrase (ci05). Measured on the 2026-10-07 wizard copy rows: `claude/i-wizard-leftovers` (cuts only) went from 43 spec files (544 tests) to 1 (3 tests); `ba939f4c7` (one FinishStep sentence made longer) from 47 (635) to 33 (536). `claude/e-wizard-copy`'s commit also changed conditions in eight files and still plans 51. |
 
 ## What the audit found
 
@@ -269,6 +276,9 @@ run's own blobs. The reasoning, the measurements and the maintenance loop around
 
 ## Changing this contract
 
+- A selected spec cannot drop out of a CI shard unnoticed: ESLint refuses a committed `.only`,
+  every Playwright config sets `forbidOnly` on CI, and the run-integrity reporter fails a shard in
+  which a spec it was handed (`NOACG_E2E_EXPECTED_SPECS`) planned no test (cicd-improvement ci05).
 - A new IGNORE entry is the only edit here with no alarm attached. Every other mistake fails toward
   running MORE; a wrong IGNORE runs FEWER specs and nothing goes red. Write the confidence argument
   into the code comment beside it, in the form "no spec can observe this, and here is its real gate".

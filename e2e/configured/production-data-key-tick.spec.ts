@@ -19,6 +19,13 @@
 // process with the stack's own test CRON_SECRET (owner decision A, data-sources C2): the dev server
 // carries no cron secret. The Sheet is a stub on both sides: the browser is served it at Google's
 // export address, and this process answers the tick's own fetch of that address.
+//
+// The second test (jev-svg-import row 25, AC-14) is the server's takeover when the Sheet fails:
+// every operator page closed, the tick reads a local fake of the export
+// (e2e/fixtures/jev-sheet-server.mjs) that denies, never answers, drops the connection and serves
+// a sign-in page in turn. None of those writes an update row, so the output keeps the last good
+// lines, the row's status says why and goes stale; the next good read writes the newest lines
+// once, and the row's status is the server's good read again.
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
@@ -26,6 +33,7 @@ import { createClient } from '@supabase/supabase-js';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 import dataRoute from '../../api/data/[...path]';
+import { startSheetServer, csvOf } from '../fixtures/jev-sheet-server.mjs';
 
 test.skip(!haveCreds || !SERVICE_ROLE_KEY, 'E2E_EMAIL / E2E_PASSWORD / SUPABASE_SERVICE_ROLE_KEY unset - configured-mode spec');
 
@@ -33,6 +41,8 @@ const SECRET = 'local-e2e-cron-secret';
 const SHEET = `1NoaCGTickSheet${Date.now()}`;
 const LINK = `https://docs.google.com/spreadsheets/d/${SHEET}/edit#gid=0`;
 const tab = { csv: 'First line\n' };
+const FAKE = `1NoaCGTickFake${Date.now()}`;
+let fake: Awaited<ReturnType<typeof startSheetServer>>;
 
 const admin = () => createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
@@ -73,19 +83,23 @@ async function expireLease(showId: string) {
 }
 
 let realFetch: typeof fetch;
-test.beforeAll(() => {
+test.beforeAll(async () => {
   process.env.CRON_SECRET = SECRET;
   process.env.SUPABASE_URL ??= SUPABASE_URL;
   realFetch = globalThis.fetch;
-  // The tick's reads of the stub Sheet; every other Sheet address is not found.
+  fake = await startSheetServer();
+  const throughFake = fake.fetchFor(realFetch);
+  // The tick's reads of the stub Sheet and of the fake; every other Sheet address is not found.
   globalThis.fetch = async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (!url.startsWith('https://docs.google.com/')) return realFetch(input, init);
+    if (url.includes(`/d/${FAKE}/`)) return throughFake(url, init);
     return url.includes(`/d/${SHEET}/`) ? new Response(tab.csv, { status: 200 }) : new Response('', { status: 404 });
   };
 });
 test.afterAll(async () => {
   globalThis.fetch = realFetch;
+  await fake?.close();
   await switchTick(null).catch(() => {});
 });
 test.afterEach(async ({ page }) => {
@@ -223,5 +237,65 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
   run = await tick(`Bearer ${SECRET}`);
   expect(run.body.sources?.find((s) => s.source === sourceId)?.outcome).toBe('read');
   expect((await lines(showId)).map((l) => l.text)).toContain('Fourth line');
+  await switchTick(null);
+});
+
+async function sourceRead(showId: string) {
+  const { data, error } = await admin().from('control_source_reads').select('status').eq('show_id', showId);
+  if (error) throw new Error(error.message);
+  return (data ?? [])[0]?.status as { state?: string; error?: string; stale?: boolean; missed?: number; reader?: string } | undefined;
+}
+
+test('every page closed and the Sheet failing: the tick writes nothing, the output keeps its last good lines and goes stale, and the next good read writes the newest once', async ({ page }) => {
+  test.setTimeout(180_000);
+  await switchTick(new Date(Date.now() + 3600_000));
+  const link = `https://docs.google.com/spreadsheets/d/${FAKE}/edit#gid=0`;
+  fake.set(FAKE, csvOf([['Polls close at 20:00'], ['Turnout 61%']]));
+  // The page reads the same fake as the tick.
+  await fake.route(page.context());
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  await bootstrapGraphic(page, { name: 'News Strip' });
+  const showId = await openProductionWithCurrent(page, `Tick failing ${Date.now()}`);
+  await publishProduction(page);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill(link);
+  await review.getByTestId('cue-connect-read').click();
+  await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect.poll(async () => (await lines(showId)).map((l) => l.text), { timeout: 20_000 }).toContain('Polls close at 20:00\nTurnout 61%');
+  const sourceId = (await row(showId)).sources[0].id;
+
+  // Every page closed.
+  await leave(page);
+  await expireLease(showId);
+  const written = (await lines(showId)).length;
+  /** One tick as the cron runs it, and what it came to for this source. */
+  const outcome = async () => (await tick(`Bearer ${SECRET}`)).body.sources?.find((s) => s.source === sourceId)?.outcome;
+  const failures: [Parameters<typeof fake.mode>[1], RegExp][] = [['deny', /not shared/], ['hang', /did not answer/], ['reset', /offline/], ['signin', /not shared/]];
+  for (const [mode, error] of failures) {
+    fake.mode(FAKE, mode);
+    expect(await outcome(), mode).toBe('failed');
+    expect((await lines(showId)).length, `${mode}: no update row, the output keeps its last good lines`).toBe(written);
+    const status = await sourceRead(showId);
+    expect(status?.state, mode).toBe('failing');
+    expect(status?.error ?? '', mode).toMatch(error);
+    expect(status?.reader).toBe('server');
+  }
+  expect((await sourceRead(showId))?.stale, 'four misses: stale').toBe(true);
+
+  // Reconnect: reordered and replaced rows, written once.
+  fake.set(FAKE, csvOf([['Turnout 64%'], ['Results from 22:00']]));
+  expect(await outcome()).toBe('read');
+  expect(await outcome()).toBe('unchanged');
+  const after = (await lines(showId)).slice(written);
+  expect(after).toEqual([{ text: 'Turnout 64%\nResults from 22:00', src: 'sheet' }]);
+  // The row's status is the server's good read: no page has read since every page closed.
+  const healthy = await sourceRead(showId);
+  expect(healthy).toMatchObject({ state: 'ok', stale: false, missed: 0, reader: 'server' });
   await switchTick(null);
 });

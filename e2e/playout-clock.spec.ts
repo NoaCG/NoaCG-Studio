@@ -10,6 +10,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/templates/behaviours/clock.ts, src/templates/shared/matchClock.ts, src/components/wizard/import/BehaviourSection.tsx
 // focus
 //
 // THE CLIP CLOCK AND THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.3, §6.4 and §6.7, phase 2):
@@ -26,6 +27,9 @@ import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { holdKeyRepeats, parkFocusOffControls } from './_keys';
+import { dropSvg } from './_svg-import';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const BRIDGE = 'http://127.0.0.1:8899';
 const TOKEN = 'e2e-token';
@@ -589,4 +593,120 @@ test('P pauses the clip on air and P again resumes it; held, typed into a box, o
   await page.waitForTimeout(400);
   expect(fake.verbs.slice(before)).toEqual([]);
   expect(page.url()).not.toBe(url);
+});
+
+// ── AN IMPORTED CLOCK ON THE PLAYOUT PAGE (docs/work-specs/jev-svg-import, row 11, AC-8, AC-9) ──
+// The clock an author picks on their own artwork, each mode with only its own controls: counting up
+// waits for Start, a duration starts on the Take, and a target time counts to its instant with no
+// Start, Pause or Reset, painted in hours from an hour. The match-clock runtime and wire under it
+// are pinned in scripts/imported-clock-wire.test.mjs and scripts/clock-target.test.mjs.
+
+const SCORE_CLOCK_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url));
+/** The time the designer drew on the clock layer. */
+const DRAWN = '12:08';
+const CLOCK_EVENTS = ['clock_start', 'clock_pause', 'clock_reset'];
+
+/** The score-clock fixture built with its clock in `mode` (the wizard's own draft and assembler),
+ *  saved as the working graphic and put in a new production. */
+async function importedClockProduction(page: Page, mode: 'count-up' | 'duration' | 'target-time', target?: string): Promise<void> {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await page.evaluate(
+    async ({ markup, mode, target }) => {
+      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+      const D = await import('/src/components/wizard/import/draft.ts');
+      const { svgSourceRevision } = await import('/src/ai/svgInterpretation/contract.ts');
+      const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+      const { formatTemplate } = await import('/src/format/formatCode.ts');
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { useDocKindStore } = await import('/src/store/docKindStore.ts');
+      const { saveProject } = await import('/src/model/project.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const draft = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      const row = draft.svgFields.find((f) => f.on && f.clock)!;
+      const svgClock = { candidateId: row.candidateId, mode, revision: svgSourceRevision(draft.designSvg!.markup), ...(target ? { target } : {}) };
+      const template = await formatTemplate(IMPORTED_SVG.create({ designSvg: D.svgDesignOptions({ ...draft, svgClock }) }));
+      useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
+      useDocKindStore.getState().setKind('spx');
+      const made = useTemplateStore.getState();
+      saveProject(made.template, made.baseline, { graphicId: made.saved.graphicId, dirty: made.saved.dirty }, made.aiSpec, made.aiThread);
+      const failure = await commitDurableWrites();
+      if (failure) throw new Error(failure);
+    },
+    { markup: readFileSync(SCORE_CLOCK_SVG, 'utf8'), mode, target },
+  );
+  await openProductionWithCurrent(page, 'Match Night');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
+}
+
+const airClock = (page: Page) => page.frameLocator('[data-testid="program-stage"] iframe').locator('.imported-design-clock');
+const secondsOf = (text: string | null) => {
+  const parts = (text ?? '').trim().split(':').map(Number);
+  return parts.reduce((total, n) => total * 60 + n, 0);
+};
+
+test('an imported count-up waits for Start; Pause holds it and Reset returns to the drawn time', async ({ page }) => {
+  await importedClockProduction(page, 'count-up');
+  await page.getByTestId('verb-take').click();
+  const clock = airClock(page);
+  await expect(clock).toHaveText(DRAWN);
+  for (const event of CLOCK_EVENTS) await expect(page.getByTestId(`cue-action-${event}`)).toBeVisible();
+  // Taken, it holds: the operator starts it, and nothing is running to pause yet.
+  await expect(page.getByTestId('cue-action-clock_pause')).toBeDisabled();
+  await page.waitForTimeout(1500);
+  await expect(clock).toHaveText(DRAWN);
+  await page.getByTestId('cue-action-clock_start').click();
+  await expect(page.getByTestId('cue-action-clock_pause')).toBeEnabled();
+  await expect.poll(async () => secondsOf(await clock.textContent()), { timeout: 5000 }).toBeGreaterThan(secondsOf(DRAWN));
+  await page.getByTestId('cue-action-clock_pause').click();
+  // Held once the graphic's machine says so (the button greys from the monitor's own state).
+  await expect(page.getByTestId('cue-action-clock_pause')).toBeDisabled();
+  const held = await clock.textContent();
+  await page.waitForTimeout(1500);
+  await expect(clock).toHaveText(held!);
+  await page.getByTestId('cue-action-clock_reset').click();
+  await expect(clock).toHaveText(DRAWN);
+});
+
+test('an imported duration starts on the Take and counts down from its drawn time', async ({ page }) => {
+  await importedClockProduction(page, 'duration');
+  await page.getByTestId('verb-take').click();
+  const clock = airClock(page);
+  // No Start pressed: the Take started it.
+  await expect.poll(async () => secondsOf(await clock.textContent()), { timeout: 5000 }).toBeLessThan(secondsOf(DRAWN));
+  for (const event of CLOCK_EVENTS) await expect(page.getByTestId(`cue-action-${event}`)).toBeVisible();
+});
+
+test('an imported target time shows hours, offers no Start, Pause or Reset, and no live mode choice', async ({ page }) => {
+  // Three hours and forty minutes on, to the minute, in UTC: the clock reads 3:39:xx.
+  const at = new Date(Math.ceil((Date.now() + (3 * 60 + 40) * 60_000) / 60_000) * 60_000);
+  const target = `${at.toISOString().slice(0, 16)}:00+00:00[UTC]`;
+  await importedClockProduction(page, 'target-time', target);
+  const clock = airClock(page);
+  await page.getByTestId('verb-take').click();
+  await expect(clock).toHaveText(/^3:(39|40):\d\d$/);
+  const left = secondsOf(await clock.textContent());
+  expect(Math.abs(left - (at.getTime() - Date.now()) / 1000), 'it counts to the instant').toBeLessThan(5);
+  for (const event of CLOCK_EVENTS) await expect(page.getByTestId(`cue-action-${event}`)).toHaveCount(0);
+  await expect(page.locator('select', { hasText: /Counts (up|down)/ })).toHaveCount(0);
+  // An Out and a second Take do not restart it: it still counts to the same instant.
+  await page.getByTestId('verb-out').click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(async () => Math.abs(secondsOf(await clock.textContent()) - (at.getTime() - Date.now()) / 1000), { timeout: 5000 }).toBeLessThan(5);
+});
+
+test('editing a target time: a time the clocks skip asks for another and says what it still counts to', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, SCORE_CLOCK_SVG);
+  await page.getByTestId('map-svg-clock-mode').selectOption('target-time');
+  const reads = page.getByTestId('map-svg-clock-target-reads');
+  await page.getByTestId('map-svg-clock-target-zone').selectOption('Europe/Helsinki');
+  await page.getByTestId('map-svg-clock-target-date').fill('2031-03-30');
+  await page.getByTestId('map-svg-clock-target-time').fill('19:00');
+  await expect(reads).toContainText('2031');
+  await expect(reads).not.toContainText('still counts');
+  // Helsinki skips 03:00-03:59 on 2031-03-30.
+  await page.getByTestId('map-svg-clock-target-time').fill('03:30');
+  await expect(reads).toContainText('The clocks skip that time. Choose another.');
+  await expect(reads).toContainText(/still counts to .*2031.*(19[:.]00|7[:.]00)/);
 });

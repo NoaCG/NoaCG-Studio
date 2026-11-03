@@ -293,10 +293,24 @@ jobs:
       #
       # Its render-baseline comparison is win32-only and therefore inert on a runner; the emitted
       # -code half of the same spec is not, and that is the half a catalog change moves.
+      # The bench's scope guard (e2e/catalog/_bench-scope.mjs) fails the run unless its units
+      # measured exactly the planned designs, and writes what they measured, design by design, to
+      # this file - uploaded on every run, so a scoped run can be compared with a full one at the
+      # same commit (cicd-improvement ci12).
       - name: Catalog specs
         env:
           ONLY: ${{ needs.plan.outputs.only }}
+          NOACG_CATALOG_BENCH_REPORT: ${{ runner.temp }}/catalog-bench-report.json
         run: node scripts/catalog-specs.mjs $ONLY
+
+      - name: Upload the bench scope report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: catalog-bench-report
+          path: ${{ runner.temp }}/catalog-bench-report.json
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Upload failure evidence
         uses: actions/upload-artifact@v4

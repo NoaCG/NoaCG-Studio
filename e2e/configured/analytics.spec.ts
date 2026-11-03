@@ -1,3 +1,5 @@
+// covers: src/backend/events.ts, src/components/AnalyticsConsentBanner.tsx, api/events.ts, api/_lib/funnelEvents.ts
+
 import { expect, test, type Page } from '@playwright/test';
 
 const configured = Boolean(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY);

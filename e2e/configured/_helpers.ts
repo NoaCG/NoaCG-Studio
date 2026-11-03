@@ -1,4 +1,4 @@
-import { expect, type Page, type Request } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
@@ -208,32 +208,53 @@ export async function clearPublishedShows(page: Page): Promise<void> {
  * pages or is asked again starts its next read right after the last answer. It watches the
  * numbered log only, so the page must be on protocol 2 (migration 0071).
  *
- * Call before the page's `goto`; await the returned function before a press that needs the page's
- * own monitor to move at once.
+ * THE READS ARE COUNTED INSIDE THE PAGE, at its own `fetch`, not from Playwright's request events.
+ * On a CI runner Playwright emitted no `request` event for the page's join read in about one run
+ * in five, although Chromium sent its own network event and the page had its answer; the
+ * watcher then saw no read and waited out its 30 s, which is also the page's poll period
+ * (issue #1805: every quarantine entry of late-send-abandoned was this). The page's fetch is the
+ * read itself, so it cannot be missed.
+ *
+ * Await it before the page's `goto` (the counter is installed in each document the page loads);
+ * await the returned function before a press that needs the page's own monitor to move at once.
  */
-export function watchLogReads(page: Page): () => Promise<void> {
+export async function watchLogReads(page: Page): Promise<() => Promise<void>> {
   const LEVEL_QUIET_MS = 300;
-  let answered = 0;
-  let open = 0;
-  let lastClosed = 0;
-  const isTail = (r: Request) => /\/rpc\/control_tail_seq\b/.test(r.url());
-  const closed = (r: Request, ok: boolean) => {
-    if (!isTail(r)) return;
-    open -= 1;
-    lastClosed = Date.now();
-    if (ok) answered += 1;
-  };
-  page.on('request', (r) => {
-    if (isTail(r)) open += 1;
+  await page.addInitScript(() => {
+    const reads = { answered: 0, open: 0, lastClosed: 0 };
+    (window as unknown as { __noacgLogReads: typeof reads }).__noacgLogReads = reads;
+    const pageFetch = window.fetch.bind(window);
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!/\/rpc\/control_tail_seq\b/.test(url)) return pageFetch(input, init);
+      reads.open += 1;
+      const close = (answered: boolean) => {
+        reads.open -= 1;
+        reads.lastClosed = performance.now();
+        if (answered) reads.answered += 1;
+      };
+      try {
+        const response = await pageFetch(input, init);
+        // Closed when the whole answer has arrived, as Playwright's `requestfinished` was: any
+        // status the server sent counts as answered, a read that broke off does not.
+        response.clone().arrayBuffer().then(() => close(true), () => close(false));
+        return response;
+      } catch (error) {
+        close(false);
+        throw error;
+      }
+    };
   });
-  page.on('requestfinished', (r) => closed(r, true));
-  page.on('requestfailed', (r) => closed(r, false));
   return () =>
     expect
-      .poll(() => answered > 0 && open === 0 && Date.now() - lastClosed >= LEVEL_QUIET_MS, {
-        message: 'the operator page has read the log and is not reading it now',
-        timeout: 30_000,
-      })
+      .poll(
+        () =>
+          page.evaluate((quietMs) => {
+            const r = (window as unknown as { __noacgLogReads?: { answered: number; open: number; lastClosed: number } }).__noacgLogReads;
+            return !!r && r.answered > 0 && r.open === 0 && performance.now() - r.lastClosed >= quietMs;
+          }, LEVEL_QUIET_MS),
+        { message: 'the operator page has read the log and is not reading it now', timeout: 30_000 },
+      )
       .toBe(true);
 }
 

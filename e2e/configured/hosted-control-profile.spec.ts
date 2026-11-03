@@ -1,3 +1,5 @@
+// covers: src/components/HostedControlPage.tsx, src/model/profile.ts
+
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';

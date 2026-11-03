@@ -60,27 +60,45 @@ export function configuredMinutes(reports) {
   return { ...finished, ...nightlyMinutes(reports) };
 }
 
+/** Test-minutes one runner is aimed at when a pull request runs a selection (ci.yml, ci06). */
+export const SELECTED_SHARD_MINUTES = 10;
+
+/**
+ * The weights both the runner count and the packing read: the suite's measured files, or, with
+ * nothing measured, one minute each (zeros would all pack onto the first runner; ones split by count).
+ */
+function weightTable(suite, reports) {
+  const known = Object.entries(configuredMinutes(reports)).filter(([f]) => suite.includes(f));
+  return { known: known.length, table: { minutes: Object.fromEntries(known.length ? known : suite.map((f) => [f, 1])) } };
+}
+
+/**
+ * How many runners a SELECTION gets: one per `SELECTED_SHARD_MINUTES` of its weight, at least one
+ * and at most `CONFIGURED_SHARDS`, so the whole set still gets the four a landing gets and a
+ * two-spec selection pays for one stack, not four.
+ */
+export function selectedShardCount(suite, reports = []) {
+  const { table } = weightTable(suite, reports);
+  return Math.min(CONFIGURED_SHARDS, Math.max(1, Math.ceil(minutesFor(suite, table) / SELECTED_SHARD_MINUTES)));
+}
+
 /**
  * @param {{ suite: string[], reports?: object[], shards?: number }} input
  */
 export function planConfigured({ suite, reports = [], shards = CONFIGURED_SHARDS }) {
-  const measured = configuredMinutes(reports);
-  const known = Object.entries(measured).filter(([f]) => suite.includes(f));
-  // Nothing measured weighs every file at zero, and zeros all pack onto the first runner; one
-  // minute each splits by file count instead.
-  const table = { minutes: Object.fromEntries(known.length ? known : suite.map((f) => [f, 1])) };
+  const { known, table } = weightTable(suite, reports);
   const shardSpecs = packShards(suite, shards, table);
   return {
     shardSpecs,
     matrix: { shardIndex: shardSpecs.map((_, i) => i + 1), shardTotal: [shardSpecs.length] },
     predicted: shardSpecs.map((bin) => Number(minutesFor(bin, table).toFixed(1))),
-    weights: { measured: known.length, median: suite.length - known.length },
+    weights: { measured: known, median: suite.length - known },
   };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values, positionals } = parseArgs({
-    options: { 'github-output': { type: 'boolean' } },
+    options: { 'github-output': { type: 'boolean' }, specs: { type: 'string' } },
     allowPositionals: true,
   });
   const reports = [];
@@ -92,7 +110,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       console.error(`configured-shards: ignoring ${file} - ${error.message}`);
     }
   }
-  const plan = planConfigured({ suite: configuredSpecFiles(), reports });
+  // `--specs '<json array>'`: a selection (ci.yml's pull-request job), sized by its own weight. A
+  // name that is not a configured spec on disk is refused: it would run nothing and pass nothing.
+  let suite = configuredSpecFiles();
+  let shards = CONFIGURED_SHARDS;
+  if (values.specs !== undefined) {
+    const asked = JSON.parse(values.specs);
+    if (!Array.isArray(asked) || asked.length === 0 || asked.some((f) => !suite.includes(f))) {
+      console.error(`configured-shards: --specs must name configured specs on disk; got ${values.specs}`);
+      process.exit(1);
+    }
+    suite = [...asked].sort();
+    shards = selectedShardCount(suite, reports);
+  }
+  const plan = planConfigured({ suite, reports, shards });
   console.error(
     plan.weights.measured
       ? `configured-shards: ${plan.shardSpecs.length} shards, predicted ${plan.predicted.join(', ')} test-minutes; ` +

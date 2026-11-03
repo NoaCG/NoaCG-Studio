@@ -1,9 +1,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState, type SetStateAction } from 'react';
-import { useTemplateStore } from '../../store/templateStore';
+import { syncSampleData, useTemplateStore } from '../../store/templateStore';
 import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   brandOrClearPatch,
-  buildDraftTemplate,
+  buildDraftTemplate, finishReimport, reimportIo,
   draftFormatSelection,
   draftName,
   draftResolution,
@@ -547,10 +547,10 @@ export default function CreationWizard() {
   /** Every ending of the walk (shell/doors.ts), each taking the mode's applier below. */
   const doors = makeDoors({
     ...STUDIO_DOOR_IO,
-    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, LIBRARY_IO),
-    // The record's id is read from the store, so only once the save has linked it.
-    noteMade: (name, production, landedOn = null) => {
-      noteMade(memory.current, { name, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn });
+    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, { replace: memory.current.replaceOver }),
+    // The record's id and name are read from the store once the save linked it; a reimport kept separate took a free name, which Finish then carries (no second press renames it back).
+    noteMade: (name, production, landedOn = null, made = useTemplateStore.getState().template.name || name) => {
+      noteMade(memory.current, { name: made, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn }); if (made !== name) dispatch({ type: 'patch', patch: { name: made } });
       // A REF the Finish step reads: nothing re-renders on its own, and the step is still on
       // screen after the export door (the production door routes away instead).
       rereadFinish();
@@ -1288,7 +1288,7 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                madeId={finishMadeId}
+                madeId={finishMadeId} reimport={variant && mode === 'svg' ? finishReimport(previewTemplate, draftName(variant, draft), finishLibrary, finishMadeId, memory.current) : null}
                 onAddToProduction={(dest) => void doors.addToProduction(applyDraftProject, dest, catalogName)}
                 onEditArtwork={() => void doors.editArtwork(applyDraftProject)}
                 onExport={() => void doors.export(applyDraftProject, catalogName)}

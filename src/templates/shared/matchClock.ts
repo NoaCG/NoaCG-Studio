@@ -48,8 +48,16 @@
  *   - the root `.{prefix}` gains `.{prefix}-final` at full time, `.{prefix}-break` during an
  *     interval, and `.{prefix}-expired` when a counting-down clock reaches zero, so a design
  *     styles each of the three without any of them being a separate state to animate.
+ *
+ * `target` is a clock counting down to a FIXED INSTANT (an imported target time, jev-svg-import
+ * rows 10-11, AC-9). Its `data-start` is its whole truth (phase-10 T6), so it paints an hour or
+ * more as "3:39:30" rather than "219:30", and it adopts NO value written into its field: a value
+ * there is either its own start again, or painted text a host reported back
+ * (control/hostedReceiver.ts `harvest`), which says what was shown and never when. The field's
+ * value and the wire keep minutes and seconds. Without it the emitted runtime is byte for byte
+ * what every native board already ships ("67:00").
  */
-export function matchClockJs(prefix: string): string {
+export function matchClockJs(prefix: string, opts: { target?: boolean } = {}): string {
   return `// ---- Match clock (playout, not motion — the machine's clock group calls into this) ----
 // The clock element also carries a data field id, so an operator can correct a drifting
 // clock by typing into it; matchClockUpdate() below re-seeds the tick from what they typed.
@@ -116,13 +124,7 @@ function matchClockValue() {
   return matchClockBase + elapsed;
 }
 
-// formatMatchClock(): 2700 -> "45:00". Minutes are never zero-padded (broadcast reads "7:05",
-// not "07:05"); seconds always are.
-function formatMatchClock(total) {
-  if (total < 0) total = 0;
-  var s = total % 60;
-  return Math.floor(total / 60) + ':' + (s < 10 ? '0' + s : s);
-}
+${opts.target ? HOURS_FORMAT : MINUTES_FORMAT}
 
 // initMatchClock(): read the element's own starting value once. The field's default text IS
 // the starting value, so a design never repeats the number in two places.
@@ -242,7 +244,7 @@ var matchClockSent = null;       // the last clock value the wire delivered, not
 function matchClockUpdate(key, value) {
   var el = matchClockEl();
   if (!el || el.id !== key) return;
-  var incoming = String(value == null ? '' : value);
+${opts.target ? TARGET_UPDATE : ''}  var incoming = String(value == null ? '' : value);
   var stamp = matchClockOriginOf(incoming);
   if (stamp === null && matchClockSent !== null && incoming === matchClockPlain(matchClockSent)) {
     // A resend of a plain value, not an edit. update() has ALREADY written that stale text into
@@ -314,3 +316,35 @@ if (document.readyState === 'loading') {
   initMatchClock();                // DOM already parsed (e.g. an inline preview build)
 }`;
 }
+
+/** The native formatter, unchanged: minutes past 60 stay minutes ("67:00"). */
+const MINUTES_FORMAT = `// formatMatchClock(): 2700 -> "45:00". Minutes are never zero-padded (broadcast reads "7:05",
+// not "07:05"); seconds always are.
+function formatMatchClock(total) {
+  if (total < 0) total = 0;
+  var s = total % 60;
+  return Math.floor(total / 60) + ':' + (s < 10 ? '0' + s : s);
+}`;
+
+/** A fixed instant adopts nothing: update() has already written the incoming text into the
+ *  layer, so the clock is read from its own data-start (if it has not been yet) and painted back. */
+const TARGET_UPDATE = `  // A FIXED INSTANT: its data-start is its whole truth, so nothing written here moves it. It
+  // repaints on the same second as every other output, as an arriving stamp always started it.
+  initMatchClock();
+  if (matchClockAt !== null && !matchClockTimer) matchClockTimer = setInterval(tickMatchClock, 1000);
+  paintMatchClock();
+  return;
+`;
+
+/** The hours formatter: under an hour exactly the native one, from an hour "3:39:30". */
+const HOURS_FORMAT = `// formatMatchClock(): 2700 -> "45:00" · 13170 -> "3:39:30". Under an hour it reads as the native
+// clock does; from an hour the hours lead and the minutes are padded. Only the paint: the field
+// and the wire keep "<minutes>:<ss>", which parseMatchClock reads.
+function formatMatchClock(total) {
+  if (total < 0) total = 0;
+  var s = total % 60;
+  var m = Math.floor(total / 60);
+  if (m < 60) return m + ':' + (s < 10 ? '0' + s : s);
+  var mm = m % 60;
+  return Math.floor(m / 60) + ':' + (mm < 10 ? '0' + mm : mm) + ':' + (s < 10 ? '0' + s : s);
+}`;

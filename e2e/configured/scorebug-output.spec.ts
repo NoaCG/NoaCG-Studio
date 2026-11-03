@@ -9,11 +9,18 @@
 // the road.
 // covers: src/control/matchClockWire.ts
 // covers: src/components/home/CueActions.tsx
+//
+// AN IMPORTED CLOCK rides the same wire under its own namespaced verbs (clock_start, clock_pause,
+// clock_reset), and its runtime is the match clock's, so the second walk below is its live half
+// (docs/work-specs/jev-svg-import, row 9). scripts/imported-clock-wire.test.mjs is the offline one.
+// covers: src/templates/behaviours/clock.ts
 
+import { fileURLToPath } from 'node:url';
 import { publishProduction } from '../_publish';
-import { test, expect } from '@playwright/test';
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
+import { dropSvg, intoProduction } from '../_svg-import';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 
 // THE PUBLISHED SPORTS PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 4): a scorebug driven from
 // the production dashboard and rendered by the REAL /output page over the REAL hosted log.
@@ -171,4 +178,221 @@ test('a published scorebug takes a score bump and a running clock on the real ou
   });
   await wipeMyGraphics(page);
   await output.close();
+});
+
+// ── THE IMPORTED CLOCK ON TWO REAL OUTPUTS (docs/work-specs/jev-svg-import, row 9, AC-8, AC-10) ──
+//
+// A clock an author chose on their own artwork, published and rendered by two /output pages over
+// the real hosted log. The proof is the clock's ORIGIN, read inside each renderer: a Start stamped
+// with the event row's server time gives both the same one to the millisecond, where a clock each
+// renderer started for itself would differ by however far apart the two pages heard it. Then the
+// things that must not move it: a score typed and sent while it runs, and a reload of one output.
+
+const SCORE_CLOCK_SVG = fileURLToPath(new URL('../fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url));
+
+/** The clock inside one output: its origin (null while held) and the time it shows. */
+async function clockIn(graphic: FrameLocator): Promise<{ at: number | null; text: string }> {
+  return graphic.locator('.imported-design-clock').evaluate((el) => ({
+    at: (el.ownerDocument.defaultView as unknown as { matchClockAt: number | null }).matchClockAt,
+    text: (el.textContent ?? '').trim(),
+  }));
+}
+
+/** Errors thrown on an output page: the clock runtime throwing is a failure, not a log line. */
+const outputErrors: string[] = [];
+
+/** An output page on the production. */
+async function openOutput(page: Page, slug: string): Promise<FrameLocator> {
+  page.on('pageerror', (e) => outputErrors.push(e.message));
+  await page.goto(`/output?production=${encodeURIComponent(slug)}&debug=1`);
+  return page.frameLocator('iframe');
+}
+
+const onAir = (graphic: FrameLocator) =>
+  expect
+    .poll(async () => graphic.locator('.imported-design').evaluate((el) => Number(getComputedStyle(el).opacity)), { timeout: 30_000 })
+    .toBeGreaterThan(0.9);
+
+test('an imported clock starts, holds and resets from the server on two real outputs, and a reload or a score keeps its origin', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await signIn(page);
+  // Clean slate, for the reason the walk above gives.
+  await clearPublishedShows(page);
+
+  // The author's own artwork, the clock chosen on its time layer: counting up, so Start is the
+  // operator's and the verbs are the namespaced ones.
+  await page.goto('/app');
+  await dropSvg(page, SCORE_CLOCK_SVG);
+  await page.getByTestId('map-svg-clock-mode').selectOption('count-up');
+  const showName = `Imported Clock ${Date.now()}`;
+  await intoProduction(page, 'Imported Clock', showName);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  const links = page.getByTestId('production-status-panel');
+  await expect(links).toBeVisible();
+  await page.getByTestId('production-status').click();
+  await expect(links).toBeHidden();
+  const outputSlug = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
+  }, showName);
+  expect(outputSlug).toBeTruthy();
+
+  const [outA, outB] = await Promise.all([context.newPage(), context.newPage()]);
+  const [a, b] = await Promise.all([openOutput(outA, outputSlug!), openOutput(outB, outputSlug!)]);
+
+  await page.getByTestId('verb-take').click();
+  await Promise.all([onAir(a), onAir(b)]);
+  // Counting up waits for Start: nothing runs on the Take.
+  expect((await clockIn(a)).at).toBeNull();
+
+  // ── START, on both outputs from one server instant. ──
+  await page.getByTestId('cue-action-clock_start').click();
+  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBeNull()));
+  const [startA, startB] = await Promise.all([clockIn(a), clockIn(b)]);
+  const origin = startA.at;
+  expect(startB.at, 'both outputs count from the Start row\'s own server time').toBe(origin);
+  const started = startA.text;
+  await expect.poll(async () => (await clockIn(a)).text, { timeout: 30_000 }).not.toBe(started);
+
+  // ── AN UNRELATED UPDATE: a score typed and sent while the clock runs. ──
+  await page.getByTestId('cue-field-f1').fill('3');
+  await page.getByTestId('verb-update').click();
+  await expect(a.locator('#f1')).toHaveText('3', { timeout: 20_000 });
+  await expect(b.locator('#f1')).toHaveText('3', { timeout: 20_000 });
+  expect((await clockIn(a)).at, 'a score never moves the clock').toBe(origin);
+  expect((await clockIn(b)).at).toBe(origin);
+
+  // ── A RELOAD of one output comes back to the same origin, from its report and the log. ──
+  await outB.waitForTimeout(2500);   // past the report's debounce, so the reboot reads this state
+  await outB.reload();
+  await onAir(b);
+  await expect.poll(async () => (await clockIn(b)).at, { timeout: 20_000 }).toBe(origin);
+  await expect(b.locator('#f1')).toHaveText('3');
+
+  // ── PAUSE holds both at one banked time. ──
+  await page.getByTestId('cue-action-clock_pause').click();
+  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).toBeNull()));
+  await outA.waitForTimeout(1500);
+  const held = (await clockIn(a)).text;
+  expect((await clockIn(b)).text).toBe(held);
+  await outA.waitForTimeout(3000);
+  expect((await clockIn(a)).text).toBe(held);
+  expect((await clockIn(b)).text).toBe(held);
+
+  // ── RESET: back to the drawn time on both, the score left alone. ──
+  await page.getByTestId('cue-action-clock_reset').click();
+  await expect(a.locator('.imported-design-clock')).toHaveText('12:08', { timeout: 20_000 });
+  await expect(b.locator('.imported-design-clock')).toHaveText('12:08', { timeout: 20_000 });
+  await expect(a.locator('#f1')).toHaveText('3');
+  expect(outputErrors, 'no output page threw').toEqual([]);
+
+  await page.getByTestId('verb-out').click();
+  await unpublishForCleanup(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
+  await page.evaluate(async () => {
+    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    for (const s of loadShows()) deleteShow(s.id);
+  });
+  await wipeMyGraphics(page);
+  await outA.close();
+  await outB.close();
+});
+
+// ── HOSTED SYNCHRONIZED RECOVERY OF AN IMPORTED DURATION (docs/work-specs/jev-svg-import row 29, AC-16) ──
+//
+// Three things are kept apart (row 29's notes): this is HOSTED synchronized recovery, our own
+// output rejoining a running clock after a reboot, over the hosted log. Standalone-host capability
+// (an exported package in an OGraf or SPX host, no wire) is ograf-lifecycle.spec.ts and
+// spx-operator.spec.ts. Physical studio acceptance is not claimed by either.
+//
+// It also MEASURES #1886 rather than asserting it away: a duration's Take, and a correction typed
+// while it runs, may ride the fast road, which carries no server time, so each output stamps the
+// row with its own arrival. The spread between the two outputs' origins is recorded on the test
+// (annotation `1886`) and bounded only by what the issue expects of the fast road.
+
+/** The fast road's delivery spread the issue expects, with room for a loaded runner. The bound
+ *  only catches a gross fault: what tells the two roads apart is 0 against more than 0. Rows
+ *  stamped with the server's time give both outputs the same origin to the millisecond (as the
+ *  Start above does); rows stamped by each output's arrival would give a few to tens of ms here.
+ *  An output on the numbered log (protocol 2) never joins the fast road, so on this path every
+ *  row carries its server time and 0 is expected; #1886 can only arise on a protocol 1 output.
+ *  Both outputs share one machine and one clock, so this is a lower bound on what two machines see. */
+const FAST_ROAD_SPREAD_MS = 1_500;
+
+/** Seconds a clock text shows, `12:08` read as 728. */
+const secondsOf = (text: string) => text.split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
+
+test('an imported duration on two real outputs: the Take and a running correction are measured (#1886), and a rebooted output rejoins the running count', async ({ page, context }, testInfo) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await clearPublishedShows(page);
+  await page.goto('/app');
+  await dropSvg(page, SCORE_CLOCK_SVG);
+  await page.getByTestId('map-svg-clock-mode').selectOption('duration');
+  const showName = `Imported Duration ${Date.now()}`;
+  await intoProduction(page, 'Imported Duration', showName);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  const links = page.getByTestId('production-status-panel');
+  await expect(links).toBeVisible();
+  await page.getByTestId('production-status').click();
+  await expect(links).toBeHidden();
+  const outputSlug = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
+  }, showName);
+  expect(outputSlug).toBeTruthy();
+  const [outA, outB] = await Promise.all([context.newPage(), context.newPage()]);
+  const [a, b] = await Promise.all([openOutput(outA, outputSlug!), openOutput(outB, outputSlug!)]);
+  const origins = async () => Promise.all([a, b].map(async (o) => (await clockIn(o)).at));
+
+  // ── THE TAKE starts the count on both outputs. ──
+  await page.getByTestId('verb-take').click();
+  await Promise.all([onAir(a), onAir(b)]);
+  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBeNull()));
+  const [takeA, takeB] = (await origins()) as number[];
+  const takeSpread = Math.abs(takeA - takeB);
+  await expect.poll(async () => (await clockIn(a)).text, { timeout: 30_000 }).not.toBe('12:08');
+
+  // ── A CORRECTION typed while it runs: both outputs count from the typed time. ──
+  await page.getByTestId('cue-field-f2').fill('10:00');
+  await page.getByTestId('verb-update').click();
+  // 10:00 down to 9:20 is the correction; the uncorrected count could not be under 10:00 this soon.
+  const corrected = async (o: FrameLocator) => { const s = secondsOf((await clockIn(o)).text); return s >= 560 && s <= 600; };
+  await Promise.all([a, b].map((o) => expect.poll(() => corrected(o), { timeout: 20_000 }).toBe(true)));
+  await Promise.all([{ o: a, take: takeA }, { o: b, take: takeB }].map(({ o, take }) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBe(take)));
+  const [fixA, fixB] = (await origins()) as number[];
+  const correctionSpread = Math.abs(fixA - fixB);
+
+  // ── A REBOOT of one output rejoins the running count: its origin is the one from before the
+  // reboot (within the fast road's spread), never the reboot itself, and it shows the other's second. ──
+  await outB.waitForTimeout(2500);   // past the report's debounce
+  const rebootAt = Date.now();
+  await outB.reload();
+  await onAir(b);
+  await expect.poll(async () => (await clockIn(b)).at, { timeout: 20_000 }).not.toBeNull();
+  const rejoined = (await clockIn(b)).at!;
+  const rebootOffset = rejoined - fixA;
+  const note = `Take spread ${takeSpread} ms; running correction spread ${correctionSpread} ms; rebooted output's origin ${rebootOffset} ms from output A's`;
+  testInfo.annotations.push({ type: '1886', description: note });
+  console.log(`[#1886] ${note}`);
+  expect(takeSpread, note).toBeLessThan(FAST_ROAD_SPREAD_MS);
+  expect(correctionSpread, note).toBeLessThan(FAST_ROAD_SPREAD_MS);
+  expect(rejoined, `${note}: the rebooted output restarted the count instead of rejoining it`).toBeLessThan(rebootAt - 1_000);
+  expect(Math.abs(rebootOffset), note).toBeLessThan(FAST_ROAD_SPREAD_MS);
+  const [shownA, shownB] = await Promise.all([a, b].map(async (o) => secondsOf((await clockIn(o)).text)));
+  expect(Math.abs(shownA - shownB), `${note}: A shows ${shownA} s, B ${shownB} s`).toBeLessThanOrEqual(2);
+  expect(outputErrors, 'no output page threw').toEqual([]);
+
+  await page.getByTestId('verb-out').click();
+  await unpublishForCleanup(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
+  await page.evaluate(async () => {
+    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    for (const s of loadShows()) deleteShow(s.id);
+  });
+  await wipeMyGraphics(page);
+  await outA.close();
+  await outB.close();
 });

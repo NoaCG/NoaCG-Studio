@@ -33,7 +33,7 @@
 // Pure and Node-importable (production-page spec §5.2): every door arrives through `io`, so
 // scripts/sheet-source.test.mjs drives it with a fake clock, fetch and storage.
 
-import { fillList, listFormatFor, valueFor, type FilledRow, type GraphicShape, type ListAdapter, type ListFormat } from './contentFormats.js';
+import { fillList, graphicListFormat, valueFor, type FilledRow, type GraphicShape, type ListAdapter, type ListFormat } from './contentFormats.js';
 import { parseDelimited } from '../model/csv.js';
 import { isSourcePath, mergePatch, patchForPath, sourcePrefix, type JsonObject, type OfferedValue } from '../model/productionData.js';
 
@@ -136,11 +136,7 @@ export type SheetShape = ListAdapter | 'values';
 
 /** The shape a graphic's connection reads, decided by what the graphic is (contentFormats). */
 export function sheetShapeFor(graphic: GraphicShape): SheetShape {
-  for (const field of ['f0', 'f2']) {
-    const format = listFormatFor(graphic, field);
-    if (format) return format.adapter;
-  }
-  return 'values';
+  return graphicListFormat(graphic)?.adapter ?? 'values';
 }
 
 /** What one read of a tab holds, as leaves under the source's prefix (`lines`, `values.f2`). */
@@ -161,15 +157,19 @@ export interface SheetContent {
   byFieldId: boolean;
 }
 
-/** The leaves a list adapter writes, and the field each one fills on its graphic. */
-export function listLeaves(shape: ListAdapter): { leaf: string; field: string; label: string }[] {
-  if (shape === 'standings') {
-    return [
-      { leaf: 'rows', field: 'f2', label: 'Rows' },
-      { leaf: 'headers', field: 'f3', label: 'Column headings' },
-    ];
-  }
-  return [{ leaf: 'lines', field: 'f0', label: 'Lines' }];
+/**
+ * The leaves a list adapter writes, and the field each one fills on its graphic. Given the
+ * graphic, an imported design names its own list field when its list takes this shape (its
+ * credits list is wherever its recipe put it) and no field otherwise, so a leaf is never keyed to
+ * whatever text happens to be f0. A native graphic, or none given, keeps f0 (f2 and f3 for
+ * standings).
+ */
+export function listLeaves(shape: ListAdapter, graphic?: GraphicShape): { leaf: string; field?: string; label: string }[] {
+  const leaves = shape === 'standings' ? [{ leaf: 'rows', field: 'f2', label: 'Rows' }, { leaf: 'headers', field: 'f3', label: 'Column headings' }] : [{ leaf: 'lines', field: 'f0', label: 'Lines' }];
+  if (graphic?.type !== 'imported-design') return leaves;
+  // An imported design's only list is a credits list (contentFormats `graphicListFormat`).
+  const own = graphicListFormat(graphic);
+  return leaves.map((l, i) => ({ ...l, field: own?.adapter === shape && i === 0 ? own.main : undefined }));
 }
 
 /** Read a tab's rows in a shape. */
@@ -185,11 +185,12 @@ export function sheetContent(shape: SheetShape, rows: string[][]): SheetContent 
 /**
  * What a source offers a graphic's mapping review: each leaf's path, label and sample, and the
  * field it was made for when the source says so (a list adapter's own field, a Field ID).
+ * `graphic` is the graphic under review, so a list leaf names the field it really fills.
  */
-export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed'): OfferedValue[] {
+export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed', graphic?: GraphicShape): OfferedValue[] {
   const prefix = sourcePrefix(sourceId, kind);
   if (shape !== 'values') {
-    return listLeaves(shape).map((l) => ({ path: `${prefix}.${l.leaf}`, label: l.label, sample: content.leaves[l.leaf] ?? '', key: l.field }));
+    return listLeaves(shape, graphic).map((l) => ({ path: `${prefix}.${l.leaf}`, label: l.label, sample: content.leaves[l.leaf] ?? '', ...(l.field ? { key: l.field } : {}) }));
   }
   return Object.keys(content.leaves).map((leaf) => ({
     path: `${prefix}.${leaf}`,

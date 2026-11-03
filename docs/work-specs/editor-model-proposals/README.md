@@ -10,7 +10,7 @@ with [full grounding](model-requests.json) and [reference interactions](referenc
 ## Run the deterministic task
 
 ```
-npm run queue -- "npx playwright test e2e/editor-model-proposals.spec.ts e2e/editor-proposal-task.spec.ts --workers=1"
+npm run queue -- "npx playwright test e2e/editor-model-proposals.spec.ts e2e/editor-command-task.spec.ts --workers=1"
 ```
 
 Fresh UI and proposal copies import the public nested/masked SVG through the

@@ -99,7 +99,7 @@ test('a Take that commits after its page gave up takes the "on this monitor only
   expect(await airPlays()).toBe(0);
 
   const op = await context.newPage();
-  const followerLevel = watchLogReads(op);
+  const followerLevel = await watchLogReads(op);
   await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   const chip = op.getByTestId('hosted-live-chip');

@@ -8,6 +8,8 @@ import type { AssetFile, SpxTemplate } from '../../../model/types';
 import { addPlacedLine } from '../../../blocks/designLayout';
 import { applyPlacedFieldSpecs } from '../../../blocks/designFields';
 import type {
+  DesignSvgClock,
+  DesignSvgCredits,
   DesignArt,
   DesignSvg,
   DesignSvgAlign,
@@ -23,7 +25,26 @@ import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
+import { CLOCK_MODES, CLOCK_NAME, CLOCK_TIME } from '../../../templates/behaviours/clock';
+import { formatClockTarget, parseClockTarget, resolveClockTarget } from '../../../control/clockTarget';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
+import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
+import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
+import {
+  SVG_DRAFT_CAPABILITIES,
+  applySvgProposal,
+  SVG_RECIPE_ROLES,
+  type SvgRowAnswer,
+} from '../../../ai/svgInterpretation/apply';
+import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
+import { canonical } from '../../../model/publishedRecord';
+import { parseAnimData, spliceAnimData } from '../../../blocks/animData';
+import { carrySvgIdentity } from '../../../blocks/svgIdentity';
+import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, updateGraphic, type LibraryNameEntry, type LibrarySaveEffect } from '../../../model/library';
+import { freeName } from '../../../model/poolIdentity';
+import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
+import { PREFIX } from '../../../templates/importedDesign/shared';
+import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -77,6 +98,10 @@ export interface SvgImportDraft {
    *  one entry per layer the reader gave a use. Proposed from `show:` / `choice:` names at
    *  drop; every hidden layer no recipe claimed is offered the same two answers in the step. */
   svgExtras: SvgExtraDraft[];
+  /** THE CLOCK the author chose in the behaviour section (templates/behaviours/clock.ts): which
+   *  ticked text row shows the time and how it counts. Beside any behaviour but the old
+   *  countdown. Absent or null is no clock, and so is one chosen on other artwork. */
+  svgClock?: SvgClockDraft | null;
   /** Does the graphic HUG its text — one rectangle widening so a longer value fits at full
    *  size (plan §3)? Off is the graphic that declares a STAGE, which is every board and
    *  every scorebug; on is the lower third whose banner is as wide as the name on it. */
@@ -85,6 +110,23 @@ export interface SvgImportDraft {
    *  the mapping step offers the Google fetch or an upload for the rest. An entry with
    *  neither source is UNRESOLVED — created anyway, with a warning. */
   svgFonts: SvgFontDraft[];
+  /** What the last accepted SVG proposal left as ITS answers (docs/work-specs/jev-svg-import,
+   *  row 5, rule A3): the reference a later proposal compares the draft against, so it may
+   *  replace an earlier proposal's answer and never the author's. Draft-only - the build never
+   *  reads it. Absent until a proposal is applied; every drop resets it. */
+  svgApplied?: SvgAppliedReference;
+}
+
+/** The reference `svgDraftWithProposal` keeps (rules A3 and A8). */
+export interface SvgAppliedReference {
+  /** The artwork revision it belongs to; any other revision reads as no reference. */
+  revision: string;
+  /** Per row, the value that is the proposal's rather than a correction. */
+  rows: Record<string, SvgRowAnswer>;
+  /** The behaviour the proposal left, or the reference's own when the author's was kept. */
+  behaviour: SvgBehaviourDraft | null;
+  /** The behaviour's intent keys nobody has decided yet: the question the step still owes. */
+  unresolved: SvgUnresolvedIntent[];
 }
 
 /** ONE applied baked-text erase: the marked rectangle (in the artwork's SOURCE pixels) and
@@ -229,6 +271,25 @@ export interface SvgRecipeDraft {
   /** One entry per row, in row order, for a recipe with rows: that row's field and layer picks. */
   rows?: SvgRecipeRow[];
   options: Record<string, boolean>;
+  /** Credits only: the styled binding the Fields step read off the drawn role and name layers
+   *  (`creditsPreview`), set only where the styled engine renders that layout. Absent saves the
+   *  original-text roll, as every credits import did before. */
+  credits?: DesignSvgCredits;
+  /** Credits only: the layer picked as Credits when `credits` was read, so a binding read for
+   *  another pick is never saved. */
+  creditsFor?: string;
+  /** Credits only: the author's answer where either drawn column could be the roles - the other
+   *  column (`CreditsChoice.swap`). */
+  creditsSwap?: true;
+  /** Credits only: the author chose to keep credits that could be styled as fixed artwork. The
+   *  reading in `credits` is kept: its layers are the block that scrolls (`artworkLayers`). */
+  creditsArtwork?: true;
+  /** Credits only: the author chose a still page (`static`) for styled credits, not the roll. */
+  creditsStill?: true;
+  /** Credits only: the author chose cards (`cards`) for styled credits, and, where stated, the
+   *  seconds each card holds (`advance`); absent, a card changes on the operator's Next card. */
+  creditsCards?: true;
+  creditsAdvance?: number;
 }
 
 export interface SvgRecipeRow {
@@ -419,6 +480,26 @@ export function disarmTimerClock(fields: SvgFieldDraft[]): SvgFieldDraft[] {
   );
 }
 
+/** A credits draft's styled binding, while it still belongs to the layer picked as Credits (the
+ *  step reads it again whenever the pick changes; until then nothing stale is saved). A binding
+ *  without `creditsFor` was read for its first role. */
+export function styledCreditsOf(behaviour: SvgRecipeDraft): DesignSvgCredits | undefined {
+  const credits = behaviour.recipe === 'credits' ? behaviour.credits : undefined;
+  const picked = behaviour.fields?.credits;
+  const readFor = behaviour.creditsFor ?? credits?.anchors[0]?.candidateId;
+  return credits && picked && readFor === picked && credits.anchors.some((a) => a.candidateId === picked) ? credits : undefined;
+}
+
+/** The drawn role and name layers a styled credits binding copies, other than the Credits field
+ *  itself, with what each sets the look of. They are kept out of the field list (`pollDrivenLayers`)
+ *  and the Text step says what each becomes. */
+export function creditsSourceLayers(behaviour: SvgRecipeDraft): Map<string, 'role' | 'name'> {
+  // Kept as fixed artwork, the layers are part of the artwork that scrolls, never copied.
+  if (behaviour.creditsArtwork) return new Map();
+  const anchors = styledCreditsOf(behaviour)?.anchors ?? [];
+  return new Map(anchors.filter((a) => a.candidateId !== behaviour.fields?.credits).map((a) => [a.candidateId, a.kind]));
+}
+
 /**
  * The TEXT layers a bound poll writes into — the ones that must not also be operator fields.
  *
@@ -430,6 +511,9 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
   // ANY recipe's WRITE targets are driven the same way: a meter's percent layer is written by the
   // runtime, so an operator field on it would be the two-writers graphic the vote avoids.
   if (behaviour?.kind === 'recipe') {
+    // A styled credits binding keeps ONE field, its Credits layer; the other drawn roles and names
+    // are the engine's source layers, never fields (creditsRoll.ts, `field-per-name`).
+    const sources = [...creditsSourceLayers(behaviour).keys()];
     const written = new Set(
       (recipeById(behaviour.recipe)?.roles ?? [])
         .filter((r) => r.kind === 'layer' && r.paint?.includes('write'))
@@ -439,7 +523,7 @@ export function pollDrivenLayers(behaviour: SvgBehaviourDraft | null): Set<strin
       ...Object.entries(behaviour.layers),
       ...(behaviour.rows ?? []).flatMap((row) => Object.entries(row.layers)),
     ];
-    return new Set(picks.filter(([role, id]) => written.has(role) && !!id).map(([, id]) => id));
+    return new Set([...picks.filter(([role, id]) => written.has(role) && !!id).map(([, id]) => id), ...sources]);
   }
   if (behaviour?.kind !== 'poll') return new Set();
   return new Set(
@@ -1039,6 +1123,23 @@ export interface SvgExtraDraft {
   group?: string;
 }
 
+/** The clock as the step holds it. */
+export interface SvgClockDraft {
+  /** The text row that shows the time. */
+  candidateId: string;
+  mode: DesignSvgClock['mode'];
+  /** The artwork revision it was chosen on (`svgSourceRevision`). Row ids are positions in that
+   *  markup, so on any other artwork the clock reads as none: a drop never carries it onto a
+   *  layer the author did not pick, and the same file dropped again keeps it. */
+  revision: string;
+  /** A target time's resolved instant (control/clockTarget.ts `formatClockTarget`). Picking
+   *  Target time proposes one (the next whole hour), so the picker never offers a clock with
+   *  nothing to count to. */
+  target?: string;
+  /** The target's date was proposed, never typed: a time typed alone takes its next occurrence. */
+  targetProposed?: boolean;
+}
+
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */
 function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
   return proposeExtras(svg).map(({ candidateId, prefix }) =>
@@ -1073,8 +1174,21 @@ export function extraLayerName(label: string): string {
 function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
   const exists = (id: string) => draft.designSvg?.groups.some((g) => g.id === id) ?? false;
   const out: DesignSvgExtra[] = [];
+  // ONE NAME PER PART. Each extra's buttons and group are named after it, case and punctuation
+  // aside, so two hidden layers both called "Sponsor" would be one name twice, which the compiler
+  // refuses. The later one is numbered, as a choice's options are (`optionKey`). The clock is
+  // named first: a choice called "Clock" with a Start option would otherwise share its button.
+  const token = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const clock = svgClockOption(draft);
+  const taken = new Set<string>(clock ? [token(clock.name)] : []);
+  const unique = (name: string): string => {
+    let next = name;
+    for (let n = 2; taken.has(token(next)); n++) next = `${name} ${n}`;
+    taken.add(token(next));
+    return next;
+  };
   for (const e of draft.svgExtras) {
-    if (e.use === 'switch' && exists(e.candidateId) && e.name.trim()) out.push({ kind: 'switch', name: e.name.trim(), layer: e.candidateId });
+    if (e.use === 'switch' && exists(e.candidateId) && e.name.trim()) out.push({ kind: 'switch', name: unique(e.name.trim()), layer: e.candidateId });
   }
   const groups = new Map<string, { label: string; layer: string }[]>();
   for (const e of draft.svgExtras) {
@@ -1083,8 +1197,55 @@ function svgExtrasOptions(draft: SvgImportDraft): DesignSvgExtra[] | undefined {
     list.push({ label: e.name.trim(), layer: e.candidateId });
     groups.set(e.group.trim(), list);
   }
-  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name, options });
+  for (const [name, options] of groups) if (options.length >= 2) out.push({ kind: 'choice', name: unique(name), options });
+  if (clock) out.push(clock);
   return out.length > 0 ? out : undefined;
+}
+
+/**
+ * The rows a CLOCK may show its time on: the ticked text rows whose sample reads as a time. None
+ * at all beside the old countdown, whether it is the behaviour, the moments the file drew for it
+ * (the names propose it) or a row bound as one: one clock engine per graphic. The mapping step
+ * offers exactly these, and the graphic carries a clock only on one of them, so a clock the step
+ * no longer shows is never built behind the author's back.
+ */
+export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
+  if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
+  if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
+  const driven = pollDrivenLayers(draft.svgBehaviour);
+  return draft.svgFields.filter((f) => f.on && f.clock && CLOCK_TIME.test(f.sample.trim()) && !driven.has(f.candidateId));
+}
+
+/** Whether the file drew the moments only the countdown paints: its names propose it, read the way
+ *  the drop reads them. */
+export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
+  return !!svg && bestProposal({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown';
+}
+
+/**
+ * T10: the target a clock would store at `now`. A dated one is a fixed instant as stored (T2: a past
+ * one stays expired). An undated one (the first proposal, or a time typed alone: `targetProposed`)
+ * is a wall time until the graphic is built: once its stored instant is behind `now`, it moves to
+ * the next occurrence. One the clocks skip or repeat by then keeps its stored instant (T4: no
+ * silent choice), which the import step shows as past.
+ */
+export function svgClockTarget(clock: Pick<SvgClockDraft, 'target' | 'targetProposed'>, now: number): string | undefined {
+  const stored = parseClockTarget(clock.target);
+  if (!stored) return undefined;
+  if (!clock.targetProposed || stored.at > now) return clock.target;
+  const r = resolveClockTarget({ time: stored.time, zone: stored.zone }, now);
+  return r.kind === 'resolved' ? formatClockTarget(r) : clock.target;
+}
+
+/** The clock as the graphic carries it, or null. A target time carries its instant once resolved,
+ *  as of `now` (T10): the build's own moment, unless a caller pins one. */
+export function svgClockOption(draft: SvgImportDraft, now: number = Date.now()): DesignSvgClock | null {
+  const clock = draft.svgClock;
+  if (!clock || !draft.designSvg || clock.revision !== svgSourceRevision(draft.designSvg.markup)) return null;
+  if (!svgClockRows(draft).some((f) => f.candidateId === clock.candidateId)) return null;
+  const option: DesignSvgClock = { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
+  const target = clock.mode === 'target-time' ? svgClockTarget(clock, now) : undefined;
+  return target ? { ...option, target } : option;
 }
 
 /** One line saying what the graphic DOES, for the Finish step and the mapping step's summary. */
@@ -1108,6 +1269,8 @@ export function behaviourSummary(draft: SvgImportDraft): string {
   const choices = extras.filter((e) => e.kind === 'choice');
   if (switches.length > 0) parts.push(`${switches.length} ${switches.length === 1 ? 'switch' : 'switches'}`);
   for (const c of choices) if (c.kind === 'choice') parts.push(`a choice, ${c.name} (${c.options.map((o) => o.label).join(', ')})`);
+  const clock = extras.find((e) => e.kind === 'clock');
+  if (clock?.kind === 'clock') parts.push(CLOCK_MODES.find((m) => m.mode === clock.mode)?.summary ?? 'a clock');
   return parts.join(' · ');
 }
 
@@ -1175,6 +1338,7 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       ...Object.fromEntries(Object.entries(picked(behaviour.fields)).map(([role, id]) => [role, indexOf(id)])),
       ...perRow((row) => Object.fromEntries(Object.entries(picked(row.fields)).map(([role, id]) => [role, indexOf(id)]))),
     };
+    const styled = styledCreditsOf(behaviour);
     return {
       kind: 'recipe',
       recipe: behaviour.recipe,
@@ -1183,7 +1347,15 @@ function svgBehaviourOption(draft: SvgImportDraft): DesignSvgBehaviour | null {
       ...(keys.length > 0 ? { rows: keys } : {}),
       // New Credits imports preserve the complete text artwork. An old saved DesignSvg without
       // this additive marker still assembles its editable roll; no second import option is shown.
-      ...(behaviour.recipe === 'credits'
+      // Credits drawn as separate role and name layers, in a layout the styled engine renders,
+      // save that binding instead (the step read it off the drawing): never both. Kept as fixed
+      // artwork by the author's choice, they save the artwork roll naming every other layer of
+      // the block, so the whole drawing scrolls (#1958).
+      ...(styled && !behaviour.creditsArtwork
+        ? { credits: styled, ...(Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}) }
+        : styled
+        ? { options: { ...behaviour.options, artwork: true }, artworkLayers: styled.anchors.map((a) => a.candidateId).filter((id) => id !== behaviour.fields?.credits) }
+        : behaviour.recipe === 'credits'
         ? { options: { ...behaviour.options, artwork: true } }
         : Object.keys(behaviour.options).length > 0 ? { options: behaviour.options } : {}),
     };
@@ -1423,7 +1595,10 @@ function withSvgOutlineFields(
 // and every test that builds an import "as the wizard would" build the same draft.
 
 /** The draft as it stood before a drop or a clear: what decides the graphic's name. */
-type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'>;
+/** What a drop is told about the draft it lands on. The answers are optional: only a drop of
+ *  the SAME artwork reads them (`svgKeptOnRedrop`), and a caller with none gets a fresh drop. */
+type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'> &
+  Partial<Pick<WizardDraft, Extract<keyof SvgImportDraft, `svg${string}`> | 'designFields' | 'animation'>>;
 
 /** Every key a drop sets, so leaving one out does not compile: the whole slice but the raster
  *  road's baked-text answer, and the wizard-level keys that make the draft an imported design. */
@@ -1446,21 +1621,12 @@ export function emptySvgSlice(): SvgSlice {
 }
 
 /**
- * THE DRAFT A DROPPED SVG STARTS FROM: every answer the mapping step then opens on. The brand
- * is the shell's, as on every other road, and is patched over this.
+ * THE ANSWERS A DROP GIVES this artwork: its rows, ticked as the reader offers them, and the
+ * behaviour proposed from the layer names. Pure over the reader's result, and the width and
+ * height the drop fits play no part, so `svgDraftWithProposal` recomputes exactly these from
+ * `designSvg` as the reference an untouched draft equals (docs/work-specs/jev-svg-import, row 5).
  */
-export function svgDraftFromImport(
-  result: SvgImportResult,
-  context: { resolution: { width: number; height: number }; previous: SvgDropPrevious },
-): SvgDropPatch {
-  const { resolution: res, previous } = context;
-  // Fit-to-frame like the raster path: a larger canvas scales DOWN to the
-  // frame (vector — nothing is lost); the viewBox in the markup is untouched,
-  // only the design-space size the box is sized by changes.
-  const fit =
-    result.width > res.width || result.height > res.height
-      ? Math.min(res.width / result.width, res.height / result.height)
-      : 1;
+function svgDropAnswers(result: SvgImportResult): Pick<SvgImportDraft, 'svgFields' | 'svgImages' | 'svgOutlines' | 'svgBehaviour'> {
   // A behaviour PROPOSED from the layer names, never required
   // (docs/GRAPHIC_BEHAVIOUR_PLAN.md). Proposed before the fields because the FIELDS
   // have to be able to see it: a proposed countdown needs its clock layer bound as
@@ -1471,11 +1637,6 @@ export function svgDraftFromImport(
   const written = pollDrivenLayers(proposed);
   const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
   return {
-    designSvg: {
-      ...result,
-      width: Math.round(result.width * fit),
-      height: Math.round(result.height * fit),
-    },
     // EVERY detected text starts ON (plan §2, zero clicks). The `f:` prefix
     // says "this is definitely a field" and names it — it never says "and
     // nothing else is": one layer exported as `f:Competition` used to turn the
@@ -1526,6 +1687,34 @@ export function svgDraftFromImport(
     // Every picker in the mapping step is re-pickable, and a file that looks like
     // nothing in particular proposes nothing at all.
     svgBehaviour: proposed,
+  };
+}
+
+/**
+ * THE DRAFT A DROPPED SVG STARTS FROM: every answer the mapping step then opens on. The brand
+ * is the shell's, as on every other road, and is patched over this.
+ */
+export function svgDraftFromImport(
+  result: SvgImportResult,
+  context: { resolution: { width: number; height: number }; previous: SvgDropPrevious },
+): SvgDropPatch {
+  const { resolution: res, previous } = context;
+  // Fit-to-frame like the raster path: a larger canvas scales DOWN to the
+  // frame (vector — nothing is lost); the viewBox in the markup is untouched,
+  // only the design-space size the box is sized by changes.
+  const fit =
+    result.width > res.width || result.height > res.height
+      ? Math.min(res.width / result.width, res.height / result.height)
+      : 1;
+  // The rows and the behaviour: the answers a proposal may later replace (svgDropAnswers).
+  const answers = svgDropAnswers(result);
+  const fresh: SvgDropPatch = {
+    designSvg: {
+      ...result,
+      width: Math.round(result.width * fit),
+      height: Math.round(result.height * fit),
+    },
+    ...answers,
     // The switches and choices the names declare outright (`show:`, `choice:`).
     svgExtras: proposeSvgExtras(result),
     // THE HUG (plan §3) starts OFF here with the widest rectangle proposed;
@@ -1547,6 +1736,8 @@ export function svgDraftFromImport(
         FONTS.find((b) => fontNameKey(b.family) === fontNameKey(f.lookup))?.id ?? null,
       customFont: null,
     })),
+    // A fresh drop answers nothing a proposal said about the artwork it replaces.
+    svgApplied: undefined,
     // A fresh drop replaces any raster state from this walk.
     designArt: null,
     importedImages: [],
@@ -1566,6 +1757,33 @@ export function svgDraftFromImport(
     lines: [],
     zone: null,
     animation: { presetId: null, outPresetId: null },
+  };
+  return previous.svgFields?.length && previous.designSvg?.markup === result.markup ? svgKeptOnRedrop(fresh, previous) : fresh;
+}
+
+/**
+ * THE SAME ARTWORK DROPPED AGAIN KEEPS THE READER'S DRAFT (docs/work-specs/jev-svg-import, row 6,
+ * AC-20). The reader reads it again and finds exactly what it found before, so nothing it offers
+ * is new, and every answer the reader gave stays: the rows, the behaviour, growth, fonts, the
+ * fields they drew, the motion, and the reference a later proposal is measured against. A
+ * proposal reaches the draft only through `svgDraftWithProposal`, which never overrides a
+ * correction. Same markup is same revision: the reader's ids are positions in it, so every row
+ * still names the layer it named, however alike two layers are. Different artwork is a fresh
+ * drop; taking the SVG back first (`svgDraftCleared`) is how a reader starts this one over.
+ */
+function svgKeptOnRedrop(fresh: SvgDropPatch, previous: SvgDropPrevious): SvgDropPatch {
+  return {
+    ...fresh,
+    svgFields: previous.svgFields ?? fresh.svgFields,
+    svgImages: previous.svgImages ?? fresh.svgImages,
+    svgOutlines: previous.svgOutlines ?? fresh.svgOutlines,
+    svgBehaviour: previous.svgBehaviour ?? null,
+    svgExtras: previous.svgExtras ?? fresh.svgExtras,
+    svgStretch: previous.svgStretch ?? fresh.svgStretch,
+    svgFonts: previous.svgFonts ?? fresh.svgFonts,
+    svgApplied: previous.svgApplied,
+    designFields: previous.designFields ?? fresh.designFields,
+    animation: previous.animation ?? fresh.animation,
   };
 }
 
@@ -1663,4 +1881,426 @@ export function withSvgImportPasses(
   next = withDesignFieldSpecs(next, draft);
   if (opts.stretchDemo) next = withStretchDemoLine(next, draft);
   return next;
+}
+
+// ── AN SVG PROPOSAL, APPLIED THROUGH THIS DRAFT (docs/work-specs/jev-svg-import, row 5) ──────
+// A proposal (src/ai/svgInterpretation/contract.ts) says which layers are fields and which
+// behaviour binds them. It reaches the graphic only by becoming the ordinary answers below -
+// rows ticked, titled and kinded, one behaviour - so the preview, the control renderer and
+// Finish build it exactly as they build a hand-mapped import, and the author corrects it with
+// the same step. The rules are A1-A11 in docs/work-specs/jev-svg-import/evidence/phase-05.md.
+
+type SvgRows = Pick<SvgImportDraft, 'svgFields' | 'svgImages' | 'svgOutlines'>;
+
+/** Every row, as a proposal decides it. */
+function svgRowAnswers(d: SvgRows): Record<string, SvgRowAnswer> {
+  return {
+    ...Object.fromEntries(d.svgFields.map((f) => [f.candidateId, { on: f.on, kind: f.kind, title: f.title }])),
+    ...Object.fromEntries([...d.svgImages, ...d.svgOutlines].map((f) => [f.candidateId, { on: f.on, title: f.title }])),
+  };
+}
+
+/** A behaviour as ONE proposal component: its filled boxes as picks, a timer's clock as the
+ *  ticked countdown row, its options as intent (rule A8, read backwards). */
+function svgComponentOf(b: SvgBehaviourDraft, rows: Record<string, SvgRowAnswer>, open: readonly SvgUnresolvedIntent[]): SvgProposalComponent {
+  const recipe = recipeIdOf(b);
+  const picks: SvgProposalComponent['picks'] = boxPicksOf(b);
+  // A countdown readout role is not a box: the ticked countdown row carries it.
+  const readout = Object.entries(SVG_RECIPE_ROLES[recipe]?.roles ?? {}).find(([, r]) => r.countdown)?.[0];
+  const clock = readout && Object.entries(rows).find(([, r]) => r.on && r.kind === 'countdown')?.[0];
+  if (readout && clock) picks.unshift({ role: readout, layer: clock });
+  const isOpen = (key: string) => open.some((u) => u.key === key);
+  const intent: Record<string, string> = {};
+  if (recipe === 'quiz') {
+    // An option the author set answers its key, whatever was open before.
+    const options = b.kind === 'quiz' ? b.options : undefined;
+    intent.lock = options?.lock === true ? 'lock' : options?.lock === false ? 'default' : isOpen('lock') ? 'unresolved' : 'default';
+    intent.reveal = options?.autoReveal === true ? 'automatic' : options?.autoReveal === false ? 'manual' : isOpen('reveal') ? 'unresolved' : 'default';
+  }
+  if (recipe === 'credits') {
+    intent.layout = isOpen('layout') ? 'unresolved' : 'default';
+    intent.playback = isOpen('playback') ? 'unresolved' : 'default';
+  }
+  return { id: recipe, recipe, picks, intent };
+}
+
+/** A component as the draft shape of its recipe, every box set to its pick (rule A5). The
+ *  timer's clock is not a box: the countdown row carries it. */
+function svgBehaviourOfComponent(c: SvgProposalComponent, count: number): SvgBehaviourDraft {
+  const n = <T,>(make: () => T): T[] => Array.from({ length: count }, make);
+  let empty: SvgBehaviourDraft;
+  if (c.recipe === 'quiz') {
+    const options: Record<string, boolean> = {};
+    if (c.intent.lock === 'lock') options.lock = true;
+    if (c.intent.reveal === 'manual') options.autoReveal = false;
+    if (c.intent.reveal === 'automatic') options.autoReveal = true;
+    empty = {
+      kind: 'quiz',
+      ...(Object.keys(options).length > 0 ? { options } : {}),
+      question: '',
+      answers: n(() => ''),
+      rows: n(() => ({ selected: '', correct: '', wrong: '' })),
+      locked: '',
+    };
+  } else if (c.recipe === 'score') empty = { kind: 'score', rows: n(emptyScoreRow), final: '' };
+  else if (c.recipe === 'vote') empty = { kind: 'poll', question: '', rows: n(emptyPollRow), total: '', badge: '' };
+  else if (c.recipe === 'countdown') empty = emptyTimerDraft();
+  else empty = { kind: 'recipe', recipe: c.recipe, layers: {}, ...(count > 0 ? { rows: n(emptyRecipeRow) } : {}), options: {} };
+  return withBoxPicks(empty, c.picks);
+}
+
+/** Deep equality that ignores key order: two drafts built by different paths name their keys
+ *  in different orders. */
+const sameValue = (a: unknown, b: unknown): boolean => canonical(a) === canonical(b);
+
+/** What the import holds that a proposal compares against: the reference (rule A3). */
+function svgReferenceOf(draft: SvgImportDraft, svg: SvgImportResult): SvgAppliedReference {
+  const revision = svgSourceRevision(svg.markup);
+  if (draft.svgApplied?.revision === revision) return draft.svgApplied;
+  const drop = svgDropAnswers(svg);
+  return { revision, rows: svgRowAnswers(drop), behaviour: drop.svgBehaviour, unresolved: [] };
+}
+
+export type SvgProposalApplied =
+  | {
+      ok: true;
+      /** One draft update: the rows, the behaviour and the reference, nothing else. */
+      patch: SvgRows & Pick<SvgImportDraft, 'svgBehaviour'> & { svgApplied: SvgAppliedReference };
+      /** The behaviour intent nobody has decided: the one question the import still owes. */
+      decisions: SvgUnresolvedIntent[];
+      /** The author's corrections that won over the proposal. */
+      kept: string[];
+    }
+  | { ok: false; errors: SvgProposalError[] };
+
+/**
+ * APPLY A PROPOSAL to this import, all or nothing (rules A1-A9).
+ *
+ * Refused - an invalid, stale, conflicting or inexpressible proposal - it returns the errors and
+ * no patch, so the draft stays exactly as it was. Accepted, it returns ONE patch: each row value
+ * and the behaviour the proposal may write (only where the author has not corrected it), and
+ * the reference the next proposal compares against. Applying the same proposal to its own result
+ * changes nothing.
+ */
+export function svgDraftWithProposal(draft: SvgImportDraft, proposal: unknown): SvgProposalApplied {
+  const svg = draft.designSvg;
+  if (!svg) return { ok: false, errors: [{ code: 'invalid-shape', at: '', detail: 'no imported artwork' }] };
+  const ref = svgReferenceOf(draft, svg);
+  const rows = svgRowAnswers(draft);
+  const result = applySvgProposal(proposal, {
+    inventory: svg,
+    current: { rows, component: draft.svgBehaviour ? svgComponentOf(draft.svgBehaviour, rows, ref.unresolved) : null },
+    reference: ref.rows,
+    behaviourCorrected: !sameValue(draft.svgBehaviour, ref.behaviour),
+    open: ref.unresolved,
+  });
+  if (!result.ok) return result;
+
+  // A5: the component as the draft's own shape; every pick must land in a box.
+  let behaviour = draft.svgBehaviour;
+  if (result.replaceBehaviour) {
+    const c = result.component;
+    behaviour = c ? svgBehaviourOfComponent(c, result.rowCount) : null;
+    if (c && behaviour) {
+      const landed = new Set(boxPicksOf(behaviour).map((l) => `${l.role}#${l.row ?? ''}=${l.layer}`));
+      const roles = SVG_RECIPE_ROLES[c.recipe]?.roles ?? {};
+      const lost = c.picks.findIndex((p) => !roles[p.role]?.countdown && !landed.has(`${p.role}#${p.row ?? ''}=${p.layer}`));
+      if (lost >= 0) return { ok: false, errors: [{ code: 'invalid-value', at: `components[0].picks[${lost}]`, detail: 'the draft has no box for this pick' }] };
+    }
+  }
+  const replaced = !sameValue(behaviour, draft.svgBehaviour);
+
+  // A4: write only what the merge allowed. A6: the countdown machinery runs around it, and
+  // never over a kind the author corrected: that row keeps exactly what the merge left it.
+  const byLayer = new Map<string, Record<string, unknown>>();
+  for (const w of result.writes) byLayer.set(w.layer, { ...byLayer.get(w.layer), [w.attr]: w.value });
+  const write = <T extends { candidateId: string }>(list: T[]): T[] =>
+    list.map((row) => (byLayer.has(row.candidateId) ? { ...row, ...byLayer.get(row.candidateId) } : row));
+  const merged = write(draft.svgFields);
+  // The machinery fills only what nobody decided: a kind the author corrected or the proposal
+  // decides is never armed or disarmed, so the same proposal gives the same rows every time.
+  const corrected = (id: string) => rows[id]?.kind !== ref.rows[id]?.kind;
+  const proposed = (id: string) => result.writes.some((w) => w.layer === id && w.attr === 'kind');
+  const decided = (id: string) => corrected(id) || proposed(id);
+  // It sees every row, so a decided countdown still counts as the one there is.
+  const machined = replaced ? armTimerClock(write(disarmTimerClock(draft.svgFields)), behaviour) : merged;
+  // A decided row keeps its decided kind, and its marker says only this, whether or not the
+  // behaviour changed: the proposal's countdown under a timer belongs to that timer, so leaving the
+  // timer puts it back (the trap `disarmTimerClock` exists for). The author's own countdown, or one
+  // under any other behaviour, carries none, so no later disarm takes it back.
+  const timerOwns = (i: number, id: string) => proposed(id) && !corrected(id) && merged[i].kind === 'countdown' && behaviour?.kind === 'timer';
+  const svgFields = machined.map((f, i) => {
+    if (!decided(f.candidateId)) return f;
+    const row = replaced ? { ...f, kind: merged[i].kind } : merged[i];
+    // Written only where it changes, so an untouched row keeps the exact shape it had.
+    if (timerOwns(i, f.candidateId)) return row.armedByTimer ? row : { ...row, armedByTimer: true };
+    return row.armedByTimer ? { ...row, armedByTimer: false } : row;
+  });
+  // The machinery's own change is the proposal's, not a correction: it joins the reference. Sound
+  // only because it never touches a decided row, whose reference is its decided value.
+  const referenceRows = { ...result.referenceRows };
+  svgFields.forEach((f, i) => {
+    if (merged[i].kind !== f.kind) referenceRows[f.candidateId] = { ...referenceRows[f.candidateId], kind: f.kind };
+  });
+  // A8: open are the keys the behaviour it holds still leaves open; an option answers one.
+  const held = behaviour ? svgComponentOf(behaviour, svgRowAnswers({ ...draft, svgFields }), result.decisions) : null;
+  const decisions = result.decisions.filter((u) => held?.intent[u.key] === 'unresolved');
+  return {
+    ok: true,
+    patch: {
+      svgFields,
+      svgImages: write(draft.svgImages),
+      svgOutlines: write(draft.svgOutlines),
+      svgBehaviour: behaviour,
+      svgApplied: {
+        revision: ref.revision,
+        rows: referenceRows,
+        behaviour: result.replaceBehaviour ? behaviour : ref.behaviour,
+        unresolved: decisions,
+      },
+    },
+    decisions,
+    kept: result.kept,
+  };
+}
+
+/**
+ * THIS IMPORT AS A PROPOSAL (rule A10): the deterministic reader's answers in the contract's
+ * words, so the name-based import and any later proposer speak one language and the round trip
+ * can be proved. A decision the contract would refuse as contradicting the draft's own picks (a
+ * display-target text layer still ticked, an unticked layer a field role picks) or a title it
+ * refuses is left out, and `omitted` names each: that row stays as the reader offered it.
+ */
+export function svgProposalOfDraft(draft: SvgImportDraft): { proposal: SvgProposal; omitted: string[] } | null {
+  const svg = draft.designSvg;
+  if (!svg) return null;
+  const rows = svgRowAnswers(draft);
+  const revision = svgSourceRevision(svg.markup);
+  const open = draft.svgApplied?.revision === revision ? draft.svgApplied.unresolved : [];
+  const text = new Set(svg.candidates.map((c) => c.id));
+  const fields: SvgProposal['fields'] = Object.entries(rows).map(([layer, r]) => ({
+    layer,
+    on: r.on,
+    ...(text.has(layer) ? { kind: r.kind ?? 'text' } : {}),
+    ...(r.title ? { title: r.title } : {}),
+  }));
+  let proposal: SvgProposal = {
+    version: 1,
+    sourceRevision: revision,
+    fields,
+    components: draft.svgBehaviour ? [svgComponentOf(draft.svgBehaviour, rows, open)] : [],
+  };
+  const omitted: string[] = [];
+  const context = { inventory: svg, recipes: SVG_RECIPE_ROLES, capabilities: SVG_DRAFT_CAPABILITIES };
+  const verdict = validateSvgProposal(proposal, context);
+  if (!verdict.ok) {
+    // Only two refusals are the draft contradicting itself, and each has one answer: a pick's
+    // ownership conflict leaves out that layer's decision, a refused title leaves out the title.
+    // Anything else stays refused, so a real defect is never hidden.
+    const drop = new Set<number>();
+    const untitle = new Set<number>();
+    const picks = proposal.components[0]?.picks ?? [];
+    for (const e of verdict.errors) {
+      const title = /^fields\[(\d+)\]\.title$/.exec(e.at);
+      const pick = /^components\[0\]\.picks\[(\d+)\]\.layer$/.exec(e.at);
+      if (title && e.code === 'invalid-value') untitle.add(Number(title[1]));
+      else if (pick && e.code === 'conflicting-ownership') {
+        const at = fields.findIndex((f) => f.layer === picks[Number(pick[1])]?.layer);
+        if (at >= 0) drop.add(at);
+      }
+    }
+    proposal = {
+      ...proposal,
+      fields: fields.flatMap((f, i) => {
+        if (drop.has(i)) { omitted.push(`${f.layer} decision`); return []; }
+        if (untitle.has(i)) { omitted.push(`${f.layer} title`); const { title: _title, ...rest } = f; return [rest]; }
+        return [f];
+      }),
+    };
+  }
+  return { proposal, omitted };
+}
+
+/** What reimporting a build over a saved SVG graphic gives: the template to save, its new Reset
+ *  target, and the earlier work it could not carry (spec "Reimport"; evidence/phase-27.md). */
+export interface SvgReimport {
+  template: SpxTemplate;
+  baseline: SpxTemplate;
+  unresolved: ReimportItem[];
+}
+
+/**
+ * REIMPORT CHANGED ARTWORK over a saved graphic, keeping its work: every verified-match layer
+ * keeps its field id (so production bindings, cue values and control entries still address it),
+ * keys and labels made after the earlier import come across, and an identity the editor minted on
+ * a keyed artwork layer moves to the same layer. Whatever has no verified target is returned in
+ * `unresolved`, for the caller to keep the earlier graphic instead of writing over it. Null when
+ * either side is not an SVG import: nothing here applies, and the save is the ordinary one.
+ */
+export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemplate }, built: SpxTemplate): SvgReimport | null {
+  const priorDoc = parseHtml(prior.template.html);
+  const priorArt = artOf(priorDoc);
+  if (!priorArt || !artOf(parseHtml(built.html))) return null;
+  const match = matchReimport(prior.template, prior.baseline, built);
+  const unresolved = [...match.unresolved];
+  let template = renameFields(built, match.rename);
+  const baseline = template;
+  const priorData = parseAnimData(prior.template.js);
+  const firstData = prior.baseline ? parseAnimData(prior.baseline.js) : null;
+  const builtData = parseAnimData(template.js);
+  // Action identities ride on the recipe, which names its events: a verified build answers the
+  // same ones. An action the walk itself drops (a behaviour profile the reader chose, such as a
+  // quiz with no Lock) is that choice, not lost work, so it is not listed.
+  if (priorData && builtData) {
+    const keys = carryKeys(priorData, firstData, builtData);
+    unresolved.push(...keys.unresolved);
+    // A key with no verified target is not written: on a field with no match (named with the
+    // field), or on a positional selector, which names a place rather than a layer.
+    const drop = (selector: string) => {
+      for (const step of [...keys.data.steps, ...(keys.data.machine?.groups ?? []).flatMap((g) => g.states.flatMap((st) => (st.timeline ? [st.timeline] : [])))]) {
+        delete step.layers[selector];
+      }
+    };
+    for (const id of match.gone) drop(`#${id}`);
+    for (const selector of keys.selectors) {
+      if (match.gone.some((id) => selector === `#${id}`)) continue;
+      // Only an id names one layer; the build's own `.imported-design-*` structure is stable, a
+      // designer's class may now gather other layers.
+      if (!selector.startsWith('#') && !selector.startsWith(`.${PREFIX}-`)) {
+        drop(selector);
+        unresolved.push({ kind: 'key', label: selector });
+        continue;
+      }
+      const doc = parseHtml(template.html);
+      let found: Element | null = null;
+      try { found = doc.querySelector(selector); } catch { /* not a selector this document answers */ }
+      const minted = /^#artwork-\d+$/.test(selector);
+      // A designer's own id names its layer in both versions; an identity the editor MINTED is
+      // ours, so a node of the new artwork wearing it proves nothing until its source key agrees.
+      if (found && !minted) continue;
+      // The same drawn layer, verified by its source key, takes the identity back.
+      const was = minted ? priorDoc.querySelector(selector) : null;
+      const art = artOf(doc);
+      const key = was && priorArt.contains(was) ? sourceKey(was, priorArt) : null;
+      const alike = (root: Element | null) => (key && root ? Array.from(root.querySelectorAll('*')).filter((el) => sourceKey(el, root) === key) : []);
+      // Verified only when the key occurs once on EACH side (R2): a twin in the earlier artwork
+      // may be the very layer the keys were on.
+      const twins = alike(art);
+      const verified = twins.length === 1 && alike(priorArt).length === 1;
+      if (found && verified && twins[0] === found) continue;
+      const carried = !found && verified ? carrySvgIdentity(template, twins[0], selector.slice(1)) : null;
+      if (carried) template = carried;
+      else {
+        drop(selector);
+        unresolved.push({ kind: 'key', label: selector });
+      }
+    }
+    template = { ...template, js: spliceAnimData(template.js, keys.data) ?? template.js };
+  } else if (priorData && firstData && canonical(priorData) !== canonical(firstData)) {
+    unresolved.push({ kind: 'key', label: 'animation' });
+  }
+  template = carryTitles(template, prior.template, prior.baseline, match.matched);
+  // A key is named by what the reader knows it as: the field's title, else the designer's
+  // nearest named group, never a selector.
+  const named = (u: ReimportItem): ReimportItem => {
+    if (u.kind !== 'key' || u.label === 'animation') return u;
+    const field = prior.template.fields.find((f) => `#${f.field}` === u.label);
+    if (field) return { ...u, label: field.title || field.field };
+    let el: Element | null = null;
+    try { el = priorDoc.querySelector(u.label); } catch { /* not a selector */ }
+    for (let up = el?.parentElement; up && up !== priorArt; up = up.parentElement) {
+      const id = up.getAttribute('id');
+      if (id && !/^(?:f\d+|artwork-\d+)$/.test(id)) return { ...u, label: id.replace(/^layer-/, '') };
+    }
+    return { ...u, label: 'artwork' };
+  };
+  // Keys on a field already named as gone are said once, with the field.
+  const gone = new Set(match.unresolved.map((u) => u.label));
+  const seen = new Set<string>();
+  return {
+    template,
+    baseline,
+    unresolved: unresolved
+      .map(named)
+      .filter((u) => !(u.kind === 'key' && gone.has(u.label)))
+      .filter((u) => !seen.has(u.kind + u.label) && !!seen.add(u.kind + u.label)),
+  };
+}
+
+/** The working document as the reimport seam reads and writes it (the template store). */
+interface ReimportStore {
+  getState(): { template: SpxTemplate };
+  setState(patch: { template: SpxTemplate; baseline: SpxTemplate; sampleData: Record<string, string> }): void;
+}
+
+/** The library seam's reimport half (shell/walkState.ts `LibraryIo`): the working document is the
+ *  build, and `apply` makes the reconciled build the working document and its Reset target. */
+export function reimportIo(
+  store: ReimportStore,
+  sampleData: (template: SpxTemplate, existing: Record<string, string>) => Record<string, string>,
+): Pick<LibraryIo, 'reconcile' | 'keepCopy'> {
+  return {
+    reconcile: (id) => {
+      const held = graphicById(id);
+      const done = held ? svgReimported({ template: held.template, baseline: held.baseline }, store.getState().template) : null;
+      if (!done) return null;
+      return {
+        unresolved: done.unresolved,
+        apply: () => store.setState({ template: done.template, baseline: done.baseline, sampleData: sampleData(done.template, {}) }),
+      };
+    },
+    keepCopy: (id) => {
+      const copy = duplicateGraphic(id);
+      if (!copy.doc || copy.error) return false;
+      const name = freeName(graphicNameIndex().filter((g) => g.id !== copy.doc!.id).map((g) => g.name), copy.doc.name);
+      return name === copy.doc.name || !updateGraphic(copy.doc.id, { name }).error;
+    },
+  };
+}
+
+/** The Finish step's read of a reimport, cached on what it reads: the build and the held record. */
+let reviewCache: { built: SpxTemplate; id: string; at: string; result: SvgReimport | null } | null = null;
+
+/** What Finish says about a reimport over the graphic `name` holds (FinishStep `reimport`), or
+ *  null when the save is the ordinary one or carries everything. */
+export function finishReimport(built: SpxTemplate | null, name: string, library: LibraryNameEntry[], madeId: string | null, memory: WalkMemory) {
+  // The save's own test (`reimportTarget`), so Finish and the save agree.
+  const target = reimportTarget(librarySaveEffect(library, name, madeId), memory.made, library);
+  const held = built && target ? graphicById(target) : null;
+  if (!built || !held) return null;
+  if (reviewCache?.built !== built || reviewCache.id !== held.id || reviewCache.at !== held.updatedAt) {
+    reviewCache = { built, id: held.id, at: held.updatedAt, result: svgReimported({ template: held.template, baseline: held.baseline }, built) };
+  }
+  const unresolved = reviewCache.result?.unresolved ?? [];
+  if (unresolved.length === 0) return null;
+  // A Replace anyway tick belongs to the list it was given for, on this target.
+  const sig = JSON.stringify([held.id, held.updatedAt, unresolved]);
+  if (memory.replaceFor !== sig) {
+    memory.replaceFor = sig;
+    memory.replaceOver = false;
+  }
+  return {
+    sig,
+    unresolved,
+    separateName: freeName(library.map((g) => g.name), name),
+    copyName: freeName(library.map((g) => g.name), `${name} copy`),
+    replace: !!memory.replaceOver,
+    onReplace: (replace: boolean) => { memory.replaceOver = replace; },
+  };
+}
+
+/**
+ * THE RECORD A SAVE RECONCILES AGAINST, or null for a plain write (spec "Reimport", AC-15). Each
+ * door rebuilds the raw, positionally numbered build first, so reconciliation follows the RECORD,
+ * not the press: a save reconciles against any record it would write over, unless that record is
+ * still exactly what this walk last wrote by a plain write (its own fresh graphic, untouched).
+ * Whether the record is an SVG import at all is the reconcile's own question. The Finish review
+ * (`finishReimport`) and the save (shell/walkState.ts `saveBuiltGraphic`) ask this same function,
+ * so the sentence and the save decide alike.
+ */
+export function reimportTarget(effect: LibrarySaveEffect, made: MadeGraphic | null, index: LibraryNameEntry[]): string | null {
+  const target = effect.targetId;
+  if (!target) return null;
+  const plainOwn = made?.graphicId === target && !made.reconciled && made.at === index.find((g) => g.id === target)?.updatedAt;
+  return plainOwn ? null : target;
 }

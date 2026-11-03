@@ -122,6 +122,21 @@ export default tseslint.config(
     },
   },
 
+  // No focused test is ever committed (cicd-improvement ci05). `test.only` / `describe.only` makes
+  // Playwright run that test alone and silently drop every other test in the files it loaded, so
+  // a selected spec would report green having run nothing of its own. The Playwright configs also
+  // set `forbidOnly` on CI, which catches a focused test at run time; this catches it in every file
+  // on every change, selected or not.
+  {
+    files: ['e2e/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': ['error', {
+        selector: "CallExpression > MemberExpression.callee[property.name='only']",
+        message: 'No focused tests (.only) in e2e/: it drops every other test from the run. Remove it before committing.',
+      }],
+    },
+  },
+
   // ---- Architecture Stage A (docs/ARCHITECTURE.md §3, §7) --------------------------------
   // Machine-pins invariants 1, 3 and 4 of the architecture doc, which were verified clean when
   // introduced — these blocks stop regressions; the full edge table stays review-time until

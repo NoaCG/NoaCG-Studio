@@ -2,7 +2,7 @@
 //
 // AGENT ACCESS (docs/AGENT_SAVE.md): the consent query route, the Settings key list, the
 // browser client and the two /api/me routes it calls. The offline spec pins the no-backend
-// posture; the live half is e2e/configured/agent-access.spec.ts (CONFIGURED_TRIGGERS).
+// posture; the live half is e2e/configured/agent-access.spec.ts (its covers lines).
 // covers: {src/backend/agentAccess.ts,src/components/auth/AgentAccessConsent.tsx,src/components/SettingsDialog.tsx,api/_lib/me/{agentKeys*,graphics*,graphicShape.ts,packages*,packageShape.ts},api/_lib/{principal.ts,agentAccessStore.ts},src/entitlements/permissions.ts}
 
 import { test, expect } from '@playwright/test';

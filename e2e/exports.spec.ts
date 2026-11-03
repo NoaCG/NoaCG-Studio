@@ -1,6 +1,7 @@
 // covers: src/export/**, src/control/**, src/templates/**
 // covers: src/components/{ExportWindow,ExportSurface}.tsx
 // focus
+// critical: export-portability
 //
 // The EXPORT SCREEN and the compatibility panel it mounts. No spec asserts the panel's CONTENT yet
 // (its `playout-compat` testids are unused): these specs mount it, so a crash is caught and a wrong

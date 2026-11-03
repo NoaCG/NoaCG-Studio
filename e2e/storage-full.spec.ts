@@ -1,6 +1,7 @@
 // covers: src/components/{home,save}/**
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus
+// critical: edit-save-reopen
 //
 // defaultTemplate.ts left src/model (CORE) for src/templates, so the specs that seed a graphic
 // from it by importing it directly are named here; the templates subset alone would miss

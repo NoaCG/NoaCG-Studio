@@ -1,3 +1,5 @@
+// covers: none - it drives a real NoaCG Bridge and CasparCG behind BRIDGE_REAL=1, which no runner has, so every test skips there (expected-run.json allowedSkips)
+
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';

@@ -1,6 +1,7 @@
 // covers: app.html
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus
+// critical: site-entry
 
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';

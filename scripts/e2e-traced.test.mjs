@@ -129,7 +129,7 @@ test('a file most of the traced suite executes is broad', () => {
 
 // THE PLANNER'S HALF. A spec the curated headers miss is added; a map that cannot be trusted, or a
 // broad file, escalates; CENTRAL source never asks.
-const fresh = (files, broad = []) => ({ files: new Map(Object.entries(files)), broad: new Set(broad), problem: null });
+const fresh = (files, broad = [], broadEscalates = false) => ({ files: new Map(Object.entries(files)), broad: new Set(broad), broadEscalates, problem: null });
 
 test('the traced map adds the spec a covers header missed - the #927 shape', () => {
   // src/templates/importedDesign/svg.ts was covered by the import specs and not by
@@ -154,16 +154,20 @@ test('a stale, missing or unreadable map escalates every file that would have as
   assert.equal(focus.focusApplied, true, 'under sprint focus it is the focus set, the existing escalation');
 });
 
-test('a broad file keeps its covers selection and is named, or escalates like core when BROAD_ESCALATES says so', () => {
+test('a broad file escalates like core by default (BROAD_ESCALATES), and keeps its covers selection only when switched off', () => {
   const coverage = [{ spec: 'legal.spec.ts', test: (f) => f === 'src/shell.tsx' }];
   const map = { 'src/shell.tsx': ['a.spec.ts', 'b.spec.ts'] };
+  assert.equal(BROAD_ESCALATES, true, 'ci04: a file most of the suite executes must reach at least the shared-change set');
+  assert.equal(BROAD_ESCALATES, tracedFrom({ version: 1, sha: 's', tracedAt: new Date().toISOString(), specs: 1, files: {} }).broadEscalates);
+  const escalated = planFor(['src/shell.tsx'], { coverage, traced: fresh(map, ['src/shell.tsx'], BROAD_ESCALATES) });
+  assert.equal(escalated.mode, 'full');
+  assert.deepEqual(escalated.tracedBroad, ['src/shell.tsx']);
+  const focused = planFor(['src/shell.tsx'], { coverage, sprintFocus: true, traced: fresh(map, ['src/shell.tsx'], BROAD_ESCALATES) });
+  assert.equal(focused.focusApplied, true, 'under sprint focus it is the shared-change set');
+  assert.ok(focused.specs.includes('legal.spec.ts'), 'the curated selection stays inside it');
   const kept = planFor(['src/shell.tsx'], { coverage, traced: fresh(map, ['src/shell.tsx']) });
   assert.equal(kept.mode, 'subset');
-  assert.deepEqual(kept.specs, ['legal.spec.ts'], 'never fewer than the headers, and none of the broad list');
-  assert.deepEqual(kept.tracedBroad, ['src/shell.tsx']);
-  const escalated = planFor(['src/shell.tsx'], { coverage, traced: { ...fresh(map, ['src/shell.tsx']), broadEscalates: true } });
-  assert.equal(escalated.mode, 'full');
-  assert.equal(BROAD_ESCALATES, tracedFrom({ version: 1, sha: 's', tracedAt: new Date().toISOString(), specs: 1, files: {} }).broadEscalates);
+  assert.deepEqual(kept.specs, ['legal.spec.ts'], 'switched off: never fewer than the headers, and none of the broad list');
 });
 
 test('CENTRAL source never consults the map, so a stale map does not escalate it', () => {

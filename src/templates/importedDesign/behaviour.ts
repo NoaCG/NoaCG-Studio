@@ -23,6 +23,7 @@ import type { SpxField } from '../../model/types';
 import type { FieldKind } from '../../model/fieldModel';
 import type {
   DesignSvg,
+  DesignSvgCredits,
   DesignSvgExtra,
   DesignSvgRecipeBehaviour,
   DesignSvgPollBehaviour,
@@ -41,6 +42,7 @@ import { recipeById } from '../behaviours/registry';
 import { behaviourDataJs, behaviourRuntimeJs, LOOK_CLASS, lookCss } from './behaviourRuntime';
 import { countdownIndex } from './artworkFields';
 import { PREFIX } from './shared';
+import { styledCredits } from './creditsRoll';
 
 // ── The module interface (the seam svg.ts speaks) ────────────────────────────────────────────
 
@@ -101,6 +103,8 @@ export interface BehaviourBinding {
   rowLabels?: Record<string, string>;
   fields: Record<string, number | Record<string, number>>;
   layers: Record<string, string | Record<string, string>>;
+  /** Credits only: the styled binding, where the design builds it (`RecipeContext.credits`). */
+  credits?: DesignSvgCredits;
 }
 
 /**
@@ -124,8 +128,15 @@ export function bindingsOf(svg: DesignSvg): BehaviourBinding[] {
   else if (behaviour?.kind === 'poll') out.push(voteBinding(behaviour));
   else if (behaviour?.kind === 'timer') out.push(countdownBinding(svg, behaviour));
   else if (behaviour?.kind === 'score') out.push(scoreBinding(behaviour));
-  else if (behaviour?.kind === 'recipe') out.push(recipeBinding(behaviour));
-  for (const extra of svg.extras ?? []) out.push(extraBinding(extra));
+  else if (behaviour?.kind === 'recipe') {
+    const binding = recipeBinding(behaviour);
+    // A styled credits binding that builds (not one gone stale, which builds the editable roll).
+    out.push(behaviour.credits && styledCredits(svg) ? { ...binding, credits: behaviour.credits } : binding);
+  }
+  for (const extra of svg.extras ?? []) {
+    const binding = extraBinding(svg, extra);
+    if (binding) out.push(binding);
+  }
   return out;
 }
 
@@ -241,8 +252,14 @@ export function optionKey(label: string, taken: Set<string>): string {
   return key;
 }
 
-/** A switch or a choice, as the wizard persisted it. */
-function extraBinding(extra: DesignSvgExtra): BehaviourBinding {
+/** A switch, a choice or the clock, as the wizard persisted it. A clock whose time layer is no
+ *  longer a field binds nothing: a clock with no readout is no clock. */
+function extraBinding(svg: DesignSvg, extra: DesignSvgExtra): BehaviourBinding | null {
+  if (extra.kind === 'clock') {
+    const clock = svg.fields.findIndex((f) => f.candidateId === extra.field);
+    if (clock === -1) return null;
+    return { recipe: 'clock', name: extra.name, options: { mode: extra.mode }, fields: { clock }, layers: {} };
+  }
   if (extra.kind === 'switch') {
     return { recipe: 'switch', name: extra.name, fields: {}, layers: { on: extra.layer } };
   }
@@ -352,6 +369,7 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
   const ctx: RecipeContext = {
     rows,
     options,
+    ...(binding.credits ? { credits: binding.credits } : {}),
     name,
     slug,
     ns,
@@ -413,7 +431,8 @@ function compilePart(artworkFields: SpxField[], binding: BehaviourBinding, offse
   }
   const table: BehaviourData = { version: 1, recipe: recipe.id, paint: recipe.paint(ctx) };
   if (recipe.instanced) table.recipe = `${recipe.id}:${name}`;
-  if (Object.keys(options).length > 0) table.options = options;
+  // An instanced part's options live under its namespace too, so two parts' options never merge.
+  if (Object.keys(options).length > 0) table.options = recipe.instanced ? Object.fromEntries(Object.entries(options).map(([k, v]) => [ns(k), v])) : options;
   if (recipe.rows && rows.length > 0) table.rows = { [ns(recipe.rows.role)]: rows };
   if (Object.keys(fields).length > 0) table.fields = fields;
   if (Object.keys(kinds).length > 0) table.kinds = kinds;
@@ -458,6 +477,40 @@ export function compileBinding(artworkFields: SpxField[], binding: BehaviourBind
   return composeParts(artworkFields, [binding]);
 }
 
+/** The recipes that each drive the one clock runtime a graphic can hold. */
+const CLOCK_RECIPES = new Set(['clock', 'countdown']);
+
+/**
+ * Refuse a composition whose parts would share a name. The parts merge into ONE machine, ONE
+ * table and one control list, so a second group, event, field key or row set under the same name
+ * would silently overwrite the first (`Object.assign`) or leave a button driving two things - a
+ * switch and a choice both called "Sponsor", or two clocks. One clock in all, never two engines:
+ * the clock runtime drives one readout, so a second clock part, or a clock beside the countdown
+ * recipe, is refused too.
+ */
+function refuseCollisions(parts: CompiledPart[]): void {
+  const clocks = parts.filter((p) => CLOCK_RECIPES.has(p.recipe.id)).map((p) => p.table.recipe);
+  if (clocks.length > 1) throw new Error(`Behaviour: a graphic carries one clock at most (${clocks.join(', ')}).`);
+  const seen = new Map<string, number>();
+  const claim = (what: string, id: string, at: number): void => {
+    const key = `${what} "${id}"`;
+    const first = seen.get(key);
+    if (first !== undefined && first !== at) throw new Error(`Behaviour: ${parts[first].table.recipe} and ${parts[at].table.recipe} both declare the ${key}.`);
+    seen.set(key, at);
+  };
+  for (const [owner, part] of parts.entries()) {
+    for (const group of part.machine.parallel ?? []) claim('group', group.id, owner);
+    const events = new Set([
+      ...part.controls.map((c) => c.event),
+      ...(part.machine.parallel ?? []).flatMap((g) => g.states.flatMap((s) => s.edges.map((e) => e.event ?? ''))),
+    ]);
+    for (const event of events) if (event) claim('event', event, owner);
+    for (const key of Object.keys(part.table.fields ?? {})) claim('field', key, owner);
+    for (const key of Object.keys(part.table.rows ?? {})) claim('row set', key, owner);
+    for (const key of Object.keys(part.table.options ?? {})) claim('option', key, owner);
+  }
+}
+
 /**
  * Compile every binding and merge the parts into the one module svg.ts speaks.
  *
@@ -478,8 +531,11 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
   if (full.length > 1) {
     throw new Error(`Behaviour: a graphic carries one full recipe at most (${full.map((p) => p.recipe.id).join(', ')}).`);
   }
+  refuseCollisions(parts);
   const owned = parts.flatMap((p) => p.owned);
   const withClock = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'clock'));
+  // A figure a press adds to (the score board's): who scored is said by the press (behaviourRuntime.ts).
+  const withAwards = parts.some((p) => Object.values(p.table.kinds ?? {}).some((spec) => spec.kind === 'number'));
 
   const table = (): BehaviourData => {
     const merged: BehaviourData = {
@@ -521,7 +577,7 @@ export function composeParts(artworkFields: SpxField[], bindings: BehaviourBindi
     <!-- The behaviour's own values. SPX writes them here; the rules in template.js read them.
          None of these is ever drawn - the artwork's own layers are what the audience sees. -->
 ${owned.map((field, i) => `    <div id="f${start + i}" class="${DATA_SOURCE_CLASS}">${field.value}</div>`).join('\n')}`,
-    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock)}`,
+    js: () => `\n${behaviourDataJs(table())}${behaviourRuntimeJs(withClock, withAwards)}`,
     updateHook: `  if (typeof noacgRepaintData === 'function') noacgRepaintData();  // the behaviour's looks, gauges and readouts (below)`,
     steps: (data) => {
       const paths = parts.map((p) => p.path).filter((p): p is RecipePath => !!p);

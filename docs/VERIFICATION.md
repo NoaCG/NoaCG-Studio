@@ -121,16 +121,36 @@ specs importing `CATALOG`, `TYPES`, `KITS` or `PACKS` and fails the build if one
 cover `src/templates/**`. Six were missing until 2026-08-08, which is how `competition-pack.spec.ts` sat stale.
 
 **Backend behavior has a separate configured suite.** `e2e/configured/` runs against an
-explicitly configured backend and a throwaway account. `CONFIGURED_TRIGGERS` in
-`scripts/e2e-lists.mjs` reads its covers headers and reports affected backend coverage; the
-offline planner never starts it against the local production `.env`.
+explicitly configured backend and a throwaway account. Every configured spec declares `covers:`
+or `none - <why>`, and the build refuses one that declares neither. The offline planner never
+starts it against the local production `.env`.
 
-`configured-suite.yml` runs on every push to main, nightly at 01:10 UTC, and by explicit
-dispatch. It starts an isolated local backend stack on the Actions runner, applies the
-repository migrations, authenticates a throwaway account, and runs the configured suite.
-Each landing has its own run, so post-landing evidence identifies one commit. These checks
-report after landing and do not replace the merge group's required CI. See the workflow for
-its current selection, environment and reporting guards.
+**On a pull request, the selected configured specs are a required check** (cicd-improvement
+ci06). The plan emits a manifest (`configured` in `e2e-affected.mjs --json`): an edited
+configured spec runs itself, a `covers:` line runs its spec, a changed helper or read file runs
+the configured specs that import or read it, a changed module runs every configured spec whose
+declared files import it (transitively, through the app's import graph), and the WHOLE configured
+set runs for the suite's
+shared ground (`CONFIGURED_FULL` in `scripts/e2e-lists.mjs` and the toolchain scripts read off
+imports: helpers, `playwright.live.config.ts`, `supabase/`, the workflows and shared actions,
+dependency manifests, the dev server's plugins, the planner and verdict), for backend-facing
+source (`api/`, `src/backend/`) that no configured header names or that reaches `src/backend/`
+outside every declared closure, and for any change the offline plan escalates. A
+quarantined spec leaves the selection unless the change edits it. ci.yml's `configured` jobs run
+the selection on a local stack (`.github/actions/configured-stack`, shared with
+`configured-suite.yml`), and `configured-verdict` checks the merged report against a
+`playwright test --list` of the selected files: missing, extra, empty or unexpectedly skipped
+results fail. The CI gate reads the plan's flag: 'true' needs both jobs green, 'false' needs both
+skipped, and nothing else passes. A pull request that selects nothing is untriggered and says so
+in the plan job's summary.
+
+**The merge group is exempt, so the combined tree's backend is not checked before merge.** The
+flag is 'false' for merge groups and for main. `configured-suite.yml` runs the full configured
+suite on every push to main (each landing has its own run, so post-landing evidence identifies
+one commit), nightly at 01:10 UTC, and by explicit dispatch. It reports after landing and is not
+a merge gate; migrations and the deployment reach production before it reports
+(`docs/work-specs/cicd-improvement/evidence/phase-ci01.md`). See the workflows for their current
+selection, environment and reporting guards.
 
 Two things that route buys, and one it costs:
 
@@ -618,7 +638,11 @@ It prints one of three verdicts, derived from the diff:
   `NOACG_ONLY_CATEGORIES=<categories>`; the command list it prints already carries them. An id the
   catalog does not ship is REFUSED rather than quietly sweeping nothing - on the script side by
   `scripts/catalog-scope.mjs`, and before specs start by `scripts/catalog-specs.mjs`. The
-  shared `e2e/_catalogScope.ts` reader consumes that validated environment scope.
+  shared `e2e/_catalogScope.ts` reader consumes that validated environment scope. After the run,
+  the calibration bench's scope guard (`e2e/catalog/_bench-scope.mjs`, a reporter) fails it unless
+  the bench units measured exactly the selected designs in exactly their categories, scoped or
+  full; an empty unit is fine only then. Categories the bench does not bench are declared there
+  with a reason, printed on every run, and a selected design in one of them never counts as measured.
 - **the whole catalog** - something shared changed. A category's `shared.ts`, a preset bank, the
   type registry, fonts, the theme tokens, `src/blocks/`, the `:root` contract, a gate script or a
   baseline: all of them reach every design, so all of them escalate. So does any file it cannot

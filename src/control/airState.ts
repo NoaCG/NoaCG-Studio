@@ -179,14 +179,22 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
     }
     const value = carried?.[clock.field];
     if (value !== undefined) clocks = { ...clocks, [item.graphic]: clockValueAfterUpdate(clocks[item.graphic], value) };
-    if (msg.t === 'stop' && item.graphic in clocks) clocks = without(clocks, item.graphic);
+    // An imported clock keeps its value through an Out, as the renderer does: it says the clock is
+    // off air, and what its next Take counts (control/matchClockWire.ts).
+    if (msg.t === 'stop' && item.graphic in clocks && !clock.events) clocks = without(clocks, item.graphic);
+    // An imported clock's monitor is sent what it holds, not what the row carried, as the renderer
+    // does (src/output/main.ts): its runtime guards a resend only against the last value it was
+    // sent, and a Pause has banked another since.
+    const staged: ControlSendItem = clock.events && msg.t === 'update' && value !== undefined
+      ? { ...item, msg: { ...msg, data: { ...msg.data, [clock.field]: clocks[item.graphic] } } }
+      : item;
     const effect = clockRowEffect({ msg, created_at: item.created_at }, clock, clocks[item.graphic], now);
     if (!effect) {
-      out.push(item);
+      out.push(staged);
       continue;
     }
     clocks = { ...clocks, [item.graphic]: effect.value };
-    around(item, { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } }, effect.when);
+    around(staged, { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } }, effect.when);
   }
   return { air: clocks === air.clocks && speaking === air.speaking ? air : { ...air, clocks, speaking }, out };
 }
@@ -241,6 +249,16 @@ export function forgetBootReplay(air: AirPart): AirPart {
 }
 
 /**
+ * A clock's monitor memory from what a live graphic reported. A host that reports the layer's
+ * painted text (control/hostedReceiver.ts `harvest`) says what was shown, never when (row 11, H1).
+ * A target's stamped start is its whole truth whatever was painted ("3:39:30" is hours, which the
+ * wire does not read). Every other clock is the reported value as it always was.
+ */
+function clockSeedFromReport(clock: ClockSpec, reported: string): string {
+  return clock.fixedInstant ? clock.seed : reported;
+}
+
+/**
  * THE RESOLVE'S SEED, guarded (§4.1 R3). The seed is a wholesale replace, so it is skipped
  * outright when the marker moved while the read was in flight (THE MOVES GUARD): the wire's map is
  * a snapshot, and a layer this operator took off meanwhile would come back on air, or a Take made
@@ -277,7 +295,7 @@ export function seedFromResolve(
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined) {
-      clocks = { ...clocks, [graphic]: wire(clock.field) };
+      clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       values[clock.field] = plainClockValue(values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {

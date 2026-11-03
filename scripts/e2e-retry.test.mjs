@@ -208,7 +208,8 @@ function gate(results = {}) {
   const run = spawnSync(bash, ['--noprofile', '--norc', '-s'], {
     input: gateScript, encoding: 'utf8', timeout: 10_000, windowsHide: true,
     env: { ...process.env, BUILD_RESULT: 'success', PLAN_RESULT: 'success', FACTORY_RESULT: 'success',
-      CATALOG_RESULT: 'success', GUIDED_MOD_RESULT: 'skipped', E2E_RESULT: 'success', RETRY_RESULT: 'skipped', ...results },
+      CATALOG_RESULT: 'success', GUIDED_MOD_RESULT: 'skipped', E2E_RESULT: 'success', RETRY_RESULT: 'skipped',
+      EVENT: 'pull_request', CONFIGURED_FLAG: 'false', CONFIGURED_RESULT: 'skipped', CONFIGURED_VERDICT: 'skipped', ...results },
   });
   assert.ifError(run.error);
   assert.equal(run.signal, null, run.stderr);

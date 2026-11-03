@@ -36,6 +36,9 @@ export default defineConfig({
   fullyParallel: false,
   // The public internet, from a CI runner: one retry, so a dropped request is not an alarm.
   retries: 1,
+  // A committed `test.only` would drop every other test in the run; on CI it fails the run instead
+  // (cicd-improvement ci05; eslint.config.js refuses it before it is committed).
+  forbidOnly: Boolean(process.env.CI),
   reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
   use: {
     baseURL: process.env.PRODUCTION_URL || 'https://noacg.studio',

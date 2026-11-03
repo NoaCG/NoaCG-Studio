@@ -1,3 +1,5 @@
+// covers: src/audience/**, src/components/home/{ProductionAudienceWorkspace.tsx,useAudienceInbox.ts}
+
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { openProductionWithCurrent } from '../_create';

@@ -8,7 +8,8 @@ import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dropSvg } from './_svg-import';
+import { bindEveryTextLayer, dropSvg } from './_svg-import';
+import { finishIntoNewEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import type { EditorOperation } from '../src/components/editorFoundation/operations';
 
@@ -353,4 +354,128 @@ test('nominated logo edits preserve image bytes and nested group canvas movement
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect((await source(page)).css).toBe(before.css); expect((await source(page)).html).toBe(before.html);
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect((await source(page)).css).toBe(moved.css);
   await page.screenshot({ path: out('logo-and-group.png') });
+});
+
+// AC-15, row 26 (docs/work-specs/jev-svg-import/evidence/phase-26.md). The wizard's mapping step is
+// the import's preparation; the nested headline is #f0 inside #card inside the transformed #parent.
+test('a nested imported field stays a field and an animation target, with its timing and ease, through save and reopen', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 }); await imported(page); await seek(page, 0);
+  const prepared = await source(page);
+  expect(prepared.fields.map(f => [f.field, f.title])).toEqual([['f0', 'Headline']]);
+  expect(await page.evaluate(html => !!new DOMParser().parseFromString(html, 'text/html').querySelector('#parent > #card > #f0'), prepared.html)).toBe(true);
+  await execute(page, [
+    { kind: 'animation.key', selector: '#f0', step: 0, property: 'x', time: 0, value: -30, action: 'set' },
+    { kind: 'animation.key', selector: '#f0', step: 0, property: 'x', time: .6, value: 40, action: 'set' },
+  ]);
+  await execute(page, [{ kind: 'key.ease', keys: [0, .6].map(time => ({ step: 0, selector: '#f0', property: 'x', time })), preset: 'easyEase' }]);
+  const keyed = (await data(page)).steps[0].layers['#f0'];
+  expect(keyed.x.map(k => [k.time, k.value])).toEqual([[0, -30], [.6, 40]]);
+  expect(keyed.x[1].ease).toMatch(/^cubic/);
+  await select(page, '#f0'); await seek(page, .6);
+  const positionX = page.locator('.ef-animation-properties').getByRole('textbox', { name: 'Position X', exact: true });
+  const shown = await positionX.inputValue();
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Nested field motion'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); const saved = await source(page);
+  expect(saved.html).toBe(prepared.html); expect(saved.fields).toEqual(prepared.fields);
+
+  await page.reload(); await ready(page);
+  const reopened = await source(page);
+  for (const ext of ['html', 'css', 'js'] as const) expect(reopened[ext]).toBe(saved[ext]);
+  expect(reopened.fields).toEqual(saved.fields);
+  expect((await data(page)).steps[0].layers['#f0']).toEqual(keyed);
+  // Still a target: the reopened row selects, reads its keyed value and takes a new key.
+  await select(page, '#f0'); await seek(page, .6);
+  await expect(positionX).toHaveValue(shown);
+  await seek(page, .4); await number(page, 'Position X', 10);
+  expect((await data(page)).steps[0].layers['#f0'].x.map(k => k.time)).toEqual([0, .4, .6]);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect((await source(page)).js).toBe(saved.js);
+  // Still a field: the text editor writes the nested node, and the operator's update() does too.
+  await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill('Night report'); await page.getByRole('button', { name: 'Apply text', exact: true }).click(); await ready(page);
+  expect((await source(page)).fields).toEqual([{ ...saved.fields[0], value: 'Night report' }]);
+  expect((await source(page)).js).toBe(saved.js);
+  const edited = await source(page);
+  expect(await page.evaluate(html => new DOMParser().parseFromString(html, 'text/html').querySelector('#parent > #card > #f0')?.textContent, edited.html)).toBe('Night report');
+  const expected = await page.evaluate(async () => {
+    const { resolveValue } = await import('/src/blocks/animEval.ts'); const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const d = parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!;
+    return [0, .15, .3, .45, .6].map(time => resolveValue(d, '#f0', 'x', 0, time)!);
+  });
+  // The ease is applied: a quarter of the way in, an Easy Ease is well short of the linear value.
+  expect(Math.abs(expected[1] - (-30 + 70 / 4))).toBeGreaterThan(5);
+  const html = await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), edited);
+  const output = await page.context().newPage(); await output.setContent(html);
+  const played = await output.evaluate(() => {
+    type Timeline = { pause(): void; time(t: number, silent: boolean): void; render(t: number, silent: boolean, force: boolean): void };
+    const w = window as unknown as { buildStepTimeline(i: number): Timeline; update(data: string): void; gsap: { globalTimeline: { clear(): void }; getProperty(t: string, p: string): number } };
+    w.update(JSON.stringify({ f0: 'Live words' }));
+    const text = document.querySelector('#parent #card #f0')!.textContent;
+    w.gsap.globalTimeline.clear(); const timeline = w.buildStepTimeline(0); timeline.pause();
+    return { text, x: [0, .15, .3, .45, .6].map(time => { timeline.time(time, true); if (time === 0) timeline.render(0, true, true); return Number(w.gsap.getProperty('#f0', 'x')); }) };
+  });
+  expect(played.text).toBe('Live words');
+  played.x.forEach((x, i) => expect(x, 'x at sample ' + i + ': ' + JSON.stringify({ played: played.x, expected })).toBeCloseTo(expected[i], 1));
+  await output.close();
+});
+
+// AC-15, row 26: on a behaviour graphic the recipe owns its moments. The drawn flash and final
+// layers are painted by class and offered as no row; the machine owns the sequence, so a key is
+// refused whole and changes nothing; the nested score is still a field and a placeable layer, and
+// after save and reopen the paint runtime still owns the looks.
+test('a nested field on a behaviour graphic keeps its field and its placement, and the recipe keeps its paint, through save and reopen', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 }); await page.goto('/app');
+  await dropSvg(page, fileURLToPath(new URL('./fixtures/svg-corpus/illustrator-four-team-scoreboard.svg', import.meta.url)));
+  await bindEveryTextLayer(page);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('score');
+  await finishIntoNewEditor(page); await ready(page);
+  const prepared = await source(page);
+  const scoreField = prepared.fields.find(f => f.field === 'f2')!;
+  expect([scoreField.title, scoreField.ftype]).toEqual(['Score 1', 'number']);
+  const looks = ['#Flash_x20_1', '#Flash_x20_2', '#Flash_x20_3', '#Flash_x20_4', '#Full_x20_time'];
+  const rows = await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector')));
+  expect(rows).toEqual(expect.arrayContaining(['#Row_x20_1', '#f1', '#f2']));
+  for (const look of looks) expect(rows).not.toContain(look);
+  const refuseKey = () => page.evaluate(async () => {
+    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'animation.key', selector: '#f2', step: 0, property: 'x', time: .4, value: 20, action: 'set' }] }); return ''; } catch (e) { return String(e); }
+  });
+  expect(await refuseKey()).toContain('state-machine ownership');
+  expect(await source(page)).toEqual(prepared);
+  await select(page, '#f2');
+  await expect(page.getByText(/state-machine ownership/)).toBeVisible();
+  const baseX = await page.evaluate(async template => (await import('/src/blocks/baseEdits.ts')).baseValues(template, '#f2').x, prepared);
+  await execute(page, [{ kind: 'base.set', selector: '#f2', values: { x: baseX + 12 } }]);
+  const placed = await source(page);
+  expect(placed.js).toBe(prepared.js); expect(placed.fields).toEqual(prepared.fields);
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Nested score'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); const saved = await source(page);
+
+  await page.reload(); await ready(page);
+  const reopened = await source(page);
+  for (const ext of ['html', 'css', 'js'] as const) expect(reopened[ext]).toBe(saved[ext]);
+  expect(reopened.fields).toEqual(prepared.fields);
+  expect((await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector'))))).toEqual(rows);
+  expect(await refuseKey()).toContain('state-machine ownership'); expect((await source(page)).js).toBe(saved.js);
+  await select(page, '#f2'); await expect(page.getByText(/state-machine ownership/)).toBeVisible();
+  const compose = (template: typeof prepared) => page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), template);
+  const output = await page.context().newPage();
+  // Where #f2 stands in artwork units, read through the artwork's own scale.
+  const standing = () => output.evaluate(() => { const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!; return (document.querySelector('#f2') as SVGGraphicsElement).getScreenCTM()!.e / art.a; });
+  await output.setContent(await compose(prepared)); const drawn = await standing();
+  await output.setContent(await compose(reopened));
+  const on = 'imported-design-on';
+  const flash = () => output.locator('[data-noacg-role~="team.flash/1"]');
+  const w = (fn: string, ...args: unknown[]) => output.evaluate(({ fn, args }) => { (window as unknown as Record<string, (...a: unknown[]) => unknown>)[fn](...args); }, { fn, args });
+  await w('update', JSON.stringify({ f2: '3' })); await w('play');
+  await expect(output.locator('#Row_x20_1 > #f2')).toHaveText('3');
+  await expect(flash()).not.toHaveClass(new RegExp(on));
+  const placedAt = await standing();
+  expect(placedAt - drawn).toBeCloseTo(12, 1);
+  // The cue sends +1 as the adjusted value (the control's `adjust`), as the production page does.
+  await w('noacgDispatch', 'score1', { f2: '4' });
+  await expect(output.locator('#f2')).toHaveText('4');
+  await expect(flash()).toHaveClass(new RegExp(on));
+  await expect(output.locator('[data-noacg-role~="team.flash/2"]')).not.toHaveClass(new RegExp(on));
+  // The placement edit is the layer's own; the paint never moved it.
+  expect(await standing()).toBeCloseTo(placedAt, 3);
+  await output.close();
 });

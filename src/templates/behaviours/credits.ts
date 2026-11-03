@@ -11,8 +11,9 @@
 // roll it the same way; the pace is the operator's, through the one owned field.
 
 import { SPEED_FIELD_TITLES } from '../meta';
-import type { BehaviourRecipe } from './recipe';
-import { rolesOf } from './recipe';
+import type { TypeMachine } from '../types/graphicType';
+import type { BehaviourRecipe, RecipeContext } from './recipe';
+import { rolesOf, withRepaint } from './recipe';
 
 export const CREDITS_RECIPE_ID = 'credits';
 /** The field role the Credits text binds as, and the owned speed field's key - both read back
@@ -25,6 +26,44 @@ export const CREDITS_SPEED_KEY = 'scrollSpeed';
 export const CREDITS_SPEED_DEFAULT = '100';
 /** What the roll engine is called; the entrance fires it by name. */
 export const CREDITS_ROLL_CALL = 'noacgCreditsRoll';
+/** The layouts and playbacks a credits list in the artwork's own styling can take
+ *  (DesignSvgCredits), spelt as the proposal contract's credits intent spells them. */
+export const CREDITS_LAYOUTS = ['role-above', 'role-beside'] as const;
+export const CREDITS_PLAYBACKS = ['static', 'roll', 'cards'] as const;
+/** Timed cards: the hold an author may state, in seconds. Below two a card cannot be read;
+ *  past a minute the operator's Next is the honest control. */
+export const CREDITS_CARD_SECONDS = { min: 2, max: 60 } as const;
+/** Cards only: the operator's Card time field (blank: Next card only), the Next card event, and
+ *  the engine call its press runs. */
+export const CREDITS_CARD_TIME_KEY = 'cardTime';
+export const CREDITS_NEXT_EVENT = 'nextCard';
+export const CREDITS_NEXT_CALL = 'noacgCreditsNext';
+
+const isCards = (ctx: RecipeContext) => ctx.credits?.playback === 'cards';
+
+// Next card is a press on a parallel group of ONE state (the puzzle's Reveal letter): re-entering
+// the entrance would replay it. Off air, and on the last card, the engine ignores it.
+function cardsMachine(): TypeMachine {
+  return withRepaint(
+    {
+      parallel: [
+        {
+          id: 'cards',
+          initial: 'live',
+          states: [
+            {
+              id: 'live',
+              name: 'Cards',
+              timeline: { name: 'Cards', duration: 0.2, ease: 'out', calls: [{ time: 0, call: CREDITS_NEXT_CALL }], layers: {} },
+              edges: [{ from: 'live', to: 'live', trigger: 'operator', event: CREDITS_NEXT_EVENT }],
+            },
+          ],
+        },
+      ],
+    },
+    [CREDITS_NEXT_CALL],
+  );
+}
 
 export const creditsRecipe: BehaviourRecipe = {
   id: CREDITS_RECIPE_ID,
@@ -33,11 +72,18 @@ export const creditsRecipe: BehaviourRecipe = {
   category: 'end-credits',
   defaultZone: 'mid-center',
   roles: rolesOf(CREDITS_RECIPE_ID),
-  fields: () => [{ key: CREDITS_SPEED_KEY, label: SPEED_FIELD_TITLES.scroll, kind: 'number', value: CREDITS_SPEED_DEFAULT }],
+  // A still page does not move, so it has no Scroll speed to offer; cards offer their Card time
+  // instead, the author's to start with, blank for Next card only.
+  fields: (ctx) =>
+    ctx.credits?.playback === 'static'
+      ? []
+      : isCards(ctx)
+        ? [{ key: CREDITS_CARD_TIME_KEY, label: 'Card time (s)', kind: 'number', value: ctx.credits?.advance === undefined ? '' : String(ctx.credits.advance) }]
+        : [{ key: CREDITS_SPEED_KEY, label: SPEED_FIELD_TITLES.scroll, kind: 'number', value: CREDITS_SPEED_DEFAULT }],
   // The artwork engine waits for the current entrance to settle before measuring the roll.
   // The recipe only names the call; old editable rolls keep their original immediate take.
   path: () => ({ entrance: 'Rolling', entranceCalls: [CREDITS_ROLL_CALL] }),
-  machine: () => ({}),
-  controls: () => [],
+  machine: (ctx) => (isCards(ctx) ? cardsMachine() : {}),
+  controls: (ctx) => (isCards(ctx) ? [{ event: CREDITS_NEXT_EVENT, label: 'Next card', section: 'Credits', order: 1 }] : []),
   paint: () => [],
 };

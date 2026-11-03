@@ -4087,7 +4087,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
-        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />
+        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} onAir={{ live: liveCue, log: wireLog }} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&

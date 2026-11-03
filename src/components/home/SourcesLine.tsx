@@ -6,6 +6,10 @@ import { useNow } from './ClipClock';
 import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/liveData';
 import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
+import { sourcePaths } from '../../model/productionData';
+import { heldListOnAir, listsWaitingForTake, type TakeMarks } from '../../control/contentFormats';
+import type { LiveCueMap } from '../../control/liveCue';
+import type { LogEntry } from '../../control/eventLog';
 
 /** A graphic of the production whose own code reads a Sheet (the retired block, data-sources C6). */
 export interface OwnSheetReader {
@@ -119,9 +123,42 @@ export function toggleSourcePause(show: Show, setShows: (shows: Show[]) => void,
   if (source.paused) store.poke(source.id);
 }
 
-/** One source's line: name, status, stale, the fix when it fails, and Pause. */
-function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore }) {
+/** What is on air, for a source's line: the graphics up, by name, and the action log (newest
+ *  first), whose latest Take of each says which airing it is. */
+export interface OnAir {
+  live: LiveCueMap;
+  log: readonly LogEntry[];
+}
+
+/**
+ * The graphics on air that hold this source's list from their Take (the imported credits roll and
+ * cards, control/contentFormats.ts `heldListOnAir`), each with the log id of its latest Take.
+ */
+function heldFromSource(show: Show, source: ShowSource, onAir: OnAir): Record<string, number | null> {
+  const held: Record<string, number | null> = {};
+  for (const { graphic, fieldId } of sourcePaths(show.bindings, source.id)) {
+    if (!onAir.live[graphic]) continue;
+    const saved = show.graphics.find((g) => g.name === graphic);
+    if (!saved || heldListOnAir(saved)?.main !== fieldId) continue;
+    held[graphic] = onAir.log.find((e) => e.graphic === graphic && (e.kind === 'take' || e.kind === 'play'))?.id ?? null;
+  }
+  return held;
+}
+
+/** Per production and source, the Takes the source lines have marked (`listsWaitingForTake`). */
+const TAKE_MARKS = new Map<string, TakeMarks>();
+
+/** One source's line: name, status, stale, the fix when it fails, Pause, and a list on air that
+ *  waits for the next Take. */
+function SourceLine({ show, setShows, source, store, onAir }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; onAir?: OnAir }) {
   const { status, now } = useSourceStatus(store, source.id);
+  // Which airing each held graphic is on, and the source's change it was taken after: kept for
+  // the page's life (TAKE_MARKS), so a change after its Take is told apart from one before it
+  // when the Data view or a dialog has unmounted this line meanwhile.
+  const key = `${show.id}:${source.id}`;
+  const held = onAir ? listsWaitingForTake(TAKE_MARKS.get(key) ?? {}, heldFromSource(show, source, onAir), status?.changedAt ?? null) : null;
+  if (held) TAKE_MARKS.set(key, held.marks);
+  const waiting = !source.paused && held ? held.waiting : [];
   return (
     <div
       className="pd-source-line hint"
@@ -141,6 +178,11 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
       {status?.problems.map((p) => (
         <span key={p} className="status-warn" data-testid="source-problem"> {p}.</span>
       ))}
+      {waiting.length > 0 && (
+        <span data-testid="source-waiting" title={`On air: ${waiting.join(', ')}`}>
+          {' '}· <strong>Newer data shows on the next Take</strong>
+        </span>
+      )}
     </div>
   );
 }
@@ -155,12 +197,15 @@ export default function SourcesLine({
   setShows,
   store,
   ownReaders = [],
+  onAir,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   store: SourceStatusStore;
   /** Graphics reading a Sheet in their own code: listed, without a Pause that would not work. */
   ownReaders?: readonly OwnSheetReader[];
+  /** What is on air, so a held credits list can say newer data waits for its next Take. */
+  onAir?: OnAir;
 }) {
   // A Sheet's or a feed's line; a YouTube source is read and shown in Messages only.
   const sources = (show.sources ?? []).filter(fillsFields);
@@ -168,7 +213,7 @@ export default function SourcesLine({
   return (
     <div className="pd-sources" data-testid="sources-line">
       {sources.map((source) => (
-        <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} />
+        <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} onAir={onAir} />
       ))}
       {ownReaders.map((reader) => (
         <OwnReaderLine key={reader.graphic} reader={reader} />

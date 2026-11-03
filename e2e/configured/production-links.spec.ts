@@ -1,3 +1,5 @@
+// covers: src/components/home/{ProductionLinks.tsx,useProductionPublish.ts}, supabase/migrations/0040_production_url_identity.sql
+
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';

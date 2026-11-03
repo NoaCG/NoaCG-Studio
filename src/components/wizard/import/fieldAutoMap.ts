@@ -530,53 +530,57 @@ export function recipeIdOf(b: SvgBehaviourDraft): string {
 }
 
 /** Every box of the behaviour, visited in the step's own order, each mapped to its next value. */
-function mapBoxes(b: SvgBehaviourDraft, text: FillLayer[], f: (role: string, key: string | undefined, value: string) => string): SvgBehaviourDraft {
+function mapBoxes(
+  b: SvgBehaviourDraft,
+  text: FillLayer[],
+  f: (role: string, key: string | undefined, value: string, row: number | undefined) => string,
+): SvgBehaviourDraft {
   const keys = rowKeysOf(b, text);
   if (b.kind === 'quiz') {
     return {
       ...b,
-      question: f('question', undefined, b.question),
-      answers: b.answers.map((a, i) => f('answer', keys[i], a)),
+      question: f('question', undefined, b.question, undefined),
+      answers: b.answers.map((a, i) => f('answer', keys[i], a, i)),
       rows: b.rows.map((r, i) => ({
-        selected: f('answer.selected', keys[i], r.selected),
-        correct: f('answer.correct', keys[i], r.correct),
-        wrong: f('answer.wrong', keys[i], r.wrong),
+        selected: f('answer.selected', keys[i], r.selected, i),
+        correct: f('answer.correct', keys[i], r.correct, i),
+        wrong: f('answer.wrong', keys[i], r.wrong, i),
       })),
-      locked: f('locked', undefined, b.locked),
+      locked: f('locked', undefined, b.locked, undefined),
     };
   }
   if (b.kind === 'score') {
     return {
       ...b,
       rows: b.rows.map((r, i) => ({
-        name: f('team', keys[i], r.name),
-        score: f('score', keys[i], r.score),
-        flash: f('team.flash', keys[i], r.flash),
+        name: f('team', keys[i], r.name, i),
+        score: f('score', keys[i], r.score, i),
+        flash: f('team.flash', keys[i], r.flash, i),
       })),
-      final: f('final', undefined, b.final),
+      final: f('final', undefined, b.final, undefined),
     };
   }
   if (b.kind === 'poll') {
     return {
       ...b,
-      question: f('question', undefined, b.question),
+      question: f('question', undefined, b.question, undefined),
       rows: b.rows.map((r, i) => ({
-        label: f('option', keys[i], r.label),
-        bar: f('bar', keys[i], r.bar),
-        value: f('percent', keys[i], r.value),
-        winner: f('winner', keys[i], r.winner),
+        label: f('option', keys[i], r.label, i),
+        bar: f('bar', keys[i], r.bar, i),
+        value: f('percent', keys[i], r.value, i),
+        winner: f('winner', keys[i], r.winner, i),
       })),
-      total: f('total', undefined, b.total),
-      badge: f('badge', undefined, b.badge),
+      total: f('total', undefined, b.total, undefined),
+      badge: f('badge', undefined, b.badge, undefined),
     };
   }
   if (b.kind === 'timer') {
     return {
       ...b,
-      bar: f('bar', undefined, b.bar),
-      warning: f('warning', undefined, b.warning),
-      paused: f('paused', undefined, b.paused),
-      expired: f('expired', undefined, b.expired),
+      bar: f('bar', undefined, b.bar, undefined),
+      warning: f('warning', undefined, b.warning, undefined),
+      paused: f('paused', undefined, b.paused, undefined),
+      expired: f('expired', undefined, b.expired, undefined),
     };
   }
   // The generic recipe: every graphic-level role, then every row's roles, in declaration order.
@@ -585,14 +589,14 @@ function mapBoxes(b: SvgBehaviourDraft, text: FillLayer[], f: (role: string, key
   const fields: Record<string, string> = {};
   for (const role of roles) {
     if (role.perRow || role.countdown) continue;
-    const value = f(role.id, undefined, (role.kind === 'field' ? b.fields?.[role.id] : b.layers[role.id]) ?? '');
+    const value = f(role.id, undefined, (role.kind === 'field' ? b.fields?.[role.id] : b.layers[role.id]) ?? '', undefined);
     if (value) (role.kind === 'field' ? fields : layers)[role.id] = value;
   }
   const rows = (b.rows ?? []).map((row, i) => {
     const next: SvgRecipeRow = { fields: {}, layers: {} };
     for (const role of roles) {
       if (!role.perRow) continue;
-      const value = f(role.id, keys[i], (role.kind === 'field' ? row.fields[role.id] : row.layers[role.id]) ?? '');
+      const value = f(role.id, keys[i], (role.kind === 'field' ? row.fields[role.id] : row.layers[role.id]) ?? '', i);
       if (value) (role.kind === 'field' ? next.fields : next.layers)[role.id] = value;
     }
     return next;
@@ -622,4 +626,32 @@ export function withFill(b: SvgBehaviourDraft, picks: FillPick[], text: FillLaye
  *  reader changed since keeps what they chose; so does everything the fill never touched. */
 export function clearFill(b: SvgBehaviourDraft, picks: FillPick[], text: FillLayer[]): SvgBehaviourDraft {
   return mapBoxes(b, text, (role, key, value) => (pickFor(picks, role, key, value) ? '' : value));
+}
+
+// ── THE DRAFT AS A PROPOSAL'S PICKS, AND BACK (docs/work-specs/jev-svg-import, row 5) ──
+// The same walk over the same boxes, keyed by the row's PLACE rather than its key: a proposal
+// names rows by index (src/ai/svgInterpretation/contract.ts), and the key a row is known by is
+// read off its own layer, which a proposal never carries.
+
+/** One filled box, as a proposal's pick. */
+export interface BoxPick {
+  role: string;
+  layer: string;
+  /** The row's place, for a per-row role. */
+  row?: number;
+}
+
+/** Every filled box of the behaviour, in the step's own order. */
+export function boxPicksOf(b: SvgBehaviourDraft): BoxPick[] {
+  const out: BoxPick[] = [];
+  mapBoxes(b, [], (role, _key, value, row) => {
+    if (value) out.push(row === undefined ? { role, layer: value } : { role, layer: value, row });
+    return value;
+  });
+  return out;
+}
+
+/** The behaviour with every box set to its pick, and every box without one emptied. */
+export function withBoxPicks(b: SvgBehaviourDraft, picks: readonly BoxPick[]): SvgBehaviourDraft {
+  return mapBoxes(b, [], (role, _key, _value, row) => picks.find((p) => p.role === role && p.row === row)?.layer ?? '');
 }

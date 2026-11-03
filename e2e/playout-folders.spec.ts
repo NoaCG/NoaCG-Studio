@@ -24,7 +24,7 @@
 // layer (e2e/_fakeBridge.ts); its runner is tested against a stateful fake CasparCG in cli/test.
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+import { bootstrapGraphic } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { fakeBridge, seedSettings } from './_fakeBridge';
@@ -41,37 +41,54 @@ interface Seed {
 }
 
 /** A production: the Hairline graphic's cue first, then the given server media, each on its own
- *  item, then what `seed` lays out. */
+ *  item, then what `seed` lays out. The seed is written, committed to disk, and only then is the
+ *  production page opened, so the page boots once per test and mounts on the seeded rundown. That
+ *  the rundown reads back the same from disk is the round-trip test's ("a seeded rundown reads back
+ *  whole after a reload"), and each persistence test below reloads where it says so. */
 async function production(page: Page, media: Record<string, unknown>[] = [], seed: Seed = {}): Promise<string> {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-  const showId = await openProductionWithCurrent(page, 'Evening News');
-  if (media.length || seed.graphics || seed.playback || seed.folders) {
-    await evaluateInPage(
-      page,
-      async ({ list, seed }) => {
-        const m = await import('/src/model/shows.ts');
-        const { useTemplateStore } = await import('/src/store/templateStore.ts');
-        const id = m.loadShows().find((s) => s.name === 'Evening News')!.id;
-        for (const g of seed.graphics ?? []) {
-          m.addGraphicToShow(id, { ...useTemplateStore.getState().template, name: g.name });
-          const pooled = m.loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === g.name)!;
-          if (g.layer) m.setShowGraphicLayer(id, pooled.id, g.layer);
-        }
-        for (const x of list) m.addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', channel: 2, ...x } as never);
-        const idOf = (label: string) => m.loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === label)!.id;
-        for (const [label, playback] of Object.entries(seed.playback ?? {})) m.setCuePlayback(id, idOf(label), playback as never);
-        for (const f of seed.folders ?? []) {
-          const { folderId } = m.addFolderFromSelection(id, f.labels.map(idOf), f.name);
-          if (f.mode) m.setFolderMode(id, folderId!, f.mode);
-          if (f.end || f.layer) m.setFolderPlayback(id, folderId!, { ...(f.end ? { end: f.end } : {}), ...(f.layer ? { layer: f.layer } : {}) });
-          if (f.collapsed) m.setFolderCollapsed(id, folderId!, true);
-        }
-      },
-      { list: media, seed },
-    );
-    await settleDurableWrites(page);
-    await page.reload();
-  }
+  // openProductionWithCurrent's steps, with the seed between the commit and the navigation.
+  const showId = await evaluateInPage(
+    page,
+    async ({ list, seed }) => {
+      const m = await import('/src/model/shows.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { useTemplateStore, flushPendingProject } = await import('/src/store/templateStore.ts');
+      const { useRouter } = await import('/src/app/router.ts');
+      const { show, error: notCreated } = m.createShowNamedChecked('Evening News');
+      if (notCreated) throw new Error(`production: ${notCreated}`);
+      const id = show.id;
+      const { template, saved } = useTemplateStore.getState();
+      const { error } = m.addGraphicToShow(id, template, { graphicId: saved.graphicId });
+      if (error) throw new Error(`production: ${error}`);
+      for (const g of seed.graphics ?? []) {
+        m.addGraphicToShow(id, { ...useTemplateStore.getState().template, name: g.name });
+        const pooled = m.loadShows().find((s) => s.id === id)!.graphics.find((x) => x.name === g.name)!;
+        if (g.layer) m.setShowGraphicLayer(id, pooled.id, g.layer);
+      }
+      for (const x of list) m.addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', channel: 2, ...x } as never);
+      const idOf = (label: string) => m.loadShows().find((s) => s.id === id)!.cues!.find((c) => c.label === label)!.id;
+      for (const [label, playback] of Object.entries(seed.playback ?? {})) m.setCuePlayback(id, idOf(label), playback as never);
+      for (const f of seed.folders ?? []) {
+        const { folderId, error: refused } = m.addFolderFromSelection(id, f.labels.map(idOf), f.name);
+        if (!folderId) throw new Error(`production: folder ${f.labels.join(', ')} not made: ${refused}`);
+        if (f.mode) m.setFolderMode(id, folderId, f.mode);
+        if (f.end || f.layer) m.setFolderPlayback(id, folderId, { ...(f.end ? { end: f.end } : {}), ...(f.layer ? { layer: f.layer } : {}) });
+        if (f.collapsed) m.setFolderCollapsed(id, folderId, true);
+      }
+      // The new graphic's autosave is still on its debounce; it lands now, not during the test,
+      // where it would count as a rundown write or meet a storage failure the test arms.
+      flushPendingProject();
+      const failure = await commitDurableWrites();
+      if (failure) throw new Error(`production: ${failure}`);
+      useRouter.getState().navigate({ view: 'production', id });
+      // Answer from a later task: the page mounts in the microtasks behind `navigate` (rule
+      // e2e/async-whose-last-act-starts-work).
+      await new Promise((resolve) => setTimeout(resolve));
+      return id;
+    },
+    { list: media, seed },
+  );
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('cue-list').locator('.pd-cue, .pd-folder').first()).toBeVisible();
   return showId;
@@ -1452,6 +1469,54 @@ test('All out while an All-together Take is still sending cuts what lands after 
   await expect(cue(page, 'Strap').locator('.pd-tag.up, .pd-tag.air')).toHaveCount(0);
 });
 
+
+// ── The seed's disk round trip ──────────────────────────────────────────────────────────────
+
+test('a seeded rundown reads back whole after a reload: graphics, layers, playback and every kind of folder', async ({ page }) => {
+  const showId = await production(page, [...CLIPS, { name: 'DELTA', mediaKind: 'movie', frames: 250, fps: 25 }], {
+    graphics: [{ name: 'Strap', layer: 30 }],
+    playback: { ALPHA: { end: 'loop', fadeIn: 'short' } },
+    folders: [
+      { labels: ['Hairline', 'Strap'], name: 'Pair', mode: 'together', collapsed: true },
+      { labels: ['BRAVO', 'CHARLIE'], name: 'Run', mode: 'through', end: 'loop', layer: 12 },
+      { labels: ['DELTA'], name: 'Single' },
+    ],
+  });
+  /** The record as stored, and what the rundown draws of it. */
+  const read = async () => ({
+    record: await evaluateInPage(
+      page,
+      async (id) => JSON.stringify((await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)),
+      showId,
+    ),
+    rows: await drawn(page),
+    kinds: await list(page).getByTestId('folder-kind').evaluateAll((k) => k.map((e) => e.getAttribute('aria-label'))),
+  });
+  const before = await read();
+  // The seed reached the record, so the comparison after the reload is not of an empty one.
+  const show = JSON.parse(before.record) as {
+    graphics: { name: string; layer?: number }[];
+    cues: { label: string; playback?: Record<string, unknown> }[];
+    folders: { name: string; mode: string; end?: string; slot?: unknown; collapsed?: boolean }[];
+  };
+  expect(show.graphics.find((g) => g.name === 'Strap')!.layer).toBe(30);
+  expect(show.cues.find((c) => c.label === 'ALPHA')!.playback).toMatchObject({ end: 'loop', fadeIn: 'short' });
+  expect(show.folders.map(({ name, mode, end, slot, collapsed }) => ({ name, mode, end, slot, collapsed }))).toEqual([
+    { name: 'Pair', mode: 'together', end: undefined, slot: undefined, collapsed: true },
+    { name: 'Run', mode: 'through', end: 'loop', slot: { layer: 12 }, collapsed: undefined },
+    { name: 'Single', mode: 'manual', end: undefined, slot: undefined, collapsed: undefined },
+  ]);
+  expect(before.rows).toEqual(['[Pair]', 'ALPHA', '[Run]', '  BRAVO', '  CHARLIE', '[Single]', '  DELTA']);
+
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect.poll(() => drawn(page)).toEqual(before.rows);
+  // The WHOLE record, not the fields this test seeded: it is the one check of every seeded field's
+  // trip through the disk for this spec (the tests above mount on a seed that never reloaded). If a
+  // page mount ever writes the record, compare what it may change by name; do not drop the check.
+  expect(await read()).toEqual(before);
+});
 
 // ── §18 case 22: every writer of the cue order keeps a folder whole ─────────────────────────────
 

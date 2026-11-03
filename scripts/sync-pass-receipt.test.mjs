@@ -29,6 +29,7 @@ function controller() {
   const noop = () => {};
   const stubs = {
     './config': { isBackendConfigured: () => true },
+    './pacing': { focusPassDue: () => true },
     './auth': { getSignedInUserId: async () => user, subscribeAuth: cb => { auth = cb; }, consumeDeliberateSignOut: () => true },
     './accountLibrary': { followLibraryChangesInOtherTabs: noop },
     '../model/durableStore': { libraryInUse: () => 'owner', canAuthorAccount: () => true,

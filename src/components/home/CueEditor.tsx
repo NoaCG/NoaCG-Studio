@@ -15,7 +15,7 @@ import { CueMessageFill, isMessageBodyField } from './ProductionAudienceWorkspac
 import LibMenu from './LibMenu';
 import { commitDurableWrites } from '../../model/durableStore';
 import { loadGraphics } from '../../model/library';
-import { fillList, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
+import { fillList, graphicListFormat, listFormatFor, pastedCells, scalarFields, scalarTemplateCsv, starterCsv, type ListFormat } from '../../control/contentFormats';
 import type { OwnReaderGate } from '../../control/liveData';
 import { uuid } from '../../model/id';
 import {
@@ -259,7 +259,7 @@ function CueConnectReview({
       if (adapter && adapter in LIST_CELLS) adapters[d.key] = adapter as SourceListAdapter;
     }
   }
-  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind === 'feed' ? 'feed' : 'sheet') : offers ? offers.scalars : [];
+  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind === 'feed' ? 'feed' : 'sheet', poolGraphic) : offers ? offers.scalars : [];
   const sample = new Map(offered.map((o) => [o.path, o.sample]));
   const mapping: MappingRow[] = offers
     ? proposeConnector(fields, offers, bound, adapters, refuses, holds)
@@ -687,7 +687,7 @@ function CueConnectReview({
         <button
           type="button"
           onClick={() => {
-            const format = listFormatFor(poolGraphic, 'f0') ?? listFormatFor(poolGraphic, 'f2');
+            const format = graphicListFormat(poolGraphic);
             if (format) downloadCsv(starterCsv(format, values), csvName(poolGraphic.name, 'rows'));
             else downloadCsv(scalarTemplateCsv(scalarFields(poolGraphic, descriptors), values), csvName(poolGraphic.name, 'data-template'));
           }}

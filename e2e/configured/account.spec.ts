@@ -1,3 +1,5 @@
+// covers: src/backend/auth.ts, src/components/auth/{AuthStatus,SignInDialog,accountCopy,useAuthState}.{ts,tsx}, src/components/SettingsDialog.tsx
+
 import { test, expect, type Page } from '@playwright/test';
 import {
   createGraphicInEditor,

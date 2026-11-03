@@ -24,6 +24,7 @@ import type { AssemblerId, Zone9 } from '../../model/wizard';
 import type { AnimCall } from '../../blocks/animData';
 import type { FieldKindSpec, PaintRule } from '../../blocks/behaviourData';
 import type { TypeControlEvent, TypeMachine } from '../types/graphicType';
+import type { DesignSvgCredits } from '../importedDesign/designTypes';
 
 /** One role a recipe asks the artwork for. */
 export interface RecipeRole {
@@ -181,6 +182,9 @@ export interface RecipeContext {
   bound(role: string, key?: string): boolean;
   /** The recipe's options as chosen, with the declaration's defaults filled in. */
   options: Record<string, string | number | boolean>;
+  /** Credits only: the styled binding where the design builds it (`styledCredits`), so a still
+   *  page can leave out what only a roll uses. Absent for every other build. */
+  credits?: DesignSvgCredits;
 }
 
 export interface RecipeOption {

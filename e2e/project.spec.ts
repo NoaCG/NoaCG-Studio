@@ -1,6 +1,7 @@
 // covers: src/components/NewGraphicButton.tsx
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus
+// critical: site-entry
 //
 // The door's ORDER beside Home and the wizard's own mount (guarded start-over, guard over
 // the wizard) are pinned in project.spec.ts - so the two shells whose headers it measures,

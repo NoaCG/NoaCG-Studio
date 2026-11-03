@@ -44,13 +44,15 @@ jobs:
       all: ${{ steps.list.outputs.all }}
     permissions:
       contents: read
-      issues: write # the rolling "older than 14 days" issue below
+      issues: write # the rolling "older than 14 days" and incident issues below
     steps:
       - uses: actions/checkout@v5
         with:
           sparse-checkout: |
             scripts
             e2e/quarantine.json
+            e2e/*.spec.ts
+            e2e/configured/*.spec.ts
           sparse-checkout-cone-mode: false
       - id: list
         run: |
@@ -69,6 +71,20 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/e2e-quarantine.mjs stale --issue --run "$RUN_URL"
+
+      # THE INCIDENTS (cicd-improvement ci07). Every quarantined spec is protection the blocking gate
+      # stopped reading, so it is an incident with an owner, a repair due date and its coverage gap,
+      # `critical` for a critical journey (its `// critical:` header, so the spec headers are in the
+      # sparse checkout). One rolling issue, closed only when the store is empty. A store or issue
+      # list this step cannot read fails it and closes nothing. continue-on-error, because the spec
+      # jobs below need this job: a failed report must not stop the runs that earn a release.
+      - name: Keep the quarantine incidents issue
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/e2e-quarantine.mjs incidents --issue --run "$RUN_URL"
 
   spec:
     name: Quarantine (${{ matrix.spec }})

@@ -1,3 +1,5 @@
+// covers: src/components/HostedControlPage.tsx, src/components/SpaceModeToggle.tsx, src/components/playoutKeys.ts
+
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
