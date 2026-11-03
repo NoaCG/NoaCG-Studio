@@ -110,7 +110,8 @@
           "pricedMax": 0.112,
           "at": "2026-11-03T11:52Z",
           "paid": true,
-          "note": "vision run"
+          "note": "gemini-vision 18/18 HTTP 400 AI_APICallError",
+          "settled": 0.002438976
         }
       ],
       "baseline": {
@@ -119,8 +120,8 @@
         "lifetime": 48.063863346,
         "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
       },
-      "spent": 0.028468263,
-      "attempts": 176
+      "spent": 0.030907239,
+      "attempts": 212
     }
   ],
   "owner": [],
@@ -384,6 +385,11 @@
       "phase": 33,
       "at": "2026-11-03T11:05Z",
       "note": "Chose option A for the refused vision arm: fix #2017 lands through row 32 harness ownership before the freeze. Indicative dev: Jev 67/20 vs deterministic 53/19 (worse in lower third, quiz); Jev non-repeatable on 6/18 designs."
+    },
+    {
+      "phase": 33,
+      "at": "2026-11-03T12:05Z",
+      "note": "Image arm refused (HTTP 400, no code) after #2017 fix; chose B: freeze a41861d2 with the arm recorded as refused, a stated AC-7 gap; filed #2022 (P1) for the 400 and possible production impact. Did not read production data."
     }
   ],
   "ownerOpen": [
@@ -423,7 +429,9 @@
     2001,
     2009,
     2011,
-    2015
+    2015,
+    2017,
+    2022
   ],
   "carryForward": [
     {
