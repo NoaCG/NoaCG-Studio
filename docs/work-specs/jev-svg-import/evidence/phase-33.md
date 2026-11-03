@@ -57,7 +57,16 @@ bound leaves far more slack than 10%.
 
 ## Batch log
 
-Run ids, the original baseline and each batch: filled from each run's ledger artifact.
+Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by the coordinator
+(evaluation-environment.md: routine dispatch is the coordinator's), never by this builder.
+
+1. **Dry run**, run `41619506329` (run number 1, attempt 1), main `531f856e`, configuration
+   `3017a8a3` (`prompts.json` SHA-256 `0afa4a96f1190290d378eed856573642edec533aa0063f78bd70e19b087d6228`),
+   regression on. Mock gateway, no key (`AI_GATEWAY_API_KEY` empty in the log). 90 scored rows
+   (18 designs by 5 arms) and 100 regression rows; not stopped; verdict `no-go (indicative only)`
+   from random mock answers, as expected. The same command locally: 37 batches, priced maximum
+   $0.22 for the whole run, 244 planned attempts, mock settled spend $0.016. Ledger artifact
+   `jev-svg-eval-dry-run-ledger` (kept apart from the chain).
 
 ## Decisions
 
