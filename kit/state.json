@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "row 33: accept_manifest reconcile, vision-only run, dry run, freeze",
+  "waitingOn": "row 33 freeze 41634756346, then PR",
   "inFlight": [
     {
       "phase": 33,
@@ -121,6 +121,16 @@
           "at": "2026-11-03T12:18Z",
           "paid": false,
           "note": "pre-freeze"
+        },
+        {
+          "run": 41634756346,
+          "mode": "reconcile",
+          "freeze": true,
+          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+          "main": "4130a081f35f70e4d05dff3b314863127aec465b",
+          "receipts": 41630941605,
+          "at": "2026-11-03T12:19Z",
+          "paid": false
         }
       ],
       "baseline": {
