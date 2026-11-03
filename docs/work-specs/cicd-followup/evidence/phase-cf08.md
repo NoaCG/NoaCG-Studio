@@ -130,7 +130,10 @@ test waits on the stage's own `data-doc-rev` and `data-doc-pending` stamps.
   either"`. `scripts/configured-trial.mjs` gained an offline mode for this (see Decisions); the
   verdict is the existing one: every asked-for run passed, and exactly that many ran.
 
-TRIAL_RESULT
+**Result:** [run 41569170266](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41569170266) on
+`abf54661`: **270 of 270 passed, 0 failed, exactly 270 ran, verdict PASS** (28.5 minutes, one
+worker, retries off). The product code has not changed since that head: later commits touch only
+the bench, the new regression test's reads, the trial script's environment line and these notes.
 
 ### Release and the issue
 
