@@ -28,8 +28,8 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "PR #2023 in merge queue",
-  "inFlight": [
-    {
+  "inFlight": {
+    "0": {
       "phase": 33,
       "role": "build",
       "session": "session_017SdbwNQwZWqjCQeGYmzXno",
@@ -154,8 +154,19 @@
       "stampRunFailed": 41637253493,
       "ciRun": 41635870361,
       "so": "session_017SdbwNQ1ztfVCJGpvWoWUK A- (standing owner rule)"
-    }
-  ],
+    },
+    "row": 33,
+    "role": "check",
+    "session": "session_017SdbwQ6mivSf18E9piXGX2",
+    "nonce": "33-c-62ef",
+    "mergeSha": "5018062c06ec99a893200ab7d50ff18b20e65ca8",
+    "pr": 2023,
+    "builder": "session_017SdbwQwZWqjCQeGYmzXno",
+    "soSessions": [
+      "session_017SdbwQ1ztfVCJGpvWoWUK"
+    ],
+    "startedAt": "2026-11-03T12:57:27.295Z"
+  },
   "owner": [],
   "fixes": [
     {
