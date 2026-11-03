@@ -1,0 +1,64 @@
+# Phase 33: Run bounded development evaluation
+
+Run `plan-jev-svg-import-2026-10-31` (issue #1850). Acceptance subset, verbatim:
+
+- AC-7: "Fair deterministic/Jev/eligible-challenger and relevant-vision comparison, frozen
+  scoring/configuration, untouched holdout results, cumulative paid spend and an explicit
+  limited-go (named families) or no-go verdict; no consequential-error increase in any family,
+  with one pre-registered primary candidate and the non-blind regression slice reported
+  separately."
+- Row 33: "Use only development designs through the trusted main Actions harness; dispatch a
+  branch containing configuration JSON read as data. No harness/adapter source tuning in this
+  row. Compare declared configurations within the cumulative $2 development/$5 total cap and log
+  each batch in row evidence. Freeze the pre-registered structured Jev primary and at most two
+  reporting-only candidates plus established baselines, with immutable prompt/route/scorer/adapter
+  hashes. A necessary code fix lands through its owning row on main before more evaluation; do not
+  execute it from the tuning branch."
+
+This row makes the first paid calls, on development designs only, and freezes the configuration
+row 34 uses. It changes `evaluation/prompts.json` and these notes only. The holdout was never read
+or decoded. The development result is indicative; the verdict belongs to row 34.
+
+## Pinned main
+
+Worktree from `531f856e13379ccffe8edc2df381cf6c2503f393`. Previous verified main: that SHA.
+Revert this row after it lands with `git revert -m 1 <merge sha>`; the Actions ledger and the
+freeze it records are not undone by a revert (they live in the protected workflow's artifacts).
+
+## Configuration
+
+Trimmed from row 32's seven arms to five:
+
+| id | kind | model | role |
+| --- | --- | --- | --- |
+| `deterministic` | deterministic | (the wizard's own draft) | established baseline |
+| `jev-structured` | decision | `typesafe-ai/jev-1.14.0` | pre-registered primary |
+| `elephant` | decision | `baseten/elephant-1` | reporting only |
+| `haiku` | chat | `anthropic/claude-haiku-5.5` | reporting only |
+| `gemini-vision` | vision | `google/gemini-2.5-flash-lite` | established baseline (image task) |
+
+- **Dropped `jev-preview`.** Jev with pixels is unqualified (#2006); the harness never sends it,
+  so it could only report "not sent".
+- **Elephant-1 kept** as the one other decision model: the same `/v1/evaluate` contract, so it
+  is the closest like-for-like comparison with the primary.
+- **Haiku 5.5 kept, GPT-6 Luna dropped.** One language-model comparator is enough to show
+  whether a general model beats the decision models; Luna is a reasoning model whose billed
+  tokens a byte-per-token bound may not cover (row 32 Known limits), and an over-bound receipt
+  suspends the run. Both list the same price.
+- Prompts, questions and threshold unchanged from row 32 at this point.
+
+## Prices, rechecked
+
+Free listing `GET /v1/models`, 2026-11-03, before the first paid batch. Per million tokens:
+Jev 1.14 $0.042 input, $0 output, context 32,000; Elephant-1 $0.035, $0, 16,384; Haiku 5.5
+$0.10, $0.50; Gemini 2.5 Flash Lite $0.10, $0.40. All equal `ROUTES` in the harness. Haiku and
+Luna list a 10% higher regional (`us`) price; the harness pins no region, and the byte-per-token
+bound leaves far more slack than 10%.
+
+## Batch log
+
+Run ids, the original baseline and each batch: filled from each run's ledger artifact.
+
+## Decisions
+
+## Traps
