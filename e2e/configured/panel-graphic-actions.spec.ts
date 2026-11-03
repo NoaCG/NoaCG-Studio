@@ -20,14 +20,22 @@
 // cue's own arguments or the key's, and reaches the Graphic once: a duplicate, a key drawn on
 // another instance and arguments the declaration refuses move nothing, read off the output's frame.
 // covers: src/control/typedSend.ts, src/model/ografTyped.ts
+//
+// AN ARRANGED IMPORT THROUGH A REIMPORT (docs/work-specs/jev-svg-import/spec.md row 28, AC-25), the
+// fourth test: an imported score board, its controls pinned, hidden and renamed on the block, the
+// production reopened and the artwork reimported under the same name. The panel is offered the
+// arrangement, and its press of the renamed control reaches the same field on the live cue.
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import JSZip from 'jszip';
-import { readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { addToProductionFromFinish } from '../_create';
 import { publishProduction } from '../_publish';
+import { SCORE_SVG, dropSvg, intoProduction } from '../_svg-import';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 import { answerPanel, ANON_KEY, pairPanel, publishTwoCues, shutStatusPanel, type Json } from './_panel';
 
@@ -245,4 +253,107 @@ test('a foreign OGraf action is pressed from a panel on a real foreign rundown c
   await deck.close();
   await output.close();
   await clearPublishedShows(page);
+});
+
+test('a panel press on a renamed control of a reimported score board reaches the same field on the live cue', async ({ page }) => {
+  test.setTimeout(240_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  const show = `Board reimport ${Date.now()}`;
+  await page.goto('/app');
+  await dropSvg(page, SCORE_SVG);
+  await intoProduction(page, 'Board', show);
+
+  // Two cues: the press must reach the one on air, not the one selected.
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await page.getByTestId('cue-label').fill('Anna');
+  await expect(rows.first()).toContainText('Anna');
+  await page.getByTestId('rundown-add').click();
+  await page.getByTestId('add-cue').click();
+  await expect(rows).toHaveCount(2);
+  await page.getByTestId('cue-label').fill('Ben');
+  await expect(rows.nth(1)).toContainText('Ben');
+  await page.getByTestId('cue-label').blur();
+
+  // Arranged on the block: Team 3's point pinned, Team 1's renamed, New game hidden.
+  await page.getByTestId('cue-actions-arrange').click();
+  await page.getByTestId('arrange-pin-score3').click();
+  await page.getByTestId('arrange-name-score1').fill('Reds score');
+  await page.getByTestId('arrange-name-score1').press('Enter');
+  await page.getByTestId('arrange-hide-newGame').click();
+  await page.getByTestId('cue-actions-arrange').click();
+  await expect(page.getByTestId('cue-action-score1')).toHaveText('⚡ Reds score');
+
+  /** The saved graphic's Score 1 field and what Team 1's point moves. */
+  const score1 = () =>
+    page.evaluate(async () => {
+      const { loadGraphics } = await import('/src/model/library.ts');
+      const { eventButtons } = await import('/src/control/controlModel.ts');
+      const g = loadGraphics().find((d) => d.name === 'Board')!;
+      return {
+        id: g.id,
+        field: g.template.fields.find((f) => f.title === 'Score 1')!.field,
+        moves: Object.keys(eventButtons(g.template.js).find((b) => b.event === 'score1')?.adjust ?? {}),
+      };
+    });
+  const before = await score1();
+  expect(before.moves).toEqual([before.field]);
+
+  // Reopen, then reimport the same board with a badge drawn first (a fresh build would number
+  // every field after it one higher) under the same name, into the same production.
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('cue-action-score1')).toHaveText('⚡ Reds score');
+  const file = join(mkdtempSync(join(tmpdir(), 'panel-reimport-')), 'board.svg');
+  writeFileSync(file, readFileSync(SCORE_SVG, 'utf8').replace(/<svg([^>]*)>/, '<svg$1><text x="20" y="30" font-size="20" id="badge">LIVE</text>'));
+  await page.goto('/app');
+  await dropSvg(page, file);
+  await page.getByTestId('wz-skip-to-finish').click();
+  await expect(page.getByTestId('wz-stepcount')).toContainText('5');
+  await page.getByTestId('wz-finish-name').fill('Board');
+  const pick = page.getByTestId('wz-finish-production');
+  await pick.selectOption((await pick.locator('option', { hasText: show }).getAttribute('value'))!);
+  await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  expect(await score1()).toEqual(before);
+  await expect(rows).toHaveCount(2);
+
+  await publishProduction(page);
+  await shutStatusPanel(page);
+  const deck = await pairPanel(page);
+  await answerPanel(page);
+  await page.getByTestId('panel-close').click();
+  await deck.hello();
+  const [anna, ben] = (await deck.rows()).map((r) => r.id);
+  const first = await deck.state((s) => Array.isArray(s.live));
+  expect((await deck.press('select-cue', anna, first.ver as number)).outcome).toBe('ran');
+  const selected = await deck.state((s) => s.selected === anna, 'Anna selected');
+  expect((await deck.press('take', anna, selected.ver as number)).outcome).toBe('ran');
+  const onAir = await deck.state((s) => (s.live as string[]).includes(anna), 'Anna on air');
+  expect((await deck.press('select-cue', ben, onAir.ver as number)).outcome).toBe('ran');
+  await deck.state((s) => s.selected === ben, 'Ben selected');
+
+  // The offer is the arrangement: pinned, renamed and hidden, by the same event ids.
+  const board = (a: Json) => (a.graphics as (Offered & { caps: (Cap & { place: string })[] })[]).find((g) => g.graphic === 'Board');
+  const offer = await deck.actions((a) => board(a)?.live === anna, 'Board offered with Anna live');
+  const cap = (id: string) => board(offer)!.caps.find((c) => c.id === id)!;
+  expect(cap('event:score3')).toMatchObject({ place: 'pinned', allowed: true });
+  expect(cap('event:score1')).toMatchObject({ label: 'Reds score', allowed: true });
+  expect(cap('event:newGame')).toMatchObject({ place: 'more' });
+
+  // One press of the renamed control: Team 1's score on Anna, the cue on air, moves by one.
+  const program = page.frameLocator('[data-testid="program-stage"] iframe').first();
+  await expect(program.locator(`#${before.field}`)).toHaveText(/^\d+$/, { timeout: 20_000 });
+  const base = Number(await program.locator(`#${before.field}`).textContent());
+  const press = await deck.action({ target: 'Board', cap: 'event:score1', instance: anna, seen: offer.actionsVer as number });
+  expect(press).toMatchObject({ outcome: 'ran', settled: { outcome: 'accepted' } });
+  await expect(program.locator(`#${before.field}`)).toHaveText(String(base + 1), { timeout: 20_000 });
+  await expect(page.getByTestId('cue-label')).toHaveValue('Ben');
+
+  await deck.close();
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
 });

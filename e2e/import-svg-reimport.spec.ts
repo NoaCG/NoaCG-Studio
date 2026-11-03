@@ -586,7 +586,7 @@ async function expectArranged(page: Page, pin: string, rename: string, word: str
 }
 
 test('pinned, hidden and renamed controls keep their choices and their targets through save, reopen and a matching reimport', async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(120_000);
   await page.goto('/app');
   await dropSvg(page, SCORE_SVG);
   await intoProduction(page, 'Board', 'Show');
