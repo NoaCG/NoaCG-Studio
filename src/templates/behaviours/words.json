@@ -959,7 +959,7 @@
           "Lopputekstit",
           "Eftertexter"
         ],
-        "what": "the layer the credits are read from: a role or a name, when each role and each name is its own text layer, or one text object holding every line, which scrolls as fixed artwork"
+        "what": "the layer the credits are read from: the first role, when each role and each name is its own text layer, or one text object holding every line, which scrolls as fixed artwork"
       },
       {
         "id": "box",
