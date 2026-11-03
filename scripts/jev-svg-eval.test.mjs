@@ -759,6 +759,27 @@ test('M13: reconciling a lost run charges the larger of the balance drop and the
   assert.throws(() => reconcileLedger(ledger, now, { reason: 'no partition given here', lost: { runs: ['4'], attempts: 1 } }), /partitions/);
 });
 
+test('C6: an answer that reports no usage or cost is an unread bill, charged its worst case', async () => {
+  const arm = ARMS.find((a) => a.id === 'haiku');
+  const d = DESIGNS[0];
+  const keys = Object.keys(d.set.questions);
+  const answer = (usage) => async () => new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify(Object.fromEntries(keys.map((k) => [k, 0.9]))) }, finish_reason: 'stop' }],
+    ...(usage ? { usage } : {}),
+  }), { status: 200 });
+  const bare = harnessDeps(mockGateway(), null, { fetchImpl: answer(null) });
+  const p = planRequest(arm, d, CONFIG, bare);
+  const out = await callArm(arm, d, CONFIG, p, bare);
+  assert.equal(out.fellBack, undefined);
+  assert.equal(out.unknown, 1);
+  assert.ok(Math.abs(out.reportedUsd - p.maxUsd / 2) < 1e-12);
+  assert.equal(out.knownUsd, 0);
+  const priced = harnessDeps(mockGateway(), null, { fetchImpl: answer({ prompt_tokens: 900, completion_tokens: 40, cost: 0.0002 }) });
+  const known = await callArm(arm, d, CONFIG, p, priced);
+  assert.equal(known.unknown, 0);
+  assert.ok(Math.abs(known.reportedUsd - 0.0002) < 1e-12);
+});
+
 test('C6: one unknown-bill rule for every arm: a retried 5xx is flagged; a refusal before inference is not', async () => {
   const d = DESIGNS[0];
   for (const armId of [PRIMARY.id, 'haiku']) {

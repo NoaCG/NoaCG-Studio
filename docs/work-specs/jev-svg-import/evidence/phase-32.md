@@ -111,7 +111,8 @@ with its mode). This is the corrected model from the repeated-family reassessmen
 - **C6** One unknown-bill rule for every arm: a sent attempt that may have been billed (a 2xx, a 408,
   a 5xx, no response) whose bill was not read is charged its worst case and recorded. It does not
   suspend: the batch's settled closing reading reconciles it before the next batch, and the
-  settled cost keeps the larger of that charge and the debit.
+  settled cost keeps the larger of that charge and the debit. An answer that reports neither a
+  cost nor any usage is an unread bill too (the chat adapter turns missing usage into zeros).
 
 ## Scoring (frozen, `jev-svg-score/1`)
 
@@ -222,7 +223,7 @@ dispatch, which removed the typed lost spend entirely. That model is C1 to C6 ab
 
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 30 of 30 pass (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 31 of 31 pass (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle

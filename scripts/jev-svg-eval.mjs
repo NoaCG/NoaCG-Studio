@@ -790,19 +790,23 @@ export async function callArm(arm, design, config, plan, deps) {
     const priced = attemptCeilingUsd(arm.model, { bytes: usage.inputTokens - FRAMING_TOKENS, outputTokens: usage.outputTokens });
     // A failed earlier attempt that may have been billed is charged at its worst case.
     const earlier = sent.slice(0, -1).filter(maybeBilled).length * worstAttempt;
-    const knownUsd = usage.estimatedCost?.amount ?? priced ?? 0;
-    const reportedUsd = (usage.estimatedCost?.amount ?? priced ?? worstAttempt) + earlier;
+    // The bill is read only when the answer reported a cost or its usage. The adapter turns a
+    // missing usage block into zeros, so zero input tokens with no cost is an unread bill.
+    const billRead = typeof usage.estimatedCost?.amount === 'number' || usage.inputTokens > 0;
+    const knownUsd = billRead ? (usage.estimatedCost?.amount ?? priced ?? 0) : 0;
+    const reportedUsd = (billRead ? (usage.estimatedCost?.amount ?? priced ?? worstAttempt) : worstAttempt) + earlier;
+    const unknown = unknownCharges(sent, billRead) > 0 ? 1 : 0;
     if (arm.kind === 'chat') {
       const answers = {};
       for (const k of keys) {
         const p = result.output?.[k];
-        if (typeof p !== 'number' || !(p >= 0 && p <= 1)) return fallback('answers_invalid', { attempts, reportedUsd, unknown: unknownCharges(sent, true) > 0 ? 1 : 0, ms });
+        if (typeof p !== 'number' || !(p >= 0 && p <= 1)) return fallback('answers_invalid', { attempts, reportedUsd, unknown, ms });
         answers[k] = { type: 'boolean', probability: p };
       }
-      return { proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, knownUsd, unknown: unknownCharges(sent, true) > 0 ? 1 : 0, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
+      return { proposal: deps.readSvgAnswers(design.set, answers, config.threshold, design.deterministic.fieldsOn), attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
     }
     const mapped = mapRegionsToLayers(result.output, design.evidence);
-    return { proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, knownUsd, unknown: unknownCharges(sent, true) > 0 ? 1 : 0, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
+    return { proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, knownUsd, unknown, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
   } catch (error) {
     // Every sent attempt that may have been billed has an unknown bill: charged at its worst
     // case, and flagged. A refusal before inference is charged nothing.
