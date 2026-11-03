@@ -236,7 +236,7 @@ test.describe('deep-link boot', () => {
       const url = new URL(route.request().url());
       if (route.request().method() === 'GET' && page.url().endsWith(`#/production/${ABSENT_ID}`) &&
           url.searchParams.get('kind') === 'eq.show' &&
-          url.searchParams.get('select')?.includes('body->updatedAt') && writes.length < 2) {
+          url.searchParams.get('select')?.includes('body_updated_at') && writes.length < 2) {
         const fact = await page.evaluate(async ({ name, index }) => {
           const { createShowNamedChecked } = await import('/src/model/shows.ts');
           const { getSyncState } = await import('/src/backend/syncController.ts');
