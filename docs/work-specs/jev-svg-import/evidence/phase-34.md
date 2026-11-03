@@ -32,18 +32,27 @@ no family is named. The harness reached this verdict itself (`verdictApplies: tr
 confirms it by hand.
 
 - No arm proposed an invalid layer reference (`invalidRefs` 0 in all 90 rows).
-- The critical intent errors the scorer can see are invented behaviour families. Jev invented
-  families on `credits-1` (one), `credits-2` (two), `quiz-3` (one) and `scoreboard-3` (one, as
-  deterministic also does), and on `quiz-2` it bound
-  four decoys as live fields. These errors are counted in the consequential totals above. Nothing
-  was "accepted", because no user acts in the evaluation. Each proposal is scored as if accepted,
-  which is the stricter reading.
-- Scoreboard alone would pass the family test: two of its three designs need fewer corrections
-  plus decisions (`scoreboard-2` 0 against 1, `scoreboard-3` 5 against 6), and consequential
-  errors are equal (4 against 4). The rule's any-stratum clause still makes the whole verdict no
-  go, and this note does not turn that into a partial go.
+- The critical behaviour-intent errors the scorer can see are invented behaviour families. Jev
+  invented families on `credits-1` (one), `credits-2` (two), `quiz-3` (one) and `scoreboard-3`
+  (one, as deterministic also does). Nothing was "accepted", because no user acts in the
+  evaluation. Each proposal is scored as if accepted, which is the stricter reading, and on that
+  reading the critical-intent clause gives no go on its own, independently of the stratum sums.
+- Separately, on `quiz-2` Jev bound four decoys as live fields: a consequential error, not an
+  intent error. All of these errors are counted in the consequential totals above.
+- Scoreboard alone would pass the frozen scorer's family test: two of its three designs need fewer
+  corrections plus decisions (`scoreboard-2` 0 against 1, `scoreboard-3` 5 against 6), and
+  consequential errors are equal (4 against 4). Both the any-stratum clause and the
+  critical-intent clause still make the whole verdict no go, and this note does not turn that
+  into a partial go.
 - This is a completed evaluation verdict on an 18-design synthetic, single-author holdout. It
   says nothing about model quality in general (spec, Corpus and evaluation gate).
+
+**AC-7 status.** The declared evaluation and verdict protocol is evidenced: the frozen scoring
+and configuration, one pre-registered primary, the reporting-only challengers, the untouched
+holdout's results, cumulative spend, the non-blind slice reported apart, and an explicit no go.
+Two parts are stated gaps, not measured comparisons. The relevant-vision comparison was refused
+on every request (#2022), and Jev with against without pixels was not run (#2006). This note does
+not claim those parts as met. Whether AC-7 passes with them is the independent checker's call.
 
 ## Before unsealing
 
@@ -53,8 +62,10 @@ confirms it by hand.
    `4130a081`. At main `2dcadaf7eaa9d8b638b86f914b7e31aae5079321` it gives
    `516dcef08fc4ad6d309b405a5fda8ab7a166fa18ee257421782c471816224062`. The file list is the same
    229 files, and the only file that differs is `package-lock.json`, changed by commit `4bc351d2`
-   (the render Sandbox migration, `@vercel/sandbox` 1.6.0 to 3.9.1). Every lockfile change is
-   under the `@vercel/sandbox` subtree, and nothing in the evaluation graph imports that package.
+   (the render Sandbox migration, `@vercel/sandbox` 1.6.0 to 3.9.1). Every lockfile change belongs
+   to the `@vercel/sandbox` dependency tree: entries nested under it, one new top-level entry
+   (`@vercel/detect-agent`, needed only by that package) and the root version line. Nothing in the
+   evaluation graph imports either package.
    The holdout gate would have refused (`harness-not-frozen`) before decoding. The builder stopped
    and reported this before any holdout dispatch.
 2. **Coordinator decision**: re-freeze the identical configuration after this harness-irrelevant
@@ -91,8 +102,8 @@ confirms it by hand.
 
 Run `41643649692`: run number 13, attempt 1, `workflow_dispatch` on main `2dcadaf7`, mode
 `holdout`, `configuration_ref` `a41861d21be5c13d2e0a8344644ea50606e2463d`, `receipts_run_id`
-`41643035479`, regression off. Dispatched by the coordinator. Job `evaluate` succeeded from
-13:21:45Z to 13:33:52Z. The harness step took 11 minutes 3 seconds, most of it settle waits. Node
+`41643035479`, regression off. Dispatched by the coordinator. The run was created at 13:21:45Z;
+job `evaluate` started at 13:21:50Z and succeeded by 13:33:52Z. The harness step took 11 minutes 3 seconds, most of it settle waits. Node
 v24.22.1, runner image 20261026.180.1. Artifacts: `jev-svg-eval-report` and `jev-svg-eval-ledger`
 (id 13233764337), both kept to 2027-02-01.
 
@@ -150,8 +161,8 @@ Where Jev differs from deterministic, the score components are:
   invented scoreboard and clock families.
 - clock: on `clock-1` and `clock-2`, Jev dropped the clock family that deterministic finds.
 - score-clock: on `score-clock-3`, Jev missed one expected field and both families.
-- Gains: on `scoreboard-2`, `scoreboard-3` and `score-clock-2`, Jev found a family that
-  deterministic misses.
+- Gains: on `scoreboard-2`, `scoreboard-3`, `score-clock-2`, `quiz-1` and `quiz-2`, Jev found a
+  family that deterministic misses (on `quiz-2` alongside the four decoys above).
 
 ### Useful setups, corrections, latency
 
