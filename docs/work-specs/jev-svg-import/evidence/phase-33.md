@@ -67,6 +67,16 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
    from random mock answers, as expected. The same command locally: 37 batches, priced maximum
    $0.22 for the whole run, 244 planned attempts, mock settled spend $0.016. Ledger artifact
    `jev-svg-eval-dry-run-ledger` (kept apart from the chain).
+2. **Baseline**, run `41619730746` (run number 2), `development` with `establish_baseline`, calls
+   no model. The original baseline, from its ledger artifact `jev-svg-eval-ledger` (expires
+   2027-02-01): balance $6.936136654, lifetime used $48.063863346 (sum $55.00, the same as
+   readiness on 29 October and 3 November, so no top-up), read 2026-11-03T10:30:14Z; main
+   `531f856e13379ccffe8edc2df381cf6c2503f393`; workflow ref
+   `NoaCG/NoaCG-Studio/.github/workflows/jev-svg-eval.yml@refs/heads/main`; environment
+   `jev-svg-evaluation`; harness manifest SHA-256
+   `77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b` (229 files); Node v24.22.1,
+   runner image 20261026.180.1. No batches. The run numbers 1 and 2 confirm GitHub numbers this
+   workflow's runs in order (a row 32 Known limit).
 
 ## Decisions
 
