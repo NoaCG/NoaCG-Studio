@@ -107,7 +107,11 @@ test('M1: anything outside the closed schema refuses the whole file', () => {
   // No model arm may take the baseline's id.
   assert.equal(validateConfiguration(withConfig((c) => { c.candidates[0].id = 'det'; c.candidates[3].id = 'deterministic'; })).reason, 'deterministic-id');
   // A kind that does not match its route: a decision model sent through chat completions.
-  assert.equal(validateConfiguration(withConfig((c) => { c.candidates[3].kind = 'chat'; delete c.candidates[3].preview; })).reason, 'route-not-admitted');
+  assert.equal(validateConfiguration(withConfig((c) => {
+    const decision = c.candidates.find((x) => x.kind === 'decision' && x.id !== PRIMARY.id);
+    decision.kind = 'chat';
+    delete decision.preview;
+  })).reason, 'route-not-admitted');
 });
 
 // ---- M2: fetched from an immutable commit, as bytes, never checked out ----
@@ -823,12 +827,16 @@ test('C5: the holdout gate runs before the secret is decoded and needs the recor
   // Holdout-only misconfigurations are refused here, before decoding, so they never use it up:
   // the regression slice on the holdout budget, and more than two reporting challengers.
   assert.equal(holdoutGate(frozen, { ...hashes, regression: true }), 'regression-on-holdout');
-  // The committed development configuration declares four challengers: fine for development,
-  // refused for the holdout until row 33 trims it to two.
-  assert.equal(CONFIG.candidates.filter((c) => c.id !== PRIMARY.id && !isBaseline(c)).length, 4);
-  assert.equal(holdoutConfigRefusal(CONFIG), 'too-many-challengers');
-  assert.equal(holdoutGate(frozen, { ...hashes, config: CONFIG }), 'too-many-challengers');
-  const three = { ...holdoutConfig, candidates: [...holdoutConfig.candidates, CONFIG.candidates.find((c) => c.id === 'luna')] };
+  // Row 32's development configuration declared four challengers: fine for development, refused
+  // for the holdout. Row 33 trimmed the committed file to two, which the holdout admits.
+  const luna = { id: 'luna', kind: 'chat', model: 'openai/gpt-6-luna' };
+  const preview = { id: 'jev-preview', kind: 'decision', model: PRIMARY.model, preview: true };
+  const wide = { ...CONFIG, candidates: [...holdoutConfig.candidates, preview, luna] };
+  assert.equal(wide.candidates.filter((c) => c.id !== PRIMARY.id && !isBaseline(c)).length, 4);
+  assert.equal(holdoutConfigRefusal(wide), 'too-many-challengers');
+  assert.equal(holdoutGate(frozen, { ...hashes, config: wide }), 'too-many-challengers');
+  assert.equal(holdoutConfigRefusal(CONFIG), null);
+  const three = { ...holdoutConfig, candidates: [...holdoutConfig.candidates, luna] };
   assert.equal(holdoutConfigRefusal(three), 'too-many-challengers');
   assert.equal(holdoutConfigRefusal(holdoutConfig), null);
   assert.equal(holdoutGate(frozen, { configSha256: hashes.configSha256, manifestSha256: hashes.manifestSha256 }), 'no-config');
