@@ -164,8 +164,9 @@ locally, it added two offline refusals, so it was not committed.
 The owner approved a 30-day backend-tier exception, reviewed by the coordinator before landing
 (https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839). This change adds one
 entry, `jev-svg-import-journey`, to `scripts/growth-ceilings.json`: covers
-`spec:e2e/configured/svg-import-journey.spec.ts`, 6.8 per landing, 4.1 per day (the gate's own
-prices), from 2026-11-03, expires 2026-12-03, repayment #1503. Nothing else in that file changed.
+`spec:e2e/configured/svg-import-journey.spec.ts`, 6.85 per landing, 4.13 per day (the gate's own
+prices, 6.84372 and 4.12542, rounded up: at 6.8 and 4.1 a sliver stayed charged and the gate still
+refused), from 2026-11-03, expires 2026-12-03, repayment #1503. Nothing else in that file changed.
 
 With the entry in place the gate still refuses, by its own Rule X9
 (`scripts/growth-controls.mjs`, `assessTiers`): while a tier's evidence is not complete "the room is
@@ -178,3 +179,15 @@ durations table stale per #1503). The gate's words, locally:
 
 So the exception is on record and takes effect once the backend evidence is complete. The gate and
 its rules are unchanged.
+
+Once the weekly growth report was published (weekly-audit run 41704224273, 2026-11-03), the
+backend evidence is complete and, with the gate's report fetched as CI fetches it
+(`node scripts/growth-report.mjs fetch`, then `e2e-capacity.mjs --growth`), the gate reads:
+
+> backend tier warn: 164.7/117 per landing, 65/78 per day (141%), jev-svg-import-journey excepts
+> 0/landing (claims 6.85, capped at what it covers) to 2026-12-03; this change adds budget
+> exception(s) jev-svg-import-journey: each needs a separate, recorded review before it lands;
+> durations table recorded 2026-10-19, 15 days old, over its 8-day bound; pending, not accepted: #1503
+
+A warning, not a refusal: this change adds nothing past its exception. The tier's own 141% is
+measured on main without this change.

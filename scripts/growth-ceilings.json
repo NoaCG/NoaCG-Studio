@@ -158,8 +158,8 @@
       "covers": [
         "spec:e2e/configured/svg-import-journey.spec.ts"
       ],
-      "perLanding": 6.8,
-      "perDay": 4.1,
+      "perLanding": 6.85,
+      "perDay": 4.13,
       "owner": "miwco",
       "reviewed": "https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839",
       "protects": "AC-26 imported-artwork journey with isolated-output disconnect and recovery (measured 20.2 s in CI run 41699782672; priced at the gate's flat new-case estimate)",
