@@ -115,6 +115,8 @@ fast road, which carries no server time, so each output stamps that row with its
 - `e2e/ograf-lifecycle.spec.ts`: the four existing tests pass with the changed mount helper
   (j-0002); the two new ones pass after the two fixes in Decisions and Traps (j-0004).
 - `e2e/spx-operator.spec.ts` new test 1/1 (j-0006).
+- Both specs whole on the final test code: `ograf-lifecycle.spec.ts` and `spx-operator.spec.ts`
+  13/13 (j-0008).
 - `e2e/ograf-parity.spec.ts` 3/3, 28 designs, 0 failing (j-0007).
 - `npm run gates -- run --changed origin/main` 34/34; `check-e2e-protection --changed origin/main`
   OK; eslint and `tsc --noEmit` clean on the four specs.
