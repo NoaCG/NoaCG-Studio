@@ -51,7 +51,7 @@ from.
 | Quiz, standard | Supported | Select answer, Lock it in, Reveal correct; nothing asked for a recognised quiz. | `e2e/import-svg-behaviour.spec.ts` (CI); `imported-quiz-output.spec.ts` (configured) | #1917 (see no-Lock). |
 | Quiz, no Lock | Supported | Tick "No lock at all": Select, Reveal, Reset, no Lock control or timer. A second author can switch a saved quiz. | `scripts/quiz-no-lock.test.mjs` (CI); `e2e/import-svg-behaviour.spec.ts` (CI); `imported-quiz-output.spec.ts` (configured) | #1917: the automatic proposal never suggests no-Lock; the author ticks it. Unticking restores the earlier options only within one visit to the step. |
 | Score plus clock together | Supported | Steppers need nothing; the clock direction is the one question. Score changes keep the clock; clock changes keep the scores. | `imported-score-event`, `imported-clock-wire`, `air-state` (CI); `scorebug-output.spec.ts` (configured); row 38 journey in `jev-svg-preparation.spec.ts` (CI) and `svg-import-journey.spec.ts` (configured) | Same as scoreboard and clock. |
-| Credits, role above, roll | Supported, proven but not gated | One Credits choice; the list is picked and previewed at once. | rendering: `e2e/import-svg-credits.spec.ts` (Quarantine, 21 of 21); Sheet updates: `e2e/imported-credits-live-data.spec.ts` (CI); `imported-credits-model`, `imported-credits-source`, `credits-parser`, `credits-live-speed` (CI) | "Proven, not gated": while the rendering spec is quarantined (#1988), no pull request is blocked by it. #1937, #1955, #1965, #1969, #2033. |
+| Credits, role above, roll | Supported, proven but not gated | One Credits choice; the list is picked and previewed at once. | rendering: `e2e/import-svg-credits.spec.ts` (Quarantine, 21 passed in its job log); Sheet updates: `e2e/imported-credits-live-data.spec.ts` (CI); `imported-credits-model`, `imported-credits-source`, `credits-parser`, `credits-live-speed` (CI) | "Proven, not gated": while the rendering spec is quarantined (#1988), no pull request is blocked by it. #1937, #1955, #1965, #1969, #2033. |
 | Credits, role above, hold still | Supported, proven but not gated | "Plays as: Hold still". A list too long for the page is not shown, and its field says so. | as above | as above |
 | Credits, role above, cards | Supported, proven but not gated | "Plays as: Cards". A blank line starts a new card. | as above | as above |
 | Credits, role beside, roll | Supported, proven but not gated | Roles in one column, names in the other, as drawn. | as above, plus the role-beside live-data walks (CI) | A names-first drawing reads roles and names swapped unless the column question is answered. |
@@ -119,7 +119,13 @@ into a production. On the production page an operator prepares, Takes, Updates a
 for any graphic. Packages for SPX, CasparCG and OGraf come from the existing export, unchanged in
 how they are made.
 
-**To stop the AI part:** it is already off (section 4 lists the three switches).
+**To stop the AI part:** SVG preparation is already off (section 4 lists the three switches).
+For any AI route that is on, such as the older image analysis, the admin kill switch is a row in
+the `system_settings` table: key `disabled_routes`, value a list of `provider:model` entries; a
+whole feature goes off through key `disabled_features`. The server rereads it within 10 seconds.
+That is a production data change, so it is the owner's to make. Budget: the $5 ceiling covered
+only the evaluation workflow, which has no run left to make (the holdout is used up), so no
+budget switch is owed for this run.
 
 **To roll back a row.** Each row landed as one merge commit (section 6). On a fresh branch from
 `origin/main`, never on `main` itself:
@@ -135,8 +141,9 @@ Then land it with `/queue-merge` (the merge queue), like any change. Rules for d
 - Prefer a forward repair when a row added something a saved graphic stores (row 7's clock
   instance, rows 16 to 20's credits bindings, PR #1962's `artworkLayers`). Before reverting such a
   row, check that the older code still opens a graphic saved with that field without dropping it.
-- Revert the newest dependent row first. Rows 37 to 39 add only tests and notes, and row 35 only
-  the switched-off route, so reverting them changes no user-visible behaviour. Reverting row 36
+- Revert the newest dependent row first. Rows 37 to 39 add only tests and notes (row 38 also
+  added the `jev-svg-import-journey` CI test-budget exception in `scripts/growth-ceilings.json`),
+  and row 35 only the switched-off route, so reverting them changes no user-visible behaviour. Reverting row 36
   puts back the older clock and credits wording and the explicit credits pick.
 - No plan row added a database migration, so no rollback needs one. (The migrations 0106 to 0108
   that landed during the run came from other work.)
@@ -196,7 +203,8 @@ no later run of `jev-svg-eval.yml` exists.
 
 One line per row. Verdicts are the independent checker's comment on each PR (URL form
 `https://github.com/NoaCG/NoaCG-Studio/pull/<PR>#issuecomment-<id>`). Every merge subject reads
-"Merge pull request #PR from NoaCG/claude/plan-jev-svg-import-NN-build".
+"Merge pull request #PR from NoaCG/claude/plan-jev-svg-import-N-build", with the row number
+unpadded (`-1-build` to `-39-build`).
 
 | Row | PR | Merge SHA | Checker verdict | Comment |
 | --- | --- | --- | --- | --- |
