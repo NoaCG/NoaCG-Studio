@@ -39,14 +39,13 @@
       "startedAt": "2026-11-03T18:34:31Z",
       "pr": 2038,
       "approvedDepartures": [
-        "spec.md budget-exception line WITHDRAWN: work-spec exceptions cover only the offline tier"
+        "scripts/growth-ceilings.json: one backend exception jev-svg-import-journey (owner decision 2026-11-03, https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839, expires 2026-12-03, repayment #1503)"
       ],
-      "waiting": {
-        "on": "owner (repository owner authority over scripts/growth-ceilings.json)",
-        "what": "30-day backend-tier exception for e2e/configured/svg-import-journey.spec.ts, or hold until #1503",
-        "asked": "2026-11-03T19:20Z",
-        "cicdReply": "cicd-followup cannot approve; passed to owner"
-      }
+      "soSessions": [
+        "session_017SdbwMVZr8UVAMefhBBGRE",
+        "session_017SdbwMKVroFdqpNTEfW77w",
+        "session_017SdbwPGZoFtVEaNrw13yEh"
+      ]
     }
   ],
   "owner": [],
@@ -546,7 +545,8 @@
       "phase": 33,
       "at": "2026-11-03T12:27Z",
       "note": "Approved beyond TOUCHES: scripts/jev-svg-eval.test.mjs (M1 by kind, C5 builds its own 4-challenger config; no assertion weakened; outside frozen manifest)."
-    }
+    },
+    "2026-11-03 owner approved 30-day backend capacity exception for row 38 journey spec"
   ],
   "ownerOpen": [
     {
@@ -589,7 +589,8 @@
     2017,
     2022,
     2033,
-    2034
+    2034,
+    2041
   ],
   "carryForward": [
     {
