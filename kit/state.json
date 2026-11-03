@@ -39,7 +39,16 @@
       "startedAt": "2026-11-03T15:29:25Z",
       "approvedDepartures": [
         "src/templates/behaviours/credits.ts:71 credits recipe description (closes half of #2001)"
-      ]
+      ],
+      "pr": 2032,
+      "head": "fb7141542064341abd936cb3ba2358de1e8ca1e7",
+      "ciRun": 41669887124,
+      "stampRun": 41672783627,
+      "so": "session_017SdbwMTzqDoKFY2jZb8wix A",
+      "soSessions": [
+        "session_017SdbwMTzqDoKFY2jZb8wix"
+      ],
+      "safetyNet": "trig_017FXEerqnYjfVZd9n2nnFwq"
     }
   ],
   "owner": [],
@@ -568,7 +577,8 @@
     2011,
     2015,
     2017,
-    2022
+    2022,
+    2033
   ],
   "carryForward": [
     {
