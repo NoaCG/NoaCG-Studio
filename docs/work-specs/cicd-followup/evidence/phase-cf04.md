@@ -90,31 +90,41 @@ resource or another job: hosted runners run one job per VM.
   then are the reservation and the claim released; anything left fails the step.
 - **No unrelated process is killed.** Nothing outside the stack is ever signalled. The only
   processes the teardown may stop are `supabase` CLI processes whose environment names this stack's
-  workdir (a start cut off by a cancellation), never an ancestor of the step. The first concurrent
+  workdir (a start cut off by a cancellation), never an ancestor of the step. A Docker query that
+  fails during teardown is a problem, not an empty answer, so the claim is kept (review on #2014). The first concurrent
   drill (run 41602754978) showed why the name check matters: `SUPABASE_WORKDIR` is in the job's
   environment, so matching on it alone took the teardown step's own shell; fixed in 1b909749 with a
   regression test (`isStackProcess`).
 
 ## (b) Verified in CI
 
-All on head 4a7d50c, the final code (the same drills passed earlier on 1b909749: 41603498728,
-41604646086, 41604949433).
+On head cb104858, the final code (the same drills passed earlier on 1b909749 and 4a7d50c:
+41603498728, 41604646086, 41604949433; 41606156869, 41606643025, 41607025223). The collision
+drill's code has not changed since 4a7d50c.
 
 | What | Run | Result |
 | --- | --- | --- |
-| Concurrent stacks | endurance 41606156869 (`drill:stack-concurrent`) | The job's stack on slot 0, then two more started at once, racing for slots: slots 1 and 2, projects `noacg-studio-s1`/`-s2`, ports 54420-54429 and 54520-54529, both ready in 48 s with no retry; three API and database URLs; a user made in s1 exists only in s1; both taken down and proved gone; the job's own stack still answered 200; its teardown then proved it gone too. |
-| Collision reproduced | endurance 41607584981 (`drill:stack-collide`) | Section (a) above. |
-| Cleanup after a failed run | endurance 41606643025 (`drill:stack-fail`) | `Run` failed on purpose; the teardown step: `noacg-studio-s0: 0 containers, 0 volumes, 0 networks, no process; ports 54320-54329 not held and each binds; 0 ownerless TIME_WAIT socket(s) left (a new allocation skips a block until they expire); reservation and claim released.` |
-| Cleanup after a cancelled run | endurance 41607025223 (`drill:stack-hold`, cancelled while it held the stack) | `Run` cancelled; the teardown step ran and reported the same line for `noacg-studio-s0`. The runner then terminated only the drill's own `npm run drill:stack-hold` processes. |
-| The real configured jobs | this PR's CI run (whole configured set, since the change touches ci.yml and the action) | in the PR and the receipt |
+| Concurrent stacks | endurance 41609331371 (`drill:stack-concurrent`) | The job's stack on slot 0, then two more started at once, racing for slots: slots 1 and 2, projects `noacg-studio-s1`/`-s2`, ports 54420-54429 and 54520-54529, both ready with no retry; three API and database URLs; a user made in s1 exists only in s1; both taken down and proved gone; the job's own stack still answered 200; its teardown then proved it gone too. |
+| Collision reproduced | endurance 41607584981 (`drill:stack-collide`, 4a7d50c) | Section (a) above. |
+| Cleanup after a failed run | endurance 41608528376 (`drill:stack-fail`) | `Run` failed on purpose; the teardown step: `noacg-studio-s0: 0 containers, 0 volumes, 0 networks, no process; ports 54320-54329 not held and each binds; 0 ownerless TIME_WAIT socket(s) left (a new allocation skips a block until they expire); reservation and claim released.` |
+| Cleanup after a cancelled run | endurance 41608857703 (`drill:stack-hold`, cancelled while it held the stack) | `Run` cancelled; the teardown step ran and reported the same line for `noacg-studio-s0`. The runner then terminated only the drill's own `npm run drill:stack-hold` processes. |
+| Cleanup in the real configured jobs, cancelled mid-suite | ci.yml run 41607990844 on 2f281dd8 (this PR's earlier head, superseded and cancelled by the next push) | All four `Configured E2E n/4 (selected)` jobs were cancelled while their specs ran; in each, the teardown step reported 0 containers, 0 volumes, 0 networks, no process, ports 54320-54329 not held and each binds, with 3, 10, 4 and 21 ownerless TIME_WAIT sockets left from the suite's own traffic. |
+| The real configured jobs, to the end | this PR's CI run on its final head (whole configured set, since the change touches ci.yml and the action) | in the PR and the receipt |
+
+**What "no port left held" means here.** After teardown no socket on the block listens or belongs
+to a process, and each port binds. A run with traffic leaves ownerless TIME_WAIT sockets on the
+block for up to 60 s (the cancelled CI jobs above). The collision drill showed that a client-side
+TIME_WAIT on a stack port does block Docker's bind, so these are counted and printed, not ignored,
+and allocation treats a block with any socket on it, TIME_WAIT included, as in use. On a hosted
+runner the VM ends with the job, so they never meet a second stack there.
 
 The drills run through endurance.yml, which now starts its stack with the same script and has the
 same teardown step, so they exercise the code the configured jobs run.
 
 ## Phase notes
 
-- **Previous verified main SHA:** 98b62dad9ae664ffb49829201ecc3a7c0667aad6 (this branch's base;
-  if `main` is merged in before landing, the PR names the new base).
+- **Previous verified main SHA:** 98b62dad9ae664ffb49829201ecc3a7c0667aad6 (where this branch
+  started); `main` at b7ca35ca was merged in before review. The PR names the base it lands on.
 - **Revert:** `git revert -m 1 <merge sha>` restores the old start (with its retry) and removes the
   teardown steps; nothing persistent is created, and no migration.
 - **Decisions.**
