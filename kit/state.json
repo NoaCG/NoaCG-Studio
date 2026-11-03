@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "row 33 PR",
+  "waitingOn": "PR #2023 in merge queue",
   "inFlight": [
     {
       "phase": 33,
@@ -147,7 +147,13 @@
         "manifest": "341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db",
         "run": 41634756346,
         "main": "4130a081f35f70e4d05dff3b314863127aec465b"
-      }
+      },
+      "pr": 2023,
+      "head": "879c86a8761c501ccc839a26e190695f46888db4",
+      "stampRun": 41638664891,
+      "stampRunFailed": 41637253493,
+      "ciRun": 41635870361,
+      "so": "session_017SdbwNQ1ztfVCJGpvWoWUK A- (standing owner rule)"
     }
   ],
   "owner": [],
@@ -630,6 +636,13 @@
       ],
       "from": "32",
       "note": "Run a dry run of jev-svg-eval.yml on the same main commit before recording the freeze; trim prompts.json to at most 2 reporting-only challengers; Jev with pixels is unqualified (#2006). Documented limits: settle tolerance vs real gateway rounding (check first receipts), typed lost-attempt count, a failed decode uses the holdout (PR #2005)."
+    },
+    {
+      "forPhases": [
+        "34"
+      ],
+      "from": "33",
+      "note": "Report Jev with and without pixels as unqualified and not run (#2006); report the image arm as refused (HTTP 400, #2022); the per-request fee #2015; Jev non-repeatable on 6/18 identical inputs; one prompt sentence was fitted to development design lower-third-1 (documented). Frozen config b2609a84 at a41861d2, manifest 341b82e7, freeze run 41634756346 on main 4130a081; ledger newest run 41634756346."
     }
   ]
 }
