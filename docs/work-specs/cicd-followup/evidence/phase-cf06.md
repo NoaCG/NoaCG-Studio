@@ -30,8 +30,11 @@ reproduced). Neither spec was ever quarantined. The history is `ci.yml` on every
 CI run that reported each failure. Of the 8 failed main runs since 2026-10-27, none had a failure
 annotation naming `production-controls.spec.ts` (their annotations read, 7 E2E jobs), and a
 fail-then-pass on main would have put the spec in `e2e/quarantine.json`, which never held it.
-The 300 trial passes above are left out of the rates on purpose: counting them would lower each
-rate and so the count. Both races were reproduced by fault injection instead (section (a)).
+The 300 trial passes above are left out of the rates on purpose: they are the measurement that
+did not reproduce, not CI history, which is what the acceptance names for that case. They also
+say the lone-test trial is likely not the condition #1946 fails under: at r = 1/38, 150 passes in
+a row has only a 1.8% chance (0.9737^150 = 0.018). Both races were reproduced by fault injection
+instead (section (a)).
 
 | Flake | CI history since the report | Runs | Failed | Rate |
 | --- | --- | --- | --- | --- |
@@ -162,8 +165,13 @@ the fake clock up to a second, 20 ms at a time, before measuring.
 
 Like cf05's trials, these run the one test alone, not after its shard's neighbours. Neither
 flake reproduced on a CI runner before the fix, so these runs meet the count but cannot by
-themselves tell the fixed test from the unfixed one; the fault injections in (a) are what show
-each race closed.
+themselves tell the fixed test from the unfixed one. For #1778 the injection in (a) shows the
+race closed (fixed, 6 of 6 pass under it). For #1946 it cannot: the 1 ms injection makes the
+header clock tick inside the measurement's own window even with the fix, since fake ticks then
+fall inside `runFor(2)`, so the page really does render in that commit and the fixed test fails
+by design. #1946's closure rests on the mechanism (with `install()` no real timer remains; the
+measurement starts right after a tick, which the test now asserts it saw) and on the mutation
+test, which shows the assertion still catches a render the measurement causes.
 
 Neither spec is in `e2e/quarantine.json` on main, so no quarantine is released, and nothing
 contains a recurrence: if either test fails and then passes on one commit on main, `ci.yml` puts

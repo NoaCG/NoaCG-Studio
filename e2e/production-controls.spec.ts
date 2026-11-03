@@ -2367,6 +2367,7 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   }, { message: 'the paused page stops rendering' }).toBe(true);
   const quiet = await pageRenders();
   for (let ran = 0; ran < 1000 && (await pageRenders()) === quiet; ran += 20) await page.clock.runFor(20);
+  expect(await pageRenders(), 'the header clock ticked, so the measurement starts just after it').not.toBe(quiet);
   await page.getByTestId('cue-adjust-toggle').click();
   await expect(page.getByTestId('preview-guides')).toBeVisible();
   await page.clock.runFor(160);
