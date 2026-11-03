@@ -86,7 +86,8 @@
         "holdout": 0.015024036,
         "total": 0.045931275
       },
-      "attempts": 284
+      "attempts": 284,
+      "pr": 2029
     }
   ],
   "owner": [],
@@ -134,7 +135,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-03T13:52:24Z"
+    "checkinAt": "2026-11-03T14:23:29Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
