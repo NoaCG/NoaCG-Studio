@@ -56,17 +56,23 @@ main: that SHA. Revert this row after it lands with `git revert -m 1 <merge sha>
    image task contract, the workflow). The decision prices in the harness must equal the server's
    audited prices or nothing runs.
 4. **M4** The first paid run records the original balance baseline (balance, lifetime usage, run
-   id, main SHA, environment, manifest). It is never reset: a ledger exists, so
-   `--establish-baseline` is refused; a dry-run or local ledger never continues into a paid run.
-   Each batch receipt records the balance before and after, its debit and settled cost.
+   id, main SHA, environment, manifest). It is never reset: the workflow allows
+   `establish_baseline` only while no run of it has left a ledger, and otherwise requires
+   `receipts_run_id` to be the newest ledger's run, so the chain cannot fork. A dry run's ledger
+   is uploaded under another name and is refused by a paid run. Each batch receipt records the
+   balance before and after, its debit and settled cost.
 5. **M5** Spent is the largest of the balance drop, the lifetime-usage rise and the settled
    receipts, so other consumers' spend counts. A batch is admitted only if its priced maximum fits
    both the remaining $5 and its partition ($2 development, $3 holdout).
 6. **M6** At most two attempts per logical request (the harness caps the adapter's `maxAttempts`
-   at 2 whatever the plan says) and 500 in all. An unpriced request is refused. An image request
-   is a batch of one, since its image price is a bound, not a bill.
-7. **M7** New money stops paid calls: a balance above the last receipt, lifetime usage below it,
-   or balance plus usage above the baseline's sum (a top-up hidden by concurrent spend).
+   at 2 whatever the plan says) and 500 in all. An unpriced request is refused. A request is
+   priced from the bytes it actually sends (system, messages, output schema; the picture as image
+   tokens). An image request is a batch of one, since its image price is a bound, not a bill. A
+   refusal before inference (a 4xx other than 408) is charged nothing; an answer, a timeout, a
+   5xx or no response is charged its worst case when its bill is unknown.
+7. **M7** New money stops paid calls: a balance above the newest reading on record (the last
+   receipt, or a reconciliation made after it), lifetime usage below it, or balance plus usage
+   above the baseline's sum (a top-up hidden by concurrent spend).
 8. **M8** A batch's receipt is written before its first call. A batch without a closing reading
    (a crash, a lost run), an unsettled reading, a cost past the priced maximum, more attempts than
    planned, or a charge whose bill is unknown suspends every later batch until `reconcile` runs
@@ -95,9 +101,10 @@ markup (the method of `scripts/jev-svg-baseline.test.mjs`). Per design and arm:
   layer the inventory does not have.
 
 Behaviour families are scoreboard, clock, quiz and credits; a lower third is no behaviour.
-Decision rule (primary against deterministic only): no go on any invalid reference, an unusable
-primary, or a consequential-error increase in any stratum or design; otherwise a family
-qualifies when at least two of its designs need fewer corrections plus decisions and none harms.
+Decision rule (primary against deterministic only), as the spec words it: no go on any invalid
+reference, an unusable primary, or a consequential-error increase in any stratum (summed over its
+designs); otherwise a family qualifies when at least two of its designs need fewer corrections
+plus decisions and none of its designs increases consequential errors.
 Only `limited-go` with named families or `no-go`. The verdict applies to the holdout run only; the
 development report marks it indicative.
 
@@ -138,9 +145,27 @@ slice is scored only by its sidecars' text-field counts and reported apart.
 - **The deterministic arm** is the wizard's own draft through the 51-file harness page
   (`recordInPage`): its fields turned on, and the family its behaviour proposal names.
 
+## Rules found after coding
+
+From the `/check` review (delegated, 10 findings, 9 fixed, 1 a documentation mismatch):
+
+- The receipt chain could fork (a stale `receipts_run_id`) or restart (a second
+  `establish_baseline`): the workflow now finds the newest ledger itself (M4).
+- After a reconciliation, a later receipt is the comparison point for new money (M7).
+- A chat or image refusal before inference was charged as an unknown bill, which would suspend
+  the run; the harness now reads each attempt's HTTP status (M6). The image request was priced
+  from the wrong bytes; it is now priced from what it sends (M6).
+- A layer outside the questions (never in the evidence) lost its deterministic decision; any
+  unasked layer now keeps it (M10). Names are bounded in UTF-16 units, as the server counts
+  them. Text line counts read relative `dy` lines.
+- The configuration step printed nothing when it refused; it now prints the reason.
+- Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
+  harmed design stops its family from qualifying. The notes and docstring said "or design" and
+  were corrected.
+
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 22 of 22 pass (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 25 of 25 pass (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle

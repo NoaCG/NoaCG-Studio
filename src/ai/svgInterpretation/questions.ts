@@ -70,8 +70,9 @@ export interface SvgDecisionReading {
 
 /**
  * What the answers propose: a family or a field is ON when its probability reaches the frozen
- * threshold. A text layer that was not asked keeps the deterministic decision (`fallbackOn`).
- * Answers are the adapter's checked answers, so every asked key is present and boolean.
+ * threshold. Any layer that was not asked about (past the question bound, or never in the
+ * evidence at all) keeps the deterministic decision (`fallbackOn`). Answers are the adapter's
+ * checked answers, so every asked key is present and boolean.
  */
 export function readSvgAnswers(
   set: SvgQuestionSet,
@@ -80,12 +81,12 @@ export function readSvgAnswers(
   fallbackOn: readonly string[],
 ): SvgDecisionReading {
   const yes = (key: string) => (answers[key]?.probability ?? 0) >= threshold;
-  const kept = new Set(set.notAsked);
+  const asked = new Set(set.fields.map((f) => f.layer));
   return {
     families: set.families.filter((f) => yes(f.key)).map((f) => f.family),
     fieldsOn: [
       ...set.fields.filter((f) => yes(f.key)).map((f) => f.layer),
-      ...fallbackOn.filter((layer) => kept.has(layer)),
+      ...fallbackOn.filter((layer) => !asked.has(layer)),
     ],
   };
 }

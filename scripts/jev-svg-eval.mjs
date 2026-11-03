@@ -294,7 +294,9 @@ export function admitBatch(ledger, credits, plan, { manifest } = {}) {
   const open = ledger.batches.find((b) => b.suspended && !b.reconciled);
   if (open) return refuse(`suspended:${open.suspended}`);
   if (!credits || !Number.isFinite(credits.balance) || !Number.isFinite(credits.totalUsed)) return refuse('credits-unreadable');
-  const last = ledger.reconciliations.at(-1)?.credits ?? ledger.batches.at(-1)?.after ?? ledger.baseline;
+  // The newest reading on record: a reconciliation made after the last batch, else that batch.
+  const rec = ledger.reconciliations.at(-1);
+  const last = rec && rec.afterBatches >= ledger.batches.length ? rec.credits : (ledger.batches.at(-1)?.after ?? ledger.baseline);
   if (credits.balance > last.balance + EPS) return refuse('balance-increase');
   if (credits.totalUsed < last.totalUsed - EPS) return refuse('usage-decrease');
   const sum = ledger.baseline.balance + ledger.baseline.totalUsed + ledger.acknowledgedTopUpUsd;
@@ -372,7 +374,7 @@ export function reconcileLedger(ledger, credits, { reason, runId, manifest, at =
     ...ledger,
     batches,
     acknowledgedTopUpUsd: ledger.acknowledgedTopUpUsd + arrived,
-    reconciliations: [...ledger.reconciliations, { at, runId, reason: reason.trim().slice(0, 400), credits, arrivedUsd: arrived, ...(manifest ? { manifest } : {}) }],
+    reconciliations: [...ledger.reconciliations, { at, runId, afterBatches: batches.length, reason: reason.trim().slice(0, 400), credits, arrivedUsd: arrived, ...(manifest ? { manifest } : {}) }],
   };
 }
 
@@ -437,9 +439,9 @@ export function scoreDesign(expected, proposal, inventory) {
 /**
  * The pre-registered decision rule (spec, "Corpus and evaluation gate"), primary against
  * deterministic only. No go on any accepted invalid reference, an unusable primary, or a
- * consequential-error increase in any stratum or any design. Otherwise a family qualifies when
- * at least two of its designs need fewer corrections plus decisions and none increases
- * consequential errors. Never a full go.
+ * consequential-error increase in any stratum (summed over its designs). Otherwise a family
+ * qualifies when at least two of its designs need fewer corrections plus decisions and none of
+ * its designs increases consequential errors. Never a full go.
  */
 export function decide(rows, primary = PRIMARY.id) {
   const reasons = [];
@@ -539,13 +541,33 @@ export function planRequest(arm, design, config, deps) {
     const ceiling = attemptCeilingUsd(arm.model, { bytes: prepared.bytes, outputTokens: 32 * Object.keys(design.set.questions).length });
     return { prepared, maxUsd: CAP.attemptsPerRequest * Math.max(ceiling, prepared.attemptCeilingUsd), attempts: CAP.attemptsPerRequest };
   }
-  const content = JSON.stringify({ state: design.evidence, questions: arm.kind === 'chat' ? design.set.questions : undefined });
   const images = arm.kind === 'vision' ? 1 : 0;
   if (images && !design.preview) return { refused: 'no-preview' };
-  const bytes = Buffer.byteLength(config.chatSystem, 'utf8') + Buffer.byteLength(content, 'utf8');
-  const ceiling = attemptCeilingUsd(arm.model, { bytes, outputTokens: OUTPUT_TOKENS, images });
-  return { maxUsd: CAP.attemptsPerRequest * ceiling, attempts: CAP.attemptsPerRequest, single: images > 0 };
+  const request = arm.kind === 'chat'
+    ? {
+        system: config.chatSystem,
+        messages: [{ role: 'user', content: JSON.stringify({ state: design.evidence, questions: design.set.questions }) }],
+        maxTokens: OUTPUT_TOKENS,
+        structuredOutput: chatSchema(Object.keys(design.set.questions)),
+        temperature: 0,
+      }
+    : {
+        system: deps.importAnalysisSystemPrompt(deps.IMPORT_ANALYSIS_VERSION),
+        messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: design.preview } }] }],
+        maxTokens: OUTPUT_TOKENS,
+        structuredOutput: deps.IMPORT_ANALYSIS_OUTPUT,
+        temperature: 0,
+      };
+  // Every text byte the request carries (system, messages, the output schema); the picture is
+  // priced as image tokens instead of its base64.
+  const text = JSON.stringify(request, (k, v) => (k === 'data' && images ? '' : v));
+  const ceiling = attemptCeilingUsd(arm.model, { bytes: Buffer.byteLength(text, 'utf8'), outputTokens: OUTPUT_TOKENS, images });
+  return { request, maxUsd: CAP.attemptsPerRequest * ceiling, attempts: CAP.attemptsPerRequest, single: images > 0 };
 }
+
+/** May this sent attempt have been billed? Yes for an answer (even an unusable one), a timeout,
+ *  a server failure or no response; no for a refusal before inference (any other 4xx). */
+const maybeBilled = (status) => status === null || status === 408 || status >= 500 || (status >= 200 && status < 300);
 
 /**
  * Send one logical request; at most two attempts, serially. Reports the proposal (or a
@@ -570,38 +592,28 @@ export async function callArm(arm, design, config, plan, deps) {
     return { proposal, attempts: outcome.attempts, reportedUsd: outcome.costUsd, unknown: 0, ms, tokens: { input: outcome.inputTokens, output: outcome.outputTokens } };
   }
   const keys = Object.keys(design.set.questions);
-  const request = arm.kind === 'chat'
-    ? {
-        system: config.chatSystem,
-        messages: [{ role: 'user', content: JSON.stringify({ state: design.evidence, questions: design.set.questions }) }],
-        maxTokens: OUTPUT_TOKENS,
-        structuredOutput: chatSchema(keys),
-        temperature: 0,
-      }
-    : {
-        system: deps.importAnalysisSystemPrompt(deps.IMPORT_ANALYSIS_VERSION),
-        messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: design.preview } }] }],
-        maxTokens: OUTPUT_TOKENS,
-        structuredOutput: deps.IMPORT_ANALYSIS_OUTPUT,
-        temperature: 0,
-      };
-  let attempts = 0;
+  const worstAttempt = plan.maxUsd / CAP.attemptsPerRequest;
+  // Each sent attempt's HTTP status, or null when it never answered.
+  const sent = [];
   const counting = async (...args) => {
-    attempts += 1;
-    return deps.fetchImpl(...args);
+    const at = sent.push(null) - 1;
+    const response = await deps.fetchImpl(...args);
+    sent[at] = response.status;
+    return response;
   };
   try {
     const result = await deps.executeGatewayRequest(
-      { route: { provider: 'vercel', model: arm.model }, request },
+      { route: { provider: 'vercel', model: arm.model }, request: plan.request },
       { keyFor: async () => deps.key, fetchImpl: counting, sleep: async () => {} },
       { maxAttempts: Math.min(plan.attempts, CAP.attemptsPerRequest), retryLimit: 1, timeoutMs: 60_000, gateway: armGateway(arm.model) },
     );
     const ms = deps.now() - started;
     const usage = result.usage;
+    const attempts = sent.length;
     const priced = attemptCeilingUsd(arm.model, { bytes: usage.inputTokens - FRAMING_TOKENS, outputTokens: usage.outputTokens });
-    // A failed first attempt before a success may have been billed: charge it at its worst case.
-    const earlier = Math.max(0, attempts - 1) * (plan.maxUsd / CAP.attemptsPerRequest);
-    const reportedUsd = (usage.estimatedCost?.amount ?? priced ?? plan.maxUsd) + earlier;
+    // A failed earlier attempt that may have been billed is charged at its worst case.
+    const earlier = sent.slice(0, -1).filter(maybeBilled).length * worstAttempt;
+    const reportedUsd = (usage.estimatedCost?.amount ?? priced ?? worstAttempt) + earlier;
     if (arm.kind === 'chat') {
       const answers = {};
       for (const k of keys) {
@@ -614,15 +626,11 @@ export async function callArm(arm, design, config, plan, deps) {
     const mapped = mapRegionsToLayers(result.output, design.evidence);
     return { proposal: { families: mapped.families, fieldsOn: mapped.fieldsOn }, mapping: mapped.mapping, attempts, reportedUsd, unknown: 0, ms, tokens: { input: usage.inputTokens, output: usage.outputTokens } };
   } catch (error) {
-    // Unknown bill for every attempt sent: charged at its worst case, and flagged.
+    // Every sent attempt that may have been billed has an unknown bill: charged at its worst
+    // case, and flagged. A refusal before inference is charged nothing.
     const code = typeof error?.code === 'string' ? error.code : 'unavailable';
-    const refusedBeforeInference = typeof error?.status === 'number' && error.status >= 400 && error.status < 500 && error.status !== 408;
-    return fallback(code, {
-      attempts,
-      reportedUsd: refusedBeforeInference ? 0 : attempts * (plan.maxUsd / CAP.attemptsPerRequest),
-      unknown: refusedBeforeInference ? 0 : Math.min(1, attempts),
-      ms: deps.now() - started,
-    });
+    const billed = sent.filter(maybeBilled).length;
+    return fallback(code, { attempts: sent.length, reportedUsd: billed * worstAttempt, unknown: billed > 0 ? 1 : 0, ms: deps.now() - started });
   }
 }
 

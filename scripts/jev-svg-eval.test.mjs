@@ -315,8 +315,16 @@ test('M10: evidence passes the server policy; text only with the explicit choice
   assert.equal(Object.keys(big.questions).length, 32);
   assert.equal(server.decision.decisionQuestionsRefusal(big.questions), null);
   const yes = Object.fromEntries(Object.keys(big.questions).map((k) => [k, { type: 'boolean', probability: 0.9 }]));
-  const out = readSvgAnswers(big, yes, 0.5, ['t39', 'nope']);
-  assert.ok(out.fieldsOn.includes('t27') && out.fieldsOn.includes('t39') && !out.fieldsOn.includes('nope'));
+  // Asked layers follow the answers; any other layer (past the bound, or never in the evidence)
+  // keeps the deterministic decision.
+  const no = Object.fromEntries(Object.keys(big.questions).map((k) => [k, { type: 'boolean', probability: 0.1 }]));
+  const out = readSvgAnswers(big, yes, 0.5, ['t39', 't400']);
+  assert.ok(out.fieldsOn.includes('t27') && out.fieldsOn.includes('t39') && out.fieldsOn.includes('t400'));
+  assert.deepEqual(readSvgAnswers(big, no, 0.5, ['t0', 't39']).fieldsOn, ['t39']);
+  // Names are bounded in UTF-16 units, as the server counts them, without splitting a character.
+  const astral = buildSvgEvidence({ ...reading(1), layers: [{ id: 't0', kind: 'text', name: `${'a'.repeat(40)}${'\u{1F600}'.repeat(20)}`, box: [0, 0, 1, 1], sample: 'x', path: '0/0' }] }, { includeText: false });
+  assert.ok(astral.layers[0].name.length <= 64 && !/[\uD800-\uDBFF]$/.test(astral.layers[0].name));
+  assert.equal(server.profile.svgEvidenceRefusal(astral, { includeText: false }), null);
   // 300 layers at most, text first.
   const huge = buildSvgEvidence({ ...reading(10), layers: [...reading(10).layers, ...Array.from({ length: 400 }, (_, i) => ({ id: `s${i + 1}`, kind: 'shape', box: [0, 0, 1, 1], path: `0/9/${i}` }))] }, { includeText: false });
   assert.equal(huge.layers.length, 300);
@@ -591,6 +599,43 @@ test('workflow: manual, main only, one non-cancelling group, the protected envir
   assert.match(yml, /- uses: actions\/checkout@v5\n {8}with:\n {10}persist-credentials: false\n/);
   assert.doesNotMatch(yml, /ref: \$\{\{\s*inputs/);
   assert.match(yml, /retention-days: 90/);
+  // One receipt chain: the newest ledger run, or a first baseline only when none exists; a dry
+  // run's ledger is uploaded under another name.
+  const chain = yml.slice(yml.indexOf('- name: Fetch the previous ledger'), yml.indexOf('- name: Decode the sealed holdout'));
+  assert.match(chain, /if: inputs\.mode != 'dry-run'/);
+  assert.match(chain, /receipts_run_id must be the newest ledger's run/);
+  assert.match(chain, /the baseline is never reset/);
+  assert.match(yml, /inputs\.mode == 'dry-run' && 'jev-svg-eval-dry-run-ledger' \|\| 'jev-svg-eval-ledger'/);
+});
+
+test('M6: a chat refusal before inference is charged nothing; a server failure is charged and flagged unknown', async () => {
+  const arm = ARMS.find((a) => a.id === 'haiku');
+  const d = DESIGNS[0];
+  for (const [status, billed] of [[400, 0], [403, 0], [503, 2]]) {
+    const deps = harnessDeps(mockGateway(), null, { fetchImpl: async () => new Response('{}', { status }) });
+    const p = planRequest(arm, d, CONFIG, deps);
+    const out = await callArm(arm, d, CONFIG, p, deps);
+    assert.ok(out.fellBack, String(status));
+    assert.ok(Math.abs(out.reportedUsd - (billed * p.maxUsd) / 2) < 1e-12, String(status));
+    assert.equal(out.unknown, billed ? 1 : 0, String(status));
+  }
+});
+
+test('M6: an image request is priced from what it sends: the system prompt and output schema count', () => {
+  const arm = ARMS.find((a) => a.id === 'gemini-vision');
+  const short = planRequest(arm, DESIGNS[0], CONFIG, harnessDeps(mockGateway(), null));
+  const long = planRequest(arm, DESIGNS[0], CONFIG, harnessDeps(mockGateway(), null, { importAnalysisSystemPrompt: () => 'x'.repeat(10_000) }));
+  assert.ok(Math.abs(long.maxUsd - short.maxUsd - (2 * (10_000 - 'analyze'.length) * ROUTES[arm.model].input) / 1_000_000) < 1e-9);
+  assert.equal(short.single, true);
+});
+
+test('M7: after a reconciliation, a later receipt is the comparison point', () => {
+  let ledger = newLedger({ credits: START, runId: '1', mainSha: null, manifest });
+  ledger = reconcileLedger(ledger, START, { reason: 'checked before starting', runId: '2' });
+  const { ledger: l1, after } = appendClosed(ledger, START, plan(req(1, 0.6)), 0.5);
+  // A refund of $0.30: balance up, usage down, the sum unchanged.
+  const refund = credits(after.balance + 0.3, after.totalUsed - 0.3);
+  assert.equal(admitBatch(l1, refund, plan(req(1)), { manifest }).reason, 'balance-increase');
 });
 
 test('every admitted route is priced, and each attempt\'s ceiling is positive', () => {

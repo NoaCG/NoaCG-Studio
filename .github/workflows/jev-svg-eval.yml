@@ -101,20 +101,40 @@ jobs:
 
       - name: Resolve the configuration (data only)
         id: config
+        if: inputs.mode != 'reconcile'
         env:
           CONFIGURATION_REF: ${{ inputs.configuration_ref }}
         run: |
-          out="$(node scripts/jev-svg-eval.mjs fetch-config --ref "$CONFIGURATION_REF" --out "$RUNNER_TEMP/prompts.json")"
+          if ! out="$(node scripts/jev-svg-eval.mjs fetch-config --ref "$CONFIGURATION_REF" --out "$RUNNER_TEMP/prompts.json")"; then
+            echo "$out"
+            exit 1
+          fi
           echo "$out"
           commit="$(printf '%s' "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!j.ok)process.exit(1);process.stdout.write(j.commit)})')"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
 
+      # One receipt chain: a paid run continues the NEWEST ledger this workflow left, and only the
+      # very first paid run may establish a baseline. A stale run id would fork the chain and
+      # hide earlier batches from the partition, attempt and holdout-once checks.
       - name: Fetch the previous ledger
-        if: inputs.mode != 'dry-run' && inputs.receipts_run_id != ''
+        if: inputs.mode != 'dry-run'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ inputs.receipts_run_id }}
+          ESTABLISH: ${{ inputs.establish_baseline }}
         run: |
+          latest=""
+          for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?branch=main&event=workflow_dispatch&per_page=100" --jq '.workflow_runs[].id'); do
+            [ "$id" = "$GITHUB_RUN_ID" ] && continue
+            n="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "jev-svg-eval-ledger")] | length')"
+            if [ "$n" != "0" ]; then latest="$id"; break; fi
+          done
+          if [ "$ESTABLISH" = "true" ]; then
+            [ -z "$latest" ] && [ -z "$RUN_ID" ] || { echo "FAIL: a ledger exists (run $latest); the baseline is never reset"; exit 1; }
+            exit 0
+          fi
+          [ -n "$latest" ] || { echo "FAIL: missing-baseline: no ledger yet; the first paid run sets establish_baseline"; exit 1; }
+          [ "$RUN_ID" = "$latest" ] || { echo "FAIL: receipts_run_id must be the newest ledger's run, $latest"; exit 1; }
           [[ "$RUN_ID" =~ ^[0-9]{1,20}$ ]] || { echo "FAIL: receipts_run_id is not a run id"; exit 1; }
           run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID")"
           printf '%s' "$run" | node -e '
@@ -182,7 +202,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jev-svg-eval-ledger
+          # A dry run's mock ledger is kept apart, so it can never be taken for the chain.
+          name: ${{ inputs.mode == 'dry-run' && 'jev-svg-eval-dry-run-ledger' || 'jev-svg-eval-ledger' }}
           path: ${{ runner.temp }}/out/ledger.json
           retention-days: 90
           if-no-files-found: ignore

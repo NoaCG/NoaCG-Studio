@@ -67,12 +67,20 @@ export const EVIDENCE_LAYER_ID = /^[a-z][0-9]{1,4}$/;
 
 const UNPLAIN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu;
 
-/** One plain line within `max` characters, or undefined when nothing is left. */
+/** Whitespace runs collapsed, control and format characters made spaces. */
+const collapse = (value: string) => value.replace(UNPLAIN, ' ').replace(/\s+/g, ' ').trim();
+
+/** One plain line within `max` UTF-16 units (the server counts `.length`), never splitting a
+ *  character, or undefined when nothing is left. */
 function plainLine(value: string | null | undefined, max: number): string | undefined {
   if (typeof value !== 'string') return undefined;
-  const line = value.replace(UNPLAIN, ' ').replace(/\s+/g, ' ').trim();
-  if (!line) return undefined;
-  return [...line].slice(0, max).join('');
+  let out = '';
+  for (const ch of collapse(value)) {
+    if (out.length + ch.length > max) break;
+    out += ch;
+  }
+  out = out.trim();
+  return out || undefined;
 }
 
 const round = (v: number) => Math.round(v * 10) / 10;
@@ -105,7 +113,7 @@ export function buildSvgEvidence(
     const parent = parentOf.get(l.id);
     if (parent !== undefined && depth(l.id) <= SVG_EVIDENCE_LIMITS.depth) out.parent = parent;
     if (l.kind === 'text') {
-      const sample = l.sample ?? '';
+      const sample = collapse(l.sample ?? '');
       out.chars = [...sample].length;
       out.lines = Math.max(1, Math.trunc(l.lines ?? 1));
       const text = consent.includeText === true ? plainLine(sample, SVG_EVIDENCE_LIMITS.textChars) : undefined;
@@ -177,8 +185,12 @@ export function readSvgLayers(root: SVGSVGElement, attr = 'data-noacg-candidate'
     const reading: SvgLayerReading = { id, kind, name: el.getAttribute('data-name') ?? el.getAttribute('id'), parent, box, path: pathOf(el) };
     if (kind === 'text') {
       reading.sample = el.textContent ?? '';
-      const rows = new Set([...el.querySelectorAll('tspan')].map((t) => t.getAttribute('y') ?? t.getAttribute('dy')).filter(Boolean));
-      reading.lines = Math.max(1, rows.size);
+      // A line per distinct absolute `y`, plus one per non-zero relative `dy` (a run of `dy`
+      // lines repeats the same value), plus the first line when only `dy` moves it.
+      const spans = [...el.querySelectorAll('tspan')];
+      const ys = new Set(spans.map((t) => t.getAttribute('y')).filter(Boolean));
+      const dys = spans.filter((t) => !t.getAttribute('y') && /[1-9]/.test(t.getAttribute('dy') ?? '')).length;
+      reading.lines = Math.max(1, ys.size + dys + (ys.size === 0 && dys > 0 ? 1 : 0));
     }
     return reading;
   });
