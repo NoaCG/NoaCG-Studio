@@ -100,28 +100,61 @@ function publish(port) {
   return { code: r.status, err: r.stderr.trim().split('\n').pop() };
 }
 
+const RANGE = '/proc/sys/net/ipv4/ip_local_port_range';
+const RESERVED = '/proc/sys/net/ipv4/ip_local_reserved_ports';
+function sysctl(path, value) {
+  const r = spawnSync('sudo', ['-n', 'tee', path], { input: `${value}\n`, encoding: 'utf8', windowsHide: true });
+  if (r.status !== 0) throw new Error(`sudo tee ${path}: ${r.stderr}`);
+}
+
+/** A connection whose source port the KERNEL picks (no bind, no SO_REUSEADDR), as every pull connection's is. */
+async function autobound(server) {
+  const c = net.connect({ port: server.address().port, host: '127.0.0.1' });
+  await new Promise((r, j) => { c.once('connect', r); c.once('error', j); });
+  return c;
+}
+
 async function collide() {
   const port = 54322; // the port every recorded failure names
   check(spawnSync('docker', ['pull', '-q', 'busybox:1.36'], { stdio: 'inherit', windowsHide: true }).status === 0, 'busybox pulled');
-  const range = readFileSync('/proc/sys/net/ipv4/ip_local_port_range', 'utf8').trim().split(/\s+/).map(Number);
-  check(port >= range[0] && port <= range[1], `${port} is inside the kernel's ephemeral range ${range.join('-')}: any outbound connection may be given it`);
+  const range = readFileSync(RANGE, 'utf8').trim();
+  const [lo, hi] = range.split(/\s+/).map(Number);
+  check(port >= lo && port <= hi, `${port} is inside the kernel's ephemeral range ${lo}-${hi}: the kernel may give it to any outbound connection`);
   check(publish(port).code === 0, `with nothing on ${port}, Docker publishes it`);
-  // A connection whose source port is 54322, as an autobound pull connection would have.
   const server = net.createServer((c) => c.on('error', () => {})).listen(0, '127.0.0.1');
   await new Promise((r) => server.once('listening', r));
-  const client = net.connect({ port: server.address().port, host: '127.0.0.1', localPort: port });
-  await new Promise((r, j) => { client.once('connect', r); client.once('error', j); });
+  let client;
+  try {
+    sysctl(RANGE, `${port} ${port}`); // so the kernel's one choice is 54322
+    client = await autobound(server);
+  } finally {
+    sysctl(RANGE, range);
+  }
+  check(client.localPort === port, `an ordinary outbound connection was given source port ${client.localPort} by the kernel`);
   const open = publish(port);
   console.log(`docker, connection open: ${open.err}`);
-  check(open.code !== 0 && /address already in use/.test(open.err), 'with an open connection from that port, Docker fails exactly as the CI runs did');
+  check(open.code !== 0 && /failed to bind host port 0\.0\.0\.0:54322\/tcp: address already in use/.test(open.err), 'and Docker then fails exactly as the CI runs did');
   client.end();
   await new Promise((r) => client.once('close', r));
   const tw = spawnSync('ss', ['-Htan', `sport = :${port}`], { encoding: 'utf8', windowsHide: true }).stdout.trim();
   console.log(`after the client closed first: ${tw || '(no socket)'}`);
   const after = publish(port);
-  console.log(`docker, connection closed, socket in TIME_WAIT: ${after.code === 0 ? 'published' : after.err}`);
   // Reported, not asserted: whether a TIME_WAIT socket blocks Docker's bind is what this measures.
-  console.log(`measured: a TIME_WAIT socket on ${port} ${after.code === 0 ? 'does not block' : 'blocks'} Docker's bind`);
+  console.log(`measured: a TIME_WAIT socket on ${port} ${after.code === 0 ? 'does not block' : 'blocks'} Docker's bind${after.code === 0 ? '' : ` (${after.err})`}`);
+  // The fix: reserved, the port is never the kernel's choice, even when it is the only other one.
+  const reserved = readFileSync(RESERVED, 'utf8').trim();
+  let other;
+  try {
+    sysctl(RESERVED, [reserved, `${port}`].filter(Boolean).join(','));
+    sysctl(RANGE, `${port - 10} ${port}`);
+    other = await Promise.all(Array.from({ length: 8 }, () => autobound(server)));
+  } finally {
+    sysctl(RANGE, range);
+    sysctl(RESERVED, reserved);
+  }
+  const ports = other.map((c) => c.localPort);
+  check(!ports.includes(port), `reserved, ${port} is never given out: eight connections from ${port - 10}-${port} took ${ports.join(', ')}`);
+  for (const c of other) c.destroy();
   server.close();
 }
 
