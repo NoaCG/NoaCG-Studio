@@ -32,7 +32,14 @@ const arg = (name, dflt) => {
   const i = process.argv.indexOf(name);
   return i > 0 ? process.argv[i + 1] : dflt;
 };
-const SINCE = arg('--since');
+// Normalised to the API's own form (UTC, whole seconds), since it is compared as a string.
+const SINCE_RAW = arg('--since');
+const SINCE = SINCE_RAW && !Number.isNaN(Date.parse(SINCE_RAW)) ? new Date(Date.parse(SINCE_RAW)).toISOString().replace(/\.\d{3}Z$/, 'Z') : null;
+// --final: judge whatever n the window holds (the 14-day deadline), and say when it is short.
+const FINAL = process.argv.includes('--final');
+// The verdict waits this long after enabling as well as for MIN_N changes, so long-lived changes,
+// the ones with many pushes, have had time to merge into the sample.
+const MIN_DAYS = 7;
 const CACHE = arg('--cache');
 const MAX_CALLS = Number(arg('--max-calls', 100));
 const CEILING = 22.5;
@@ -43,7 +50,7 @@ const MIN_N = 12;
 const PROMOTED_TABLE_MINUTES = 0.319;
 const TEST_FACTOR = 1.02;
 if (!SINCE || !CACHE) {
-  console.error('usage: --since <ISO time> --cache <dir> [--max-calls 100]');
+  console.error('usage: --since <ISO time> --cache <dir> [--max-calls 100] [--final]');
   process.exit(2);
 }
 mkdirSync(CACHE, { recursive: true });
@@ -118,11 +125,11 @@ function runAdded(run) {
   }
   if (!note) return null;
   // "All already planned": a shared-change or full plan. The two journeys cf12 promoted are in the
-  // shared-change set because of cf12, so such a run is charged their table-minutes times the
-  // table's test factor anyway (an over-count when the change's own headers selected them, which
-  // keeps the judgement strict).
-  if (!note[1]) return { id: run.id, event: run.event, added: 0, promoted: true, minutes: Number((PROMOTED_TABLE_MINUTES * TEST_FACTOR).toFixed(2)) };
-  const [, , addedMin, planMin, without, shards] = note.map(Number);
+  // shared-change set because of cf12, so each attempt that ran shards is charged their
+  // table-minutes times the table's test factor (an over-count when the change's own headers
+  // selected them, which keeps the judgement strict).
+  const promoted = !note[1];
+  const [, , addedMin, planMin, without, shards] = promoted ? [] : note.map(Number);
   const share = planMin > 0 ? addedMin / planMin : 0;
   const ran = (j) => j.started_at && j.completed_at;
   let total = 0;
@@ -135,6 +142,10 @@ function runAdded(run) {
       const test = step ? minutes(step.started_at, step.completed_at) : 0;
       return { test, setup: job - test };
     });
+    if (promoted) {
+      if (parts.length) total += PROMOTED_TABLE_MINUTES * TEST_FACTOR;
+      continue;
+    }
     // The extra shards' setup, in proportion to the shards this attempt really ran.
     const setup = parts.length && shards > 0 ? Math.max(0, shards - without) * median(parts.map((p) => p.setup)) * (parts.length / shards) : 0;
     const test = parts.reduce((sum, p) => sum + p.test, 0) * share;
@@ -142,10 +153,10 @@ function runAdded(run) {
     const rep = without === 0 && report ? minutes(report.started_at, report.completed_at) : 0;
     total += test + setup + rep;
   }
-  return { id: run.id, event: run.event, added: Number(note[1]), shards, without, attempts: attempts.length, minutes: Number(total.toFixed(2)) };
+  return { id: run.id, event: run.event, added: promoted ? 0 : Number(note[1]), promoted, shards, without, attempts: attempts.length, minutes: Number(total.toFixed(2)) };
 }
 
-const result = { since: SINCE, ceiling: CEILING, complete: false, calls: 0, changes: [] };
+const result = { since: SINCE, ceiling: CEILING, complete: false, calls: 0, changes: [], straddling: [] };
 try {
   // Every read that lists history must prove it reached the end, or the pass is incomplete: a list
   // that stops early drops the OLDEST entries (newest first), the first changes after enabling.
@@ -217,6 +228,12 @@ try {
       if (added) runs.push(added);
     }
     if (!runs.length) continue;
+    // A change opened before enabling had pushes the rule never touched; charging only its later
+    // runs would bias the mean low, so it is reported apart and left out of the verdict.
+    if (pr.created_at <= SINCE) {
+      result.straddling.push({ number: pr.number, created_at: pr.created_at, merged_at: pr.merged_at, runs: runs.length });
+      continue;
+    }
     result.changes.push({ number: pr.number, merged_at: pr.merged_at, runs, minutes: Number(runs.reduce((s, r) => s + r.minutes, 0).toFixed(2)) });
   }
   result.pending = pending;
@@ -235,9 +252,13 @@ result.minN = MIN_N;
 // Whether the plan job's notice was seen at all: n 0 with no notice is a broken pipe, not a cheap rule.
 result.noticeRuns = result.changes.reduce((s, c) => s + c.runs.length, 0);
 // No verdict from a partial pass: the budget can stop before the newest changes are read.
-result.underCeiling = !result.complete || per.length < MIN_N ? null : result.mean <= CEILING;
+const days = (Date.now() - Date.parse(SINCE)) / 86_400_000;
+const ready = FINAL || (per.length >= MIN_N && days >= MIN_DAYS);
+result.underCeiling = !result.complete || !ready || !per.length ? null : result.mean <= CEILING;
 if (!result.complete) result.verdict = `not yet: collection incomplete (${per.length} changes so far); run again`;
-else if (per.length < MIN_N) result.verdict = `not yet: ${per.length} of ${MIN_N} product changes measured`;
+else if (!ready) result.verdict = `not yet: ${per.length} of ${MIN_N} product changes, ${days.toFixed(1)} of ${MIN_DAYS} days`;
+else if (!per.length) result.verdict = 'no product change measured: check noticeRuns and the plan job';
+else if (per.length < MIN_N) result.verdict = `${result.underCeiling ? 'under' : 'OVER'} the ${CEILING}-minute ceiling on a SHORT sample (${per.length} of ${MIN_N})${result.underCeiling ? '' : ': revert the rule and tell the owner'}`;
 else result.verdict = result.underCeiling ? `under the ${CEILING}-minute ceiling` : `OVER the ${CEILING}-minute ceiling: revert the rule and tell the owner`;
 console.log(JSON.stringify(result, null, 1));
 console.error(result.complete ? 'complete' : `stopped at ${calls} calls; run again to continue`);

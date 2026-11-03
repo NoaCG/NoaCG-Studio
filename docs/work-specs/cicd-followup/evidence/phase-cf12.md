@@ -35,7 +35,8 @@ Acceptance, verbatim:
   enough that the measurement decides.
 - **Measured after enabling:** not yet possible. The rule has to land before a product change can
   run it. `phase-cf12-measure.mjs` measures it from each run's own annotation and job times
-  (section 3.3). The verdict waits for at least 12 product changes, and is read no later than
+  (section 3.3). The verdict waits for at least 12 product changes opened after enabling and 7
+  days, and is read (with `--final`) no later than
   14 days after enabling (2026-11-17 at the latest if it lands today), by the plan-run coordinator. This phase's result states n and the mean. If the mean goes over 22.5, the rule
   is reverted (one commit) and the owner is told, as (a) requires.
 - **(b) The 2-of-6 result** (section 4): the critical set is a smoke layer over each contract's
@@ -199,15 +200,21 @@ specs on merge groups, which is a flake cost (M4), not this rule's per-change co
 - **Sample size.** The verdict waits for at least **12 product changes** measured after enabling.
   That is cf03's minimum sample per side for an M3 median (section 5.1). Below 12 the script prints
   `not yet` and judges nothing.
-- **When.** The measurement is read once 12 changes exist, and no later than 14 days after the
-  enabling merge (**2026-11-17** if it lands on 2026-11-03; the 14 days govern if landing slips). If fewer than 12 product changes have landed by that date, the result
-  records the n reached and its mean. It is judged on that mean and says plainly that the sample
-  is short.
+- **Which changes.** A change counts only if it was opened after the enabling merge. A change that
+  was opened before it and merged after it had pushes the rule never touched. Charging only its
+  later runs would bias the mean low, and those long-lived changes are the high-cost tail, so they
+  are listed apart under `straddling` and left out of the verdict.
+- **When.** The script gives a verdict only once both of these hold: 12 changes are measured, and
+  **7 days** have passed since enabling. The 7 days let long-lived changes merge into the sample,
+  so it is not front-loaded with quick ones. The latest read is 14 days after the enabling merge
+  (**2026-11-17** if it lands on 2026-11-03; the 14 days govern if landing slips). At that read
+  the coordinator runs the script with `--final`. That judges whatever n exists, and the verdict
+  says `SHORT sample` when n is under 12.
 - **Who.** The cicd-followup plan-run coordinator runs it. It is a checker step of this phase, and
   cf20 reads the same script again. The human owner (`miwco`) is told the result in the phase
   result.
 - **Shared-change runs.** A run whose notice says every journey was already planned is charged the
-  two promoted journeys (0.319 table-minutes x 1.02). The promotion is why they run there, and
+  two promoted journeys (0.319 table-minutes x 1.02) for each attempt that ran shards. The promotion is why they run there, and
   charging every such run over-counts, which keeps the judgement strict.
 - **Durable reminder.** The read date goes in this phase's receipt to the coordinator, which keeps
   the run ledger (#1967). #1895 stays open until the measurement is recorded.
