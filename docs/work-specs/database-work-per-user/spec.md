@@ -52,7 +52,8 @@ the 190 MB database fits in memory, so nothing is on fire. This adds headroom fo
 
 A list for a kind reads the new column only. Measured on production with read-only queries against
 `extensions.pg_stat_statements` and one `EXPLAIN (ANALYZE, BUFFERS)` of the list's shape: blocks per
-call before against after. Before, for all 1022 graphics together: 10387 blocks, 277 ms.
+call before against after. For all 1022 graphics together: 10387 blocks and 277 ms before, 115
+blocks and 0.7 ms after (the same query shape, 2026-11-03, once 0107 was applied).
 
 ### AC-2: The column stays equal to the body through every write
 
