@@ -46,13 +46,12 @@
  "waitingOn": null,
  "inFlight": [
   {
-   "phase": "cf03",
-   "step": "check",
-   "session": "session_017SdbwPT9oG1NHMzvEeQZSG",
-   "nonce": "cf03-c-52ce",
-   "launchedAt": "2026-11-03T17:07:30Z",
-   "mergeSha": "d48b4725e8644d6bfee13685e90c7a117a3bc3cd",
-   "pr": 2031
+   "phase": "cf12",
+   "step": "build",
+   "session": "session_017SdbwN8SdEL7odXT23cwD9",
+   "nonce": "cf12-b-17a3",
+   "launchedAt": "2026-11-03T17:31:11Z",
+   "ceiling": "22.5 runner-minutes per product change"
   }
  ],
  "owner": [],
@@ -139,6 +138,11 @@
    "phase": "cf06",
    "verdict": "PASS",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2016#issuecomment-6604988512"
+  },
+  {
+   "phase": "cf03",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2031#issuecomment-6610940099"
   }
  ],
  "decisions": [
