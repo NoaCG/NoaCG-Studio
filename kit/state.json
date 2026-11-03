@@ -239,6 +239,10 @@
       "phase": 28,
       "at": "2026-11-03T01:20Z",
       "note": "Declined A- point 1/2 as a safe limit: configured dispatch must be proven against the reimported graphic. Asked for test-only assertions and a fresh /so."
+    },
+    {
+      "at": "2026-11-03T02:41Z",
+      "note": "cicd cf08 asked JEV to own #1954 and #1926: declined (no row allowlist covers import-svg.spec.ts growth limit or catalog-bench/svg01). Told cf08 our open and planned files."
     }
   ],
   "ownerOpen": [
