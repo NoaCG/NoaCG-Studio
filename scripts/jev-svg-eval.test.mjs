@@ -48,6 +48,8 @@ import {
   openHoldout,
   planRequest,
   reconcileLedger,
+  refusalOf,
+  regressionRow,
   runArms,
   scoreDesign,
   settledCredits,
@@ -382,6 +384,7 @@ function harnessDeps(gateway, ledger, extra = {}) {
     decisionRequestBytes: server.decision.decisionRequestBytes,
     executeDecisionRequest: server.decision.executeDecisionRequest,
     executeGatewayRequest: server.gateway.executeGatewayRequest,
+    GatewayError: server.gateway.GatewayError,
     readSvgAnswers,
     importAnalysisSystemPrompt: () => 'analyze',
     IMPORT_ANALYSIS_VERSION: 'v1',
@@ -447,6 +450,65 @@ test('M11: two attempts per request at most, whatever the plan says; a transient
   assert.equal(out.fellBack, 'unavailable');
   assert.deepEqual(out.proposal, d.deterministic);
   assert.ok(out.reportedUsd > 0 && out.reportedUsd <= p.maxUsd + 1e-12);
+});
+
+test('#2017: a refused attempt records its HTTP status and the gateway error type and code, never its text, on the row and the ledger', async () => {
+  const gateway = mockGateway();
+  const SECRET_TEXT = 'Gemini said no for key sk-live-should-never-be-kept';
+  const refuse = (status, error) => new Response(JSON.stringify({ error: { message: SECRET_TEXT, ...error } }), { status });
+  const fetchImpl = async (url, init) => {
+    const body = JSON.parse(init.body);
+    if (body.model === 'google/gemini-2.5-flash-lite') return refuse(404, { type: 'model_not_found', code: 'not_found' });
+    if (body.model === PRIMARY.model) return refuse(400, { type: 'invalid_request_error', code: 'has spaces, so not a token' });
+    if (body.model === 'anthropic/claude-haiku-5.5') return new Response('<html>not json</html>', { status: 403 });
+    // A long provider message must not cost the type and code.
+    if (body.model === 'openai/gpt-6-luna') return new Response(JSON.stringify({ error: { message: 'x'.repeat(20_000), type: 'invalid_request_error', code: 'context_length_exceeded' } }), { status: 400 });
+    return gateway.fetchImpl(url, init);
+  };
+  const ledger = { current: newLedger({ credits: await gateway.readCredits(), runId: 't', mainSha: null, manifest }) };
+  const { rows, stopped } = await runArms({ arms: ARMS, designs: DESIGNS, config: CONFIG, partition: 'development', ledger, deps: harnessDeps(gateway, ledger, { fetchImpl }) });
+  assert.equal(stopped, null);
+  const of = (arm) => rows.filter((r) => r.arm === arm);
+  for (const r of of('gemini-vision')) {
+    assert.equal(r.fellBack, 'provider_rejected');
+    assert.deepEqual(r.refusals, [{ attempt: 1, status: 404, type: 'model_not_found', code: 'not_found' }]);
+    assert.equal(r.classified, 'The AI provider does not know that model id.');
+  }
+  // A code that is not a short token is dropped; a body that is not JSON keeps the status alone.
+  for (const r of of(PRIMARY.id)) assert.deepEqual(r.refusals, [{ attempt: 1, status: 400, type: 'invalid_request_error', code: null }]);
+  for (const r of of('haiku')) {
+    assert.deepEqual(r.refusals, [{ attempt: 1, status: 403, type: null, code: null }]);
+    assert.equal(r.classified, 'The AI provider rejected its server-side credential.');
+  }
+  for (const r of of('luna')) assert.deepEqual(r.refusals, [{ attempt: 1, status: 400, type: 'invalid_request_error', code: 'context_length_exceeded' }]);
+  // A served arm carries no refusals.
+  assert.ok(of('elephant').every((r) => r.refusals === undefined && !r.fellBack));
+  // The ledger names the refused request and what the gateway said.
+  const vision = ledger.current.batches.filter((b) => b.arm === 'gemini-vision');
+  assert.equal(vision.length, DESIGNS.length);
+  for (const [i, b] of vision.entries()) assert.deepEqual(b.refusals, [{ request: `gemini-vision/${DESIGNS[i].id}`, attempt: 1, status: 404, type: 'model_not_found', code: 'not_found' }]);
+  assert.ok(ledger.current.batches.filter((b) => b.arm === 'elephant').every((b) => b.refusals === undefined));
+  for (const [arm, refusal] of [[PRIMARY.id, { status: 400, type: 'invalid_request_error', code: null }], ['haiku', { status: 403, type: null, code: null }]]) {
+    const listed = ledger.current.batches.filter((b) => b.arm === arm).flatMap((b) => b.refusals);
+    assert.deepEqual(listed, DESIGNS.map((d) => ({ request: `${arm}/${d.id}`, attempt: 1, ...refusal })));
+  }
+  // Never the message text, anywhere.
+  assert.doesNotMatch(JSON.stringify({ rows, ledger: ledger.current }), /sk-live|Gemini said/);
+});
+
+test('#2017: only short tokens survive from an error body; a body past 1 MB is not parsed; the regression slice keeps the cause', async () => {
+  const body = (error) => Promise.resolve(JSON.stringify({ error }));
+  assert.deepEqual(await refusalOf(400, body({ type: 'not a token: provider text', code: 'bad_request' })), { status: 400, type: null, code: 'bad_request' });
+  assert.deepEqual(await refusalOf(429, body({ type: 'rate_limit', code: 429 })), { status: 429, type: 'rate_limit', code: '429' });
+  // A top-level { type, code } (no error object) is read the same way.
+  assert.deepEqual(await refusalOf(404, Promise.resolve(JSON.stringify({ type: 'model_not_found', code: 'x'.repeat(65) }))), { status: 404, type: 'model_not_found', code: null });
+  assert.deepEqual(await refusalOf(400, body({ type: 'invalid_request_error', message: 'x'.repeat(1_000_001) })), { status: 400, type: null, code: null });
+  assert.deepEqual(await refusalOf(502, Promise.reject(new Error('stream lost'))), { status: 502, type: null, code: null });
+
+  const refusals = [{ attempt: 1, status: 404, type: 'model_not_found', code: null }];
+  const row = regressionRow({ arm: PRIMARY.id, design: 'r1', proposal: { fieldsOn: ['a'] }, fellBack: 'provider_rejected', refusals, classified: 'The AI provider does not know that model id.' }, { expect: { textFields: 2 } });
+  assert.deepEqual(row, { arm: PRIMARY.id, design: 'r1', fieldsOn: 1, expectedTextFields: 2, fellBack: 'provider_rejected', refusals, classified: 'The AI provider does not know that model id.' });
+  assert.deepEqual(regressionRow({ arm: 'deterministic', design: 'r1', proposal: { fieldsOn: [] } }, {}), { arm: 'deterministic', design: 'r1', fieldsOn: 0, expectedTextFields: null, fellBack: null });
 });
 
 test('M11: a missing receipt or new money stops the run before any further provider call', async () => {
