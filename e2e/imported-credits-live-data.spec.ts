@@ -373,8 +373,9 @@ test('a still page shows an update on air at once, where the drawing put it', as
 // Row 39 (AC-13, AC-14): the walks above are role above. The same update policy holds for
 // role beside, in each playback, so all six layout and playback pairs follow a linked list:
 // roll and cards keep what they took and air the newer list on the next Take; a still page
-// shows it at once. Each row keeps its drawn column and look (credits-2: roles at x 90, 26 px;
-// names at x 440, 32 px; a role on its first name's line).
+// shows it at once. Every row keeps its drawn column and look, on the list taken and on the
+// newer one (credits-2: roles at x 90, 26 px; names at x 440, 32 px; a role on its first
+// name's line).
 const BESIDE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-2.svg', import.meta.url));
 for (const playback of ['static', 'roll', 'cards'] as const) {
   test(`role beside, ${playback}: a linked update follows the playback's rule, in the drawn columns`, async ({ page }) => {
@@ -389,24 +390,42 @@ for (const playback of ['static', 'roll', 'cards'] as const) {
       ? ['Research:\nNia Vale\n\nSound:\nAri Moss', 'Camera:\nJonas Berg\n\nDirector:\nAlex Rivera', ['Research', 'Nia Vale'], ['Camera', 'Jonas Berg']]
       : [LIST, OTHER, ['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'], ['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']];
     const waiting = () => page.evaluate(() => (window as unknown as { noacgCreditsWaiting?: boolean }).noacgCreditsWaiting ?? false);
+    // Every row in its drawn column and look: all roles share one left edge, all names another
+    // to its right (within a glyph's side bearing), and each role sits on the line of the name
+    // that follows it. Read in one frame, so a moving roll is read at one instant.
+    const expectDrawnColumns = async () => {
+      const rows = await page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { kind: el.getAttribute('data-noacg-credits'), left: Math.round(r.left), top: Math.round(r.top), size: getComputedStyle(el).fontSize };
+      }));
+      const said = JSON.stringify(rows);
+      const roles = rows.filter((r) => r.kind === 'role');
+      const names = rows.filter((r) => r.kind === 'name');
+      expect(roles.length + names.length, said).toBe(rows.length);
+      expect(roles.length, said).toBeGreaterThan(0);
+      for (const [column, size] of [[roles, '26px'], [names, '32px']] as const) {
+        for (const r of column) {
+          expect(Math.abs(r.left - column[0].left), `one column: ${said}`).toBeLessThanOrEqual(4);
+          expect(r.size, said).toBe(size);
+        }
+      }
+      expect(Math.max(...roles.map((r) => r.left)), `roles left of names: ${said}`).toBeLessThan(Math.min(...names.map((r) => r.left)));
+      rows.forEach((r, i) => {
+        if (r.kind !== 'role') return;
+        expect(rows[i + 1]?.kind, `a name follows each role: ${said}`).toBe('name');
+        expect(Math.abs(r.top - rows[i + 1].top), `a role on its first name's line: ${said}`).toBeLessThan(12);
+      });
+    };
     await call(page, { [field]: taken }, 'play');
     await expect.poll(() => rowTexts(page)).toEqual(takenRows);
 
-    // Drawn columns and looks: a role beside its first name, on one line.
-    const rows = await page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => {
-      const r = el.getBoundingClientRect();
-      return { kind: el.getAttribute('data-noacg-credits'), left: Math.round(r.left), top: Math.round(r.top), size: getComputedStyle(el).fontSize };
-    }));
-    const [role, name] = rows;
-    expect([role.kind, name.kind]).toEqual(['role', 'name']);
-    expect(role.left, 'roles in the left column').toBeLessThan(name.left);
-    expect(Math.abs(role.top - name.top), JSON.stringify(rows)).toBeLessThan(12);
-    expect([role.size, name.size]).toEqual(['26px', '32px']);
+    await expectDrawnColumns();
 
     // An update on air.
     await call(page, { [field]: newer });
     if (playback === 'static') {
       expect(await rowTexts(page), 'a still page shows it at once').toEqual(newerRows);
+      await expectDrawnColumns();
       return;
     }
     expect(await rowTexts(page), `${playback} keeps the list it took`).toEqual(takenRows);
@@ -415,6 +434,7 @@ for (const playback of ['static', 'roll', 'cards'] as const) {
     await call(page, null, 'play');
     await expect.poll(() => rowTexts(page)).toEqual(newerRows);
     expect(await waiting()).toBe(false);
+    await expectDrawnColumns();
   });
 }
 

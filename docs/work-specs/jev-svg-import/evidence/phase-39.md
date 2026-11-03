@@ -73,11 +73,14 @@ asserts that limit later). None is claimed here.
 
 The live-data walks covered role above only, so this row adds one walk per playback for role
 beside (`credits-2`): an update on air follows the playback's rule (roll and cards keep the list
-they took and air the newer one on the next Take; a still page shows it at once), and each row
-stays in its drawn column and look (roles left at 26 px, names right at 32 px, a role on its first
-name's line). Mutation: making every update follow the holder on air (`creditsListWaits` returning
-false, reverted) fails the roll and cards walks at "the newer list waits" (j-0002); the still walk
-passes, as it should.
+they took and air the newer one on the next Take; a still page shows it at once), and every row
+stays in its drawn column and look, on the list taken and on the newer one (all roles on one left
+edge at 26 px, all names on another to their right at 32 px, each role on its first name's line).
+Mutations, each temporary and reverted: making every update follow the holder on air
+(`creditsListWaits` returning false) fails the roll and cards walks at "the newer list waits"
+(j-0002), and the still walk passes, as it should; painting names after the second row in the role
+column fails the roll and still walks at "one column" (j-0006). Cards show one role and its name
+per card, which the first check already covers.
 
 ### Held-out regressions (exposed holdout: regression evidence, not a fresh blind benchmark)
 
@@ -114,8 +117,8 @@ raised and no assertion weakened.
 
 ## Verification on this branch
 
-- `e2e/imported-credits-live-data.spec.ts -g 'role beside'`: 3 of 3 (j-0001); with the mutation,
-  2 fail as intended (j-0002).
+- `e2e/imported-credits-live-data.spec.ts -g 'role beside'`: 3 of 3 (j-0001, and j-0005 after the
+  review round); with each mutation, 2 fail as intended (j-0002, j-0006).
 - `e2e/jev-svg-preparation.spec.ts` and `e2e/imported-credits-live-data.spec.ts`: 24 of 24
   (j-0003, 1.8 min): 14 and 10.
 - `e2e/import-svg-credits.spec.ts` (quarantined, so run here as well): 21 of 21 (j-0004, 1.8 min).
@@ -138,6 +141,22 @@ raised and no assertion weakened.
   the blank-page build the existing walks use.
 - **No new configured spec.** The backend tier is over its line (141%); everything here runs
   offline.
+
+## Review rounds
+
+- PR review bot on `34d4994b` (PR opened): completed, no findings.
+- CI on `34d4994b`: PR run 41718352681, CI gate success, E2E subset 1 spec
+  (`imported-credits-live-data.spec.ts`), configured **untriggered**. Full dispatch 41718365231
+  (`ci.yml`, empty `diff_base`): CI gate success, E2E full (15 shards), configured mode `all`, 69
+  specs, verdict success.
+- `/so` on `34d4994b` (`session_017SdbwQE4Wm7K5kLR1tsRDf`, separate read-only cloud session):
+  AGREE, grade A-. Point 1 (the head runs were still running) is answered by the runs above.
+  Points 2 and 3, class faulty test expectation (too weak), family incomplete layout check: the
+  column check read only the first role and name and only on the list taken. Fixed: every row, on
+  both lists, mutation-tested. Points 4 and 5 are carried to row 40 as stated limits: AC-13's
+  rendering proof is the quarantine run's, "proven, not gated" until `import-svg-credits.spec.ts`
+  is released; the held-out numbers describe the landing by unchanged inputs, not by re-scoring.
+  Point 7 is the #1647 local limit above.
 
 ## Traps
 
