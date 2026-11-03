@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "fix #2017, then row 33 accept_manifest, vision run, dry run, freeze",
+  "waitingOn": "PR #2018 (fix #2017) in merge queue",
   "inFlight": [
     {
       "phase": 33,
@@ -141,7 +141,16 @@
       "source": "531f856e13379ccffe8edc2df381cf6c2503f393",
       "launchedAt": "2026-11-03T11:04Z",
       "landBefore": "33 freeze",
-      "reason": "AC-7 relevant-vision comparison has no data; harness records no refusal cause"
+      "reason": "AC-7 relevant-vision comparison has no data; harness records no refusal cause",
+      "pr": 2018,
+      "head": "49d2b57cab1d507b4c4554b26b34e2cc1e9ea6e2",
+      "stampRun": 41629381055,
+      "ciRun": 41628227210,
+      "so": "session_017SdbwN86HeVC5E8cu6jyuk A",
+      "soOther": [
+        "session_017SdbwN8h1j8hEUJWVvAptE"
+      ],
+      "state": "queued"
     }
   ],
   "triggers": {
