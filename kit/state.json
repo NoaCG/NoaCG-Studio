@@ -58,6 +58,16 @@
           "receipts": 41619730746,
           "pricedMax": 0.006,
           "at": "2026-11-03T10:32Z",
+          "paid": true,
+          "settled": 0.002349768
+        },
+        {
+          "run": 41620813617,
+          "mode": "development",
+          "config": "6f97fcfd11b8bc6a983778e07001f44c52ab29c3",
+          "receipts": 41620061986,
+          "pricedMax": 0.0068,
+          "at": "2026-11-03T10:38Z",
           "paid": true
         }
       ],
@@ -66,7 +76,8 @@
         "balance": 6.936136654,
         "lifetime": 48.063863346,
         "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
-      }
+      },
+      "spent": 0.002349768
     }
   ],
   "owner": [],
