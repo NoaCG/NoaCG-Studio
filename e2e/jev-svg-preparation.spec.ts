@@ -796,6 +796,9 @@ test('row 38: unfamiliar artwork is imported, corrected once, taken, updated, ta
   await expect(page.getByTestId('action-log')).toContainText('Took');
   await expect(air.locator('#f1')).toHaveText('Wrzos FC');
   await expect(air.locator('#f2')).toHaveText('Mech');
+  // The renderer's own count of entrances it played: one, for the Take.
+  const program = page.getByTestId('program-stage');
+  await expect(program).toHaveAttribute('data-plays', '1');
   // VISUAL FIDELITY: every drawn plate keeps the source's fill, in the source's order.
   expect(await airPaint(page)).toEqual([JOURNEY_PAINT.backdrop, JOURNEY_PAINT.dial, JOURNEY_PAINT.left, JOURNEY_PAINT.right]);
   await info.attach('row-38-on-air', { body: await page.getByTestId('program-stage').screenshot(), contentType: 'image/png' });
@@ -815,9 +818,12 @@ test('row 38: unfamiliar artwork is imported, corrected once, taken, updated, ta
   await expect(page.getByTestId('cue-field-f3')).toHaveValue('1');
   await expect(air.locator('#f3')).toHaveText('1');
   await expect(log.filter({ hasText: 'Played in' })).toHaveCount(1);
+  // A replayed entrance settles on the same picture, so it is counted, not looked at.
+  await expect(program).toHaveAttribute('data-plays', '1');
   // The corrected ambiguity works: Start counts up from the drawn 00:00.
   await page.getByTestId('cue-action-clock_start').click();
   await expect.poll(async () => ((await air.locator('#f0').textContent()) ?? '').trim(), { timeout: 5000 }).not.toBe('00:00');
+  await expect(program, 'Update, a stepper and Start replay no entrance').toHaveAttribute('data-plays', '1');
 
   // TAKE OUT.
   await page.getByTestId('verb-out').click();

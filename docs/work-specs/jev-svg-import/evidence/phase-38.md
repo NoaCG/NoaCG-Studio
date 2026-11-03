@@ -125,3 +125,11 @@ Measured with the existing primitives only, recorded as the `notice-zones` annot
   relative to the manifest.
 - A check that a draft did not reach air must wait a beat: a leak through the debounced draft
   arrives a few hundred milliseconds after the keystroke.
+
+## Review rounds
+
+- PR review bot on `f1781999` (PR opened): one P1, class faulty test expectation, family
+  duplicate renderer command (e2e/AGENTS.md: assert a replayed entrance as arithmetic). The
+  "no replayed entrance" check read the activity log, which a replayed `play` would not change.
+  The walk now reads the program stage's own `data-plays`: 1 after the Take, still 1 after Update,
+  a stepper and Start. A temporary Re-take press in the walk fails it (received 2, j-0011).
