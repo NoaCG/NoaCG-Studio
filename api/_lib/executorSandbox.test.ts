@@ -5,7 +5,7 @@ import path from 'node:path';
 import { before, test, type TestContext } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import type { RenderManifest } from '../../src/render/manifest.js';
-import type { JobRecord } from './jobStore.js';
+import type { JobRecord, JobStore } from './jobStore.js';
 import { getJobStore } from './jobStore.js';
 import { endJob, launchJob, reconcileJob } from './reconcile.js';
 import {
@@ -331,6 +331,15 @@ test('sandboxNameOf accepts only this executor\'s refs', () => {
 
 const secrets = { workerSecret: 'worker-secret' };
 
+/** The store with every write failing, as when the ledger is unreachable. */
+function failingWrites(store: JobStore): JobStore {
+  const failing = Object.create(store) as JobStore;
+  failing.update = async () => {
+    throw new Error('render jobs update failed');
+  };
+  return failing;
+}
+
 /** A launch whose job is ended by `during` while the sandbox provisions. */
 function launching(sandbox: FakeSandbox, during: () => Promise<unknown>): SandboxDeps {
   return {
@@ -386,13 +395,9 @@ test('a ledger write that throws after start still stops the sandbox', async () 
   const store = await memoryStore();
   const record = job({ state: 'pending', executorRef: null });
   await store.create(record);
-  const failing = Object.create(store) as typeof store;
-  failing.update = async () => {
-    throw new Error('render jobs update failed');
-  };
   const executor = new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps);
 
-  await assert.rejects(withBlobToken(() => launchJob(record, manifest, secrets, failing, executor)), /update failed/);
+  await assert.rejects(withBlobToken(() => launchJob(record, manifest, secrets, failingWrites(store), executor)), /update failed/);
 
   assert.equal(session.stops, 1);
 });
@@ -402,13 +407,9 @@ test('ending a job whose ledger write throws still stops the sandbox, and the er
   const store = await memoryStore();
   const record = job();
   await store.create(record);
-  const failing = Object.create(store) as typeof store;
-  failing.update = async () => {
-    throw new Error('render jobs update failed');
-  };
   const executor = new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps);
 
-  await assert.rejects(endJob(record, { state: 'cancelled' }, failing, executor), /update failed/);
+  await assert.rejects(endJob(record, { state: 'cancelled' }, failingWrites(store), executor), /update failed/);
 
   assert.equal(session.stops, 1);
   assert.equal((await store.get(record.id))?.state, 'provisioning');
@@ -467,6 +468,11 @@ class HungReadSession extends FakeSession {
   }
 }
 
+const hungLookup: SandboxDeps = {
+  ...fakeDeps(new FakeSandbox('sbx-test', new FakeSession('running'))).deps,
+  get: (_name, signal) => hang<SandboxLike>(signal),
+};
+
 test('a hung progress read cannot hold up a status answer: the job waits for the next poll', { timeout: 2000 }, async (t) => {
   const limits = shortTimeouts(t);
   const store = await memoryStore();
@@ -482,12 +488,8 @@ test('a hung progress read cannot hold up a status answer: the job waits for the
 
 test('a hung lookup cannot hold up a progress read', { timeout: 2000 }, async (t) => {
   const limits = shortTimeouts(t);
-  const deps: SandboxDeps = {
-    ...fakeDeps(new FakeSandbox('sbx-test', new FakeSession('running'))).deps,
-    get: (_name, signal) => hang<SandboxLike>(signal),
-  };
 
-  assert.equal(await new SandboxExecutor(deps).readProgress(job()), null);
+  assert.equal(await new SandboxExecutor(hungLookup).readProgress(job()), null);
 
   assertBounded(limits);
 });
@@ -510,12 +512,8 @@ test('a hung stop cannot hold up the status answer that finishes a job', { timeo
 
 test('a hung lookup is held to the same limit as the stop', { timeout: 2000 }, async (t) => {
   const limits = shortTimeouts(t);
-  const deps: SandboxDeps = {
-    ...fakeDeps(new FakeSandbox('sbx-test', new FakeSession('running'))).deps,
-    get: (_name, signal) => hang<SandboxLike>(signal),
-  };
 
-  await new SandboxExecutor(deps).stop(job());
+  await new SandboxExecutor(hungLookup).stop(job());
 
   assertBounded(limits);
 });
