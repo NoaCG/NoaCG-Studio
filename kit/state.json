@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "cicd fix for dispatch-only cadence, then PR #2005",
+  "waitingOn": "cicd #2011 landing, then PR #2005",
   "inFlight": [
     {
       "phase": 32,
@@ -36,7 +36,7 @@
       "nonce": "32-b-3c46",
       "branch": "claude/plan-jev-svg-import-32-build",
       "pr": 2005,
-      "blockedOn": "cicd: growth-controls.mjs cadence() prices dispatch-only jev-svg-eval.yml per landing; asked cicd coordinator to fix (option b), no budget exception"
+      "blockedOn": "cicd #2011 fix (worker session_017SdbwPaNNL9XoNvHecZXPB, branch claude/plan-cicd-followup-fix-2011), expected landing ~10:30-11:00Z"
     }
   ],
   "owner": [],
@@ -304,7 +304,9 @@
     1987,
     1988,
     1999,
-    2001
+    2001,
+    2009,
+    2011
   ],
   "carryForward": [
     {
