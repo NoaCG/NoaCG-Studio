@@ -92,6 +92,15 @@
           "paid": true,
           "settled": 0.021113283,
           "note": "gemini-vision 18/18 provider_rejected"
+        },
+        {
+          "run": 41630691746,
+          "mode": "reconcile",
+          "accept_manifest": true,
+          "main": "4130a081f35f70e4d05dff3b314863127aec465b",
+          "receipts": 41621970771,
+          "at": "2026-11-03T11:50Z",
+          "paid": false
         }
       ],
       "baseline": {
