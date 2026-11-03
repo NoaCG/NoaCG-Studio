@@ -32,12 +32,14 @@ minimum sample sizes unchanged.
   execution rose from 8.4 to 11.7 minutes for the 15-shard group, because ci04 put the catalog
   gate on the merge group's critical path.
 - **CI minutes per merge did not drop.** Mean M3 is 615 minutes before and 604 after (median 272
-  and 450, the median moved because the after side has more large changes). The landed test
+  and 450, the median moved because the after side has more large changes). The before figure is
+  low by about 19 minutes: on 13 of its 122 merges the main-push run was replaced by a later one
+  and cost nothing (section 3.3). The landed test
   speedups (ci08 to ci10) save about 3 runner-minutes per full run, under 1% of M3, inside the
   spread. The biggest waste is PR runs cancelled by a newer push after running for about 10
   minutes: 28% of all CI minutes before, 18% after.
-- **The ranked candidates** (section 7) put halving the configured selection's stack size first
-  (15-shard M1 14.6 to 12.0 minutes, above the 1.26 spread), then splitting the Build job
+- **The ranked candidates** (section 7) put giving the PR's configured selection 8 stacks instead
+  of its 4-stack cap first (15-shard M1 14.6 to 12.0 minutes, above the 1.26 spread), then splitting the Build job
   (small-change M1 6.2 to 3.8, above the 1.19 spread). No candidate moves the M1 p95 much: the
   p95 is set by fail-then-pass re-runs and long single runs.
 
@@ -161,11 +163,19 @@ side: +1.3 minutes median from B to A, all of it in the Build job (section 3.5).
 | PR CodeQL | 11.7 | 13.6 | 10.0 |
 | Merge queue, ci.yml | 43.1 (7%) | 80.4 (11%) | 56.6 (9%) |
 | Main push, ci.yml (full suite) | 158.9 (26%) | 174.1 (25%) | 187.3 (31%) |
+| ... over merges that had a main-push run (n) | 177.8 (109) | 182.4 (42) | 187.3 (34) |
 | Main push, configured-suite.yml | 44.9 (7%) | 47.5 (7%) | 51.7 (9%) |
 | Main push, CodeQL and quarantine | 17.8 | 18.6 | 20.9 |
 | Other (post-land, deploy-verify, PR previews, releases) | 1.1 | 1.2 | 1.3 |
 | **Total** | **615.3** | **705.2** | **603.7** |
 | PR heads per merge, mean | 3.8 | 4.5 | 3.1 |
+
+A main-push ci.yml run that is still pending when the next merge lands is replaced under the
+`ci-refs/heads/main` concurrency group and costs nothing: 13 of the 122 merges on B (6 of them
+`none`), 2 of 44 on D and none on A (for example #1688, push run 40125813254, cancelled with no
+job minutes). Counted with a main-push run at B's own 177.8, B's mean M3 would be about 634, not
+615. The same merges are low outliers (about 70 instead of about 250) in the `none` M3 reference;
+the median-based spread absorbs them.
 
 By growth tier (`tierOfJob` in `scripts/growth-controls.mjs`), mean per merge: offline 421.0,
 433.4, 380.9; backend 115.2, 156.7, 123.8; graphics 8.2, 27.7, 23.2; overhead 44.4, 58.6, 49.5;
@@ -301,7 +311,11 @@ groups follow from who runs the file:
 Test files (`*.test.mjs`) never match. Nothing else ends a side: quarantine entries and releases
 (`e2e/quarantine.json`), selection-map refreshes (`scripts/e2e-traced.json`), `covers:` edits,
 spec bodies and shared spec helpers, schema migrations, product code, new gate tests, docs,
-scheduled-only and manual-only workflows and scripts no per-change workflow reaches. These are
+scheduled-only and manual-only workflows, scripts no per-change workflow reaches, and data files
+the jobs read other than those in the table (for example `e2e/configured/expected-run.json`,
+`e2e/catalog-baseline.json`, `supabase/advisor-baseline.json`). Four path-filtered per-change
+workflows are also outside the rule: toolkit-distribution.yml, preview-trial.yml, release-cli.yml
+and release-bridge.yml cost 28 minutes over all 201 merges together, inside every spread. These are
 workload that changes at product pace: on side B, 54 of the 122 merges were such landings (25
 quarantine, 6 selection-map, 23 `covers:`), so the spread below already contains their effect. (A
 merge can count in two of these kinds.) The closure is wide, because many CI scripts import shared
@@ -309,10 +323,11 @@ libraries; a landing that touches one of them ends sides even when it cannot cha
 That is the intended side of the error: a side that ends early is recorded as unmeasured, never a
 wrong comparison.
 
-Applied to the window, the rule ends sides at 25 merges:
-on B #1658 and #1766 (post-land scripts, M3 only), #1675, #1683, #1687 (a library every CI
-script imports), #1724 (dependency-cruiser config, production-pack build step), #1756, #1804,
-#1816, #1589, #1837, #1838, #1841; on D #1854 (ci03), #1861 (ci04), #1866 (ci05), #1872 (ci06),
+Applied to the window, the rule ends sides at 24 merges:
+on B #1658 and #1766 (post-land scripts, M3 only), #1675 and #1816 (configured-suite.yml: M1 of
+`+cfg`, M3 of all), #1683 (ci.yml and deploy-verify.yml), #1687 (a library every CI script
+imports), #1724 (dependency-cruiser config, production-pack build step), #1756, #1804, #1589,
+#1837, #1838, #1841 (dependencies); on D #1854 (ci03), #1861 (ci04), #1866 (ci05), #1872 (ci06),
 #1880 (ci18), #1896 (ci07), #1922 (ci11), #1927 (ci12, sharded groups only); on A #1970 (cf01),
 #2012 (the capacity code the planner imports) and #2014 (cf04). ci01, ci02, ci08, ci09, ci10, ci13
 to ci17, cf07 and cf09 end nothing.
@@ -374,7 +389,11 @@ after ci06, and a later `cap` change is compared with these values.
   seed 3, so the numbers repeat exactly.
 - **What cf13 claims.** An improvement on group g is an after-side median (or p95) lower than the
   before side's by more than the group's spread, with at least the minimum n on each side. A
-  regression in M2 waiting, M2 execution or M4 is the same test the other way.
+  regression in M2 waiting or M2 execution is the same test the other way.
+- **The M4 regression test.** The share of merges with a fail-then-pass or hang job (section 3.4:
+  B 7 of 122, D 10 of 44, A 5 of 34). M4 regresses when the after side's share is higher and a
+  one-sided Fisher exact test on the two sides' counts gives p below 0.05. It needs no group: the
+  flakes are spread over every group.
 
 ## 6. (b) Why each landed improvement did or did not change total turnaround
 
@@ -384,7 +403,7 @@ after ci06, and a later `cap` change is compared with these values.
 | ci03 | configured-suite.yml keeps one pending run per branch; worker dispatch helper | worker configured dispatches per merge 70.3 (B) to 36.3 (D) to 0 (A), together with ci06 and the traps file's "a full dispatch is for a reason". Off the M1 path (a dispatch is not a required check), so M1 unchanged; it removed 11% of M3 |
 | ci04 | selection fix; catalog gate raised on many more changes (#1863) | graphics tier per merge 8.2 to 27.7 (D) and 23.2 (A), as ci04 projected (+15 to +18). The catalog gate became the merge queue's critical path in 30% of groups (4% before): `cap` M2 execution 8.4 to 11.7 minutes (the gate ends at 11.4 against the slowest E2E shard at 9.5). On PRs it is hidden behind the configured jobs. A safety cost, not a regression to undo |
 | ci05 | selection correctness (+0.15% planned minutes) | below any spread: no change visible |
-| ci06 | selected configured jobs in the PR's CI gate | large changes' M1 9.1 (`cap`, B) to 14.6 (`cap+cfg`): the 4 configured jobs (2.0 setup and stack start, about 10.5 of tests each, packed at ten measured minutes per stack) finish at 14.4 against the offline shards' 9.7. Backend tier per merge 115 (B) to 157 (D) and 124 (A). It made M1 worse and removed the worker dispatches; intended coverage, not a regression to undo |
+| ci06 | selected configured jobs in the PR's CI gate | large changes' M1 9.1 (`cap`, B) to 14.6 (`cap+cfg`): the 4 configured jobs (2.0 setup and stack start, about 10.5 of tests each: the selection gets one stack per ten measured minutes, at most `CONFIGURED_SHARDS` = 4, and 34 of the 38 selections hit that cap) finish at 14.4 against the offline shards' 9.7. Backend tier per merge 115 (B) to 157 (D) and 124 (A). It made M1 worse and removed the worker dispatches; intended coverage, not a regression to undo |
 | ci18 | growth gates and capacity line in the plan job | plan job ends 0.28 to 0.42 minutes into the run: +0.14, inside every spread |
 | ci07 | contract map, quarantine workflow | quarantine.yml on `main` rose from 3.1 to 4.6 job-minutes per merge over the window; nothing on the critical path |
 | ci08, ci09, ci10 | faster tests: 8.2 s, about 74 s and about 90 s per execution | about 2.9 runner-minutes per full suite execution, about 6 to 9 per merge (a few executions each), under 1% of `cap` M3 (spread 290 to 710): invisible. M1 is set by the slowest of 15 shards, and the shards are packed from the durations table of 2026-10-19 (15 days old, over its 8-day bound), so the saved seconds were never re-packed into a shorter slowest shard |
@@ -392,8 +411,10 @@ after ci06, and a later `cap` change is compared with these values.
 | ci12, ci13 | catalog-gates.yml and nightly-drift.yml (scheduled) | not per merge |
 
 Over the same window the Build job grew from 5.3 to 6.25 minutes (product code and gate tests
-from the JEV and production-page runs, workload under section 4.2), and the main-push full suite
-from 159 to 187 minutes per merge. Neither is a CI landing.
+from the JEV and production-page runs, workload under section 4.2). The main-push full suite rose
+from 159 to 187 minutes per merge: about 19 of the 28 is fewer replaced main-push runs (13 merges
+on B had none, section 3.3), and about 9.5 is suite growth (177.8 to 187.3 over merges that had a
+run). Neither is a CI landing.
 
 **Why total turnaround did not improve.** The rows that saved time (ci08 to ci10, ci03's
 dispatches) saved runner-minutes off the critical path or far inside the spread, and the duplicate
@@ -413,7 +434,7 @@ cluster (14.6), so the per-group effect is the one to compare with the spread.
 
 | Rank | Candidate | Category | M1 median, p95 (all) | M1 by group | M2 execution median, p95 | M3 per merge | M1 effect above the spread? |
 | ---: | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Pack the PR's selected configured specs at five measured minutes per stack instead of ten | shard balance | 13.1 to 9.7 (-3.4), p95 0 | cap+cfg 14.6 to 12.0 (-2.6) | 0 | about +29 (4 more stack starts of 2.3 per PR run, 3.1 heads), 4% of cap+cfg M3 | yes: -2.6 against 1.26 |
+| 1 | Give the PR's selected configured specs 8 stacks instead of 4: raise the PR selection's cap (`CONFIGURED_SHARDS` = 4 in `scripts/configured-shards.mjs`, which 34 of 38 selections hit) and halve its per-stack target (`SELECTED_SHARD_MINUTES` 10 to 5). The cap is shared with the landing's full suite, so cf13 separates the two or changes both on purpose | shard balance | 13.1 to 9.7 (-3.4), p95 0 | cap+cfg 14.6 to 12.0 (-2.6) | 0 | about +29 (4 more stack starts of 2.3 per PR run, 3.1 heads), 4% of cap+cfg M3 | yes: -2.6 against 1.26 |
 | 2 | Run the Build step's parts as parallel jobs (gates' tests, ESLint, tsc plus the rest) | shard balance | 0, p95 0 | none 6.2 to 3.8 (-2.4), small 6.3 to 4.8 | 6.6 to 4.8 (-1.8), p95 0 | about +5 (two more job setups of 0.5, about 5 runs per merge) | yes: -2.4 against 1.19 (none) |
 | 3 | Persist ESLint and tsc caches between runs | cache misses | 0, p95 0 | none 6.2 to 4.2 (-2.0), small 6.3 to 5.3 | 6.6 to 4.8 (-1.8) | about -10 (2 minutes off each Build) | yes for `none`. Risk: type-aware lint results cached for files whose types changed; it must key on more than file content |
 | 4 | Split the catalog calibration gate into two jobs | shard balance | 0 alone; with rank 1, 13.1 to 8.5 (-4.6) | with rank 1, cap+cfg 14.6 to 10.2 (-4.4) | -0.1 median; the 30% of groups it leads drop from 11.7 to the E2E shard at about 9.5 | +0.9 per run where it runs | alone, no; it is the next limit after rank 1 |
@@ -435,7 +456,9 @@ All four chain changes together (ranks 1, 2, 4, 6): M1 median 13.1 to 8.3 and p9
 `cap+cfg` 14.6 to 8.9, `none` 6.2 to 3.8; M2 execution 6.6 to 4.2, p95 13.3 to 9.8.
 
 **Arithmetic for rank 1**, per `cap+cfg` merge: configured finish minus half of (slowest
-configured job minus 2.0 of setup). With the median values: 14.4 - 0.5 x (13.2 - 2.0) = 8.8, so the
+configured job minus 2.0 of setup), which assumes the selection packs evenly into 8 (it fails if
+one spec runs longer than about 5 minutes; cf13 checks with `planConfigured({ shards: 8 })` on a
+recent selection first). With the median values: 14.4 - 0.5 x (13.2 - 2.0) = 8.8, so the
 gate waits for the next input, the catalog gate at 11.2, then the offline shards at 9.7. Hence
 14.6 to 12.0 alone and 10.2 with rank 4. **Rank 2**: Build ends at 0.4 + 0.58 x (end - 0.4), the
 0.58 being the gates' share 55% plus job overhead (section 3.5): 6.2 to 3.8 on the `none` median.
@@ -457,8 +480,8 @@ finish minus (slowest shard minus the mean shard) per run.
 - **Setup**: rank 5. Measured reason ordinary job setup has none: set up job 0.02, checkout 0.08,
   setup-node 0.03, node_modules 0.07, Playwright 0.05 (medians), about 0.25 per job; only the
   Supabase stack start (1.77 to 1.83 median) is large.
-- **Shard balance**: ranks 1, 2, 4 and 6. The configured selection packs ten measured minutes per
-  stack while offline shards are sized for about three, and the Build job is one unsharded chain
+- **Shard balance**: ranks 1, 2, 4 and 6. The configured selection is capped at 4 stacks of
+  about 10.5 test-minutes each while offline shards are sized for about three, and the Build job is one unsharded chain
   on the critical path of 41 to 61% of runs.
 - **Concurrency**: rank 8 (M3 only). Measured reasons there is no M1 or M2 candidate: runner wait
   0.03 median and 0.20 at p99 over 25,347 jobs, so runner capacity never holds a job; merge queue
