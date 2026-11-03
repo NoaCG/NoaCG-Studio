@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-10-31T00:00:00Z",
+  "updatedAt": "2026-11-03T16:00:00Z",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -24,6 +24,10 @@
     {
       "pr": 1826,
       "sha": "3154220793fd5b4e4f3a085a3a2e30ee7e20066b"
+    },
+    {
+      "pr": 2025,
+      "sha": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321"
     }
   ],
   "supersededClosed": {
@@ -878,7 +882,66 @@
         "Sandbox.get takes name, not sandboxId; in-flight jobs holding a 1.x sandboxId across the deploy must fail cleanly through the existing deadline path."
       ],
       "decision": "No code change landed. The migration (sdk 3.x + our executor using name, persistent:false, stop on finish) is feasible but needs one live, billable Vercel Sandbox render to verify provisioning, progress, completion, expiry-without-resume and stop. This session has no Vercel credentials, and a paid live call needs owner approval. No override, no alert dismissal. Issue #1752 stays open.",
-      "independentVerification": "Fresh read-only agent confirmed all claims with file:line evidence: sandboxId only in Remotion getRenderProgress/render paths (5811/5816/5983); every method createSandbox/addBundleToSandbox calls exists compatibly in 3.9.1; get takes name only; Sandbox.get alone does not resume, but readFileToBuffer/writeFiles/runCommand go through withResume (sandbox.js:614-624), so polling can restart a stopped persistent sandbox; create-time persistent and update({persistent}) exist; default image Ubuntu, runtime node24 deprecated but accepted, resulting OS unclear; zod ^4.1.1 admits patched 4.6.6+."
+      "independentVerification": "Fresh read-only agent confirmed all claims with file:line evidence: sandboxId only in Remotion getRenderProgress/render paths (5811/5816/5983); every method createSandbox/addBundleToSandbox calls exists compatibly in 3.9.1; get takes name only; Sandbox.get alone does not resume, but readFileToBuffer/writeFiles/runCommand go through withResume (sandbox.js:614-624), so polling can restart a stopped persistent sandbox; create-time persistent and update({persistent}) exist; default image Ubuntu, runtime node24 deprecated but accepted, resulting OS unclear; zod ^4.1.1 admits patched 4.6.6+.",
+      "resolved": {
+        "pr": 2025,
+        "sha": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321",
+        "mergedAt": "2026-11-03T13:05:05Z",
+        "fixed": [
+          "@vercel/sandbox 1.6.0 to 3.9.1, so Zod resolves to a fixed version (GHSA-mrhx-c7xc-m3w5); npm audit reports 0 vulnerabilities in root, cli, cli/plugin-preview, render-worker and player-host.",
+          "Sandbox persistence switched off right after createSandbox; progress and stop go through the current Session, which never resumes.",
+          "The stop is awaited on the complete, failed and deadline paths. It used to float, and a frozen function often never sent it, so a finished render billed to its 15 minute timeout."
+        ],
+        "liveEvidence": {
+          "where": "Two billed renders on preview deployments, recorded in the PR description: the first, and one repeat after fixing the failure the first showed.",
+          "renderBeforeStopFix": {
+            "commit": "f72ffd50",
+            "durationSeconds": 900.2,
+            "activeCpuSeconds": 67.5,
+            "sessions": 1,
+            "computedCostUsd": 0.045
+          },
+          "renderWithStopFix": {
+            "commit": "15d4dac2",
+            "durationSeconds": 42.8,
+            "activeCpuSeconds": 44,
+            "sessions": 1,
+            "computedCostUsd": 0.004
+          },
+          "costSource": "Computed from session figures at published prices, not read from Vercel usage.",
+          "tipDifference": "The merged tip adds only a log line for a failed stop after the last live render."
+        },
+        "exactMergeChecks": {
+          "mergeQueueCI": {
+            "run": 41639665404,
+            "result": "success, subset E2E"
+          },
+          "pushCI": {
+            "run": 41641180978,
+            "result": "success, full E2E 15/15 shards"
+          },
+          "configuredSuite": {
+            "run": 41641181333,
+            "result": "success, 4/4 shards"
+          },
+          "postLanding": {
+            "run": 41641180952,
+            "result": "success"
+          },
+          "deployVerify": {
+            "runs": [
+              41641314937,
+              41641724781
+            ],
+            "result": "success, production verification and deep link jobs"
+          }
+        },
+        "notChecked": "No production render since the merge: the newest sandbox on the project at 2026-11-03T15:50Z predates it, so the fix has run live only on previews. WebM, PNG, ProRes and a cancel during a render were not run live.",
+        "remaining": {
+          "issue1752": "Stays open. The weekly audit is also red because the OGraf conformance step fails, and that step runs before the dependency audit, which was skipped on 2026-11-02. The issue closes itself on the first green scheduled or main run.",
+          "issue2026": "Sandbox leaks left after this change: cancel or deadline during start, createSandbox throwing, no time limit on stop, a failed stop never retried, log noise on 404 and 410."
+        }
+      }
     }
   }
 }
