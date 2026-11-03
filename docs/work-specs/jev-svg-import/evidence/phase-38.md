@@ -147,3 +147,34 @@ Measured with the existing primitives only, recorded as the `notice-zones` annot
   network cut may not close an open socket, so the restart is the hard recovery proof (stated
   above); (3) the hosted draft check holds 1.5 s, the offline walk carries the mutation-tested
   version of the same rule. (5) and (6) are the checker's and CI's to show, not the walk's.
+- Final `/so` on `9eaa67d0` (`session_017SdbwMVZr8UVAMefhBBGRE`): AGREE WITH CORRECTIONS, grade
+  A-, nothing blocking. Points 2 (assert the diagnostic's limits) and 4 (cleanup in a
+  `try/finally`) are filed as #2041; points 1 and 5 are the limits stated above; point 3 is the
+  plan's checker step. (`session_017SdbwPGZoFtVEaNrw13yEh` was interrupted before it read anything
+  and gave no verdict.)
+
+## Budget exception (approved boundary departure)
+
+CI run 41699782672 on `9eaa67d0` passed every test (the configured walk took 20.2 s). The CI gate
+refused on the E2E capacity line: the backend tier was already over its line before this change
+(119% in CI), and a new configured file is priced at the flat new-case estimate, 6.8 per landing
+and 4.1 per day. A work-spec `## Budget exceptions` line covers only the offline tier: tried
+locally, it added two offline refusals, so it was not committed.
+
+The owner approved a 30-day backend-tier exception, reviewed by the coordinator before landing
+(https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839). This change adds one
+entry, `jev-svg-import-journey`, to `scripts/growth-ceilings.json`: covers
+`spec:e2e/configured/svg-import-journey.spec.ts`, 6.8 per landing, 4.1 per day (the gate's own
+prices), from 2026-11-03, expires 2026-12-03, repayment #1503. Nothing else in that file changed.
+
+With the entry in place the gate still refuses, by its own Rule X9
+(`scripts/growth-controls.mjs`, `assessTiers`): while a tier's evidence is not complete "the room is
+unknown, so nothing is waived". The backend evidence is partial (no weekly growth report published,
+durations table stale per #1503). The gate's words, locally:
+
+> backend tier refuse: 107.4/117 per landing, 62/78 per day (92%), jev-svg-import-journey excepts
+> 0/landing (claims 6.8, capped at what it covers) to 2026-12-03; evidence partial: ...; this change
+> adds 6.8/landing 4.1/day, reaching 98%, at or over the 85% line that partial or stale evidence sets
+
+So the exception is on record and takes effect once the backend evidence is complete. The gate and
+its rules are unchanged.
