@@ -49,6 +49,26 @@
           "at": "2026-11-03T13:18Z",
           "paid": false,
           "note": "package-lock.json only (4bc351d2, #1752); re-freeze identical config; manifest 516dcef0"
+        },
+        {
+          "run": 41643365934,
+          "mode": "dry-run",
+          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+          "main": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321",
+          "at": "2026-11-03T13:20Z",
+          "paid": false,
+          "note": "pre-holdout"
+        },
+        {
+          "run": 41643649692,
+          "mode": "holdout",
+          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+          "main": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321",
+          "receipts": 41643035479,
+          "pricedMax": 0.2102,
+          "at": "2026-11-03T13:22Z",
+          "paid": true,
+          "note": "THE ONE HOLDOUT RUN"
         }
       ],
       "frozen": {
