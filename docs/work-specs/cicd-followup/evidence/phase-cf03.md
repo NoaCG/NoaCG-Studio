@@ -112,6 +112,7 @@ marked under the section 4.2 rule:
 
 | Landing | Merge | Ends sides for |
 | --- | --- | --- |
+| cf01, #1970 | 80759a01 | M1, M2 and M3 of every group (`scripts/e2e-quarantine.mjs`, quarantine code ci.yml runs) |
 | cf07, #1990 | 27c737a2 | nothing: configured specs, their shared helper and a trial tool are workload |
 | cf09, #1995 | 0b73b488 | nothing: documentation only |
 | #2012, overhead price | a090662a | nothing: it changes how the capacity line prices manual-only workflows, not what runs |
@@ -136,7 +137,7 @@ Medians and p95 are nearest-rank. #1909 has no M1: its merged head has no ci.yml
 | --- | --- | ---: | --- | --- | --- | --- |
 | none | B | 68 | 5.2 / 6.3 | 0.7 | 5.2 / 6.3 | 252 / 281 |
 | none | D | 18 (M1 17) | 6.1 / 7.1 | 0.7 | 6.0 / 11.6 | 274 / 416 |
-| none | A | 9 | 6.5 / 6.8 | 0.7 | 6.2 / 6.6 | 284 / 302 |
+| none | A | 9 | 6.5 / 6.8 | 0.7 | 6.2 / 6.6 | 285 / 302 |
 | cap | B | 48 | 9.1 / 13.4 | 0.7 | 8.4 / 11.9 | 931 / 2,727 |
 | cap | D | 6 | 9.3 / 11.7 | 0.7 | 8.8 / 11.6 | 724 / 1,399 |
 | cap+cfg | D | 16 | 14.4 / 28.8 | 0.7 | 11.6 / 71.6 | 753 / 4,401 |
@@ -162,6 +163,7 @@ side: +1.3 minutes median from B to A, all of it in the Build job (section 3.5).
 | Main push, ci.yml (full suite) | 158.9 (26%) | 174.1 (25%) | 187.3 (31%) |
 | Main push, configured-suite.yml | 44.9 (7%) | 47.5 (7%) | 51.7 (9%) |
 | Main push, CodeQL and quarantine | 17.8 | 18.6 | 20.9 |
+| Other (post-land, deploy-verify, PR previews, releases) | 1.1 | 1.2 | 1.3 |
 | **Total** | **615.3** | **705.2** | **603.7** |
 | PR heads per merge, mean | 3.8 | 4.5 | 3.1 |
 
@@ -299,10 +301,12 @@ on B #1675, #1683, #1724 (dependency-cruiser config, production-pack build step)
 only); on A #1970 (cf01: `scripts/e2e-quarantine.mjs`) and #2014 (cf04). ci01, ci02, ci08, ci09, ci10, ci13 to ci17, cf07, cf09 and #2012
 end nothing.
 
-**cf13 starts after cf04.** cf04 (#2014) ends the M1 sides of the `+cfg` groups and the M3 sides
-of every group, and the window holds one merge after it (#2018). So before its candidate lands,
-cf13 collects at least the minimum n of section 5.1 after cf04 for the group and metric it compares
-(for example 8 `cap+cfg` merges for M1, 12 for M3); the baseline sides here are not its before side.
+**Where cf13's before sides start today.** By the rule: for the `+cfg` groups' M1 and every group's
+M3, after cf04 (#2014, one merge since in this window, #2018); for M1 and M2 of `none`, `small`
+and `cap`, after cf01 (#1970, merged 2026-11-02T11:41:59Z), unless a later landing ends them. cf13
+needs at least the minimum n of section 5.1 on its before side, counted from there, before its
+candidate lands (for example 8 `cap+cfg` merges after cf04 for M1); the baseline sides here are not
+its before side.
 
 **cf13's sides.** For a candidate compared on group g and metric m, the before side is the merges
 of group g measured after the last landing whose `ends[m]` includes g and before the candidate
@@ -399,14 +403,16 @@ cluster (14.6), so the per-group effect is the one to compare with the spread.
 | 4 | Split the catalog calibration gate into two jobs | shard balance | 0 alone; with rank 1, 13.1 to 8.5 (-4.6) | with rank 1, cap+cfg 14.6 to 10.2 (-4.4) | -0.1 median; the 30% of groups it leads drop from 11.7 to the E2E shard at about 9.5 | +0.9 per run where it runs | alone, no; it is the next limit after rank 1 |
 | 5 | Halve the configured stack start (1.77 minutes median per configured job) | setup | 13.1 to 12.5 (-0.6) | cap+cfg 14.6 to 13.7 (-0.9) | 0 | about -16 (1 minute per configured job: 4 per PR run, 3.1 heads, plus 4 on the main push suite) | no: -0.9 against 1.26 |
 | 6 | Re-pack the offline E2E shards from fresh durations (slowest shard 8.9 against a 6.7 median) | shard balance | median 0, p95 18.5 to 17.1 (-1.4) | 0 | p95 13.3 to 12.1 (-1.2) | 0 | median, no; p95 claims need over 120 per side |
-| 7 | Do not rerun the full suite on `main` for a merge commit the merge group already ran | duplicate work | 0 | 0 | 0 | 187 (A), 32% of M3; the Build, factory and plan jobs alone repeat about 8 | M1, no. Not allowed by the spec's rule that exact-merge coverage is never cancelled or replaced: it belongs to cf16, not cf13 |
+| 7 | Do not rerun the full suite on `main` for a merge commit the merge group already ran | duplicate work | 0 | 0 | 0 | 187 (A), 31% of M3; the Build, factory and plan jobs alone repeat about 8 | M1, no. Not allowed by the spec's rule that exact-merge coverage is never cancelled or replaced: it belongs to cf16, not cf13 |
 | 8 | Keep workers from pushing a new head while its CI is still running, unless the push fixes a red already read | concurrency | 0 (could raise M1 from ready) | 0 | 0 | superseded minutes 175 (B) and 110 (A) per merge, 28% and 18% of M3; the share avoided is unknown | M1, no; M3 only |
 
-**M3 cannot carry a claim.** The M3 spreads are 16.8 (`none`), 290 (`cap+cfg`) and 710 (`cap`),
-and every M3 effect above is smaller than its group's spread: rank 1 +29, rank 3 -10, rank 5 -16,
-rank 7 -187 and rank 8 at most -110 per merge, all on groups whose spread is 290 or more. So no
-M3-only candidate (ranks 7 and 8) can pass cf13's test with these values, and for the others cf13
-claims on M1. Most of the M3 spread is how many heads a PR pushed (3.1 to 4.5 per merge on
+**M3 rarely carries a claim.** The M3 spreads are 16.8 (`none`), 290 (`cap+cfg`) and 710 (`cap`).
+On `cap+cfg` every M3 effect above is smaller than 290: rank 1 +29, rank 5 -16, rank 7 -187 and
+rank 8 -192 (its superseded minutes per merge there). On `none`, ranks 2 and 3 (+5 and -10) are
+smaller than 16.8 and rank 8 has almost nothing to remove (superseded 0.5 per merge). The one M3
+effect above a spread is rank 7 on `none` (the main-push suite, 186 median per `none` merge on A,
+about 11 spreads), and that candidate is ruled out for cf13 by the coverage rule, not by the
+spread. So cf13 claims on M1, and an M3-only candidate it can try has no measurable M3 effect. Most of the M3 spread is how many heads a PR pushed (3.1 to 4.5 per merge on
 average, each a full PR run), not run-to-run noise of one run.
 
 All four chain changes together (ranks 1, 2, 4, 6): M1 median 13.1 to 8.3 and p95 18.5 to 17.1;

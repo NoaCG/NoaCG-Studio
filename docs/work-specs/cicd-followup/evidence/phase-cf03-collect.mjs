@@ -119,8 +119,11 @@ function runs() {
       d.page += 1;
       if (res.workflow_runs.length < 100 || (d.page - 1) * 100 >= res.total_count) {
         const last = end < UNTIL ? end : UNTIL; // only runs before the window end matter
-        const settled = d.open === 0 && new Date(last).getTime() + 3600000 < new Date(listedAt).getTime();
-        if (settled) d.done = true;
+        const ended = new Date(last).getTime() + 3600000 < new Date(listedAt).getTime();
+        // A run that never finishes (an approval nobody gives) must not hold the collection open:
+        // after three listings of an ended range it is cached as it is and named in `stuck`.
+        d.listings = (d.listings ?? 0) + 1;
+        if (ended && (d.open === 0 || d.listings >= 3)) { d.done = true; if (d.open) d.stuck = d.open; }
         else { Object.assign(d, { page: 1, open: 0, relist: true }); unsettled += 1; }
         state.ranges[key] = d;
         save('runs.json', state);
@@ -130,10 +133,11 @@ function runs() {
       save('runs.json', state);
     }
   }
-  return { list: Object.values(state.items), unsettled };
+  const stuck = Object.values(state.ranges).reduce((n, d) => n + (d.stuck ?? 0), 0);
+  return { list: Object.values(state.items), unsettled, stuck };
 }
 
-// 3. Jobs (all attempts) of every completed ci.yml and configured-suite.yml run tied to a sampled merge.
+// 3. Jobs (all attempts) of every completed run of a JOB_WORKFLOWS workflow tied to a sampled merge.
 async function jobs(runList, merges) {
   mkdirSync(file('jobs'), { recursive: true });
   const branches = new Set(merges.map((m) => m.head_ref));
@@ -196,12 +200,12 @@ function events(merges) {
 
 try {
   const merges = pulls();
-  const { list: runList, unsettled } = runs();
+  const { list: runList, unsettled, stuck } = runs();
   events(merges);
   const n = await jobs(runList, merges);
   // A range with a run still going is listed again next pass; until then the collection is not complete.
   const pass = unsettled ? 'again' : 'complete';
-  console.log(JSON.stringify({ pass, calls, merges: merges.length, runs: runList.length, jobRuns: n, unsettledRanges: unsettled }));
+  console.log(JSON.stringify({ pass, calls, merges: merges.length, runs: runList.length, jobRuns: n, unsettledRanges: unsettled, runsNeverFinished: stuck }));
 } catch (e) {
   if (!(e instanceof Budget)) throw e;
   console.log(JSON.stringify({ pass: 'budget', calls, jobRunsLeft: e.left ?? 'not yet counted' }));
