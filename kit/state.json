@@ -52,6 +52,11 @@
    "session": "session_017SdbwQNSntdLhES7vQhz7R",
    "nonce": "cf04-b-756a",
    "launchedAt": "2026-11-03T08:08:51Z"
+  },
+  {
+   "fix": 2011,
+   "step": "build",
+   "session": "session_017SdbwPaNNL9XoNvHecZXPB"
   }
  ],
  "owner": [],
@@ -61,6 +66,14 @@
    "what": "early hand release from quarantine after cf07 (documented route)",
    "session": "session_017SdbwPvMAdvKaa9sgSg1px",
    "nonce": "fix-1805-f-24b1"
+  },
+  {
+   "issue": 2011,
+   "what": "dispatch-only workflow priced per landing in growth gate; blocks JEV PR #2005",
+   "session": "session_017SdbwPaNNL9XoNvHecZXPB",
+   "nonce": "fix-2011",
+   "launchedAt": "2026-11-03T08:22:46Z",
+   "notify": "JEV coordinator session_017SdbwQ6d3pRaakjohGfCcC with PR number and on landing"
   }
  ],
  "triggers": {
