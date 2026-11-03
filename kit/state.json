@@ -39,22 +39,20 @@
       "startedAt": "2026-11-03T18:34:31Z",
       "pr": 2038,
       "approvedDepartures": [
-        "scripts/growth-ceilings.json: one backend exception jev-svg-import-journey (owner decision 2026-11-03, https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839, expires 2026-12-03, repayment #1503)"
+        "scripts/growth-ceilings.json: one backend exception jev-svg-import-journey (owner decision 2026-11-03, https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839, expires 2026-12-03, repayment #1503)",
+        "final exception values 6.85/4.13 (gate price rounded up), noted https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6614210951"
       ],
       "soSessions": [
         "session_017SdbwMVZr8UVAMefhBBGRE",
         "session_017SdbwMKVroFdqpNTEfW77w",
-        "session_017SdbwPGZoFtVEaNrw13yEh"
+        "session_017SdbwPGZoFtVEaNrw13yEh",
+        "session_017SdbwMP3RpLMfn7k3na6V7"
       ],
-      "waiting": {
-        "on": "backend-tier evidence complete (Rule X9, growth-controls.mjs:614): weekly growth report published + durations refresh #1503",
-        "watch": [
-          "weekly-audit run 41704224273 (dispatched 19:32Z)",
-          "PR #1503 bot/e2e-durations awaiting stamp"
-        ],
-        "decided": "(b) push owner-reviewed exception 10a7c76e now",
-        "at": "2026-11-03T19:42Z"
-      }
+      "head": "4d5d389e2f7be9016bd984a9af26a7160bcafcae",
+      "ciRun": 41706413917,
+      "stampRun": 41709302532,
+      "so": "session_017SdbwMP3RpLMfn7k3na6V7 A- (owner rule)",
+      "safetyNet": "trig_01QtLv9ghr5x1A19G2zrc6D2"
     }
   ],
   "owner": [],
