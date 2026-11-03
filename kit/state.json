@@ -31,21 +31,35 @@
   "inFlight": [
     {
       "phase": 35,
-      "role": "build",
-      "session": "session_017SdbwLkzzriCu4vyauD91v",
-      "nonce": "35-b-f92d",
-      "branch": "claude/plan-jev-svg-import-35-build",
-      "source": "3215c7ac731f463c8e6d056612ec8f29b5db8d0e",
-      "startedAt": "2026-11-03T14:21:21Z",
+      "role": "check",
+      "session": "session_017SdbwNa6Dj5X6UvjpVM91m",
+      "nonce": "35-c-6474",
+      "actor": "checker-35-35-c-6474",
+      "mergeSha": "6d695e97c8d67f82f741d65b4e69ec7cec63653a",
       "pr": 2030,
-      "head": "0b1d9581de349e21aa84c4b5f12dc399c1c996f7",
-      "ciRun": 41657043081,
-      "stampRun": 41659886280,
-      "so": "session_017SdbwPVoHy1qXmUALLTmY8 A",
+      "builder": "session_017SdbwLkzzriCu4vyauD91v",
       "soSessions": [
         "session_017SdbwPVoHy1qXmUALLTmY8"
       ],
-      "safetyNet": "trig_01GgpzZHuGkJduB2ie12VVRe"
+      "startedAt": "2026-11-03T15:12:15Z",
+      "build": {
+        "phase": 35,
+        "role": "build",
+        "session": "session_017SdbwLkzzriCu4vyauD91v",
+        "nonce": "35-b-f92d",
+        "branch": "claude/plan-jev-svg-import-35-build",
+        "source": "3215c7ac731f463c8e6d056612ec8f29b5db8d0e",
+        "startedAt": "2026-11-03T14:21:21Z",
+        "pr": 2030,
+        "head": "0b1d9581de349e21aa84c4b5f12dc399c1c996f7",
+        "ciRun": 41657043081,
+        "stampRun": 41659886280,
+        "so": "session_017SdbwPVoHy1qXmUALLTmY8 A",
+        "soSessions": [
+          "session_017SdbwPVoHy1qXmUALLTmY8"
+        ],
+        "safetyNet": "trig_01GgpzZHuGkJduB2ie12VVRe"
+      }
     }
   ],
   "owner": [],
