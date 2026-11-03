@@ -34,6 +34,8 @@ import {
   readerGraph,
   checkChain,
   frozenRecord,
+  partitionSpent,
+  holdoutGate,
   isBaseline,
   VISION_BASELINE_MODEL,
   ledgerSpent,
@@ -159,7 +161,8 @@ test('M2: the configuration is read from one resolved commit by git plumbing; th
 test('M3: the freeze manifest hashes every source that decides a result, the reader\'s graph included, and moves with any of them', async () => {
   const graph = await readerGraph();
   for (const rel of ['src/assets/svgImport.ts', 'src/components/wizard/import/draft.ts', 'src/ai/svgInterpretation/evidence.ts']) assert.ok(graph.includes(rel), rel);
-  const m = freezeManifest(undefined, graph);
+  const m = freezeManifest(undefined, [...graph, ...server.graph]);
+  for (const rel of ['src/ai/modelTypes.ts', 'api/_lib/aiLiteProfile.ts', 'api/_lib/aiImportAnalysisProfile.ts']) assert.ok(server.graph.includes(rel), rel);
   for (const rel of ['scripts/jev-svg-eval.mjs', 'src/ai/svgInterpretation/questions.ts', 'api/_lib/aiDecisionGateway.ts', '.github/workflows/jev-svg-eval.yml', 'scripts/svg-import-passes.test.mjs', 'src/assets/svgImport.ts', 'src/components/wizard/import/draft.ts']) {
     assert.match(m.files[rel], /^[0-9a-f]{64}$/, rel);
   }
@@ -256,7 +259,6 @@ test('M8: a missing receipt, an unsettled or over-bound batch, or an unknown cha
   const cases = {
     unsettled: closeBatch(a.receipt, { settled: { credits: spent, stable: false }, attempts: 2, reportedUsd: 0.01, unknownCharges: 0 }),
     'over-bound': settle(a.receipt, credits(START.balance - 0.05, START.totalUsed + 0.05)),
-    'unknown-charge': settle(a.receipt, spent, { unknownCharges: 1 }),
     'attempt-overrun': settle(a.receipt, spent, { attempts: 5 }),
     'no-reading': closeBatch(a.receipt, { settled: { credits: null, stable: false }, attempts: 2, reportedUsd: 0, unknownCharges: 0 }),
   };
@@ -268,6 +270,12 @@ test('M8: a missing receipt, an unsettled or over-bound batch, or an unknown cha
     const ok = reconcileLedger(l, after, { reason: 'read the balance and the gateway logs', runId: '2' });
     assert.equal(admitBatch(ok, after, plan(req(1)), { manifest }).ok, true, reason);
   }
+  // An unknown bill is charged and recorded; once the closing reading has settled, it does not
+  // stop the next batch (the settled reading reconciled it).
+  const unknown = settle(a.receipt, spent, { unknownCharges: 1, reportedUsd: 0.01 });
+  assert.equal(unknown.suspended, undefined);
+  assert.equal(unknown.unknownCharges, 1);
+  assert.equal(admitBatch({ ...ledger, batches: [unknown] }, spent, plan(req(1)), { manifest }).ok, true);
   // The open (crashed) batch is closed at its priced maximum by reconciliation.
   const fixed = reconcileLedger(open, spent, { reason: 'run lost after dispatch; balance read', runId: '2' });
   assert.equal(fixed.batches[0].settledUsd, a.receipt.maxUsd);
@@ -623,7 +631,13 @@ test('workflow: manual, main only, one non-cancelling group, the protected envir
   const chain = yml.slice(yml.indexOf('- name: Check the receipt chain'), yml.indexOf('- name: Decode the sealed holdout'));
   assert.match(chain, /if: inputs\.mode != 'dry-run'/);
   assert.match(chain, /node scripts\/jev-svg-eval\.mjs chain /);
-  assert.match(chain, /"Run the harness"/);
+  assert.match(chain, /Run the harness\|Reconcile the ledger/);
+  assert.match(chain, /'Decode the sealed holdout'/);
+  assert.match(chain, /jobs\?filter=all/);
+  // The holdout freeze is checked before the secret is decoded.
+  assert.ok(yml.indexOf('- name: Check the holdout freeze') < yml.indexOf('- name: Decode the sealed holdout'));
+  assert.match(yml, /- name: Decode the sealed holdout\n/);
+  assert.match(yml, /- name: Reconcile the ledger\n/);
   assert.match(yml, /^run-name: Jev SVG evaluation \(\$\{\{ inputs\.mode \}\}\)$/m);
   // The harness step keeps the name the chain check looks for.
   assert.match(yml, /- name: Run the harness\n/);
@@ -676,54 +690,92 @@ test('every admitted route is priced, and each attempt\'s ceiling is positive', 
 // ---- M13: one receipt chain across runs ----
 
 test('M13: a paid run continues only the newest ledger; a lost run blocks paid work until a reconcile names it', () => {
-  const run = (id, mode, hasLedger, harnessStarted = true) => ({ id: String(id), mode, hasLedger, harnessStarted });
-  // Newest first.
-  const chain = [run(9, 'dry-run', false), run(8, 'development', true), run(7, 'reconcile', true), run(6, 'development', true)];
-  assert.deepEqual(checkChain(chain, { mode: 'development', receiptsRunId: '8' }), { ok: true });
-  assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '6' }).reason, 'not-newest-ledger:8');
-  assert.equal(checkChain(chain, { mode: 'development', establish: true }).reason, 'baseline-exists');
-  assert.deepEqual(checkChain([run(3, 'dry-run', false)], { mode: 'development', establish: true }), { ok: true });
-  // The holdout never starts a chain: its freeze lives in an existing ledger.
-  assert.equal(checkChain([], { mode: 'holdout', establish: true }).reason, 'establish-development-only');
+  // Newest first; run numbers count down with them.
+  const run = (id, mode, hasLedger, harnessStarted = true, holdoutStarted = false) => ({ id: String(id), number: Number(id), mode, hasLedger, harnessStarted, holdoutStarted });
+  const ok = (lost = [], lostPartitions = []) => ({ ok: true, lost, lostPartitions });
+  const chain = [run(9, 'dry-run', false), run(8, 'development', true), run(7, 'reconcile', true), run(6, 'development', true),
+    run(5, 'development', true), run(4, 'dry-run', false), run(3, 'dry-run', false), run(2, 'dry-run', false), run(1, 'dry-run', false)];
+  const at = (n) => ({ currentNumber: n });
+  assert.deepEqual(checkChain(chain, { mode: 'development', receiptsRunId: '8', ...at(10) }), ok());
+  assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '6', ...at(10) }).reason, 'not-newest-ledger:8');
+  assert.equal(checkChain(chain, { mode: 'development', establish: true, ...at(10) }).reason, 'baseline-exists');
   assert.equal(checkChain([], { mode: 'development', receiptsRunId: '' }).reason, 'missing-baseline');
-  assert.deepEqual(checkChain([], { mode: 'dry-run' }), { ok: true });
-  // The very first paid run was lost before any ledger: a new baseline must name it (and carry
-  // its spend and attempts), never pass it by.
-  assert.equal(checkChain([run(1, 'development', false)], { mode: 'development', establish: true }).reason, 'missing-receipt:1');
-  assert.deepEqual(checkChain([run(1, 'development', false)], { mode: 'development', establish: true, lostRuns: ['1'] }), { ok: true });
-  assert.equal(checkChain([], { mode: 'development', establish: true, lostRuns: ['5'] }).reason, 'lost-runs-unknown');
-  // A paid run that never started its harness spent nothing and blocks nothing.
-  assert.equal(checkChain([run(2, 'development', false, false), run(1, 'development', true)], { mode: 'development', receiptsRunId: '1' }).ok, true);
-  // Lost after the newest ledger: refused until a reconcile names exactly the lost runs.
-  const lost = [run(11, 'holdout', false), run(10, 'development', false), ...chain];
-  assert.equal(checkChain(lost, { mode: 'development', receiptsRunId: '8' }).reason, 'missing-receipt:11,10');
-  assert.equal(checkChain(lost, { mode: 'reconcile', receiptsRunId: '8', lostRuns: ['10'] }).reason, 'missing-receipt:11,10');
-  assert.deepEqual(checkChain(lost, { mode: 'reconcile', receiptsRunId: '8', lostRuns: ['11', '10'] }), { ok: true });
-  // Once reconciled, that run's ledger is the newest and the lost runs lie behind it.
-  assert.deepEqual(checkChain([run(12, 'reconcile', true), ...lost], { mode: 'development', receiptsRunId: '12' }), { ok: true });
+  assert.deepEqual(checkChain([], { mode: 'dry-run' }), ok());
+  // C1: only attempt 1 of a run takes part; a re-run would skip its own first attempt's spend.
+  assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '8', attempt: '2', ...at(10) }).reason, 'rerun-attempt');
+  // A deleted run leaves a gap in the run numbers, which could hide a lost run or an opened holdout.
+  assert.equal(checkChain(chain.filter((r) => r.id !== '7'), { mode: 'development', receiptsRunId: '8', ...at(10) }).reason, 'run-missing:7');
+  // C4: the baseline is its own dispatch, development mode, only while no ledger exists; an
+  // earlier baseline dispatch that was lost called no model, so it blocks nothing.
+  assert.equal(checkChain([], { mode: 'holdout', establish: true }).reason, 'establish-development-only');
+  assert.deepEqual(checkChain([run(1, 'development', false)], { mode: 'development', establish: true, ...at(2) }), ok());
+  // A run that never started its step spent nothing and blocks nothing.
+  assert.deepEqual(checkChain([run(10, 'development', false, false), ...chain], { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
+  // C2/C3: lost after the newest ledger (a reconcile run too): refused until a reconcile names
+  // exactly all of them; partitions come from their recorded modes; a reconcile is charged nothing.
+  const lost = [run(12, 'reconcile', false), run(11, 'holdout', false, true, true), run(10, 'development', false), ...chain];
+  assert.equal(checkChain(lost, { mode: 'development', receiptsRunId: '8', ...at(13) }).reason, 'missing-receipt:12,11,10');
+  assert.equal(checkChain(lost, { mode: 'reconcile', receiptsRunId: '8', lostRuns: ['10', '11'], ...at(13) }).reason, 'missing-receipt:12,11,10');
+  assert.deepEqual(checkChain(lost, { mode: 'reconcile', receiptsRunId: '8', lostRuns: ['10', '11', '12'], ...at(13) }), ok(['12', '11', '10'], ['development', 'holdout']));
+  const reconciled = [run(13, 'reconcile', true), ...lost];
+  assert.deepEqual(checkChain(reconciled, { mode: 'development', receiptsRunId: '13', ...at(14) }), ok());
+  // C5: the holdout is consumed once any run started decoding it: no second holdout run, no new freeze.
+  assert.equal(checkChain(reconciled, { mode: 'holdout', receiptsRunId: '13', ...at(14) }).reason, 'holdout-consumed');
+  assert.equal(checkChain(reconciled, { mode: 'reconcile', receiptsRunId: '13', freeze: true, ...at(14) }).reason, 'holdout-consumed');
+  assert.deepEqual(checkChain(chain, { mode: 'reconcile', receiptsRunId: '8', freeze: true, ...at(10) }), ok());
+  assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '8', freeze: true, ...at(10) }).reason, 'freeze-in-reconcile-only');
+  assert.deepEqual(checkChain(chain, { mode: 'holdout', receiptsRunId: '8', ...at(10) }), ok());
+  // A holdout run refused at its freeze gate never decoded the secret: the holdout is not consumed.
+  assert.deepEqual(checkChain([run(10, 'holdout', true, false, false), ...chain], { mode: 'holdout', receiptsRunId: '10', ...at(11) }), ok());
 });
 
-test('M13: spend and attempts of runs lost before the baseline are added to every count', () => {
-  const ledger = newLedger({ credits: START, runId: '2', mainSha: null, manifest, preBaseline: { runs: ['1'], partition: 'development', attempts: 300, spentUsd: 1.5 } });
-  assert.ok(Math.abs(ledgerSpent(ledger, START) - 1.5) < 1e-12);
-  assert.equal(admitBatch(ledger, START, plan(req(1, 0.6)), { manifest }).reason, 'partition-cap');
-  assert.equal(admitBatch(ledger, START, plan(req(101, 0.001)), { manifest }).reason, 'attempt-cap');
-  assert.equal(admitBatch(ledger, START, plan(req(100, 0.001)), { manifest }).ok, true);
-  // Others spend $3.2 after the baseline: $1.5 + $3.2 leaves $0.30 of the $5.
-  const later = credits(START.balance - 3.2, START.totalUsed + 3.2);
-  assert.equal(admitBatch(ledger, later, plan(req(1, 0.31), 'holdout'), { manifest }).reason, 'total-cap');
+test('C5: the holdout gate runs before the secret is decoded and needs the recorded freeze', () => {
+  const base = newLedger({ credits: START, runId: '1', mainSha: null, manifest });
+  const hashes = { configSha256: 'c'.repeat(64), manifestSha256: manifest.sha256 };
+  assert.equal(holdoutGate(base, hashes), 'no-freeze');
+  const frozen = reconcileLedger(base, START, { reason: 'development freeze recorded', runId: '2', frozen: hashes });
+  assert.equal(holdoutGate(frozen, hashes), null);
+  assert.equal(holdoutGate(frozen, { ...hashes, configSha256: 'd'.repeat(64) }), 'config-not-frozen');
+  assert.equal(holdoutGate(frozen, { ...hashes, manifestSha256: 'x' }), 'harness-not-frozen');
+  assert.equal(holdoutGate({ ...frozen, mock: true }, hashes), 'no-ledger');
+  const used = { ...frozen, batches: [{ partition: 'holdout', after: START }] };
+  assert.equal(holdoutGate(used, hashes), 'holdout-consumed');
 });
 
-test('M13: reconciling a lost run charges the whole drop to its partition and counts its attempts', () => {
+test('M13: reconciling a lost run charges the larger of the balance drop and the usage rise to its partitions', () => {
   const { ledger, after } = appendClosed(newLedger({ credits: START, runId: '1', mainSha: null, manifest }), START, plan(req(1)), 0.01);
   const now = credits(after.balance - 1.2, after.totalUsed + 1.2);
-  const r = reconcileLedger(ledger, now, { reason: 'runner lost; gateway shows 40 attempts', runId: '5', lost: { runs: ['4'], partition: 'development', attempts: 40 } });
+  const r = reconcileLedger(ledger, now, { reason: 'runner lost; gateway shows 40 attempts', runId: '5', lost: { runs: ['4'], partitions: ['development'], attempts: 40 } });
   const lostBatch = r.batches.at(-1);
-  assert.deepEqual([lostBatch.partition, lostBatch.attempts, lostBatch.reconciled], ['development', 40, true]);
+  assert.deepEqual([lostBatch.partitions, lostBatch.attempts, lostBatch.reconciled], [['development'], 40, true]);
   assert.ok(Math.abs(lostBatch.settledUsd - 1.2) < 1e-9);
   assert.equal(admitBatch(r, now, plan(req(1, 0.8)), { manifest }).reason, 'partition-cap');
   assert.equal(admitBatch(r, now, plan(req(1, 0.7)), { manifest }).ok, true);
-  assert.throws(() => reconcileLedger(ledger, now, { reason: 'no partition given here', lost: { runs: ['4'], attempts: 1 } }), /partition/);
+  // A $2 top-up during the lost run hides its $1.50 from the balance, not from lifetime usage.
+  const topped = credits(after.balance + 0.5, after.totalUsed + 1.5);
+  const t = reconcileLedger(ledger, topped, { reason: 'runner lost during a top-up', runId: '6', lost: { runs: ['4'], partitions: ['development', 'holdout'], attempts: 10 } });
+  assert.ok(Math.abs(t.batches.at(-1).settledUsd - 1.5) < 1e-9);
+  assert.ok(partitionSpent(t, 'holdout') >= 1.5 && partitionSpent(t, 'development') >= 1.5);
+  assert.throws(() => reconcileLedger(ledger, now, { reason: 'no partition given here', lost: { runs: ['4'], attempts: 1 } }), /partitions/);
+});
+
+test('C6: one unknown-bill rule for every arm: a retried 5xx is flagged; a refusal before inference is not', async () => {
+  const d = DESIGNS[0];
+  for (const armId of [PRIMARY.id, 'haiku']) {
+    const arm = ARMS.find((a) => a.id === armId);
+    const ok = mockGateway();
+    let n = 0;
+    const flaky = (status) => async (url, init) => (n++ === 0 ? new Response('{}', { status }) : ok.fetchImpl(url, init));
+    for (const [status, flagged] of [[503, 1], [429, 0], [400, 0]]) {
+      n = 0;
+      const deps = harnessDeps(ok, null, {
+        fetchImpl: flaky(status),
+        executeDecisionRequest: (req, policy, dd, prepared) => server.decision.executeDecisionRequest(req, policy, { ...dd, sleep: async () => {} }, prepared),
+      });
+      const out = await callArm(arm, d, CONFIG, planRequest(arm, d, CONFIG, deps), deps);
+      assert.equal(out.unknown, flagged, `${armId} ${status}`);
+    }
+  }
 });
 
 test('M13: the holdout is held to the freeze recorded in the ledger; baselines are known by model, not by name', () => {

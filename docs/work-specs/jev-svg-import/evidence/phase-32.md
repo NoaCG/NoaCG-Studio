@@ -43,63 +43,75 @@ main: that SHA. Revert this row after it lands with `git revert -m 1 <merge sha>
   and reader-made ids, and the mapping of answers to a proposal.
 - `docs/work-specs/jev-svg-import/evaluation/prompts.json`: the configuration rows 33 tunes.
 
-## Rules (M1 to M13, each pinned by a test in `scripts/jev-svg-eval.test.mjs`)
+## Rules (M1 to M12 and C1 to C6, each pinned by a test in `scripts/jev-svg-eval.test.mjs`)
 
 1. **M1** The configuration is data under a closed schema: fixed keys, at most 16 KiB, instructions
    that are plain lines with no URL, markup, template or code syntax (`{layer}` is the one
-   placeholder), models only from the admitted, priced route list with a matching kind, and the
-   primary fixed to structured Jev 1.14 (`typesafe-ai/jev-1.14.0`, decision, no pixels).
+   placeholder), models only from the admitted, priced route list with a matching kind, the
+   primary fixed to structured Jev 1.14 (`typesafe-ai/jev-1.14.0`, decision, no pixels), and the
+   id `deterministic` reserved for the deterministic arm.
 2. **M2** A dispatch's ref is resolved once to a commit; only `prompts.json` at that commit is read,
    with `git fetch` and `git cat-file`. The branch is never checked out, imported or run.
 3. **M3** Frozen: the scoring version, the primary, and a manifest of SHA-256 hashes of every
-   source that decides a result (harness, evidence, questions, decision and chat adapters, the
-   image task contract, the workflow). The decision prices in the harness must equal the server's
-   audited prices or nothing runs.
-4. **M4** The first paid run records the original balance baseline (balance, lifetime usage, run
-   id, main SHA, workflow ref, environment, manifest). It is never reset (M13). A dry run's
-   ledger is uploaded under another name and is refused by a paid run and by reconcile. Each
-   batch receipt records the balance before and after, its debit and settled cost.
+   source the run executes: the harness scripts, the compiled server graph as the api build emits
+   it, the browser reader's bundled graph, the composite actions, the lockfile and the labels
+   (about 230 files). The Node version and runner image are recorded, not frozen. The decision
+   prices in the harness must equal the server's audited prices or nothing runs.
+4. **M4** The baseline dispatch records the original balance (balance, lifetime usage, run id, main
+   SHA, workflow ref, environment, manifest, runtime) and calls no model. Each batch receipt
+   records the balance before and after, its debit and settled cost. A dry run's ledger is
+   uploaded under another name and refused by a paid run and by reconcile.
 5. **M5** Spent is the largest of the balance drop, the lifetime-usage rise and the settled
    receipts, so other consumers' spend counts. A batch is admitted only if its priced maximum fits
    both the remaining $5 and its partition ($2 development, $3 holdout).
 6. **M6** At most two attempts per logical request (the harness caps the adapter's `maxAttempts`
    at 2 whatever the plan says) and 500 in all. An unpriced request is refused. A request is
    priced from the bytes it actually sends (system, messages, output schema; the picture as image
-   tokens). An image request is a batch of one, since its image price is a bound, not a bill. A
-   refusal before inference (a 4xx other than 408) is charged nothing; an answer, a timeout, a
-   5xx or no response is charged its worst case when its bill is unknown.
+   tokens). An image request is a batch of one, since its image price is a bound, not a bill.
 7. **M7** New money stops paid calls: a balance above the newest reading on record (the last
    receipt, or a reconciliation made after it), lifetime usage below it, or balance plus usage
    above the baseline's sum (a top-up hidden by concurrent spend).
-8. **M8** A batch's receipt is written before its first call. A batch without a closing reading
-   (a crash, a lost run), an unsettled reading, a cost past the priced maximum, more attempts than
-   planned, or a charge whose bill is unknown suspends every later batch until `reconcile` runs
-   with a written reason. Reconciliation closes a missing receipt at its priced maximum, records
-   new money as acknowledged (never moving the baseline), and may accept a new harness manifest
-   when a reviewed fix landed on main through its owning row.
+8. **M8** A batch's receipt is written before its first call. A batch without a closing reading,
+   an unsettled reading, a cost past the priced maximum, or more attempts than planned suspends
+   every later batch until `reconcile` runs with a written reason. Reconciliation closes a missing
+   receipt at its priced maximum, records new money as acknowledged (never moving the baseline),
+   and may accept a new harness manifest when a reviewed fix landed on main through its owning row.
 9. **M9** A closing reading counts only when two readings agree and already show the spend the
-   provider reported for answered calls; a worst-case charge for an unknown bill counts as spend
-   but is not waited for.
+   provider reported for answered calls.
 10. **M10** Evidence passes the server's `svgEvidenceRefusal`; text only with `includeText === true`.
     Questions name only reader-made ids (`t3`), never anything the artwork says, and stay within the
-    adapter's 32-question bound; text layers past it keep the deterministic decision.
+    adapter's 32-question bound; any layer not asked about keeps the deterministic decision.
 11. **M11** Provider calls are strictly serial (a wrapper refuses a second call in flight). Every
     body pins zero data retention, no prompt training and the route's own providers, with no
     fallback model list. A refused or failed request falls back to the deterministic proposal.
-12. **M12** Scoring and the decision rule, below. Only the deterministic arm may hold the id
-    `deterministic`, which the rule pairs on.
-13. **M13** One receipt chain across runs (`checkChain`, fed by the workflow from the Actions API;
-    every run is titled with its mode). Only the very first paid run, in development mode, may set
-    the baseline: refused once any run left a ledger. If a paid run was lost before any ledger
-    existed, the new baseline must name exactly those runs and carries their spend and attempts,
-    read by a person from the gateway's records, added to every count (`preBaseline`). The holdout
-    never starts a chain. Every other paid or reconcile
-    run must name the newest ledger's run. A paid run that started its harness and left no ledger
-    (a lost runner) refuses every later paid run until a reconcile names exactly the lost runs; that
-    reconcile charges the whole balance drop since the newest reading to the partition named and
-    records the attempts a person read from the gateway's records. Row 33 records its freeze
-    (configuration and manifest hashes) with `reconcile` + `freeze`; the holdout run is held to that
-    record, not to a typed input. The challenger limit knows baselines by kind and model.
+12. **M12** Scoring and the decision rule, below.
+
+The chain across runs (`checkChain`, fed by the workflow from the Actions API; each run is titled
+with its mode). This is the corrected model from the repeated-family reassessment (below):
+
+- **C1** The chain's unit is a run attempt: every non-dry mode refuses `GITHUB_RUN_ATTEMPT` other
+  than 1, in the chain step and in the harness. The run list counts every attempt
+  (`jobs?filter=all`), so a refused re-run cannot hide its first attempt. Run numbers before this
+  one must have no gap: a deleted run cannot hide a lost run or an opened holdout.
+- **C2** A run is lost when it is development, holdout or reconcile, an attempt started its harness
+  or reconcile step, and it left no ledger. Any lost run after the newest ledger refuses every
+  later paid run and every freeze until one reconcile names exactly all of them. Every other paid
+  or reconcile run must name the newest ledger's run.
+- **C3** A lost run is charged, since the newest reading, the larger of the balance drop and the
+  lifetime-usage rise, to the partition of its recorded mode, never a typed one (a reconcile
+  spends nothing and is charged nothing). Its attempts are the one typed number, read by a person
+  from the gateway's records.
+- **C4** The baseline is its own development dispatch (`establish_baseline`), which calls no model,
+  allowed only while no ledger exists. A lost baseline dispatch spent nothing and is simply
+  dispatched again.
+- **C5** The holdout's gate runs before the secret is decoded: a freeze recorded in the ledger by
+  `reconcile` + `freeze`, and this configuration and harness exactly the frozen ones. The holdout
+  is consumed once any run started decoding it: from then on holdout mode and any freeze are
+  refused. The challenger limit knows baselines by kind and model.
+- **C6** One unknown-bill rule for every arm: a sent attempt that may have been billed (a 2xx, a 408,
+  a 5xx, no response) whose bill was not read is charged its worst case and recorded. It does not
+  suspend: the batch's settled closing reading reconciles it before the next batch, and the
+  settled cost keeps the larger of that charge and the debit.
 
 ## Scoring (frozen, `jev-svg-score/1`)
 
@@ -133,8 +145,9 @@ slice is scored only by its sidecars' text-field counts and reported apart.
 - Protected environment: `jev-svg-evaluation` (repository `NoaCG/NoaCG-Studio`, main only, per
   `preparation/evaluation-environment.md` and readiness run 41182891906).
 - Workflow: `.github/workflows/jev-svg-eval.yml` on `main`. The main workflow SHA is this PR's
-  merge commit; the first paid run writes it (`GITHUB_SHA`) and the workflow ref into the ledger
-  baseline, and every later run refuses a harness whose manifest differs.
+  merge commit; the baseline dispatch writes it (`GITHUB_SHA`), the workflow ref and the manifest
+  into the ledger before any paid batch, and every later run refuses a harness whose manifest
+  differs unless a reconcile accepted a reviewed change.
 - Freeze manifest at the reviewed head (`node scripts/jev-svg-eval.mjs freeze`): see the PR body
   for the final values; row 33 reads them from the baseline it writes.
 - Configuration: `prompts.json` SHA-256 `77abac7b0bcd987142fecc97d3cdc8e5fadf68d38d6a1fff99039814c9446f71`.
@@ -189,13 +202,27 @@ missing primary answer could still qualify a family (M12); the challenger limit 
 (M13); one retried 5xx suspended a run (M9); the holdout freeze was a typed input (M13); the
 freeze missed `contract.ts` and `aiModelCatalog.ts`; the baseline did not store the workflow ref.
 
+From the second `/so` (`session_017SdbwPUKVTgH9GBgsnBG8M`, B on `dd5193c`, 2 blocking, 4
+non-blocking): a re-run attempt skipped its own first attempt; the holdout could be re-frozen and
+re-run after it stopped early; a typed partition could move a lost holdout's spend; lost spend
+counted only the balance drop; the server freeze missed imported modules; unknown bills were
+flagged differently per arm.
+
+That made two successive rounds on one missing rule (the chain across runs), so patching stopped
+and a fresh read-only reassessment (`session_017SdbwRE14vBg7MZ9kniiW3`) challenged a written rule
+model first. It agreed with corrections, all taken: count every attempt; detect deleted runs by
+run-number gaps; gate the holdout before the secret is decoded and consume it at decoding; charge a
+lost reconcile nothing; freeze the composite actions and record the runtime; an unknown bill is
+charged, not suspended (the settled reading reconciles it); and make the baseline its own no-spend
+dispatch, which removed the typed lost spend entirely. That model is C1 to C6 above.
+
 - Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
   harmed design stops its family from qualifying. The notes and docstring said "or design" and
   were corrected.
 
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 29 of 29 pass (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 30 of 30 pass (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle
@@ -211,7 +238,12 @@ freeze missed `contract.ts` and `aiModelCatalog.ts`; the baseline did not store 
 ## Known limits
 
 - A paid run whose harness fails before writing its ledger (for example a configuration refused
-  at start) reads as lost: a reconcile with zero attempts closes it. Safe, and rare.
+  at start) reads as lost: a reconcile naming it, with zero attempts, closes it. Safe, and rare.
+- A lost run's attempt count is typed by a person from the gateway's records (C3). The attempt
+  cap is 500 and a development run makes about 140, so a wrong count cannot quietly approach it.
+- The run-number gap check assumes GitHub numbers every run of this workflow in order; one run on
+  the protected environment in row 33 confirms it.
+- The Node patch version and runner image are recorded in the ledger and report, not frozen.
 - The freeze covers the reader's graph and the lockfile, so a change on main to the importer or a
   dependency between rows 33 and 34 refuses the holdout until row 33's freeze is redone. That is
   the intended protection against comparing two instruments.

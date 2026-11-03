@@ -37,7 +37,7 @@ on:
         required: false
         type: string
       establish_baseline:
-        description: First paid run only - record the original balance baseline
+        description: Development mode, first dispatch only - record the original balance baseline and call no model
         required: false
         type: boolean
         default: false
@@ -56,19 +56,11 @@ on:
         type: boolean
         default: false
       lost_runs:
-        description: Reconcile, or the first baseline - comma-separated ids of paid runs that left no ledger
-        required: false
-        type: string
-      lost_partition:
-        description: Reconcile only - the partition those lost runs spent from
+        description: Reconcile only - comma-separated ids of runs that left no ledger
         required: false
         type: string
       lost_attempts:
         description: Provider attempts those lost runs made, read from the gateway's records
-        required: false
-        type: string
-      lost_spend_usd:
-        description: First baseline only - what runs lost before any ledger spent, from the gateway's records
         required: false
         type: string
       accept_manifest:
@@ -128,9 +120,10 @@ jobs:
           commit="$(printf '%s' "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!j.ok)process.exit(1);process.stdout.write(j.commit)})')"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
 
-      # One receipt chain: a paid run continues the NEWEST ledger this workflow left; only the very
-      # first paid run may establish a baseline; a paid run that started its harness and left no
-      # ledger (a lost runner) refuses every later paid run until a reconcile names it.
+      # One receipt chain (rules C1-C6 in phase-32.md): only attempt 1 of a run takes part; no run
+      # number may be missing; a paid run continues the NEWEST ledger; a run that started its step
+      # and left no ledger (a lost runner) refuses every later paid run until a reconcile names it;
+      # the holdout is consumed once any run started decoding it.
       - name: Check the receipt chain and fetch the previous ledger
         if: inputs.mode != 'dry-run'
         env:
@@ -139,28 +132,40 @@ jobs:
           RUN_ID: ${{ inputs.receipts_run_id }}
           ESTABLISH: ${{ inputs.establish_baseline }}
           LOST_RUNS: ${{ inputs.lost_runs }}
+          FREEZE: ${{ inputs.freeze }}
         run: |
           runs="$RUNNER_TEMP/runs.json"
           echo '[' > "$runs"
           first=1
-          for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?branch=main&event=workflow_dispatch&per_page=100" --jq '.workflow_runs[].id'); do
+          for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?per_page=100" --jq '.workflow_runs[].id'); do
             [ "$id" = "$GITHUB_RUN_ID" ] && continue
-            title="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.display_title')"
-            mode="$(printf '%s' "$title" | sed -nE 's/^Jev SVG evaluation \((dry-run|development|holdout|reconcile)\)$/\1/p')"
+            meta="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '[.run_number, .display_title] | @tsv')"
+            number="${meta%%$'\t'*}"
+            mode="$(printf '%s' "${meta#*$'\t'}" | sed -nE 's/^Jev SVG evaluation \((dry-run|development|holdout|reconcile)\)$/\1/p')"
             ledger="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "jev-svg-eval-ledger")] | length')"
-            started="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs" --jq '[.jobs[].steps[]? | select(.name == "Run the harness" and .conclusion != "skipped" and .status != "queued" and .status != "pending")] | length')"
+            # Every attempt of the run, not only the newest: a refused re-run must not hide its first attempt.
+            steps="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?filter=all&per_page=100" --jq '.jobs[].steps[]? | select(.conclusion != "skipped" and .status != "queued" and .status != "pending") | .name')"
+            started=false; decoded=false
+            if grep -qxE 'Run the harness|Reconcile the ledger' <<< "$steps"; then started=true; fi
+            if grep -qx 'Decode the sealed holdout' <<< "$steps"; then decoded=true; fi
             [ "$first" = 1 ] || echo ',' >> "$runs"
             first=0
-            printf '{"id":"%s","mode":"%s","hasLedger":%s,"harnessStarted":%s}\n' "$id" "${mode:-unknown}" \
-              "$([ "$ledger" != "0" ] && echo true || echo false)" "$([ "$started" != "0" ] && echo true || echo false)" >> "$runs"
+            printf '{"id":"%s","number":%s,"mode":"%s","hasLedger":%s,"harnessStarted":%s,"holdoutStarted":%s}\n' \
+              "$id" "$number" "${mode:-unknown}" "$([ "$ledger" != "0" ] && echo true || echo false)" "$started" "$decoded" >> "$runs"
           done
           echo ']' >> "$runs"
           node scripts/jev-svg-eval.mjs chain --runs "$runs" --mode "$MODE" --receipts-run-id "$RUN_ID" \
-            --establish "$ESTABLISH" --lost-runs "$LOST_RUNS"
+            --establish "$ESTABLISH" --lost-runs "$LOST_RUNS" --freeze "$FREEZE"
           if [ "$ESTABLISH" != "true" ]; then
             gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" -n jev-svg-eval-ledger -D "$RUNNER_TEMP/ledger-in"
             test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: missing-receipt: that run left no ledger"; exit 1; }
           fi
+
+      # Before the secret reaches the runner: the freeze is recorded and this configuration and
+      # harness are exactly the frozen ones. A refusal here leaves the holdout unopened.
+      - name: Check the holdout freeze
+        if: inputs.mode == 'holdout'
+        run: node scripts/jev-svg-eval.mjs holdout-gate --ledger "$RUNNER_TEMP/ledger-in/ledger.json" --config "$RUNNER_TEMP/prompts.json"
 
       - name: Decode the sealed holdout
         if: inputs.mode == 'holdout'
@@ -186,19 +191,14 @@ jobs:
           CONFIG_COMMIT: ${{ steps.config.outputs.commit }}
           ESTABLISH: ${{ inputs.establish_baseline }}
           REGRESSION: ${{ inputs.regression }}
-          LOST_RUNS: ${{ inputs.lost_runs }}
-          LOST_PARTITION: ${{ inputs.lost_partition }}
-          LOST_ATTEMPTS: ${{ inputs.lost_attempts }}
-          LOST_SPEND: ${{ inputs.lost_spend_usd }}
+          RUN_ID: ${{ inputs.receipts_run_id }}
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           args=(run --mode "$MODE" --config "$RUNNER_TEMP/prompts.json" --config-sha "$CONFIG_COMMIT"
                 --ledger-out "$RUNNER_TEMP/out/ledger.json" --report "$RUNNER_TEMP/out/report.json")
           if [ "$MODE" != "dry-run" ] && [ -s "$RUNNER_TEMP/ledger-in/ledger.json" ]; then args+=(--ledger "$RUNNER_TEMP/ledger-in/ledger.json"); fi
           if [ "$ESTABLISH" = "true" ]; then args+=(--establish-baseline); fi
-          if [ "$ESTABLISH" = "true" ] && [ -n "$LOST_RUNS" ]; then
-            args+=(--lost-runs "$LOST_RUNS" --lost-partition "$LOST_PARTITION" --lost-attempts "$LOST_ATTEMPTS" --lost-spend-usd "$LOST_SPEND")
-          fi
+          if [ "$MODE" != "dry-run" ]; then args+=(--runs "$RUNNER_TEMP/runs.json" --receipts-run-id "$RUN_ID"); fi
           if [ "$REGRESSION" = "true" ]; then args+=(--regression); fi
           if [ "$MODE" = "holdout" ]; then args+=(--holdout-zip "$RUNNER_TEMP/holdout.zip"); fi
           node scripts/jev-svg-eval.mjs "${args[@]}"
@@ -211,8 +211,8 @@ jobs:
           ACCEPT_MANIFEST: ${{ inputs.accept_manifest }}
           FREEZE: ${{ inputs.freeze }}
           CONFIG_COMMIT: ${{ steps.config.outputs.commit }}
+          RUN_ID: ${{ inputs.receipts_run_id }}
           LOST_RUNS: ${{ inputs.lost_runs }}
-          LOST_PARTITION: ${{ inputs.lost_partition }}
           LOST_ATTEMPTS: ${{ inputs.lost_attempts }}
         run: |
           test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: reconcile needs receipts_run_id"; exit 1; }
@@ -220,7 +220,8 @@ jobs:
           args=(reconcile --ledger "$RUNNER_TEMP/ledger-in/ledger.json" --ledger-out "$RUNNER_TEMP/out/ledger.json" --reason "$REASON")
           if [ "$ACCEPT_MANIFEST" = "true" ]; then args+=(--accept-manifest); fi
           if [ "$FREEZE" = "true" ]; then args+=(--freeze --config "$RUNNER_TEMP/prompts.json" --config-sha "$CONFIG_COMMIT"); fi
-          if [ -n "$LOST_RUNS" ]; then args+=(--lost-runs "$LOST_RUNS" --lost-partition "$LOST_PARTITION" --lost-attempts "$LOST_ATTEMPTS"); fi
+          args+=(--runs "$RUNNER_TEMP/runs.json" --receipts-run-id "$RUN_ID")
+          if [ -n "$LOST_RUNS" ]; then args+=(--lost-runs "$LOST_RUNS" --lost-attempts "$LOST_ATTEMPTS"); fi
           node scripts/jev-svg-eval.mjs "${args[@]}"
 
       - name: Remove the holdout archive
