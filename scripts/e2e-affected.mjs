@@ -1920,19 +1920,19 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null, pla
 
 /**
  * WHAT THE CRITICAL-JOURNEY RULE ADDED TO THIS PLAN, priced (cicd-followup cf12): the journeys it
- * put in that still run in the blocking shards, their measured test-minutes, and the shard count
- * the same blocking plan would get without them. The runner-minutes it costs are those minutes
+ * put in that still run in the blocking shards, their measured test-minutes against the whole
+ * blocking plan's, and the shard count the same blocking plan would get without them. The runner-minutes it costs are those minutes
  * times the table's test factor plus the per-job overhead of every extra shard; the plan job
  * prints this as an annotation, so a run's added cost is readable from its own history.
  * @param {{ product: boolean, added: string[] } | undefined} rule  `planFor`'s `critical`
  * @param {string[]} suite  the blocking specs the shards run
  */
 export function criticalCost(rule, suite, table = readTable()) {
-  if (!rule) return { product: false, added: [], addedMinutes: 0, shardsWithout: null };
+  if (!rule) return { product: false, added: [], addedMinutes: 0, planMinutes: 0, shardsWithout: null };
   const added = rule.added.filter((s) => suite.includes(s));
   const without = suite.filter((s) => !added.includes(s));
   const shardsWithout = without.length === 0 ? 0 : shardsFor({ mode: 'subset', specs: without }, table, without);
-  return { product: rule.product, added, addedMinutes: Number(minutesFor(added, table).toFixed(2)), shardsWithout };
+  return { product: rule.product, added, addedMinutes: Number(minutesFor(added, table).toFixed(2)), planMinutes: Number(minutesFor(suite, table).toFixed(2)), shardsWithout };
 }
 
 /**

@@ -482,7 +482,7 @@ jobs:
             if (plan.critical && plan.critical.product) {
               const c = plan.critical;
               console.log("::notice title=Critical journeys::product change: " + (c.added.length
-                ? "added " + c.added.length + " critical spec(s) (" + c.addedMinutes + " table-min; shards " +
+                ? "added " + c.added.length + " critical spec(s) (" + c.addedMinutes + " of " + c.planMinutes + " table-min; shards " +
                   c.shardsWithout + " -> " + (plan.mode === "none" ? 0 : plan.shards) + "): " + c.added.join(", ")
                 : "all critical specs already planned or quarantined, nothing added"));
             }

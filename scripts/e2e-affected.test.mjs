@@ -2295,7 +2295,8 @@ test('cf12: criticalCost prices only the journeys still in the blocking shards',
   const cost = criticalCost({ product: true, added: ['a.spec.ts', 'b.spec.ts', 'gone.spec.ts'] }, ['a.spec.ts', 'b.spec.ts', 'own.spec.ts'], table);
   assert.deepEqual(cost.added, ['a.spec.ts', 'b.spec.ts'], 'a quarantined journey left the shards and costs nothing here');
   assert.equal(cost.addedMinutes, 3.5);
+  assert.equal(cost.planMinutes, 4.5);
   assert.equal(cost.shardsWithout, 1);
   assert.equal(criticalCost({ product: true, added: ['a.spec.ts'] }, ['a.spec.ts'], table).shardsWithout, 0, 'without the journeys the plan would have run no shard');
-  assert.deepEqual(criticalCost(undefined, [], table), { product: false, added: [], addedMinutes: 0, shardsWithout: null });
+  assert.deepEqual(criticalCost(undefined, [], table), { product: false, added: [], addedMinutes: 0, planMinutes: 0, shardsWithout: null });
 });
