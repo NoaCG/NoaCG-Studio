@@ -27,16 +27,27 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "PR #2005 in merge queue",
+  "waitingOn": "phase 32 checker session_017SdbwN3h8S1fH4K66pN1wE",
   "inFlight": [
     {
       "phase": 32,
+      "role": "check",
       "pr": 2005,
-      "head": "aeabaae640d8c49f31d54c205452bdc37c0638c0",
-      "stampRun": 41614066737,
-      "ciRun": 41612824101,
-      "so": "session_017SdbwLwneG4uEjSJuLnQZD A",
-      "builder": "session_017SdbwN5DfB1t4AiShMs23v"
+      "mergeSha": "531f856e13379ccffe8edc2df381cf6c2503f393",
+      "checker": "session_017SdbwN3h8S1fH4K66pN1wE",
+      "nonce": "32-c-1d27",
+      "builder": "session_017SdbwN5DfB1t4AiShMs23v",
+      "soSessions": [
+        "session_017SdbwLwneG4uEjSJuLnQZD",
+        "session_017SdbwMVkkdVbG8H9AwuKjj",
+        "session_017SdbwMX87NzFxFaFTm2SCP",
+        "session_017SdbwNaMbpxaxHabZpMZKy",
+        "session_017SdbwNpjHbPHzgZKGynAg1",
+        "session_017SdbwNtTXQYJjQnVa24wVG",
+        "session_017SdbwPUKVTgH9GBgsnBG8M",
+        "session_017SdbwQw1cqDw2wjiNDqcxh",
+        "session_017SdbwRE14vBg7MZ9kniiW3"
+      ]
     }
   ],
   "owner": [],
@@ -63,7 +74,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-03T09:56:04Z"
+    "checkinAt": "2026-11-03T10:33:30Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
