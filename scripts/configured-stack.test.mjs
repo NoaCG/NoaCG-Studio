@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { holding, parseRanges, projectIdOf, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
+import { holding, isStackProcess, parseRanges, projectIdOf, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
 
 test('slot 0 is the CLI default block and every slot block is disjoint', () => {
   const p = slotPorts(0);
@@ -82,4 +82,14 @@ test('a port is held by a listener or an owned socket, not by an ownerless TIME_
   const held = holding(socketsOn(SS, 54320, 54329));
   assert.equal(held.length, 2);
   assert.ok(held.every((l) => !l.startsWith('TIME-WAIT')));
+});
+
+test('only a supabase CLI process of this workdir is the stack\'s, not every process carrying the job env', () => {
+  const env = (w) => `PATH=/usr/bin\0SUPABASE_WORKDIR=${w}\0HOME=/home/runner`;
+  const w = '/tmp/noacg-configured-stacks/slot-0';
+  assert.equal(isStackProcess('supabase\n', env(w), w), true);
+  assert.equal(isStackProcess('bash\n', env(w), w), false); // the step's shell inherits SUPABASE_WORKDIR
+  assert.equal(isStackProcess('node\n', env(w), w), false);
+  assert.equal(isStackProcess('supabase\n', env('/tmp/noacg-configured-stacks/slot-1'), w), false);
+  assert.equal(isStackProcess('supabase\n', env(`${w}0`), w), false);
 });

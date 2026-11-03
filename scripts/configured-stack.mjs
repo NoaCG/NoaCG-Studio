@@ -31,7 +31,7 @@
 //     network of the project, no process of ours, no socket listening on or owned on the block,
 //     and each port binds. Only then are the reservation and the claim given back.
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync, readlinkSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, appendFileSync } from 'node:fs';
 import net from 'node:net';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -259,15 +259,32 @@ async function up(args) {
   console.log(`Local stack ${projectId} ready: ${r.containers} containers running, publishing ${r.published.join(', ')}.`);
 }
 
+/** The pids from `pid` up to init: never ours to stop, whatever their environment holds. */
+function ancestors(pid) {
+  const out = new Set();
+  for (let p = pid; p > 1 && !out.has(p);) {
+    out.add(p);
+    try { p = Number(/^\d+ \(.*\) \S (\d+)/s.exec(readFileSync(`/proc/${p}/stat`, 'utf8'))[1]); } catch { break; }
+  }
+  return out;
+}
+
+/**
+ * This stack's own CLI processes: a `supabase` process whose environment points at this stack's
+ * workdir. The name matters: SUPABASE_WORKDIR is in the job's environment, so every later step's
+ * shell carries it too (run 41602754978 stopped its own teardown step on that).
+ */
+export function isStackProcess(comm, environ, workdir) {
+  return comm.trim() === 'supabase' && environ.split('\0').includes(`SUPABASE_WORKDIR=${workdir}`);
+}
+
 function ourProcesses(workdir) {
+  const skip = ancestors(process.pid);
   const ours = [];
-  for (const pid of readdirSync('/proc').filter((n) => /^\d+$/.test(n))) {
-    if (Number(pid) === process.pid) continue;
+  for (const pid of readdirSync('/proc').filter((n) => /^\d+$/.test(n)).map(Number)) {
+    if (skip.has(pid)) continue;
     try {
-      const env = readFileSync(`/proc/${pid}/environ`, 'utf8').split('\0');
-      let cwd = '';
-      try { cwd = readlinkSync(`/proc/${pid}/cwd`); } catch { /* gone or not ours */ }
-      if (env.includes(`SUPABASE_WORKDIR=${workdir}`) || cwd === workdir || cwd.startsWith(`${workdir}/`)) ours.push(Number(pid));
+      if (isStackProcess(readFileSync(`/proc/${pid}/comm`, 'utf8'), readFileSync(`/proc/${pid}/environ`, 'utf8'), workdir)) ours.push(pid);
     } catch { /* another user's process, or gone: not ours */ }
   }
   return ours;
@@ -290,6 +307,8 @@ async function teardown(state) {
     console.log(`stopping our leftover process ${pid} (${readFileSync(`/proc/${pid}/cmdline`, 'utf8').replaceAll('\0', ' ').trim()})`);
     try { process.kill(pid, 'SIGTERM'); } catch { /* already gone */ }
   }
+  // Until they have exited (observable in /proc), at most 15 s; one still there is reported below.
+  for (const until = Date.now() + 15_000; ourProcesses(workdir).length && Date.now() < until;) await new Promise((r) => setTimeout(r, 200));
   const stop = run('supabase', ['stop', '--no-backup'], { env: { ...process.env, SUPABASE_WORKDIR: workdir } });
   console.log(stop.out.trim(), stop.err.trim());
   // What the CLI could not remove, removed by this project's label - never anything else.
