@@ -61,7 +61,7 @@ test('a candidate never collides with its own branch', () => {
 });
 
 test('cf12: the critical journeys every product change runs are no row\'s territory', () => {
-  // Two product rows in unrelated corners: the real planner plans the ten critical journeys for
+  // Two product rows in unrelated corners: the real planner plans the critical journeys for
   // both, and they must not make the rows collide (the candidates' third bad pick drifted to
   // "collides" on exactly that before the default coverage left them out).
   const entries = [{ branch: 'claude/legal', files: ['src/legal.css'] }];

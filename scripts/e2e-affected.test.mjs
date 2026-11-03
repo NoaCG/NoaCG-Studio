@@ -2238,12 +2238,14 @@ test('ci05: ESCALATES_WITH_HEADERS keeps a header from narrowing spaceKey.ts', (
 
 // ── cicd-followup cf12: the critical journeys on every product change (#1895) ──────────────
 //
-// THE RULE: a change with at least one product file (`isProductFile`) plans the ten `// critical:`
+// THE RULE: a change with at least one product file (`isProductFile`) plans the `// critical:`
 // specs beside its own selection; the plan is a set, so a journey already selected runs once, and
 // `critical.added` is only what the rule put in. A change with no product file plans as before,
 // and a full or shared-change plan already holds every journey (Rule K2).
 test('cf12: a product change plans the critical journeys beside its own selection, each once', () => {
-  assert.equal(CRITICAL.length, 10, 'the ten critical journeys');
+  // Ten from ci07, plus ograf-lifecycle and output-font-hold since cf12 (ci11's faults F4 and F5).
+  assert.equal(CRITICAL.length, 12, 'the twelve critical journeys');
+  for (const s of ['ograf-lifecycle.spec.ts', 'output-font-hold.spec.ts']) assert.ok(CRITICAL.includes(s), s);
   for (const s of CRITICAL) assert.ok(FOCUS.includes(s), `${s} is in the shared-change set too`);
   const coverage = [{ spec: 'own.spec.ts', test: (f) => f === 'src/a.ts' }, { spec: 'cross-tab.spec.ts', test: (f) => f === 'src/b.ts' }];
   const critical = ['cross-tab.spec.ts', 'flows.spec.ts'];

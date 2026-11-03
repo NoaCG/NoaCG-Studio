@@ -2,6 +2,8 @@
 // §5.2, §16 item 12). The stage releases a frame whose `load` a font request holds back, and the
 // output's debug line says what it is waiting for.
 // covers: src/output/stage.ts, src/output/main.ts, src/preview/{composeDocument,previewProtocol}.ts
+// focus
+// critical: graphics-runtime
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 

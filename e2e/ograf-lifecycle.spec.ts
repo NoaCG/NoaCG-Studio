@@ -1,4 +1,6 @@
 // covers: src/export/targets/ograf.ts
+// focus
+// critical: export-portability
 //
 // AN OGRAF GRAPHIC RUNS ITS TEMPLATE'S LIFECYCLE AS A PAGE DOES. Under SPX and CasparCG the
 // template IS a page: its DOM-ready code waits for DOMContentLoaded, which fires once its whole

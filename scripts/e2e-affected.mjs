@@ -1205,7 +1205,7 @@ export function planFor(
   // could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
   if (full) catalog = true;
 
-  // THE CRITICAL JOURNEYS RUN ON EVERY PRODUCT CHANGE (cicd-followup cf12, #1895): the ten
+  // THE CRITICAL JOURNEYS RUN ON EVERY PRODUCT CHANGE (cicd-followup cf12, #1895): the
   // `// critical:` specs join a product change's plan, as a safety net beside what its headers
   // select, not instead of it. The plan is a set, so a journey the change already selected (its
   // header, the shared-change set, a full run) runs once; `criticalAdded` is only what this rule

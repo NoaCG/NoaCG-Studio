@@ -113,6 +113,7 @@ export const CONTRACTS = [
     checks: [
       { path: 'scripts/ograf-steps.test.mjs', layer: 'node' },
       { path: 'e2e/exports.spec.ts', layer: 'artifact' },
+      { path: 'e2e/ograf-lifecycle.spec.ts', layer: 'artifact' },
       { path: 'e2e/ograf-conformance.spec.ts', layer: 'artifact' },
       { path: 'e2e/spx-operator.spec.ts', layer: 'artifact' },
       { path: 'e2e/catalog/ograf-parity.spec.ts', layer: 'catalog' },
