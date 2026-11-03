@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 33 builder session_017SdbwNQwZWqjCQeGYmzXno (coordinator dispatches eval runs)",
+  "waitingOn": "fix #2017, then row 33 accept_manifest, vision run, dry run, freeze",
   "inFlight": [
     {
       "phase": 33,
@@ -89,7 +89,9 @@
           "regression": true,
           "pricedMax": 0.2271,
           "at": "2026-11-03T10:46Z",
-          "paid": true
+          "paid": true,
+          "settled": 0.021113283,
+          "note": "gemini-vision 18/18 provider_rejected"
         }
       ],
       "baseline": {
@@ -98,7 +100,16 @@
         "lifetime": 48.063863346,
         "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
       },
-      "spent": 0.00735498
+      "spent": 0.028468263,
+      "attempts": 176,
+      "blockedOn": "fix #2017 (vision arm refused), session_017SdbwNLUfneMhRfzPvdhM6"
+    },
+    {
+      "role": "fix",
+      "issue": 2017,
+      "session": "session_017SdbwNLUfneMhRfzPvdhM6",
+      "nonce": "fix-2017-f-2ae8",
+      "branch": "claude/plan-jev-svg-import-fix-2017"
     }
   ],
   "owner": [],
@@ -121,6 +132,16 @@
       "mergeSha": "ca4d037d2ce2bfe7202eea822184da4c1039f43e",
       "landedAt": "2026-11-02T10:16:21.218Z",
       "state": "landed"
+    },
+    {
+      "issue": 2017,
+      "session": "session_017SdbwNLUfneMhRfzPvdhM6",
+      "nonce": "fix-2017-f-2ae8",
+      "branch": "claude/plan-jev-svg-import-fix-2017",
+      "source": "531f856e13379ccffe8edc2df381cf6c2503f393",
+      "launchedAt": "2026-11-03T11:04Z",
+      "landBefore": "33 freeze",
+      "reason": "AC-7 relevant-vision comparison has no data; harness records no refusal cause"
     }
   ],
   "triggers": {
@@ -336,6 +357,11 @@
       "phase": 32,
       "at": "2026-11-03T09:34Z",
       "note": "Declined A- point 1 (#2009) as assigned to row 33: row 33 may not change harness source; a decode-then-refuse burns the single holdout. Asked builder to fix pre-decode refusals in row 32."
+    },
+    {
+      "phase": 33,
+      "at": "2026-11-03T11:05Z",
+      "note": "Chose option A for the refused vision arm: fix #2017 lands through row 32 harness ownership before the freeze. Indicative dev: Jev 67/20 vs deterministic 53/19 (worse in lower third, quiz); Jev non-repeatable on 6/18 designs."
     }
   ],
   "ownerOpen": [
