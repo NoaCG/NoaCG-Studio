@@ -18,7 +18,7 @@
     "trial:chat-intake-newest-100": "node scripts/configured-trial.mjs --spec e2e/production-chat-intake.spec.ts --grep \"one press brings the newest 100\" --repeat 100",
     "trial:data-connect-save": "node scripts/configured-trial.mjs --spec e2e/production-data.spec.ts --grep \"Connect closes only once the save landed\" --repeat 100",
     "trial:controls-adjust-measure": "node scripts/configured-trial.mjs --spec e2e/production-controls.spec.ts --grep \"Adjust moves a lower third to the other side\" --repeat 150",
-    "trial:controls-look-on-off": "node scripts/configured-trial.mjs --spec e2e/production-controls.spec.ts --grep \"Setup ▾ Look turns a production look on and off\" --repeat 150",
+    "trial:controls-look-on-off": "node scripts/configured-trial.mjs --spec e2e/production-controls.spec.ts --grep \"Setup ▾ Look turns a production look on and off\" --repeat 360",
     "dev:bench": "node scripts/dev-bench.mjs",
     "build": "node scripts/gates.mjs run && node scripts/build-player-host.mjs && node scripts/build-production-pack.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build && node scripts/prerender.mjs && node scripts/write-version.mjs && node scripts/check-client-secrets.mjs dist && node scripts/gates.mjs run --gate after-build",
     "build:vercel": "node scripts/check-vercel-config.mjs && node scripts/check-function-budget.mjs && node scripts/check-api-route-depth.mjs && node scripts/check-client-secrets.mjs && node scripts/build-production-pack.mjs && vite build && node scripts/prerender.mjs && node scripts/write-version.mjs && node scripts/check-client-secrets.mjs dist",

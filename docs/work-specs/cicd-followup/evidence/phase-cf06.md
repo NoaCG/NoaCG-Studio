@@ -9,7 +9,46 @@ each fix is a few lines in the same file and they share the trial setup.
 
 ## Repeat-count brief
 
-REPEAT_BRIEF_PLACEHOLDER
+This section is the phase's written brief for both counts, committed on its own before either
+post-fix repeat run starts (acceptance (b)).
+
+**Conditions, both trials.** `endurance.yml` on this branch, one `ubuntu-latest` runner, the
+offline suite's config (`playwright.config.ts`, which runs CI with `workers: 1`, as every offline
+CI shard does), retries off, the one test named by `--grep`, through `scripts/configured-trial.mjs`
+(its offline mode). The spec is offline: no backend runs.
+
+**Pre-fix measurement: neither reproduced on a CI runner.** The unchanged spec, at `7fe654f9`:
+
+| Test | Run | Result |
+| --- | --- | --- |
+| #1946 "Adjust moves a lower third…" | [41617460243](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41617460243) | 150 of 150 passed (19.1 min) |
+| #1778 "Setup ▾ Look turns a production look on and off…" | [41617475701](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41617475701) | 150 of 150 passed (25.8 min) |
+
+So each rate is the one from CI history since the report (the acceptance's rule when it was not
+reproduced). Neither spec was ever quarantined. The history is `ci.yml` on every push to `main`
+(each runs the whole offline suite, `E2E n/15 (full)`, so this test once per run), plus the one
+CI run that reported each failure. Of the 8 failed main runs since 2026-10-27, none had a failure
+annotation naming `production-controls.spec.ts` (their annotations read, 7 E2E jobs), and a
+fail-then-pass on main would have put the spec in `e2e/quarantine.json`, which never held it.
+The 300 trial passes above are left out of the rates on purpose: counting them would lower each
+rate and so the count. Both races were reproduced by fault injection instead (section (a)).
+
+| Flake | CI history since the report | Runs | Failed | Rate |
+| --- | --- | --- | --- | --- |
+| #1946 | PR #1943's run [41364022731](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41364022731) (2026-11-01T23:50Z), then the 37 completed main push runs from then to 2026-11-03T09:57Z, all passing it | 38 | 1 | 2.6% |
+| #1778 | PR #1919's run [41320269865](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41320269865) attempt 1 (the one CI occurrence; the others were local), then the 118 completed main push runs from the report (2026-10-27T19:50Z) to 2026-11-03T09:57Z, all passing it | 119 | 1 | 0.84% |
+
+**Arithmetic.** N must satisfy 1 - (1 - r)^N >= 0.95, so N >= ln(0.05) / ln(1 - r).
+
+- #1946, r = 1/38 = 0.0263: -2.9957 / ln(0.9737) = -2.9957 / -0.02667 = 112.3, so N >= 113.
+  **N = 150** (`npm run trial:controls-adjust-measure`) gives 1 - 0.9737^150 = 0.982.
+- #1778, r = 1/119 = 0.0084: -2.9957 / ln(0.9916) = -2.9957 / -0.008439 = 355.0, so N >= 355.
+  **N = 360** (`npm run trial:controls-look-on-off`) gives 1 - 0.9916^360 = 0.952. At the measured
+  10.3 s a run, 360 runs take about 62 minutes, inside the trial's 75-minute cap.
+
+**Pass condition, both.** All N runs pass with zero failures, and exactly N ran
+(`scripts/configured-trial.mjs`: retries are off, so a fail-then-pass cannot hide; a run cut off
+by the cap fails).
 
 ## (a) Reproduced or explained, and the root-cause fixes
 
