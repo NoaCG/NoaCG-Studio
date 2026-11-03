@@ -4,12 +4,12 @@
   "threshold": 0.5,
   "questions": {
     "behaviour": {
-      "scoreboard": "Does the artwork described in state draw a scoreboard: two or more competitors, each a name layer paired with its own short score layer of one to three characters, that an operator changes during a match? One person's name and title, even beside a layer called score, is a lower third, not a scoreboard.",
-      "clock": "Does the artwork described in state draw a clock or timer readout: a short text layer of about four to eight characters holding minutes and seconds, which an operator starts, stops or counts down during the broadcast? A layer may be named clock, time or timer in any language, or have no useful name.",
-      "quiz": "Does the artwork described in state draw a quiz: one question layer plus two to six answer option layers of similar size, often lettered, that an operator reveals one by one?",
-      "credits": "Does the artwork described in state draw end credits: a list of at least three roles, each with the names of people under or beside it, usually stacked in columns? One name with one job title is a lower third, not credits."
+      "scoreboard": "Does the artwork described in state draw a scoreboard: two or more competitors, each a name layer paired with its own short score layer of one to three characters, that an operator changes during a match? One person's name and title, even beside a layer called score, is a lower third, not a scoreboard. Judge by how the layers are laid out: layer names can be generic or misleading.",
+      "clock": "Does the artwork described in state draw a clock or timer readout: a short text layer of about four to eight characters holding minutes and seconds, which an operator starts, stops or counts down during the broadcast? A layer may be named clock, time or timer in any language, or have no useful name. Judge by how the layers are laid out: layer names can be generic or misleading.",
+      "quiz": "Does the artwork described in state draw a quiz: one question layer plus two to six answer option layers of similar size, often lettered, that an operator reveals one by one? Judge by how the layers are laid out: layer names can be generic or misleading.",
+      "credits": "Does the artwork described in state draw end credits: a list of at least three roles, each with the names of people under or beside it, usually stacked in columns? One name with one job title is a lower third, not credits. Judge by how the layers are laid out: layer names can be generic or misleading."
     },
-    "field": "Is text layer {layer} in state.layers a value an operator would edit before or during air, rather than fixed artwork such as a decorative number, label or brand mark?",
+    "field": "Is text layer {layer} in state.layers a value an operator would edit before or during air, rather than fixed artwork such as a decorative number, label or brand mark? Judge by its size, position and what sits beside it, since its name may be generic or misleading.",
     "fieldCriteria": {
       "true": "An operator changes this text: a name, title, score, time, question, answer or credit line.",
       "false": "This text is part of the design and stays as drawn."
