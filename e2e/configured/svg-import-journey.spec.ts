@@ -104,10 +104,13 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
 
   // CUT OFF: the output loses its network. A stepper press is accepted by the operator's page while
   // the output cannot hear it; when the network returns the output recovers the accepted value.
+  // Scoped to the log's ROWS: the collapsed summary repeats the newest line.
+  const updates = page.getByTestId('action-log-row').filter({ hasText: 'Updated' });
+  const updatesBefore = await updates.count();
   await box.setOffline(true);
   await page.getByTestId('live-numbers').getByTestId('live-number-f3-up').click();
   await expect(page.getByTestId('cue-field-f3'), 'COMMAND ACCEPTANCE while the output is cut off').toHaveValue('1');
-  await expect(page.getByTestId('action-log-row').filter({ hasText: 'Updated 1 field' }).first()).toBeVisible();
+  await expect.poll(() => updates.count(), { message: 'COMMAND ACCEPTANCE: the press is in the log' }).toBeGreaterThan(updatesBefore);
   await page.waitForTimeout(2000);
   const heardWhileOff = ((await graphic.locator('#f3').textContent().catch(() => null)) ?? '').trim();
   await box.setOffline(false);
