@@ -44,21 +44,14 @@
   "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15.",
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985)."
  },
- "waitingOn": {
-  "what": "PR #1998 in the merge queue",
-  "eta": "2026-11-03T04:40:00Z"
- },
+ "waitingOn": null,
  "inFlight": [
   {
    "phase": "cf08",
-   "step": "build",
-   "session": "session_017SdbwPLGoJeUd6QBJXvQcD",
-   "nonce": "cf08-b-d740",
-   "pr": 1998,
-   "head": "8a4e5a84b20d59f5654f7e4599e95bca059b7ac9",
-   "stamped": "run 41574835362",
-   "autoMerge": "2026-11-03T03:53:40Z",
-   "state": "queued"
+   "step": "check",
+   "session": "session_017SdbwRKP2vvdBcPewHxmnd",
+   "nonce": "cf08-c-2049",
+   "launchedAt": "2026-11-03T04:07:44Z"
   }
  ],
  "owner": [],
@@ -131,6 +124,7 @@
   }
  ],
  "traps": [
-  "A builder's PR body must not use a closing keyword for an issue the phase says to keep open until a later receipt (cf01: 'close #1951' closed it at merge)."
+  "A builder's PR body must not use a closing keyword for an issue the phase says to keep open until a later receipt (cf01: 'close #1951' closed it at merge).",
+  "Closing keywords in a PR's commits did not auto-close issues when merged through the merge queue (#1998: #1954/#1926 stayed open); check after each merge and close by hand with a pointer."
  ]
 }
