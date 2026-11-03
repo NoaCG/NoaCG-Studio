@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "PR #2018 (fix #2017) in merge queue",
+  "waitingOn": "row 33: accept_manifest reconcile, vision-only run, dry run, freeze",
   "inFlight": [
     {
       "phase": 33,
@@ -101,15 +101,7 @@
         "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
       },
       "spent": 0.028468263,
-      "attempts": 176,
-      "blockedOn": "fix #2017 (vision arm refused), session_017SdbwNLUfneMhRfzPvdhM6"
-    },
-    {
-      "role": "fix",
-      "issue": 2017,
-      "session": "session_017SdbwNLUfneMhRfzPvdhM6",
-      "nonce": "fix-2017-f-2ae8",
-      "branch": "claude/plan-jev-svg-import-fix-2017"
+      "attempts": 176
     }
   ],
   "owner": [],
@@ -150,7 +142,9 @@
       "soOther": [
         "session_017SdbwN8h1j8hEUJWVvAptE"
       ],
-      "state": "queued"
+      "state": "landed",
+      "mergeSha": "4130a081f35f70e4d05dff3b314863127aec465b",
+      "landedAt": "2026-11-03T11:48:38.385Z"
     }
   ],
   "triggers": {
