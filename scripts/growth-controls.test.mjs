@@ -522,6 +522,10 @@ test('(b) the dispatch search follows what a landing runs and names only what it
   assert.ok(starts({ 'ci.yml': ci('run: node scripts/k.mjs m.yml') }, { 'scripts/k.mjs': "import { go } from './lib.mjs';\ngo(process.argv[2]);\n", 'scripts/lib.mjs': 'export const go = (w) => api(`workflows/${w}/dispatches`);\n' }));
   const commented = manual.replace('name: Manual eval', 'name: Manual eval  # by ci');
   assert.ok([...landingDispatched({ workflows: { 'ci.yml': ci('run: gh workflow run "Manual eval"'), 'm.yml': commented } }, e)].includes('m.yml'));
+  // The landing procedure runs on every landing: what it dispatches is started; a mention is not.
+  const proc = (md) => [...landingDispatched({ workflows: { 'm.yml': manual }, read: (f) => (f === 'land.md' ? md : null), procedures: ['land.md'] }, e)].includes('m.yml');
+  assert.ok(proc('# Land\n\n- Dispatch with `gh workflow run m.yml --ref main`.\n'), 'a step of the landing procedure');
+  assert.equal(proc('# Land\n\n- m.yml is for people, never for a landing.\n- Then `gh workflow run other.yml`.\n'), false, 'a mention in another step');
   // Past the limit it cannot tell, so everything counts as started.
   assert.ok(starts({ 'ci.yml': ci('run: node scripts/a.mjs && node scripts/b.mjs && node scripts/c.mjs') }, {}, { limit: 2 }));
   // An untouched manual workflow that this change makes a landing start is priced.

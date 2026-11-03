@@ -183,8 +183,9 @@ const joinPath = (from, rel) => {
 const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', '[\'"`]work' + 'flow[\'"`]\\s*,\\s*[\'"`]run[\'"`]', 'create' + 'WorkflowDispatch', '[/]dispatches\\b', 'uses:\\s*[\'"]?[.][/][.]github[/]workflows[/]'].join('|'));
 
 /**
- * The workflow files some per-landing or scheduled workflow starts (one a schedule starts keeps the
- * old floor of a run per landing): by `gh workflow run` (or its argument array,
+ * The workflow files that something run again and again starts: a per-landing or scheduled
+ * workflow, or the landing procedure (one a schedule starts keeps the old floor of a run per
+ * landing): by `gh workflow run` (or its argument array,
  * `['workflow', 'run', ...]`), a dispatch API call
  * (`createWorkflowDispatch`, `.../dispatches`) or a reusable-workflow `uses:`. From each per-landing
  * workflow it follows what the steps run: repository files named by path (scripts, and the files
@@ -195,11 +196,12 @@ const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', '[\'"`]work' + 'fl
  * anywhere, the display `name:` only after `gh workflow run`. Comment lines are not steps. A
  * started workflow that itself runs per landing starts others in turn. `workflows` maps a file
  * name to its text; `read(path)` returns a repository file or null. Past `limit` files for one
- * workflow, every workflow counts as started.
+ * workflow, every workflow counts as started. `procedures` are repository files (the landing
+ * procedure) that every landing follows: what they start counts as started per landing.
  * It reads only text in the repository: a dispatch from outside it (a person, a session, another
  * repository), by a numeric workflow id, or by a name built at run time is not seen.
  */
-export function landingDispatched({ workflows = {}, read = () => null }, e, { limit = 2000 } = {}) {
+export function landingDispatched({ workflows = {}, read = () => null, procedures = [] }, e, { limit = 2000 } = {}) {
   const code = (text) => String(text ?? '').split(/\r?\n/).filter((l) => !/^\s*(#|\/\/|\/\*|\*)/.test(l)).join('\n');
   const texts = new Map();
   const load = (node) => {
@@ -226,9 +228,9 @@ export function landingDispatched({ workflows = {}, read = () => null }, e, { li
     ...[...line.matchAll(/uses:\s*['"]?\.\/(\.github\/actions\/[\w./-]+?)\/?['"]?\s*$/g)].map((m) => [`${m[1]}/`, line]),
   ]).filter(([child]) => child !== node && !ignored.test(child));
   // The texts that make a dispatch call, each with what led to it; null past the limit.
-  const dispatchers = (root) => {
+  const dispatchers = (root, rootText) => {
     const parents = new Map([[root, new Map()]]);
-    texts.set(root, code(workflows[root]));
+    texts.set(root, rootText);
     const queue = [root];
     while (queue.length) {
       if (parents.size > limit) return null;
@@ -270,13 +272,23 @@ export function landingDispatched({ workflows = {}, read = () => null }, e, { li
   const shapes = Object.fromEntries(Object.entries(workflows).map(([f, t]) => [f, workflowShape(t)]));
   const found = {};
   const dispatched = new Set();
+  // The landing procedure runs on every landing too, read as written: its lists and headings are
+  // instructions, not comments.
+  // Each paragraph or list item is one step.
+  for (const proc of procedures) {
+    const steps = String(read(proc) ?? '').split(/\n\s*\n|\n(?=\s*(?:[-*]|\d+\.)\s)/);
+    steps.forEach((step, i) => {
+      const calls = dispatchers(`procedure:${proc}#${i}`, step);
+      for (const f of Object.keys(workflows)) if (calls === null || calls.some(names[f])) dispatched.add(f);
+    });
+  }
   for (let grew = true; grew;) {
     grew = false;
     for (const w of Object.keys(workflows)) {
       // A scheduled workflow is a source too: what it starts runs, even if not on a landing.
       const c = cadence(shapes[w], e, { dispatched: dispatched.has(w) });
       if (c.runs < 1 && c.daily === 0) continue;
-      if (!(w in found)) found[w] = dispatchers(w);
+      if (!(w in found)) found[w] = dispatchers(w, code(workflows[w]));
       for (const f of Object.keys(workflows)) {
         if (f === w || dispatched.has(f)) continue;
         if (found[w] === null || found[w].some(names[f])) { dispatched.add(f); grew = true; }

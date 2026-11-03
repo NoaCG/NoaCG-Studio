@@ -318,6 +318,9 @@ function workflowsOnDisk(root) {
 
 const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
 
+/** What every landing follows, so a workflow it starts runs per landing (`/queue-merge`). */
+const LANDING_PROCEDURES = ['.agent-workflows/queue-merge.md'];
+
 /**
  * The repository as the dispatch search reads it (growth-controls.mjs landingDispatched): every
  * workflow and a file reader, at `base` from git and at the head from this checkout.
@@ -326,8 +329,8 @@ export function repoView(base, root = ROOT) {
   const listed = (gitShow(base, '.github/workflows/', root) ?? '').split('\n').filter((f) => /\.ya?ml$/.test(f));
   const disk = (f) => { try { return readFileSync(path.join(root, f), 'utf8'); } catch { return null; } };
   return {
-    base: { workflows: Object.fromEntries(listed.map((f) => [f, gitShow(base, `.github/workflows/${f}`, root) ?? ''])), read: (f) => gitShow(base, f, root) },
-    head: { workflows: workflowsOnDisk(root), read: disk },
+    base: { workflows: Object.fromEntries(listed.map((f) => [f, gitShow(base, `.github/workflows/${f}`, root) ?? ''])), read: (f) => gitShow(base, f, root), procedures: LANDING_PROCEDURES },
+    head: { workflows: workflowsOnDisk(root), read: disk, procedures: LANDING_PROCEDURES },
   };
 }
 const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
