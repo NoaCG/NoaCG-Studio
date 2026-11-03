@@ -257,9 +257,11 @@ test('YouTube comments: one press brings the newest 100; the source is remembere
   await expect(one.getByTestId('audience-provenance')).toHaveText('YouTube comments');
   expect(calls.commentThreads).toBe(1);
 
-  // A refresh is a press, and adds nothing twice.
+  // A refresh is a press, and adds nothing twice. The detail must START with the count: "100 new
+  // of the newest 100" contains "0 new of the newest 100", so a substring wait passed before the
+  // refresh answered and the count below read 1 (#1924).
   await source.getByTestId('comments-fetch').click();
-  await expect(source.getByTestId('comments-source-detail')).toContainText('0 new of the newest 100');
+  await expect(source.getByTestId('comments-source-detail')).toHaveText(/^0 new of the newest 100\b/);
   await expect(rows).toHaveCount(100);
   expect(calls.commentThreads).toBe(2);
   // Connecting the same video again reads the same source again: still one source.
@@ -287,7 +289,7 @@ test('YouTube comments: one press brings the newest 100; the source is remembere
   await source.getByTestId('youtube-key-input').fill(KEY);
   await source.getByTestId('youtube-key-remember').check();
   await source.getByTestId('youtube-key-use').click();
-  await expect(source.getByTestId('comments-source-detail')).toContainText('0 new of the newest 100');
+  await expect(source.getByTestId('comments-source-detail')).toHaveText(/^0 new of the newest 100\b/);
   await expect(rows).toHaveCount(100);
 
   // Remembered on this browser: the next reload needs no key.
