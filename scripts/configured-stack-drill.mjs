@@ -97,7 +97,7 @@ async function concurrent() {
 
 function publish(port) {
   const r = spawnSync('docker', ['run', '--rm', '-p', `${port}:80`, 'busybox:1.36', 'true'], { encoding: 'utf8', windowsHide: true });
-  return { code: r.status, err: r.stderr.trim().split('\n').pop() };
+  return { code: r.status, err: r.stderr.trim().replaceAll('\n', ' | ') };
 }
 
 const RANGE = '/proc/sys/net/ipv4/ip_local_port_range';
