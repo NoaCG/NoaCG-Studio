@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 32 builder merging main a090662a into PR #2005",
+  "waitingOn": "phase 32 repair for #2009 on PR #2005",
   "inFlight": [
     {
       "phase": 32,
@@ -35,7 +35,8 @@
       "session": "session_017SdbwN5DfB1t4AiShMs23v",
       "nonce": "32-b-3c46",
       "branch": "claude/plan-jev-svg-import-32-build",
-      "pr": 2005
+      "pr": 2005,
+      "repairAsked": "#2009 pre-decode holdout refusals must be fixed in row 32 (row 33 may not change harness source)"
     }
   ],
   "owner": [],
@@ -267,6 +268,11 @@
       "phase": 32,
       "at": "2026-11-03T08:23Z",
       "note": "CI gate refuses PR #2005: cadence() prices dispatch-only workflow per landing (overhead 117%). Chose (b): cicd run fixes cadence(); no budget exception (forbidden to pass a gate)."
+    },
+    {
+      "phase": 32,
+      "at": "2026-11-03T09:34Z",
+      "note": "Declined A- point 1 (#2009) as assigned to row 33: row 33 may not change harness source; a decode-then-refuse burns the single holdout. Asked builder to fix pre-decode refusals in row 32."
     }
   ],
   "ownerOpen": [
