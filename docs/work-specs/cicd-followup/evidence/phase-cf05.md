@@ -141,7 +141,15 @@ stack or port collision cannot be the cause. The setup fix for those stays with 
 
 ## (b) Stability under CI conditions
 
-RESULTS_PLACEHOLDER
+The brief above was pushed in its own commit (`86e89812`) before either run, and both runs are of
+that commit, which holds the fix (`2af95242`) unchanged:
+
+| Test | Run | Result |
+| --- | --- | --- |
+| #1603 Connect save | [41589179967](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41589179967) | **100 of 100 passed, 0 failed, exactly 100 ran, verdict PASS** (8.7 min, 1 worker). The same runner and test failed 18 of 200 before the fix. |
+| #1924 newest 100 | [41589183520](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41589183520) | **100 of 100 passed, 0 failed, exactly 100 ran, verdict PASS** (22.3 min, 1 worker) |
+
+Like cf07's trial, these run the one test alone, not after its shard's neighbours.
 
 Neither spec is in `e2e/quarantine.json` on main: production-chat-intake left it in #1968 and
 production-data by the automatic release route (20 consecutive passes), both before this phase.
