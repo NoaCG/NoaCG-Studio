@@ -28,21 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "phase 31 checker session_017SdbwLnbFQPDbKR4Quvs1d",
-  "inFlight": [
-    {
-      "phase": 31,
-      "role": "check",
-      "pr": 2002,
-      "mergeSha": "0a99d37cfd5ac533e7580a495b81d81f699d0e0e",
-      "checker": "session_017SdbwLnbFQPDbKR4Quvs1d",
-      "nonce": "31-c-fa37",
-      "builder": "session_017SdbwQze9p4ppJD7BYHsSX",
-      "soSessions": [
-        "session_017SdbwMddmHMEjE7k85v5mM",
-        "session_017SdbwP8hHa5Z7YHPj3UWnq"
-      ]
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -195,7 +181,8 @@
     "27",
     "28",
     "29",
-    "30"
+    "30",
+    "31"
   ],
   "coordinatorNotes": [
     "Record check launch intents with the bare checker actor id (checker-<phase>-<nonce>); a descriptive actor label forces a reconciling resume before pass (phase 1, 11:18Z).",
@@ -261,6 +248,11 @@
       "phase": 31,
       "at": "2026-11-03T04:53Z",
       "note": "Approved beyond TOUCHES: scripts/run-ai-gateway-tests.mjs (add test to sources), api/_lib/aiGateway.ts:880 export providerFailure. Jev in DECISION_MODEL_CANDIDATES, /v1/evaluate, no cascade, task off by default; ledger shares import-analysis allowance (must be revisited if go)."
+    },
+    {
+      "phase": 31,
+      "at": "2026-11-03T06:56Z",
+      "note": "Checker UNAVAILABLE (Post-landing infra: production DB ECONNREFUSED). PR comment 6597338402, one re-run per known-traps; attempt 2 green; recorded PASS with written reason."
     }
   ],
   "ownerOpen": [
