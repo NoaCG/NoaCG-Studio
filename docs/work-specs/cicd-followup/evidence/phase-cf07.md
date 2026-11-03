@@ -109,14 +109,14 @@ them. 120 runs of the fixed spec, zero failures.
 The quarantine is not touched by hand. `e2e/quarantine.json` still lists the spec; the configured
 suite runs it on every push to `main` and posts `noacg/quarantine/<spec>`, and
 `scripts/e2e-quarantine.mjs release-due` queues its release after `RELEASE_AFTER` (20)
-consecutive passes. That happens after this merge.
+consecutive passes. That happens after this merge. (Superseded: see Early release below.)
 
 ## (c) The incident record
 
 #1805 carries owner (`miwco`, weekly owner session as backup), impact, repair date (2026-11-11)
 and restoration criteria (cf01, comment 6575541195). This phase adds a comment with the root
 cause, this PR, the repeat run and what remains: release by the documented route, then the issue
-closes. Nothing in this PR closes it.
+closes. Nothing in this PR closes it. (Superseded for the route: see Early release below.)
 
 ## Phase notes
 
@@ -158,8 +158,11 @@ closes. Nothing in this PR closes it.
   12 of 94 main runs (12.8%) and 15 of 80 dedicated trials. The repeat count, N = 40, was committed
   (0bd3e24d) before the trial, and the final code passed 40 of 40 on CI (runs 41542195497 and
   41549389402). Details are above and in #1805's comments.
-- **Why early:** 20 consecutive passes on main would take two to three days, and the run's phases
-  are sequential, so the coordinator chose the documented early release.
+- **Departure from the recorded route:** this hand release replaces the route that #1805's cf01
+  incident record (comment 6575541195) and section (b) above named, 20 consecutive passes on main.
+  Waiting would still have met the 2026-11-11 repair date, since 20 passes take two to three days.
+  The reason is schedule: the plan run's phases are sequential, and the fixed spec ran 120 times
+  on CI with zero failures, so the coordinator chose the documented early release.
 - **Safety net:** if the spec fails and then passes on one commit on main again, `ci.yml` and
   `configured-suite.yml` put it straight back.
 - This landing closes #1805.
