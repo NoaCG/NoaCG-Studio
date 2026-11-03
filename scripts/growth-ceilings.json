@@ -151,6 +151,21 @@
       "from": "2026-11-03",
       "expires": "2026-12-03",
       "repayment": "#2019"
+    },
+    {
+      "id": "jev-svg-import-journey",
+      "tier": "backend",
+      "covers": [
+        "spec:e2e/configured/svg-import-journey.spec.ts"
+      ],
+      "perLanding": 6.8,
+      "perDay": 4.1,
+      "owner": "miwco",
+      "reviewed": "https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839",
+      "protects": "AC-26 imported-artwork journey with isolated-output disconnect and recovery (measured 20.2 s in CI run 41699782672; priced at the gate's flat new-case estimate)",
+      "from": "2026-11-03",
+      "expires": "2026-12-03",
+      "repayment": "#1503"
     }
   ]
 }
