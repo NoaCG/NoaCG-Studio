@@ -25,8 +25,8 @@ Acceptance, verbatim:
   owner has approved no higher one; side A is the pipeline these tests join.
 - **Enabled in the planner.** A product change's plan now holds the critical journeys beside what
   its own files select. The plan is a set, so no journey runs twice in one pipeline (section 2).
-- **Estimate before landing** (section 3): replayed over cf03's 201 merges, 78 were product
-  changes. The rule would have added a mean of **8.5 runner-minutes per product change** (median
+- **Estimate before landing** (section 3): replayed over cf03's 201 merges, 79 were product
+  changes. The rule would have added a mean of **8.4 runner-minutes per product change** (median
   0) over all sides, and **16.8** on side A (median 7.6), with per-shard setup at 1.5 minutes.
   With setup at 3 minutes, side A is 19.3. Both are under 22.5, but not by much, and a few changes
   with many pushes go far over (max 96 on side A). The estimate counts every PR head as a full
@@ -56,7 +56,9 @@ file counts when it gets past the planner's ignore list (`IGNORE`: docs, CI, age
 - what `CENTRAL` already says the app never loads: `cli/`, `benchmarks/`, `.claude-plugin/`.
 
 So app source, `api/`, `public/`, the root HTML pages, `package.json`, `package-lock.json` and the
-build configs are product. A copy-only edit to product source is still a product change.
+build configs are product. So is any module the dev server loads, even under `scripts/` (for
+example `scripts/dataDevPlugin.mjs`), because the app under test runs it (`planFor` asks
+`devServer` beside `isProductFile`; found in review). A copy-only edit to product source is still a product change.
 Migrations under `supabase/` are not: the offline journeys cannot observe them, and the
 configured suite selects for them (ci06).
 
@@ -114,14 +116,14 @@ is cancelled part way. No API reads.
 
 | Side | product merges | rule added something | per product change, mean / median / p95 / max (setup 1.5) | mean (setup 3.0) |
 | --- | ---: | ---: | --- | ---: |
-| all | 78 of 201 | 37 | 8.5 / 0 / 45.3 / 96.3 | 9.9 |
-| B | 46 | 11 | 2.1 / 0 / 13.1 / 19.6 | 2.3 |
+| all | 79 of 201 | 37 | 8.4 / 0 / 45.3 / 96.3 | 9.7 |
+| B | 47 | 11 | 2.1 / 0 / 13.1 / 19.6 | 2.2 |
 | D | 15 | 13 | 18.9 / 11.3 / 56.2 / 56.2 | 22.3 |
 | A | 17 | 13 | 16.8 / 7.6 / 96.3 / 96.3 | 19.3 |
 
 Twelve-spec set. Per CI run that adds anything, the cost is 0.6 to 8.0 runner-minutes: 4.93
 test-minutes, plus one or two extra shards when the plan was small. At 15 shards, the planner's
-cap, no shard is added and the shards get longer. 41 product merges planned the shared-change set
+cap, no shard is added and the shards get longer. 42 product merges planned the shared-change set
 and added nothing. Side B is cheaper because more of its product changes escalated under today's
 planner. The tail comes from changes with many pushes: #2005 (12 runs, 8.0 each) and #1959 (12
 runs, 3.8 each). **Reading:** the estimate is under the ceiling on every side, but sides D and A
@@ -223,10 +225,19 @@ and the ceiling is judged on all twelve, which is stricter.
 - `auditContracts` over the real headers: no problems. `criticalBudget`: 12 specs, 4.93
   measured test-minutes against the 5-minute target.
 - Fault drill: section 4.3 (queued `--cap 5` jobs on this machine).
-- The plan job's annotation snippet, run on a real plan (`--files src/legal.css`): `product
-  change: added 12 critical spec(s) (4.93 of 5.09 table-min; shards 1 -> 2): ...`.
+- The plan job's shell step: its `run:` text from ci.yml passes `bash -n`, and its two `node -e`
+  blocks, run by bash on a real plan (`--files src/legal.css`), print `::notice title=Critical
+  journeys::product change: added 12 critical spec(s) (4.93 of 5.09 table-min; shards 1 -> 2): ...`
+  and write the outputs. The first review found an apostrophe in a comment that closed the
+  single-quoted script; `check:workflows` does not parse a step's shell, so it passed.
 - `phase-cf12-measure.mjs`, run before enabling: `n 0`, 20 calls.
-- Gates, lint and the per-test ceiling: in the PR.
+- `npm run gates -- run --changed origin/main`: all ok, 236 tests. `npx eslint` on the changed
+  scripts, specs and evidence scripts: clean. `node scripts/check-e2e-protection.mjs --changed
+  origin/main`: OK.
+- Review (`/check`, a fresh read-only agent): five findings, all fixed. They were the broken shell
+  quote above; merge-group runs past the first page of 100, which the measurement would have
+  dropped (now paged to the end, read once per pass); dev-server modules not counted as product;
+  a misplaced doc comment; the replay pricing an unmeasured spec at 0 instead of the median.
 
 ## 7. Phase notes
 
@@ -240,7 +251,10 @@ and the ceiling is judged on all twelve, which is stricter.
 - Traps: `planFor` tests over the real headers now see the critical set on every product file, so
   an exact-plan test needs `withCritical(...)`, and a fixture test with made-up coverage needs
   `critical: []`. The orchestrator's collision check needs the same exclusion, or every pair of
-  product rows collides. The repo's commit hook refuses `Co-Authored-By` trailers.
+  product rows collides. A comment inside ci.yml's single-quoted `node -e '...'` blocks must not
+  hold an apostrophe, and `check:workflows` will not catch it: run the step's text with `bash -n`.
+  Local `e2e-affected` runs add the journeys to a product change too, about five minutes. The
+  repo's commit hook refuses `Co-Authored-By` trailers.
 - Follow-ups: #2036 (F2 and F3 save smoke). #1921 (CORE reader specs) stays cf11's.
 - Issues this phase closes: none on landing. #1895 closes once the measurement in section 3.3 is
   recorded under the ceiling, or once the rule is reverted with the owner told.

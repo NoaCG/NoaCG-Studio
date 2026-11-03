@@ -478,7 +478,7 @@ jobs:
             // it starts rather than arriving as a cancelled shard nobody can read a verdict from.
             // The critical journeys a product change runs beside its own selection (cicd-followup
             // cf12, #1895): what the rule added, its measured test-minutes and the shard count
-            // without it, so each run's added cost is readable from its annotations.
+            // without it, so the added cost of each run is readable from its annotations.
             if (plan.critical && plan.critical.product) {
               const c = plan.critical;
               console.log("::notice title=Critical journeys::product change: " + (c.added.length

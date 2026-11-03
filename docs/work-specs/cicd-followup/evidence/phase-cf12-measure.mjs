@@ -62,7 +62,7 @@ function runAdded(run) {
   const jobs = api(`${REPO}/actions/runs/${run.id}/jobs?per_page=100&filter=all`, { immutable: true }).jobs;
   const plan = jobs.find((j) => j.name === 'E2E plan');
   if (!plan) return null;
-  const notes = api(`${REPO}/check-runs/${plan.id}/annotations`, { immutable: true });
+  const notes = api(`${REPO}/check-runs/${plan.id}/annotations?per_page=100`, { immutable: true });
   const note = notes.map((n) => NOTICE.exec(n.message ?? '')).find(Boolean);
   if (!note) return null;
   if (!note[1]) return { id: run.id, event: run.event, added: 0, minutes: 0 };
@@ -90,12 +90,19 @@ try {
     pulls.push(...batch.filter((p) => p.merged_at && p.merged_at > SINCE));
     if (batch.length < 100 || batch.every((p) => p.updated_at < SINCE)) break;
   }
+  // Every merge-group run since enabling, read once per pass and paged to the end (newest first,
+  // so one page would drop the earliest changes' runs once more than 100 exist).
+  const groupRuns = [];
+  for (let page = 1; ; page += 1) {
+    const batch = api(`${REPO}/actions/workflows/ci.yml/runs?event=merge_group&created=${encodeURIComponent(`>=${SINCE}`)}&per_page=100&page=${page}`).workflow_runs;
+    groupRuns.push(...batch);
+    if (batch.length < 100) break;
+  }
   for (const pr of pulls.sort((a, b) => a.merged_at.localeCompare(b.merged_at))) {
     const branch = encodeURIComponent(pr.head.ref);
     const mine = api(`${REPO}/actions/workflows/ci.yml/runs?branch=${branch}&event=pull_request&per_page=100`, { immutable: true }).workflow_runs
       .filter((r) => r.created_at > SINCE && r.created_at <= pr.merged_at);
-    const groups = api(`${REPO}/actions/workflows/ci.yml/runs?event=merge_group&created=${encodeURIComponent(`${SINCE.slice(0, 10)}..${pr.merged_at.slice(0, 10)}`)}&per_page=100`).workflow_runs
-      .filter((r) => r.head_branch?.includes(`/pr-${pr.number}-`) && r.created_at > SINCE);
+    const groups = groupRuns.filter((r) => r.head_branch?.includes(`/pr-${pr.number}-`) && r.created_at > SINCE && r.created_at <= pr.merged_at);
     const runs = [];
     for (const run of [...mine, ...groups]) {
       if (run.status !== 'completed') continue;

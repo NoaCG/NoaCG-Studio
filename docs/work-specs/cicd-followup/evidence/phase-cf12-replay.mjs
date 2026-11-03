@@ -21,7 +21,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { planFor, shardsFor, splitQuarantined } from '../../../../scripts/e2e-affected.mjs';
+import { minutesFor, planFor, shardsFor, splitQuarantined } from '../../../../scripts/e2e-affected.mjs';
 import { readTable, specFilesOnDisk } from '../../../../scripts/e2e-durations.mjs';
 import { quarantinedSpecs, readStore } from '../../../../scripts/e2e-quarantine.mjs';
 
@@ -37,7 +37,7 @@ const table = readTable();
 const onDisk = specFilesOnDisk();
 const quarantine = quarantinedSpecs(readStore());
 const { records } = JSON.parse(readFileSync(new URL('./phase-cf03-records.json', import.meta.url), 'utf8'));
-const minutes = (specs) => specs.reduce((s, x) => s + (table.minutes[x] ?? 0), 0);
+const minutes = (specs) => minutesFor(specs, table); // an unmeasured spec at the median, as the planner prices it
 
 const shardCount = (plan, changed) => {
   if (plan.mode === 'none') return 0;

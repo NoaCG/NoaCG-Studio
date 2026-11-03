@@ -317,14 +317,6 @@ const MD_LOADED = String.raw`docs\/tutorials\/svg-examples\/README\.md$|docs\/wh
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
 const IGNORE = [new RegExp(`^docs/(?!${DOCS_LOADED})`), new RegExp(`^(?!${MD_LOADED}).*\\.md$`), /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
-// Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
-// e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
-// type-floor.mjs/overflow-sweep.mjs: it only needs to run when the catalog itself, or the
-// runtime bench it's calibrated against, could have changed.
-// `src/model/fonts.ts` is here because a font change is a catalog-wide LOOK change: the
-// registry decides every design's default face, and `tabularFigures` decides what its live
-// numbers are set in (scripts/numerals.mjs). Editing it without the calibration gate is how a
-// width budget silently moves under 430 designs at once.
 /**
  * WHETHER A CHANGED FILE IS PRODUCT, for the critical-journey rule in `planFor`: a file the offline
  * app can observe, past the ignore list (`IGNORE`: docs, CI, the backend's migrations, most
@@ -333,13 +325,22 @@ const IGNORE = [new RegExp(`^docs/(?!${DOCS_LOADED})`), new RegExp(`^(?!${MD_LOA
  * (`DOCS_LOADED`: What's new notes, GOALS.md, the SVG practice library) is content those pages'
  * own specs check, not code a journey runs, so it is not product either; nor is what `CENTRAL`
  * knows the app never loads (the CLI package, the plugin entry, the agent bench). App source, `api/`,
- * public assets, the root html and the build's inputs (package.json, vite.config.ts) are. Asked
- * only of files that got past `IGNORE`.
+ * public assets, the root html and the build's inputs (package.json, vite.config.ts) are, and so
+ * is any module the dev server loads (`planFor` asks `devServer` beside this), since the app under
+ * test runs it. Asked only of files that got past `IGNORE`.
  */
 export function isProductFile(file) {
   return !/^(docs|e2e|scripts|cli|benchmarks|\.claude-plugin)\//.test(file) && !/\.md$/.test(file) && !/^playwright[^/]*\.config\.[cm]?[jt]s$/.test(file);
 }
 
+// Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
+// e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
+// type-floor.mjs/overflow-sweep.mjs: it only needs to run when the catalog itself, or the
+// runtime bench it's calibrated against, could have changed.
+// `src/model/fonts.ts` is here because a font change is a catalog-wide LOOK change: the
+// registry decides every design's default face, and `tabularFigures` decides what its live
+// numbers are set in (scripts/numerals.mjs). Editing it without the calibration gate is how a
+// width budget silently moves under 430 designs at once.
 const CATALOG_TRIGGERS = [
   // The gate's own config. It is the one file that can change what the tripwire MEASURES -
   // its worker count, its timeouts, its offline pinning - while touching no catalog source at
@@ -1105,7 +1106,7 @@ export function planFor(
       continue;
     }
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
-    if (isProductFile(file)) productFiles.push(file);
+    if (isProductFile(file) || devServer.has(file)) productFiles.push(file);
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
       const name = file.replace(/^e2e\//, '');
       if (!onDisk || onDisk.has(name)) specs.add(name); // a deleted spec has nothing left to run

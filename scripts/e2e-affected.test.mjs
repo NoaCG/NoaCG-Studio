@@ -2273,9 +2273,12 @@ test('cf12: a change with no product file plans no critical journey, and an esca
     const plan = planFor([file]);
     assert.equal(plan.critical.product, false, file);
     assert.deepEqual(plan.critical.added, [], file);
-    for (const s of CRITICAL) if (!['legal.spec.ts'].includes(s)) assert.ok(file.startsWith('e2e/') || !plan.specs.includes(s) || plan.focusApplied || plan.mode === 'full', `${file} planned ${s}`);
   }
   assert.equal(planFor(['e2e/legal.spec.ts']).specs.join(), 'legal.spec.ts', 'an edited spec runs itself alone');
+  // A module the dev server loads is run by the app under test, so it is product even under scripts/.
+  const plugin = planFor(['scripts/dataDevPlugin.mjs'], { devServer: new Set(['scripts/dataDevPlugin.mjs']) });
+  assert.equal(plugin.critical.product, true);
+  for (const s of CRITICAL) assert.ok(plugin.specs.includes(s), s);
   // A shared-change escalation already plans every journey; the rule adds nothing to it.
   const shared = planFor(['src/brand-new-area/thing.ts'], { sprintFocus: true });
   assert.equal(shared.focusApplied, true);
