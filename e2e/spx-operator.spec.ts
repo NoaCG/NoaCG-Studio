@@ -397,8 +397,8 @@ async function importedSpx(page: Page, svg: string, name: string, choose: () => 
 
 test('an imported clock and imported cards made by the import road run on SPX\'s calls and the package\'s own control page', async ({ page, context }) => {
   test.setTimeout(90_000);
-  const clockFiles = await importedSpx(page, SCORE_CLOCK_SVG, 'Spx Count Up', () => page.getByTestId('map-svg-clock-mode').selectOption('count-up').then(() => {}));
-  const durationFiles = await importedSpx(page, SCORE_CLOCK_SVG, 'Spx Duration', () => page.getByTestId('map-svg-clock-mode').selectOption('duration').then(() => {}));
+  const clockFiles = await importedSpx(page, SCORE_CLOCK_SVG, 'Spx Count Up', async () => { await page.getByTestId('map-svg-clock-mode').selectOption('count-up'); });
+  const durationFiles = await importedSpx(page, SCORE_CLOCK_SVG, 'Spx Duration', async () => { await page.getByTestId('map-svg-clock-mode').selectOption('duration'); });
   const cardFiles = await importedSpx(page, CREDITS_SVG, 'Spx Cards', async () => {
     await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
     const picker = page.getByTestId('map-svg-recipe-credits');

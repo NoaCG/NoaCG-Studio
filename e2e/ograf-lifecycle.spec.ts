@@ -311,7 +311,7 @@ const shown = (page: Page, key: string, selector: string) =>
 const clockOf = async (page: Page, key: string) => (await shown(page, key, '.imported-design-clock'))[0];
 
 test('an imported clock made by the import road starts, holds, takes a correction and resets on OGraf custom actions', async ({ page }) => {
-  const choose = (mode: string) => () => page.getByTestId('map-svg-clock-mode').selectOption(mode);
+  const choose = (mode: string) => async () => { await page.getByTestId('map-svg-clock-mode').selectOption(mode); };
   const countUp = await imported(page, SCORE_CLOCK_SVG, 'Host Count Up', choose('count-up'));
   const duration = await imported(page, SCORE_CLOCK_SVG, 'Host Duration', choose('duration'));
   const packages = await openRenderer(page, { up: { kind: 'made', template: countUp }, down: { kind: 'made', template: duration } });
