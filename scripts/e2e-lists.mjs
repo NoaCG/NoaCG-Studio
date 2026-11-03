@@ -227,6 +227,12 @@ export const COVERAGE = coverageOf(SPEC_HEADERS);
 export const FOCUS = [...SPEC_HEADERS].filter(([, h]) => h.focus).map(([spec]) => spec);
 
 /**
+ * THE CRITICAL JOURNEYS (`// critical:`), sorted: what every product change runs (cicd-followup
+ * cf12, #1895). Each is in FOCUS too (Rule K2, scripts/e2e-contracts.mjs).
+ */
+export const CRITICAL = [...SPEC_HEADERS].filter(([, h]) => h.critical.length > 0).map(([spec]) => spec).sort();
+
+/**
  * THE CONFIGURED SPECS' HEADERS. The offline plan pins the ABSENCE of a hosted-only surface, so a
  * change to what a configured spec covers reports "covered" offline while the live path breaks;
  * each configured spec's `covers:` lines select it for ci.yml's configured job (cicd-improvement

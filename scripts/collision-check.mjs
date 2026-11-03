@@ -56,10 +56,17 @@ export function matchesOwned(file, patterns) {
 }
 
 /**
+ * A row's covering specs: what its files select, without the critical journeys every product change
+ * also runs (cicd-followup cf12). Those ten are planned for every product row, so they are no row's
+ * territory; counting them would make every pair of product rows collide.
+ */
+const territory = (files) => planFor(files, { critical: [] });
+
+/**
  * The verdict, pure. `entries` are `{ name, branch, files }` from the activity scan;
  * `coverage(files)` returns `{ mode, specs }` (e2e-affected's `planFor`).
  */
-export function collisions({ files, specs = [], branch = null }, entries, coverage = planFor) {
+export function collisions({ files, specs = [], branch = null }, entries, coverage = territory) {
   const own = coverage(files.filter((file) => !file.includes('*') && !file.endsWith('/')));
   const ownSpecs = new Set([...own.specs, ...specs].map((spec) => spec.replace(/^e2e\//, '')));
   const hits = [];

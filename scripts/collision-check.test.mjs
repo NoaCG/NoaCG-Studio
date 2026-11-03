@@ -59,3 +59,13 @@ test('a candidate never collides with its own branch', () => {
   const verdict = collisions({ files: ['src/components/wizard/steps/'], branch: 'claude/h' }, entries, noSpecs);
   assert.equal(verdict.clear, true);
 });
+
+test('cf12: the critical journeys every product change runs are no row\'s territory', () => {
+  // Two product rows in unrelated corners: the real planner plans the ten critical journeys for
+  // both, and they must not make the rows collide (the candidates' third bad pick drifted to
+  // "collides" on exactly that before the default coverage left them out).
+  const entries = [{ branch: 'claude/legal', files: ['src/legal.css'] }];
+  const verdict = collisions({ files: ['src/output/stage.ts'] }, entries);
+  assert.deepEqual(verdict.hits, []);
+  assert.ok(!verdict.ownSpecs.includes('flows.spec.ts'), 'a critical journey is not this row\'s own spec');
+});

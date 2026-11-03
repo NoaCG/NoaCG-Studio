@@ -32,7 +32,7 @@ import { jobsDir, readJobs } from './jobs-store.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, FOCUS } from './e2e-lists.mjs';
+import { CONFIGURED_BACKEND, CONFIGURED_COVERAGE, CONFIGURED_FULL, CONFIGURED_SPECS, COVERAGE, CRITICAL, FOCUS } from './e2e-lists.mjs';
 import { COPY_PATH_FILE, copyEdit, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
 import {
@@ -325,6 +325,21 @@ const IGNORE = [new RegExp(`^docs/(?!${DOCS_LOADED})`), new RegExp(`^(?!${MD_LOA
 // registry decides every design's default face, and `tabularFigures` decides what its live
 // numbers are set in (scripts/numerals.mjs). Editing it without the calibration gate is how a
 // width budget silently moves under 430 designs at once.
+/**
+ * WHETHER A CHANGED FILE IS PRODUCT, for the critical-journey rule in `planFor`: a file the offline
+ * app can observe, past the ignore list (`IGNORE`: docs, CI, the backend's migrations, most
+ * scripts) and outside the test tree itself (the e2e specs, their baselines and helpers, the
+ * planner and its suite scripts, the Playwright configs). The documentation the public pages load
+ * (`DOCS_LOADED`: What's new notes, GOALS.md, the SVG practice library) is content those pages'
+ * own specs check, not code a journey runs, so it is not product either; nor is what `CENTRAL`
+ * knows the app never loads (the CLI package, the plugin entry, the agent bench). App source, `api/`,
+ * public assets, the root html and the build's inputs (package.json, vite.config.ts) are. Asked
+ * only of files that got past `IGNORE`.
+ */
+export function isProductFile(file) {
+  return !/^(docs|e2e|scripts|cli|benchmarks|\.claude-plugin)\//.test(file) && !/\.md$/.test(file) && !/^playwright[^/]*\.config\.[cm]?[jt]s$/.test(file);
+}
+
 const CATALOG_TRIGGERS = [
   // The gate's own config. It is the one file that can change what the tripwire MEASURES -
   // its worker count, its timeouts, its offline pinning - while touching no catalog source at
@@ -991,7 +1006,7 @@ export function reachesBackend(file, graph) {
 export function planFor(
   changed,
   { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers,
-    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph } = {},
+    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph, critical = CRITICAL } = {},
 ) {
   // Built on first use: a change of only specs, helpers or CORE files never reads e2e/ for it.
   let readIndex = readers;
@@ -1019,6 +1034,9 @@ export function planFor(
     configuredWhy.set(file, [...new Set([...(configuredWhy.get(file) ?? []), ...kept])].sort());
   };
   const unmapped = [];
+  // The changed files the offline app can observe (`isProductFile`): any one of them makes this a
+  // product change, which runs the critical journeys (below).
+  const productFiles = [];
   const copyOnly = [];
   const helperPlanned = [];
   const readPlanned = [];
@@ -1087,6 +1105,7 @@ export function planFor(
       continue;
     }
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
+    if (isProductFile(file)) productFiles.push(file);
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
       const name = file.replace(/^e2e\//, '');
       if (!onDisk || onDisk.has(name)) specs.add(name); // a deleted spec has nothing left to run
@@ -1186,6 +1205,21 @@ export function planFor(
   // could touch the catalog too, rather than trusting CATALOG_TRIGGERS to have named every path.
   if (full) catalog = true;
 
+  // THE CRITICAL JOURNEYS RUN ON EVERY PRODUCT CHANGE (cicd-followup cf12, #1895): the ten
+  // `// critical:` specs join a product change's plan, as a safety net beside what its headers
+  // select, not instead of it. The plan is a set, so a journey the change already selected (its
+  // header, the shared-change set, a full run) runs once; `criticalAdded` is only what this rule
+  // put in, which is what the rule costs. Quarantined journeys still leave the blocking shards
+  // later (`splitQuarantined`), like any other planned spec.
+  const criticalAdded = [];
+  if (!full && productFiles.length > 0) {
+    for (const s of critical) {
+      if (specs.has(s) || (onDisk && !onDisk.has(s))) continue;
+      specs.add(s);
+      criticalAdded.push(s);
+    }
+  }
+
   const list = full ? [] : [...specs].sort();
   // `configured` never changes `mode`: the configured suite runs in its own job on its own local
   // stack (ci.yml `configured`, cicd-improvement ci06), so a change that touches ONLY its territory
@@ -1198,6 +1232,7 @@ export function planFor(
     mode, specs: list, catalog, configured, configuredSpecs, configuredAll,
     configuredReasons: { whole: [...configuredWhole].sort(), files: Object.fromEntries([...configuredWhy].sort()) },
     unmapped, focusApplied, copyOnly, helperPlanned, rawPlanned, readPlanned,
+    critical: { product: productFiles.length > 0, added: criticalAdded },
     traced: full ? [] : traceOnly,
     tracedProblem: tracedEscalated.length > 0 ? traced.problem : null,
     tracedEscalated,
@@ -1862,6 +1897,7 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null, pla
   // gate discovering it one cancelled run at a time, with every downstream instrument reading a
   // verdict that was never reached.
   const predicted = shardSpecs.map((bin) => Number(predictShardMinutes(minutesFor(bin, table), table).toFixed(1)));
+  const critical = criticalCost(plan.critical, suite, table);
   // The line is the cap MINUS the variance margin, not the cap itself. The same shard index
   // varied by 2-3 minutes run to run over the 26 green runs to 2026-09-04 with nothing wrong, so
   // a prediction that only just clears 20 is a shard that fails on an ordinary bad day - and a
@@ -1878,8 +1914,25 @@ function emitJson({ mode, specs, catalog, base, changedFiles, traced = null, pla
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced, configured: configuredManifest(plan, store, changedFiles ?? []) })}\n`,
+    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced, critical, configured: configuredManifest(plan, store, changedFiles ?? []) })}\n`,
   );
+}
+
+/**
+ * WHAT THE CRITICAL-JOURNEY RULE ADDED TO THIS PLAN, priced (cicd-followup cf12): the journeys it
+ * put in that still run in the blocking shards, their measured test-minutes, and the shard count
+ * the same blocking plan would get without them. The runner-minutes it costs are those minutes
+ * times the table's test factor plus the per-job overhead of every extra shard; the plan job
+ * prints this as an annotation, so a run's added cost is readable from its own history.
+ * @param {{ product: boolean, added: string[] } | undefined} rule  `planFor`'s `critical`
+ * @param {string[]} suite  the blocking specs the shards run
+ */
+export function criticalCost(rule, suite, table = readTable()) {
+  if (!rule) return { product: false, added: [], addedMinutes: 0, shardsWithout: null };
+  const added = rule.added.filter((s) => suite.includes(s));
+  const without = suite.filter((s) => !added.includes(s));
+  const shardsWithout = without.length === 0 ? 0 : shardsFor({ mode: 'subset', specs: without }, table, without);
+  return { product: rule.product, added, addedMinutes: Number(minutesFor(added, table).toFixed(2)), shardsWithout };
 }
 
 /**

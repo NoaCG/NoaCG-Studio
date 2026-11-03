@@ -136,9 +136,9 @@ test('the traced map adds the spec a covers header missed - the #927 shape', () 
   // editor-fidelity-trim.spec.ts, whose SVG drop runs it.
   const coverage = [{ spec: 'import-svg.spec.ts', test: (f) => f === 'src/templates/importedDesign/svg.ts' }];
   const file = 'src/templates/importedDesign/svg.ts';
-  const curated = planFor([file], { coverage });
+  const curated = planFor([file], { coverage, critical: [] });
   assert.deepEqual(curated.specs, ['import-svg.spec.ts']);
-  const traced = planFor([file], { coverage, traced: fresh({ [file]: ['editor-fidelity-trim.spec.ts', 'import-svg.spec.ts'] }) });
+  const traced = planFor([file], { coverage, critical: [], traced: fresh({ [file]: ['editor-fidelity-trim.spec.ts', 'import-svg.spec.ts'] }) });
   assert.equal(traced.mode, 'subset');
   assert.deepEqual(traced.specs, ['editor-fidelity-trim.spec.ts', 'import-svg.spec.ts']);
   assert.deepEqual(traced.traced, ['editor-fidelity-trim.spec.ts'], 'the plan says what tracing added');
@@ -165,7 +165,7 @@ test('a broad file escalates like core by default (BROAD_ESCALATES), and keeps i
   const focused = planFor(['src/shell.tsx'], { coverage, sprintFocus: true, traced: fresh(map, ['src/shell.tsx'], BROAD_ESCALATES) });
   assert.equal(focused.focusApplied, true, 'under sprint focus it is the shared-change set');
   assert.ok(focused.specs.includes('legal.spec.ts'), 'the curated selection stays inside it');
-  const kept = planFor(['src/shell.tsx'], { coverage, traced: fresh(map, ['src/shell.tsx']) });
+  const kept = planFor(['src/shell.tsx'], { coverage, critical: [], traced: fresh(map, ['src/shell.tsx']) });
   assert.equal(kept.mode, 'subset');
   assert.deepEqual(kept.specs, ['legal.spec.ts'], 'switched off: never fewer than the headers, and none of the broad list');
 });
