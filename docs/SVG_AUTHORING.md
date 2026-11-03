@@ -76,7 +76,7 @@ Your artwork sets the size of the graphic. NoaCG never rescales your geometry be
 | text on a path | one field, and it keeps its curve when the operator types |
 | text inside a symbol | drawn, but **not** editable. Every copy shows the same words |
 | a plain number as the sample (`84`, `2`) | offers a **number** field |
-| a clock as the sample (`12:00`, `1:05:00`) | the row asks: plain text, or a **countdown** whose field is its length in minutes. Or leave it text and choose a **Clock** for it in the behaviour section (section 5b). One clock per graphic |
+| a clock as the sample (`12:00`, `1:05:00`) | the row asks: plain text, or a **countdown** whose field is its length in minutes. A minutes-and-seconds time (`12:00`) can instead stay text and take a **Clock** in the behaviour section (section 5b). One clock per graphic |
 | `2 - 1`, `10 pts` | stays text. An SPX number box only holds digits |
 | an embedded picture - placed on its own, or filling a shape you drew (which is what Figma exports) | a **picture field**. The operator swaps it, and clearing it brings your drawing back |
 | a group of two or more glyph shapes | offered as **outlined text** (section 5), off by default |
@@ -413,8 +413,9 @@ overwritten.
 ### The clock - up, down, or to a set time
 
 For a match clock beside a score, a running time, or a "starts at 19:00" card. Draw one text
-layer reading a time (`00:00`, `45:00`, `1:05:00`). Any name works. The Fields step then shows a
-**Clock** choice beside the behaviour, so a score tracker and a clock are one graphic:
+layer reading minutes and seconds (`00:00`, `45:00`, `90:00`). Any name works. The Fields step
+then shows a **Clock** choice beside the behaviour, so a score tracker and a clock are one
+graphic. A time drawn with hours (`1:05:00`) is not offered the Clock.
 
 - **Counts up. You start it.** The operator gets Start, Pause and Reset.
 - **Counts down from its time. Starts on Take, holds at zero.** The drawn time is the length.
