@@ -89,8 +89,11 @@ main: that SHA. Revert this row after it lands with `git revert -m 1 <merge sha>
 12. **M12** Scoring and the decision rule, below. Only the deterministic arm may hold the id
     `deterministic`, which the rule pairs on.
 13. **M13** One receipt chain across runs (`checkChain`, fed by the workflow from the Actions API;
-    every run is titled with its mode). Only the very first paid run may set the baseline: refused
-    once any run left a ledger or any paid run started its harness. Every other paid or reconcile
+    every run is titled with its mode). Only the very first paid run, in development mode, may set
+    the baseline: refused once any run left a ledger. If a paid run was lost before any ledger
+    existed, the new baseline must name exactly those runs and carries their spend and attempts,
+    read by a person from the gateway's records, added to every count (`preBaseline`). The holdout
+    never starts a chain. Every other paid or reconcile
     run must name the newest ledger's run. A paid run that started its harness and left no ledger
     (a lost runner) refuses every later paid run until a reconcile names exactly the lost runs; that
     reconcile charges the whole balance drop since the newest reading to the partition named and
@@ -114,7 +117,8 @@ Decision rule (primary against deterministic only), as the spec words it: no go 
 reference, an unusable primary, or a consequential-error increase in any stratum (summed over its
 designs); otherwise a family qualifies when at least two of its designs need fewer corrections
 plus decisions and none of its designs increases consequential errors. A run that metering
-stopped, or in which any primary answer never came (not admitted, outage, refusal), is no go:
+stopped, in which the reader refused a labelled design, or in which any primary answer never
+came (not admitted, outage, refusal), is no go:
 a deterministic stand-in is never scored as the model's.
 Only `limited-go` with named families or `no-go`. The verdict applies to the holdout run only; the
 development report marks it indicative.
@@ -175,6 +179,10 @@ the deterministic arm; a run metering stopped is no go; the freeze manifest cove
 whole import graph (the 51-file harness page, `svgImport.ts`, the wizard draft and every module
 they load, about 200 files) plus the harness scripts, lockfile and labels.
 
+From the PR bot review of `dd5193c` (three findings, all fixed): a holdout run could start a
+fresh chain and skip the freeze; a design the reader refused dropped out of the verdict; a first
+paid run lost before its ledger left no way to continue.
+
 From the first `/so` (`session_017SdbwNtTXQYJjQnVa24wVG`, B+ on `d996455`, 2 blocking, 5
 non-blocking, all addressed): a lost runner could reset or fork the chain (M13); a run with a
 missing primary answer could still qualify a family (M12); the challenger limit trusted names
@@ -187,7 +195,7 @@ freeze missed `contract.ts` and `aiModelCatalog.ts`; the baseline did not store 
 
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 28 of 28 pass (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 29 of 29 pass (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle

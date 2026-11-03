@@ -56,7 +56,7 @@ on:
         type: boolean
         default: false
       lost_runs:
-        description: Reconcile only - comma-separated ids of paid runs that left no ledger
+        description: Reconcile, or the first baseline - comma-separated ids of paid runs that left no ledger
         required: false
         type: string
       lost_partition:
@@ -64,7 +64,11 @@ on:
         required: false
         type: string
       lost_attempts:
-        description: Reconcile only - provider attempts those runs made, read from the gateway's records
+        description: Provider attempts those lost runs made, read from the gateway's records
+        required: false
+        type: string
+      lost_spend_usd:
+        description: First baseline only - what runs lost before any ledger spent, from the gateway's records
         required: false
         type: string
       accept_manifest:
@@ -182,12 +186,19 @@ jobs:
           CONFIG_COMMIT: ${{ steps.config.outputs.commit }}
           ESTABLISH: ${{ inputs.establish_baseline }}
           REGRESSION: ${{ inputs.regression }}
+          LOST_RUNS: ${{ inputs.lost_runs }}
+          LOST_PARTITION: ${{ inputs.lost_partition }}
+          LOST_ATTEMPTS: ${{ inputs.lost_attempts }}
+          LOST_SPEND: ${{ inputs.lost_spend_usd }}
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           args=(run --mode "$MODE" --config "$RUNNER_TEMP/prompts.json" --config-sha "$CONFIG_COMMIT"
                 --ledger-out "$RUNNER_TEMP/out/ledger.json" --report "$RUNNER_TEMP/out/report.json")
           if [ "$MODE" != "dry-run" ] && [ -s "$RUNNER_TEMP/ledger-in/ledger.json" ]; then args+=(--ledger "$RUNNER_TEMP/ledger-in/ledger.json"); fi
           if [ "$ESTABLISH" = "true" ]; then args+=(--establish-baseline); fi
+          if [ "$ESTABLISH" = "true" ] && [ -n "$LOST_RUNS" ]; then
+            args+=(--lost-runs "$LOST_RUNS" --lost-partition "$LOST_PARTITION" --lost-attempts "$LOST_ATTEMPTS" --lost-spend-usd "$LOST_SPEND")
+          fi
           if [ "$REGRESSION" = "true" ]; then args+=(--regression); fi
           if [ "$MODE" = "holdout" ]; then args+=(--holdout-zip "$RUNNER_TEMP/holdout.zip"); fi
           node scripts/jev-svg-eval.mjs "${args[@]}"

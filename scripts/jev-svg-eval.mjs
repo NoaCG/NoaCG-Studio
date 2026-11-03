@@ -294,13 +294,16 @@ export async function settledCredits(read, { before, knownUsd = 0, tries = 8, in
   return { credits: last, stable: false };
 }
 
-export function newLedger({ credits, runId, mainSha, workflowRef = null, manifest, environment = ENVIRONMENT, mock = false, at = new Date().toISOString() }) {
+export function newLedger({ credits, runId, mainSha, workflowRef = null, manifest, environment = ENVIRONMENT, mock = false, preBaseline = null, at = new Date().toISOString() }) {
   if (!parseCredits({ balance: credits?.balance, total_used: credits?.totalUsed })) throw new Error('baseline needs a credits reading');
   return {
     schema: LEDGER_SCHEMA,
     mock,
     baseline: { balance: credits.balance, totalUsed: credits.totalUsed, at, runId, mainSha, workflowRef, environment, manifest },
     acknowledgedTopUpUsd: 0,
+    // Paid runs lost before any ledger existed: their spend and attempts, as a person read them
+    // from the gateway's records, are added to every count (never inside the max below).
+    ...(preBaseline ? { preBaseline } : {}),
     batches: [],
     reconciliations: [],
   };
@@ -312,17 +315,17 @@ export function ledgerSpent(ledger, credits) {
   const settled = ledger.batches.reduce((s, b) => s + (b.settledUsd ?? b.maxUsd), 0);
   const drop = ledger.baseline.balance + ledger.acknowledgedTopUpUsd - credits.balance;
   const used = credits.totalUsed - ledger.baseline.totalUsed;
-  return Math.max(drop, used, settled, 0);
+  return Math.max(drop, used, settled, 0) + (ledger.preBaseline?.spentUsd ?? 0);
 }
 
 /** The freeze row 33 recorded, if any: the newest reconciliation that carries one. */
 export const frozenRecord = (ledger) => [...ledger.reconciliations].reverse().find((r) => r.frozen)?.frozen ?? null;
 
 export function partitionSpent(ledger, partition) {
-  return ledger.batches.filter((b) => b.partition === partition).reduce((s, b) => s + (b.settledUsd ?? b.maxUsd), 0);
+  return (ledger.preBaseline?.partition === partition ? ledger.preBaseline.spentUsd : 0) + ledger.batches.filter((b) => b.partition === partition).reduce((s, b) => s + (b.settledUsd ?? b.maxUsd), 0);
 }
 
-const attemptsSpent = (ledger) => ledger.batches.reduce((s, b) => s + (b.attempts ?? b.plannedAttempts), 0);
+const attemptsSpent = (ledger) => (ledger.preBaseline?.attempts ?? 0) + ledger.batches.reduce((s, b) => s + (b.attempts ?? b.plannedAttempts), 0);
 
 /**
  * May this batch be sent? `plan.requests` each carry their priced maximum (every attempt
@@ -465,8 +468,15 @@ export function checkChain(runs, { mode, receiptsRunId = '', establish = false, 
   const paidStarted = runs.filter((r) => (r.mode === 'development' || r.mode === 'holdout') && r.harnessStarted);
   const newest = runs.findIndex((r) => r.hasLedger);
   if (establish) {
-    if (mode === 'reconcile') return refuse('establish-in-reconcile');
-    if (newest >= 0 || paidStarted.length > 0 || receiptsRunId) return refuse('baseline-exists');
+    // Only a development run may start the chain: the holdout is held to a freeze that only an
+    // existing ledger can carry.
+    if (mode !== 'development') return refuse('establish-development-only');
+    if (newest >= 0 || receiptsRunId) return refuse('baseline-exists');
+    // A first paid run lost before any ledger existed: a new baseline only when it names exactly
+    // those runs, whose spend and attempts it then carries (`preBaseline`).
+    const started = paidStarted.map((r) => String(r.id)).sort();
+    const named = [...new Set(lostRuns.map(String))].sort();
+    if (started.join(',') !== named.join(',')) return refuse(started.length ? `missing-receipt:${started.join(',')}` : 'lost-runs-unknown');
     return { ok: true };
   }
   if (newest < 0) return refuse('missing-baseline');
@@ -547,9 +557,11 @@ export function scoreDesign(expected, proposal, inventory) {
  * its designs increases consequential errors. A run stopped by metering (cap, suspension,
  * refusal) is no go. Never a full go.
  */
-export function decide(rows, primary = PRIMARY.id, stopped = null) {
+export function decide(rows, primary = PRIMARY.id, stopped = null, unread = []) {
   // An evaluation that metering stopped is incomplete: its fallback rows cannot qualify anything.
   if (stopped) return { verdict: 'no-go', families: [], reasons: [`evaluation-stopped:${stopped}`] };
+  // So is one where the reader refused a labelled design: that design was never evaluated.
+  if (unread.length > 0) return { verdict: 'no-go', families: [], reasons: [`designs-unread:${unread.join(',')}`] };
   const reasons = [];
   const by = (arm) => rows.filter((r) => r.arm === arm);
   const prim = by(primary);
@@ -1066,8 +1078,19 @@ async function run(args) {
       if (frozen.manifestSha256 !== manifest.sha256) throw new Error('harness differs from the frozen manifest');
     }
   } else if (args['establish-baseline'] || !paid) {
+    if (mode === 'holdout') throw new Error('the holdout continues a ledger that carries the development freeze; it never starts one');
+    const lostRuns = (args['lost-runs'] ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    let preBaseline = null;
+    if (lostRuns.length) {
+      const spentUsd = Number(args['lost-spend-usd']);
+      const attempts = Number(args['lost-attempts']);
+      if (!(spentUsd >= 0) || !Number.isInteger(attempts) || attempts < 0 || !['development', 'holdout'].includes(args['lost-partition'])) {
+        throw new Error('runs lost before the baseline need their partition, attempts and spend');
+      }
+      preBaseline = { runs: lostRuns, partition: args['lost-partition'], attempts, spentUsd };
+    }
     const credits = await readCreditsNow();
-    ledger.current = newLedger({ credits, runId: process.env.GITHUB_RUN_ID ?? 'local', mainSha: process.env.GITHUB_SHA ?? null, workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null, manifest, mock: !paid });
+    ledger.current = newLedger({ credits, runId: process.env.GITHUB_RUN_ID ?? 'local', mainSha: process.env.GITHUB_SHA ?? null, workflowRef: process.env.GITHUB_WORKFLOW_REF ?? null, manifest, mock: !paid, preBaseline });
   } else {
     throw new Error('missing-baseline: pass the previous run\'s ledger, or --establish-baseline for the very first paid run');
   }
@@ -1158,7 +1181,7 @@ async function run(args) {
       manifest,
       stopped: main.stopped ?? slice.stopped ?? null,
       refusedDesigns: read.filter((d) => d.refused).map((d) => d.id),
-      decision: decide(rows, PRIMARY.id, main.stopped ?? slice.stopped ?? null),
+      decision: decide(rows, PRIMARY.id, main.stopped ?? slice.stopped ?? null, read.filter((d) => d.refused && d.label).map((d) => d.id)),
       verdictApplies: mode === 'holdout',
       rows: rows.map(({ proposal, ...r }) => ({ ...r, fieldsOn: proposal.fieldsOn.length, families: proposal.families })),
       regression: slice.rows.map((r) => ({ arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: byId.get(r.design).sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null })),

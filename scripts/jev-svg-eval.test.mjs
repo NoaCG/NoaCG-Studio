@@ -522,6 +522,8 @@ test('M12: the decision rule: limited go names only qualifying families; any har
   const partial = good.map((r) => (r.design === 'c1' ? { ...r, fellBack: 'not-admitted' } : r));
   assert.deepEqual(decide([...det, ...partial]).reasons, ['primary-incomplete:c1']);
   assert.deepEqual(decide([...det, ...det.map((r) => ({ ...r, arm: PRIMARY.id }))]).reasons, ['no-family-qualifies']);
+  // A labelled design the reader refused was never evaluated: no go.
+  assert.deepEqual(decide([...det, ...good], PRIMARY.id, null, ['b2']).reasons, ['designs-unread:b2']);
   // A run metering stopped is no go, whatever its completed rows show.
   assert.deepEqual(decide([...det, ...good], PRIMARY.id, 'jev-structured: partition-cap'), { verdict: 'no-go', families: [], reasons: ['evaluation-stopped:jev-structured: partition-cap'] });
 });
@@ -679,12 +681,17 @@ test('M13: a paid run continues only the newest ledger; a lost run blocks paid w
   const chain = [run(9, 'dry-run', false), run(8, 'development', true), run(7, 'reconcile', true), run(6, 'development', true)];
   assert.deepEqual(checkChain(chain, { mode: 'development', receiptsRunId: '8' }), { ok: true });
   assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '6' }).reason, 'not-newest-ledger:8');
-  assert.equal(checkChain(chain, { mode: 'holdout', establish: true }).reason, 'baseline-exists');
+  assert.equal(checkChain(chain, { mode: 'development', establish: true }).reason, 'baseline-exists');
   assert.deepEqual(checkChain([run(3, 'dry-run', false)], { mode: 'development', establish: true }), { ok: true });
+  // The holdout never starts a chain: its freeze lives in an existing ledger.
+  assert.equal(checkChain([], { mode: 'holdout', establish: true }).reason, 'establish-development-only');
   assert.equal(checkChain([], { mode: 'development', receiptsRunId: '' }).reason, 'missing-baseline');
   assert.deepEqual(checkChain([], { mode: 'dry-run' }), { ok: true });
-  // The very first paid run was lost: no ledger anywhere, but a baseline cannot be set again.
-  assert.equal(checkChain([run(1, 'development', false)], { mode: 'development', establish: true }).reason, 'baseline-exists');
+  // The very first paid run was lost before any ledger: a new baseline must name it (and carry
+  // its spend and attempts), never pass it by.
+  assert.equal(checkChain([run(1, 'development', false)], { mode: 'development', establish: true }).reason, 'missing-receipt:1');
+  assert.deepEqual(checkChain([run(1, 'development', false)], { mode: 'development', establish: true, lostRuns: ['1'] }), { ok: true });
+  assert.equal(checkChain([], { mode: 'development', establish: true, lostRuns: ['5'] }).reason, 'lost-runs-unknown');
   // A paid run that never started its harness spent nothing and blocks nothing.
   assert.equal(checkChain([run(2, 'development', false, false), run(1, 'development', true)], { mode: 'development', receiptsRunId: '1' }).ok, true);
   // Lost after the newest ledger: refused until a reconcile names exactly the lost runs.
@@ -694,6 +701,17 @@ test('M13: a paid run continues only the newest ledger; a lost run blocks paid w
   assert.deepEqual(checkChain(lost, { mode: 'reconcile', receiptsRunId: '8', lostRuns: ['11', '10'] }), { ok: true });
   // Once reconciled, that run's ledger is the newest and the lost runs lie behind it.
   assert.deepEqual(checkChain([run(12, 'reconcile', true), ...lost], { mode: 'development', receiptsRunId: '12' }), { ok: true });
+});
+
+test('M13: spend and attempts of runs lost before the baseline are added to every count', () => {
+  const ledger = newLedger({ credits: START, runId: '2', mainSha: null, manifest, preBaseline: { runs: ['1'], partition: 'development', attempts: 300, spentUsd: 1.5 } });
+  assert.ok(Math.abs(ledgerSpent(ledger, START) - 1.5) < 1e-12);
+  assert.equal(admitBatch(ledger, START, plan(req(1, 0.6)), { manifest }).reason, 'partition-cap');
+  assert.equal(admitBatch(ledger, START, plan(req(101, 0.001)), { manifest }).reason, 'attempt-cap');
+  assert.equal(admitBatch(ledger, START, plan(req(100, 0.001)), { manifest }).ok, true);
+  // Others spend $3.2 after the baseline: $1.5 + $3.2 leaves $0.30 of the $5.
+  const later = credits(START.balance - 3.2, START.totalUsed + 3.2);
+  assert.equal(admitBatch(ledger, later, plan(req(1, 0.31), 'holdout'), { manifest }).reason, 'total-cap');
 });
 
 test('M13: reconciling a lost run charges the whole drop to its partition and counts its attempts', () => {
