@@ -98,7 +98,7 @@ async function openAir(page: Page, output: string): Promise<Page> {
 async function openOperator(page: Page, hosted: string, prepare?: (op: Page) => Promise<void>): Promise<Page> {
   const op = await page.context().newPage();
   await prepare?.(op);
-  const level = watchLogReads(op);
+  const level = await watchLogReads(op);
   await op.goto(`/app?control=${encodeURIComponent(hosted)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();

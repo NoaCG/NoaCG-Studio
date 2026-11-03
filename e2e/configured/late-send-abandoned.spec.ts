@@ -59,7 +59,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
 
   const op = await context.newPage();
   // Each held press waits for the page to be level with the log, or its monitor would not move.
-  const followerLevel = watchLogReads(op);
+  const followerLevel = await watchLogReads(op);
   await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   const chip = op.getByTestId('hosted-live-chip');
