@@ -16,11 +16,12 @@
 -- the copy itself, so an update of other columns pays nothing and a client cannot set a false value.
 -- A stored generated column would say the same in one line, but adding one rewrites the whole table.
 --
--- The backfill must not move `updated_at`: the tombstone purge and the growth report read it. So the
--- server's trigger is off for that one statement. The whole file is one transaction holding the
--- table's strongest lock, so sync reads and writes wait for it. Reading every graphic's revision took
--- 277 ms on production (2026-11-03), and the short statement_timeout caps the wait: past it nothing
--- applies, and no list ever sees a half-filled column. Playout does not read this table.
+-- The backfill must not move `updated_at`: the tombstone purge, control_unpublish_deleted and the
+-- agents' library listing read it. So the server's trigger is off for that one statement. The whole
+-- file is one transaction holding the table's strongest lock, so sync reads and writes wait for it.
+-- Reading every graphic's revision took 277 ms on production (2026-11-03), and the short
+-- statement_timeout caps the wait: past it nothing applies, and no list ever sees a half-filled
+-- column. A Take and an output load do not read this table.
 --
 -- Additive. An older page keeps selecting from `body`, and a page on an instance without this column
 -- falls back to that read (SupabaseProvider.list). Revert: drop the trigger, the function and the
