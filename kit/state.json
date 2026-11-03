@@ -27,14 +27,16 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 32 builder session_017SdbwN5DfB1t4AiShMs23v",
+  "waitingOn": "cicd fix for dispatch-only cadence, then PR #2005",
   "inFlight": [
     {
       "phase": 32,
       "role": "build",
       "session": "session_017SdbwN5DfB1t4AiShMs23v",
       "nonce": "32-b-3c46",
-      "branch": "claude/plan-jev-svg-import-32-build"
+      "branch": "claude/plan-jev-svg-import-32-build",
+      "pr": 2005,
+      "blockedOn": "cicd: growth-controls.mjs cadence() prices dispatch-only jev-svg-eval.yml per landing; asked cicd coordinator to fix (option b), no budget exception"
     }
   ],
   "owner": [],
@@ -261,6 +263,11 @@
       "phase": 31,
       "at": "2026-11-03T06:56Z",
       "note": "Checker UNAVAILABLE (Post-landing infra: production DB ECONNREFUSED). PR comment 6597338402, one re-run per known-traps; attempt 2 green; recorded PASS with written reason."
+    },
+    {
+      "phase": 32,
+      "at": "2026-11-03T08:23Z",
+      "note": "CI gate refuses PR #2005: cadence() prices dispatch-only workflow per landing (overhead 117%). Chose (b): cicd run fixes cadence(); no budget exception (forbidden to pass a gate)."
     }
   ],
   "ownerOpen": [
