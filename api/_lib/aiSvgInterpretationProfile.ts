@@ -26,7 +26,7 @@ import { importAnalysisProfile } from './aiImportAnalysisProfile.js';
 import type { LedgerQuotaProfile } from './aiLiteStore.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 
-export const SVG_INTERPRETATION_PROMPT_VERSION = 'svg-interpretation-v1';
+const SVG_INTERPRETATION_PROMPT_VERSION = 'svg-interpretation-v1';
 
 /** The bounds a decision request is held to before it is sent. The request bound sits well
  *  inside the primary candidate's 32,000-token context: a token is at least one byte of the
@@ -149,7 +149,7 @@ const KINDS: readonly SvgEvidenceLayerKind[] = ['text', 'image', 'shape', 'group
 const LAYER_KEYS = ['id', 'kind', 'name', 'parent', 'box', 'chars', 'lines', 'text'];
 /** Control and format characters (bidi overrides, zero-width marks) and line separators: a name
  *  or a text value is one plain line, so it reads as it renders and cannot hide anything. */
-export const UNPLAIN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const UNPLAIN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 const REVISION = /^sha256:[0-9a-f]{64}$/;
 
 export const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -173,12 +173,10 @@ export function svgEvidenceRefusal(state: unknown, consent: SvgEvidenceConsent):
   if (!isRecord(canvas) || Object.keys(canvas).some((key) => key !== 'width' && key !== 'height')
     || !finite(canvas.width) || !finite(canvas.height) || canvas.width <= 0 || canvas.height <= 0) return 'evidence-canvas';
   if (!Array.isArray(state.layers) || state.layers.length > SVG_DECISION_LIMITS.layers) return 'evidence-layers';
-  const ids = new Set<string>();
   const parents = new Map<string, string | undefined>();
   for (const layer of state.layers) {
     if (!isRecord(layer) || Object.keys(layer).some((key) => !LAYER_KEYS.includes(key))) return 'evidence-key';
-    if (!plain(layer.id, SVG_DECISION_LIMITS.idChars) || ids.has(layer.id)) return 'evidence-id';
-    ids.add(layer.id);
+    if (!plain(layer.id, SVG_DECISION_LIMITS.idChars) || parents.has(layer.id)) return 'evidence-id';
     if (!KINDS.includes(layer.kind as SvgEvidenceLayerKind)) return 'evidence-kind';
     if (layer.name !== undefined && !plain(layer.name, SVG_DECISION_LIMITS.nameChars)) return 'evidence-name';
     if (layer.parent !== undefined && !plain(layer.parent, SVG_DECISION_LIMITS.idChars)) return 'evidence-parent';

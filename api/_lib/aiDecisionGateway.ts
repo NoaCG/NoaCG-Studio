@@ -23,6 +23,7 @@
 
 import {
   AI_GATEWAY_BASE_URL,
+  estimateModelCost,
   providerFailure,
   type GatewayError,
   type GatewayRoutingPolicy,
@@ -90,20 +91,18 @@ export function decisionQuestionsRefusal(questions: unknown): string | null {
     const q = questions[key];
     if (!QUESTION_KEY.test(key) || !isRecord(q)) return 'question-key';
     if (!plain(q.instructions, SVG_DECISION_LIMITS.instructionChars)) return 'question-instructions';
+    if (q.type !== 'boolean' && q.type !== 'choice' && q.type !== 'score') return 'question-type';
+    if (Object.keys(q).some((k) => !['type', 'instructions', 'criteria'].includes(k))) return 'question-key';
     const criterion = (v: unknown) => plain(v, SVG_DECISION_LIMITS.criterionChars);
     if (q.type === 'boolean') {
-      if (Object.keys(q).some((k) => !['type', 'instructions', 'criteria'].includes(k))) return 'question-key';
       if (q.criteria !== undefined && !(isRecord(q.criteria) && sameKeys(Object.keys(q.criteria), ['true', 'false'])
         && criterion(q.criteria.true) && criterion(q.criteria.false))) return 'question-criteria';
-    } else if (q.type === 'choice' || q.type === 'score') {
-      if (Object.keys(q).some((k) => !['type', 'instructions', 'criteria'].includes(k))) return 'question-key';
+    } else {
       const options = q.type === 'choice'
         ? (isRecord(q.criteria) ? Object.entries(q.criteria) : null)
         : (Array.isArray(q.criteria) ? q.criteria.map((v, i) => [String(i), v] as const) : null);
       if (!options || options.length < 2 || options.length > SVG_DECISION_LIMITS.options) return 'question-criteria';
       if (!options.every(([k, v]) => OPTION_KEY.test(k) && criterion(v))) return 'question-criteria';
-    } else {
-      return 'question-type';
     }
   }
   return null;
@@ -192,7 +191,7 @@ export type DecisionOutcome =
 /** The request body exactly as sent. `providerOptions.gateway` carries the privacy and routing
  *  directives and never a `models` list: a decision fallback would rerun the request on another
  *  model, an automatic cascade the spec forbids. */
-export function decisionBody(request: DecisionRequest, gateway: GatewayRoutingPolicy): string {
+function decisionBody(request: DecisionRequest, gateway: GatewayRoutingPolicy): string {
   return JSON.stringify({
     model: request.route.model,
     state: request.state,
@@ -212,9 +211,21 @@ export function decisionBody(request: DecisionRequest, gateway: GatewayRoutingPo
  *  at least one byte) plus the model's own framing; output is a few tokens per question. */
 const FRAMING_TOKENS = 512;
 const OUTPUT_TOKENS_PER_QUESTION = 32;
-export function decisionAttemptCeilingUsd(bodyBytes: number, questionCount: number, price: ModelPrice): number {
-  return ((bodyBytes + FRAMING_TOKENS) * price.inputPerMillion
-    + questionCount * OUTPUT_TOKENS_PER_QUESTION * price.outputPerMillion) / 1_000_000;
+
+/** One request, serialized once: the body exactly as sent, its size, and the most one attempt at
+ *  it can cost. The size and cost checks and the call all read this one value. */
+export interface PreparedDecision {
+  body: string;
+  bytes: number;
+  attemptCeilingUsd: number;
+}
+
+export function prepareDecision(request: DecisionRequest, gateway: GatewayRoutingPolicy, price: ModelPrice): PreparedDecision {
+  const body = decisionBody(request, gateway);
+  const bytes = Buffer.byteLength(body, 'utf8');
+  const questions = Object.keys(request.questions).length;
+  const attemptCeilingUsd = estimateModelCost(request.route, bytes + FRAMING_TOKENS, questions * OUTPUT_TOKENS_PER_QUESTION, price) ?? 0;
+  return { body, bytes, attemptCeilingUsd };
 }
 
 /** The largest request a route takes: the task's bound, or less when the model's context is
@@ -245,11 +256,11 @@ export async function executeDecisionRequest(
   request: DecisionRequest,
   policy: DecisionPolicy,
   deps: DecisionDependencies,
+  prepared: PreparedDecision = prepareDecision(request, policy.gateway, policy.price),
 ): Promise<DecisionOutcome> {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const sleep = deps.sleep ?? sleepFor;
-  const body = decisionBody(request, policy.gateway);
-  const worstAttempt = decisionAttemptCeilingUsd(Buffer.byteLength(body, 'utf8'), Object.keys(request.questions).length, policy.price);
+  const { body, attemptCeilingUsd: worstAttempt } = prepared;
   let costUsd = 0;
   let attempts = 0;
   let reason: DecisionFailure = 'unavailable';
@@ -296,8 +307,9 @@ export async function executeDecisionRequest(
         // price, else the attempt's worst case. Never zero for want of a number.
         const billed = usd(gateway.cost)
           ?? (input !== null && output !== null
-            ? (input * policy.price.inputPerMillion + output * policy.price.outputPerMillion) / 1_000_000
-            : worstAttempt);
+            ? estimateModelCost(request.route, input, output, policy.price)
+            : null)
+          ?? worstAttempt;
         costUsd += billed;
         const routing = isRecord(gateway.routing) ? gateway.routing : {};
         const finalProvider = typeof routing.finalProvider === 'string' ? routing.finalProvider : null;
@@ -378,15 +390,8 @@ export type SvgInterpretationOutcome =
       generationId?: string;
     };
 
-const refuse = (reason: SvgInterpretationRefusal | DecisionFailure, detail?: string): SvgInterpretationOutcome =>
-  ({ ok: false, fallback: 'deterministic', reason, ...(detail ? { detail } : {}) });
-
-/** Settle a reservation that hit an unexpected error after it was booked. Best effort: the cost
- *  stays at the booked ceiling, the conservative answer when nobody knows what was spent, and
- *  the row leaves the active statuses so the slot is released. */
-async function abandon(store: LiteGenerationStore, id: string): Promise<void> {
-  await store.update(id, { status: 'failed', rejectionReason: 'internal' }).catch(() => null);
-}
+const refuse = (reason: SvgInterpretationRefusal | DecisionFailure, detail?: string, generationId?: string): SvgInterpretationOutcome =>
+  ({ ok: false, fallback: 'deterministic', reason, ...(detail ? { detail } : {}), ...(generationId ? { generationId } : {}) });
 
 export async function runSvgInterpretation(
   input: SvgInterpretationInput,
@@ -426,10 +431,9 @@ async function interpret(input: SvgInterpretationInput, deps: SvgInterpretationD
   if (questions) return refuse('questions_refused', questions);
 
   const request: DecisionRequest = { route: profile.route, state: input.evidence, questions: input.questions };
-  const bytes = Buffer.byteLength(decisionBody(request, gateway), 'utf8');
-  if (bytes > decisionRequestBytes(entry.contextWindow)) return refuse('too_large');
-  const worstCase = profile.maxAttempts * decisionAttemptCeilingUsd(bytes, Object.keys(input.questions).length, price);
-  if (worstCase > profile.maxProviderCostUsd) return refuse('cost_ceiling');
+  const prepared = prepareDecision(request, gateway, price);
+  if (prepared.bytes > decisionRequestBytes(entry.contextWindow)) return refuse('too_large');
+  if (profile.maxAttempts * prepared.attemptCeilingUsd > profile.maxProviderCostUsd) return refuse('cost_ceiling');
   const key = (deps.key ?? (() => managedAiKey(profile.route.provider)))();
   if (!key) return refuse('not_configured');
   if (input.signal?.aborted) return refuse('cancelled');
@@ -453,6 +457,7 @@ async function interpret(input: SvgInterpretationInput, deps: SvgInterpretationD
       request,
       { price, maxAttempts: profile.maxAttempts, timeoutMs: profile.timeoutMs, gateway },
       { key, fetchImpl: deps.fetchImpl, sleep: deps.sleep, signal: input.signal },
+      prepared,
     );
     // Settle the booking to what was spent, in every case: a failed or cancelled call that may
     // have been billed still counts (spec, "Ceiling"). Leaving the active statuses releases the slot.
@@ -462,20 +467,19 @@ async function interpret(input: SvgInterpretationInput, deps: SvgInterpretationD
       attemptCount: outcome.attempts,
       providerCostUsd: outcome.costUsd,
     };
-    if (!outcome.ok) {
-      await store.update(id, { ...settled, status: 'failed', rejectionReason: outcome.reason });
-      return { ok: false, fallback: 'deterministic', reason: outcome.reason, generationId: id };
-    }
-    settled.inputTokens = outcome.inputTokens;
-    settled.outputTokens = outcome.outputTokens;
-    if (outcome.costUsd > profile.maxProviderCostUsd) {
-      await store.update(id, { ...settled, status: 'failed', rejectionReason: 'cost_ceiling' });
-      return { ok: false, fallback: 'deterministic', reason: 'cost_ceiling', generationId: id };
-    }
+    const settleFailed = async (reason: DecisionFailure | 'cost_ceiling') => {
+      await store.update(id, { ...settled, status: 'failed', rejectionReason: reason });
+      return refuse(reason, undefined, id);
+    };
+    if (!outcome.ok) return await settleFailed(outcome.reason);
+    Object.assign(settled, { inputTokens: outcome.inputTokens, outputTokens: outcome.outputTokens });
+    if (outcome.costUsd > profile.maxProviderCostUsd) return await settleFailed('cost_ceiling');
     await store.update(id, { ...settled, status: 'usable' });
     return { ok: true, answers: outcome.answers, generationId: id, costUsd: outcome.costUsd, attempts: outcome.attempts };
   } catch {
-    await abandon(store, id);
-    return { ok: false, fallback: 'deterministic', reason: 'unavailable', generationId: id };
+    // Best effort: the row leaves the active statuses so the slot is released, and its cost stays
+    // at the booked ceiling, the conservative answer when nobody knows what was spent.
+    await store.update(id, { status: 'failed', rejectionReason: 'internal' }).catch(() => null);
+    return refuse('unavailable', undefined, id);
   }
 }

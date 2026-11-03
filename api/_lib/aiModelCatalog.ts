@@ -252,8 +252,12 @@ export function fundedModelRoute(route: ModelRoute, price?: ModelPrice | null): 
 /** The audited price snapshot, keyed `provider:model` - the base of Lite's price table,
  *  so the catalog and the policy layer cannot drift apart. */
 export function approvedModelPrices(): Record<string, ModelPrice> {
+  return pricesOf(APPROVED_MODEL_CATALOG);
+}
+
+function pricesOf(entries: readonly { route: ModelRoute; price: ModelPrice }[]): Record<string, ModelPrice> {
   const prices: Record<string, ModelPrice> = {};
-  for (const entry of APPROVED_MODEL_CATALOG) prices[modelRouteKey(entry.route)] = { ...entry.price };
+  for (const entry of entries) prices[modelRouteKey(entry.route)] = { ...entry.price };
   return prices;
 }
 
@@ -327,7 +331,5 @@ export function fundedDecisionRoute(route: ModelRoute, price?: ModelPrice | null
 
 /** The decision candidates' audited prices, keyed `provider:model`. */
 export function decisionModelPrices(): Record<string, ModelPrice> {
-  const prices: Record<string, ModelPrice> = {};
-  for (const entry of DECISION_MODEL_CANDIDATES) prices[modelRouteKey(entry.route)] = { ...entry.price };
-  return prices;
+  return pricesOf(DECISION_MODEL_CANDIDATES);
 }
