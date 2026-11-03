@@ -146,3 +146,20 @@ closes. Nothing in this PR closes it.
   - The repo's commit hook refuses attribution trailers.
   - Playwright's JSON report lists each `--repeat-each` repetition as its own spec entry with its
     own id; count tests by file, line and title.
+
+## Early release
+
+`e2e/configured/late-send-abandoned.spec.ts` leaves quarantine by hand in PR #PRNUM, by the route
+`e2e/quarantine.json` documents for it ("edit by hand only to release early"). The edit is the one
+`node scripts/e2e-quarantine.mjs release <spec>` writes: the entry leaves `specs` and gets a
+`released` entry with its count (16) and today's date (2026-11-03).
+
+- **Evidence:** the root-cause fix landed in PR #1990 (merge 27c737a2). Before it the spec failed in
+  12 of 94 main runs (12.8%) and 15 of 80 dedicated trials. The repeat count, N = 40, was committed
+  (0bd3e24d) before the trial, and the final code passed 40 of 40 on CI (runs 41542195497 and
+  41549389402). Details are above and in #1805's comments.
+- **Why early:** 20 consecutive passes on main would take two to three days, and the run's phases
+  are sequential, so the coordinator chose the documented early release.
+- **Safety net:** if the spec fails and then passes on one commit on main again, `ci.yml` and
+  `configured-suite.yml` put it straight back.
+- This landing closes #1805.
