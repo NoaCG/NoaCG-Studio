@@ -20,3 +20,9 @@ export const AI_NOTICE_LINES: readonly string[] = [
 
 export const AI_NOTICE_ACCEPT_LABEL = 'I understand - continue';
 export const AI_NOTICE_DECLINE_LABEL = 'Not now';
+
+// Shown where a user asks AI to prepare an imported SVG, beside the request itself. The notice
+// above covers sending content to a provider; this says exactly what this request sends. The
+// text goes only when the box is ticked, and the box starts unticked.
+export const AI_SVG_DISCLOSURE = 'AI sees the layer names, positions and text lengths of this graphic.';
+export const AI_SVG_INCLUDE_TEXT_LABEL = 'Also send the text';
