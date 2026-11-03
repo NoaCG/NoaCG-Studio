@@ -37,12 +37,26 @@
       "branch": "claude/plan-jev-svg-import-34-build",
       "source": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321",
       "startedAt": "2026-11-03T13:14:11Z",
-      "evalRuns": [],
+      "evalRuns": [
+        {
+          "run": 41643035479,
+          "mode": "reconcile",
+          "accept_manifest": true,
+          "freeze": true,
+          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+          "main": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321",
+          "receipts": 41634756346,
+          "at": "2026-11-03T13:18Z",
+          "paid": false,
+          "note": "package-lock.json only (4bc351d2, #1752); re-freeze identical config; manifest 516dcef0"
+        }
+      ],
       "frozen": {
         "config": "b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7",
         "ref": "a41861d21be5c13d2e0a8344644ea50606e2463d",
-        "manifest": "341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db",
-        "newestLedger": 41634756346
+        "manifest": "516dcef08fc4ad6d309b405a5fda8ab7a166fa18ee257421782c471816224062",
+        "newestLedger": 41643035479,
+        "main": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321"
       }
     }
   ],
