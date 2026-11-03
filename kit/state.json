@@ -52,11 +52,6 @@
    "session": "session_017SdbwQNSntdLhES7vQhz7R",
    "nonce": "cf04-b-756a",
    "launchedAt": "2026-11-03T08:08:51Z"
-  },
-  {
-   "fix": 2011,
-   "step": "build",
-   "session": "session_017SdbwPaNNL9XoNvHecZXPB"
   }
  ],
  "owner": [],
@@ -77,7 +72,9 @@
    "pr": 2012,
    "head": "c374a12a488abefc9e0e499b94395301a2f1720a",
    "stamped": "run 41609325479",
-   "state": "queued"
+   "state": "landed",
+   "merge": "a090662aaa5642be312e3c8e3fce0ad3a6b568a2",
+   "closed": "auto"
   }
  ],
  "triggers": {
