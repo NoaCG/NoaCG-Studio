@@ -45,24 +45,27 @@
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985)."
  },
  "waitingOn": {
-  "what": "PR #1990 in the merge queue",
-  "eta": "2026-11-03T01:20:00Z"
+  "what": "early quarantine release PR for late-send-abandoned (closes #1805), then the cf07 check",
+  "eta": "2026-11-03T02:30:00Z"
  },
  "inFlight": [
   {
    "phase": "cf07",
-   "step": "build",
-   "session": "session_017SdbwPLCaRK56zKEDHLRY6",
-   "nonce": "cf07-b-4f41",
-   "pr": 1990,
-   "head": "d7e26b59e4cd8812f4ebbba9dabf34f814b9b9d3",
-   "stamped": "run 41554500310",
-   "autoMerge": "2026-11-03T00:40:45Z",
-   "state": "queued"
+   "step": "fix (early quarantine release)",
+   "session": "session_017SdbwPvMAdvKaa9sgSg1px",
+   "nonce": "fix-1805-f-24b1",
+   "launchedAt": "2026-11-03T00:56:28Z"
   }
  ],
  "owner": [],
- "fixes": [],
+ "fixes": [
+  {
+   "issue": 1805,
+   "what": "early hand release from quarantine after cf07 (documented route)",
+   "session": "session_017SdbwPvMAdvKaa9sgSg1px",
+   "nonce": "fix-1805-f-24b1"
+  }
+ ],
  "triggers": {
   "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y",
   "ownerAlarms": "trig_01AMdUqAkdtQgPQ5FmwLtL6U"
@@ -86,6 +89,10 @@
    "check": 3,
    "verdict": "PASS",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6589247426"
+  },
+  {
+   "phase": "cf07",
+   "landed": "27c737a2 (#1990)"
   }
  ],
  "decisions": [
