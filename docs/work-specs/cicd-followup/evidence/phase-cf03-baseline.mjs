@@ -61,14 +61,24 @@ function show(sha, path) {
   return showCache.get(k);
 }
 const SCRIPT_REF = /\bscripts\/[\w./-]+\.(?:mjs|cjs|js)\b/g;
-// Roots: scripts a runner's text names, directly, through `npm run <name>` in package.json, or
-// through a local action it uses.
+// Roots: scripts a runner's text names, directly, through `npm run <name>` (also inside the local
+// actions it uses and inside the package.json scripts those name), and through npm's install hooks
+// whenever the text installs (`npm ci` or `npm install` run them), followed to a fixed point.
 function rootsOf(sha, runner) {
-  const text = show(sha, runner) ?? '';
   const pkg = JSON.parse(show(sha, 'package.json') ?? '{"scripts":{}}').scripts ?? {};
-  const texts = [text];
-  for (const m of text.matchAll(/npm (?:run(?:-script)?|test)\s+([\w:.-]+)/g)) if (pkg[m[1]]) texts.push(pkg[m[1]]);
-  for (const m of text.matchAll(/uses:\s*\.\/(\.github\/actions\/[\w.-]+)/g)) texts.push(show(sha, `${m[1]}/action.yml`) ?? '');
+  const texts = [show(sha, runner) ?? ''];
+  const seenNames = new Set(); const seenActions = new Set();
+  for (let i = 0; i < texts.length; i += 1) {
+    const t = texts[i];
+    const names = [...t.matchAll(/npm (?:run(?:-script)?|test)\s+([\w:.-]+)/g)].map((m) => m[1]);
+    if (/npm (?:ci|install|i)\b/.test(t)) names.push('preinstall', 'install', 'postinstall', 'prepare');
+    for (const n of names) if (pkg[n] && !seenNames.has(n)) { seenNames.add(n); texts.push(pkg[n]); }
+    for (const m of t.matchAll(/uses:\s*\.\/(\.github\/actions\/[\w.-]+)/g)) {
+      if (seenActions.has(m[1])) continue;
+      seenActions.add(m[1]);
+      texts.push(show(sha, `${m[1]}/action.yml`) ?? '');
+    }
+  }
   return new Set(texts.flatMap((t) => [...t.matchAll(SCRIPT_REF)].map((m) => m[0])).filter(notTest));
 }
 // The import closure of a set of scripts: static and dynamic relative imports, resolved in the tree.

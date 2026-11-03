@@ -277,8 +277,10 @@ rule to a merge (`sideEnds` in the script; each record's `ends` and `ends_why` h
 local action, a script one of them runs, any module such a script imports, a data file or config
 the jobs read, the dependencies or the build's toolchain. "A script one of them runs" is read from
 the merge commit (and its parent): every `scripts/...` path named in ci.yml, configured-suite.yml,
-post-land.yml, quarantine.yml or deploy-verify.yml, directly, through `npm run <name>` in
-package.json, or through a local action they use. "Any module it imports" is that script's import
+post-land.yml, quarantine.yml or deploy-verify.yml, directly, through a local action they use,
+or through `npm run <name>` in any of those texts or in the package.json scripts they reach, plus
+npm's install hooks (`postinstall` and its siblings) wherever a text installs; all followed until
+nothing new is found. "Any module it imports" is that script's import
 closure (static and dynamic relative imports, followed until nothing new is found). The metrics and
 groups follow from who runs the file:
 
