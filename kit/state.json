@@ -35,7 +35,15 @@
       "session": "session_017SdbwNQwZWqjCQeGYmzXno",
       "nonce": "33-b-e72a",
       "branch": "claude/plan-jev-svg-import-33-build",
-      "evalRuns": []
+      "evalRuns": [
+        {
+          "run": 41619506329,
+          "mode": "dry-run",
+          "config": "3017a8a33f26afd9a4c703efac43e87946d8144e",
+          "at": "2026-11-03T10:28Z",
+          "paid": false
+        }
+      ]
     }
   ],
   "owner": [],
