@@ -27,20 +27,21 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "PR #1996 in merge queue",
+  "waitingOn": "phase 29 checker session_017SdbwQYtbmzah3MGm3fehW",
   "inFlight": [
     {
       "phase": 29,
+      "role": "check",
       "pr": 1996,
-      "head": "fa6d1175b70ed1a5ee042605325d10a6fa175aba",
-      "stampRun": 41568692525,
-      "ciRun": 41567837611,
-      "so": "session_017SdbwLYB5i6mmQbBAWoA1Z A",
-      "soOther": [
+      "mergeSha": "83c21c3fd1c32a802052ac93720d4be0073cceab",
+      "checker": "session_017SdbwQYtbmzah3MGm3fehW",
+      "nonce": "29-c-afcd",
+      "builder": "session_017SdbwNy4Luk1xPXbZcVHEA",
+      "soSessions": [
+        "session_017SdbwLYB5i6mmQbBAWoA1Z",
         "session_017SdbwR22kWehQUJbnJoab6",
         "session_017SdbwR3jBipuFcw1hsBtb9"
-      ],
-      "builder": "session_017SdbwNy4Luk1xPXbZcVHEA"
+      ]
     }
   ],
   "owner": [],
