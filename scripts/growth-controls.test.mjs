@@ -12,7 +12,7 @@ import test from 'node:test';
 import { HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, applyOfflineStop, assess, knownCoversOnDisk, offlineExceptionChanges, parseExceptions } from './e2e-capacity.mjs';
 import {
   TIERS, admit, ageAlarms, applySlowdown, assessTiers, carryBreaches, costBreaches, cronRunsPerDay, detectSlowdown,
-  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
+  ceilingsRevision, coverCosts, coverJobs, evidenceOf, exceptionProblems, exceptionStatus, knownCovers, landingDispatched, ledgerChanges, phasesFromLedger, phaseClock, pooledTiming, prClock, priceAdditions, queueClock, sustained,
   quarantineLines, tableFreshness, tierOfCover, tierOfJob, workflowShape,
 } from './growth-controls.mjs';
 import { AGE_ISSUE, ages, buildReport, carriedDues, carriedStarts, fetchLatest, findIssue, finishedPrs, listRuns, makeReader, phaseIssueTitle, priceRuns, readJobs, sampleJobs, seriesOf, spread } from './growth-report.mjs';
@@ -501,6 +501,33 @@ test('(b) a manual-only workflow costs no run per landing unless a per-landing w
   // A manual workflow beside another trigger keeps that trigger's price.
   const both = manual.replace('on:\n', 'on:\n  workflow_call:\n');
   assert.equal(price({ 'm.yml': both }, { 'm.yml': both })[0].perLanding, e.newJobMinutes);
+});
+
+test('(b) the dispatch search follows what a landing runs and names only what it starts', () => {
+  const e = CEILINGS.estimates;
+  const manual = "name: Manual eval\non:\n  workflow_dispatch:\njobs:\n  a:\n    name: Manual\n";
+  const ci = (run) => `on:\n  pull_request:\njobs:\n  build:\n    name: Build\n    steps:\n      - run: npm test\n      - ${run}\n`;
+  const starts = (wfs, files = {}, opts) => [...landingDispatched({ workflows: { 'm.yml': manual, ...wfs }, read: (f) => files[f] ?? null }, e, opts)].includes('m.yml');
+  // Not started: a common display name that appears in an unrelated step, a script that only
+  // mentions the file, or a dispatch of something else from a script that imports one naming it.
+  const test_ = manual.replace('Manual eval', 'test');
+  assert.equal([...landingDispatched({ workflows: { 'ci.yml': ci('run: gh workflow run other.yml'), 'm.yml': test_ } }, e)].includes('m.yml'), false, 'a title counts only after gh workflow run');
+  assert.equal(starts({ 'ci.yml': ci('run: node scripts/note.mjs') }, { 'scripts/note.mjs': "import './run.mjs';\nconsole.log('see m.yml');\n", 'scripts/run.mjs': "import './far.mjs';\n", 'scripts/far.mjs': 'go(`/dispatches`, "other.yml");\n' }), false, 'a distant importer naming the file is not a caller');
+  // Started: by npm script, by a local action, by a script another script runs, by an argument
+  // handed down through a command line and an import, and by a title with a trailing comment.
+  assert.ok(starts({ 'ci.yml': ci('run: npm run kick') }, { 'package.json': JSON.stringify({ scripts: { kick: 'gh workflow run m.yml' } }) }));
+  assert.ok(starts({ 'ci.yml': ci('uses: ./.github/actions/kick') }, { '.github/actions/kick/action.yml': 'runs:\n  steps:\n    - run: gh workflow run m.yml\n' }));
+  assert.ok(starts({ 'ci.yml': ci('run: bash scripts/a.sh') }, { 'scripts/a.sh': 'node scripts/b.mjs\n', 'scripts/b.mjs': "execSync('gh workflow run m.yml');\n" }));
+  assert.ok(starts({ 'ci.yml': ci('run: node scripts/k.mjs m.yml') }, { 'scripts/k.mjs': "import { go } from './lib.mjs';\ngo(process.argv[2]);\n", 'scripts/lib.mjs': 'export const go = (w) => api(`workflows/${w}/dispatches`);\n' }));
+  const commented = manual.replace('name: Manual eval', 'name: Manual eval  # by ci');
+  assert.ok([...landingDispatched({ workflows: { 'ci.yml': ci('run: gh workflow run "Manual eval"'), 'm.yml': commented } }, e)].includes('m.yml'));
+  // Past the limit it cannot tell, so everything counts as started.
+  assert.ok(starts({ 'ci.yml': ci('run: node scripts/a.mjs && node scripts/b.mjs && node scripts/c.mjs') }, {}, { limit: 2 }));
+  // An untouched manual workflow that this change makes a landing start is priced.
+  const before = { 'ci.yml': ci('run: echo'), 'm.yml': manual };
+  const after = { 'ci.yml': ci('run: gh workflow run m.yml'), 'm.yml': manual };
+  const items = priceAdditions({ workflows: { 'ci.yml': { base: before['ci.yml'], head: after['ci.yml'] } }, estimates: e, repo: { base: { workflows: before }, head: { workflows: after } } });
+  assert.deepEqual(items.map((i) => [i.id, i.perLanding]), [['job:m.yml/Manual', e.newJobMinutes]]);
 });
 
 test('(b) a more frequent schedule or trigger on an existing job is priced; an unchanged one is not', () => {

@@ -2,9 +2,15 @@
 // The capacity line: what counts as usage, when a change is warned or refused, how an exception
 // covers it, and that an unmeasured spec in a partial report counts at the p90, never the median.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
-import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, parseExceptions, summarize } from './e2e-capacity.mjs';
+import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
+import { priceAdditions } from './growth-controls.mjs';
+import CEILINGS from './growth-ceilings.json' with { type: 'json' };
 
 // A table whose budget is easy to reason about: jobMinutes 0.42 and testFactor 1.01 give
 // budgetMinutes 16.416 and, on 13 runners, a capacity of 213.40 table-minutes.
@@ -92,4 +98,29 @@ test('the summary keeps execution, runner minutes and wall clock apart', () => {
   assert.match(text, /Runner minutes of this run: 42\.5/);
   assert.match(text, /Wall clock of this run so far: 9\.1 min/);
   assert.match(text, /\| `new\.spec\.ts` \| - \| 1\.00 \| \+1\.00 \|/);
+});
+
+test('the repository view reads the base from git and the head from disk, so a newly started manual workflow is priced', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'repo-view-'));
+  try {
+    const git = (...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: root, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+    const put = (f, text) => { mkdirSync(path.dirname(path.join(root, f)), { recursive: true }); writeFileSync(path.join(root, f), text); };
+    const manual = 'on:\n  workflow_dispatch:\njobs:\n  a:\n    name: Manual\n';
+    put('.github/workflows/m.yml', manual);
+    put('.github/workflows/ci.yml', 'on:\n  pull_request:\njobs:\n  b:\n    steps:\n      - run: node scripts/kick.mjs\n');
+    put('scripts/kick.mjs', 'console.log("nothing yet");\n');
+    git('init', '-q');
+    git('add', '-A');
+    git('commit', '-qm', 'base');
+    const base = git('rev-parse', 'HEAD').trim();
+    const view = () => repoView(base, root);
+    assert.deepEqual(priceAdditions({ workflows: {}, estimates: CEILINGS.estimates, repo: view() }), [], 'nothing changed');
+    put('scripts/kick.mjs', 'execSync("gh workflow run m.yml");\n');
+    const repo = view();
+    assert.deepEqual(Object.keys(repo.base.workflows).sort(), ['ci.yml', 'm.yml']);
+    assert.match(repo.base.read('scripts/kick.mjs'), /nothing yet/);
+    assert.deepEqual(priceAdditions({ workflows: {}, estimates: CEILINGS.estimates, repo }).map((i) => [i.id, i.perLanding]), [['job:m.yml/Manual', CEILINGS.estimates.newJobMinutes]]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

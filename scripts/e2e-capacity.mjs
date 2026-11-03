@@ -307,11 +307,29 @@ function specPathsOnDisk(root) {
 
 /** The covers that name a real job or spec in this checkout. */
 export function knownCoversOnDisk(root = ROOT, specs = specPathsOnDisk(root)) {
+  return knownCovers(workflowsOnDisk(root), specs);
+}
+
+/** Every workflow file in this checkout, by file name. */
+function workflowsOnDisk(root) {
   const wfDir = path.join(root, '.github', 'workflows');
-  return knownCovers(Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])), specs);
+  return Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')]));
 }
 
 const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
+
+/**
+ * The repository as the dispatch search reads it (growth-controls.mjs landingDispatched): every
+ * workflow and a file reader, at `base` from git and at the head from this checkout.
+ */
+export function repoView(base, root = ROOT) {
+  const listed = (gitShow(base, '.github/workflows/', root) ?? '').split('\n').filter((f) => /\.ya?ml$/.test(f));
+  const disk = (f) => { try { return readFileSync(path.join(root, f), 'utf8'); } catch { return null; } };
+  return {
+    base: { workflows: Object.fromEntries(listed.map((f) => [f, gitShow(base, `.github/workflows/${f}`, root) ?? ''])), read: (f) => gitShow(base, f, root) },
+    head: { workflows: workflowsOnDisk(root), read: disk },
+  };
+}
 const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
 
 /**
@@ -383,13 +401,8 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     offline = offlineExceptionChanges(baseExceptions, readExceptions(root), { today, baseEntries: offlineIn(baseLedger), newEntries: offlineIn(ceilings).filter((e) => !baseIds.has(e.id)) });
   }
   // Every workflow before and after, so a manual-only workflow is priced per landing only when a
-  // per-landing workflow starts it (growth-controls.mjs landingDispatched).
-  const wfDir = path.join(root, '.github', 'workflows');
-  const yaml = (f) => /\.ya?ml$/.test(f);
-  const repo = base && !diffFailed ? {
-    base: { workflows: Object.fromEntries((gitShow(base, '.github/workflows/', root) ?? '').split('\n').filter(yaml).map((f) => [f, gitShow(base, `.github/workflows/${f}`, root) ?? ''])), read: (f) => gitShow(base, f, root) },
-    head: { workflows: existsSync(wfDir) ? Object.fromEntries(readdirSync(wfDir).filter(yaml).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])) : {}, read: (f) => { try { return readFileSync(path.join(root, f), 'utf8'); } catch { return null; } } },
-  } : undefined;
+  // per-landing workflow starts it.
+  const repo = base && !diffFailed ? repoView(base, root) : undefined;
   const items = priceAdditions({ added, workflows, estimates: ceilings.estimates, repo });
   const known = knownCoversOnDisk(root);
   const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {}, known });
