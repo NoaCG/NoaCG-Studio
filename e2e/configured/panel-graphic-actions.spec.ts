@@ -289,7 +289,7 @@ test('a panel press on a renamed control of a reimported score board reaches the
 
   /** The saved graphic and the production's copy of it: their fields, the Score 1 field, and
    *  what Team 1's point moves in each. */
-  const board = () =>
+  const saved = () =>
     page.evaluate(async (name) => {
       const { loadGraphics } = await import('/src/model/library.ts');
       const { loadShows } = await import('/src/model/shows.ts');
@@ -308,7 +308,7 @@ test('a panel press on a renamed control of a reimported score board reaches the
         poolMoves: moves(pooled.template.js),
       };
     }, show);
-  const before = await board();
+  const before = await saved();
   expect(before.named).toBe(1);
   expect(before.moves).toEqual([before.field]);
   expect(before.poolMoves).toEqual([before.field]);
@@ -336,7 +336,7 @@ test('a panel press on a renamed control of a reimported score board reaches the
   // The reimport replaced Board, here and in the production: one graphic of that name, the badge a
   // field of its own in both copies, every earlier field on its earlier id, and Team 1's point
   // still moving Score 1 in both.
-  const after = await board();
+  const after = await saved();
   expect(after.named).toBe(1);
   expect(after.id).toBe(before.id);
   expect(after.fields.filter((f) => !f.endsWith(' badge'))).toEqual(before.fields);
