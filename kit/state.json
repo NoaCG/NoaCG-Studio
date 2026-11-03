@@ -101,6 +101,16 @@
           "receipts": 41621970771,
           "at": "2026-11-03T11:50Z",
           "paid": false
+        },
+        {
+          "run": 41630941605,
+          "mode": "development",
+          "config": "f8aa571cf6e1eef80df05b9e97650316291e4f0a",
+          "receipts": 41630691746,
+          "pricedMax": 0.112,
+          "at": "2026-11-03T11:52Z",
+          "paid": true,
+          "note": "vision run"
         }
       ],
       "baseline": {
