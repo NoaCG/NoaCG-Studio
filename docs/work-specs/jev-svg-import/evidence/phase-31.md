@@ -38,9 +38,12 @@ provider (`typesafe-ai`), ZDR and no-training listed for all providers, us regio
   A decision task names only decision candidates and a chat task can never name one, in either
   direction, before any call. A decision route is funded under the same per-million ceiling as a
   text route, because it bills per token.
-- **One allowance with graphic analysis.** The ledger's `profile` column admits no new value
-  without a migration, and this plan adds none. The task books against `import-analysis` and
-  reads its quotas from `importAnalysisProfile()`.
+- **One allowance with graphic analysis.** The ledger reuses the `import-analysis` profile and
+  shares its allowance: SVG interpretations and image analyses count against the same daily and
+  monthly quotas, concurrency and fleet spend, read from `importAnalysisProfile()`. The ledger's
+  `profile` column admits no new value without a migration, and this plan adds none. If the
+  row 34 verdict is go, row 35 (which connects the route to users) must revisit whether one
+  shared allowance is right; a separate one needs a migration and an owner decision.
 - **Consent boundary.** The global AI notice stays at `ai-disclosure-v1`: bumping it would ask
   every user to re-accept for a feature that is off. The task needs that notice accepted
   (`hasCurrentAiConsent`, which fails closed on a lookup error), and the artwork's text goes only
@@ -55,6 +58,15 @@ provider (`typesafe-ai`), ZDR and no-training listed for all providers, us regio
   is 16,384, so one fixed 24,000-byte bound would have overrun it.
 - **Retry policy.** Retry only transient failures (timeout, network, 429, 5xx). A refusal, an
   invalid answer, a cancel or a different serving model is not retried.
+
+## Approved departure from TOUCHES
+
+The coordinator approved both before they were pushed, for these purposes only:
+
+- `scripts/run-ai-gateway-tests.mjs`: `api/_lib/aiDecisionGateway.test.ts` added to its file
+  list, so CI runs the new tests. Nothing else in that file.
+- `api/_lib/aiGateway.ts`: `providerFailure` exported, so the decision adapter reuses the chat
+  adapter's error classification. No behaviour change.
 
 ## Rules (stated with the code, challenged by the final /so)
 
