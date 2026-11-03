@@ -20,7 +20,7 @@
 // instructions are built by the server, never from anything the artwork says.
 
 import type { GatewayRoutingPolicy, ModelPrice } from './aiGateway.js';
-import { decisionModelPrices } from './aiModelCatalog.js';
+import { decisionModelPrices, modelRouteKey } from './aiModelCatalog.js';
 import { boolEnv, envRoute, intEnv, numberEnv } from './aiLiteProfile.js';
 import { importAnalysisProfile } from './aiImportAnalysisProfile.js';
 import type { LedgerQuotaProfile } from './aiLiteStore.js';
@@ -52,7 +52,9 @@ export interface SvgInterpretationProfile extends LedgerQuotaProfile {
   route: ModelRoute;
   prices: Record<string, ModelPrice>;
   gatewayProviders: string[];
-  requireZdr: boolean;
+  /** Always true here, with no setting to turn it off: the candidates' ZDR is a listing claim no
+   *  real call has verified, so the request directive is the only guarantee and must not lapse. */
+  requireZdr: true;
   /** Two attempts per logical request, never more (spec, "Ceiling"). */
   maxAttempts: 2;
   timeoutMs: number;
@@ -80,7 +82,7 @@ export function svgInterpretationProfile(): SvgInterpretationProfile {
     // fails closed at the registry gate and again in the adapter.
     prices: decisionModelPrices(),
     gatewayProviders: providerSlugs(),
-    requireZdr: boolEnv('AI_SVG_INTERPRETATION_REQUIRE_ZDR', true),
+    requireZdr: true,
     // One request is at most 24,000 input tokens at $0.042 per million: about $0.001 an attempt.
     // The ceiling is two such attempts with a little room, and the adapter refuses a request
     // whose priced worst case does not fit under it.
@@ -104,7 +106,7 @@ export function svgInterpretationProfile(): SvgInterpretationProfile {
  *  route is unpriced or no provider is allowed, which the caller treats as not configured. */
 export function svgInterpretationPolicy(profile: SvgInterpretationProfile): GatewayRoutingPolicy | undefined {
   if (profile.route.provider !== 'vercel') return undefined;
-  if (!profile.prices[`${profile.route.provider}:${profile.route.model}`]) return undefined;
+  if (!profile.prices[modelRouteKey(profile.route)]) return undefined;
   if (profile.gatewayProviders.length === 0) return undefined;
   return {
     zeroDataRetention: profile.requireZdr,
@@ -147,14 +149,14 @@ const KINDS: readonly SvgEvidenceLayerKind[] = ['text', 'image', 'shape', 'group
 const LAYER_KEYS = ['id', 'kind', 'name', 'parent', 'box', 'chars', 'lines', 'text'];
 /** Control and format characters (bidi overrides, zero-width marks) and line separators: a name
  *  or a text value is one plain line, so it reads as it renders and cannot hide anything. */
-const UNPLAIN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+export const UNPLAIN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 const REVISION = /^sha256:[0-9a-f]{64}$/;
 
-const isRecord = (v: unknown): v is Record<string, unknown> =>
+export const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const count = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= max;
-const plain = (v: unknown, max: number): v is string =>
+export const plain = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v.length > 0 && v.length <= max && !UNPLAIN.test(v);
 
 /**
@@ -186,7 +188,8 @@ export function svgEvidenceRefusal(state: unknown, consent: SvgEvidenceConsent):
     if (layer.chars !== undefined && (!isText || !count(layer.chars, 100_000))) return 'evidence-text-shape';
     if (layer.lines !== undefined && (!isText || !count(layer.lines, 10_000))) return 'evidence-text-shape';
     if (layer.text !== undefined) {
-      if (!consent.includeText) return 'text-without-consent';
+      // Only an explicit `true` is the choice: a string or a number is not consent.
+      if (consent.includeText !== true) return 'text-without-consent';
       if (!isText || !plain(layer.text, SVG_DECISION_LIMITS.textChars)) return 'evidence-text';
     }
   }

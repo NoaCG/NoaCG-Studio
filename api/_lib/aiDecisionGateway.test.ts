@@ -134,6 +134,7 @@ function harness(over: SvgInterpretationDependencies & { consented?: boolean } =
     profile: enabledProfile(),
     settings: async () => SETTINGS,
     hasConsent: async () => over.consented ?? true,
+    entitled: async () => true,
     store: async () => store,
     key: () => KEY,
     sleep: async () => {},
@@ -547,5 +548,88 @@ test('the server credential appears in no outcome and no ledger record', async (
     const result = await runSvgInterpretation(input(), { ...deps, fetchImpl });
     assert.equal(JSON.stringify(result).includes(KEY), false);
     assert.equal(JSON.stringify(await records(store)).includes(KEY), false);
+  }
+});
+
+// ---- Review round 1 ----
+
+test('an account without the graphic-analysis entitlement is refused before anything is sent', async () => {
+  const { fetchImpl, sent } = provider(served());
+  const { deps, store } = harness({ fetchImpl, entitled: async () => false });
+  const result = await runSvgInterpretation(input(), deps);
+  assert.deepEqual([!result.ok && result.reason, !result.ok && result.fallback], ['not_entitled', 'deterministic']);
+  assert.equal(sent.length, 0);
+  assert.equal((await records(store)).length, 0);
+});
+
+test('a lookup that throws is a refusal, never a call', async () => {
+  const { fetchImpl, sent } = provider(served());
+  const boom = async () => { throw new Error('lookup failed'); };
+  for (const over of [{ entitled: boom }, { hasConsent: boom }, { settings: boom }] as SvgInterpretationDependencies[]) {
+    const { deps } = harness({ fetchImpl, ...over });
+    const result = await runSvgInterpretation(input(), deps);
+    assert.deepEqual([!result.ok && result.reason, !result.ok && result.fallback], ['unavailable', 'deterministic']);
+  }
+  assert.equal(sent.length, 0);
+});
+
+test('an error after booking still answers the deterministic fallback and releases the slot', async () => {
+  const { fetchImpl } = provider(served());
+  const { deps, store } = harness({ fetchImpl });
+  const update = store.update.bind(store);
+  let failNext = true;
+  store.update = async (id, patch) => {
+    if (patch.status === 'model_running' && failNext) { failNext = false; throw new Error('ledger write failed'); }
+    return update(id, patch);
+  };
+  const result = await runSvgInterpretation(input(), deps);
+  assert.deepEqual([!result.ok && result.reason, !result.ok && result.fallback], ['unavailable', 'deterministic']);
+  const [record] = await records(store);
+  assert.equal(record?.status, 'failed', 'released');
+  assert.equal(record?.providerCostUsd, enabledProfile().maxProviderCostUsd, 'unknown spend stays at the booked ceiling');
+  assert.equal((await runSvgInterpretation(input(), deps)).ok, true, 'the next request may start');
+});
+
+test('zero data retention cannot be switched off for this task', () => {
+  process.env.AI_SVG_INTERPRETATION_REQUIRE_ZDR = 'false';
+  const profile = enabledProfile();
+  assert.equal(profile.requireZdr, true);
+  assert.equal(svgInterpretationTaskProfile(profile).routePolicy.requireZdr, true);
+});
+
+test('only an explicit true sends the text', async () => {
+  const withText = evidence({ layers: [{ id: 't1', kind: 'text', box: [0, 0, 10, 10], text: 'Ada Kalm' }] });
+  const { fetchImpl, sent } = provider(served());
+  const { deps } = harness({ fetchImpl });
+  for (const includeText of ['true', 1, 'yes'] as unknown as boolean[]) {
+    const result = await runSvgInterpretation(input({ evidence: withText, consent: { includeText } }), deps);
+    assert.equal(!result.ok && result.detail, 'text-without-consent', String(includeText));
+  }
+  assert.equal(sent.length, 0);
+});
+
+test('a provider timeout (408) and an unreadable answer are charged, retried once, and counted', async () => {
+  {
+    const { deps, store } = harness();
+    const { fetchImpl, sent } = provider(408, 408);
+    const result = await runSvgInterpretation(input(), { ...deps, fetchImpl });
+    assert.equal(!result.ok && result.reason, 'timeout');
+    assert.equal(sent.length, 2);
+    assert.ok(((await records(store))[0]?.providerCostUsd ?? 0) > 0, 'a 408 may have been billed');
+  }
+  {
+    const { deps, store } = harness();
+    const { fetchImpl, sent } = provider(async () => new Response('{"model":', { status: 200 }), served());
+    const result = await runSvgInterpretation(input(), { ...deps, fetchImpl });
+    assert.equal(result.ok, true, 'retried after the unreadable body');
+    assert.equal(sent.length, 2);
+    assert.ok(((await records(store))[0]?.providerCostUsd ?? 0) > 0.0000378, 'the unreadable attempt is charged too');
+  }
+  {
+    const { deps } = harness();
+    const { fetchImpl, sent } = provider(async () => new Response('[1]', { status: 200 }));
+    const result = await runSvgInterpretation(input(), { ...deps, fetchImpl });
+    assert.equal(!result.ok && result.reason, 'malformed_response');
+    assert.equal(sent.length, 1, 'a readable answer of the wrong shape is not retried');
   }
 });

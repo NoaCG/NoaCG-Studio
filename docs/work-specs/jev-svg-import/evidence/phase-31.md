@@ -32,7 +32,7 @@ provider (`typesafe-ai`), ZDR and no-training listed for all providers, us regio
   `DECISION_MODEL_CANDIDATES` list in `aiModelCatalog.ts`, not in `APPROVED_MODEL_CATALOG`.
   Every approved entry records a ZDR verification made by a real call, and this row makes none.
   The task still sends `zeroDataRetention: true`, so the gateway refuses the call if no provider
-  qualifies. Language-model comparators (Haiku, Luna, Gemini) keep using the chat adapter; this
+  qualifies, and for this task that directive cannot be switched off by a setting. Language-model comparators (Haiku, Luna, Gemini) keep using the chat adapter; this
   row adds no entry for them.
 - **The registry keeps the two kinds apart.** `structuredMode: 'decision'` marks a decision task.
   A decision task names only decision candidates and a chat task can never name one, in either
@@ -70,16 +70,20 @@ The coordinator approved both before they were pushed, for these purposes only:
 
 ## Rules (stated with the code, challenged by the final /so)
 
-1. A request is sent only after, in order: flag on, registry gate, priced listed route, kill
-   switch off, current consent, evidence and questions within policy, request within size, priced
-   worst case of all attempts within the ceiling, managed key present, not cancelled, reservation
-   created. Any refusal before the reservation books nothing and sends nothing.
+1. A request is sent only after, in order: flag on, registry gate, priced listed route, durable
+   ledger configured, kill switch off, graphic-analysis entitlement, current consent, evidence and
+   questions within policy, request within size, priced worst case of all attempts within the
+   ceiling, managed key present, not cancelled, reservation created. Any refusal before the
+   reservation books nothing and sends nothing. A lookup that throws is a refusal. Sign-in, the
+   per-IP burst limit and the HTTP body shape belong to the route row 35 adds.
 2. One logical request makes at most two provider attempts.
 3. Every outcome after a reservation settles it out of the active statuses, so the user and fleet
-   slots are released: `usable` on success, `failed` with a reason otherwise.
+   slots are released: `usable` on success, `failed` with a reason otherwise. An unexpected error
+   after booking marks it `failed` and leaves the cost at the booked ceiling.
 4. Spend is settled in every case: the gateway's reported cost; else usage at the audited price;
    else the attempt's worst case. A sent attempt with an unknown bill (timeout, network, cancel,
-   5xx) is charged its worst case. A 4xx refusal before inference is charged nothing.
+   an unreadable answer, 408, 5xx) is charged its worst case. Another 4xx refusal before
+   inference is charged nothing.
 5. A cancel stops the current attempt and starts no new one.
 6. An answer counts only if every question is answered once, with its own type and options, and
    nothing else, and it came from the requested model and an allowed provider. Otherwise the
@@ -90,6 +94,23 @@ The coordinator approved both before they were pushed, for these purposes only:
    it, and no provider body is copied into one.
 9. SVG names and text are values in `state`. The questions are the server's own and never contain
    anything from the artwork.
+
+## Rules found after coding
+
+From the first review round (`/check`): the entitlement and durable-ledger checks (rule 1), the
+release after an unexpected error (rule 3), the 408 and unreadable-answer charges (rule 4), ZDR
+fixed on, and include-text accepted only as an explicit `true`.
+
+Not changed, with reasons:
+
+- A repeated idempotency key after a paid success answers `duplicate`, and the answers are not
+  kept. That matches the existing analysis endpoint, whose ledger is content-free by design.
+- The pre-call cost bound counts the state once per request, as the gateway documents a single
+  request answering all questions. If billed tokens show otherwise, the post-call ceiling check
+  fails the request; row 32 proves the bounded batch cost and row 33 measures it on the first
+  paid call.
+- A served answer must name the exact pinned model. If the gateway reports it differently, every
+  call fails closed as `route_changed`; row 33's first paid call shows the real shape.
 
 ## Verification
 

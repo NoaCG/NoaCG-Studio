@@ -10,11 +10,13 @@
 //     caller's signal, retry only on a transient failure, and a STRICT check of the answers
 //     against the questions asked. It never throws for a provider outcome: it reports what was
 //     spent, including a conservative charge for an attempt whose bill is unknown.
-//   - `runSvgInterpretation`: the SVG task's whole trust ladder before and after that call, the
-//     same ladder as /api/ai/tasks/import-analysis - flag, registry gate, kill switch, consent,
-//     evidence policy, size and priced worst case, then the existing ledger reservation, the call,
-//     and settlement. Every refusal and failure answers `fallback: 'deterministic'`: the caller
-//     keeps the deterministic import's proposal, which is the useful result without a model.
+//   - `runSvgInterpretation`: the SVG task's ladder before and after that call, the server half
+//     of /api/ai/tasks/import-analysis's ladder - flag, registry gate, durable ledger, kill switch,
+//     entitlement, consent, evidence policy, size and priced worst case, then the existing ledger
+//     reservation, the call, and settlement. The HTTP half (sign-in, per-IP burst limit, body
+//     shape) belongs to the route that will call this, row 35. Every refusal and failure, an
+//     unexpected error included, answers `fallback: 'deterministic'`: the caller keeps the
+//     deterministic import's proposal, which is the useful result without a model.
 //
 // The credential is a server-side managed key passed to the fetch and nowhere else: no outcome,
 // ledger patch or error carries it, and no provider body is ever copied into one.
@@ -29,11 +31,20 @@ import {
 import { managedAiKey } from './aiCredentials.js';
 import { decisionModelEntry, modelRouteKey } from './aiModelCatalog.js';
 import { routeDisabled, systemSettings, type SystemSettings } from './systemSettings.js';
-import { getLiteGenerationStore, type LiteGenerationRecord, type LiteGenerationStore } from './aiLiteStore.js';
+import {
+  getLiteGenerationStore,
+  liteLedgerConfigured,
+  type LiteGenerationRecord,
+  type LiteGenerationStore,
+} from './aiLiteStore.js';
 import { hasCurrentAiConsent } from './aiConsentStore.js';
+import { resolveUserEntitlement } from './entitlements.js';
+import { allows } from '../../src/entitlements/contract.js';
 import { svgInterpretationTaskProfile, taskConfigured } from './aiTaskRegistry.js';
 import {
   SVG_DECISION_LIMITS,
+  isRecord,
+  plain,
   svgEvidenceRefusal,
   svgInterpretationPolicy,
   svgInterpretationProfile,
@@ -65,12 +76,6 @@ export type DecisionAnswers = Record<string, DecisionAnswer>;
 
 const QUESTION_KEY = new RegExp(`^[a-z][A-Za-z0-9_-]{0,${SVG_DECISION_LIMITS.questionKeyChars - 1}}$`);
 const OPTION_KEY = new RegExp(`^[a-z0-9][A-Za-z0-9_-]{0,${SVG_DECISION_LIMITS.optionKeyChars - 1}}$`);
-const UNPLAIN = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
-
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v);
-const plain = (v: unknown, max: number): v is string =>
-  typeof v === 'string' && v.length > 0 && v.length <= max && !UNPLAIN.test(v);
 const probability = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1;
 const sameKeys = (a: string[], b: string[]) => a.length === b.length && a.every((key) => b.includes(key));
@@ -268,16 +273,23 @@ export async function executeDecisionRequest(
         // Read to classify, never copied: the outcome carries a code, not the provider's words.
         const detail = await response.text().then((t) => t.slice(0, 2000)).catch(() => '');
         const error = providerFailure(response.status, detail);
-        // A refusal before inference (4xx) is not billed; a server failure may have been.
-        if (response.status >= 500) costUsd += worstAttempt;
+        // A refusal before inference (4xx) is not billed; a server failure or a timeout may
+        // have been, so it is charged at its worst case.
+        if (response.status >= 500 || response.status === 408) costUsd += worstAttempt;
         reason = error.code;
         retryable = error.retryable;
       } else {
-        const data: unknown = await response.json().catch(() => null);
-        const gateway = isRecord(data) && isRecord(data.providerMetadata) && isRecord(data.providerMetadata.gateway)
+        // A body that cannot be read (cut off, or the timer fired mid-read) throws to the catch
+        // below: billed but unknown, and transient.
+        const data: unknown = await response.json();
+        if (!isRecord(data)) {
+          costUsd += worstAttempt;
+          return { ok: false, reason: 'malformed_response', costUsd, attempts };
+        }
+        const gateway = isRecord(data.providerMetadata) && isRecord(data.providerMetadata.gateway)
           ? data.providerMetadata.gateway
           : {};
-        const usage = isRecord(data) && isRecord(data.usage) ? data.usage : {};
+        const usage = isRecord(data.usage) ? data.usage : {};
         const input = tokens(usage.inputTokens);
         const output = tokens(usage.outputTokens);
         // The bill: the gateway's own cost when it reports one, else the usage at the audited
@@ -289,7 +301,7 @@ export async function executeDecisionRequest(
         costUsd += billed;
         const routing = isRecord(gateway.routing) ? gateway.routing : {};
         const finalProvider = typeof routing.finalProvider === 'string' ? routing.finalProvider : null;
-        if (!isRecord(data) || data.model !== request.route.model
+        if (data.model !== request.route.model
           || (finalProvider !== null && policy.gateway.only?.length && !policy.gateway.only.includes(finalProvider))) {
           // Served by something other than what was asked: refused, and not retried.
           return { ok: false, reason: 'route_changed', costUsd, attempts };
@@ -299,7 +311,8 @@ export async function executeDecisionRequest(
         return { ok: true, answers, model: request.route.model, inputTokens: input ?? 0, outputTokens: output ?? 0, costUsd, attempts };
       }
     } catch {
-      // Sent and unanswered: the bill is unknown, so it is charged at its worst case.
+      // Sent and unanswered, or answered unreadably: the bill is unknown, so it is charged at its
+      // worst case.
       costUsd += worstAttempt;
       reason = controller.signal.aborted ? 'timeout' : 'unavailable';
       retryable = true;
@@ -332,6 +345,7 @@ export interface SvgInterpretationDependencies {
   profile?: SvgInterpretationProfile;
   settings?: () => Promise<SystemSettings>;
   hasConsent?: (userId: string) => Promise<boolean>;
+  entitled?: (userId: string) => Promise<boolean>;
   store?: () => Promise<LiteGenerationStore>;
   key?: () => string;
   fetchImpl?: Fetch;
@@ -343,6 +357,7 @@ export type SvgInterpretationRefusal =
   | 'disabled'
   | 'not_configured'
   | 'route_disabled'
+  | 'not_entitled'
   | 'consent_required'
   | 'evidence_refused'
   | 'questions_refused'
@@ -366,10 +381,26 @@ export type SvgInterpretationOutcome =
 const refuse = (reason: SvgInterpretationRefusal | DecisionFailure, detail?: string): SvgInterpretationOutcome =>
   ({ ok: false, fallback: 'deterministic', reason, ...(detail ? { detail } : {}) });
 
+/** Settle a reservation that hit an unexpected error after it was booked. Best effort: the cost
+ *  stays at the booked ceiling, the conservative answer when nobody knows what was spent, and
+ *  the row leaves the active statuses so the slot is released. */
+async function abandon(store: LiteGenerationStore, id: string): Promise<void> {
+  await store.update(id, { status: 'failed', rejectionReason: 'internal' }).catch(() => null);
+}
+
 export async function runSvgInterpretation(
   input: SvgInterpretationInput,
   deps: SvgInterpretationDependencies = {},
 ): Promise<SvgInterpretationOutcome> {
+  try {
+    return await interpret(input, deps);
+  } catch {
+    // A settings, consent, entitlement or ledger lookup that throws is a refusal, never a call.
+    return refuse('unavailable');
+  }
+}
+
+async function interpret(input: SvgInterpretationInput, deps: SvgInterpretationDependencies): Promise<SvgInterpretationOutcome> {
   const profile = deps.profile ?? svgInterpretationProfile();
   // The flag first: an off task builds nothing, reads nothing and books nothing.
   if (!profile.enabled) return refuse('disabled');
@@ -377,8 +408,14 @@ export async function runSvgInterpretation(
   const entry = decisionModelEntry(profile.route);
   const price = profile.prices[modelRouteKey(profile.route)];
   if (!taskConfigured(svgInterpretationTaskProfile(profile)) || !gateway || !entry || !price) return refuse('not_configured');
+  // Quotas need the durable ledger; an ephemeral per-instance store would not hold them.
+  if (!deps.store && !liteLedgerConfigured()) return refuse('not_configured');
   // The admin kill switch on the route (system_settings.disabled_routes).
   if (routeDisabled(await (deps.settings ?? systemSettings)(), profile.route)) return refuse('route_disabled');
+  // The account's entitlement to graphic analysis, the feature this task is part of.
+  const entitled = deps.entitled
+    ?? (async (userId: string) => allows(await resolveUserEntitlement(userId), 'ai.import-analysis'));
+  if (!(await entitled(input.userId))) return refuse('not_entitled');
   // Consent before anything about the content is looked at.
   const consented = await (deps.hasConsent ?? ((userId) => hasCurrentAiConsent(userId, AI_NOTICE_VERSION)))(input.userId);
   if (!consented) return refuse('consent_required');
@@ -400,43 +437,45 @@ export async function runSvgInterpretation(
   // The existing ledger reservation: per-user and fleet concurrency, the shared allowance and
   // the fleet's daily spend, with this task's ceiling booked before the call.
   const store = await (deps.store ?? getLiteGenerationStore)();
-  const now = (deps.now ?? Date.now)();
   const reservation = await store.reserve({
     userId: input.userId,
     ipHash: input.ipHash,
     idempotencyKey: input.idempotencyKey,
     requestedCategory: null,
-    now,
+    now: (deps.now ?? Date.now)(),
     profile,
   });
   if (reservation.status !== 'created') return refuse('allowance', reservation.status);
   const id = reservation.record.id;
-  await store.update(id, { status: 'model_running' });
-
-  const outcome = await executeDecisionRequest(
-    request,
-    { price, maxAttempts: profile.maxAttempts, timeoutMs: profile.timeoutMs, gateway },
-    { key, fetchImpl: deps.fetchImpl, sleep: deps.sleep, signal: input.signal },
-  );
-  // Settle the booking to what was spent, in every case: a failed or cancelled call that may have
-  // been billed still counts (spec, "Ceiling"). Leaving the active statuses releases the slot.
-  const settled: Partial<LiteGenerationRecord> = {
-    provider: profile.route.provider,
-    model: profile.route.model,
-    attemptCount: outcome.attempts,
-    providerCostUsd: outcome.costUsd,
-    updatedAt: (deps.now ?? Date.now)(),
-  };
-  if (!outcome.ok) {
-    await store.update(id, { ...settled, status: 'failed', rejectionReason: outcome.reason });
-    return { ok: false, fallback: 'deterministic', reason: outcome.reason, generationId: id };
+  try {
+    await store.update(id, { status: 'model_running' });
+    const outcome = await executeDecisionRequest(
+      request,
+      { price, maxAttempts: profile.maxAttempts, timeoutMs: profile.timeoutMs, gateway },
+      { key, fetchImpl: deps.fetchImpl, sleep: deps.sleep, signal: input.signal },
+    );
+    // Settle the booking to what was spent, in every case: a failed or cancelled call that may
+    // have been billed still counts (spec, "Ceiling"). Leaving the active statuses releases the slot.
+    const settled: Partial<LiteGenerationRecord> = {
+      provider: profile.route.provider,
+      model: profile.route.model,
+      attemptCount: outcome.attempts,
+      providerCostUsd: outcome.costUsd,
+    };
+    if (!outcome.ok) {
+      await store.update(id, { ...settled, status: 'failed', rejectionReason: outcome.reason });
+      return { ok: false, fallback: 'deterministic', reason: outcome.reason, generationId: id };
+    }
+    settled.inputTokens = outcome.inputTokens;
+    settled.outputTokens = outcome.outputTokens;
+    if (outcome.costUsd > profile.maxProviderCostUsd) {
+      await store.update(id, { ...settled, status: 'failed', rejectionReason: 'cost_ceiling' });
+      return { ok: false, fallback: 'deterministic', reason: 'cost_ceiling', generationId: id };
+    }
+    await store.update(id, { ...settled, status: 'usable' });
+    return { ok: true, answers: outcome.answers, generationId: id, costUsd: outcome.costUsd, attempts: outcome.attempts };
+  } catch {
+    await abandon(store, id);
+    return { ok: false, fallback: 'deterministic', reason: 'unavailable', generationId: id };
   }
-  settled.inputTokens = outcome.inputTokens;
-  settled.outputTokens = outcome.outputTokens;
-  if (outcome.costUsd > profile.maxProviderCostUsd) {
-    await store.update(id, { ...settled, status: 'failed', rejectionReason: 'cost_ceiling' });
-    return { ok: false, fallback: 'deterministic', reason: 'cost_ceiling', generationId: id };
-  }
-  await store.update(id, { ...settled, status: 'usable' });
-  return { ok: true, answers: outcome.answers, generationId: id, costUsd: outcome.costUsd, attempts: outcome.attempts };
 }
