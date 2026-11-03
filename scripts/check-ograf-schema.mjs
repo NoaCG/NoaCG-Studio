@@ -31,11 +31,20 @@
 //      concrete: the mutation battery is what makes "0 rejected" a result rather than a
 //      harness that accepts anything.
 //
-// One disagreement is EXPECTED and is recorded as such rather than reported as a fault: a
+// Two disagreements are EXPECTED and are recorded as such rather than reported as faults. A
 // duplicate `customActions` id passes the published schema (JSON Schema cannot express
 // uniqueness across a keyed array) and our transcription refuses it, because a renderer that
-// registers actions by id would silently lose one. That is the strictness the standard's own
-// files cannot carry, and it is deliberate.
+// registers actions by id would silently lose one. An id `customElements.define` would refuse
+// passes it too, and our export gate refuses that, because a renderer may register the Graphic
+// by its id. That is the strictness the standard's own files do not carry, and it is deliberate.
+//
+// WHICH READING OF OUR VALIDATOR. The id rule is NoaCG's rule for what it WRITES, not a schema
+// rule, and a stranger's package is read without it (`elementId: false`, ografForeign.ts), so the
+// EBU's own `scoreboard` is a valid package we would never write. The corpus holds strangers'
+// packages, so it is compared with the schema reading: that is the transcription this report
+// exists to check, and with the id rule on, every mutation of such a base would read as caught
+// for the wrong reason. A package named with --from is one we exported, and answers to the whole
+// gate; the battery's illegal-element-id case keeps the rule itself in the report.
 //
 // Usage:
 //   node scripts/check-ograf-schema.mjs                 # human report; exit 1 on a real defect
@@ -49,7 +58,7 @@
 // "could not check" is not "clean", but a network outage is not a defect in this repository.
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { resolve, dirname, join, relative } from 'node:path';
+import { resolve, dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import Ajv from 'ajv/dist/2020.js';
@@ -143,8 +152,9 @@ function findManifests(dir, out = []) {
 
 /**
  * Each mutation breaks a rule the spec's own files encode, and each is a mistake a generator
- * can make silently. `sharedLimit: true` marks the one the PUBLISHED schema cannot catch - it
- * is recorded, not reported as a fault, and our transcription is required to catch it instead.
+ * can make silently. `sharedLimit: true` marks one the PUBLISHED schema has no rule for - it is
+ * recorded, not reported as a fault, and our validator is required to catch it instead.
+ * `options` is the reading of our validator a mutation needs, when it is not the base's own.
  */
 const MUTATIONS = [
   {
@@ -201,6 +211,13 @@ const MUTATIONS = [
       return { ...m, customActions: [...actions, { ...actions[0] }] };
     },
   },
+  {
+    id: 'illegal-element-id',
+    why: 'an id customElements.define refuses - what we write must register under it',
+    sharedLimit: true,
+    options: {},
+    apply: (m) => ({ ...m, id: 'nohyphen' }),
+  },
 ];
 
 function withProperty(manifest, property) {
@@ -212,6 +229,9 @@ function withProperty(manifest, property) {
     },
   };
 }
+
+/** The whole gate for a package we exported (--from), the schema's rules alone for the corpus. */
+const readingFor = (file) => (extraRoots.some((dir) => file.startsWith(dir + sep)) ? {} : { elementId: false });
 
 // ── run ──────────────────────────────────────────────────────────────────────
 
@@ -237,7 +257,7 @@ try {
 // runner refuses. The count is zero there and honestly so, which is what `optional` is for.
 if (!report.checked) {
   measured.optional(
-    schemas.size,
+    0,
     'ograf schema files',
     'zero when the published spec could not be fetched at all; this gate then prints NOT CHECKED and exits 0, because "could not check" is not "clean" but it is not a failure either.',
   );
@@ -302,7 +322,7 @@ if (report.checked) {
     const manifest = JSON.parse(readFileSync(file, 'utf8'));
     const where = relative(root, file).replaceAll('\\', '/');
     const byPublished = published(manifest);
-    const byOurs = validateOgrafManifest(manifest);
+    const byOurs = validateOgrafManifest(manifest, readingFor(file));
     report.corpus.push({ file: where, publishedErrors: byPublished, ourErrors: byOurs });
     if (byPublished.length === 0 && byOurs.length > 0) {
       report.disagreements.push({ case: where, note: 'ours refuses a manifest the published schema accepts', ourErrors: byOurs });
@@ -325,7 +345,7 @@ if (report.checked) {
       rows.push({
         base: base.file,
         publishedRejects: published(manifest).length > 0,
-        oursRejects: validateOgrafManifest(manifest).length > 0,
+        oursRejects: validateOgrafManifest(manifest, mutation.options ?? readingFor(join(root, base.file))).length > 0,
       });
     }
     // `every` over a non-empty set: the loop does not run without a base to mutate.
@@ -334,9 +354,9 @@ if (report.checked) {
     report.mutations.push({ id: mutation.id, why: mutation.why, sharedLimit: !!mutation.sharedLimit, publishedRejects, oursRejects, cases: rows.length });
 
     if (mutation.sharedLimit) {
-      // Expected: the published schema cannot express it, and ours must.
+      // Expected: the published schema has no rule for it, and ours must.
       if (!oursRejects) {
-        report.disagreements.push({ case: mutation.id, note: 'ours no longer catches what the published schema structurally cannot' });
+        report.disagreements.push({ case: mutation.id, note: 'ours no longer catches what the published schema has no rule for' });
       }
     } else if (!publishedRejects) {
       report.disagreements.push({ case: mutation.id, note: 'the published schema no longer refuses this - the spec may have loosened' });
@@ -377,7 +397,7 @@ if (asJson) {
   if (report.mutations.length === 0) console.log('  (skipped - no valid manifest to mutate)');
   for (const row of report.mutations) {
     const mark = row.sharedLimit
-      ? `${row.oursRejects ? 'ok  ' : 'FAIL'} (published: cannot express it; ours: ${row.oursRejects ? 'refuses' : 'ACCEPTS'})`
+      ? `${row.oursRejects ? 'ok  ' : 'FAIL'} (published: no rule for it; ours: ${row.oursRejects ? 'refuses' : 'ACCEPTS'})`
       : `${row.publishedRejects && row.oursRejects ? 'ok  ' : 'FAIL'} (published: ${row.publishedRejects ? 'refuses' : 'ACCEPTS'}; ours: ${row.oursRejects ? 'refuses' : 'ACCEPTS'})`;
     console.log(`  ${mark} ${row.id} - ${row.why}`);
   }
