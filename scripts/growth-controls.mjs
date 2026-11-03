@@ -182,52 +182,97 @@ const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', 'create' + 'Workfl
 
 /**
  * The workflow files some per-landing workflow starts: by `gh workflow run`, a dispatch API call
- * (`createWorkflowDispatch`, `.../dispatches`) or a reusable-workflow `uses:`. A text that makes
- * such a call (the workflow's own steps, or a repository script it runs or that script imports)
- * starts the files it names, by file or by `name:`, or that the text running it names (a script
- * handed the workflow as an argument). Comment lines are not steps. A started workflow that itself
- * runs per landing starts others in turn. `workflows` maps a file name to its text; `read(path)`
- * returns a repository file or null.
+ * (`createWorkflowDispatch`, `.../dispatches`) or a reusable-workflow `uses:`. From each per-landing
+ * workflow it follows what the steps run: repository files named by path (scripts, and the files
+ * those name or import, outside the product, test and docs trees), `npm run <name>` through
+ * package.json, and local actions (`uses: ./.github/actions/...`). A text that makes a dispatch
+ * call starts each workflow it names, or that a line leading to it names (a command line hands
+ * its arguments down, at any depth; a file that imports it directly counts whole): the file name
+ * anywhere, the display `name:` only after `gh workflow run`. Comment lines are not steps. A
+ * started workflow that itself runs per landing starts others in turn. `workflows` maps a file
+ * name to its text; `read(path)` returns a repository file or null. Past `limit` files for one
+ * workflow, every workflow counts as started.
  * It reads only text in the repository: a dispatch from outside it (a person, a session, another
  * repository), by a numeric workflow id, or by a name built at run time is not seen.
  */
-export function landingDispatched({ workflows = {}, read = () => null }, e) {
+export function landingDispatched({ workflows = {}, read = () => null }, e, { limit = 2000 } = {}) {
   const code = (text) => String(text ?? '').split(/\r?\n/).filter((l) => !/^\s*(#|\/\/|\/\*|\*)/.test(l)).join('\n');
-  const scriptsIn = (text) => [...text.matchAll(/\bscripts\/[\w./-]+\.(?:mjs|cjs|js|ts|sh)\b/g)].map((m) => m[0]);
-  const importsIn = (file, text) => [...text.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)].map((m) => joinPath(file, m[1]));
-  const scripts = new Map();
-  const script = (file) => {
-    if (!scripts.has(file)) { const src = read(file); scripts.set(file, src === null || src === undefined ? null : code(src)); }
-    return scripts.get(file);
-  };
-  // Each text that makes a dispatch call, with the text that ran it.
-  const callers = (text) => {
-    const found = DISPATCH_CALL.test(text) ? [text] : [];
-    const seen = new Set();
-    const queue = scriptsIn(text).map((f) => [f, text]);
-    while (queue.length && seen.size < 200) {
-      const [file, parent] = queue.shift();
-      if (seen.has(file)) continue;
-      seen.add(file);
-      const src = script(file);
-      if (src === null) continue;
-      if (DISPATCH_CALL.test(src)) found.push(`${src}\n${parent}`);
-      for (const f of importsIn(file, src)) queue.push([f, src]);
+  const texts = new Map();
+  const load = (node) => {
+    if (!texts.has(node)) {
+      let src = null;
+      const npm = /^npm:(.+)$/.exec(node);
+      if (npm) { try { src = JSON.parse(read('package.json') ?? 'null')?.scripts?.[npm[1]] ?? null; } catch { src = null; } }
+      else if (node.endsWith('/')) src = read(`${node}action.yml`) ?? read(`${node}action.yaml`);
+      else src = read(node) ?? (/\.\w+$/.test(node) ? null : ['.mjs', '.js', '.ts', '.cjs'].map((x) => read(node + x)).find((t) => t != null) ?? null);
+      texts.set(node, src === null || src === undefined ? null : code(src));
     }
-    return found;
+    return texts.get(node);
   };
+  // What a text leads to, each with the line that leads there: files it names by path or imports,
+  // npm scripts it runs, local actions. Product, test and docs trees run in no workflow step.
+  const ignored = /^(src|e2e|api|docs|public|supabase|contracts)\//;
+  const next = (node, text) => text.split('\n').flatMap((line) => [
+    ...[...line.matchAll(/(?<![\w./-])(?:\.\/)?((?:\.github\/)?[\w-]+(?:\/[\w.-]+)*\/[\w.-]+\.(?:mjs|cjs|js|ts|sh|py))\b/g)].map((m) => [m[1], line]),
+    // An import (no line): what the importer hands down can be anywhere in its text.
+    ...[...line.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)].map((m) => [joinPath(node.startsWith('npm:') ? 'x' : node, m[1]), null]),
+    ...[...line.matchAll(/\bnpm\s+(?:run(?:-script)?\s+([\w:.-]+)|(test|start)\b)/g)].map((m) => [`npm:${m[1] ?? m[2]}`, line]),
+    ...[...line.matchAll(/uses:\s*['"]?\.\/(\.github\/actions\/[\w./-]+?)\/?['"]?\s*$/g)].map((m) => [`${m[1]}/`, line]),
+  ]).filter(([child]) => child !== node && !ignored.test(child));
+  // The texts that make a dispatch call, each with what led to it; null past the limit.
+  const dispatchers = (root) => {
+    const parents = new Map([[root, new Map()]]);
+    texts.set(root, code(workflows[root]));
+    const queue = [root];
+    while (queue.length) {
+      if (parents.size > limit) return null;
+      const node = queue.shift();
+      const text = load(node);
+      if (text === null) continue;
+      for (const [child, line] of next(node, text)) {
+        if (child === root) continue;
+        if (!parents.has(child)) { parents.set(child, new Map()); queue.push(child); }
+        const via = parents.get(child);
+        if (!via.has(node)) via.set(node, new Set());
+        via.get(node).add(line);
+      }
+    }
+    const out = [];
+    for (const node of parents.keys()) {
+      const text = load(node);
+      if (!DISPATCH_CALL.test(text ?? '')) continue;
+      // The dispatching text, a file that imports it directly, and every command line above.
+      const seen = new Set([node]);
+      const lines = [text];
+      for (const [p, via] of parents.get(node)) if (via.has(null)) lines.push(load(p) ?? '');
+      for (const stack = [node]; stack.length;) {
+        for (const [p, via] of parents.get(stack.pop())) {
+          for (const line of via) if (line !== null) lines.push(line);
+          if (!seen.has(p)) { seen.add(p); stack.push(p); }
+        }
+      }
+      out.push(lines.join('\n'));
+    }
+    return out;
+  };
+  const escape = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const names = Object.fromEntries(Object.entries(workflows).map(([f, t]) => {
+    const title = /^name:[ \t]*(['"]?)(.+?)\1[ \t]*(?:#.*)?$/m.exec(String(t ?? ''))?.[2];
+    const byFile = new RegExp(`(?<![\\w.-])${escape(f)}(?![\\w.-])`);
+    const byTitle = title ? new RegExp(`gh\\s+workflow\\s+run\\s+['"]?${escape(title)}(?![\\w.-])`) : null;
+    return [f, (t) => byFile.test(t) || (byTitle !== null && byTitle.test(t))];
+  }));
   const shapes = Object.fromEntries(Object.entries(workflows).map(([f, t]) => [f, workflowShape(t)]));
-  const titles = Object.fromEntries(Object.entries(workflows).map(([f, t]) => [f, /^name:\s*['"]?(.+?)['"]?\s*$/m.exec(String(t ?? ''))?.[1]]));
   const found = {};
   const dispatched = new Set();
   for (let grew = true; grew;) {
     grew = false;
-    for (const [w, text] of Object.entries(workflows)) {
+    for (const w of Object.keys(workflows)) {
       if (cadence(shapes[w], e, { dispatched: dispatched.has(w) }).runs < 1) continue;
-      found[w] ??= callers(code(text));
+      if (!(w in found)) found[w] = dispatchers(w);
       for (const f of Object.keys(workflows)) {
         if (f === w || dispatched.has(f)) continue;
-        if (found[w].some((t) => t.includes(f) || (titles[f] && t.includes(titles[f])))) { dispatched.add(f); grew = true; }
+        if (found[w] === null || found[w].some(names[f])) { dispatched.add(f); grew = true; }
       }
     }
   }
@@ -259,7 +304,13 @@ export function priceAdditions({ added = [], workflows = {}, estimates, repo }) 
   // workflows (`repo`), a manual workflow counts as started on every landing.
   const baseStarts = repo?.base ? landingDispatched(repo.base, e) : null;
   const headStarts = repo?.head ? landingDispatched(repo.head, e) : null;
-  for (const [wf, { base, head, baseFile = wf }] of Object.entries(workflows)) {
+  // A manual workflow the change does not touch, which a landing now starts and did not before.
+  const priced = { ...workflows };
+  for (const f of headStarts ?? []) {
+    if (priced[f] || baseStarts?.has(f) !== false || repo.base.workflows?.[f] === undefined) continue;
+    priced[f] = { base: repo.base.workflows[f], head: repo.head.workflows[f] };
+  }
+  for (const [wf, { base, head, baseFile = wf }] of Object.entries(priced)) {
     const before = workflowShape(base);
     const after = workflowShape(head);
     const was = cadence(before, e, { dispatched: !baseStarts || baseStarts.has(baseFile) });
