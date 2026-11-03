@@ -100,10 +100,14 @@ function runJobs(run) {
 /** A completed run's added minutes, summed over its attempts, or null when its plan printed no critical notice. */
 function runAdded(run) {
   const jobs = runJobs(run);
-  const plan = jobs.find((j) => j.name === 'E2E plan');
-  if (!plan) return null;
-  const notes = api(`${REPO}/check-runs/${plan.id}/annotations?per_page=100`, { immutable: true });
-  const note = notes.map((n) => NOTICE.exec(n.message ?? '')).find(Boolean);
+  // Every attempt's plan job, in order: an attempt that failed before printing its notice does not
+  // hide a later attempt that did.
+  let note = null;
+  for (const plan of jobs.filter((j) => j.name === 'E2E plan')) {
+    const notes = api(`${REPO}/check-runs/${plan.id}/annotations?per_page=100`, { immutable: true });
+    note = notes.map((n) => NOTICE.exec(n.message ?? '')).find(Boolean) ?? null;
+    if (note) break;
+  }
   if (!note) return null;
   // "All already planned": a shared-change or full plan. The two journeys cf12 promoted are in the
   // shared-change set because of cf12, so such a run is charged their table-minutes times the
@@ -139,16 +143,12 @@ try {
   // that stops early drops the OLDEST entries (newest first), the first changes after enabling.
   let truncated = 0;
   const pulls = [];
-  let reachedSince = false;
-  for (let page = 1; page <= 30; page += 1) {
+  // No page cap: the call budget bounds the pass, and a pass that stops early is incomplete.
+  for (let page = 1; ; page += 1) {
     const batch = api(`${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100&page=${page}`);
     pulls.push(...batch.filter((p) => p.merged_at && p.merged_at > SINCE));
-    if (batch.length < 100 || batch.some((p) => p.updated_at < SINCE)) {
-      reachedSince = true;
-      break;
-    }
+    if (batch.length < 100 || batch.some((p) => p.updated_at < SINCE)) break;
   }
-  if (!reachedSince) truncated += 1;
   // Every ci.yml run since enabling, by event, read once per pass as one shared list (calls grow with
   // the run count, not with the number of changes). GitHub serves at most 1,000 results for a
   // filtered runs query, so the window is read one UTC day at a time, and a day whose collected runs

@@ -165,12 +165,14 @@ everything as it is now:
   pull_request and merge_group runs since enabling, not one read per change. A pass over a cached
   history then costs a few calls: since 12:00 on 2026-11-03, the first pass made 82 calls and the
   repeat made 4 (Codex review on `ef15f0eb`);
+- a run's notice is looked for in every attempt's plan job, so a first attempt that failed before
+  printing it does not hide the run (Codex on `d426efd6`);
 - a run still in progress counts as `pending` and keeps the pass incomplete;
 - every list that reads history must prove it reached the end, or the pass is `truncated`. GitHub
   serves at most 1,000 results for a filtered runs query, and the pull_request runs of the last 14
   days were already 987, so runs are read one UTC day at a time. A day whose runs fall short of its
   `total_count`, or that reaches 1,000, marks the pass incomplete. The pulls list must page back
-  past the enabling time (up to 30 pages), or the pass is incomplete too (the final `/so` on
+  past the enabling time, with no page cap (the call budget bounds it, and a stopped pass is incomplete) (the final `/so` on
   `d426efd6`).
 
 The E2E retry job is not counted: it re-runs only failed
