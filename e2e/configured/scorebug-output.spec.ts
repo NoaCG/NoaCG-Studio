@@ -298,3 +298,93 @@ test('an imported clock starts, holds and resets from the server on two real out
   await outA.close();
   await outB.close();
 });
+
+// ── HOSTED SYNCHRONIZED RECOVERY OF AN IMPORTED DURATION (docs/work-specs/jev-svg-import row 29, AC-16) ──
+//
+// Three things are kept apart (row 29's notes): this is HOSTED synchronized recovery, our own
+// output rejoining a running clock after a reboot, over the hosted log. Standalone-host capability
+// (an exported package in an OGraf or SPX host, no wire) is ograf-lifecycle.spec.ts and
+// spx-operator.spec.ts. Physical studio acceptance is not claimed by either.
+//
+// It also MEASURES #1886 rather than asserting it away: a duration's Take, and a correction typed
+// while it runs, may ride the fast road, which carries no server time, so each output stamps the
+// row with its own arrival. The spread between the two outputs' origins is recorded on the test
+// (annotation `1886`) and bounded only by what the issue expects of the fast road.
+
+/** The fast road's delivery spread the issue expects, with room for a loaded runner. */
+const FAST_ROAD_SPREAD_MS = 1_500;
+
+/** Seconds a clock text shows, `12:08` read as 728. */
+const secondsOf = (text: string) => text.split(':').reduce((sum, part) => sum * 60 + Number(part), 0);
+
+test('an imported duration on two real outputs: the Take and a running correction are measured (#1886), and a rebooted output rejoins the running count', async ({ page, context }, testInfo) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await clearPublishedShows(page);
+  await page.goto('/app');
+  await dropSvg(page, SCORE_CLOCK_SVG);
+  await page.getByTestId('map-svg-clock-mode').selectOption('duration');
+  const showName = `Imported Duration ${Date.now()}`;
+  await intoProduction(page, 'Imported Duration', showName);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  const links = page.getByTestId('production-status-panel');
+  await expect(links).toBeVisible();
+  await page.getByTestId('production-status').click();
+  await expect(links).toBeHidden();
+  const outputSlug = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.name === name)?.outputSlug ?? null;
+  }, showName);
+  expect(outputSlug).toBeTruthy();
+  const [outA, outB] = await Promise.all([context.newPage(), context.newPage()]);
+  const [a, b] = await Promise.all([openOutput(outA, outputSlug!), openOutput(outB, outputSlug!)]);
+  const origins = async () => Promise.all([a, b].map(async (o) => (await clockIn(o)).at));
+
+  // ── THE TAKE starts the count on both outputs. ──
+  await page.getByTestId('verb-take').click();
+  await Promise.all([onAir(a), onAir(b)]);
+  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBeNull()));
+  const [takeA, takeB] = (await origins()) as number[];
+  const takeSpread = Math.abs(takeA - takeB);
+  await expect.poll(async () => (await clockIn(a)).text, { timeout: 30_000 }).not.toBe('12:08');
+
+  // ── A CORRECTION typed while it runs: both outputs count from the typed time. ──
+  await page.getByTestId('cue-field-f2').fill('10:00');
+  await page.getByTestId('verb-update').click();
+  await Promise.all([a, b].map((o) => expect.poll(async () => secondsOf((await clockIn(o)).text), { timeout: 20_000 }).toBeLessThanOrEqual(600)));
+  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBe(takeA)));
+  const [fixA, fixB] = (await origins()) as number[];
+  const correctionSpread = Math.abs(fixA - fixB);
+
+  // ── A REBOOT of one output rejoins the running count: its origin is the one from before the
+  // reboot (within the fast road's spread), never the reboot itself, and it shows the other's second. ──
+  await outB.waitForTimeout(2500);   // past the report's debounce
+  const rebootAt = Date.now();
+  await outB.reload();
+  await onAir(b);
+  await expect.poll(async () => (await clockIn(b)).at, { timeout: 20_000 }).not.toBeNull();
+  const rejoined = (await clockIn(b)).at!;
+  const rebootOffset = rejoined - fixA;
+  const note = `Take spread ${takeSpread} ms; running correction spread ${correctionSpread} ms; rebooted output's origin ${rebootOffset} ms from output A's`;
+  testInfo.annotations.push({ type: '1886', description: note });
+  console.log(`[#1886] ${note}`);
+  expect(takeSpread, note).toBeLessThan(FAST_ROAD_SPREAD_MS);
+  expect(correctionSpread, note).toBeLessThan(FAST_ROAD_SPREAD_MS);
+  expect(rejoined, `${note}: the rebooted output restarted the count instead of rejoining it`).toBeLessThan(rebootAt - 1_000);
+  expect(Math.abs(rebootOffset), note).toBeLessThan(FAST_ROAD_SPREAD_MS);
+  const [shownA, shownB] = await Promise.all([a, b].map(async (o) => secondsOf((await clockIn(o)).text)));
+  expect(Math.abs(shownA - shownB), `${note}: A shows ${shownA} s, B ${shownB} s`).toBeLessThanOrEqual(2);
+  expect(outputErrors, 'no output page threw').toEqual([]);
+
+  await page.getByTestId('verb-out').click();
+  await unpublishForCleanup(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
+  await page.evaluate(async () => {
+    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
+    for (const s of loadShows()) deleteShow(s.id);
+  });
+  await wipeMyGraphics(page);
+  await outA.close();
+  await outB.close();
+});
