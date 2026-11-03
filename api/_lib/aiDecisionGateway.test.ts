@@ -759,7 +759,9 @@ test('a database error cannot turn the disabled SVG route on', async () => {
     // database, fails closed; a fail-closed fix of #2034 would stop it one step earlier.
     const past = await runSvgInterpretation(input(), { profile: enabledProfile(), fetchImpl: model.fetchImpl, key: () => KEY });
     assert.equal(!past.ok && past.fallback, 'deterministic');
-    assert.ok(!past.ok && ['route_disabled', 'not_entitled', 'consent_required', 'unavailable'].includes(past.reason), String(!past.ok && past.reason));
+    // Refused at a policy step, never by reaching the ledger: `unavailable` here would mean every
+    // lookup before the booking let the request through.
+    assert.ok(!past.ok && ['route_disabled', 'not_entitled', 'consent_required'].includes(past.reason), String(!past.ok && past.reason));
     assert.equal(model.sent.length, 0);
     assert.ok(calls.every((url) => url.startsWith('http://127.0.0.1:9/')), 'only the database was asked, in every read of this test');
   });

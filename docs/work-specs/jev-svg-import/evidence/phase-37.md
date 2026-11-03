@@ -40,6 +40,7 @@ repeated. New tests are marked **new**.
 | Cancellation | Row 31 (adapter, in flight and before start) and row 35 (route and browser client). Not repeated. |
 | Unsupported inputs | **new** in the budget test: not JSON, a list, no layers, an unknown layer kind, a short idempotency key and a valid request padded past the body bound, each 400 with the fallback; a GET gets the method guard's 405. Nothing is sent or booked. Row 31: evidence and question bounds. |
 | Stale responses | Row 35: refused by the client (`stale`) and the draft's door (`stale-revision`). **new** in the e2e: a 200 that is not a reading is `malformed`. |
+| Request, token, attempt and cost bounds | Row 31: evidence, question and whole-request size bounds and the per-route context bound (a token is at least one byte, so the byte bound is the token bound; the task budgets no output tokens), the priced worst case of both attempts, the billed-cost check. **new**: the env clamps below, and the route's body-size bound (a valid request padded past it is refused). |
 | Validated provider policy | **new** `aiTaskRegistry.test.ts`: env cost and timeout overrides are clamped; attempts, retry limit and no fallbacks are fixed; a direct provider, an unlisted Jev version or a chat model is refused; no allowed provider is not configured. Row 31: decision and chat tasks never cross, prices from the audited list. |
 | Disabled Jev, model, network and quota failure leave a useful import | **new** e2e: every `/api/ai/**` request fails at the network; the browser client answers quota, service, network and garbage replies with the deterministic fallback; then a lower third is dropped, asks nothing, and is saved into a production with no request to the SVG route. **new** registry test: the SVG task on, off or misconfigured leaves graphic analysis's task profile unchanged and adds no allowance. |
 | Saved and compiled playout | **new** e2e: Take puts the saved graphic's name and role on air; the saved graphic compiles to SPX, CasparCG and OGraf packages that carry its field and no `/api/ai`, `svg-interpretation` or gateway reference. |
@@ -58,7 +59,8 @@ the disabled SVG route on", with the database configured but unreachable:
 - With the flag off the task refuses first and reads nothing.
 - Even past the verdict and the flag (a later qualified route), nothing is booked or sent: today
   the consent read uses the same database and fails closed; a fix of #2034 would stop it earlier.
-  The test accepts either refusal.
+  The test accepts a refusal at any of those policy steps, and not `unavailable`, which would mean
+  every lookup let the request through to the ledger.
 
 So a database error cannot turn the disabled SVG route on.
 
