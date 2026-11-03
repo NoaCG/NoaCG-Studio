@@ -5,7 +5,9 @@ description: >
   publication, and create and sign in the throwaway test accounts. One copy for both callers:
   configured-suite.yml (the full suite per landing, the schedule and dispatches) and ci.yml's
   selected configured job on pull requests (cicd-improvement ci06). The job sets E2E_EMAIL,
-  E2E_PASSWORD, E2E_TEAMMATE_EMAIL and E2E_TEAMMATE_PASSWORD; no hosted credential is read.
+  E2E_PASSWORD, E2E_TEAMMATE_EMAIL and E2E_TEAMMATE_PASSWORD; no hosted credential is read. The
+  job must also run `node scripts/configured-stack.mjs down` with `if: always()`, which takes the
+  stack down after a failure or a cancellation and proves nothing of it is left (cf04).
 
 runs:
   using: composite
