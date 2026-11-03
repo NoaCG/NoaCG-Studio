@@ -42,9 +42,10 @@
         "spec.md budget-exception line WITHDRAWN: work-spec exceptions cover only the offline tier"
       ],
       "waiting": {
-        "on": "cicd-improvement run (session_017SdbwPphatUYXtpZ9CHkPu)",
-        "what": "backend-tier exception in scripts/growth-ceilings.json for e2e/configured/svg-import-journey.spec.ts, or a statement that the tier is closed until #1503",
-        "asked": "2026-11-03T19:18Z"
+        "on": "owner (repository owner authority over scripts/growth-ceilings.json)",
+        "what": "30-day backend-tier exception for e2e/configured/svg-import-journey.spec.ts, or hold until #1503",
+        "asked": "2026-11-03T19:20Z",
+        "cicdReply": "cicd-followup cannot approve; passed to owner"
       }
     }
   ],
