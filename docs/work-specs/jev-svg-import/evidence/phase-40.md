@@ -86,7 +86,7 @@ run (phase 39, "Intentional snapshot changes": none).
 - **The holdout is used up.** Its 18 designs are now regression evidence only. They can never
   again qualify the model.
 
-What turning it on would need (row 35's list, unchanged; none of it is built):
+What turning it on would need (items 1 to 7 are row 35's list, unchanged; item 8 is added here; none of it is built):
 
 1. A **new, independent holdout** that qualifies named families. The exposed one cannot. Row 34's
    reporting-only Elephant and Haiku numbers are not a selection.
