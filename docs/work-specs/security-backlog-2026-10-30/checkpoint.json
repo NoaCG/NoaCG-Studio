@@ -1,6 +1,6 @@
 {
   "repository": "NoaCG/NoaCG-Studio",
-  "updatedAt": "2026-11-03T16:00:00Z",
+  "updatedAt": "2026-11-03T22:00:00Z",
   "scope": "Security backlog and relevant dependency PRs; Jev implementation not started",
   "baselineAlerts": {
     "ownerExportRevision": "e3337d7a4fa25b129b7ecf5d9129239e4d9bb2b8",
@@ -28,6 +28,18 @@
     {
       "pr": 2025,
       "sha": "2dcadaf7eaa9d8b638b86f914b7e31aae5079321"
+    },
+    {
+      "pr": 2039,
+      "sha": "03b4438cc3e71340e012a2d1df2f83e3adab4f07"
+    },
+    {
+      "pr": 2040,
+      "sha": "b121cb7b234a80d13260a0310df43255e6312b76"
+    },
+    {
+      "pr": 2043,
+      "sha": "b25b6eaf242d17a1152d91f36e6a63b1b7cbd7ab"
     }
   ],
   "supersededClosed": {
@@ -182,7 +194,7 @@
     },
     "minimatchModerates": {
       "84": "Installed vulnerable component updated to11.0.2 through scoped overrides; direct security-alert state unreadable.",
-      "83": "Minimatch3.1.5 lacks the exact advisory preprocessing mechanism; retain callable API and evidence, no administrative dismissal.",
+      "83": "Minimatch3.1.5 lacks the exact advisory preprocessing mechanism; retain callable API and evidence, no administrative dismissal. Superseded 2026-11-03: fixed by PR2043, see followup20261031.sandboxZod.resolved.finalState.",
       "companionAdditionalV10": "Unreported typescript-estree/glob13 minimatch10 path also repaired; glob14 updates actual bundled matcher."
     }
   },
@@ -940,6 +952,32 @@
         "remaining": {
           "issue1752": "Stays open. The weekly audit is also red because the OGraf conformance step fails, and that step runs before the dependency audit, which was skipped on 2026-11-02. The issue closes itself on the first green scheduled or main run.",
           "issue2026": "Sandbox leaks left after this change: cancel or deadline during start, createSandbox throwing, no time limit on stop, a failed stop never retried, log noise on 404 and 410."
+        },
+        "finalState": {
+          "recordedAt": "2026-11-03T22:00:00Z",
+          "issue1752": {
+            "state": "closed 2026-11-03T19:38:16Z, by itself after a green audit",
+            "pr": 2039,
+            "sha": "03b4438cc3e71340e012a2d1df2f83e3adab4f07",
+            "audit": "Manual weekly-audit run 41704224273 on that commit passed. No scheduled run has happened since it."
+          },
+          "issue2026": {
+            "state": "closed 2026-11-03T19:51:27Z",
+            "pr": 2040,
+            "sha": "b121cb7b234a80d13260a0310df43255e6312b76",
+            "checks": "CI, post-landing, configured suite and deployment verification passed on the merge commit.",
+            "notChecked": "No live render, so a cancel during provisioning has unit tests only."
+          },
+          "dependabotAlert83": {
+            "state": "fixed 2026-11-03T21:25:39Z; no Dependabot alerts open",
+            "pr": 2043,
+            "sha": "b25b6eaf242d17a1152d91f36e6a63b1b7cbd7ab",
+            "change": "companion-module moved to ESLint 10, which drops minimatch 3; ESLint 10 and config-array are pinned to minimatch 11.0.2. Nothing the module ships at run time changed.",
+            "localEvidence": "On Node 24: lint, 74 of 74 tests, packaging and yarn npm audit pass; yarn why lists only minimatch 11.0.2; a lint rule scoped to src/__tests__/** still applies only there.",
+            "exactMergeChecks": "Merge queue CI 41719670400, push CI 41721685420, post-landing 41721685357, configured suite 41721685349 and quarantine 41721685180 passed.",
+            "notChecked": "No workflow runs companion-module, so CI does not cover it. Node 22.20, the version the module declares, was not run."
+          },
+          "stillUnproven": "No production render has run the Sandbox 3.x migration or the stop fixes: the newest sandboxes on the project at 2026-11-03T22:00Z are the two preview test renders."
         }
       }
     }
