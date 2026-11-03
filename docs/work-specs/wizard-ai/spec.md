@@ -354,6 +354,12 @@ open plan run on these files; the owner's window supplied. Before A4: no shell p
 - e2e/ai.spec.ts: 4.4 min, protects the Create with AI run chain (create raw and in three directions, pick, refine, undo, fix, thread, the Finish doors, late completion; AC-16), expires 2026-11-13
 - e2e/ai-lite.spec.ts: 0.3 min, protects the Lite create, its allowance and the unsupported brief (AC-16), expires 2026-11-13
 
+Settled 2026-11-03 by cicd-followup cf09 (#1967): the lines above expiring on 2026-11-13 or
+2026-11-16 lapse on their dates without an extension and stay on record. Each spec is now measured
+in the durations table, and the capacity line reads 76% (82% on the 2026-11-02 recording), below the
+85% and 95% lines, so none of them waives anything. Evidence:
+`docs/work-specs/cicd-followup/evidence/phase-cf09.md`.
+
 ## Phase notes
 
 Each phase's pull request adds here what the next phase must allow for, newest first: the
