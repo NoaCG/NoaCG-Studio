@@ -96,6 +96,23 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
    questions reworded to name the structure of each family and what is not it). Six batches,
    18 attempts, no suspension. Balance 6.933786886 to 6.931347910; settled $0.002438976 (priced
    maximum $0.006769). Every batch again debited exactly $0.000225 above the reported cost.
+5. **Tuning run 2**, run `41621404623`, configuration `d55cce03` (tune 1 plus one sentence in every
+   question: judge by layout, names can be generic or misleading). Six batches, 18 attempts, no
+   suspension. Balance 6.931347910 to 6.928781674; settled $0.002566236 (priced maximum
+   $0.007961). Fee again $0.000225 per batch.
+
+Indicative development result for the primary against deterministic (18 designs; corrections
+plus decisions / consequential errors, summed; strata with a consequential increase):
+
+| configuration | deterministic | jev-structured | strata worse |
+| --- | --- | --- | --- |
+| row 32 prompts (run 3) | 53 / 19 | 65 / 25 | lower third, scoreboard, quiz, credits |
+| tune 1 (run 4) | 53 / 19 | 65 / 20 | quiz |
+| tune 2 (run 5) | 53 / 19 | 61 / 20 | scoreboard, quiz |
+
+By the rule above, **tune 1 is chosen** (one stratum worse against two). Its questions go into
+the committed `prompts.json` with all five arms (behaviour questions changed, field question,
+criteria, chat system and threshold as row 32).
 
 ## Decisions
 
