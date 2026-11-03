@@ -31,28 +31,45 @@
   "inFlight": [
     {
       "phase": 38,
-      "role": "build",
-      "session": "session_017SdbwQxKFyeFrkKQeBGDeC",
-      "nonce": "38-b-3586",
-      "branch": "claude/plan-jev-svg-import-38-build",
-      "source": "dce1ef71e546f5077ec5767176f99b0dccc5a6c7",
-      "startedAt": "2026-11-03T18:34:31Z",
+      "role": "check",
+      "session": "session_017SdbwNum9yWUaty4Ag1h7t",
+      "nonce": "38-c-7338",
+      "actor": "checker-38-38-c-7338",
+      "mergeSha": "8b5ca96ffeca0cd6f63a0d27ccbe24ea2b5fb038",
       "pr": 2038,
-      "approvedDepartures": [
-        "scripts/growth-ceilings.json: one backend exception jev-svg-import-journey (owner decision 2026-11-03, https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839, expires 2026-12-03, repayment #1503)",
-        "final exception values 6.85/4.13 (gate price rounded up), noted https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6614210951"
-      ],
+      "builder": "session_017SdbwQxKFyeFrkKQeBGDeC",
       "soSessions": [
         "session_017SdbwMVZr8UVAMefhBBGRE",
         "session_017SdbwMKVroFdqpNTEfW77w",
         "session_017SdbwPGZoFtVEaNrw13yEh",
         "session_017SdbwMP3RpLMfn7k3na6V7"
       ],
-      "head": "4d5d389e2f7be9016bd984a9af26a7160bcafcae",
-      "ciRun": 41706413917,
-      "stampRun": 41709302532,
-      "so": "session_017SdbwMP3RpLMfn7k3na6V7 A- (owner rule)",
-      "safetyNet": "trig_01QtLv9ghr5x1A19G2zrc6D2"
+      "startedAt": "2026-11-03T20:16:21Z",
+      "build": {
+        "phase": 38,
+        "role": "build",
+        "session": "session_017SdbwQxKFyeFrkKQeBGDeC",
+        "nonce": "38-b-3586",
+        "branch": "claude/plan-jev-svg-import-38-build",
+        "source": "dce1ef71e546f5077ec5767176f99b0dccc5a6c7",
+        "startedAt": "2026-11-03T18:34:31Z",
+        "pr": 2038,
+        "approvedDepartures": [
+          "scripts/growth-ceilings.json: one backend exception jev-svg-import-journey (owner decision 2026-11-03, https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6613666839, expires 2026-12-03, repayment #1503)",
+          "final exception values 6.85/4.13 (gate price rounded up), noted https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6614210951"
+        ],
+        "soSessions": [
+          "session_017SdbwMVZr8UVAMefhBBGRE",
+          "session_017SdbwMKVroFdqpNTEfW77w",
+          "session_017SdbwPGZoFtVEaNrw13yEh",
+          "session_017SdbwMP3RpLMfn7k3na6V7"
+        ],
+        "head": "4d5d389e2f7be9016bd984a9af26a7160bcafcae",
+        "ciRun": 41706413917,
+        "stampRun": 41709302532,
+        "so": "session_017SdbwMP3RpLMfn7k3na6V7 A- (owner rule)",
+        "safetyNet": "trig_01QtLv9ghr5x1A19G2zrc6D2"
+      }
     }
   ],
   "owner": [],
