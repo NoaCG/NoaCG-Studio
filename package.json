@@ -197,6 +197,7 @@
     "metrics:ci": "node scripts/metrics/ci-minutes.mjs",
     "land:ruleset": "node scripts/landing-ruleset.mjs",
     "gates": "node scripts/gates.mjs",
+    "drill:stack-collide": "node scripts/configured-stack-drill.mjs collide",
     "drill:stack-concurrent": "node scripts/configured-stack-drill.mjs concurrent",
     "drill:stack-fail": "node scripts/configured-stack-drill.mjs fail",
     "drill:stack-hold": "node scripts/configured-stack-drill.mjs hold",

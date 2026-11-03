@@ -8,9 +8,13 @@
 //   fail        fails on purpose, so the job's `if: always()` teardown runs after a failed step.
 //   hold        holds the stack for --minutes, so the run can be cancelled and the teardown is
 //               seen running after a cancellation.
+//   collide     the diagnosis, reproduced (run with local-supabase off): an ordinary outbound
+//               connection whose source port is a stack port, then Docker publishing that port,
+//               open and again after the connection closed (TIME_WAIT); then the same port reserved.
 //
 // Diagnostics only: never part of a pull request's checks.
 import { spawn, spawnSync } from 'node:child_process';
+import net from 'node:net';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CLAIMS_ROOT, defaultOwner } from './configured-stack.mjs';
@@ -91,8 +95,39 @@ async function concurrent() {
   check(r.status === 200, `the job's own stack still answers (${r.status}): the drill's teardown touched nothing of it`);
 }
 
+function publish(port) {
+  const r = spawnSync('docker', ['run', '--rm', '-p', `${port}:80`, 'busybox:1.36', 'true'], { encoding: 'utf8', windowsHide: true });
+  return { code: r.status, err: r.stderr.trim().split('\n').pop() };
+}
+
+async function collide() {
+  const port = 54322; // the port every recorded failure names
+  check(spawnSync('docker', ['pull', '-q', 'busybox:1.36'], { stdio: 'inherit', windowsHide: true }).status === 0, 'busybox pulled');
+  const range = readFileSync('/proc/sys/net/ipv4/ip_local_port_range', 'utf8').trim().split(/\s+/).map(Number);
+  check(port >= range[0] && port <= range[1], `${port} is inside the kernel's ephemeral range ${range.join('-')}: any outbound connection may be given it`);
+  check(publish(port).code === 0, `with nothing on ${port}, Docker publishes it`);
+  // A connection whose source port is 54322, as an autobound pull connection would have.
+  const server = net.createServer((c) => c.on('error', () => {})).listen(0, '127.0.0.1');
+  await new Promise((r) => server.once('listening', r));
+  const client = net.connect({ port: server.address().port, host: '127.0.0.1', localPort: port });
+  await new Promise((r, j) => { client.once('connect', r); client.once('error', j); });
+  const open = publish(port);
+  console.log(`docker, connection open: ${open.err}`);
+  check(open.code !== 0 && /address already in use/.test(open.err), 'with an open connection from that port, Docker fails exactly as the CI runs did');
+  client.end();
+  await new Promise((r) => client.once('close', r));
+  const tw = spawnSync('ss', ['-Htan', `sport = :${port}`], { encoding: 'utf8', windowsHide: true }).stdout.trim();
+  console.log(`after the client closed first: ${tw || '(no socket)'}`);
+  const after = publish(port);
+  console.log(`docker, connection closed, socket in TIME_WAIT: ${after.code === 0 ? 'published' : after.err}`);
+  // Reported, not asserted: whether a TIME_WAIT socket blocks Docker's bind is what this measures.
+  console.log(`measured: a TIME_WAIT socket on ${port} ${after.code === 0 ? 'does not block' : 'blocks'} Docker's bind`);
+  server.close();
+}
+
 const modes = {
   concurrent,
+  collide,
   fail: async () => {
     console.log(`stack claims: ${JSON.stringify(claims().map((c) => [c.slot, c.projectId]))}`);
     throw new Error('the deliberate failure of the cf04 cleanup drill; the teardown step comes next');
@@ -104,7 +139,7 @@ const modes = {
 };
 
 if (!modes[mode]) {
-  console.error('usage: configured-stack-drill.mjs concurrent|fail|hold [--minutes n]');
+  console.error('usage: configured-stack-drill.mjs concurrent|collide|fail|hold [--minutes n]');
   process.exit(2);
 }
 modes[mode]().catch((e) => {
