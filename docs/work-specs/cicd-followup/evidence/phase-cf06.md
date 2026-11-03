@@ -149,7 +149,25 @@ The spec is offline (`playwright.config.ts`, no Supabase), so no backend stack s
 
 ## (b) Stability under CI conditions
 
-STABILITY_PLACEHOLDER
+The brief above was pushed in its own commit (`595730d4`) and in PR #2016's description before
+either run, and both runs are of that commit, which holds the fix (`f44f9dd2`) unchanged:
+
+| Test | Run | Result |
+| --- | --- | --- |
+| #1778 Look on and off | [41624077600](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41624077600) | **360 of 360 passed, 0 failed, exactly 360 ran, verdict PASS** (49.9 min, 1 worker) |
+| #1946 Adjust measurement | [41624097354](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41624097354) | **150 of 150 passed, 0 failed, exactly 150 ran, verdict PASS** (29.5 min, 1 worker) |
+
+The Adjust run is slower than its pre-fix run (29.5 against 19.1 min) because the test now steps
+the fake clock up to a second, 20 ms at a time, before measuring.
+
+Like cf05's trials, these run the one test alone, not after its shard's neighbours. Neither
+flake reproduced on a CI runner before the fix, so these runs meet the count but cannot by
+themselves tell the fixed test from the unfixed one; the fault injections in (a) are what show
+each race closed.
+
+Neither spec is in `e2e/quarantine.json` on main, so no quarantine is released, and nothing
+contains a recurrence: if either test fails and then passes on one commit on main, `ci.yml` puts
+the spec straight back through the documented route.
 
 ## (c) The incident records
 
@@ -170,7 +188,17 @@ the spec straight back through the documented route.
 
 ## Verification
 
-VERIFY_PLACEHOLDER
+- Local, cloud worker, job queue, 2 workers, retries 0: the four changed tests, 5 times each,
+  20 of 20 passed. Before the fix, the Adjust test alone 10 of 10. Fault injections and mutation
+  test as in (a), each reverted before commit.
+- `npm run gates -- run --changed origin/main`: 14 gates, 44 tests, all pass. `eslint` on the
+  spec clean, `tsc --noEmit` clean, `check-e2e-protection --changed origin/main` OK.
+- Not run locally: the whole spec file (the job queue allows one broader job per source state, and
+  it went to the targeted run). CI runs it: PR run 41624463710 on `d36a8dc7`, CI gate green, the
+  offline subset (77 specs, `production-controls.spec.ts` among them) and the configured whole set
+  (69 specs, since `package.json` changed), configured verdict green.
+- GitHub API: 26 calls for the CI history pass (main push runs, failed jobs, annotations,
+  merge-group failures), inside the 100-call bound.
 
 ## Phase notes
 
