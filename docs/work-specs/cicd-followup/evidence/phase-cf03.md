@@ -117,6 +117,7 @@ marked under the section 4.2 rule:
 | cf01, #1970 | 80759a01 | M1, M2 and M3 of every group (`scripts/e2e-quarantine.mjs` and libraries CI scripts import) |
 | cf07, #1990 | 27c737a2 | nothing: configured specs, their shared helper and a trial tool are workload |
 | cf09, #1995 | 0b73b488 | nothing: documentation only |
+| cf06, #2016 (after the window) | 8b5dcb8d | nothing: a production-controls spec and a package.json script entry are workload |
 | #2012, overhead price | a090662a | M1, M2 and M3 of every group: the planner imports the capacity code it changes (its effect on timing is nil, but the rule counts what CI runs) |
 | cf04, #2014 | e6a3bc1c | M1 of the `+cfg` groups, M3 of every group (configured job and stack action) |
 
@@ -284,8 +285,8 @@ comparison yet.
 rule to a merge (`sideEnds` in the script; each record's `ends` and `ends_why` hold its result).
 
 **The rule.** A landing ends a side when it changes how CI runs a change: a per-change workflow or
-local action, a script one of them runs, any module such a script imports, a data file or config
-the jobs read, the dependencies or the build's toolchain. "A script one of them runs" is read from
+local action, a script one of them runs, any module such a script imports, the data files and configs
+in the table below, the dependencies or the build's toolchain. "A script one of them runs" is read from
 the merge commit (and its parent): every `scripts/...` path named in ci.yml, configured-suite.yml,
 post-land.yml, quarantine.yml or deploy-verify.yml, directly, through a local action they use,
 or through `npm run <name>` in any of those texts or in the package.json scripts they reach, plus
@@ -308,7 +309,10 @@ groups follow from who runs the file:
 | a script in the closure of a script only configured-suite.yml runs | M1 (`+cfg`), M3 (all) | as shown |
 | a script in the closure of a script only post-land.yml, quarantine.yml or deploy-verify.yml runs | M3 | all |
 
-Test files (`*.test.mjs`) never match. Nothing else ends a side: quarantine entries and releases
+Test files (`*.test.mjs`) never match. Nothing else ends a side, including the checks
+`scripts/gates.mjs` finds at run time rather than by import (package.json `check:` and `test:`
+entries and the files they run, the gates' test reporter `scripts/gates-test-count.mjs`): like new
+gate tests, they are Build-step workload. Also outside: quarantine entries and releases
 (`e2e/quarantine.json`), selection-map refreshes (`scripts/e2e-traced.json`), `covers:` edits,
 spec bodies and shared spec helpers, schema migrations, product code, new gate tests, docs,
 scheduled-only and manual-only workflows, scripts no per-change workflow reaches, and data files
@@ -332,12 +336,20 @@ imports), #1724 (dependency-cruiser config, production-pack build step), #1756, 
 #2012 (the capacity code the planner imports) and #2014 (cf04). ci01, ci02, ci08, ci09, ci10, ci13
 to ci17, cf07 and cf09 end nothing.
 
-**Where cf13's before sides start today.** By the rule: for the `+cfg` groups' M1 and every group's
-M3, after cf04 (#2014, one merge since in this window, #2018); for M1 and M2 of `none`, `small`
-and `cap`, after #2012 (merged 2026-11-03T09:21:43Z), unless a later landing ends them. cf13
-needs at least the minimum n of section 5.1 on its before side, counted from there, before its
-candidate lands (for example 8 `cap+cfg` merges after cf04 for M1); the baseline sides here are not
-its before side.
+**Where cf13's before sides start, as of `main` 6d695e97 (2026-11-03T15:04Z).** Applying `rule`
+to every merge since the window: #2025 (2dcadaf7, merged 2026-11-03T13:05:05Z, a `package-lock.json`
+dependency bump) ends M1, M2 and M3 of every group, and the merges after it to 6d695e97 end
+nothing (#2027, #2028, #2029, #2030). So every cf13 before side starts after #2025 today; cf13
+runs `rule` on each later merge before it uses one. It needs at least the minimum n of section 5.1
+on its before side, counted from there, before its candidate lands (for example 8 `cap+cfg` merges
+for M1); the baseline sides here are not its before side.
+
+**How often a side ends.** The rule is wide on purpose, so sides are short. On B a side-ending
+landing came about every 13 hours (13 in 7 days, 6 of them dependency bumps). For `cap+cfg` M1
+since ci06, the stretches between them held 5, 3, 3, 1, 9 and 10 merges (none yet after cf04), and only 2
+of the 6 reached the minimum of 8. `cap+cfg` merges arrive at about 0.5 an hour, so 8 need about 16 hours
+with no side-ending landing. cf13 should land a candidate only once its before side has the
+minimum n, and expect some after sides to end unmeasured, which the spec allows.
 
 **cf13's sides.** For a candidate compared on group g and metric m, the before side is the merges
 of group g measured after the last landing whose `ends[m]` includes g and before the candidate
@@ -436,7 +448,7 @@ cluster (14.6), so the per-group effect is the one to compare with the spread.
 | ---: | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Give the PR's selected configured specs 8 stacks instead of 4: raise the PR selection's cap (`CONFIGURED_SHARDS` = 4 in `scripts/configured-shards.mjs`, which 34 of 38 selections hit) and halve its per-stack target (`SELECTED_SHARD_MINUTES` 10 to 5). The cap is shared with the landing's full suite, so cf13 separates the two or changes both on purpose | shard balance | 13.1 to 9.7 (-3.4), p95 0 | cap+cfg 14.6 to 12.0 (-2.6) | 0 | about +29 (4 more stack starts of 2.3 per PR run, 3.1 heads), 4% of cap+cfg M3 | yes: -2.6 against 1.26 |
 | 2 | Run the Build step's parts as parallel jobs (gates' tests, ESLint, tsc plus the rest) | shard balance | 0, p95 0 | none 6.2 to 3.8 (-2.4), small 6.3 to 4.8 | 6.6 to 4.8 (-1.8), p95 0 | about +5 (two more job setups of 0.5, about 5 runs per merge) | yes: -2.4 against 1.19 (none) |
-| 3 | Persist ESLint and tsc caches between runs | cache misses | 0, p95 0 | none 6.2 to 4.2 (-2.0), small 6.3 to 5.3 | 6.6 to 4.8 (-1.8) | about -10 (2 minutes off each Build) | yes for `none`. Risk: type-aware lint results cached for files whose types changed; it must key on more than file content |
+| 3 | Persist ESLint and tsc caches between runs | cache misses | 0, p95 0 | none 6.2 to 4.2 (-2.0), small 6.3 to 5.3 | 6.6 to 4.8 (-1.8) | about -10 (2 minutes off each Build) | yes for `none`, but -2.0 is 1.7 spreads, under the 2 the minimum n is sized for, so 8 per side gives it less than 80% power. Risk: type-aware lint results cached for files whose types changed; it must key on more than file content |
 | 4 | Split the catalog calibration gate into two jobs | shard balance | 0 alone; with rank 1, 13.1 to 8.5 (-4.6) | with rank 1, cap+cfg 14.6 to 10.2 (-4.4) | -0.1 median; the 30% of groups it leads drop from 11.7 to the E2E shard at about 9.5 | +0.9 per run where it runs | alone, no; it is the next limit after rank 1 |
 | 5 | Halve the configured stack start (1.77 minutes median per configured job) | setup | 13.1 to 12.5 (-0.6) | cap+cfg 14.6 to 13.7 (-0.9) | 0 | about -16 (1 minute per configured job: 4 per PR run, 3.1 heads, plus 4 on the main push suite) | no: -0.9 against 1.26 |
 | 6 | Re-pack the offline E2E shards from fresh durations (slowest shard 8.9 against a 6.7 median) | shard balance | median 0, p95 18.5 to 17.1 (-1.4) | 0 | p95 13.3 to 12.1 (-1.2) | 0 | median, no; p95 claims need over 120 per side |
