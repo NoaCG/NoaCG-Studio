@@ -1278,6 +1278,12 @@ two workers, queue job `j-0065`); the final three-file wall time is recorded in 
 - e2e/machine-graph.spec.ts: 0.3 min, protects styled transitions playing and landing on their pose, the lifecycle arrows' styles and guards, and the region re-emits under older interpreters, expires 2026-11-16
 - e2e/timeline-v2.spec.ts: 0.1 min, protects a scoreboard's data block and the score pop around the region at runtime, expires 2026-11-16
 
+Settled 2026-11-03 by cicd-followup cf09 (#1967): the lines above expiring on 2026-11-13 or
+2026-11-16 lapse on their dates without an extension and stay on record. Each spec is now measured
+in the durations table, and the capacity line reads 76% (82% on the 2026-11-02 recording), below the
+85% and 95% lines, so none of them waives anything. Evidence:
+`docs/work-specs/cicd-followup/evidence/phase-cf09.md`.
+
 ## Acceptance criteria
 
 - AC1: A pinned, reproducible inventory covers every source file, E2E spec, Node test file,

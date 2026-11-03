@@ -205,6 +205,12 @@ table rows, so the gate's own before/after reads the split files at zero delta.
 - e2e/save-transaction-leave-shortcut.spec.ts: 4.1 min, protects a leave started while Ctrl+S is still writing, expires 2026-11-16
 - e2e/save-transaction-leave-modal.spec.ts: 4.9 min, protects a browser leave absorbed under Save As, the naming dialog and Discard while they write, expires 2026-11-16
 
+Settled 2026-11-03 by cicd-followup cf09 (#1967): the lines above expiring on 2026-11-13 or
+2026-11-16 lapse on their dates without an extension and stay on record. Each spec is now measured
+in the durations table, and the capacity line reads 76% (82% on the 2026-11-02 recording), below the
+85% and 95% lines, so none of them waives anything. Evidence:
+`docs/work-specs/cicd-followup/evidence/phase-cf09.md`.
+
 ## Test maintenance
 
 Each entry: date, spec files, behaviours preserved, replacement check, evidence receipt, measured
