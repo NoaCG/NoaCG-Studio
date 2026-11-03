@@ -154,6 +154,20 @@ jobs:
               check: `gh api repos/:owner/:repo/actions/workflows` for a disabled state, then that
               .github/workflows/catalog-gates.yml is still on the default branch. The nightly
               remains the guaranteed tier for the catalog either way.
+
+          # production-load.yml runs every 30 minutes, so 26 hours without one means the schedule
+          # is dead rather than delayed. Without it the database's load has no watcher but
+          # Supabase's own email, which came 1.5 hours late on 2026-11-03.
+          - label: the production load watch, on its schedule
+            workflow: production-load.yml
+            events: '--event=schedule'
+            title: Production load watch is not running on its schedule
+            marker: production-load-schedule-state
+            schedule: 'every 30 minutes'
+            detail: >-
+              Without it nothing warns about production's memory or disk before the database stalls.
+              What to check: `gh api repos/:owner/:repo/actions/workflows` for a disabled state, then
+              that .github/workflows/production-load.yml is still on the default branch.
     env:
       ISSUE_TITLE: ${{ matrix.title }}
     steps:

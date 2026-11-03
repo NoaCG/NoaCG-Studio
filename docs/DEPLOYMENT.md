@@ -117,7 +117,7 @@ The cost and capacity policy for the Pro account is
 
 ## Alerting (rolling issues - one per failure class, no duplicates)
 
-Ten self-closing rolling issues, all following the weekly-audit pattern (one open issue,
+Twelve self-closing rolling issues, all following the weekly-audit pattern (one open issue,
 one comment per newly failing commit, the same commit never alerts twice, auto-closed by
 the next healthy state):
 
@@ -131,6 +131,8 @@ the next healthy state):
 | `Nightly sweep has not run` | nightly-drift (twice a day): no nightly at all in 26 h - the belt against a schedule that silently stops firing |
 | `Configured suite is not running on its schedule` | nightly-drift: the same belt for configured-suite |
 | `Catalog gates are not running on their schedule` | nightly-drift: the same belt for the catalog gates |
+| `Production load watch is not running on its schedule` | nightly-drift: the same belt for the load watch |
+| `Production database load is red` | production-load (every 30 minutes): memory, swap, disk or service health is past its limit (`npm run load` reads the same figures) |
 | `Weekly dependency audit is red` | weekly-audit (Mondays): a new high/critical advisory |
 | `E2E durations refresh is red` | e2e-durations-refresh (Mondays): the measured shard table could not be re-recorded |
 

@@ -65,6 +65,7 @@ export const NAMED_ALARMS = [
   'Nightly sweep has not run',
   'Configured suite is not running on its schedule',
   'Catalog gates are not running on their schedule',
+  'Production load watch is not running on its schedule',
 ];
 
 /** Whether an issue title is one of the rolling alarms. */
