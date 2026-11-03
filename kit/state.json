@@ -31,24 +31,38 @@
   "inFlight": [
     {
       "phase": 36,
-      "role": "build",
-      "session": "session_017SdbwQuxsd8sSwFk9553VP",
-      "nonce": "36-b-9551",
-      "branch": "claude/plan-jev-svg-import-36-build",
-      "source": "6d695e97c8d67f82f741d65b4e69ec7cec63653a",
-      "startedAt": "2026-11-03T15:29:25Z",
-      "approvedDepartures": [
-        "src/templates/behaviours/credits.ts:71 credits recipe description (closes half of #2001)"
-      ],
+      "role": "check",
+      "session": "session_017SdbwP95M9NUCrNXbT6xP8",
+      "nonce": "36-c-54d8",
+      "actor": "checker-36-36-c-54d8",
+      "mergeSha": "7f5b5b8e54196b07e5b6f016464728d7de7673fd",
       "pr": 2032,
-      "head": "fb7141542064341abd936cb3ba2358de1e8ca1e7",
-      "ciRun": 41669887124,
-      "stampRun": 41672783627,
-      "so": "session_017SdbwMTzqDoKFY2jZb8wix A",
+      "builder": "session_017SdbwQuxsd8sSwFk9553VP",
       "soSessions": [
         "session_017SdbwMTzqDoKFY2jZb8wix"
       ],
-      "safetyNet": "trig_017FXEerqnYjfVZd9n2nnFwq"
+      "startedAt": "2026-11-03T16:38:15Z",
+      "build": {
+        "phase": 36,
+        "role": "build",
+        "session": "session_017SdbwQuxsd8sSwFk9553VP",
+        "nonce": "36-b-9551",
+        "branch": "claude/plan-jev-svg-import-36-build",
+        "source": "6d695e97c8d67f82f741d65b4e69ec7cec63653a",
+        "startedAt": "2026-11-03T15:29:25Z",
+        "approvedDepartures": [
+          "src/templates/behaviours/credits.ts:71 credits recipe description (closes half of #2001)"
+        ],
+        "pr": 2032,
+        "head": "fb7141542064341abd936cb3ba2358de1e8ca1e7",
+        "ciRun": 41669887124,
+        "stampRun": 41672783627,
+        "so": "session_017SdbwMTzqDoKFY2jZb8wix A",
+        "soSessions": [
+          "session_017SdbwMTzqDoKFY2jZb8wix"
+        ],
+        "safetyNet": "trig_017FXEerqnYjfVZd9n2nnFwq"
+      }
     }
   ],
   "owner": [],
