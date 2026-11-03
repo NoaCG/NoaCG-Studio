@@ -102,7 +102,9 @@ nowhere. Under CI load the gap is longer and lands inside the test's drag more o
 
 **Reproduced deterministically.** A new test holds a drag across one rebuild and counts, with a
 `MutationObserver`, every moment the stage is without the line. On main it fails every time
-("the line left the stage", 1 removal; 5 of 5 with `--repeat-each 5`).
+("the line left the stage", 1 removal; 5 of 5 with `--repeat-each 5`). Re-checked on the final
+test code: with `WizardPreview.tsx` taken from `origin/main` and everything else from this branch,
+the test failed the same way (local queue job j-0012), and passed again with the fix.
 
 **Fix (product).** The artwork rect the line is drawn on is held across the rebuild, and kept when
 a fresh document's report leaves that selector out (not asked yet); the document's answer replaces
@@ -132,7 +134,10 @@ test waits on the stage's own `data-doc-rev` and `data-doc-pending` stamps.
 
 **Result:** [run 41569170266](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41569170266) on
 `abf54661`: **270 of 270 passed, 0 failed, exactly 270 ran, verdict PASS** (28.5 minutes, one
-worker, retries off). The product code has not changed since that head: later commits touch only
+worker, retries off). The trial ran this one test alone, so its runner was less loaded than the
+15-shard runs where the two failures happened; the 270 shows the fixed test is stable on a CI
+runner, not that it was put under the shards' load. The stronger proof of the cause is the
+regression test below, which fails on the unfixed code every time. The product code has not changed since that head: later commits touch only
 the bench, the new regression test's reads, the trial script's environment line and these notes.
 
 ### Release and the issue
@@ -146,8 +151,11 @@ then passes on one commit on main again, `ci.yml` puts it back. This landing clo
 `import-svg.spec.ts:988` "a growing lower third keeps the space" failed then passed on PR #1966
 (run 41431355698, line 1017, gap 11 where at least 12 was expected). That test measures the live
 graphic in the editor; the wizard overlay is not involved, so it is not #1954's cause. It is
-recorded on #1915, which already tracks that test
-([comment](https://github.com/NoaCG/NoaCG-Studio/issues/1915#issuecomment-6594359962)).
+recorded on #1915 (P3, area:e2e), which already tracks that test and names its owner as the
+quarantine incident owner of #1907, which cf01 made `miwco` with the weekly owner session as
+backup. It has no repair date because the spec is not quarantined; if it fails then passes on one
+commit on main, the quarantine route opens an incident with one. Closing #1954 moves that
+follow-up there ([comment](https://github.com/NoaCG/NoaCG-Studio/issues/1915#issuecomment-6594359962)).
 #1988 (`import-svg-credits.spec.ts:1183`, timed credits cards) is in the editor and the live
 credits engine, also not this cause, so it is left to its own issue.
 

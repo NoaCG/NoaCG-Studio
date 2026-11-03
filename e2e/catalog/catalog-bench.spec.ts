@@ -59,6 +59,9 @@ test.describe('catalog calibration tripwire', () => {
             if (!artwork[v.id]) return v.create();
             const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
             const svg = importSvgMarkup(artwork[v.id]);
+            // Untyped (page text), so tsc does not hold this object to DesignSvg: a field DesignSvg
+            // comes to need arrives here missing. Keep it in step with the same builder in
+            // e2e/_ografBuild.ts, which ograf-parity.spec.ts uses.
             const fields = svg.candidates.filter((c) => !c.outsideCanvas)
               .map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: false }));
             return v.create({ designSvg: { markup: svg.markup, width: svg.width, height: svg.height, fields, images: [], outlines: [], fonts: [] } });
