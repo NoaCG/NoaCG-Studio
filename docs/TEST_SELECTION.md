@@ -102,6 +102,15 @@ environment variable to set; `--full-escalation` asks for the whole suite instea
 run is unaffected. Its membership review, with a reason per entry, is owed
 (`docs/work-specs/e2e-suite-budget/evidence/selection-audit.md`).
 
+**Every product change also plans the critical journeys** (the twelve `// critical:` specs, 4.9
+measured minutes; cicd-followup cf12, #1895). A product change is one that touches a file the offline
+app can observe: past the ignore list, and outside `docs/`, `*.md`, `e2e/`, `scripts/`, `cli/`,
+`benchmarks/`, `.claude-plugin/` and the Playwright configs (`isProductFile` in
+`scripts/e2e-affected.mjs`). They join the plan beside what the rows below select, as a safety net and
+not instead of them; the plan is a set, so a journey the change already selects runs once, and a
+shared-change or full plan already holds them all. The plan JSON's `critical` field and the
+`Critical journeys` annotation on the plan job say what the rule added and the shard count without it.
+
 | A change to | plans | why that is enough |
 |---|---|---|
 | a doc, any `*.md` | nothing | no spec reads one. The carve-out is `docs/svg-samples/`, which three specs load as fixtures, so those three run. |

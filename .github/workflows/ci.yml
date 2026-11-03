@@ -476,6 +476,16 @@ jobs:
             // The plan now states the WALL CLOCK it expects of each runner - measured tests plus
             // the measured per-job overhead - so a run that cannot fit its own cap says so before
             // it starts rather than arriving as a cancelled shard nobody can read a verdict from.
+            // The critical journeys a product change runs beside its own selection (cicd-followup
+            // cf12, #1895): what the rule added, its measured test-minutes and the shard count
+            // without it, so the added cost of each run is readable from its annotations.
+            if (plan.critical && plan.critical.product) {
+              const c = plan.critical;
+              console.log("::notice title=Critical journeys::product change: " + (c.added.length
+                ? "added " + c.added.length + " critical spec(s) (" + c.addedMinutes + " of " + c.planMinutes + " table-min; shards " +
+                  c.shardsWithout + " -> " + (plan.mode === "none" ? 0 : plan.shards) + "): " + c.added.join(", ")
+                : "all critical specs already planned or quarantined, nothing added"));
+            }
             if (plan.overCap) {
               console.log("::warning title=E2E plan::" + plan.overCap + " of " + plan.predicted.length +
                 " shard(s) predicted too close to the 20-minute job cap (minutes: " + plan.predicted.join(", ") +

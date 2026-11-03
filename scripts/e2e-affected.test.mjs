@@ -104,6 +104,11 @@ function fakeRunner(...statuses) {
 
 const SUBSET_WITH_CATALOG = { mode: 'subset', specs: ['sports.spec.ts'], catalog: true };
 
+
+// cicd-followup cf12: a product change plans the critical journeys beside its own selection, so an
+// exact plan over the real headers is its own specs plus CRITICAL.
+const withCritical = (specs) => [...new Set([...specs, ...CRITICAL])].sort();
+
 test('a deleted spec plans nothing, and a spec still on disk is planned', () => {
   // A branch that deletes a spec lists it in its diff like any other change. Planning the name
   // handed CI a ghost file, and emitJson refuses a plan that names a file which does not exist,
@@ -307,7 +312,7 @@ test('public legal pages select their clean-URL and responsive-layout spec, and 
     // The headers alone (`readers: null`); what the route readers add is pinned under ci05 below.
     const { mode, specs } = planFor([file], { readers: null });
     assert.equal(mode, 'subset');
-    assert.deepEqual(specs, ['legal.spec.ts', 'public-chrome-baseline.spec.ts']);
+    assert.deepEqual(specs, withCritical(['legal.spec.ts', 'public-chrome-baseline.spec.ts']));
   }
 });
 
@@ -465,15 +470,15 @@ test('?raw edges resolve each importer, and a raw file no header names is mapped
   ]));
   assert.deepEqual([...edges].sort(), [['src/a/runtime/r.js', ['src/a/use.ts']], ['src/shared/s.txt', ['src/a/use.ts', 'src/b/also.ts']]]);
   const coverage = [{ spec: 'use.spec.ts', test: (f) => f === 'src/a/use.ts' }, { spec: 'also.spec.ts', test: (f) => f === 'src/b/also.ts' }];
-  const plan = planFor(['src/shared/s.txt'], { coverage, rawImporters: edges });
+  const plan = planFor(['src/shared/s.txt'], { coverage, rawImporters: edges, critical: [] });
   assert.equal(plan.mode, 'subset');
   assert.deepEqual(plan.specs, ['also.spec.ts', 'use.spec.ts']);
   assert.deepEqual(plan.unmapped, []);
   assert.deepEqual(plan.rawPlanned, ['src/shared/s.txt']);
   // An importer that is itself a copy-only edit still runs its whole coverage for the raw change.
   const copyEdits = new Map([['src/a/use.ts', { kind: 'text', terms: ['nothing names this'] }]]);
-  assert.deepEqual(planFor(['src/a/use.ts', 'src/a/runtime/r.js'], { coverage, rawImporters: edges, copyEdits }).specs, ['use.spec.ts']);
-  assert.deepEqual(planFor(['src/a/use.ts'], { coverage, rawImporters: edges, copyEdits }).specs, [], 'without the raw change, the copy path stands');
+  assert.deepEqual(planFor(['src/a/use.ts', 'src/a/runtime/r.js'], { coverage, rawImporters: edges, copyEdits, critical: [] }).specs, ['use.spec.ts']);
+  assert.deepEqual(planFor(['src/a/use.ts'], { coverage, rawImporters: edges, copyEdits, critical: [] }).specs, [], 'without the raw change, the copy path stands');
 });
 
 // AN E2E HELPER RUNS THE SPECS THAT IMPORT IT (#994). #988 changed e2e/_ografParity.ts, the plan
@@ -541,12 +546,12 @@ test('a helper reaches its specs through other helpers, and an unreached helper 
 test('public docs screenshots plan the docs edge without matching similar paths', () => {
   const screenshot = planFor(['public/docs/svg-drop.png']);
   assert.equal(screenshot.mode, 'subset');
-  assert.deepEqual(screenshot.specs, ['docs.spec.ts', 'landing.spec.ts']);
+  assert.deepEqual(screenshot.specs, withCritical(['docs.spec.ts', 'landing.spec.ts']));
   assert.equal(screenshot.catalog, false);
 
   const page = planFor(['docs.html'], { readers: null });
   assert.equal(page.mode, 'subset');
-  assert.deepEqual(page.specs, ['docs.spec.ts', 'landing.spec.ts', 'public-chrome-baseline.spec.ts']);
+  assert.deepEqual(page.specs, withCritical(['docs.spec.ts', 'landing.spec.ts', 'public-chrome-baseline.spec.ts']));
 
   const lookalike = 'public/docs.png';
   const guard = planFor([lookalike]);
@@ -648,7 +653,7 @@ test('a merge commit plans from the fork point, so the catalog gate is not skipp
     git('commit', '-m', 'tweak the legal page');
     const fresh = plan('--json', '--integration', landed);
     assert.equal(fresh.base, landed, 'an inherited merge is not this branch\'s integration');
-    assert.deepEqual(fresh.specs, ['legal.spec.ts', 'public-chrome-baseline.spec.ts']);
+    assert.deepEqual(fresh.specs, withCritical(['legal.spec.ts', 'public-chrome-baseline.spec.ts']));
     assert.equal(fresh.catalog, false);
   } finally {
     rmSync(repo, { recursive: true, force: true, maxRetries: 5 });
@@ -811,7 +816,7 @@ test('the Import-graphic folder plans the import road, and only the import road'
   ];
   const { mode, specs } = planFor(['src/components/wizard/import/MapSvgFieldsStep.tsx']);
   assert.equal(mode, 'subset', 'the capability is mapped, so it must not escalate to the full suite');
-  assert.deepEqual(specs, [...road].sort(), 'a file under wizard/import/ plans exactly the import road');
+  assert.deepEqual(specs, withCritical(road), 'a file under wizard/import/ plans exactly the import road, plus the critical journeys');
 
   // The narrowing is the point of the row, and it only holds while the generic wizard rule
   // SKIPS this folder: the rules are union'd, so without the negative lookahead the capability
@@ -1186,6 +1191,7 @@ import {
   CONFIGURED_COVERAGE,
   CONFIGURED_HEADERS,
   COVERAGE,
+  CRITICAL,
   FOCUS,
   SPEC_HEADERS,
   auditSpecHeaders,
@@ -1194,7 +1200,7 @@ import {
   parseSpecHeader,
   readSpecHeaders,
 } from './e2e-lists.mjs';
-import { CENTRAL } from './e2e-affected.mjs';
+import { CENTRAL, criticalCost, isProductFile } from './e2e-affected.mjs';
 import { repositoryFiles } from './gates.mjs';
 
 const covered = (text, file) => parseSpecHeader(text).covers.some((line) => line.test(file));
@@ -1407,7 +1413,7 @@ test('a new spec with a covers header is planned for its file with no edit to th
     assert.equal(before.mode, 'full', 'without the spec, the new area is unmapped');
     const after = planFor(['src/brand-new-area/thing.ts'], { coverage: [...COVERAGE, ...fresh] });
     assert.equal(after.mode, 'subset');
-    assert.deepEqual(after.specs, ['brand-new.spec.ts']);
+    assert.deepEqual(after.specs, withCritical(['brand-new.spec.ts']));
     assert.deepEqual(after.unmapped, []);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -1457,7 +1463,7 @@ test('--files maps a covered path through the same index a ref diff would use', 
   const direct = planFor(['src/legal.css']);
   assert.equal(out.mode, 'subset');
   assert.deepEqual(out.specs, direct.specs);
-  assert.deepEqual(out.specs, ['legal.spec.ts', 'public-chrome-baseline.spec.ts']);
+  assert.deepEqual(out.specs, withCritical(['legal.spec.ts', 'public-chrome-baseline.spec.ts']));
   assert.equal(out.base, null, '--files has no diff base to report');
 });
 
@@ -1692,22 +1698,22 @@ test('copy path: a wording edit plans only the specs that name it, while a logic
     ['shots.spec.ts', 'toHaveScreenshot()'],
   ]);
   const edit = copyEdit(VIDEO_STEP, STEP(HINT), STEP(''));
-  const copy = planFor([VIDEO_STEP], { coverage, copyEdits: new Map([[VIDEO_STEP, edit]]), specTexts, baselined: ['shots.spec.ts'] });
+  const copy = planFor([VIDEO_STEP], { coverage, copyEdits: new Map([[VIDEO_STEP, edit]]), specTexts, baselined: ['shots.spec.ts'], critical: [] });
   assert.deepEqual(copy.specs, ['names-it.spec.ts', 'shots.spec.ts'], 'the naming spec, plus the screenshot spec that covers the file');
   assert.deepEqual(copy.copyOnly, [VIDEO_STEP]);
   // Longer wording can break a fit without naming it, so the covering specs that measure stay.
   const longer = copyEdit(VIDEO_STEP, STEP(''), STEP(HINT));
   assert.equal(longer.grew, true);
   assert.equal(edit.grew, false);
-  const opts = { coverage, specTexts, baselined: [], measuring: ['wizard-b.spec.ts'] };
+  const opts = { coverage, specTexts, baselined: [], measuring: ['wizard-b.spec.ts'], critical: [] };
   assert.deepEqual(planFor([VIDEO_STEP], { ...opts, copyEdits: new Map([[VIDEO_STEP, longer]]) }).specs, ['names-it.spec.ts', 'wizard-b.spec.ts']);
   assert.deepEqual(planFor([VIDEO_STEP], { ...opts, copyEdits: new Map([[VIDEO_STEP, edit]]) }).specs, ['names-it.spec.ts']);
-  const logic = planFor([VIDEO_STEP], { coverage, specTexts, baselined: ['shots.spec.ts'] });
+  const logic = planFor([VIDEO_STEP], { coverage, specTexts, baselined: ['shots.spec.ts'], critical: [] });
   assert.deepEqual(logic.specs, ['shots.spec.ts', 'wizard-a.spec.ts', 'wizard-b.spec.ts'], 'a file absent from copyEdits plans as before');
   // A class-only restyle of a CORE stylesheet no longer escalates; any other stylesheet edit still does.
   const sheet = 'src/styles/wizard-entry.css';
   const restyle = copyEdit(sheet, '.wz-hero { color: red; }\n', '.wz-hero { color: blue; }\n');
-  assert.equal(planFor([sheet], { coverage, copyEdits: new Map([[sheet, restyle]]), specTexts }).mode, 'none');
+  assert.equal(planFor([sheet], { coverage, copyEdits: new Map([[sheet, restyle]]), specTexts, critical: [] }).mode, 'none');
   assert.equal(planFor([sheet], { coverage }).mode, 'full');
 });
 
@@ -2155,7 +2161,7 @@ test('ci05: the path pages the planner extends match vite.config.ts', () => {
 });
 
 test('ci05: output.html plans every spec that opens /output, not the one its header names', () => {
-  assert.deepEqual(planFor(['output.html'], { readers: null }).specs, ['productions.spec.ts'], 'the defect: the header alone');
+  assert.deepEqual(planFor(['output.html'], { readers: null, critical: [] }).specs, ['productions.spec.ts'], 'the defect: the header alone');
   const plan = planFor(['output.html'], { sprintFocus: true });
   const openers = ['output-boot-resilience', 'output-prepare', 'output-ready', 'output-typed-recovery', 'playout-adjust', 'productions'].map((s) => `${s}.spec.ts`);
   for (const s of openers) assert.ok(plan.specs.includes(s), s);
@@ -2217,15 +2223,83 @@ test('ci05: a short regex locator selects its spec for the wording it matches', 
   assert.deepEqual(specsNaming({ kind: 'text', terms: ['Close'] }, specs), []);
   // A copy-only edit to a page keeps the readers that carry screenshot baselines, as it keeps such
   // covering specs; readers that only open the page are not re-run for wording alone.
-  const page = planFor(['output.html'], { copyEdits: new Map([['output.html', { kind: 'text', terms: ['Waiting for cues'] }]]), specTexts: new Map(), baselined: ['output-ready.spec.ts'] });
+  const page = planFor(['output.html'], { copyEdits: new Map([['output.html', { kind: 'text', terms: ['Waiting for cues'] }]]), specTexts: new Map(), baselined: ['output-ready.spec.ts'], critical: [] });
   assert.deepEqual(page.specs, ['output-ready.spec.ts']);
   // And through the planner: a copy-only edit plans the spec whose regex reads the old wording.
   const file = 'src/components/SaveBar.tsx';
-  const plan = planFor([file], { copyEdits: new Map([[file, { kind: 'text', terms: ['Save graphic', 'Store graphic'] }]]), specTexts: specs, readers: null });
+  const plan = planFor([file], { copyEdits: new Map([[file, { kind: 'text', terms: ['Save graphic', 'Store graphic'] }]]), specTexts: specs, readers: null, critical: [] });
   assert.deepEqual(plan.specs, ['save.spec.ts']);
 });
 
 test('ci05: ESCALATES_WITH_HEADERS keeps a header from narrowing spaceKey.ts', () => {
   assert.ok(ESCALATES_WITH_HEADERS.some((r) => r.test('src/components/spaceKey.ts')));
   assert.ok(COVERAGE.some((c) => c.spec === 'editor-usability.spec.ts' && c.test('src/components/spaceKey.ts')), 'the header that used to narrow it is still there');
+});
+
+// ── cicd-followup cf12: the critical journeys on every product change (#1895) ──────────────
+//
+// THE RULE: a change with at least one product file (`isProductFile`) plans the `// critical:`
+// specs beside its own selection; the plan is a set, so a journey already selected runs once, and
+// `critical.added` is only what the rule put in. A change with no product file plans as before,
+// and a full or shared-change plan already holds every journey (Rule K2).
+test('cf12: a product change plans the critical journeys beside its own selection, each once', () => {
+  // Ten from ci07, plus ograf-lifecycle and output-font-hold since cf12 (ci11's faults F4 and F5).
+  assert.equal(CRITICAL.length, 12, 'the twelve critical journeys');
+  for (const s of ['ograf-lifecycle.spec.ts', 'output-font-hold.spec.ts']) assert.ok(CRITICAL.includes(s), s);
+  for (const s of CRITICAL) assert.ok(FOCUS.includes(s), `${s} is in the shared-change set too`);
+  const coverage = [{ spec: 'own.spec.ts', test: (f) => f === 'src/a.ts' }, { spec: 'cross-tab.spec.ts', test: (f) => f === 'src/b.ts' }];
+  const critical = ['cross-tab.spec.ts', 'flows.spec.ts'];
+  const plan = planFor(['src/a.ts'], { coverage, critical, readers: null, traced: null });
+  assert.equal(plan.mode, 'subset');
+  assert.deepEqual(plan.specs, ['cross-tab.spec.ts', 'flows.spec.ts', 'own.spec.ts']);
+  assert.deepEqual(plan.critical, { product: true, added: ['cross-tab.spec.ts', 'flows.spec.ts'] });
+  // A journey the change already selects is not added again: it is in the plan once.
+  const both = planFor(['src/a.ts', 'src/b.ts'], { coverage, critical, readers: null, traced: null });
+  assert.deepEqual(both.specs, ['cross-tab.spec.ts', 'flows.spec.ts', 'own.spec.ts']);
+  assert.deepEqual(both.critical.added, ['flows.spec.ts']);
+  // A journey no longer on disk is never planned.
+  assert.deepEqual(planFor(['src/a.ts'], { coverage, critical, readers: null, traced: null, specsOnDisk: ['own.spec.ts', 'cross-tab.spec.ts'] }).critical.added, ['cross-tab.spec.ts']);
+  // The real headers: a mapped product file plans every journey, and the plan has no duplicate.
+  const real = planFor(['src/legal.css']);
+  for (const s of CRITICAL) assert.ok(real.specs.includes(s), s);
+  assert.equal(new Set(real.specs).size, real.specs.length);
+  // A copy-only product edit is still a product change.
+  const copy = planFor(['src/a.ts'], { coverage, critical, readers: null, traced: null, copyEdits: new Map([['src/a.ts', { kind: 'text', terms: ['nothing names this'] }]]), specTexts: new Map() });
+  assert.deepEqual(copy.specs, critical);
+});
+
+test('cf12: a change with no product file plans no critical journey, and an escalation already holds them', () => {
+  for (const file of ['docs/VERIFICATION.md', 'docs/GOALS.md', 'e2e/legal.spec.ts', 'scripts/fixtures/youtube/live-chat.json', 'cli/src/index.ts', '.github/workflows/ci.yml', 'supabase/migrations/0001_x.sql']) {
+    const plan = planFor([file]);
+    assert.equal(plan.critical.product, false, file);
+    assert.deepEqual(plan.critical.added, [], file);
+  }
+  assert.equal(planFor(['e2e/legal.spec.ts']).specs.join(), 'legal.spec.ts', 'an edited spec runs itself alone');
+  // A module the dev server loads is run by the app under test, so it is product even under scripts/.
+  const plugin = planFor(['scripts/dataDevPlugin.mjs'], { devServer: new Set(['scripts/dataDevPlugin.mjs']) });
+  assert.equal(plugin.critical.product, true);
+  for (const s of CRITICAL) assert.ok(plugin.specs.includes(s), s);
+  // A shared-change escalation already plans every journey; the rule adds nothing to it.
+  const shared = planFor(['src/brand-new-area/thing.ts'], { sprintFocus: true });
+  assert.equal(shared.focusApplied, true);
+  assert.deepEqual(shared.critical, { product: true, added: [] });
+  for (const s of CRITICAL) assert.ok(shared.specs.includes(s), s);
+  // A full plan runs everything and adds nothing.
+  assert.deepEqual(planFor(['src/brand-new-area/thing.ts']).critical.added, []);
+});
+
+test('cf12: isProductFile is the app the offline suite can observe', () => {
+  for (const f of ['src/legal.css', 'api/output/assets.ts', 'public/docs/svg-drop.png', 'output.html', 'package.json', 'vite.config.ts']) assert.ok(isProductFile(f), f);
+  for (const f of ['e2e/legal.spec.ts', 'e2e/_helpers.ts', 'scripts/e2e-affected.mjs', 'docs/GOALS.md', 'docs/whats-new/2026-10-08.md', 'README.md', 'cli/src/index.ts', 'benchmarks/agent/x.json', '.claude-plugin/marketplace.json', 'playwright.config.ts', 'playwright.live.config.ts']) assert.ok(!isProductFile(f), f);
+});
+
+test('cf12: criticalCost prices only the journeys still in the blocking shards', () => {
+  const table = { minutes: { 'a.spec.ts': 2, 'b.spec.ts': 1.5, 'own.spec.ts': 1 }, overhead: {}, source: {} };
+  const cost = criticalCost({ product: true, added: ['a.spec.ts', 'b.spec.ts', 'gone.spec.ts'] }, ['a.spec.ts', 'b.spec.ts', 'own.spec.ts'], table);
+  assert.deepEqual(cost.added, ['a.spec.ts', 'b.spec.ts'], 'a quarantined journey left the shards and costs nothing here');
+  assert.equal(cost.addedMinutes, 3.5);
+  assert.equal(cost.planMinutes, 4.5);
+  assert.equal(cost.shardsWithout, 1);
+  assert.equal(criticalCost({ product: true, added: ['a.spec.ts'] }, ['a.spec.ts'], table).shardsWithout, 0, 'without the journeys the plan would have run no shard');
+  assert.deepEqual(criticalCost(undefined, [], table), { product: false, added: [], addedMinutes: 0, planMinutes: 0, shardsWithout: null });
 });

@@ -10,8 +10,9 @@
 // green (the D2 design target is 5 minutes of execution); the shared-change set (`// focus`) is the
 // broader escalation a shared or uncertain change plans instead of the full suite. Every critical
 // journey is also in the shared-change set (Rule K2), so no escalation can plan fewer than the
-// critical journeys. Nothing here selects a spec on its own: the planner still selects from
-// headers, escalations and readers exactly as before.
+// critical journeys. Nothing here selects a spec on its own: the planner reads the `// critical:`
+// headers (scripts/e2e-lists.mjs `CRITICAL`) and adds the journeys to every product change
+// (cicd-followup cf12, #1895), beside what headers, escalations and readers select.
 //
 // A BACKEND EXCEPTION is a contract whose faithful layer is the configured stack (grants, tenancy,
 // concurrent writers, recovery against a real database). The offline critical set cannot prove
@@ -25,6 +26,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { readTable } from './e2e-durations.mjs';
+import { criticalSpecs } from './e2e-lists.mjs';
+
+export { criticalSpecs };
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -61,7 +65,7 @@ export const CONTRACTS = [
       { path: 'e2e/wizard-finish.spec.ts', layer: 'browser' },
       { path: '.github/workflows/deploy-verify.yml', layer: 'deployed' },
     ],
-    cadence: 'critical journeys on every escalation and per landing; the served build after every production deployment',
+    cadence: 'critical journeys on every product change and per landing; the served build after every production deployment',
     detection: 'pre-merge for an escalating change; the landing\'s full run otherwise',
     gaps: ['deploy-verify proves the served build is the landed one, not every browser a school uses'],
   },
@@ -79,7 +83,7 @@ export const CONTRACTS = [
       { path: 'e2e/cross-tab.spec.ts', layer: 'browser' },
       { path: 'e2e/configured/sync-one-pass-per-edit.spec.ts', layer: 'configured' },
     ],
-    cadence: 'node tests in every build; critical journeys on every escalation; configured spec when selected and per landing',
+    cadence: 'node tests in every build; critical journeys on every product change; configured spec when selected and per landing',
     detection: 'pre-merge for the build and an escalating change; the landing\'s full runs otherwise',
     gaps: [],
   },
@@ -99,7 +103,7 @@ export const CONTRACTS = [
       { path: 'e2e/configured/take-behind-out.spec.ts', layer: 'configured' },
       { path: 'e2e/configured/playout-switch-mid-flight.spec.ts', layer: 'configured' },
     ],
-    cadence: 'node tests in every build; critical journeys on every escalation; configured specs when selected and per landing',
+    cadence: 'node tests in every build; critical journeys on every product change; configured specs when selected and per landing',
     detection: 'pre-merge for the build and an escalating change; the landing\'s full runs otherwise',
     gaps: ['physical playout devices (CasparCG servers, vision mixers) are a qualification limit, not an automated check'],
   },
@@ -112,11 +116,12 @@ export const CONTRACTS = [
     checks: [
       { path: 'scripts/ograf-steps.test.mjs', layer: 'node' },
       { path: 'e2e/exports.spec.ts', layer: 'artifact' },
+      { path: 'e2e/ograf-lifecycle.spec.ts', layer: 'artifact' },
       { path: 'e2e/ograf-conformance.spec.ts', layer: 'artifact' },
       { path: 'e2e/spx-operator.spec.ts', layer: 'artifact' },
       { path: 'e2e/catalog/ograf-parity.spec.ts', layer: 'catalog' },
     ],
-    cadence: 'critical journey on every escalation; the catalog battery when the catalog gate is raised and nightly',
+    cadence: 'critical journey on every product change; the catalog battery when the catalog gate is raised and nightly',
     detection: 'pre-merge for an escalating or catalog-reaching change; nightly otherwise',
     gaps: ['third-party hosts (SPX, CasparCG, LiveOS) are driven by in-repo harnesses, not the vendors\' builds'],
   },
@@ -136,7 +141,7 @@ export const CONTRACTS = [
       { path: 'e2e/catalog/long-value-containment.spec.ts', layer: 'catalog' },
       { path: 'e2e/catalog/stage-fit-honesty.spec.ts', layer: 'catalog' },
     ],
-    cadence: 'critical journeys on every escalation; affected designs through the catalog gate; whole catalog nightly',
+    cadence: 'critical journeys on every product change; affected designs through the catalog gate; whole catalog nightly',
     detection: 'pre-merge for an escalating or catalog-reaching change; nightly otherwise',
     gaps: ['representatives do not certify every design, font, viewport or browser', 'no Node test bounds the SVG import parser\'s input size or time; a parser scaling limit is a stated gap until one is added below the UI'],
   },
@@ -198,11 +203,6 @@ export function auditContracts({ contracts = CONTRACTS, headers, exists = (p) =>
     }
   }
   return problems;
-}
-
-/** The critical journeys, from the headers: bare spec names, sorted. */
-export function criticalSpecs(headers) {
-  return [...headers].filter(([, h]) => (h.critical ?? []).length > 0).map(([spec]) => spec).sort();
 }
 
 /**

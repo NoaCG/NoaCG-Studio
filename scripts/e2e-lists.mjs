@@ -226,6 +226,17 @@ export const COVERAGE = coverageOf(SPEC_HEADERS);
 /** SPRINT FOCUS - the student-critical spec set (docs/GOALS_ARCHIVE.md "Student release"). */
 export const FOCUS = [...SPEC_HEADERS].filter(([, h]) => h.focus).map(([spec]) => spec);
 
+/** The critical journeys among `headers` (`// critical:` lines): bare spec names, sorted. */
+export function criticalSpecs(headers) {
+  return [...headers].filter(([, h]) => (h.critical ?? []).length > 0).map(([spec]) => spec).sort();
+}
+
+/**
+ * THE CRITICAL JOURNEYS on disk: what every product change runs (cicd-followup cf12, #1895). Each
+ * is in FOCUS too (Rule K2, scripts/e2e-contracts.mjs).
+ */
+export const CRITICAL = criticalSpecs(SPEC_HEADERS);
+
 /**
  * THE CONFIGURED SPECS' HEADERS. The offline plan pins the ABSENCE of a hosted-only surface, so a
  * change to what a configured spec covers reports "covered" offline while the live path breaks;
