@@ -33,7 +33,8 @@ confirms it by hand.
 
 - No arm proposed an invalid layer reference (`invalidRefs` 0 in all 90 rows).
 - The critical intent errors the scorer can see are invented behaviour families. Jev invented
-  families on `credits-1` (one), `credits-2` (two) and `quiz-3` (one), and on `quiz-2` it bound
+  families on `credits-1` (one), `credits-2` (two), `quiz-3` (one) and `scoreboard-3` (one, as
+  deterministic also does), and on `quiz-2` it bound
   four decoys as live fields. These errors are counted in the consequential totals above. Nothing
   was "accepted", because no user acts in the evaluation. Each proposal is scored as if accepted,
   which is the stricter reading.
