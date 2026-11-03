@@ -311,7 +311,11 @@ test('an imported clock starts, holds and resets from the server on two real out
 // row with its own arrival. The spread between the two outputs' origins is recorded on the test
 // (annotation `1886`) and bounded only by what the issue expects of the fast road.
 
-/** The fast road's delivery spread the issue expects, with room for a loaded runner. */
+/** The fast road's delivery spread the issue expects, with room for a loaded runner. The bound
+ *  only catches a gross fault: what tells the two roads apart is 0 against more than 0. Rows
+ *  stamped with the server's time give both outputs the same origin to the millisecond (as the
+ *  Start above does); rows stamped by each output's arrival give a few to tens of ms here. Both
+ *  outputs share one machine and one clock, so this is a lower bound on what two machines see. */
 const FAST_ROAD_SPREAD_MS = 1_500;
 
 /** Seconds a clock text shows, `12:08` read as 728. */
@@ -355,7 +359,7 @@ test('an imported duration on two real outputs: the Take and a running correctio
   // 10:00 down to 9:20 is the correction; the uncorrected count could not be under 10:00 this soon.
   const corrected = async (o: FrameLocator) => { const s = secondsOf((await clockIn(o)).text); return s >= 560 && s <= 600; };
   await Promise.all([a, b].map((o) => expect.poll(() => corrected(o), { timeout: 20_000 }).toBe(true)));
-  await Promise.all([a, b].map((o) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBe(takeA)));
+  await Promise.all([{ o: a, take: takeA }, { o: b, take: takeB }].map(({ o, take }) => expect.poll(async () => (await clockIn(o)).at, { timeout: 20_000 }).not.toBe(take)));
   const [fixA, fixB] = (await origins()) as number[];
   const correctionSpread = Math.abs(fixA - fixB);
 
