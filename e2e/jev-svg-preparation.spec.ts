@@ -160,6 +160,9 @@ test('a reanalysis through the proposal door keeps a correction on the twin it w
 test('a routine lower third reaches a working graphic with no mapping stop', async ({ page }) => {
   await page.goto('/app');
   await dropSvg(page, LOWER_THIRD);
+  // Nothing is asked (row 36): no behaviour, no clock question, nothing still to say.
+  await expect(page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted')).toHaveText('it just comes on and off');
+  await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
   // From the mapping step straight to Finish: nothing on the checklist has to be answered.
   await page.getByTestId('wz-skip-to-finish').click();
   await expect(page.getByTestId('wz-stepcount')).toContainText('5');
@@ -174,6 +177,98 @@ test('a routine lower third reaches a working graphic with no mapping stop', asy
     return loadGraphics().find((d) => d.name === 'Routine strap')?.template.fields.map((f) => f.title) ?? null;
   });
   expect(fields).toEqual(['presenter', 'role', 'score']);
+});
+
+// ---- Row 36: every family from the drop to working controls, with no model (no go) ----
+//
+// The task rubric for AC-5, one walk per family on the development corpus: the clicks a
+// non-technical author makes and what the operator then has. Row 34's verdict was no go, so these
+// proposals are the drop's own; nothing asks the model route. A family the artwork settles asks
+// nothing; one whose behaviour the artwork cannot settle asks one question in the "What it does"
+// section, and the section's summary says what ships until it is answered.
+
+const dev = (name: string) => fileURLToPath(new URL(`./fixtures/jev-svg/dev/${name}.svg`, import.meta.url));
+
+/** From the mapping step straight to Finish and into a new production, the ordinary save. */
+async function finishInto(page: Page, graphic: string): Promise<void> {
+  await page.getByTestId('wz-skip-to-finish').click();
+  await expect(page.getByTestId('wz-stepcount')).toContainText('5');
+  await page.getByTestId('wz-finish-name').fill(graphic);
+  await page.getByTestId('wz-finish-production-pick').locator('select').selectOption('new');
+  await page.getByTestId('wz-finish-production-name').fill(`${graphic} show`);
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+}
+
+/** The "What it does" section's one line, which says what ships. */
+const summary = (page: Page) => page.getByTestId('map-svg-behaviour').locator('.wz-sec-head .muted');
+
+test('a scoreboard asks nothing: its figures arrive as steppers', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, dev('scoreboard-1'));
+  await expect(summary(page)).toContainText('3 numbers, each with + and −');
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+  await finishInto(page, 'Scores');
+  await expect(page.getByTestId('live-numbers')).toBeVisible();
+});
+
+test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, dev('quiz-1'));
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+  await finishInto(page, 'North quiz');
+  const actions = page.getByTestId('cue-actions');
+  for (const button of ['Select answer', 'Lock it in', 'Reveal correct']) await expect(actions).toContainText(button);
+});
+
+test('credits are one choice: the list is picked, previewed and editable', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, dev('credits-1'));
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  // Six text layers: the title reads as no list, so the first role is picked for the author.
+  const preview = page.getByTestId('map-svg-credits-preview');
+  await expect(preview).toHaveAttribute('data-layout', 'role-above');
+  await expect(preview.locator('[data-credit="role"]')).toHaveText(['Research', 'Sound']);
+  await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
+  // What the operator gets follows the author's answers.
+  const gets = page.getByTestId('map-svg-recipe-how');
+  await expect(gets).toHaveText('The operator gets the list to edit and Scroll speed (%).');
+  await page.getByTestId('map-svg-credits-playback').selectOption('static');
+  await expect(gets).toHaveText('The operator gets the list to edit.');
+  await page.getByTestId('map-svg-credits-playback').selectOption('roll');
+  await finishInto(page, 'Crew');
+  await expect.poll(() => page.locator('textarea').evaluateAll((boxes) => (boxes as HTMLTextAreaElement[]).map((b) => b.value)))
+    .toContainEqual('Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss');
+});
+
+test('a clock is one choice: unanswered the time stays as typed, answered it counts', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, dev('clock-1'));
+  const mode = page.getByTestId('map-svg-clock-mode');
+  await expect(summary(page)).toContainText('the time stays as typed');
+  await expect(mode.locator('option:checked')).toHaveText('Not a clock. The time stays as typed.');
+  await mode.selectOption('duration');
+  await expect(summary(page)).toContainText('a clock counting down from its time');
+  await finishInto(page, 'Studio clock');
+  await page.getByTestId('verb-take').click();
+  // A duration starts on Take and counts down from the drawn 07:45.
+  const air = page.frameLocator('[data-testid="program-stage"] iframe').locator('.imported-design-clock');
+  await expect.poll(async () => {
+    const [m, s] = ((await air.textContent()) ?? '').trim().split(':').map(Number);
+    return m * 60 + s;
+  }, { timeout: 5000 }).toBeLessThan(7 * 60 + 45);
+});
+
+test('score and clock: the figures need nothing, the clock is the one question', async ({ page }) => {
+  await page.goto('/app');
+  await dropSvg(page, dev('score-clock-1'));
+  await expect(summary(page)).toContainText('the time stays as typed · 2 numbers, each with + and −');
+  await page.getByTestId('map-svg-clock-mode').selectOption('count-up');
+  await expect(summary(page)).toContainText('a clock counting up · 2 numbers');
+  await finishInto(page, 'Match');
+  await expect(page.getByTestId('live-numbers')).toBeVisible();
+  await expect(page.getByTestId('cue-action-clock_start')).toBeVisible();
 });
 
 // ---- Row 35: the model route, connected and OFF (docs/work-specs/jev-svg-import/evidence/phase-35.md) ----

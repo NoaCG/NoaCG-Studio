@@ -274,6 +274,22 @@ function CreditsListPreview({ stage, layers, creditsId, measured, saved, savedFo
 
 /** One heading, role group or loose name. Beside, a role and its first name share a line and
  *  later names stay in the name column; above, the names follow under their role. */
+/** Whether picking `creditsId` as Credits gives the editable list in the drawn styling, read as
+ *  the preview reads it (either column answer counts). */
+function readsAsStyledList(root: Element, ids: readonly string[], creditsId: string): boolean {
+  const read = creditsPreview(root, ids, creditsId);
+  const lists = (p: CreditsPreview) => p.styled && CREDITS_RENDERED[p.layout].includes('roll');
+  return lists(read) || (read.ambiguous && lists(creditsPreview(root, ids, creditsId, { swap: true })));
+}
+
+/** What the operator gets for credits, for the author's Show as and Plays as answers (#2001). */
+function creditsButtons(b: SvgRecipeDraft): string {
+  if (!b.credits || b.creditsArtwork) return 'Scroll speed (%)';
+  if (b.credits.playback === 'static') return 'the list to edit';
+  if (b.credits.playback === 'cards') return 'the list to edit, Card time (s) and Next card';
+  return 'the list to edit and Scroll speed (%)';
+}
+
 function CreditsPreviewItem({ item, beside, first }: { item: CreditsListItem; beside: boolean; first: boolean }) {
   const whole = { gridColumn: '1 / -1' };
   if (item.type === 'heading') return <strong style={whole} data-credit="heading">{item.text}</strong>;
@@ -589,6 +605,8 @@ export default function BehaviourSection({
         ? 'one number, with + and −'
         : `${numberFields.length} numbers, each with + and −`;
   const behaviourGaps = behaviourBindingGaps(draft);
+  // A time layer says what it does even before anyone answers: unanswered, it stays as typed.
+  const clockPart = clockRows.length === 0 ? '' : clock ? (CLOCK_PICKER_MODES.find((m) => m.mode === clock.mode)?.summary ?? '') : 'the time stays as typed';
 
   // ── THE STEP EXPLAINS ITSELF, AND OFFERS TO DO THE REST (fieldAutoMap.ts) ──
   // The inventories the fill may draw on are EXACTLY what the pickers below offer, for the same
@@ -736,11 +754,14 @@ export default function BehaviourSection({
           <SectionHead
             title="What it does"
             summary={
-              behaviour
-                ? behaviourGaps.length > 0
-                  ? `${behaviourNoun(behaviour)}, once you say ${behaviourGaps[0]}`
-                  : behaviourSummaryLine(behaviour)
-                : steppers || 'it just comes on and off'
+              [
+                clockPart,
+                behaviour
+                  ? behaviourGaps.length > 0
+                    ? `${behaviourNoun(behaviour)}, once you say ${behaviourGaps[0]}`
+                    : behaviourSummaryLine(behaviour)
+                  : steppers,
+              ].filter(Boolean).join(' · ') || 'it just comes on and off'
             }
             testid="map-svg-why-behaviour"
           >
@@ -826,13 +847,22 @@ export default function BehaviourSection({
                   // Any other recipe is held generically. A recipe with rows opens on its minimum,
                   // every picker empty, for the poll's reason: guessing which of somebody's
                   // fifteen layers is row one would bind the wrong drawing without saying so.
+                  // Choosing Credits is enough (row 36, AC-5): one text object is the list
+                  // whatever Illustrator named it, and among several the first ticked layer that
+                  // reads as the styled list is picked, shown at once in the preview below. A
+                  // drawing nothing reads that way from still asks for the pick.
+                  const root = stageRef.current?.querySelector('svg');
+                  const ids = textLayers.map((c) => c.id);
+                  const credits = want !== 'credits'
+                    ? undefined
+                    : onFields.length === 1
+                      ? onFields[0].candidateId
+                      : root ? onFields.find((f) => readsAsStyledList(root, ids, f.candidateId))?.candidateId : undefined;
                   const seeded: SvgRecipeDraft = {
                     kind: 'recipe',
                     recipe: want,
                     layers: {},
-                    // Choosing Credits is enough for a design with one text object, whatever
-                    // Illustrator named it. Multiple objects still require an explicit pick.
-                    ...(want === 'credits' && onFields.length === 1 ? { fields: { credits: onFields[0].candidateId } } : {}),
+                    ...(credits ? { fields: { credits } } : {}),
                     ...(wanted.rows ? { rows: Array.from({ length: wanted.rows.min }, emptyRecipeRow) } : {}),
                     options: {},
                   };
@@ -883,7 +913,7 @@ export default function BehaviourSection({
                   }}
                   data-testid="map-svg-clock-mode"
                 >
-                  <option value="none">No clock.</option>
+                  <option value="none">Not a clock. The time stays as typed.</option>
                   {CLOCK_PICKER_MODES.map((m) => (
                     <option key={m.mode} value={m.mode}>
                       {m.label}
@@ -1332,7 +1362,9 @@ export default function BehaviourSection({
           {generic && (
             <>
               <p className="hint" data-testid="map-svg-recipe-how">
-                {behaviourSummaryLine(generic)}. The operator gets {BEHAVIOUR_WORDS[generic.recipe]?.buttons ?? 'its buttons'}.
+                {generic.recipe === 'credits' && generic.fields?.credits
+                  ? `The operator gets ${creditsButtons(generic)}.`
+                  : `${behaviourSummaryLine(generic)}. The operator gets ${BEHAVIOUR_WORDS[generic.recipe]?.buttons ?? 'its buttons'}.`}
               </p>
               {/* GRAPHIC-LEVEL ROLES, one picker each, read off the declaration: a field role
                   from the ticked rows (it becomes what the operator types), a written text
