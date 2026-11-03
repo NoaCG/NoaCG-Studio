@@ -26,11 +26,13 @@ Acceptance, verbatim:
 - **Enabled in the planner.** A product change's plan now holds the critical journeys beside what
   its own files select. The plan is a set, so no journey runs twice in one pipeline (section 2).
 - **Estimate before landing** (section 3): replayed over cf03's 201 merges, 79 were product
-  changes. The rule would have added a mean of **8.4 runner-minutes per product change** (median
-  0) over all sides, and **16.8** on side A (median 7.6), with per-shard setup at 1.5 minutes.
-  With setup at 3 minutes, side A is 19.3. Both are under 22.5, but not by much, and a few changes
-  with many pushes go far over (max 96 on side A). The estimate counts every PR head as a full
-  run, so it is an upper bound on that term.
+  changes. The change would have added a mean of **10.1 runner-minutes per product change**
+  (median 5.0) over all sides, and **17.0** on side A (median 7.6), with per-shard setup at 1.5
+  minutes. This includes the two promoted journeys on shared-change plans. With setup at 3
+  minutes, which is pessimistic (cf03 measured about 0.5 to 0.6), side A is 19.6 and side D is
+  23.4, over the ceiling. A few changes with many pushes go far over (max 96 on side A). The
+  estimate counts every PR head as a full run, so it is an upper bound on that term. It is close
+  enough that the measurement decides.
 - **Measured after enabling:** not yet possible. The rule has to land before a product change can
   run it. `phase-cf12-measure.mjs` measures it from each run's own annotation and job times
   (section 3.3). The verdict waits for at least 12 product changes, and is read no later than
@@ -111,24 +113,27 @@ costs in total. The median is reported beside it.
 today's planner over the files each of cf03's 201 merges changed. It runs once with the rule and
 once with `critical: []`, then prices the difference per CI run as added test-minutes × the
 table's `testFactor` (1.02), plus extra shards × a fixed shard cost, plus the report job when the
-plan had no shard before. That per-run figure is multiplied by the change's PR heads plus its
+plan had no shard before. A shared-change plan also pays for the two journeys cf12 promoted
+(they are `// focus` too, so every escalation runs them because of cf12): their table-minutes x
+the test factor, about 0.33 per run. That per-run figure is multiplied by the change's PR heads plus its
 merge-group runs from cf03's records. That multiplier is an upper bound, because a superseded run
 is cancelled part way. No API reads.
 
 | Side | product merges | rule added something | per product change, mean / median / p95 / max (setup 1.5) | mean (setup 3.0) |
 | --- | ---: | ---: | --- | ---: |
-| all | 79 of 201 | 37 | 8.4 / 0 / 45.3 / 96.3 | 9.7 |
-| B | 47 | 11 | 2.1 / 0 / 13.1 / 19.6 | 2.2 |
-| D | 15 | 13 | 18.9 / 11.3 / 56.2 / 56.2 | 22.3 |
-| A | 17 | 13 | 16.8 / 7.6 / 96.3 / 96.3 | 19.3 |
+| all | 79 of 201 | 37 | 10.1 / 5.0 / 45.3 / 96.3 | 11.4 |
+| B | 47 | 11 | 4.5 / 3.5 / 13.1 / 19.6 | 4.7 |
+| D | 15 | 13 | 20.0 / 15.0 / 56.2 / 56.2 | 23.4 |
+| A | 17 | 13 | 17.0 / 7.6 / 96.3 / 96.3 | 19.6 |
 
 Twelve-spec set. Per CI run that adds anything, the cost is 0.6 to 8.0 runner-minutes: 4.93
 test-minutes, plus one or two extra shards when the plan was small. At 15 shards, the planner's
-cap, no shard is added and the shards get longer. 42 product merges planned the shared-change set
-and added nothing. Side B is cheaper because more of its product changes escalated under today's
+cap, no shard is added and the shards get longer. 42 product merges planned the shared-change set:
+the rule added nothing there, and they pay only the two promoted journeys. Side B is cheaper because more of its product changes escalated under today's
 planner. The tail comes from changes with many pushes: #2005 (12 runs, 8.0 each) and #1959 (12
-runs, 3.8 each). **Reading:** the estimate is under the ceiling on every side, but sides D and A
-are within 4 to 6 minutes of it. Whether the rule stays depends on the measurement.
+runs, 3.8 each). **Reading:** at 1.5 minutes of setup the estimate is under the ceiling on every
+side, with sides D and A within 2.5 to 5.5 minutes of it. At a pessimistic 3 minutes, side D goes
+over. Whether the rule stays depends on the measurement.
 
 ### 3.3 Measurement after enabling
 
@@ -163,6 +168,11 @@ specs on merge groups, which is a flake cost (M4), not this rule's per-change co
 - **Who.** The cicd-followup plan-run coordinator runs it. It is a checker step of this phase, and
   cf20 reads the same script again. The human owner (`miwco`) is told the result in the phase
   result.
+- **Shared-change runs.** A run whose notice says every journey was already planned is charged the
+  two promoted journeys (0.319 table-minutes x 1.02). The promotion is why they run there, and
+  charging every such run over-counts, which keeps the judgement strict.
+- **Durable reminder.** The read date goes in this phase's receipt to the coordinator, which keeps
+  the run ledger (#1967). #1895 stays open until the measurement is recorded.
 - **First check after landing.** The first product-change run on `main`'s new planner must show
   the `Critical journeys` notice on its `E2E plan` job. `noticeRuns` in the script's output
   counts those runs. If `noticeRuns` stays 0 while product PRs merge, the measurement is broken,
@@ -226,7 +236,8 @@ keeps animating after it was taken off, a graphic that never airs). They cost 0.
 minutes together, and the set stays inside the D2 target of 5 minutes (4.93). The faults were
 applied from `phase-ci11-faults.json` exactly and reverted after each job; the tree was clean
 before the correction run. The critical set is now twelve specs. The ten of (a) are all in it,
-and the ceiling is judged on all twelve, which is stricter.
+and the ceiling is judged on all twelve, including the two promoted journeys' cost on shared-change
+plans (sections 3.2 and 3.3), which is stricter.
 
 ## 5. Selection audit and cf13 sides
 

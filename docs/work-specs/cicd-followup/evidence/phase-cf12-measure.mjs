@@ -39,6 +39,9 @@ const CEILING = 22.5;
 // The verdict waits for this many product changes: cf03's minimum sample per side for an M3
 // median (section 5.1, the `none` and `cap+cfg` rows). Below it the script reports and judges nothing.
 const MIN_N = 12;
+// ograf-lifecycle 0.204 + output-font-hold 0.115 (scripts/e2e-durations.json), and its testFactor.
+const PROMOTED_TABLE_MINUTES = 0.319;
+const TEST_FACTOR = 1.02;
 if (!SINCE || !CACHE) {
   console.error('usage: --since <ISO time> --cache <dir> [--max-calls 100]');
   process.exit(2);
@@ -97,7 +100,11 @@ function runAdded(run) {
   const notes = api(`${REPO}/check-runs/${plan.id}/annotations?per_page=100`, { immutable: true });
   const note = notes.map((n) => NOTICE.exec(n.message ?? '')).find(Boolean);
   if (!note) return null;
-  if (!note[1]) return { id: run.id, event: run.event, added: 0, minutes: 0 };
+  // "All already planned": a shared-change or full plan. The two journeys cf12 promoted are in the
+  // shared-change set because of cf12, so such a run is charged their table-minutes times the
+  // table's test factor anyway (an over-count when the change's own headers selected them, which
+  // keeps the judgement strict).
+  if (!note[1]) return { id: run.id, event: run.event, added: 0, promoted: true, minutes: Number((PROMOTED_TABLE_MINUTES * TEST_FACTOR).toFixed(2)) };
   const [, , addedMin, planMin, without, shards] = note.map(Number);
   const share = planMin > 0 ? addedMin / planMin : 0;
   const ran = (j) => j.started_at && j.completed_at;

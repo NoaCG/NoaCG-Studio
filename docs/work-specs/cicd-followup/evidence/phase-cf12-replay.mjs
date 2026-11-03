@@ -46,6 +46,10 @@ const shardCount = (plan, changed) => {
   return blocking.length ? shardsFor({ mode: 'subset', specs: blocking }, table, blocking) : 0;
 };
 
+// The two journeys cf12 promoted are `// focus` too, so a shared-change plan runs them because of
+// cf12 even though the rule itself adds nothing there. Priced here so the estimate holds them.
+const PROMOTED = ['ograf-lifecycle.spec.ts', 'output-font-hold.spec.ts'];
+
 const out = [];
 for (const r of records) {
   let changed;
@@ -61,8 +65,9 @@ for (const r of records) {
   const { blocking } = splitQuarantined(withRule.critical.added, quarantine, { changed });
   const before = shardCount(without, changed);
   const after = shardCount(withRule, changed);
+  const promoted = withRule.focusApplied ? splitQuarantined(PROMOTED.filter((s) => withRule.specs.includes(s)), quarantine, { changed }).blocking : [];
   const perRun = before === null ? 0
-    : minutes(blocking) * table.overhead.testFactor + (after - before) * SHARD_FIXED + (before === 0 && after > 0 ? REPORT_JOB : 0);
+    : (minutes(blocking) + minutes(promoted)) * table.overhead.testFactor + (after - before) * SHARD_FIXED + (before === 0 && after > 0 ? REPORT_JOB : 0);
   const runs = (r.heads ?? 1) + (r.queue_entries ?? 1);
   out.push({ number: r.number, side: r.side, product: withRule.critical.product, mode: without.mode, added: blocking.length, addedTest: Number(minutes(blocking).toFixed(2)), before, after, perRun: Number(perRun.toFixed(2)), runs, perMerge: Number((perRun * runs).toFixed(2)) });
 }
