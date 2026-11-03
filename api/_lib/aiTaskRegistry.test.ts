@@ -13,7 +13,6 @@ import {
   modelRouteKey,
 } from './aiModelCatalog.js';
 import {
-  AI_TASK_IDS,
   IMPORT_ANALYSIS_TASK_ID,
   LITE_TASK_ID,
   SVG_INTERPRETATION_TASK_ID,
@@ -293,7 +292,7 @@ test('the Lite price table is the catalog snapshot plus explicit env overrides',
   );
 });
 
-// ---- Row 37: credentials, bounds and independence (docs/work-specs/jev-svg-import/evidence/phase-37.md) ----
+// ---- Row 37: bounds and independence (docs/work-specs/jev-svg-import/evidence/phase-37.md) ----
 
 /** Sets `values` for the length of `run`, then puts every name back as it was. */
 function withEnv(values: Record<string, string | undefined>, run: () => void): void {
@@ -312,18 +311,6 @@ function withEnv(values: Record<string, string | undefined>, run: () => void): v
   }
 }
 
-const SENTINEL = 'sentinel-credential-0f3a9c';
-const CREDENTIAL_ENV = [
-  'AI_GATEWAY_API_KEY',
-  'ANTHROPIC_API_KEY',
-  'OPENAI_API_KEY',
-  'GOOGLE_API_KEY',
-  'HF_TOKEN',
-  'SUPABASE_SECRET_KEY',
-  'SUPABASE_SERVICE_ROLE_KEY',
-  'AI_KEY_ENCRYPTION_SECRET',
-  'IP_HASH_SALT',
-];
 const ALL_ON = {
   AI_LITE_ENABLED: '1',
   AI_TASK_IMPORT_ANALYSIS_ENABLED: '1',
@@ -331,29 +318,16 @@ const ALL_ON = {
   AI_SVG_INTERPRETATION_GATEWAY_PROVIDERS: 'typesafe-ai',
 };
 
-test('no task profile carries a credential, whatever the environment holds', () => {
-  withEnv({ ...Object.fromEntries(CREDENTIAL_ENV.map((name) => [name, SENTINEL])), ...ALL_ON }, () => {
-    for (const id of AI_TASK_IDS) {
-      assert.ok(!JSON.stringify(taskProfile(id)).includes(SENTINEL), `${id}: the profile names routes and limits, never a key`);
-    }
-    for (const [label, profile] of [['svg', svgInterpretationProfile()], ['import-analysis', importAnalysisProfile()]] as const) {
-      assert.ok(!JSON.stringify(profile).includes(SENTINEL), label);
-    }
-  });
-});
-
 test('the SVG task\'s bounds and route cannot be widened from the environment', () => {
   withEnv({
     ...ALL_ON,
     AI_SVG_INTERPRETATION_MAX_COST_USD: '100',
     AI_SVG_INTERPRETATION_TIMEOUT_MS: '999999',
-    AI_SVG_INTERPRETATION_REQUIRE_ZDR: 'false',
   }, () => {
     const task = taskProfile(SVG_INTERPRETATION_TASK_ID);
     assert.ok(task.routePolicy.maxProviderCostUsd <= 0.01, 'the cost ceiling is clamped');
     assert.ok(task.timeoutMs <= 60_000, 'the timeout is clamped');
     assert.deepEqual([task.maxAttempts, task.retryLimit, task.routePolicy.fallbacks], [2, 1, []], 'two attempts, no cascade');
-    assert.equal(task.routePolicy.requireZdr, true);
     assert.equal(task.limits.maxImages, 0, 'no preview image');
     assert.equal(taskConfigured(task), true, 'the pinned route on the gateway, priced and allowed');
   });

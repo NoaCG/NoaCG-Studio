@@ -38,8 +38,8 @@ import {
 import { hasCurrentAiConsent } from './aiConsentStore.js';
 import { MemoryLiteGenerationStore } from './aiLiteStore.js';
 import { resetSystemSettingsCache, systemSettings, type SystemSettings } from './systemSettings.js';
+import { resetAdminDb } from './adminAuth.js';
 import { resolveUserEntitlement } from './entitlements.js';
-import { allows } from '../../src/entitlements/contract.js';
 import {
   MODEL_ROUTE_QUALIFIED,
   createSvgInterpretationRoute,
@@ -710,28 +710,33 @@ async function withUnreachableDatabase(run: (calls: string[]) => Promise<void>):
     throw new TypeError('fetch failed');
   }) as typeof fetch;
   resetSystemSettingsCache();
+  resetAdminDb();
   try {
     await run(calls);
   } finally {
     globalThis.fetch = realFetch;
     DB_ENV.forEach((name, i) => (before[i] === undefined ? delete process.env[name] : (process.env[name] = before[i])));
     resetSystemSettingsCache();
+    // The consent store keeps its own client and has no reset; node --test runs each file in its
+    // own process, and no later test here reads real consent.
+    resetAdminDb();
   }
 }
 
-test('a database error reads as the defaults, and the defaults cannot turn the disabled SVG route on', async () => {
+test('a database error cannot turn the disabled SVG route on', async () => {
   await withUnreachableDatabase(async (calls) => {
-    // What the defaults are (phase-31 /so point 2): no kill switch, and the free plan allows the task.
-    assert.deepEqual(await systemSettings(), SETTINGS, 'an unreadable settings table reads as nothing switched off');
-    assert.equal(allows(await resolveUserEntitlement('user-1'), 'ai.import-analysis'), true, 'unreadable plan rows read as the free plan');
-    assert.ok(calls.length > 0, 'the defaults came from a failed read, not from an unconfigured database');
+    // The reads really fail (they are not skipped as unconfigured). What they answer then is the
+    // fail-open default #2034 reports; this test holds only what must stay true whatever they answer.
+    await systemSettings();
+    await resolveUserEntitlement('user-1');
+    assert.ok(calls.length > 0, 'the settings and plan reads went to the database and failed');
+    const readsBefore = calls.length;
 
     // The shipped route, with the env flag set and only the model stubbed: it refuses before it
     // reads a setting, a plan or the body, so the defaults are never consulted.
     process.env.AI_TASK_SVG_INTERPRETATION_ENABLED = '1';
     process.env.AI_SVG_INTERPRETATION_GATEWAY_PROVIDERS = 'typesafe-ai';
     const model = yesToAll();
-    calls.length = 0;
     const shipped = createSvgInterpretationRoute({
       verifyUser: async () => ({ userId: 'user-1' }),
       admitIp: () => ({ allowed: true }),
@@ -741,21 +746,22 @@ test('a database error reads as the defaults, and the defaults cannot turn the d
     const refused = await shipped.fetch(post({ idempotencyKey: 'svg-db-error-shipped-0001', evidence: routeEvidence() }));
     assert.equal(refused.status, 503);
     assert.deepEqual(await refusalOf(refused), { error: { code: 'profile_disabled', message: 'AI preparation is not available.', retryable: false }, fallback: 'deterministic' });
-    assert.deepEqual([calls.length, model.sent.length], [0, 0], 'no database read and no model call');
+    assert.deepEqual([calls.length - readsBefore, model.sent.length], [0, 0], 'no database read and no model call');
 
     // The task itself with its flag off: refused first, nothing read.
     delete process.env.AI_TASK_SVG_INTERPRETATION_ENABLED;
     const off = await runSvgInterpretation(input(), { fetchImpl: model.fetchImpl });
     assert.deepEqual([!off.ok && off.reason, !off.ok && off.fallback], ['disabled', 'deterministic']);
-    assert.deepEqual([calls.length, model.sent.length], [0, 0]);
+    assert.deepEqual([calls.length - readsBefore, model.sent.length], [0, 0]);
 
-    // Even past the verdict and the flag (a later qualified route), the two defaults that open
-    // are not enough: consent is read from the same database and fails closed, so nothing is
-    // booked or sent.
+    // Even past the verdict and the flag (a later qualified route), a database error books and
+    // sends nothing: today the settings and plan defaults open and consent, read from the same
+    // database, fails closed; a fail-closed fix of #2034 would stop it one step earlier.
     const past = await runSvgInterpretation(input(), { profile: enabledProfile(), fetchImpl: model.fetchImpl, key: () => KEY });
-    assert.deepEqual([!past.ok && past.reason, !past.ok && past.fallback], ['consent_required', 'deterministic']);
+    assert.equal(!past.ok && past.fallback, 'deterministic');
+    assert.ok(!past.ok && ['route_disabled', 'not_entitled', 'consent_required', 'unavailable'].includes(past.reason), String(!past.ok && past.reason));
     assert.equal(model.sent.length, 0);
-    assert.ok(calls.every((url) => url.startsWith('http://127.0.0.1:9/')), 'only the database was asked');
+    assert.ok(calls.every((url) => url.startsWith('http://127.0.0.1:9/')), 'only the database was asked, in every read of this test');
   });
 });
 
@@ -877,7 +883,9 @@ test('an exhausted allowance or fleet budget, or an unusable request, answers th
     ['no layers', {}, post({ idempotencyKey: 'svg-input-nolayers-000001', evidence: { sourceRevision: REVISION } }), 400, 'invalid_request', false],
     ['an unknown layer kind', {}, post({ idempotencyKey: 'svg-input-kind-0000000001', evidence: routeEvidence({ layers: [{ id: 'x0', kind: 'script', box: [0, 0, 1, 1] } as never] }) }), 400, 'invalid_request', false],
     ['a short key', {}, post({ idempotencyKey: 'k', evidence: routeEvidence() }), 400, 'invalid_request', false],
-    ['too large', {}, post({ idempotencyKey: 'svg-input-large-000000001', evidence: routeEvidence({ layers: [{ id: 'x0', kind: 'shape', name: 'n'.repeat(SVG_DECISION_LIMITS.requestBytes + 4_000), box: [0, 0, 1, 1] }] }) }), 400, 'invalid_request', false],
+    // A valid request padded past the body bound: only the size is wrong.
+    ['too large', {}, post(JSON.stringify({ idempotencyKey: 'svg-input-large-000000001', evidence: routeEvidence() }) + ' '.repeat(SVG_DECISION_LIMITS.requestBytes + 4_000)), 400, 'invalid_request', false],
+    // The method guard answers first, with its own body.
     ['not a POST', {}, new Request('http://local/api/ai/tasks/svg-interpretation', { method: 'GET' }), 405, '', false],
   ];
   for (const [label, over, request, status, code, retryable] of cases) {
