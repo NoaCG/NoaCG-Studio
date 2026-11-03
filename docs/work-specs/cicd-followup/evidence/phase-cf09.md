@@ -20,22 +20,26 @@ names. The line now reads 76.0% on main's table and 82.2% on the newest measurem
 85%. So none of the 62 lines waives anything today, and none will after its date. The minutes
 each line put on record are now measured in the durations table and fit under the line. An
 extension would be an exception with nothing to cover. The policy rules that out (no automatic
-renewal), and the gate refuses one dated on or before 2026-11-16 anyway: one active offline
-exception at a time, and a new line needs a measured repayment receipt.
+renewal), and the gate refuses one anyway: a new offline line is refused on any day up to and
+including 2026-11-16, whatever its expiry (one active offline exception at a time), and after that
+it also needs a measured repayment receipt dated after 2026-11-16.
 
 Where the cost went down, that is measured pay-down with the same or more protection:
 
 - **The save-transaction family** (six lines, e2e-suite-budget): 26.7 minutes on record (run
   39048521384's retry job), now 13.2 measured minutes (2026-11-02 recording). The six files now
-  declare 127 tests (`npx playwright test --list`, 2026-11-03), up from the 107 the split moved, so
-  coverage went up while cost halved.
+  declare 127 tests (`npx playwright test --list`, 2026-11-03), up from the 107 the split moved
+  (the 2026-10-17 entry in e2e-suite-budget's `## Test maintenance`), so coverage went up while
+  cost halved.
 - **`ai.spec.ts` and `ai-lite.spec.ts`** (wizard-ai, the two 2026-11-13 lines): 4.4 and 0.3 on
   record, now 3.32 and 0.18.
 
 The 54 codebase-lean lines recorded local measurements (two workers) for revived cases until the
-weekly refresh measured them. It has: every file is in the table, together 37.6 measured minutes
-on 2026-10-19 and 40.3 on 2026-11-02 (without `production-data`, not run then), against 40.7 on
-record. A few of them grew, and those are below.
+weekly refresh measured them. It has: every file is in the table. On the same 53 files
+(`production-data` was not run on 2026-11-02), they come to 38.3 minutes on record, 35.7 measured
+on 2026-10-19 and 40.3 measured on 2026-11-02. So since 2026-10-19 this group grew about 4.6
+minutes, mostly in the four specs below, and it now sits 2 minutes above what was on record.
+`production-data` is 2.4 on record and 1.89 in the table.
 
 ## Scope: every offline exception expiring 2026-11-13 or 2026-11-16
 
@@ -222,8 +226,9 @@ cf15's text edits, so no closing keyword appears here.
 - **Decisions:**
   - No extension. An exception line only matters at or above the 85%/95% line. Both measurements
     put the line below 85%, so an extension would cover nothing, and the gate's rule X5 (one active
-    offline exception, a repayment receipt for any later one) refuses one dated on or before
-    2026-11-16 anyway. Extending would mean changing the gate, which this phase may not do.
+    offline exception, a repayment receipt for any later one) refuses any new offline line on a
+    day up to and including 2026-11-16, and an extension must land before the original date.
+    Extending would mean changing the gate, which this phase may not do.
   - No new pay-down work. Every line's minutes already fit under the line. The largest family
     (save-transaction) is already measured at half its recorded cost with more tests. A speed-up
     done only to "pay down" an exception that waives nothing would be work for show. The measured
