@@ -12,6 +12,9 @@ import { readFileSync } from 'node:fs';
 import { expectParity, paritySweep, STRETCH_PROBE, type ParitySource } from './_ografParity';
 import { QUIZ_SVG } from './_svg-import';
 
+/** Imported artwork the clock and credits rows are built on. */
+const JEV_SOURCES = ['score-clock-1', 'credits-1'];
+
 /** The default suite's slice, in this many parallel units. */
 const UNITS = 3;
 
@@ -28,6 +31,9 @@ for (let unit = 0; unit < UNITS; unit++) {
       { kind: 'lottie' },
       STRETCH_PROBE,
       { kind: 'svg', name: 'Quiz Board', source: readFileSync(QUIZ_SVG, 'utf8') },
+      // Imported artwork a clock and credits are chosen on (docs/work-specs/jev-svg-import row 29):
+      // their drawing, fields bound. The clock and credits runtimes run in ograf-lifecycle.spec.ts.
+      ...JEV_SOURCES.map((file) => ({ kind: 'svg' as const, name: `Jev ${file}`, source: readFileSync(new URL(`./fixtures/jev-svg/dev/${file}.svg`, import.meta.url), 'utf8') })),
     ];
     const sources = all.filter((_, i) => i % UNITS === unit);
     await expectParity(`default slice part ${unit + 1}`, await paritySweep(page, browser, sources), sources.length);
