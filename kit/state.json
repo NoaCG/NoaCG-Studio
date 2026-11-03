@@ -28,7 +28,17 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "PR #2023 in merge queue",
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": 35,
+      "role": "build",
+      "session": "session_017SdbwLkzzriCu4vyauD91v",
+      "nonce": "35-b-f92d",
+      "branch": "claude/plan-jev-svg-import-35-build",
+      "source": "3215c7ac731f463c8e6d056612ec8f29b5db8d0e",
+      "startedAt": "2026-11-03T14:21:21Z"
+    }
+  ],
   "owner": [],
   "fixes": [
     {
