@@ -151,7 +151,20 @@ STABILITY_PLACEHOLDER
 
 ## (c) The incident records
 
-INCIDENT_PLACEHOLDER
+cf01 cross-linked #1946 and #1778 (comments 6575552060 and 6575552614) but wrote no incident
+record on either, because neither spec was ever quarantined. So the brief's "recorded on both
+issues by cf01" did not hold, and this phase wrote the records itself: #1946 comment 6602044035
+and #1778 comment 6602046990. Each carries owner (`miwco`, the weekly owner session as backup),
+impact (critical `production-playout` focus test; failures seen; 0 merge-queue failures since
+2026-10-27, from the job annotations of every failed `merge_group` CI run), repair date
+2026-11-04 (this phase's window, so no later than any other incident's date, as a critical
+test's must be) and restoration criteria (the fix lands through the merge queue and the post-fix
+repeat run passes its count with zero failures).
+
+Neither spec is in `e2e/quarantine.json`, so no quarantine is released, by hand or otherwise. Each
+issue closes when this fix lands: a commit on the branch carries `Closes #1946` and
+`Closes #1778`. If either test fails and then passes on one commit on main again, `ci.yml` puts
+the spec straight back through the documented route.
 
 ## Verification
 
