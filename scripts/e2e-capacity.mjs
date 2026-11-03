@@ -307,11 +307,32 @@ function specPathsOnDisk(root) {
 
 /** The covers that name a real job or spec in this checkout. */
 export function knownCoversOnDisk(root = ROOT, specs = specPathsOnDisk(root)) {
+  return knownCovers(workflowsOnDisk(root), specs);
+}
+
+/** Every workflow file in this checkout, by file name. */
+function workflowsOnDisk(root) {
   const wfDir = path.join(root, '.github', 'workflows');
-  return knownCovers(Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])), specs);
+  return Object.fromEntries(readdirSync(wfDir).filter((f) => /\.ya?ml$/.test(f)).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')]));
 }
 
 const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
+
+/** What every landing follows (`/check`, `/verify`, `/queue-merge`), so a workflow it starts runs per landing. */
+const LANDING_PROCEDURES = ['.agent-workflows/queue-merge.md', '.agent-workflows/check.md', '.agent-workflows/verify.md'];
+
+/**
+ * The repository as the dispatch search reads it (growth-controls.mjs landingDispatched): every
+ * workflow and a file reader, at `base` from git and at the head from this checkout.
+ */
+export function repoView(base, root = ROOT) {
+  const listed = (gitShow(base, '.github/workflows/', root) ?? '').split('\n').filter((f) => /\.ya?ml$/.test(f));
+  const disk = (f) => { try { return readFileSync(path.join(root, f), 'utf8'); } catch { return null; } };
+  return {
+    base: { workflows: Object.fromEntries(listed.map((f) => [f, gitShow(base, `.github/workflows/${f}`, root) ?? ''])), read: (f) => gitShow(base, f, root), procedures: LANDING_PROCEDURES },
+    head: { workflows: workflowsOnDisk(root), read: disk, procedures: LANDING_PROCEDURES },
+  };
+}
 const runnersIn = (text) => Number(/export const MAIN_RUNNERS = (\d+);/.exec(text ?? '')?.[1] ?? NaN);
 
 /**
@@ -382,7 +403,10 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     const baseIds = new Set(offlineIn(baseLedger).map((e) => e.id));
     offline = offlineExceptionChanges(baseExceptions, readExceptions(root), { today, baseEntries: offlineIn(baseLedger), newEntries: offlineIn(ceilings).filter((e) => !baseIds.has(e.id)) });
   }
-  const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
+  // Every workflow before and after, so a manual-only workflow is priced per landing only when a
+  // per-landing workflow starts it.
+  const repo = base && !diffFailed ? repoView(base, root) : undefined;
+  const items = priceAdditions({ added, workflows, estimates: ceilings.estimates, repo });
   const known = knownCoversOnDisk(root);
   const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {}, known });
   let status = tiers.status;

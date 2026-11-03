@@ -157,14 +157,147 @@ const KNOWN = new Set(['pull_request', 'pull_request_target', 'merge_group', 'pu
  * How often a workflow's jobs run: per landing by trigger (every PR run, the merge-group run, the
  * push that lands; a job that follows other runs as if on every one; any other trigger at least
  * once per landing, because an unknown frequency is not zero, except a dispatch beside a cron,
- * which is that schedule's manual re-run) and per day by its crons.
+ * which is that schedule's manual re-run) and per day by its crons. A workflow whose only trigger
+ * is `workflow_dispatch` runs when someone asks: none per landing, unless `dispatched` says a
+ * per-landing workflow starts it (`landingDispatched`). Not knowing that counts as dispatched.
  */
-export function cadence(shape, e) {
+export function cadence(shape, e, { dispatched = true } = {}) {
   const has = (t) => shape.triggers.has(t);
   let runs = (has('pull_request') || has('pull_request_target') ? e.prRunsPerLanding : 0) + (has('merge_group') ? 1 : 0) + (has('push') ? 1 : 0);
   if (FOLLOWS.some(has)) runs = Math.max(runs, e.runsPerLanding.everyRun);
-  if ([...shape.triggers].some((t) => !KNOWN.has(t) && !(t === 'workflow_dispatch' && shape.crons.length))) runs = Math.max(runs, 1);
+  const manualOnly = shape.triggers.size === 1 && has('workflow_dispatch') && !dispatched;
+  if (!manualOnly && [...shape.triggers].some((t) => !KNOWN.has(t) && !(t === 'workflow_dispatch' && shape.crons.length))) runs = Math.max(runs, 1);
   return { runs, daily: shape.crons.reduce((n, c) => n + cronRunsPerDay(c), 0) };
+}
+
+const escapeRe = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** `rel` resolved against the folder of repository file `from` (posix, no I/O). */
+const joinPath = (from, rel) => {
+  const out = from.split('/').slice(0, -1);
+  for (const part of rel.split('/')) if (part === '..') out.pop(); else if (part !== '.') out.push(part);
+  return out.join('/');
+};
+
+// Built from parts so this file, which a per-landing workflow runs, is not itself a dispatch call.
+const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', '[\'"`]work' + 'flow[\'"`]\\s*,\\s*[\'"`]run[\'"`]', 'create' + 'WorkflowDispatch', '[/]dispatches\\b', 'uses:\\s*[\'"]?[.][/][.]github[/]workflows[/]'].join('|'));
+
+/**
+ * The workflow files that something run again and again starts: a per-landing or scheduled
+ * workflow, or the landing procedure (one a schedule starts keeps the old floor of a run per
+ * landing): by `gh workflow run` (or its argument array,
+ * `['workflow', 'run', ...]`), a dispatch API call
+ * (`createWorkflowDispatch`, `.../dispatches`) or a reusable-workflow `uses:`. From each per-landing
+ * workflow it follows what the steps run: repository files named by path (scripts, and the files
+ * those name or import, outside the product, test and docs trees), `npm run <name>` through
+ * package.json, and local actions (`uses: ./.github/actions/...`). A text that makes a dispatch
+ * call starts each workflow it names, or that a line leading to it names (a command line hands
+ * its arguments down, at any depth; a file that imports it directly counts whole): the file name
+ * anywhere, the display `name:` only after `gh workflow run`. Comment lines are not steps. A
+ * started workflow that itself runs per landing starts others in turn. `workflows` maps a file
+ * name to its text; `read(path)` returns a repository file or null. Past `limit` files for one
+ * workflow, every workflow counts as started. `procedures` are repository files (the landing
+ * procedure) that every landing follows: what they start counts as started per landing.
+ * It reads only text in the repository: a dispatch from outside it (a person, a session, another
+ * repository), by a numeric workflow id, or by a name built at run time is not seen.
+ */
+export function landingDispatched({ workflows = {}, read = () => null, procedures = [] }, e, { limit = 2000 } = {}) {
+  const code = (text) => String(text ?? '').split(/\r?\n/).filter((l) => !/^\s*(#|\/\/|\/\*|\*)/.test(l)).join('\n');
+  const texts = new Map();
+  const load = (node) => {
+    if (!texts.has(node)) {
+      let src = null;
+      const npm = /^npm:(.+)$/.exec(node);
+      if (npm) { try { src = JSON.parse(read('package.json') ?? 'null')?.scripts?.[npm[1]]; } catch { /* no package.json script */ } }
+      else if (node.endsWith('/')) src = read(`${node}action.yml`) ?? read(`${node}action.yaml`);
+      else src = read(node) ?? (/\.\w+$/.test(node) ? null : ['.mjs', '.js', '.ts', '.cjs'].map((x) => read(node + x)).find((t) => t != null));
+      texts.set(node, src == null ? null : code(src));
+    }
+    return texts.get(node);
+  };
+  // What a text leads to, each with the line that leads there: files it names by path or imports,
+  // npm scripts it runs, local actions. Product, test and docs trees run in no workflow step.
+  const ignored = /^(src|e2e|api|docs|public|supabase|contracts)\//;
+  const edges = new Map();
+  const next = (node, text) => edges.get(node) ?? edges.set(node, edgesOf(node, text)).get(node);
+  const edgesOf = (node, text) => text.split('\n').flatMap((line) => [
+    ...[...line.matchAll(/(?<![\w./-])(?:\.\/)?((?:\.github\/)?[\w-]+(?:\/[\w.-]+)*\/[\w.-]+\.(?:mjs|cjs|js|ts|sh|py))\b/g)].map((m) => [m[1], line]),
+    // An import (no line): what the importer hands down can be anywhere in its text.
+    ...[...line.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)].map((m) => [joinPath(node.startsWith('npm:') ? 'x' : node, m[1]), null]),
+    ...[...line.matchAll(/\bnpm\s+(?:run(?:-script)?\s+([\w:.-]+)|(test|start)\b)/g)].map((m) => [`npm:${m[1] ?? m[2]}`, line]),
+    ...[...line.matchAll(/uses:\s*['"]?\.\/(\.github\/actions\/[\w./-]+?)\/?['"]?\s*$/g)].map((m) => [`${m[1]}/`, line]),
+  ]).filter(([child]) => child !== node && !ignored.test(child));
+  // The texts that make a dispatch call, each with what led to it; null past the limit.
+  const dispatchers = (root, rootText) => {
+    const parents = new Map([[root, new Map()]]);
+    texts.set(root, rootText);
+    const queue = [root];
+    while (queue.length) {
+      if (parents.size > limit) return null;
+      const node = queue.shift();
+      const text = load(node);
+      if (text === null) continue;
+      for (const [child, line] of next(node, text)) {
+        if (child === root) continue;
+        if (!parents.has(child)) { parents.set(child, new Map()); queue.push(child); }
+        const via = parents.get(child);
+        if (!via.has(node)) via.set(node, new Set());
+        via.get(node).add(line);
+      }
+    }
+    const out = [];
+    for (const node of parents.keys()) {
+      const text = load(node);
+      if (!DISPATCH_CALL.test(text ?? '')) continue;
+      // The dispatching text, a file that imports it directly, and every command line above.
+      const seen = new Set([node]);
+      const lines = [text];
+      for (const [p, via] of parents.get(node)) if (via.has(null)) lines.push(load(p) ?? '');
+      for (const stack = [node]; stack.length;) {
+        for (const [p, via] of parents.get(stack.pop())) {
+          for (const line of via) if (line !== null) lines.push(line);
+          if (!seen.has(p)) { seen.add(p); stack.push(p); }
+        }
+      }
+      // A procedure step is one instruction, however its lines wrap.
+      if (root.startsWith('procedure:')) lines.push(rootText);
+      out.push(lines.join('\n'));
+    }
+    return out;
+  };
+  const names = Object.fromEntries(Object.entries(workflows).map(([f, t]) => {
+    const title = /^name:[ \t]*(['"]?)(.+?)\1[ \t]*(?:#.*)?$/m.exec(String(t ?? ''))?.[2];
+    const byFile = new RegExp(`(?<![\\w.-])${escapeRe(f)}(?![\\w.-])`);
+    const byTitle = title ? new RegExp(`gh\\s+workflow\\s+run\\s+['"]?${escapeRe(title)}(?![\\w.-])`) : null;
+    return [f, (t) => byFile.test(t) || byTitle?.test(t)];
+  }));
+  const shapes = Object.fromEntries(Object.entries(workflows).map(([f, t]) => [f, workflowShape(t)]));
+  const found = {};
+  const dispatched = new Set();
+  // The landing procedure runs on every landing too, read as written: its lists and headings are
+  // instructions, not comments.
+  // Each paragraph or list item is one step.
+  for (const proc of procedures) {
+    const steps = String(read(proc) ?? '').split(/\n\s*\n|\n(?=\s*(?:[-*]|\d+\.)\s)/);
+    steps.forEach((step, i) => {
+      const calls = dispatchers(`procedure:${proc}#${i}`, step);
+      for (const f of Object.keys(workflows)) if (calls === null || calls.some(names[f])) dispatched.add(f);
+    });
+  }
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const w of Object.keys(workflows)) {
+      // A scheduled workflow is a source too: what it starts runs, even if not on a landing.
+      const c = cadence(shapes[w], e, { dispatched: dispatched.has(w) });
+      if (c.runs < 1 && c.daily === 0) continue;
+      if (!(w in found)) found[w] = dispatchers(w, code(workflows[w]));
+      for (const f of Object.keys(workflows)) {
+        if (f === w || dispatched.has(f)) continue;
+        if (found[w] === null || found[w].some(names[f])) { dispatched.add(f); grew = true; }
+      }
+    }
+  }
+  return dispatched;
 }
 
 /**
@@ -174,7 +307,7 @@ export function cadence(shape, e) {
  * `{ base, head }` text for each workflow the change touches. Offline spec files are not priced
  * here: the existing table line in e2e-capacity.mjs prices them in table-minutes, as before.
  */
-export function priceAdditions({ added = [], workflows = {}, estimates }) {
+export function priceAdditions({ added = [], workflows = {}, estimates, repo }) {
   const e = estimates;
   const items = [];
   for (const file of added) {
@@ -188,11 +321,25 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       items.push({ tier: 'graphics', id: `spec:${file}`, perLanding: e.runsPerLanding.graphics * e.graphicsCaseMinutes, perDay: (e.scheduledRunsPerDay?.graphics ?? 0) * e.graphicsCaseMinutes, how: `new catalog spec at ${e.graphicsCaseMinutes} min, x ${e.runsPerLanding.graphics} catalog runs per landing and ${e.scheduledRunsPerDay?.graphics ?? 0} scheduled runs a day` });
     }
   }
-  for (const [wf, { base, head, baseFile = wf }] of Object.entries(workflows)) {
+  // What per-landing workflows start, before and after the change. Without the repository's
+  // workflows (`repo`), a manual workflow counts as started on every landing.
+  // The base side is searched only when its answer can change a price.
+  let base_;
+  const baseStarts = () => (base_ ??= repo?.base ? landingDispatched(repo.base, e) : null);
+  const headStarts = repo?.head ? landingDispatched(repo.head, e) : null;
+  const manualOnly = (text) => { const t = workflowShape(text).triggers; return t.size === 1 && t.has('workflow_dispatch'); };
+  // A manual workflow the change does not touch, which a landing now starts and did not before.
+  const priced = { ...workflows };
+  for (const f of headStarts ?? []) {
+    const was = repo.base?.workflows?.[f];
+    if (priced[f] || was === undefined || !manualOnly(was) || !baseStarts() || baseStarts().has(f)) continue;
+    priced[f] = { base: was, head: repo.head.workflows[f] };
+  }
+  for (const [wf, { base, head, baseFile = wf }] of Object.entries(priced)) {
     const before = workflowShape(base);
     const after = workflowShape(head);
-    const was = cadence(before, e);
-    const now = cadence(after, e);
+    const was = cadence(before, e, { dispatched: !manualOnly(base) || !baseStarts() || baseStarts().has(baseFile) });
+    const now = cadence(after, e, { dispatched: !headStarts || headStarts.has(wf) });
     // A renamed key or a renamed display name is the same job, not a new one. A removed job earns
     // no credit: pricing it would let a cheap removal pay for an expensive addition.
     // Each old job has at most one successor: once a renamed key inherits it, a second copy under
@@ -239,7 +386,7 @@ export function coverJobs(measurement) {
   return (cover) => {
     const job = /^job:([^/]+)\/(.+)$/.exec(cover);
     if (!job) return [];
-    const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`);
+    const pattern = new RegExp(`^${job[2].split(/\$\{\{[^}]*\}\}/).map(escapeRe).join('.*')}$`);
     // Only the cover's own tier: a pattern that also matches another tier's jobs never moves
     // their measured cost into this tier's credit.
     const tier = tierOfJob(job[1], job[2]);
