@@ -8,6 +8,7 @@ import { apiError, json, methodGuard } from '../_lib/http.js';
 import { getJobStore, isTerminal } from '../_lib/jobStore.js';
 import { getExecutor } from '../_lib/executor.js';
 import { deleteOutput } from '../_lib/outputStorage.js';
+import { endJob } from '../_lib/reconcile.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {
@@ -28,13 +29,8 @@ export default {
 
     for (const job of await store.listSweepable(now)) {
       if (!isTerminal(job.state)) {
-        // Past its deadline and never reported terminal — kill and mark honestly.
-        await executor.stop(job);
-        await store.update(
-          job.id,
-          { state: 'failed', error: { code: 'timeout', message: 'The render timed out.' } },
-          { guardNonTerminal: true },
-        );
+        // Past its deadline and never reported terminal — mark honestly and kill.
+        await endJob(job, { state: 'failed', error: { code: 'timeout', message: 'The render timed out.' } }, store, executor);
         timedOut++;
       } else if (job.state === 'complete' && job.expiresAt !== null && now > job.expiresAt) {
         await deleteOutput(job);

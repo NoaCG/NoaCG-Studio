@@ -4,7 +4,7 @@
 import { apiError, bearerToken, json, methodGuard, readJson, secretMatches } from '../http.js';
 import { getJobStore, isTerminal } from '../jobStore.js';
 import { getExecutor } from '../executor.js';
-import { toStatus } from '../reconcile.js';
+import { endJob, toStatus } from '../reconcile.js';
 
 export default {
   async fetch(req: Request): Promise<Response> {
@@ -26,9 +26,6 @@ export default {
     }
     if (isTerminal(job.state)) return json(toStatus(job));
 
-    const executor = await getExecutor();
-    await executor.stop(job);
-    const updated = await store.update(job.id, { state: 'cancelled' }, { guardNonTerminal: true });
-    return json(toStatus(updated ?? job));
+    return json(toStatus(await endJob(job, { state: 'cancelled' }, store, await getExecutor())));
   },
 };

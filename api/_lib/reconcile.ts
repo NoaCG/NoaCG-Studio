@@ -4,6 +4,7 @@
 // updates are guarded (no-op once terminal) — duplicate polls and late callbacks are safe.
 
 import { RENDER_CONFIG } from '../../src/render/limits.js';
+import type { RenderManifest } from '../../src/render/manifest.js';
 import type { JobFrames, RenderJobStatus } from '../../src/render/types.js';
 import type { RenderExecutor } from './executor.js';
 import { isTerminal, type JobRecord, type JobStore } from './jobStore.js';
@@ -42,6 +43,53 @@ export function toStatus(job: JobRecord): RenderJobStatus {
   };
 }
 
+/** Start the executor and record its handle. A job can end while start() runs, when nothing can
+ *  stop the render yet because the handle is not stored. The guarded write then changes nothing
+ *  and answers with the current row, so a row without this handle is what says to stop here. */
+export async function launchJob(
+  job: JobRecord,
+  manifest: RenderManifest,
+  secrets: { workerSecret: string },
+  store: JobStore,
+  executor: RenderExecutor,
+): Promise<void> {
+  const { executorRef, immediateOutput } = await executor.start(job, manifest, secrets);
+  const expiresAt = Date.now() + RENDER_CONFIG.outputTtlMs[job.tier];
+  let stored: JobRecord | null = null;
+  try {
+    stored = await store.update(
+      job.id,
+      immediateOutput
+        ? {
+            state: 'complete',
+            executorRef,
+            expiresAt,
+            output: { ...immediateOutput, downloadUrl: immediateOutput.url, expiresAt: new Date(expiresAt).toISOString() },
+          }
+        : { state: 'provisioning', executorRef },
+      { guardNonTerminal: true },
+    );
+  } finally {
+    if (stored?.executorRef !== executorRef) await executor.stop({ ...job, executorRef });
+  }
+}
+
+/** Mark a job ended, then stop its executor through the row the write returned. In this order, a
+ *  launch finishing at the same moment cannot lose the handle: if its write came first the row
+ *  holds the handle, and if it came second launchJob stops the render itself. A write that throws
+ *  still stops the render, and the job stays open for the next look at it.
+ *  The stop is awaited: Vercel freezes a function once it has answered, so a stop left floating
+ *  often never reaches the sandbox, and the VM bills to its timeout. Idempotent, and never throws. */
+export async function endJob(job: JobRecord, patch: Partial<JobRecord>, store: JobStore, executor: RenderExecutor): Promise<JobRecord> {
+  let updated: JobRecord | null = null;
+  try {
+    updated = await store.update(job.id, patch, { guardNonTerminal: true });
+    return updated ?? job;
+  } finally {
+    await executor.stop(updated ?? job);
+  }
+}
+
 /** Pull the executor's latest truth into the store and return the fresh record. */
 export async function reconcileJob(job: JobRecord, store: JobStore, executor: RenderExecutor): Promise<JobRecord> {
   if (isTerminal(job.state)) return job;
@@ -61,30 +109,21 @@ export async function reconcileJob(job: JobRecord, store: JobStore, executor: Re
         : await executor.finalizeOutput(job);
       if (output) {
         const expiresAt = now + RENDER_CONFIG.outputTtlMs[job.tier];
-        const updated = await store.update(
-          job.id,
+        return endJob(
+          job,
           {
             state: 'complete',
             output: { ...output, expiresAt: new Date(expiresAt).toISOString() },
             expiresAt,
             progress: { state: 'complete', progress: 1, ...framePart(progress) },
           },
-          { guardNonTerminal: true },
+          store,
+          executor,
         );
-        // Awaited: Vercel freezes a function once it has answered, so a stop left floating often
-        // never reaches the sandbox, and the VM bills to its timeout. Idempotent, and never throws.
-        await executor.stop(job);
-        return updated ?? job;
       }
       // Worker claims complete but the file is unreadable — fall through to timeout logic.
     } else if (progress.state === 'failed') {
-      const updated = await store.update(
-        job.id,
-        { state: 'failed', error: progress.error ?? { code: 'render_failed', message: 'render failed' } },
-        { guardNonTerminal: true },
-      );
-      await executor.stop(job);
-      return updated ?? job;
+      return endJob(job, { state: 'failed', error: progress.error ?? { code: 'render_failed', message: 'render failed' } }, store, executor);
     } else {
       const updated = await store.update(
         job.id,
@@ -97,8 +136,8 @@ export async function reconcileJob(job: JobRecord, store: JobStore, executor: Re
 
   // No readable progress: still booting (fine before the deadline) or lost.
   if (now > job.deadlineAt) {
-    const updated = await store.update(
-      job.id,
+    return endJob(
+      job,
       {
         state: 'failed',
         error: {
@@ -106,10 +145,9 @@ export async function reconcileJob(job: JobRecord, store: JobStore, executor: Re
           message: 'The render timed out — try a shorter duration or a lower resolution.',
         },
       },
-      { guardNonTerminal: true },
+      store,
+      executor,
     );
-    await executor.stop(job);
-    return updated ?? job;
   }
   return job;
 }

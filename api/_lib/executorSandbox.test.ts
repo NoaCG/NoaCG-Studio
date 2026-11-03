@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { before, test } from 'node:test';
+import { before, test, type TestContext } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import type { RenderManifest } from '../../src/render/manifest.js';
-import type { JobRecord } from './jobStore.js';
+import type { JobRecord, JobStore } from './jobStore.js';
 import { getJobStore } from './jobStore.js';
-import { reconcileJob } from './reconcile.js';
+import { endJob, launchJob, reconcileJob } from './reconcile.js';
 import {
   REF_PREFIX,
   SANDBOX_RUNTIME,
@@ -30,7 +30,7 @@ class FakeSession implements SandboxSessionLike {
     if (this.status !== 'running') throw new Error('sandbox_stopped');
     return this.progress === null ? null : Buffer.from(this.progress);
   }
-  async stop() {
+  async stop(_opts?: { signal: AbortSignal }): Promise<void> {
     this.stops += 1;
     this.status = 'stopped';
   }
@@ -64,7 +64,7 @@ class FakeSandbox implements SandboxLike {
     this.commands.push(params);
     return {};
   }
-  async stop() {
+  async stop(_opts?: { signal: AbortSignal }): Promise<void> {
     this.sandboxStops += 1;
   }
 }
@@ -325,4 +325,284 @@ test('sandboxNameOf accepts only this executor\'s refs', () => {
   assert.equal(sandboxNameOf('sbx_abc'), null);
   assert.equal(sandboxNameOf(REF_PREFIX), null);
   assert.equal(sandboxNameOf(`${REF_PREFIX}abc`), 'abc');
+});
+
+// ── Issue #2026: a job ends while start() runs ──────────────────────────────
+
+const secrets = { workerSecret: 'worker-secret' };
+
+/** The store with every write failing, as when the ledger is unreachable. */
+function failingWrites(store: JobStore): JobStore {
+  const failing = Object.create(store) as JobStore;
+  failing.update = async () => {
+    throw new Error('render jobs update failed');
+  };
+  return failing;
+}
+
+/** A launch whose job is ended by `during` while the sandbox provisions. */
+function launching(sandbox: FakeSandbox, during: () => Promise<unknown>): SandboxDeps {
+  return {
+    ...fakeDeps(sandbox).deps,
+    async provision() {
+      return { sandbox, addBundle: async () => void (await during()) };
+    },
+  };
+}
+
+const endingsDuringStart = [
+  { name: 'a cancel', patch: { state: 'cancelled' } },
+  { name: 'a deadline', patch: { state: 'failed', error: { code: 'sandbox_lost', message: 'lost' } } },
+] as const;
+
+for (const ending of endingsDuringStart) {
+  test(`${ending.name} during start stops the sandbox start just returned`, async () => {
+    const session = new FakeSession('running');
+    const sandbox = new FakeSandbox('sbx-test', session);
+    const store = await memoryStore();
+    const record = job({ state: 'pending', executorRef: null });
+    await store.create(record);
+    const executor = new SandboxExecutor(
+      launching(sandbox, () => store.update(record.id, ending.patch, { guardNonTerminal: true })),
+    );
+
+    await withBlobToken(() => launchJob(record, manifest, secrets, store, executor));
+
+    assert.equal(session.stops, 1);
+    const stored = await store.get(record.id);
+    assert.equal(stored?.state, ending.patch.state);
+    assert.equal(stored?.executorRef, null);
+  });
+}
+
+test('a launch nothing interrupted records its ref and stops nothing', async () => {
+  const session = new FakeSession('running');
+  const store = await memoryStore();
+  const record = job({ state: 'pending', executorRef: null });
+  await store.create(record);
+  const executor = new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps);
+
+  await withBlobToken(() => launchJob(record, manifest, secrets, store, executor));
+
+  assert.equal(session.stops, 0);
+  const stored = await store.get(record.id);
+  assert.equal(stored?.state, 'provisioning');
+  assert.equal(stored?.executorRef, `${REF_PREFIX}sbx-test`);
+});
+
+test('a ledger write that throws after start still stops the sandbox', async () => {
+  const session = new FakeSession('running');
+  const store = await memoryStore();
+  const record = job({ state: 'pending', executorRef: null });
+  await store.create(record);
+  const executor = new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps);
+
+  await assert.rejects(withBlobToken(() => launchJob(record, manifest, secrets, failingWrites(store), executor)), /update failed/);
+
+  assert.equal(session.stops, 1);
+});
+
+test('ending a job whose ledger write throws still stops the sandbox, and the error surfaces', async () => {
+  const session = new FakeSession('running');
+  const store = await memoryStore();
+  const record = job();
+  await store.create(record);
+  const executor = new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps);
+
+  await assert.rejects(endJob(record, { state: 'cancelled' }, failingWrites(store), executor), /update failed/);
+
+  assert.equal(session.stops, 1);
+  assert.equal((await store.get(record.id))?.state, 'provisioning');
+});
+
+test('a cancel that read the job before the launch wrote its ref still stops the sandbox', async () => {
+  const session = new FakeSession('running');
+  const store = await memoryStore();
+  const record = job({ state: 'pending', executorRef: null });
+  await store.create(record);
+  const executor = new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps);
+
+  const readByCancel = await store.get(record.id);
+  await withBlobToken(() => launchJob(record, manifest, secrets, store, executor));
+  const after = await endJob(readByCancel!, { state: 'cancelled' }, store, executor);
+
+  assert.equal(after.state, 'cancelled');
+  assert.equal(session.stops, 1);
+});
+
+// ── Issue #2026: a stop has a time limit ────────────────────────────────────
+
+/** Never settles until the signal it was given aborts, as a hung Sandbox API does. */
+function hang<T>(signal?: AbortSignal): Promise<T> {
+  return new Promise<T>((_, reject) => {
+    signal?.addEventListener('abort', () => reject(signal.reason));
+  });
+}
+
+class HungStopSession extends FakeSession {
+  async stop(opts?: { signal: AbortSignal }): Promise<void> {
+    await hang(opts?.signal);
+  }
+}
+
+/** Shorten the real timeout so a test need not wait for it, and report the limits asked for. */
+function shortTimeouts(t: TestContext): number[] {
+  const real = AbortSignal.timeout.bind(AbortSignal);
+  const limits: number[] = [];
+  t.mock.method(AbortSignal, 'timeout', (ms: number) => {
+    limits.push(ms);
+    return real(5);
+  });
+  t.mock.method(console, 'error', () => {});
+  return limits;
+}
+
+function assertBounded(limits: number[]) {
+  assert.ok(limits.length > 0);
+  for (const ms of limits) assert.ok(ms > 0 && ms <= 30_000, `limit was ${ms} ms`);
+}
+
+class HungReadSession extends FakeSession {
+  async readFileToBuffer(_file?: { path: string }, opts?: { signal: AbortSignal }): Promise<Buffer | null> {
+    return hang<Buffer | null>(opts?.signal);
+  }
+}
+
+const hungLookup: SandboxDeps = {
+  ...fakeDeps(new FakeSandbox('sbx-test', new FakeSession('running'))).deps,
+  get: (_name, signal) => hang<SandboxLike>(signal),
+};
+
+test('a hung progress read cannot hold up a status answer: the job waits for the next poll', { timeout: 2000 }, async (t) => {
+  const limits = shortTimeouts(t);
+  const store = await memoryStore();
+  const record = job();
+  await store.create(record);
+  const { deps } = fakeDeps(new FakeSandbox('sbx-test', new HungReadSession('running')));
+
+  const after = await reconcileJob(record, store, new SandboxExecutor(deps));
+
+  assert.equal(after.state, 'provisioning');
+  assertBounded(limits);
+});
+
+test('a hung lookup cannot hold up a progress read', { timeout: 2000 }, async (t) => {
+  const limits = shortTimeouts(t);
+
+  assert.equal(await new SandboxExecutor(hungLookup).readProgress(job()), null);
+
+  assertBounded(limits);
+});
+
+test('a hung stop cannot hold up the status answer that finishes a job', { timeout: 2000 }, async (t) => {
+  const limits = shortTimeouts(t);
+  const session = new HungStopSession(
+    'running',
+    JSON.stringify({ state: 'complete', progress: 1, blobUrl: 'https://blob.example/x.mp4' }),
+  );
+  const store = await memoryStore();
+  const record = job();
+  await store.create(record);
+
+  const after = await reconcileJob(record, store, new SandboxExecutor(fakeDeps(new FakeSandbox('sbx-test', session)).deps));
+
+  assert.equal(after.state, 'complete');
+  assertBounded(limits);
+});
+
+test('a hung lookup is held to the same limit as the stop', { timeout: 2000 }, async (t) => {
+  const limits = shortTimeouts(t);
+
+  await new SandboxExecutor(hungLookup).stop(job());
+
+  assertBounded(limits);
+});
+
+test('a hung stop after a failed launch cannot hold up the failure', { timeout: 2000 }, async (t) => {
+  const limits = shortTimeouts(t);
+  const sandbox = new FakeSandbox('sbx-test', new FakeSession('running'), false);
+  sandbox.stop = async (opts?: { signal: AbortSignal }) => {
+    sandbox.sandboxStops += 1;
+    await hang(opts?.signal);
+  };
+
+  await assert.rejects(
+    withBlobToken(() => new SandboxExecutor(fakeDeps(sandbox).deps).start(job(), manifest)),
+    /still persistent/,
+  );
+
+  assert.equal(sandbox.sandboxStops, 1);
+  assertBounded(limits);
+});
+
+// ── Issue #2026: what a stop that fails logs ────────────────────────────────
+
+/** The fields of the SDK's APIError that the executor reads. */
+function apiError(status: number, code?: string): Error {
+  return Object.assign(new Error('from the Sandbox API'), { response: { status }, json: { error: { code } } });
+}
+
+class FailingStopSession extends FakeSession {
+  constructor(private failure: Error) {
+    super('running');
+  }
+  async stop(): Promise<void> {
+    throw this.failure;
+  }
+}
+
+const raceEndings = [
+  { name: '404', err: apiError(404) },
+  { name: '410', err: apiError(410) },
+  { name: '422 sandbox_stopping', err: apiError(422, 'sandbox_stopping') },
+];
+
+for (const race of raceEndings) {
+  test(`a ${race.name} from a stop that races the session's end logs nothing`, async (t) => {
+    const logged = t.mock.method(console, 'error', () => {});
+    const { deps } = fakeDeps(new FakeSandbox('sbx-test', new FailingStopSession(race.err)));
+    await new SandboxExecutor(deps).stop(job());
+    assert.equal(logged.mock.callCount(), 0);
+  });
+}
+
+test('a 404 from the lookup logs nothing: the sandbox is already gone', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
+  const deps: SandboxDeps = {
+    ...fakeDeps(new FakeSandbox('sbx-test', new FakeSession('running'))).deps,
+    get: async () => {
+      throw apiError(404);
+    },
+  };
+  await new SandboxExecutor(deps).stop(job());
+  assert.equal(logged.mock.callCount(), 0);
+});
+
+for (const failure of [
+  { name: 'a 500', err: apiError(500), status: 500 },
+  { name: 'a 422 for another reason', err: apiError(422, 'bad_request'), status: 422 },
+  { name: 'a network error', err: new Error('fetch failed'), status: '' },
+]) {
+  test(`${failure.name} from a stop is logged, because the VM keeps billing`, async (t) => {
+    const logged = t.mock.method(console, 'error', () => {});
+    const { deps } = fakeDeps(new FakeSandbox('sbx-test', new FailingStopSession(failure.err)));
+    await new SandboxExecutor(deps).stop(job());
+    assert.equal(logged.mock.callCount(), 1);
+    assert.deepEqual(logged.mock.calls[0].arguments, ['sandbox stop failed:', failure.status, failure.err.message]);
+  });
+}
+
+test('a stop that fails after a failed launch is logged, and the launch error still surfaces', async (t) => {
+  const logged = t.mock.method(console, 'error', () => {});
+  const sandbox = new FakeSandbox('sbx-test', new FakeSession('running'), false);
+  sandbox.stop = async () => {
+    throw apiError(500);
+  };
+
+  await assert.rejects(
+    withBlobToken(() => new SandboxExecutor(fakeDeps(sandbox).deps).start(job(), manifest)),
+    /still persistent/,
+  );
+
+  assert.equal(logged.mock.callCount(), 1);
 });
