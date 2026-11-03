@@ -77,8 +77,22 @@ repeated harder). A temporary init script delayed the page's `commentThreads` fe
 | Unchanged | failed: `expect(received).toBe(expected)`, Expected 2, Received 1, at the `toBe(2)` line (the original line 264 plus the 9 injected lines) |
 | Fixed | passed |
 
-The injection was removed before commit. On a CI runner the unchanged test passed 150 of 150
-(41579837751): the window is one assertion wide, so it is rare, as its history says (1 in 22).
+The injection, added at the top of the test and removed before commit:
+
+```ts
+await page.context().addInitScript(() => {
+  const real = window.fetch;
+  window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).includes('commentThreads')) await new Promise((r) => setTimeout(r, 500));
+    return real(input, init);
+  }) as typeof fetch;
+});
+```
+
+On a CI runner the unchanged test passed 150 of 150 (41579837751): the window is one assertion
+wide, so it is rare, as its history says (1 in 22). So for #1924 the repeat run in (b) meets the
+acceptance's count but cannot by itself tell the fixed test from the unfixed one; the injected
+delay above is what shows the fix closes the race.
 
 **The fix.** Both waits on that detail now require the text to start with the count,
 `toHaveText(/^0 new of the newest 100\b/)`, which the first fetch's text cannot satisfy. The
@@ -127,8 +141,10 @@ rule") does not apply, and the fix is neither a wait nor a dismissal: it removes
 **The fix.** `bootstrapGraphic` calls the store's `flushPendingProject()` instead of its own
 `saveProject`. That writes the same pending autosave at once and takes the timer down, so no
 write is left to land later in any spec that uses the helper. The test also now asserts that no
-`storage-alert` follows Connect's claimed refusal, so a write leaking into the window fails at
-once with a clear line, not after a 120 s click timeout.
+`storage-alert` is showing after Connect's claimed refusal. It is a snapshot: a refused write
+that lands a moment after the assertion still slips past it and is caught only by the second
+click. But a write already announced by then fails with a clear line instead of a 120 s click
+timeout (the mutation run below failed there 3 times of 4).
 
 **Mutation test.** With the old helper and the new test: 4 of 4 failed, 3 at the new
 `storage-alert` assertion and 1 at the click. With the fix: 8 of 8 passed locally
