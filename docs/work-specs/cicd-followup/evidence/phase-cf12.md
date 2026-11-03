@@ -143,7 +143,7 @@ the `Critical journeys` notice is a product-change run. Its added minutes are:
 - the extra shards × that run's median shard setup (job minus test step); plus
 - the Combined E2E report job, when the plan without the journeys ran no shard at all.
 
-A change's figure is the sum over its runs, superseded and failed runs included. The phase result
+A change's figure is the sum over its runs and each run's attempts, superseded, failed and re-run work included. A re-run attempt's copied jobs are counted once, as cf03 does, and an attempt that re-ran only some shards pays the extra setup in proportion (Codex review on `a124b3dc`). The phase result
 states n, the mean and the median against 22.5. It was checked against the hour before enabling,
 where no run carries the notice: `n 0`, 20 calls.
 

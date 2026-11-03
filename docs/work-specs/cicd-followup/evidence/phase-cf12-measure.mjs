@@ -14,6 +14,9 @@
 //   + (shards - shards without the journeys) x the run's median shard setup (job minus test step)
 //   + the Combined E2E report job, when the plan without the journeys ran no shard at all
 //
+// summed over the run's attempts (each job once: a re-run attempt's copies are dropped; an attempt
+// that re-ran some shards pays the extra setup in proportion).
+//
 // A change's added minutes are the sum over its runs (superseded and failed runs included: they
 // were paid for). The change is a product change when any of its runs printed the notice. The verdict
 // waits for MIN_N product changes and judges their mean against the 22.5-minute ceiling. Each pass
@@ -61,9 +64,32 @@ const median = (xs) => {
 };
 const NOTICE = /product change: (?:added (\d+) critical spec\(s\) \(([\d.]+) of ([\d.]+) table-min; shards (\d+) -> (\d+)\)|all critical specs already planned)/;
 
-/** A completed run's added minutes, or null when its plan printed no critical notice. */
+/**
+ * A completed run's jobs over every attempt, each job once. A re-run attempt lists the jobs it did
+ * not re-run again, as copies with the original times (cf03 section 1), so a job is kept once by
+ * name, start and end; each kept job belongs to the attempt that really ran it.
+ */
+function runJobs(run) {
+  const all = [];
+  for (let page = 1; ; page += 1) {
+    const batch = api(`${REPO}/actions/runs/${run.id}/jobs?per_page=100&filter=all&page=${page}`, { immutable: true }).jobs;
+    all.push(...batch);
+    if (batch.length < 100) break;
+  }
+  const seen = new Set();
+  return all
+    .sort((a, b) => (a.run_attempt ?? 1) - (b.run_attempt ?? 1))
+    .filter((j) => {
+      const key = `${j.name}|${j.started_at}|${j.completed_at}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+/** A completed run's added minutes, summed over its attempts, or null when its plan printed no critical notice. */
 function runAdded(run) {
-  const jobs = api(`${REPO}/actions/runs/${run.id}/jobs?per_page=100&filter=all`, { immutable: true }).jobs;
+  const jobs = runJobs(run);
   const plan = jobs.find((j) => j.name === 'E2E plan');
   if (!plan) return null;
   const notes = api(`${REPO}/check-runs/${plan.id}/annotations?per_page=100`, { immutable: true });
@@ -71,19 +97,26 @@ function runAdded(run) {
   if (!note) return null;
   if (!note[1]) return { id: run.id, event: run.event, added: 0, minutes: 0 };
   const [, , addedMin, planMin, without, shards] = note.map(Number);
-  const shardJobs = jobs.filter((j) => /^E2E \d+\/\d+/.test(j.name) && j.started_at && j.completed_at);
-  const parts = shardJobs.map((j) => {
-    const step = (j.steps ?? []).find((s) => s.name === 'E2E shard' && s.started_at && s.completed_at);
-    const job = minutes(j.started_at, j.completed_at);
-    const test = step ? minutes(step.started_at, step.completed_at) : 0;
-    return { job, test, setup: job - test };
-  });
-  const report = jobs.find((j) => j.name === 'Combined E2E report' && j.started_at && j.completed_at);
   const share = planMin > 0 ? addedMin / planMin : 0;
-  const test = parts.reduce((s, p) => s + p.test, 0) * share;
-  const setup = Math.max(0, shards - without) * median(parts.map((p) => p.setup));
-  const rep = without === 0 && report ? minutes(report.started_at, report.completed_at) : 0;
-  return { id: run.id, event: run.event, added: Number(note[1]), shards, without, minutes: Number((test + setup + rep).toFixed(2)) };
+  const ran = (j) => j.started_at && j.completed_at;
+  let total = 0;
+  const attempts = [...new Set(jobs.map((j) => j.run_attempt ?? 1))];
+  for (const attempt of attempts) {
+    const mine = jobs.filter((j) => (j.run_attempt ?? 1) === attempt && ran(j));
+    const parts = mine.filter((j) => /^E2E \d+\/\d+/.test(j.name)).map((j) => {
+      const step = (j.steps ?? []).find((s) => s.name === 'E2E shard' && ran(s));
+      const job = minutes(j.started_at, j.completed_at);
+      const test = step ? minutes(step.started_at, step.completed_at) : 0;
+      return { test, setup: job - test };
+    });
+    // The extra shards' setup, in proportion to the shards this attempt really ran.
+    const setup = parts.length && shards > 0 ? Math.max(0, shards - without) * median(parts.map((p) => p.setup)) * (parts.length / shards) : 0;
+    const test = parts.reduce((sum, p) => sum + p.test, 0) * share;
+    const report = mine.find((j) => j.name === 'Combined E2E report');
+    const rep = without === 0 && report ? minutes(report.started_at, report.completed_at) : 0;
+    total += test + setup + rep;
+  }
+  return { id: run.id, event: run.event, added: Number(note[1]), shards, without, attempts: attempts.length, minutes: Number(total.toFixed(2)) };
 }
 
 const result = { since: SINCE, ceiling: CEILING, complete: false, calls: 0, changes: [] };
