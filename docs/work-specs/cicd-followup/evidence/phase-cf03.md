@@ -298,7 +298,9 @@ production config, run by deploy-verify.yml, ends M3), and their
 closure also follows the reporter and global-setup paths they name as strings (so
 `scripts/e2e-workers.mjs`, `e2e/_offline-guard.ts` and `e2e/catalog/_bench-scope.mjs` are in it).
 A change to the command of any package.json entry a runner reaches that way ends that runner's
-sides too. "Any module it imports" is that script's import
+sides too. A package a runner installs or runs with `npm --prefix <dir>` (the CLI package, built
+and tested in the Build job) is followed the same way: its entries' scripts are roots, and a change
+to its `package.json`, `package-lock.json` or `tsconfig*.json` ends that runner's sides. "Any module it imports" is that script's import
 closure (static and dynamic relative imports, followed until nothing new is found). The metrics and
 groups follow from who runs the file:
 
@@ -309,7 +311,7 @@ groups follow from who runs the file:
 | configured-suite.yml, `.github/actions/configured-stack/`, `playwright.live.config.ts`, `supabase/config.toml` | M1 (`+cfg`), M3 (all) | as shown |
 | any other `.github/actions/` action | M1, M2, M3 | all |
 | post-land.yml, quarantine.yml, deploy-verify.yml | M3 | all |
-| `package-lock.json`, a dependency version or the `build` script in package.json, the build's configs (`eslint.config.js`, `tsconfig*.json`, `vite.config.ts`, `.dependency-cruiser.cjs`) | M1, M2, M3 | all |
+| `package-lock.json` (and `cli/package-lock.json`, `cli/package.json`, `cli/tsconfig*.json`), a dependency version or the `build` script in package.json, the build's configs (`eslint.config.js`, `tsconfig*.json`, `vite.config.ts`, `.dependency-cruiser.cjs`) | M1, M2, M3 | all |
 | `scripts/e2e-durations.json`, `playwright.config.ts` | M1, M2, M3 | all |
 | `playwright.catalog.config.ts` | M1, M2, M3 | `small`, `cap` and their `+cfg` |
 | a script in the import closure of a script or Playwright config ci.yml runs (catalog config: the sharded groups; live config: M1 for `+cfg`, M3 for all), or a reached package.json entry's command | M1, M2, M3 | all; for a `scripts/catalog-*` root only the sharded groups (`e2e-run-integrity` counts for all: the configured jobs and every offline Playwright run use it as their reporter); for a `scripts/configured-*` root M1 for `+cfg` and M3 for all |
@@ -334,11 +336,12 @@ libraries; a landing that touches one of them ends sides even when it cannot cha
 That is the intended side of the error: a side that ends early is recorded as unmeasured, never a
 wrong comparison.
 
-Applied to the window, the rule ends sides at 25 merges:
+Applied to the window, the rule ends sides at 30 merges:
 on B #1658 and #1766 (post-land scripts, M3 only), #1675 and #1816 (configured-suite.yml: M1 of
 `+cfg`, M3 of all), #1683 (ci.yml and deploy-verify.yml), #1687 (a library every CI script
 imports), #1724 (dependency-cruiser config, production-pack build step), #1756, #1804, #1589,
-#1837, #1838, #1841 (dependencies); on D #1854 (ci03), #1861 (ci04), #1866 (ci05), #1872 (ci06),
+#1837, #1838, #1841 (dependencies), #1581, #1836, #1839 (the CLI package's dependencies),
+#1661 and #1665 (the CLI package's manifest and build scripts); on D #1854 (ci03), #1861 (ci04), #1866 (ci05), #1872 (ci06),
 #1880 (ci18), #1896 (ci07), #1922 (ci11), #1927 (ci12); on A #1970 (cf01),
 #1998 (cf08: the catalog bench's scope reporter, sharded groups), #2012 (the capacity code the
 planner imports) and #2014 (cf04). ci01, ci02, ci08, ci09, ci10, ci13
@@ -353,7 +356,7 @@ on its before side, counted from there, before its candidate lands (for example 
 for M1); the baseline sides here are not its before side.
 
 **How often a side ends.** The rule is wide on purpose, so sides are short. On B a side-ending
-landing came about every 13 hours (13 in 7 days, 6 of them dependency bumps). For `cap+cfg` M1
+landing came about every 9 hours (18 in 7 days, 9 of them dependency bumps). For `cap+cfg` M1
 since ci06, the stretches between them held 5, 3, 3, 1, 9, 7 and 3 merges (none yet after cf04), and none
 reached the minimum of 10. `cap+cfg` merges arrive at about 0.5 an hour, so 10 need about 20 hours
 with no side-ending landing. cf13 should land a candidate only once its before side has the

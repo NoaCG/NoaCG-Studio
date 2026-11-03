@@ -82,6 +82,19 @@ function rootsOf(sha, runner) {
     }
   }
   const roots = new Set(texts.flatMap((t) => [...t.matchAll(SCRIPT_REF)].map((m) => m[0])).filter(notTest));
+  // A package installed or run with `npm --prefix <dir>` (the CLI package the Build step builds and
+  // tests): its package.json entries are followed the same way, and their script paths are under <dir>.
+  const prefixes = new Set();
+  for (const t of texts) for (const m of t.matchAll(/npm --prefix\s+([\w./-]+)/g)) prefixes.add(m[1].replace(/\/$/, ''));
+  for (const dir of prefixes) {
+    const sub = JSON.parse(show(sha, `${dir}/package.json`) ?? '{"scripts":{}}').scripts ?? {};
+    for (const t of texts) {
+      for (const m of t.matchAll(new RegExp(`npm --prefix\\s+${dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\/?\\s+(?:run(?:-script)?\\s+([\\w:.-]+)|(test)|(ci|install))`, 'g'))) {
+        const names = m[1] ? [m[1]] : m[2] ? ['test'] : ['preinstall', 'install', 'postinstall', 'prepare'];
+        for (const n of names) for (const r of [...(sub[n] ?? '').matchAll(SCRIPT_REF)]) if (notTest(r[0])) roots.add(`${dir}/${r[0]}`);
+      }
+    }
+  }
   // The Playwright configs the runner's texts use are roots too: their imports and the reporter and
   // global-setup paths they name pick workers, reporters and setup for every shard.
   // Any `playwright*.config.ts` the texts name, plus the default config when `playwright test` runs
@@ -90,7 +103,7 @@ function rootsOf(sha, runner) {
     for (const m of t.matchAll(/\bplaywright[\w.-]*\.config\.ts\b/g)) roots.add(m[0]);
     if (/\bplaywright test\b(?![^\n]*--config)/.test(t)) roots.add('playwright.config.ts');
   }
-  return { roots, names: seenNames };
+  return { roots, names: seenNames, prefixes };
 }
 // The import closure of a set of scripts: static and dynamic relative imports, resolved in the tree.
 function closure(sha, roots) {
@@ -118,8 +131,8 @@ const closureCache = new Map();
 function runnerClosures(sha) {
   if (!closureCache.has(sha)) {
     closureCache.set(sha, RUNNERS.map((r) => {
-      const { roots, names } = rootsOf(sha, r.file);
-      return { runner: r, names, perRoot: [...roots].map((root) => ({ root, files: closure(sha, [root]) })) };
+      const { roots, names, prefixes } = rootsOf(sha, r.file);
+      return { runner: r, names, prefixes, perRoot: [...roots].map((root) => ({ root, files: closure(sha, [root]) })) };
     }));
   }
   return closureCache.get(sha);
@@ -140,6 +153,15 @@ function matchedEntries(sha, files, ci) {
     else if (f === 'scripts/e2e-durations.json' || f === 'playwright.config.ts') add(`${f} (shard packing, offline E2E config)`, { metrics: ['m1', 'm2', 'm3'], groups: ALL });
     else if (f === 'playwright.catalog.config.ts') add(`${f}`, { metrics: ['m1', 'm2', 'm3'], groups: SHARDED });
     else if (f === 'playwright.live.config.ts' || f === 'supabase/config.toml') add(`${f}`, { metrics: ['m1', 'm3'], groups: CFG, alsoM3All: true });
+  }
+  // A prefixed package's manifest, lockfile or TypeScript config (its dependencies and toolchain).
+  for (const sideSha of [sha, `${sha}^1`]) {
+    for (const { runner, prefixes } of runnerClosures(sideSha)) {
+      for (const dir of prefixes) {
+        const hit = files.find((f) => f === `${dir}/package.json` || f === `${dir}/package-lock.json` || new RegExp(`^${dir}/tsconfig[^/]*\\.json$`).test(f));
+        if (hit && !out.some((e) => e.file === hit)) add(`${hit} (a package ${runner.file.split('/').pop()} installs and builds)`, { metrics: runner.metrics, groups: runner.groups, alsoM3All: runner.alsoM3All, file: hit });
+      }
+    }
   }
   // A package.json script entry a runner reaches (`npm run`, install hooks) whose command changed.
   if (files.includes('package.json')) {
