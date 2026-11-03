@@ -100,6 +100,33 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
    question: judge by layout, names can be generic or misleading). Six batches, 18 attempts, no
    suspension. Balance 6.931347910 to 6.928781674; settled $0.002566236 (priced maximum
    $0.007961). Fee again $0.000225 per batch.
+6. **Full development comparison**, run `41621970771`, configuration `a41861d2` (prompts.json
+   SHA-256 `b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7`, the committed
+   file), all five arms plus the 51-file slice. 37 batches (ledger indexes 18 to 54), 122
+   attempts against 244 planned (no retries), no suspension, harness step 12 minutes 15 seconds.
+   Balance 6.928781674 to 6.907668391; settled $0.021113283 against a priced maximum of $0.2271.
+
+   | arm | batches | attempts | reported | settled | largest share of its priced maximum |
+   | --- | --- | --- | --- | --- | --- |
+   | jev-structured | 6 | 18 | 0.001089 | 0.002439 | 43% |
+   | elephant | 6 | 18 | 0.000882 | 0.002232 | 48% |
+   | haiku | 6 | 18 | 0.008330 | 0.009680 | 12% |
+   | gemini-vision | 18 | 18 | 0 | 0 | 0% (all refused, below) |
+   | jev-structured, 51-file slice | 1 | 50 | 0.003013 | 0.006763 | 40% |
+
+   Jev's costs and token counts repeat tune 1's run (run 4) exactly, batch for batch, so it was
+   sent the same input; its answers did not repeat (below). The fixed $0.000075 per request shows on every arm that was
+   served (Elephant and Haiku too, and 50 times on the slice), so it is a gateway fee per request,
+   not a `/v1/evaluate` one (#2015).
+
+   **Every Gemini vision request was refused** (`provider_rejected`, one attempt each, nothing
+   billed), so every image row fell back to the deterministic proposal and scores the same as
+   it. The harness records no HTTP status or error body for a refusal, so the cause cannot be
+   read from the run. A fix is harness or route code, not configuration, so this row cannot make
+   it (see Open points).
+
+   Regression slice: 50 of 51 read (`geometry-unescaped-ampersand` refused by the importer, as
+   in row 32); deterministic matches the sidecar's text-field count on 50 of 50, Jev on 41 of 50.
 
 Indicative development result for the primary against deterministic (18 designs; corrections
 plus decisions / consequential errors, summed; strata with a consequential increase):
@@ -109,6 +136,26 @@ plus decisions / consequential errors, summed; strata with a consequential incre
 | row 32 prompts (run 3) | 53 / 19 | 65 / 25 | lower third, scoreboard, quiz, credits |
 | tune 1 (run 4) | 53 / 19 | 65 / 20 | quiz |
 | tune 2 (run 5) | 53 / 19 | 61 / 20 | scoreboard, quiz |
+
+Full comparison (run 6, tune 1), all arms, same measure:
+
+| arm | corrections + decisions | consequential | strata with a consequential increase |
+| --- | --- | --- | --- |
+| deterministic | 53 | 19 | (baseline) |
+| jev-structured (primary) | 67 | 20 | lower third, quiz |
+| elephant | 60 | 15 | none |
+| haiku | 45 | 9 | none |
+| gemini-vision | 53 | 19 | none (every request refused, so these are deterministic's) |
+
+Indicative only, on 18 development designs used for tuning; the verdict belongs to row 34.
+
+**Jev is not repeatable at this threshold.** Runs 4 and 6 sent Jev byte-identical input (equal
+token counts on every design), yet its decisions differ on 6 of the 18 designs (lower-third-2,
+scoreboard-2, scoreboard-3, credits-3, score-clock-1, score-clock-3): a few probabilities sit
+near 0.5. Run 4 totalled 65 / 20 with quiz worse; run 6 totals 67 / 20 with lower third and quiz
+worse. So the differences between the three prompt versions are within one run's noise, and
+the choice of tune 1 rests on the pre-written rule, not on a measured improvement. Row 34's
+single holdout run carries the same noise; its report should say so.
 
 By the rule above, **tune 1 is chosen** (one stratum worse against two). Its questions go into
 the committed `prompts.json` with all five arms (behaviour questions changed, field question,
