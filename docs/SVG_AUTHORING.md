@@ -627,7 +627,7 @@ special names are needed: pick the layer in the Fields step. See section 9 below
 | Layer | Name it | What it is |
 |---|---|---|
 | credits | `Credits` | the layer the credits are read from: a role or a name, when each role and each name is its own text layer, or one text object holding every line, which scrolls as fixed artwork |
-| credits box | `Credits box` | a window used only by credits saved before; new imports use the whole frame and need no box |
+| credits box | `Credits box` | a window used only by credits saved by an earlier version; new imports use the whole frame and need no box |
 
 `Credit list`, `End credits`, `Lopputekstit`, `Eftertexter` work as well as `Credits`; `Credits panel`, `Credits window`, `Lopputekstit laatikko` work as well as `Credits box`.
 

@@ -236,11 +236,10 @@ test('the credits examples are the fixed-artwork case the docs say they are', as
   const role = ctx.words.credits.roles.find((r) => r.id === 'credits');
   const taught = ctx.system.simpleTypes.find((t) => t.type === 'credits').fields.filter((f) => matchesRole(role, f));
   assert.deepEqual(taught, ['Credits'], 'the one credits field the system teaches is the one the importer reads');
-  const texts = (el) => (el.tag === 'text' ? [el] : el.children.flatMap(texts));
-  const baselines = (el) => new Set([el, ...el.children.flatMap(function all(c) { return [c, ...c.children.flatMap(all)]; })]
-    .map((n) => n.attrs.y).filter((y) => y !== undefined)).size;
+  const all = (el) => [el, ...el.children.flatMap(all)];
+  const baselines = (el) => new Set(all(el).map((n) => n.attrs.y).filter((y) => y !== undefined)).size;
   for (const file of ['public/docs/examples/end-credits.svg', 'docs/tutorials/svg-examples/SVG/end-credits.svg']) {
-    const named = texts(parseSvg(readFileSync(path.join(ROOT, file), 'utf8'))).filter((t) => layerName(t) === 'Credits');
+    const named = all(parseSvg(readFileSync(path.join(ROOT, file), 'utf8'))).filter((t) => t.tag === 'text' && layerName(t) === 'Credits');
     assert.equal(named.length, 1, `${file} has one Credits text`);
     assert.ok(baselines(named[0]) > 1, `${file}: its Credits text draws several lines, so it scrolls as fixed artwork`);
   }

@@ -973,7 +973,7 @@
           "Credits window",
           "Lopputekstit laatikko"
         ],
-        "what": "a window used only by credits saved before; new imports use the whole frame and need no box"
+        "what": "a window used only by credits saved by an earlier version; new imports use the whole frame and need no box"
       }
     ]
   }
