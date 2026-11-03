@@ -14,8 +14,9 @@
 #
 # The script gets `--minutes <n>` and writes whatever it wants kept to `endurance-output/`, which
 # is uploaded as an artifact even when the run fails. With `local-supabase` on, the local stack is
-# started as configured-suite.yml starts it; the script reads its identity with
-# `supabase status -o json` itself.
+# started as configured-suite.yml starts it (scripts/configured-stack.mjs, which exports
+# SUPABASE_WORKDIR); the script reads its identity with `supabase status -o json` itself, and the
+# stack is taken down and proved gone after the run, a failure or a cancellation.
 
 name: endurance
 
@@ -89,17 +90,22 @@ jobs:
         with:
           version: 2.111.0
 
+      # Allocated, started and checked as the configured jobs do it (scripts/configured-stack.mjs).
       - name: Start the local Supabase stack
         if: inputs.local-supabase
-        run: |
-          set -euo pipefail
-          supabase start -x studio,edge-runtime
+        run: node scripts/configured-stack.mjs up --exclude studio,edge-runtime
 
       - name: Run
         env:
           SCRIPT: ${{ inputs.script }}
           MINUTES: ${{ inputs.minutes }}
         run: npm run "$SCRIPT" -- --minutes "$MINUTES"
+
+      # After a failure or a cancellation too: stop this job's stacks and prove nothing is left of it
+      # (no container, volume, network or process of it, no port of its block held). cf04.
+      - name: Take the local stack down and prove it gone
+        if: always()
+        run: '[ ! -f scripts/configured-stack.mjs ] || node scripts/configured-stack.mjs down'
 
       - name: Keep the receipts
         if: always()
