@@ -259,6 +259,8 @@ export function landingDispatched({ workflows = {}, read = () => null, procedure
           if (!seen.has(p)) { seen.add(p); stack.push(p); }
         }
       }
+      // A procedure step is one instruction, however its lines wrap.
+      if (root.startsWith('procedure:')) lines.push(rootText);
       out.push(lines.join('\n'));
     }
     return out;

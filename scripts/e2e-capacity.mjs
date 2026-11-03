@@ -318,8 +318,8 @@ function workflowsOnDisk(root) {
 
 const gitShow = (rev, file, cwd = ROOT) => { try { return execFileSync('git', ['show', `${rev}:${file}`], { cwd, encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
 
-/** What every landing follows, so a workflow it starts runs per landing (`/queue-merge`). */
-const LANDING_PROCEDURES = ['.agent-workflows/queue-merge.md'];
+/** What every landing follows (`/check`, `/verify`, `/queue-merge`), so a workflow it starts runs per landing. */
+const LANDING_PROCEDURES = ['.agent-workflows/queue-merge.md', '.agent-workflows/check.md', '.agent-workflows/verify.md'];
 
 /**
  * The repository as the dispatch search reads it (growth-controls.mjs landingDispatched): every

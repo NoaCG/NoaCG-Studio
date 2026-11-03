@@ -9,7 +9,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { EXCEPTION_MAX_DAYS, HARD_SHARE, MAIN_RUNNERS, WARN_SHARE, assess, capacityMinutes, exceptionFor, parseExceptions, repoView, summarize } from './e2e-capacity.mjs';
-import { priceAdditions } from './growth-controls.mjs';
+import { landingDispatched, priceAdditions } from './growth-controls.mjs';
 import CEILINGS from './growth-ceilings.json' with { type: 'json' };
 
 // A table whose budget is easy to reason about: jobMinutes 0.42 and testFactor 1.01 give
@@ -123,4 +123,12 @@ test('the repository view reads the base from git and the head from disk, so a n
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('on this repository, the landing procedure starts cloud-queue-merge.yml and nothing starts alarm-test.yml', () => {
+  // Pins the one real route the dispatch search exists for (#2011): an edit that re-wraps or moves
+  // the landing procedure's dispatch step must not make cloud-queue-merge.yml free.
+  const started = landingDispatched(repoView('HEAD').head, CEILINGS.estimates);
+  assert.ok(started.has('cloud-queue-merge.yml'), 'the landing procedure dispatches cloud-queue-merge.yml');
+  assert.equal(started.has('alarm-test.yml'), false, 'alarm-test.yml runs only when a person asks');
 });

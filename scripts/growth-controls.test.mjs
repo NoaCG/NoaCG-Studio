@@ -526,6 +526,8 @@ test('(b) the dispatch search follows what a landing runs and names only what it
   const proc = (md) => [...landingDispatched({ workflows: { 'm.yml': manual }, read: (f) => (f === 'land.md' ? md : null), procedures: ['land.md'] }, e)].includes('m.yml');
   assert.ok(proc('# Land\n\n- Dispatch with `gh workflow run m.yml --ref main`.\n'), 'a step of the landing procedure');
   assert.equal(proc('# Land\n\n- m.yml is for people, never for a landing.\n- Then `gh workflow run other.yml`.\n'), false, 'a mention in another step');
+  const wrapped = [...landingDispatched({ workflows: { 'm.yml': manual }, read: (f) => ({ 'land.md': '3. Otherwise dispatch it with\n   `node scripts/d.mjs -- workflow run\n   m.yml --ref main`.\n', 'scripts/d.mjs': "execFileSync('gh', process.argv.slice(3));\nconst url = 'actions/workflows/x/dispatches';\n" })[f] ?? null, procedures: ['land.md'] }, e)];
+  assert.ok(wrapped.includes('m.yml'), 'a step wrapped over several lines');
   // Past the limit it cannot tell, so everything counts as started.
   assert.ok(starts({ 'ci.yml': ci('run: node scripts/a.mjs && node scripts/b.mjs && node scripts/c.mjs') }, {}, { limit: 2 }));
   // An untouched manual workflow that this change makes a landing start is priced.
