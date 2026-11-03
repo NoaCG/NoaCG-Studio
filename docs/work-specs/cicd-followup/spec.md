@@ -110,7 +110,8 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   M1, M2 and M3, the run-to-run spread on comparable changes and the minimum sample size per side
   for a before/after comparison, each derived from the history with the method stated. cf13 uses
   these values unchanged. It also states the rule for grouping comparable changes (for example by
-  changed-path class and selected shard count). cf13 and cf20 use this rule, the spread and the
+  changed-path class and selected shard count), and which CI landings affect M1, M2 or M3 for a
+  group; only those end a cf13 before or after side. cf13 and cf20 use this rule, the spread and the
   minimum sample sizes unchanged.
 - **cf04.** (a) Concurrent configured stacks are isolated, with safe port allocation, readiness
   checks and cleanup on failure or cancellation, and the collision cause is diagnosed. (b)
@@ -192,14 +193,15 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   sufficient, show M1 median or p95 lower or M3 lower beyond cf03's measured run-to-run spread, with
   no regression in M2 waiting time, M2 execution time or M4. The before side of each comparison is
   the merges after the last earlier landing that changed CI (this run's or any other: workflows, e2e selection
-  or quarantine scripts, `covers` metadata) landed and before the candidate lands;
+  or quarantine scripts, `covers` metadata) and that cf03's rule says affects the compared group
+  landed and before the candidate lands;
   cf03's baseline is not the before side. The after side is the merges after the candidate lands
-  and before the next landing that changes CI. If either side cannot reach cf03's minimum sample
+  and before the next landing that changes CI and that cf03's rule says affects the compared group. If either side cannot reach cf03's minimum sample
   size within 7 days of the candidate's start, the candidate is recorded as unmeasured with the
   sample sizes it reached, counts toward the three, and goes to cf20(c). If no candidate improves beyond that spread, the phase records the result,
   reverts or keeps the change on cost grounds with its reason, and moves to the next ranked
   candidate. Candidates are tried in ranked order, at most three; untried candidates go to cf20(c)
-  as measured next steps. It does not PASS on landing alone. If every tried candidate (at most three) has failed to show an
+  as measured next steps. It does not PASS on landing alone. If every tried candidate (at most three) is unmeasured or has failed to show an
   improvement beyond the spread, the phase PASSES with that negative result recorded, the speed goal
   stays open, and cf20 reports it as open. (b) Obsolete PR runs are
   cancelled where safe: Actions history after the change shows superseded PR runs cancelled and no
