@@ -258,8 +258,8 @@ A graphic can carry behaviour the operator drives live, with real buttons on the
 There are thirteen: a **quiz**, a **score tracker**, a **live vote**, a **countdown**, a
 **meter**, an **alert**, a **survey board**, a **stepped list**, a **lineup**, a **puzzle board**,
 a **reveal**, a **bingo caller** and a **credits roll**. A **clock** can sit beside any one of
-them. You draw what each moment looks like; NoaCG decides when each one is on. Your artwork is
-never redrawn.
+them except the countdown. You draw what each moment looks like; NoaCG decides when each one
+is on. Your artwork is never redrawn.
 
 **The three rules that apply to all of them:**
 
