@@ -46,7 +46,12 @@ and the exact base and head SHAs. It picks its own probes.
   Fix related confirmed findings together, run the focused checks, push one coherent checkpoint,
   then make one request for the new head. Keep committing and pushing your branch as backup, but
   skip the full configured dispatch on a head you know needs another repair. A new head voids a
-  clean verdict on an older one.
+  clean verdict on an older one; Narrow delta below is the one narrower re-review.
+- **Spend a review only on a head that will stand.** Before a `/so` on a diff that adds an E2E spec
+  or edits `scripts/growth-ceilings.json`, run the capacity check as CI does:
+  `node scripts/growth-report.mjs fetch --out <file>`, then
+  `node scripts/e2e-capacity.mjs --changed origin/main --growth <file>`. Leave a running reviewer
+  alone until a new head is actually pushed; an interrupted one does not resume.
 - **Repair limits are those of queue-merge and plan-run, unchanged.** Nothing here adds an
   attempt or lets a finding go unfixed.
 - **The reply to each confirmed round** names its family (the rule it breaks) and class: product
@@ -55,6 +60,7 @@ and the exact base and head SHAs. It picks its own probes.
 | Scenario | When | What to do |
 | --- | --- | --- |
 | Ordinary | copy, docs, contained logic or tooling that sets or changes no state rule | Nothing extra: `/check`, the Codex review, a fresh `/so` on the final diff. |
+| Narrow delta | a finished `/so` met the grade on an earlier head of this PR, that head is an ancestor of the new one, and every commit since touches only the phase's notes or evidence, or adds a reviewed exception entry to `scripts/growth-ceilings.json` | A fresh read-only `/so` on `git diff <assessed head>..<new head>` alone, given the earlier verdict and its head. It confirms the entry matches its recorded review and the notes match the evidence, and goes back to a full `/so` if it finds any effect beyond them. Any other file, a rebase or a merge from main means a full `/so`. `/check`, CI and the Codex request for the new head stay as they are. |
 | Risky | the change sets or changes state rules: ownership; attempted, accepted and observed operations; unknown outcomes; other tabs or writers; revision-to-content identity; retries; reload and recovery | Before coding, write those rules as observable lines in the phase notes and push them; the PR description repeats them under **Rules**. A fresh read-only `/so` challenges the Rules before any code. When the transitions are the feature, test them against a small reference model or oracle derived from the Rules, never one that repeats the production algorithm. A finding that exposes a product decision the spec never made goes to the coordinator before any patch. Later, list rules found after coding apart from those stated before. |
 | Repeated family | two successive confirmed rounds (any reviewer) find variants of one missing rule | Stop patching. A fresh reassessment of the rule model, given the Rules and both findings, comes first: a read-only `/so`, or plan-run's diagnose agent when the rounds are failed checks. Correct the model, then repair if an attempt remains. A warning, not an extra attempt: later findings still count. |
 | Stalled | a request still outstanding 30 minutes after it was made (plan-run's idle threshold), or a reviewer session idle that long | Never clean, and no second request on that head. Report the gate pending in your receipt with its request time and head, and stop as for any pending gate. The coordinator treats it as a review-service wait that spends no attempt: it says on the PR that the request is stalled, which ends it as the outstanding one, then makes one new request or starts a fresh reviewer. No stamp until a real result. |
