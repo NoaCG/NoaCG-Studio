@@ -27,14 +27,20 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 29 builder session_017SdbwNy4Luk1xPXbZcVHEA",
+  "waitingOn": "PR #1996 in merge queue",
   "inFlight": [
     {
       "phase": 29,
-      "role": "build",
-      "session": "session_017SdbwNy4Luk1xPXbZcVHEA",
-      "nonce": "29-b-c87f",
-      "branch": "claude/plan-jev-svg-import-29-build"
+      "pr": 1996,
+      "head": "fa6d1175b70ed1a5ee042605325d10a6fa175aba",
+      "stampRun": 41568692525,
+      "ciRun": 41567837611,
+      "so": "session_017SdbwLYB5i6mmQbBAWoA1Z A",
+      "soOther": [
+        "session_017SdbwR22kWehQUJbnJoab6",
+        "session_017SdbwR3jBipuFcw1hsBtb9"
+      ],
+      "builder": "session_017SdbwNy4Luk1xPXbZcVHEA"
     }
   ],
   "owner": [],
@@ -243,6 +249,11 @@
     {
       "at": "2026-11-03T02:41Z",
       "note": "cicd cf08 asked JEV to own #1954 and #1926: declined (no row allowlist covers import-svg.spec.ts growth limit or catalog-bench/svg01). Told cf08 our open and planned files."
+    },
+    {
+      "phase": 29,
+      "at": "2026-11-03T02:55Z",
+      "note": "#1886 re-scoped to protocol 1 outputs (fallback without 0071); kept open; comment 6594225312."
     }
   ],
   "ownerOpen": [
