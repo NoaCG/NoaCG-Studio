@@ -372,7 +372,7 @@ test('an imported clock made by the import road starts, holds, takes a correctio
   expect(await act(page, 'down', 'dispose')).toEqual({ statusCode: 200 });
 });
 
-test('imported credits made by the import road roll, take a new list and change cards on Next card in an OGraf host', async ({ page }) => {
+test('imported credits made by the import road roll, take a new list on the next Take and change cards on Next card in an OGraf host', async ({ page }) => {
   const credits = (playback: 'roll' | 'cards') => async () => {
     await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
     const picker = page.getByTestId('map-svg-recipe-credits');
@@ -405,7 +405,7 @@ test('imported credits made by the import road roll, take a new list and change 
   expect(await rows('cards'), 'the last card holds').toEqual(['Sound', 'Ari Moss']);
 
   // ROLL: the list moves up through the frame on the renderer's clock, and a new list sent on
-  // air is the list that rolls.
+  // air is the list the next Take rolls.
   expect(await act(page, 'roll', 'load')).toEqual({ statusCode: 200 });
   expect(await act(page, 'roll', 'playAction')).toMatchObject({ statusCode: 200 });
   const top = () => page.evaluate(() => graphicBody(document.querySelector('[data-key="roll"]')!).querySelector('.imported-design-credits-rows')!.getBoundingClientRect().top);
@@ -414,6 +414,13 @@ test('imported credits made by the import road roll, take a new list and change 
   await page.clock.runFor(3_000);
   expect(await top(), 'the roll moves up').toBeLessThan(early - 10);
   expect(await act(page, 'roll', 'updateAction', { data: { [listField('roll')]: 'Director:\nAlex Rivera\nProducer:\nSam Chen' } })).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(2_000);
+  // A roll on air keeps the list it took (row 24); the new one rolls from the next Take.
+  const taken = ['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'];
+  expect(await rows('roll'), 'a list sent on air waits for the next Take').toEqual(taken);
+  expect(await act(page, 'roll', 'stopAction')).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(2_000);
+  expect(await act(page, 'roll', 'playAction')).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(2_000);
   expect(await rows('roll')).toEqual(['Director', 'Alex Rivera', 'Producer', 'Sam Chen']);
   expect(await act(page, 'roll', 'dispose')).toEqual({ statusCode: 200 });
