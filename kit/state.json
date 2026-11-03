@@ -36,7 +36,16 @@
       "nonce": "38-b-3586",
       "branch": "claude/plan-jev-svg-import-38-build",
       "source": "dce1ef71e546f5077ec5767176f99b0dccc5a6c7",
-      "startedAt": "2026-11-03T18:34:31Z"
+      "startedAt": "2026-11-03T18:34:31Z",
+      "pr": 2038,
+      "approvedDepartures": [
+        "spec.md budget-exception line WITHDRAWN: work-spec exceptions cover only the offline tier"
+      ],
+      "waiting": {
+        "on": "cicd-improvement run (session_017SdbwPphatUYXtpZ9CHkPu)",
+        "what": "backend-tier exception in scripts/growth-ceilings.json for e2e/configured/svg-import-journey.spec.ts, or a statement that the tier is closed until #1503",
+        "asked": "2026-11-03T19:18Z"
+      }
     }
   ],
   "owner": [],
