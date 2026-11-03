@@ -407,7 +407,16 @@ test('ci06: the configured jobs run on the planner flag and read no hosted secre
   const stack = readFileSync(new URL('../.github/actions/configured-stack/action.yml', import.meta.url), 'utf8');
   for (const must of [/schema_migrations/, /has_table_privilege/, /supabase_realtime/, /pg_default_acl/, /grant_type=password/, /version: 2\.111\.0/]) assert.match(stack, must);
   assert.doesNotMatch(stack, /secrets\./);
-  // #1865: the stack START is retried once, after a stop, and nothing else is: exactly two starts.
-  assert.equal(stack.match(/supabase start -x studio,edge-runtime/g).length, 2);
-  assert.match(stack, /supabase stop --no-backup \|\| true\n\s*supabase start -x studio,edge-runtime \|\| exit 1/);
+  // cf04 (#1865, #1829): the stack is started ONCE, on an allocated, reserved and checked slot, and
+  // never retried; the database container is this stack's, by its project label, not the first match.
+  assert.equal(stack.match(/node scripts\/configured-stack\.mjs up --exclude studio,edge-runtime/g).length, 1);
+  assert.doesNotMatch(stack, /^\s*[^#\s].*\bsupabase (start|stop)\b/m); // in a command, not a comment
+  assert.match(stack, /label=com\.supabase\.cli\.project=\$\{NOACG_STACK_PROJECT\}/);
+  // ...and every job that starts it takes it down after a failure or a cancellation too.
+  const teardown = /- name: Take the local stack down and prove it gone\n\s*if: always\(\)\n\s*run: '\[ ! -f scripts\/configured-stack\.mjs \] \|\| node scripts\/configured-stack\.mjs down'/;
+  assert.match(shards, teardown);
+  assert.match(suite, teardown);
+  assert.match(readFileSync(new URL('../.github/workflows/endurance.yml', import.meta.url), 'utf8'), teardown);
+  // ...after the tree-clean guard, so a cleanup failure cannot skip it.
+  assert.ok(shards.indexOf('name: Take the local stack down') > shards.indexOf('name: Tests left the tree clean'));
 });

@@ -5,7 +5,9 @@ description: >
   publication, and create and sign in the throwaway test accounts. One copy for both callers:
   configured-suite.yml (the full suite per landing, the schedule and dispatches) and ci.yml's
   selected configured job on pull requests (cicd-improvement ci06). The job sets E2E_EMAIL,
-  E2E_PASSWORD, E2E_TEAMMATE_EMAIL and E2E_TEAMMATE_PASSWORD; no hosted credential is read.
+  E2E_PASSWORD, E2E_TEAMMATE_EMAIL and E2E_TEAMMATE_PASSWORD; no hosted credential is read. The
+  job must also run `node scripts/configured-stack.mjs down` with `if: always()`, which takes the
+  stack down after a failure or a cancellation and proves nothing of it is left (cf04).
 
 runs:
   using: composite
@@ -36,23 +38,19 @@ runs:
     # src/control/hostedControl.ts subscribes to postgres_changes, and migration 0001 creates
     # the storage buckets. Nothing else is trimmed before the first run is measured.
     #
-    # ONE BOUNDED RETRY OF THE START, and of nothing else (#1865, #1829). Docker on a fresh runner
-    # sometimes fails to wire a container's ports ("failed to set up container networking",
-    # "port is already allocated") before any test runs. The half-started stack is stopped and
-    # started once more; a second failure fails the step. No test, shard or verdict is retried,
-    # and every assertion below still runs on whatever came up.
+    # ISOLATED, NOT RETRIED (cf04, #1865, #1829). The CLI's fixed ports (54320-54329) sit inside the
+    # kernel's ephemeral range, so an outbound connection made during the image pulls could take
+    # 54322 as its source port and Docker could not bind it; a retry three seconds later met the
+    # same socket. scripts/configured-stack.mjs claims a slot whose ten-port block it first
+    # reserves from autobind and then finds unused (a block in use is skipped, its holder printed,
+    # never killed), starts the stack from a copy of supabase/ with the slot's own project_id and
+    # ports, and checks it is ready. It exports SUPABASE_WORKDIR, so every later `supabase` call in
+    # the job reaches this stack. A failed start prints the ports' holders and fails. The job's
+    # `if: always()` step `configured-stack.mjs down` takes the stack down after a failure or a
+    # cancellation too, and proves no container, process or port is left.
     - name: Start the local Supabase stack
       shell: bash
-      run: |
-        set -uo pipefail
-        if ! supabase start -x studio,edge-runtime; then
-          echo "::warning title=Local stack start failed once::Stopping the half-started stack and starting it once more (#1865). A second failure fails this step."
-          docker ps -a --format '{{.Names}}\t{{.Status}}' || true
-          supabase stop --no-backup || true
-          supabase start -x studio,edge-runtime || exit 1
-        fi
-        echo "--- containers actually running ---"
-        docker ps --format '{{.Names}}\t{{.Image}}'
+      run: node scripts/configured-stack.mjs up --exclude studio,edge-runtime
 
     # Read the stack's identity MACHINE-READABLY. `-o env` is a trap: the CLI formats it with
     # godotenv (`%s="%s"`), and $GITHUB_ENV takes everything after `=` literally — so the quotes
@@ -101,14 +99,14 @@ runs:
     #
     # psql is reached through the database CONTAINER rather than the runner, so the client
     # matches the server and no undeclared ubuntu-latest package is relied on. The container is
-    # discovered rather than named: `supabase_db_<project_id>` is a CLI convention this repo
-    # does not own.
+    # discovered by this stack's project label rather than named: `supabase_db_<project_id>` is a
+    # CLI convention this repo does not own, and another stack on the host is not this one.
     - name: Assert the schema, its grants, and the realtime publication
       shell: bash
       run: |
         set -euo pipefail
-        db_container="$(docker ps --filter 'name=supabase_db' --format '{{.Names}}' | head -1)"
-        if [ -z "$db_container" ]; then
+        db_container="$(docker ps --filter "label=com.supabase.cli.project=${NOACG_STACK_PROJECT}" --filter 'name=supabase_db_' --format '{{.Names}}')"
+        if [ -z "$db_container" ] || [ "$(wc -l <<<"$db_container")" != 1 ]; then
           echo "::error title=No database container::Could not find the local Postgres container."
           docker ps --format '{{.Names}}'
           exit 1
