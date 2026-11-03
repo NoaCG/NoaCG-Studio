@@ -47,11 +47,12 @@
  "waitingOn": null,
  "inFlight": [
   {
-   "phase": "cf07",
-   "step": "check",
-   "session": "session_017SdbwPC5Bii1qTCUMsiLZG",
-   "nonce": "cf07-c-f174",
-   "launchedAt": "2026-11-03T01:24:43Z"
+   "phase": "cf09",
+   "step": "build",
+   "session": "session_017SdbwPigSBPx27nb386xa8",
+   "nonce": "cf09-b-ee77",
+   "launchedAt": "2026-11-03T01:42:04Z",
+   "due": "2026-11-13 / 2026-11-16"
   }
  ],
  "owner": [],
@@ -94,6 +95,11 @@
   {
    "fix": 1805,
    "early release": "#1992 merge cb0040f4; #1805 closed"
+  },
+  {
+   "phase": "cf07",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1990#issuecomment-6593173600"
   }
  ],
  "decisions": [
