@@ -325,8 +325,9 @@ test('an imported clock made by the import road starts, holds, takes a correctio
   expect(await act(page, 'up', 'playAction')).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(3_000);
   expect(await clockOf(page, 'up')).toBe('12:08');
+  // Half a second over each whole count: an event fires a frame after its call, as on any host.
   expect(await custom('up', 'clock_start')).toMatchObject({ statusCode: 200 });
-  await page.clock.runFor(3_000);
+  await page.clock.runFor(3_500);
   expect(await clockOf(page, 'up'), 'Start counts on the renderer\'s own clock').toBe('12:11');
   expect(await custom('up', 'clock_pause')).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(5_000);
@@ -336,7 +337,7 @@ test('an imported clock made by the import road starts, holds, takes a correctio
   await page.clock.runFor(1_000);
   expect(await clockOf(page, 'up')).toBe('5:00');
   await custom('up', 'clock_start');
-  await page.clock.runFor(2_000);
+  await page.clock.runFor(2_500);
   expect(await clockOf(page, 'up')).toBe('5:02');
   // A score sent while it runs leaves the clock alone.
   await act(page, 'up', 'updateAction', { data: { f1: 7 } });
@@ -354,7 +355,7 @@ test('an imported clock made by the import road starts, holds, takes a correctio
   await page.clock.runFor(2_000);
   expect(await clockOf(page, 'down'), 'off air it waits').toBe('12:08');
   expect(await act(page, 'down', 'playAction')).toMatchObject({ statusCode: 200 });
-  await page.clock.runFor(3_000);
+  await page.clock.runFor(3_500);
   expect(await clockOf(page, 'down')).toBe('12:05');
   await custom('down', 'clock_pause');
   await page.clock.runFor(4_000);
@@ -366,7 +367,7 @@ test('an imported clock made by the import road starts, holds, takes a correctio
   await act(page, 'down', 'stopAction');
   await page.clock.runFor(2_000);
   await act(page, 'down', 'playAction');
-  await page.clock.runFor(2_000);
+  await page.clock.runFor(2_500);
   expect(await clockOf(page, 'down')).toBe('12:06');
   expect(await act(page, 'down', 'dispose')).toEqual({ statusCode: 200 });
 });
@@ -382,13 +383,15 @@ test('imported credits made by the import road roll, take a new list and change 
   const roll = await imported(page, CREDITS_SVG, 'Host Roll', credits('roll'));
   const cards = await imported(page, CREDITS_SVG, 'Host Cards', credits('cards'));
   const packages = await openRenderer(page, { roll: { kind: 'made', template: roll }, cards: { kind: 'made', template: cards } });
-  const manifest = JSON.parse([...packages.get('cards')!].find(([name]) => name.endsWith('.ograf.json'))![1].toString('utf8')) as { customActions: Array<{ id: string }> };
-  expect(manifest.customActions.map((a) => a.id)).toEqual(['nextCard']);
+  const manifestOf = (key: string) => JSON.parse([...packages.get(key)!].find(([name]) => name.endsWith('.ograf.json'))![1].toString('utf8')) as { customActions?: Array<{ id: string }>; schema: { properties: Record<string, { default?: unknown }> } };
+  expect(manifestOf('cards').customActions!.map((a) => a.id)).toEqual(['nextCard']);
+  // The list's field, as an OGraf host reads it: the one whose default is the drawn list.
+  const listField = (key: string) => Object.entries(manifestOf(key).schema.properties).find(([, p]) => String(p.default ?? '').includes('Research'))![0];
   const rows = (key: string) => shown(page, key, '.imported-design-credits-row');
 
   // CARDS: the list arrives as data, the Take shows the first card, Next card the second, and
   // the last one holds.
-  expect(await act(page, 'cards', 'load', { data: { f1: 'Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss' }, renderType: 'realtime', renderCharacteristics: {} })).toEqual({ statusCode: 200 });
+  expect(await act(page, 'cards', 'load', { data: { [listField('cards')]: 'Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss' }, renderType: 'realtime', renderCharacteristics: {} })).toEqual({ statusCode: 200 });
   expect(await act(page, 'cards', 'playAction')).toMatchObject({ statusCode: 200 });
   await page.clock.runFor(2_000);
   expect(await rows('cards')).toEqual(['Research', 'Nia Vale', 'Tomas Fen']);
@@ -410,8 +413,8 @@ test('imported credits made by the import road roll, take a new list and change 
   const early = await top();
   await page.clock.runFor(3_000);
   expect(await top(), 'the roll moves up').toBeLessThan(early - 10);
-  expect(await act(page, 'roll', 'updateAction', { data: { f1: 'Director:\nAlex Rivera\nProducer:\nSam Chen' } })).toMatchObject({ statusCode: 200 });
-  await page.clock.runFor(500);
+  expect(await act(page, 'roll', 'updateAction', { data: { [listField('roll')]: 'Director:\nAlex Rivera\nProducer:\nSam Chen' } })).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(2_000);
   expect(await rows('roll')).toEqual(['Director', 'Alex Rivera', 'Producer', 'Sam Chen']);
   expect(await act(page, 'roll', 'dispose')).toEqual({ statusCode: 200 });
 });
