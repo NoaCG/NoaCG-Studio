@@ -77,6 +77,21 @@ Every run is a `workflow_dispatch` of `jev-svg-eval.yml` on main, dispatched by 
    `77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b` (229 files); Node v24.22.1,
    runner image 20261026.180.1. No batches. The run numbers 1 and 2 confirm GitHub numbers this
    workflow's runs in order (a row 32 Known limit).
+3. **First paid batch**, run `41620061986`, configuration `7671ef75` (deterministic and
+   `jev-structured` only, prompts as row 32), continuing ledger `41619730746`. Six batches of
+   three designs, 18 attempts (one per request, no retry), no suspension, about 2 minutes in all.
+
+   | batch | balance before | balance after | priced max | gateway-reported | settled |
+   | --- | --- | --- | --- | --- | --- |
+   | 0 | 6.936136654 | 6.935791744 | 0.000707952 | 0.000119910 | 0.000344910 |
+   | 1 | 6.935791744 | 6.935363044 | 0.001222788 | 0.000203700 | 0.000428700 |
+   | 2 | 6.935363044 | 6.935022418 | 0.000695604 | 0.000115626 | 0.000340626 |
+   | 3 | 6.935022418 | 6.934607788 | 0.001139544 | 0.000189630 | 0.000414630 |
+   | 4 | 6.934607788 | 6.934199878 | 0.001096536 | 0.000182910 | 0.000407910 |
+   | 5 | 6.934199878 | 6.933786886 | 0.001114764 | 0.000187992 | 0.000412992 |
+
+   Settled $0.002349768 (balance drop and lifetime-usage rise agree). Every settled cost is within
+   its priced maximum (the closest is 49% of it).
 
 ## Decisions
 
