@@ -152,9 +152,9 @@ function ss() {
   return r.out;
 }
 
-function claimedSlots() {
-  if (!existsSync(CLAIMS_ROOT)) return [];
-  return readdirSync(CLAIMS_ROOT).map((n) => /^slot-(\d+)$/.exec(n)).filter(Boolean).map((m) => Number(m[1]));
+function claimedSlots(root = CLAIMS_ROOT) {
+  if (!existsSync(root)) return [];
+  return readdirSync(root).map((n) => /^slot-(\d+)$/.exec(n)).filter(Boolean).map((m) => Number(m[1]));
 }
 
 /** Rewrite the reservation from the claims, serialised across stacks by flock(1). */
@@ -234,8 +234,15 @@ export function stackStatus(workdir) {
 }
 
 /** Every claim on the host with its state. */
-export function readClaims() {
-  return claimedSlots().map((s) => JSON.parse(readFileSync(join(CLAIMS_ROOT, `slot-${s}`, 'state.json'), 'utf8')));
+export function readClaims(root = CLAIMS_ROOT) {
+  return claimedSlots(root).flatMap((s) => {
+    try {
+      return [JSON.parse(readFileSync(join(root, `slot-${s}`, 'state.json'), 'utf8'))];
+    } catch (e) {
+      if (e.code === 'ENOENT') return []; // released by its own stack while this listed the slots
+      throw e;
+    }
+  });
 }
 
 /** One readiness check after `supabase start` returned. Throws with what is not ready. */
@@ -340,7 +347,12 @@ async function teardown(state) {
   console.log(stop.out.trim(), stop.err.trim());
   // What the CLI could not remove, removed by this project's label - never anything else.
   const label = `label=${PROJECT_LABEL}=${projectId}`;
-  const left = (kind) => run('docker', [kind, 'ls', ...(kind === 'container' ? ['-a'] : []), '-q', '--filter', label]).out.trim().split('\n').filter(Boolean);
+  // A query that fails proves nothing: it is a problem, so the claim is kept, never read as "none left".
+  const left = (kind) => {
+    const r = run('docker', [kind, 'ls', ...(kind === 'container' ? ['-a'] : []), '-q', '--filter', label]);
+    if (r.code !== 0) { problems.push(`docker ${kind} ls failed (${r.code}): ${r.err.trim()}`); return []; }
+    return r.out.trim().split('\n').filter(Boolean);
+  };
   for (const [kind, remove] of [['container', ['rm', '-f', '-v']], ['volume', ['volume', 'rm', '-f']], ['network', ['network', 'rm']]]) {
     const ids = left(kind);
     if (ids.length) run('docker', [...remove, ...ids]);
@@ -349,7 +361,9 @@ async function teardown(state) {
     const n = left(kind).length;
     if (n) problems.push(`${n} ${kind}(s) of ${projectId} remain`);
   }
-  const named = run('docker', ['ps', '-a', '--format', '{{.Names}}']).out.split('\n').filter((n) => n.endsWith(`_${projectId}`));
+  const all = run('docker', ['ps', '-a', '--format', '{{.Names}}']);
+  if (all.code !== 0) problems.push(`docker ps failed (${all.code}): ${all.err.trim()}`);
+  const named = all.out.split('\n').filter((n) => n.endsWith(`_${projectId}`));
   if (named.length) problems.push(`containers named for ${projectId} remain: ${named.join(', ')}`);
   const procs = ourProcesses(workdir);
   if (procs.length) problems.push(`processes of this stack remain: ${procs.join(', ')}`);

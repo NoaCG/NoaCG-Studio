@@ -1,8 +1,10 @@
 // The configured stack's allocation and isolation rules (cf04): pure parts, no Docker.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
-import { holding, isStackProcess, parseRanges, projectIdOf, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
+import { holding, isStackProcess, readClaims, parseRanges, projectIdOf, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
 
 test('slot 0 is the CLI default block and every slot block is disjoint', () => {
   const p = slotPorts(0);
@@ -93,4 +95,18 @@ test('only a supabase CLI process of this workdir is the stack\'s, not every pro
   assert.equal(isStackProcess('node\n', env(w), w), false);
   assert.equal(isStackProcess('supabase\n', env('/tmp/noacg-configured-stacks/slot-1'), w), false);
   assert.equal(isStackProcess('supabase\n', env(`${w}0`), w), false);
+});
+
+test('a claim released while the slots are listed is skipped, not fatal to another stack\'s teardown', () => {
+  const root = mkdtempSync(join(tmpdir(), 'cf04-claims-'));
+  try {
+    mkdirSync(join(root, 'slot-0'));
+    writeFileSync(join(root, 'slot-0', 'state.json'), JSON.stringify({ owner: 'a', slot: 0 }));
+    mkdirSync(join(root, 'slot-1')); // its state.json already gone: the claim is being released
+    mkdirSync(join(root, '.draft-1-2')); // a claim being written aside is not a claim
+    assert.deepEqual(readClaims(root), [{ owner: 'a', slot: 0 }]);
+    assert.deepEqual(readClaims(join(root, 'none')), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
