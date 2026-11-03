@@ -27,7 +27,7 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "row 33 freeze 41634756346, then PR",
+  "waitingOn": "row 33 PR",
   "inFlight": [
     {
       "phase": 33,
@@ -140,7 +140,14 @@
         "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
       },
       "spent": 0.030907239,
-      "attempts": 212
+      "attempts": 212,
+      "frozen": {
+        "config": "b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7",
+        "ref": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+        "manifest": "341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db",
+        "run": 41634756346,
+        "main": "4130a081f35f70e4d05dff3b314863127aec465b"
+      }
     }
   ],
   "owner": [],
@@ -409,6 +416,11 @@
       "phase": 33,
       "at": "2026-11-03T12:05Z",
       "note": "Image arm refused (HTTP 400, no code) after #2017 fix; chose B: freeze a41861d2 with the arm recorded as refused, a stated AC-7 gap; filed #2022 (P1) for the 400 and possible production impact. Did not read production data."
+    },
+    {
+      "phase": 33,
+      "at": "2026-11-03T12:27Z",
+      "note": "Approved beyond TOUCHES: scripts/jev-svg-eval.test.mjs (M1 by kind, C5 builds its own 4-challenger config; no assertion weakened; outside frozen manifest)."
     }
   ],
   "ownerOpen": [
