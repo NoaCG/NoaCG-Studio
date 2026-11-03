@@ -50,8 +50,23 @@
           "config": "3017a8a33f26afd9a4c703efac43e87946d8144e",
           "at": "2026-11-03T10:30Z",
           "paid": false
+        },
+        {
+          "run": 41620061986,
+          "mode": "development",
+          "config": "7671ef75314dee3bb6bfdf1ae8008061e34fa48b",
+          "receipts": 41619730746,
+          "pricedMax": 0.006,
+          "at": "2026-11-03T10:32Z",
+          "paid": true
         }
-      ]
+      ],
+      "baseline": {
+        "run": 41619730746,
+        "balance": 6.936136654,
+        "lifetime": 48.063863346,
+        "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
+      }
     }
   ],
   "owner": [],
