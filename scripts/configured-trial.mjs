@@ -104,9 +104,7 @@ export function trialVerdict(report, repeat) {
 async function main() {
   const { spec, repeat, minutes, offline, grep } = trialArgs(process.argv.slice(2));
   if (!existsSync(path.join(ROOT, spec))) throw new Error(`${spec} does not exist`);
-  const env = offline
-    ? { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(OUT, 'trial-report.json') }
-    : await configuredEnv();
+  const env = { ...(offline ? process.env : await configuredEnv()), PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(OUT, 'trial-report.json') };
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
   console.log(`Trial: ${spec}${grep ? ` (tests matching "${grep}")` : ''}, ${repeat} runs, retries off, within ${minutes} min.`);
@@ -159,7 +157,6 @@ async function configuredEnv() {
     SUPABASE_DB_URL: stack.DB_URL ?? '',
     E2E_EMAIL: 'e2e-trial@noacg.local',
     E2E_PASSWORD: 'noacg-e2e-local-pw',
-    PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(OUT, 'trial-report.json'),
   };
 
   // The account, made and proved by signing in, as the configured stack action does.
