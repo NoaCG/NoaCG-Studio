@@ -20,9 +20,20 @@ on a fresh branch from `origin/main`, through the merge queue:
 
 Tests and notes only; nothing persisted changes and there is no migration.
 
+> **Correction (row 40).** `8b5ca96f` below is the base this row tested on (row 38's merge), not
+> this row's own landing. Row 39 landed as main `2286c5c14c2301a7463570fe66fbc453fcf2f17b` (PR
+> #2044). Its push runs: CI
+> [41725517982](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41725517982), full, green on
+> attempt 2 after one re-run of E2E 1/15 for the #1750 flake (that spec went to quarantine from
+> this run); configured-suite
+> [41725517940](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41725517940); Quarantine
+> [41725517943](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41725517943); Post-landing
+> [41725517949](https://github.com/NoaCG/NoaCG-Studio/actions/runs/41725517949); all success. The
+> release kit (`phase-40.md`) cites those runs.
+
 ## The runs on the landing
 
-Every run GitHub made for the push of `8b5ca96f` to main, all `success`:
+Every run GitHub made for the push of `8b5ca96f` (the base) to main, all `success`:
 
 | Run | What it is | What it ran |
 | --- | --- | --- |
@@ -53,7 +64,7 @@ otherwise. Local runs are this worker's, through the job queue, on this branch.
 | **AC-14** "Sheet changes update declared imported credits, ticker and editable multiline-text fields through existing source/data bindings; adapter mapping, failure, empty data, pause/reconnect, closed-page delivery and each existing/selected playback update policy are proven. No AI per refresh." | `e2e/imported-credits-live-data.spec.ts` (refresh, empty and refill, failure and reconnect with no model request, each playback's policy; **new**: role beside in each playback), `e2e/imported-text-live-data.spec.ts`, `e2e/ticker-linked-update.spec.ts`, `e2e/production-data.spec.ts`; configured `production-data-key-tick.spec.ts` (every page closed), `production-data-key-sheet.spec.ts`; node `sheet-source`, `content-formats`, `imported-text-source`, `data-tick`, `ticker-speed`. | #1977 (a typed line break paints as a space). A drawn ticker gets no motion engine: unsupported moving artwork stays fixed (spec). |
 | **AC-15** "Layers remain editable fields and animation targets; verified-match IDs, keyframes, source bindings and controls survive save/reopen/reimport; unresolved work is protected." | `e2e/editor-fidelity-trim.spec.ts`, `e2e/import-svg-reimport.spec.ts`; configured `panel-graphic-actions.spec.ts` (a renamed control of a reimported score board); the row 38 journey's replacement walk. | #1982 (no layer of a graphic with a behaviour can be keyed), #1986, #1987. A moved or restyled layer is unresolved and saved as a separate graphic. |
 | **AC-16** "Generated packages pass existing isolated receiving-host tests; hosted clock recovery is distinguished from standalone capability and physical studio acceptance." | `e2e/ograf-lifecycle.spec.ts`, `e2e/spx-operator.spec.ts`, `e2e/ograf-parity.spec.ts` (full E2E); configured `scorebug-output.spec.ts` (hosted clock recovery on two outputs), `svg-import-journey.spec.ts` (an isolated output cut off and restarted). | Physical studio acceptance is not claimed (row 40 labels it). #1886 is a lower bound from one machine. |
-| **AC-17** "Model/network/quota failure and disabled Jev leave useful import and saved playout; prompt injection cannot alter allowed behavior or expose data." | `api/_lib/aiDecisionGateway.test.ts`, `api/_lib/aiTaskRegistry.test.ts` (Factory gates; locally `npm run test:ai-gateway`: 445 pass, 0 fail, 13 skipped); `e2e/jev-svg-preparation.spec.ts` ("with every AI route failing ..." and the route-off walk). | #2034 (P2): a failed settings or plan read lets image analysis ignore its kill switches. Described, not asserted. |
+| **AC-17** "Model/network/quota failure and disabled Jev leave useful import and saved playout; prompt injection cannot alter allowed behavior or expose data." | `api/_lib/aiDecisionGateway.test.ts`, `api/_lib/aiTaskRegistry.test.ts` (Build job, through `test:ai-gateway`, a `gate: build` script; corrected by row 40, it read Factory gates; locally `npm run test:ai-gateway`: 445 pass, 0 fail, 13 skipped); `e2e/jev-svg-preparation.spec.ts` ("with every AI route failing ..." and the route-off walk). | #2034 (P2): a failed settings or plan read lets image analysis ignore its kill switches. Described, not asserted. |
 
 Unqualified across the run, carried to row 40 as they stand: the image comparison was refused on
 every request (#2022), Jev with pixels was never run (#2006), and the three-notice-zones optional

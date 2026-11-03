@@ -225,6 +225,11 @@ Mutations, each caught:
 
 ## Decisions
 
+> **Superseded (recorded by row 40).** The fixed-artwork choice held back below now exists: PR
+> #1962 (merge `ca4d037d`, closes #1958) offers "Show as: Fixed artwork" for credits that can be
+> styled, and then the whole drawn block scrolls. This note stays true of phase 20 as it landed
+> (PR #1962's `/so` point 2).
+
 - **No deliberate fixed-artwork choice yet, a departure from the brief's wording.**
   - The owner's direction asked for fixed artwork as a choice in the Credits preview wherever
     styled credits are supported. That choice can only appear on a drawing of separate role and
