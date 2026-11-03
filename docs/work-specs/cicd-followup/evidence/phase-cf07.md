@@ -149,7 +149,7 @@ closes. Nothing in this PR closes it.
 
 ## Early release
 
-`e2e/configured/late-send-abandoned.spec.ts` leaves quarantine by hand in PR #PRNUM, by the route
+`e2e/configured/late-send-abandoned.spec.ts` leaves quarantine by hand in PR #1992, by the route
 `e2e/quarantine.json` documents for it ("edit by hand only to release early"). The edit is the one
 `node scripts/e2e-quarantine.mjs release <spec>` writes: the entry leaves `specs` and gets a
 `released` entry with its count (16) and today's date (2026-11-03).
