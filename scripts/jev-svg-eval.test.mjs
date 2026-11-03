@@ -727,17 +727,18 @@ test('M13: a paid run continues only the newest ledger; a lost run blocks paid w
   assert.deepEqual(checkChain(chain, { mode: 'reconcile', receiptsRunId: '8', freeze: true, ...at(10) }), ok());
   assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '8', freeze: true, ...at(10) }).reason, 'freeze-in-reconcile-only');
   assert.deepEqual(checkChain(chain, { mode: 'holdout', receiptsRunId: '8', ...at(10) }), ok());
-  // A run from another branch (an edited copy of the workflow) is outside the chain: its ledger,
-  // lost state or holdout step count for nothing, though its number still fills the sequence.
-  const forged = [run(10, 'reconcile', true, true, true, 'evil'), ...chain];
-  assert.deepEqual(checkChain(forged, { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
-  assert.equal(checkChain(forged, { mode: 'development', receiptsRunId: '10', ...at(11) }).reason, 'not-newest-ledger:8');
-  assert.deepEqual(checkChain(forged, { mode: 'holdout', receiptsRunId: '8', ...at(11) }), ok());
-  assert.deepEqual(checkChain([{ ...run(10, 'development', true), event: 'push' }, ...chain], { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
-  // A tag named `main` reports head_branch "main"; main does not contain its commit.
-  const tagged = [{ ...run(10, 'reconcile', true, true, true), onMain: false }, ...chain];
-  assert.deepEqual(checkChain(tagged, { mode: 'holdout', receiptsRunId: '8', ...at(11) }), ok());
+  // A run from another branch, or a tag called `main` (an edited copy of the workflow), never
+  // supplies a ledger or freeze; it can only block, the safe direction.
+  const forgedLedger = [run(10, 'reconcile', true, false, false, 'evil'), ...chain];
+  assert.deepEqual(checkChain(forgedLedger, { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
+  assert.equal(checkChain(forgedLedger, { mode: 'development', receiptsRunId: '10', ...at(11) }).reason, 'not-newest-ledger:8');
+  const tagged = [{ ...run(10, 'reconcile', true, false, false), onMain: false }, ...chain];
   assert.equal(checkChain(tagged, { mode: 'development', receiptsRunId: '10', ...at(11) }).reason, 'not-newest-ledger:8');
+  assert.deepEqual(checkChain([{ ...run(10, 'development', true, false), event: 'push' }, ...chain], { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
+  // ...but an untrusted run that decoded the holdout consumes it, and one that started its step
+  // without a ledger blocks like any lost run until a reconcile names it.
+  assert.equal(checkChain([run(10, 'holdout', false, true, true, 'evil'), ...chain], { mode: 'holdout', receiptsRunId: '8', ...at(11) }).reason, 'holdout-consumed');
+  assert.equal(checkChain([run(10, 'development', true, true, false, 'evil'), ...chain], { mode: 'development', receiptsRunId: '8', ...at(11) }).reason, 'missing-receipt:10');
   // A holdout run refused at its freeze gate never decoded the secret: the holdout is not consumed.
   assert.deepEqual(checkChain([run(10, 'holdout', true, false, false), ...chain], { mode: 'holdout', receiptsRunId: '10', ...at(11) }), ok());
 });

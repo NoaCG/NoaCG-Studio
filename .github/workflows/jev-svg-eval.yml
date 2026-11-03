@@ -127,6 +127,7 @@ jobs:
       # the holdout is consumed once any run started decoding it.
       - name: Check the receipt chain and fetch the previous ledger
         if: inputs.mode != 'dry-run'
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ inputs.mode }}
@@ -138,16 +139,25 @@ jobs:
           runs="$RUNNER_TEMP/runs.json"
           echo '[' > "$runs"
           first=1
-          for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?per_page=100" --jq '.workflow_runs[].id'); do
+          # main's own commit, read once: comparing against the bare name `main` could resolve a tag.
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "FAIL: could not read main's commit"; exit 1; }
+          # Read into a variable first: a failed listing then stops the step instead of looping over nothing.
+          ids="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?per_page=100" --jq '.workflow_runs[].id')"
+          for id in $ids; do
             [ "$id" = "$GITHUB_RUN_ID" ] && continue
             meta="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '{number: .run_number, branch: .head_branch, sha: .head_sha, event: .event, path: .path, title: .display_title}')"
             sha="$(printf '%s' "$meta" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s).sha;process.stdout.write(/^[0-9a-f]{40}$/.test(v)?v:"")})')"
             # A tag called `main` reports head_branch "main" too; main must contain the run's commit.
-            onmain=false
-            if [ -n "$sha" ]; then
-              cmp="$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...main" --jq '.status' 2>/dev/null || true)"
-              if [ "$cmp" = "ahead" ] || [ "$cmp" = "identical" ]; then onmain=true; fi
-            fi
+            # Fails closed: an unanswered or unexpected comparison stops the chain check, so a run
+            # is never left out because its ancestry could not be read.
+            [ -n "$sha" ] || { echo "FAIL: run $id has no readable commit"; exit 1; }
+            cmp="$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...$main_sha" --jq '.status')"
+            case "$cmp" in
+              ahead|identical) onmain=true ;;
+              behind|diverged) onmain=false ;;
+              *) echo "FAIL: could not tell whether main contains run $id"; exit 1 ;;
+            esac
             mode="$(printf '%s' "$meta" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const m=/^Jev SVG evaluation \((dry-run|development|holdout|reconcile)\)$/.exec(JSON.parse(s).title||"");process.stdout.write(m?m[1]:"unknown")})')"
             ledger="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "jev-svg-eval-ledger")] | length')"
             # Every attempt of the run, not only the newest: a refused re-run must not hide its first attempt.

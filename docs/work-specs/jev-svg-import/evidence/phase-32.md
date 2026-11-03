@@ -91,10 +91,11 @@ with its mode). This is the corrected model from the repeated-family reassessmen
 
 - **C1** The chain's unit is a run attempt: every non-dry mode refuses `GITHUB_RUN_ATTEMPT` other
   than 1, in the chain step and in the harness. Only main's own `workflow_dispatch` runs of this
-  workflow file, whose commit main contains, belong to the chain: a run from another branch or a
-  tag called `main` (an edited copy of the workflow)
-  counts for the run-number check and nothing else, and a ledger whose baseline was not written by
-  main's workflow is refused. The run list counts every attempt
+  workflow file, whose commit main contains (GitHub's compare API against main's own SHA, failing
+  closed), may supply a ledger or freeze. A run from another branch or a tag called `main` (an
+  edited copy of the workflow) never does, but can still only block: it counts as lost or as
+  having decoded the holdout like any run. A ledger whose baseline was not written by main's
+  workflow is refused. The run list counts every attempt
   (`jobs?filter=all`), so a refused re-run cannot hide its first attempt. Run numbers before this
   one must have no gap: a deleted run cannot hide a lost run or an opened holdout.
 - **C2** A run is lost when it is development, holdout or reconcile, an attempt started its harness
@@ -239,6 +240,12 @@ blocking point was fixed): a tag called `main` passed the branch filter; main mu
 the run's commit (C1). Its three non-blocking points: the concurrency comment corrected; the
 settle-time headroom and the declared environment documented under Known limits.
 
+From the PR bot review and the third final `/so` (`session_017SdbwNpjHbPHzgZKGynAg1`, B+ on
+`2bace5f`, A- once fixed) of `2bace5f`: a failed compare call silently left a run out (it now
+fails the step, and so does a failed run listing); the compare must name main's own SHA, since
+the bare name could resolve a tag. Untrusted runs now can only block. The missing-receipt partition
+charge is documented under Known limits.
+
 - Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
   harmed design stops its family from qualifying. The notes and docstring said "or design" and
   were corrected.
@@ -277,6 +284,9 @@ settle-time headroom and the declared environment documented under Known limits.
   receipts and dispatches the slice on its own if needed.
 - The baseline's `environment` is the name the job declares, not something the run observed;
   row 33's first run in the protected environment shows it.
+- A reconciled missing receipt is charged its priced maximum to its partition; the total cap
+  still uses the balance drop. Row 33 compares its first settled receipts with their priced
+  maximums, which is when a wrong price would show.
 - The non-blind regression slice is refused in holdout mode, so it never spends the holdout's $3;
   it runs in a development dispatch.
 - The freeze covers the reader's graph and the lockfile, so a change on main to the importer or a

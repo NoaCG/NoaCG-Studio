@@ -494,11 +494,14 @@ export function checkChain(runs, { mode, receiptsRunId = '', establish = false, 
     const numbers = new Set(runs.map((r) => Number(r.number)));
     for (let n = 1; n < Number(currentNumber); n++) if (!numbers.has(n)) return refuse(`run-missing:${n}`);
   }
-  // Only main's own dispatches of this workflow are part of the chain. A run from another branch,
-  // or from a tag that happens to be called `main`, could carry an edited copy of the workflow and
-  // upload a forged ledger or freeze; it counts for the run-number check above and nothing else.
-  // `onMain` says main contains the run's commit (the workflow asks GitHub's compare API).
-  runs = runs.filter((r) => r.branch === 'main' && r.onMain === true && r.event === 'workflow_dispatch' && r.path === WORKFLOW_PATH);
+  // Only main's own dispatches of this workflow are TRUSTED: their ledgers and freezes are the
+  // chain. A run from another branch, or from a tag that happens to be called `main`, could carry
+  // an edited copy of the workflow and upload a forged ledger or freeze, so it never supplies one.
+  // It can still only block, the safe direction: it counts as lost or as having decoded the
+  // holdout like any other run. `onMain` says main contains the run's commit (GitHub's compare API
+  // against main's own SHA).
+  const trusted = (r) => r.branch === 'main' && r.onMain === true && r.event === 'workflow_dispatch' && r.path === WORKFLOW_PATH;
+  runs = runs.map((r) => (trusted(r) ? r : { ...r, hasLedger: false }));
   const paid = (r) => r.mode === 'development' || r.mode === 'holdout';
   const chained = (r) => paid(r) || r.mode === 'reconcile';
   const holdoutStarted = runs.some((r) => r.holdoutStarted);
