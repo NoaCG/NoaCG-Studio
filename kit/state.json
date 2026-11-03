@@ -39,7 +39,7 @@
   "open": "archived-session revival; wake delivery during an account usage-limit stop (2026-10-17 finding: not retried); remote owner fencing"
  },
  "carry": {
-  "cf03": "#1964: apply the two cf13 sample-window notes in a reviewed spec change before cf03 starts. Also count silent Build-step hangs like #1991 (main 9a06d385, run 41549810210 attempt 1, Build cancelled at the 15-min cap, re-run passed) as M4 waste.",
+  "cf03": "#1964: apply the two cf13 sample-window notes in a reviewed spec change before cf03 starts. Also count silent Build-step hangs like #1991 (main 9a06d385, run 41549810210 attempt 1, Build cancelled at the 15-min cap, re-run passed) as M4 waste. #2011 (PR #2012) corrected the overhead-tier price of manual-only workflows (alarm-test, endurance, jev-svg-qualification, rerecord-screenshots, jev-svg-eval from 6/landing to 0); the measured overhead tier drops accordingly; account for it in the baseline.",
   "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed. Also: JEV reported e2e/import-svg-credits.spec.ts:1183 (timed credits cards, row 23) fail-then-pass on PR #1985 head 811624b8, CI run 41542753257 attempt 1 E2E 11/15; tracked in #1988 (P3). PR-branch event, no quarantine record.",
   "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15.",
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985)."
@@ -73,7 +73,11 @@
    "session": "session_017SdbwPaNNL9XoNvHecZXPB",
    "nonce": "fix-2011",
    "launchedAt": "2026-11-03T08:22:46Z",
-   "notify": "JEV coordinator session_017SdbwQ6d3pRaakjohGfCcC with PR number and on landing"
+   "notify": "JEV coordinator session_017SdbwQ6d3pRaakjohGfCcC with PR number and on landing",
+   "pr": 2012,
+   "head": "c374a12a488abefc9e0e499b94395301a2f1720a",
+   "stamped": "run 41609325479",
+   "state": "queued"
   }
  ],
  "triggers": {
