@@ -180,10 +180,11 @@ const joinPath = (from, rel) => {
 };
 
 // Built from parts so this file, which a per-landing workflow runs, is not itself a dispatch call.
-const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', 'create' + 'WorkflowDispatch', '[/]dispatches\\b', 'uses:\\s*[\'"]?[.][/][.]github[/]workflows[/]'].join('|'));
+const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', '[\'"`]work' + 'flow[\'"`]\\s*,\\s*[\'"`]run[\'"`]', 'create' + 'WorkflowDispatch', '[/]dispatches\\b', 'uses:\\s*[\'"]?[.][/][.]github[/]workflows[/]'].join('|'));
 
 /**
- * The workflow files some per-landing workflow starts: by `gh workflow run`, a dispatch API call
+ * The workflow files some per-landing workflow starts: by `gh workflow run` (or its argument array,
+ * `['workflow', 'run', ...]`), a dispatch API call
  * (`createWorkflowDispatch`, `.../dispatches`) or a reusable-workflow `uses:`. From each per-landing
  * workflow it follows what the steps run: repository files named by path (scripts, and the files
  * those name or import, outside the product, test and docs trees), `npm run <name>` through

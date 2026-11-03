@@ -517,6 +517,7 @@ test('(b) the dispatch search follows what a landing runs and names only what it
   // handed down through a command line and an import, and by a title with a trailing comment.
   assert.ok(starts({ 'ci.yml': ci('run: npm run kick') }, { 'package.json': JSON.stringify({ scripts: { kick: 'gh workflow run m.yml' } }) }));
   assert.ok(starts({ 'ci.yml': ci('uses: ./.github/actions/kick') }, { '.github/actions/kick/action.yml': 'runs:\n  steps:\n    - run: gh workflow run m.yml\n' }));
+  assert.ok(starts({ 'ci.yml': ci('run: node scripts/kick.mjs') }, { 'scripts/kick.mjs': "execFileSync('gh', ['workflow', 'run', 'm.yml']);\n" }), 'gh called with an argument array');
   assert.ok(starts({ 'ci.yml': ci('run: bash scripts/a.sh') }, { 'scripts/a.sh': 'node scripts/b.mjs\n', 'scripts/b.mjs': "execSync('gh workflow run m.yml');\n" }));
   assert.ok(starts({ 'ci.yml': ci('run: node scripts/k.mjs m.yml') }, { 'scripts/k.mjs': "import { go } from './lib.mjs';\ngo(process.argv[2]);\n", 'scripts/lib.mjs': 'export const go = (w) => api(`workflows/${w}/dispatches`);\n' }));
   const commented = manual.replace('name: Manual eval', 'name: Manual eval  # by ci');
