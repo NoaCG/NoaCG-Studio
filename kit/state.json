@@ -28,50 +28,7 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "PR #2023 in merge queue",
-  "inFlight": [
-    {
-      "phase": 39,
-      "role": "check",
-      "session": "session_017SdbwPsayBPtpKwPcvMGP5",
-      "nonce": "39-c-8551",
-      "actor": "checker-39-39-c-8551",
-      "mergeSha": "2286c5c14c2301a7463570fe66fbc453fcf2f17b",
-      "pr": 2044,
-      "builder": "session_017SdbwLtD61p4WVVYc9snv5",
-      "soSessions": [
-        "session_017SdbwNf67AyQR2KMk2BEgh",
-        "session_017SdbwQE4Wm7K5kLR1tsRDf"
-      ],
-      "startedAt": "2026-11-03T21:54:12Z",
-      "build": {
-        "phase": 39,
-        "role": "build",
-        "session": "session_017SdbwLtD61p4WVVYc9snv5",
-        "nonce": "39-b-b3f5",
-        "branch": "claude/plan-jev-svg-import-39-build",
-        "source": "8b5ca96ffeca0cd6f63a0d27ccbe24ea2b5fb038",
-        "startedAt": "2026-11-03T20:45:52Z",
-        "pr": 2044,
-        "head": "ec714e859b193c38d529b5ca833570f9072d8bd3",
-        "ciRun": 41721683727,
-        "fullCi": 41721741240,
-        "stampRun": 41724398872,
-        "so": "session_017SdbwNf67AyQR2KMk2BEgh A- (owner rule)",
-        "soSessions": [
-          "session_017SdbwNf67AyQR2KMk2BEgh",
-          "session_017SdbwQE4Wm7K5kLR1tsRDf"
-        ],
-        "safetyNet": "trig_01XT54tiaLygKhRKExiPYLxZ"
-      },
-      "checkerVerdict": "FAIL blocked: only #1750 flake in E2E 1/15 of CI push 41725517982 (all ACs green)",
-      "rerun": {
-        "run": 41725517982,
-        "attempt": 2,
-        "reason": "#1750 one re-run after PR comment https://github.com/NoaCG/NoaCG-Studio/pull/2044#issuecomment-6616758443",
-        "at": "2026-11-03T22:16Z"
-      }
-    }
-  ],
+  "inFlight": [],
   "owner": [],
   "fixes": [
     {
@@ -479,6 +436,12 @@
       "pr": 2038,
       "merge": "8b5ca96ffeca0cd6f63a0d27ccbe24ea2b5fb038",
       "checker": "session_017SdbwNum9yWUaty4Ag1h7t"
+    },
+    {
+      "phase": 39,
+      "pr": 2044,
+      "merge": "2286c5c14c2301a7463570fe66fbc453fcf2f17b",
+      "checker": "session_017SdbwPsayBPtpKwPcvMGP5"
     }
   ],
   "coordinatorNotes": [
