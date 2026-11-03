@@ -109,8 +109,11 @@ with its mode). This is the corrected model from the repeated-family reassessmen
 - **C4** The baseline is its own development dispatch (`establish_baseline`), which calls no model,
   allowed only while no ledger exists. A lost baseline dispatch spent nothing and is simply
   dispatched again.
-- **C5** The holdout's gate runs before the secret is decoded: a freeze recorded in the ledger by
-  `reconcile` + `freeze`, and this configuration and harness exactly the frozen ones. The holdout
+- **C5** The holdout's gate runs before the secret is decoded, so every refusal leaves it unopened:
+  no regression slice on the holdout budget, at most two reporting challengers beside the primary
+  and baselines, a freeze recorded in the ledger by `reconcile` + `freeze` (which itself refuses a
+  configuration over the challenger limit), and this configuration and harness exactly the frozen
+  ones. The holdout
   is consumed once any run started decoding it: from then on holdout mode and any freeze are
   refused. The challenger limit knows baselines by kind and model.
 - **C6** One unknown-bill rule for every arm: a sent attempt that may have been billed (a 2xx, a 408,
@@ -246,13 +249,20 @@ fails the step, and so does a failed run listing); the compare must name main's 
 the bare name could resolve a tag. Untrusted runs now can only block. The missing-receipt partition
 charge is documented under Known limits.
 
+From the coordinator after the final `/so` (`session_017SdbwQw1cqDw2wjiNDqcxh`, A- on `6094f4d`):
+its point 1 (holdout-only misconfigurations refused only after decoding) cannot wait for row 33,
+whose files are `prompts.json` only. Fixed here (#2009): the gate before decoding refuses the
+regression input and more than two challengers, and the freeze refuses a configuration over the
+limit. The committed development configuration declares four challengers, so row 33 trims it to
+two before its freeze.
+
 - Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
   harmed design stops its family from qualifying. The notes and docstring said "or design" and
   were corrected.
 
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 33 of 33 pass (after the final fixes) (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 34 of 34 pass (after the final fixes) (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle
@@ -287,8 +297,8 @@ charge is documented under Known limits.
 - A reconciled missing receipt is charged its priced maximum to its partition; the total cap
   still uses the balance drop. Row 33 compares its first settled receipts with their priced
   maximums, which is when a wrong price would show.
-- The non-blind regression slice is refused in holdout mode, so it never spends the holdout's $3;
-  it runs in a development dispatch.
+- The non-blind regression slice is refused in holdout mode, before decoding, so it never spends
+  the holdout's $3; it runs in a development dispatch.
 - The freeze covers the reader's graph and the lockfile, so a change on main to the importer or a
   dependency between rows 33 and 34 refuses the holdout until row 33's freeze is redone. That is
   the intended protection against comparing two instruments.

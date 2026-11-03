@@ -25,7 +25,7 @@
 //   node scripts/jev-svg-eval.mjs freeze
 //   node scripts/jev-svg-eval.mjs run --mode dry-run|development|holdout --config <file> --config-sha <sha> ...
 //   node scripts/jev-svg-eval.mjs chain --runs <runs.json> --mode <mode> --receipts-run-id <id> ...
-//   node scripts/jev-svg-eval.mjs holdout-gate --ledger <ledger> --config <prompts.json>
+//   node scripts/jev-svg-eval.mjs holdout-gate --ledger <ledger> --config <prompts.json> --regression-input <true|false>
 //   node scripts/jev-svg-eval.mjs reconcile --ledger <in> --ledger-out <out> --reason <words>
 //        [--accept-manifest] [--freeze --config <file> --config-sha <sha>]
 //        [--lost-runs <ids> --lost-attempts <n>] --runs <runs.json> --receipts-run-id <id>
@@ -529,11 +529,24 @@ export function checkChain(runs, { mode, receiptsRunId = '', establish = false, 
   return { ok: true, lost: [], lostPartitions: [] };
 }
 
+/** Is this configuration one the holdout may run? At most HOLDOUT_CHALLENGERS reporting-only
+ *  challengers beside the primary and the established baselines. Checked when the freeze is
+ *  recorded and again before the holdout is decoded. */
+export function holdoutConfigRefusal(config) {
+  const challengers = config.candidates.filter((c) => c.id !== PRIMARY.id && !isBaseline(c));
+  return challengers.length > HOLDOUT_CHALLENGERS ? 'too-many-challengers' : null;
+}
+
 /**
- * The holdout's own gate, run BEFORE the secret is decoded: a freeze is recorded in the ledger,
- * and the configuration and the harness are exactly the frozen ones.
+ * The holdout's own gate, run BEFORE the secret is decoded, so every refusal leaves it unopened:
+ * no regression slice on the holdout budget, a configuration within the challenger limit, a
+ * freeze recorded in the ledger, and the configuration and harness exactly the frozen ones.
  */
-export function holdoutGate(ledger, { configSha256, manifestSha256 }) {
+export function holdoutGate(ledger, { configSha256, manifestSha256, config = null, regression = false }) {
+  if (regression) return 'regression-on-holdout';
+  if (!config) return 'no-config';
+  const refusal = holdoutConfigRefusal(config);
+  if (refusal) return refusal;
   if (!ledger || ledger.schema !== LEDGER_SCHEMA || ledger.mock) return 'no-ledger';
   if (ledger.batches.some((b) => b.partition === 'holdout' || (b.partitions ?? []).includes('holdout'))) return 'holdout-consumed';
   const frozen = frozenRecord(ledger);
@@ -1158,9 +1171,9 @@ async function runWith(args, server) {
 
   // The holdout is evaluated once, with the frozen configuration and harness only.
   if (mode === 'holdout') {
+    // Checked again here; the workflow's gate step has already refused these before decoding.
     if (args.regression) throw new Error('the non-blind regression slice runs in a development dispatch, never on the holdout budget');
-    const challengers = config.candidates.filter((c) => c.id !== PRIMARY.id && !isBaseline(c));
-    if (challengers.length > HOLDOUT_CHALLENGERS) throw new Error('more reporting challengers than the holdout admits');
+    if (holdoutConfigRefusal(config)) throw new Error('more reporting challengers than the holdout admits');
   }
 
   const ledger = { current: null };
@@ -1186,7 +1199,7 @@ async function runWith(args, server) {
     if (ledger.current.mock || ledger.current.baseline.runId === 'local') throw new Error('a dry-run or local ledger never continues into a paid run');
     if (ledger.current.baseline.workflowRef !== MAIN_WORKFLOW_REF) throw new Error('that ledger was not started by main\'s workflow');
     if (mode === 'holdout') {
-      const gate = holdoutGate(ledger.current, { configSha256: verdict.sha256, manifestSha256: manifest.sha256 });
+      const gate = holdoutGate(ledger.current, { configSha256: verdict.sha256, manifestSha256: manifest.sha256, config, regression: Boolean(args.regression) });
       if (gate) throw new Error(`holdout refused: ${gate}`);
     }
   } else if (args['establish-baseline'] || !paid) {
@@ -1363,7 +1376,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let gate;
     try {
       const m = freezeManifest(undefined, [...await readerGraph(), ...server.graph]);
-      gate = holdoutGate(JSON.parse(readFileSync(args.ledger, 'utf8')), { configSha256: v.sha256, manifestSha256: m.sha256 });
+      gate = holdoutGate(JSON.parse(readFileSync(args.ledger, 'utf8')), { configSha256: v.sha256, manifestSha256: m.sha256, config: v.config, regression: args['regression-input'] === 'true' });
     } finally {
       await server.cleanup();
     }
@@ -1391,6 +1404,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (args.freeze) {
       const v = validateConfiguration(readFileSync(args.config));
       if (!v.ok) throw new Error(`configuration refused: ${v.reason}`);
+      if (holdoutConfigRefusal(v.config)) throw new Error('this configuration has more reporting challengers than the holdout admits; it cannot be frozen');
       frozen = { configSha256: v.sha256, configCommit: args['config-sha'], manifestSha256: current.sha256 };
     }
     const next = reconcileLedger(ledger, settled.credits, {

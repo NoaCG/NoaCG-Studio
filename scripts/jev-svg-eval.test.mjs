@@ -36,6 +36,7 @@ import {
   frozenRecord,
   partitionSpent,
   holdoutGate,
+  holdoutConfigRefusal,
   isBaseline,
   VISION_BASELINE_MODEL,
   ledgerSpent,
@@ -745,7 +746,9 @@ test('M13: a paid run continues only the newest ledger; a lost run blocks paid w
 
 test('C5: the holdout gate runs before the secret is decoded and needs the recorded freeze', () => {
   const base = newLedger({ credits: START, runId: '1', mainSha: null, manifest });
-  const hashes = { configSha256: 'c'.repeat(64), manifestSha256: manifest.sha256 };
+  // A holdout configuration: primary, baselines and at most two reporting challengers.
+  const holdoutConfig = { ...CONFIG, candidates: CONFIG.candidates.filter((c) => !['luna', 'jev-preview'].includes(c.id)) };
+  const hashes = { configSha256: 'c'.repeat(64), manifestSha256: manifest.sha256, config: holdoutConfig };
   assert.equal(holdoutGate(base, hashes), 'no-freeze');
   const frozen = reconcileLedger(base, START, { reason: 'development freeze recorded', runId: '2', frozen: hashes });
   assert.equal(holdoutGate(frozen, hashes), null);
@@ -754,6 +757,26 @@ test('C5: the holdout gate runs before the secret is decoded and needs the recor
   assert.equal(holdoutGate({ ...frozen, mock: true }, hashes), 'no-ledger');
   const used = { ...frozen, batches: [{ partition: 'holdout', after: START }] };
   assert.equal(holdoutGate(used, hashes), 'holdout-consumed');
+  // Holdout-only misconfigurations are refused here, before decoding, so they never use it up:
+  // the regression slice on the holdout budget, and more than two reporting challengers.
+  assert.equal(holdoutGate(frozen, { ...hashes, regression: true }), 'regression-on-holdout');
+  // The committed development configuration declares four challengers: fine for development,
+  // refused for the holdout until row 33 trims it to two.
+  assert.equal(CONFIG.candidates.filter((c) => c.id !== PRIMARY.id && !isBaseline(c)).length, 4);
+  assert.equal(holdoutConfigRefusal(CONFIG), 'too-many-challengers');
+  assert.equal(holdoutGate(frozen, { ...hashes, config: CONFIG }), 'too-many-challengers');
+  const three = { ...holdoutConfig, candidates: [...holdoutConfig.candidates, CONFIG.candidates.find((c) => c.id === 'luna')] };
+  assert.equal(holdoutConfigRefusal(three), 'too-many-challengers');
+  assert.equal(holdoutConfigRefusal(holdoutConfig), null);
+  assert.equal(holdoutGate(frozen, { configSha256: hashes.configSha256, manifestSha256: hashes.manifestSha256 }), 'no-config');
+});
+
+test('C5: the workflow refuses holdout misconfigurations in the step before decoding', () => {
+  const yml = readFileSync(root('.github/workflows/jev-svg-eval.yml'), 'utf8');
+  const gate = yml.slice(yml.indexOf('- name: Check the holdout freeze'), yml.indexOf('- name: Decode the sealed holdout'));
+  assert.ok(gate.length > 0 && yml.indexOf('- name: Check the holdout freeze') < yml.indexOf('- name: Decode the sealed holdout'));
+  assert.match(gate, /REGRESSION: \$\{\{ inputs\.regression \}\}/);
+  assert.match(gate, /holdout-gate .*\n?.*--regression-input "\$REGRESSION"/);
 });
 
 test('M13: reconciling a lost run charges the larger of the balance drop and the usage rise to its partitions', () => {

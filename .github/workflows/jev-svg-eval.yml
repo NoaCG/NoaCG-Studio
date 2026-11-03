@@ -180,11 +180,16 @@ jobs:
             test -s "$RUNNER_TEMP/ledger-in/ledger.json" || { echo "FAIL: missing-receipt: that run left no ledger"; exit 1; }
           fi
 
-      # Before the secret reaches the runner: the freeze is recorded and this configuration and
-      # harness are exactly the frozen ones. A refusal here leaves the holdout unopened.
+      # Before the secret reaches the runner: no regression slice on the holdout budget, at most two
+      # reporting challengers, the freeze recorded, and this configuration and harness exactly the
+      # frozen ones. A refusal here leaves the holdout unopened.
       - name: Check the holdout freeze
         if: inputs.mode == 'holdout'
-        run: node scripts/jev-svg-eval.mjs holdout-gate --ledger "$RUNNER_TEMP/ledger-in/ledger.json" --config "$RUNNER_TEMP/prompts.json"
+        env:
+          REGRESSION: ${{ inputs.regression }}
+        run: |
+          node scripts/jev-svg-eval.mjs holdout-gate --ledger "$RUNNER_TEMP/ledger-in/ledger.json" \
+            --config "$RUNNER_TEMP/prompts.json" --regression-input "$REGRESSION"
 
       - name: Decode the sealed holdout
         if: inputs.mode == 'holdout'
