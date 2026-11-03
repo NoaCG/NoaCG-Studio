@@ -157,14 +157,81 @@ const KNOWN = new Set(['pull_request', 'pull_request_target', 'merge_group', 'pu
  * How often a workflow's jobs run: per landing by trigger (every PR run, the merge-group run, the
  * push that lands; a job that follows other runs as if on every one; any other trigger at least
  * once per landing, because an unknown frequency is not zero, except a dispatch beside a cron,
- * which is that schedule's manual re-run) and per day by its crons.
+ * which is that schedule's manual re-run) and per day by its crons. A workflow whose only trigger
+ * is `workflow_dispatch` runs when someone asks: none per landing, unless `dispatched` says a
+ * per-landing workflow starts it (`landingDispatched`). Not knowing that counts as dispatched.
  */
-export function cadence(shape, e) {
+export function cadence(shape, e, { dispatched = true } = {}) {
   const has = (t) => shape.triggers.has(t);
   let runs = (has('pull_request') || has('pull_request_target') ? e.prRunsPerLanding : 0) + (has('merge_group') ? 1 : 0) + (has('push') ? 1 : 0);
   if (FOLLOWS.some(has)) runs = Math.max(runs, e.runsPerLanding.everyRun);
-  if ([...shape.triggers].some((t) => !KNOWN.has(t) && !(t === 'workflow_dispatch' && shape.crons.length))) runs = Math.max(runs, 1);
+  const manualOnly = shape.triggers.size === 1 && has('workflow_dispatch') && !dispatched;
+  if (!manualOnly && [...shape.triggers].some((t) => !KNOWN.has(t) && !(t === 'workflow_dispatch' && shape.crons.length))) runs = Math.max(runs, 1);
   return { runs, daily: shape.crons.reduce((n, c) => n + cronRunsPerDay(c), 0) };
+}
+
+/** `rel` resolved against the folder of repository file `from` (posix, no I/O). */
+const joinPath = (from, rel) => {
+  const out = from.split('/').slice(0, -1);
+  for (const part of rel.split('/')) if (part === '..') out.pop(); else if (part !== '.') out.push(part);
+  return out.join('/');
+};
+
+// Built from parts so this file, which a per-landing workflow runs, is not itself a dispatch call.
+const DISPATCH_CALL = new RegExp(['gh\\s+workflow\\s+run\\b', 'create' + 'WorkflowDispatch', '[/]dispatches\\b', 'uses:\\s*[\'"]?[.][/][.]github[/]workflows[/]'].join('|'));
+
+/**
+ * The workflow files some per-landing workflow starts: by `gh workflow run`, a dispatch API call
+ * (`createWorkflowDispatch`, `.../dispatches`) or a reusable-workflow `uses:`. A text that makes
+ * such a call (the workflow's own steps, or a repository script it runs or that script imports)
+ * starts the files it names, by file or by `name:`, or that the text running it names (a script
+ * handed the workflow as an argument). Comment lines are not steps. A started workflow that itself
+ * runs per landing starts others in turn. `workflows` maps a file name to its text; `read(path)`
+ * returns a repository file or null.
+ * It reads only text in the repository: a dispatch from outside it (a person, a session, another
+ * repository), by a numeric workflow id, or by a name built at run time is not seen.
+ */
+export function landingDispatched({ workflows = {}, read = () => null }, e) {
+  const code = (text) => String(text ?? '').split(/\r?\n/).filter((l) => !/^\s*(#|\/\/|\/\*|\*)/.test(l)).join('\n');
+  const scriptsIn = (text) => [...text.matchAll(/\bscripts\/[\w./-]+\.(?:mjs|cjs|js|ts|sh)\b/g)].map((m) => m[0]);
+  const importsIn = (file, text) => [...text.matchAll(/(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)].map((m) => joinPath(file, m[1]));
+  const scripts = new Map();
+  const script = (file) => {
+    if (!scripts.has(file)) { const src = read(file); scripts.set(file, src === null || src === undefined ? null : code(src)); }
+    return scripts.get(file);
+  };
+  // Each text that makes a dispatch call, with the text that ran it.
+  const callers = (text) => {
+    const found = DISPATCH_CALL.test(text) ? [text] : [];
+    const seen = new Set();
+    const queue = scriptsIn(text).map((f) => [f, text]);
+    while (queue.length && seen.size < 200) {
+      const [file, parent] = queue.shift();
+      if (seen.has(file)) continue;
+      seen.add(file);
+      const src = script(file);
+      if (src === null) continue;
+      if (DISPATCH_CALL.test(src)) found.push(`${src}\n${parent}`);
+      for (const f of importsIn(file, src)) queue.push([f, src]);
+    }
+    return found;
+  };
+  const shapes = Object.fromEntries(Object.entries(workflows).map(([f, t]) => [f, workflowShape(t)]));
+  const titles = Object.fromEntries(Object.entries(workflows).map(([f, t]) => [f, /^name:\s*['"]?(.+?)['"]?\s*$/m.exec(String(t ?? ''))?.[1]]));
+  const found = {};
+  const dispatched = new Set();
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const [w, text] of Object.entries(workflows)) {
+      if (cadence(shapes[w], e, { dispatched: dispatched.has(w) }).runs < 1) continue;
+      found[w] ??= callers(code(text));
+      for (const f of Object.keys(workflows)) {
+        if (f === w || dispatched.has(f)) continue;
+        if (found[w].some((t) => t.includes(f) || (titles[f] && t.includes(titles[f])))) { dispatched.add(f); grew = true; }
+      }
+    }
+  }
+  return dispatched;
 }
 
 /**
@@ -174,7 +241,7 @@ export function cadence(shape, e) {
  * `{ base, head }` text for each workflow the change touches. Offline spec files are not priced
  * here: the existing table line in e2e-capacity.mjs prices them in table-minutes, as before.
  */
-export function priceAdditions({ added = [], workflows = {}, estimates }) {
+export function priceAdditions({ added = [], workflows = {}, estimates, repo }) {
   const e = estimates;
   const items = [];
   for (const file of added) {
@@ -188,11 +255,15 @@ export function priceAdditions({ added = [], workflows = {}, estimates }) {
       items.push({ tier: 'graphics', id: `spec:${file}`, perLanding: e.runsPerLanding.graphics * e.graphicsCaseMinutes, perDay: (e.scheduledRunsPerDay?.graphics ?? 0) * e.graphicsCaseMinutes, how: `new catalog spec at ${e.graphicsCaseMinutes} min, x ${e.runsPerLanding.graphics} catalog runs per landing and ${e.scheduledRunsPerDay?.graphics ?? 0} scheduled runs a day` });
     }
   }
+  // What per-landing workflows start, before and after the change. Without the repository's
+  // workflows (`repo`), a manual workflow counts as started on every landing.
+  const baseStarts = repo?.base ? landingDispatched(repo.base, e) : null;
+  const headStarts = repo?.head ? landingDispatched(repo.head, e) : null;
   for (const [wf, { base, head, baseFile = wf }] of Object.entries(workflows)) {
     const before = workflowShape(base);
     const after = workflowShape(head);
-    const was = cadence(before, e);
-    const now = cadence(after, e);
+    const was = cadence(before, e, { dispatched: !baseStarts || baseStarts.has(baseFile) });
+    const now = cadence(after, e, { dispatched: !headStarts || headStarts.has(wf) });
     // A renamed key or a renamed display name is the same job, not a new one. A removed job earns
     // no credit: pricing it would let a cheap removal pay for an expensive addition.
     // Each old job has at most one successor: once a renamed key inherits it, a second copy under

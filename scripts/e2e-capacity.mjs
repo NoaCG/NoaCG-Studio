@@ -382,7 +382,15 @@ export function growthAssessment({ base, reportPath, table, today, root = ROOT }
     const baseIds = new Set(offlineIn(baseLedger).map((e) => e.id));
     offline = offlineExceptionChanges(baseExceptions, readExceptions(root), { today, baseEntries: offlineIn(baseLedger), newEntries: offlineIn(ceilings).filter((e) => !baseIds.has(e.id)) });
   }
-  const items = priceAdditions({ added, workflows, estimates: ceilings.estimates });
+  // Every workflow before and after, so a manual-only workflow is priced per landing only when a
+  // per-landing workflow starts it (growth-controls.mjs landingDispatched).
+  const wfDir = path.join(root, '.github', 'workflows');
+  const yaml = (f) => /\.ya?ml$/.test(f);
+  const repo = base && !diffFailed ? {
+    base: { workflows: Object.fromEntries((gitShow(base, '.github/workflows/', root) ?? '').split('\n').filter(yaml).map((f) => [f, gitShow(base, `.github/workflows/${f}`, root) ?? ''])), read: (f) => gitShow(base, f, root) },
+    head: { workflows: existsSync(wfDir) ? Object.fromEntries(readdirSync(wfDir).filter(yaml).map((f) => [f, readFileSync(path.join(wfDir, f), 'utf8')])) : {}, read: (f) => { try { return readFileSync(path.join(root, f), 'utf8'); } catch { return null; } } },
+  } : undefined;
+  const items = priceAdditions({ added, workflows, estimates: ceilings.estimates, repo });
   const known = knownCoversOnDisk(root);
   const tiers = assessTiers({ ceilings, measurement, items, today, stops: report?.stops ?? {}, known });
   let status = tiers.status;

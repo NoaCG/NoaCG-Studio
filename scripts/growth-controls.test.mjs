@@ -470,6 +470,39 @@ test('(b) a renamed spec or job adds nothing; a job on an unpriced trigger is ne
   assert.equal(rerun[0].perLanding, 0, 'a dispatch beside a cron is its manual re-run');
 });
 
+test('(b) a manual-only workflow costs no run per landing unless a per-landing workflow starts it', () => {
+  const e = CEILINGS.estimates;
+  const manual = "name: Manual eval\non:\n  workflow_dispatch:\n    inputs:\n      mode:\n        type: string\njobs:\n  a:\n    name: Manual\n";
+  const ci = 'on:\n  pull_request:\njobs:\n  build:\n    name: Build\n    steps:\n      - run: npm test\n';
+  const price = (heads, extra = {}, read = () => null) => {
+    const repo = { base: { workflows: { 'ci.yml': ci }, read }, head: { workflows: { 'ci.yml': ci, ...heads }, read } };
+    return priceAdditions({ workflows: Object.fromEntries(Object.entries({ 'm.yml': manual, ...extra }).map(([f, head]) => [f, { base: '', head }])), estimates: e, repo });
+  };
+  assert.deepEqual(price({ 'm.yml': manual }), [], 'nothing starts it on a landing');
+  // A comment naming the command is not a step; neither is a dispatch from a scheduled workflow.
+  const commented = { 'ci.yml': ci.replace('jobs:', '# gh workflow run m.yml\njobs:'), 'm.yml': manual };
+  assert.deepEqual(priceAdditions({ workflows: { 'm.yml': { base: '', head: manual } }, estimates: e, repo: { head: { workflows: commented } } }), []);
+  const nightly = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  go:\n    steps:\n      - run: gh workflow run m.yml\n";
+  assert.deepEqual(price({ 'm.yml': manual, 'nightly.yml': nightly }), []);
+  // Started per landing, by a step, by name, by a script the step runs, or through a chain.
+  const step = ci.replace('npm test', 'gh workflow run m.yml --ref main');
+  assert.equal(priceAdditions({ workflows: { 'm.yml': { base: '', head: manual } }, estimates: e, repo: { head: { workflows: { 'ci.yml': step, 'm.yml': manual } } } })[0].perLanding, e.newJobMinutes);
+  const byName = ci.replace('npm test', 'gh workflow run "Manual eval"');
+  assert.equal(priceAdditions({ workflows: { 'm.yml': { base: '', head: manual } }, estimates: e, repo: { head: { workflows: { 'ci.yml': byName, 'm.yml': manual } } } })[0].perLanding, e.newJobMinutes);
+  const script = ci.replace('npm test', 'node scripts/kick.mjs');
+  const files = { 'scripts/kick.mjs': "import { go } from './lib/go.mjs';\ngo('m.yml');\n", 'scripts/lib/go.mjs': 'export const go = (w) => api(`actions/workflows/${w}/dispatches`);\n' };
+  assert.equal(priceAdditions({ workflows: { 'm.yml': { base: '', head: manual } }, estimates: e, repo: { head: { workflows: { 'ci.yml': script, 'm.yml': manual }, read: (f) => files[f] ?? null } } })[0].perLanding, e.newJobMinutes, 'a dispatch in an imported script counts');
+  const relay = manual.replace('Manual eval', 'Relay').replace('    name: Manual\n', '    name: Relay\n    steps:\n      - run: gh workflow run m.yml\n');
+  const chain = priceAdditions({ workflows: { 'm.yml': { base: '', head: manual } }, estimates: e, repo: { head: { workflows: { 'ci.yml': ci.replace('npm test', 'gh workflow run relay.yml'), 'relay.yml': relay, 'm.yml': manual } } } });
+  assert.equal(chain[0].perLanding, e.newJobMinutes, 'started by a workflow that a landing starts');
+  // An existing manual workflow that a change starts dispatching per landing is priced then.
+  const existing = priceAdditions({ workflows: { 'm.yml': { base: manual, head: manual }, 'ci.yml': { base: ci, head: step } }, estimates: e, repo: { base: { workflows: { 'ci.yml': ci, 'm.yml': manual } }, head: { workflows: { 'ci.yml': step, 'm.yml': manual } } } });
+  assert.deepEqual(existing.map((i) => [i.id, i.perLanding]), [['job:m.yml/Manual', e.newJobMinutes]]);
+  // A manual workflow beside another trigger keeps that trigger's price.
+  const both = manual.replace('on:\n', 'on:\n  workflow_call:\n');
+  assert.equal(price({ 'm.yml': both }, { 'm.yml': both })[0].perLanding, e.newJobMinutes);
+});
+
 test('(b) a more frequent schedule or trigger on an existing job is priced; an unchanged one is not', () => {
   const daily = "on:\n  schedule:\n    - cron: '0 3 * * *'\njobs:\n  sweep:\n    name: Fit sweep\n";
   const hourly = daily.replace("'0 3 * * *'", "'0 * * * *'");
