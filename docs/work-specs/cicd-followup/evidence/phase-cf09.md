@@ -24,15 +24,20 @@ renewal), and the gate refuses one anyway: a new offline line is refused on any 
 including 2026-11-16, whatever its expiry (one active offline exception at a time), and after that
 it also needs a measured repayment receipt dated after 2026-11-16.
 
-Where the cost went down, that is measured pay-down with the same or more protection:
+What the lines cost now, measured on the same basis the gate prices them with (per-file table
+minutes, the recorder's 80th percentile over complete full runs):
 
-- **The save-transaction family** (six lines, e2e-suite-budget): 26.7 minutes on record (run
-  39048521384's retry job), now 13.2 measured minutes (2026-11-02 recording). The six files now
-  declare 127 tests (`npx playwright test --list`, 2026-11-03), up from the 107 the split moved
-  (the 2026-10-17 entry in e2e-suite-budget's `## Test maintenance`), so coverage went up while
-  cost halved.
+- **The save-transaction family** (six lines, e2e-suite-budget): 13.2 measured minutes on
+  2026-11-02 (12.8 on 2026-10-19). The 26.7 on record is a different measure: one wall-clock run of
+  the unsplit file on one runner (run 39048521384's retry job), and the split itself recorded
+  "Measured saving: none". So this is the current cost, not a pay-down. The six files declare 127
+  tests (`npx playwright test --list`, 2026-11-03), against the 107 the split moved (the
+  2026-10-17 entry in e2e-suite-budget's `## Test maintenance`), so coverage did not shrink.
 - **`ai.spec.ts` and `ai-lite.spec.ts`** (wizard-ai, the two 2026-11-13 lines): 4.4 and 0.3 on
-  record, now 3.32 and 0.18.
+  record, which were table-minutes then (wizard-ai spec), now 3.32 and 0.18 on the same basis.
+
+No line is settled by a claimed pay-down. Each is settled because its measured cost now fits under
+the line with nothing left to waive.
 
 The 54 codebase-lean lines recorded local measurements (two workers) for revived cases until the
 weekly refresh measured them. It has: every file is in the table. On the same 53 files
@@ -230,11 +235,14 @@ cf15's text edits, so no closing keyword appears here.
     day up to and including 2026-11-16, and an extension must land before the original date.
     Extending would mean changing the gate, which this phase may not do.
   - No new pay-down work. Every line's minutes already fit under the line. The largest family
-    (save-transaction) is already measured at half its recorded cost with more tests. A speed-up
+    (save-transaction) measures 13.2 table-minutes with 127 tests. A speed-up
     done only to "pay down" an exception that waives nothing would be work for show. The measured
     growth goes to #1994 and to cf03's ranking, where cf13 chooses work by measured effect.
   - The notes go in the three specs, after their lines, so whoever reads a lapsed line later sees
     why it was not renewed. The lines themselves stay, as the append-only rule says.
+  - For cf10 (expired exceptions fail with an actionable message): these 62 lines stay on record
+    after they lapse, as `offlineExceptionChanges` requires. An expired line kept on record must
+    not fail the check; only a change that relies on an expired one should.
 - **Traps:**
   - `specFilesOnDisk` is exported by `scripts/e2e-durations.mjs`, not `e2e-affected.mjs`.
   - The durations table on main is 15 days old. Until #1503 or a later refresh lands, the gate's
