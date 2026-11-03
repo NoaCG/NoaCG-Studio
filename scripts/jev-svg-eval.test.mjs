@@ -382,6 +382,7 @@ function harnessDeps(gateway, ledger, extra = {}) {
     decisionRequestBytes: server.decision.decisionRequestBytes,
     executeDecisionRequest: server.decision.executeDecisionRequest,
     executeGatewayRequest: server.gateway.executeGatewayRequest,
+    GatewayError: server.gateway.GatewayError,
     readSvgAnswers,
     importAnalysisSystemPrompt: () => 'analyze',
     IMPORT_ANALYSIS_VERSION: 'v1',
@@ -458,6 +459,8 @@ test('#2017: a refused attempt records its HTTP status and the gateway error typ
     if (body.model === 'google/gemini-2.5-flash-lite') return refuse(404, { type: 'model_not_found', code: 'not_found' });
     if (body.model === PRIMARY.model) return refuse(400, { type: 'invalid_request_error', code: 'has spaces, so not a token' });
     if (body.model === 'anthropic/claude-haiku-5.5') return new Response('<html>not json</html>', { status: 403 });
+    // A long provider message must not cost the type and code.
+    if (body.model === 'openai/gpt-6-luna') return new Response(JSON.stringify({ error: { message: 'x'.repeat(20_000), type: 'invalid_request_error', code: 'context_length_exceeded' } }), { status: 400 });
     return gateway.fetchImpl(url, init);
   };
   const ledger = { current: newLedger({ credits: await gateway.readCredits(), runId: 't', mainSha: null, manifest }) };
@@ -470,8 +473,12 @@ test('#2017: a refused attempt records its HTTP status and the gateway error typ
     assert.equal(r.classified, 'The AI provider does not know that model id.');
   }
   // A code that is not a short token is dropped; a body that is not JSON keeps the status alone.
-  for (const r of of(PRIMARY.id)) assert.deepEqual(r.refusals.map(({ status, type, code }) => [status, type, code])[0], [400, 'invalid_request_error', null]);
-  for (const r of of('haiku')) assert.deepEqual(r.refusals, [{ attempt: 1, status: 403, type: null, code: null }]);
+  for (const r of of(PRIMARY.id)) assert.deepEqual(r.refusals, [{ attempt: 1, status: 400, type: 'invalid_request_error', code: null }]);
+  for (const r of of('haiku')) {
+    assert.deepEqual(r.refusals, [{ attempt: 1, status: 403, type: null, code: null }]);
+    assert.equal(r.classified, 'The AI provider rejected its server-side credential.');
+  }
+  for (const r of of('luna')) assert.deepEqual(r.refusals, [{ attempt: 1, status: 400, type: 'invalid_request_error', code: 'context_length_exceeded' }]);
   // A served arm carries no refusals.
   assert.ok(of('elephant').every((r) => r.refusals === undefined && !r.fellBack));
   // The ledger names the refused request and what the gateway said.
@@ -479,6 +486,10 @@ test('#2017: a refused attempt records its HTTP status and the gateway error typ
   assert.equal(vision.length, DESIGNS.length);
   for (const [i, b] of vision.entries()) assert.deepEqual(b.refusals, [{ request: `gemini-vision/${DESIGNS[i].id}`, attempt: 1, status: 404, type: 'model_not_found', code: 'not_found' }]);
   assert.ok(ledger.current.batches.filter((b) => b.arm === 'elephant').every((b) => b.refusals === undefined));
+  for (const [arm, refusal] of [[PRIMARY.id, { status: 400, type: 'invalid_request_error', code: null }], ['haiku', { status: 403, type: null, code: null }]]) {
+    const listed = ledger.current.batches.filter((b) => b.arm === arm).flatMap((b) => b.refusals);
+    assert.deepEqual(listed, DESIGNS.map((d) => ({ request: `${arm}/${d.id}`, attempt: 1, ...refusal })));
+  }
   // Never the message text, anywhere.
   assert.doesNotMatch(JSON.stringify({ rows, ledger: ledger.current }), /sk-live|Gemini said/);
 });

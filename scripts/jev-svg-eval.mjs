@@ -768,37 +768,48 @@ const errorToken = (value) => (typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,
 
 /**
  * What a refused attempt's body says about the refusal: the gateway's error `type` and `code`
- * (OpenAI-compatible `{ error: { type, code } }`), each only when it is a short token. The body
- * is read from a clone, so the caller still gets the whole response, and nothing else of it
- * (message, headers, provider text) is kept.
+ * (OpenAI-compatible `{ error: { type, code } }`), each only when it is a short token. `text` is
+ * a clone's body, so the caller still gets the whole response; nothing else of it (message,
+ * headers, provider text) is kept. An error body past 1 MB is not parsed.
  */
-export async function refusalOf(response) {
+async function refusalOf(status, text) {
   let type = null;
   let code = null;
   try {
-    const body = JSON.parse((await response.clone().text()).slice(0, 8_000));
+    const raw = await text;
+    if (raw.length > 1_000_000) throw new Error('too large');
+    const body = JSON.parse(raw);
     const error = body && typeof body.error === 'object' && body.error !== null ? body.error : body;
     type = errorToken(error?.type);
     code = errorToken(typeof error?.code === 'number' ? String(error.code) : error?.code);
   } catch {
     // Not JSON, or unreadable: the status alone is recorded.
   }
-  return { status: response.status, type, code };
+  return { status, type, code };
 }
 
-/** Wrap a fetch to record each sent attempt's HTTP status, or null when it never answered, and
- *  for every refused attempt its status and the gateway's error type and code (#2017). */
+/**
+ * Wrap a fetch to record each sent attempt's HTTP status, or null when it never answered, and for
+ * every attempt answered with a non-2xx status (a refusal, or a 408 or 5xx the status tells
+ * apart) the status and the gateway's error type and code (#2017). The clone is read alongside,
+ * never awaited here, so the caller's own read and its timeout are untouched; `refusals()`
+ * settles them once the call is over.
+ */
 function recordingFetch(fetchImpl) {
   const sent = [];
-  const refusals = [];
+  const pending = [];
   const wrapped = async (...args) => {
     const at = sent.push(null) - 1;
     const response = await fetchImpl(...args);
     sent[at] = response.status;
-    if (!response.ok) refusals.push({ attempt: at + 1, ...(await refusalOf(response)) });
+    if (!response.ok) {
+      const text = response.clone().text();
+      text.catch(() => {});
+      pending.push(refusalOf(response.status, text).then((r) => ({ attempt: at + 1, ...r })));
+    }
     return response;
   };
-  return { sent, refusals, fetch: wrapped };
+  return { sent, refusals: () => Promise.all(pending), fetch: wrapped };
 }
 
 /**
@@ -814,12 +825,15 @@ const unknownCharges = (sent, billRead) => sent.slice(0, billRead ? -1 : undefin
  * deterministic fallback), attempts, reported cost and whether a sent attempt's bill is unknown.
  */
 export async function callArm(arm, design, config, plan, deps) {
-  if (plan.refused) return { proposal: design.deterministic, fellBack: plan.refused, attempts: 0, reportedUsd: 0, unknown: 0 };
-  const started = deps.now();
   const recorder = recordingFetch(deps.fetchImpl);
-  // Every refused attempt's status and gateway error code ride on the row, served or not.
-  const withRefusals = (row) => (recorder.refusals.length ? { ...row, refusals: recorder.refusals } : row);
+  // Every non-2xx attempt's status and gateway error code ride on the row, served or not.
+  const withRefusals = async (row) => {
+    const refusals = await recorder.refusals();
+    return refusals.length ? { ...row, refusals } : row;
+  };
   const fallback = (reason, extra = {}) => withRefusals({ proposal: design.deterministic, fellBack: reason, attempts: 0, reportedUsd: 0, unknown: 0, ...extra });
+  if (plan.refused) return fallback(plan.refused);
+  const started = deps.now();
   if (arm.kind === 'decision') {
     const outcome = await deps.executeDecisionRequest(
       { route: { provider: 'vercel', model: arm.model }, state: design.evidence, questions: design.set.questions },
@@ -872,13 +886,13 @@ export async function callArm(arm, design, config, plan, deps) {
     // Every sent attempt that may have been billed has an unknown bill: charged at its worst
     // case, and flagged. A refusal before inference is charged nothing.
     // A GatewayError's message is NoaCG's own fixed wording for the class of refusal (it tells
-    // "not available for this key" from "unknown model id", both a 404), never provider text.
-    const gatewayError = typeof error?.code === 'string';
-    const code = gatewayError ? error.code : 'unavailable';
+    // "not available for this key" from "unknown model id", both a 404), never provider text;
+    // any other error's message is not kept.
+    const code = typeof error?.code === 'string' ? error.code : 'unavailable';
     const billed = unknownCharges(sent, false);
     return fallback(code, {
       attempts: sent.length, reportedUsd: billed * worstAttempt, unknown: billed > 0 ? 1 : 0, ms: deps.now() - started,
-      ...(gatewayError && typeof error.message === 'string' ? { classified: error.message.slice(0, 200) } : {}),
+      ...(deps.GatewayError && error instanceof deps.GatewayError ? { classified: error.message.slice(0, 200) } : {}),
     });
   }
 }
@@ -1317,6 +1331,7 @@ async function runWith(args, server) {
       decisionRequestBytes: server.decision.decisionRequestBytes,
       executeDecisionRequest: server.decision.executeDecisionRequest,
       executeGatewayRequest: server.gateway.executeGatewayRequest,
+      GatewayError: server.gateway.GatewayError,
       readSvgAnswers,
       importAnalysisSystemPrompt: analysis.importAnalysisSystemPrompt,
       IMPORT_ANALYSIS_VERSION: analysis.IMPORT_ANALYSIS_VERSION,
@@ -1348,7 +1363,7 @@ async function runWith(args, server) {
       decision: decide(rows, PRIMARY.id, main.stopped ?? slice.stopped ?? null, read.filter((d) => d.refused && d.label).map((d) => d.id)),
       verdictApplies: mode === 'holdout',
       rows: rows.map(({ proposal, ...r }) => ({ ...r, fieldsOn: proposal.fieldsOn.length, families: proposal.families })),
-      regression: slice.rows.map((r) => ({ arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: byId.get(r.design).sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null, ...(r.refusals ? { refusals: r.refusals } : {}) })),
+      regression: slice.rows.map((r) => ({ arm: r.arm, design: r.design, fieldsOn: r.proposal.fieldsOn.length, expectedTextFields: byId.get(r.design).sidecar.expect?.textFields ?? null, fellBack: r.fellBack ?? null, ...(r.refusals ? { refusals: r.refusals } : {}), ...(r.classified ? { classified: r.classified } : {}) })),
       spend: {
         spentUsd: ledgerSpent(ledger.current, await readCreditsNow().catch(() => ledger.current.batches.at(-1)?.after ?? ledger.current.baseline)),
         batches: ledger.current.batches.length,
