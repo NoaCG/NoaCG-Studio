@@ -28,7 +28,17 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "PR #2023 in merge queue",
-  "inFlight": [],
+  "inFlight": [
+    {
+      "phase": 38,
+      "role": "build",
+      "session": "session_017SdbwQxKFyeFrkKQeBGDeC",
+      "nonce": "38-b-3586",
+      "branch": "claude/plan-jev-svg-import-38-build",
+      "source": "dce1ef71e546f5077ec5767176f99b0dccc5a6c7",
+      "startedAt": "2026-11-03T18:34:31Z"
+    }
+  ],
   "owner": [],
   "fixes": [
     {
@@ -74,7 +84,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-03T18:32:20Z"
+    "checkinAt": "2026-11-03T19:04:40Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
