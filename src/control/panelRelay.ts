@@ -7,6 +7,7 @@
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { loadBackendConfig } from '../backend/config';
+import { oneAtATime } from '../backend/pacing';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { workerInterval } from './workerTicker';
@@ -446,13 +447,20 @@ export function answerPanel(opts: {
       });
     };
     askRelay();
+    // A hung backend must not collect one open request every beat. Past 10 s the beat tries again,
+    // so the third beat always goes, inside the 15 s lease: one lost answer cannot cost the panel.
+    const renewal = oneAtATime(10_000);
     const renew = async () => {
+      const end = renewal.begin();
+      if (!end) return;
       try {
         const kept = await call<{ ok: boolean; answering?: { label?: string } | null }>('panel_renew', { p_slug: opts.slug, p_page: page, p_claim: claim });
         // The claim moved on: another page took the panel ("Use here" there, or after this lease lapsed).
         if (!kept.ok) replaced(kept.answering?.label || 'another page');
       } catch {
         // Not answered: the next beat renews. A lapsed lease nobody took is still this page's.
+      } finally {
+        end();
       }
     };
     beat = workerInterval(PANEL_BEAT_MS, () => {

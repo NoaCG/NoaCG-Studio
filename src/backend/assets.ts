@@ -77,6 +77,51 @@ export async function externalizeAssets(body: unknown, uid: string, upload: Uplo
   return clone;
 }
 
+/** Team documents share one folder between several people, so a key there carries the length as
+ *  well as the 32-bit hash. */
+export function sharedAssetKey(folder: string, data: string): string {
+  return `${folder}/${contentHash(data)}-${data.length}`;
+}
+
+/**
+ * `externalizeAssets` for a document several accounts share: files only (a production's sounds keep
+ * their own path), and `upload` answers false to keep that one asset inline, so a refused upload
+ * costs a larger save rather than a lost one.
+ */
+export async function externalizeSharedAssets(
+  body: unknown,
+  folder: string,
+  upload: (key: string, dataUrl: string) => Promise<boolean>,
+): Promise<unknown> {
+  const clone = JSON.parse(JSON.stringify(body ?? null));
+  const nodes: AssetNode[] = [];
+  collectAssetNodes(clone, nodes);
+  for (const node of nodes) {
+    const data = node.data;
+    if (!data.startsWith('data:') || !data.includes(';base64,')) continue;
+    const key = sharedAssetKey(folder, data);
+    if (await upload(key, data)) node.data = STORAGE_SENTINEL + key;
+  }
+  return clone;
+}
+
+/**
+ * `rehydrateAssets` for a shared document: files only. `download` throws for a failure worth
+ * retrying, which fails the whole read rather than clearing an asset, and answers null for an object
+ * that is really gone, which keeps the reference so a later save cannot erase it.
+ */
+export async function rehydrateSharedAssets(body: unknown, download: Downloader): Promise<unknown> {
+  const clone = JSON.parse(JSON.stringify(body ?? null));
+  const nodes: AssetNode[] = [];
+  collectAssetNodes(clone, nodes);
+  for (const node of nodes) {
+    if (!node.data.startsWith(STORAGE_SENTINEL)) continue;
+    const data = await download(node.data.slice(STORAGE_SENTINEL.length));
+    if (data !== null) node.data = data;
+  }
+  return clone;
+}
+
 /**
  * True when `body` still holds at least one Storage sentinel — bytes that live in Storage and
  * have not been rehydrated yet.
