@@ -44,21 +44,14 @@
   "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15.",
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985)."
  },
- "waitingOn": {
-  "what": "PR #1995 in the merge queue",
-  "eta": "2026-11-03T02:50:00Z"
- },
+ "waitingOn": null,
  "inFlight": [
   {
    "phase": "cf09",
-   "step": "build",
-   "session": "session_017SdbwPigSBPx27nb386xa8",
-   "nonce": "cf09-b-ee77",
-   "pr": 1995,
-   "head": "133e6d9ae635a0c0781e6aaa267e6ee62c408010",
-   "stamped": "run 41564689818",
-   "autoMerge": "2026-11-03T02:13:13Z",
-   "state": "queued"
+   "step": "check",
+   "session": "session_017SdbwN8uuPAhkuP66cXd5e",
+   "nonce": "cf09-c-657d",
+   "launchedAt": "2026-11-03T02:21:24Z"
   }
  ],
  "owner": [],
