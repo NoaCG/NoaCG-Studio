@@ -71,8 +71,19 @@ fast road, which carries no server time, so each output stamps that row with its
 
 - Reproduction: the new configured test measures the two outputs' origins after the Take and after
   the running correction, and the rebooted output's origin against the other's, and records the
-  three numbers on the test (annotation `1886`, and a `[#1886]` log line). Measured result: see
-  Review rounds below (CI only: this worker has no Docker daemon for a local stack).
+  three numbers on the test (annotation `1886`, and a `[#1886]` log line). It runs only in CI:
+  this worker has no Docker daemon for a local stack.
+- **Measured (CI run 41566156768, head `ddefc4df`, local Supabase stack): Take spread 0 ms,
+  running correction spread 0 ms, rebooted output 0 ms from the other. #1886 did not reproduce
+  on this path.** A spread of exactly 0 means both outputs stamped each row with the same server
+  `created_at`; a fast-road frame carries none, and the renderer then falls back to its own clock
+  (`rowInstant`, `src/control/matchClockWire.ts`), which would give a few to tens of ms here. So on
+  this stack these rows reached both outputs through their durable, server-stamped copy. The test
+  cannot tell whether the fast road did not carry them or was not joined on the local stack; the
+  issue's mechanism is still in the code, so #1886 stays open as filed.
+- Both outputs share one machine and one clock, so this setup is a lower bound: the issue's real
+  risk, clocks that differ between machines, cannot show here. The reboot number is the issue's
+  "a reload can move it" case; at 0 ms it did not move.
 - Bound: under 1.5 s each, the fast road's spread the issue expects with room for a loaded runner.
   The test does not assert the spread is zero; that would assert the fix.
 - Product fix: none in this row. The row's files are tests only, and the issue's fix (send those
@@ -124,7 +135,19 @@ fast road, which carries no server time, so each output stamps that row with its
 
 ## Review rounds
 
-(Filled in as the rounds complete.)
+- `/check` inline review: one finding, fixed (an empty clock text could pass the correction wait).
+- PR review bot on `3acdd0d0` (PR opened): completed, no findings.
+- `/so` on `3acdd0d0` (`session_017SdbwR22kWehQUJbnJoab6`): AGREE WITH CORRECTIONS, A-. Point 1,
+  blocking, evidence only (class delayed review, family #1886 evidence): the #1886 numbers were not
+  yet stated, and the 1.5 s bound cannot tell the two roads apart. Taken: numbers above, the
+  0-against-more-than-0 reading and the one-machine lower bound, in these notes and beside
+  `FAST_ROAD_SPREAD_MS`. Point 3 (class faulty test expectation): output B was compared with A's
+  Take origin; each output is now compared with its own. Points 2, 4, 6, 7 agree. Point 5 stays a
+  documented limit (the SPX control page itself is not walked; Limits).
+- CI on `3acdd0d0` (run 41565561149): the configured job failed before any test, on the local
+  stack's port 54322 (#1865); its one re-run was cancelled by the push of `ddefc4df`.
+- CI on `ddefc4df` (run 41566156768): every job green except Reviewed (the coordinator's stamp);
+  configured selection triggered, subset, 1 spec (`scorebug-output.spec.ts`, 3 passed).
 
 ## Revert
 
