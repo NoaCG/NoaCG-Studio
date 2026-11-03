@@ -1669,7 +1669,8 @@ test('svg import: a growth limit held across a preview rebuild stays on the stag
   await page.mouse.move(x, y);
   await page.mouse.down();
   await page.mouse.move(x, y - 40, { steps: 4 });
-  expect(Number(await cap.getAttribute('data-margin'))).not.toBeCloseTo(before, 3);
+  const margin = async () => Number(await cap.getAttribute('data-margin'));
+  await expect.poll(margin).not.toBeCloseTo(before, 3);
   // Hold the button while the preview rebuilds for that move.
   await expect(stage).not.toHaveAttribute('data-doc-rev', rev);
   await expect(stage).not.toHaveAttribute('data-doc-pending', '1');
@@ -1678,7 +1679,7 @@ test('svg import: a growth limit held across a preview rebuild stays on the stag
   // The same drag carries on to the box's bottom edge, where it stops.
   await page.mouse.move(x, y - 4000, { steps: 6 });
   await page.mouse.up();
-  expect(Number(await cap.getAttribute('data-margin'))).toBeCloseTo(1 - 260 / 1080, 2);
+  await expect.poll(margin).toBeCloseTo(1 - 260 / 1080, 2);
 });
 
 test('svg import: an untouched proposal is left to the runtime, not frozen into the graphic', async ({ page }) => {
