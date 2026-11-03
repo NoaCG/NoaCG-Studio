@@ -672,7 +672,10 @@ else's web server. It reports three things:
 1. **Drift** - a sha256 per published file against `scripts/ograf-schema-baseline.json`, the bytes
    `ografSchema.ts` was transcribed from. The seven files are DISCOVERED by following `$ref` from
    the root schema, so a spec revision that splits a file is followed rather than silently skipped.
-   Re-record with `--record` after reading the diff.
+   Read the diff. If a rule changed, update `ografSchema.ts` and `OGRAF_STANDARD`
+   (`src/model/ografTyped.ts`, which pins the same bytes) and re-record with `--record`. If none
+   did, list the new digest in that file's `reviewed` entry: every saved typed cue names the pinned
+   revision and goes read-only when it moves, so a change of wording must not move it.
 2. **Corpus** - every `*.ograf.json` in the repo, validated by ajv (draft 2020-12) against the
    published files. `--from <dir>` adds an exported package.
 3. **Agreement** - the corpus plus a mutation battery (the eight cases of the 2026-08-26 round and
@@ -687,6 +690,7 @@ else's web server. It reports three things:
 First run, 2026-08-29: seven files fetched, corpus clean, all eight mutations behaving exactly as
 the hand round recorded them.
 
-Re-recorded 2026-11-03. EBU commit `b23d7eee` (2026-10-28) changed one thing in `graphics/schema.json`,
+Reviewed 2026-11-03. EBU commit `b23d7eee` (2026-10-28) changed one thing in `graphics/schema.json`,
 the `description` of the `schema` property, which now names `load()` and `updateAction()`. A structural
-diff of the old and new files shows no rule moved, so `ografSchema.ts` did not change.
+diff of the old and new files shows no rule moved, so `ografSchema.ts` and the pinned revision did not
+change.

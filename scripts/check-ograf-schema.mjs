@@ -23,7 +23,10 @@
 //
 //   1. DRIFT - a sha256 per published file against scripts/ograf-schema-baseline.json, which
 //      records the bytes ografSchema.ts was transcribed from. A change here is the signal to
-//      re-read the diff and re-transcribe; nothing else in the repo can produce it.
+//      re-read the diff and re-transcribe; nothing else in the repo can produce it. A later
+//      revision read and found to move no rule goes in that file's `reviewed` list: the recorded
+//      hash stays, because OGRAF_STANDARD (model/ografTyped.ts) pins the same bytes and every saved
+//      typed cue names that revision, so moving it for a change of wording would make them read-only.
 //   2. CORPUS - every *.ograf.json in the repo (plus any directory passed with --from)
 //      validated against the published files by ajv, draft 2020-12.
 //   3. AGREEMENT - the same manifests, and a battery of MUTATIONS of them, put through BOTH
@@ -238,13 +241,13 @@ const readingFor = (file) => (extraRoots.some((dir) => file.startsWith(dir + sep
 const report = {
   checked: false,
   reason: null,
-  drift: { changed: [], added: [], removed: [], baselineRecorded: null },
+  drift: { changed: [], reviewed: [], added: [], removed: [], baselineRecorded: null },
   corpus: [],
   mutations: [],
   disagreements: [],
 };
 
-let schemas;
+let schemas = new Map();
 try {
   schemas = await fetchSchemas();
   report.checked = true;
@@ -257,7 +260,7 @@ try {
 // runner refuses. The count is zero there and honestly so, which is what `optional` is for.
 if (!report.checked) {
   measured.optional(
-    0,
+    schemas.size,
     'ograf schema files',
     'zero when the published spec could not be fetched at all; this gate then prints NOT CHECKED and exits 0, because "could not check" is not "clean" but it is not a failure either.',
   );
@@ -288,7 +291,9 @@ if (report.checked) {
     }
     for (const [url, digest] of Object.entries(digests)) {
       const known = baseline.files?.[url];
+      const reviewed = known?.reviewed?.find((row) => row.sha256 === digest.sha256);
       if (!known) report.drift.added.push(url);
+      else if (reviewed) report.drift.reviewed.push({ url, change: reviewed.change });
       else if (known.sha256 !== digest.sha256) report.drift.changed.push({ url, was: known.sha256, now: digest.sha256 });
     }
     for (const url of Object.keys(baseline.files ?? {})) {
@@ -381,7 +386,8 @@ if (asJson) {
   console.log(`${schemas.size} published OGraf schema files fetched from ograf.ebu.io.\n`);
 
   console.log('Drift against the bytes ografSchema.ts was transcribed from:');
-  if (driftCount === 0) console.log('  ok   every published file is byte-identical to the baseline');
+  if (driftCount === 0) console.log('  ok   every published file is byte-identical to the baseline or a revision reviewed against it');
+  for (const row of report.drift.reviewed) console.log(`  note ${row.url} is a reviewed revision: ${row.change}`);
   for (const row of report.drift.changed) console.log(`  DIFF ${row.url}`);
   for (const url of report.drift.added) console.log(`  NEW  ${url} (not in the baseline)`);
   for (const url of report.drift.removed) console.log(`  GONE ${url} (in the baseline, no longer published)`);
@@ -407,8 +413,10 @@ if (asJson) {
     for (const row of report.disagreements) console.log(`  - ${row.case}: ${row.note}`);
   }
   if (driftCount) {
-    console.log('\nThe published schemas moved. Read the diff, update src/export/targets/ografSchema.ts');
-    console.log('if a rule changed, then re-record: node scripts/check-ograf-schema.mjs --record');
+    console.log('\nThe published schemas moved. Read the diff.');
+    console.log('If a rule changed: update src/export/targets/ografSchema.ts and OGRAF_STANDARD in');
+    console.log('src/model/ografTyped.ts, then re-record: node scripts/check-ograf-schema.mjs --record');
+    console.log('If no rule did: add the new digest to that file\'s "reviewed" list in the baseline.');
   }
 }
 
