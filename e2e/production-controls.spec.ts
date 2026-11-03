@@ -2323,6 +2323,11 @@ test('pinned live controls: the pinned score stays on screen, presses its own on
  */
 test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; only Take and Update reach PROGRAM, with no replay', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 });
+  // Installed before the page boots, so EVERY timer it starts is Playwright's and stops with the
+  // clock below. A clock first touched by `pauseAt` fakes only the timers made after it: the
+  // header clock's once-a-second page render (ProductionPage's `setNow`), started at mount, kept
+  // real time and could commit with the measurement (#1946).
+  await page.clock.install();
   await bootstrapGraphic(page, 'Hairline');
   const showId = await openProductionWithCurrent(page, 'Adjust Night');
   // A second cue of the same lower third, for the cue exception.
@@ -2349,7 +2354,20 @@ test('Adjust moves a lower third to the other side and shrinks it on PREVIEW; on
   // is kept. A render the measurement caused commits WITH the block's own redraw, so it is asserted
   // as cause, not as a count: no batch of DOM mutations holds both the measurement's redraw and a
   // page render. (A count over a window also caught renders from elsewhere on a loaded runner.)
+  // That holds only while nothing else renders the page in the measurement's window, and the
+  // header clock does, once a second. So the measurement starts just after one of its ticks: the
+  // clock steps until the page renders (at most a second), and the next tick is then further off
+  // than the 411 ms the measurement takes.
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const pageRenders = () => page.getByTestId('production-page').getAttribute('data-renders');
+  await expect.poll(async () => {
+    const before = await pageRenders();
+    await page.waitForTimeout(300);
+    return (await pageRenders()) === before;
+  }, { message: 'the paused page stops rendering' }).toBe(true);
+  const quiet = await pageRenders();
+  for (let ran = 0; ran < 1000 && (await pageRenders()) === quiet; ran += 20) await page.clock.runFor(20);
+  await expect.poll(pageRenders, { message: 'the header clock ticked, so the measurement starts just after it' }).not.toBe(quiet);
   await page.getByTestId('cue-adjust-toggle').click();
   await expect(page.getByTestId('preview-guides')).toBeVisible();
   await page.clock.runFor(160);
@@ -2613,6 +2631,7 @@ test('Setup ▾ Look works on a production with no captured look and no saved br
     shows.setShowLook(id, undefined);
     await new Promise((r) => setTimeout(r));
   }, showId);
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await page.getByTestId('production-setup').click();
@@ -2643,6 +2662,7 @@ test('the Type row reads a look\'s imported face in effect, and offers no other 
     } as never);
     await new Promise((r) => setTimeout(r));
   }, showId);
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await page.locator('.pd-cue').first().click();
@@ -2674,6 +2694,9 @@ test('Setup ▾ Look turns a production look on and off, counts its reach, keeps
     addLook('Autumn Quiz', { ...(captured as object), palette: { ...(captured as { palette: object }).palette, accent: '#00a3ff' }, fontId: 'oswald' } as never);
     await new Promise((r) => setTimeout(r));
   }, [showId, look] as const);
+  // The seed's writes land a moment after they are accepted: a reload before then loses the last
+  // one (#1778: the saved brand, so `look-brand` never offered it).
+  await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   // PROGRAM holds a frame per pool graphic; the strap's is the first, in pool order.
