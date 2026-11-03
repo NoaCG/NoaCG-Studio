@@ -192,6 +192,20 @@ By the rule above, **tune 1 is chosen** (one stratum worse against two). Its que
 the committed `prompts.json` with all five arms (behaviour questions changed, field question,
 criteria, chat system and threshold as row 32).
 
+## Approved departure from TOUCHES
+
+The coordinator approved this before the PR opened, for this purpose only:
+
+- `scripts/jev-svg-eval.test.mjs`: two row 32 tests read the committed `prompts.json` and pinned
+  its untrimmed seven arms. M1 mutated `candidates[3]` expecting a decision model, which is a chat
+  model after the trim. C5 asserted that the committed file has four challengers and is refused
+  for the holdout, a state its own comment said would last "until row 33 trims it to two". Now
+  M1 selects the non-primary decision candidate by kind, and C5 builds row 32's four-challenger
+  configuration inside the test and keeps every refusal assertion against it. One assertion is
+  added: the committed file passes the holdout's challenger limit. No assertion is removed or
+  weakened, and no harness source changes. The test file is outside the frozen 229-file
+  manifest, so the freeze is unaffected.
+
 ## Frozen for row 34
 
 - Configuration: `docs/work-specs/jev-svg-import/evaluation/prompts.json` as this PR lands it
