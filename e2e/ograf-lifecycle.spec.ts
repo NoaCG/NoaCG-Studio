@@ -15,18 +15,20 @@
 // The renderer page runs on Playwright's paused clock, so time moves only when a case moves it.
 
 import { test, expect, type Page } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 import { installGraphicBody } from './_graphicBody';
 import { graphicTemplate, ografFiles, type GraphicSource } from './_ografBuild';
+import { dropSvg, intoProduction } from './_svg-import';
 
 const ORIGIN = 'http://ograf-lifecycle.local';
 const START = new Date('2026-10-11T12:00:00Z');
 const PAUSED_AT = new Date('2026-10-11T12:00:30Z');
 
 type Result = { statusCode: number; statusMessage?: string; currentStep?: number };
-type Action = 'load' | 'playAction' | 'stopAction' | 'dispose';
+type Action = 'load' | 'playAction' | 'stopAction' | 'updateAction' | 'customAction' | 'dispose';
 type Driver = HTMLElement & Record<Action, (p: unknown) => Promise<Result>>;
-/** A graphic to build, with its SPX `out` setting when the case sets one. */
-type Source = GraphicSource & { out?: string };
+/** A graphic to build, or one the import road already made, with its SPX `out` setting when the case sets one. */
+type Source = (GraphicSource | { kind: 'made'; template: unknown }) & { out?: string };
 
 /**
  * Build each source's package in the app, then open a bare renderer page serving each under
@@ -36,7 +38,7 @@ async function openRenderer(page: Page, sources: Record<string, Source>) {
   await page.goto('/app');
   const packages = new Map<string, Map<string, Buffer>>();
   for (const [key, source] of Object.entries(sources)) {
-    const template = (await graphicTemplate(page, source)) as { settings: Record<string, string> };
+    const template = (source.kind === 'made' ? source.template : await graphicTemplate(page, source)) as { settings: Record<string, string> };
     const files = await ografFiles(page, source.out ? { ...template, settings: { ...template.settings, out: source.out } } : template);
     if (typeof files !== 'object') throw new Error(`${key} did not build: ${files}`);
     packages.set(key, files);
@@ -57,8 +59,8 @@ async function openRenderer(page: Page, sources: Record<string, Source>) {
 }
 
 /** Mount one package and call `action` on it; `load` mounts it first. Answers the ReturnPayload. */
-async function act(page: Page, key: string, action: Action): Promise<Result> {
-  return page.evaluate(async ({ origin, key, action }) => {
+async function act(page: Page, key: string, action: Action, given?: unknown): Promise<Result> {
+  return page.evaluate(async ({ origin, key, action, given }) => {
     let el = document.querySelector(`[data-key="${key}"]`) as Driver | null;
     if (!el) {
       const mod = await import(`${origin}/${key}/graphic.mjs`);
@@ -67,10 +69,10 @@ async function act(page: Page, key: string, action: Action): Promise<Result> {
       el.dataset.key = key;
       document.body.appendChild(el);
     }
-    const params = action === 'load' ? { data: {}, renderType: 'realtime', renderCharacteristics: {} } : {};
+    const params = given ?? (action === 'load' ? { data: {}, renderType: 'realtime', renderCharacteristics: {} } : {});
     const { statusCode, statusMessage, currentStep } = await el[action](params);
     return { statusCode, statusMessage, currentStep };
-  }, { origin: ORIGIN, key, action });
+  }, { origin: ORIGIN, key, action, given });
 }
 
 /**
@@ -277,4 +279,139 @@ test('a graphic set to leave by itself leaves after its entrance and hold, unles
   expect(await exits(), 'a replayed graphic did not leave after its second hold').toEqual({ timed: 1, manual: 0, stopped: 1, replayed: 1, disposed: 0 });
   await page.clock.runFor(10_000);
   expect(await exits(), 'a graphic waiting for Stop left by itself, or an exit ran twice').toEqual({ timed: 1, manual: 0, stopped: 1, replayed: 1, disposed: 0 });
+});
+
+// ── GENERATED IMPORTED PACKAGES IN A HOST WITH NO WIRE (docs/work-specs/jev-svg-import row 29, AC-16) ──
+//
+// Standalone-host capability, not hosted recovery: the package is the one the import road saved,
+// built by the real OGraf target, and nothing but the renderer's own calls reaches it. No server
+// stamps its clock, so a Start, a Take or a correction counts from the renderer's own clock, and
+// there is no log to rejoin after a reboot. Hosted recovery is e2e/configured/scorebug-output.spec.ts.
+// Physical studio acceptance is not claimed here.
+
+const SCORE_CLOCK_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url));
+const CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
+
+/** Import `svg` through the wizard, let `choose` set its behaviour, finish it into a new
+ *  production, and answer the graphic the library saved. */
+async function imported(page: Page, svg: string, name: string, choose: () => Promise<void>): Promise<unknown> {
+  await page.goto('/app');
+  await dropSvg(page, svg);
+  await choose();
+  await intoProduction(page, name, `${name} Show`);
+  return page.evaluate(async (name) => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    return loadGraphics().find((g) => g.name === name)!.template;
+  }, name);
+}
+
+/** The text a mounted package shows in `selector`, inside its own body. */
+const shown = (page: Page, key: string, selector: string) =>
+  page.evaluate(({ key, selector }) => Array.from(graphicBody(document.querySelector(`[data-key="${key}"]`)!).querySelectorAll(selector)).map((el) => (el.textContent ?? '').trim()), { key, selector });
+const clockOf = async (page: Page, key: string) => (await shown(page, key, '.imported-design-clock'))[0];
+
+test('an imported clock made by the import road starts, holds, takes a correction and resets on OGraf custom actions', async ({ page }) => {
+  const choose = (mode: string) => () => page.getByTestId('map-svg-clock-mode').selectOption(mode);
+  const countUp = await imported(page, SCORE_CLOCK_SVG, 'Host Count Up', choose('count-up'));
+  const duration = await imported(page, SCORE_CLOCK_SVG, 'Host Duration', choose('duration'));
+  const packages = await openRenderer(page, { up: { kind: 'made', template: countUp }, down: { kind: 'made', template: duration } });
+  // The operator's clock buttons are the manifest's custom actions, so any OGraf host offers them.
+  const manifest = JSON.parse([...packages.get('up')!].find(([name]) => name.endsWith('.ograf.json'))![1].toString('utf8')) as { customActions: Array<{ id: string }> };
+  expect(manifest.customActions.map((a) => a.id)).toEqual(['clock_start', 'clock_pause', 'clock_reset']);
+  const custom = (key: string, id: string) => act(page, key, 'customAction', { id });
+
+  // COUNTING UP waits for Start: a Take shows the drawn time and holds it.
+  expect(await act(page, 'up', 'load')).toEqual({ statusCode: 200 });
+  expect(await act(page, 'up', 'playAction')).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(3_000);
+  expect(await clockOf(page, 'up')).toBe('12:08');
+  expect(await custom('up', 'clock_start')).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(3_000);
+  expect(await clockOf(page, 'up'), 'Start counts on the renderer\'s own clock').toBe('12:11');
+  expect(await custom('up', 'clock_pause')).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(5_000);
+  expect(await clockOf(page, 'up'), 'Pause holds').toBe('12:11');
+  // A correction typed while held is the time shown, and Start counts on from it.
+  expect(await act(page, 'up', 'updateAction', { data: { f2: '5:00' } })).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(1_000);
+  expect(await clockOf(page, 'up')).toBe('5:00');
+  await custom('up', 'clock_start');
+  await page.clock.runFor(2_000);
+  expect(await clockOf(page, 'up')).toBe('5:02');
+  // A score sent while it runs leaves the clock alone.
+  await act(page, 'up', 'updateAction', { data: { f1: 7 } });
+  await page.clock.runFor(1_000);
+  expect(await shown(page, 'up', '#f1')).toEqual(['7']);
+  expect(await clockOf(page, 'up')).toBe('5:03');
+  // Reset is the drawn time, held; the score stays.
+  await custom('up', 'clock_reset');
+  await page.clock.runFor(2_000);
+  expect(await clockOf(page, 'up')).toBe('12:08');
+  expect(await shown(page, 'up', '#f1')).toEqual(['7']);
+
+  // A DURATION starts on the Take, counted from the renderer's own Take with no wire to stamp it.
+  expect(await act(page, 'down', 'load')).toEqual({ statusCode: 200 });
+  await page.clock.runFor(2_000);
+  expect(await clockOf(page, 'down'), 'off air it waits').toBe('12:08');
+  expect(await act(page, 'down', 'playAction')).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(3_000);
+  expect(await clockOf(page, 'down')).toBe('12:05');
+  await custom('down', 'clock_pause');
+  await page.clock.runFor(4_000);
+  expect(await clockOf(page, 'down')).toBe('12:05');
+  await custom('down', 'clock_reset');
+  await page.clock.runFor(1_000);
+  expect(await clockOf(page, 'down')).toBe('12:08');
+  // Out and a fresh Take: a new count of its length, from this Take.
+  await act(page, 'down', 'stopAction');
+  await page.clock.runFor(2_000);
+  await act(page, 'down', 'playAction');
+  await page.clock.runFor(2_000);
+  expect(await clockOf(page, 'down')).toBe('12:06');
+  expect(await act(page, 'down', 'dispose')).toEqual({ statusCode: 200 });
+});
+
+test('imported credits made by the import road roll, take a new list and change cards on Next card in an OGraf host', async ({ page }) => {
+  const credits = (playback: 'roll' | 'cards') => async () => {
+    await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+    const picker = page.getByTestId('map-svg-recipe-credits');
+    const role = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
+    await picker.selectOption(role);
+    await page.getByTestId('map-svg-credits-playback').selectOption(playback);
+  };
+  const roll = await imported(page, CREDITS_SVG, 'Host Roll', credits('roll'));
+  const cards = await imported(page, CREDITS_SVG, 'Host Cards', credits('cards'));
+  const packages = await openRenderer(page, { roll: { kind: 'made', template: roll }, cards: { kind: 'made', template: cards } });
+  const manifest = JSON.parse([...packages.get('cards')!].find(([name]) => name.endsWith('.ograf.json'))![1].toString('utf8')) as { customActions: Array<{ id: string }> };
+  expect(manifest.customActions.map((a) => a.id)).toEqual(['nextCard']);
+  const rows = (key: string) => shown(page, key, '.imported-design-credits-row');
+
+  // CARDS: the list arrives as data, the Take shows the first card, Next card the second, and
+  // the last one holds.
+  expect(await act(page, 'cards', 'load', { data: { f1: 'Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss' }, renderType: 'realtime', renderCharacteristics: {} })).toEqual({ statusCode: 200 });
+  expect(await act(page, 'cards', 'playAction')).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(2_000);
+  expect(await rows('cards')).toEqual(['Research', 'Nia Vale', 'Tomas Fen']);
+  await page.clock.runFor(5_000);
+  expect(await rows('cards'), 'with no card time a card waits for Next card').toEqual(['Research', 'Nia Vale', 'Tomas Fen']);
+  expect(await act(page, 'cards', 'customAction', { id: 'nextCard' })).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(2_000);
+  expect(await rows('cards')).toEqual(['Sound', 'Ari Moss']);
+  await act(page, 'cards', 'customAction', { id: 'nextCard' });
+  await page.clock.runFor(2_000);
+  expect(await rows('cards'), 'the last card holds').toEqual(['Sound', 'Ari Moss']);
+
+  // ROLL: the list moves up through the frame on the renderer's clock, and a new list sent on
+  // air is the list that rolls.
+  expect(await act(page, 'roll', 'load')).toEqual({ statusCode: 200 });
+  expect(await act(page, 'roll', 'playAction')).toMatchObject({ statusCode: 200 });
+  const top = () => page.evaluate(() => graphicBody(document.querySelector('[data-key="roll"]')!).querySelector('.imported-design-credits-rows')!.getBoundingClientRect().top);
+  await page.clock.runFor(1_000);
+  const early = await top();
+  await page.clock.runFor(3_000);
+  expect(await top(), 'the roll moves up').toBeLessThan(early - 10);
+  expect(await act(page, 'roll', 'updateAction', { data: { f1: 'Director:\nAlex Rivera\nProducer:\nSam Chen' } })).toMatchObject({ statusCode: 200 });
+  await page.clock.runFor(500);
+  expect(await rows('roll')).toEqual(['Director', 'Alex Rivera', 'Producer', 'Sam Chen']);
+  expect(await act(page, 'roll', 'dispose')).toEqual({ statusCode: 200 });
 });
