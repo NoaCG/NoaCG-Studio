@@ -71,7 +71,9 @@ export async function reconcileJob(job: JobRecord, store: JobStore, executor: Re
           },
           { guardNonTerminal: true },
         );
-        void executor.stop(job); // release the machine promptly; idempotent
+        // Awaited: Vercel freezes a function once it has answered, so a stop left floating often
+        // never reaches the sandbox, and the VM bills to its timeout. Idempotent, and never throws.
+        await executor.stop(job);
         return updated ?? job;
       }
       // Worker claims complete but the file is unreadable — fall through to timeout logic.
@@ -81,7 +83,7 @@ export async function reconcileJob(job: JobRecord, store: JobStore, executor: Re
         { state: 'failed', error: progress.error ?? { code: 'render_failed', message: 'render failed' } },
         { guardNonTerminal: true },
       );
-      void executor.stop(job);
+      await executor.stop(job);
       return updated ?? job;
     } else {
       const updated = await store.update(
@@ -106,7 +108,7 @@ export async function reconcileJob(job: JobRecord, store: JobStore, executor: Re
       },
       { guardNonTerminal: true },
     );
-    void executor.stop(job);
+    await executor.stop(job);
     return updated ?? job;
   }
   return job;
