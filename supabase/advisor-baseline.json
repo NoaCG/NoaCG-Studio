@@ -598,6 +598,11 @@
       "level": "WARN",
       "detail": "Function `public.storage_within_quota(p_bucket text, p_owner text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/storage_within_quota`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_team_assets_within_quota_p_team uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.team_assets_within_quota(p_team uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_assets_within_quota`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_team_join_p_code text, p_display_name text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",

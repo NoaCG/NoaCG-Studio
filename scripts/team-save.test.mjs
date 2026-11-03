@@ -5,6 +5,13 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import * as history from '../src/model/rundownHistory.ts';
+import { rolldown } from 'rolldown';
+import * as pacing from '../src/backend/pacing.ts';
+
+const bundle = await rolldown({ input: 'src/backend/assets.ts', platform: 'neutral', logLevel: 'silent' });
+const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+await bundle.close();
+const assets = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
 
 const source = readFileSync(new URL('../src/backend/teamProductions.ts', import.meta.url), 'utf8');
 const deferred = () => {
@@ -14,16 +21,18 @@ const deferred = () => {
 };
 
 /** Execute the real save controller with a delayed disk and RPC, without an account/server. */
-function harness(pending = true) {
+function harness(pending = true, graphics = [], storage = undefined) {
   const disk = deferred();
   const request = deferred();
   const requests = [];
   const answers = [];
-  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics: [] };
+  let local = { id: 'show', teamId: 'team', version: 2, name: 'First edit', graphics };
   let retained = local;
   const stubs = {
-    './supabase': { getSupabase: async () => ({ rpc: async (_name, args) => { requests.push(args); return answers.length ? answers.shift() : request.promise; } }) },
+    './supabase': { getSupabase: async () => ({ storage, rpc: async (_name, args) => { requests.push(args); return answers.length ? answers.shift() : request.promise; } }) },
     './teams': {},
+    './assets': assets,
+    './pacing': pacing,
     '../model/shows': {},
     '../model/teamShows': { loadTeamShows: () => [local], applyServerTeamShow: doc => { local = doc; } },
     '../model/rundownHistory': history,
@@ -43,6 +52,9 @@ function harness(pending = true) {
       if (pending) { dirty.add(doc.id); setSaving(doc.id, 'pending'); }
     }
     export function editForTest(id: string) { scheduleSave(id); }
+    export function pacingForTest() { return { readFailures, readsResumeAt, saveFailures, savesResumeAt }; }
+    export function noteReadForTest(failed: boolean) { noteRead(failed); }
+    export function noteSaveForTest(failed: boolean) { noteSave(failed); }
   `;
   const compiled = ts.transpileModule(source + setup, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
@@ -145,4 +157,75 @@ test('team flush refuses cloud confirmation when the browser-storage commit fail
   assert.equal(h.requests.length, 0);
   assert.equal(h.retained().name, 'First edit');
   assert.equal(h.controller.getTeamState().saving.show, 'failed');
+});
+
+test('a reference outside this team\'s folder is never downloaded with the reader\'s rights', async () => {
+  const private_ = `${assets.STORAGE_SENTINEL}reader-uid/abcd1234`;
+  const graphic = data => [{ id: 'g', template: { assets: [{ path: 'a.png', data }] } }];
+  const h = harness(false, [], {
+    from: () => ({
+      upload: async () => ({ error: null }),
+      download: async () => { throw new Error('must not read outside the team folder'); },
+    }),
+  });
+  h.answers.push(
+    { data: { saved: false, updated_at: 'teammate', doc: { ...h.local(), graphics: graphic(private_) } }, error: null },
+    { data: { saved: true, updated_at: 'inverse' }, error: null },
+  );
+  const expected = history.rundownSlice(h.local());
+  await h.controller.restoreTeamRundown('show', expected, expected, () => true);
+  assert.equal(h.local().graphics[0].template.assets[0].data, private_);
+});
+
+test('a failed save waits longer each time, and one success returns to the normal rate', async () => {
+  const h = harness();
+  h.answers.push({ data: null, error: { message: 'canceling statement due to statement timeout' } });
+  const failing = h.controller.flushTeamProduction('show');
+  h.disk.resolve(null);
+  await failing;
+  const first = h.controller.pacingForTest();
+  assert.equal(first.saveFailures, 1);
+  assert.ok(first.savesResumeAt > Date.now(), 'the next save must wait');
+  assert.equal(h.controller.getTeamState().saving.show, 'failed');
+  h.controller.noteSaveForTest(true);
+  assert.equal(h.controller.pacingForTest().saveFailures, 2);
+  h.controller.noteSaveForTest(false);
+  assert.equal(h.controller.pacingForTest().saveFailures, 0);
+  assert.equal(h.controller.pacingForTest().savesResumeAt, 0);
+});
+
+test('failed reads push the poll back, and one good read restores it', () => {
+  const h = harness(false);
+  h.controller.noteReadForTest(true);
+  const once = h.controller.pacingForTest().readsResumeAt;
+  h.controller.noteReadForTest(true);
+  h.controller.noteReadForTest(true);
+  assert.ok(h.controller.pacingForTest().readsResumeAt > once + 15_000, 'three failures wait longer than one');
+  h.controller.noteReadForTest(false);
+  assert.equal(h.controller.pacingForTest().readsResumeAt, 0);
+  assert.equal(h.controller.pacingForTest().readFailures, 0);
+});
+
+test('a save sends references, and a teammate\'s refused document comes back with its files', async () => {
+  const uploads = [];
+  const png = 'data:image/png;base64,QUJD';
+  const key = assets.sharedAssetKey('team/team', png);
+  const reference = assets.STORAGE_SENTINEL + key;
+  const graphic = data => [{ id: 'g', template: { assets: [{ path: 'a.png', data }] } }];
+  const h = harness(false, graphic(png), {
+    from: () => ({
+      upload: async (uploaded) => { uploads.push(uploaded); return { error: null }; },
+      download: async () => { throw new Error('this tab already holds the file'); },
+    }),
+  });
+  h.answers.push(
+    { data: { saved: false, updated_at: 'teammate', doc: { ...h.local(), name: 'Theirs', graphics: graphic(reference) } }, error: null },
+    { data: { saved: true, updated_at: 'inverse' }, error: null },
+  );
+  const expected = history.rundownSlice(h.local());
+  assert.equal((await h.controller.restoreTeamRundown('show', expected, expected, () => true)).status, 'saved');
+  assert.deepEqual(uploads, [key], 'bytes go up once, whatever the number of saves');
+  for (const sent of h.requests) assert.equal(sent.p_doc.graphics[0].template.assets[0].data, reference);
+  assert.equal(h.local().graphics[0].template.assets[0].data, png, 'the tab keeps real bytes');
+  assert.equal(h.local().name, 'Theirs');
 });

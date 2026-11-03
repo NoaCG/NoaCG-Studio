@@ -34,6 +34,8 @@ import { mergeTeamShow } from '../model/teamShowMerge';
 import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
 import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
 import { replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
+import { blobToDataUrl, classifyAssetRefusal, dataUrlToBlob, externalizeSharedAssets, rehydrateSharedAssets } from './assets';
+import { backoffDelay } from './pacing';
 
 export interface TeamRundownReceipt { owner: object | null; token: string | null; id: string }
 export function beginTeamRundownEdit(id: string): TeamRundownReceipt {
@@ -70,7 +72,7 @@ export async function restoreTeamRundown(
       if (!valid() || dirty.has(id) || !now || !sameRundown(rundownSlice(now), expected)) return refused(RUNDOWN_CHANGED);
       const next = replaceRundown({ ...base, teamId: known.teamId }, expected, replacement);
       if (!next.show) return refused(next.refused!);
-      const { answer, error } = await saveTeamProduction(id, token, teamDoc(next.show));
+      const { answer, error } = await saveTeamProduction(id, token, teamDoc(next.show), known.teamId);
       if (!valid()) return refused('The editing session changed. Undo history was cleared.');
       if (!answer) return { status: 'failed', error: error ?? 'Undo was not saved to the team.' };
       const current = loadTeamShows().find(s => s.id === id);
@@ -155,6 +157,64 @@ function teamRecord(doc: Show, row: HeadRow): Show {
   };
 }
 
+// ── The assets ──────────────────────────────────────────────────────────────────────────────────
+//
+// This tab always holds real data URLs, and the row holds `spx-storage:` references, so a save stops
+// rewriting megabytes (docs/work-specs/team-save-load/spec.md). Migration 0106 lets the team's
+// members read and write `team/<team id>/` in the bucket personal sync uses.
+
+const ASSET_BUCKET = 'user-assets';
+/** What this session already holds in Storage, by key. A save re-walks every asset; only a new one
+ *  goes up the wire, and a document a teammate changed downloads only what is new to this tab. */
+const knownAssets = new Map<string, string>();
+/** Keys Storage refused for a reason retrying will not fix. They stay inline this session. */
+const refusedAssets = new Set<string>();
+
+type Backend = NonNullable<Awaited<ReturnType<typeof getSupabase>>>;
+
+/** A document without its files. A file that will not upload stays inline: a larger save, never a
+ *  lost one. */
+function withoutAssets(sb: Backend, doc: Show, teamId: string): Promise<unknown> {
+  return externalizeSharedAssets(doc, `team/${teamId}`, async (key, dataUrl) => {
+    if (knownAssets.has(key)) return true;
+    if (refusedAssets.has(key)) return false;
+    try {
+      const blob = dataUrlToBlob(dataUrl);
+      const { error } = await sb.storage.from(ASSET_BUCKET).upload(key, blob, { contentType: blob.type, upsert: false });
+      // 409: a teammate already uploaded these bytes.
+      if (error && String((error as { statusCode?: unknown }).statusCode) !== '409') {
+        if (classifyAssetRefusal(error)) refusedAssets.add(key);
+        return false;
+      }
+      knownAssets.set(key, dataUrl);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** A stored document with its files back. Throws when a download fails, so the read is retried with
+ *  what is on screen intact; an object that is really gone keeps its reference. Only this team's
+ *  folder is read: a member could write any key into a shared document, and this account's rights
+ *  would fetch a file from its own folder, which its next save would then copy to the team. */
+async function withAssets(sb: Backend, doc: Show, teamId: string): Promise<Show> {
+  return await rehydrateSharedAssets(doc, async (key) => {
+    if (!key.startsWith(`team/${teamId}/`)) return null;
+    const known = knownAssets.get(key);
+    if (known) return known;
+    const { data, error } = await sb.storage.from(ASSET_BUCKET).download(key);
+    if (data) {
+      const dataUrl = await blobToDataUrl(data);
+      knownAssets.set(key, dataUrl);
+      return dataUrl;
+    }
+    const { statusCode, message } = (error ?? {}) as { statusCode?: unknown; message?: unknown };
+    if (String(statusCode) === '404' || /not found/i.test(String(message))) return null;
+    throw new Error(`A file in this team production could not be read: ${String(message ?? 'no answer')}`);
+  }) as Show;
+}
+
 // ── The verbs ───────────────────────────────────────────────────────────────────────────────────
 
 /** Every team production this account can see - RLS (`team_productions_member_select`) is the
@@ -178,7 +238,12 @@ async function fetchTeamProductionDocs(ids: string[]): Promise<{ rows: DocRow[];
     .select('id, team_id, updated_at, updated_by, doc')
     .in('id', ids);
   if (error) return { rows: [], error: error.message };
-  return { rows: (data ?? []) as DocRow[], error: null };
+  try {
+    const rows = await Promise.all(((data ?? []) as DocRow[]).map(async (row) => ({ ...row, doc: await withAssets(sb, row.doc, row.team_id) })));
+    return { rows, error: null };
+  } catch (failed) {
+    return { rows: [], error: failed instanceof Error ? failed.message : String(failed) };
+  }
 }
 
 type SaveAnswer =
@@ -189,17 +254,19 @@ async function saveTeamProduction(
   id: string,
   expected: string,
   doc: Show,
+  teamId: string,
 ): Promise<{ answer: SaveAnswer | null; error: string | null }> {
   const sb = await getSupabase();
   if (!sb) return { answer: null, error: 'No backend configured.' };
-  const { data, error } = await sb.rpc('team_production_save', { p_id: id, p_expected: expected, p_doc: doc });
+  const p_doc = await withoutAssets(sb, doc, teamId);
+  const { data, error } = await sb.rpc('team_production_save', { p_id: id, p_expected: expected, p_doc });
   if (error) return { answer: null, error: error.message };
   const a = data as { saved?: boolean; updated_at?: string; updated_by?: string | null; doc?: Show } | null;
   if (!a || typeof a.updated_at !== 'string') return { answer: null, error: 'The save was not answered.' };
   return {
     answer: a.saved
       ? { saved: true, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null }
-      : { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: a.doc as Show },
+      : { saved: false, updatedAt: a.updated_at, updatedBy: a.updated_by ?? null, doc: await withAssets(sb, a.doc as Show, teamId) },
     error: null,
   };
 }
@@ -249,6 +316,27 @@ const POLL_MS = 15_000;
 const SAVE_DEBOUNCE_MS = 600;
 /** Refused saves re-merge and retry this many times before reporting instead of looping. */
 const MAX_SAVE_ATTEMPTS = 4;
+/** While reads fail, the poll and the focus read wait from one poll up to this, then one good read
+ *  returns to the normal rate. An explicit refresh (a join, a move) still goes at once. */
+const MAX_READ_BACKOFF_MS = 120_000;
+/** While saves fail, the next one waits from this up to the ceiling. An explicit flush goes at once. */
+const SAVE_BACKOFF_MS = 2_000;
+const MAX_SAVE_BACKOFF_MS = 30_000;
+
+let readFailures = 0;
+let readsResumeAt = 0;
+let saveFailures = 0;
+let savesResumeAt = 0;
+
+function noteRead(failed: boolean): void {
+  readFailures = failed ? readFailures + 1 : 0;
+  readsResumeAt = failed ? Date.now() + backoffDelay(readFailures, POLL_MS, MAX_READ_BACKOFF_MS) : 0;
+}
+
+function noteSave(failed: boolean): void {
+  saveFailures = failed ? saveFailures + 1 : 0;
+  savesResumeAt = failed ? Date.now() + backoffDelay(saveFailures, SAVE_BACKOFF_MS, MAX_SAVE_BACKOFF_MS) : 0;
+}
 
 /** What the server last said about each production: its token and document - the BASE a local
  *  edit started from, which the merge needs. */
@@ -279,11 +367,9 @@ export function startTeamSync(userId: string): void {
   setState({ loaded: false, loadError: null });
   const unsubscribeEdits = onTeamShowEdit(scheduleSave);
   const onVisible = () => {
-    if (document.visibilityState === 'visible') void refreshTeams();
+    if (document.visibilityState === 'visible' && Date.now() >= readsResumeAt) void refreshTeams();
   };
-  const tick = setInterval(() => {
-    if (document.visibilityState === 'visible') void refreshTeams();
-  }, POLL_MS);
+  const tick = setInterval(onVisible, POLL_MS);
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('focus', onVisible);
   running = {
@@ -308,6 +394,10 @@ export function stopTeamSync(): void {
   server.clear();
   dirty.clear();
   inflight.clear();
+  knownAssets.clear();
+  refusedAssets.clear();
+  noteRead(false);
+  noteSave(false);
   if (!preserve) clearTeamShows();
   state = preserve ? { ...state, loadError: 'Session unavailable. Account editing is paused; pending work is preserved.' } : EMPTY;
   for (const listener of listeners) listener();
@@ -329,7 +419,8 @@ export function refreshTeams(): Promise<void> {
       do {
         refreshAgain = false;
         await refreshOnce();
-      } while (refreshAgain && running);
+        // A read that just failed has set its own wait; a call queued behind it does not jump that.
+      } while (refreshAgain && running && Date.now() >= readsResumeAt);
     } finally {
       refreshing = null;
     }
@@ -370,6 +461,7 @@ async function refreshOnce(): Promise<void> {
   const loadError = teamsAnswer.error ?? membersAnswer.error ?? headsAnswer.error;
   if (loadError) {
     // Keep what is on screen: a failed tick must not empty Home. Say so, once it matters.
+    noteRead(true);
     setState({ loadError, loaded: state.loaded });
     if (!state.loaded) setTeamShowsStatus('ready');
     return;
@@ -404,9 +496,11 @@ async function refreshOnce(): Promise<void> {
   const docs = await fetchTeamProductionDocs(stale);
   if (running !== owner) return;
   if (docs.error) {
+    noteRead(true);
     setState({ loadError: docs.error });
     return;
   }
+  noteRead(false);
   for (const row of docs.rows) {
     server.set(row.id, {
       token: row.updated_at,
@@ -463,7 +557,7 @@ function scheduleSave(id: string): void {
     setTimeout(() => {
       timers.delete(id);
       void pushSave(id);
-    }, SAVE_DEBOUNCE_MS),
+    }, Math.max(SAVE_DEBOUNCE_MS, savesResumeAt - Date.now())),
   );
 }
 
@@ -495,7 +589,7 @@ async function pushSave(id: string): Promise<void> {
   let failure: string | null = null;
   try {
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
-      const { answer, error } = await saveTeamProduction(id, token, doc);
+      const { answer, error } = await saveTeamProduction(id, token, doc, known.teamId);
       if (running !== owner || owner.userId !== libraryInUse()) return;
       if (!answer) {
         failure = error ?? 'The save failed.';
@@ -556,6 +650,7 @@ async function pushSave(id: string): Promise<void> {
     if (running === owner) inflight.delete(id);
   }
   if (running !== owner) return;
+  noteSave(failure !== null);
   setSaving(id, failure ? 'failed' : dirty.has(id) ? 'pending' : null);
   if (failure) setState({ notes: { ...state.notes, [id]: failure } });
   else if (dirty.has(id)) scheduleSave(id);
@@ -586,9 +681,10 @@ export async function moveProductionToTeam(show: Show, teamId: string): Promise<
   if (!sb || !running) return { error: 'Teams need a signed-in account.', warning: null };
   if (show.teamId) return { error: 'This production is already in a team.', warning: null };
   const doc = teamDoc(show);
+  const stored = await withoutAssets(sb, doc, teamId);
   const { data, error } = await sb
     .from('team_productions')
-    .insert({ id: show.id, team_id: teamId, doc, updated_by: running.userId })
+    .insert({ id: show.id, team_id: teamId, doc: stored, updated_by: running.userId })
     .select('id, team_id, updated_at, updated_by')
     .single();
   if (error || !data) {
