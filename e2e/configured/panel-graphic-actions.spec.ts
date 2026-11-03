@@ -287,20 +287,31 @@ test('a panel press on a renamed control of a reimported score board reaches the
   await page.getByTestId('cue-actions-arrange').click();
   await expect(page.getByTestId('cue-action-score1')).toHaveText('⚡ Reds score');
 
-  /** The saved graphic's Score 1 field and what Team 1's point moves. */
-  const score1 = () =>
-    page.evaluate(async () => {
+  /** The saved graphic and the production's copy of it: their fields, the Score 1 field, and
+   *  what Team 1's point moves in each. */
+  const board = () =>
+    page.evaluate(async (name) => {
       const { loadGraphics } = await import('/src/model/library.ts');
+      const { loadShows } = await import('/src/model/shows.ts');
       const { eventButtons } = await import('/src/control/controlModel.ts');
-      const g = loadGraphics().find((d) => d.name === 'Board')!;
+      const named = loadGraphics().filter((d) => d.name === 'Board');
+      const g = named[0];
+      const pooled = loadShows().find((x) => x.name === name)!.graphics.find((d) => d.name === 'Board')!;
+      const moves = (js: string) => Object.keys(eventButtons(js).find((b) => b.event === 'score1')?.adjust ?? {});
       return {
+        named: named.length,
         id: g.id,
+        fields: g.template.fields.map((f) => `${f.field} ${f.title}`),
+        poolFields: pooled.template.fields.map((f) => `${f.field} ${f.title}`),
         field: g.template.fields.find((f) => f.title === 'Score 1')!.field,
-        moves: Object.keys(eventButtons(g.template.js).find((b) => b.event === 'score1')?.adjust ?? {}),
+        moves: moves(g.template.js),
+        poolMoves: moves(pooled.template.js),
       };
-    });
-  const before = await score1();
+    }, show);
+  const before = await board();
+  expect(before.named).toBe(1);
   expect(before.moves).toEqual([before.field]);
+  expect(before.poolMoves).toEqual([before.field]);
 
   // Reopen, then reimport the same board with a badge drawn first (a fresh build would number
   // every field after it one higher) under the same name, into the same production.
@@ -317,10 +328,21 @@ test('a panel press on a renamed control of a reimported score board reaches the
   await page.getByTestId('wz-finish-name').fill('Board');
   const pick = page.getByTestId('wz-finish-production');
   await pick.selectOption((await pick.locator('option', { hasText: show }).getAttribute('value'))!);
+  // Nothing unresolved: Finish says the name is held and lists nothing, so the save replaces Board.
+  await expect(page.getByTestId('wz-finish-name-taken')).toBeVisible();
   await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
   await addToProductionFromFinish(page);
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
-  expect(await score1()).toEqual(before);
+  // The reimport replaced Board, here and in the production: one graphic of that name, the badge a
+  // field of its own in both copies, every earlier field on its earlier id, and Team 1's point
+  // still moving Score 1 in both.
+  const after = await board();
+  expect(after.named).toBe(1);
+  expect(after.id).toBe(before.id);
+  expect(after.fields.filter((f) => !f.endsWith(' badge'))).toEqual(before.fields);
+  expect(after.fields.length, 'the badge is a field of its own').toBe(before.fields.length + 1);
+  expect(after.poolFields).toEqual(after.fields);
+  expect({ field: after.field, moves: after.moves, poolMoves: after.poolMoves }).toEqual({ field: before.field, moves: before.moves, poolMoves: before.poolMoves });
   await expect(rows).toHaveCount(2);
 
   await publishProduction(page);

@@ -44,7 +44,10 @@ and every matched field keeps its id (R3), so each control's `adjust`, `set`, `a
   Anna on air and Ben selected, the offer carries the arrangement by event id (`event:score3`
   pinned, `event:score1` named "Reds score", `event:newGame` behind More), and one press of
   `event:score1` on Anna's instance is accepted and moves Score 1 by one on the program output,
-  with Ben still selected. The existing refusals in the first test stay the authority on
+  with Ben still selected. Before the dispatch it proves on that backend that the reimport replaced
+  Board: Finish shows the name-taken warning and no review list, there is one graphic called Board,
+  the library and the production's copy both carry the badge field, every earlier field keeps its
+  id, and Team 1's point still moves Score 1 in both. The existing refusals in the first test stay the authority on
   validation.
 
 ## Verification
@@ -89,6 +92,14 @@ and every matched field keeps its id (R3), so each control's `adjust`, `set`, `a
   has the badge field too.
 - CI on `bbe7ac9b` (run 41557119175): CI gate green; configured selection triggered, one spec
   (`panel-graphic-actions.spec.ts`, 4 tests passed, the new one in 31.5 s).
+
+- Final `/so` on `87233056` (`session_017SdbwNnYqBAeFWfHjTHGQW`): AGREE WITH CORRECTIONS, A-,
+  nothing blocking as graded. Its points 1 and 2 (one gap): the configured test did not show the
+  dispatch ran on the reimported graphic, so a reimport saved as "Board 2" would have left it
+  passing against the earlier one. The coordinator ruled this is the heart of AC-25's second
+  sentence, not a safe limit. Class faulty test expectation, family AC-25 dispatch target: the
+  configured test now asserts the replacement on the real backend before the dispatch (above).
+  Point 5 (no `covers:` line) stays a documented limit.
 
 ## Revert
 
