@@ -47,10 +47,13 @@ test.describe('catalog calibration tripwire', () => {
         test.skip(categoryOutOfScope(category), `${category} holds none of the scoped designs`);
         test.setTimeout(120_000);
         await toApp(page);
+        // The artwork goes in as a value, never spliced into the script text below.
+        await page.evaluate((art) => { (window as unknown as { __benchArtwork: Record<string, string> }).__benchArtwork = art; }, ARTWORK);
         // The SLICE ASSIGNMENT is unchanged by scoping - variant i still belongs to slice
         // i % slices - so a scoped run measures exactly the designs a full run would, in the
         // same units. Only the ones nobody asked for are dropped.
-        const rows = await page.evaluate(`(async (category, slice, slices, only, artwork) => { ${HELPERS}
+        const rows = await page.evaluate(`(async (category, slice, slices, only) => { ${HELPERS}
+          const artwork = window.__benchArtwork;
           const { CATALOG } = await import('/src/templates/catalog.ts');
           async function made(v) {
             if (!artwork[v.id]) return v.create();
@@ -70,7 +73,7 @@ test.describe('catalog calibration tripwire', () => {
             out.push({ id: v.id, ok: res.ok, errors: res.errors.map((e) => e.rule + ': ' + e.message) });
           }
           return out;
-        })(${JSON.stringify(category)}, ${slice}, ${slices}, ${JSON.stringify(ONLY_DESIGNS)}, ${JSON.stringify(ARTWORK)})`);
+        })(${JSON.stringify(category)}, ${slice}, ${slices}, ${JSON.stringify(ONLY_DESIGNS)})`);
         const measured = rows as { id: string; ok: boolean; errors: string[] }[];
         // WHAT THIS UNIT MEASURED, for the scope guard, before any assertion can stop the test: a
         // unit that fails still measured its designs, and the guard checks the run's units
