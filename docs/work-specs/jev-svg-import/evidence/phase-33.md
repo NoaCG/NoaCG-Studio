@@ -47,7 +47,9 @@ Trimmed from row 32's seven arms to five:
   whether a general model beats the decision models; Luna is a reasoning model whose billed
   tokens a byte-per-token bound may not cover (row 32 Known limits), and an over-bound receipt
   suspends the run. Both list the same price.
-- Prompts, questions and threshold unchanged from row 32 at this point.
+- Runs 1 to 3 used row 32's prompts. The frozen file changes only the four behaviour questions
+  (tune 1, chosen below); the field question, its criteria, the chat system and the 0.5
+  threshold are row 32's.
 
 ## Prices, rechecked
 
@@ -278,5 +280,8 @@ plans at most 144).
   minute's download; fetch a fresh one.
 - The push hook reads `<sha>:refs/heads/<branch>` as a possible write to `main`. Point a local
   branch at the commit and push `refs/heads/<branch>:refs/heads/<branch>`.
+- The commit hook scans the whole shell command, not only the message, for vendor and model
+  names: an edit script that carries a model id in the same command as `git commit` is refused.
+  Run the edit and the commit as separate commands.
 - `prompts.json` on the configuration branch and on this PR's branch must be byte-identical for
   the frozen hash to describe what lands: compare the blob ids (`git rev-parse <ref>:<path>`).
