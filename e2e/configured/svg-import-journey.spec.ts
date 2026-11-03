@@ -26,7 +26,7 @@ import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { publishProduction } from '../_publish';
 import { dropSvg, intoProduction } from '../_svg-import';
-import { clearPublishedShows, haveCreds, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, readyOf, signIn, unpublishForCleanup, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
@@ -79,6 +79,9 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
   const log = page.getByTestId('action-log');
 
   // PREPARED OFF AIR: a typed name is a draft; the output shows nothing before Take.
+  // The output has booted and answers for itself, so "nothing visible" is its reading, not a page
+  // that never started.
+  await expect.poll(async () => (await readyOf(output)) !== null, WIRE).toBe(true);
   await page.getByTestId('cue-field-f1').fill('Wrzos FC');
   await page.waitForTimeout(1500);
   expect(await airOpacity(graphic), 'RENDERER STATE: nothing on the output before Take').toBeLessThan(0.1);

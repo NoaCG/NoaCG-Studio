@@ -865,6 +865,9 @@ test('row 38: unfamiliar artwork is imported, corrected once, taken, updated, ta
   await expect(air.locator('#f1')).toHaveText('Wrzos FC');
   await expect(air.locator('#f2')).toHaveText('Mech United');
   expect(await airPaint(page)).toEqual([JOURNEY_PAINT.backdrop, 'rgb(31, 107, 58)', JOURNEY_PAINT.left, JOURNEY_PAINT.right]);
+  // The replacement's clock answer holds too: Start still counts up.
+  await page.getByTestId('cue-action-clock_start').click();
+  await expect.poll(async () => ((await air.locator('#f0').textContent()) ?? '').trim(), { timeout: 5000 }).not.toBe('00:00');
   await page.getByTestId('verb-out').click();
   await expect(live).toContainText('nothing on air');
   const library = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics().map((g) => g.name));

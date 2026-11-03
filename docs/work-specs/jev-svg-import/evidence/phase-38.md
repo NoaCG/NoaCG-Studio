@@ -139,3 +139,11 @@ Measured with the existing primitives only, recorded as the `notice-zones` annot
   where the offline monitor says "not on PROGRAM yet" (`CueEditor.tsx`, `rehearsing`). Every step
   before it passed on the real output: nothing visible before Take, Take, the prepared name on the
   output and the source's fills. The walk now expects the published wording.
+- `/so` on `f1781999` (`session_017SdbwMKVroFdqpNTEfW77w`, separate read-only cloud session):
+  AGREE WITH CORRECTIONS, grade A-, nothing blocking. Taken: (2) the hosted "nothing before
+  Take" reading could come from an output that never booted, so the walk first waits for the
+  output's own READY answer (`readyOf`); (4) the replacement re-answers the clock, and the walk
+  now shows Start still counting on the replaced graphic. Left as documented limits: (1) the
+  network cut may not close an open socket, so the restart is the hard recovery proof (stated
+  above); (3) the hosted draft check holds 1.5 s, the offline walk carries the mutation-tested
+  version of the same rule. (5) and (6) are the checker's and CI's to show, not the walk's.
