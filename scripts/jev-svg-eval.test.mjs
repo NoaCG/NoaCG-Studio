@@ -691,7 +691,9 @@ test('every admitted route is priced, and each attempt\'s ceiling is positive', 
 
 test('M13: a paid run continues only the newest ledger; a lost run blocks paid work until a reconcile names it', () => {
   // Newest first; run numbers count down with them.
-  const run = (id, mode, hasLedger, harnessStarted = true, holdoutStarted = false) => ({ id: String(id), number: Number(id), mode, hasLedger, harnessStarted, holdoutStarted });
+  const run = (id, mode, hasLedger, harnessStarted = true, holdoutStarted = false, branch = 'main') => ({
+    id: String(id), number: Number(id), branch, event: 'workflow_dispatch', path: '.github/workflows/jev-svg-eval.yml', mode, hasLedger, harnessStarted, holdoutStarted,
+  });
   const ok = (lost = [], lostPartitions = []) => ({ ok: true, lost, lostPartitions });
   const chain = [run(9, 'dry-run', false), run(8, 'development', true), run(7, 'reconcile', true), run(6, 'development', true),
     run(5, 'development', true), run(4, 'dry-run', false), run(3, 'dry-run', false), run(2, 'dry-run', false), run(1, 'dry-run', false)];
@@ -725,6 +727,13 @@ test('M13: a paid run continues only the newest ledger; a lost run blocks paid w
   assert.deepEqual(checkChain(chain, { mode: 'reconcile', receiptsRunId: '8', freeze: true, ...at(10) }), ok());
   assert.equal(checkChain(chain, { mode: 'development', receiptsRunId: '8', freeze: true, ...at(10) }).reason, 'freeze-in-reconcile-only');
   assert.deepEqual(checkChain(chain, { mode: 'holdout', receiptsRunId: '8', ...at(10) }), ok());
+  // A run from another branch (an edited copy of the workflow) is outside the chain: its ledger,
+  // lost state or holdout step count for nothing, though its number still fills the sequence.
+  const forged = [run(10, 'reconcile', true, true, true, 'evil'), ...chain];
+  assert.deepEqual(checkChain(forged, { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
+  assert.equal(checkChain(forged, { mode: 'development', receiptsRunId: '10', ...at(11) }).reason, 'not-newest-ledger:8');
+  assert.deepEqual(checkChain(forged, { mode: 'holdout', receiptsRunId: '8', ...at(11) }), ok());
+  assert.deepEqual(checkChain([{ ...run(10, 'development', true), event: 'push' }, ...chain], { mode: 'development', receiptsRunId: '8', ...at(11) }), ok());
   // A holdout run refused at its freeze gate never decoded the secret: the holdout is not consumed.
   assert.deepEqual(checkChain([run(10, 'holdout', true, false, false), ...chain], { mode: 'holdout', receiptsRunId: '10', ...at(11) }), ok());
 });

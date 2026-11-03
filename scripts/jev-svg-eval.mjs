@@ -462,11 +462,13 @@ export function reconcileLedger(ledger, credits, { reason, runId, manifest, froz
 // ---- The chain of runs ----
 
 const MODES = ['dry-run', 'development', 'holdout', 'reconcile'];
+export const WORKFLOW_PATH = '.github/workflows/jev-svg-eval.yml';
+const MAIN_WORKFLOW_REF = `NoaCG/NoaCG-Studio/${WORKFLOW_PATH}@refs/heads/main`;
 
 /**
  * Is this dispatch allowed to continue the receipt chain? `runs` are every earlier run of this
- * workflow, any branch, newest first: `{ id, number, mode, hasLedger, harnessStarted,
- * holdoutStarted }`, where `harnessStarted` means any attempt started its harness or reconcile
+ * workflow, any branch, newest first: `{ id, number, branch, event, path, mode, hasLedger,
+ * harnessStarted, holdoutStarted }`, where `harnessStarted` means any attempt started its harness or reconcile
  * step and `holdoutStarted` that any attempt started decoding the sealed holdout. Rules C1-C6 in
  * phase-32.md:
  *
@@ -490,6 +492,10 @@ export function checkChain(runs, { mode, receiptsRunId = '', establish = false, 
     const numbers = new Set(runs.map((r) => Number(r.number)));
     for (let n = 1; n < Number(currentNumber); n++) if (!numbers.has(n)) return refuse(`run-missing:${n}`);
   }
+  // Only main's own dispatches of this workflow are part of the chain. A run from another branch
+  // could carry an edited copy of the workflow and upload a forged ledger or freeze; it counts
+  // for the run-number check above and for nothing else.
+  runs = runs.filter((r) => r.branch === 'main' && r.event === 'workflow_dispatch' && r.path === WORKFLOW_PATH);
   const paid = (r) => r.mode === 'development' || r.mode === 'holdout';
   const chained = (r) => paid(r) || r.mode === 'reconcile';
   const holdoutStarted = runs.some((r) => r.holdoutStarted);
@@ -1145,6 +1151,7 @@ async function runWith(args, server) {
 
   // The holdout is evaluated once, with the frozen configuration and harness only.
   if (mode === 'holdout') {
+    if (args.regression) throw new Error('the non-blind regression slice runs in a development dispatch, never on the holdout budget');
     const challengers = config.candidates.filter((c) => c.id !== PRIMARY.id && !isBaseline(c));
     if (challengers.length > HOLDOUT_CHALLENGERS) throw new Error('more reporting challengers than the holdout admits');
   }
@@ -1170,6 +1177,7 @@ async function runWith(args, server) {
     ledger.current = JSON.parse(readFileSync(args.ledger, 'utf8'));
     if (ledger.current.schema !== LEDGER_SCHEMA) throw new Error('not an evaluation ledger');
     if (ledger.current.mock || ledger.current.baseline.runId === 'local') throw new Error('a dry-run or local ledger never continues into a paid run');
+    if (ledger.current.baseline.workflowRef !== MAIN_WORKFLOW_REF) throw new Error('that ledger was not started by main\'s workflow');
     if (mode === 'holdout') {
       const gate = holdoutGate(ledger.current, { configSha256: verdict.sha256, manifestSha256: manifest.sha256 });
       if (gate) throw new Error(`holdout refused: ${gate}`);
@@ -1359,6 +1367,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!key || !args.ledger || !existsSync(args.ledger)) throw new Error('reconcile needs the key and the ledger');
     const ledger = JSON.parse(readFileSync(args.ledger, 'utf8'));
     if (ledger.mock) throw new Error('a dry-run ledger is never reconciled into the chain');
+    if (ledger.baseline.workflowRef !== MAIN_WORKFLOW_REF) throw new Error('that ledger was not started by main\'s workflow');
     const chain = chainFor(args, 'reconcile', { freeze: Boolean(args.freeze) });
     const settled = await settledCredits(() => readCredits(key));
     if (!settled.stable) throw new Error('the balance has not settled; reconcile later');

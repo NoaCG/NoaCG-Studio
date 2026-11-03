@@ -139,9 +139,8 @@ jobs:
           first=1
           for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/jev-svg-eval.yml/runs?per_page=100" --jq '.workflow_runs[].id'); do
             [ "$id" = "$GITHUB_RUN_ID" ] && continue
-            meta="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '[.run_number, .display_title] | @tsv')"
-            number="${meta%%$'\t'*}"
-            mode="$(printf '%s' "${meta#*$'\t'}" | sed -nE 's/^Jev SVG evaluation \((dry-run|development|holdout|reconcile)\)$/\1/p')"
+            meta="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '{number: .run_number, branch: .head_branch, event: .event, path: .path, title: .display_title}')"
+            mode="$(printf '%s' "$meta" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const m=/^Jev SVG evaluation \((dry-run|development|holdout|reconcile)\)$/.exec(JSON.parse(s).title||"");process.stdout.write(m?m[1]:"unknown")})')"
             ledger="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts" --jq '[.artifacts[] | select(.name == "jev-svg-eval-ledger")] | length')"
             # Every attempt of the run, not only the newest: a refused re-run must not hide its first attempt.
             steps="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?filter=all&per_page=100" --jq '.jobs[].steps[]? | select(.conclusion != "skipped" and .status != "queued" and .status != "pending") | .name')"
@@ -150,8 +149,10 @@ jobs:
             if grep -qx 'Decode the sealed holdout' <<< "$steps"; then decoded=true; fi
             [ "$first" = 1 ] || echo ',' >> "$runs"
             first=0
-            printf '{"id":"%s","number":%s,"mode":"%s","hasLedger":%s,"harnessStarted":%s,"holdoutStarted":%s}\n' \
-              "$id" "$number" "${mode:-unknown}" "$([ "$ledger" != "0" ] && echo true || echo false)" "$started" "$decoded" >> "$runs"
+            printf '%s' "$meta" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const m=JSON.parse(s);
+              process.stdout.write(JSON.stringify({id:process.argv[1],number:m.number,branch:m.branch,event:m.event,path:m.path,mode:process.argv[2],
+              hasLedger:process.argv[3]!=="0",harnessStarted:process.argv[4]==="true",holdoutStarted:process.argv[5]==="true"})+"\n")})' \
+              "$id" "$mode" "$ledger" "$started" "$decoded" >> "$runs"
           done
           echo ']' >> "$runs"
           node scripts/jev-svg-eval.mjs chain --runs "$runs" --mode "$MODE" --receipts-run-id "$RUN_ID" \

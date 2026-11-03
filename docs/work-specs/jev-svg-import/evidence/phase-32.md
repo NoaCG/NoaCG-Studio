@@ -90,7 +90,10 @@ The chain across runs (`checkChain`, fed by the workflow from the Actions API; e
 with its mode). This is the corrected model from the repeated-family reassessment (below):
 
 - **C1** The chain's unit is a run attempt: every non-dry mode refuses `GITHUB_RUN_ATTEMPT` other
-  than 1, in the chain step and in the harness. The run list counts every attempt
+  than 1, in the chain step and in the harness. Only main's own `workflow_dispatch` runs of this
+  workflow file belong to the chain: a run from another branch (an edited copy of the workflow)
+  counts for the run-number check and nothing else, and a ledger whose baseline was not written by
+  main's workflow is refused. The run list counts every attempt
   (`jobs?filter=all`), so a refused re-run cannot hide its first attempt. Run numbers before this
   one must have no gap: a deleted run cannot hide a lost run or an opened holdout.
 - **C2** A run is lost when it is development, holdout or reconcile, an attempt started its harness
@@ -159,8 +162,9 @@ slice is scored only by its sidecars' text-field counts and reported apart.
 ## Decisions
 
 - **One harness file, plain receipts.** The ledger is a JSON file passed from run to run as an
-  artifact; no service, database or scheduler. A run takes the previous run's ledger by run id,
-  and the workflow checks that run is this workflow on main.
+  artifact; no service, database or scheduler. A run takes the newest ledger by run id; only
+  main's own dispatches of this workflow belong to the chain (C1), and a ledger is refused unless
+  its baseline was written by main's workflow.
 - **The dry run meters too**, against a mock balance, so the same admission and receipt code runs
   in the dry run as in a paid run.
 - **Jev with pixels is unqualified.** The listing tags Jev 1.14 `vision`, but how `/v1/evaluate`
@@ -217,13 +221,21 @@ lost reconcile nothing; freeze the composite actions and record the runtime; an 
 charged, not suspended (the settled reading reconciles it); and make the baseline its own no-spend
 dispatch, which removed the typed lost spend entirely. That model is C1 to C6 above.
 
+From the PR bot review of `cdf90de` (one finding, fixed): an answer that reported no usage was
+priced at zero; it is now an unread bill (C6).
+
+From the final `/so` (`session_017SdbwMX87NzFxFaFTm2SCP`, B+ on `cdf90de`, 1 blocking, 3
+non-blocking): runs from other branches could supply a forged ledger or freeze (fixed, C1); a
+deleted run and expired artifacts block the chain (fail-safe, documented under Known limits); the
+regression slice could spend the holdout budget (now refused in holdout mode).
+
 - Not changed: the decision rule's no go is the per-stratum sum, as the spec words it; a single
   harmed design stops its family from qualifying. The notes and docstring said "or design" and
   were corrected.
 
 ## Verification
 
-- `node --test scripts/jev-svg-eval.test.mjs`: 31 of 31 pass (mocked fetch and git only; the
+- `node --test scripts/jev-svg-eval.test.mjs`: 31 of 31 pass (after the final fixes) (mocked fetch and git only; the
   server modules compiled from this checkout).
 - Mutations, each failing at least one test: removing the hidden top-up check, the two-attempt cap,
   the partition cap, the missing-receipt check, the over-bound suspension, the two-reading settle
@@ -245,6 +257,12 @@ dispatch, which removed the typed lost spend entirely. That model is C1 to C6 ab
 - The run-number gap check assumes GitHub numbers every run of this workflow in order; one run on
   the protected environment in row 33 confirms it.
 - The Node patch version and runner image are recorded in the ledger and report, not frozen.
+- A deleted run of this workflow blocks every mode (`run-missing:N`). It fails safe (nothing is
+  spent); do not delete runs of this workflow, and lifting the block takes a reviewed change.
+- Ledger artifacts are kept 90 days. Row 34 runs within 90 days of the newest ledger, or that
+  ledger is copied into row evidence first; an expired one refuses every later run (safe).
+- The non-blind regression slice is refused in holdout mode, so it never spends the holdout's $3;
+  it runs in a development dispatch.
 - The freeze covers the reader's graph and the lockfile, so a change on main to the importer or a
   dependency between rows 33 and 34 refuses the holdout until row 33's freeze is redone. That is
   the intended protection against comparing two instruments.
