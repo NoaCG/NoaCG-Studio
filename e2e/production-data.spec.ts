@@ -2185,6 +2185,9 @@ test('Connect closes only once the save landed, and a changed link needs a fresh
   await review.getByTestId('cue-connect-confirm').click();
   await expect(review.getByTestId('cue-connect-save-error')).toContainText('Not saved');
   await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  // Connect claimed its refusal, so the app's generic "Could not save" does not follow it. The
+  // only write in the window is Connect's: the setup leaves no autosave pending (#1603).
+  await expect(page.getByTestId('storage-alert')).toHaveCount(0);
   await freeStorage(page);
   await review.getByTestId('cue-connect-confirm').click();
   await expect(review).toBeHidden();
