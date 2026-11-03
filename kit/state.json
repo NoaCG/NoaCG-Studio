@@ -27,14 +27,16 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 28 builder session_017SdbwLcpdhoLX7EuHQsuSL",
+  "waitingOn": "phase 28 builder repair on PR #1993",
   "inFlight": [
     {
       "phase": 28,
       "role": "build",
       "session": "session_017SdbwLcpdhoLX7EuHQsuSL",
       "nonce": "28-b-b5f7",
-      "branch": "claude/plan-jev-svg-import-28-build"
+      "branch": "claude/plan-jev-svg-import-28-build",
+      "pr": 1993,
+      "repairAsked": "configured test must assert the reimport replaced Board before dispatch"
     }
   ],
   "owner": [],
@@ -233,6 +235,11 @@
       "phase": 27,
       "at": "2026-11-02T20:12Z",
       "note": "Reimport unresolved work: option A (separate graphic by default; Replace anyway keeps the earlier graphic recoverable). Approved beyond TOUCHES: walkState.ts ~565-640, CreationWizard.tsx ~128-136/545-555, FinishStep.tsx ~296-365. Owner told; may revisit A vs B."
+    },
+    {
+      "phase": 28,
+      "at": "2026-11-03T01:20Z",
+      "note": "Declined A- point 1/2 as a safe limit: configured dispatch must be proven against the reimported graphic. Asked for test-only assertions and a fresh /so."
     }
   ],
   "ownerOpen": [
