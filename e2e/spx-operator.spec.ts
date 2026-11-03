@@ -2,7 +2,9 @@
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 import { lowerThirdPng } from './_png';
+import { dropSvg, intoProduction } from './_svg-import';
 
 // What an SPX operator meets with a NoaCG package, pinned from the real-server walk
 // (docs/SPX_ON_A_REAL_SERVER.md §2): the layer each graphic lands on, which files SPX's template
@@ -360,4 +362,130 @@ test('a Picture and a CasparCG single file played from SPX show what was picked 
   await update(reair, '<templateData><componentData id="f0"><data id="text" value="Second take"/></componentData></templateData>');
   expect(await reair.locator('#f0').textContent()).toBe('Second take');
   await reair.close();
+});
+
+// ── GENERATED IMPORTED PACKAGES ON SPX, A HOST WITH NO WIRE (docs/work-specs/jev-svg-import row 29, AC-16) ──
+//
+// Standalone-host capability: the graphic the import road saved, packaged by the real SPX
+// exporter and driven only as SPX drives it (update, play, stop) and as the package's own control
+// page does (its channel's `event` message, which is how an SPX operator reaches a clock button:
+// SPX's rundown has none). Nothing stamps the clock, so it counts from this machine's own clock,
+// and a reload has no log to rejoin. Hosted recovery is e2e/configured/scorebug-output.spec.ts.
+// Physical studio acceptance is not claimed here.
+
+const SCORE_CLOCK_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url));
+const CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
+
+/** Import `svg` through the wizard, let `choose` set its behaviour, finish it into a new
+ *  production, and answer the SPX package of the graphic the library saved, as text files. */
+async function importedSpx(page: Page, svg: string, name: string, choose: () => Promise<void>): Promise<Record<string, string>> {
+  await page.goto('/app');
+  await dropSvg(page, svg);
+  await choose();
+  await intoProduction(page, name, `${name} Show`);
+  return page.evaluate(async (name) => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const zip = await spxTarget.build(loadGraphics().find((g) => g.name === name)!.template);
+    const out: Record<string, string> = {};
+    for (const n of Object.keys(zip.files)) {
+      if (!zip.files[n].dir && /\.(html|js|css)$/.test(n)) out[n] = await zip.file(n)!.async('string');
+    }
+    return out;
+  }, name);
+}
+
+test('an imported clock and imported cards made by the import road run on SPX\'s calls and the package\'s own control page', async ({ page, context }) => {
+  test.setTimeout(90_000);
+  const clockFiles = await importedSpx(page, SCORE_CLOCK_SVG, 'Spx Count Up', () => page.getByTestId('map-svg-clock-mode').selectOption('count-up').then(() => {}));
+  const durationFiles = await importedSpx(page, SCORE_CLOCK_SVG, 'Spx Duration', () => page.getByTestId('map-svg-clock-mode').selectOption('duration').then(() => {}));
+  const cardFiles = await importedSpx(page, CREDITS_SVG, 'Spx Cards', async () => {
+    await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+    const picker = page.getByTestId('map-svg-recipe-credits');
+    const role = await picker.locator('option').evaluateAll((options) => (options as HTMLOptionElement[]).map((o) => o.value).filter(Boolean)[1]);
+    await picker.selectOption(role);
+    await page.getByTestId('map-svg-credits-playback').selectOption('cards');
+    // SPX has no custom actions, so the cards turn on a card time (row 23).
+    await page.getByTestId('map-svg-credits-advance').fill('3');
+    await page.getByTestId('map-svg-credits-advance').blur();
+  });
+  const files = { ...clockFiles, ...durationFiles, ...cardFiles };
+  expect(Object.keys(files)).toEqual(expect.arrayContaining(['spx_count_up/spx_count_up.html', 'spx_duration/spx_duration.html', 'spx_cards/spx_cards.html']));
+  // SPX's rundown offers the fields; the clock buttons live on the package's control page.
+  const definition = (html: string) => JSON.parse(html.match(/SPXGCTemplateDefinition = (\{[\s\S]*?\n\});/)![1]) as { DataFields: Array<{ field: string; ftype: string; value: string }> };
+  expect(definition(files['spx_count_up/spx_count_up.html']).DataFields.map((f) => f.ftype)).not.toContain('button');
+  expect(Object.keys(files)).toContain('spx_count_up/controlpanel.shtml');
+
+  const air = await context.newPage();
+  const errors: string[] = [];
+  air.on('pageerror', (e) => errors.push(e.message));
+  await serveFiles(air, 'http://spx-imported.local', files);
+  await air.clock.install({ time: new Date('2026-11-14T18:00:00Z') });
+  const clock = () => air.locator('.imported-design-clock').evaluate((el) => (el.textContent ?? '').trim());
+  // What the package's control page posts for a clock button, on the channel its receiver opens.
+  const press = (html: string, event: string) => air.evaluate(({ channel, event }) => {
+    new BroadcastChannel(channel).postMessage({ t: 'event', event });
+  }, { channel: html.match(/new BroadcastChannel\('([^']+)'\)/)![1], event });
+  const call = (fn: 'play' | 'stop') => air.evaluate((fn) => (window as unknown as Record<string, () => void>)[fn](), fn);
+
+  // COUNTING UP: SPX's Play shows the drawn time and holds it; Start counts on this machine's clock.
+  // Half a second over each whole count: an event fires a frame after its message.
+  const upHtml = files['spx_count_up/spx_count_up.html'];
+  await air.goto('http://spx-imported.local/spx_count_up/spx_count_up.html', { waitUntil: 'load' });
+  await update(air, JSON.stringify({ f0: 'FIELD', f1: '2', f2: '12:08', f3: '5', f4: 'SHORE' }));
+  await call('play');
+  await air.clock.runFor(3_000);
+  expect(await clock()).toBe('12:08');
+  await press(upHtml, 'clock_start');
+  await air.clock.runFor(3_500);
+  expect(await clock()).toBe('12:11');
+  await press(upHtml, 'clock_pause');
+  await air.clock.runFor(4_000);
+  expect(await clock(), 'Pause holds').toBe('12:11');
+  // An operator correction is SPX's Update with a new time; a score Update leaves the clock alone.
+  await update(air, JSON.stringify({ f0: 'FIELD', f1: '2', f2: '5:00', f3: '5', f4: 'SHORE' }));
+  await air.clock.runFor(1_000);
+  expect(await clock()).toBe('5:00');
+  await press(upHtml, 'clock_start');
+  await air.clock.runFor(2_500);
+  await update(air, JSON.stringify({ f0: 'FIELD', f1: '3', f2: '5:00', f3: '5', f4: 'SHORE' }));
+  await air.clock.runFor(1_000);
+  expect(await air.locator('#f1').textContent()).toBe('3');
+  expect(await clock(), 'resending the time it started from does not pull it back').toBe('5:03');
+  await press(upHtml, 'clock_reset');
+  await air.clock.runFor(1_000);
+  expect(await clock()).toBe('12:08');
+
+  // A DURATION starts on SPX's Play, from this machine's own clock.
+  await air.goto('http://spx-imported.local/spx_duration/spx_duration.html', { waitUntil: 'load' });
+  await update(air, JSON.stringify({ f0: 'FIELD', f1: '2', f2: '12:08', f3: '5', f4: 'SHORE' }));
+  await air.clock.runFor(2_000);
+  expect(await clock(), 'off air it waits').toBe('12:08');
+  await call('play');
+  await air.clock.runFor(3_500);
+  expect(await clock()).toBe('12:05');
+  // Stop and Play again: a new count of its length.
+  await call('stop');
+  await air.clock.runFor(2_000);
+  await call('play');
+  await air.clock.runFor(1_500);
+  expect(await clock()).toBe('12:07');
+
+  // CARDS ON A CARD TIME: SPX's Update carries the list, Play shows the first card, and the card
+  // time turns to the next with no button; the last one holds.
+  const cardFields = definition(files['spx_cards/spx_cards.html']).DataFields;
+  const list = cardFields.find((f) => f.value.includes('Research'))!.field;
+  const time = cardFields.find((f) => f.value === '3')!.field;
+  await air.goto('http://spx-imported.local/spx_cards/spx_cards.html', { waitUntil: 'load' });
+  await update(air, JSON.stringify({ [list]: 'Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss', [time]: '3' }));
+  await call('play');
+  const rows = () => air.locator('.imported-design-credits-row').allTextContents();
+  await air.clock.runFor(1_500);
+  expect(await rows()).toEqual(['Research', 'Nia Vale', 'Tomas Fen']);
+  await air.clock.runFor(4_000);
+  expect(await rows()).toEqual(['Sound', 'Ari Moss']);
+  await air.clock.runFor(6_000);
+  expect(await rows(), 'the last card holds').toEqual(['Sound', 'Ari Moss']);
+  expect(errors).toEqual([]);
+  await air.close();
 });
