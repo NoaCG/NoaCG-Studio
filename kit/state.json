@@ -27,16 +27,16 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 32 repair for #2009 on PR #2005",
+  "waitingOn": "PR #2005 in merge queue",
   "inFlight": [
     {
       "phase": 32,
-      "role": "build",
-      "session": "session_017SdbwN5DfB1t4AiShMs23v",
-      "nonce": "32-b-3c46",
-      "branch": "claude/plan-jev-svg-import-32-build",
       "pr": 2005,
-      "repairAsked": "#2009 pre-decode holdout refusals must be fixed in row 32 (row 33 may not change harness source)"
+      "head": "aeabaae640d8c49f31d54c205452bdc37c0638c0",
+      "stampRun": 41614066737,
+      "ciRun": 41612824101,
+      "so": "session_017SdbwLwneG4uEjSJuLnQZD A",
+      "builder": "session_017SdbwN5DfB1t4AiShMs23v"
     }
   ],
   "owner": [],
@@ -472,6 +472,13 @@
       ],
       "from": "31",
       "note": "The api build cannot import src/ai/svgInterpretation/contract.ts (TS5097 plus DOM types): a row 35 trap."
+    },
+    {
+      "forPhases": [
+        "33"
+      ],
+      "from": "32",
+      "note": "Run a dry run of jev-svg-eval.yml on the same main commit before recording the freeze; trim prompts.json to at most 2 reporting-only challengers; Jev with pixels is unqualified (#2006). Documented limits: settle tolerance vs real gateway rounding (check first receipts), typed lost-attempt count, a failed decode uses the holdout (PR #2005)."
     }
   ]
 }
