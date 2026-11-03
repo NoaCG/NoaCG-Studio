@@ -5,6 +5,7 @@
 // untouched.
 
 import { isBackendConfigured } from './config';
+import { focusPassDue } from './pacing';
 import { consumeDeliberateSignOut, getSignedInUserId, subscribeAuth } from './auth';
 import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './accountLibrary';
 import { canAuthorAccount, changeSyncedElsewhere, commitDurableWrites, libraryInUse, markOwnWritesSynced, setAccountAuthoringEnabled } from '../model/durableStore';
@@ -347,7 +348,14 @@ export function startAutoSync(): void {
   followLibraryChangesInOtherTabs();
   window.addEventListener('online', () => void syncNow());
   window.addEventListener('offline', () => setState({ phase: 'pending', firstPass: !checkedThisPage, detail: 'Offline. This revision is not confirmed saved to cloud.' }));
-  window.addEventListener('focus', () => { if (!running) void syncNow(); });
+  // At most every 30 s: an operator moving between OBS and this window focuses it constantly, and a
+  // pass is six reads over every stored body of the account.
+  let lastFocusPass = 0;
+  window.addEventListener('focus', () => {
+    if (running || !focusPassDue(lastFocusPass, 30_000, Date.now())) return;
+    lastFocusPass = Date.now();
+    void syncNow();
+  });
   // Tracked by ACCOUNT, not by signed-in-ness: a different account signing in over a live
   // session is a change of library even though "signed in" never went false in between.
   let lastUser: string | null | undefined;
