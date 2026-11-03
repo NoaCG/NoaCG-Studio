@@ -33,7 +33,8 @@ Acceptance, verbatim:
   run, so it is an upper bound on that term.
 - **Measured after enabling:** not yet possible. The rule has to land before a product change can
   run it. `phase-cf12-measure.mjs` measures it from each run's own annotation and job times
-  (section 3.3). This phase's result states n and the mean. If the mean goes over 22.5, the rule
+  (section 3.3). The verdict waits for at least 12 product changes, and is read no later than
+  2026-11-17, by the plan-run coordinator. This phase's result states n and the mean. If the mean goes over 22.5, the rule
   is reverted (one commit) and the owner is told, as (a) requires.
 - **(b) The 2-of-6 result** (section 4): the critical set is a smoke layer over each contract's
   main road. It caught F1 and F8, the two faults on that road. It missed F2 to F5, which sit on
@@ -146,9 +147,31 @@ A change's figure is the sum over its runs, superseded and failed runs included.
 states n, the mean and the median against 22.5. It was checked against the hour before enabling,
 where no run carries the notice: `n 0`, 20 calls.
 
+**When, how many, and who.**
+
+- **Sample size.** The verdict waits for at least **12 product changes** measured after enabling.
+  That is cf03's minimum sample per side for an M3 median (section 5.1). Below 12 the script prints
+  `not yet` and judges nothing.
+- **When.** The measurement is read once 12 changes exist, and no later than **2026-11-17**, 14
+  days after enabling. If fewer than 12 product changes have landed by that date, the result
+  records the n reached and its mean. It is judged on that mean and says plainly that the sample
+  is short.
+- **Who.** The cicd-followup plan-run coordinator runs it. It is a checker step of this phase, and
+  cf20 reads the same script again. The human owner (`miwco`) is told the result in the phase
+  result.
+- **First check after landing.** The first product-change run on `main`'s new planner must show
+  the `Critical journeys` notice on its `E2E plan` job. `noticeRuns` in the script's output
+  counts those runs. If `noticeRuns` stays 0 while product PRs merge, the measurement is broken,
+  not cheap.
+
 **If the mean is over 22.5:** revert this PR's planner commit (`git revert` of the merge, through
 `/queue-merge`). Record the measurement here, and tell the owner in the phase result. **If it is
 under:** the rule stays, and cf20 re-reads the same script for its report.
+
+**The D2 target.** The set is now at 4.93 of the 5-minute target, so #2036's save smoke spec
+(under 0.5 minutes) would take it past 5. `criticalBudget` reports this and does not block. #2036
+must say which gives way: the target is raised with a reason, or the smoke spec replaces a
+heavier journey's overlap.
 
 ## 4. (b) The 2-of-6 result
 
@@ -230,7 +253,11 @@ and the ceiling is judged on all twelve, which is stricter.
   journeys::product change: added 12 critical spec(s) (4.93 of 5.09 table-min; shards 1 -> 2): ...`
   and write the outputs. The first review found an apostrophe in a comment that closed the
   single-quoted script; `check:workflows` does not parse a step's shell, so it passed.
-- `phase-cf12-measure.mjs`, run before enabling: `n 0`, 20 calls.
+- `phase-cf12-measure.mjs`, run before enabling: `n 0`, `noticeRuns 0`, verdict `not yet: 0 of 12`.
+- Fresh `/so` on `a124b3dc`: A-, no blocking findings. It asked for three changes: a sample size,
+  date and owner for the measurement; a first-run check for the notice; and the D2 target
+  question for #2036. It also noted that `CRITICAL` duplicated `criticalSpecs`. All four are
+  addressed on the next head.
 - `npm run gates -- run --changed origin/main`: all ok, 236 tests. `npx eslint` on the changed
   scripts, specs and evidence scripts: clean. `node scripts/check-e2e-protection.mjs --changed
   origin/main`: OK.

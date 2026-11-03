@@ -26,6 +26,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { readTable } from './e2e-durations.mjs';
+import { criticalSpecs } from './e2e-lists.mjs';
+
+export { criticalSpecs };
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -200,11 +203,6 @@ export function auditContracts({ contracts = CONTRACTS, headers, exists = (p) =>
     }
   }
   return problems;
-}
-
-/** The critical journeys, from the headers: bare spec names, sorted. */
-export function criticalSpecs(headers) {
-  return [...headers].filter(([, h]) => (h.critical ?? []).length > 0).map(([spec]) => spec).sort();
 }
 
 /**

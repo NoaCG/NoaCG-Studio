@@ -15,7 +15,8 @@
 //   + the Combined E2E report job, when the plan without the journeys ran no shard at all
 //
 // A change's added minutes are the sum over its runs (superseded and failed runs included: they
-// were paid for). The change is a product change when any of its runs printed the notice. Each pass
+// were paid for). The change is a product change when any of its runs printed the notice. The verdict
+// waits for MIN_N product changes and judges their mean against the 22.5-minute ceiling. Each pass
 // makes at most --max-calls API calls and caches every read of a completed run, so repeat it until
 // it prints "complete". Reads metadata and annotations only, no logs. Prints JSON.
 import { execFileSync } from 'node:child_process';
@@ -30,6 +31,9 @@ const SINCE = arg('--since');
 const CACHE = arg('--cache');
 const MAX_CALLS = Number(arg('--max-calls', 100));
 const CEILING = 22.5;
+// The verdict waits for this many product changes: cf03's minimum sample per side for an M3
+// median (section 5.1, the `none` and `cap+cfg` rows). Below it the script reports and judges nothing.
+const MIN_N = 12;
 if (!SINCE || !CACHE) {
   console.error('usage: --since <ISO time> --cache <dir> [--max-calls 100]');
   process.exit(2);
@@ -122,6 +126,11 @@ result.n = per.length;
 result.mean = per.length ? Number((per.reduce((a, b) => a + b, 0) / per.length).toFixed(2)) : null;
 result.median = per.length ? Number(median(per).toFixed(2)) : null;
 result.max = per.length ? Math.max(...per) : null;
-result.underCeiling = result.mean === null ? null : result.mean <= CEILING;
+result.minN = MIN_N;
+// Whether the plan job's notice was seen at all: n 0 with no notice is a broken pipe, not a cheap rule.
+result.noticeRuns = result.changes.reduce((s, c) => s + c.runs.length, 0);
+result.underCeiling = per.length < MIN_N ? null : result.mean <= CEILING;
+if (per.length < MIN_N) result.verdict = `not yet: ${per.length} of ${MIN_N} product changes measured`;
+else result.verdict = result.underCeiling ? `under the ${CEILING}-minute ceiling` : `OVER the ${CEILING}-minute ceiling: revert the rule and tell the owner`;
 console.log(JSON.stringify(result, null, 1));
 console.error(result.complete ? 'complete' : `stopped at ${calls} calls; run again to continue`);
