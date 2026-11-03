@@ -27,8 +27,17 @@
     "rules": "Preserve the registered40-row order; no paid inference outside protected main Actions; no-go keeps model route off and continues product acceptance. Read actual row allowlist and conditional repair boundary. Concurrent work: the cicd-improvement plan run (session_017SdbwPphatUYXtpZ9CHkPu) owns CI and workflow budget files (ci.yml, configured-suite, selectors, Playwright configs, quarantine handling); check its open PRs and report a conflict instead of racing it. The #1752 Sandbox migration owns the render executor. production-page is paused on owner phases. Never print secrets."
   },
   "branchPrefix": "claude",
-  "waitingOn": "phase 32 checker session_017SdbwN3h8S1fH4K66pN1wE",
-  "inFlight": [],
+  "waitingOn": "phase 33 builder session_017SdbwNQwZWqjCQeGYmzXno (coordinator dispatches eval runs)",
+  "inFlight": [
+    {
+      "phase": 33,
+      "role": "build",
+      "session": "session_017SdbwNQwZWqjCQeGYmzXno",
+      "nonce": "33-b-e72a",
+      "branch": "claude/plan-jev-svg-import-33-build",
+      "evalRuns": []
+    }
+  ],
   "owner": [],
   "fixes": [
     {
