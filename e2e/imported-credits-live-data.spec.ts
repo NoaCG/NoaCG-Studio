@@ -1,6 +1,6 @@
 // covers: src/templates/importedDesign/creditsRoll.ts, src/templates/importedDesign/svg.ts
 // covers: src/control/contentFormats.ts, src/components/home/SourcesLine.tsx
-// covers: e2e/fixtures/jev-svg/dev/credits-1.svg
+// covers: e2e/fixtures/jev-svg/dev/credits-1.svg, e2e/fixtures/jev-svg/dev/credits-2.svg
 //
 // LINKED CREDITS ON AIR (jev-svg-import row 24, AC-14 and AC-24). A Sheet connected to imported
 // credits keeps the prepared list current, and what is on air follows one rule per playback:
@@ -221,9 +221,10 @@ test('a failing Sheet keeps the prepared credits as last read and says why; the 
 
 // ── The same rules on a blank page, built as the wizard saves each binding ─────────────────────
 
-type Built = { js: string; html: string };
-function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 'cards', face: boolean, advance?: number): Promise<Built> {
-  return page.evaluate(async ({ source, playback, face, advance }) => {
+type Built = { js: string; html: string; layout: string };
+/** `first` is the sample of the layer picked as Credits: the first role, as the wizard offers it. */
+function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 'cards', face: boolean, advance?: number, first = 'Research'): Promise<Built> {
+  return page.evaluate(async ({ source, playback, face, advance, first }) => {
     const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
     const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
     const C = await import('/src/templates/importedDesign/creditsRoll.ts');
@@ -231,7 +232,7 @@ function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 
     const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
     const imp = importSvgMarkup(source);
-    const content = imp.candidates.find((c) => c.sample === 'Research')!.id;
+    const content = imp.candidates.find((c) => c.sample === first)!.id;
     const host = document.createElement('div');
     host.innerHTML = imp.markup;
     document.body.appendChild(host);
@@ -247,8 +248,8 @@ function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 
       behaviour: { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback, ...(advance === undefined ? {} : { advance }), anchors: preview.anchors } },
     };
     const template = IMPORTED_SVG.create({ designSvg: svg });
-    return { js: template.js, html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: 'rise', motionOut: 'fade' } }), IMPORTED_SVG)) };
-  }, { source, playback, face, advance });
+    return { js: template.js, layout: preview.layout, html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: 'rise', motionOut: 'fade' } }), IMPORTED_SVG)) };
+  }, { source, playback, face, advance, first });
 }
 
 const rowTexts = (page: Page) => page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent));
@@ -368,6 +369,54 @@ test('a still page shows an update on air at once, where the drawing put it', as
   });
   expect(still).toEqual({ tween: null, last: { still: true, rows: 5, scale: 1, refused: false }, moved: 'none' });
 });
+
+// Row 39 (AC-13, AC-14): the walks above are role above. The same update policy holds for
+// role beside, in each playback, so all six layout and playback pairs follow a linked list:
+// roll and cards keep what they took and air the newer list on the next Take; a still page
+// shows it at once. Each row keeps its drawn column and look (credits-2: roles at x 90, 26 px;
+// names at x 440, 32 px; a role on its first name's line).
+const BESIDE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-2.svg', import.meta.url));
+for (const playback of ['static', 'roll', 'cards'] as const) {
+  test(`role beside, ${playback}: a linked update follows the playback's rule, in the drawn columns`, async ({ page }) => {
+    await page.goto('/app');
+    const built = await buildCredits(page, readFileSync(BESIDE_CREDITS_SVG, 'utf8'), playback, false, undefined, 'Réalisation');
+    expect(built.layout).toBe('role-beside');
+    await page.goto('/robots.txt');
+    await page.setContent(built.html);
+    const field = await fieldFor(page, 'credits');
+    // Cards deal one role per card; the other playbacks show the whole list.
+    const [taken, newer, takenRows, newerRows] = playback === 'cards'
+      ? ['Research:\nNia Vale\n\nSound:\nAri Moss', 'Camera:\nJonas Berg\n\nDirector:\nAlex Rivera', ['Research', 'Nia Vale'], ['Camera', 'Jonas Berg']]
+      : [LIST, OTHER, ['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss'], ['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']];
+    const waiting = () => page.evaluate(() => (window as unknown as { noacgCreditsWaiting?: boolean }).noacgCreditsWaiting ?? false);
+    await call(page, { [field]: taken }, 'play');
+    await expect.poll(() => rowTexts(page)).toEqual(takenRows);
+
+    // Drawn columns and looks: a role beside its first name, on one line.
+    const rows = await page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => {
+      const r = el.getBoundingClientRect();
+      return { kind: el.getAttribute('data-noacg-credits'), left: Math.round(r.left), top: Math.round(r.top), size: getComputedStyle(el).fontSize };
+    }));
+    const [role, name] = rows;
+    expect([role.kind, name.kind]).toEqual(['role', 'name']);
+    expect(role.left, 'roles in the left column').toBeLessThan(name.left);
+    expect(Math.abs(role.top - name.top), JSON.stringify(rows)).toBeLessThan(12);
+    expect([role.size, name.size]).toEqual(['26px', '32px']);
+
+    // An update on air.
+    await call(page, { [field]: newer });
+    if (playback === 'static') {
+      expect(await rowTexts(page), 'a still page shows it at once').toEqual(newerRows);
+      return;
+    }
+    expect(await rowTexts(page), `${playback} keeps the list it took`).toEqual(takenRows);
+    expect(await waiting(), 'the newer list waits').toBe(true);
+    // The next take airs the newer list.
+    await call(page, null, 'play');
+    await expect.poll(() => rowTexts(page)).toEqual(newerRows);
+    expect(await waiting()).toBe(false);
+  });
+}
 
 test('#1973: a still page whose face starts loading at its take is fitted again when it lands, once per landing', async ({ page }) => {
   // The drawing names no face of its own until the test points the drawn layers at Anton after
