@@ -87,7 +87,16 @@
         "total": 0.045931275
       },
       "attempts": 284,
-      "pr": 2029
+      "pr": 2029,
+      "head": "922136d6b97895f3654231359cdbec5715acc007",
+      "stampRun": 41648536103,
+      "ciRun": 41647531266,
+      "so": "session_017SdbwPpLW1EXbPJQCfYM1M A",
+      "soSessions": [
+        "session_017SdbwPpLW1EXbPJQCfYM1M",
+        "session_017SdbwPj51Ci9ypEcsGm3J4"
+      ],
+      "safetyNet": "trig_013PaPPtPbWubgcg5wMSvoy1"
     }
   ],
   "owner": [],
