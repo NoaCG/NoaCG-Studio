@@ -15,6 +15,8 @@
 // lists were timing out when the production database stopped answering and restarted (06:39-06:45
 // UTC), and every Take sent in that window failed. The same summary query takes 45 ms and 23 KB
 // against 666 ms and 19 MB for the bodies. getMany() fetches whole rows for what a pass pulls.
+// Reading that one field from `body` still made Postgres open the stored document, so the summary
+// reads `body_updated_at`, the copy a trigger keeps (migration 0107).
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
@@ -34,8 +36,8 @@ interface DocumentRow {
   deleted: boolean;
 }
 
-/** A row as list() reads it: the body's own `updatedAt`, so the summary's version is derived by the
- *  same rule as a whole record's (`bodyUpdatedAt`), and never the server's write time. */
+/** A row as list() reads it: a copy of the body's own `updatedAt`, so the summary's version is
+ *  derived by the same rule as a whole record's (`bodyUpdatedAt`), and never the server's write time. */
 interface SummaryRow {
   id: string;
   deleted: boolean;
@@ -78,9 +80,12 @@ export class SupabaseProvider implements StorageProvider {
     const sb = await this.client();
     // RLS scopes this to the signed-in user's rows. Tombstones (deleted=true) are included so the
     // sync engine can propagate remote deletes.
-    const { data, error } = await sb.from(TABLE).select('id, deleted, updatedAt:body->updatedAt').eq('kind', kind);
+    const summaries = (version: string) => sb.from(TABLE).select(`id, deleted, updatedAt:${version}`).eq('kind', kind);
+    const first = await summaries('body_updated_at');
+    // An instance that has not run 0107 has no such column, and reads the same value from the body.
+    const { data, error } = first.error?.code === '42703' ? await summaries('body->updatedAt') : first;
     if (error) throw new Error(`Cloud list(${kind}) failed: ${error.message}`);
-    const rows = (data ?? []) as SummaryRow[];
+    const rows = (data ?? []) as unknown as SummaryRow[];
     return rows.map((row) => ({
       ...toStoredRecord(kind, row.id, { updatedAt: row.updatedAt, deleted: row.deleted }),
       summary: true as const,
