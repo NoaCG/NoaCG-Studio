@@ -31,22 +31,37 @@
   "inFlight": [
     {
       "phase": 37,
-      "role": "build",
-      "session": "session_017SdbwLZ2vXASmUWUczThtL",
-      "nonce": "37-b-ee1a",
-      "branch": "claude/plan-jev-svg-import-37-build",
-      "source": "7f5b5b8e54196b07e5b6f016464728d7de7673fd",
-      "startedAt": "2026-11-03T17:00:05Z",
+      "role": "check",
+      "session": "session_017SdbwNXNWTvruC2ybMFytH",
+      "nonce": "37-c-ad84",
+      "actor": "checker-37-37-c-ad84",
+      "mergeSha": "dce1ef71e546f5077ec5767176f99b0dccc5a6c7",
       "pr": 2035,
-      "head": "1e2b752b6b92c8619e1f2e2e6e823d17d20abe76",
-      "ciRun": 41687102266,
-      "stampRun": 41688411116,
-      "so": "session_017SdbwRFEV8bQaKAhG7LWtL A",
+      "builder": "session_017SdbwLZ2vXASmUWUczThtL",
       "soSessions": [
         "session_017SdbwRFEV8bQaKAhG7LWtL",
         "session_017SdbwQn3NzfFaLdV6BW8XS"
       ],
-      "safetyNet": "trig_0161SxtyEdeEWjHA693E6yQ8"
+      "startedAt": "2026-11-03T18:05:57Z",
+      "build": {
+        "phase": 37,
+        "role": "build",
+        "session": "session_017SdbwLZ2vXASmUWUczThtL",
+        "nonce": "37-b-ee1a",
+        "branch": "claude/plan-jev-svg-import-37-build",
+        "source": "7f5b5b8e54196b07e5b6f016464728d7de7673fd",
+        "startedAt": "2026-11-03T17:00:05Z",
+        "pr": 2035,
+        "head": "1e2b752b6b92c8619e1f2e2e6e823d17d20abe76",
+        "ciRun": 41687102266,
+        "stampRun": 41688411116,
+        "so": "session_017SdbwRFEV8bQaKAhG7LWtL A",
+        "soSessions": [
+          "session_017SdbwRFEV8bQaKAhG7LWtL",
+          "session_017SdbwQn3NzfFaLdV6BW8XS"
+        ],
+        "safetyNet": "trig_0161SxtyEdeEWjHA693E6yQ8"
+      }
     }
   ],
   "owner": [],
