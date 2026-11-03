@@ -32,6 +32,9 @@ const MANUAL_ONLY = /^\.github\/workflows\/(endurance|alarm-test|jev-svg-qualifi
 const CFG = (g) => g.endsWith('+cfg');
 const SHARDED = (g) => !g.startsWith('none');
 const notTest = (f) => !f.endsWith('.test.mjs');
+// What `npm run build` runs besides the gates: its configs and build steps (the Build job is the
+// critical path of most runs).
+const BUILD_TOOLCHAIN = /^(eslint\.config\.js|tsconfig[^/]*\.json|vite\.config\.ts|\.dependency-cruiser\.cjs|scripts\/(build-player-host|build-production-pack|prerender|write-version|check-client-secrets)\.mjs)$/;
 // How the configured suite runs. Its specs, shared helper and schema migrations are workload: they
 // change at product pace and are inside the spread (section 4.2).
 const CFG_DEF = (f) => f === CONFIGURED || f.startsWith('.github/actions/configured-stack/')
@@ -40,8 +43,9 @@ export const SIDE_RULE = [
   { what: 'ci.yml outside the configured jobs', test: (f, ci) => f === CI && ci.other, metrics: ['m1', 'm2', 'm3'], groups: 'all' },
   { what: 'ci.yml configured jobs', test: (f, ci) => f === CI && ci.configured, metrics: ['m1', 'm3'], groups: CFG },
   { what: 'shared job setup actions', test: (f) => /^\.github\/actions\/(node-modules|playwright-chromium)\//.test(f), metrics: ['m1', 'm2', 'm3'], groups: 'all' },
-  { what: 'dependencies (lockfile or package.json versions), the build script, the gate, factory and E2E retry runners', test: (f, ci) => f === 'package-lock.json' || (f === 'package.json' && ci.pkg) || f === 'scripts/gates.mjs' || f === 'scripts/factory.mjs' || f === 'scripts/e2e-retry.mjs', metrics: ['m1', 'm2', 'm3'], groups: 'all' },
-  { what: 'E2E planner, selection code, shard packing, offline Playwright config', test: (f) => (/^scripts\/(e2e-affected[^/]*|e2e-traced)\.mjs$/.test(f) && notTest(f)) || f === 'scripts/e2e-durations.json' || f === 'playwright.config.ts', metrics: ['m1', 'm2', 'm3'], groups: 'all' },
+  { what: 'dependencies (lockfile or package.json versions), the build script and the toolchain it runs, the gate, factory and E2E retry runners', test: (f, ci) => f === 'package-lock.json' || (f === 'package.json' && ci.pkg) || f === 'scripts/gates.mjs' || f === 'scripts/factory.mjs' || f === 'scripts/e2e-retry.mjs'
+    || BUILD_TOOLCHAIN.test(f), metrics: ['m1', 'm2', 'm3'], groups: 'all' },
+  { what: 'E2E planner, selection and quarantine code, shard packing, offline Playwright config', test: (f) => (/^scripts\/(e2e-affected[^/]*|e2e-traced|e2e-quarantine)\.mjs$/.test(f) && notTest(f)) || f === 'scripts/e2e-durations.json' || f === 'playwright.config.ts', metrics: ['m1', 'm2', 'm3'], groups: 'all' },
   { what: 'catalog gate code and config', test: (f) => (/^scripts\/(catalog-[^/]*|e2e-run-integrity)\.mjs$/.test(f) && notTest(f)) || f === 'playwright.catalog.config.ts', metrics: ['m1', 'm2', 'm3'], groups: SHARDED },
   { what: 'configured suite definition: workflow, stack action, selection, packing, verdict, stack script, live config, stack config', test: (f) => CFG_DEF(f) || (/^scripts\/configured-selection[^/]*\.mjs$/.test(f) && notTest(f)), metrics: ['m1', 'm3'], groups: CFG },
   { what: 'configured suite on main (every landing pays it)', test: CFG_DEF, metrics: ['m3'], groups: 'all' },
