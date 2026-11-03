@@ -112,6 +112,15 @@
           "paid": true,
           "note": "gemini-vision 18/18 HTTP 400 AI_APICallError",
           "settled": 0.002438976
+        },
+        {
+          "run": 41634521453,
+          "mode": "dry-run",
+          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+          "main": "4130a081f35f70e4d05dff3b314863127aec465b",
+          "at": "2026-11-03T12:18Z",
+          "paid": false,
+          "note": "pre-freeze"
         }
       ],
       "baseline": {
@@ -169,7 +178,7 @@
   ],
   "triggers": {
     "checkin": "trig_01Jr4tUyo8tjeUJY8pnQ9xPi",
-    "checkinAt": "2026-11-03T12:06:42Z"
+    "checkinAt": "2026-11-03T12:48:00Z"
   },
   "provider": {
     "name": "Claude Code Cloud",
