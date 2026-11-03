@@ -1,7 +1,7 @@
 // The repeat trial's argument checks and verdict (scripts/configured-trial.mjs).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { MAX_REPEAT, trialArgs, trialVerdict } from './configured-trial.mjs';
+import { MAX_OFFLINE_REPEAT, MAX_REPEAT, trialArgs, trialVerdict } from './configured-trial.mjs';
 
 const args = (s) => s.split(' ');
 
@@ -10,10 +10,12 @@ test('a trial names one configured spec, a count and a time cap', () => {
     spec: 'e2e/configured/late-send-abandoned.spec.ts',
     repeat: 32,
     minutes: 40,
+    offline: false,
+    grep: null,
   });
   // A value given after `npm run trial:<name> --` overrides the script's own.
   assert.equal(trialArgs(args('--spec e2e/configured/a.spec.ts --repeat 40 --minutes 40 --repeat 3')).repeat, 3);
-  assert.throws(() => trialArgs(args('--spec e2e/late-send-abandoned.spec.ts --repeat 3 --minutes 4')), /under e2e\/configured/);
+  assert.throws(() => trialArgs(args('--spec e2e/catalog/catalog-bench.spec.ts --repeat 3 --minutes 4')), /under e2e\/configured/);
   assert.throws(() => trialArgs(args('--spec e2e/configured/../x.spec.ts --repeat 3 --minutes 4')), /under e2e\/configured/);
   assert.throws(() => trialArgs(args('--spec e2e/configured/a.spec.ts --repeat 0 --minutes 4')), /--repeat/);
   assert.throws(() => trialArgs(args(`--spec e2e/configured/a.spec.ts --repeat ${MAX_REPEAT + 1} --minutes 4`)), /--repeat/);
@@ -30,6 +32,18 @@ const spec = (line, statuses, retry = 0, id = `id-${line}`) => ({
   tests: [{ results: statuses.map((status) => ({ status, retry })) }],
 });
 const report = (statuses, retry = 0) => ({ suites: [{ suites: [{ specs: [spec(28, statuses, retry)] }] }] });
+
+test('an offline trial names one file directly under e2e/, and may name its tests', () => {
+  // The words of a title arrive as one argument, as the shell hands them over from package.json.
+  const argv = ['--spec', 'e2e/import-svg.spec.ts', '--grep', 'cannot be dragged past either', '--repeat', '270', '--minutes', '60'];
+  assert.deepEqual(trialArgs(argv), { spec: 'e2e/import-svg.spec.ts', repeat: 270, minutes: 60, offline: true, grep: 'cannot be dragged past either' });
+  // An offline test takes seconds, so its bound is higher, and still a bound.
+  assert.equal(trialArgs(args(`--spec e2e/a.spec.ts --repeat ${MAX_OFFLINE_REPEAT} --minutes 4`)).repeat, MAX_OFFLINE_REPEAT);
+  assert.throws(() => trialArgs(args(`--spec e2e/a.spec.ts --repeat ${MAX_OFFLINE_REPEAT + 1} --minutes 4`)), /--repeat/);
+  // The configured bound is unchanged.
+  assert.throws(() => trialArgs(args(`--spec e2e/configured/a.spec.ts --repeat ${MAX_REPEAT + 1} --minutes 4`)), /from 1 to 75/);
+  assert.throws(() => trialArgs(['--spec', 'e2e/a.spec.ts', '--grep', ' ', '--repeat', '3', '--minutes', '4']), /--grep/);
+});
 
 test('only every asked-for run passing is a pass', () => {
   assert.equal(trialVerdict(report(['passed', 'passed', 'passed']), 3).ok, true);

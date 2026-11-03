@@ -8,6 +8,12 @@
 //
 //   "trial:<name>": "node scripts/configured-trial.mjs --spec e2e/configured/<name>.spec.ts --repeat <n>"
 //
+// AN OFFLINE SPEC (one file directly under e2e/) runs the same way with no backend: endurance.yml
+// without local-supabase, playwright.config.ts with CI's one worker, and `--grep <title words>`
+// to name the test(s) the flake is in (cicd-followup cf08, #1954). Its count may go higher, because
+// an offline test takes seconds, not a minute; `--minutes` still caps the run, and a run it cuts
+// off fails.
+//
 // WHY. A flake fix is shown stable by running the spec a number of times fixed in advance, with
 // zero failures (docs/work-specs/cicd-followup/spec.md, cf05 to cf08 (b)). The configured suite
 // runs each spec once per landing, and its dispatch takes no inputs on purpose
@@ -37,22 +43,31 @@ const OUT = path.join(ROOT, 'endurance-output');
 /** The most runs one trial may ask for: one a minute fits the job's 75 minutes, so a longer
  *  trial is refused here rather than cut off by the clock. */
 export const MAX_REPEAT = 75;
+/** The same bound for an offline spec: a test of about five seconds, 400 times, still ends
+ *  inside the job's 75 minutes. */
+export const MAX_OFFLINE_REPEAT = 400;
 
 /**
  * Read and check the trial's arguments.
  * @param {string[]} argv
- * @returns {{ spec: string, repeat: number, minutes: number }}
+ * @returns {{ spec: string, repeat: number, minutes: number, offline: boolean, grep: string | null }}
  */
 export function trialArgs(argv) {
   // The last occurrence wins, so a value given after `npm run trial:<name> --` overrides the script's.
   const value = (name) => (argv.includes(name) ? argv[argv.lastIndexOf(name) + 1] : undefined);
   const spec = String(value('--spec') ?? '');
-  if (!/^e2e\/configured\/[\w.-]+\.spec\.ts$/.test(spec)) throw new Error(`--spec must be one file under e2e/configured/, got "${spec}"`);
+  const offline = /^e2e\/[\w.-]+\.spec\.ts$/.test(spec);
+  if (!offline && !/^e2e\/configured\/[\w.-]+\.spec\.ts$/.test(spec)) {
+    throw new Error(`--spec must be one file under e2e/configured/, or one offline file directly under e2e/, got "${spec}"`);
+  }
+  const max = offline ? MAX_OFFLINE_REPEAT : MAX_REPEAT;
   const repeat = Number(value('--repeat'));
-  if (!Number.isInteger(repeat) || repeat < 1 || repeat > MAX_REPEAT) throw new Error(`--repeat must be a whole number from 1 to ${MAX_REPEAT}`);
+  if (!Number.isInteger(repeat) || repeat < 1 || repeat > max) throw new Error(`--repeat must be a whole number from 1 to ${max}`);
   const minutes = Number(value('--minutes'));
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 75) throw new Error('--minutes must be a whole number from 1 to 75');
-  return { spec, repeat, minutes };
+  const grep = value('--grep') ?? null;
+  if (grep !== null && !String(grep).trim()) throw new Error('--grep must name some words of the test titles');
+  return { spec, repeat, minutes, offline, grep };
 }
 
 /**
@@ -87,10 +102,44 @@ export function trialVerdict(report, repeat) {
 }
 
 async function main() {
-  const { spec, repeat, minutes } = trialArgs(process.argv.slice(2));
+  const { spec, repeat, minutes, offline, grep } = trialArgs(process.argv.slice(2));
   if (!existsSync(path.join(ROOT, spec))) throw new Error(`${spec} does not exist`);
-  const run = (cmd, args, options = {}) => spawnSync(cmd, args, { encoding: 'utf8', ...options, windowsHide: true });
+  const env = offline
+    ? { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(OUT, 'trial-report.json') }
+    : await configuredEnv();
+  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(OUT, { recursive: true });
+  console.log(`Trial: ${spec}${grep ? ` (tests matching "${grep}")` : ''}, ${repeat} runs, retries off, within ${minutes} min.`);
+  const started = Date.now();
+  const suite = run(
+    'npx',
+    [
+      'playwright', 'test', `--config=${offline ? 'playwright.config.ts' : 'playwright.live.config.ts'}`,
+      `--repeat-each=${repeat}`, '--retries=0', '--trace=retain-on-failure',
+      // The run-integrity reporter goes back in: a --reporter flag replaces the config's list.
+      `--output=${path.join(OUT, 'test-results')}`, '--reporter=list,json,./scripts/e2e-run-integrity.mjs',
+      `--global-timeout=${minutes * 60_000}`, ...(grep ? ['--grep', grep] : []), specFilterArg(spec),
+    ],
+    { cwd: ROOT, env, stdio: ['ignore', 'inherit', 'inherit'] },
+  );
+  let report = null;
+  try {
+    report = JSON.parse(readFileSync(env.PLAYWRIGHT_JSON_OUTPUT_NAME, 'utf8'));
+  } catch {
+    // No report is judged below as nothing having run.
+  }
+  const v = trialVerdict(report, repeat);
+  const summary = { spec, grep, repeat, minutes, exit: suite.status, seconds: Math.round((Date.now() - started) / 1000), ...v };
+  writeFileSync(path.join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
+  console.log(`Trial verdict: ${v.passed} of ${v.runs} runs passed (${v.expected} asked for) - ${v.ok ? 'PASS' : 'FAIL'}`);
+  for (const p of v.problems) console.log(`::error title=Trial::${p}`);
+  process.exit(v.ok && suite.status === 0 ? 0 : 1);
+}
 
+const run = (cmd, args, options = {}) => spawnSync(cmd, args, { encoding: 'utf8', ...options, windowsHide: true });
+
+/** A configured spec's environment: the local stack's keys and a signed-in account. */
+async function configuredEnv() {
   // The local stack only: its keys are the CLI's published defaults and live only on this machine.
   const status = run('supabase', ['status', '-o', 'json'], { cwd: ROOT });
   if (status.status !== 0) throw new Error(`no local Supabase stack (supabase status: ${status.stderr.trim()}); start it first, as endurance.yml does with local-supabase`);
@@ -127,34 +176,7 @@ async function main() {
   });
   const token = signedIn.ok ? (await signedIn.json().catch(() => ({}))).access_token : null;
   if (!token) throw new Error(`the account cannot sign in (${signedIn.status})`);
-
-  rmSync(OUT, { recursive: true, force: true });
-  mkdirSync(OUT, { recursive: true });
-  console.log(`Trial: ${spec}, ${repeat} runs, retries off, within ${minutes} min.`);
-  const started = Date.now();
-  const suite = run(
-    'npx',
-    [
-      'playwright', 'test', '--config=playwright.live.config.ts',
-      `--repeat-each=${repeat}`, '--retries=0', '--trace=retain-on-failure',
-            // The run-integrity reporter goes back in: a --reporter flag replaces the config's list.
-      `--output=${path.join(OUT, 'test-results')}`, '--reporter=list,json,./scripts/e2e-run-integrity.mjs',
-      `--global-timeout=${minutes * 60_000}`, specFilterArg(spec),
-    ],
-    { cwd: ROOT, env, stdio: ['ignore', 'inherit', 'inherit'] },
-  );
-  let report = null;
-  try {
-    report = JSON.parse(readFileSync(env.PLAYWRIGHT_JSON_OUTPUT_NAME, 'utf8'));
-  } catch {
-    // No report is judged below as nothing having run.
-  }
-  const v = trialVerdict(report, repeat);
-  const summary = { spec, repeat, minutes, exit: suite.status, seconds: Math.round((Date.now() - started) / 1000), ...v };
-  writeFileSync(path.join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
-  console.log(`Trial verdict: ${v.passed} of ${v.runs} runs passed (${v.expected} asked for) - ${v.ok ? 'PASS' : 'FAIL'}`);
-  for (const p of v.problems) console.log(`::error title=Trial::${p}`);
-  process.exit(v.ok && suite.status === 0 ? 0 : 1);
+  return env;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
