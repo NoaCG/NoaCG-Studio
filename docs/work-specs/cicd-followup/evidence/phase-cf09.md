@@ -20,8 +20,8 @@ names. The line now reads 76.0% on main's table and 82.2% on the newest measurem
 85%. So none of the 62 lines waives anything today, and none will after its date. The minutes
 each line put on record are now measured in the durations table and fit under the line. An
 extension would be an exception with nothing to cover. The policy rules that out (no automatic
-renewal), and the gate refuses one before 2026-11-16 anyway: one active offline exception at a
-time, and a new line needs a measured repayment receipt.
+renewal), and the gate refuses one dated on or before 2026-11-16 anyway: one active offline
+exception at a time, and a new line needs a measured repayment receipt.
 
 Where the cost went down, that is measured pay-down with the same or more protection:
 
@@ -188,8 +188,8 @@ waste to look at first, filed as #1994:
 
 | Spec | Table (10-19) | 2026-11-02 | Change |
 | --- | --- | --- | --- |
-| `production-controls.spec.ts` | 1.85 | 3.93 | +2.09 |
-| `production-audience.spec.ts` | 0.72 | 1.60 | +0.89 |
+| `production-controls.spec.ts` | 1.85 | 3.93 | +2.08 |
+| `production-audience.spec.ts` | 0.71 | 1.60 | +0.89 |
 | `import-svg-behaviour.spec.ts` | 3.59 | 4.49 | +0.90 |
 | `production-chat-intake.spec.ts` | 0.32 | 0.64 | +0.32 |
 
@@ -222,8 +222,8 @@ cf15's text edits, so no closing keyword appears here.
 - **Decisions:**
   - No extension. An exception line only matters at or above the 85%/95% line. Both measurements
     put the line below 85%, so an extension would cover nothing, and the gate's rule X5 (one active
-    offline exception, a repayment receipt for any later one) refuses one before 2026-11-16 anyway.
-    Extending would mean changing the gate, which this phase may not do.
+    offline exception, a repayment receipt for any later one) refuses one dated on or before
+    2026-11-16 anyway. Extending would mean changing the gate, which this phase may not do.
   - No new pay-down work. Every line's minutes already fit under the line. The largest family
     (save-transaction) is already measured at half its recorded cost with more tests. A speed-up
     done only to "pay down" an exception that waives nothing would be work for show. The measured
