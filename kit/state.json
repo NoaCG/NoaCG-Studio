@@ -45,16 +45,19 @@
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985)."
  },
  "waitingOn": {
-  "what": "early quarantine release PR for late-send-abandoned (closes #1805), then the cf07 check",
-  "eta": "2026-11-03T02:30:00Z"
+  "what": "PR #1992 (early release, closes #1805) in the merge queue; then clear the cf07 wait and launch the cf07 check",
+  "eta": "2026-11-03T01:50:00Z"
  },
  "inFlight": [
   {
    "phase": "cf07",
    "step": "fix (early quarantine release)",
    "session": "session_017SdbwPvMAdvKaa9sgSg1px",
-   "nonce": "fix-1805-f-24b1",
-   "launchedAt": "2026-11-03T00:56:28Z"
+   "pr": 1992,
+   "head": "d5475d7e7c4e40fa9dd8c5094c53fe31216c9050",
+   "stamped": "run 41558563351",
+   "autoMerge": "2026-11-03T01:16:10Z",
+   "state": "queued"
   }
  ],
  "owner": [],
