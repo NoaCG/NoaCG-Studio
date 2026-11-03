@@ -1630,6 +1630,57 @@ test('svg import: a growth limit stops at the frame and at the box, and cannot b
   expect(Number(cell![1])).toBeLessThanOrEqual(1 - 260 / 1080);
 });
 
+// THE LINE STAYS ON THE STAGE WHILE THE PREVIEW REBUILDS (#1954). Every move of the line changes
+// the graphic, and a rebuild used to drop every measured box the moment it was committed, the
+// line's artwork among them, so the line left the stage until the new preview reported back. A
+// drag that began or paused in that gap lost the pointer and did nothing: the drag above once read
+// back 0.045, the value the arrow key had left, on CI. Asserted on what can be observed: the line
+// is never removed while one rebuild lands under a held drag, and the same drag then carries on.
+test('svg import: a growth limit held across a preview rebuild stays on the stage and keeps following the drag', async ({
+  page,
+}) => {
+  await dropSvgMarkup(page, TWO_BOX_SVG, 'two-box.svg');
+  await page.locator('.wz-next').click();
+  await boxGrow(page, 0).selectOption('grow-y');
+
+  const stage = page.locator('.wz-stage');
+  const cap = page.locator('[data-testid^="wz-preview-cap-"]').first();
+  const grab = page.locator('[data-testid^="wz-preview-cap-grab-"]').first();
+  await expect(cap).toBeVisible();
+  // The rebuild the choice above owes has landed, so the next one can only be the drag's.
+  await expect(stage).toHaveAttribute('data-doc-rev', /\d/);
+  await expect(stage).not.toHaveAttribute('data-doc-pending', '1');
+  const rev = (await stage.getAttribute('data-doc-rev'))!;
+  const before = Number(await cap.getAttribute('data-margin'));
+
+  // Count every moment the stage is without the line from here on.
+  await page.evaluate(() => {
+    const el = document.querySelector('.wz-stage')!;
+    const w = window as unknown as { __capGone: number };
+    w.__capGone = 0;
+    new MutationObserver(() => {
+      if (!el.querySelector('[data-testid^="wz-preview-cap-grab-"]')) w.__capGone += 1;
+    }).observe(el, { childList: true, subtree: true });
+  });
+
+  const box = (await grab.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 40, { steps: 4 });
+  expect(Number(await cap.getAttribute('data-margin'))).not.toBeCloseTo(before, 3);
+  // Hold the button while the preview rebuilds for that move.
+  await expect(stage).not.toHaveAttribute('data-doc-rev', rev);
+  await expect(stage).not.toHaveAttribute('data-doc-pending', '1');
+  expect(await page.evaluate(() => (window as unknown as { __capGone: number }).__capGone), 'the line left the stage').toBe(0);
+
+  // The same drag carries on to the box's bottom edge, where it stops.
+  await page.mouse.move(x, y - 4000, { steps: 6 });
+  await page.mouse.up();
+  expect(Number(await cap.getAttribute('data-margin'))).toBeCloseTo(1 - 260 / 1080, 2);
+});
+
 test('svg import: an untouched proposal is left to the runtime, not frozen into the graphic', async ({ page }) => {
   // A reader who never opens the follower list has expressed no opinion, so the graphic ships
   // WITHOUT a follower table and the runtime derives the set the way the hug always has. Writing
