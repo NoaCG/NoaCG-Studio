@@ -43,6 +43,7 @@ export const BENCH_CATEGORIES = [
   'poll',
   'audience',
   'stream-notification',
+  'imported-design',
 ];
 
 // Slice budgets: a large category benches as SLICES[category] parallel test units (variant i
@@ -59,13 +60,12 @@ export const BENCH_SLICES = {
 
 /**
  * Catalog categories the bench does NOT bench, each with the reason. A category in neither list
- * fails every run (rule S4), so a new category cannot be silently left out again.
+ * fails every run (rule S4), so a new category cannot be silently left out again. Empty since
+ * cicd-followup cf08 benched `imported-design` (#1926); a category may be declared here again
+ * only with its reason and its issue.
  */
-export const NOT_BENCHED = {
-  'imported-design':
-    'never benched since it joined the catalog on 2026-10-29; svg01 fails bench-entrance and bench-replay ' +
-    '(cicd-improvement ci12, evidence/phase-ci12.md section 2), tracked in issue #1926',
-};
+/** @type {Record<string, string>} */
+export const NOT_BENCHED = {};
 
 /** How many units a category benches as: its slice budget, or 1 when it runs whole. */
 export const benchSlices = (category, slices = BENCH_SLICES) => slices[category] ?? 1;

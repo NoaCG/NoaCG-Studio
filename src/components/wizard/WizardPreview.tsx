@@ -338,6 +338,8 @@ export default function WizardPreview({
   // for it (see the highlight block below). Two things want one: the hover highlight, and the
   // draw marquee, which needs the ARTWORK's box to report a drag relative to it.
   const [rects, setRects] = useState<Record<string, CanvasRect | null>>({});
+  // Read by the rebuild debounce, which must not restart when the line's artwork changes.
+  const capInRef = useRef(capIn);
   // And the FRAME of the one selector the box overlay draws in - that element's own box and the
   // matrix that puts it on the canvas. Asked for separately from the rects because the editor
   // canvas tracks hundreds of selectors and wants none of them (canvasControlProtocol.ts).
@@ -394,7 +396,15 @@ export default function WizardPreview({
       docGenRef.current += 1;
       // The old document's last rects describe a layout that no longer exists — drop them
       // rather than leaving a box hanging over the new one until its first frame arrives.
-      setRects({});
+      // EXCEPT the growth limit's artwork (#1954). Every move of that line rebuilds the graphic,
+      // and dropping its rect took the line off the stage until the new document reported back:
+      // a drag that began or paused in that gap lost the pointer and did nothing. The afterimage
+      // keeps the old artwork painted meanwhile, so the line stays on the frame it is drawn on.
+      setRects((prev) => {
+        const sel = capInRef.current;
+        const held = sel ? prev[sel] : null;
+        return sel && held ? { [sel]: held } : {};
+      });
       setFrames({});
       setCommitted({ doc, gen: docGenRef.current });
     }, 220);
@@ -501,7 +511,13 @@ export default function WizardPreview({
       if (ev.source !== frameRef.current?.contentWindow) return;
       const msg = ev.data as CanvasRectsMessage | undefined;
       if (!msg || msg.type !== CANVAS_RECTS_TYPE) return;
-      setRects(msg.rects);
+      // A fresh document reports before it is told what to track, so a selector it leaves out
+      // has not been asked yet: the growth limit's artwork keeps its held rect (see the rebuild
+      // above) until the document answers for it, with a rect or with null.
+      setRects((prev) => {
+        const sel = capInRef.current;
+        return sel && !(sel in msg.rects) && prev[sel] ? { ...msg.rects, [sel]: prev[sel] } : msg.rects;
+      });
       setFrames(msg.frames ?? {});
     };
     window.addEventListener('message', onRects);
@@ -570,6 +586,7 @@ export default function WizardPreview({
   }, [rehearse, measured, playIn, clearDemo, postCmd]);
   showFirstFrameRef.current = showFirstFrame;
   trackSelectorRef.current = trackSelector;
+  capInRef.current = capIn;
 
   // Replay when the parent asks (e.g. animation preset changed but srcdoc identical).
   useEffect(() => {

@@ -178,8 +178,10 @@ test('Rule S11: the honest report passes, scoped and full, with its counts', asy
   assert.match(lines[0], /measured 1 of 1 expected design/);
   assert.equal(writes[0][0], '/tmp/out.json');
   assert.deepEqual(JSON.parse(writes[0][1]).results, { tk01: true });
-  // The real manifest accounts for imported-design (#1926) and keeps every slice budget benched.
-  assert.ok('imported-design' in NOT_BENCHED);
+  // The real manifest benches imported-design (#1926, cicd-followup cf08), declares nothing
+  // left out, and keeps every slice budget benched.
+  assert.ok(BENCH_CATEGORIES.includes('imported-design'));
+  assert.deepEqual(NOT_BENCHED, {});
   for (const c of Object.keys(BENCH_SLICES)) assert.ok(BENCH_CATEGORIES.includes(c), c);
 });
 
