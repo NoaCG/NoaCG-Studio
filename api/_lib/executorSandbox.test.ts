@@ -25,7 +25,7 @@ class FakeSession implements SandboxSessionLike {
   reads = 0;
   stops = 0;
   constructor(public status: string, private progress: string | null = null) {}
-  async readFileToBuffer() {
+  async readFileToBuffer(): Promise<Buffer | null> {
     this.reads += 1;
     if (this.status !== 'running') throw new Error('sandbox_stopped');
     return this.progress === null ? null : Buffer.from(this.progress);
@@ -203,7 +203,6 @@ for (const status of ['stopped', 'stopping', 'failed', 'aborted']) {
     await store.create(expired);
 
     const after = await reconcileJob(expired, store, executor);
-    await new Promise((r) => setTimeout(r, 0)); // the reconciler's stop is fire-and-forget
 
     assert.equal(after.state, 'failed');
     assert.equal(after.error?.code, 'sandbox_lost');
@@ -223,6 +222,58 @@ test('stop stops a running session, and a second stop is a no-op', async () => {
   assert.equal(session.stops, 1);
   assert.equal(sandbox.resumingCalls, 0);
 });
+
+// Vercel freezes a function once it has answered, so a stop still in flight at that point often
+// never reaches the sandbox. The stop here takes a real timer tick, as a network call does.
+class SlowStopSession extends FakeSession {
+  async stop() {
+    await new Promise((r) => setTimeout(r, 5));
+    await super.stop();
+  }
+}
+
+class UnreadableSession extends SlowStopSession {
+  async readFileToBuffer(): Promise<Buffer | null> {
+    throw new Error('unreachable');
+  }
+}
+
+const endings = [
+  {
+    name: 'a completed job',
+    session: () =>
+      new SlowStopSession('running', JSON.stringify({ state: 'complete', progress: 1, blobUrl: 'https://blob.example/x.mp4' })),
+    over: {},
+    state: 'complete',
+  },
+  {
+    name: 'a failed job',
+    session: () => new SlowStopSession('running', JSON.stringify({ state: 'failed', progress: 0.5 })),
+    over: {},
+    state: 'failed',
+  },
+  {
+    name: 'a job past its deadline',
+    session: () => new UnreadableSession('running'),
+    over: { deadlineAt: Date.now() - 1 },
+    state: 'failed',
+  },
+];
+
+for (const ending of endings) {
+  test(`${ending.name} has its sandbox stopped before the status answer goes out`, async () => {
+    const session = ending.session();
+    const { deps } = fakeDeps(new FakeSandbox('sbx-test', session));
+    const store = await memoryStore();
+    const record = job(ending.over);
+    await store.create(record);
+
+    const after = await reconcileJob(record, store, new SandboxExecutor(deps));
+
+    assert.equal(after.state, ending.state);
+    assert.equal(session.stops, 1);
+  });
+}
 
 // ── Risk 2: explicit provisioning ───────────────────────────────────────────
 
