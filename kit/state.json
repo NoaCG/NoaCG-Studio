@@ -250,6 +250,11 @@
       "phase": 29,
       "at": "2026-11-03T02:55Z",
       "note": "#1886 re-scoped to protocol 1 outputs (fallback without 0071); kept open; comment 6594225312."
+    },
+    {
+      "phase": 31,
+      "at": "2026-11-03T04:53Z",
+      "note": "Approved beyond TOUCHES: scripts/run-ai-gateway-tests.mjs (add test to sources), api/_lib/aiGateway.ts:880 export providerFailure. Jev in DECISION_MODEL_CANDIDATES, /v1/evaluate, no cascade, task off by default; ledger shares import-analysis allowance (must be revisited if go)."
     }
   ],
   "ownerOpen": [
