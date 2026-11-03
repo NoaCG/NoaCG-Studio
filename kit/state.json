@@ -28,145 +28,148 @@
   },
   "branchPrefix": "claude",
   "waitingOn": "PR #2023 in merge queue",
-  "inFlight": {
-    "0": {
+  "inFlight": [
+    {
       "phase": 33,
-      "role": "build",
-      "session": "session_017SdbwNQwZWqjCQeGYmzXno",
-      "nonce": "33-b-e72a",
-      "branch": "claude/plan-jev-svg-import-33-build",
-      "evalRuns": [
-        {
-          "run": 41619506329,
-          "mode": "dry-run",
-          "config": "3017a8a33f26afd9a4c703efac43e87946d8144e",
-          "at": "2026-11-03T10:28Z",
-          "paid": false
-        },
-        {
-          "run": 41619730746,
-          "mode": "development",
-          "establish_baseline": true,
-          "config": "3017a8a33f26afd9a4c703efac43e87946d8144e",
-          "at": "2026-11-03T10:30Z",
-          "paid": false
-        },
-        {
-          "run": 41620061986,
-          "mode": "development",
-          "config": "7671ef75314dee3bb6bfdf1ae8008061e34fa48b",
-          "receipts": 41619730746,
-          "pricedMax": 0.006,
-          "at": "2026-11-03T10:32Z",
-          "paid": true,
-          "settled": 0.002349768
-        },
-        {
-          "run": 41620813617,
-          "mode": "development",
-          "config": "6f97fcfd11b8bc6a983778e07001f44c52ab29c3",
-          "receipts": 41620061986,
-          "pricedMax": 0.0068,
-          "at": "2026-11-03T10:38Z",
-          "paid": true,
-          "settled": 0.002438976
-        },
-        {
-          "run": 41621404623,
-          "mode": "development",
-          "config": "d55cce0308584d05b3ec980e577132e3e1190760",
-          "receipts": 41620813617,
-          "pricedMax": 0.008,
-          "at": "2026-11-03T10:42Z",
-          "paid": true,
-          "settled": 0.002566236
-        },
-        {
-          "run": 41621970771,
-          "mode": "development",
-          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
-          "receipts": 41621404623,
-          "regression": true,
-          "pricedMax": 0.2271,
-          "at": "2026-11-03T10:46Z",
-          "paid": true,
-          "settled": 0.021113283,
-          "note": "gemini-vision 18/18 provider_rejected"
-        },
-        {
-          "run": 41630691746,
-          "mode": "reconcile",
-          "accept_manifest": true,
-          "main": "4130a081f35f70e4d05dff3b314863127aec465b",
-          "receipts": 41621970771,
-          "at": "2026-11-03T11:50Z",
-          "paid": false
-        },
-        {
-          "run": 41630941605,
-          "mode": "development",
-          "config": "f8aa571cf6e1eef80df05b9e97650316291e4f0a",
-          "receipts": 41630691746,
-          "pricedMax": 0.112,
-          "at": "2026-11-03T11:52Z",
-          "paid": true,
-          "note": "gemini-vision 18/18 HTTP 400 AI_APICallError",
-          "settled": 0.002438976
-        },
-        {
-          "run": 41634521453,
-          "mode": "dry-run",
-          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
-          "main": "4130a081f35f70e4d05dff3b314863127aec465b",
-          "at": "2026-11-03T12:18Z",
-          "paid": false,
-          "note": "pre-freeze"
-        },
-        {
-          "run": 41634756346,
-          "mode": "reconcile",
-          "freeze": true,
-          "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
-          "main": "4130a081f35f70e4d05dff3b314863127aec465b",
-          "receipts": 41630941605,
-          "at": "2026-11-03T12:19Z",
-          "paid": false
-        }
-      ],
-      "baseline": {
-        "run": 41619730746,
-        "balance": 6.936136654,
-        "lifetime": 48.063863346,
-        "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
-      },
-      "spent": 0.030907239,
-      "attempts": 212,
-      "frozen": {
-        "config": "b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7",
-        "ref": "a41861d21be5c13d2e0a8344644ea50606e2463d",
-        "manifest": "341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db",
-        "run": 41634756346,
-        "main": "4130a081f35f70e4d05dff3b314863127aec465b"
-      },
+      "role": "check",
+      "session": "session_017SdbwQ6mivSf18E9piXGX2",
+      "nonce": "33-c-62ef",
+      "actor": "checker-33-33-c-62ef",
+      "mergeSha": "5018062c06ec99a893200ab7d50ff18b20e65ca8",
       "pr": 2023,
-      "head": "879c86a8761c501ccc839a26e190695f46888db4",
-      "stampRun": 41638664891,
-      "stampRunFailed": 41637253493,
-      "ciRun": 41635870361,
-      "so": "session_017SdbwNQ1ztfVCJGpvWoWUK A- (standing owner rule)"
-    },
-    "row": 33,
-    "role": "check",
-    "session": "session_017SdbwQ6mivSf18E9piXGX2",
-    "nonce": "33-c-62ef",
-    "mergeSha": "5018062c06ec99a893200ab7d50ff18b20e65ca8",
-    "pr": 2023,
-    "builder": "session_017SdbwQwZWqjCQeGYmzXno",
-    "soSessions": [
-      "session_017SdbwQ1ztfVCJGpvWoWUK"
-    ],
-    "startedAt": "2026-11-03T12:57:27.295Z"
-  },
+      "builder": "session_017SdbwNQwZWqjCQeGYmzXno",
+      "soSessions": [
+        "session_017SdbwQ1ztfVCJGpvWoWUK"
+      ],
+      "startedAt": "2026-11-03T12:56:32Z",
+      "build": {
+        "phase": 33,
+        "role": "build",
+        "session": "session_017SdbwNQwZWqjCQeGYmzXno",
+        "nonce": "33-b-e72a",
+        "branch": "claude/plan-jev-svg-import-33-build",
+        "evalRuns": [
+          {
+            "run": 41619506329,
+            "mode": "dry-run",
+            "config": "3017a8a33f26afd9a4c703efac43e87946d8144e",
+            "at": "2026-11-03T10:28Z",
+            "paid": false
+          },
+          {
+            "run": 41619730746,
+            "mode": "development",
+            "establish_baseline": true,
+            "config": "3017a8a33f26afd9a4c703efac43e87946d8144e",
+            "at": "2026-11-03T10:30Z",
+            "paid": false
+          },
+          {
+            "run": 41620061986,
+            "mode": "development",
+            "config": "7671ef75314dee3bb6bfdf1ae8008061e34fa48b",
+            "receipts": 41619730746,
+            "pricedMax": 0.006,
+            "at": "2026-11-03T10:32Z",
+            "paid": true,
+            "settled": 0.002349768
+          },
+          {
+            "run": 41620813617,
+            "mode": "development",
+            "config": "6f97fcfd11b8bc6a983778e07001f44c52ab29c3",
+            "receipts": 41620061986,
+            "pricedMax": 0.0068,
+            "at": "2026-11-03T10:38Z",
+            "paid": true,
+            "settled": 0.002438976
+          },
+          {
+            "run": 41621404623,
+            "mode": "development",
+            "config": "d55cce0308584d05b3ec980e577132e3e1190760",
+            "receipts": 41620813617,
+            "pricedMax": 0.008,
+            "at": "2026-11-03T10:42Z",
+            "paid": true,
+            "settled": 0.002566236
+          },
+          {
+            "run": 41621970771,
+            "mode": "development",
+            "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+            "receipts": 41621404623,
+            "regression": true,
+            "pricedMax": 0.2271,
+            "at": "2026-11-03T10:46Z",
+            "paid": true,
+            "settled": 0.021113283,
+            "note": "gemini-vision 18/18 provider_rejected"
+          },
+          {
+            "run": 41630691746,
+            "mode": "reconcile",
+            "accept_manifest": true,
+            "main": "4130a081f35f70e4d05dff3b314863127aec465b",
+            "receipts": 41621970771,
+            "at": "2026-11-03T11:50Z",
+            "paid": false
+          },
+          {
+            "run": 41630941605,
+            "mode": "development",
+            "config": "f8aa571cf6e1eef80df05b9e97650316291e4f0a",
+            "receipts": 41630691746,
+            "pricedMax": 0.112,
+            "at": "2026-11-03T11:52Z",
+            "paid": true,
+            "note": "gemini-vision 18/18 HTTP 400 AI_APICallError",
+            "settled": 0.002438976
+          },
+          {
+            "run": 41634521453,
+            "mode": "dry-run",
+            "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+            "main": "4130a081f35f70e4d05dff3b314863127aec465b",
+            "at": "2026-11-03T12:18Z",
+            "paid": false,
+            "note": "pre-freeze"
+          },
+          {
+            "run": 41634756346,
+            "mode": "reconcile",
+            "freeze": true,
+            "config": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+            "main": "4130a081f35f70e4d05dff3b314863127aec465b",
+            "receipts": 41630941605,
+            "at": "2026-11-03T12:19Z",
+            "paid": false
+          }
+        ],
+        "baseline": {
+          "run": 41619730746,
+          "balance": 6.936136654,
+          "lifetime": 48.063863346,
+          "manifest": "77879807cc2b2922b8c4780c690ba6d4c89ba772210442a6c457190e260f842b"
+        },
+        "spent": 0.030907239,
+        "attempts": 212,
+        "frozen": {
+          "config": "b2609a84eabe9f45658764ac8e30ff52c24ba26bab16f98d7744230c7464a4a7",
+          "ref": "a41861d21be5c13d2e0a8344644ea50606e2463d",
+          "manifest": "341b82e787694a80b3658d61911aa211906b28dc284577905e44e59219b739db",
+          "run": 41634756346,
+          "main": "4130a081f35f70e4d05dff3b314863127aec465b"
+        },
+        "pr": 2023,
+        "head": "879c86a8761c501ccc839a26e190695f46888db4",
+        "stampRun": 41638664891,
+        "stampRunFailed": 41637253493,
+        "ciRun": 41635870361,
+        "so": "session_017SdbwNQ1ztfVCJGpvWoWUK A- (standing owner rule)"
+      }
+    }
+  ],
   "owner": [],
   "fixes": [
     {
