@@ -1,7 +1,7 @@
 // The imported-graphic-analysis task's one serverless function (see docs/DEPLOYMENT.md).
 //
-// All three paths are SINGLE SEGMENTS under this prefix - `import-analysis`,
-// `import-analysis-status`, `import-analysis-outcome` - and that is a platform constraint,
+// Every path is a SINGLE SEGMENT under this prefix - `import-analysis`,
+// `import-analysis-status`, `import-analysis-outcome`, `svg-interpretation` - and that is a platform constraint,
 // not a naming style. Measured on production 2026-08-14: a `[...path].ts` function under api/
 // routes exactly ONE segment. `/api/ai/tasks/import-analysis` reached this table and answered
 // the app's own 405; `/api/ai/tasks/import-analysis/status` never reached any code at all and
@@ -18,6 +18,8 @@ import { liteError } from '../../_lib/aiLiteHttp.js';
 import analyze from '../../_lib/importAnalysis/analyze.js';
 import outcome from '../../_lib/importAnalysis/outcome.js';
 import status from '../../_lib/importAnalysis/status.js';
+// Off until a qualified verdict: it refuses before reading anything (its file says why).
+import svgInterpretation from '../../_lib/svgInterpretation/analyze.js';
 
 interface Handler {
   fetch(req: Request): Promise<Response>;
@@ -27,6 +29,7 @@ const ROUTES: Record<string, Handler> = {
   'import-analysis': analyze,
   'import-analysis-status': status,
   'import-analysis-outcome': outcome,
+  'svg-interpretation': svgInterpretation,
 };
 
 export default {
