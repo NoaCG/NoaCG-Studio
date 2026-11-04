@@ -218,6 +218,17 @@ executor adds it once to a served reply's estimate and marks it with `usage.requ
 no caller adds it twice, and every task's priced worst case (`worstAttemptCostUsd`, the decision
 adapter's `attemptCeilingUsd`) includes it. A user's own key on a direct provider pays none.
 
+A reply the gateway served but the executor could not use (a structured answer that does not
+parse or validate, an image request answered without an image) was still billed. When the
+executor retries it, the result's usage is the sum of every served attempt, each with its own
+fee once (`sumUsage`, #2055), so settlement, quotas and the ledger see it. An attempt that was
+never served (a refusal, a server error, a timeout, a network failure) adds nothing here.
+When some served attempts carry a cost and others do not, the sum keeps the unpriced attempts'
+tokens in `usage.unpricedTokens`, and a caller that prices the reply (`withTokenCost`) prices
+those tokens once at its own route price.
+A request that fails after served attempts, and a server error before a success, are not yet
+charged by this executor (#2092).
+
 Provider response bodies and credentials are never copied into errors or logs. User-facing
 errors use stable gateway codes and sanitized messages.
 
