@@ -1055,6 +1055,8 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   // THE CONTROLLER'S OWN SEND THAT THE RELAY REFUSES, as the panel's above: its correction is held
   // open while the panel moves the clock, then refused. The controller takes the panel's row back
   // instead of its value from before the send, so its Out banks the panel's clock (sent 0:10).
+  // The Out above is on the controller's tally first, so its toggle takes the cue again.
+  await expect.poll(() => ctl.evaluate(() => (window as unknown as { pgmLive: Record<string, string> }).pgmLive.Countdown ?? null)).toBeNull();
   from = rows.length;
   await ctl.locator('#v-take').click();
   await expect.poll(() => sent(from)).toContain('play');
@@ -1063,7 +1065,6 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await ctl.locator('.field', { hasText: 'Time' }).locator('input').fill('0:15');
   await ctl.locator('#v-update').click();
   await expect.poll(() => refused).toBe(1);
-  await expect.poll(() => panel.evaluate(() => 1)).toBe(1);
   from = rows.length;
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
