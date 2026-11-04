@@ -755,14 +755,21 @@ test('a database error cannot turn the disabled SVG route on', async () => {
     assert.deepEqual([calls.length - readsBefore, model.sent.length], [0, 0]);
 
     // Even past the verdict and the flag (a later qualified route), a database error books and
-    // sends nothing: today the settings and plan defaults open and consent, read from the same
-    // database, fails closed; a fail-closed fix of #2034 would stop it one step earlier.
-    const past = await runSvgInterpretation(input(), { profile: enabledProfile(), fetchImpl: model.fetchImpl, key: () => KEY });
-    assert.equal(!past.ok && past.fallback, 'deterministic');
-    // Refused at a policy step, never by reaching the ledger: `unavailable` here would mean every
-    // lookup before the booking let the request through.
-    assert.ok(!past.ok && ['route_disabled', 'not_entitled', 'consent_required'].includes(past.reason), String(!past.ok && past.reason));
-    assert.equal(model.sent.length, 0);
+    // sends nothing, and since #2034 it is refused at the FIRST lookup: the settings read fails
+    // closed as `unavailable` instead of answering empty switches. The ledger here is a spy, so
+    // "never reached the booking" is observed rather than inferred from the refusal reason.
+    const booked: string[] = [];
+    const spy = new MemoryLiteGenerationStore();
+    const reserve = spy.reserve.bind(spy);
+    spy.reserve = async (...args) => (booked.push('reserve'), reserve(...args));
+    const past = await runSvgInterpretation(input(), { profile: enabledProfile(), fetchImpl: model.fetchImpl, key: () => KEY, store: async () => spy });
+    assert.deepEqual([!past.ok && past.reason, !past.ok && past.fallback], ['unavailable', 'deterministic']);
+    // Readable settings, an unreadable account: refused at the plan read, the same way.
+    const plan = await runSvgInterpretation(input(), {
+      profile: enabledProfile(), fetchImpl: model.fetchImpl, key: () => KEY, store: async () => spy, settings: async () => SETTINGS,
+    });
+    assert.deepEqual([!plan.ok && plan.reason, !plan.ok && plan.fallback], ['unavailable', 'deterministic']);
+    assert.deepEqual([booked, model.sent.length], [[], 0], 'no booking and no model call');
     assert.ok(calls.every((url) => url.startsWith('http://127.0.0.1:9/')), 'only the database was asked, in every read of this test');
   });
 });

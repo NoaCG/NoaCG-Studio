@@ -6,9 +6,9 @@ import { surfaceExecutionPolicy, surfaceRoutePolicy } from '../_lib/aiSurfacePol
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { admitManagedProCall, proAllowanceEnforceable, settleManagedProCall } from '../_lib/pro/managedCall.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
-import { gatedFeature, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
+import { gatedFeature, resolvePaidAiAccess, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
 import { allows } from '../../src/entitlements/contract.js';
-import { routeDisabled, systemSettings } from '../_lib/systemSettings.js';
+import { readSystemSettings, routeDisabled } from '../_lib/systemSettings.js';
 import type { AiGatewayErrorBody, AiGatewayRequestBody, AiProviderId, ModelResult } from '../../src/ai/modelTypes.js';
 
 const MAX_BODY_BYTES = 12_000_000;
@@ -63,6 +63,18 @@ export default {
       return auth.user;
     };
     const entitlementFor = async () => resolveUserEntitlement((await verifyCaller())?.userId ?? null);
+    /** A request that SPENDS NoaCG's key reads the switches and the plan strictly (#2034): a
+     *  failed read refuses before the Pro reservation and before any provider call, instead of
+     *  answering empty switches and the default plan. BYO traffic keeps the fail-open read,
+     *  since it spends the caller's own key. */
+    const unavailable = () => new GatewayError('unavailable', 'NoaCG-managed AI is temporarily unavailable. Try again shortly.', 503, true);
+    const paidEntitlementFor = async () => {
+      const user = await verifyCaller();
+      if (!user) return resolveUserEntitlement(null);
+      const access = await resolvePaidAiAccess(user.userId);
+      if (!access.ok) throw unavailable();
+      return access.entitlement;
+    };
 
     // Only the CALLER's own sealed keys (aiCredentials.ts, "WHOSE KEYS THESE ARE"). A request with
     // no cookie costs nothing here, and a signed-out one needs no verification: its owner is null.
@@ -86,10 +98,11 @@ export default {
      *  tag. Nothing stronger exists here (a proxy that will run any prompt cannot know what
      *  the answer is used for), and it is still what makes suspension and the instance-wide
      *  kill switch reach the video harness instead of changing a row nothing reads. */
-    const guardSurface = async (): Promise<void> => {
+    const guardSurface = async (byoPrimary: boolean): Promise<void> => {
       const feature = gatedFeature(body.surface);
       if (!feature || !bearerToken(req)) return;
-      const entitlement = await entitlementFor(); // verifies the token on the way through
+      // Verifies the token on the way through; strict when the call spends the managed key.
+      const entitlement = await (byoPrimary ? entitlementFor() : paidEntitlementFor());
       if (surfaceRefused(feature, Boolean(auth.user), entitlement)) {
         throw new GatewayError(
           'authentication_required',
@@ -143,7 +156,9 @@ export default {
       // keyFor is handed a PROVIDER, not a route, so find the route this request would use it
       // for - the primary if it matches, otherwise the fallback that does.
       const candidate = [body.route, ...(body.fallbacks ?? [])].find((route) => route.provider === provider);
-      if (candidate && routeDisabled(await systemSettings(), candidate)) {
+      const settings = await readSystemSettings();
+      if (!settings.ok) throw unavailable();
+      if (candidate && routeDisabled(settings.settings, candidate)) {
         // 'unavailable', not a new code: from the caller's side a switched-off route is
         // indistinguishable from one the deployment never had, and it is not retryable by
         // them - so the existing vocabulary already says the true thing.
@@ -159,7 +174,6 @@ export default {
     try {
       // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
       // refusal is an outcome worth counting, not a hole in the accounting.
-      await guardSurface();
       // A tagged surface's MANAGED traffic carries a routing policy (api/_lib/aiSurfacePolicy.ts):
       // zero-data-retention routing, cheapest eligible provider, per-surface spend tags.
       // BYO is excluded by the same rule the disabled-route switch uses - a user spending their
@@ -167,13 +181,14 @@ export default {
       // the presented keys rather than inside keyFor, because the policy is a property of the
       // whole request while keyFor answers per provider.
       const byoPrimary = Boolean(userKeys[body.route.provider]);
+      await guardSurface(byoPrimary);
       // HOSTED NoaCG Pro: a managed Pro call must ride a live reservation, which is what turns
       // the surface tag from a label into an allowance (api/_lib/pro/managedCall.ts). BYO is
       // excluded by the same rule the routing policy below uses - a caller's own key on their
       // own model is not ours to meter. The entitlement was already resolved by guardSurface;
       // this adds the profile, the funded-route check and the quota.
       if (body.surface === 'pro' && !byoPrimary && proAllowanceEnforceable()) {
-        await entitlementFor(); // verifies the token, so auth.user is resolved below
+        await verifyCaller(); // so auth.user is resolved below; guardSurface read the plan
         await admitManagedProCall(body, auth.user?.userId ?? null);
         proReservationAdmitted = true;
       }
