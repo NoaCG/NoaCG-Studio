@@ -1016,17 +1016,21 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   expect(sent(from)[0]).toBe('update f2=0:20@0/0:30/0:20');
   expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:20@${STAMP}/0:30/0:20$`));
 
-  // A SECOND CONTROLLER WINDOW (or this one reloaded) boots at the log's head and still learns the
-  // running clock from the log, 600 rows back and past the relay's 500-row page: its own cue's
-  // 0:30 reaches the running clock as a correction, stamped, never as a plain time that would
-  // stop the count.
   // THE PANEL'S OWN SEND THAT THE RELAY REFUSES: its correction is held open while another window
   // moves the clock, then refused. The panel skipped the other window's row while its own was out,
-  // and takes it back once its own is refused (checked by the panel's ■ Stop below).
+  // and takes it back once its own is refused (checked by the panel's ■ Stop below). It has read
+  // the controller's correction first, so its 0:10 corrects the running clock.
+  const correctionRows = rows.length;
+  await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= correctionRows);
   const refuse = refuseSends('/panel.html');
   await panel.locator('.field[data-key="f2"] input').fill('0:10');
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => refused).toBe(2);
+
+  // A SECOND CONTROLLER WINDOW (or this one reloaded) boots at the log's head and still learns the
+  // running clock from the log, 600 rows back and past the relay's 500-row page: its own cue's
+  // 0:30 reaches the running clock as a correction, stamped, never as a plain time that would
+  // stop the count.
   filler(600);
   const ctl2 = await context.newPage();
   await ctl2.route('http://clock-relay.local/**', serve);
