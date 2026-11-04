@@ -1,4 +1,4 @@
-// guards: src/blocks/behaviourKeys.ts, src/blocks/behaviourData.ts, src/templates/behaviours/recipe.ts, src/templates/behaviours/clock.ts, src/templates/behaviours/credits.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/behaviourRuntime.ts
+// guards: src/blocks/behaviourKeys.ts, src/templates/importedDesign/shared.ts, src/templates/importedDesign/reimport.ts, src/blocks/behaviourData.ts, src/templates/behaviours/recipe.ts, src/templates/behaviours/clock.ts, src/templates/behaviours/credits.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/behaviourRuntime.ts
 //
 // KEYS ON A BEHAVIOUR GRAPHIC (#1982, docs/research/editor-behaviour-keys/README.md). The pure
 // ownership rule: which owned sequences open to keys (K1, K2), what the recipe's paint table
@@ -100,7 +100,10 @@ test('K4, K5: the paint table\'s claims', () => {
   // A drawn quiz claims only its looks; an undrawn row's own look claims its anchor and its group.
   assert.deepEqual(recipeClaims(quizTable, () => true).map(c => c.kind), ['look', 'look', 'look']);
   const undrawn = recipeClaims(quizTable, token => token !== 'answer.selected/B');
-  assert.deepEqual(undrawn.filter(c => c.kind === 'geometry').map(c => c.selector), ['[id="f2"]', ':has(> [id="f2"])']);
+  assert.deepEqual(undrawn.filter(c => c.kind === 'geometry').map(c => c.selector), [keys.ARTWORK]);
+  // The artwork the runtime measures in is the one the claim names.
+  assert.match(source('src/templates/importedDesign/shared.ts'), /export const PREFIX = 'imported-design';/);
+  assert.match(source('src/templates/importedDesign/reimport.ts'), /svg\.\$\{PREFIX\}-art/);
   // A badge with no anchor is drawn on the artwork's own box, which no layer key moves.
   assert.equal(recipeClaims({ ...quizTable, paint: [quizTable.paint[1]] }, () => false).filter(c => c.kind === 'geometry').length, 0);
   const vote = { version: 1, recipe: 'vote', rows: { option: ['A'] }, fields: { votes: { A: 'f3' } },

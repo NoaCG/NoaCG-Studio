@@ -50,22 +50,25 @@ Observable lines; `scripts/behaviour-keys.test.mjs` checks the pure rule and
   it.
 - **K5 Measured and moved geometry is the recipe's.** Only Opacity keys are allowed (every other
   track: position, scale, rotation, skew, a transform string, a filter, a clip is refused) on a
-  gauge, on a row a place rule moves (its stamped layers and the field its role compiled to), on
-  a place rule's slot anchor, and, where the recipe draws its own look for a row the designer left
-  undrawn, on that look's anchor field and the group holding it (the runtime measures the anchor's
-  fit panel, usually a sibling); and on any layer inside one of these or containing one inside the
-  artwork. Rows and slot anchors are measured through every transform above them, so containment
-  is exactly right for them; a gauge is measured in its own frame and needs less, but one rule is
-  kept for all.
+  gauge, on a row a place rule moves (its stamped layers and the field its role compiled to) and
+  on a place rule's slot anchor, and on any layer inside one of these or containing one inside the
+  artwork. Where the recipe draws its own look for a row the designer left undrawn, the runtime
+  measures a fit panel it finds anywhere in the artwork (`svgFitContainer`), once, so on that
+  graphic every artwork layer is Opacity-only; the box around the artwork stays free, since it
+  carries the drawn look with it. Rows and slot anchors are measured through every transform
+  above them, so containment is exactly right for them; a gauge is measured in its own frame and
+  needs less, but one rule is kept for all.
 - **K6 Everything else is the user's.** Fields, readouts (the recipe writes only their text and
-  ink), plates, groups and the box take keys on every property.
+  ink, which no key channel writes), plates, groups and the box take keys on every keyable
+  property. A colour key channel, if one is ever added, must claim a readout's ink first.
 - **K7 An edit proves it stayed inside the user's part.** After any key edit (set, remove, turn
   off, move, ease) the data may differ from before only in tracks of layers and properties K4 to
   K6 leave free, on default-path cues, plus Out's own length where a key past its end lengthens
   it. Calls, the machine, the paint table, other cue lengths, spans, reveals and hides are byte
   for byte unchanged, and so are machine controls, measured motion, loops and the `NOACG_BEHAVIOUR`
   table outside the region. Freedom is checked on every element a changed track's selector
-  matches. Otherwise the edit is refused whole and the document is unchanged.
+  matches. Base CSS a key removal writes (the pose it keeps) lands only on a control K4 to K6
+  already proved the user's. Otherwise the edit is refused whole and the document is unchanged.
 - **K8 On air both run.** A keyed behaviour graphic plays the user's keys on their cue and the
   recipe's repaint, looks and pops as before; save and reopen keep both; the OGraf and SPX packages
   carry the key in `NOACG_ANIM`. A cue the machine re-enters by an operator edge (the quiz's
@@ -79,6 +82,15 @@ Row 26 of run #1850 pinned "a key on `#f2` of the four-team scoreboard is refuse
 is a score field the recipe only writes text into, so under K6 it now takes keys. The pinned
 journey changes to: the key on `#f2` is accepted, the flash looks still paint on air, and the
 refusal stays pinned on a look layer (`team.flash`) and on the whole credits sequence.
+
+## Reference editor
+
+No working reference editor has an equivalent of this rule: After Effects, Figma and Rive have no
+recipe that paints the user's own layers from a state machine and a table while the user keys the
+same document. The nearest idea, an After Effects property driven by an expression, lets the user
+key the property and lets the expression win, which is the opposite choice (K4 and K5 refuse
+instead). So no comparable task was run and no usability or parity is claimed; the NoaCG
+contract is verified by the unit test and the two journeys in `e2e/editor-fidelity-trim.spec.ts`.
 
 ## Product choices this leaves open
 

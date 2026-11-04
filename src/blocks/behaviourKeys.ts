@@ -72,6 +72,9 @@ export const stamped = (token: string) => `[${BEHAVIOUR_ROLE_ATTR}~=${JSON.strin
 /** The selector for one id, quoted so any id the table names is a valid selector. */
 const byId = (id: string) => `[id=${JSON.stringify(id)}]`;
 const ID = /^f\d+$/;
+/** Every layer of the imported artwork (`.imported-design-art`, spelled here as blocks never
+ *  import the template builders). */
+export const ARTWORK = 'svg.imported-design-art, svg.imported-design-art *';
 
 /** The keys a rule repeats over, as the runtime reads them: one row, a row set's keys, or none. */
 function keysOf(table: BehaviourData, rule: { rows?: string; row?: string }): (string | null)[] {
@@ -106,10 +109,11 @@ export function recipeClaims(table: BehaviourData, drawn: (token: string) => boo
       for (const key of keysOf(table, rule)) {
         const token = roleToken(rule.look, key);
         claims.push({ selector: stamped(token), kind: 'look' });
-        // Its own look is drawn around the anchor's fit panel (`svgFitContainer`), found at
-        // runtime and usually a sibling of the field, so the field's whole group is claimed.
+        // Its own look is drawn around the anchor's fit panel, which `svgFitContainer` finds
+        // anywhere in the artwork at runtime and measures once, so every artwork layer's
+        // geometry is claimed (the box around the artwork carries the drawn look with it).
         const anchor = rule.default && rule.anchor ? fieldOf(table, rule.anchor, key) : null;
-        if (anchor && !drawn(token)) claims.push({ selector: byId(anchor), kind: 'geometry' }, { selector: `:has(> ${byId(anchor)})`, kind: 'geometry' });
+        if (anchor && !drawn(token)) claims.push({ selector: ARTWORK, kind: 'geometry' });
       }
     } else if ('gauge' in rule) {
       for (const key of keysOf(table, rule)) claims.push({ selector: stamped(roleToken(rule.gauge, key)), kind: 'geometry' });
