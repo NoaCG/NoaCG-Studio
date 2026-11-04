@@ -1196,8 +1196,11 @@ for (const layout of CARD_LAYOUTS) {
     const held = Date.now() - started;
     expect(held, `${at}: the first card held its two seconds`).toBeGreaterThanOrEqual(1900);
     await changeEnded(page, at);
+    const pressed = Date.now();
     await cardsDispatch(page, 'next');
-    await expect.poll(async () => (await cardsState(page)).shown, `${at}: Next skips ahead`).toBe(2);
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: Next skips ahead`, intervals: [25] }).toBe(2);
+    // Next shows the card about 0.4 s after the press; the card time would take 2.4 s.
+    expect(Date.now() - pressed, `${at}: Next turned it, not the card time`).toBeLessThan(1500);
     // Its hold starts again; the last card has none.
     await expect.poll(async () => (await cardsState(page)).tween, `${at}: the hold after Next`).toBe(expected.length - 1 > 2);
 
