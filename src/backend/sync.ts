@@ -247,6 +247,10 @@ export async function runSync(
   let conflicts = 0;
 
   const fail = (op: SyncFailure['op'], r: StoredRecord, e: unknown): void => {
+    // A cloud that stopped answering (backend/supabase.ts) ends the pass: every record after this
+    // one would wait out the same limit, with the retry queued behind them all. The bookmark stays
+    // put, so the next pass derives all of it again.
+    if (e instanceof Error && /did not answer/.test(e.message)) throw e;
     failures.push({
       kind: r.kind,
       id: r.id,

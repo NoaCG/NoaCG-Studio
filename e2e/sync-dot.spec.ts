@@ -172,7 +172,7 @@ test('a retry pressed while the pass still waits runs as soon as that pass gives
   expect([...state.rows.values()].some(row => cueLabel(row.body) === 'Queued by the press')).toBe(true);
 });
 
-test('a team save the cloud never answers says so, and the retry saves it as soon as that save gives up', async ({ page }) => {
+test('a team save the cloud never answers says so, gives up, and lands on its retry', async ({ page }) => {
   const state = await cloud(page);
   await page.clock.install();
   const id = await teamProduction(page, state);
@@ -185,12 +185,16 @@ test('a team save the cloud never answers says so, and the retry saves it as soo
   await page.getByTestId('sync-action').click();
   state.silent = false;
   await page.clock.fastForward(TO_THE_LIMIT);
-  await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+  // A failed save goes again on the next good read, and reads poll.
+  await expect.poll(async () => {
+    await page.clock.fastForward(5_000);
+    return chip(page).textContent();
+  }, { timeout: 20_000 }).toBe('Synced');
   expect(cueLabel(state.doc)).toBe('Team retry');
   await expect(page.getByTestId('production-team-note')).toHaveCount(0);
 });
 
-test('a team save that fails says why, stays amber while it retries, and its line goes when it lands', async ({ page }) => {
+test('a team save that fails says why, and its line goes when it lands', async ({ page }) => {
   const state = await cloud(page);
   await page.clock.install();
   const id = await teamProduction(page, state);

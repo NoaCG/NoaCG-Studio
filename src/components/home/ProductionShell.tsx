@@ -21,6 +21,7 @@ import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { useTeamState } from '../teams/useTeamState';
 import { editedWhen } from '../teams/teamLabels';
+import { cloudFailureWords } from '../../backend/supabase';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 
 /** One empty rundown, so a production without cues hands the shortcut hook a stable list. */
@@ -296,7 +297,7 @@ export default function ProductionShell({
           once, in words, and dismissable - never silent (TEAMS_PLAN §3). */}
       {teamNote && (
         <div className="pd-team-note" role="status" data-testid="production-team-note">
-          <span>{teamNote}</span>
+          <span>{cloudFailureWords(teamNote)}</span>
           <div className="spacer" />
           <button onClick={() => dismissTeamNote(show.id)}>OK</button>
         </div>

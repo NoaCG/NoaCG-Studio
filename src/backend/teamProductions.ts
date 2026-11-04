@@ -18,7 +18,7 @@
 // OFFLINE THIS CANNOT RUN. Every verb begins at `getSupabase()`, null without a backend, and the
 // controller is only started by components/teams/TeamSync.tsx behind `useTeamsAvailable()`.
 
-import { cloudFailureWords, getSupabase } from './supabase';
+import { getSupabase } from './supabase';
 import { listMyTeamMembers, listMyTeams, type Team, type TeamMember } from './teams';
 import { deleteShow, type Show } from '../model/shows';
 import {
@@ -554,7 +554,7 @@ function scheduleSave(id: string): void {
     retainTeamEdit(running.userId, id, { token: known.token, base: known.doc, local, teamId: known.teamId, updatedBy: known.updatedBy });
   } catch (error) {
     setSaving(id, 'failed');
-    setState({ notes: { ...state.notes, [id]: error instanceof Error ? error.message : String(error) } });
+    noteFailure(id, error instanceof Error ? error.message : String(error));
     return;
   }
   const existing = timers.get(id);
@@ -579,7 +579,7 @@ async function pushSave(id: string): Promise<void> {
   if (inflight.has(id)) return; // The in-flight save re-schedules itself when it sees `dirty`.
   const storageError = await commitDurableWrites();
   if (running !== owner || inflight.has(id)) return;
-  if (storageError) { setSaving(id, 'failed'); setState({ notes: { ...state.notes, [id]: storageError } }); return; }
+  if (storageError) { setSaving(id, 'failed'); noteFailure(id, storageError); return; }
   // The operator may edit while IndexedDB is committing. Capture the document after that
   // wait so clearing dirty cannot mistake the older snapshot for the confirmed revision.
   const known = server.get(id);
@@ -659,16 +659,18 @@ async function pushSave(id: string): Promise<void> {
   if (running !== owner) return;
   noteSave(failure !== null);
   setSaving(id, failure ? 'failed' : dirty.has(id) ? 'pending' : null);
-  // A failure's line goes with the failure, or it reads as a problem after the retry has saved.
-  if (failure) {
-    const said = cloudFailureWords(failure);
-    failureNotes.set(id, said);
-    setState({ notes: { ...state.notes, [id]: said } });
-  } else {
+  if (failure) noteFailure(id, failure);
+  else {
+    // A failure's line goes with the failure, or it reads as a problem after the retry has saved.
     if (state.notes[id] === failureNotes.get(id)) dismissTeamNote(id);
     failureNotes.delete(id);
     if (dirty.has(id)) scheduleSave(id);
   }
+}
+
+function noteFailure(id: string, message: string): void {
+  failureNotes.set(id, message);
+  setState({ notes: { ...state.notes, [id]: message } });
 }
 
 /** Forget the "a teammate saved over you" line once it has been read. */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isBackendConfigured } from '../backend/config';
-import { cloudFailureWords } from '../backend/supabase';
+import { CLOUD_NO_ANSWER, cloudFailureWords } from '../backend/supabase';
 import { getSyncState, onSyncState, startAutoSync, syncNow, type SyncState } from '../backend/syncController';
 import { flushTeamProduction, refreshTeams } from '../backend/teamProductions';
 import { libraryInUse } from '../model/durableStore';
@@ -25,7 +25,10 @@ const inFlight = (detail: string, late: string, since: number | null | undefined
 const STILL_WAITING = 'Still waiting for the cloud. Changes stay on this device.';
 const OFFLINE = 'Offline. Changes stay on this device until you reconnect.';
 const isOffline = () => typeof navigator !== 'undefined' && !navigator.onLine;
-const failure = (detail: string): string => (isOffline() ? OFFLINE : cloudFailureWords(detail));
+const failure = (detail: string): string => {
+  const said = cloudFailureWords(detail);
+  return said === CLOUD_NO_ANSWER && isOffline() ? OFFLINE : said;
+};
 
 /** The personal library's reading. Failures and an expired session show at once; a save in flight
  *  is quiet until its oldest unconfirmed change is a minute old. Never Synced before confirmation. */
@@ -60,7 +63,7 @@ function describeTeam(team: TeamSave, state: SyncState, since: number | null, no
   if (state.phase === 'offline') return describe(state, now);
   if (team.saving === 'failed') return notSynced(failure(team.note ?? 'The save failed.'));
   if (isOffline()) return inFlight(OFFLINE, OFFLINE, team.saving === 'pending' ? since : state.unconfirmedSince, now);
-  if (team.saving === 'pending') return inFlight(team.note ?? 'Saving to the team.', STILL_WAITING, since, now);
+  if (team.saving === 'pending') return inFlight(failure(team.note ?? 'Saving to the team.'), STILL_WAITING, since, now);
   if (team.readError) return notSynced(failure(team.readError));
   return synced('Saved to the team.');
 }
@@ -104,7 +107,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
     setTeamSince((since) => (teamSaving ? since ?? Date.now() : null));
   }, [teamSaving]);
   // Wake once, at the minute mark, while something is in flight: the word changes then by itself.
-  const since = team && teamSaving === 'pending' ? teamSince : state.phase === 'pending' || state.phase === 'syncing' ? state.unconfirmedSince ?? null : null;
+  const since = team && teamSaving === 'pending' ? teamSince : (team && isOffline()) || state.phase === 'pending' || state.phase === 'syncing' ? state.unconfirmedSince ?? null : null;
   useEffect(() => {
     if (since === null) return;
     const wait = since + NOT_SYNCED_AFTER_MS - Date.now();

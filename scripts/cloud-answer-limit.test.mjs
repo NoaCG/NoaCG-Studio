@@ -1,12 +1,14 @@
-// guards: src/backend/supabase.ts
+// guards: src/backend/supabase.ts, src/backend/sync.ts
 // A cloud request with no answer has no end of its own, and a sync pass or a team save waiting on
 // one keeps the sync chip amber with nothing able to run behind it (#2090). The shared client ends
-// it, without touching the requests that are allowed to take long.
+// it, without touching the requests that are allowed to take long, and a pass stops at the first.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+
+const clientExports = async () => (await clientFetch()).exports;
 
 /** The shared client's fetch, over a browser fetch that never answers and a clock this test moves. */
 async function clientFetch() {
@@ -29,7 +31,7 @@ async function clientFetch() {
       assert.ok(name in stubs, `unexpected dependency: ${name}`);
       return stubs[name];
     },
-    URL, Request, AbortController, DOMException,
+    URL, Request, AbortController, DOMException, Blob, FormData,
     setTimeout: (fn, ms) => { timers.set(++nextTimer, { fn, ms }); return nextTimer; },
     clearTimeout: (id) => timers.delete(id),
     fetch: (input, init) => new Promise((resolve, reject) => {
@@ -39,7 +41,7 @@ async function clientFetch() {
     }),
   });
   await exports.getSupabase();
-  return { fetch: options.global.fetch, asked, expire: () => { for (const [id, t] of [...timers]) { timers.delete(id); t.fn(); } }, timers };
+  return { exports, fetch: options.global.fetch, asked, expire: () => { for (const [id, t] of [...timers]) { timers.delete(id); t.fn(); } }, timers };
 }
 
 const failure = (promise) => promise.then(() => assert.fail('it should have failed'), (e) => e);
@@ -66,11 +68,61 @@ test('an answer in time ends the limit, so a long body still takes as long as it
   assert.equal(timers.size, 0);
 });
 
-test('a Storage write and an edge function have no limit: their answers can take long', async () => {
+test('an answer that waits on a large body being sent gets the time to send it', async () => {
+  const limitFor = async (path, body) => {
+    const { fetch, timers } = await clientFetch();
+    void fetch(`https://cloud.invalid${path}`, { method: 'POST', body });
+    return [...timers.values()][0].ms;
+  };
+  const small = await limitFor('/rest/v1/rpc/team_production_save', '{}');
+  assert.ok(await limitFor('/rest/v1/rpc/team_production_save', 'x'.repeat(25_000_000)) > small + 500_000, 'a 25 MB document');
+  const form = new FormData();
+  form.append('', new Blob([new Uint8Array(25_000_000)]));
+  assert.ok(await limitFor('/storage/v1/object/user-assets/big.png', form) > small + 500_000, 'a 25 MB upload');
+  assert.ok(await limitFor('/storage/v1/object/user-assets/big.png', new Blob([new Uint8Array(25_000_000)])) > small + 500_000, 'a bare blob');
+});
+
+test('an edge function keeps its own time', async () => {
   const { fetch, timers } = await clientFetch();
-  void fetch('https://cloud.invalid/storage/v1/object/user-assets/big.mp4', { method: 'POST' });
   void fetch('https://cloud.invalid/functions/v1/anything', { method: 'POST' });
   assert.equal(timers.size, 0);
+});
+
+test('only a failure that is the whole message turns into words', async () => {
+  const { cloudFailureWords, CLOUD_NO_ANSWER } = await clientExports();
+  for (const message of ['Cloud list(look) failed: AbortError: The cloud did not answer.', 'Cloud put(show) failed: TypeError: Failed to fetch', 'TypeError: Failed to fetch', 'The cloud did not answer.', 'Load failed']) {
+    assert.equal(cloudFailureWords(message), CLOUD_NO_ANSWER, message);
+  }
+  for (const message of ['3 records failed to sync — graphic "A": too large; show "C": Cloud put(show) failed: TypeError: Failed to fetch', 'graphic "Load failed": refused', 'Browser storage is full']) {
+    assert.equal(cloudFailureWords(message), message);
+  }
+});
+
+test('a cloud that stops answering ends the pass at the first record, and the bookmark stays', async () => {
+  const exports = {};
+  const compiled = ts.transpileModule(readFileSync(new URL('../src/backend/sync.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const store = new Map();
+  const stubs = {
+    './assets': { hasStorageSentinel: () => false },
+    './storage': { isPutDenied: () => false, isSingleton: () => false },
+    '../model/id': { uuid: () => crypto.randomUUID() },
+    '../model/accountScope': { accountKey: (key) => key },
+  };
+  vm.runInNewContext(compiled, {
+    exports, Date, JSON, Error,
+    require: (name) => stubs[name],
+    localStorage: { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) },
+  });
+  const updatedAt = new Date().toISOString();
+  const records = ['a', 'b', 'c'].map((id) => ({ kind: 'graphic', id, updatedAt, deleted: false, body: { id, updatedAt } }));
+  const local = { list: async (kind) => (kind === 'graphic' ? records : []), get: async () => null, put: async () => {} };
+  let puts = 0;
+  const remote = { list: async () => [], put: async () => { puts += 1; throw new Error('Cloud put(graphic) failed: AbortError: The cloud did not answer.'); } };
+  await assert.rejects(exports.runSync(local, remote), /did not answer/);
+  assert.equal(puts, 1);
+  assert.equal(store.size, 0, 'the bookmark did not move');
 });
 
 test('the caller\'s own abort still ends the request, with the caller\'s reason', async () => {

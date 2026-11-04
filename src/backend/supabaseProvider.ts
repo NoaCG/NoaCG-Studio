@@ -74,7 +74,7 @@ export class SupabaseProvider implements StorageProvider {
     const { data, error } = await sb.auth.getUser();
     // A request that failed says nothing about the session. Saying "Not signed in" for it would
     // send somebody with a live session to sign in again.
-    if (!data.user) throw new Error(error?.name === 'AuthRetryableFetchError' ? error.message : 'Not signed in.');
+    if (!data.user) throw new Error(error?.name === 'AuthRetryableFetchError' ? 'The cloud did not answer.' : 'Not signed in.');
     return data.user.id;
   }
 

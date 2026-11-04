@@ -16,31 +16,43 @@ let clientPromise: Promise<SupabaseClient | null> | null = null;
  * turns amber, so a save that is merely slow keeps its chance to land.
  */
 const NO_ANSWER_MS = 75_000;
+/** The answer waits on the body going out, so a request gets the time to send it on the slowest
+ *  link worth waiting for, about 256 kbit/s. */
+const SEND_BYTES_PER_MS = 32;
+
+export const CLOUD_NO_ANSWER = 'The cloud did not answer. Changes stay on this device.';
 
 /** A failed cloud request, in words. A request nobody answered, or a connection that failed, comes
- *  back from the library as the name of a browser error, and an operator reads this on air. */
+ *  back from the library as the name of a browser error, and an operator reads this on air. Whole
+ *  messages only: a line that lists several records keeps each one's own reason. */
 export function cloudFailureWords(message: string): string {
-  return /did not answer|Failed to fetch|NetworkError|Load failed/.test(message) ? 'The cloud did not answer. Changes stay on this device.' : message;
+  return /^(Cloud \S+ failed: )?(\w+: )?(The cloud did not answer\.|Failed to fetch|NetworkError when attempting to fetch resource\.|Load failed)$/.test(message) ? CLOUD_NO_ANSWER : message;
+}
+
+function bodyBytes(body: BodyInit | null | undefined): number {
+  if (typeof body === 'string') return body.length;
+  if (body instanceof Blob) return body.size;
+  if (body instanceof FormData) return [...body.values()].reduce((sum, part) => sum + (typeof part === 'string' ? part.length : part.size), 0);
+  return 0;
 }
 
 /**
- * Every request of the shared client, with that limit up to the first byte of the answer, so a
- * large body still takes as long as it takes. It fails as an abort because the library retries any
- * other failure of a read. A Storage write is left alone: its answer waits on the upload, and a
- * connection that dies while sending fails by itself. Edge functions keep their own time.
+ * Every REST, auth and Storage request of the shared client, with that limit up to the first byte
+ * of the answer, so a large download still takes as long as it takes. It fails as an abort because
+ * the library retries any other failure of a read. Edge functions keep their own time.
  */
 function answeredFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const request = input instanceof Request ? input : null;
   const { pathname } = new URL(request ? request.url : input.toString());
-  const method = (init?.method ?? request?.method ?? 'GET').toUpperCase();
-  const limited = pathname.startsWith('/rest/v1/') || pathname.startsWith('/auth/v1/')
-    || (pathname.startsWith('/storage/v1/') && (method === 'GET' || method === 'HEAD'));
-  if (!limited) return fetch(input, init);
+  if (!/^\/(rest|auth|storage)\/v1\//.test(pathname)) return fetch(input, init);
   const limit = new AbortController();
   const asked = init?.signal ?? request?.signal;
   if (asked?.aborted) limit.abort(asked.reason);
   else asked?.addEventListener('abort', () => limit.abort(asked.reason), { once: true });
-  const timer = setTimeout(() => limit.abort(new DOMException('The cloud did not answer.', 'AbortError')), NO_ANSWER_MS);
+  const timer = setTimeout(
+    () => limit.abort(new DOMException('The cloud did not answer.', 'AbortError')),
+    NO_ANSWER_MS + bodyBytes(init?.body) / SEND_BYTES_PER_MS,
+  );
   return fetch(input, { ...init, signal: limit.signal }).finally(() => clearTimeout(timer));
 }
 
