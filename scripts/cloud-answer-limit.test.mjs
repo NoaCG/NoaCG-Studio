@@ -203,6 +203,52 @@ test('an edit made after a failed pull does not overwrite the other device\'s ve
   assert.deepEqual(engine.meta().pendingPull, [], 'the debt is paid');
 });
 
+test('an edit made while the failed pull waited is kept as a copy, not overwritten', async () => {
+  const engine = syncEngine();
+  const theirs = { ...graphicAt('g', ago(30), 'their edit'), body: { id: 'g', name: 'their edit', updatedAt: ago(30), font: 'spx-storage:u/a' } };
+  theirs.updatedAt = theirs.body.updatedAt;
+  const local = memory([graphicAt('g', ago(60), 'stale')]);
+  const remote = memory([theirs], {
+    stoppedAnswering,
+    get: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      local.held.set('g', graphicAt('g', new Date().toISOString(), 'made during the wait'));
+      throw NO_ANSWER();
+    },
+  });
+  await engine.runSync(local, remote);
+  remote.get = async (_kind, id) => remote.held.get(id);
+  const second = await engine.runSync(local, remote);
+  assert.equal(second.conflicts, 1);
+  assert.ok([...local.held.values()].some((r) => r.body.name === 'made during the wait (conflicted copy)'));
+});
+
+test('a conflict whose winner keeps failing makes no copies until it can be read, then one', async () => {
+  const engine = syncEngine();
+  const at = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();
+  const local = memory([graphicAt('g', ago(60), 'shared')]);
+  const remote = memory([graphicAt('g', ago(60), 'shared')], { stoppedAnswering });
+  await engine.runSync(local, remote);
+  const theirs = { ...graphicAt('g', at(1), 'their edit'), body: { id: 'g', name: 'their edit', updatedAt: at(1), font: 'spx-storage:u/a' } };
+  theirs.updatedAt = theirs.body.updatedAt;
+  remote.held.set('g', theirs);
+  remote.get = async () => { throw new Error('Cloud get(asset) failed: a stored file is unavailable'); };
+  for (let edit = 2; edit <= 5; edit++) {
+    local.held.set('g', graphicAt('g', at(edit), `my edit ${edit}`));
+    const pass = await engine.runSync(local, remote);
+    assert.equal(pass.conflicts, 0);
+    assert.equal(pass.pushed, 0, 'my edit does not go over theirs');
+    assert.equal(local.held.size, 1, 'and no copy is left behind');
+  }
+  remote.get = async (_kind, id) => remote.held.get(id);
+  const answered = await engine.runSync(local, remote);
+  assert.equal(answered.conflicts, 1);
+  const names = [...local.held.values()].map((r) => r.body.name).sort();
+  assert.deepEqual(names, ['my edit 5 (conflicted copy)', 'their edit']);
+  assert.deepEqual(engine.meta().pendingConflict, []);
+  assert.deepEqual(engine.meta().pendingPull, []);
+});
+
 test('a pull still owed with no edit since is taken, even when the cloud\'s version is the older one', async () => {
   const engine = syncEngine();
   // A true conflict the local edit lost, though its clock reads later: its copy was made, the copy's

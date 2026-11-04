@@ -63,7 +63,8 @@ function answeredFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Re
   };
   return fetch(input, { ...init, signal: limit.signal }).then((response) => {
     clearTimeout(timer);
-    if (!response.body) return response;
+    // A Response refuses a body on these statuses, whatever the browser handed over.
+    if (!response.body || [101, 204, 205, 304].includes(response.status)) return response;
     waitAgain();
     const watched = response.body.pipeThrough(new TransformStream({
       transform(chunk, reader) {

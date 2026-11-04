@@ -145,7 +145,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
   return (
     <div ref={host} className="lib-menu-host">
       <button
-        className={`sync-status sync-${team ? (tone === 'ok' ? 'synced' : teamSaving ?? state.phase) : state.phase}`}
+        className={`sync-status sync-${team ? (tone === 'ok' ? 'synced' : teamSaving ?? 'failed') : state.phase}`}
         data-tone={tone}
         aria-label={`Sync: ${summary}`}
         aria-expanded={open}

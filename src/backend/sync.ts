@@ -21,6 +21,9 @@
 //     conflict, not a silent remote-wins overwrite).
 //   - pendingConflict: keys whose "(conflicted copy)" could not be written — the overwriting pull
 //     is skipped and the conflict branch is forced again next pass, until the copy materializes.
+//   - pendingPull: keys whose pull failed - the cloud's version is still owed, so a local edit since
+//     then is a true conflict, not a plain last-write-wins push over the other device's work.
+// The bookmark is the moment the pass STARTED, so an edit made while it ran stays newer than it.
 // Conflict copies are applied BEFORE the pulls that overwrite their originals, so a crash or
 // failure mid-pass can never lose the only copy of a user's work.
 //
@@ -236,6 +239,7 @@ export async function runSync(
   };
   const meta = loadSyncMeta();
   const arriving = !arrived(meta);
+  const passStart = new Date().toISOString();
   // list() failures DO fail the whole pass: without both sides there is nothing to reconcile, and
   // the bookmark stays put (correct — nothing was applied).
   const localRecs = (await Promise.all(SYNC_KINDS.map((k) => local.list(k)))).flat();
@@ -287,10 +291,41 @@ export async function runSync(
     return false;
   };
 
-  // 1. Conflict copies FIRST: duplicate the losing local edit before the pull overwrites it, so a
-  //    failure (or a crash) mid-pass can never lose the only copy of a user's work.
+  // 1. Stored files first. A record whose body still holds a Storage sentinel is re-fetched via
+  //    get(), so the provider can rehydrate its externalized assets; every other record is applied
+  //    as fetched. Falls back to the fetched record if get() returns nothing. A failed pull is
+  //    carried in `pendingPull` to the next pass, because the bookmark moves past it. A conflict
+  //    whose winner cannot be read waits whole, with no copy made: a file that keeps failing would
+  //    otherwise leave one more copy behind every edit.
+  //
+  //    Skipping get() when there is nothing to rehydrate (see hasStorageSentinel) is not a
+  //    micro-optimization: the loop is sequential and a fresh device pulls everything the
+  //    account holds. It was first done for TOMBSTONES alone: on a GitHub runner 2026-08-24
+  //    (run 32767300909), 141 of 155 pulls were tombstones, 207 ms each, 29.4 s in total, past
+  //    the 30 s the UI was waited on for. Live records paid the same way: on 2026-09-26 (run
+  //    36252087565) a fresh sign-in to the hosted test account pulled 129 saved looks one request
+  //    each, 29 s, and seven specs failed waiting on the sync indicator. The cost grows with
+  //    everything an account keeps, so it is a user-facing defect, not only a slow test. The
+  //    same arithmetic is why summaries are fetched in batches (withWholeRecords).
   const skipPull = new Set<string>();
+  const restored = new Map<string, StoredRecord>();
+  const losers = new Set(plan.conflicts.map(recordKey));
+  for (const r of plan.toLocal) {
+    if (!hasStorageSentinel(r.body)) continue;
+    const key = recordKey(r);
+    try {
+      restored.set(key, (await askCloud(() => remote.get(r.kind, r.id))) ?? r);
+    } catch (e) {
+      fail('pull', r, e);
+      skipPull.add(key);
+      if (losers.has(key)) pendingConflict.add(key);
+    }
+  }
+
+  // 2. Conflict copies: duplicate the losing local edit before the pull overwrites it, so a
+  //    failure (or a crash) mid-pass can never lose the only copy of a user's work.
   for (const loser of plan.conflicts) {
+    if (skipPull.has(recordKey(loser))) continue;
     const copy = makeConflictCopy(loser);
     try {
       sameWorkspace();
@@ -327,37 +362,19 @@ export async function runSync(
     }
   }
 
-  // 2. Pull. A record whose body still holds a Storage sentinel is re-fetched via get(), so the
-  //    provider can rehydrate its externalized assets; every other record is applied as fetched.
-  //    Falls back to the fetched record if get() returns nothing. A failed pull is carried in
-  //    `pendingPull` to the next pass, because the bookmark moves past it (SyncPending).
-  //
-  //    EVERYTHING FETCHED IS APPLIED IN ONE GO when the provider can (`putMany`). The local store
+  // 3. Pull. EVERYTHING FETCHED IS APPLIED IN ONE GO when the provider can (`putMany`). The local store
   //    keeps each kind as one list, so a put per record rewrites the whole library per record,
   //    and once most records stopped waiting on get() those rewrites ran back to back: a fresh
   //    sign-in to a 27 MB account held a copy of the library per record and crashed Chrome.
   const fetched: StoredRecord[] = [];
   for (const r of plan.toLocal) {
     if (skipPull.has(recordKey(r))) continue;
+    const full = restored.get(recordKey(r)) ?? r;
     if (local.putMany) {
-      try {
-        fetched.push(hasStorageSentinel(r.body) ? ((await askCloud(() => remote.get(r.kind, r.id))) ?? r) : r);
-      } catch (e) {
-        fail('pull', r, e);
-      }
+      fetched.push(full);
       continue;
     }
     try {
-      // Skipping get() when there is nothing to rehydrate (see hasStorageSentinel) is not a
-      // micro-optimization: the loop is sequential and a fresh device pulls everything the
-      // account holds. It was first done for TOMBSTONES alone: on a GitHub runner 2026-08-24
-      // (run 32767300909), 141 of 155 pulls were tombstones, 207 ms each, 29.4 s in total, past
-      // the 30 s the UI was waited on for. Live records paid the same way: on 2026-09-26 (run
-      // 36252087565) a fresh sign-in to the hosted test account pulled 129 saved looks one request
-      // each, 29 s, and seven specs failed waiting on the sync indicator. The cost grows with
-      // everything an account keeps, so it is a user-facing defect, not only a slow test. The
-      // same arithmetic is why summaries are fetched in batches (withWholeRecords).
-      const full = hasStorageSentinel(r.body) ? ((await askCloud(() => remote.get(r.kind, r.id))) ?? r) : r;
       if (!(await unchanged(r))) continue;
       await local.put(full);
       pulled += 1;
@@ -378,7 +395,7 @@ export async function runSync(
     }
   }
 
-  // 3. Push. A denied put (RLS) can never succeed by retrying. A denied tombstone deletes nothing
+  // 4. Push. A denied put (RLS) can never succeed by retrying. A denied tombstone deletes nothing
   //    of ours, so it is dropped; a denied live record stays local and is reported in words that
   //    say it was NOT copied anywhere (see the header for why it is never re-minted).
   for (const l of plan.toRemote) {
@@ -403,7 +420,7 @@ export async function runSync(
   // pending sets (rebuilt each pass from what actually failed), never by freezing the bookmark.
   sameWorkspace();
   saveSyncMeta({
-    lastSyncedAt: new Date().toISOString(),
+    lastSyncedAt: passStart,
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
     pendingPull: [...pendingPull],
