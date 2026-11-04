@@ -29,6 +29,14 @@ const FIELD_ID = /^f\d+$/;
 /** Ids and stamps the build or the editor writes, never the designer: the source key skips them. */
 const OUR_ATTR = /^(?:id|data-noacg-[\w-]*|data-count|data-start)$/;
 
+/** Whether some node of `html` carries `id`, written with either quote. The one id-held test of
+ *  this module (#1987 points 5 and 6): the id is escaped, so an id with a pattern character is
+ *  read as itself and never throws. */
+export function idHeld(html: string, id: string): boolean {
+  const literal = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\sid\\s*=\\s*(["'])${literal}\\1`).test(html);
+}
+
 /** The inlined artwork of a built SVG import, or null for anything else. */
 export function artOf(doc: Document): Element | null {
   const arts = doc.querySelectorAll(`svg.${PREFIX}-art`);
@@ -145,7 +153,7 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
   const builtFieldIds = new Set(built.fields.map((f) => f.field));
   // An id some other node of the new markup already holds (a designer layer named `f1` that the
   // build left alone) cannot be given back: two nodes would answer `#f1`.
-  const heldElsewhere = (id: string) => !builtFieldIds.has(id) && new RegExp(`\\sid\\s*=\\s*["']${id}["']`).test(built.html);
+  const heldElsewhere = (id: string) => !builtFieldIds.has(id) && idHeld(built.html, id);
   for (const f of prior.fields) {
     const k = before.get(f.field)!;
     const n = nAfter.get(k) ?? 0;
@@ -168,7 +176,7 @@ export function matchReimport(prior: SpxTemplate, priorBaseline: SpxTemplate | u
   const matchedBuilt = new Set(matched.values());
   const added = built.fields.map((f) => f.field).filter((id) => !matchedBuilt.has(id));
   const used = new Set([...priorIds, ...added.filter((id) => !priorIds.has(id))]);
-  const free = (id: string) => !used.has(id) && (builtIds.has(id) || !built.html.includes(`id="${id}"`));
+  const free = (id: string) => !used.has(id) && (builtIds.has(id) || !idHeld(built.html, id));
   let next = 0;
   for (const id of added.filter((a) => priorIds.has(a))) {
     while (!free(`f${next}`)) next++;
@@ -228,6 +236,12 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
  * import's own motion and the new walk's choice stands. A timeline the new build lacks keeps its
  * keys unresolved. Returns the selectors it wrote, so the
  * caller can check each still addresses the artwork.
+ *
+ * A DOCUMENTED LIMIT (#1987 point 3): only keyframe tracks are compared. A state-machine edit made
+ * after the import (a transition's trigger, delay or style, an added state) takes the new build's
+ * version unlisted. No surface edits the machine today (`blocks/machineEdit` has no UI caller), so
+ * nothing is lost; a surface that adds one must compare the machine here or list it as unresolved.
+ * `e2e/import-svg-reimport.spec.ts` pins this limit, so that surface finds it.
  */
 export function carryKeys(prior: AnimData, baseline: AnimData | null, built: AnimData): { data: AnimData; selectors: string[]; unresolved: ReimportItem[] } {
   const data = structuredClone(built);

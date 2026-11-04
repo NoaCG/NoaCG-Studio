@@ -57,6 +57,7 @@ function studio(script = {}) {
       return { template: TEMPLATE, graphicId: 'g-1' };
     },
     openExport: () => log.push('openExport'),
+    prepareEditor: (name) => log.push(`prepareEditor ${name}`),
     openEditor: () => log.push('openEditor'),
     requestProductionExport: (id) => log.push(`requestProductionExport ${id}`),
     closeGallery: () => log.push('closeGallery'),
@@ -367,8 +368,14 @@ test('editor door, catalog and file: build, note where it landed, open the edito
   for (const mode of ['catalog', 'file']) {
     const s = studio();
     await s.doors.editArtwork(appliers(s.log)[mode]);
-    assert.deepEqual(s.log, [`apply ${mode}`, 'noteMade Built null editor-foundation', 'openEditor', 'closeGallery'], mode);
+    assert.deepEqual(s.log, [`apply ${mode}`, 'prepareEditor Built', 'noteMade Built null editor-foundation', 'openEditor', 'closeGallery'], mode);
   }
+});
+
+test('editor door with the walk\'s name: the held-name reading comes after the build and before the editor (#1986)', async () => {
+  const s = studio();
+  await s.doors.editArtwork(appliers(s.log).catalog, name);
+  assert.deepEqual(s.log, ['apply catalog', 'prepareEditor Guest Strap', 'noteMade Guest Strap null editor-foundation', 'openEditor', 'closeGallery']);
 });
 
 test('editor door, late build: nothing moves before the build; no build: nothing at all', async () => {
@@ -379,7 +386,7 @@ test('editor door, late build: nothing moves before the build; no build: nothing
   assert.deepEqual(s.log, []);
   build.resolve(TEMPLATE);
   await pressed;
-  assert.deepEqual(s.log, ['noteMade Built null editor-foundation', 'openEditor', 'closeGallery']);
+  assert.deepEqual(s.log, ['prepareEditor Built', 'noteMade Built null editor-foundation', 'openEditor', 'closeGallery']);
   const t = studio();
   await t.doors.editArtwork(() => null);
   assert.deepEqual(t.log, []);

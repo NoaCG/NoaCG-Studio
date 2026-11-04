@@ -93,6 +93,7 @@ import {
   noteMade,
   reduce,
   rememberWalk,
+  reimportForEditor,
   saveBuiltGraphic,
   type FinishedWalk,
   type LibraryIo,
@@ -548,6 +549,10 @@ export default function CreationWizard() {
   const doors = makeDoors({
     ...STUDIO_DOOR_IO,
     saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, { replace: memory.current.replaceOver }),
+    prepareEditor: (name) => void reimportForEditor(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, (separate) => {
+      const s = useTemplateStore.getState();
+      useTemplateStore.setState({ template: { ...s.template, name: separate } });
+    }),
     // The record's id and name are read from the store once the save linked it; a reimport kept separate took a free name, which Finish then carries (no second press renames it back).
     noteMade: (name, production, landedOn = null, made = useTemplateStore.getState().template.name || name) => {
       noteMade(memory.current, { name: made, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn }); if (made !== name) dispatch({ type: 'patch', patch: { name: made } });
@@ -1269,9 +1274,9 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={importedFile.template.fields.map((f) => f.field)} packageOnly={isForeignGraphic(importedFile.template)}
                 defaultProductionId={contextProductionId}
-                madeId={finishMadeId}
+                madeId={finishMadeId} reimport={finishReimport(importedFile.template, importedName(), finishLibrary, finishMadeId, memory.current)}
                 onAddToProduction={(dest) => void doors.addToProduction(applyImportedFile, dest, importedName)}
-                onEditArtwork={isForeignGraphic(importedFile.template) ? undefined : () => void doors.editArtwork(applyImportedFile)}
+                onEditArtwork={isForeignGraphic(importedFile.template) ? undefined : () => void doors.editArtwork(applyImportedFile, importedName)}
                 onExport={() => void doors.export(applyImportedFile, importedName)}
                 busy={false}
               />
@@ -1288,9 +1293,9 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                madeId={finishMadeId} reimport={variant && mode === 'svg' ? finishReimport(previewTemplate, draftName(variant, draft), finishLibrary, finishMadeId, memory.current) : null}
+                madeId={finishMadeId} reimport={finishReimport(previewTemplate, draftName(variant, draft), finishLibrary, finishMadeId, memory.current)}
                 onAddToProduction={(dest) => void doors.addToProduction(applyDraftProject, dest, catalogName)}
-                onEditArtwork={() => void doors.editArtwork(applyDraftProject)}
+                onEditArtwork={() => void doors.editArtwork(applyDraftProject, catalogName)}
                 onExport={() => void doors.export(applyDraftProject, catalogName)}
                 busy={!previewTemplate}
               />

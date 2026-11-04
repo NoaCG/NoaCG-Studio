@@ -91,6 +91,8 @@ interface Props {
     /** Names this list against its target, so a tick given to one list never carries to another. */
     sig: string;
     unresolved: ReimportItem[];
+    /** Actions the earlier graphic answered and this version does not: said, never blocking. */
+    silenced?: string[];
     separateName: string;
     copyName: string;
     replace: boolean;
@@ -393,6 +395,11 @@ export default function FinishStep({
               />
               Replace anyway
             </label>
+          </p>
+        )}
+        {!!reimport?.silenced?.length && (
+          <p className="hint" data-testid="wz-finish-reimport-events">
+            No longer answers: {reimport.silenced.join(', ')}.
           </p>
         )}
         {effect.kind === 'over' && unresolved.length === 0 && (

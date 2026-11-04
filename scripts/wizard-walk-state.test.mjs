@@ -575,3 +575,57 @@ test('a deep link starts a walk: an open that brings one back drops it, and a li
   assert.equal(W.activeKit(linked), null);
   assert.equal(linked.draft.variantId, 'b');
 });
+
+// ── Reimport over a held name (#1986, #1987 point 1) ────────────────────────────────────────
+
+/** A library holding `Guest` (record g-held), whose reconcile answers `unresolved`. */
+function heldLibrary(unresolved) {
+  const { lib, log } = library({
+    index: [{ id: 'g-held', name: 'Guest', updatedAt: 't1', fields: [] }],
+    effect: { kind: 'over', targetId: 'g-held', holder: { fields: [] } },
+  });
+  lib.reconcile = (id) => {
+    log.push(`reconcile ${id}`);
+    return { unresolved, apply: () => log.push('apply') };
+  };
+  lib.keepCopy = (id) => { log.push(`keepCopy ${id}`); return true; };
+  return { lib, log };
+}
+const GONE = [{ kind: 'removed', label: 'Job title' }];
+/** The signature Finish gives the list it shows (import/draft.ts `reimportSig`). */
+const sigOf = (unresolved) => JSON.stringify(['g-held', 't1', unresolved]);
+
+test('a Replace anyway tick replaces only for the list it was given for (#1987 point 1)', async () => {
+  // Ticked for the list Finish showed: the earlier graphic is kept as a copy, then written over.
+  const seen = heldLibrary(GONE);
+  const memory = { finished: null, made: null, replaceOver: true, replaceFor: sigOf(GONE) };
+  await W.saveBuiltGraphic(memory, 'Guest', seen.lib, { replace: true });
+  assert.ok(seen.log.includes('keepCopy g-held') && seen.log.includes('saveCurrent Guest'), seen.log.join(', '));
+  // Ticked for another list (the reader walked back and changed the artwork, and Finish showed
+  // nothing): the save's own list was never shown, so it is saved beside, never over.
+  const unseen = heldLibrary([{ kind: 'ambiguous', label: 'role' }]);
+  await W.saveBuiltGraphic({ finished: null, made: null, replaceOver: true, replaceFor: sigOf(GONE) }, 'Guest', unseen.lib, { replace: true });
+  assert.ok(!unseen.log.includes('keepCopy g-held') && !unseen.log.includes('saveCurrent Guest'), unseen.log.join(', '));
+  assert.ok(unseen.log.includes('saveAs Guest 2'), unseen.log.join(', '));
+});
+
+test('the editor door over a held SVG import: reconciled when everything carries, else the separate name (#1986)', () => {
+  const clean = heldLibrary([]);
+  const renamed = [];
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', clean.lib, (n) => renamed.push(n)), 'reconciled');
+  assert.ok(clean.log.includes('apply'));
+  assert.deepEqual(renamed, []);
+  const gone = heldLibrary(GONE);
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', gone.lib, (n) => renamed.push(n)), 'separate');
+  assert.ok(!gone.log.includes('apply'), 'unresolved work is not applied');
+  assert.deepEqual(renamed, ['Guest 2']);
+  // Nothing written either way: the editor's own Save decides.
+  assert.ok(![...clean.log, ...gone.log].some((l) => /^(saveAs|saveCurrent|link|keepCopy)/.test(l)));
+  // A fresh name, or a record the reconcile does not read as an SVG import: the ordinary door.
+  const fresh = library({ index: [] });
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'New', fresh.lib, (n) => renamed.push(n)), null);
+  const plain = heldLibrary([]);
+  plain.lib.reconcile = () => null;
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', plain.lib, (n) => renamed.push(n)), null);
+  assert.deepEqual(renamed, ['Guest 2']);
+});
