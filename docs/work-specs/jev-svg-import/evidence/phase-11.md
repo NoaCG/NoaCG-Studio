@@ -180,6 +180,9 @@ Risky scenario (reload and recovery rules change). Each line is observable.
   Take is the length, a Reset or Pause before the Take keeps it so, and the first Take counts the
   time in the field (type 0:45, Reset, type 0:50, Take: the clock counts 0:50). A graphic on air
   with nothing held (a lost report, a boot that put a layer up from its head) reads as before.
+  Known limit: a renderer that boots with no report for such a duration and replays its rows from
+  the log asks `onAirHere` from the log's head (protocol 2) while it replays, so rows from before
+  the first Take read as on air there, as they all did before this change.
 - **N2 A bare value still reads as on air.** Only an absent value is "never taken". A host that
   reports the painted text (`hostedReceiver.ts` `harvest`) still produces bare values while on
   air, and those read exactly as before (phase-11 H1b).
@@ -194,8 +197,9 @@ Risky scenario (reload and recovery rules change). Each line is observable.
   a baseline, the monitor's clock memory is that report's value folded through the rows after the
   report, in log order (`clockAfterRows`: `clockValueAfterUpdate`, then `clockRowEffect`), exactly as
   a renderer rebuilds it. The next Take on the monitor counts what air counts. Those rows are read
-  APART from the on-air layers' rows (`bootClockReplay`), so an old off-air report can never make
-  the on-air read too long to finish.
+  per graphic (`bootClockReplay`, `control_tail` for that graphic from its own baseline) and
+  seeded after the on-air seed (`seedOffAirClocks`), so an old off-air report never holds up the
+  on-air seed or another clock's reseed.
 - **M2 A clock the page moved meanwhile keeps the page's memory.** If a command was applied while
   the resolve was out, the off-air reseed is skipped, as the on-air replay is.
 - **M3 No report, no reseed.** An off-air clock with no report, one whose report carries no
@@ -209,3 +213,11 @@ AGREE WITH CORRECTIONS, B. Its four corrections, all taken before the code was c
 decided from the reader's own on-air record and limited to durations; the off-air rows read apart
 and failing alone (M1, M3); the monitor's staging and Out lines named (W3); the painted-text host
 named as a limit (W4b).
+
+### Code review (/check)
+
+Delegated review of `4e6b1114..df6d5178` (8 candidates). Fixed: the off-air read held up the
+on-air seed (`Promise.all`), one stale report blocked every off-air clock (one range read), the
+fold read `Date.now()` itself, the hosted page's unsent baseline took a clock's wire value (now its
+plain time), the off-air eligibility was decided in three places, and three aliases of one clock
+lookup in `applyCommand`. Named as a limit, not changed: the boot catch-up's `onAirHere` (N1).
