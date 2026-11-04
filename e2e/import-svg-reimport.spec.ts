@@ -12,7 +12,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { SCORE_SVG, dropSvg, intoProduction } from './_svg-import';
-import { addToProductionFromFinish } from './_create';
+import { addToProductionFromFinish, startNewProject } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 /** Version one: a plate, a name and a role. */
@@ -318,7 +318,10 @@ test('a behaviour keeps its fields and its actions; dropping it in the walk is t
       events: events(first.js),
       againEvents: events(again.template.js),
       againUnresolved: again.unresolved,
+      againSilenced: again.silenced,
       plainKinds: [...new Set(plain.unresolved.map((u) => u.kind))],
+      plainSilenced: plain.silenced,
+      firstLabels: (await import('/src/control/controlModel.ts')).eventButtons(first.js).map((b) => b.label),
     };
   }, readFileSync(SCORE_SVG, 'utf8'));
   expect(r.recipe).toBe(true);
@@ -327,9 +330,93 @@ test('a behaviour keeps its fields and its actions; dropping it in the walk is t
   // Every action keeps its identity: the same operator events, by name.
   expect(r.events.length).toBeGreaterThan(0);
   expect(r.againEvents).toEqual(r.events);
-  // Dropping the recipe in the walk is the reader's choice (as choosing a quiz with no Lock is):
-  // the score fields are the artwork's own and stay matched, so nothing is listed.
+  // Which actions the new build answers is the walk's current behaviour: dropping the recipe
+  // lists nothing (the score fields are the artwork's own and stay matched), but Finish names the
+  // actions the earlier graphic answered and this one does not, by their control labels (#1987
+  // point 4). Mutation: `silenced: []` in svgReimported fails the first expectation.
   expect(r.plainKinds).toEqual([]);
+  expect(r.plainSilenced.length).toBeGreaterThan(0);
+  expect(r.firstLabels).toEqual(expect.arrayContaining(r.plainSilenced));
+  expect(r.againSilenced).toEqual([]);
+});
+
+test('an id is held whichever quote wrote it, and a pattern character is read as itself (#1987 points 5, 6)', async ({ page }) => {
+  await page.goto('/app');
+  const r = await page.evaluate(async () => {
+    const { idHeld } = await import('/src/templates/importedDesign/reimport.ts');
+    const html = `<svg><text id="f1">a</text><rect id='f2'/><g data-id="f3"/><circle id="f(4"/></svg>`;
+    return ['f1', 'f2', 'f3', 'f(4', 'f4', 'f.'].map((id) => { try { return idHeld(html, id); } catch { return 'threw'; } });
+  });
+  // Mutation: the unescaped pattern of before throws on `f(4`; the double-quote-only check misses f2.
+  expect(r).toEqual([true, true, false, true, false, false]);
+});
+
+test('a node of the new artwork still wearing the minted identity on the same layer keeps its keys (#1987 point 7)', async ({ page }) => {
+  await page.goto('/app');
+  const backdrop = '<rect x="0" y="0" width="1280" height="240" fill="#122036"/>';
+  // Version two was exported from the saved graphic, so the backdrop still wears artwork-1.
+  const v2 = V1.replace(backdrop, backdrop.replace('<rect ', '<rect id="artwork-1" ')).replace('Guest role', 'Producer');
+  const r = await page.evaluate(async ([a, b]) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const A = await import('/src/blocks/animData.ts');
+    const { commitSvgIdentity } = await import('/src/blocks/svgIdentity.ts');
+    const { getTemplateParts } = await import('/src/model/structure.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const build = (markup: string) => {
+      const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+      return buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Guest' }));
+    };
+    const baseline = build(a);
+    const part = getTemplateParts(baseline.html, baseline.fields, true).find((p) => /^body.*>svg:nth-of-type\(1\)>rect:nth-of-type\(1\)$/.test(p.selector))!;
+    const done = commitSvgIdentity(baseline, part.selector);
+    const data = A.parseAnimData(done.template.js)!;
+    data.steps[0].layers[done.selector] = { opacity: [{ time: 0, value: 0 }, { time: 0.4, value: 1 }] };
+    const prior = { ...done.template, js: A.spliceAnimData(done.template.js, data)! };
+    const built = build(b);
+    const out = D.svgReimported({ template: prior, baseline }, built)!;
+    const doc = new DOMParser().parseFromString(out.template.html, 'text/html');
+    return {
+      selector: done.selector,
+      worn: new DOMParser().parseFromString(built.html, 'text/html').querySelector(done.selector)?.getAttribute('fill') ?? null,
+      fill: doc.querySelector(done.selector)?.getAttribute('fill') ?? null,
+      keys: A.parseAnimData(out.template.js)!.steps[0].layers[done.selector]?.opacity ?? null,
+      unresolved: out.unresolved,
+    };
+  }, [V1, v2]);
+  expect(r.selector).toBe('#artwork-1');
+  expect(r.worn, 'the new build keeps the designer-exported identity on the backdrop').toBe('#122036');
+  // Mutation: deleting `if (found && verified && twins[0] === found) continue` lists the key.
+  expect(r.unresolved).toEqual([]);
+  expect(r.fill).toBe('#122036');
+  expect(r.keys).toEqual([{ time: 0, value: 0 }, { time: 0.4, value: 1 }]);
+});
+
+test('a state-machine edit made after the import is not compared: the documented limit (#1987 point 3)', async ({ page }) => {
+  await page.goto('/app');
+  // No surface edits the machine today (blocks/machineEdit has no UI caller). This pins what a
+  // reimport does with such an edit, so the surface that adds one finds it and compares it
+  // (templates/importedDesign/reimport.ts `carryKeys`).
+  const r = await page.evaluate(async (markup) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const A = await import('/src/blocks/animData.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+    const first = buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Board' }));
+    const data = A.parseAnimData(first.js)!;
+    const state = data.machine!.groups[0].states[0];
+    state.name = 'Renamed after the import';
+    const prior = { ...first, js: A.spliceAnimData(first.js, data)! };
+    const out = D.svgReimported({ template: prior, baseline: first }, first)!;
+    return { unresolved: out.unresolved, name: A.parseAnimData(out.template.js)!.machine!.groups[0].states.find((s) => s.id === state.id)?.name ?? null };
+  }, readFileSync(SCORE_SVG, 'utf8'));
+  expect(r.unresolved).toEqual([]);
+  expect(r.name).not.toBe('Renamed after the import');
 });
 
 // ── THE DOORS ────────────────────────────────────────────────────────────────────────────────
@@ -533,6 +620,96 @@ test('walking back after a clean reimport, a removed layer is reviewed on Finish
   await pressAdd(page);
   const now = await state(page);
   expect(now.library.find((g) => g.id === reconciled.id)).toEqual(reconciled);
+  expect(now.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest 2']);
+});
+
+/** Press "Edit this graphic" on Finish and save the editor's document under the name it offers. */
+async function editAndSave(page: Page, offered: string): Promise<void> {
+  await page.getByTestId('wz-finish-edit-artwork').click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId('save-graphic').click();
+  await expect(page.getByTestId('save-name')).toHaveValue(offered);
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(page);
+}
+
+test('Edit this graphic over a held name opens the reconciled build, and its Save leaves the earlier graphic as it was (#1986)', async ({ page }) => {
+  test.setTimeout(100_000);
+  await page.goto('/app');
+  await dropSvg(page, asFile(V1, 'v1'));
+  await intoProduction(page, 'Guest', 'Show');
+  await makeWork(page);
+  const before = await state(page);
+  const earlier = before.library[0];
+
+  await reimportToFinish(page, asFile(V2, 'v2'));
+  await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
+  await editAndSave(page, 'Guest');
+  const after = await state(page);
+  // The editor's Save minted its own record (the door saves nothing); the earlier one is untouched.
+  expect(after.library.find((g) => g.id === earlier.id)).toEqual(earlier);
+  const edited = after.library.find((g) => g.id !== earlier.id)!;
+  // Mutation: `prepareEditor` doing nothing leaves the positional build (f0 badge, f1 name, f2
+  // role, no keys, label "role").
+  expect(edited.fields).toEqual(['f2 badge LIVE', 'f0 name Presenter', 'f1 Job title Guest role']);
+  expect(edited.keyed).toEqual(['#f1']);
+  expect(after.bindings).toEqual(before.bindings);
+});
+
+test('Edit this graphic with work the new version cannot carry opens it under the separate name Finish named (#1986)', async ({ page }) => {
+  test.setTimeout(100_000);
+  await page.goto('/app');
+  await dropSvg(page, asFile(V1, 'v1'));
+  await intoProduction(page, 'Guest', 'Show');
+  await makeWork(page);
+  const earlier = (await state(page)).library[0];
+
+  await reimportToFinish(page, asFile(V3, 'v3'));
+  await expect(page.getByTestId('wz-finish-reimport')).toContainText('Not carried over to this version: Job title.');
+  await expect(page.getByTestId('wz-finish-reimport')).toContainText('saves this one as Guest 2');
+  // Mutation: dropping the rename in `reimportForEditor` offers "Guest", a second graphic under
+  // the earlier one's name.
+  await editAndSave(page, 'Guest 2');
+  const now = await state(page);
+  expect(now.library.find((g) => g.id === earlier.id)).toEqual(earlier);
+  expect(now.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest 2']);
+});
+
+test('a finished file of the same graphic, dropped under its name, is reviewed on Finish as the save reconciles it (#1987 point 2)', async ({ page }) => {
+  test.setTimeout(100_000);
+  await page.goto('/app');
+  await dropSvg(page, asFile(V1, 'v1'));
+  await intoProduction(page, 'Guest', 'Show');
+  await makeWork(page);
+  const earlier = (await state(page)).library[0];
+  // Version three, exported as a NoaCG package, then dropped as a finished file.
+  const zip = await page.evaluate(async (markup) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+    const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { ...patch, name: 'Guest' }));
+    return (await buildGraphicPackage(template)).generateAsync({ type: 'base64' });
+  }, V3);
+  await page.goto('/app');
+  const modal = page.locator('.wz-modal');
+  if (!(await modal.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false))) await startNewProject(page);
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({ name: 'guest.zip', mimeType: 'application/zip', buffer: Buffer.from(zip, 'base64') });
+  await expect(page.getByTestId('import-template-card')).toBeVisible();
+  await page.locator('button.wz-next').click();
+  await page.getByTestId('wz-finish-name').fill('Guest');
+  // Mutation: no `reimport` on the file-mode FinishStep shows "saves over it" instead.
+  await expect(page.getByTestId('wz-finish-reimport')).toContainText('Not carried over to this version: Job title.');
+  await expect(page.getByTestId('wz-finish-name-taken')).toHaveCount(0);
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  const now = await state(page);
+  expect(now.library.find((g) => g.id === earlier.id)).toEqual(earlier);
   expect(now.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest 2']);
 });
 
