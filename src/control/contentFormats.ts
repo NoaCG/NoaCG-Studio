@@ -491,3 +491,23 @@ export function heldListOnAir(graphic: GraphicShape): ListFormat | null {
   const format = graphicListFormat(graphic);
   return format && /\bvar noacgCreditsHeld\b/.test(graphic.template.js ?? '') ? format : null;
 }
+
+/**
+ * WHICH GRAPHICS ON AIR HOLD AN OLDER LIST THAN THEIR SOURCE: of the graphics bound to the source
+ * (`bound`, each with the field it fills), those on air (`live`) whose held list is that field
+ * (`heldMain`, from `heldListOnAir`) and whose own runtime says a newer list waits (`waits`, the
+ * PROGRAM monitor's answer). Each once, in binding order. Pure, so the rule runs in Node.
+ */
+export function heldListsWaiting(
+  bound: readonly { graphic: string; fieldId: string }[],
+  heldMain: (graphic: string) => string | null | undefined,
+  live: Readonly<Record<string, unknown>>,
+  waits: Readonly<Record<string, boolean>>,
+): string[] {
+  const waiting: string[] = [];
+  for (const { graphic, fieldId } of bound) {
+    if (!live[graphic] || !waits[graphic] || waiting.includes(graphic)) continue;
+    if (heldMain(graphic) === fieldId) waiting.push(graphic);
+  }
+  return waiting;
+}

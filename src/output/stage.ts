@@ -92,10 +92,14 @@ export interface OutputStage {
    *  unanswered ask reads exactly like an answer that nothing has moved. A caller comparing two
    *  `motion` readings must check this went UP between them, or it is comparing silence. */
   replies: ReadonlyMap<string, number>;
-  /** Called whenever a document reports a state, an overflow set OR a waiting list that differs
-   *  from the last one seen. All ride the one reply, so one callback carries them
-   *  (`waits`: PreviewStateMessage.waits). */
-  onState(cb: (graphic: string, state: PreviewMachineState | null, overflow: string[], waits: boolean) => void): void;
+  /** Called whenever a document reports a state OR an overflow set that differs from the last
+   *  one seen. Both ride the one reply, so one callback carries both. */
+  onState(cb: (graphic: string, state: PreviewMachineState | null, overflow: string[]) => void): void;
+  /** Called when a document's answer to "does a newer list wait for the next Take?"
+   *  (PreviewStateMessage.waits) differs from the last one seen, and on the first answer of each
+   *  frame, so a host that keeps the fact can never hold one a rebuilt stage has not said. Apart
+   *  from `onState`: the output renderer reports on that, and this fact is the monitor's alone. */
+  onWaits(cb: (graphic: string, waits: boolean) => void): void;
   /** The PUBLISHED graphic keys the stage hosts, in LAYER order — furthest back first. Foreign
    *  packages are not listed: they answer no state request, which the boot catch-up waits on
    *  (catchUp.ts). Their keys are `ografReturns`'. */
@@ -354,8 +358,10 @@ export function createOutputStage(
   const overflow = new Map<string, string[]>();
   const motion = new Map<string, number>();
   const replies = new Map<string, number>();
+  const stateCbs: ((graphic: string, state: PreviewMachineState | null, overflow: string[]) => void)[] = [];
+  /** Per graphic, the last `waits` answer; absent until its frame first answers. */
   const waiting = new Map<string, boolean>();
-  const stateCbs: ((graphic: string, state: PreviewMachineState | null, overflow: string[], waits: boolean) => void)[] = [];
+  const waitCbs: ((graphic: string, waits: boolean) => void)[] = [];
   let resolveLoaded: () => void = () => {};
   const allLoaded = new Promise<void>((resolve) => {
     resolveLoaded = resolve;
@@ -515,7 +521,7 @@ export function createOutputStage(
     }
     if (!states.has(frame.key)) states.set(frame.key, null);
     overflow.set(frame.key, []);
-    waiting.set(frame.key, false);
+    waiting.delete(frame.key);
     motion.set(frame.key, 0);
     if (!replies.has(frame.key)) replies.set(frame.key, 0);
     if (offAir) postTo(frame, { cmd: 'offair', on: true });
@@ -854,7 +860,6 @@ export function createOutputStage(
     const key = frame.key;
     const next = data.state ?? null;
     const nextOver = Array.isArray(data.overflow) ? data.overflow.map(String) : [];
-    const nextWaits = data.waits === true;
     // Kept OUT of the `moved` test below: an animation playhead changes many times a second
     // and says nothing about applied truth, so it must never schedule a report. It is
     // recorded for whoever is waiting for the picture to stand still.
@@ -862,13 +867,16 @@ export function createOutputStage(
     replies.set(key, (replies.get(key) ?? 0) + 1);
     const moved =
       JSON.stringify(next) !== JSON.stringify(states.get(key) ?? null) ||
-      nextOver.join(',') !== (overflow.get(key) ?? []).join(',') ||
-      nextWaits !== (waiting.get(key) ?? false);
+      nextOver.join(',') !== (overflow.get(key) ?? []).join(',');
     if (moved) {
       states.set(key, next);
       overflow.set(key, nextOver);
+      for (const cb of stateCbs) cb(key, next, nextOver);
+    }
+    const nextWaits = data.waits === true;
+    if (waiting.get(key) !== nextWaits) {
       waiting.set(key, nextWaits);
-      for (const cb of stateCbs) cb(key, next, nextOver, nextWaits);
+      for (const cb of waitCbs) cb(key, nextWaits);
     }
   };
   window.addEventListener('message', onMessage);
@@ -1020,6 +1028,7 @@ export function createOutputStage(
     motion,
     replies,
     onState: (cb) => stateCbs.push(cb),
+    onWaits: (cb) => waitCbs.push(cb),
     graphics,
     ografReturns,
     foreignLayer: (key) => foreign.get(key),

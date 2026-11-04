@@ -839,6 +839,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  waiting for the next Take (the styled credits' own `noacgCreditsWaiting`, carried on the
    *  same reply as the overflow). What the source line and the cue editor say it from. */
   const [programWaits, setProgramWaits] = useState<Record<string, boolean>>({});
+  const noteProgramWaits = useCallback((graphic: string, waits: boolean) => {
+    setProgramWaits((m) => (!!m[graphic] === waits ? m : { ...m, [graphic]: waits }));
+  }, []);
   /** What the OUTPUTS say each imported OGraf package did (control/ografOutcome.ts), from their
    *  reports alone: the PROGRAM monitor never loads a package, so nothing here is simulated. */
   const [outputOgraf, setOutputOgraf] = useState<Record<string, OgrafOutcome>>({});
@@ -853,7 +856,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setOutputOgraf((m) => (JSON.stringify(m[graphic] ?? null) === JSON.stringify(o) ? m : { ...m, [graphic]: o }));
   }, []);
   const noteMachineState = useCallback(
-    (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[], waits?: boolean) => {
+    (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
       setMachineStates((m) => {
         if (JSON.stringify(m[graphic] ?? null) === JSON.stringify(state)) return m;
         return { ...m, [graphic]: state };
@@ -865,7 +868,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         if ((m[graphic] ?? []).join(',') === overflow.join(',')) return m;
         return { ...m, [graphic]: overflow };
       });
-      setProgramWaits((m) => (!!m[graphic] === !!waits ? m : { ...m, [graphic]: !!waits }));
     },
     [],
   );
@@ -2051,6 +2053,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }),
     [foldProgram],
   );
+  /** A fresh PROGRAM stage: it has said nothing yet about a list waiting, so nothing is said
+   *  until it does, and it is rebuilt from air. */
+  const programReady = useCallback(() => {
+    setProgramWaits({});
+    restoreProgram();
+  }, [restoreProgram]);
   // The boot half: the wire resolve lands after the stage is already up, so the first time the
   // WIRE says a layer is live there is nothing to have signalled.
   //
@@ -2920,8 +2928,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  reply counts. A graphic still loading in the monitor is never asked (the stage drops a state
    *  ask for an unloaded document), so its first reply follows its queued Take; one already loaded
    *  applies the Take at once, so a poll answer crossing it is a few milliseconds early at most. */
-  const noteProgramState = (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[], waits?: boolean) => {
-    noteMachineState(graphic, state, overflow, waits);
+  const noteProgramState = (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
+    noteMachineState(graphic, state, overflow);
     armEngine.current?.onProgramState(graphic);
   };
 
@@ -3902,7 +3910,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           library={library}
           programRef={programRef}
           onState={noteProgramState}
-          onReady={restoreProgram}
+          onWaits={noteProgramWaits}
+          onReady={programReady}
           onOverflow={notePreviewOverflow}
           air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}

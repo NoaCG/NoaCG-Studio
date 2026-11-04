@@ -7,7 +7,7 @@ import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/li
 import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
 import { sourcePaths } from '../../model/productionData';
-import { heldListOnAir } from '../../control/contentFormats';
+import { heldListOnAir, heldListsWaiting } from '../../control/contentFormats';
 import type { LiveCueMap } from '../../control/liveCue';
 
 /** A graphic of the production whose own code reads a Sheet (the retired block, data-sources C6). */
@@ -130,18 +130,17 @@ export interface OnAir {
 }
 
 /**
- * The graphics on air whose held list (the imported credits roll and cards, control/contentFormats.ts
- * `heldListOnAir`) is this source's and has a newer one waiting: the graphic's own answer, so an
- * edit that leaves the list as taken says nothing, and a Pause does not hide a list still waiting.
+ * The graphics on air whose held list (the imported credits roll and cards) is this source's and
+ * has a newer one waiting (control/contentFormats.ts `heldListsWaiting`): the graphic's own
+ * answer, so an edit that leaves the list as taken says nothing, and a Pause does not hide a list
+ * still waiting.
  */
-export function listsWaiting(show: Show, source: ShowSource, onAir: OnAir): string[] {
-  const waiting: string[] = [];
-  for (const { graphic, fieldId } of sourcePaths(show.bindings, source.id)) {
-    if (!onAir.live[graphic] || !onAir.waits[graphic] || waiting.includes(graphic)) continue;
-    const saved = show.graphics.find((g) => g.name === graphic);
-    if (saved && heldListOnAir(saved)?.main === fieldId) waiting.push(graphic);
-  }
-  return waiting;
+function listsWaiting(show: Show, source: ShowSource, onAir: OnAir): string[] {
+  const heldMain = (name: string) => {
+    const saved = show.graphics.find((g) => g.name === name);
+    return saved ? heldListOnAir(saved)?.main : null;
+  };
+  return heldListsWaiting(sourcePaths(show.bindings, source.id), heldMain, onAir.live, onAir.waits);
 }
 
 /** One source's line: name, status, stale, the fix when it fails, Pause, and a list on air that

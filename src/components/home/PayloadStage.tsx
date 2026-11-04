@@ -31,9 +31,11 @@ const PayloadStage = forwardRef<
      *
      *  `overflow` rides the same reply: the field ids the graphic could not make fit even at
      *  its readability floor, so a host with field boxes can warn before the value airs
-     *  (docs/SVG_IMPORT_PLAN.md §3). Empty for every graphic that fits. `waits` too: a held
-     *  credits list on air has a newer one waiting for the next Take (PreviewStateMessage.waits). */
-    onState?: (graphic: string, state: PreviewMachineState | null, overflow: string[], waits: boolean) => void;
+     *  (docs/SVG_IMPORT_PLAN.md §3). Empty for every graphic that fits. */
+    onState?: (graphic: string, state: PreviewMachineState | null, overflow: string[]) => void;
+    /** Whether a graphic's held list (the styled credits) has a newer one waiting for the next
+     *  Take (output/stage.ts `onWaits`). Polled with the state, so it needs `onState` too. */
+    onWaits?: (graphic: string, waits: boolean) => void;
     /**
      * Fired every time a FRESH stage exists — first mount and every rebuild.
      *
@@ -50,7 +52,7 @@ const PayloadStage = forwardRef<
     /** An imported face's bytes the payload does not hold (output/stage.ts `faceAsset`). */
     faceAsset?: (src: string) => string | null;
   }
->(function PayloadStage({ payload, error, emptyLabel, testId, onState, onReady, faceAsset }, ref) {
+>(function PayloadStage({ payload, error, emptyLabel, testId, onState, onWaits, onReady, faceAsset }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<OutputStage | null>(null);
   /**
@@ -72,6 +74,8 @@ const PayloadStage = forwardRef<
   // subscription reads through a ref.
   const onStateRef = useRef(onState);
   onStateRef.current = onState;
+  const onWaitsRef = useRef(onWaits);
+  onWaitsRef.current = onWaits;
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const faceAssetRef = useRef(faceAsset);
@@ -88,7 +92,8 @@ const PayloadStage = forwardRef<
     stage.current = built;
     plays.current = 0;
     root.setAttribute('data-plays', '0');
-    built.onState((graphic, state, over, waits) => onStateRef.current?.(graphic, state, over, waits));
+    built.onState((graphic, state, over) => onStateRef.current?.(graphic, state, over));
+    built.onWaits((graphic, waits) => onWaitsRef.current?.(graphic, waits));
 
     // RE-ASK FOR MACHINE STATE, once a second, exactly as the published /output renderer has
     // always done (src/output/main.ts). The stage posts a single `{cmd:'state'}` after each

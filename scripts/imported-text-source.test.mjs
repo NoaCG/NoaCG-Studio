@@ -210,6 +210,24 @@ test('no model request: a read fetches the Sheet export and nothing else', async
 
 // ── Row 24: on air, a text field shows every refresh; only a held credits list waits ──────────
 
+test('#1980: a source line names a held list on air only when its graphic says a newer one waits', () => {
+  const { heldListsWaiting } = formats;
+  const bound = [{ graphic: 'Roll', fieldId: 'f1' }, { graphic: 'Roll', fieldId: 'f0' }, { graphic: 'Cards', fieldId: 'f2' }, { graphic: 'Notice', fieldId: 'f0' }];
+  const held = { Roll: 'f1', Cards: 'f2' };
+  const heldMain = (g) => held[g] ?? null;
+  const live = { Roll: 'c1', Cards: 'c2', Notice: 'c3' };
+  // Nothing waits: nothing is said, whatever changed in the source.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, {}), []);
+  // The graphic says its list waits: named once, though bound twice.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, { Roll: true }), ['Roll']);
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, { Roll: true, Cards: true }), ['Roll', 'Cards']);
+  // Off air, a stale answer says nothing.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, { Cards: 'c2' }, { Roll: true, Cards: true }), ['Cards']);
+  // A graphic that holds no list, or whose bound field is not its held list, says nothing.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, { Notice: true }), []);
+  assert.deepEqual(heldListsWaiting([{ graphic: 'Roll', fieldId: 'f0' }], heldMain, live, { Roll: true }), []);
+});
+
 test('row 24: a text field holds no list on air, so a refresh reaches it at once and nothing says it waits', () => {
   for (const t of [NOTICE, STRIP, NATIVE]) assert.equal(formats.heldListOnAir(shapeOf(t)), null, `${t.name} shows every refresh`);
   // The update hook that carries a refresh only writes fields and repaints: it plays nothing.
