@@ -213,6 +213,7 @@ const walk = await withBundledPage(SPECS, async (page) => {
     const clock = { candidateId: row.candidateId, mode: 'target-time', revision: C.svgSourceRevision(drop.designSvg.markup), target: '2027-03-27T03:30:00+02:00[Europe/Helsinki]', targetProposed: true };
     const draft = (c) => ({ ...drop, svgClock: c });
     const now = Date.parse('2027-03-27T01:40:00Z');
+    const corrected = { ...clock, target: '2027-03-27T04:30:00+02:00[Europe/Helsinki]' };
     return {
       asked: D.svgClockGap(draft(clock), now),
       ahead: D.svgClockGap(draft(clock), Date.parse('2027-03-27T01:10:00Z')),
@@ -223,6 +224,9 @@ const walk = await withBundledPage(SPECS, async (page) => {
       gapWake: D.svgClockFoldWake(draft(clock), now),
       gone: D.svgClockGap(draft(clock), Date.parse('2027-03-28T02:30:00Z')),
       rolled: D.svgClockTarget(clock, Date.parse('2027-03-28T02:30:00Z')),
+      nextWake: D.svgClockFoldWake(draft(corrected), Date.parse('2027-03-27T02:31:00Z')),
+      followingWake: D.svgClockFoldWake(draft(corrected), Date.parse('2027-03-28T01:31:00Z')),
+      datedWake: D.svgClockFoldWake(draft({ ...corrected, targetProposed: undefined }), now),
     };
   }, { markup: SCORE_CLOCK });
   return page.evaluate(WALK, {
@@ -388,6 +392,9 @@ test('#2118: Finish asks for a new time when the next undated occurrence is skip
   assert.equal(gapOnFinish.gapWake, Date.parse('2027-03-27T01:40:15Z'), 'an open gap is rechecked as local time advances');
   assert.equal(gapOnFinish.gone, null, 'when the gap is behind local time, tomorrow has a single next occurrence');
   assert.equal(gapOnFinish.rolled, '2027-03-29T03:30:00+03:00[Europe/Helsinki]');
+  assert.equal(gapOnFinish.nextWake, Date.parse('2027-03-28T01:30:00Z'), 'a corrected target wakes at the next occurrence, across the offset change');
+  assert.equal(gapOnFinish.followingWake, Date.parse('2027-03-29T01:30:00Z'), 'the resolved target keeps waking after the stored instant has long passed');
+  assert.equal(gapOnFinish.datedWake, null, 'explicit dates never roll or schedule another occurrence');
 });
 
 test('T5: the stored form round-trips the instant and the zone', () => {

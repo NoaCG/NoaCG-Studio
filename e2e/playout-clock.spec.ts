@@ -793,14 +793,26 @@ for (const boundary of ['while Finish is open', 'at a door press']) {
     await expect(targetSummary).toContainText(/Mar.*27.*2027|27.*Mar.*2027/);
     await expect(targetSummary).toContainText(/0?4:30/);
     await expect(targetSummary).toContainText('Europe/Helsinki');
+    let expectedTarget = '2027-03-27T04:30:00+02:00[Europe/Helsinki]';
+    if (boundary === 'while Finish is open') {
+      // Keep Finish open through two successive targets: after the stored instant passes,
+      // the next resolved occurrence must keep waking the summary too (including the DST shift).
+      await page.clock.fastForward('51:00');
+      await expect(targetSummary).toContainText(/Mar.*28.*2027|28.*Mar.*2027/);
+      await page.clock.fastForward('23:00:00');
+      await expect(targetSummary).toContainText(/Mar.*29.*2027|29.*Mar.*2027/);
+      await expect(targetSummary).toContainText(/0?4:30/);
+      await expect(targetSummary).toContainText('Europe/Helsinki');
+      expectedTarget = '2027-03-29T04:30:00+03:00[Europe/Helsinki]';
+    }
     await page.getByTestId('wz-finish-export').click();
     await expect(page.getByTestId('export-window')).toBeVisible();
-    const built = await evaluateInPage(page, async () => {
+    const built = await evaluateInPage(page, async (target) => {
       const { useTemplateStore } = await import('/src/store/templateStore.ts');
       const { clockTargetStart } = await import('/src/templates/behaviours/clock.ts');
       const doc = new DOMParser().parseFromString(useTemplateStore.getState().template.html, 'text/html');
-      return { start: doc.querySelector('.imported-design-clock')?.getAttribute('data-start'), expected: clockTargetStart('2027-03-27T04:30:00+02:00[Europe/Helsinki]') };
-    });
+      return { start: doc.querySelector('.imported-design-clock')?.getAttribute('data-start'), expected: clockTargetStart(target) };
+    }, expectedTarget);
     expect(built.expected).toBeTruthy();
     expect(built.start).toBe(built.expected);
   });
