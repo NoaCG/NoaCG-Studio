@@ -593,8 +593,9 @@ function heldLibrary(unresolved) {
   return { lib, log };
 }
 const GONE = [{ kind: 'removed', label: 'Job title' }];
-/** The signature Finish gives the list it shows (import/draft.ts `reimportSig`). */
-const sigOf = (unresolved) => JSON.stringify(['g-held', 't1', unresolved]);
+/** The signature Finish gives the list it shows: the real one, so the test cannot drift. */
+const { reimportSig } = await load(path.join(projectRoot, 'src/components/wizard/import/draft.ts'));
+const sigOf = (unresolved) => reimportSig('g-held', 't1', unresolved);
 
 test('a Replace anyway tick replaces only for the list it was given for (#1987 point 1)', async () => {
   // Ticked for the list Finish showed: the earlier graphic is kept as a copy, then written over.
