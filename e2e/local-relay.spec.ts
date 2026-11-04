@@ -1080,6 +1080,9 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await ctl.locator('#v-update').click();
   // Two held open: the preview refresh the typing sends, and the correction.
   await expect.poll(() => refused).toBe(2);
+  // The panel has read the controller's Take, so its 0:10 corrects the running clock.
+  const takeRows = rows.length;
+  await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= takeRows);
   from = rows.length;
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
