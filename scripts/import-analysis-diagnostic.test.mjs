@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import {
   COST_CAP_USD,
   diagnose,
+  errorStrings,
   loadServer,
   sanitizedError,
   synthesizeArtwork,
@@ -116,6 +117,7 @@ test('keeps the sanitized provider error: status, type, code and a redacted mess
       code: 'invalid_argument',
       message: `Invalid JSON payload: Unknown name "oneOf" at 'generation_config.response_json_schema.properties[2]'; data:image/jpeg;base64,${echoed} key Bearer ${'k'.repeat(48)}`,
       responseBody: `{"error":{"status":"INVALID_ARGUMENT","echo":"${echoed}"}}`,
+      detail: { provider: { message: 'response_json_schema: too many states', status: 'INVALID_ARGUMENT' } },
     },
   }));
   const record = await diagnose(server, { key: 'test-key', fetchImpl: gateway.fetchImpl });
@@ -126,6 +128,16 @@ test('keeps the sanitized provider error: status, type, code and a redacted mess
   const kept = JSON.stringify(record);
   assert.doesNotMatch(kept, /AAAAAAAAAA|kkkkkkkkkk|test-key/);
   assert.match(record.provider.detail.responseBody, /INVALID_ARGUMENT/);
+  // A nested provider reply is kept too, under its dotted path.
+  assert.equal(record.provider.detail['detail.provider.message'], 'response_json_schema: too many states');
+  assert.equal(record.provider.detail['detail.provider.status'], 'INVALID_ARGUMENT');
+});
+
+test('errorStrings stays bounded: four levels and twelve values', () => {
+  const deep = { a: { b: { c: { d: 'kept', e: { f: 'too deep' } } } } };
+  assert.deepEqual(errorStrings(deep), [['a.b.c.d', 'kept']]);
+  const wide = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`k${i}`, 'v']));
+  assert.equal(errorStrings(wide).length, 12);
 });
 
 test('sanitizedError keeps only short tokens for type and code, and survives a non-JSON body', () => {

@@ -62,6 +62,19 @@ export function redactMessage(message) {
     .slice(0, 1500);
 }
 
+/** The string leaves of an error object, as [dotted path, redacted value] pairs: at most
+ *  four levels deep and twelve values, each capped at 600 characters. */
+export function errorStrings(value, prefix = '', depth = 0, out = []) {
+  if (!value || typeof value !== 'object' || depth > 3) return out;
+  for (const [key, child] of Object.entries(value)) {
+    if (out.length >= 12) break;
+    const name = `${prefix}${token(key) ?? 'field'}`;
+    if (typeof child === 'string') out.push([name, redactMessage(child).slice(0, 600)]);
+    else errorStrings(child, `${name}.`, depth + 1, out);
+  }
+  return out;
+}
+
 /** What a refused response's body says: OpenAI-compatible `{ error: { type, code, param,
  *  message } }`, with nested provider errors kept to the same fields. Nothing else is kept. */
 export function sanitizedError(status, text) {
@@ -74,11 +87,9 @@ export function sanitizedError(status, text) {
     out.code = token(typeof error?.code === 'number' ? String(error.code) : error?.code);
     out.param = token(error?.param);
     out.message = redactMessage(error?.message);
-    // Any other string the error carries (a provider's nested detail), redacted the same way.
-    const extra = Object.entries(error ?? {})
-      .filter(([k, v]) => typeof v === 'string' && !['type', 'code', 'param', 'message'].includes(k))
-      .slice(0, 6)
-      .map(([k, v]) => [token(k) ?? 'field', redactMessage(v)?.slice(0, 600)]);
+    // Every other string the error carries, nested ones included (a gateway can put the
+    // provider's reply under `detail.responseBody`), redacted the same way and bounded.
+    const extra = errorStrings(error).filter(([key]) => !['type', 'code', 'param', 'message'].includes(key));
     if (extra.length) out.detail = Object.fromEntries(extra);
   } catch {
     out.message = redactMessage(text.slice(0, 2000));
