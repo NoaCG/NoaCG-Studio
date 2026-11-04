@@ -94,9 +94,10 @@ key the property and lets the expression win, which is the opposite choice (K4 a
 instead). So no comparable task was run and no usability or parity is claimed; the NoaCG
 contract is verified by the unit test and the two journeys in `e2e/editor-fidelity-trim.spec.ts`.
 
-## Product choices this leaves open
+## Owner decision (#2061)
 
-The rule is narrow on purpose. Two choices remain the owner's:
+The owner approved **1(a), cue keys only**, and **2(b), one entrance style per drawn look**.
+The alternatives below record the decision's scope:
 
 1. **Keys on a machine moment** (motion when a quiz answer is picked, a team scores). Today a key
    belongs only to the timeline's cues.
@@ -115,6 +116,30 @@ The rule is narrow on purpose. Two choices remain the owner's:
      every time the flash lands, and it never asks a user to tell cue keys from state landings.
    - (c) Keys on the look that play when it lands, which is 1(b) for looks. Not recommended: it
      exposes that cue keys and state landings run on different clocks.
+
+The Inspector's **Look entrances** section lists drawn looks without adding timeline rows.
+Cut, Fade and Pop play when a look becomes visible; a recipe's repeated state-entry pop signal
+also replays the chosen entrance. An unchanged visible look does not replay on data or clock
+repaint. Snap lands immediately. Hide, Out, reset and replay cancel an interrupted entrance and
+restore its authored opacity and SVG transform. These are the observable acceptance criteria.
+
+The optional `data-noacg-look-entrance="cut|fade|pop"` attribute lives on the artwork node, so it
+travels through the existing document operation, undo/redo, save/reopen and every export target.
+**Original** removes that optional choice and retains the saved recipe's existing cut/pop behavior.
+Generated fallback treatments keep their recipe defaults. This additive HTML setting does not
+change `NOACG_BEHAVIOUR` or `NOACG_ANIM` and needs no format migration.
+
+The first explicit choice appends the versioned `NOACG LOOK ENTRANCE 1` extension, emitted from
+`src/templates/shared/lookEntrance.ts`. It wraps the existing look show/pop and lifecycle helpers;
+it never regenerates the graphic's frozen recipe runtime. Modified or unsupported extension
+source is refused rather than replaced. The same final JS runs in the editor preview and all
+targets. A GSAP context owns each short entrance and restores only its affected properties.
+
+There is still no equivalent recipe-owned look in the working reference editors described above;
+no reference interaction or whole-editor usability parity is claimed. The Node runtime tests in
+`scripts/behaviour-look.test.mjs` and the #2061 journey in `e2e/editor-fidelity-trim.spec.ts` verify
+the NoaCG contract, including authored SVG restoration with real GSAP, package contents, and
+unchanged key ownership.
 
 ## User-facing copy
 
