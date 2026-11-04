@@ -302,8 +302,16 @@ function stampWire() {
   window.WebSocket = class extends Native {
     constructor(url: string | URL, protocols?: string | string[]) {
       super(url, protocols);
+      // Stamped as the frame arrives; read after. Realtime sends a broadcast as a BINARY frame
+      // (its topic, event and JSON payload as UTF-8 bytes), a reply or heartbeat as text.
       this.addEventListener('message', (e) => {
-        if (typeof e.data === 'string' && /"(press|batch|cmd|row)"/.test(e.data)) put('ws', e.data);
+        const at = Date.now();
+        const keep = (text: string) => {
+          if (/press|batch|"rows"/.test(text)) w.__hops.push({ at, kind: 'ws', text: text.slice(0, 2000) });
+        };
+        if (typeof e.data === 'string') keep(e.data);
+        else if (e.data instanceof ArrayBuffer) keep(new TextDecoder().decode(e.data));
+        else if (e.data instanceof Blob) void e.data.text().then(keep);
       });
     }
   } as typeof WebSocket;
@@ -381,12 +389,14 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
       await expect.poll(playsOf, { timeout: 15_000 }).toBe(plays + 1);
       await air.waitForTimeout(300);
       expect(await playsOf()).toBe(plays + 1);
+      // A Blob frame is read asynchronously; give the last one a moment.
+      await op.waitForTimeout(50);
       const o = await hopsOf(op);
       const a = await hopsOf(air);
       const heard = o.find((h) => h.kind === 'ws' && h.text.includes(take.id));
       const send = o.find((h) => h.kind === 'send');
       const sent = o.find((h) => h.kind === 'sent');
-      const frame = a.find((h) => h.kind === 'ws' && /"(batch|cmd|row)"/.test(h.text));
+      const frame = a.find((h) => h.kind === 'ws' && /batch/.test(h.text) && h.at >= (send?.at ?? 0));
       const played = a.find((h) => h.kind === 'played');
       const painted = a.find((h) => h.kind === 'painted');
       if (heard && send && sent && frame && played && painted) {
