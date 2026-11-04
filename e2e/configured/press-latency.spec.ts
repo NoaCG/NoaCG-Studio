@@ -134,7 +134,7 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
       const anna = (await deck.rows())[0].id;
       const playsOf = async () => Number(await air.evaluate(() => document.body.getAttribute('data-plays')));
 
-      const hops: Record<string, number[]> = { relay: [], pageDispatch: [], sendRpc: [], logToRenderer: [], handToGraphic: [], graphicPlay: [], graphicFrame: [], pressToFrame: [], pressToResult: [] };
+      const hops: Record<string, number[]> = { relay: [], pageDispatch: [], sendRpc: [], logToRenderer: [], handToGraphic: [], graphicPlay: [], graphicFrame: [], pressToFrame: [], pressToResult: [], secondWait: [], secondToFrame: [] };
       for (let round = 0; round < ROUNDS; round++) {
         const before = await deck.state((s) => !(s.live as string[]).includes(anna), 'Anna off air');
         const plays = await playsOf();
@@ -183,12 +183,56 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         await deck.state((s) => !(s.live as string[]).includes(anna), 'Anna off air');
         await op.waitForTimeout(600);
       }
+
+      // BACK TO BACK, the owner's case (a pick and then a reveal on one quiz board): a second press
+      // on the SAME graphic 50 ms after the first. Ben replaces Anna on the one graphic, and Ben's
+      // key means the same before and after Anna airs, so it is not stale. The page holds the
+      // second send until the first one's call answers (createGraphicFifo, by design for order);
+      // `secondWait` is that hold and `secondToFrame` what the operator sees for the second press.
+      // Paired by the play count: the second press is the renderer's play number plays + 2.
+      const ben = (await deck.rows())[1].id;
+      for (let round = 0; round < 4; round++) {
+        const before = await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
+        const plays = await playsOf();
+        await hopsOf(op);
+        await hopsOf(air);
+        const first = deck.press('take-cue', anna, before.ver as number);
+        await op.waitForTimeout(50);
+        const pressAt = Date.now();
+        const second = await deck.press('take-cue', ben, before.ver as number);
+        expect((await first).outcome).toBe('ran');
+        expect(second.outcome).toBe('ran');
+        await expect.poll(playsOf, { timeout: 15_000 }).toBe(plays + 2);
+        await air.waitForTimeout(300);
+        expect(await playsOf()).toBe(plays + 2);
+        await op.waitForTimeout(50);
+        const o = await hopsOf(op);
+        const a = await hopsOf(air);
+        const after = (list: Hop[], at: number | undefined, test: (h: Hop) => boolean) => (at === undefined ? undefined : list.find((h) => h.at >= at && test(h)));
+        const heard = after(o, pressAt, (h) => h.kind === 'ws' && h.text.includes(second.id));
+        const send = after(o, heard?.at, (h) => h.kind === 'send');
+        const handed = after(a, pressAt, (h) => h.kind === 'handed' && h.text === String(plays + 2));
+        const rx = after(a, handed?.at, (h) => h.kind === 'gfxRx');
+        const played = after(a, rx?.at, (h) => h.kind === 'gfxPlayed');
+        const painted = after(a, played?.at, (h) => h.kind === 'gfxPainted');
+        if (heard && send && painted) {
+          hops.secondWait.push(send.at - heard.at);
+          hops.secondToFrame.push(painted.at - pressAt);
+        } else {
+          console.log(`back to back ${round}: a stamp is missing`, JSON.stringify({ heard: !!heard, send: !!send, handed: !!handed, rx: !!rx, played: !!played, painted: !!painted }));
+        }
+        const up = await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
+        expect((await deck.press('take-cue', ben, up.ver as number)).outcome).toBe('ran');
+        await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
+        await op.waitForTimeout(600);
+      }
       const report = Object.fromEntries(Object.entries(hops).map(([k, v]) => [k, stats(v)]));
       console.log(`#2089 press latency, ${graphic}:`);
       for (const [k, s] of Object.entries(report)) console.log(`  ${k.padEnd(14)} n ${s.n}  median ${s.p50} ms  slowest ${s.max} ms`);
       await test.info().attach('press-latency.json', { body: JSON.stringify({ graphic, report }, null, 2), contentType: 'application/json' });
       // Most rounds must have every stamp, or the instrument measured nothing.
       expect(hops.pressToFrame.length).toBeGreaterThanOrEqual(ROUNDS - 2);
+      expect(hops.secondToFrame.length).toBeGreaterThanOrEqual(3);
       await deck.close();
     } finally {
       await outCtx.close();
