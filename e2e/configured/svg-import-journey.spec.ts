@@ -22,7 +22,7 @@
 // recovers it. No physical studio, competitor or licensed host is involved (row 29 keeps hosted
 // recovery, standalone capability and physical acceptance apart, and this walk claims only the first).
 
-import { test, expect, type Page, type FrameLocator } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page, type FrameLocator } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { publishProduction } from '../_publish';
 import { dropSvg, intoProduction } from '../_svg-import';
@@ -41,6 +41,19 @@ async function airOpacity(graphic: FrameLocator): Promise<number> {
   if ((await root.count().catch(() => 0)) === 0) return 0;
   return root.first().evaluate((el) => Number(getComputedStyle(el).opacity)).catch(() => 0);
 }
+
+// THE SHARED TEST ACCOUNT IS LEFT CLEAN however the walk ends (#2041): a failure part-way would
+// otherwise leave a published production and an open output context behind. The walk's own
+// unpublish stays in the body, where it is asserted. Each step is best-effort, as in
+// hosted-control-profile.spec.ts: one failing step must not skip the others or replace the walk's
+// own failure.
+let outputContext: BrowserContext | null = null;
+test.afterEach(async ({ page }) => {
+  await outputContext?.close().catch(() => {});
+  outputContext = null;
+  await clearPublishedShows(page).catch(() => {});
+  await wipeMyGraphics(page).catch(() => {});
+});
 
 async function openOutput(output: Page, origin: string, slug: string): Promise<FrameLocator> {
   output.on('pageerror', (e) => console.log('[output pageerror]', e.message));
@@ -74,6 +87,7 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
   // THE ISOLATED OUTPUT: its own context, so its network can be cut without touching the operator.
   const origin = new URL(page.url()).origin;
   const box = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  outputContext = box;
   let output = await box.newPage();
   let graphic = await openOutput(output, origin, slug!);
   const log = page.getByTestId('action-log');
@@ -145,7 +159,4 @@ test('unfamiliar imported artwork airs on an isolated output, which is cut off a
 
   await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
-  await clearPublishedShows(page);
-  await wipeMyGraphics(page);
-  await box.close();
 });
