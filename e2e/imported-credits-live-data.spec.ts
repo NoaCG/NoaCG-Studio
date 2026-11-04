@@ -418,6 +418,14 @@ for (const playback of ['static', 'roll', 'cards'] as const) {
     };
     await call(page, { [field]: taken }, 'play');
     await expect.poll(() => rowTexts(page)).toEqual(takenRows);
+    // The take holds its list in the entrance's call at time 0, which runs on the first tick
+    // after play(). The rows read the same before that, because off air they already follow the
+    // list, so an update sent the moment they match could still reach the take (#2048). This
+    // drawing's credits enter from hidden, so nothing showed meanwhile; a design visible on that
+    // first frame is #2057. Wait for the take to hold its list.
+    if (playback !== 'static') {
+      await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsHeld: string | null }).noacgCreditsHeld), 'the take holds its list').toBe(taken);
+    }
 
     await expectDrawnColumns();
 
