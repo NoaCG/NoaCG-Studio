@@ -7,9 +7,26 @@ export function resolveRow(state: PanelState | null, row: string): string {
 	return row === SELECTED ? (state?.selected ?? '') : row
 }
 
+/** `live` lists cues, never a folder; for the selected row the page also says when a press takes it off. */
 export function isOnAir(state: PanelState | null, row: string): boolean {
 	const id = resolveRow(state, row)
-	return !!state && !!id && state.live.includes(id)
+	if (!state || !id) return false
+	return state.live.includes(id) || (row === SELECTED && state.space === 'take-off')
+}
+
+/** What the Take key's next press does; null with nothing selected. */
+export type TakeDoes = 'take' | 'take-off' | 'preview' | 'from-the-top' | null
+
+/**
+ * The page's own word for the press (`space`, protocol §8), never worked out here from `live`: it
+ * depends on the SPACE mode and on a held folder's step, which only the page knows, and a press is
+ * refused as stale when it changes. A folder is never previewed, so `preview` on one is its
+ * One-by-one step going back to the top, where nothing airs.
+ */
+export function takeDoes(state: PanelState | null, rows: PanelRows | null): TakeDoes {
+	if (!state) return null
+	const folder = rows?.rows.some((r) => r.id === state.selected && r.kind === 'folder')
+	return state.space === 'preview' && folder ? 'from-the-top' : state.space
 }
 
 export function isSelected(state: PanelState | null, row: string): boolean {

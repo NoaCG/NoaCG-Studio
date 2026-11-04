@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { decideVerb } = await import('../src/control/verbDispatch.ts');
-const { verbView } = await import('../src/control/verbView.ts');
+const { panelSnapshot, verbView } = await import('../src/control/verbView.ts');
 const { NO_OWNERSHIP } = await import('../src/control/serverState.ts');
 
 const cue = (id, extra = {}) => ({ id, sourceId: `g-${id}`, label: id.toUpperCase(), values: {}, ...extra });
@@ -135,6 +135,27 @@ test('a held folder row: SPACE steps, takes, takes off or says why; 0 takes it o
   for (const key of ['retake', 'update', 'next', 'pause', 'resume']) assert.deepEqual(decideVerb(key, press(), heldView(folder({ up: true }))), { do: 'none' }, key);
   // A held key fires once.
   assert.deepEqual(decideVerb('take', press({ repeat: true }), heldView(folder())), { do: 'none' });
+});
+
+test("what a panel's Take key is told it does (`space`) is what a press of it does: the key's words read this", () => {
+  const facts = { title: '', cursorRow: 'folder-row-F', cues, live: new Set(), refused: new Set(), folderRows: [], clip: null, configured: false, rowCount: 3, rows: [] };
+  const told = (v) => {
+    const { space, allowed } = panelSnapshot(v, facts);
+    return [space, allowed.take, decideVerb('take', press(), v)];
+  };
+  assert.deepEqual(told(view()), ['take', true, { do: 'take', cue: c1 }]);
+  assert.deepEqual(told(view(live)), ['take-off', true, { do: 'out-and-stage', cueId: 'c1' }]);
+  // Another cue on air, on this layer or any other: the press still takes the selected one.
+  assert.deepEqual(told(view({ liveCue: { Strap: 'c2' } })), ['take', true, { do: 'take', cue: c1 }]);
+  assert.deepEqual(told(view({ liveCue: { Other: 'c2' } })), ['take', true, { do: 'take', cue: c1 }]);
+  assert.deepEqual(told(view({ spaceMode: 'preview-then-take', previewCueId: null })), ['preview', true, { do: 'stage', cueId: 'c1' }]);
+  assert.deepEqual(told(view({ selectedCue: null, selectedGraphic: null })), [null, false, { do: 'none' }]);
+  // A held folder: `live` names none of it, so only `space` can say a press takes it off.
+  assert.deepEqual(told(heldView(folder({ up: true }))), ['take-off', true, { do: 'folder-out', folderId: 'F' }]);
+  const step = (s, extra = {}) => heldView(folder({ step: s, ...extra }));
+  assert.deepEqual(told(step({ kind: 'top', off: ['c2'] }, { up: true })), ['take-off', true, { do: 'folder-step', folderId: 'F' }]);
+  // The one `preview` a folder publishes: its step back to the top, which airs nothing.
+  assert.deepEqual(told(step({ kind: 'top', off: [] }, { stepped: true })), ['preview', true, { do: 'folder-step', folderId: 'F' }]);
 });
 
 test('H, All out and a trigger fire once per press, never on a held key', () => {

@@ -1,12 +1,13 @@
 import type { DropdownChoice } from '@companion-module/base'
 import { PANEL_VERBS, VERB_NAMES, capabilityState, type PanelVerb } from './protocol.js'
-import { SELECTED, clipClock, isAllowed, isOnAir, isSelected, resolveRow } from './view.js'
+import { SELECTED, clipClock, isAllowed, isOnAir, isSelected, resolveRow, takeDoes } from './view.js'
 import { graphicKeyOptions, rowChoices } from './actions.js'
 import type ModuleInstance from './main.js'
 
 export type FeedbacksSchema = {
 	on_air: { type: 'boolean'; options: { row: string } }
 	selected: { type: 'boolean'; options: { row: string } }
+	take_does: { type: 'boolean'; options: { does: string } }
 	allowed: { type: 'boolean'; options: { verb: string; row: string } }
 	clip_warning: { type: 'boolean'; options: Record<string, never> }
 	clip_final: { type: 'boolean'; options: { blink: boolean } }
@@ -67,6 +68,27 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 			defaultStyle: { bgcolor: GREEN, color: WHITE },
 			options: [{ ...rowOrSelected, choices: rows, default: rows[0]?.id ?? '' }],
 			callback: (fb) => isSelected(self.panel.state, String(fb.options.row)),
+		},
+		take_does: {
+			type: 'boolean',
+			name: 'What Take does next',
+			description: 'What the next press of Take does on the answering page, so a key can say it.',
+			defaultStyle: { bgcolor: RED, color: WHITE },
+			options: [
+				{
+					id: 'does',
+					type: 'dropdown',
+					label: 'Next press',
+					choices: [
+						{ id: 'take', label: 'Takes the selected cue' },
+						{ id: 'take-off', label: 'Takes it off air' },
+						{ id: 'preview', label: 'Puts it on PREVIEW' },
+						{ id: 'from-the-top', label: 'Starts its folder again from the top' },
+					],
+					default: 'take-off',
+				},
+			],
+			callback: (fb) => takeDoes(self.panel.state, self.panel.rows) === fb.options.does,
 		},
 		allowed: {
 			type: 'boolean',

@@ -113,6 +113,7 @@ test('presets: the transport, the clock, a Take and a Select key per row and a T
 	const feedbackIds = new Set([
 		'on_air',
 		'selected',
+		'take_does',
 		'allowed',
 		'clip_warning',
 		'clip_final',
