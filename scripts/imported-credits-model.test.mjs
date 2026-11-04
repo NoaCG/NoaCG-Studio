@@ -1009,7 +1009,7 @@ test('row 19: the list holder keeps its line breaks through the editor\'s code f
  *  cue (creditsEntrance, the list held there, and the rows Out left stale built again off air,
  *  creditsOffAir) and nothing else, html and css unchanged; the
  *  test "#2057: ..." below asserts it. */
-const ROLE_ABOVE_PINS = { one: '775cf151af23860e', bold: '72ecb79ac5864a57', grouped: 'b18b780121e3a232', roleGroup: '5f44d0565640b190', idGroup: '7e37052538433aa8' };
+const ROLE_ABOVE_PINS = { one: '72c729ced4e0d66f', bold: 'b2efc8d908d9f0b4', grouped: '4787377aa346dab4', roleGroup: '30b0e8a4afb68dc6', idGroup: 'c9bb4b9081070735' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1037,6 +1037,7 @@ test('#2057: a styled take cued by play() keeps the list its first frame shows, 
     assert.ok(js.includes('noacgCreditsCued.entrance === creditsLive()') && js.includes('noacgCreditsHeld = cued ? cued.list :'), `${k}: the take keeps the list held at its own cue`);
     assert.ok(js.includes('noacgCreditsStale = noacgCreditsHeld !== null && noacgCreditsWaiting;') && js.includes('function creditsOffAir()'), `${k}: rows Out left older than the holder are built again off air`);
     assert.ok(js.includes('noacgCreditsHeld === null && !noacgCreditsStale ? creditsEntrance() : null'), `${k}: rows older than the holder are no list to hold`);
+    assert.ok(js.includes('noacgCreditsStale = noacgCreditsWaiting;   // the rows still show the list held, if older') && js.includes('if (!out) rebuild();'), `${k}: a let-go cue and a stop with no exit leave no older rows to hold`);
   }
 });
 

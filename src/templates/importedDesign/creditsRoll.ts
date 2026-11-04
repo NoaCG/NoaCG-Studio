@@ -665,6 +665,7 @@ function creditsListWaits() {
   // A list held at a cue whose entrance will never take (a snap before its first tick) is let go,
   // so off air the rows follow again. An Out under way keeps it until Out lets go itself.
   if (noacgCreditsCued && noacgCreditsCued.entrance !== creditsEntrance() && !(typeof noacgOutActive === 'function' && noacgOutActive())) {
+    noacgCreditsStale = noacgCreditsWaiting;   // the rows still show the list held, if older
     noacgCreditsCued = null;
     noacgCreditsHeld = null;
     noacgCreditsWaiting = false;
@@ -1500,14 +1501,18 @@ function stopCreditsRoll() {
 ${held('', `
 // creditsOffAir(): Out let go of a list that waited, and the rows still show the one taken. When
 // the exit has ended, off air, they are built again from the holder, so the next take's first
-// frame shows the newest list. Not while the exit is on screen, and not after a new take.
+// frame shows the newest list. Not while the exit is on screen, and not after a new take. With no
+// exit running (a styled stop, which rests the graphic first) it is off air already: now.
 function creditsOffAir() {
   var out = typeof noacgOutTimeline !== 'undefined' ? noacgOutTimeline : null;
-  if (!out || typeof gsap === 'undefined') return;
-  gsap.delayedCall(Math.max(0, out.duration() - out.time()) + 0.05, function () {
-    if (noacgOutTimeline !== out || noacgCreditsHeld !== null || !noacgCreditsStale) return;
+  var rebuild = function () {
+    // Off air: this Out's exit is still the last, or the graphic was rested (a snap) since.
+    var offAir = out ? noacgOutTimeline === out || (!noacgOutTimeline && !creditsLive()) : !creditsLive();
+    if (!offAir || noacgCreditsHeld !== null || !noacgCreditsStale) return;
     ${cards('creditsRender();', 'creditsDeal();')}
-  });
+  };
+  if (!out) rebuild();
+  else if (typeof gsap !== 'undefined') gsap.delayedCall(Math.max(0, out.duration() - out.time()) + 0.05, rebuild);
 }
 `)}
 ${still(creditsTakeJs(faces === true, true), cards(creditsHoldJs(), creditsCardsJs()))}

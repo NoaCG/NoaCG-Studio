@@ -432,6 +432,50 @@ for (const playback of ['roll', 'cards'] as const) {
       w.update({ [field]: list });
     }, { field, other: OTHER, list: LIST });
     expect([(await rowTexts(page))[0], (await state()).held], 'a killed entrance holds no list').toEqual(['Research', null]);
+    // A SNAP BETWEEN play() AND THE TAKE, after an update held a list at the cue: nothing takes,
+    // and the next take airs the newest list, never the one that cue held.
+    await page.evaluate(({ field, other }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgSnap(a: null): void };
+      w.play();
+      w.update({ [field]: other });
+      w.noacgSnap(null);
+    }, { field, other: OTHER });
+    // The next take, with an update between its play() and its first tick (a snap leaves the old
+    // roll's tween in place, so the take is waited for by frames, not by the tween).
+    const taken = await page.evaluate(async ({ field, third }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
+      w.play();
+      w.update({ [field]: third });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return w.noacgCreditsHeld;
+    }, { field, third: THIRD });
+    expect(taken, 'the take after a snapped cue airs the newest list').toBe(THIRD);
+    // The same with the entrance killed instead, which leaves the held cue in place until the next
+    // write: that write lets it go, and the rows still showing the held list are no list to hold.
+    await call(page, null, 'stop');
+    await expect.poll(async () => (await state()).held).toBeNull();
+    await call(page, { [field]: LIST });
+    const afterKill = await page.evaluate(async ({ field, other, third }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgLiveTimeline: { kill(): void }; noacgCreditsHeld: string | null };
+      w.play();
+      w.update({ [field]: other });
+      w.noacgLiveTimeline.kill();
+      w.play();
+      w.update({ [field]: third });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return w.noacgCreditsHeld;
+    }, { field, other: OTHER, third: THIRD });
+    expect(afterKill, 'the take after a killed cue airs the newest list, never the list that cue held').toBe(THIRD);
+    // A STOP WITH NO EXIT TO WAIT FOR (a styled stop rests the graphic, then Out lets go): a list
+    // that waited shows off air at once.
+    await call(page, { [field]: OTHER });
+    expect((await state()).waiting, 'on air, the newer list waits').toBe(true);
+    await page.evaluate(() => {
+      const w = window as unknown as { noacgResetGraphic(): void; stopCreditsRoll(): void };
+      w.noacgResetGraphic();
+      w.stopCreditsRoll();
+    });
+    expect([(await rowTexts(page))[0], (await state()).held], 'off air with no exit, the rows show the list that waited').toEqual(['Camera', null]);
   });
 }
 
