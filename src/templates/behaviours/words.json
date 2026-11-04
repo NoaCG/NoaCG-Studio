@@ -110,7 +110,7 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "lock|lukittu|låst|gesperrt|eingeloggt|bloquead[ao]",
+        "words": "\\block(?:ed)?\\b|lukittu|låst|gesperrt|eingeloggt|bloquead[ao]",
         "teach": "Locked in",
         "also": [
           "Locked",

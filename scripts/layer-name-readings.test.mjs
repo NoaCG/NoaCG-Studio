@@ -138,6 +138,30 @@ const inventory = (candidates, groups = []) => ({
   shapes: [],
 });
 
+test('quiz lock words do not read inside clock, block or lockup names', () => {
+  const quiz = BEHAVIOUR_RECIPES.find((r) => r.id === 'quiz');
+  const locked = quiz.roles.find((r) => r.id === 'locked');
+  for (const name of ['Clock', 'Clock box', 'ClockBox', 'Match clock', 'Game clock', 'Sponsor lockup', 'Lockup plate', 'Kicker block']) {
+    assert.equal(matchRole(locked, readableName(name, quiz.roles)), null, name);
+  }
+  for (const name of ['Lock', 'Lock in', 'Locked', 'Locked in', 'Locked stamp', 'layer-locked', 'LockedIn', 'Lukittu', 'Låst', 'Gesperrt', 'Eingeloggt', 'Bloqueado', 'Bloqueada']) {
+    assert.deepEqual(matchRole(locked, readableName(name, quiz.roles)), { key: '', weak: false }, name);
+  }
+});
+
+test('a quiz beside a clock keeps its plate out of the Locked moment', () => {
+  const svg = inventory(
+    [text('Question'), text('Answer A'), text('Answer B'), text('Clock', { clock: true })],
+    [group('Selected A'), group('Selected B'), group('Locked in')],
+  );
+  svg.shapes.push({ id: 'plate', label: 'Clock box', hidden: false });
+  const proposal = bestProposal(svg);
+  assert.equal(proposal?.recipe, 'quiz');
+  assert.equal(proposal.layers.locked, 'g2', 'the real Locked in layer is bound, never the clock plate');
+  svg.groups.pop();
+  assert.equal(bestProposal(svg).layers.locked, undefined, 'without a drawn Locked moment the plate still stays ordinary artwork');
+});
+
 test('a quiz named in German is proposed as the quiz, with its three rows', () => {
   const p = bestProposal(
     inventory(
