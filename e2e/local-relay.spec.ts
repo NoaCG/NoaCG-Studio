@@ -892,6 +892,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const rows: { id: number; graphic: string; stream: string; msg: { t: string; data?: Record<string, string> } }[] = [];
   let head = 0;
   let refusing: { page: string; until: Promise<void> } | null = null;
+  let bootRead: Promise<void> | null = null;
   let refused = 0;
   /** Hold the named page's sends open until the answer this returns is called, then refuse them. */
   const refuseSends = (page: string) => {
@@ -907,6 +908,12 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
     if (url.pathname === '/relay/head') return route.fulfill({ json: { head } });
     if (url.pathname === '/relay/log') {
       const after = Number(url.searchParams.get('after') ?? '0');
+      // A boot read held back (`bootRead`), so a page's own poll can overtake it.
+      if (after === 0 && bootRead) {
+        const page = bootRead;
+        bootRead = null;
+        return page.then(() => route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } }));
+      }
       // Pages of at most 500, as relay.py and relay.ps1 answer.
       return route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } });
     }
@@ -1087,6 +1094,28 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await expect.poll(() => sent(from).length).toBe(2);
   expect(sent(from)[0]).toBe('stop');
   expect(sent(from)[1], 'the Out banks the panel\'s clock').toMatch(/^update f2=0:\d\d@out\/0:20\/0:10$/);
+
+  // A CONTROLLER WHOSE BOOT READ ANSWERS LATE: its poll has already taken the panel's newer clock
+  // row, and the late read's older rows do not put the older clock back.
+  let answerBootRead = () => {};
+  bootRead = new Promise<void>((resolve) => { answerBootRead = resolve; });
+  const ctl3 = await context.newPage();
+  await ctl3.route('http://clock-relay.local/**', serve);
+  await ctl3.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
+  await expect(ctl3.locator('#mode')).toHaveText('● SHOW');
+  from = rows.length;
+  await panel.locator('.field[data-key="f2"] input').fill('0:12');
+  await panel.getByRole('button', { name: '✎ Update' }).click();
+  await expect.poll(() => sent(from).length).toBe(1);
+  const newest = sent(from)[0].slice('update f2='.length);
+  const held3 = () => ctl3.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'] ?? null);
+  await expect.poll(held3).toBe(newest);
+  const lateRead = ctl3.waitForResponse((r) => r.url().endsWith('/relay/log?after=0'));
+  answerBootRead();
+  await lateRead;
+  await ctl3.evaluate(() => new Promise((r) => setTimeout(r, 50)));
+  expect(await held3(), 'the late boot read leaves the newer clock').toBe(newest);
+  await ctl3.close();
 
   // The native scorebug's Take on the same controller: no clock row.
   await ctl.locator('#cue-c2').click();
