@@ -41,7 +41,7 @@ The **Take** key from **Show control** says what its next press does for the sel
 | --------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | TAKE and its name           | it is off air, even if another cue is on air; or a One-by-one folder has another cue to take | takes it, or that next cue               |
 | OUT and its name, on red    | it is on air                                                                                 | takes it off                             |
-| Grey TAKE                   | nothing is selected (no name), or the page would not take it now                             | does nothing                             |
+| Grey words                  | the page would not run the press now; with nothing selected, TAKE and no name                | does nothing                             |
 | PREVIEW and its name        | the page puts a cue on PREVIEW before taking it                                              | puts it on PREVIEW                       |
 | FROM THE TOP                | a One-by-one folder has reached its end, no graphic up                                       | goes back to its first cue; nothing airs |
 
