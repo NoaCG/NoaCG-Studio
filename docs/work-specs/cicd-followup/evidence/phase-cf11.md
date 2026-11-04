@@ -27,19 +27,19 @@ Acceptance, verbatim:
   URL inside `page.evaluate` (`import('/src/store/templateStore.ts')`) or by an extensionless
   import (`'../src/control/playoutProtocol'`). A CORE file now plans its reader specs beside the
   shared-change set. The bound #1921 asked for is the app shell: `app.html` keeps the old plan,
-  because every spec opens it. This adds 1,740 spec-to-module links that no `covers:` line held,
+  because every spec opens it. This adds 1,743 spec-to-module links that no `covers:` line held,
   over 201 specs and 100 modules (37 of them CORE). They are read off the specs, not written as
   header lines, so they cannot drift. Two new tests fail on the old planner and pass on the new one
   (section 3).
 - **(c)** Five dependency classes were inspected (section 2). Where information is incomplete the
   plan stays broad, and a new test fails if a module URL a spec loads names no file.
-- **(d)** cf12's selection change landed first (`e15e8d68`, #2037). No other known correction is
-  open. This PR changes selector code, so the miss audit's 14-day window restarts at its merge, and
+- **(d)** cf12's selection change landed first (`e15e8d68`, #2037), and so did JEV PR #2124
+  (`bd043d69`), which widened one `IGNORE` pattern. No other known correction is open. This PR changes selector code, so the miss audit's 14-day window restarts at its merge, and
   its commit carries a `Selection-audit-reset:` trailer. cf18's earliest date moves to 14 days
   after this merge (section 4).
-- **Cost** over the last 81 merges to `main`, replayed with CI's flags: 13 merges gain specs, a
-  mean of **+0.72** measured spec-minutes per merge (median 0, p90 2.0, max 22.9) on plans of
-  15 to 104 minutes. No merge loses a spec, no plan changes mode, and no catalog gate flips.
+- **Cost** over the last 84 merges to `main`, replayed with CI's flags on this branch merged with
+  `main` at `5284d4b2` (after #2124): 13 merges gain specs, a mean of **+0.70** measured
+  spec-minutes per merge (median 0, p90 1.8, max 22.9) on plans of 15 to 104 minutes. No merge loses a spec, no plan changes mode, and no catalog gate flips.
 
 ## 1. (a) The three misses, reproduced and explained
 
@@ -154,14 +154,15 @@ None of the nine is CORE, so none selected the whole configured set before.
 `readers: null`, as the neighbouring planner tests do: with a synthetic header and the real reader
 index it saw the specs that load `svg.ts` by URL. Its assertion is unchanged and still exact.
 
-Cost, replayed with `planFor(files, { sprintFocus: true, specsOnDisk, helpers })` over the 81
-first-parent merges in this clone (`main` to `eab37f56`, 2026-11-02 to 2026-11-04), spec-minutes
-from `scripts/e2e-durations.json`:
+Cost, replayed with `planFor(files, { sprintFocus: true, specsOnDisk, helpers })` over the 84
+first-parent merges in this clone (2026-11-02 to `5284d4b2`, 2026-11-04), old planner from `main`
+at `5284d4b2` and new planner from this branch merged with it (`git merge-tree`, clean),
+spec-minutes from `scripts/e2e-durations.json`:
 
 | | Value |
 | --- | --- |
-| merges that gain specs | 13 of 81 |
-| added spec-minutes per merge | mean 0.72, median 0, p90 1.97, max 22.94 |
+| merges that gain specs | 13 of 84 |
+| added spec-minutes per merge | mean 0.70, median 0, p90 1.78, max 22.94 |
 | largest gains | `5787a44a` (#2084, `composeDocument.ts` and preview protocol) +40 specs, 22.9 min on 76.1; `91971d0b` (#2060, same files) +26, 13.2 on 97.2 |
 
 Single files with the largest gains: `src/templates/catalog.ts` (+97), `src/format/formatCode.ts`
@@ -173,9 +174,11 @@ in the page by that many specs, mostly through the `_create.ts` helper.
 - **Known corrections.** cf12's change to selection landed first (`e15e8d68`, #2037, with its
   own reset). No other open issue asks for a selection correction: #1868 is about run-integrity
   and lint checks (which specs run is unchanged) and #1862 asks to narrow unmapped paths for cost,
-  which is a later selection change, not a correction after a miss. Open PR #2124 (JEV) edits one
-  `IGNORE` pattern in `scripts/e2e-affected.mjs` so more `docs/tutorials/svg-examples/*.md` files
-  plan specs; if it lands after this, it changes selector code and restarts the audit itself.
+  which is a later selection change, not a correction after a miss. JEV PR #2124 widened one
+  `IGNORE` pattern in `scripts/e2e-affected.mjs` (every `docs/tutorials/svg-examples/*.md` now
+  plans specs, not only its README). It landed on `main` at `bd043d69` (2026-11-04T20:12Z), after
+  this branch's base and before this phase, and it merges cleanly with this change. So this
+  merge is the later one, and the final selector change.
 - **Audit reset.** This changes selector code (`scripts/e2e-affected.mjs`), so the miss audit's
   14-day window restarts at this merge, and the commit carries a `Selection-audit-reset:` trailer.
   This is meant as the run's final selector change. cf18's earliest date is 14 days after this
@@ -199,8 +202,9 @@ in the page by that many specs, mostly through the `_create.ts` helper.
   scripts/harness-reprobe.test.mjs`: 394 of 394 pass, after the traced-test isolation above
   (before it, one failed).
 - The cf11 tests against the old planner: two fail, as section 3 shows.
-- Every file in the repository (7,824 non-image files) planned alone with the old and new planner:
-  no spec lost, no mode change, no catalog flip.
+- Every file in the repository (7,830 non-image files) planned alone with the old planner (`main`
+  at `5284d4b2`) and the new one (this branch merged with it): no spec lost, no mode change, no
+  catalog flip. The same six planner test files pass on that merged tree (304 of 304).
 - GitHub reads: the three runs' failed jobs and their retry jobs, run 36985533946's failed shard,
   the main CI runs around each culprit, three compares, quarantine at six commits, red-main issue
   #830. About 40 API calls.
