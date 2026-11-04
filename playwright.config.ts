@@ -149,7 +149,7 @@ export default defineConfig({
     // the product.
     env: {
       VITE_PREVIEW_DEBOUNCE_MS: '50',
-      // No file watching on this server (vite.config.ts, `watch`): a run is a snapshot (#1897).
+      // No file watching (vite.config.ts, `watch`), so a mid-run edit cannot split a module (#1897).
       NOACG_E2E_SERVER: '1',
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',

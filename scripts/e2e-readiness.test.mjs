@@ -29,6 +29,7 @@ test('offline pins remain identical and configured mode inherits its own environ
   assert.equal(offline.webServer.env.VITE_SUPABASE_URL, '');
   assert.equal(offline.webServer.env.VITE_SUPABASE_ANON_KEY, '');
   assert.equal(offline.webServer.env.VITE_RENDER_API, '1');
-  assert.equal(live.webServer.env, undefined);
+  // Only the no-watch switch (#2094): no Supabase or AI pin, so configured mode keeps its own .env.
+  assert.deepEqual(live.webServer.env, { NOACG_E2E_SERVER: '1' });
   assert.match(live.webServer.command, new RegExp(`--port ${livePort()} --strictPort$`));
 });
