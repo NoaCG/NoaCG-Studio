@@ -46,6 +46,7 @@ test('the slow road gets exactly the Takes and Updates whose clock reads the row
   let slow = 0;
   let fast = 0;
   let outs = 0;
+  let natives = 0;
   for (const [name, clock] of Object.entries(CLOCKS)) {
     for (const held of HELD) {
       for (const msg of ROWS) {
@@ -62,6 +63,17 @@ test('the slow road gets exactly the Takes and Updates whose clock reads the row
           outs += 1;
           continue;
         }
+        // THE SECOND, kept fast for the same decision (it names imported clocks only): a native
+        // clock's correction while it runs counts from the row's instant since #1889, so a reload
+        // shows it running, but its Update keeps the fast road and each output counts it from its
+        // own arrival, as the native runtime always did. Reported by phase-11 W2.
+        const nativeCorrection = !clock.events && msg.t === 'update' && readsInstant;
+        if (nativeCorrection) {
+          assert.equal(needsServerInstant(clock, msg, held), false, `${name}: a native correction stays fast`);
+          assert.match(outputAfter(clock, held, msg, undefined, T), /@1800000000000\//);
+          natives += 1;
+          continue;
+        }
         assert.equal(needsServerInstant(clock, msg, held), readsInstant, `${name}: ${JSON.stringify(msg)} over ${held}`);
         if (readsInstant) slow += 1;
         else fast += 1;
@@ -71,6 +83,7 @@ test('the slow road gets exactly the Takes and Updates whose clock reads the row
   // The table reaches both answers, and most rows stay fast.
   assert.ok(slow >= 10 && fast > slow * 3, `slow ${slow}, fast ${fast}`);
   assert.ok(outs > 0, 'the table reaches the Out of a running duration');
+  assert.ok(natives > 0, 'the table reaches a native correction while it runs');
 });
 
 test('two outputs agree after a duration Take and a running correction on the slow road', () => {

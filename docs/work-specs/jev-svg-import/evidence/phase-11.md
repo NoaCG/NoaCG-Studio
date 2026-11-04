@@ -149,36 +149,61 @@ Risky scenario (reload and recovery rules change). Each line is observable.
   runs on from the typed time, counted from the update row's instant, and a reload shows it
   running (before, the wire banked it held, so a reload showed it stopped). The Update keeps its
   fast road (the owner's slow-road decision covers imported clocks only), so live outputs count
-  from their own arrival as the native runtime always did, and a reload counts from the row's
-  server time: they can differ by the fast road's lead, under a second.
+  from their own arrival as the native runtime always did, and a reload counts from the instant in
+  the report it boots from (the reporting renderer's arrival) or, replaying the row, from its server
+  time: they can differ by the fast road's lead, under a second.
 - **W3 Out and Take of a native clock.** Out leaves the clock as it stands, as before; the next
   Take resends the cue's time, which moves nothing. The program monitor keeps a native clock's
-  value through an Out, as every output does (it used to forget it, which made a re-Take on the
-  monitor read the cue's time while air kept the clock).
+  value through an Out, as every output does (`airState.ts` `programItems` drops the line that
+  forgot it, which made a re-Take on the monitor read the cue's time while air kept the clock), and
+  is sent the value it holds rather than the cue's resend for every match clock, native included
+  (the same function's staging, which did that for imported clocks only).
 - **W4 Values written before this change still read.** A plain or `time@origin` native value reads
   as it did; the next clock row writes the new shape. A value banked before the change does not
   know what the cue sent, so the first resend after a Pause that spans the deploy can still jump
   once.
+- **W4b A host that reports painted text keeps the old fault (known limit, follow-up).** A
+  `hostedReceiver.ts` host applies the log's rows as they came and reports its layer's text
+  (`harvest`), so its own template judges a resend by itself, and a reader booting from such a
+  report gets a bare time. Moving `harvest` to the wire value is the fix #1903 names; it is outside
+  this change and filed as its own issue.
 - **W5 Every reader of a native value reads the new shape.** The template runtime's parsers stop
   at `@` and read the origin as a number that ends at `/`; the dashboard, the hosted page and both
   exported pages show the plain time; the exported pages' copy of the decision changes with the
   TypeScript and stays pinned equal (scripts/clock-page-wire.test.mjs). A package exported before
   keeps its own page script and its old native values; its own templates read both.
-- **N1 (#1903) An imported duration the wire has never seen is off air.** When the wire holds no
-  value for its graphic (nothing sent, nothing reported), the first Update writes the off-air slot
-  (`time@out/time/time`), and a Pause or Reset with nothing held starts from the design's start
-  time, off air. So a time typed before the first Take is the length, a Reset or Pause before the
-  Take keeps it so, and the first Take counts the time in the field (type 0:45, Reset, type 0:50,
-  Take: the clock counts 0:50).
+- **N1 (#1903) An imported duration never taken is off air.** Durations only (`startsOnTake`): a
+  count-up or a native clock has no Take to wait for. A reader whose held value for the clock is
+  ABSENT (nothing sent, nothing reported) AND which does not show the graphic on air (the
+  renderer's own `onAirHere`, the monitor's ON AIR marker) holds the design's start time in the
+  off-air slot before it folds the row (`clockHeldBeforeRow`). So a time typed before the first
+  Take is the length, a Reset or Pause before the Take keeps it so, and the first Take counts the
+  time in the field (type 0:45, Reset, type 0:50, Take: the clock counts 0:50). A graphic on air
+  with nothing held (a lost report, a boot that put a layer up from its head) reads as before.
 - **N2 A bare value still reads as on air.** Only an absent value is "never taken". A host that
   reports the painted text (`hostedReceiver.ts` `harvest`) still produces bare values while on
   air, and those read exactly as before (phase-11 H1b).
+- **N3 The exported pages keep their own rule (known limit, follow-up).** The standalone panel and
+  the production controller are the only senders their relay has, and they do not yet say whether
+  a graphic is on air to their clock fold; a Reset before the first Take there behaves as before.
+  Filed as its own issue.
 - **M1 (#1906) The program monitor reseeds an off-air clock on reload.** For every match clock
   (native or imported, not a target time) whose graphic is off air and has a renderer report with
   a baseline, the monitor's clock memory is that report's value folded through the rows after the
-  report, in log order (`clockValueAfterUpdate`, then `clockRowEffect`), exactly as a renderer
-  rebuilds it. The next Take on the monitor counts what air counts.
+  report, in log order (`clockAfterRows`: `clockValueAfterUpdate`, then `clockRowEffect`), exactly as
+  a renderer rebuilds it. The next Take on the monitor counts what air counts. Those rows are read
+  APART from the on-air layers' rows (`bootClockReplay`), so an old off-air report can never make
+  the on-air read too long to finish.
 - **M2 A clock the page moved meanwhile keeps the page's memory.** If a command was applied while
   the resolve was out, the off-air reseed is skipped, as the on-air replay is.
-- **M3 No report, no reseed.** An off-air clock with no report, or one whose report carries no
-  baseline, stays unseeded, as today.
+- **M3 No report, no reseed.** An off-air clock with no report, one whose report carries no
+  baseline, or one whose rows were not read to the head, stays unseeded, as today. The on-air
+  replay stands either way.
+
+### Rules review
+
+A fresh read-only `/so` on the rules alone (`session_017SdbwMomDi8u9wA1JakUvM`, on `ddf71327`):
+AGREE WITH CORRECTIONS, B. Its four corrections, all taken before the code was committed: N1
+decided from the reader's own on-air record and limited to durations; the off-air rows read apart
+and failing alone (M1, M3); the monitor's staging and Out lines named (W3); the painted-text host
+named as a limit (W4b).

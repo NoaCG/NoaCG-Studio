@@ -61,6 +61,8 @@ function scriptedWire() {
         if (opts.stop?.()) return answer;
       }
     },
+    // No clock graphic here: the off-air clocks' read answers none (air-state.test.mjs drives it).
+    bootClockReplay: async () => null,
     bootMonitorReplay: (slug) => {
       calls.push(`replay ${slug}`);
       const d = deferred();

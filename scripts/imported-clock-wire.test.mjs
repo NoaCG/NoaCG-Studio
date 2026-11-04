@@ -238,7 +238,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['report', 'B'], ['wait', 30000], ['reload', 'B'], ['wait', 300], ['read', 'B reloaded'],
       ['disconnect', 'B'], ['event', pause], ['wait', 5000], ['reconnect', 'B'], ['wait', SETTLE], ['read', 'B reconnected after a pause'],
       ['wait', 4000], ['read', 'held'],
-      ...(native(mode) ? [] : [['update'], ['wait', 600], ['read', 'a resend while paused']]),
+      ['update'], ['wait', 600], ['read', 'a resend while paused'],
       ['type', '40:00'], ['wait', 600], ['read', 'corrected while held'],
       ['event', start], ['wait', SETTLE], ['read', 'restarted'],
       ['report', 'A'], ['disconnect', 'A'], ['wait', 20000], ['reload', 'A'], ['reconnect', 'A'], ['wait', 300], ['read', 'A reloaded from a report, then reconnected'],
@@ -336,7 +336,7 @@ for (const [name, mode] of [['an imported count-up', 'up'], ['a native scorebug'
     assert.equal(before.A.held.includes('@'), false, 'nothing runs before Start');
     const started = at(r, 'started');
     agree(started, 'started');
-    assert.match(started.A.held, mode === 'native' ? /@\d+$/ : /@\d+\/12:08\/12:08$/, 'the running value carries its origin (and an imported one its length and what was sent)');
+    assert.match(started.A.held, mode === 'native' ? /@\d+\/0:00\/0:00$/ : /@\d+\/12:08\/12:08$/, 'the running value carries its origin, its length and what was sent (a native clock since #1889, its length the reset time)');
     const running = at(r, 'running');
     agree(running, 'running');
     assert.equal(secs(running.A.value) - secs(started.A.value), 4);
@@ -350,11 +350,10 @@ for (const [name, mode] of [['an imported count-up', 'up'], ['a native scorebug'
     assert.equal(clockHeld(paused.A.held), true, 'Pause banks a held time');
     assert.deepEqual([paused.A.clock, paused.B.clock], ['stopped', 'stopped']);
     assert.equal(at(r, 'held').A.value, paused.A.value);
-    if (mode !== 'native') {
-      const resent = at(r, 'a resend while paused');
-      agree(resent, 'a resend while paused');
-      assert.equal(resent.A.value, paused.A.value, 'a resend of the cue\'s time never pulls a paused clock back (W3)');
-    }
+    // A native clock too since #1889: the cue still sends the time it was taken with.
+    const resent = at(r, 'a resend while paused');
+    agree(resent, 'a resend while paused');
+    assert.equal(resent.A.value, paused.A.value, 'a resend of the cue\'s time never pulls a paused clock back (W3, #1889)');
     agree(at(r, 'corrected while held'), 'corrected');
     assert.equal(at(r, 'corrected while held').A.value, '40:00');
     agree(at(r, 'restarted'), 'restarted');

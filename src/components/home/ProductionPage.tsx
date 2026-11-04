@@ -174,6 +174,7 @@ import {
   controlPageUrl,
   controlShowBySlug,
   followControlLog,
+  bootClockReplay,
   bootMonitorReplay,
   hostedControlTail,
   joinPageUrl,
@@ -373,6 +374,7 @@ const GRAPHIC_VERB_IO: GraphicVerbIo = {
 const SESSION_WIRE_IO: SessionWireIo = {
   controlShowBySlug,
   untilAnswered,
+  bootClockReplay,
   bootMonitorReplay,
   hostedControlTail,
   followControlLog,

@@ -1072,7 +1072,7 @@ test('an exported package recovers a running match clock when the renderer reloa
     }
     return null;
   });
-  expect(logged?.data.f5, 'the logged clock value must carry its time origin').toMatch(/^10:00@\d{13}$/);
+  expect(logged?.data.f5, 'the logged clock value must carry its time origin').toMatch(/^10:00@\d{13}\/10:00\/10:00$/);
 
   // THE RELOAD. The graphic announces itself, the panel rebuilds it from that log, and what
   // comes back must be the MATCH time — not the value the last Take carried.
@@ -1146,7 +1146,7 @@ test('the EXPORTED CONTROLLER stamps the clock too: the origin rides the wire be
   // ORDER MATTERS: the origin has to be in the document by the time startMatchClock runs, or the
   // runtime mints a local one and the wire's origin is never the one on air.
   expect(sent[0].t).toBe('update');
-  expect(sent[0].data!.f5, 'the controller must stamp the clock field').toMatch(/^10:00@\d{13}$/);
+  expect(sent[0].data!.f5, 'the controller must stamp the clock field').toMatch(/^10:00@\d{13}\/10:00\/10:00$/);
   expect(sent[1]).toMatchObject({ t: 'event', event: 'clockStart' });
 
   // …and it is STAGED into the cue, so the whole value set a later ⟳ TAKE or ✎ Update sends

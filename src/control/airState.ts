@@ -21,12 +21,14 @@
 // The `log` part's two folds are here too: the action log is what the same commands left.
 // No React and only `.ts` runtime imports, so a Node test drives it as it is.
 
-import type { ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
+import type { ClockReplay, ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
 import type { AppliedOnce } from './commandRoads';
 import type { LogEntry } from './eventLog';
 import type { AirPart, LogPart } from './playoutSession';
 import { withLiveCue, type LiveCueMap } from './liveCue.ts';
 import {
+  clockAfterRows,
+  clockHeldBeforeRow,
   clockRowEffect,
   clockValueAfterUpdate,
   plainClockValue,
@@ -190,15 +192,18 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
       out.push(item);
       continue;
     }
+    // A duration nothing here holds and the ON AIR marker does not show has never been taken (#1903).
+    const first = clockHeldBeforeRow(clock, clocks[item.graphic], !!air.liveCue[item.graphic]);
+    if (first !== undefined && first !== clocks[item.graphic]) clocks = { ...clocks, [item.graphic]: first };
     const value = carried?.[clock.field];
     if (value !== undefined) clocks = { ...clocks, [item.graphic]: clockValueAfterUpdate(clocks[item.graphic], value) };
-    // An imported clock keeps its value through an Out, as the renderer does: it says the clock is
-    // off air, and what its next Take counts (control/matchClockWire.ts).
-    if (msg.t === 'stop' && item.graphic in clocks && !clock.events) clocks = without(clocks, item.graphic);
-    // An imported clock's monitor is sent what it holds, not what the row carried, as the renderer
-    // does (src/output/main.ts): its runtime guards a resend only against the last value it was
-    // sent, and a Pause has banked another since.
-    const staged: ControlSendItem = clock.events && msg.t === 'update' && value !== undefined
+    // Every match clock keeps its value through an Out, as the renderer does (#1889): an imported
+    // one's says it is off air and what its next Take counts, and a native one's what its cue last
+    // sent, so the next Take's resend moves nothing (control/matchClockWire.ts).
+    // The monitor is sent what it holds, not what the row carried, as the renderer does
+    // (src/output/main.ts): the runtime guards a resend only against the last value it was sent,
+    // and a Pause has banked another since.
+    const staged: ControlSendItem = msg.t === 'update' && value !== undefined
       ? { ...item, msg: { ...msg, data: { ...msg.data, [clock.field]: clocks[item.graphic] } } }
       : item;
     const effect = clockRowEffect({ msg, created_at: item.created_at }, clock, clocks[item.graphic], now);
@@ -300,6 +305,7 @@ export function seedFromResolve(
   at: AirAtRequest,
   cues: readonly { id: string; values: Record<string, string> }[],
   specs: ClockSpecs,
+  offAirClocks: ClockReplay | null = null,
 ): AirPart {
   if (air.moves !== at.moves) return air;
   const replay = air.commands === at.commands ? [...sinceReports] : [];
@@ -341,6 +347,20 @@ export function seedFromResolve(
     }
     // Nothing to seed from (no report, no cue values): the record stays whole, moved fields and all.
     if (Object.keys(values).length > 0) seed[graphic] = { ...values, ...moved };
+  }
+  // THE CLOCKS OFF AIR (#1906, phase-11 M1-M3): the monitor keeps a clock through an Out, as every
+  // output does, so its next Take counts what air counts. Each is its renderer's report folded
+  // through the rows after it, as the renderer folds them; none when a command was applied since the
+  // request (newer than these rows), when the rows were not read to the head, or with no report.
+  if (offAirClocks && air.commands === at.commands) {
+    for (const graphic of offAirClocks.graphics) {
+      const clock = specs.clocks.get(graphic);
+      const reported = clock ? resolved.live[graphic]?.data?.[clock.field] : undefined;
+      if (!clock || clock.fixedInstant || resolved.liveCue[graphic] || reported === undefined) continue;
+      const rows = offAirClocks.rows.filter((item) => item.graphic === graphic);
+      const value = clockAfterRows(clock, reported, rows, Date.now());
+      if (value !== undefined) clocks = { ...clocks, [graphic]: value };
+    }
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
   // A command applied here while the read was out is newer than every report: the looks stay.
@@ -384,6 +404,12 @@ export function seedFromResolve(
     bootReplay: replay,
     bootLive: resolved.liveCue,
   };
+}
+
+/** The graphics whose clock the monitor rebuilds off air at boot (#1906): a match clock that is
+ *  not a target time, off air, with a renderer report that carries its value. */
+export function offAirClockGraphics(resolved: { liveCue: LiveCueMap; live: LiveReportMap }, specs: ClockSpecs): string[] {
+  return [...specs.clocks].filter(([graphic, clock]) => !clock.fixedInstant && !resolved.liveCue[graphic] && resolved.live[graphic]?.data?.[clock.field] !== undefined).map(([graphic]) => graphic);
 }
 
 /**

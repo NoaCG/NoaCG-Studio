@@ -27,6 +27,7 @@ import {
   type RpcAnswer,
 } from '../control/hostedControl';
 import {
+  clockHeldBeforeRow,
   clockRowEffect,
   clockSpecFromHtml,
   clockValueAfterUpdate,
@@ -849,6 +850,14 @@ async function boot(): Promise<void> {
     if (steps === undefined) stepsSince.delete(graphic);
     else stepsSince.set(graphic, steps);
     const row = { graphic, msg: incoming, created_at: createdAt };
+    // A DURATION THIS RENDERER HOLDS NOTHING FOR, AND DOES NOT SHOW, HAS NEVER BEEN TAKEN (#1903): it
+    // holds its start time off air, so a time typed before the first Take is that Take's length.
+    const clockHere = clockSpecs.get(graphic);
+    if (clockHere) {
+      const before = mergedData.get(graphic)?.[clockHere.field];
+      const first = clockHeldBeforeRow(clockHere, before, onAirHere(graphic));
+      if (first !== undefined && first !== before) mergedData.set(graphic, { ...mergedData.get(graphic), [clockHere.field]: first });
+    }
     // `let`, because an update row's CLOCK fields are forwarded as this renderer HOLDS them
     // rather than as the row carried them — see the rewrite in the update branch below.
     let msg = row.msg;

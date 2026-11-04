@@ -2299,6 +2299,33 @@ export async function bootMonitorReplay(slug: string, resolved: Pick<ResolvedCon
   return monitorReplay(onAir, snapshotAt, (await hostedControlRange(slug, followFrom, resolved.lastEventId)) ?? []);
 }
 
+/** The rows after each named graphic's own report, and the graphics they are complete for. */
+export interface ClockReplay {
+  graphics: string[];
+  rows: ReplayItem[];
+}
+
+/**
+ * THE ROWS AFTER AN OFF-AIR CLOCK'S REPORT (#1906). The PROGRAM monitor keeps a clock's value
+ * through an Out, as every output does, so a reload has to rebuild it for a graphic that is off
+ * air too: from its renderer's last report, and the rows after that report, because a report can
+ * be older than an Out and an off-air edit. Read apart from `bootMonitorReplay`, so an old report
+ * here never makes the on-air layers' read too long to finish. Only graphics whose report carries
+ * a baseline are answered for; null when the read did not reach the head, and then none is.
+ */
+export async function bootClockReplay(
+  slug: string,
+  resolved: Pick<ResolvedControlShow, 'live' | 'lastEventId'>,
+  offAir: readonly string[],
+): Promise<ClockReplay | null> {
+  const { followFrom, snapshotAt } = planOutputRecovery(offAir, resolved.live);
+  const graphics = offAir.filter((graphic) => snapshotAt.has(graphic));
+  if (graphics.length === 0) return null;
+  if (followFrom >= resolved.lastEventId) return { graphics, rows: [] };
+  const rows = await hostedControlRange(slug, followFrom, resolved.lastEventId);
+  return rows ? { graphics, rows: monitorReplay(graphics, snapshotAt, rows) } : null;
+}
+
 /**
  * Every row of one production's log after `after`, up to and including `upTo` (a head this show
  * resolved with, so a row with that id exists), paged. Null when the read did not reach `upTo`:

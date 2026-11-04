@@ -8,7 +8,8 @@
 //   resolve   `controlShowBySlug`, asked again on the renderer's backoff until it ANSWERS; the
 //             marker's moves and the commands applied are read at the start of the attempt that
 //             answers (./airState.ts `airAtRequest`)
-//   seed      the reports, then the rows after them (`bootMonitorReplay`), then one
+//   seed      the reports, then the rows after them (`bootMonitorReplay`, and `bootClockReplay` for
+//             the clocks off air), then one
 //             `seedFromResolve`, which the moves guard skips when this page moved the marker
 //             meanwhile
 //   follow    the timed cues' arm wire (numbered log only), the log's history into the `log`
@@ -32,6 +33,7 @@ import type {
   ControlEventRow,
   ControlFollowStatus,
   ResolvedControlShow,
+  bootClockReplay,
   bootMonitorReplay,
   controlOutputSeenAt,
   controlPingSeq,
@@ -40,7 +42,7 @@ import type {
   untilAnswered,
 } from './hostedControl';
 import type { PlayoutSession } from './playoutSession';
-import { airAtRequest, forgetBootReplay, logged, seedFromResolve, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
+import { airAtRequest, forgetBootReplay, logged, offAirClockGraphics, seedFromResolve, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
 import { writeArms } from './cueArmEngine.ts';
 import { handoverPingId } from './prepareLive.ts';
 
@@ -61,6 +63,7 @@ export interface SessionWireIo {
   controlShowBySlug: typeof controlShowBySlug;
   untilAnswered: typeof untilAnswered;
   bootMonitorReplay: typeof bootMonitorReplay;
+  bootClockReplay: typeof bootClockReplay;
   hostedControlTail: (slug: string, after: number) => Promise<ControlEventRow[]>;
   followControlLog: typeof followControlLog;
   controlOutputSeenAt: typeof controlOutputSeenAt;
@@ -147,10 +150,15 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // The reports must be in hand before the seed commits and the boot recovery fires.
     session.apply((parts) => ({ ...parts, air: withReports(parts.air, resolved.live) }));
     // …and the rows after each report (a report trails its graphic's last change by 800 ms).
-    const sinceReports = await io.bootMonitorReplay(slug, resolved);
+    // …and, read apart, the rows after each off-air clock's report, which the monitor keeps through
+    // an Out as every output does (#1906).
+    const [sinceReports, offAirClocks] = await Promise.all([
+      io.bootMonitorReplay(slug, resolved),
+      io.bootClockReplay(slug, resolved, offAirClockGraphics(resolved, page().clocks())),
+    ]);
     if (!live()) return;
     const p = page();
-    session.apply((parts) => ({ ...parts, air: seedFromResolve(parts.air, resolved, sinceReports, at, p.cues(), p.clocks()) }));
+    session.apply((parts) => ({ ...parts, air: seedFromResolve(parts.air, resolved, sinceReports, at, p.cues(), p.clocks(), offAirClocks) }));
     p.recovered(resolved);
     // TIMED CUES, published: only on the numbered log, whose seq orders the arm rows.
     if (resolved.seq) {

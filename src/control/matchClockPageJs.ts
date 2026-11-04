@@ -100,7 +100,7 @@ function clockSlotValue(time, origin, length, sent) {
 }
 
 // clockAfterUpdate(): the clock field's value after an Update carrying "incoming". A resend never
-// erases an origin; an imported clock's correction while it runs is marked "0" for its row to stamp.
+// erases an origin; a correction while it runs is marked "0" for its row to stamp.
 function clockAfterUpdate(held, incoming) {
   if (clockOrigin(incoming) !== null) return incoming;
   if (clockSlots(incoming)) return incoming;
@@ -119,22 +119,19 @@ function clockAfterUpdate(held, incoming) {
 // clockRowStep(): what one row does to the clock, { value, when } or null. "held" is the clock
 // field's value on the wire (the design's seed when nothing was sent), "at" the row's instant.
 function clockRowStep(clock, msg, held, at) {
-  var from = held == null ? clock.seed : held;
-  if (clock.events) return clockImportedStep(clock, msg, from, at);
-  if (msg.t !== 'event') return null;
-  if (msg.event === 'clockStart') return { value: clockValueAt(from, clock.countsDown, at) + '@' + at, when: 'before' };
-  if (msg.event === 'clockStop') return { value: clockValueAt(from, clock.countsDown, at), when: 'after' };
-  if (msg.event === 'clockReset') return { value: clock.resetTo, when: 'after' };
-  return null;
+  return clockSlottedStep(clock, msg, held == null ? clock.seed : held, at);
 }
 
-// An imported clock: its own verbs, a duration's Take and Out, and a running correction.
-function clockImportedStep(clock, msg, from, at) {
+// Every match clock: its verbs, a duration's Take and Out, and a running correction. A native clock
+// (no "events") answers to clockStart, clockStop and clockReset, and its length is its reset time.
+var CLOCK_NATIVE_EVENTS = { start: 'clockStart', stop: 'clockStop', reset: 'clockReset' };
+function clockSlottedStep(clock, msg, from, at) {
   if (msg.t !== 'update' && msg.t !== 'play' && msg.t !== 'stop' && msg.t !== 'event') return null;
   if (clock.fixedInstant) return (msg.t === 'update' || msg.t === 'play') && from !== clock.seed ? { value: clock.seed, when: 'after' } : null;
+  var events = clock.events || CLOCK_NATIVE_EVENTS;
   var read = clockSlots(from);
   var time = (read ? read.time : clockPlain(from)) || clock.resetTo;
-  var length = read ? read.length : (clock.startsOnTake ? time : clock.resetTo);
+  var length = !clock.events ? clock.resetTo : read ? read.length : (clock.startsOnTake ? time : clock.resetTo);
   var sent = read ? read.sent : time;
   var offAir = !!read && read.slot === 'out';
   if (msg.t === 'play') {
@@ -147,9 +144,9 @@ function clockImportedStep(clock, msg, from, at) {
     return { value: clockSlotValue(clockValueAt(from, true, at), 'out', length, sent), when: 'after' };
   }
   if (msg.t === 'update') return read && read.slot === '0' ? { value: clockSlotValue(time, at, length, sent), when: 'after' } : null;
-  if (msg.event === clock.events.start) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), at, length, sent), when: 'before' };
-  if (msg.event === clock.events.stop) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), offAir ? 'out' : '', length, sent), when: 'after' };
-  if (msg.event === clock.events.reset) return { value: clockSlotValue(length, offAir ? 'out' : '', length, sent), when: 'after' };
+  if (msg.event === events.start) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), at, length, sent), when: 'before' };
+  if (msg.event === events.stop) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), offAir ? 'out' : '', length, sent), when: 'after' };
+  if (msg.event === events.reset) return { value: clockSlotValue(length, offAir ? 'out' : '', length, sent), when: 'after' };
   return null;
 }
 
