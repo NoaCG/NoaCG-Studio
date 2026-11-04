@@ -166,7 +166,7 @@ Risky scenario (reload and recovery rules change). Each line is observable.
   `hostedReceiver.ts` host applies the log's rows as they came and reports its layer's text
   (`harvest`), so its own template judges a resend by itself, and a reader booting from such a
   report gets a bare time. Moving `harvest` to the wire value is the fix #1903 names; it is outside
-  this change and filed as its own issue.
+  this change: #2116.
 - **W5 Every reader of a native value reads the new shape.** The template runtime's parsers stop
   at `@` and read the origin as a number that ends at `/`; the dashboard, the hosted page and both
   exported pages show the plain time; the exported pages' copy of the decision changes with the
@@ -186,7 +186,7 @@ Risky scenario (reload and recovery rules change). Each line is observable.
 - **N3 The exported pages keep their own rule (known limit, follow-up).** The standalone panel and
   the production controller are the only senders their relay has, and they do not yet say whether
   a graphic is on air to their clock fold; a Reset before the first Take there behaves as before.
-  Filed as its own issue.
+  Filed as #2117.
 - **M1 (#1906) The program monitor reseeds an off-air clock on reload.** For every match clock
   (native or imported, not a target time) whose graphic is off air and has a renderer report with
   a baseline, the monitor's clock memory is that report's value folded through the rows after the

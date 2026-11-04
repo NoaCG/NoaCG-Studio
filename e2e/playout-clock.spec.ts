@@ -686,9 +686,10 @@ test('an imported duration never taken keeps the time typed before its first Tak
     if ((await boxes.nth(i).inputValue()) === DRAWN) box = boxes.nth(i);
   }
   await expect(box).toHaveValue(DRAWN);
-  // A new length typed before the first Take, sent to the graphic off air, then Reset off air.
+  // A new length typed before the first Take (the cue's draft until the Take sends it), and Reset
+  // pressed off air: before the fix the Reset held the drawn time ON air, so the Take read 0:50 as a
+  // correction and counted the drawn 12:08.
   await box.fill('0:50');
-  await page.getByTestId('verb-update').click();
   await page.getByTestId('cue-action-clock_reset').click();
   await page.getByTestId('verb-take').click();
   const clock = airClock(page);
