@@ -261,6 +261,7 @@ const call = (page: Page, data: Record<string, string> | null, verb?: 'play' | '
 const fieldFor = (page: Page, role: string) => page.evaluate((role) => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor(role, null), role);
 const LIST = 'Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss';
 const OTHER = 'Camera:\nJonas Berg\nIda Lake\nDirector:\nAlex Rivera';
+const THIRD = 'Editor:\nMia Holt';
 
 test('a roll on air keeps its list through updates, a new speed and its faces landing; Out lets the rows follow again', async ({ page }) => {
   await page.goto('/app');
@@ -387,16 +388,49 @@ for (const playback of ['roll', 'cards'] as const) {
     await call(page, null, 'play');
     await expect.poll(async () => (await state()).held).toBe(OTHER);
     expect([(await rowTexts(page))[0], (await state()).waiting]).toEqual(['Camera', false]);
-    // An entrance killed before its first tick (an Out or a snap) never takes, so it holds nothing:
-    // off air again, the rows follow the next write.
+    // A LIST THAT WAITED AT OUT: once the exit has ended the rows show it, so the next take's first
+    // frame does too, and an update between play() and that take waits as above.
+    await call(page, { [field]: LIST });
+    expect([(await rowTexts(page))[0], (await state()).waiting], 'on air, the newer list waits').toEqual(['Camera', true]);
+    await call(page, null, 'stop');
+    await expect.poll(async () => (await rowTexts(page))[0], 'off air after Out, the rows show the list that waited').toBe('Research');
+    const again = await page.evaluate(({ field, third }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void };
+      w.play();
+      const rows = [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent);
+      w.update({ [field]: third });
+      return rows;
+    }, { field, third: THIRD });
+    expect(again[0], 'the first frame shows the list that waited').toBe('Research');
+    await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
+    expect(await state(), 'the take keeps the list its first frame showed').toMatchObject({ held: LIST, waiting: true });
+    expect(await rowTexts(page)).toEqual(again);
+    // Taken again before that exit ends: the rows still show the list taken, older than the
+    // holder, so they are no list to hold; the take airs the newest, as a re-take always did.
+    const retaken = await page.evaluate(async ({ field, other }) => {
+      const w = window as unknown as { play(): void; stop(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
+      w.stop();
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const out = w.noacgCreditsHeld;
+      w.play();
+      w.update({ [field]: other });
+      return out;
+    }, { field, other: OTHER });
+    expect(retaken, 'Out let go of the list').toBeNull();
+    await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
+    expect(await state(), 'the take airs the newest list, never the older one the rows still showed').toMatchObject({ held: OTHER, waiting: false });
+    // An entrance killed before its first tick (an Out or a snap) never takes, so it holds nothing,
+    // not even a list an update held at its cue: off air again, the rows follow the next write.
     await call(page, null, 'stop');
     await expect.poll(async () => (await state()).held).toBeNull();
-    await page.evaluate(({ field, list }) => {
+    expect((await rowTexts(page))[0], 'off air, the rows show the list taken, which nothing replaced').toBe('Camera');
+    await page.evaluate(({ field, other, list }) => {
       const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgLiveTimeline: { kill(): void } };
       w.play();
+      w.update({ [field]: other });
       w.noacgLiveTimeline.kill();
       w.update({ [field]: list });
-    }, { field, list: LIST });
+    }, { field, other: OTHER, list: LIST });
     expect([(await rowTexts(page))[0], (await state()).held], 'a killed entrance holds no list').toEqual(['Research', null]);
   });
 }

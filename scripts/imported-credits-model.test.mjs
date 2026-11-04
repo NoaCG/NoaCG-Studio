@@ -1006,9 +1006,10 @@ test('row 19: the list holder keeps its line breaks through the editor\'s code f
  *  row 24 (coordinator-approved): their js gains the snapshot rule and nothing else, html and css
  *  unchanged; the diff is in docs/work-specs/jev-svg-import/evidence/phase-24.md, and the test
  *  "row 24: ..." below asserts the rule is there. Re-taken by #2057: their js gains the hold at the
- *  cue (creditsEntrance and the list held there) and nothing else, html and css unchanged; the
+ *  cue (creditsEntrance, the list held there, and the rows Out left stale built again off air,
+ *  creditsOffAir) and nothing else, html and css unchanged; the
  *  test "#2057: ..." below asserts it. */
-const ROLE_ABOVE_PINS = { one: '248da0da1500fcda', bold: '9c63ce95808b3349', grouped: 'c862628d1ea28abf', roleGroup: '63b782b59ca6d04d', idGroup: '6e4014567a73e641' };
+const ROLE_ABOVE_PINS = { one: '775cf151af23860e', bold: '72ecb79ac5864a57', grouped: 'b18b780121e3a232', roleGroup: '5f44d0565640b190', idGroup: '7e37052538433aa8' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1034,6 +1035,8 @@ test('#2057: a styled take cued by play() keeps the list its first frame shows, 
     assert.ok(js.includes('noacgCreditsHeld = noacgCreditsShown;'), `${k}: an update at the cue holds the list the rows show`);
     assert.ok(js.includes('noacgCreditsShown = text;'), `${k}: the rows record the list they show`);
     assert.ok(js.includes('noacgCreditsCued.entrance === creditsLive()') && js.includes('noacgCreditsHeld = cued ? cued.list :'), `${k}: the take keeps the list held at its own cue`);
+    assert.ok(js.includes('noacgCreditsStale = noacgCreditsHeld !== null && noacgCreditsWaiting;') && js.includes('function creditsOffAir()'), `${k}: rows Out left older than the holder are built again off air`);
+    assert.ok(js.includes('noacgCreditsHeld === null && !noacgCreditsStale ? creditsEntrance() : null'), `${k}: rows older than the holder are no list to hold`);
   }
 });
 

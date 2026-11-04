@@ -617,10 +617,12 @@ function creditsHeldJs(): string {
 var noacgCreditsHeld = null;
 var noacgCreditsWaiting = false;
 var noacgCreditsSettling = false;
-// The list the rows were last built from: what a viewer sees. And a list held at a cue before its
-// take ran (creditsListWaits), with the entrance it was held for.
+// The list the rows were last built from: what a viewer sees. A list held at a cue before its
+// take ran (creditsListWaits), with the entrance it was held for. And whether the rows show an
+// older list than the holder: Out let go of a list that waited, until they are built again.
 var noacgCreditsShown = '';
 var noacgCreditsCued = null;
+var noacgCreditsStale = false;
 
 // creditsHeldList(): the list the rows are built from - the one taken while on air, else the
 // holder's as it stands.
@@ -660,7 +662,15 @@ function creditsEntrance() {
 // holder's list now waits for the next take. False off air: then the rows follow the holder.
 // Between play() and its take, the take is already cued: it keeps the list its first frame shows.
 function creditsListWaits() {
-  var entrance = noacgCreditsHeld === null ? creditsEntrance() : null;
+  // A list held at a cue whose entrance will never take (a snap before its first tick) is let go,
+  // so off air the rows follow again. An Out under way keeps it until Out lets go itself.
+  if (noacgCreditsCued && noacgCreditsCued.entrance !== creditsEntrance() && !(typeof noacgOutActive === 'function' && noacgOutActive())) {
+    noacgCreditsCued = null;
+    noacgCreditsHeld = null;
+    noacgCreditsWaiting = false;
+  }
+  // Rows older than the holder (creditsOffAir has not run yet) are no list to hold: as before.
+  var entrance = noacgCreditsHeld === null && !noacgCreditsStale ? creditsEntrance() : null;
   if (entrance) {
     noacgCreditsHeld = noacgCreditsShown;
     noacgCreditsCued = { entrance: entrance, list: noacgCreditsShown };
@@ -1277,7 +1287,8 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   rows.setAttribute('transform', 'matrix(' + [toContainer.a, toContainer.b, toContainer.c, toContainer.d, toContainer.e, toContainer.f].join(' ') + ')');
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
   var text = ${held("holder ? holder.textContent : ''", 'creditsHeldList()')};${held('', `
-  noacgCreditsShown = text;`)}
+  noacgCreditsShown = text;
+  if (noacgCreditsHeld === null) noacgCreditsStale = false;`)}
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);
@@ -1477,13 +1488,28 @@ ${still(`      var width = box.width * scale;
 function stopCreditsRoll() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
   noacgCreditsTween = null;${held('', `
+  noacgCreditsStale = noacgCreditsHeld !== null && noacgCreditsWaiting;
   noacgCreditsHeld = null;
-  noacgCreditsWaiting = false;`)}${cards('', `
+  noacgCreditsWaiting = false;
+  if (noacgCreditsStale) creditsOffAir();`)}${cards('', `
   noacgCreditsCard = -1;
   noacgCreditsTurning = false;
   if (noacgCreditsLast) noacgCreditsLast.card = -1;`)}
 }
 
+${held('', `
+// creditsOffAir(): Out let go of a list that waited, and the rows still show the one taken. When
+// the exit has ended, off air, they are built again from the holder, so the next take's first
+// frame shows the newest list. Not while the exit is on screen, and not after a new take.
+function creditsOffAir() {
+  var out = typeof noacgOutTimeline !== 'undefined' ? noacgOutTimeline : null;
+  if (!out || typeof gsap === 'undefined') return;
+  gsap.delayedCall(Math.max(0, out.duration() - out.time()) + 0.05, function () {
+    if (noacgOutTimeline !== out || noacgCreditsHeld !== null || !noacgCreditsStale) return;
+    ${cards('creditsRender();', 'creditsDeal();')}
+  });
+}
+`)}
 ${still(creditsTakeJs(faces === true, true), cards(creditsHoldJs(), creditsCardsJs()))}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
