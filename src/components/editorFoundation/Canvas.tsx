@@ -140,6 +140,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
     if (!iframe.current) return;
     let lastAppearance = '';
     const preview = new PreviewController(session.documentId, iframe.current, (reply, pending) => {
+      if (reply === undefined) { setStatus(status => ({ ...status, pending })); return; }
       if (reply?.parts) setParts(reply.parts);
       if (reply?.parts) {
         const appearance = Object.fromEntries(reply.parts.map(p => [p.selector, p.appearance]));
