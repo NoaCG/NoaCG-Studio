@@ -123,7 +123,10 @@ change in flight reads a quiet **Syncing**, and turns amber **Not synced** once 
 unconfirmed change is a minute old; a failed write or an expired session reads Not synced at once
 (playout-workflow-simplification D14). A tab that hears another tab's change returns to Synced
 when that tab's pass confirms it, and a pass that only re-checks (a window regaining focus) does
-not announce itself. A team production's header wears the same chip for its own save. Authentication expiry flushes pending
+not announce itself. A team production's header wears the same chip for its own save, and reads
+Not synced as well with its session gone, a minute off the network or its last read failed. Amber always says why
+and has its retry live, and the shared client ends a request the cloud leaves unanswered for 75 s
+so that the retry can run. Authentication expiry flushes pending
 authoring work, preserves the account library and pauses account editing. Playout transport
 remains available, with a persistent sign-in notice instead of a modal taking its keyboard.
 Anonymous work stays in its own local namespace; sign-in opens the account library without

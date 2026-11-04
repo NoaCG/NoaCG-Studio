@@ -21,6 +21,7 @@ import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { useTeamState } from '../teams/useTeamState';
 import { editedWhen } from '../teams/teamLabels';
+import { cloudFailureWords } from '../../backend/supabase';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 
 /** One empty rundown, so a production without cues hands the shortcut hook a stable list. */
@@ -244,7 +245,7 @@ export default function ProductionShell({
             The cloud chip stays visible: an operator must not miss a save that is late or failed. */}
         {/* One chip for both kinds of production (playout-workflow-simplification AC-12): a team
             production reads its own save, in the same words. */}
-        <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
+        <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote, readError: teamState.loadError } : undefined} />
         {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering: "Panel ✓"
             here and "Panel …" taking it, which open its dialog as the Setup menu's item does; on
             another page, one quiet "Use panel here" that moves it, naming that page in its tooltip,
@@ -296,7 +297,7 @@ export default function ProductionShell({
           once, in words, and dismissable - never silent (TEAMS_PLAN §3). */}
       {teamNote && (
         <div className="pd-team-note" role="status" data-testid="production-team-note">
-          <span>{teamNote}</span>
+          <span>{cloudFailureWords(teamNote)}</span>
           <div className="spacer" />
           <button onClick={() => dismissTeamNote(show.id)}>OK</button>
         </div>

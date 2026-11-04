@@ -201,15 +201,18 @@ export async function syncNow(): Promise<SyncPassReceipt> {
     // tombstone written to the cloud today outlives the local one; the pass never moves an expired
     // tombstone for exactly that reason (`reconcile`). 90 days is generous; a device offline
     // longer than that could resurrect a delete — an acceptable edge for a beta. Best-effort.
-    try {
-      const cutoff = tombstoneCutoff();
-      await remote.purgeTombstones(cutoff);
-      purgeOldTombstones(cutoff);
-      purgeOldShowTombstones(cutoff);
-      purgeOldVideoTombstones(cutoff);
-      purgeOldGraphicTombstones(cutoff);
-    } catch {
-      // Never fail a sync on cleanup.
+    // Not with a cloud that just stopped answering: the retry would queue behind one more wait.
+    if (!result.unanswered) {
+      try {
+        const cutoff = tombstoneCutoff();
+        await remote.purgeTombstones(cutoff);
+        purgeOldTombstones(cutoff);
+        purgeOldShowTombstones(cutoff);
+        purgeOldVideoTombstones(cutoff);
+        purgeOldGraphicTombstones(cutoff);
+      } catch {
+        // Never fail a sync on cleanup.
+      }
     }
     if (epoch !== sessionEpoch) return unavailable;
     // Completed reads answer this caller even when a newer revision queues another pass.

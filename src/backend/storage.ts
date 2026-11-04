@@ -83,6 +83,9 @@ export interface StoredRecord<T = unknown> {
  * is a drop-in.
  */
 export interface StorageProvider {
+  /** Does this failure mean the backend has stopped answering, so asking again this pass only
+   *  waits out the same limit? */
+  stoppedAnswering?(error: unknown): boolean;
   list(kind: SyncKind): Promise<StoredRecord[]>;
   get(kind: SyncKind, id: string): Promise<StoredRecord | null>;
   /** Whole records for several ids of one kind, in one request, bodies as stored (externalized

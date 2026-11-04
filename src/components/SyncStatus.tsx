@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isBackendConfigured } from '../backend/config';
+import { CLOUD_NO_ANSWER, cloudFailureWords } from '../backend/supabase';
 import { getSyncState, onSyncState, startAutoSync, syncNow, type SyncState } from '../backend/syncController';
-import { flushTeamProduction } from '../backend/teamProductions';
+import { flushTeamProduction, refreshTeams } from '../backend/teamProductions';
 import { libraryInUse } from '../model/durableStore';
 import { useAuthUi } from './auth/authUi';
 import LibMenu from './home/LibMenu';
@@ -18,8 +19,16 @@ type Reading = { tone: Tone; summary: string; detail: string; action: 'sync' | '
 const synced = (detail: string): Reading => ({ tone: 'ok', summary: 'Synced', detail, action: 'sync' });
 const notSynced = (detail: string, action: Reading['action'] = 'sync'): Reading => ({ tone: 'warn', summary: 'Not synced', detail, action });
 /** A save in flight: quiet, until the oldest unconfirmed change (`since`) is a minute old. */
-const inFlight = (detail: string, since: number | null | undefined, now: number): Reading =>
-  since != null && now - since >= NOT_SYNCED_AFTER_MS ? notSynced(detail) : { tone: 'quiet', summary: 'Syncing', detail, action: 'sync' };
+const inFlight = (detail: string, late: string, since: number | null | undefined, now: number): Reading =>
+  since != null && now - since >= NOT_SYNCED_AFTER_MS ? notSynced(late) : { tone: 'quiet', summary: 'Syncing', detail, action: 'sync' };
+
+const STILL_WAITING = 'Still waiting for the cloud. Changes stay on this device.';
+const OFFLINE = 'Offline. Changes stay on this device until you reconnect.';
+const isOffline = () => typeof navigator !== 'undefined' && !navigator.onLine;
+const failure = (detail: string): string => {
+  const said = cloudFailureWords(detail);
+  return said === CLOUD_NO_ANSWER && isOffline() ? OFFLINE : said;
+};
 
 /** The personal library's reading. Failures and an expired session show at once; a save in flight
  *  is quiet until its oldest unconfirmed change is a minute old. Never Synced before confirmation. */
@@ -32,11 +41,19 @@ function describe(state: SyncState, now: number): Reading {
       return synced(`Confirmed${at}.${conflicts}`);
     }
     case 'syncing':
-      return inFlight(state.detail ?? (owner && state.firstPass ? 'Checking the cloud revision.' : 'Changes on this device are being saved.'), state.unconfirmedSince, now);
-    case 'pending':
-      return inFlight(typeof navigator !== 'undefined' && !navigator.onLine ? 'Offline. Changes stay on this device until you reconnect.' : 'Changes on this device are waiting to be saved.', state.unconfirmedSince, now);
-    case 'error':
-      return notSynced(state.detail ?? 'Cloud save failed. Pending changes stay on this device.');
+      if (isOffline()) return inFlight(OFFLINE, OFFLINE, state.unconfirmedSince, now);
+      return inFlight(state.detail ?? (owner && state.firstPass ? 'Checking the cloud revision.' : 'Changes on this device are being saved.'), STILL_WAITING, state.unconfirmedSince, now);
+    case 'pending': {
+      const detail = isOffline() ? OFFLINE : 'Changes on this device are waiting to be saved.';
+      return inFlight(detail, detail, state.unconfirmedSince, now);
+    }
+    case 'error': {
+      // Every record failing for one reason is that reason, once, not a list of them.
+      const records = state.last?.failures ?? [];
+      if (records.length > 0 && records.every((f) => cloudFailureWords(f.message) === CLOUD_NO_ANSWER)) return notSynced(failure(CLOUD_NO_ANSWER));
+      const listed = records.reduce((line, f) => line.replace(f.message, cloudFailureWords(f.message)), state.detail ?? 'Cloud save failed. Pending changes stay on this device.');
+      return notSynced(failure(listed));
+    }
     case 'offline':
       return owner
         ? notSynced('Sign in to resume. Pending work stays on this device.', 'resume')
@@ -44,10 +61,15 @@ function describe(state: SyncState, now: number): Reading {
   }
 }
 
-/** A team production's own save (backend/teamProductions.ts), in the same words. */
-function describeTeam(team: TeamSave, since: number | null, now: number): Reading {
-  if (team.saving === 'failed') return notSynced(team.note ?? 'The save failed.');
-  if (team.saving === 'pending') return inFlight(team.note ?? 'Saving to the team.', since, now);
+/** A team production's own save (backend/teamProductions.ts), in the same words. A session or a
+ *  network that is gone holds up this operator's saves and the teammates' alike, so neither reads
+ *  as Synced, whatever the last save did. */
+function describeTeam(team: TeamSave, state: SyncState, since: number | null, now: number): Reading {
+  if (state.phase === 'offline') return describe(state, now);
+  if (team.saving === 'failed') return notSynced(failure(team.note ?? 'The save failed.'));
+  if (isOffline()) return inFlight(OFFLINE, OFFLINE, team.saving === 'pending' ? since : state.unconfirmedSince, now);
+  if (team.saving === 'pending') return inFlight(failure(team.note ?? 'Saving to the team.'), STILL_WAITING, since, now);
+  if (team.readError) return notSynced(failure(team.readError));
   return synced('Saved to the team.');
 }
 
@@ -56,6 +78,8 @@ export interface TeamSave {
   productionId: string;
   saving?: 'pending' | 'failed';
   note?: string | null;
+  /** The team's last read failed, so what is on screen may be out of date. */
+  readError?: string | null;
 }
 
 /**
@@ -64,9 +88,9 @@ export interface TeamSave {
  * one word with a dot: Synced (green), Syncing (grey, quiet), Not synced (amber: a save older than
  * a minute, a failed write or an expired session), Local (a device-only workspace). Its width is
  * fixed, so a change of word never moves the header. A press opens the details with the one action
- * that helps. A team production passes `team` and reads its own save the same way
- * (playout-workflow-simplification AC-12). A save failure also raises AccountSaveNotice, so the
- * chip is never the only place a failure shows.
+ * that helps, which amber never disables. A team production passes `team` and reads its own save
+ * the same way (playout-workflow-simplification AC-12). A save failure also raises
+ * AccountSaveNotice, so the chip is never the only place a failure shows.
  */
 export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
   const [state, setState] = useState<SyncState>(getSyncState());
@@ -81,13 +105,14 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
     startAutoSync();
     return onSyncState(setState);
   }, []);
-  // A team save's age runs from when it went pending.
+  // A team save's age runs from the first change no save has confirmed, so a retry after a failure
+  // does not go back to quiet for another minute.
   const teamSaving = team?.saving;
   useEffect(() => {
-    setTeamSince((since) => (teamSaving === 'pending' ? since ?? Date.now() : null));
+    setTeamSince((since) => (teamSaving ? since ?? Date.now() : null));
   }, [teamSaving]);
   // Wake once, at the minute mark, while something is in flight: the word changes then by itself.
-  const since = team ? (teamSaving === 'pending' ? teamSince : null) : state.phase === 'pending' || state.phase === 'syncing' ? state.unconfirmedSince ?? null : null;
+  const since = team && teamSaving === 'pending' ? teamSince : (team && isOffline()) || state.phase === 'pending' || state.phase === 'syncing' ? state.unconfirmedSince ?? null : null;
   useEffect(() => {
     if (since === null) return;
     const wait = since + NOT_SYNCED_AFTER_MS - Date.now();
@@ -101,7 +126,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
 
   // `now` moves at the minute mark (the effect above), which is the only moment the word can change
   // with no new state behind it.
-  const { tone, summary, detail, action } = team ? describeTeam(team, teamSince, now) : describe(state, now);
+  const { tone, summary, detail, action } = team ? describeTeam(team, state, teamSince, now) : describe(state, now);
   // The chip's one word: the summary, except a device-only workspace, which says Local.
   const word = tone === 'local' ? 'Local' : summary;
   const act = () => {
@@ -111,7 +136,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
     else {
       // The panel holding the focused button is about to unmount: hand focus back to the trigger.
       host.current?.querySelector<HTMLButtonElement>('.sync-status')?.focus();
-      if (team) void flushTeamProduction(team.productionId);
+      if (team) void flushTeamProduction(team.productionId).then(() => refreshTeams());
       else void syncNow();
     }
   };
@@ -120,7 +145,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
   return (
     <div ref={host} className="lib-menu-host">
       <button
-        className={`sync-status sync-${team ? teamSaving ?? 'synced' : state.phase}`}
+        className={`sync-status sync-${team ? (tone === 'ok' ? 'synced' : teamSaving ?? 'failed') : state.phase}`}
         data-tone={tone}
         aria-label={`Sync: ${summary}`}
         aria-expanded={open}
@@ -137,7 +162,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
           {summary}
         </strong>
         <p className="hint" data-testid="sync-detail">{detail}</p>
-        <button className="sync-panel-action" onClick={act} disabled={busy} data-testid="sync-action">
+        <button className="sync-panel-action" onClick={act} disabled={busy && tone !== 'warn'} data-testid="sync-action">
           {action === 'sync' ? 'Sync now' : 'Sign in'}
         </button>
       </LibMenu>

@@ -343,10 +343,13 @@ function noteSave(failed: boolean): void {
 const server = new Map<string, { token: string; doc: Show; updatedBy: string | null; teamId: string }>();
 const dirty = new Set<string>();
 const inflight = new Set<string>();
+/** The line a failed save left in `notes`, to take back when a later save lands. */
+const failureNotes = new Map<string, string>();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 let running: { userId: string; stop: () => void } | null = null;
 let refreshing: Promise<void> | null = null;
 let refreshAgain = false;
+let askedAgain = false;
 
 /** The display name for a user id in a team, "you" for this account, or "a former member". */
 export function teamMemberName(teamId: string, userId: string | null): string {
@@ -367,11 +370,14 @@ export function startTeamSync(userId: string): void {
   setState({ loaded: false, loadError: null });
   const unsubscribeEdits = onTeamShowEdit(scheduleSave);
   const onVisible = () => {
-    if (document.visibilityState === 'visible' && Date.now() >= readsResumeAt) void refreshTeams();
+    if (document.visibilityState === 'visible' && Date.now() >= readsResumeAt) void refreshTeams(false);
   };
+  // Back online is worth asking at once: the wait after a failed read is for a server in trouble.
+  const onOnline = () => void refreshTeams();
   const tick = setInterval(onVisible, POLL_MS);
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('focus', onVisible);
+  window.addEventListener('online', onOnline);
   running = {
     userId,
     stop: () => {
@@ -379,6 +385,7 @@ export function startTeamSync(userId: string): void {
       clearInterval(tick);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
+      window.removeEventListener('online', onOnline);
     },
   };
   void refreshTeams();
@@ -394,6 +401,7 @@ export function stopTeamSync(): void {
   server.clear();
   dirty.clear();
   inflight.clear();
+  failureNotes.clear();
   knownAssets.clear();
   refusedAssets.clear();
   noteRead(false);
@@ -406,21 +414,26 @@ export function stopTeamSync(): void {
 /**
  * Ask the server again: teams, members and every production's head, then the documents whose
  * token moved. Calls that arrive while one is out coalesce into ONE follow-up, so a join followed
- * by a focus event is two reads, not a queue of them.
+ * by a focus event is two reads, not a queue of them. `asked` is false only for the poll.
  */
-export function refreshTeams(): Promise<void> {
+export function refreshTeams(asked = true): Promise<void> {
   if (!running) return Promise.resolve();
   if (refreshing) {
     refreshAgain = true;
+    askedAgain ||= asked;
     return refreshing;
   }
   refreshing = (async () => {
     try {
+      let again = false;
       do {
         refreshAgain = false;
+        askedAgain = false;
         await refreshOnce();
-        // A read that just failed has set its own wait; a call queued behind it does not jump that.
-      } while (refreshAgain && running && Date.now() >= readsResumeAt);
+        // A read that just failed has set its own wait; a poll queued behind it does not jump
+        // that, and something somebody asked for does.
+        again = refreshAgain && (askedAgain || Date.now() >= readsResumeAt);
+      } while (again && running);
     } finally {
       refreshing = null;
     }
@@ -547,7 +560,7 @@ function scheduleSave(id: string): void {
     retainTeamEdit(running.userId, id, { token: known.token, base: known.doc, local, teamId: known.teamId, updatedBy: known.updatedBy });
   } catch (error) {
     setSaving(id, 'failed');
-    setState({ notes: { ...state.notes, [id]: error instanceof Error ? error.message : String(error) } });
+    noteFailure(id, error instanceof Error ? error.message : String(error));
     return;
   }
   const existing = timers.get(id);
@@ -572,7 +585,7 @@ async function pushSave(id: string): Promise<void> {
   if (inflight.has(id)) return; // The in-flight save re-schedules itself when it sees `dirty`.
   const storageError = await commitDurableWrites();
   if (running !== owner || inflight.has(id)) return;
-  if (storageError) { setSaving(id, 'failed'); setState({ notes: { ...state.notes, [id]: storageError } }); return; }
+  if (storageError) { setSaving(id, 'failed'); noteFailure(id, storageError); return; }
   // The operator may edit while IndexedDB is committing. Capture the document after that
   // wait so clearing dirty cannot mistake the older snapshot for the confirmed revision.
   const known = server.get(id);
@@ -652,8 +665,18 @@ async function pushSave(id: string): Promise<void> {
   if (running !== owner) return;
   noteSave(failure !== null);
   setSaving(id, failure ? 'failed' : dirty.has(id) ? 'pending' : null);
-  if (failure) setState({ notes: { ...state.notes, [id]: failure } });
-  else if (dirty.has(id)) scheduleSave(id);
+  if (failure) noteFailure(id, failure);
+  else {
+    // A failure's line goes with the failure, or it reads as a problem after the retry has saved.
+    if (state.notes[id] === failureNotes.get(id)) dismissTeamNote(id);
+    failureNotes.delete(id);
+    if (dirty.has(id)) scheduleSave(id);
+  }
+}
+
+function noteFailure(id: string, message: string): void {
+  failureNotes.set(id, message);
+  setState({ notes: { ...state.notes, [id]: message } });
 }
 
 /** Forget the "a teammate saved over you" line once it has been read. */

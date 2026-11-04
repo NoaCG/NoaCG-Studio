@@ -19,7 +19,7 @@
 // reads `body_updated_at`, the copy a trigger keeps (migration 0107).
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getSupabase } from './supabase';
+import { NOT_ANSWERED, getSupabase, isNotAnswered } from './supabase';
 import { isSingleton, markPutDenied, toStoredRecord, type StorageProvider, type StoredRecord, type SyncKind } from './storage';
 import { externalizeAssets, rehydrateAssets, dataUrlToBlob, blobToDataUrl, classifyAssetRefusal } from './assets';
 import { deterministicUuid } from '../model/id';
@@ -71,9 +71,15 @@ export class SupabaseProvider implements StorageProvider {
   }
 
   private async uid(sb: SupabaseClient): Promise<string> {
-    const { data } = await sb.auth.getUser();
-    if (!data.user) throw new Error('Not signed in.');
+    const { data, error } = await sb.auth.getUser();
+    // A request that failed says nothing about the session. Saying "Not signed in" for it would
+    // send somebody with a live session to sign in again.
+    if (!data.user) throw new Error(error?.name === 'AuthRetryableFetchError' ? NOT_ANSWERED : 'Not signed in.');
     return data.user.id;
+  }
+
+  stoppedAnswering(error: unknown): boolean {
+    return isNotAnswered(error);
   }
 
   async list(kind: SyncKind): Promise<StoredRecord[]> {
@@ -197,8 +203,12 @@ export class SupabaseProvider implements StorageProvider {
 
   private async download(sb: SupabaseClient, key: string): Promise<string | null> {
     const { data, error } = await sb.storage.from(BUCKET).download(key);
-    if (error || !data) return null;
-    return blobToDataUrl(data);
+    if (data) return blobToDataUrl(data);
+    // Only an object that is really gone may read as blank (rehydrateAssets). A read that failed
+    // fails the pull, or the blank would be saved here, read as Synced and pushed to every device.
+    const { statusCode, message } = (error ?? {}) as { statusCode?: unknown; message?: unknown };
+    if (String(statusCode) === '404' || /not found/i.test(String(message))) return null;
+    throw new Error(`Cloud get(asset) failed: ${String(message ?? 'no answer')}`);
   }
 }
 
