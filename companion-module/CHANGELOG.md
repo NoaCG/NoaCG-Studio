@@ -8,6 +8,8 @@ Write a section the way you would tell an operator what they get by importing ag
 
 ## Unreleased
 
+- The Take key from Show control now says what its next press does: OUT on red while the selected cue or held folder is on air, TAKE and the cue's name otherwise, also when another cue is on air, PREVIEW in the page's preview-first mode, and FROM THE TOP when a One-by-one folder has reached its end. A Take key already on your deck keeps its old words until you drag the preset onto it again.
+
 ## 0.2.0 - 2026-11-04
 
 The first release you can download yourself, from the NoaCG Downloads page. The module runs a production from a Stream Deck or any Companion surface: Take, Out, Next, cues, the server clip clock and the live controls of a pinned graphic, with what is on air, what is selected and what is allowed shown on the keys.
