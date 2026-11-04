@@ -23,9 +23,9 @@ import {
 } from '../aiImportAnalysisProfile.js';
 import { IMPORT_ANALYSIS_TASK_ID, importAnalysisTaskProfile, taskConfigured } from '../aiTaskRegistry.js';
 import { admitTaskIp } from '../aiLiteRateLimit.js';
-import { resolveUserEntitlement } from '../entitlements.js';
+import { resolvePaidAiAccess } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
-import { routeDisabled, systemSettings } from '../systemSettings.js';
+import { routeDisabled } from '../systemSettings.js';
 import {
   getLiteGenerationStore,
   liteLedgerConfigured,
@@ -150,11 +150,15 @@ export default {
     // The entitlement gate, and the kill switch on the route it would use. Both were missing:
     // an admin could disable graphic analysis, or switch off the model serving it, and this
     // endpoint went on spending money. A switch that does not stop the spend is not a switch.
-    const entitlement = await resolveUserEntitlement(user.userId);
-    if (!allows(entitlement, 'ai.import-analysis')) {
+    // Both read strictly: an unreadable switch or plan refuses here, before any booking (#2034).
+    const access = await resolvePaidAiAccess(user.userId);
+    if (!access.ok) {
+      return liteError('profile_not_configured', 'Graphic analysis is temporarily unavailable. Try again shortly.', 503, true);
+    }
+    if (!allows(access.entitlement, 'ai.import-analysis')) {
       return liteError('profile_disabled', 'Graphic analysis is not available for this account.', 403);
     }
-    if (routeDisabled(await systemSettings(), profile.route)) {
+    if (routeDisabled(access.settings, profile.route)) {
       return liteError('profile_not_configured', 'Graphic analysis has no available model route.', 503, true);
     }
 

@@ -6,11 +6,16 @@
 // over. Splitting it that way is what keeps "why does this user have access" answerable with
 // the same code that granted it.
 //
-// FAILURE POSTURE: every load failure degrades to the built-in defaults rather than throwing.
-// A deployment with no Supabase configuration has no plans to read and must keep working
-// exactly as it does today; a deployment whose database is briefly unreachable must not start
-// refusing renders because a plans lookup timed out. Both land on DEFAULT_SIGNED_IN_PLAN,
-// which is today's behaviour written down - so the degraded answer is the correct answer.
+// FAILURE POSTURE, two of them. resolveUserEntitlement() degrades every load failure to the
+// built-in defaults rather than throwing: a deployment with no Supabase configuration has no
+// plans to read and must keep working exactly as it does today, and a deployment whose
+// database is briefly unreachable must not start refusing renders because a plans lookup timed
+// out. Both land on DEFAULT_SIGNED_IN_PLAN.
+//
+// That default is the wrong answer when the request SPENDS money: it would read a suspended
+// account, or a plan that turns a paid AI feature off, as allowed (#2034). So every paid AI
+// request resolves through resolvePaidAiAccess() instead, which says when a read failed, and
+// refuses before any reservation or model call.
 //
 // It is also NOT the sign-in check. Callers resolve for whoever they already authenticated:
 // pass null for an anonymous request and the anonymous defaults come back.
@@ -28,7 +33,7 @@ import {
 import type { AiGatewaySurface } from '../../src/ai/modelTypes.js';
 import { adminDb, adminConfigured } from './adminAuth.js';
 import { liteProfile, type LiteProfile } from './aiLiteProfile.js';
-import { systemSettings } from './systemSettings.js';
+import { readSystemSettings, systemSettings, type SystemSettings } from './systemSettings.js';
 
 interface PlanRow {
   key: string;
@@ -128,43 +133,43 @@ export function emailDomain(email: string | null | undefined): string | null {
  * function; what the resolver receives is a plan, the same shape an explicit assignment
  * produces. Nothing about the address reaches the browser or the ledger.
  *
- * Every failure degrades to null - no plan, so the built-in defaults - matching this module's
- * standing posture: a lookup that cannot answer must never widen OR narrow access by accident.
+ * A failure answers no plan, so the built-in defaults, with `failed` set: the fail-open loader
+ * uses the defaults, and a paid AI request refuses (resolvePaidAiAccess).
  */
 async function planForEmailDomain(
   db: Awaited<ReturnType<typeof adminDb>>,
   userId: string,
-): Promise<PlanShape | null> {
+): Promise<{ plan: PlanShape | null; failed: boolean }> {
   try {
-    const { data: user } = await db.auth.admin.getUserById(userId);
+    const { data: user, error: userError } = await db.auth.admin.getUserById(userId);
+    if (userError) return { plan: null, failed: true };
     const domain = emailDomain(user?.user?.email);
-    if (!domain) return null;
+    if (!domain) return { plan: null, failed: false };
     // The domain table's PRIMARY KEY is what makes this a single answer rather than a race
     // (see the migration): one domain can only ever name one plan.
-    const { data } = await db
+    const { data, error } = await db
       .from('plan_email_domains')
       .select('plans!inner(key, name, features, limits, render_tier, render_formats, status)')
       .eq('domain', domain)
       .maybeSingle();
+    if (error) return { plan: null, failed: true };
     const row = data as { plans: (PlanRow & { status?: string }) | (PlanRow & { status?: string })[] } | null;
     const planRow = Array.isArray(row?.plans) ? row?.plans[0] : row?.plans;
     // An ARCHIVED plan is not an offer. Its explicit assignments are somebody's deliberate
     // decision and keep working; sweeping a whole domain onto an archived plan is not.
-    if (!planRow || planRow.status === 'archived') return null;
-    return toPlan(planRow);
+    if (!planRow || planRow.status === 'archived') return { plan: null, failed: false };
+    return { plan: toPlan(planRow), failed: false };
   } catch {
-    return null;
+    return { plan: null, failed: true };
   }
 }
 
 const EMPTY: EntitlementRows = { accountState: 'active', plan: null, grants: [] };
 
-/**
- * Fetch the rows for one user. Exported so the admin surface can show what was loaded next to
- * what it resolved to, which is how a wrong answer becomes debuggable rather than mysterious.
- */
-export async function loadEntitlementRows(userId: string): Promise<EntitlementRows> {
-  if (!adminConfigured()) return EMPTY;
+/** The rows for one user, and whether any read behind them failed. The rows are what the
+ *  fail-open loader has always answered; `failed` is what a paid AI request refuses on. */
+async function fetchEntitlementRows(userId: string): Promise<{ rows: EntitlementRows; failed: boolean }> {
+  if (!adminConfigured()) return { rows: EMPTY, failed: false };
   try {
     const db = await adminDb();
     const [account, assignment, grants] = await Promise.all([
@@ -202,13 +207,42 @@ export async function loadEntitlementRows(userId: string): Promise<EntitlementRo
     // domain's plan (migration 0045). Both land in the SAME `plan` slot at the same precedence
     // rank, so a grant or a manual override still outranks either - a domain widens who gets a
     // plan, never what a plan outranks.
-    const plan = planRow && !expired ? toPlan(planRow) : await planForEmailDomain(db, userId);
+    const explicit = planRow && !expired ? toPlan(planRow) : null;
+    const domainPlan = explicit ? null : await planForEmailDomain(db, userId);
+    const plan = explicit ?? domainPlan?.plan ?? null;
 
     const rows = (grants.data ?? []) as GrantRow[];
-    return { accountState: state, plan, grants: rows.map(toGrant).filter((g): g is GrantShape => g !== null) };
+    return {
+      rows: { accountState: state, plan, grants: rows.map(toGrant).filter((g): g is GrantShape => g !== null) },
+      failed: Boolean(account.error || assignment.error || grants.error || domainPlan?.failed),
+    };
   } catch {
-    return EMPTY;
+    return { rows: EMPTY, failed: true };
   }
+}
+
+/**
+ * Fetch the rows for one user, failing open to the defaults. Exported so the admin surface can
+ * show what was loaded next to what it resolved to, which is how a wrong answer becomes
+ * debuggable rather than mysterious.
+ */
+export async function loadEntitlementRows(userId: string): Promise<EntitlementRows> {
+  return (await fetchEntitlementRows(userId)).rows;
+}
+
+function signedInEntitlement(userId: string, rows: EntitlementRows, system: SystemSettings): Entitlement {
+  return resolveEntitlement({
+    userId,
+    ...rows,
+    now: new Date().toISOString(),
+    // The instance-wide kill switches outrank everything the plan or a grant says. An admin
+    // reaching for one is saying "this is broken right now", and a per-user override that
+    // could defeat it would make the switch useless exactly when it matters.
+    disabledFeatures: system.disabledFeatures,
+    // The legacy AI_LITE_OVERRIDE_USER_IDS list, resolved as a source the admin page can name
+    // rather than as invisible behaviour. Removed one release after plans ship (docs/ADMIN.md).
+    envOverride: liteProfile().overrideUserIds.includes(userId),
+  });
 }
 
 /**
@@ -225,19 +259,27 @@ export async function resolveUserEntitlement(userId: string | null): Promise<Ent
       disabledFeatures: system.disabledFeatures,
     });
   }
-  const rows = await loadEntitlementRows(userId);
-  return resolveEntitlement({
-    userId,
-    ...rows,
-    now: new Date().toISOString(),
-    // The instance-wide kill switches outrank everything the plan or a grant says. An admin
-    // reaching for one is saying "this is broken right now", and a per-user override that
-    // could defeat it would make the switch useless exactly when it matters.
-    disabledFeatures: system.disabledFeatures,
-    // The legacy AI_LITE_OVERRIDE_USER_IDS list, resolved as a source the admin page can name
-    // rather than as invisible behaviour. Removed one release after plans ship (docs/ADMIN.md).
-    envOverride: liteProfile().overrideUserIds.includes(userId),
-  });
+  return signedInEntitlement(userId, await loadEntitlementRows(userId), system);
+}
+
+/** What a paid AI request may act on: the account's entitlement and the settings it was
+ *  resolved with, or which read failed. There is no default to fall back to on purpose. */
+export type PaidAiAccess =
+  | { ok: true; entitlement: Entitlement; settings: SystemSettings }
+  | { ok: false; failed: 'settings' | 'account' };
+
+/**
+ * The entitlement read for a request that spends NoaCG's money (#2034). Unlike
+ * resolveUserEntitlement it never answers defaults for a read it could not make: an
+ * unreadable kill switch, account state or plan is `ok: false`, and the caller refuses before
+ * any reservation, burst count against an allowance, gateway or model call.
+ */
+export async function resolvePaidAiAccess(userId: string): Promise<PaidAiAccess> {
+  const system = await readSystemSettings();
+  if (!system.ok) return { ok: false, failed: 'settings' };
+  const read = await fetchEntitlementRows(userId);
+  if (read.failed) return { ok: false, failed: 'account' };
+  return { ok: true, settings: system.settings, entitlement: signedInEntitlement(userId, read.rows, system.settings) };
 }
 
 // ── the gateway surface gate ───────────────────────────────────────────────────────────

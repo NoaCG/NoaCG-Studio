@@ -11,8 +11,8 @@ import { serverAuthConfigured, verifyUser, type AuthedUser } from '../auth.js';
 import { proProfile, proProfileForUser, type ProProfile } from '../aiProProfile.js';
 import { proTaskProfile, taskConfigured } from '../aiTaskRegistry.js';
 import { liteLedgerConfigured } from '../aiLiteStore.js';
-import { resolveUserEntitlement } from '../entitlements.js';
-import { routeDisabled, systemSettings } from '../systemSettings.js';
+import { resolvePaidAiAccess } from '../entitlements.js';
+import { readSystemSettings, routeDisabled } from '../systemSettings.js';
 import { allows, type Entitlement } from '../../../src/entitlements/contract.js';
 import type { ProUnavailableReason } from '../../../src/ai/pro/types.js';
 
@@ -49,25 +49,28 @@ export interface ProGateTerms {
   task: boolean;
   /** Every funded route has a managed key to spend. */
   managedKey: boolean;
-  /** No funded route is switched off from /admin. */
+  /** The /admin switches could be read. Unreadable switches refuse hosted Pro (#2034). */
+  settingsReadable: boolean;
+  /** No funded route is switched off from /admin (false when the switches are unreadable). */
   routesEnabled: boolean;
   /** The AND the public gate acts on: auth && task && ledger && managedKey && routesEnabled. */
   configured: boolean;
 }
 
 export async function proGateTerms(profile: ProProfile = proProfile()): Promise<ProGateTerms> {
-  const system = await systemSettings();
+  const system = await readSystemSettings();
   const auth = serverAuthConfigured();
   const ledger = liteLedgerConfigured();
   const task = taskConfigured(proTaskProfile(profile));
   const managedKey = profile.routes.every((route) => Boolean(managedAiKey(route.provider)));
-  const routesEnabled = !profile.routes.some((route) => routeDisabled(system, route));
+  const routesEnabled = system.ok && !profile.routes.some((route) => routeDisabled(system.settings, route));
   return {
     enabled: profile.enabled,
     auth,
     ledger,
     task,
     managedKey,
+    settingsReadable: system.ok,
     routesEnabled,
     configured: auth && task && ledger && managedKey && routesEnabled,
   };
@@ -93,7 +96,12 @@ export async function resolveProGate(req: Request): Promise<ProGate> {
   const terms = await proGateTerms(profile);
   const requiresSignIn = terms.auth;
   const configured = terms.configured;
-  const entitlement = user ? await resolveUserEntitlement(user.userId) : null;
+  // The plan reads strictly too: an unreadable account or plan is not the default plan, so it
+  // is refused like unreadable switches - as the retryable 'disabled', never 'not-configured',
+  // because it is an outage rather than the deployment's configuration (#2034).
+  const access = user && terms.settingsReadable ? await resolvePaidAiAccess(user.userId) : null;
+  const unreadable = !terms.settingsReadable || (access !== null && !access.ok);
+  const entitlement = access?.ok ? access.entitlement : null;
   const entitled = entitlement ? allows(entitlement, 'ai.pro') : false;
   const available = profile.enabled && configured && Boolean(user) && entitled;
   return {
@@ -105,7 +113,7 @@ export async function resolveProGate(req: Request): Promise<ProGate> {
     available,
     ...(available
       ? {}
-      : !profile.enabled
+      : !profile.enabled || unreadable
         ? { reason: 'disabled' as const }
         : !configured
           ? { reason: 'not-configured' as const }

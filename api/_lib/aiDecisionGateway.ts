@@ -31,7 +31,7 @@ import {
 } from './aiGateway.js';
 import { managedAiKey } from './aiCredentials.js';
 import { decisionModelEntry, modelRouteKey } from './aiModelCatalog.js';
-import { routeDisabled, systemSettings, type SystemSettings } from './systemSettings.js';
+import { readSystemSettings, routeDisabled, type SystemSettings } from './systemSettings.js';
 import {
   getLiteGenerationStore,
   liteLedgerConfigured,
@@ -39,7 +39,7 @@ import {
   type LiteGenerationStore,
 } from './aiLiteStore.js';
 import { hasCurrentAiConsent } from './aiConsentStore.js';
-import { resolveUserEntitlement } from './entitlements.js';
+import { resolvePaidAiAccess } from './entitlements.js';
 import { allows } from '../../src/entitlements/contract.js';
 import { svgInterpretationTaskProfile, taskConfigured } from './aiTaskRegistry.js';
 import {
@@ -393,6 +393,18 @@ export type SvgInterpretationOutcome =
 const refuse = (reason: SvgInterpretationRefusal | DecisionFailure, detail?: string, generationId?: string): SvgInterpretationOutcome =>
   ({ ok: false, fallback: 'deterministic', reason, ...(detail ? { detail } : {}), ...(generationId ? { generationId } : {}) });
 
+async function strictSettings(): Promise<SystemSettings> {
+  const read = await readSystemSettings();
+  if (!read.ok) throw new Error('system settings unreadable');
+  return read.settings;
+}
+
+async function paidEntitled(userId: string): Promise<boolean> {
+  const access = await resolvePaidAiAccess(userId);
+  if (!access.ok) throw new Error(`${access.failed} unreadable`);
+  return allows(access.entitlement, 'ai.import-analysis');
+}
+
 export async function runSvgInterpretation(
   input: SvgInterpretationInput,
   deps: SvgInterpretationDependencies = {},
@@ -415,11 +427,11 @@ async function interpret(input: SvgInterpretationInput, deps: SvgInterpretationD
   if (!taskConfigured(svgInterpretationTaskProfile(profile)) || !gateway || !entry || !price) return refuse('not_configured');
   // Quotas need the durable ledger; an ephemeral per-instance store would not hold them.
   if (!deps.store && !liteLedgerConfigured()) return refuse('not_configured');
-  // The admin kill switch on the route (system_settings.disabled_routes).
-  if (routeDisabled(await (deps.settings ?? systemSettings)(), profile.route)) return refuse('route_disabled');
+  // The admin kill switch on the route (system_settings.disabled_routes). Both defaults read
+  // strictly and throw on a failed read, which refuses as `unavailable` (#2034).
+  if (routeDisabled(await (deps.settings ?? strictSettings)(), profile.route)) return refuse('route_disabled');
   // The account's entitlement to graphic analysis, the feature this task is part of.
-  const entitled = deps.entitled
-    ?? (async (userId: string) => allows(await resolveUserEntitlement(userId), 'ai.import-analysis'));
+  const entitled = deps.entitled ?? paidEntitled;
   if (!(await entitled(input.userId))) return refuse('not_entitled');
   // Consent before anything about the content is looked at.
   const consented = await (deps.hasConsent ?? ((userId) => hasCurrentAiConsent(userId, AI_NOTICE_VERSION)))(input.userId);

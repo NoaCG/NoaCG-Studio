@@ -19,9 +19,9 @@ import {
   jitteredCapacityDelay,
   liteCapacityRetryPlan,
 } from '../aiLiteRateLimit.js';
-import { applyEntitlementToLiteProfile, resolveUserEntitlement } from '../entitlements.js';
+import { applyEntitlementToLiteProfile, resolvePaidAiAccess } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
-import { routeDisabled, systemSettings } from '../systemSettings.js';
+import { routeDisabled } from '../systemSettings.js';
 import { LITE_TASK_ID, liteTaskProfile, taskConfigured } from '../aiTaskRegistry.js';
 import {
   getLiteGenerationStore,
@@ -364,16 +364,21 @@ export default {
     // Legacy env list first, then the entitlement: an explicit plan number or a per-user
     // override is a deliberate decision and outranks the blanket development bump.
     profile = liteProfileForUser(profile, user.userId);
-    const entitlement = await resolveUserEntitlement(user.userId);
-    if (!allows(entitlement, 'ai.lite')) {
+    // The plan and the switches read strictly: a failed read refuses here, before any booking,
+    // rather than resolving the default plan and empty switches (#2034).
+    const access = await resolvePaidAiAccess(user.userId);
+    if (!access.ok) {
+      return liteError('profile_not_configured', 'NoaCG Lite is temporarily unavailable. Try again shortly.', 503, true);
+    }
+    if (!allows(access.entitlement, 'ai.lite')) {
       return liteError('profile_disabled', 'NoaCG Lite is not available for this account.', 403);
     }
-    profile = applyEntitlementToLiteProfile(profile, entitlement);
+    profile = applyEntitlementToLiteProfile(profile, access.entitlement);
 
-    // A route switched off from the admin surface stays off. Unlike every other control this
-    // one fails CLOSED, because the reason to disable a route is that its output is wrong or
-    // its cost has spiked - serving it anyway is exactly the outcome the switch prevents.
-    const system = await systemSettings();
+    // A route switched off from the admin surface stays off: the reason to disable a route is
+    // that its output is wrong or its cost has spiked, and serving it anyway is exactly the
+    // outcome the switch prevents.
+    const system = access.settings;
     if (routeDisabled(system, profile.primary) && routeDisabled(system, profile.fallback)) {
       return liteError('profile_not_configured', 'NoaCG Lite has no available model route.', 503, true);
     }
