@@ -36,10 +36,10 @@ import {
 import { importAnalysisModelRequest } from './request.js';
 import {
   IMPORT_ANALYSIS_LIMITS,
+  importAnalysisFromWire,
   importAnalysisImageSizeOk,
   type ImportAnalysisRequest,
   type ImportAnalysisResult,
-  type ImportedGraphicAnalysisV1,
 } from '../../../src/ai/importAnalysis/contract.js';
 import type { ModelResult } from '../../../src/ai/modelTypes.js';
 
@@ -216,10 +216,10 @@ export default {
         });
         return liteError('cost_ceiling', 'This analysis exceeded its cost ceiling and was stopped.', 503);
       }
-      // The gateway revalidated the output against IMPORT_ANALYSIS_OUTPUT's schema, so
-      // this cast is the schema's own guarantee; deterministic clamping/px conversion
+      // The gateway revalidated the output against IMPORT_ANALYSIS_OUTPUT's schema, so the
+      // shape is the schema's own guarantee; deterministic clamping/px conversion
       // is the browser normalizer's job (src/ai/importAnalysis/normalize.ts).
-      const analysis = result.output as unknown as ImportedGraphicAnalysisV1;
+      const analysis = importAnalysisFromWire(result.output);
       record = await store.update(record?.id ?? '', {
         ...modelResultPatch(result),
         status: 'usable',
