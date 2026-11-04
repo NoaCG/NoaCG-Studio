@@ -33,11 +33,10 @@ import {
   type LiteGenerationRecord,
   type LiteReservation,
 } from '../aiLiteStore.js';
+import { importAnalysisModelRequest } from './request.js';
 import {
   IMPORT_ANALYSIS_LIMITS,
   importAnalysisImageSizeOk,
-  IMPORT_ANALYSIS_OUTPUT,
-  importAnalysisSystemPrompt,
   type ImportAnalysisRequest,
   type ImportAnalysisResult,
   type ImportedGraphicAnalysisV1,
@@ -196,27 +195,7 @@ export default {
     try {
       const result = withConfiguredCost(await executeGatewayRequest(
         {
-          request: {
-            system: importAnalysisSystemPrompt(profile.promptVersion),
-            messages: [{
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({
-                    canvas: { width: request.image.width, height: request.image.height },
-                    instructions: request.instructions ?? '',
-                  }),
-                },
-                {
-                  type: 'image',
-                  source: { type: 'base64', media_type: request.image.mediaType, data: request.image.base64 },
-                },
-              ],
-            }],
-            maxTokens: profile.outputTokens,
-            structuredOutput: IMPORT_ANALYSIS_OUTPUT,
-          },
+          request: importAnalysisModelRequest(request, profile),
           route: profile.route,
         },
         { keyFor: async (provider) => managedAiKey(provider) },
