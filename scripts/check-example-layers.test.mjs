@@ -109,6 +109,17 @@ test('a simple type keeps its one field set', () => {
   caught(audit(titled), 'text', /mix title and name tag names/);
 });
 
+test('editable credits number each further line of the sample, and nothing else', () => {
+  // Each role and each name its own line, Credits first: the editable-credits example (#1999).
+  const lines = (...names) => drawn({ text: names.map((n, i) => `<text id="${n.replace(/ /g, '_')}" x="760" y="${200 + i * 60}">Line</text>`).join('') });
+  assert.deepEqual(audit(lines('Heading', 'Credits', 'Credits 2', 'Credits 3', 'Credits 4')), []);
+  caught(audit(lines('Credits', 'Credits 2', 'Director 3')), 'text', /"Director 3" is not a credits field - a credits graphic has Credits and Heading, then Credits 2, Credits 3 for each further line/);
+  caught(audit(lines('Credits', 'Credits A')), 'text', /"Credits A" is not a credits field/);
+  caught(audit(lines('Credits 2', 'Credits 3')), 'text', /a credits graphic has a "Credits" text/);
+  // A name tag has no numbered field.
+  caught(audit(lines('Name', 'Role', 'Role 2')), 'text', /"Role 2" is not a name tag field/);
+});
+
 test('the behaviour words come from words.json at run time, never from a copy', () => {
   // A moment word that does not exist yet is refused...
   const src = mutate(example('scoreboard.svg'), 'data-name="Full time"', 'data-name="Sparkle"');
