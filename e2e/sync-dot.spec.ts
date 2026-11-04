@@ -26,10 +26,13 @@ async function cloud(page: Page) {
     localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
   }, { owner, user, token, expires });
   const state = {
-    rows: new Map<string, Row>(), reads: 0, silent: false, down: false,
+    rows: new Map<string, Row>(), reads: 0, silent: false, silentWrites: false, held: 0, down: false,
     doc: null as { id: string } | null, token: '2026-10-06T00:00:00.000Z', revision: 0,
   };
-  const never = new Promise<void>(() => {});
+  const hold = () => {
+    state.held++;
+    return new Promise<void>(() => {});
+  };
   await page.route('https://cloudmock.invalid/**', async route => {
     const request = route.request(), url = new URL(request.url());
     const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) }).catch(() => {});
@@ -43,7 +46,7 @@ async function cloud(page: Page) {
       return respond(teamRow());
     }
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
-      if (state.silent) await never;
+      if (state.silent) await hold();
       if (state.down) return route.abort('connectionfailed').catch(() => {});
       const { p_expected, p_doc } = request.postDataJSON();
       if (p_expected !== state.token) return respond({ saved: false, updated_at: state.token, updated_by: owner, doc: state.doc });
@@ -52,7 +55,7 @@ async function cloud(page: Page) {
       return respond({ saved: true, updated_at: state.token, updated_by: owner, doc: state.doc });
     }
     if (url.pathname === '/rest/v1/documents') {
-      if (state.silent) await never;
+      if (state.silent) await hold();
       if (state.down) return route.abort('connectionfailed').catch(() => {});
       if (request.method() === 'GET') {
         state.reads++;
@@ -62,6 +65,7 @@ async function cloud(page: Page) {
         return respond(url.searchParams.get('select')?.includes('body,') ? found.filter(row => !ids || ids.includes(row.id)) : found.map(row => ({ id: row.id, deleted: row.deleted, updatedAt: row.body.updatedAt })));
       }
       if (request.method() === 'POST') {
+        if (state.silentWrites) await hold();
         const row = request.postDataJSON();
         state.rows.set(row.id, row);
         return respond({ body: row.body });
@@ -141,6 +145,7 @@ test('a sync the cloud never answers says so, and the retry saves the change onc
   await edit(page, id, 'Saved by the retry');
   await page.clock.fastForward(3_000);
   await expect(chip(page)).toHaveText('Syncing');
+  await expect.poll(() => state.held).toBeGreaterThan(0);
   await page.clock.fastForward(A_MINUTE);
   await expectAmber(page, /Still waiting for the cloud/);
   await page.screenshot({ path: 'test-results/sync-dot-waiting.png', clip: { x: 0, y: 0, width: 1280, height: 220 } });
@@ -156,6 +161,26 @@ test('a sync the cloud never answers says so, and the retry saves the change onc
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
 });
 
+test('a save the cloud reads for but never answers ends in one reason, and the retry lands it', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  const id = await production(page);
+  state.silentWrites = true;
+  await edit(page, id, 'Pushed by the retry');
+  await page.clock.fastForward(3_000);
+  await expect.poll(() => state.held).toBe(1);
+  await page.clock.fastForward(A_MINUTE);
+  await expectAmber(page, /Still waiting for the cloud/);
+  await page.keyboard.press('Escape');
+  // The limit on a write also leaves time to send what it carries.
+  await page.clock.fastForward(A_MINUTE);
+  await expectAmber(page, /^The cloud did not answer/);
+  state.silentWrites = false;
+  await page.getByTestId('sync-action').click();
+  await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+  expect([...state.rows.values()].some(row => cueLabel(row.body) === 'Pushed by the retry')).toBe(true);
+});
+
 test('a retry pressed while the pass still waits runs as soon as that pass gives up', async ({ page }) => {
   const state = await cloud(page);
   await page.clock.install();
@@ -163,6 +188,7 @@ test('a retry pressed while the pass still waits runs as soon as that pass gives
   state.silent = true;
   await edit(page, id, 'Queued by the press');
   await page.clock.fastForward(3_000);
+  await expect.poll(() => state.held).toBeGreaterThan(0);
   await page.clock.fastForward(A_MINUTE);
   await expectAmber(page, /Still waiting for the cloud/);
   await page.getByTestId('sync-action').click();
@@ -180,6 +206,7 @@ test('a team save the cloud never answers says so, gives up, and lands on its re
   await edit(page, id, 'Team retry');
   await page.clock.fastForward(1_000);
   await expect(chip(page)).toHaveText('Syncing');
+  await expect.poll(() => state.held).toBeGreaterThan(0);
   await page.clock.fastForward(A_MINUTE);
   await expectAmber(page, /Still waiting for the cloud/);
   await page.getByTestId('sync-action').click();

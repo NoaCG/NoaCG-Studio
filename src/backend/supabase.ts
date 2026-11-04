@@ -37,9 +37,10 @@ function bodyBytes(body: BodyInit | null | undefined): number {
 }
 
 /**
- * Every REST, auth and Storage request of the shared client, with that limit up to the first byte
- * of the answer, so a large download still takes as long as it takes. It fails as an abort because
- * the library retries any other failure of a read. Edge functions keep their own time.
+ * Every REST, auth and Storage request of the shared client, with that limit on the wait for the
+ * answer and on each silence inside it, so a large download still takes as long as it takes while
+ * it moves. It fails as an abort because the library retries any other failure of a read. Edge
+ * functions keep their own time.
  */
 function answeredFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const request = input instanceof Request ? input : null;
@@ -49,11 +50,28 @@ function answeredFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Re
   const asked = init?.signal ?? request?.signal;
   if (asked?.aborted) limit.abort(asked.reason);
   else asked?.addEventListener('abort', () => limit.abort(asked.reason), { once: true });
-  const timer = setTimeout(
-    () => limit.abort(new DOMException('The cloud did not answer.', 'AbortError')),
-    NO_ANSWER_MS + bodyBytes(init?.body) / SEND_BYTES_PER_MS,
-  );
-  return fetch(input, { ...init, signal: limit.signal }).finally(() => clearTimeout(timer));
+  const giveUp = () => limit.abort(new DOMException('The cloud did not answer.', 'AbortError'));
+  let timer = setTimeout(giveUp, NO_ANSWER_MS + bodyBytes(init?.body) / SEND_BYTES_PER_MS);
+  const waitAgain = () => {
+    clearTimeout(timer);
+    timer = setTimeout(giveUp, NO_ANSWER_MS);
+  };
+  return fetch(input, { ...init, signal: limit.signal }).then((response) => {
+    clearTimeout(timer);
+    if (!response.body) return response;
+    waitAgain();
+    const watched = response.body.pipeThrough(new TransformStream({
+      transform(chunk, reader) {
+        waitAgain();
+        reader.enqueue(chunk);
+      },
+      flush: () => clearTimeout(timer),
+    }));
+    return new Response(watched, response);
+  }, (error) => {
+    clearTimeout(timer);
+    throw error;
+  });
 }
 
 /**

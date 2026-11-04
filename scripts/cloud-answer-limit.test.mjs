@@ -31,7 +31,7 @@ async function clientFetch() {
       assert.ok(name in stubs, `unexpected dependency: ${name}`);
       return stubs[name];
     },
-    URL, Request, AbortController, DOMException, Blob, FormData,
+    URL, Request, Response, TransformStream, AbortController, DOMException, Blob, FormData,
     setTimeout: (fn, ms) => { timers.set(++nextTimer, { fn, ms }); return nextTimer; },
     clearTimeout: (id) => timers.delete(id),
     fetch: (input, init) => new Promise((resolve, reject) => {
@@ -98,7 +98,32 @@ test('only a failure that is the whole message turns into words', async () => {
   }
 });
 
-test('a cloud that stops answering ends the pass at the first record, and the bookmark stays', async () => {
+test('a body that goes silent fails too, while one that keeps moving takes as long as it takes', async () => {
+  const { fetch, asked, timers, expire } = await clientFetch();
+  const answer = fetch('https://cloud.invalid/rest/v1/documents', { method: 'GET' });
+  let send;
+  asked[0].answer(new Response(new ReadableStream({ start(controller) { send = controller; } }), { status: 200, headers: { 'x-kept': 'yes' } }));
+  const response = await answer;
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-kept'), 'yes');
+  // What a browser's fetch does to a body when its signal aborts.
+  asked[0].init.signal.addEventListener('abort', () => send.error(asked[0].init.signal.reason));
+  const text = response.text();
+  send.enqueue(new TextEncoder().encode('{"partial":'));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(timers.size, 1, 'a chunk starts the wait again');
+  expire();
+  const error = await failure(text);
+  assert.match(error.message, /did not answer/);
+
+  const whole = await clientFetch();
+  const done = whole.fetch('https://cloud.invalid/rest/v1/documents', { method: 'GET' });
+  whole.asked[0].answer(new Response('[]'));
+  assert.equal(await (await done).text(), '[]');
+  assert.equal(whole.timers.size, 0, 'a body that ended leaves no limit behind');
+});
+
+test('a cloud that stops answering is asked once in a pass, and what the pass did land still moves the bookmark', async () => {
   const exports = {};
   const compiled = ts.transpileModule(readFileSync(new URL('../src/backend/sync.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -118,11 +143,22 @@ test('a cloud that stops answering ends the pass at the first record, and the bo
   const updatedAt = new Date().toISOString();
   const records = ['a', 'b', 'c'].map((id) => ({ kind: 'graphic', id, updatedAt, deleted: false, body: { id, updatedAt } }));
   const local = { list: async (kind) => (kind === 'graphic' ? records : []), get: async () => null, put: async () => {} };
-  let puts = 0;
-  const remote = { list: async () => [], put: async () => { puts += 1; throw new Error('Cloud put(graphic) failed: AbortError: The cloud did not answer.'); } };
-  await assert.rejects(exports.runSync(local, remote), /did not answer/);
-  assert.equal(puts, 1);
-  assert.equal(store.size, 0, 'the bookmark did not move');
+  const asked = [];
+  // The first record lands, the second gets no answer, the third is never asked about.
+  const remote = {
+    list: async () => [],
+    put: async (record) => {
+      asked.push(record.id);
+      if (asked.length > 1) throw new Error('Cloud put(graphic) failed: AbortError: The cloud did not answer.');
+    },
+  };
+  const result = await exports.runSync(local, remote);
+  assert.deepEqual(asked, ['a', 'b']);
+  assert.equal(result.pushed, 1);
+  assert.deepEqual(Array.from(result.failures, (f) => f.id), ['b', 'c']);
+  const meta = JSON.parse([...store.values()][0]);
+  assert.ok(meta.lastSyncedAt > updatedAt || meta.lastSyncedAt === updatedAt, 'the bookmark moved past what landed');
+  assert.deepEqual(meta.pendingPush, ['graphic:b', 'graphic:c'], 'and the rest are owed');
 });
 
 test('the caller\'s own abort still ends the request, with the caller\'s reason', async () => {

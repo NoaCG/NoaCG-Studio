@@ -47,8 +47,12 @@ function describe(state: SyncState, now: number): Reading {
       const detail = isOffline() ? OFFLINE : 'Changes on this device are waiting to be saved.';
       return inFlight(detail, detail, state.unconfirmedSince, now);
     }
-    case 'error':
-      return notSynced(failure(state.detail ?? 'Cloud save failed. Pending changes stay on this device.'));
+    case 'error': {
+      // Every record failing for one reason is that reason, once, not a list of them.
+      const records = state.last?.failures ?? [];
+      const unanswered = records.length > 0 && records.every((f) => cloudFailureWords(f.message) === CLOUD_NO_ANSWER);
+      return notSynced(failure(unanswered ? CLOUD_NO_ANSWER : state.detail ?? 'Cloud save failed. Pending changes stay on this device.'));
+    }
     case 'offline':
       return owner
         ? notSynced('Sign in to resume. Pending work stays on this device.', 'resume')

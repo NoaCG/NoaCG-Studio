@@ -246,11 +246,14 @@ export async function runSync(
   let pulled = 0;
   let conflicts = 0;
 
+  // A cloud that stopped answering (backend/supabase.ts) is not asked again this pass: every record
+  // after the first would wait out the same limit, with the retry queued behind them all. Each one
+  // still fails as a record does, because what this pass did land needs the bookmark to move: left
+  // behind, the next edit of a pushed record reads as a concurrent edit and loses to its own past.
+  let silent: Error | null = null;
+  const askCloud = <T>(ask: () => Promise<T>): Promise<T> => (silent ? Promise.reject(silent) : ask());
   const fail = (op: SyncFailure['op'], r: StoredRecord, e: unknown): void => {
-    // A cloud that stopped answering (backend/supabase.ts) ends the pass: every record after this
-    // one would wait out the same limit, with the retry queued behind them all. The bookmark stays
-    // put, so the next pass derives all of it again.
-    if (e instanceof Error && /did not answer/.test(e.message)) throw e;
+    if (e instanceof Error && /did not answer/.test(e.message)) silent = e;
     failures.push({
       kind: r.kind,
       id: r.id,
@@ -303,7 +306,7 @@ export async function runSync(
     // Push the copy best-effort; if it fails, next pass sees a local-only record and pushes it.
     try {
       sameWorkspace();
-      await remote.put(copy);
+      await askCloud(() => remote.put(copy));
     } catch (e) {
       fail('push', copy, e);
     }
@@ -323,7 +326,7 @@ export async function runSync(
     if (skipPull.has(recordKey(r))) continue;
     if (local.putMany) {
       try {
-        fetched.push(hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r);
+        fetched.push(hasStorageSentinel(r.body) ? ((await askCloud(() => remote.get(r.kind, r.id))) ?? r) : r);
       } catch (e) {
         fail('pull', r, e);
       }
@@ -339,7 +342,7 @@ export async function runSync(
       // each, 29 s, and seven specs failed waiting on the sync indicator. The cost grows with
       // everything an account keeps, so it is a user-facing defect, not only a slow test. The
       // same arithmetic is why summaries are fetched in batches (withWholeRecords).
-      const full = hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r;
+      const full = hasStorageSentinel(r.body) ? ((await askCloud(() => remote.get(r.kind, r.id))) ?? r) : r;
       if (!(await unchanged(r))) continue;
       await local.put(full);
       pulled += 1;
@@ -367,7 +370,7 @@ export async function runSync(
   for (const l of plan.toRemote) {
     try {
       sameWorkspace();
-      await remote.put(l);
+      await askCloud(() => remote.put(l));
       pushed += 1;
     } catch (e) {
       if (isPutDenied(e) && l.deleted) continue; // a tombstone for a foreign row - nothing of ours to delete
