@@ -11,6 +11,7 @@ import {
   withRequestFee,
   withTokenCost,
   worstAttemptCostUsd,
+  type GatewayExecutionPolicy,
   type GatewayRoutingPolicy,
 } from './aiGateway.js';
 import { gatewayLedgerEntry } from './aiGatewayLedger.js';
@@ -1246,4 +1247,130 @@ test('a mix of priced and unpriced served attempts: the caller prices only the u
     assert.equal(priced.unpricedTokens, undefined);
     near(withTokenCost(priced, GATEWAY, price).estimatedCost?.amount, 0.0001 + tokens + 2 * 0.000075, 're-pricing adds nothing');
   }
+});
+
+// ---- A request that fails after served attempts still paid for them (#2092) ----
+//
+// The executor throws when no attempt was usable. The replies it was served were billed all the
+// same, so the error carries their summed usage, each fee once, and the ledger books it.
+
+const failing = async (fetchImpl: () => Promise<Response>, policy: GatewayExecutionPolicy = {}) => {
+  try {
+    await executeGatewayRequest(structuredBody(), { keyFor, sleep: async () => {}, fetchImpl }, {
+      maxAttempts: 2, retryLimit: 1, gateway: TAGGED, ...policy,
+    });
+  } catch (error) {
+    assert.ok(error instanceof GatewayError, String(error));
+    return error;
+  }
+  throw new assert.AssertionError({ message: 'the request should have failed' });
+};
+
+test('two served replies that both miss the schema: the error carries both costs plus two fees', async () => {
+  const request = structuredBody();
+  const error = await failing(sequence(
+    () => reply(JSON.stringify({ heading: 'wrong' }), 0.0003),
+    () => reply(JSON.stringify({ heading: 'still wrong' }), 0.0004),
+  ));
+  const expected = 0.0003 + 0.0004 + 2 * 0.000075;
+  near(usageCostUsd(error.servedUsage), expected, 'Pro settlement reads usageCostUsd');
+  near(error.servedUsage?.requestFeeUsd, 2 * 0.000075, 'one fee per served attempt');
+  assert.equal(error.servedUsage?.inputTokens, 2000);
+  const entry = gatewayLedgerEntry({
+    userId: null, ipHash: 'h', body: request, userKeys: {}, errorCode: error.code, servedUsage: error.servedUsage,
+  });
+  near(entry.providerCostUsd, expected, 'the ledger books the served cost of a failed request');
+  assert.equal(entry.outcome, error.code);
+  assert.equal(entry.inputTokens, 2000);
+  // A caller pricing it again adds neither the fee nor the tokens a second time.
+  const again = withTokenCost(withRequestFee(error.servedUsage!, 0.000075), GATEWAY, { inputPerMillion: 1, outputPerMillion: 2 });
+  near(usageCostUsd(again), expected, 'no double fee');
+});
+
+test('a failure that was never served carries nothing, and the ledger books $0', async () => {
+  for (const unserved of [
+    () => new Response('{"error":{"message":"overloaded"}}', { status: 503 }),
+    () => { throw new TypeError('network down'); },
+  ]) {
+    const error = await failing(sequence(unserved));
+    assert.equal(error.servedUsage, undefined);
+    assert.equal(gatewayLedgerEntry({
+      userId: null, ipHash: 'h', body: structuredBody(), userKeys: {}, errorCode: error.code, servedUsage: error.servedUsage,
+    }).providerCostUsd, 0);
+  }
+});
+
+test('a served reply and then a server error: only the served one is booked, its fee once', async () => {
+  // Pins the documented limit of #2114: a 5xx or timeout attempt is not charged, because
+  // nothing measured shows the gateway bills one (the decision adapter charges its worst case).
+  const error = await failing(sequence(
+    () => reply('not json', 0.0003),
+    () => new Response('{"error":{"message":"overloaded"}}', { status: 503 }),
+  ));
+  near(usageCostUsd(error.servedUsage), 0.0003 + 0.000075);
+  near(error.servedUsage?.requestFeeUsd, 0.000075);
+});
+
+test('a refusal on the fallback after served attempts on the primary still carries their cost', async () => {
+  const request = structuredBody();
+  request.fallbacks = [{ provider: 'anthropic', model: 'fallback' }];
+  const refusal = new GatewayError('authentication_required', 'no', 403, false);
+  await assert.rejects(executeGatewayRequest(request, {
+    keyFor: async (provider) => { if (provider === 'anthropic') throw refusal; return 'key'; },
+    sleep: async () => {},
+    fetchImpl: sequence(() => reply('not json', 0.0003)),
+  }, { maxAttempts: 3, retryLimit: 0, gateway: TAGGED }), (error) => error === refusal);
+  near(usageCostUsd(refusal.servedUsage), 0.0003 + 0.000075);
+});
+
+test('a caller price prices each unpriced served attempt on its own route, success or failure', async () => {
+  const prices: Record<string, { inputPerMillion: number; outputPerMillion: number }> = {
+    'vercel:vendor/model': { inputPerMillion: 1, outputPerMillion: 2 },
+    'vercel:vendor/fallback': { inputPerMillion: 10, outputPerMillion: 20 },
+  };
+  const priceFor = (route: { provider: string; model: string }) => prices[`${route.provider}:${route.model}`] ?? null;
+  const cheap = (1000 * 1 + 100 * 2) / 1_000_000;
+  const dear = (1000 * 10 + 100 * 20) / 1_000_000;
+
+  const request = structuredBody();
+  request.fallbacks = [{ provider: 'vercel', model: 'vendor/fallback' }];
+  const result = await executeGatewayRequest(request, {
+    keyFor, sleep: async () => {}, fetchImpl: sequence(() => reply('not json'), () => reply(VALID)),
+  }, { maxAttempts: 2, retryLimit: 0, gateway: TAGGED, priceFor });
+  near(usageCostUsd(result.usage), cheap + dear + 2 * 0.000075, 'the fallback attempt at the fallback price');
+  assert.equal(result.usage.unpricedTokens, undefined, 'nothing is left for the caller to guess');
+
+  const error = await failing(sequence(() => reply('not json'), () => reply('not json')), { priceFor });
+  near(usageCostUsd(error.servedUsage), 2 * (cheap + 0.000075), 'never the fee alone');
+});
+
+test('a raw error after served attempts becomes a gateway error that keeps their cost', async () => {
+  const request = structuredBody();
+  request.fallbacks = [{ provider: 'anthropic', model: 'fallback' }];
+  const rejected = executeGatewayRequest(request, {
+    keyFor: async (provider) => { if (provider === 'anthropic') throw new TypeError('settings read failed'); return 'key'; },
+    sleep: async () => {},
+    fetchImpl: sequence(() => reply('not json', 0.0003)),
+  }, { maxAttempts: 3, retryLimit: 0, gateway: TAGGED });
+  await assert.rejects(rejected, (error) => error instanceof GatewayError
+    && Math.abs(usageCostUsd(error.servedUsage) - (0.0003 + 0.000075)) < 1e-12);
+  // With nothing served, the raw error passes through untouched, as before.
+  const raw = new TypeError('settings read failed');
+  await assert.rejects(executeGatewayRequest(body('vercel', 'vendor/model'), {
+    keyFor: async () => { throw raw; },
+  }), (error) => error === raw);
+});
+
+test('an error object a caller reuses never carries an earlier request\'s served cost', async () => {
+  const refusal = new GatewayError('authentication_required', 'no', 403, false);
+  const request = structuredBody();
+  request.fallbacks = [{ provider: 'anthropic', model: 'fallback' }];
+  await assert.rejects(executeGatewayRequest(request, {
+    keyFor: async (provider) => { if (provider === 'anthropic') throw refusal; return 'key'; },
+    sleep: async () => {},
+    fetchImpl: sequence(() => reply('not json', 0.0003)),
+  }, { maxAttempts: 3, retryLimit: 0, gateway: TAGGED }));
+  assert.ok(refusal.servedUsage, 'the first request served a reply');
+  await assert.rejects(executeGatewayRequest(body('anthropic', 'fallback'), { keyFor: async () => { throw refusal; } }));
+  assert.equal(refusal.servedUsage, undefined, 'the second request served nothing');
 });

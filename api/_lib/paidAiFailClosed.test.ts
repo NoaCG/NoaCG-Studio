@@ -15,6 +15,8 @@ import proGenerations from './pro/generations.js';
 import generate from '../ai/generate.js';
 import { resolveProGate } from './pro/gate.js';
 import { getLiteGenerationStore } from './aiLiteStore.js';
+import { GATEWAY_TAG_WRITE_USD } from './aiGateway.js';
+import { surfaceRoutePolicy } from './aiSurfacePolicy.js';
 import { resetAdminDb } from './adminAuth.js';
 import { resetSystemSettingsCache, systemSettings } from './systemSettings.js';
 import { loadEntitlementRows, resolvePaidAiAccess, resolveUserEntitlement } from './entitlements.js';
@@ -69,7 +71,10 @@ function completion(output: unknown): Response {
 }
 
 // One stable stub for the whole file: the Supabase clients capture `fetch` when they are built.
-globalThis.fetch = (async (input: string | URL | Request) => {
+/** The gateway ledger rows (`ai_gateway_requests`) the handler wrote, as sent. */
+const gatewayRows: Array<Record<string, unknown>> = [];
+
+globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
   const url = input instanceof Request ? input.url : String(input);
   const parsed = new URL(url);
   if (parsed.origin !== DB) {
@@ -102,6 +107,9 @@ globalThis.fetch = (async (input: string | URL | Request) => {
   }
   // The gateway's content-free accounting row (ai_gateway_requests) and anything else.
   sent.other.push(path.split('?')[0]);
+  if (path.startsWith('/rest/v1/ai_gateway_requests') && typeof init?.body === 'string') {
+    gatewayRows.push(...[JSON.parse(init.body)].flat());
+  }
   return Response.json([], { status: 201 });
 }) as typeof fetch;
 
@@ -133,6 +141,7 @@ beforeEach(async () => {
   modelAnswer = () => ({ text: 'ok' });
   sent.model.length = 0;
   sent.other.length = 0;
+  gatewayRows.length = 0;
   ledger.length = 0;
   resetSystemSettingsCache();
   resetAdminDb();
@@ -411,6 +420,36 @@ test('hosted Pro: an eligible reservation and call succeed, and the daily cap st
   } finally {
     delete process.env.AI_PRO_DAILY_STARTS;
   }
+});
+
+test('hosted Pro: a call whose served replies all fail settles and ledgers what was served (#2092)', async () => {
+  const generationId = await proReservation();
+  const call = {
+    ...proCall(generationId),
+    request: {
+      ...proCall(generationId).request,
+      structuredOutput: {
+        name: 'emit',
+        description: 'A title.',
+        schema: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } },
+      },
+    },
+  };
+  // Every reply arrives (HTTP 200, billed at $0.0001 plus the tag fee) and misses the schema.
+  modelAnswer = () => ({ heading: 'wrong' });
+  const response = await generate.fetch(post('/api/ai/generate', call));
+  assert.equal(response.status >= 400, true, await response.clone().text());
+  const served = sent.model.length;
+  assert.ok(served >= 1, 'the replies were served');
+  const fee = new Set(surfaceRoutePolicy('pro', call.route)?.tags ?? []).size * GATEWAY_TAG_WRITE_USD;
+  assert.ok(fee > 0, 'a managed Pro call carries a tag fee');
+  const expected = served * (0.0001 + fee);
+  const record = await (await getLiteGenerationStore()).get(generationId);
+  assert.ok(Math.abs((record?.providerCostUsd ?? NaN) - expected) < 1e-12, `Pro settlement: ${record?.providerCostUsd} vs ${expected}`);
+  assert.equal(record?.proCallCount, 1, 'a billed failure is a call');
+  assert.equal(gatewayRows.length, 1);
+  assert.ok(Math.abs(Number(gatewayRows[0].provider_cost_usd) - expected) < 1e-12, `ledger: ${gatewayRows[0].provider_cost_usd}`);
+  assert.notEqual(gatewayRows[0].outcome, 'ok');
 });
 
 // ── the managed proxy's untagged traffic (/api/ai/generate) ──────────────────────────────

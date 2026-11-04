@@ -21,7 +21,8 @@ import { estimateModelCost } from './aiGateway.js';
 import { liteJudgeConfigured, liteJudgePolicy, liteProfile, liteProfileConfigured, routePrice } from './aiLiteProfile.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
 import { liteLedgerConfigured, MemoryLiteGenerationStore } from './aiLiteStore.js';
-import { failurePatch } from './lite/generations.js';
+import { failurePatch, withServedRepair } from './lite/generations.js';
+import { GatewayError } from './aiGateway.js';
 import { readJson } from './http.js';
 
 const ENV = [
@@ -1190,4 +1191,23 @@ test('an accounted result wins over the dispatched route and the conservative co
 test('a long rejection reason is truncated to what the column holds', () => {
   const patch = failurePatch({ reason: 'slot_role_mismatch:secondary,'.repeat(10) });
   assert.equal((patch.rejectionReason ?? '').length, 80);
+});
+
+test('a repair call that throws after being served books its cost with the first result (#2092)', () => {
+  const profile = liteProfile();
+  const result = {
+    output: {},
+    usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30, requestFeeUsd: 0.000075, estimatedCost: { amount: 0.0004 + 0.000075, currency: 'USD' as const, source: 'provider' as const } },
+    provider: 'vercel' as const,
+    model: 'vendor/model',
+    attempts: [{ route: { provider: 'vercel' as const, model: 'vendor/model' }, attempts: 1 }],
+  };
+  const served = new GatewayError('malformed_response', 'unusable', 502, true);
+  served.servedUsage = { inputTokens: 5, outputTokens: 5, totalTokens: 10, requestFeeUsd: 0.000075, estimatedCost: { amount: 0.0002 + 0.000075, currency: 'USD', source: 'provider' } };
+  const patch = failurePatch({ reason: 'malformed_response', result: withServedRepair(result, served, profile) });
+  assert.ok(Math.abs((patch.providerCostUsd ?? 0) - (0.0004 + 0.0002 + 2 * 0.000075)) < 1e-12, String(patch.providerCostUsd));
+  assert.equal(patch.inputTokens, 15);
+  // Nothing served by the repair, or no first result: unchanged (the conservative booking stands).
+  assert.equal(withServedRepair(result, new GatewayError('unavailable', 'down', 503, true), profile), result);
+  assert.equal(withServedRepair(undefined, served, profile), undefined);
 });

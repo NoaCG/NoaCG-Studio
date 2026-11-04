@@ -14,7 +14,7 @@ import { GatewayError, usageCostUsd } from '../aiGateway.js';
 import { serverAuthConfigured } from '../auth.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
 import { proCapacityRetryPlan, proProfile, proRouteFunded, type ProProfile } from '../aiProProfile.js';
-import type { AiGatewayRequestBody, ModelResult } from '../../../src/ai/modelTypes.js';
+import type { AiGatewayRequestBody, ModelUsage } from '../../../src/ai/modelTypes.js';
 
 /**
  * Is a Pro allowance ENFORCEABLE on this deployment at all?
@@ -102,11 +102,13 @@ export async function admitManagedProCall(
 }
 
 /**
- * Settle what the call actually cost into its reservation.
+ * Settle what the call actually cost into its reservation: the usage of a call that succeeded,
+ * or of the attempts served before a call failed (`GatewayError.servedUsage`, #2092), which the
+ * provider billed all the same.
  *
  * ONLY an accountable cost is recorded, and the silence is deliberate. Until the first
  * settlement the row still carries the reservation's conservative worst case, so a call that
- * threw before the provider billed anything leaves the fleet OVER-booked rather than
+ * threw before the provider served anything leaves the fleet OVER-booked rather than
  * under-booked - the safe direction - and leaves the next call admissible, which is correct
  * because nothing was spent.
  *
@@ -121,23 +123,24 @@ export async function admitManagedProCall(
  * the safe direction. A lost later one under-counts by that call's cost, so the ceiling admits
  * at most one more call than it should, and `maxCallsPerGeneration` still stops the run.
  *
- * HONEST LIMIT, stated rather than discovered later: a provider that answers without a cost
- * figure settles as zero - a provider that reported no number has not thereby proved a breach,
- * and refusing on silence would fail generations that cost nothing unusual. That is a reason to
- * keep every Pro route inside the audited catalog, where the price is known, which is what
- * `proRouteFunded` above enforces.
+ * A reply that reports no cost is priced from its tokens at the catalog price, per attempt on its
+ * own route (generate.ts passes `proRoutePrice` to the executor), so it never settles at its fee
+ * alone. Every Pro route has that price, because `proRouteFunded` above requires it.
+ *
+ * LIMIT: an attempt that ended in a server error or a timeout is not in that usage, on a success
+ * or a failure, because nothing measured shows the gateway bills one (#2114).
  */
 export async function settleManagedProCall(
   body: AiGatewayRequestBody,
   userId: string | null,
-  result: ModelResult | null,
+  usage: ModelUsage | null | undefined,
 ): Promise<void> {
-  if (!body.proGenerationId || !userId || !result) return;
+  if (!body.proGenerationId || !userId || !usage) return;
   try {
     await (await getLiteGenerationStore()).recordProCall({
       generationId: body.proGenerationId,
       userId,
-      costUsd: usageCostUsd(result.usage),
+      costUsd: usageCostUsd(usage),
       // The heartbeat: this call finished, so the generation is alive and keeps its fleet slot
       // for another lease. An abandoned one stops renewing and frees the slot for the class.
       leaseMs: proCapacityRetryPlan(proProfile()).activeLeaseMs,
