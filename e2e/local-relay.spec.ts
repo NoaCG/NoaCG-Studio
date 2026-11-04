@@ -1133,6 +1133,31 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   expect(await held3(), 'the late boot read leaves the newer clock').toBe(newest);
   await ctl3.close();
 
+  // THE PANEL'S CORRECTION REFUSED WITH NO OTHER ROW MEANWHILE: the panel goes back to the clock
+  // the relay confirmed (the controller's Take), which the relay's outputs still run, so its Stop
+  // banks that clock (sent 0:15), never the refused 0:05.
+  await expect.poll(() => ctl.evaluate(() => (window as unknown as { pgmLive: Record<string, string> }).pgmLive.Countdown ?? null)).toBeNull();
+  from = rows.length;
+  await ctl.locator('#v-take').click();
+  await expect.poll(() => sent(from)).toContain('play');
+  const confirmed = sent(from).filter((r) => /@1\d+\//.test(r)).at(-1)!.slice('update f2='.length);
+  expect(confirmed).toMatch(/^0:15@1\d+\/0:15\/0:15$/);
+  const takenRows = rows.length;
+  await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= takenRows);
+  const refuseAgain = refuseSends('/panel.html');
+  const refusedBefore = refusedSeen(panel);
+  await panel.locator('.field[data-key="f2"] input').fill('0:05');
+  await panel.getByRole('button', { name: '✎ Update' }).click();
+  await expect.poll(() => refused).toBe(2);
+  refuseAgain();
+  await expect.poll(() => refusedSeen(panel)).toBe(refusedBefore + 2);
+  refusing = null;
+  from = rows.length;
+  await panel.getByRole('button', { name: '■ Stop' }).click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)[0]).toBe('stop');
+  expect(sent(from)[1], 'the Stop banks the clock the relay confirmed').toMatch(/^update f2=0:1\d@out\/0:15\/0:15$/);
+
   // The native scorebug's Take on the same controller: no clock row.
   await ctl.locator('#cue-c2').click();
   from = rows.length;

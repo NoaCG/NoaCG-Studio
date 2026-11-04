@@ -509,14 +509,19 @@ GRAPHICS.forEach(function (g) {
   // grows: a Pause pressed here then banks the time the clock really stands at. The values this
   // card sent and has not seen back yet are held (clockOwn): a row before the first of them is
   // older than this card's own press, and its own row coming back is already held. A send the
-  // relay did not take, or one not back within a few seconds, stops counting, and the newest row
-  // another page sent meanwhile (clockSkipped) is the clock again.
+  // relay did not take, or one not back within a few seconds, stops counting; once none counts,
+  // the clock is the newest row another page sent meanwhile (clockSkipped), else the last clock
+  // the relay's log confirmed (clockConfirmed), which is what the relay's outputs still hold.
   var clockOwn = [];
   var clockSkipped = null;
+  var clockConfirmed = clockHeld;
   function clockOwnSettle(keep) {
     var now = Date.now();
+    var was = clockOwn.length;
     clockOwn = clockOwn.filter(function (o) { return o !== keep && now - o.at < 7000; });
-    if (clockOwn.length === 0 && clockSkipped !== null) { clockHeld = clockSkipped; clockSkipped = null; }
+    if (clockOwn.length > 0 || clockOwn.length === was) return;
+    if (clockSkipped !== null) { clockConfirmed = clockSkipped; clockSkipped = null; }
+    clockHeld = clockConfirmed;
   }
   // Answers what to call if the relay does not take the send.
   function noteClockSent(value) {
@@ -534,9 +539,9 @@ GRAPHICS.forEach(function (g) {
     clockOwnSettle(null);
     for (var i = 0; i < clockOwn.length; i++) {
       // This card's own row: every row before it was older, and only its newer sends still count.
-      if (clockOwn[i].value === value) { clockOwn = clockOwn.slice(i + 1); clockSkipped = null; return; }
+      if (clockOwn[i].value === value) { clockOwn = clockOwn.slice(i + 1); clockSkipped = null; clockConfirmed = value; return; }
     }
-    if (clockOwn.length === 0) clockHeld = value;
+    if (clockOwn.length === 0) { clockHeld = value; clockConfirmed = value; }
     else clockSkipped = value;
   }
   if (CLOCK && CLOCK.events) relayReady.push(function () {
