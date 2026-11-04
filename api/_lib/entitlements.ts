@@ -207,8 +207,9 @@ async function fetchEntitlementRows(userId: string): Promise<{ rows: Entitlement
     // domain's plan (migration 0045). Both land in the SAME `plan` slot at the same precedence
     // rank, so a grant or a manual override still outranks either - a domain widens who gets a
     // plan, never what a plan outranks.
-    const domainPlan = planRow && !expired ? null : await planForEmailDomain(db, userId);
-    const plan = planRow && !expired ? toPlan(planRow) : domainPlan?.plan ?? null;
+    const explicit = planRow && !expired ? toPlan(planRow) : null;
+    const domainPlan = explicit ? null : await planForEmailDomain(db, userId);
+    const plan = explicit ?? domainPlan?.plan ?? null;
 
     const rows = (grants.data ?? []) as GrantRow[];
     return {
