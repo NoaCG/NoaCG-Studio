@@ -2,7 +2,7 @@
 
 What changed in each release of the module, written for the operator deciding whether to import the new file. The release workflow in the NoaCG Studio repository puts a version's section on its GitHub Release page and refuses a version that has no section here.
 
-To release, move `version` in `package.json`, write its section at the top and land that on NoaCG Studio's `main`, then run its Release NoaCG Companion module workflow with dry run off. Changes not ready to release wait under `## Unreleased`, which releases nothing.
+To release, move `version` in `package.json`, write its section at the top and land that on NoaCG Studio's `main`, then run its Release NoaCG Companion module workflow with dry run off. Changes not ready to release wait under `## Unreleased`, which releases nothing and holds up a release until they are moved into a version.
 
 Write a section the way you would tell an operator what they get by importing again: what was wrong or missing, what it does now, and anything they have to do. No pull request lists, no usernames, no internal names.
 

@@ -16,12 +16,15 @@ const run = (over) => ({ version: '1.2.3', released: false, onMain: true, dispat
 const PROSE = 'The keys now show what is on air, and a press that was refused flashes amber so the operator sees it at once. Nothing to change in your setup, just import the new file.';
 
 test('a run asked to publish releases a version the Releases page does not have', () => {
-  assert.equal(decideRelease(run()).dryRun, false);
-  assert.equal(decideRelease(run()).refusal, undefined);
+  for (const unreleased of [undefined, null, '']) {
+    const decision = decideRelease(run({ unreleased }));
+    assert.equal(decision.dryRun, false);
+    assert.equal(decision.refusal, undefined);
+  }
 });
 
 test('a dry run rehearses from anywhere, and is what a run does unless asked otherwise', () => {
-  for (const over of [{ dispatchDryRun: true }, { dispatchDryRun: undefined }, { dispatchDryRun: true, onMain: false }, { dispatchDryRun: true, released: true }]) {
+  for (const over of [{ dispatchDryRun: true }, { dispatchDryRun: undefined }, { dispatchDryRun: true, onMain: false }, { dispatchDryRun: true, released: true }, { dispatchDryRun: true, unreleased: 'Not ready.' }]) {
     const decision = decideRelease(run(over));
     assert.equal(decision.dryRun, true, JSON.stringify(over));
     assert.equal(decision.refusal, undefined, JSON.stringify(over));
@@ -29,7 +32,11 @@ test('a dry run rehearses from anywhere, and is what a run does unless asked oth
 });
 
 test('a run asked to publish is refused off main and on a version already released', () => {
-  for (const [over, why] of [[{ onMain: false }, /not on main/], [{ released: true }, /already on the Releases page/]]) {
+  for (const [over, why] of [
+    [{ onMain: false }, /not on main/],
+    [{ released: true }, /already on the Releases page/],
+    [{ unreleased: 'A change not ready yet.' }, /notes under ## Unreleased/],
+  ]) {
     const decision = decideRelease(run(over));
     assert.match(decision.refusal ?? '', why, JSON.stringify(over));
     assert.equal(decision.dryRun, true);
