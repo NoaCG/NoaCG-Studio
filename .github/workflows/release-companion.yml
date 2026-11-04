@@ -21,8 +21,9 @@
 #   2. Run this workflow from main with dry_run unticked (Actions tab, or
 #      `gh workflow run release-companion.yml -f dry_run=false`). It tests and packages the module
 #      from that commit, checks the package, and creates the Release (and its tag) with the .tgz and
-#      its checksum. It refuses a commit that is not on main, a version already released, and
-#      notes under "## Unreleased", because the package would carry work its notes do not describe.
+#      its checksum. It refuses a commit that is not on main, a version already released, notes
+#      under "## Unreleased", and a module changed since the changelog last was: in those last two
+#      the package would carry work its notes do not describe.
 #
 # RUN BY HAND, UNLIKE THE BRIDGE'S. Landing a version does not release it, because any job a landing
 # starts is priced per landing whatever its path filter says, and the overhead tier is past its line

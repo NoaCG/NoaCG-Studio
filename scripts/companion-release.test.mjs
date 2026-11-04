@@ -5,11 +5,12 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { decideRelease, notesProblems, packageProblems, releasePage } from './companion-release.mjs';
+import { changedSinceNotes, decideRelease, notesProblems, packageProblems, releasePage } from './companion-release.mjs';
 
 const repoFile = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 const run = (over) => ({ version: '1.2.3', released: false, onMain: true, dispatchDryRun: false, ...over });
@@ -36,11 +37,57 @@ test('a run asked to publish is refused off main and on a version already releas
     [{ onMain: false }, /not on main/],
     [{ released: true }, /already on the Releases page/],
     [{ unreleased: 'A change not ready yet.' }, /notes under ## Unreleased/],
+    [{ changedSinceNotes: true }, /changed after the last edit/],
   ]) {
     const decision = decideRelease(run(over));
     assert.match(decision.refusal ?? '', why, JSON.stringify(over));
     assert.equal(decision.dryRun, true);
   }
+});
+
+test('a module change the notes have not seen is told from one they have, across a merge too', (t) => {
+  const repo = mkdtempSync(path.join(tmpdir(), 'companion-notes-'));
+  t.after(() => rmSync(repo, { recursive: true, force: true }));
+  const git = (...args) => {
+    const done = spawnSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@example.com', '-c', 'core.autocrlf=false', ...args], { cwd: repo, encoding: 'utf8', windowsHide: true });
+    assert.equal(done.status, 0, done.stderr);
+  };
+  const edit = (file, text, message) => {
+    mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+    writeFileSync(path.join(repo, file), text);
+    git('add', '-A');
+    git('commit', '-q', '-m', message);
+  };
+  git('init', '-q', '-b', 'main');
+  edit('companion-module/src/main.ts', 'one', 'a module with no notes yet');
+  assert.equal(changedSinceNotes(repo), true, 'no notes at all');
+
+  // The first release: the notes arrive on a branch, and a merge commit lands them.
+  git('switch', '-q', '-c', 'first');
+  edit('companion-module/CHANGELOG.md', 'notes', 'the first notes');
+  git('switch', '-q', 'main');
+  git('merge', '-q', '--no-ff', '-m', 'land', 'first');
+  assert.equal(changedSinceNotes(repo), false, 'landing the notes');
+
+  edit('companion-module/src/main.ts', 'two', 'a module change with no notes');
+  assert.equal(changedSinceNotes(repo), true, 'the trap: src changed after the notes');
+  edit('companion-module/CHANGELOG.md', 'more notes', 'its notes');
+  assert.equal(changedSinceNotes(repo), false, 'the notes caught up');
+
+  edit('companion-module/companion/HELP.md', 'guide', 'a guide change');
+  assert.equal(changedSinceNotes(repo), true, 'the guide ships too');
+  edit('companion-module/CHANGELOG.md', 'notes three', 'its notes');
+  edit('companion-module/yarn.lock', 'lock', 'a dependency moved');
+  assert.equal(changedSinceNotes(repo), true, 'a dependency ships too');
+
+  // A version moving with its notes in one commit, and a change elsewhere that ships nothing.
+  mkdirSync(path.join(repo, 'companion-module'), { recursive: true });
+  writeFileSync(path.join(repo, 'companion-module/package.json'), '{"version":"1.2.3"}');
+  edit('companion-module/CHANGELOG.md', 'notes four', 'version and notes together');
+  assert.equal(changedSinceNotes(repo), false, 'a version with its notes');
+  edit('src/app.ts', 'app', 'the app changed');
+  edit('companion-module/README.md', 'readme', 'the readme changed');
+  assert.equal(changedSinceNotes(repo), false, 'nothing that ships changed');
 });
 
 test('the notes and the version move together, and an Unreleased section is not a version', () => {

@@ -22,6 +22,9 @@ import { newestVersionIn, problemsWith, sectionOf } from '../cli/scripts/release
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHANGELOG = 'companion-module/CHANGELOG.md';
 const MODULE_ID = 'noacg-studio';
+/** What goes into the package, so what the notes must have seen. package.json is not here: the
+ *  version moves in it, and its dependencies are pinned in the lockfile. */
+const PACKAGED = ['companion-module/src', 'companion-module/companion', 'companion-module/yarn.lock'];
 const TAG_PREFIX = 'companion-v';
 
 /**
@@ -29,17 +32,19 @@ const TAG_PREFIX = 'companion-v';
  * why a run that asked to publish must not, and fails the workflow.
  *
  * Notes under `## Unreleased` say main holds work this version's notes do not describe, and a run
- * packages all of main, so they refuse it.
+ * packages all of main, so they refuse it. So does a module change with no notes at all: it would
+ * ship under notes that do not mention it.
  *
- * @param {{ version: string, released: boolean, onMain: boolean, unreleased?: string | null, dispatchDryRun?: boolean }} run
+ * @param {{ version: string, released: boolean, onMain: boolean, unreleased?: string | null, changedSinceNotes?: boolean, dispatchDryRun?: boolean }} run
  * @returns {{ dryRun: boolean, why: string, refusal?: string }}
  */
-export function decideRelease({ version, released, onMain, unreleased = null, dispatchDryRun = true }) {
+export function decideRelease({ version, released, onMain, unreleased = null, changedSinceNotes = false, dispatchDryRun = true }) {
   const refused = (refusal) => ({ dryRun: true, why: refusal, refusal });
   if (dispatchDryRun) return { dryRun: true, why: 'A dry run rehearses the release.' };
   if (!onMain) return refused('this commit is not on main. Land it first, then run this from main.');
   if (released) return refused(`module ${version} is already on the Releases page. Move the version in companion-module/package.json and write its section in ${CHANGELOG}.`);
   if (unreleased) return refused(`${CHANGELOG} has notes under ## Unreleased, so this commit holds work the notes of ${version} do not describe. Move them into a new version and land that first.`);
+  if (changedSinceNotes) return refused(`the module changed after the last edit of ${CHANGELOG}, so the notes of ${version} do not describe it. Say what changed there, in a new version, and land that first.`);
   return { dryRun: false, why: `Module ${version} is not released yet, so this run releases it.` };
 }
 
@@ -99,6 +104,14 @@ function succeeds(command, args) {
   return spawnSync(command, args, { cwd: ROOT, stdio: 'ignore', windowsHide: true }).status === 0;
 }
 
+/** The package's sources differ from what they were at the last commit that edited the notes. What
+ *  git cannot answer counts as changed, so a broken history refuses rather than publishes. */
+export function changedSinceNotes(cwd = ROOT) {
+  const notes = spawnSync('git', ['log', '-1', '--format=%H', '--', CHANGELOG], { cwd, encoding: 'utf8', windowsHide: true }).stdout?.trim();
+  if (!notes) return true;
+  return spawnSync('git', ['diff', '--quiet', `${notes}..HEAD`, '--', ...PACKAGED], { cwd, stdio: 'ignore', windowsHide: true }).status !== 0;
+}
+
 function decide() {
   const version = moduleVersion();
   const decision = decideRelease({
@@ -106,6 +119,7 @@ function decide() {
     released: succeeds('gh', ['release', 'view', `${TAG_PREFIX}${version}`, '--json', 'tagName']),
     onMain: succeeds('git', ['merge-base', '--is-ancestor', 'HEAD', 'origin/main']),
     unreleased: sectionOf(readFileSync(path.join(ROOT, CHANGELOG), 'utf8'), 'Unreleased'),
+    changedSinceNotes: changedSinceNotes(),
     dispatchDryRun: process.env.DISPATCH_DRY_RUN !== 'false',
   });
   console.log(decision.why);
