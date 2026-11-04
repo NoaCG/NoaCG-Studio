@@ -849,3 +849,171 @@ test('a scorebug over the relay: the stepper bumps the score on air, and the clo
   await ctl.close();
   await air.close();
 });
+
+// ── THE EXPORTED PAGES' IMPORTED CLOCK (#1887) ──────────────────────────────────────────────
+//
+// The standalone control panel and the production controller carry the wire's clock decision
+// (control/matchClockPageJs.ts, pinned to control/matchClockWire.ts by
+// scripts/clock-page-wire.test.mjs). This walks both pages over a relay and reads what they SEND:
+// an imported duration's Take writes its origin before the play, a time corrected while it runs is
+// stamped after its update, a resend of the same time moves nothing, and an Out holds it off air,
+// exactly the values a hosted output writes. A native clock's Take sends no clock row, as before.
+test('the exported panel and controller stamp an imported duration on Take, a running correction and Out (#1887)', async ({ page, context }) => {
+  await page.goto('/');
+  const pages = await page.evaluate(async () => {
+    const { renderControlPanelHtml, emitGraphic } = await import('/src/control/controlPanelHtml.ts');
+    const { renderProductionControllerHtml } = await import('/src/control/productionControllerHtml.ts');
+    const fields = [
+      { field: 'f1', ftype: 'textfield' as const, title: 'Home', value: 'HOME' },
+      { field: 'f2', ftype: 'textfield' as const, title: 'Time', value: '0:30' },
+    ];
+    const duration = {
+      name: 'Countdown', fields, js: '', assets: [],
+      html: '<div id="f1">HOME</div><div class="cd-clock imported-design-clock" id="f2" data-count="down" data-start="0:30">0:30</div>',
+    };
+    const native = {
+      name: 'Scorebug', fields: [fields[0], { ...fields[1], value: '45:00' }], js: '', assets: [],
+      html: '<div id="f1">HOME</div><div class="sb-clock" id="f2" data-count="down" data-start="45:00">45:00</div>',
+    };
+    const graphics = [duration, native].map((t, i) => ({ ...emitGraphic(t, null), file: `g${i}.html`, layer: i + 1 }));
+    return {
+      panel: renderControlPanelHtml(duration, null),
+      nativePanel: renderControlPanelHtml(native, null),
+      controller: renderProductionControllerHtml({
+        show: 'Clock show', graphics, width: 1920, height: 1080,
+        cues: [
+          { id: 'c1', label: 'Countdown', graphic: 'Countdown', values: { f1: 'HOME', f2: '0:30' }, note: '' },
+          { id: 'c2', label: 'Scorebug', graphic: 'Scorebug', values: { f1: 'HOME', f2: '45:00' }, note: '' },
+        ],
+      }),
+    };
+  });
+
+  const rows: { id: number; graphic: string; stream: string; msg: { t: string; data?: Record<string, string> } }[] = [];
+  let head = 0;
+  const files = new Map([['panel.html', pages.panel], ['native.html', pages.nativePanel], ['controller.html', pages.controller], ['g0.html', '<p>g</p>'], ['g1.html', '<p>g</p>']]);
+  const serve = (route: Route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/relay/ping') return route.fulfill({ json: { ok: true, v: 1, head } });
+    if (url.pathname === '/relay/head') return route.fulfill({ json: { head } });
+    if (url.pathname === '/relay/log') {
+      const after = Number(url.searchParams.get('after') ?? '0');
+      return route.fulfill({ json: { rows: rows.filter((r) => r.id > after), head } });
+    }
+    if (url.pathname === '/relay/send') {
+      const body = route.request().postDataJSON() as { graphic?: string; msg?: unknown; items?: typeof rows };
+      for (const item of body.items ?? [body as (typeof rows)[number]]) rows.push({ id: ++head, graphic: item.graphic, stream: item.stream || 'program', msg: item.msg });
+      return route.fulfill({ json: { head } });
+    }
+    const file = files.get(url.pathname.replace(/^\//, ''));
+    return file == null ? route.fulfill({ status: 404, body: 'nf' }) : route.fulfill({ status: 200, contentType: 'text/html', body: file });
+  };
+  /** The program rows sent since `from`, as `t` or `t f2=value`. */
+  const sent = (from: number) => rows.slice(from).filter((r) => r.stream === 'program' && r.msg.t !== 'cue')
+    .map((r) => (r.msg.data?.f2 !== undefined ? `${r.msg.t} f2=${r.msg.data.f2}` : r.msg.t));
+  const STAMP = '1\\d{12}';
+
+  // THE STANDALONE PANEL.
+  const panel = await context.newPage();
+  await panel.route('http://clock-relay.local/**', serve);
+  await panel.goto('http://clock-relay.local/panel.html', { waitUntil: 'load' });
+  await expect.poll(() => panel.evaluate(() => (window as unknown as { relayOk?: boolean }).relayOk)).toBe(true);
+  let from = rows.length;
+  await panel.getByRole('button', { name: '▶ Play' }).click();
+  await expect.poll(() => sent(from).length).toBe(3);
+  const take = sent(from);
+  expect(take[0]).toBe('update f2=0:30');
+  expect(take[1], 'the Take stamps its origin BEFORE the play').toMatch(new RegExp(`^update f2=0:30@${STAMP}/0:30/0:30$`));
+  expect(take[2]).toBe('play');
+
+  // Live off, so the correction airs on ✎ Update rather than on the keystroke.
+  await panel.locator('#live').uncheck();
+  from = rows.length;
+  await panel.locator('.field[data-key="f2"] input').fill('0:20');
+  await panel.getByRole('button', { name: '✎ Update' }).click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  const correction = sent(from);
+  expect(correction[0], 'a running correction is marked for its row').toBe('update f2=0:20@0/0:30/0:20');
+  expect(correction[1], '…and stamped after it').toMatch(new RegExp(`^update f2=0:20@${STAMP}/0:30/0:20$`));
+  const stamped = correction[1].slice('update f2='.length);
+
+  from = rows.length;
+  await panel.locator('.field[data-key="f1"] input').fill('AWAY');
+  await panel.getByRole('button', { name: '✎ Update' }).click();
+  await expect.poll(() => sent(from).length).toBe(1);
+  expect(sent(from), 'a score Update resends the running clock, and moves nothing').toEqual([`update f2=${stamped}`]);
+
+  from = rows.length;
+  await panel.getByRole('button', { name: '■ Stop' }).click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)[0]).toBe('stop');
+  expect(sent(from)[1], 'the Out holds it off air').toMatch(/^update f2=0:[12]\d@out\/0:30\/0:20$/);
+
+  // A native clock's panel: a Take carries no clock row (its clock moves on its own verbs only).
+  const nativePanel = await context.newPage();
+  await nativePanel.route('http://clock-relay.local/**', serve);
+  await nativePanel.goto('http://clock-relay.local/native.html', { waitUntil: 'load' });
+  await expect.poll(() => nativePanel.evaluate(() => (window as unknown as { relayOk?: boolean }).relayOk)).toBe(true);
+  from = rows.length;
+  await nativePanel.getByRole('button', { name: '▶ Play' }).click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)).toEqual(['update f2=45:00', 'play']);
+
+  // THE PRODUCTION CONTROLLER.
+  const ctl = await context.newPage();
+  await ctl.route('http://clock-relay.local/**', serve);
+  await ctl.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toHaveText('● SHOW');
+  await ctl.locator('#cue-c1').click();
+  from = rows.length;
+  await ctl.locator('#v-take').click();
+  await expect.poll(() => sent(from).length).toBe(3);
+  // It booted at the head of the same relay the panel drove, and learned the panel's Out from the
+  // log: the time typed off air is the new length, and the Take counts it from this press.
+  expect(sent(from)[0]).toBe('update f2=0:30@out/0:30/0:30');
+  expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:30@${STAMP}/0:30/0:30$`));
+  expect(sent(from)[2]).toBe('play');
+
+  // ✎ Update acts on the cue the log says is on air.
+  await expect(ctl.locator('#v-update')).toBeEnabled();
+  from = rows.length;
+  await ctl.locator('.field', { hasText: 'Time' }).locator('input').fill('0:20');
+  await ctl.locator('#v-update').click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)[0]).toBe('update f2=0:20@0/0:30/0:20');
+  expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:20@${STAMP}/0:30/0:20$`));
+
+  // A SECOND CONTROLLER WINDOW (or this one reloaded) boots at the log's head and still learns the
+  // running clock from the log: its own cue's 0:30 reaches the running clock as a correction,
+  // stamped, never as a plain time that would stop the count.
+  const ctl2 = await context.newPage();
+  await ctl2.route('http://clock-relay.local/**', serve);
+  await ctl2.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
+  await expect(ctl2.locator('#mode')).toHaveText('● SHOW');
+  await expect.poll(() => ctl2.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toMatch(/^0:20@1/);
+  await ctl2.locator('#cue-c1').click();
+  from = rows.length;
+  await ctl2.locator('#v-take').click();
+  await expect.poll(() => sent(from).length).toBe(4);
+  expect(sent(from)[0]).toBe('update f2=0:30@0/0:30/0:30');
+  expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:30@${STAMP}/0:30/0:30$`));
+  expect(sent(from)[2]).toMatch(new RegExp(`^update f2=0:30@${STAMP}/0:30/0:30$`));
+  expect(sent(from)[3]).toBe('play');
+  await ctl2.close();
+
+  // Back on the first window, which follows that row: its Out banks the clock the other window set.
+  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toMatch(/^0:30@1/);
+  from = rows.length;
+  await ctl.locator('#v-out').click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)[0]).toBe('stop');
+  expect(sent(from)[1]).toMatch(/^update f2=0:[23]\d@out\/0:30\/0:30$/);
+
+  // The native scorebug's Take on the same controller: no clock row.
+  await ctl.locator('#cue-c2').click();
+  from = rows.length;
+  await ctl.locator('#v-take').click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)).toEqual(['update f2=45:00', 'play']);
+  for (const p of [panel, nativePanel, ctl]) await p.close();
+});

@@ -610,3 +610,41 @@ export function eventsNeedServerTime(template: { html: string; js: string }): bo
 export function fastEventGraphics(graphics: { key: string; html: string; js: string }[]): Set<string> {
   return new Set(graphics.filter((g) => !eventsNeedServerTime(g)).map((g) => g.key));
 }
+
+/**
+ * WHICH TAKES AND UPDATES NEED THE ROW'S SERVER TIME (#1886).
+ *
+ * An event of a graphic with a clock already rides the slow road (`eventsNeedServerTime`). Two
+ * more rows are stamped by their own instant, on an imported clock only (`importedRowEffect`):
+ * a DURATION'S TAKE, which starts the count, and an UPDATE THAT CORRECTS A RUNNING CLOCK, which
+ * restarts it from the time typed. On the fast road neither carries `created_at`, so each output
+ * would stamp it with its own arrival and the outputs would count apart. These two take the slow
+ * road; every other Take and Update stays fast (owner, 2026-11: about +0.5 s on these presses only).
+ *
+ * `held` is the clock field's value as the SENDER last knew it on the wire. Read apart (an imported
+ * clock's value with its slots), the rule is exact: the correction `clockValueAfterUpdate` marks.
+ * A sender that knows only a plain time (the hosted page's record of what it sent, or the design's
+ * own starting time when it has seen nothing yet) cannot tell running from held, so a time that
+ * differs from it counts as a correction: a held clock's edit then waits the half second too, and a
+ * resend of the same time never does.
+ */
+export function needsServerInstant(clock: ClockSpec | undefined, msg: ControlEventRow['msg'], held: string | undefined): boolean {
+  if (!clock?.events || clock.fixedInstant) return false;
+  if (msg.t === 'play') return !!clock.startsOnTake;
+  if (msg.t !== 'update') return false;
+  const incoming = msg.data?.[clock.field];
+  if (incoming === undefined) return false;
+  if (durationOf(held)) return durationOf(clockValueAfterUpdate(held, incoming))?.slot === CORRECTED_ORIGIN;
+  return plainClockValue(incoming) !== plainClockValue(held ?? clock.seed);
+}
+
+/** The imported clocks of a PUBLISHED payload, by wire name: the graphics `needsServerInstant` can
+ *  answer yes for. Read off the payload for the reason `fastEventGraphics` is. */
+export function serverInstantClocks(graphics: { key: string; html: string }[]): Map<string, ClockSpec> {
+  const out = new Map<string, ClockSpec>();
+  for (const g of graphics) {
+    const spec = clockSpecFromHtml(g.html);
+    if (spec?.events && !spec.fixedInstant) out.set(g.key, spec);
+  }
+  return out;
+}

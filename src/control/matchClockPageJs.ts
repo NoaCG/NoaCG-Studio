@@ -16,12 +16,11 @@
 // the template literal that carries it.
 
 /**
- * The five pure clock functions every generated operator page needs: read a value's plain half,
- * read its origin stamp, parse, format, and derive what it reads at a given instant.
- *
- * Deliberately only the PURE half. What each verb does to the clock (`clockRowEffect`'s
- * decision) depends on where the page keeps its field values — panel state, or a cue's draft
- * overlay — so each page writes those few lines against its own model.
+ * The pure clock functions every generated operator page needs: read a value's plain half, read
+ * its origin stamp, parse, format, and derive what it reads at a given instant; then the wire's
+ * decision itself, `clockAfterUpdate` and `clockRowStep` (`clockValueAfterUpdate` and
+ * `clockRowEffect`), pinned equal to the TS by scripts/clock-page-wire.test.mjs. Where a page keeps
+ * the clock's held value, and when it sends, is each page's own.
  */
 export const MATCH_CLOCK_PAGE_JS = `// ---- Match clock: the time origin (control/matchClockPageJs.ts) ----
 // A clock is the one value that keeps moving with nobody commanding it, so a log of what was
@@ -74,4 +73,82 @@ function clockValueAt(raw, down, now) {
   var elapsed = Math.floor((now - origin) / 1000);
   if (elapsed < 0) elapsed = 0;                        // a clock stamped in the future holds
   return clockFormat(down ? Math.max(0, base - elapsed) : base + elapsed);
+}
+
+// ---- The wire's clock DECISION (control/matchClockWire.ts clockValueAfterUpdate, clockRowEffect) ----
+// What an Update writes to the clock field, and what one row does to the clock and WHEN relative
+// to the row: the same decision the hosted renderer makes, so an operator switching between the
+// hosted dashboard and an exported page gets the same clock (#1887). An imported clock's value
+// carries its length and what the cue last SENT after its origin ("0:18@/0:30/0:25": held at 0:18,
+// length 0:30, last sent 0:25; the origin slot is a number when it runs, "out" when an Out held
+// it, "0" for a time corrected while it runs until its row stamps it). Pinned equal to the TS by
+// scripts/clock-page-wire.test.mjs. The stamp here is the press's own instant: this page is the
+// only sender its graphics have.
+
+// clockSlots(): an imported clock's value read apart, or null for a plain or native value.
+function clockSlots(raw) {
+  var t = String(raw == null ? '' : raw).trim();
+  var at = t.indexOf('@');
+  if (at === -1) return null;
+  var parts = t.slice(at + 1).split('/');
+  if (parts.length < 2 || parts.length > 3) return null;
+  return { time: t.slice(0, at).trim(), slot: parts[0], length: parts[1], sent: parts.length > 2 ? parts[2] : parts[1] };
+}
+
+function clockSlotValue(time, origin, length, sent) {
+  return time + '@' + (origin == null ? '' : origin) + '/' + length + '/' + sent;
+}
+
+// clockAfterUpdate(): the clock field's value after an Update carrying "incoming". A resend never
+// erases an origin; an imported clock's correction while it runs is marked "0" for its row to stamp.
+function clockAfterUpdate(held, incoming) {
+  if (clockOrigin(incoming) !== null) return incoming;
+  if (clockSlots(incoming)) return incoming;
+  var read = clockSlots(held);
+  if (read) {
+    var time = clockPlain(incoming);
+    if (time === read.sent) return held;
+    if (read.slot === 'out') return clockSlotValue(time, 'out', time, time);
+    if (time === read.time && clockOrigin(held) === null) return clockSlotValue(read.time, read.slot, read.length, time);
+    return clockSlotValue(time, clockOrigin(held) === null ? '' : '0', read.length, time);
+  }
+  if (held == null || clockOrigin(held) === null) return incoming;
+  return clockPlain(held) === clockPlain(incoming) ? held : incoming;
+}
+
+// clockRowStep(): what one row does to the clock, { value, when } or null. "held" is the clock
+// field's value on the wire (the design's seed when nothing was sent), "at" the row's instant.
+function clockRowStep(clock, msg, held, at) {
+  var from = held == null ? clock.seed : held;
+  if (clock.events) return clockImportedStep(clock, msg, from, at);
+  if (msg.t !== 'event') return null;
+  if (msg.event === 'clockStart') return { value: clockValueAt(from, clock.countsDown, at) + '@' + at, when: 'before' };
+  if (msg.event === 'clockStop') return { value: clockValueAt(from, clock.countsDown, at), when: 'after' };
+  if (msg.event === 'clockReset') return { value: clock.resetTo, when: 'after' };
+  return null;
+}
+
+// An imported clock: its own verbs, a duration's Take and Out, and a running correction.
+function clockImportedStep(clock, msg, from, at) {
+  if (msg.t !== 'update' && msg.t !== 'play' && msg.t !== 'stop' && msg.t !== 'event') return null;
+  if (clock.fixedInstant) return (msg.t === 'update' || msg.t === 'play') && from !== clock.seed ? { value: clock.seed, when: 'after' } : null;
+  var read = clockSlots(from);
+  var time = (read ? read.time : clockPlain(from)) || clock.resetTo;
+  var length = read ? read.length : (clock.startsOnTake ? time : clock.resetTo);
+  var sent = read ? read.sent : time;
+  var offAir = !!read && read.slot === 'out';
+  if (msg.t === 'play') {
+    if (!clock.startsOnTake) return null;
+    var taken = read ? length : time;
+    return { value: clockSlotValue(taken, at, taken, sent), when: 'before' };
+  }
+  if (msg.t === 'stop') {
+    if (!clock.startsOnTake || offAir) return null;
+    return { value: clockSlotValue(clockValueAt(from, true, at), 'out', length, sent), when: 'after' };
+  }
+  if (msg.t === 'update') return read && read.slot === '0' ? { value: clockSlotValue(time, at, length, sent), when: 'after' } : null;
+  if (msg.event === clock.events.start) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), at, length, sent), when: 'before' };
+  if (msg.event === clock.events.stop) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), offAir ? 'out' : '', length, sent), when: 'after' };
+  if (msg.event === clock.events.reset) return { value: clockSlotValue(length, offAir ? 'out' : '', length, sent), when: 'after' };
+  return null;
 }`;

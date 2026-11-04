@@ -1548,6 +1548,10 @@ export async function sendControlVerb(opts: {
    *  clock, so no need for the row's server time (matchClockWire `eventsNeedServerTime`).
    *  Absent, every event takes the slow road, which is what every event did before. */
   fastEvents?: (graphic: string) => boolean;
+  /** Which Takes and Updates need the row's server time as an event does: an imported duration's
+   *  Take and a correction to a running imported clock (matchClockWire `needsServerInstant`, #1886).
+   *  They take the slow road and hold their graphic back like a slow event. Absent, none do. */
+  serverInstant?: (item: ControlSendItem) => boolean;
   /** This batch is (part of) All out, the panic control: on protocol 2 it is never refused as
    *  stale and never waits behind another send of its graphics (seqSend.ts). */
   allOut?: boolean;
@@ -1597,13 +1601,16 @@ export async function sendControlVerb(opts: {
     // snap-then-update pair must not have its second half overtake its first.
     // A clock-free graphic's event is an ordinary command and rides by the same rule as a Take.
     const isEvent = item.msg.t === 'event';
-    const mayBeFast = !isEvent || !!opts.fastEvents?.(item.graphic);
+    // A clock's Take or correction that the row's own instant stamps is slow like a clock's event.
+    const stampedByRow = !isEvent && !!opts.serverInstant?.(item);
+    const mayBeFast = isEvent ? !!opts.fastEvents?.(item.graphic) : !stampedByRow;
     const rides = mayBeFast && fastRoad && (slowUntil.get(key) ?? 0) <= sentAt;
     // AN EVENT THAT DID NOT RIDE STILL HOLDS ITS GRAPHIC BACK, whichever reason kept it off: a
     // clock, a follower mid-catch-up, an unknown show, or an earlier hold. Otherwise the Take
     // behind it would ride the broadcast at about 90 ms while its own row was still in the
-    // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order.
-    if (isEvent && !rides) {
+    // fan-out's 650 ms slow mode, and a renderer would apply the two in the wrong order. A row
+    // stamped by its own instant holds it back the same way.
+    if ((isEvent || stampedByRow) && !rides) {
       held.push(key);
       slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
