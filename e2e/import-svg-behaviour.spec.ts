@@ -510,6 +510,35 @@ test('imported quiz: drawn layers are proposed from their names, and the operato
   await shot(page, '6-quiz-revealed');
 });
 
+test('a quiz clock plate stays visible rather than becoming its Locked moment', async ({ page }, testInfo) => {
+  // A plate named Clock box is ordinary artwork, even beside a quiz with no drawn lock badge.
+  // The old substring match read its "lock" as Locked and hid the plate until Lock it in.
+  const source = readFileSync(QUIZ_SVG, 'utf8')
+    .replace(/<g id="Locked_x20_in"[\s\S]*?<\/g>/, '')
+    .replace('</svg>', `<rect id="clock-plate" data-name="Clock box" x="800" y="880" width="320" height="88" fill="#161b24"/>
+      <text id="Clock" data-name="Clock" x="960" y="940" font-size="44" fill="#fff" text-anchor="middle">12:00</text></svg>`);
+  mkdirSync(testInfo.outputPath(), { recursive: true });
+  const file = testInfo.outputPath('quiz-clock.svg');
+  writeFileSync(file, source);
+  await openImportDoor(page, file);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await expect(page.getByTestId('map-svg-quiz-locked').locator('option:checked')).toContainText('NoaCG');
+  await page.getByTestId('map-svg-clock-mode').selectOption('duration');
+  await intoProduction(page, 'Quiz with clock', 'Quiz Night');
+  await settleDurableWrites(page);
+  await page.getByTestId('verb-take').click();
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const plate = air.locator('[data-name="Clock box"]');
+  await expect(plate).toBeVisible();
+  await expect(plate).not.toHaveAttribute('data-noacg-role', /locked/);
+  await expect(air.locator('.imported-design-clock')).toHaveText(/^11:5\d$/);
+  await shot(page, 'quiz-clock-plate-on-air');
+  await page.getByTestId('cue-pick-select-B').click();
+  await page.getByRole('button', { name: /Lock it in/ }).click();
+  await expect(air.locator('[data-noacg-default="locked"]')).toHaveClass(/imported-design-on/);
+  await expect(plate).toBeVisible();
+});
+
 test('the proposal reads evidence, not order: answer rows with bars are a vote, and a heading is not a row', async ({ page }, testInfo) => {
   // TWO FILED DEFECTS OF THE MODULE-ERA DETECTOR (docs/backlog/, 2026-09-05), both from the same
   // shape - each behaviour carried its own regexes and an order-sensitive dispatcher chose the
