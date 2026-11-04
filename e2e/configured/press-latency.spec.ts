@@ -27,7 +27,8 @@ test.skip(!process.env.NOACG_INSTRUMENT, 'NOACG_INSTRUMENT=1 runs this timing in
 // e2e/configured/press-latency.spec.ts; that sets the variable. Locally against a stack, set it yourself. The
 // numbers are printed and attached (`press-latency.json`). `graphicPlay` ends when the graphic's
 // play listeners return, so work a graphic starts later is not in it, and `graphicFrame` is the
-// first frame of an entrance, not the finished picture. With 8 presses a p90 is the slowest
+// first frame of an entrance, not the finished picture. A failed first attempt prints its readings
+// before the suite's one retry prints again: read the last block per graphic. With 8 presses a p90 is the slowest
 // one, so it reports the median and the slowest.
 
 /** In every document of a page: the top one stamps every Realtime frame and the command fetch and,
@@ -214,7 +215,9 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         const firstId = (await first).id;
         const heardFirst = o.find((h) => h.kind === 'ws' && h.text.includes(firstId));
         const heard = after(o, pressAt, (h) => h.kind === 'ws' && h.text.includes(second.id));
-        const send = after(o, heard?.at, (h) => h.kind === 'send');
+        // The second press's own send is the second send of the round: the first press's may still
+        // leave after the second press is heard.
+        const send = o.filter((h) => h.kind === 'send')[1];
         // The two presses are two relay calls, so they can reach the page in the other order. Such a
         // round is counted, not timed: its "second" press is the first one the page ran.
         const handed = after(a, pressAt, (h) => h.kind === 'handed' && h.text === String(plays + 2));

@@ -53,8 +53,8 @@ on:
     - cron: '40 2 * * 0,3' # Sundays and Wednesdays, 02:40 UTC
   # `spec` runs one spec file on every shard instead of the whole suite, with the timing
   # instruments switched on: a hosted reading of one instrument in minutes (issue #2089's
-  # press-latency test). Only a dispatch can set it, and a
-  # branch's dispatch never files or closes the rolling issue (below).
+  # press-latency test). Only a dispatch can set it, and such
+  # a run, from any branch, skips the verdict job, so it never files or closes the rolling issue.
   workflow_dispatch:
     inputs:
       spec:
