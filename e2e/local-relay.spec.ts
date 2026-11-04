@@ -1103,6 +1103,9 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await ctl3.route('http://clock-relay.local/**', serve);
   await ctl3.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
   await expect(ctl3.locator('#mode')).toHaveText('● SHOW');
+  // The panel has read the controller's Out, so 0:12 typed off air is one row, the new length.
+  const outRows = rows.length;
+  await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= outRows);
   from = rows.length;
   await panel.locator('.field[data-key="f2"] input').fill('0:12');
   await panel.getByRole('button', { name: '✎ Update' }).click();
