@@ -1227,3 +1227,23 @@ test('Lite settlement, Pro settlement and the ledger all receive the summed amou
   near(usageCostUsd(result.usage), expected, 'Lite\'s ceiling, the judge and Pro settlement read usageCostUsd');
   near(gatewayLedgerEntry({ userId: null, ipHash: 'h', body: request, userKeys: {}, result }).providerCostUsd, expected);
 });
+
+test('a mix of priced and unpriced served attempts: the caller prices only the unpriced tokens, once', async () => {
+  const price = { inputPerMillion: 1, outputPerMillion: 2 };
+  const tokens = (1000 * 1 + 100 * 2) / 1_000_000;
+  for (const [first, second] of [[reply('not json', 0.0001), reply(VALID)], [reply('not json'), reply(VALID, 0.0001)]]) {
+    const result = await executeGatewayRequest(structuredBody(), {
+      keyFor,
+      sleep: async () => {},
+      fetchImpl: sequence(() => first, () => second),
+    }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+    // Without a caller price, the known cost and both fees: never the fee alone.
+    near(usageCostUsd(result.usage), 0.0001 + 2 * 0.000075);
+    assert.deepEqual(result.usage.unpricedTokens, { input: 1000, output: 100 });
+    // Lite, the judge and import analysis price the rest at their route price, once.
+    const priced = withTokenCost(result.usage, GATEWAY, price);
+    near(priced.estimatedCost?.amount, 0.0001 + tokens + 2 * 0.000075);
+    assert.equal(priced.unpricedTokens, undefined);
+    near(withTokenCost(priced, GATEWAY, price).estimatedCost?.amount, 0.0001 + tokens + 2 * 0.000075, 're-pricing adds nothing');
+  }
+});

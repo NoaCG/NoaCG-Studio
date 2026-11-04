@@ -1149,8 +1149,15 @@ export function withRequestFee(usage: ModelUsage, feeUsd: number): ModelUsage {
 }
 
 /** Price a reply that reported no cost: its tokens at `price`, plus the request fee it already
- *  carries. A reply that has a cost (which includes the fee) is returned unchanged. */
+ *  carries. A reply that has a cost (which includes the fee) is returned unchanged, except for
+ *  the tokens of summed attempts that had none (`unpricedTokens`), which are priced once. */
 export function withTokenCost(usage: ModelUsage, route: ModelRoute, price?: ModelPrice | null): ModelUsage {
+  if (usage.estimatedCost && usage.unpricedTokens) {
+    const tokens = estimateModelCost(route, usage.unpricedTokens.input, usage.unpricedTokens.output, price ?? undefined);
+    if (tokens === null) return usage;
+    const { unpricedTokens: _priced, ...rest } = usage;
+    return { ...rest, estimatedCost: { ...usage.estimatedCost, amount: usage.estimatedCost.amount + tokens } };
+  }
   if (usage.estimatedCost) return usage;
   const tokens = estimateModelCost(route, usage.inputTokens, usage.outputTokens, price ?? undefined);
   if (tokens === null) return usage;
@@ -1164,8 +1171,9 @@ export function usageCostUsd(usage: ModelUsage | undefined): number {
 
 /** Several served replies as one usage: tokens and request fees add up, and so does the cost.
  *  The sum has a cost estimate when any part has one, amounting to every part's
- *  `usageCostUsd` (an unpriced part counts its fee). With no estimate at all, the caller can
- *  still price the summed tokens, and the summed fee is added once, by `withTokenCost`. */
+ *  `usageCostUsd` (an unpriced part counts its fee); the unpriced parts' tokens stay in
+ *  `unpricedTokens` for the caller to price. With no estimate at all, the caller prices the
+ *  summed tokens. Either way `withTokenCost` adds each token and each fee once. */
 export function sumUsage(parts: readonly ModelUsage[]): ModelUsage {
   if (parts.length === 1) return parts[0];
   const total = (read: (usage: ModelUsage) => number | undefined) =>
@@ -1174,6 +1182,11 @@ export function sumUsage(parts: readonly ModelUsage[]): ModelUsage {
   const reasoningTokens = total((usage) => usage.reasoningTokens);
   const fees = parts.filter((usage) => usage.requestFeeUsd !== undefined);
   const priced = parts.filter((usage) => usage.estimatedCost);
+  const unpriced = (read: (tokens: { input: number; output: number }) => number) => total((usage) =>
+    usage.estimatedCost
+      ? usage.unpricedTokens && read(usage.unpricedTokens)
+      : read({ input: usage.inputTokens, output: usage.outputTokens }));
+  const unpricedTokens = { input: unpriced((tokens) => tokens.input), output: unpriced((tokens) => tokens.output) };
   return {
     inputTokens: total((usage) => usage.inputTokens),
     outputTokens: total((usage) => usage.outputTokens),
@@ -1188,6 +1201,7 @@ export function sumUsage(parts: readonly ModelUsage[]): ModelUsage {
             currency: 'USD' as const,
             source: priced.some((usage) => usage.estimatedCost?.source === 'provider') ? 'provider' as const : 'configured' as const,
           },
+          ...(unpricedTokens.input || unpricedTokens.output ? { unpricedTokens } : {}),
         }
       : {}),
   };

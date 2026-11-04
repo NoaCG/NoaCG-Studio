@@ -223,6 +223,9 @@ parse or validate, an image request answered without an image) was still billed.
 executor retries it, the result's usage is the sum of every served attempt, each with its own
 fee once (`sumUsage`, #2055), so settlement, quotas and the ledger see it. An attempt that was
 never served (a refusal, a server error, a timeout, a network failure) adds nothing here.
+When some served attempts carry a cost and others do not, the sum keeps the unpriced attempts'
+tokens in `usage.unpricedTokens`, and a caller that prices the reply (`withTokenCost`) prices
+those tokens once at its own route price.
 A request that fails after served attempts, and a server error before a success, are not yet
 charged by this executor (#2092).
 
