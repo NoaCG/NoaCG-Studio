@@ -190,10 +190,11 @@ export default defineConfig(({ command, mode }) => {
     // the same number), so failing loudly beats silently drifting onto a neighbour's port. The
     // number itself is reserved by devPortReservation() above, at the moment a server starts.
     // open: skipped on CI runners — there is no browser to open, only Playwright's.
-    // watch: off for the e2e suite's own server (playwright.config.ts sets NOACG_E2E_SERVER). A
-    // run is a snapshot of the tree it started on: a source edit mid-run would make Vite stamp
-    // the app's imports with ?t=, while a spec's `import('/src/...')` asks for the bare URL and
-    // gets a second module copy whose store nothing renders (#1897).
+    // watch: off for the e2e suite's own server (playwright.config.ts sets NOACG_E2E_SERVER), so a
+    // source edit mid-run causes no reloads and no second module copies. With watching on, Vite
+    // stamps the app's imports with ?t=, while a spec's `import('/src/...')` asks for the bare URL
+    // and gets a second copy whose store nothing renders (#1897). A file first requested after
+    // an edit is still read fresh from disk.
     server: { strictPort: true, open: !process.env.CI, ...(process.env.NOACG_E2E_SERVER ? { watch: null } : {}) },
     build: {
       // es2017, not es2020: CasparCG 2.3.x LTS (the common student/school install) embeds a
