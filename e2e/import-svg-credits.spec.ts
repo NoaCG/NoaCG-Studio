@@ -1036,16 +1036,22 @@ test('a still page measured before its face lands is fitted again when the face 
 // still page does: a blank line starts a card, a role and its names stay on one card whole, and a
 // group too long for one card is fitted or refused on a card of its own. A card changes on the
 // card time, or on Next card; the last one holds until Out, and a take starts from the first.
-type CardsState = { card: number; shown: number; cards: { rows: number; scale: number; refused: boolean }[]; tween: boolean; opacity: string; visibility: string; over: string[]; field: string; rows: StillRow[] };
+type CardsState = { card: number; shown: number; cards: { rows: number; scale: number; refused: boolean }[]; tween: boolean; turning: boolean; opacity: string; visibility: string; over: string[]; field: string; rows: StillRow[] };
 async function cardsState(page: Page): Promise<CardsState> {
   const still = await stillPage(page);
   const more = await page.evaluate(() => {
-    const w = window as unknown as { noacgCreditsLast: { card: number; shown: number; cards: CardsState['cards'] }; noacgCreditsTween: unknown };
+    const w = window as unknown as { noacgCreditsLast: { card: number; shown: number; cards: CardsState['cards'] }; noacgCreditsTween: unknown; noacgCreditsTurning: boolean };
     const face = document.querySelector('.imported-design-credits-roll') as SVGGElement;
-    return { ...w.noacgCreditsLast, tween: !!w.noacgCreditsTween, opacity: getComputedStyle(face).opacity };
+    return { ...w.noacgCreditsLast, tween: !!w.noacgCreditsTween, turning: w.noacgCreditsTurning, opacity: getComputedStyle(face).opacity };
   });
   return { ...more, visibility: still.shown, over: still.over, field: still.field, rows: still.rows };
 }
+/** A timed change shows its card halfway, while the change still runs; a Next pressed then is that
+ *  change (creditsTurn: one press, one card) and starts none of its own. Wait for the change to
+ *  end before a Next that has to start one (#1988: the poll read the card in the change's last
+ *  frames, and the Next was spent on it). */
+const changeEnded = (page: Page, at: string) =>
+  expect.poll(async () => { const s = await cardsState(page); return [s.turning, s.opacity]; }, `${at}: the change has ended`).toEqual([false, '1']);
 const names = (head: string, n: number, from = 1) => [head, ...Array.from({ length: n }, (_, i) => `Name ${i + from}`)];
 const cardsDispatch = (page: Page, call: 'play' | 'stop' | 'next') => page.evaluate((call) => {
   const w = window as unknown as { play(): void; stop(): void; noacgDispatch(event: string): void };
@@ -1189,6 +1195,7 @@ for (const layout of CARD_LAYOUTS) {
     await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: timed`, timeout: 6000 }).toBe(1);
     const held = Date.now() - started;
     expect(held, `${at}: the first card held its two seconds`).toBeGreaterThanOrEqual(1900);
+    await changeEnded(page, at);
     await cardsDispatch(page, 'next');
     await expect.poll(async () => (await cardsState(page)).shown, `${at}: Next skips ahead`).toBe(2);
     // Its hold starts again; the last card has none.
@@ -1211,6 +1218,7 @@ for (const layout of CARD_LAYOUTS) {
     expect(turned, `${at}: not counted from the first change`).toBeLessThan(5000);
 
     // OUT DURING A CHANGE: nothing half-faded is left for the next look at the graphic off air.
+    await changeEnded(page, at);
     await cardsDispatch(page, 'next');
     await expect.poll(async () => Number((await cardsState(page)).opacity), `${at}: the change is fading`).toBeLessThan(0.9);
     await cardsDispatch(page, 'stop');
