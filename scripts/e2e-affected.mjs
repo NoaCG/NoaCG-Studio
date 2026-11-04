@@ -220,6 +220,10 @@ const CORE = [
   /^app\.html$/,
 ];
 
+// The page every spec opens: its readers are the whole suite, so CORE's reader rule leaves it out
+// (it escalates like the rest of CORE, which is the bound #1921 asked for).
+const APP_SHELL = /^app\.html$/;
+
 // Files that never affect the offline e2e surface.
 //
 // `.gitignore` is here because it is VCS metadata: nothing imports it, nothing serves it, and
@@ -671,7 +675,9 @@ function resolveModule(base, read) {
  *     repository root; a reference that names no file costs nothing;
  *   - a template literal cut at its first `${`, or a literal ending in `/`, names a PREFIX
  *     (`fixtures/svg-shows/${name}.svg` reads everything under `fixtures/svg-shows/`); a plain one
- *     names that file or directory.
+ *     names that file or directory;
+ *   - a module URL the dev server serves (`/src/store/templateStore.ts`, imported inside
+ *     `page.evaluate`) names that repository file: the spec runs the module and asserts on it.
  * A root page `<name>.html` is read by every module with a literal (or template piece) that opens
  * its route: `/<name>`, alone or after a scheme and host, followed by `?`, `#`, `*`, `.html` or the
  * end (or `/` for `PATH_ROUTE_PAGES`). `/api/output` is not `/output`.
@@ -710,6 +716,14 @@ export function readerIndex(sources) {
     texts.set(file, literals.flatMap((l) => l.pieces));
     const found = [];
     for (const { text: lit, prefix } of literals) {
+      // A module the dev server serves by its URL (`import('/src/store/templateStore.ts')` inside
+      // `page.evaluate`) is the repository file at that path: the spec runs it in the page and
+      // asserts on it (cicd-followup cf11, #1921). A query cut off (`?t=${now}`) leaves the file.
+      if (/^\/src\//.test(lit)) {
+        const path = lit.slice(1).replace(/[?#].*$/, '');
+        found.push({ path, prefix: prefix && path === lit.slice(1) });
+        continue;
+      }
       if (!lit.includes('/') || /\s|^[a-z][\w+.-]*:|^\/|^[#?*@]/i.test(lit) || /^\.{0,2}\/?$/.test(lit)) continue;
       const isPrefix = prefix || lit.endsWith('/');
       const tail = lit.endsWith('/') ? '/' : '';
@@ -741,14 +755,16 @@ function literalsOf(text) {
 }
 
 /**
- * Does a reference name `file`: the file, a directory holding it, or, for a prefix, any path that
- * starts with it (a directory prefix keeps its `/`, so `svg/` is not `svg-shows/`). A one-segment
+ * Does a reference name `file`: the file, a directory holding it, the module an extensionless import
+ * names, or, for a prefix, any path that starts with it (a directory prefix keeps its `/`, so `svg/` is not `svg-shows/`). A one-segment
  * reference (`'e2e'`, a template cut to `src`) names nothing: it is a word, not evidence of a read.
  */
 function refNames(ref, file) {
   if (ref.all) return true;
   if (!ref.path.replace(/\/$/, '').includes('/')) return false;
-  return ref.prefix ? file.startsWith(ref.path) : file === ref.path || file.startsWith(`${ref.path}/`);
+  if (ref.prefix) return file.startsWith(ref.path);
+  // A module named as an import names it (`'../src/control/playoutProtocol'` is that `.ts`, cf11).
+  return file === ref.path || file.startsWith(`${ref.path}/`) || file.replace(/\.(?:m?[jt]sx?)$/, '') === ref.path;
 }
 
 /**
@@ -986,7 +1002,8 @@ export function reachesBackend(file, graph) {
  * A FILE A SPEC READS BY PATH OR OPENS BY ROUTE (`readers`, from `readerIndex`; this checkout's
  * by default, null to leave it out) adds those specs wherever a header's specs would be added, and
  * before IGNORE as well. It never replaces an escalation: an unmapped fixture still escalates, and
- * its readers come on top (listed in `readPlanned`).
+ * its readers come on top (listed in `readPlanned`). A CORE file keeps its readers too, except the
+ * app shell every spec opens (cf11, #1921).
  *
  * Two import graphs default to this checkout's: `devServer` (`devServerModules`), the modules the
  * dev server loads at startup, which IGNORE never swallows; and `rawImporters`
@@ -1147,9 +1164,12 @@ export function planFor(
       // `src/model/project.ts` change planned the 77 shared specs, none of which reads a
       // reservation, and dropped save-transaction.spec.ts, which names the file and fails on
       // the #1402 regression (cicd-improvement ci11, fault F2).
-      // Readers are not added here: every spec reads app.html, so a reader rule on CORE is a
-      // separate cost decision, not a header mapping.
       for (const c of covering) specs.add(c.spec);
+      // And the specs that read it by path or import it by its URL (cicd-followup cf11, #1921): a
+      // `src/store/videoProjectStore.ts` change planned the shared-change set and dropped
+      // video-hyperframes.spec.ts, which imports that store in the page and asserts on what it holds.
+      // The bound is the app shell: every spec opens /app, so app.html's readers are the suite.
+      if (!APP_SHELL.test(file)) addReaders(file);
       continue;
     }
     const central = CENTRAL.filter(([r]) => r.test(file));

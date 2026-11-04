@@ -15,7 +15,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -2302,4 +2302,63 @@ test('cf12: criticalCost prices only the journeys still in the blocking shards',
   assert.equal(cost.shardsWithout, 1);
   assert.equal(criticalCost({ product: true, added: ['a.spec.ts'] }, ['a.spec.ts'], table).shardsWithout, 0, 'without the journeys the plan would have run no shard');
   assert.deepEqual(criticalCost(undefined, [], table), { product: false, added: [], addedMinutes: 0, planMinutes: 0, shardsWithout: null });
+});
+
+// ── cicd-followup cf11: the reader rule for module URLs and CORE files (#1921) ───────────────
+//
+// THE RULE: a spec that imports a module by its dev-server URL (`import('/src/x.ts')` inside
+// `page.evaluate`) or by an extensionless path in Node (`'../src/x'`) reads that module, so a
+// change to it plans the spec. A CORE file keeps its readers beside the shared-change set, except
+// the app shell (app.html), which every spec opens. Each case fails on the planner before cf11.
+test('cf11: a module URL or an extensionless import names the module it loads', () => {
+  const index = readerIndex(new Map([
+    ['e2e/a.spec.ts', "await page.evaluate(async () => (await import('/src/store/videoProjectStore.ts')).useVideoProjectStore.getState());"],
+    ['e2e/b.spec.ts', 'const m = await import(`/src/backend/sync.ts?t=${Date.now()}`);'],
+    ['e2e/c.spec.ts', "import type { Cue } from '../src/control/playoutProtocol';"],
+    ['e2e/d.spec.ts', 'const m = await import(`/src/templates/${name}.ts`);'],
+    ['e2e/_h.ts', "export const load = (page) => page.evaluate(() => import('/src/format/formatCode.ts'));"],
+    ['e2e/e.spec.ts', "import { load } from './_h';"],
+  ]));
+  const of = (file) => readersOf(file, index).specs;
+  assert.deepEqual(of('src/store/videoProjectStore.ts'), ['a.spec.ts']);
+  assert.deepEqual(of('src/backend/sync.ts'), ['b.spec.ts'], 'a query cut from a template still names the file');
+  assert.deepEqual(of('src/backend/sync.tsx'), [], 'and not a longer name');
+  assert.deepEqual(of('src/control/playoutProtocol.ts'), ['c.spec.ts']);
+  assert.deepEqual(of('src/control/playoutProtocol.css'), [], 'only a module extension completes an import');
+  assert.deepEqual(of('src/templates/news/lower.ts'), ['d.spec.ts'], 'a URL cut at ${ names a prefix');
+  assert.deepEqual(of('src/format/formatCode.ts'), ['e.spec.ts'], 'through the helper that loads it');
+});
+
+test('cf11: a CORE file plans the specs that load it, beside the shared-change set', () => {
+  const store = 'src/store/videoProjectStore.ts';
+  const before = planFor([store], { sprintFocus: true, readers: null });
+  assert.ok(!before.specs.includes('video-hyperframes.spec.ts'), 'the defect: the shared-change set without its readers');
+  const after = planFor([store], { sprintFocus: true });
+  assert.equal(after.focusApplied, true, 'still escalates: readers add, never replace');
+  for (const s of [...before.specs, 'video-hyperframes.spec.ts', 'video-project.spec.ts']) assert.ok(after.specs.includes(s), s);
+  assert.ok(after.readPlanned.includes(store));
+  // A preview module every export reads: the specs that import it by URL join the plan.
+  const compose = planFor(['src/preview/composeDocument.ts'], { sprintFocus: true });
+  assert.ok(compose.readPlanned.includes('src/preview/composeDocument.ts'));
+  assert.ok(compose.specs.length > planFor(['src/preview/composeDocument.ts'], { sprintFocus: true, readers: null }).specs.length);
+  // The bound: app.html's readers are the whole suite, so it plans the shared-change set as before.
+  const shell = planFor(['app.html'], { sprintFocus: true });
+  assert.equal(shell.focusApplied, true);
+  assert.deepEqual(shell.readPlanned, []);
+  assert.deepEqual(shell.specs, planFor(['app.html'], { sprintFocus: true, readers: null }).specs);
+});
+
+test('cf11: every module URL a spec loads names a file or folder in this checkout', () => {
+  // A module that moved leaves its readers naming nothing, so a change to it plans none of them.
+  // Failing here keeps that information complete instead of letting the selection narrow silently.
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const missing = [];
+  for (const [from, refs] of checkoutReaders().refs) {
+    for (const ref of refs) {
+      if (!ref.path.startsWith('src/') || ref.prefix) continue;
+      const candidates = [ref.path, ...['.ts', '.tsx', '.mjs', '.js', '.jsx'].map((e) => ref.path + e)];
+      if (!candidates.some((f) => existsSync(join(root, f)))) missing.push(`${from}: ${ref.path}`);
+    }
+  }
+  assert.deepEqual([...new Set(missing)], []);
 });
