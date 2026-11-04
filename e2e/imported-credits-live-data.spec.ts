@@ -418,6 +418,14 @@ for (const playback of ['static', 'roll', 'cards'] as const) {
     };
     await call(page, { [field]: taken }, 'play');
     await expect.poll(() => rowTexts(page)).toEqual(takenRows);
+    // play() starts the entrance, and the take holds its list on the entrance's first frame
+    // (its call at time 0), the frame the graphic first shows. The rows read the same before
+    // that, because off air they already follow the list, so an update sent the moment they
+    // match could still reach the take: then the take airs the newer list, as it should, and
+    // nothing on air changed. Wait for the take to hold its list (#2048).
+    if (playback !== 'static') {
+      await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsHeld: string | null }).noacgCreditsHeld), 'the take holds its list').toBe(taken);
+    }
 
     await expectDrawnColumns();
 
