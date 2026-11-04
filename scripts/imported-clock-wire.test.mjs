@@ -279,6 +279,13 @@ const runs = await withBundledPage(SPECS, async (page) => {
       // Taken out while it runs, a new length typed off air: the next Take counts that length.
       ['wait', 2000], ['out'], ['wait', 3000], ['type', '0:07'], ['take'], ['wait', 500], ['read', 'a new length after a running Out'],
     ]),
+    sameValue: await run('duration', [
+      ['lag', 'B', LAG], ['type', '0:05'], ['take'], ['wait', 2000],
+      ['type', '0:30'], ['wait', 1000], ['goal', 0], ['read', 'running correction and score'],
+      ['out'], ['wait', 2000], ['type', '0:30'], ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'same value reset off air'], ['report', 'A'], ['reload', 'A'],
+      ['take'], ['wait', 500], ['read', 'same value taken after off-air reload'],
+      ['report', 'B'], ['reload', 'B'], ['wait', 500], ['read', 'same value recovered on air'],
+    ]),
     // What a resend is, after a correction (the time the cue last sent, not the clock's own).
     corrections: await run('duration', [
       ['lag', 'B', LAG],
@@ -291,7 +298,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
       // Two cue edits while paused, the first equal to the time shown: the second is still a change.
       ['event', 'clock_start'], ['wait', 3000], ['event', 'clock_pause'], ['wait', SETTLE],
       ['typeShown'], ['wait', 600], ['type', '0:30'], ['wait', 600], ['read', 'two edits, the first equal to the time shown'],
-      // Corrected while paused ON AIR, then out and in again: a correction, never a new length.
+      // Corrected while paused ON AIR, then out and in again: the next Take counts that field.
       ['type', '0:20'], ['wait', 600], ['out'], ['wait', 2000], ['take'], ['wait', 500], ['read', 'a Take after a paused correction and an Out'],
       // A length typed OFF AIR stands through a Reset pressed off air, and the Take counts it.
       ['out'], ['wait', 2000], ['type', '0:45'], ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'a length typed off air, then Reset'],
@@ -473,7 +480,7 @@ test('a duration\'s Reset goes back to its length on every output and is banked,
   assert.equal(newLength.A.value, '0:06');
 });
 
-test('a duration tells a resend from a change by what the cue last sent: a score never moves it, and an untyped Take counts its length (W3, W5)', () => {
+test('a duration preserves corrections and resends on air, and an off-air Take counts the field (W3, W5)', () => {
   const r = runs.corrections;
   const paused = at(r, 'paused after a correction');
   agree(paused, 'paused after a correction');
@@ -484,16 +491,16 @@ test('a duration tells a resend from a change by what the cue last sent: a score
   assert.deepEqual(score.A.scores, ['3', '5']);
   const again = at(r, 'taken again with nothing typed');
   agree(again, 'taken again with nothing typed');
-  assert.match(again.A.held, /^0:30@\d+\/0:30\/0:25$/, 'taken out running and taken again untyped: a new count of the length, not of the old correction');
+  assert.match(again.A.held, /^0:25@\d+\/0:25\/0:25$/, 'taken out running and taken again untyped: the field is the next length');
   const typed = at(r, 'the length typed while paused');
   agree(typed, 'the length typed while paused');
-  assert.deepEqual([typed.A.value, typed.A.held], ['0:30', '0:30@/0:30/0:30'], 'typing the length is a change when the cue last sent something else: a correction, on air');
+  assert.deepEqual([typed.A.value, typed.A.held], ['0:30', '0:30@/0:25/0:30'], 'typing a new time on air is a correction that preserves this take length');
   const two = at(r, 'two edits, the first equal to the time shown');
   agree(two, 'two edits');
   assert.equal(two.A.value, '0:30', 'a cue edit equal to the time shown still becomes what the cue last sent');
   const afterOut = at(r, 'a Take after a paused correction and an Out');
   agree(afterOut, 'a Take after a paused correction and an Out');
-  assert.match(afterOut.A.held, /^0:30@\d+\/0:30\/0:20$/, 'a correction made while paused on air never becomes the length');
+  assert.match(afterOut.A.held, /^0:20@\d+\/0:20\/0:20$/, 'after Out the next Take counts the last field value');
   const offReset = at(r, 'a length typed off air, then Reset');
   agree(offReset, 'a length typed off air, then Reset');
   assert.deepEqual([offReset.A.value, offReset.A.held], ['0:45', '0:45@out/0:45/0:45'], 'a time typed off air is the length, so a Reset off air returns to it');
@@ -530,4 +537,19 @@ test('while a clock runs, a time typed equal to the time it started from sets it
   // Held, an edit equal to the time shown still changes nothing on air (the rule this narrows).
   const held = wireAfter(countUp, [...rows.slice(0, 3), [1, { t: 'update', data: { f2: '0:42' } }]]);
   assert.equal(held, '0:42@/0:00/0:42');
+});
+
+test('same-value off-air fields become the Take length on both outputs and survive reload (#1884)', () => {
+  const correction = at(runs.sameValue, 'running correction and score');
+  agree(correction, 'running correction and score');
+  assert.match(correction.A.held, /^0:30@\d+\/0:05\/0:30$/, 'on-air corrections keep the original Reset length and server origin');
+  const reset = at(runs.sameValue, 'same value reset off air');
+  agree(reset, 'same value reset off air');
+  assert.deepEqual([reset.A.value, reset.A.held], ['0:30', '0:30@out/0:30/0:30'], 'off-air Reset agrees with the field before Take');
+  for (const label of ['same value taken after off-air reload', 'same value recovered on air']) {
+    const row = at(runs.sameValue, label);
+    agree(row, label);
+    assert.match(row.A.held, /^0:30@\d+\/0:30\/0:30$/, label);
+    assert.ok(secs(row.A.value) <= 30 && secs(row.A.value) >= 27, row.A.value);
+  }
 });

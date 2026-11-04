@@ -245,12 +245,14 @@ var importedClockTakeAt = null;   // the origin the wire last stamped, for the n
   if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
   importedClockUpdating = true;
   try { matchClockUpdate(el.id, fields[el.id]); } finally { importedClockUpdating = false; }
-${duration ? `  // A duration's length is a time the operator typed while the graphic was off air.
+${duration ? `  // Off air the duration's field supplies the next Take and Reset length.
   var value = String(fields[el.id] == null ? '' : fields[el.id]).trim();
-  if (value === importedClockLast) return;
-  importedClockLast = value;
+  // Off air the field is the next Take's length, even if it repeats an on-air correction
+  // (#1884). Check before the resend guard: a score Update on air still changes no length.
   var offAir = typeof noacgMachineState === 'function' && noacgMachineState().groups.main === 'off';
   if (offAir && /${CLOCK_TIME.source}/.test(value)) el.setAttribute('data-start', value);
+  if (value === importedClockLast) return;
+  importedClockLast = value;
   // ON THE WIRE the length rides after the origin ("0:21@/0:30/0:30", control/matchClockWire.ts), so a
   // reload and every output learn it; and the origin the wire last stamped is kept for the next
   // start (below): the Take's, which the entrance would otherwise mint again on its first frame.

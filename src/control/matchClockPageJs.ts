@@ -107,8 +107,8 @@ function clockAfterUpdate(held, incoming) {
   var read = clockSlots(held);
   if (read) {
     var time = clockPlain(incoming);
-    if (time === read.sent) return held;
     if (read.slot === 'out') return clockSlotValue(time, 'out', time, time);
+    if (time === read.sent) return held;
     if (time === read.time && clockOrigin(held) === null) return clockSlotValue(read.time, read.slot, read.length, time);
     return clockSlotValue(time, clockOrigin(held) === null ? '' : '0', read.length, time);
   }
@@ -136,7 +136,8 @@ function clockSlottedStep(clock, msg, from, at) {
   var offAir = !!read && read.slot === 'out';
   if (msg.t === 'play') {
     if (!clock.startsOnTake) return null;
-    var taken = read ? length : time;
+    // Off air the next Take counts the field, even when it resends an on-air correction (#1884).
+    var taken = offAir ? sent : read ? length : time;
     return { value: clockSlotValue(taken, at, taken, sent), when: 'before' };
   }
   if (msg.t === 'stop') {
