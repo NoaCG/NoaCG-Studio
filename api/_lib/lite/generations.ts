@@ -4,6 +4,7 @@ import { managedAiKey } from '../aiCredentials.js';
 import {
   executeGatewayRequest,
   GatewayError,
+  sumUsage,
   usageCostUsd,
   withTokenCost,
   worstAttemptCostUsd,
@@ -179,31 +180,10 @@ function zeroUsage(): ModelUsage {
 }
 
 function aggregateResults(first: ModelResult, second: ModelResult): ModelResult {
-  const firstCost = usageCostUsd(first.usage);
-  const secondCost = usageCostUsd(second.usage);
-  const requestFeeUsd = (first.usage.requestFeeUsd ?? 0) + (second.usage.requestFeeUsd ?? 0);
   return {
     ...second,
     attempts: [...first.attempts, ...second.attempts],
-    usage: {
-      inputTokens: first.usage.inputTokens + second.usage.inputTokens,
-      outputTokens: first.usage.outputTokens + second.usage.outputTokens,
-      totalTokens: first.usage.totalTokens + second.usage.totalTokens,
-      cachedInputTokens: (first.usage.cachedInputTokens ?? 0) + (second.usage.cachedInputTokens ?? 0),
-      reasoningTokens: (first.usage.reasoningTokens ?? 0) + (second.usage.reasoningTokens ?? 0),
-      ...(requestFeeUsd ? { requestFeeUsd } : {}),
-      ...(firstCost || secondCost
-        ? {
-            estimatedCost: {
-              amount: firstCost + secondCost,
-              currency: 'USD' as const,
-              source: first.usage.estimatedCost?.source === 'provider' || second.usage.estimatedCost?.source === 'provider'
-                ? 'provider' as const
-                : 'configured' as const,
-            },
-          }
-        : {}),
-    },
+    usage: sumUsage([first.usage, second.usage]),
   };
 }
 
