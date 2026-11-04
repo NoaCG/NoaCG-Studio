@@ -1,4 +1,4 @@
-// guards: src/ai/svgInterpretation/contract.ts, src/ai/svgInterpretation/validate.ts, src/templates/behaviours/words.json, src/templates/behaviours/clock.ts, src/templates/behaviours/registry.ts, src/templates/importedDesign/behaviour.ts, src/templates/importedDesign/designTypes.ts
+// guards: src/ai/svgInterpretation/contract.ts, src/ai/svgInterpretation/validate.ts, src/ai/svgInterpretation/apply.ts, src/templates/behaviours/words.json, src/templates/behaviours/clock.ts, src/templates/behaviours/registry.ts, src/templates/importedDesign/behaviour.ts, src/templates/importedDesign/designTypes.ts
 //
 // THE SVG PROPOSAL CONTRACT (docs/work-specs/jev-svg-import/spec.md, row 4, AC-4): a proposal
 // names only real layers of a fitting kind, is pinned to the revision it was made from, gives each
@@ -9,8 +9,9 @@
 // The inventories are written here by hand, carrying the layer ids phase 3 recorded for the frozen
 // development designs (scripts/jev-svg-baseline.test.mjs: scoreboard-1, quiz-1, clock-1), with each
 // raw fixture file as the markup. The real reader needs a browser; row 5's apply test uses it.
-// The role table is built from the recipe declarations in src/templates/behaviours/words.json,
-// so a role the recipes stop declaring fails here rather than drifting.
+// The role table is the one the product validates against (SVG_RECIPE_ROLES in
+// src/ai/svgInterpretation/apply.ts, built from the recipe registry), so a role or instancing
+// change in the recipes reaches these tests rather than drifting past them (#1867).
 //
 // Row 7 (AC-8) adds the other side of the clock component the contract already names: the
 // persisted clock instance, compiled through the real behaviour compiler beside a score tracker,
@@ -37,13 +38,17 @@ import { rawSuffix } from './rolldown-raw.mjs';
 
 const root = (rel) => fileURLToPath(new URL(`../${rel}`, import.meta.url));
 const fixture = (id) => readFileSync(root(`e2e/fixtures/jev-svg/dev/${id}.svg`), 'utf8');
-const words = JSON.parse(readFileSync(root('src/templates/behaviours/words.json'), 'utf8'));
 
-/** The recipe role table, from the declarations (every words.json recipe is a full one). */
-const RECIPES = Object.fromEntries(Object.entries(words).filter(([id]) => id !== '_').map(([id, entry]) => [id, {
-  ...(entry.rows ? { rowsMax: entry.rows.max } : {}),
-  roles: Object.fromEntries(entry.roles.map((r) => [r.id, { kind: r.kind, ...(r.pool ? { pool: r.pool } : {}), ...(r.perRow ? { perRow: true } : {}), ...(r.countdown ? { countdown: true } : {}) }])),
-}]));
+/** One TypeScript module of the app's graph, importable here (the compiler reads words.json). */
+async function load(rel) {
+  const bundle = await rolldown({ input: root(rel), platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent' });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
+}
+
+/** The recipe role table the product validates against. */
+const { SVG_RECIPE_ROLES: RECIPES } = await load('src/ai/svgInterpretation/apply.ts');
 /** The instanced clock row 7 adds, as a caller that supports it would declare it. */
 const WITH_CLOCK = { ...RECIPES, clock: { instanced: true, roles: { clock: { kind: 'field', pool: 'text' } } } };
 
@@ -425,13 +430,6 @@ test('the forced-output schema is built from the same vocabulary', () => {
 
 // ---- Row 7: the persisted clock instance (AC-8) ----
 
-/** One TypeScript module of the app's graph, importable here (the compiler reads words.json). */
-async function load(rel) {
-  const bundle = await rolldown({ input: root(rel), platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent' });
-  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
-  await bundle.close();
-  return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
-}
 const { boundBehaviour, bindingsOf, composeParts } = await load('src/templates/importedDesign/behaviour.ts');
 const { compileMachine } = await load('src/templates/types/graphicType.ts');
 const { isAnimData } = await load('src/blocks/animData.ts');
