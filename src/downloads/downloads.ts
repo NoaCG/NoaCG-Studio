@@ -13,7 +13,7 @@
 //
 // Progressive, like src/docs/docs.ts: the page is complete without this module. The Bridge button
 // already links GitHub's releases/latest download, the Companion button the Releases page searched
-// for its tag, and the versions read "latest", so a network that blocks either API, a rate limit
+// for its name, and the versions read "latest", so a network that blocks either API, a rate limit
 // or a slow answer leaves a working page. Nothing here throws. When GitHub does answer and has no
 // module release, the card says so rather than offering an empty search.
 

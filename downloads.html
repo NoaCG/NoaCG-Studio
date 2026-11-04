@@ -31,7 +31,7 @@
   The page is complete with no JavaScript: the Bridge button then points at GitHub's
   releases/latest page (release-bridge.yml marks every Bridge release as the latest; the file name
   carries the version, so there is no fixed file link), the Companion button at the Releases page
-  searched for its tag, never releases/latest, which is the Bridge's, and the versions read
+  searched for its name, never releases/latest, which is the Bridge's, and the versions read
   "latest". The voice is the docs page's (src/docs/AGENTS.md): plain information,
   no em-dashes, and every command is one that has been run. The commands here are the
   distribution table's (docs/AGENT_CLI.md, docs.html #agent-setup), never new ones. The button
@@ -189,7 +189,7 @@
       <!-- THE COMPANION MODULE. `id="companion"` and `id="companion-setup"` are addresses: the
            production page's Stream Deck panel dialog links both. It has no fixed file link either,
            and releases/latest is the Bridge's, so with no JavaScript or no API answer its links
-           are the Releases page searched for its tag. The steps are the short form of
+           are the Releases page searched for its name. The steps are the short form of
            companion-module/companion/HELP.md, in the words Companion and the page use. -->
       <section class="dl-card" id="companion" data-testid="download-companion">
         <p class="kicker">For Stream Deck</p>
@@ -206,15 +206,15 @@
         <p class="dl-actions" data-needs-release="companion">
           <a
             class="btn btn-amber"
-            href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion-v&amp;expanded=true"
+            href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion&amp;expanded=true"
             data-download="companion"
             data-testid="companion-download"
           >Download the Companion module</a>
         </p>
         <p class="dl-links" data-needs-release="companion">
-          <a href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion-v&amp;expanded=true" data-release-notes="companion" data-testid="companion-release-notes">What changed in this version</a>
+          <a href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion&amp;expanded=true" data-release-notes="companion" data-testid="companion-release-notes">What changed in this version</a>
           &middot;
-          <a href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion-v&amp;expanded=true" data-checksum="companion">SHA-256 checksum</a>
+          <a href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion&amp;expanded=true" data-checksum="companion">SHA-256 checksum</a>
         </p>
 
         <h3 id="companion-setup">Set it up</h3>
