@@ -38,7 +38,7 @@ Acceptance, verbatim:
   its commit carries a `Selection-audit-reset:` trailer. cf18's earliest date moves to 14 days
   after this merge (section 4).
 - **Cost** over the last 84 merges to `main`, replayed with CI's flags on this branch merged with
-  `main` at `5284d4b2` (after #2124): 13 merges gain specs, a mean of **+0.70** measured
+  `main` at `5284d4b6` (after #2124): 13 merges gain specs, a mean of **+0.70** measured
   spec-minutes per merge (median 0, p90 1.8, max 22.9) on plans of 15 to 104 minutes. No merge loses a spec, no plan changes mode, and no catalog gate flips.
 
 ## 1. (a) The three misses, reproduced and explained
@@ -155,8 +155,8 @@ None of the nine is CORE, so none selected the whole configured set before.
 index it saw the specs that load `svg.ts` by URL. Its assertion is unchanged and still exact.
 
 Cost, replayed with `planFor(files, { sprintFocus: true, specsOnDisk, helpers })` over the 84
-first-parent merges in this clone (2026-11-02 to `5284d4b2`, 2026-11-04), old planner from `main`
-at `5284d4b2` and new planner from this branch merged with it (`git merge-tree`, clean),
+first-parent merges in this clone (2026-11-02 to `5284d4b6`, 2026-11-04), old planner from `main`
+at `5284d4b6` and new planner from this branch merged with it (`git merge-tree`, clean),
 spec-minutes from `scripts/e2e-durations.json`:
 
 | | Value |
@@ -203,7 +203,7 @@ in the page by that many specs, mostly through the `_create.ts` helper.
   (before it, one failed).
 - The cf11 tests against the old planner: two fail, as section 3 shows.
 - Every file in the repository (7,830 non-image files) planned alone with the old planner (`main`
-  at `5284d4b2`) and the new one (this branch merged with it): no spec lost, no mode change, no
+  at `5284d4b6`) and the new one (this branch merged with it): no spec lost, no mode change, no
   catalog flip. The same six planner test files pass on that merged tree (304 of 304).
 - GitHub reads: the three runs' failed jobs and their retry jobs, run 36985533946's failed shard,
   the main CI runs around each culprit, three compares, quarantine at six commits, red-main issue
