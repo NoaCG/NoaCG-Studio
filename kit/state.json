@@ -44,19 +44,18 @@
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985).",
   "cf12": "PR #2037 post-landing: (1) confirm 'Critical journeys' notice on first product-change PR plan job; (2) node docs/work-specs/cicd-followup/evidence/phase-cf12-measure.mjs --since <merged_at> --cache <dir> until verdict (12 changes opened after enabling + 7 days); read with --final no later than 14 days after merge; (3) if mean > 22.5 runner-minutes: git revert -m 1 <merge> via /queue-merge, record, tell owner miwco. #1895 closes only after the measurement. Merge ends M1/M2/M3 sides of every cf13 group; miss-audit reset. Follow-up #2036 (F2/F3)."
  },
- "waitingOn": [
+ "waitingOn": [],
+ "inFlight": [
   {
    "phase": "cf12",
-   "kind": "dependency",
-   "what": "post-landing cost measurement of PR #2037 (12 product changes opened after 2026-11-03T19:30Z and 7 days)",
-   "earliest": "when n>=12 product changes opened after enabling are measured (owner chose no 7-day minimum, 2026-11-03)",
-   "latest": "2026-11-17T19:30:00Z",
+   "step": "check",
+   "session": "session_017SdbwRCG9ELgQ1zcFfYgcW",
+   "nonce": "cf12-c-a810",
+   "launchedAt": "2026-11-04T19:36:46Z",
    "mergeSha": "e15e8d68a634a23e91d5939130fa1df776178979",
-   "pr": 2037,
-   "rule": "run phase-cf12-measure.mjs --final once n>=12"
+   "pr": 2037
   }
  ],
- "inFlight": [],
  "owner": [],
  "fixes": [
   {
