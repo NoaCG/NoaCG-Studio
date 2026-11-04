@@ -10,6 +10,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/components/wizard/CreationWizard.tsx
 // covers: src/templates/behaviours/clock.ts, src/templates/shared/matchClock.ts, src/components/wizard/import/{BehaviourSection,ClockFold}.tsx, src/components/wizard/import/draft.ts
 // focus
 //
@@ -785,6 +786,13 @@ for (const boundary of ['while Finish is open', 'at a door press']) {
     await time.fill('04:30');
     await expect(gap).toHaveCount(0);
     for (const id of doors) await expect(page.getByTestId(id)).toBeEnabled();
+    // The correction is today's next 04:30, not the skipped date tomorrow. Confirm it in view
+    // before a door builds it, with the complete zone rather than the browser's own zone.
+    const targetSummary = page.locator('.wz-finish-summary > div').filter({ has: page.getByText('Clock target', { exact: true }) });
+    await expect(targetSummary).toBeVisible();
+    await expect(targetSummary).toContainText(/Mar.*27.*2027|27.*Mar.*2027/);
+    await expect(targetSummary).toContainText(/0?4:30/);
+    await expect(targetSummary).toContainText('Europe/Helsinki');
     await page.getByTestId('wz-finish-export').click();
     await expect(page.getByTestId('export-window')).toBeVisible();
     const built = await evaluateInPage(page, async () => {

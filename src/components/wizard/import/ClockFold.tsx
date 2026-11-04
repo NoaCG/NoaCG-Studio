@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { DraftPatch, WizardDraft } from '../draft/core';
-import { formatClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
-import { svgClockFold, svgClockFoldWake, svgClockGap, svgClockWithFold } from './draft';
+import { formatClockTarget, parseClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
+import { svgClockFold, svgClockFoldWake, svgClockGap, svgClockOption, svgClockWithFold } from './draft';
 import SectionHead from '../SectionHead';
 
 /** An instant as the target's line names it, in `zone`. */
@@ -57,7 +57,7 @@ function ClockGapTime({ gap, onTarget }: { gap: Extract<ClockTargetResolution, {
  * instant can pass between two renders. A timer wakes the hook at the next moment the answer can
  * change (`svgClockFoldWake`).
  */
-export function useSvgClockFold(draft: WizardDraft, patch: (p: DraftPatch) => void): { question: ReactNode; asks: () => boolean } {
+export function useSvgClockFold(draft: WizardDraft, patch: (p: DraftPatch) => void): { question: ReactNode; targetSummary: string | null; asks: () => boolean } {
   const [now, setNow] = useState(() => Date.now());
   const fold = svgClockFold(draft, now);
   const gap = svgClockGap(draft, now);
@@ -105,5 +105,9 @@ export function useSvgClockFold(draft: WizardDraft, patch: (p: DraftPatch) => vo
     setNow(at);
     return true;
   };
-  return { question, asks };
+  // A time typed alone may resolve on a different date. Read the same current target the build
+  // would store, including its zone, without treating this confirmation as an unanswered question.
+  const target = !question ? parseClockTarget(svgClockOption(draft, now)?.target) : null;
+  const targetSummary = target ? `${targetFormat(target.zone).format(target.at)} · ${target.zone}` : null;
+  return { question, targetSummary, asks };
 }

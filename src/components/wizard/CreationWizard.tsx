@@ -1279,7 +1279,7 @@ export default function CreationWizard() {
                 name={draft.name}
                 namePlaceholder={variant.name}
                 onName={(name) => patch({ name })}
-                summary={catalogSummaryRows(variant, draft)}
+                summary={[...catalogSummaryRows(variant, draft), ...(clockFold.targetSummary ? [{ label: 'Clock target', value: clockFold.targetSummary, step: 'fields' as const }] : [])]}
                 onEditStep={editSummaryStep}
                 productions={finishProductions}
                 libraryIndex={finishLibrary}
