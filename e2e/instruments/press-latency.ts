@@ -211,11 +211,6 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         const o = await hopsOf(op);
         const a = await hopsOf(air);
         const after = (list: Hop[], at: number | undefined, test: (h: Hop) => boolean) => (at === undefined ? undefined : list.find((h) => h.at >= at && test(h)));
-        // What the operator pressed last must be what stands, flipped on the wire or not (#2109).
-        if (!((await deck.state()).live as string[]).includes(ben)) {
-          hops.endedOnFirst.push(1);
-          console.log(`back to back ${round}: the first press ended on air, though the second was pressed last`);
-        }
         const firstId = (await first).id;
         const heardFirst = o.find((h) => h.kind === 'ws' && h.text.includes(firstId));
         const heard = after(o, pressAt, (h) => h.kind === 'ws' && h.text.includes(second.id));
@@ -241,7 +236,14 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         // Off again with All out, drawn from what the page publishes now: after two presses in flight
         // a cue key drawn from a passing state is refused stale (the page's own check, kept).
         await op.waitForTimeout(500);
-        expect((await deck.press('all-out', '', (await deck.state()).ver as number)).outcome).toBe('ran');
+        // What the operator pressed last should be what stands, flipped on the wire or not (#2109).
+        // Counted, not asserted: a press more than the page's bound behind still runs late.
+        const standing = await deck.state();
+        if (!(standing.live as string[]).includes(ben)) {
+          hops.endedOnFirst.push(1);
+          console.log(`back to back ${round}: the first press ended on air, though the second was pressed last`);
+        }
+        expect((await deck.press('all-out', '', standing.ver as number)).outcome).toBe('ran');
         await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
         await op.waitForTimeout(600);
       }

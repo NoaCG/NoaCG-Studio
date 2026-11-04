@@ -589,9 +589,10 @@ test('3 quick +1 presses add exactly 3 when the page\'s resolve, asked before th
 // page first. The cases above are unchanged; these drive the same module, relay and page with the
 // relay's delivery moved. The module is the one on a deck today: its press carries only what 0.2.0
 // sends, and the page numbers presses by the press id that has always carried a counter. Each case
-// presses once first, because the first press a page hears from a panel sets the count.
+// presses once first, because the first press a page hears from a panel sets the count. The page's
+// timers are moved by hand, as the module's clock is.
 
-const { PRESS_HOLD_MS } = await import('../src/control/panelFeedback.ts');
+const { PRESS_HOLD_MS, PRESS_DRAW_MS } = await import('../src/control/panelFeedback.ts');
 
 /** The relay calls of these press ids wait until `release(id)`: later presses overtake them. */
 function holdBack(s, ...ids) {
@@ -608,25 +609,31 @@ function lose(s, ...ids) {
   const real = s.hub.relay.press;
   s.hub.relay.press = async (key, press) => (ids.includes(press.id) ? { ok: true, claim: 7 } : real(key, press));
 }
-const plusOne = (s) => pressGraphicKey(s.deck, { graphic: 'Score', cap: 'step:home', delta: 1 });
 const minusOne = (s) => pressGraphicKey(s.deck, { graphic: 'Score', cap: 'step:home', delta: -1 });
 
 /** The deck's first press, on the air and answered: the page knows the deck's count from here. */
 async function firstPress(s) {
-  const out = plusOne(s);
+  const out = s.press();
   await drain();
   await landNext(s.prod, 0, true);
   await s.clock.advance(RESULT_MS);
   assert.equal((await out).ok, true);
 }
 
-/** A deck and an answering page whose keys are three cues of one graphic; what is on air is the
- *  cue that ran last. */
+/** Let the gap between two presses let go together pass. */
+async function drawGap(t) {
+  t.mock.timers.tick(PRESS_DRAW_MS);
+  await drain();
+}
+
+/** A deck and an answering page whose keys are three cues of one graphic. The page is as a real one:
+ *  a press changes what it shows only when it next draws, a task after the press ran. */
 async function cueStudio() {
   const hub = relayHub();
   globalThis.__panelBackend = hub.backend;
   const ran = [];
   const sent = [];
+  let drawn = [];
   const answer = answerPanel({
     slug: 'slug-2',
     where: 'production',
@@ -636,7 +643,7 @@ async function cueStudio() {
       title: 'Match',
       selected: null,
       space: null,
-      live: ran.slice(-1),
+      live: drawn,
       allowed: {},
       blocked: [],
       clip: null,
@@ -644,7 +651,13 @@ async function cueStudio() {
       rows: ['cara', 'anna', 'ben'].map((id) => ({ id, label: id, kind: 'cue', source: 'graphic' })),
     }),
     runs: new Set(['take-cue']),
-    run: (_verb, target) => ran.push(target),
+    run: (_verb, target) => {
+      ran.push(target);
+      setImmediate(() => {
+        drawn = [target];
+        answer.changed();
+      });
+    },
     onStatus: () => {},
     onPress: () => {},
   });
@@ -669,7 +682,8 @@ async function cueStudio() {
   return { hub, deck, ran, sent, done, warmed };
 }
 
-test('a pick and then a reveal that reach the page reversed run in the order they were pressed', async () => {
+test('a pick and then a reveal that reach the page reversed run in the order they were pressed', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const s = await cueStudio();
   try {
     await s.warmed();
@@ -680,6 +694,8 @@ test('a pick and then a reveal that reach the page reversed run in the order the
     assert.deepEqual(s.ran, ['cara'], 'the reveal waits for the pick');
     release('deck:2');
     await drain();
+    assert.deepEqual(s.ran, ['cara', 'anna'], 'the pick runs as it is heard');
+    await drawGap(t);
     assert.deepEqual(s.ran, ['cara', 'anna', 'ben'], 'in press order, with what was pressed last on air');
     assert.deepEqual((await Promise.all([pick, reveal])).map((o) => o.ok), [true, true]);
     // What the Companion module 0.2.0 on a deck sends: no field beyond these.
@@ -689,17 +705,41 @@ test('a pick and then a reveal that reach the page reversed run in the order the
   }
 });
 
-test('a reversed +1 and -1 each have their one effect, in the order they were pressed', async () => {
+test('a press let go after the one before it is judged against what that one drew', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const s = await cueStudio();
+  try {
+    await s.warmed();
+    const release = holdBack(s, 'deck:2');
+    // One key, pressed twice, both drawn with Anna off air: the second must see her on air.
+    const first = s.deck.press('take-cue', 'anna');
+    const second = s.deck.press('take-cue', 'anna');
+    await drain();
+    release('deck:2');
+    await drain();
+    await drawGap(t);
+    assert.deepEqual(s.ran, ['cara', 'anna'], 'the second is refused, not run on a page that has not drawn the first');
+    const [one, two] = await Promise.all([first, second]);
+    assert.equal(one.result.outcome, 'ran');
+    assert.equal(two.result.outcome, 'stale');
+  } finally {
+    s.done();
+  }
+});
+
+test('a reversed +1 and -1 each have their one effect, in the order they were pressed', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const s = await studio();
   try {
     await firstPress(s);
     const release = holdBack(s, 'deck:2');
-    const outcomes = [plusOne(s), minusOne(s)];
+    const outcomes = [s.press(), minusOne(s)];
     await drain();
     assert.equal(s.prod.sends.length, 1, 'the second waits for the first');
     release('deck:2');
     await drain();
     await landNext(s.prod, 1, true);
+    await drawGap(t);
     await landNext(s.prod, 2, true);
     await s.clock.advance(RESULT_MS);
     await Promise.all(outcomes);
@@ -711,12 +751,13 @@ test('a reversed +1 and -1 each have their one effect, in the order they were pr
   }
 });
 
-test('five +1 presses arriving in any order add exactly five, each once, whatever is delivered twice', async () => {
+test('five +1 presses arriving in any order add exactly five, each once, whatever is delivered twice', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const s = await studio();
   try {
     await firstPress(s);
     const release = holdBack(s, 'deck:2', 'deck:3', 'deck:5');
-    const outcomes = Array.from({ length: 5 }, () => plusOne(s));
+    const outcomes = Array.from({ length: 5 }, () => s.press());
     await drain();
     assert.equal(s.prod.sends.length, 1, 'presses 4 and 6 wait');
     // The relay's calls so far: the first press, then presses 4 and 6. The next two, presses 5 and 3
@@ -726,7 +767,10 @@ test('five +1 presses arriving in any order add exactly five, each once, whateve
       release(id);
       await drain();
     }
-    for (let i = 1; i < 6; i++) await landNext(s.prod, i, true);
+    for (let i = 1; i < 6; i++) {
+      await landNext(s.prod, i, true);
+      await drawGap(t);
+    }
     await s.clock.advance(RESULT_MS);
     await Promise.all(outcomes);
     assert.deepEqual(figures(s.prod), ['8', '9', '10', '11', '12', '13']);
@@ -738,13 +782,13 @@ test('five +1 presses arriving in any order add exactly five, each once, whateve
 });
 
 test('a press that never arrives holds the next one for the bound only, and the presses after it not at all', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const s = await studio();
   try {
     await firstPress(s);
     lose(s, 'deck:2');
-    const lost = plusOne(s);
-    const third = plusOne(s);
+    const lost = s.press();
+    const third = s.press();
     await drain();
     assert.equal(s.prod.sends.length, 1, 'the third waits for the second');
     t.mock.timers.tick(PRESS_HOLD_MS - 1);
@@ -755,7 +799,7 @@ test('a press that never arrives holds the next one for the bound only, and the 
     assert.equal(s.prod.sends.length, 2, 'the bound ran out: the third runs');
     await landNext(s.prod, 1, true);
     // The count moved past the lost press: the next press is in its turn again.
-    const fourth = plusOne(s);
+    const fourth = s.press();
     await drain();
     assert.equal(s.prod.sends.length, 3, 'the fourth runs as it is heard');
     await landNext(s.prod, 2, true);
@@ -769,12 +813,12 @@ test('a press that never arrives holds the next one for the bound only, and the 
 });
 
 test('a press arriving after the bound ran out still adds its one point', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const s = await studio();
   try {
     await firstPress(s);
     const release = holdBack(s, 'deck:2');
-    const outcomes = [plusOne(s), plusOne(s)];
+    const outcomes = [s.press(), s.press()];
     await drain();
     t.mock.timers.tick(PRESS_HOLD_MS);
     await drain();
@@ -794,11 +838,11 @@ test('a press arriving after the bound ran out still adds its one point', async 
 });
 
 test('a press on its own runs as it is heard: nothing has to tick for it', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const s = await studio();
   try {
     for (let i = 0; i < 3; i++) {
-      const out = plusOne(s);
+      const out = s.press();
       await drain();
       assert.equal(s.prod.sends.length, i + 1, `press ${i + 1} went straight to the send`);
       await landNext(s.prod, i, true);
@@ -823,7 +867,8 @@ test('the first press a page hears from a deck that has pressed before never wai
   }
 });
 
-test('a page that stops answering runs nothing it was still holding', async () => {
+test('a page that stops answering runs nothing it was still holding', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
   const s = await cueStudio();
   try {
     await s.warmed();
@@ -834,6 +879,8 @@ test('a page that stops answering runs nothing it was still holding', async () =
     assert.deepEqual(s.ran, ['cara']);
     pagehide();
     release('deck:2');
+    await drain();
+    t.mock.timers.tick(PRESS_HOLD_MS);
     await drain();
     assert.deepEqual(s.ran, ['cara']);
   } finally {

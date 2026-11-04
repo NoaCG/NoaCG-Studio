@@ -142,13 +142,15 @@ releases it (`panel_release`).
 
 Each press is its own relay call and broadcast, so two quick ones can arrive reversed. This page's
 own claim's presses run in press order, per panel, by the `n` of their press id
-(`control/panelFeedback.ts` `PressOrder`): a press in its turn runs in the task that heard it; one
-ahead of its turn is held until the presses before it arrive, for at most 500 ms, and then the ones
-that never came are given up on; a press after its turn runs at once, so one arriving past the
-bound still has its one effect. The first press this page hears from a panel sets the count and
-never waits, because the module may have pressed long before this page opened; a reversed pair at
-that very moment runs as it arrived. A press refused by the relay or lost on the way leaves a gap,
-so the next press of that panel waits out the 500 ms once.
+(`control/panelFeedback.ts` `PressOrder`): a press in its turn, with nothing held, runs in the task
+that heard it; one ahead of its turn is held until the presses before it arrive. 500 ms after a
+press was first held with none in its turn, everything held goes, and the ones that never came are
+given up on. Presses let go together run 50 ms apart, so each is judged against a page that has
+drawn the one before it. A press after its turn runs at once, so one arriving past the bound still
+has its one effect. The first press this page hears from a panel sets the count and never waits,
+because the module may have pressed long before this page opened; a reversed pair at that very
+moment runs as it arrived. A press refused by the relay or lost on the way leaves a gap, so the
+next press of that panel waits out the 500 ms once.
 
 Then, in this order, on each `press`:
 

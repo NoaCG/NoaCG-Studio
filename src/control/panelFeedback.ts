@@ -271,23 +271,23 @@ export class PressMemory {
  *  for its answer. */
 export const PRESS_HOLD_MS = 500;
 
+/** The gap between presses let go together. The page judges and runs a press from what it last drew
+ *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged against
+ *  a page that has not drawn the press before it. 50 ms is what an operator's quick pair has anyway. */
+export const PRESS_DRAW_MS = 50;
+
 /** At most this many panels' counts are kept: a module start is a new panel. */
 const ORDERED_PANELS_MAX = 64;
-
-export interface PressOrderClock {
-  now(): number;
-  /** Call `fn` once after `ms`; returns the cancel. */
-  after(ms: number, fn: () => void): () => void;
-  /** Call `fn` in a later task of the page, after it has drawn what the press before it did. */
-  nextTask(fn: () => void): void;
-}
 
 interface OrderedPanel {
   /** The number whose turn it is. */
   next: number;
-  held: Map<number, { run: () => void; until: number }>;
-  cancel: (() => void) | null;
-  yielding: boolean;
+  held: Map<number, () => void>;
+  /** The bound running for what is held, and the number it gave up to when it ran out. */
+  giveUp: (() => void) | null;
+  givenUpTo: number;
+  /** The gap running behind a press let go, while more are held. */
+  drawing: (() => void) | null;
 }
 
 /**
@@ -295,18 +295,20 @@ interface OrderedPanel {
  * relay call and broadcast, so two quick ones can arrive reversed (issue #2109). The press id has
  * always numbered them, `<instance>:<n>` counting up per module start, so no module needs an update.
  *
- * A press in its turn runs in the task that heard it: a press on its own never waits. One ahead of
- * its turn is held until the presses before it arrive, or for PRESS_HOLD_MS, whichever is first; then
- * the ones that never came are given up on. A press after its turn, a late one or a repeat, runs at
- * once: its id decides whether it has an effect (PressMemory), so a +1 arriving late still adds its
- * point. The first press this page hears from a panel sets the count and never waits, since a
- * module may have pressed long before this page opened.
+ * A press in its turn, with nothing held, runs in the task that heard it: a press on its own never
+ * waits. One ahead of its turn is held until the presses before it arrive. PRESS_HOLD_MS after a
+ * press was first held with none in its turn, everything held goes, in order, and the presses that
+ * never came are given up on. A press after its turn, a late one or a repeat, runs at once: its id
+ * decides whether it has an effect (PressMemory), so a +1 arriving late still adds its point. The
+ * first press this page hears from a panel sets the count and never waits, since a module may have
+ * pressed long before this page opened.
  */
 export class PressOrder {
-  readonly #clock: PressOrderClock;
+  /** Call `fn` once after `ms`; returns the cancel. */
+  readonly #after: (ms: number, fn: () => void) => () => void;
   readonly #panels = new Map<string, OrderedPanel>();
-  constructor(clock: PressOrderClock) {
-    this.#clock = clock;
+  constructor(after: (ms: number, fn: () => void) => () => void) {
+    this.#after = after;
   }
 
   /** A press was heard: `run` is called exactly once, in its turn, unless this order stops first. */
@@ -324,62 +326,62 @@ export class PressOrder {
     }
     // A second copy of a held press: the first answers for both.
     if (panel.held.has(n)) return;
-    panel.held.set(n, { run, until: this.#clock.now() + PRESS_HOLD_MS });
+    panel.held.set(n, run);
     this.#pump(panel);
   }
 
   /** Nothing held runs any more, and no timer is left. */
   stop(): void {
     for (const panel of this.#panels.values()) {
-      panel.cancel?.();
+      panel.giveUp?.();
+      panel.drawing?.();
       panel.held.clear();
     }
     this.#panels.clear();
   }
 
   #met(instance: string, n: number): OrderedPanel {
-    const panel: OrderedPanel = { next: n, held: new Map(), cancel: null, yielding: false };
-    this.#panels.set(instance, panel);
-    if (this.#panels.size > ORDERED_PANELS_MAX) {
+    if (this.#panels.size >= ORDERED_PANELS_MAX) {
       for (const [other, known] of this.#panels) {
-        if (known.held.size === 0 && !known.yielding) {
+        if (known.held.size === 0) {
           this.#panels.delete(other);
           break;
         }
       }
     }
+    const panel: OrderedPanel = { next: n, held: new Map(), giveUp: null, givenUpTo: 0, drawing: null };
+    this.#panels.set(instance, panel);
     return panel;
   }
 
   #pump(panel: OrderedPanel): void {
-    if (panel.yielding) return;
-    panel.cancel?.();
-    panel.cancel = null;
-    if (panel.held.size === 0) return;
-    if (!panel.held.has(panel.next)) {
-      const wait = Math.min(...[...panel.held.values()].map((h) => h.until)) - this.#clock.now();
-      if (wait > 0) {
-        panel.cancel = this.#clock.after(wait, () => {
-          panel.cancel = null;
-          this.#pump(panel);
-        });
-        return;
-      }
-      panel.next = Math.min(...panel.held.keys());
-    }
-    const press = panel.held.get(panel.next)!;
-    panel.held.delete(panel.next);
-    panel.next++;
-    // Set before the press runs, so one that throws cannot strand the ones behind it. The page feeds
-    // a press from what it last drew, so each of them runs after the one before it was drawn.
-    if (panel.held.size > 0) {
-      panel.yielding = true;
-      this.#clock.nextTask(() => {
-        panel.yielding = false;
+    if (panel.drawing) return;
+    const { held } = panel;
+    if (held.size === 0) return;
+    const lowest = Math.min(...held.keys());
+    if (lowest <= panel.givenUpTo) panel.next = lowest;
+    const run = held.get(panel.next);
+    if (!run) {
+      panel.giveUp ??= this.#after(PRESS_HOLD_MS, () => {
+        panel.giveUp = null;
+        panel.givenUpTo = Math.max(...held.keys());
         this.#pump(panel);
       });
+      return;
     }
-    press.run();
+    held.delete(panel.next);
+    panel.next++;
+    // Before the press runs, so one that throws cannot strand the ones behind it.
+    if (held.size > 0) {
+      panel.drawing = this.#after(PRESS_DRAW_MS, () => {
+        panel.drawing = null;
+        this.#pump(panel);
+      });
+    } else {
+      panel.giveUp?.();
+      panel.giveUp = null;
+    }
+    run();
   }
 }
 

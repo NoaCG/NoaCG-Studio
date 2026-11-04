@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, SnapshotRing, wireState, wireRows, rundownPanelRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
+const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, PressOrder, PRESS_HOLD_MS, PRESS_DRAW_MS, SnapshotRing, wireState, wireRows, rundownPanelRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
   await import('../src/control/panelFeedback.ts');
 const { rundownView } = await import('../src/model/rundownRows.ts');
 
@@ -470,31 +470,24 @@ test('a foreign press is judged like any graphic action and runs the typed butto
 
 // ── THE ORDER OF ONE PANEL'S PRESSES (protocol §6.2, issue #2109) ─────────────────────────────────
 
-const { PressOrder, PRESS_HOLD_MS } = await import('../src/control/panelFeedback.ts');
-
 function pressOrder() {
-  const c = { t: 0, timers: [], tasks: [], ran: [] };
-  c.order = new PressOrder({
-    now: () => c.t,
-    after: (ms, fn) => {
-      const timer = { at: c.t + ms, fn };
-      c.timers.push(timer);
-      return () => (c.timers = c.timers.filter((x) => x !== timer));
-    },
-    nextTask: (fn) => c.tasks.push(fn),
+  const c = { t: 0, timers: [], ran: [] };
+  c.order = new PressOrder((ms, fn) => {
+    const timer = { at: c.t + ms, fn };
+    c.timers.push(timer);
+    return () => (c.timers = c.timers.filter((x) => x !== timer));
   });
   c.hear = (id) => c.order.arrive(id, () => c.ran.push(id));
-  /** The page's next tasks, until none is left. */
-  c.settle = () => {
-    while (c.tasks.length) c.tasks.shift()();
-  };
   c.advance = (ms) => {
-    c.t += ms;
-    for (const timer of c.timers.filter((x) => x.at <= c.t)) {
-      c.timers = c.timers.filter((x) => x !== timer);
-      timer.fn();
+    const end = c.t + ms;
+    for (;;) {
+      const due = c.timers.filter((x) => x.at <= end).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      c.timers = c.timers.filter((x) => x !== due);
+      c.t = due.at;
+      due.fn();
     }
-    c.settle();
+    c.t = end;
   };
   return c;
 }
@@ -504,8 +497,8 @@ test('a press in its turn runs in the task that heard it, with no timer', () => 
   for (const id of ['deck01:1', 'deck01:2', 'deck01:3']) {
     c.hear(id);
     assert.equal(c.ran.at(-1), id);
+    assert.equal(c.timers.length, 0);
   }
-  assert.equal(c.timers.length + c.tasks.length, 0);
 });
 
 test('the first press heard from a panel sets its count and never waits', () => {
@@ -516,7 +509,7 @@ test('the first press heard from a panel sets its count and never waits', () => 
   assert.equal(c.timers.length, 0);
 });
 
-test('a press ahead of its turn waits for the ones before it, and each later one runs a task after the last', () => {
+test('a press ahead of its turn waits for the ones before it, then they run one gap apart', () => {
   const c = pressOrder();
   c.hear('deck01:1');
   c.hear('deck01:4');
@@ -524,14 +517,29 @@ test('a press ahead of its turn waits for the ones before it, and each later one
   assert.deepEqual(c.ran, ['deck01:1']);
   c.hear('deck01:2');
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:2'], 'the one that arrived runs in its task');
-  c.tasks.shift()();
-  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3'], 'the next waits for the page to draw it');
-  c.settle();
+  c.advance(PRESS_DRAW_MS - 1);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2'], 'the next waits for the page to draw it');
+  c.advance(1);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3']);
+  c.advance(PRESS_DRAW_MS);
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3', 'deck01:4']);
   assert.equal(c.timers.length, 0, 'nothing is held, so nothing is timed');
 });
 
-test('a press that never arrives is given up on at the bound of the press that waited longest', () => {
+test('a press in its turn heard during a gap waits for the press held before it', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  c.hear('deck01:4');
+  c.hear('deck01:2');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2']);
+  c.hear('deck01:5');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2']);
+  c.advance(PRESS_DRAW_MS * 3);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3', 'deck01:4', 'deck01:5']);
+});
+
+test('a press that never arrives is given up on at the bound, and everything held goes in order', () => {
   const c = pressOrder();
   c.hear('deck01:1');
   c.hear('deck01:5');
@@ -540,24 +548,28 @@ test('a press that never arrives is given up on at the bound of the press that w
   c.advance(PRESS_HOLD_MS - 201);
   assert.deepEqual(c.ran, ['deck01:1'], 'one ms inside the bound of the press heard first');
   c.advance(1);
-  // Press 5's bound ran out. Press 3 is older, so it goes first, and press 5 follows it.
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3'], 'press 3 is older, so it goes first');
+  c.advance(PRESS_DRAW_MS);
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:5']);
   c.hear('deck01:6');
   assert.equal(c.ran.at(-1), 'deck01:6', 'in its turn again');
   assert.equal(c.timers.length, 0);
 });
 
-test('a press held behind a second gap keeps its own bound', () => {
+test('a press heard after the bound ran out, past another gap, has a bound of its own', () => {
   const c = pressOrder();
   c.hear('deck01:1');
   c.hear('deck01:3');
-  c.advance(300);
   c.hear('deck01:5');
-  c.advance(200);
-  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3'], 'press 3 went at its bound, and press 5 waits for press 4');
-  c.hear('deck01:4');
-  c.settle();
-  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:4', 'deck01:5']);
+  c.advance(PRESS_HOLD_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3']);
+  c.hear('deck01:7');
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:5']);
+  c.advance(PRESS_DRAW_MS + PRESS_HOLD_MS - 1);
+  assert.equal(c.ran.length, 3, 'press 7 waits for press 6, from the end of the gap behind press 5');
+  c.advance(1);
+  assert.equal(c.ran.at(-1), 'deck01:7');
   assert.equal(c.timers.length, 0);
 });
 
@@ -584,15 +596,27 @@ test('each panel has its own count, and an id with no number is never held', () 
   assert.deepEqual(c.ran, ['deck01:1', 'deck02:1', 'deck02:2', 'nonumber']);
 });
 
+test('a panel with presses held keeps its count when many module starts pass', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  for (let i = 0; i < 100; i++) c.hear(`other${i}:1`);
+  c.hear('deck01:2');
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran.filter((id) => id.startsWith('deck01')), ['deck01:1', 'deck01:2', 'deck01:3']);
+});
+
 test('stopping drops what is held and every timer', () => {
   const c = pressOrder();
   c.hear('deck01:1');
   c.hear('deck01:3');
-  assert.equal(c.timers.length, 1);
+  c.hear('deck01:4');
+  c.hear('deck01:2');
+  assert.equal(c.timers.length, 2, 'the bound and the gap');
   c.order.stop();
   assert.equal(c.timers.length, 0);
   c.advance(PRESS_HOLD_MS);
-  assert.deepEqual(c.ran, ['deck01:1']);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2']);
 });
 
 test('a press that throws does not strand the ones behind it', () => {
@@ -604,6 +628,6 @@ test('a press that throws does not strand the ones behind it', () => {
       throw new Error('the dispatcher threw');
     }),
   );
-  c.settle();
+  c.advance(PRESS_DRAW_MS);
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:3']);
 });

@@ -125,27 +125,15 @@ export interface PanelAnswer {
   stop(): void;
 }
 
-/** Time for a held press, on nothing a hidden tab can starve: an operator page often sits behind
- *  OBS. A message wakes the page after a render it has already asked for, where setTimeout could
- *  wait up to a second. */
-const PRESS_ORDER_CLOCK = {
-  now: () => Date.now(),
-  after: (ms: number, fn: () => void) => {
-    const stop = workerInterval(ms, () => {
-      stop();
-      fn();
-    });
-    return stop;
-  },
-  nextTask: (fn: () => void) => {
-    const { port1, port2 } = new MessageChannel();
-    port1.onmessage = () => {
-      port1.close();
-      fn();
-    };
-    port2.postMessage(0);
-  },
-};
+/** One call of `fn`, on a timer a hidden tab cannot starve: an operator page often sits behind OBS,
+ *  where setTimeout could wait a second. A press is held rarely, so a worker for each wait is cheap. */
+function afterUnstarved(ms: number, fn: () => void): () => void {
+  const stop = workerInterval(ms, () => {
+    stop();
+    fn();
+  });
+  return stop;
+}
 
 /** Sixteen lowercase letters and digits, the page id panel_lease accepts. */
 function pageId(): string {
@@ -250,7 +238,7 @@ export function answerPanel(opts: {
 }): PanelAnswer {
   const page = tabPageId(opts.slug);
   const memory = new PressMemory();
-  const order = new PressOrder(PRESS_ORDER_CLOCK);
+  const order = new PressOrder(afterUnstarved);
   const ring = new SnapshotRing();
   const actionRing = new ActionsRing();
   let actionsVer = 0;
@@ -378,6 +366,7 @@ export function answerPanel(opts: {
   /** Every press heard: this claim's run in press order (protocol §6.2); another claim's is not in
    *  that order, and `admit` says what it means at once. */
   const onPressMessage = (payload: unknown) => {
+    if (stopped) return;
     const heard = (payload ?? {}) as { claim?: unknown; press_id?: unknown };
     if (heard.claim === claim && typeof heard.press_id === 'string') order.arrive(heard.press_id, () => runPress(payload));
     else runPress(payload);
