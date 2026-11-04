@@ -25,7 +25,7 @@ import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from '../_durable';
 import { evaluateInPage } from '../_evaluate';
 import { fakeBridge, seedSettings } from '../_fakeBridge';
-import { haveCreds, SUPABASE_URL } from './_helpers';
+import { haveCreds, readyOf, SUPABASE_URL } from './_helpers';
 import { answerPanel, ANON_KEY, openHosted, pairPanel, panelDoor, publishTwoCues, shutStatusPanel, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
@@ -272,3 +272,146 @@ test('the clip clock a panel counts follows the server clip the production page 
   expect((await deck.press('select-next', '', off.ver as number)).outcome).toBe('refused revoked');
   await deck.close();
 });
+
+// ── HOW LONG A PRESS TAKES TO REACH AIR, HOP BY HOP (issue #2089) ───────────────────────────────
+//
+// The owner, 2026-11-04: from a Stream Deck press a few hundred ms pass before OBS's picture
+// changes. This walks the same road a Companion press takes - the module's `panel_press`, the
+// relay to the answering page, the page's own dispatcher and `control_send_many`, the log frame to
+// the REAL /output page in its own browser context (what OBS and CasparCG load), the renderer
+// applying it and the frame it is drawn in - and stamps every hop on this machine's one clock:
+// `Date.now()` in Node and in both pages, the WebSocket stamps taken by a listener registered in
+// the socket's constructor (as scripts/playout-lag-bench.mjs does), so a frame is stamped before
+// supabase-js parses it.
+//
+// It asserts the press's effect, once per press, and NOTHING about time: the numbers are printed
+// and attached (`press-latency.json`) for a person to read, because a ceiling drawn through one
+// runner's numbers is the next flaky alarm. Run it against hosted staging (hosted-latency.yml) for
+// the wire a studio sees; the local stack answers in about a millisecond, so there the network
+// hops read as the floor and the page hops as what the browser costs (a dev server's, which is
+// slower than the built app's: playout-lag-bench.mjs).
+
+/** In both pages: stamp every WebSocket frame and the command fetch, and (on the renderer) every
+ *  play and the frame after it. Top document only: the graphics' own frames are not the wire. */
+function stampWire() {
+  if (window.top !== window) return;
+  const w = window as unknown as { __hops: { at: number; kind: string; text: string }[] };
+  w.__hops = [];
+  const put = (kind: string, text: string) => w.__hops.push({ at: Date.now(), kind, text: text.slice(0, 400) });
+  const Native = window.WebSocket;
+  window.WebSocket = class extends Native {
+    constructor(url: string | URL, protocols?: string | string[]) {
+      super(url, protocols);
+      this.addEventListener('message', (e) => {
+        if (typeof e.data === 'string' && /"(press|batch|cmd|row)"/.test(e.data)) put('ws', e.data);
+      });
+    }
+  } as typeof WebSocket;
+  const fetchNative = window.fetch.bind(window);
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!/control_send/.test(url)) return fetchNative(input, init);
+    put('send', url);
+    const p = fetchNative(input, init);
+    void p.then(() => put('sent', url), () => put('sent', url));
+    return p;
+  };
+  const watch = () => {
+    let plays = document.body.getAttribute('data-plays');
+    new MutationObserver(() => {
+      const now = document.body.getAttribute('data-plays');
+      if (now === plays) return;
+      plays = now;
+      put('played', String(now));
+      requestAnimationFrame(() => requestAnimationFrame(() => put('painted', String(now))));
+    }).observe(document.body, { attributes: true, attributeFilter: ['data-plays'] });
+  };
+  if (document.body) watch();
+  else document.addEventListener('DOMContentLoaded', watch);
+}
+
+type Hop = { at: number; kind: string; text: string };
+const hopsOf = (p: import('@playwright/test').Page) => p.evaluate(() => (window as unknown as { __hops: Hop[] }).__hops.splice(0));
+
+function stats(xs: number[]) {
+  const s = [...xs].sort((a, b) => a - b);
+  const q = (f: number) => s[Math.min(s.length - 1, Math.floor(f * s.length))];
+  return { n: s.length, p50: q(0.5), p90: q(0.9), max: s[s.length - 1], all: xs };
+}
+
+for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
+  test(`a panel Take reaches the real output renderer, timed hop by hop: ${graphic}`, async ({ page, browser }) => {
+    test.setTimeout(300_000);
+    const ROUNDS = 8;
+    const name = `Panel Latency ${graphic} ${Date.now()}`;
+    await page.addInitScript(stampWire);
+    await publishTwoCues(page, name, graphic === 'Hairline' ? undefined : graphic);
+    const op = page;
+    await shutStatusPanel(op);
+    const outputSlug = await op.evaluate(async (n) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      return loadShows().find((x) => x.name === n)?.outputSlug ?? null;
+    }, name);
+    expect(outputSlug, 'publishing must mint an output slug').toBeTruthy();
+    // The renderer in a context of its own, as OBS's and CasparCG's browsers are their own.
+    const outCtx = await browser.newContext();
+    const air = await outCtx.newPage();
+    await air.addInitScript(stampWire);
+    await air.goto(`/output?production=${encodeURIComponent(outputSlug!)}`);
+    await expect.poll(async () => { const r = await readyOf(air); return r ? r.n === r.of : false; }, { timeout: 60_000 }).toBe(true);
+
+    const deck = await pairPanel(op);
+    await answerPanel(op);
+    await op.getByTestId('panel-close').click();
+    await deck.hello();
+    const rows = await deck.rows();
+    const anna = rows[0].id;
+    const playsOf = async () => Number(await air.evaluate(() => document.body.getAttribute('data-plays')));
+
+    const hops: Record<string, number[]> = { relay: [], pageDispatch: [], sendRpc: [], logToRenderer: [], rendererApply: [], paint: [], pressToPaint: [], pressToResult: [] };
+    for (let round = 0; round < ROUNDS; round++) {
+      const before = await deck.state((s) => !(s.live as string[]).includes(anna), 'Anna off air');
+      const plays = await playsOf();
+      await hopsOf(op);
+      await hopsOf(air);
+      const pressAt = Date.now();
+      const take = await deck.press('take-cue', anna, before.ver as number);
+      expect(take.outcome).toBe('ran');
+      // ONE play per press on the renderer, never two (single effect per press).
+      await expect.poll(playsOf, { timeout: 15_000 }).toBe(plays + 1);
+      await air.waitForTimeout(300);
+      expect(await playsOf()).toBe(plays + 1);
+      const o = await hopsOf(op);
+      const a = await hopsOf(air);
+      const heard = o.find((h) => h.kind === 'ws' && h.text.includes(take.id));
+      const send = o.find((h) => h.kind === 'send');
+      const sent = o.find((h) => h.kind === 'sent');
+      const frame = a.find((h) => h.kind === 'ws' && /"(batch|cmd|row)"/.test(h.text));
+      const played = a.find((h) => h.kind === 'played');
+      const painted = a.find((h) => h.kind === 'painted');
+      if (heard && send && sent && frame && played && painted) {
+        hops.relay.push(heard.at - pressAt);
+        hops.pageDispatch.push(send.at - heard.at);
+        hops.sendRpc.push(sent.at - send.at);
+        hops.logToRenderer.push(frame.at - send.at);
+        hops.rendererApply.push(played.at - frame.at);
+        hops.paint.push(painted.at - played.at);
+        hops.pressToPaint.push(painted.at - pressAt);
+        hops.pressToResult.push(take.ms);
+      } else {
+        console.log(`round ${round}: a stamp is missing`, JSON.stringify({ heard: !!heard, send: !!send, sent: !!sent, frame: !!frame, played: !!played, painted: !!painted }));
+      }
+      // Off again, and settled, before the next press.
+      const up = await deck.state((s) => (s.live as string[]).includes(anna), 'Anna on air');
+      expect((await deck.press('take-cue', anna, up.ver as number)).outcome).toBe('ran');
+    }
+    const report = Object.fromEntries(Object.entries(hops).map(([k, v]) => [k, stats(v)]));
+    console.log(`#2089 press latency, ${graphic}:`);
+    for (const [k, s] of Object.entries(report)) console.log(`  ${k.padEnd(14)} n ${s.n}  p50 ${s.p50} ms  p90 ${s.p90} ms  max ${s.max} ms`);
+    await test.info().attach('press-latency.json', { body: JSON.stringify({ graphic, backend: SUPABASE_URL.replace(/\/\/([^.]+)\..*/, '//$1'), report }, null, 2), contentType: 'application/json' });
+    // Most rounds must have every stamp, or the instrument measured nothing.
+    expect(hops.pressToPaint.length).toBeGreaterThanOrEqual(ROUNDS - 2);
+    await deck.close();
+    await outCtx.close();
+  });
+}
