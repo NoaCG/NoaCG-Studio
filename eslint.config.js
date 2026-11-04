@@ -309,6 +309,7 @@ export default tseslint.config(
         svgFitPlaced: 'readonly',
         svgFitRoom: 'readonly',
         svgFitValue: 'readonly',
+        svgHardLines: 'readonly',
         svgFitWidths: 'readonly',
         svgFrameScale: 'readonly',
         svgIsEndCap: 'readonly',

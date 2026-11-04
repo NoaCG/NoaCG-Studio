@@ -25,6 +25,14 @@ const NOTICE_SVG = fileURLToPath(new URL('./fixtures/jev-svg/qualification/multi
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGNoticeSheet000000000/edit#gid=0';
 const tabOf = (body: string) => [['Field ID', 'Label', 'Value'], ['f0', 'Title', 'COMMUNITY NOTICE'], ['f1', 'Body', body]];
 
+/** The lines a bound block shows on air: one per painted line, or its text as one line. */
+function onAir(el: Element): string[] {
+  const painted = [...el.querySelectorAll(':scope > tspan[data-noacg-line]')].map((t) => (t.textContent ?? '').trim()).filter(Boolean);
+  if (painted.length) return painted;
+  const text = (el.textContent ?? '').trim();
+  return text ? [text] : [];
+}
+
 async function stubSheet(page: Page, rows: string[][]) {
   const tab = { csv: csvOf(rows) };
   await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, (route) =>
@@ -74,11 +82,11 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
     const w = window as unknown as { __spin: { totalTime(): number; isActive(): boolean } };
     return { progress: w.__spin.totalTime(), active: w.__spin.isActive() };
   });
-  // The words on air, in order. The import treats a drawn block of stacked lines as one value its
-  // fit ladder wraps into the drawn room, so a typed line break reads as a space (#1977).
-  const lines = () => body.evaluate((el) => (el.textContent ?? '').split(/\s+/).filter(Boolean).join(' '));
+  // The LINES on air, in order. A line break in the Sheet is a line of its own on air (#1977): the
+  // ladder wraps and shrinks within and across those lines, and never reflows them into one.
+  const lines = () => body.evaluate(onAir);
   // The block starts where it was drawn and stays inside the artwork's frame (0 to 1100). Where
-  // the ladder sets its room on this drawing is the import's own rule, not this row's (#1977).
+  // the ladder sets its room on this drawing is the import's own rule, not this row's (#2078).
   const inside = () => body.evaluate((el) => {
     const b = (el as SVGTextElement).getBBox();
     return { inside: b.x === 85 && b.x + b.width <= 1100, x: b.x, right: b.x + b.width };
@@ -87,7 +95,7 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   // REPLACE: three new lines arrive as three lines, in the drawn look, and nothing replays.
   const before = await motion();
   sheet.set(tabOf('Doors open at 19:00\nEntry from the main gate\nTickets at the door'));
-  await expect.poll(lines, { timeout: 20_000, message: 'the refresh reached air' }).toBe('Doors open at 19:00 Entry from the main gate Tickets at the door');
+  await expect.poll(lines, { timeout: 20_000, message: 'the refresh reached air' }).toEqual(['Doors open at 19:00', 'Entry from the main gate', 'Tickets at the door']);
   expect(await inside(), 'where it was drawn, inside the frame').toMatchObject({ inside: true });
   expect(await look(), 'the drawn styling is kept').toEqual(drawn);
   const after = await motion();
@@ -99,7 +107,7 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   sheet.set(tabOf(''));
   await expect.poll(() => body.evaluate((el) => (el.textContent ?? '').trim()), { timeout: 20_000, message: 'an empty value clears' }).toBe('');
   sheet.set(tabOf('Doors open at 18:00\nEntry from the courtyard'));
-  await expect.poll(lines, { timeout: 20_000 }).toBe('Doors open at 18:00 Entry from the courtyard');
+  await expect.poll(lines, { timeout: 20_000 }).toEqual(['Doors open at 18:00', 'Entry from the courtyard']);
   expect(await look()).toEqual(drawn);
 
   // PAUSE holds what is on air; RESUME reconnects and the newest value arrives.
@@ -107,9 +115,9 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   await expect(page.getByTestId('sources-line')).toContainText('paused');
   sheet.set(tabOf('Closed today'));
   await page.waitForTimeout(6000);
-  expect(await lines(), 'paused: nothing read').toBe('Doors open at 18:00 Entry from the courtyard');
+  expect(await lines(), 'paused: nothing read').toEqual(['Doors open at 18:00', 'Entry from the courtyard']);
   await page.getByTestId('source-pause').click();
-  await expect.poll(lines, { timeout: 20_000, message: 'reconnected' }).toBe('Closed today');
+  await expect.poll(lines, { timeout: 20_000, message: 'reconnected' }).toEqual(['Closed today']);
   expect(await look()).toEqual(drawn);
   const end = await motion();
   expect(end.active && end.progress > after.progress, 'the motion ran through every update').toBe(true);
@@ -145,8 +153,8 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
     const program = page.getByTestId('program-stage');
     const air = page.frameLocator('[data-testid="program-stage"] iframe');
     const body = air.locator('#f1');
-    const words = () => body.evaluate((el) => (el.textContent ?? '').split(/\s+/).filter(Boolean).join(' '));
-    await expect.poll(words).toBe('Doors open at 18:00 Entry from the courtyard');
+    const words = () => body.evaluate(onAir);
+    await expect.poll(words).toEqual(['Doors open at 18:00', 'Entry from the courtyard']);
     await expect(program).toHaveAttribute('data-plays', '1');
     await air.locator('body').evaluate(() => {
       const w = window as unknown as { gsap: { to(t: Element, v: object): unknown }; __spin: unknown };
@@ -159,7 +167,7 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
     for (const [mode, said] of PAGE_FAILURES) {
       fake.mode(SHEET, mode);
       await expect(status, mode).toHaveText(said, { timeout: 25_000 });
-      expect(await words(), `${mode}: the last good lines stay on air`).toBe('Doors open at 18:00 Entry from the courtyard');
+      expect(await words(), `${mode}: the last good lines stay on air`).toEqual(['Doors open at 18:00', 'Entry from the courtyard']);
       const now = await spin();
       expect(now, `${mode}: the drawing's own motion keeps running`).toBeGreaterThan(turned);
       turned = now;
@@ -167,7 +175,7 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
 
     // Reconnect: the newest lines arrive, the line is healthy again, nothing replays.
     fake.set(SHEET, tab('Doors open at 19:00\nTickets at the door'));
-    await expect.poll(words, { timeout: 20_000, message: 'reconnected' }).toBe('Doors open at 19:00 Tickets at the door');
+    await expect.poll(words, { timeout: 20_000, message: 'reconnected' }).toEqual(['Doors open at 19:00', 'Tickets at the door']);
     await expect(status).toContainText('checked');
     await expect(program).toHaveAttribute('data-plays', '1');
     expect(await spin()).toBeGreaterThan(turned);
