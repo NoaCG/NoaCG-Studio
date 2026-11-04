@@ -582,3 +582,261 @@ test('3 quick +1 presses add exactly 3 when the page\'s resolve, asked before th
     s.done();
   }
 });
+
+// ── THE ORDER OF PRESSES (issue #2109) ───────────────────────────────────────────────────────────
+//
+// Each press is its own relay call and broadcast, so the later of two quick presses can reach the
+// page first. The cases above are unchanged; these drive the same module, relay and page with the
+// relay's delivery moved. The module is the one on a deck today: its press carries only what 0.2.0
+// sends, and the page numbers presses by the press id that has always carried a counter. Each case
+// presses once first, because the first press a page hears from a panel sets the count.
+
+const { PRESS_HOLD_MS } = await import('../src/control/panelFeedback.ts');
+
+/** The relay calls of these press ids wait until `release(id)`: later presses overtake them. */
+function holdBack(s, ...ids) {
+  const real = s.hub.relay.press;
+  const gates = new Map(ids.map((id) => [id, held()]));
+  s.hub.relay.press = async (key, press) => {
+    await gates.get(press.id)?.promise;
+    return real(key, press);
+  };
+  return (id) => gates.get(id).resolve();
+}
+/** These press ids are accepted by the relay and never reach the page. */
+function lose(s, ...ids) {
+  const real = s.hub.relay.press;
+  s.hub.relay.press = async (key, press) => (ids.includes(press.id) ? { ok: true, claim: 7 } : real(key, press));
+}
+const plusOne = (s) => pressGraphicKey(s.deck, { graphic: 'Score', cap: 'step:home', delta: 1 });
+const minusOne = (s) => pressGraphicKey(s.deck, { graphic: 'Score', cap: 'step:home', delta: -1 });
+
+/** The deck's first press, on the air and answered: the page knows the deck's count from here. */
+async function firstPress(s) {
+  const out = plusOne(s);
+  await drain();
+  await landNext(s.prod, 0, true);
+  await s.clock.advance(RESULT_MS);
+  assert.equal((await out).ok, true);
+}
+
+/** A deck and an answering page whose keys are three cues of one graphic; what is on air is the
+ *  cue that ran last. */
+async function cueStudio() {
+  const hub = relayHub();
+  globalThis.__panelBackend = hub.backend;
+  const ran = [];
+  const sent = [];
+  const answer = answerPanel({
+    slug: 'slug-2',
+    where: 'production',
+    move: false,
+    label: 'Production',
+    snapshot: () => ({
+      title: 'Match',
+      selected: null,
+      space: null,
+      live: ran.slice(-1),
+      allowed: {},
+      blocked: [],
+      clip: null,
+      bridge: 'ok',
+      rows: ['cara', 'anna', 'ben'].map((id) => ({ id, label: id, kind: 'cue', source: 'graphic' })),
+    }),
+    runs: new Set(['take-cue']),
+    run: (_verb, target) => ran.push(target),
+    onStatus: () => {},
+    onPress: () => {},
+  });
+  const deck = new PanelClient({ relay: hub.relay, clock: new HandClock(), instance: 'deck' });
+  const real = hub.relay.press;
+  hub.relay.press = (key, press) => (sent.push(press), real(key, press));
+  await deck.start({ key: 'ncpk_test', code: '', label: 'Deck' });
+  await drain();
+  answer.changed();
+  await drain();
+  assert.equal(deck.status, 'ok', deck.note);
+  const done = () => {
+    pagehide();
+    void deck.stop();
+    delete globalThis.__panelBackend;
+  };
+  const warmed = async () => {
+    await deck.press('take-cue', 'cara');
+    await drain();
+    assert.deepEqual(ran, ['cara']);
+  };
+  return { hub, deck, ran, sent, done, warmed };
+}
+
+test('a pick and then a reveal that reach the page reversed run in the order they were pressed', async () => {
+  const s = await cueStudio();
+  try {
+    await s.warmed();
+    const release = holdBack(s, 'deck:2');
+    const pick = s.deck.press('take-cue', 'anna');
+    const reveal = s.deck.press('take-cue', 'ben');
+    await drain();
+    assert.deepEqual(s.ran, ['cara'], 'the reveal waits for the pick');
+    release('deck:2');
+    await drain();
+    assert.deepEqual(s.ran, ['cara', 'anna', 'ben'], 'in press order, with what was pressed last on air');
+    assert.deepEqual((await Promise.all([pick, reveal])).map((o) => o.ok), [true, true]);
+    // What the Companion module 0.2.0 on a deck sends: no field beyond these.
+    for (const press of s.sent) assert.deepEqual(Object.keys(press).sort(), ['id', 'seen', 'target', 'verb']);
+  } finally {
+    s.done();
+  }
+});
+
+test('a reversed +1 and -1 each have their one effect, in the order they were pressed', async () => {
+  const s = await studio();
+  try {
+    await firstPress(s);
+    const release = holdBack(s, 'deck:2');
+    const outcomes = [plusOne(s), minusOne(s)];
+    await drain();
+    assert.equal(s.prod.sends.length, 1, 'the second waits for the first');
+    release('deck:2');
+    await drain();
+    await landNext(s.prod, 1, true);
+    await landNext(s.prod, 2, true);
+    await s.clock.advance(RESULT_MS);
+    await Promise.all(outcomes);
+    assert.deepEqual(figures(s.prod), ['8', '9', '8']);
+    assert.equal(s.prod.output(), '8');
+    assert.deepEqual(s.reports.filter((r) => !r.settled).map((r) => r.verdict.outcome), ['ran', 'ran', 'ran']);
+  } finally {
+    s.done();
+  }
+});
+
+test('five +1 presses arriving in any order add exactly five, each once, whatever is delivered twice', async () => {
+  const s = await studio();
+  try {
+    await firstPress(s);
+    const release = holdBack(s, 'deck:2', 'deck:3', 'deck:5');
+    const outcomes = Array.from({ length: 5 }, () => plusOne(s));
+    await drain();
+    assert.equal(s.prod.sends.length, 1, 'presses 4 and 6 wait');
+    // The relay's calls so far: the first press, then presses 4 and 6. The next two, presses 5 and 3
+    // released below, are delivered twice while they are held.
+    s.hub.faults.doubled.add(4).add(5);
+    for (const id of ['deck:5', 'deck:3', 'deck:2']) {
+      release(id);
+      await drain();
+    }
+    for (let i = 1; i < 6; i++) await landNext(s.prod, i, true);
+    await s.clock.advance(RESULT_MS);
+    await Promise.all(outcomes);
+    assert.deepEqual(figures(s.prod), ['8', '9', '10', '11', '12', '13']);
+    assert.equal(s.prod.output(), '13');
+    assert.deepEqual(s.reports.filter((r) => !r.settled).map((r) => r.verdict.outcome), Array(6).fill('ran'));
+  } finally {
+    s.done();
+  }
+});
+
+test('a press that never arrives holds the next one for the bound only, and the presses after it not at all', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  const s = await studio();
+  try {
+    await firstPress(s);
+    lose(s, 'deck:2');
+    const lost = plusOne(s);
+    const third = plusOne(s);
+    await drain();
+    assert.equal(s.prod.sends.length, 1, 'the third waits for the second');
+    t.mock.timers.tick(PRESS_HOLD_MS - 1);
+    await drain();
+    assert.equal(s.prod.sends.length, 1, 'still inside the bound');
+    t.mock.timers.tick(1);
+    await drain();
+    assert.equal(s.prod.sends.length, 2, 'the bound ran out: the third runs');
+    await landNext(s.prod, 1, true);
+    // The count moved past the lost press: the next press is in its turn again.
+    const fourth = plusOne(s);
+    await drain();
+    assert.equal(s.prod.sends.length, 3, 'the fourth runs as it is heard');
+    await landNext(s.prod, 2, true);
+    await s.clock.advance(RESULT_MS);
+    await Promise.all([lost, third, fourth]);
+    assert.deepEqual(figures(s.prod), ['8', '9', '10']);
+    assert.equal(s.prod.output(), '10');
+  } finally {
+    s.done();
+  }
+});
+
+test('a press arriving after the bound ran out still adds its one point', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  const s = await studio();
+  try {
+    await firstPress(s);
+    const release = holdBack(s, 'deck:2');
+    const outcomes = [plusOne(s), plusOne(s)];
+    await drain();
+    t.mock.timers.tick(PRESS_HOLD_MS);
+    await drain();
+    assert.equal(s.prod.sends.length, 2, 'the bound let the later press go');
+    await landNext(s.prod, 1, true);
+    release('deck:2');
+    await drain();
+    await landNext(s.prod, 2, true);
+    await s.clock.advance(RESULT_MS);
+    await Promise.all(outcomes);
+    assert.deepEqual(figures(s.prod), ['8', '9', '10']);
+    assert.equal(s.prod.output(), '10');
+    assert.deepEqual(s.reports.filter((r) => !r.settled).map((r) => r.verdict.outcome), ['ran', 'ran', 'ran']);
+  } finally {
+    s.done();
+  }
+});
+
+test('a press on its own runs as it is heard: nothing has to tick for it', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'] });
+  const s = await studio();
+  try {
+    for (let i = 0; i < 3; i++) {
+      const out = plusOne(s);
+      await drain();
+      assert.equal(s.prod.sends.length, i + 1, `press ${i + 1} went straight to the send`);
+      await landNext(s.prod, i, true);
+      await s.clock.advance(RESULT_MS);
+      assert.equal((await out).ok, true);
+    }
+    assert.deepEqual(figures(s.prod), ['8', '9', '10']);
+  } finally {
+    s.done();
+  }
+});
+
+test('the first press a page hears from a deck that has pressed before never waits for the numbers it missed', async () => {
+  const s = await cueStudio();
+  try {
+    // The module has been up for a while: this page has never heard its earlier presses.
+    await s.hub.relay.press('ncpk_test', { verb: 'take-cue', target: 'anna', seen: s.deck.state.ver, id: 'deck:57' });
+    await drain();
+    assert.deepEqual(s.ran, ['anna']);
+  } finally {
+    s.done();
+  }
+});
+
+test('a page that stops answering runs nothing it was still holding', async () => {
+  const s = await cueStudio();
+  try {
+    await s.warmed();
+    const release = holdBack(s, 'deck:2');
+    void s.deck.press('take-cue', 'anna');
+    void s.deck.press('take-cue', 'ben');
+    await drain();
+    assert.deepEqual(s.ran, ['cara']);
+    pagehide();
+    release('deck:2');
+    await drain();
+    assert.deepEqual(s.ran, ['cara']);
+  } finally {
+    s.done();
+  }
+});

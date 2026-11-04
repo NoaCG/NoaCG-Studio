@@ -14,6 +14,7 @@ import { workerInterval } from './workerTicker';
 import {
   PANEL_PROTOCOL,
   PressMemory,
+  PressOrder,
   SnapshotRing,
   judgePress,
   readPress,
@@ -124,6 +125,28 @@ export interface PanelAnswer {
   stop(): void;
 }
 
+/** Time for a held press, on nothing a hidden tab can starve: an operator page often sits behind
+ *  OBS. A message wakes the page after a render it has already asked for, where setTimeout could
+ *  wait up to a second. */
+const PRESS_ORDER_CLOCK = {
+  now: () => Date.now(),
+  after: (ms: number, fn: () => void) => {
+    const stop = workerInterval(ms, () => {
+      stop();
+      fn();
+    });
+    return stop;
+  },
+  nextTask: (fn: () => void) => {
+    const { port1, port2 } = new MessageChannel();
+    port1.onmessage = () => {
+      port1.close();
+      fn();
+    };
+    port2.postMessage(0);
+  },
+};
+
 /** Sixteen lowercase letters and digits, the page id panel_lease accepts. */
 function pageId(): string {
   let id = '';
@@ -227,6 +250,7 @@ export function answerPanel(opts: {
 }): PanelAnswer {
   const page = tabPageId(opts.slug);
   const memory = new PressMemory();
+  const order = new PressOrder(PRESS_ORDER_CLOCK);
   const ring = new SnapshotRing();
   const actionRing = new ActionsRing();
   let actionsVer = 0;
@@ -335,7 +359,7 @@ export function answerPanel(opts: {
     offer.act(judged.run).then(settle, (err: unknown) => settle({ outcome: 'failed', note: (err as Error)?.message ?? 'failed' }));
   };
 
-  const onPressMessage = (payload: unknown) => {
+  const runPress = (payload: unknown) => {
     if ((payload as { verb?: unknown } | null)?.verb === ACTION_VERB) {
       onActionMessage(payload);
       return;
@@ -349,6 +373,14 @@ export function answerPanel(opts: {
     opts.onPress({ panel: press.panel.label, verb: press.verb, verdict, at: now });
     // The press moved what the keys show; publish as soon as the page has drawn it.
     if (verdict.outcome === 'ran') setTimeout(() => publish(), 0);
+  };
+
+  /** Every press heard: this claim's run in press order (protocol §6.2); another claim's is not in
+   *  that order, and `admit` says what it means at once. */
+  const onPressMessage = (payload: unknown) => {
+    const heard = (payload ?? {}) as { claim?: unknown; press_id?: unknown };
+    if (heard.claim === claim && typeof heard.press_id === 'string') order.arrive(heard.press_id, () => runPress(payload));
+    else runPress(payload);
   };
 
   const leave = async (ch: RealtimeChannel | null) => {
@@ -375,6 +407,7 @@ export function answerPanel(opts: {
     if (stopped) return;
     stopped = true;
     beat?.();
+    order.stop();
     void leave(pressChannel);
     void leave(feedChannel);
     opts.onStatus({ kind: 'replaced', by });
@@ -492,6 +525,7 @@ export function answerPanel(opts: {
     send('gone', { v: PANEL_PROTOCOL, page, claim });
     stopped = true;
     beat?.();
+    order.stop();
     window.removeEventListener('pagehide', onHide);
     if (release) releaseNow(claim);
     void leave(pressChannel);

@@ -467,3 +467,143 @@ test('a foreign press is judged like any graphic action and runs the typed butto
   // A package edit that drops the action presses nothing.
   assert.deepEqual(await runCapability(judge({}).run, { ...machine, buttons: [] }, {}, verbs), { outcome: 'refused', note: 'that action is no longer on Results' });
 });
+
+// ── THE ORDER OF ONE PANEL'S PRESSES (protocol §6.2, issue #2109) ─────────────────────────────────
+
+const { PressOrder, PRESS_HOLD_MS } = await import('../src/control/panelFeedback.ts');
+
+function pressOrder() {
+  const c = { t: 0, timers: [], tasks: [], ran: [] };
+  c.order = new PressOrder({
+    now: () => c.t,
+    after: (ms, fn) => {
+      const timer = { at: c.t + ms, fn };
+      c.timers.push(timer);
+      return () => (c.timers = c.timers.filter((x) => x !== timer));
+    },
+    nextTask: (fn) => c.tasks.push(fn),
+  });
+  c.hear = (id) => c.order.arrive(id, () => c.ran.push(id));
+  /** The page's next tasks, until none is left. */
+  c.settle = () => {
+    while (c.tasks.length) c.tasks.shift()();
+  };
+  c.advance = (ms) => {
+    c.t += ms;
+    for (const timer of c.timers.filter((x) => x.at <= c.t)) {
+      c.timers = c.timers.filter((x) => x !== timer);
+      timer.fn();
+    }
+    c.settle();
+  };
+  return c;
+}
+
+test('a press in its turn runs in the task that heard it, with no timer', () => {
+  const c = pressOrder();
+  for (const id of ['deck01:1', 'deck01:2', 'deck01:3']) {
+    c.hear(id);
+    assert.equal(c.ran.at(-1), id);
+  }
+  assert.equal(c.timers.length + c.tasks.length, 0);
+});
+
+test('the first press heard from a panel sets its count and never waits', () => {
+  const c = pressOrder();
+  c.hear('deck01:57');
+  c.hear('deck01:58');
+  assert.deepEqual(c.ran, ['deck01:57', 'deck01:58']);
+  assert.equal(c.timers.length, 0);
+});
+
+test('a press ahead of its turn waits for the ones before it, and each later one runs a task after the last', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:4');
+  c.hear('deck01:3');
+  assert.deepEqual(c.ran, ['deck01:1']);
+  c.hear('deck01:2');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2'], 'the one that arrived runs in its task');
+  c.tasks.shift()();
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3'], 'the next waits for the page to draw it');
+  c.settle();
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3', 'deck01:4']);
+  assert.equal(c.timers.length, 0, 'nothing is held, so nothing is timed');
+});
+
+test('a press that never arrives is given up on at the bound of the press that waited longest', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:5');
+  c.advance(200);
+  c.hear('deck01:3');
+  c.advance(PRESS_HOLD_MS - 201);
+  assert.deepEqual(c.ran, ['deck01:1'], 'one ms inside the bound of the press heard first');
+  c.advance(1);
+  // Press 5's bound ran out. Press 3 is older, so it goes first, and press 5 follows it.
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:5']);
+  c.hear('deck01:6');
+  assert.equal(c.ran.at(-1), 'deck01:6', 'in its turn again');
+  assert.equal(c.timers.length, 0);
+});
+
+test('a press held behind a second gap keeps its own bound', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  c.advance(300);
+  c.hear('deck01:5');
+  c.advance(200);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3'], 'press 3 went at its bound, and press 5 waits for press 4');
+  c.hear('deck01:4');
+  c.settle();
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:4', 'deck01:5']);
+  assert.equal(c.timers.length, 0);
+});
+
+test('a repeat of a held press is dropped, and a late or repeated press goes on to its id check at once', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  c.hear('deck01:3');
+  c.hear('deck01:1');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:1'], "a repeat of a press that ran is the memory's to refuse");
+  c.advance(PRESS_HOLD_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:1', 'deck01:3'], 'the held press ran once');
+  c.hear('deck01:2');
+  assert.equal(c.ran.at(-1), 'deck01:2', 'a press past the bound still has its effect');
+});
+
+test('each panel has its own count, and an id with no number is never held', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck02:1');
+  c.hear('deck01:3');
+  c.hear('deck02:2');
+  c.hear('nonumber');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck02:1', 'deck02:2', 'nonumber']);
+});
+
+test('stopping drops what is held and every timer', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  assert.equal(c.timers.length, 1);
+  c.order.stop();
+  assert.equal(c.timers.length, 0);
+  c.advance(PRESS_HOLD_MS);
+  assert.deepEqual(c.ran, ['deck01:1']);
+});
+
+test('a press that throws does not strand the ones behind it', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  assert.throws(() =>
+    c.order.arrive('deck01:2', () => {
+      throw new Error('the dispatcher threw');
+    }),
+  );
+  c.settle();
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3']);
+});
