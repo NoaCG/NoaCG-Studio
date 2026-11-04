@@ -1034,11 +1034,17 @@ export default function MapSvgFieldsStep({
   // row-level Countdown stays only where it is already in use (`svgCountdownOffered`), and with
   // Text its one other answer, the row then has nothing to choose, so the picker is not drawn.
   const savedOver = useMemo(() => svgSavedOver(draft.name), [draft.name]);
-  const countdownOffered = useMemo(
+  const countdownInUse = useMemo(
     () => svgCountdownOffered(draft, savedOver),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- exactly what the answer reads
     [draft.svgFields, draft.svgBehaviour, draft.designSvg, savedOver],
   );
+  // Once offered on this artwork it stays, so setting a countdown row back to Text never takes
+  // the picker away from under the pointer with no way back. A different artwork starts over.
+  const markup = draft.designSvg?.markup ?? null;
+  const [countdownKeptFor, setCountdownKeptFor] = useState<string | null>(null);
+  if (countdownInUse && markup && countdownKeptFor !== markup) setCountdownKeptFor(markup);
+  const countdownOffered = countdownInUse || (!!markup && countdownKeptFor === markup);
 
   if (!svg) return null;
 

@@ -1702,6 +1702,16 @@ test('the old Countdown kind: gone from a new import, kept where a draft or a sa
   // One clock engine per graphic: with the old countdown bound, the Clock is not offered.
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
   await page.getByTestId('wz-skip-to-finish').click();
+  // Under another name nothing saved runs it, so only this draft's own countdown row keeps the
+  // kind. Setting that row back to Text keeps the picker: the reader can change their mind back.
+  await page.getByTestId('wz-finish-name').fill('Another clock');
+  await page.locator('.wz-rail button').nth(1).click();
+  await expect(kind).toHaveValue('countdown');
+  await kind.selectOption('text');
+  await expect(kind.locator('option')).toHaveText(['Text', 'Countdown']);
+  await kind.selectOption('countdown');
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-name').fill('Score clock 1');
   await page.getByTestId('wz-finish-export').click();
   await expect(page.getByTestId('export-window')).toBeVisible();
   await settleDurableWrites(page);
