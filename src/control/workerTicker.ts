@@ -3,7 +3,8 @@
 // Chromium throttles a hidden or covered tab's timers, down to once a minute after five minutes, so
 // an operator page left behind another window would stop renewing its panel lease and stop beating
 // to its panel. A dedicated worker's timer is not throttled that way, and its message wakes the page
-// as an ordinary task. Where a worker cannot start, a plain interval stands in.
+// as an ordinary task. Where a worker cannot start, or fails after starting (no tick and nothing
+// thrown), a plain interval stands in.
 
 /** Call `tick` every `ms` until the returned function is called. */
 export function workerInterval(ms: number, tick: () => void): () => void {
@@ -20,9 +21,16 @@ export function workerInterval(ms: number, tick: () => void): () => void {
       revoke();
       tick();
     };
+    let plain: ReturnType<typeof setInterval> | null = null;
+    worker.onerror = () => {
+      revoke();
+      worker.terminate();
+      plain ??= setInterval(tick, ms);
+    };
     return () => {
       revoke();
       worker.terminate();
+      if (plain !== null) clearInterval(plain);
     };
   } catch {
     const timer = setInterval(tick, ms);

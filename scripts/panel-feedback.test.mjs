@@ -1,4 +1,4 @@
-// guards: src/control/panelFeedback.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql
+// guards: src/control/panelFeedback.ts, src/control/workerTicker.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql
 //
 // HARDWARE PANELS, THE PAGE'S CHECKS (docs/work-specs/hardware-panel-control/spec.md AC-4, AC-7;
 // protocol.md §6.2 and §8): a relayed press is judged against what the page shows now and what its
@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, SnapshotRing, wireState, wireRows, rundownPanelRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
+const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, PressOrder, PRESS_HOLD_MS, PRESS_DRAW_MS, SnapshotRing, wireState, wireRows, rundownPanelRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
   await import('../src/control/panelFeedback.ts');
 const { rundownView } = await import('../src/model/rundownRows.ts');
 
@@ -466,4 +466,215 @@ test('a foreign press is judged like any graphic action and runs the typed butto
   assert.deepEqual(calls, [['highlight', true, 'cue_r1', undefined], ['highlight', true, 'cue_r1', { team: 2 }]]);
   // A package edit that drops the action presses nothing.
   assert.deepEqual(await runCapability(judge({}).run, { ...machine, buttons: [] }, {}, verbs), { outcome: 'refused', note: 'that action is no longer on Results' });
+});
+
+// ── THE TIMER BEHIND THE BEAT AND A HELD PRESS ────────────────────────────────────────────────────
+
+const { workerInterval } = await import('../src/control/workerTicker.ts');
+
+/** A stand-in for the browser's Worker, handed to the test as it is made. */
+function stubWorker(t) {
+  const made = [];
+  globalThis.Worker = class {
+    terminated = false;
+    constructor() {
+      made.push(this);
+    }
+    terminate() {
+      this.terminated = true;
+    }
+  };
+  t.after(() => delete globalThis.Worker);
+  return made;
+}
+
+test('a worker ticks the timer until it is stopped, with no plain interval running', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const made = stubWorker(t);
+  let ticks = 0;
+  const stop = workerInterval(100, () => ticks++);
+  made[0].onmessage();
+  assert.equal(ticks, 1);
+  t.mock.timers.tick(1000);
+  assert.equal(ticks, 1);
+  stop();
+  assert.equal(made[0].terminated, true);
+});
+
+test('a worker that fails after it started hands over to a plain interval, which stopping also ends', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const made = stubWorker(t);
+  let ticks = 0;
+  const stop = workerInterval(100, () => ticks++);
+  made[0].onerror();
+  assert.equal(made[0].terminated, true);
+  t.mock.timers.tick(100);
+  assert.equal(ticks, 1);
+  stop();
+  t.mock.timers.tick(1000);
+  assert.equal(ticks, 1);
+});
+
+// ── THE ORDER OF ONE PANEL'S PRESSES (protocol §6.2, issue #2109) ─────────────────────────────────
+
+function pressOrder() {
+  const c = { t: 0, timers: [], ran: [] };
+  c.order = new PressOrder((ms, fn) => {
+    const timer = { at: c.t + ms, fn };
+    c.timers.push(timer);
+    return () => (c.timers = c.timers.filter((x) => x !== timer));
+  });
+  c.hear = (id) => c.order.arrive(id, () => c.ran.push(id));
+  c.advance = (ms) => {
+    const end = c.t + ms;
+    for (;;) {
+      const due = c.timers.filter((x) => x.at <= end).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      c.timers = c.timers.filter((x) => x !== due);
+      c.t = due.at;
+      due.fn();
+    }
+    c.t = end;
+  };
+  return c;
+}
+
+test('a press in its turn runs in the task that heard it, with no timer', () => {
+  const c = pressOrder();
+  for (const id of ['deck01:1', 'deck01:2', 'deck01:3']) {
+    c.hear(id);
+    assert.equal(c.ran.at(-1), id);
+    assert.equal(c.timers.length, 0);
+  }
+});
+
+test('the first press heard from a panel sets its count and never waits', () => {
+  const c = pressOrder();
+  c.hear('deck01:57');
+  c.hear('deck01:58');
+  assert.deepEqual(c.ran, ['deck01:57', 'deck01:58']);
+  assert.equal(c.timers.length, 0);
+});
+
+test('a press ahead of its turn waits for the ones before it, then they run one gap apart', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:4');
+  c.hear('deck01:3');
+  assert.deepEqual(c.ran, ['deck01:1']);
+  c.hear('deck01:2');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2'], 'the one that arrived runs in its task');
+  c.advance(PRESS_DRAW_MS - 1);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2'], 'the next waits for the page to draw it');
+  c.advance(1);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3']);
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3', 'deck01:4']);
+  assert.equal(c.timers.length, 0, 'nothing is held, so nothing is timed');
+});
+
+test('a press in its turn heard during a gap waits for the press held before it', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  c.hear('deck01:4');
+  c.hear('deck01:2');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2']);
+  c.hear('deck01:5');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2']);
+  c.advance(PRESS_DRAW_MS * 3);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3', 'deck01:4', 'deck01:5']);
+});
+
+test('a press that never arrives is given up on at the bound, and everything held goes in order', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:5');
+  c.advance(200);
+  c.hear('deck01:3');
+  c.advance(PRESS_HOLD_MS - 201);
+  assert.deepEqual(c.ran, ['deck01:1'], 'one ms inside the bound of the press heard first');
+  c.advance(1);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3'], 'press 3 is older, so it goes first');
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:5']);
+  c.hear('deck01:6');
+  assert.equal(c.ran.at(-1), 'deck01:6', 'in its turn again');
+  assert.equal(c.timers.length, 0);
+});
+
+test('a press heard after the bound ran out, past another gap, has a bound of its own', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  c.hear('deck01:5');
+  c.advance(PRESS_HOLD_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3']);
+  c.hear('deck01:7');
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:5']);
+  c.advance(PRESS_DRAW_MS + PRESS_HOLD_MS - 1);
+  assert.equal(c.ran.length, 3, 'press 7 waits for press 6, from the end of the gap behind press 5');
+  c.advance(1);
+  assert.equal(c.ran.at(-1), 'deck01:7');
+  assert.equal(c.timers.length, 0);
+});
+
+test('a repeat of a held press is dropped, and a late or repeated press goes on to its id check at once', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  c.hear('deck01:3');
+  c.hear('deck01:1');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:1'], "a repeat of a press that ran is the memory's to refuse");
+  c.advance(PRESS_HOLD_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:1', 'deck01:3'], 'the held press ran once');
+  c.hear('deck01:2');
+  assert.equal(c.ran.at(-1), 'deck01:2', 'a press past the bound still has its effect');
+});
+
+test('each panel has its own count, and an id with no number is never held', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck02:1');
+  c.hear('deck01:3');
+  c.hear('deck02:2');
+  c.hear('nonumber');
+  assert.deepEqual(c.ran, ['deck01:1', 'deck02:1', 'deck02:2', 'nonumber']);
+});
+
+test('a panel with presses held keeps its count when many module starts pass', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  for (let i = 0; i < 100; i++) c.hear(`other${i}:1`);
+  c.hear('deck01:2');
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran.filter((id) => id.startsWith('deck01')), ['deck01:1', 'deck01:2', 'deck01:3']);
+});
+
+test('stopping drops what is held and every timer', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  c.hear('deck01:4');
+  c.hear('deck01:2');
+  assert.equal(c.timers.length, 2, 'the bound and the gap');
+  c.order.stop();
+  assert.equal(c.timers.length, 0);
+  c.advance(PRESS_HOLD_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2']);
+});
+
+test('a press that throws does not strand the ones behind it', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.hear('deck01:3');
+  assert.throws(() =>
+    c.order.arrive('deck01:2', () => {
+      throw new Error('the dispatcher threw');
+    }),
+  );
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:3']);
 });

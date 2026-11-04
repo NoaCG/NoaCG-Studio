@@ -55,7 +55,7 @@ key rotates the token.
 | press token `p`, feedback token `f` | 32 lowercase hex | the server, per production | `p`: pages. `f`: pages and paired panels |
 | page id | 16 lowercase letters and digits, random per page load | the page | the page; shown to panels as who answers |
 | claim | bigint, per production, only ever increases | `panel_lease` (`panel_claim` from older pages) | the answering page |
-| press id | `<instance>:<n>`, instance 6 to 24 lowercase letters and digits minted per module start, n a counter | the module | reused on the module's own retry of one press |
+| press id | `<instance>:<n>`, instance 6 to 24 lowercase letters and digits minted per module start, n counting up by one per press sent, which is the order the page runs them in (§6.2) | the module | reused on the module's own retry of one press |
 
 ## 4. RPCs
 
@@ -140,7 +140,20 @@ releases it (`panel_release`).
 
 ### 6.2 Running a press
 
-In this order, on each `press`:
+Each press is its own relay call and broadcast, so two quick ones can arrive reversed. This page's
+own claim's presses run in press order, per panel, by the `n` of their press id
+(`control/panelFeedback.ts` `PressOrder`): a press in its turn, with nothing held, runs in the task
+that heard it; one ahead of its turn is held until the presses before it arrive. 500 ms after a
+press was first held with none in its turn, everything held goes, and the ones that never came are
+given up on. Presses let go together run 50 ms apart, so each is judged against a page that has
+drawn the one before it; two that arrive in order have no such gap, however close together, and the
+second may be judged against a page that has not drawn the first. A press after its turn runs at once, so one arriving past the bound still
+has its one effect. The first press this page hears from a panel sets the count and never waits,
+because the module may have pressed long before this page opened; a reversed pair at that very
+moment runs as it arrived. A press refused by the relay or lost on the way leaves a gap, so the
+next press of that panel waits out the 500 ms once.
+
+Then, in this order, on each `press`:
 
 1. `claim` is not this page's: ignore. If it is higher, this page has been replaced: switch off.
 2. `press_id` handled in the last 10 minutes (memory of the last 256 ids): publish the remembered
