@@ -188,13 +188,25 @@ test('a late resolve over a newer one changes nothing', () => {
   assert.deepEqual(late.liveCue, { lt: 'c2' });
 });
 
-test('a command applied while the replay was read: the seed lands, the rows are not replayed (they are older)', () => {
+test('a command applied while the replay was read: the seed lands, the rows are not replayed (they are older), and the field the command moved keeps its figure', () => {
   const asked = airAtRequest(NO_AIR);
   const commanded = claimAndApply(NO_AIR, [update('lt', { f0: 'NEWER' }, 'u1')], createAppliedOnce(), NO_CLOCKS, T).air;
   const air = seedFromResolve(commanded, RESOLVED, [update('lt', { f0: 'OLDER ROW' })], asked, CUES, NO_CLOCKS);
   assert.deepEqual(air.liveCue, RESOLVED.liveCue, 'the marker did not move, so it seeds');
   assert.deepEqual(air.bootReplay, []);
-  assert.deepEqual(air.aired.lt, { f0: 'REPORTED' }, 'the report, without the older row on it');
+  // Heard after the read was asked, the command is at least as new as the report (issue #2088).
+  assert.deepEqual(air.aired.lt, { f0: 'NEWER' }, 'the command\'s figure, neither the report nor the older row');
+});
+
+test('a +1 heard while the read was out is not put back by the report; the fields it did not move take the report', () => {
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: 'REPORTED' } } }]);
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('lt', { f0: 'PLUS ONE' }, 'u2')], createAppliedOnce(), NO_CLOCKS, T).air;
+  const reported = { liveCue: RESOLVED.liveCue, live: { lt: { data: { f0: 'REPORTED', f1: 'ALSO REPORTED' } } } };
+  const air = seedFromResolve(heard, reported, [], asked, CUES, NO_CLOCKS);
+  assert.deepEqual(air.aired.lt, { f0: 'PLUS ONE', f1: 'ALSO REPORTED' });
+  // With nothing applied meanwhile the report still stands over what the page held.
+  assert.deepEqual(seedFromResolve(before, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: 'REPORTED', f1: 'ALSO REPORTED' });
 });
 
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {

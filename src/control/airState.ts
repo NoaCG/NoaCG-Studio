@@ -227,15 +227,16 @@ export function claimAndApply(
   return programItems(next, program, specs, now);
 }
 
-/** What the resolve's round trip read when it was asked: the marker's moves and the commands
- *  applied, so its answer can tell it is older than the screen. */
+/** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
+ *  and what they had left on air's record, so its answer can tell it is older than the screen. */
 export interface AirAtRequest {
   moves: number;
   commands: number;
+  aired?: AiredMap;
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands };
+  return { moves: air.moves, commands: air.commands, aired: air.aired };
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -258,12 +259,18 @@ function clockSeedFromReport(clock: ClockSpec, reported: string): string {
   return clock.fixedInstant ? clock.seed : reported;
 }
 
+/** The fields of a graphic's record that differ from what it held at the request. */
+function movedSince(then: Record<string, string> | undefined, now: Record<string, string> | undefined): Record<string, string> {
+  return Object.fromEntries(Object.entries(now ?? {}).filter(([key, value]) => then?.[key] !== value));
+}
+
 /**
  * THE RESOLVE'S SEED, guarded (§4.1 R3). The seed is a wholesale replace, so it is skipped
  * outright when the marker moved while the read was in flight (THE MOVES GUARD): the wire's map is
  * a snapshot, and a layer this operator took off meanwhile would come back on air, or a Take made
  * meanwhile would read as nothing on air with Out greyed. The rows after the reports replay only
- * if no command was applied since the request; a newer command is newer than they are.
+ * if no command was applied since the request; a newer command is newer than they are, so a field
+ * one moved meanwhile also keeps its figure over the report's.
  *
  * Seeded, `aired` takes what air shows for each live layer: the renderer's report, else the live
  * cue's values in the rundown, then the rows after the report. A clock's reported value carries its
@@ -303,6 +310,9 @@ export function seedFromResolve(
       values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
       values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
     }
+    // A field a command moved while the read was out holds that command's figure: the report is
+    // older (issue #2088: a +1 heard meanwhile was put back, and the next +1 counted from it).
+    if (air.commands !== at.commands) Object.assign(values, movedSince(at.aired?.[graphic], air.aired[graphic]));
     if (Object.keys(values).length > 0) seed[graphic] = values;
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.

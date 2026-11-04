@@ -58,6 +58,7 @@ const { createGraphicVerbs } = await import('../src/control/graphicVerbs.ts');
 const { createPlayoutSession } = await import('../src/control/playoutSession.ts');
 const { liveSelection } = await import('../src/control/liveControls.ts');
 const { airedAfter } = await import('../src/control/outputRecovery.ts');
+const { airAtRequest, claimAndApply, seedFromResolve } = await import('../src/control/airState.ts');
 const { withLiveCue } = await import('../src/control/liveCue.ts');
 const { PanelClient, RESULT_MS } = await import('../companion-module/src/panel.ts');
 const { pressGraphicKey } = await import('../companion-module/src/actions.ts');
@@ -181,6 +182,8 @@ function relayHub() {
   return { backend, relay, faults, pressCalls: () => pressCalls };
 }
 
+const NO_CLOCKS = { clocks: new Map(), pairs: new Map() };
+
 /**
  * THE PRODUCTION PAGE as it answers a panel: one session, the real verbs, a pinned score banner
  * live on its layer, and the wire to the command log. On the slow road air's record moves only
@@ -303,12 +306,19 @@ function productionPage() {
   };
   /** Rows of the log heard back, as ProductionPage's `hearCommand` takes them. */
   const hear = (items) => {
-    const rest = verbs.heard(items, () => false);
-    session.apply((parts) => ({ ...parts, air: { ...parts.air, aired: rest.reduce((a, item) => airedAfter(a, item.graphic, item.msg), parts.air.aired) } }));
+    const rest = verbs.heard(items, (msg) => session.applied.has(msg));
+    session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, rest, session.applied, NO_CLOCKS, 0).air }));
   };
   /** The output: the command log applied in its order. */
   const output = () => log.reduce((a, item) => airedAfter(a, item.graphic, item.msg), { Score: { home: '7' } }).Score.home;
-  return { verbs, offer, hear, output, log, sends, fallbacks, cues: () => cues, toggleOther: () => (other = !other) };
+  /** The session wire's resolve (sessionWire.ts `run`): asked now, answered by `answer(report)`
+   *  with the renderer's report as it stood when asked, as `seedFromResolve` takes it. */
+  const resolve = () => {
+    const at = airAtRequest(session.air.get());
+    return (report) =>
+      session.apply((parts) => ({ ...parts, air: seedFromResolve(parts.air, { liveCue: { Score: 'b1' }, live: { Score: { data: report } } }, [], at, cues, NO_CLOCKS) }));
+  };
+  return { verbs, offer, hear, output, log, sends, fallbacks, resolve, cues: () => cues, toggleOther: () => (other = !other) };
 }
 
 /** A deck connected to an answering production page, both through the relay. */
@@ -546,6 +556,28 @@ test('a press the deck hears nothing back for says so and is never sent again', 
     assert.equal(s.prod.output(), '10');
     assert.equal(said[1].ok, false);
     assert.equal(said[1].sentence, 'No answer from the operator page');
+  } finally {
+    s.done();
+  }
+});
+
+test('3 quick +1 presses add exactly 3 when the page\'s resolve, asked before the first landed, answers after it with the older report', async () => {
+  const s = await studio();
+  try {
+    // The page (re)opens its wire: the read of the output's report is out.
+    const answer = s.prod.resolve();
+    const outcomes = Array.from({ length: 3 }, () => s.press());
+    await drain();
+    await landNext(s.prod, 0, true);
+    // The read comes back with the report as it was asked: 7, before the first +1.
+    answer({ home: '7' });
+    await drain();
+    for (let i = 1; i < 3; i++) await landNext(s.prod, i, true);
+    await s.clock.advance(RESULT_MS);
+    await Promise.all(outcomes);
+    assert.deepEqual(figures(s.prod), ['8', '9', '10']);
+    assert.equal(s.prod.output(), '10');
+    assert.equal(s.prod.cues()[0].values.home, '10');
   } finally {
     s.done();
   }
