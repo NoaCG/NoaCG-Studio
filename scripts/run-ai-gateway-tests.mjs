@@ -17,6 +17,7 @@ const sources = [
   'api/_lib/aiModelDiscovery.test.ts',
   'api/_lib/aiTaskRegistry.test.ts',
   'api/_lib/aiDecisionGateway.test.ts',
+  'api/_lib/paidAiFailClosed.test.ts',
   'api/_lib/aiBenchPreflight.test.ts',
   'api/_lib/aiLite.test.ts',
   'api/_lib/aiLiteCapacity.test.ts',

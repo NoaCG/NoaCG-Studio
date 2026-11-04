@@ -18,9 +18,9 @@ import {
   routePrice,
 } from '../aiLiteProfile.js';
 import { admitTaskIp } from '../aiLiteRateLimit.js';
-import { resolveUserEntitlement } from '../entitlements.js';
+import { resolvePaidAiAccess } from '../entitlements.js';
 import { allows } from '../../../src/entitlements/contract.js';
-import { routeDisabled, systemSettings } from '../systemSettings.js';
+import { routeDisabled } from '../systemSettings.js';
 import { LITE_TASK_ID } from '../aiTaskRegistry.js';
 import { approvedModelRoute } from '../aiModelCatalog.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
@@ -116,11 +116,15 @@ export default {
     // the generation itself passes: the account's entitlement, and the kill switch on the
     // route it would use. It had neither - an admin could disable Lite, or switch off the
     // judge's model after a cost spike, and this endpoint kept spending.
-    const entitlement = await resolveUserEntitlement(user.userId);
-    if (!allows(entitlement, 'ai.lite')) {
+    // Both read strictly: an unreadable switch or plan refuses here, before any booking (#2034).
+    const access = await resolvePaidAiAccess(user.userId);
+    if (!access.ok) {
+      return liteError('profile_not_configured', 'The Lite skin judge is temporarily unavailable. Try again shortly.', 503, true);
+    }
+    if (!allows(access.entitlement, 'ai.lite')) {
       return liteError('profile_disabled', 'NoaCG Lite is not available for this account.', 403);
     }
-    if (routeDisabled(await systemSettings(), profile.judgeRoute)) {
+    if (routeDisabled(access.settings, profile.judgeRoute)) {
       return liteError('profile_not_configured', 'The Lite skin judge has no available model route.', 503, true);
     }
 
