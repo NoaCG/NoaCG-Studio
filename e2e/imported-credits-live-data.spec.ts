@@ -476,6 +476,34 @@ for (const playback of ['roll', 'cards'] as const) {
       w.stopCreditsRoll();
     });
     expect([(await rowTexts(page))[0], (await state()).held], 'off air with no exit, the rows show the list that waited').toEqual(['Camera', null]);
+    // OUT BEFORE THE TAKE, THEN A TAKE INTERRUPTING THAT EXIT: the cue held the rows' list and a
+    // newer one waited; the next cue finds rows older than the list last written, holds nothing,
+    // and its take airs the newest list.
+    const interrupted = await page.evaluate(async ({ field, list, third }) => {
+      const w = window as unknown as { play(): void; stop(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
+      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      w.play();
+      w.update({ [field]: list });
+      w.stop();
+      await frames();
+      const out = w.noacgCreditsHeld;
+      w.play();
+      w.update({ [field]: third });
+      await frames();
+      return { out, taken: w.noacgCreditsHeld };
+    }, { field, list: LIST, third: THIRD });
+    expect(interrupted, 'Out let go, and the take after it airs the newest list').toEqual({ out: null, taken: THIRD });
+    // NO UPDATE BEFORE THE FIRST play(): the rows built at load are the list its first frame shows.
+    await page.setContent(built.html);
+    const first2 = await page.evaluate(async ({ field, other }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean };
+      const loaded = document.getElementById(field)!.textContent;
+      w.play();
+      w.update({ [field]: other });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return { same: w.noacgCreditsHeld === loaded, waiting: w.noacgCreditsWaiting };
+    }, { field, other: OTHER });
+    expect(first2, 'the first take after load keeps the list its rows were built with').toEqual({ same: true, waiting: true });
   });
 }
 
