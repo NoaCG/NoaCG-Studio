@@ -825,7 +825,7 @@ no `--provenance` flag).
    where the repository moved and the owner has already re-created the connection.
 
 The run creates **no GitHub Release**: the CLI's home is npm, and the repository's Releases page
-belongs to NoaCG Bridge, the other product built from this package (`release-bridge.yml`, on a
+belongs to the Companion module (`release-companion.yml`) and NoaCG Bridge, the other product built from this package (`release-bridge.yml`, on a
 `bridge-v*` tag; `docs/BRIDGE.md` §6). **Two products for two audiences, two version lines (owner,
 2026-10-24):** the CLI is for a creator making graphics with an agent, the Bridge for the operator
 connecting NoaCG to a playout system. The CLI's version is `cli/package.json` `version`; the

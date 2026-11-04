@@ -500,9 +500,9 @@ function LibraryArrival({ failed, incoming }: { failed: boolean; incoming?: Inco
 
 // THE FIRST-RUN HINT names every way in, in the owner's order (2026-09-27): your AI coding agent
 // with the NoaCG CLI, your own SVG, a template. A new user should know what NoaCG does and start
-// within half a minute, and the two installable tools should be findable from the first screen
+// within half a minute, and the installable tools should be findable from the first screen
 // rather than only from the account menu and Playout settings. The link goes to the one public
-// page that explains both (src/downloads/links.ts), never to a tool directly.
+// page that explains them (src/downloads/links.ts), never to a tool directly.
 function EmptyHint({ onNew }: { onNew: () => void }) {
   return (
     <div className="panel-section">

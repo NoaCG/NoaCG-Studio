@@ -8,7 +8,8 @@
 // break neither page sees alone.
 // covers: {docs.html,public/docs/**}
 //
-// The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
+// The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge, the Companion module
+// and the NoaCG CLI.
 // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
 // and its footer, so both of those specs ride along. public/downloads/ holds the SVG examples
 // zip the page links, and downloads.spec.ts fetches it.

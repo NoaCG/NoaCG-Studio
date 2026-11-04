@@ -142,10 +142,10 @@ export default function AuthStatus() {
           >
             ⚙ Settings
           </button>
-          {/* The two installable tools (NoaCG Bridge, the NoaCG CLI) have one public page; the
+          {/* The installable tools (NoaCG Bridge, the Companion module, the NoaCG CLI) have one public page; the
               account menu is where a signed-in person looks for "what else is there". */}
           <a role="menuitem" href={DOWNLOADS_URL} className="account-menu-link" data-testid="menu-downloads">
-            Downloads - Bridge &amp; CLI
+            Downloads
           </a>
           <div className="account-menu-sep" />
           <button role="menuitem" onClick={() => { setMenuOpen(false); void signOut(); }}>

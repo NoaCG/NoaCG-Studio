@@ -136,9 +136,11 @@ test('the traced map adds the spec a covers header missed - the #927 shape', () 
   // editor-fidelity-trim.spec.ts, whose SVG drop runs it.
   const coverage = [{ spec: 'import-svg.spec.ts', test: (f) => f === 'src/templates/importedDesign/svg.ts' }];
   const file = 'src/templates/importedDesign/svg.ts';
-  const curated = planFor([file], { coverage, critical: [] });
+  // `readers: null` keeps this to the traced half: since cf11 the real reader index adds the specs
+  // that import svg.ts by URL, which is a separate rule with its own tests.
+  const curated = planFor([file], { coverage, critical: [], readers: null });
   assert.deepEqual(curated.specs, ['import-svg.spec.ts']);
-  const traced = planFor([file], { coverage, critical: [], traced: fresh({ [file]: ['editor-fidelity-trim.spec.ts', 'import-svg.spec.ts'] }) });
+  const traced = planFor([file], { coverage, critical: [], readers: null, traced: fresh({ [file]: ['editor-fidelity-trim.spec.ts', 'import-svg.spec.ts'] }) });
   assert.equal(traced.mode, 'subset');
   assert.deepEqual(traced.specs, ['editor-fidelity-trim.spec.ts', 'import-svg.spec.ts']);
   assert.deepEqual(traced.traced, ['editor-fidelity-trim.spec.ts'], 'the plan says what tracing added');

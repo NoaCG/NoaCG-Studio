@@ -1,24 +1,40 @@
-// The Downloads page's one enhancement: say WHICH version each download is, and point the Bridge
-// button at the exact file.
+// The Downloads page's one enhancement: say WHICH version each download is, and point each
+// download button at the exact file.
 //
-// Two products, each with its own version and channel (downloads.html says why), so each card
-// asks ITS OWN channel and shows what that channel really serves:
+// Each product has its own version and channel (downloads.html says why), so each card asks ITS
+// OWN channel and shows what that channel really serves:
 //
-//   NoaCG Bridge  the newest non-prerelease GitHub Release tagged `bridge-v*`, and its
-//                 NoaCG-Bridge exe asset. Filtering by tag rather than trusting "latest" means an
-//                 old `cli-v*` Release on the same page can never be offered as the Bridge.
-//   NoaCG CLI     npm's `latest` for @noacg/cli.
+//   NoaCG Bridge      the newest non-prerelease GitHub Release tagged `bridge-v*`, and its
+//                     NoaCG-Bridge exe asset. Filtering by tag rather than trusting "latest" means
+//                     a `cli-v*` or `companion-v*` Release on the same page is never offered as
+//                     the Bridge.
+//   Companion module  the same for `companion-v*` and its noacg-studio .tgz asset.
+//   NoaCG CLI         npm's `latest` for @noacg/cli.
 //
 // Progressive, like src/docs/docs.ts: the page is complete without this module. The Bridge button
-// already links GitHub's releases/latest download and the versions read "latest", so a network
-// that blocks either API, a rate limit or a slow answer leaves a working page. Nothing here throws.
+// already links GitHub's releases/latest download, the Companion button the Releases page searched
+// for its name, and the versions read "latest", so a network that blocks either API, a rate limit
+// or a slow answer leaves a working page. Nothing here throws. When GitHub does answer and has no
+// module release, the card says so rather than offering an empty search.
 
 const REPO = 'NoaCG/NoaCG-Studio';
-const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=30`;
+const RELEASES_PAGE = 100;
+const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=${RELEASES_PAGE}`;
 const NPM_LATEST = 'https://registry.npmjs.org/@noacg/cli/latest';
-const BRIDGE_TAG_PREFIX = 'bridge-v';
-// 0.4.0 to 0.6.0 shipped a fixed name; later releases carry their version in it.
-const BRIDGE_ASSET = /^NoaCG-Bridge(-\d+\.\d+\.\d+)?\.exe$/;
+interface Product {
+  /** What the card's `data-*` attributes name it. */
+  card: string;
+  tagPrefix: string;
+  asset: RegExp;
+}
+
+const BRIDGE: Product = {
+  card: 'bridge',
+  tagPrefix: 'bridge-v',
+  // 0.4.0 to 0.6.0 shipped a fixed name; later releases carry their version in it.
+  asset: /^NoaCG-Bridge(-\d+\.\d+\.\d+)?\.exe$/,
+};
+const COMPANION: Product = { card: 'companion', tagPrefix: 'companion-v', asset: /^noacg-studio-\d+\.\d+\.\d+\.tgz$/ };
 /** A lookup that has not answered by now is left as "latest"; the page already works. */
 const TIMEOUT_MS = 6000;
 
@@ -44,17 +60,17 @@ async function getJson<T>(url: string): Promise<T | null> {
   }
 }
 
-/** The newest published Bridge release that actually carries the exe, or null. */
-export function newestBridgeRelease(releases: GitHubRelease[]): GitHubRelease | null {
-  const bridges = releases.filter(
+/** The product's newest published release that actually carries its file, or null. */
+function newestRelease(releases: GitHubRelease[], product: Product): GitHubRelease | null {
+  const own = releases.filter(
     (r) =>
-      r.tag_name.startsWith(BRIDGE_TAG_PREFIX) &&
+      r.tag_name.startsWith(product.tagPrefix) &&
       !r.draft &&
       !r.prerelease &&
-      r.assets.some((a) => BRIDGE_ASSET.test(a.name)),
+      r.assets.some((a) => product.asset.test(a.name)),
   );
-  bridges.sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''));
-  return bridges[0] ?? null;
+  own.sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''));
+  return own[0] ?? null;
 }
 
 function setText(selector: string, text: string): void {
@@ -65,17 +81,29 @@ function setHref(selector: string, href: string): void {
   for (const el of Array.from(document.querySelectorAll<HTMLAnchorElement>(selector))) el.href = href;
 }
 
-async function resolveBridge(): Promise<void> {
+/** Point a product's card at its release's file. */
+function showRelease(release: GitHubRelease, { card, tagPrefix, asset }: Product): void {
+  const file = release.assets.find((a) => asset.test(a.name));
+  const checksum = release.assets.find((a) => a.name === `${file?.name}.sha256`);
+  setText(`[data-version="${card}"]`, release.tag_name.slice(tagPrefix.length));
+  if (file) setHref(`[data-download="${card}"]`, file.browser_download_url);
+  if (checksum) setHref(`[data-checksum="${card}"]`, checksum.browser_download_url);
+  setHref(`[data-release-notes="${card}"]`, release.html_url);
+}
+
+async function resolveReleases(): Promise<void> {
   const releases = await getJson<GitHubRelease[]>(RELEASES_API);
   if (!Array.isArray(releases)) return;
-  const release = newestBridgeRelease(releases);
-  if (!release) return;
-  const exe = release.assets.find((a) => BRIDGE_ASSET.test(a.name));
-  const checksum = release.assets.find((a) => a.name === `${exe?.name}.sha256`);
-  setText('[data-version="bridge"]', release.tag_name.slice(BRIDGE_TAG_PREFIX.length));
-  if (exe) setHref('[data-download="bridge"]', exe.browser_download_url);
-  if (checksum) setHref('[data-checksum="bridge"]', checksum.browser_download_url);
-  setHref('[data-release-notes="bridge"]', release.html_url);
+  const bridge = newestRelease(releases, BRIDGE);
+  if (bridge) showRelease(bridge, BRIDGE);
+  const companion = newestRelease(releases, COMPANION);
+  if (companion) showRelease(companion, COMPANION);
+  // A full page proves nothing: the module's release may be on the next one, and the card's own
+  // links find it. Only a page that holds every release can say there is none.
+  else if (releases.length < RELEASES_PAGE) {
+    setText('[data-version="companion"]', 'not released yet');
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-needs-release="companion"]'))) el.hidden = true;
+  }
 }
 
 async function resolveCli(): Promise<void> {
@@ -83,5 +111,5 @@ async function resolveCli(): Promise<void> {
   if (typeof latest?.version === 'string') setText('[data-version="cli"]', latest.version);
 }
 
-void resolveBridge();
+void resolveReleases();
 void resolveCli();

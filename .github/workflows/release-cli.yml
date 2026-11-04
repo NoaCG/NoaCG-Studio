@@ -36,11 +36,11 @@
 # that touches cli/package.json without a new version publishes nothing. Pushing a cli-v* tag or
 # the "Run workflow" button still re-drive a release by hand.
 #
-# NO GITHUB RELEASE IS CREATED HERE. The CLI's home is npm. The repository's Releases page
-# belongs to NoaCG Bridge, the other product built from this package (release-bridge.yml): two
+# NO GITHUB RELEASE IS CREATED HERE. The CLI's home is npm. The repository's Releases page belongs
+# to NoaCG Bridge and the Companion module (release-companion.yml). The Bridge is the other product built from this package (release-bridge.yml): two
 # products for two audiences, each with its own home and its own version line (the Bridge's is
-# `bridgeVersion`, which this workflow never reads), and the studio's download link resolves
-# `releases/latest` to the newest Bridge only because nothing else is released there.
+# `bridgeVersion`, which this workflow never reads). The studio's download link resolves
+# `releases/latest` to the newest Bridge because only the Bridge's releases take that mark.
 name: Release CLI to npm
 
 on:
