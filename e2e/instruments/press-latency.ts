@@ -1,13 +1,14 @@
-// covers: none - a timing instrument behind NOACG_INSTRUMENT=1, so every test skips in the suite (expected-run.json allowedSkips); hosted-latency.yml's `spec` dispatch runs it
+// A TIMING INSTRUMENT, not a suite spec: it runs only through playwright.instrument.config.ts (the
+// live config's backend and server, this folder as its tests), so no suite spends minutes on it.
+// Only a real backend relays a press, logs a command and fans it out.
 //
-// CONFIGURED: only a real backend relays a press, logs a command and fans it out.
+//   npx playwright test --config=playwright.instrument.config.ts e2e/instruments/press-latency.ts
 
 import { test, expect } from '@playwright/test';
-import { haveCreds, readyOf, SUPABASE_URL } from './_helpers';
-import { answerPanel, ANON_KEY, pairPanel, publishTwoCues, shutStatusPanel } from './_panel';
+import { haveCreds, readyOf, SUPABASE_URL } from '../configured/_helpers';
+import { answerPanel, ANON_KEY, pairPanel, publishTwoCues, shutStatusPanel } from '../configured/_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
-test.skip(!process.env.NOACG_INSTRUMENT, 'NOACG_INSTRUMENT=1 runs this timing instrument (hosted-latency.yml `spec` sets it)');
 
 // ── HOW LONG A PRESS TAKES TO REACH AIR, HOP BY HOP (issue #2089) ───────────────────────────────
 //
@@ -21,14 +22,12 @@ test.skip(!process.env.NOACG_INSTRUMENT, 'NOACG_INSTRUMENT=1 runs this timing in
 // constructor (as scripts/playout-lag-bench.mjs does), so a frame is stamped before supabase-js
 // parses it.
 //
-// An INSTRUMENT, so it runs only when asked (NOACG_INSTRUMENT=1), as bridge-real-server.spec.ts
-// does: it asserts one play per press and nothing about time, and the hosted suite has no minutes
-// to spare for it. For the wire a studio sees, dispatch hosted-latency.yml with `spec` set to
-// e2e/configured/press-latency.spec.ts; that sets the variable. Locally against a stack, set it yourself. The
+// It asserts one play per press and nothing about time. For the wire a studio sees, dispatch
+// hosted-latency.yml with `spec` set to e2e/instruments/press-latency.ts. The
 // numbers are printed and attached (`press-latency.json`). `graphicPlay` ends when the graphic's
 // play listeners return, so work a graphic starts later is not in it, and `graphicFrame` is the
 // first frame of an entrance, not the finished picture. A failed first attempt prints its readings
-// before the suite's one retry prints again: read the last block per graphic. With 8 presses a p90 is the slowest
+// before the config's one retry prints again: read the last block per graphic. With 8 presses a p90 is the slowest
 // one, so it reports the median (the lower one, for an even count) and the slowest.
 
 /** In every document of a page: the top one stamps every Realtime frame and the command fetch and,

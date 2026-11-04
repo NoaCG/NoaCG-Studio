@@ -51,14 +51,14 @@ name: hosted-latency
 on:
   schedule:
     - cron: '40 2 * * 0,3' # Sundays and Wednesdays, 02:40 UTC
-  # `spec` runs one spec file on every shard instead of the whole suite, with the timing
-  # instruments switched on: a hosted reading of one instrument in minutes (issue #2089's
-  # press-latency test). Only a dispatch can set it, and such
+  # `spec` runs one file on every shard instead of the whole suite: a configured spec, or a timing
+  # instrument from e2e/instruments/ (issue #2089's press-latency reading) through its own config.
+  # Only a dispatch can set it, and such
   # a run, from any branch, skips the verdict job, so it never files or closes the rolling issue.
   workflow_dispatch:
     inputs:
       spec:
-        description: 'One spec file to run on every shard instead of the suite (e2e/configured/...)'
+        description: 'One file to run on every shard instead of the suite (e2e/configured/... or e2e/instruments/...)'
         required: false
         default: ''
 
@@ -321,13 +321,14 @@ jobs:
           TMPDIR: ${{ runner.temp }}
           SPEC: ${{ inputs.spec }}
           SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
-        # A one-spec dispatch also switches on the timing instruments (NOACG_INSTRUMENT), which the
-        # suite skips otherwise, and its shard fails when that spec does: there is no verdict job
-        # to say so for it.
+        # A one-spec dispatch runs that file alone, a timing instrument under e2e/instruments/ through
+        # its own config (no suite runs those), and its shard fails when the file does: there is no
+        # verdict job to say so for it.
         run: |
           if [ -n "${SPEC}" ]; then
+            case "${SPEC}" in e2e/instruments/*) config=playwright.instrument.config.ts ;; *) config=playwright.live.config.ts ;; esac
             set +e
-            NOACG_INSTRUMENT=1 npm run test:e2e:live -- "${SPEC}" --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure | tee "${RUNNER_TEMP}/spec-run.log"
+            npx playwright test --config="${config}" "${SPEC}" --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure | tee "${RUNNER_TEMP}/spec-run.log"
             code=${PIPESTATUS[0]}
             set -e
             if [ "${code}" != 0 ]; then exit "${code}"; fi
