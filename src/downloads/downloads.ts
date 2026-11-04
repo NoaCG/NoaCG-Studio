@@ -18,7 +18,8 @@
 // module release, the card says so rather than offering an empty search.
 
 const REPO = 'NoaCG/NoaCG-Studio';
-const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=100`;
+const RELEASES_PAGE = 100;
+const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=${RELEASES_PAGE}`;
 const NPM_LATEST = 'https://registry.npmjs.org/@noacg/cli/latest';
 interface Product {
   /** What the card's `data-*` attributes name it. */
@@ -97,7 +98,9 @@ async function resolveReleases(): Promise<void> {
   if (bridge) showRelease(bridge, BRIDGE);
   const companion = newestRelease(releases, COMPANION);
   if (companion) showRelease(companion, COMPANION);
-  else {
+  // A full page proves nothing: the module's release may be on the next one, and the card's own
+  // links find it. Only a page that holds every release can say there is none.
+  else if (releases.length < RELEASES_PAGE) {
     setText('[data-version="companion"]', 'not released yet');
     for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-needs-release="companion"]'))) el.hidden = true;
   }

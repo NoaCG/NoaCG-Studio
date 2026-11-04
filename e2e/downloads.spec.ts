@@ -226,6 +226,15 @@ test('with no module release yet the card says so and offers no download, and th
   await expect(page.getByTestId('bridge-version')).toHaveText('0.4.1');
 });
 
+test('a full page of newer releases never claims the module has none: its links still find it', async ({ page }) => {
+  const newer = Array.from({ length: 100 }, (_, i) => ({ ...releases[3], tag_name: `bridge-v1.0.${i}`, published_at: `2026-12-01T00:${String(i % 60).padStart(2, '0')}:00Z` }));
+  await fakeChannels(page, 'ok', newer);
+  await page.goto('/downloads#companion');
+  await expect(page.getByTestId('bridge-version')).toHaveText(/^1\.0\./);
+  await expect(page.getByTestId('companion-version')).toHaveText('latest');
+  await expect(page.getByTestId('companion-download')).toHaveAttribute('href', 'https://github.com/NoaCG/NoaCG-Studio/releases?q=companion-v&expanded=true');
+});
+
 test('with GitHub not answering the module links its own releases, never the Bridge\'s latest', async ({ page }) => {
   await fakeChannels(page, 'down');
   await page.goto('/downloads#companion');
