@@ -55,6 +55,10 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     const T0 = '2026-01-01T00:00:00.000Z';
     const T1 = '2026-02-01T00:00:00.000Z';
     const T2 = '2026-03-01T00:00:00.000Z';
+    // A delete inside the 90-day grace. The fixed dates above age past it, and a tombstone past it
+    // never travels to a side without the record (reconcile, #2063), so a case about a delete
+    // that should travel dates it from today.
+    const RECENT = new Date(Date.now() - 86_400_000).toISOString();
 
     // 1. new local record → push
     let p = reconcile([rec('a', T1)], [], T0);
@@ -216,7 +220,7 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
 
     // 17. a TOMBSTONE denied by RLS deletes nothing of ours in the cloud — dropped silently,
     //     never a failure (so one foreign record can never wedge sync)
-    const l17 = mem([rec('ghost', T1, { deleted: true })]);
+    const l17 = mem([rec('ghost', RECENT, { deleted: true })]);
     const r17 = mem([], (r) => (r.id === 'ghost' ? denied() : null));
     const s17 = await runSync(l17, r17);
     check(
@@ -233,7 +237,7 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     const l18 = mem([]);
     const r18 = mem([
       rec('plain', T1),
-      rec('gone', T1, { deleted: true }),
+      rec('gone', RECENT, { deleted: true }),
       rec('font', T1, { font: { path: 'f.woff2', data: 'spx-storage:u/abc' } }),
     ]);
     const fetched: string[] = [];
