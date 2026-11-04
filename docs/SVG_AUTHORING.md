@@ -76,7 +76,7 @@ Your artwork sets the size of the graphic. NoaCG never rescales your geometry be
 | text on a path | one field, and it keeps its curve when the operator types |
 | text inside a symbol | drawn, but **not** editable. Every copy shows the same words |
 | a plain number as the sample (`84`, `2`) | offers a **number** field |
-| a clock as the sample (`12:00`, `1:05:00`) | stays text, and a minutes-and-seconds time (`12:00`) can take a **Clock** in the behaviour section (section 5b). The row offers the older **countdown** kind, whose field is its length in minutes, only where a countdown is already in use: a row bound as one, the Countdown behaviour or its drawn moments, or a reimport over a saved graphic that runs one. One clock per graphic |
+| a clock as the sample (`12:00`, `1:05:00`) | stays text, and a minutes-and-seconds time (`12:00`) can take a **Clock** in the behaviour section (section 5b). The row offers the older **countdown** kind, whose field is its length in minutes, only where a countdown is already in use (a row bound as one, the Countdown behaviour or its drawn moments, or a reimport over a saved graphic that runs one) or where the time has hours (`1:05:00`), which the Clock cannot show. One clock per graphic |
 | `2 - 1`, `10 pts` | stays text. An SPX number box only holds digits |
 | an embedded picture - placed on its own, or filling a shape you drew (which is what Figma exports) | a **picture field**. The operator swaps it, and clearing it brings your drawing back |
 | a group of two or more glyph shapes | offered as **outlined text** (section 5), off by default |

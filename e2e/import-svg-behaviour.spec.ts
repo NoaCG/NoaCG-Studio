@@ -1661,6 +1661,15 @@ test('the old Countdown kind: gone from a new import, kept where a draft or a sa
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(1);
   await expect(page.locator('[data-testid^="map-svg-kind-"]')).toHaveCount(0);
 
+  // A time with hours the Clock cannot show (`svgClockTakes`), so that row keeps the Countdown as
+  // its one clock choice rather than having none.
+  const HOUR_CLOCK = test.info().outputPath('hour-clock.svg');
+  writeFileSync(HOUR_CLOCK, readFileSync(SCORE_CLOCK, 'utf8').replace('>12:08<', '>1:05:00<'));
+  await openImportDoor(page, HOUR_CLOCK);
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="map-svg-kind-"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid^="map-svg-kind-"] option')).toHaveText(['Text', 'Countdown']);
+
   // A graphic saved before the Clock existed, its time layer bound as the old countdown, under the
   // name this file's drop gives the walk.
   await awaitDurableReady(page);

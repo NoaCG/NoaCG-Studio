@@ -1213,7 +1213,7 @@ export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
   if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
   if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
   const driven = pollDrivenLayers(draft.svgBehaviour);
-  return draft.svgFields.filter((f) => f.on && f.clock && CLOCK_TIME.test(f.sample.trim()) && !driven.has(f.candidateId));
+  return draft.svgFields.filter((f) => f.on && f.clock && svgClockTakes(f) && !driven.has(f.candidateId));
 }
 
 /** Whether the file drew the moments only the countdown paints: its names propose it, read the way
@@ -1242,6 +1242,13 @@ export function svgCountdownInUse(
     drawn ||
     (!!savedOver && runsOldCountdown(savedOver))
   );
+}
+
+/** Whether the Clock can show this row's time: minutes and seconds only (`CLOCK_TIME`). A
+ *  clock-shaped row it cannot take ("1:05:00") keeps the old Countdown kind as its one clock
+ *  choice, so no clock-shaped layer is left without one (#1876). */
+export function svgClockTakes(f: Pick<SvgFieldDraft, 'sample'>): boolean {
+  return CLOCK_TIME.test(f.sample.trim());
 }
 
 /** The saved graphic a save under `name` would write over, as Finish reads it (`librarySaveEffect`
