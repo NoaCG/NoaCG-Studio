@@ -136,7 +136,7 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
       const anna = (await deck.rows())[0].id;
       const playsOf = async () => Number(await air.evaluate(() => document.body.getAttribute('data-plays')));
 
-      const hops: Record<string, number[]> = { relay: [], pageDispatch: [], sendRpc: [], logToRenderer: [], handToGraphic: [], graphicPlay: [], graphicFrame: [], pressToFrame: [], pressToResult: [], secondWait: [], secondToFrame: [], flipped: [] };
+      const hops: Record<string, number[]> = { relay: [], pageDispatch: [], sendRpc: [], logToRenderer: [], handToGraphic: [], graphicPlay: [], graphicFrame: [], pressToFrame: [], pressToResult: [], secondWait: [], secondToFrame: [], flipped: [], endedOnFirst: [] };
       for (let round = 0; round < ROUNDS; round++) {
         const before = await deck.state((s) => !(s.live as string[]).includes(anna), 'Anna off air');
         const plays = await playsOf();
@@ -218,8 +218,8 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         // leave after the second press is heard. Paired by position, so a resend of the first press
         // inside its attempt window would take this place (none was seen in the hosted runs).
         const send = o.filter((h) => h.kind === 'send')[1];
-        // The two presses are two relay calls, so they can reach the page in the other order. Such a
-        // round is counted, not timed: its "second" press is the first one the page ran.
+        // The two presses are two relay calls, so they can reach the page in the other order, and the
+        // page then holds the second until the first arrives. Such a round is counted, not timed.
         const handed = after(a, pressAt, (h) => h.kind === 'handed' && h.text === String(plays + 2));
         const rx = after(a, handed?.at, (h) => h.kind === 'gfxRx');
         const played = after(a, rx?.at, (h) => h.kind === 'gfxPlayed');
@@ -236,7 +236,14 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         // Off again with All out, drawn from what the page publishes now: after two presses in flight
         // a cue key drawn from a passing state is refused stale (the page's own check, kept).
         await op.waitForTimeout(500);
-        expect((await deck.press('all-out', '', (await deck.state()).ver as number)).outcome).toBe('ran');
+        // What the operator pressed last should be what stands, flipped on the wire or not (#2109).
+        // Counted, not asserted: a press more than the page's bound behind still runs late.
+        const standing = await deck.state();
+        if (!(standing.live as string[]).includes(ben)) {
+          hops.endedOnFirst.push(1);
+          console.log(`back to back ${round}: the first press ended on air, though the second was pressed last`);
+        }
+        expect((await deck.press('all-out', '', standing.ver as number)).outcome).toBe('ran');
         await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
         await op.waitForTimeout(600);
       }
