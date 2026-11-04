@@ -1,32 +1,34 @@
 # NoaCG SVG examples
 
-Nineteen editable Illustrator graphics cover every supported SVG import behaviour, plus a title, lower third and ticker. Start from a working example, change its design, export SVG and run it in NoaCG.
+Editable graphics cover every supported SVG import behaviour, plus a title, lower third and ticker. Start from a working example, change its design, export SVG and run it in NoaCG.
 
 ## In this folder
 
-- **Illustrator**: editable `.ai` sources.
-- **SVG**: original Illustrator exports, ready to import.
+- **Illustrator**: `.ai` sources for the Illustrator examples.
+- **SVG**: ready-to-import graphics. Entries marked `source: "svg"` in the inventory are also their own editable sources; open them in Illustrator or Inkscape.
 - **Previews**: a picture of every graphic. Quiz, scoreboard and countdown include more states.
 - **examples.json**: the inventory connecting examples to import behaviours.
 
 ## Open, edit, export, import
 
-- Open an Illustrator file and its Layers panel (Window > Layers).
+- Open an Illustrator source or an editable SVG and its Layers panel (Window > Layers in Illustrator).
 - Change words, fonts, colours and shapes. Keep names such as `Team 1` and `Flash 1` so NoaCG can recognise their purpose.
 - Pink text means a missing font. Install Oswald from fonts.google.com, or choose a font you have.
 - Save with File > Save a Copy > SVG. Tick **Use Artboards** and keep **Font: SVG**. Do not outline text. This export preserves hidden moment groups.
+- In Inkscape, save as SVG and preserve object labels and live text.
 - At noacg.studio/app, choose New graphic > Import graphic and drop the SVG. Check **What it does**. Most examples select their behaviour from layer names. For **alert.svg**, choose **Alert** explicitly.
 - Put the graphic in a production. Edit its fields, then Take. Out clears it.
 
-## The first seven
+## Start here
 
 - **Title**: change Title and Subtitle. Take, then Out.
 - **Lower third**: type Name and Role. Take, then Update for the next person.
 - **Quiz**: enter the question and answers, choose the correct answer, then Take. Select answer, Lock it in and Reveal correct run the round.
 - **Scoreboard**: change team names. Each team's +1 and -1 change its score; +1 flashes its tab. New game resets both scores.
 - **Countdown**: Clock is minutes, initially 5 from the drawn 05:00. Take starts it. Pause holds it, Start resumes, Reset restores its length.
+- **Digital clock and timer / Score and clock**: choose Clock's duration, elapsed or target-time mode at import. `12:00` is one live text object named `Clock`. See **CLOCKS.md** for drawing, layer names and controls.
 - **Ticker**: change Kicker and Story. Update changes the line on air.
-- **End credits**: choose Credits roll and Take. The complete Illustrator text scrolls from below the frame until it leaves the top. Scroll speed changes its pace. Edit names in Illustrator and import the SVG again. There is no credits box or editable playout list.
+- **End credits**: the fixed-artwork option. The complete imported layout scrolls from below the frame until it leaves the top. Scroll speed changes its pace. For editable names in playout, use the separate editable credits example.
 
 Names in these examples are made up.
 
@@ -68,10 +70,11 @@ A letter or number after a space says which row a name belongs to: `Answer A`, `
 | **Quiz** | `Question`, `Answer A` to `Answer D` | `Selected A`, `Correct A`, `Wrong A` per answer; `Locked in` | `Question box`, `Answer box A`, `Letter box A`, `static:Letter A` |
 | **Scoreboard** | `Team 1`, `Score 1`, `Team 2`, `Score 2` | `Flash 1`, `Flash 2` | Team and score boxes; `Middle` |
 | **Countdown** | `Title`, `Clock` | `Timer bar`, `Warning`, `Paused`, `Time up` | `Panel`, `static:Status`, `Accent`, `Track` |
+| **Digital clock / timer** | `Clock`, one live `12:00` text | none | `Panel`; optional `Clock box` |
 | **Ticker** | `Kicker`, `Story` | none | `Panel`, `Kicker box` |
 | **End credits** | `Credits`, one long text object | none | none |
 
-Credits keep their original layout. The Illustrator source has a Text group inside its Frame layer so SVG export preserves the named group. Text below the artboard is intentional and scrolls into view. Keep the 1920 by 1080 artboard as the output frame.
+The fixed-artwork credits keep their original layout. Their Illustrator source has a Text group inside Frame so SVG export preserves it. Text below the artboard scrolls into view. Keep the 1920 by 1080 artboard as the output frame.
 
 ---
 

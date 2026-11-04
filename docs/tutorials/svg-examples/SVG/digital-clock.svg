@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 1920 1080">
+  <title>Digital clock and timer</title>
+  <desc>Editable NoaCG SVG source. Choose Duration for a countdown, Counts up for elapsed time, or Target time at import. Clock is live text; no outlined or rasterised numbers.</desc>
+  <g id="Board" inkscape:groupmode="layer" inkscape:label="Board">
+    <rect id="Panel" x="640" y="400" width="640" height="280" rx="16" fill="#101923"/>
+    <rect id="Accent" x="640" y="400" width="640" height="8" fill="#ffcc00"/>
+  </g>
+  <g id="Text" inkscape:groupmode="layer" inkscape:label="Text">
+    <text id="Clock" x="960" y="593" text-anchor="middle" font-family="Oswald, sans-serif" font-size="160" font-weight="600" fill="#ffffff" style="font-variant-numeric: tabular-nums">12:00</text>
+  </g>
+</svg>

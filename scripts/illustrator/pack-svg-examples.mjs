@@ -3,8 +3,7 @@
 //
 //   node scripts/illustrator/pack-svg-examples.mjs [--copy-to <file.zip>]...
 //
-// Run it after scripts/illustrator/build-svg-examples.jsx has drawn the graphics in Illustrator,
-// and again after any change to docs/tutorials/svg-examples/README.md.
+// Run after updating an editable source set (Illustrator or directly authored SVG), or the guides.
 //
 // 1. README.md -> README.pdf. README.md is the source and README.pdf is what most people open.
 //    Chromium prints four authored A4 pages, separated with `---`: getting started, the
@@ -34,7 +33,8 @@ const ZIP_OUT = path.join(ROOT, 'public', 'downloads', `${ZIP_NAME}.zip`);
 /** The expanded example set has four authored pages; overflow is still refused. */
 const PAGES = 4;
 /** What goes in the zip, in this order. Anything else in the folder stays out. */
-const CONTENTS = ['README.pdf', 'README.md', 'examples.json', 'Illustrator', 'SVG', 'Previews'];
+const CONTENTS = ['README.pdf', 'README.md', 'examples.json', 'Illustrator', 'SVG', 'Previews',
+  ...readdirSync(PACKAGE).filter((name) => name.endsWith('.md') && name !== 'README.md').sort()];
 
 // ── README.md -> HTML ────────────────────────────────────────────────────────────────────────
 

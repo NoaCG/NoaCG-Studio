@@ -253,7 +253,7 @@ test('only capabilities the caller allows, and never one the spec rules out (R4)
   // The clock row 7 adds is unsupported until a caller declares and allows it.
   const clock = { version: 1, sourceRevision: rev('clock-1'), fields: [], components: [{ id: 'clock', recipe: 'clock', intent: { mode: 'duration' }, picks: [{ role: 'clock', layer: 't0' }] }] };
   assert.deepEqual(codes(validateSvgProposal(clock, ctx('clock-1'))), []);
-  refused(validateSvgProposal(clock, ctx('clock-1', { recipes: RECIPES })), 'unsupported-capability');
+  refused(validateSvgProposal(clock, ctx('clock-1', { recipes: Object.fromEntries(Object.entries(RECIPES).filter(([id]) => id !== 'clock')) })), 'unsupported-capability');
 
   const countdown = { version: 1, sourceRevision: rev('clock-1'), fields: [on('t0', { kind: 'countdown' })], components: [] };
   assert.deepEqual(codes(validateSvgProposal(countdown, ctx('clock-1'))), []);
@@ -559,9 +559,10 @@ test('a saved countdown compiles exactly as before: its recipe, engine, field, p
   assert.equal(type.id, 'imported-countdown');
 });
 
-test('the clock is chosen, never proposed: the name reader and the example list do not see it yet (C5)', () => {
+test('the clock has a downloadable example but its mode is still chosen, never inferred (C5)', () => {
   assert.equal(recipeById('clock')?.instanced, true);
-  assert.equal(BEHAVIOUR_RECIPES.some((r) => r.id === 'clock'), false);
+  assert.equal(BEHAVIOUR_RECIPES.some((r) => r.id === 'clock'), true);
+  assert.equal(recipeById('clock').roles[0].words.test('Clock'), false, 'a name never chooses the direction');
   assert.ok(recipeById('countdown'), 'the countdown recipe stays registered for saved graphics');
 });
 

@@ -2,15 +2,39 @@
 // gate: build
 // guards: docs/tutorials/svg-examples/**, public/docs/examples/svg-examples/**, src/templates/behaviours/**
 // The downloaded examples cover the actual recipe registry, and each advertised example has
-// its editable Illustrator source, original SVG, preview and identical public download.
+// its editable source, original SVG, preview and identical public download. Existing Illustrator
+// exports keep their source checks; source:"svg" means the SVG itself is the editable source.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { measured } from './measured.mjs';
+import { parseSvg, auditSvg, readSystem } from './check-example-layers.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const text = (file) => readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+
+export function checkSource(original, entry, folder, root = ROOT) {
+  if (entry.source === undefined || entry.source === 'illustrator') {
+    assert.match(original, /Generator: Adobe Illustrator/, `${entry.slug}: export from the editable source in Illustrator`);
+    assert.equal(readFileSync(path.join(folder, 'Illustrator', `${entry.slug}.ai`)).subarray(0, 4).toString(), '%PDF', `${entry.slug}: PDF-compatible Illustrator source`);
+    return;
+  }
+  assert.equal(entry.source, 'svg', `${entry.slug}: unknown editable source format`);
+  assert.doesNotMatch(original, /Generator: Adobe Illustrator/, `${entry.slug}: an authored SVG must not claim an Illustrator export`);
+  const svg = parseSvg(original);
+  assert.equal(svg.attrs.xmlns, 'http://www.w3.org/2000/svg', `${entry.slug}: SVG namespace`);
+  assert.match(svg.attrs.viewBox ?? '', /^0 0 1920 1080$/, `${entry.slug}: 1920 by 1080 authoring frame`);
+  for (const tag of ['title', 'desc']) {
+    assert.ok(svg.children.some((node) => node.tag === tag && node.text.trim()), `${entry.slug}: source has a ${tag}`);
+  }
+  const nodes = [];
+  const walk = (node) => { nodes.push(node); node.children.forEach(walk); };
+  walk(svg);
+  assert.ok(nodes.some((node) => node.tag === 'text' && (node.text.trim() || node.children.length)), `${entry.slug}: editable live text, not outlined or rasterised`);
+  assert.ok(!nodes.some((node) => ['script', 'image', 'foreignObject'].includes(node.tag)), `${entry.slug}: self-contained vector source`);
+  assert.deepEqual(auditSvg(original, readSystem(root)), [], `${entry.slug}: editable source follows the taught layer names`);
+}
 
 export function registeredRecipes(root = ROOT) {
   const dir = path.join(root, 'src/templates/behaviours');
@@ -42,9 +66,8 @@ export function checkCoverage(root = ROOT, inventory) {
   assert.deepEqual(readdirSync(path.join(folder, 'SVG')).filter((file) => file.endsWith('.svg')).sort(), examples.map((entry) => `${entry.slug}.svg`).sort(), 'the inventory covers every SVG in the download');
   for (const entry of examples) {
     const original = text(path.join(folder, 'SVG', `${entry.slug}.svg`));
-    assert.match(original, /Generator: Adobe Illustrator/, `${entry.slug}: export from the editable source in Illustrator`);
+    checkSource(original, entry, folder, root);
     assert.equal(text(path.join(root, 'public/docs/examples/svg-examples', `${entry.slug}.svg`)), original, `${entry.slug}: public SVG is the original export`);
-    assert.equal(readFileSync(path.join(folder, 'Illustrator', `${entry.slug}.ai`)).subarray(0, 4).toString(), '%PDF', `${entry.slug}: PDF-compatible Illustrator source`);
     assert.equal(readFileSync(path.join(folder, 'Previews', `${entry.preview}.png`)).subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${entry.slug}: PNG preview`);
   }
   return { examples: examples.length, behaviors: ids.length };
@@ -55,7 +78,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     const result = checkCoverage();
     measured(result.examples, 'SVG example source sets');
     measured(result.behaviors, 'supported SVG import behaviors');
-    console.log(`check-svg-example-coverage: ${result.examples} Illustrator examples cover all ${result.behaviors} SVG import behaviors`);
+    console.log(`check-svg-example-coverage: ${result.examples} editable examples cover all ${result.behaviors} SVG import behaviors`);
   } catch (error) {
     console.error(`check-svg-example-coverage: ${error.message}`);
     process.exitCode = 1;

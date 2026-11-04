@@ -17,5 +17,7 @@
   { "slug": "bingo", "name": "Bingo caller", "recipe": "bingo", "preview": "bingo" },
   { "slug": "end-credits", "name": "Credits roll", "recipe": "credits", "preview": "end-credits" },
   { "slug": "switch", "name": "Switch", "recipe": "switch", "preview": "switch" },
-  { "slug": "choice", "name": "Choice", "recipe": "choice", "preview": "choice" }
+  { "slug": "choice", "name": "Choice", "recipe": "choice", "preview": "choice" },
+  { "slug": "digital-clock", "name": "Digital clock and timer", "recipe": "clock", "preview": "digital-clock", "source": "svg" },
+  { "slug": "scorebug-clock", "name": "Score and clock", "recipe": "clock", "preview": "scorebug-clock", "source": "svg" }
 ]
