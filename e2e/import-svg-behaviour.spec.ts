@@ -1655,7 +1655,6 @@ test('the old Countdown kind: gone from a new import, kept where a draft or a sa
   // offered only where it is already in use (draft.ts `svgCountdownOffered`): a row bound as one,
   // the countdown behaviour or its drawn moments (the TIMER_SVG walks above), or a saved graphic
   // that runs it under the name this walk saves over, so a reimport can bind it again.
-  test.slow(); // two drops and a save through Finish
   const SCORE_CLOCK = fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url));
   await openImportDoor(page, SCORE_CLOCK);
   // The time layer reads as a clock (the Clock offers it), and no row offers the old kind.
