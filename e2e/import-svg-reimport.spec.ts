@@ -14,6 +14,7 @@ import path from 'node:path';
 import { SCORE_SVG, dropSvg, intoProduction } from './_svg-import';
 import { addToProductionFromFinish, startNewProject } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { acted, arm, install } from './_saveMatrix';
 
 /** Version one: a plate, a name and a role. */
 const V1 = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="240" viewBox="0 0 1280 240" font-family="sans-serif" fill="#fff">
@@ -455,10 +456,11 @@ async function makeWork(page: Page) {
 async function state(page: Page) {
   await awaitDurableReady(page);
   return page.evaluate(async () => {
-    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadGraphics, resolveSavedGraphicDoc } = await import('/src/model/library.ts');
     const { loadShows } = await import('/src/model/shows.ts');
     const A = await import('/src/blocks/animData.ts');
     const show = loadShows()[0];
+    const guest = show.graphics.find((g) => g.name === 'Guest');
     return {
       library: loadGraphics().map((g) => {
         const doc = new DOMParser().parseFromString(g.template.html, 'text/html');
@@ -473,6 +475,11 @@ async function state(page: Page) {
       bindings: show.bindings ?? {},
       pool: show.graphics.map((g) => g.name),
       poolGuest: show.graphics.find((g) => g.name === 'Guest')?.template.fields.map((f) => `${f.field} ${f.title}`) ?? null,
+      poolIdentity: show.graphics.map((g) => ({ id: g.id, graphicId: g.graphicId })),
+      cueIdentity: show.cues?.map((c) => ({ id: c.id, sourceId: c.sourceId })),
+      resolvedGuest: guest
+        ? resolveSavedGraphicDoc(guest, loadGraphics())?.template.fields.map((f) => `${f.field} ${f.title}`)
+        : null,
     };
   });
 }
@@ -634,27 +641,71 @@ async function editAndSave(page: Page, offered: string): Promise<void> {
   await settleDurableWrites(page);
 }
 
-test('Edit this graphic over a held name opens the reconciled build, and its Save leaves the earlier graphic as it was (#1986)', async ({ page }) => {
+test('Edit this graphic keeps the reconciled original linked for Save and production bindings; Save As makes a copy (#2103)', async ({ page }, testInfo) => {
   test.setTimeout(100_000);
   await page.goto('/app');
   await dropSvg(page, asFile(V1, 'v1'));
   await intoProduction(page, 'Guest', 'Show');
   await makeWork(page);
+  await page.evaluate(async () => {
+    const { addShowCue, loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows()[0];
+    addShowCue(show.id, show.graphics[0].id, { label: 'Guest interview' });
+  });
+  await settleDurableWrites(page);
   const before = await state(page);
   const earlier = before.library[0];
+  expect(before.poolIdentity[0].graphicId).toBe(earlier.id);
+  expect(before.cueIdentity?.some((c) => c.sourceId === before.poolIdentity[0].id)).toBe(true);
 
   await reimportToFinish(page, asFile(V2, 'v2'));
   await expect(page.getByTestId('wz-finish-reimport')).toHaveCount(0);
-  await editAndSave(page, 'Guest');
+  await page.getByTestId('wz-finish-edit-artwork').click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('save-status')).toHaveText('Unsaved changes');
+  // Opening the editor links its working document but does not write the original.
+  expect((await state(page)).library).toEqual(before.library);
+  await install(page);
+  await arm(page, 'L', 'refuse');
+  await page.getByTestId('save-graphic').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Save failed');
+  expect(await acted(page)).toEqual(['refuse L']);
+  const refused = await state(page);
+  expect(refused.library).toEqual(before.library);
+  expect(refused.poolIdentity).toEqual(before.poolIdentity);
+  expect(refused.cueIdentity).toEqual(before.cueIdentity);
+  expect(refused.bindings).toEqual(before.bindings);
+  // The retry still updates the linked record, without asking for a new name.
+  await page.getByTestId('save-graphic').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(page);
   const after = await state(page);
-  // The editor's Save minted its own record (the door saves nothing); the earlier one is untouched.
-  expect(after.library.find((g) => g.id === earlier.id)).toEqual(earlier);
-  const edited = after.library.find((g) => g.id !== earlier.id)!;
+  expect(after.library.map((g) => g.id)).toEqual([earlier.id]);
+  const edited = after.library[0];
   // Mutation: `prepareEditor` doing nothing leaves the positional build (f0 badge, f1 name, f2
   // role, no keys, label "role").
   expect(edited.fields).toEqual(['f2 badge LIVE', 'f0 name Presenter', 'f1 Job title Guest role']);
   expect(edited.keyed).toEqual(['#f1']);
   expect(after.bindings).toEqual(before.bindings);
+  expect(after.poolIdentity).toEqual(before.poolIdentity);
+  expect(after.cueIdentity).toEqual(before.cueIdentity);
+  expect(after.resolvedGuest).toEqual(['f2 badge', 'f0 name', 'f1 Job title']);
+  await page.screenshot({ path: testInfo.outputPath('linked-original-saved.png') });
+  // An explicit copy stays available without changing the original or the production links.
+  await page.getByTestId('save-menu').click();
+  await page.getByTestId('save-as').click();
+  await page.getByTestId('save-name').fill('Guest alternate');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+  await settleDurableWrites(page);
+  const copy = await state(page);
+  expect(copy.library.map((g) => g.name).sort()).toEqual(['Guest', 'Guest alternate']);
+  expect(copy.library.find((g) => g.id === earlier.id)).toEqual(edited);
+  expect(copy.library.find((g) => g.name === 'Guest alternate')?.id).not.toBe(earlier.id);
+  expect(copy.poolIdentity).toEqual(before.poolIdentity);
+  expect(copy.cueIdentity).toEqual(before.cueIdentity);
+  expect(copy.bindings).toEqual(before.bindings);
 });
 
 test('Edit this graphic with work the new version cannot carry opens it under the separate name Finish named (#1986)', async ({ page }) => {

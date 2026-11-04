@@ -203,7 +203,8 @@ export function makeDoors(io: DoorIo) {
   /** The editor door saves nothing: it opens the built document in the new editor, and keeps
    *  the walk-back warning in force before a stale wizard draft could replace edits there. Over a
    *  graphic the name already holds, the document first reads as the other doors would save it
-   *  (`prepareEditor`), so the editor's own Save never mints an unreconciled twin (#1986). */
+   *  (`prepareEditor`) and links a fully reconciled import to its original, so the editor's Save
+   *  updates that graphic rather than minting a same-named twin (#1986, #2103). */
   const editArtwork = async (apply: Apply, name?: DoorName): Promise<void> => {
     const template = await apply();
     if (!template) return;
