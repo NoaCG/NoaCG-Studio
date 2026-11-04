@@ -79,7 +79,7 @@ export interface PanelState {
 	title: string
 	at: number
 	selected: string | null
-	space: 'take' | 'take-off' | 'preview' | null
+	space: 'take' | 'take-off' | 'preview' | 'from-the-top' | null
 	live: string[]
 	allowed: Partial<Record<SharedVerb, boolean>>
 	blocked: string[]
@@ -212,7 +212,8 @@ export function readState(p: unknown): PanelState | null {
 		for (const v of SHARED_VERBS) if (typeof p.allowed[v] === 'boolean') allowed[v] = p.allowed[v]
 	const clip = isObject(p.clip) && typeof p.clip.cue === 'string' ? readClip(p.clip) : null
 	const warn = Array.isArray(p.warn) && p.warn.length === 2 ? [num(p.warn[0]) ?? 10, num(p.warn[1]) ?? 5] : [10, 5]
-	const space = p.space === 'take' || p.space === 'take-off' || p.space === 'preview' ? p.space : null
+	const space =
+		p.space === 'take' || p.space === 'take-off' || p.space === 'preview' || p.space === 'from-the-top' ? p.space : null
 	return {
 		v: num(p.v) ?? 0,
 		ver: num(p.ver)!,

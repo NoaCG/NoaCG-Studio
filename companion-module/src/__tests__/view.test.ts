@@ -58,6 +58,11 @@ test('on air, selected and allowed read the state as the page drew it', () => {
 	assert.equal(isOnAir(s, 'cue_b'), true)
 	assert.equal(isOnAir(s, SELECTED), true)
 	assert.equal(isOnAir(s, 'cue_a'), false)
+	// A held folder, which `live` never names: on air by its own row id as by the selection.
+	const held = state({ live: ['cue_a'], selected: 'fold_1', space: 'take-off' })
+	assert.equal(isOnAir(held, 'fold_1'), true)
+	assert.equal(isOnAir(held, SELECTED), true)
+	assert.equal(isOnAir(state({ live: ['cue_a'], selected: 'fold_1', space: 'take' }), 'fold_1'), false)
 	assert.equal(isSelected(s, 'cue_b'), true)
 	assert.equal(isAllowed(s, r, 'take'), true)
 	assert.equal(isAllowed(s, r, 'out'), false)
@@ -113,6 +118,7 @@ test('presets: the transport, the clock, a Take and a Select key per row and a T
 	const feedbackIds = new Set([
 		'on_air',
 		'selected',
+		'take_does',
 		'allowed',
 		'clip_warning',
 		'clip_final',

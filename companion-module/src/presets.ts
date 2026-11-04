@@ -6,7 +6,6 @@ import type {
 import type { PanelActions, PanelRow, PanelVerb } from './protocol.js'
 import { ACTION_VERBS, type GraphicKeyOptions } from './actions.js'
 import { AMBER, BLACK, DARK_AMBER, DIM, GREEN, GREY, RED, WHITE, type FeedbacksSchema } from './feedbacks.js'
-import { SELECTED } from './view.js'
 import type { ModuleSchema } from './main.js'
 import type ModuleInstance from './main.js'
 
@@ -136,9 +135,19 @@ export function buildPresets(
 		'take',
 		[
 			{
-				feedbackId: 'on_air',
-				options: { row: SELECTED },
-				style: { bgcolor: RED, color: WHITE, text: `TAKE OFF\\n${v('selected')}` },
+				feedbackId: 'take_does',
+				options: { does: 'take-off' },
+				style: { bgcolor: RED, color: WHITE, text: `OUT\\n${v('selected')}` },
+			},
+			{
+				feedbackId: 'take_does',
+				options: { does: 'preview' },
+				style: { bgcolor: DARK_AMBER, color: WHITE, text: `PREVIEW\\n${v('selected')}` },
+			},
+			{
+				feedbackId: 'take_does',
+				options: { does: 'from-the-top' },
+				style: { text: `FROM THE TOP\\n${v('selected')}` },
 			},
 		],
 		'14',

@@ -7,6 +7,7 @@ import type ModuleInstance from './main.js'
 export type FeedbacksSchema = {
 	on_air: { type: 'boolean'; options: { row: string } }
 	selected: { type: 'boolean'; options: { row: string } }
+	take_does: { type: 'boolean'; options: { does: string } }
 	allowed: { type: 'boolean'; options: { verb: string; row: string } }
 	clip_warning: { type: 'boolean'; options: Record<string, never> }
 	clip_final: { type: 'boolean'; options: { blink: boolean } }
@@ -67,6 +68,30 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 			defaultStyle: { bgcolor: GREEN, color: WHITE },
 			options: [{ ...rowOrSelected, choices: rows, default: rows[0]?.id ?? '' }],
 			callback: (fb) => isSelected(self.panel.state, String(fb.options.row)),
+		},
+		take_does: {
+			type: 'boolean',
+			name: 'What Take does next',
+			description: 'What the next press of Take does on the answering page, so a key can say it.',
+			defaultStyle: { bgcolor: RED, color: WHITE },
+			options: [
+				{
+					id: 'does',
+					type: 'dropdown',
+					label: 'Next press',
+					choices: [
+						{ id: 'take', label: 'Takes the selected cue' },
+						{ id: 'take-off', label: 'Takes it off air' },
+						{ id: 'preview', label: 'Puts it on PREVIEW' },
+						{ id: 'from-the-top', label: 'Goes back to the top of its folder' },
+					],
+					default: 'take-off',
+				},
+			],
+			// The page's own word for the press (`space`, protocol §8), never worked out here from `live`: it
+			// depends on the SPACE mode and on a held folder's step, which only the page knows, and a press
+			// is refused as stale when it changes.
+			callback: (fb) => self.panel.state?.space === fb.options.does,
 		},
 		allowed: {
 			type: 'boolean',

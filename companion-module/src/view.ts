@@ -7,9 +7,11 @@ export function resolveRow(state: PanelState | null, row: string): string {
 	return row === SELECTED ? (state?.selected ?? '') : row
 }
 
+/** `live` lists cues, never a folder; for the selected row the page also says when a press takes it off. */
 export function isOnAir(state: PanelState | null, row: string): boolean {
 	const id = resolveRow(state, row)
-	return !!state && !!id && state.live.includes(id)
+	if (!state || !id) return false
+	return state.live.includes(id) || (id === state.selected && state.space === 'take-off')
 }
 
 export function isSelected(state: PanelState | null, row: string): boolean {
