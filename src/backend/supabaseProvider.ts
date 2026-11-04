@@ -71,8 +71,10 @@ export class SupabaseProvider implements StorageProvider {
   }
 
   private async uid(sb: SupabaseClient): Promise<string> {
-    const { data } = await sb.auth.getUser();
-    if (!data.user) throw new Error('Not signed in.');
+    const { data, error } = await sb.auth.getUser();
+    // A request that failed says nothing about the session. Saying "Not signed in" for it would
+    // send somebody with a live session to sign in again.
+    if (!data.user) throw new Error(error?.name === 'AuthRetryableFetchError' ? error.message : 'Not signed in.');
     return data.user.id;
   }
 

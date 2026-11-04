@@ -18,7 +18,7 @@
 // OFFLINE THIS CANNOT RUN. Every verb begins at `getSupabase()`, null without a backend, and the
 // controller is only started by components/teams/TeamSync.tsx behind `useTeamsAvailable()`.
 
-import { getSupabase } from './supabase';
+import { cloudFailureWords, getSupabase } from './supabase';
 import { listMyTeamMembers, listMyTeams, type Team, type TeamMember } from './teams';
 import { deleteShow, type Show } from '../model/shows';
 import {
@@ -343,6 +343,8 @@ function noteSave(failed: boolean): void {
 const server = new Map<string, { token: string; doc: Show; updatedBy: string | null; teamId: string }>();
 const dirty = new Set<string>();
 const inflight = new Set<string>();
+/** The line a failed save left in `notes`, to take back when a later save lands. */
+const failureNotes = new Map<string, string>();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 let running: { userId: string; stop: () => void } | null = null;
 let refreshing: Promise<void> | null = null;
@@ -369,9 +371,12 @@ export function startTeamSync(userId: string): void {
   const onVisible = () => {
     if (document.visibilityState === 'visible' && Date.now() >= readsResumeAt) void refreshTeams();
   };
+  // Back online is worth asking at once: the wait after a failed read is for a server in trouble.
+  const onOnline = () => void refreshTeams();
   const tick = setInterval(onVisible, POLL_MS);
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('focus', onVisible);
+  window.addEventListener('online', onOnline);
   running = {
     userId,
     stop: () => {
@@ -379,6 +384,7 @@ export function startTeamSync(userId: string): void {
       clearInterval(tick);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
+      window.removeEventListener('online', onOnline);
     },
   };
   void refreshTeams();
@@ -394,6 +400,7 @@ export function stopTeamSync(): void {
   server.clear();
   dirty.clear();
   inflight.clear();
+  failureNotes.clear();
   knownAssets.clear();
   refusedAssets.clear();
   noteRead(false);
@@ -652,8 +659,16 @@ async function pushSave(id: string): Promise<void> {
   if (running !== owner) return;
   noteSave(failure !== null);
   setSaving(id, failure ? 'failed' : dirty.has(id) ? 'pending' : null);
-  if (failure) setState({ notes: { ...state.notes, [id]: failure } });
-  else if (dirty.has(id)) scheduleSave(id);
+  // A failure's line goes with the failure, or it reads as a problem after the retry has saved.
+  if (failure) {
+    const said = cloudFailureWords(failure);
+    failureNotes.set(id, said);
+    setState({ notes: { ...state.notes, [id]: said } });
+  } else {
+    if (state.notes[id] === failureNotes.get(id)) dismissTeamNote(id);
+    failureNotes.delete(id);
+    if (dirty.has(id)) scheduleSave(id);
+  }
 }
 
 /** Forget the "a teammate saved over you" line once it has been read. */
