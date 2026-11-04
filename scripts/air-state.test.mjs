@@ -250,6 +250,15 @@ test('a field a command set during the read counts as moved even when it set the
   assert.deepEqual(seedFromResolve(twice, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: '5' });
 });
 
+test('a live graphic with nothing to seed from keeps its whole record when a +1 is heard during the read', () => {
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: '5', f1: 'NAME' } } }]);
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('lt', { f0: '6' }, 'u10')], createAppliedOnce(), NO_CLOCKS, T).air;
+  // Live on a cue this page has no values for, and no renderer report yet.
+  const air = seedFromResolve(heard, { liveCue: { lt: 'gone' }, live: {} }, [], asked, CUES, NO_CLOCKS);
+  assert.deepEqual(air.aired.lt, { f0: '6', f1: 'NAME' });
+});
+
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {
   const live = { score: { data: { f5: `10:00@${T}` } } };
   const air = seedFromResolve(NO_AIR, { liveCue: { score: 'c2' }, live }, [], airAtRequest(NO_AIR), CUES, CLOCKS);

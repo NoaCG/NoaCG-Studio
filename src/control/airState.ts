@@ -335,8 +335,8 @@ export function seedFromResolve(
       }
       speaking = { ...speaking, [graphic]: memory };
     }
-    Object.assign(values, moved);
-    if (Object.keys(values).length > 0) seed[graphic] = values;
+    // Nothing to seed from (no report, no cue values): the record stays whole, moved fields and all.
+    if (Object.keys(values).length > 0) seed[graphic] = { ...values, ...moved };
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
   // A command applied here while the read was out is newer than every report: the looks stay.
