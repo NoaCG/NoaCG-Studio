@@ -44,7 +44,7 @@ import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, upd
 import { freeName } from '../../../model/poolIdentity';
 import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
 import { PREFIX } from '../../../templates/importedDesign/shared';
-import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
+import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, runsOldCountdown, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -1220,6 +1220,31 @@ export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
  *  the drop reads them. */
 export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
   return !!svg && bestProposal({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown';
+}
+
+/**
+ * WHETHER A CLOCK-SHAPED ROW STILL OFFERS THE OLD COUNTDOWN KIND (#1876). A new import has one clock
+ * choice, the Clock; the row-level Countdown is the old engine, kept only where it is already in
+ * use: a row of this draft is bound as one, the countdown behaviour is held, the file drew the
+ * moments only it paints (`svgCountdownDrawn`), or the name this walk saves under holds a saved
+ * graphic that runs it (`savedOver`, read by `svgSavedOver`), so a reimport can bind it again.
+ * An unticked countdown row counts: unticking is not a change of mind about the engine.
+ */
+export function svgCountdownOffered(draft: SvgImportDraft, savedOver: SpxTemplate | null): boolean {
+  return (
+    draft.svgFields.some((f) => f.kind === 'countdown') ||
+    draft.svgBehaviour?.kind === 'timer' ||
+    svgCountdownDrawn(draft.designSvg) ||
+    (!!savedOver && runsOldCountdown(savedOver))
+  );
+}
+
+/** The saved graphic a save under `name` would write over, as Finish reads it (`librarySaveEffect`
+ *  with no record made yet), or null. */
+export function svgSavedOver(name: string): SpxTemplate | null {
+  if (!name.trim()) return null;
+  const target = librarySaveEffect(graphicNameIndex(), name, null).targetId;
+  return target ? graphicById(target)?.template ?? null : null;
 }
 
 /**

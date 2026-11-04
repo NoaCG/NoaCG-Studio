@@ -1650,6 +1650,71 @@ test('one Clock choice on a new import: it sits beside the score tracker, and a 
   await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
 });
 
+test('the old Countdown kind: gone from a new import, kept where a draft or a saved graphic already runs it', async ({ page }) => {
+  // #1876: a new import has ONE clock choice, the Clock. The row-level Countdown is the old engine,
+  // offered only where it is already in use (draft.ts `svgCountdownOffered`): a row bound as one,
+  // the countdown behaviour or its drawn moments (the TIMER_SVG walks above), or a saved graphic
+  // that runs it under the name this walk saves over, so a reimport can bind it again.
+  test.slow(); // two drops and a save through Finish
+  const SCORE_CLOCK = fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url));
+  await openImportDoor(page, SCORE_CLOCK);
+  // The time layer reads as a clock (the Clock offers it), and no row offers the old kind.
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(1);
+  await expect(page.locator('[data-testid^="map-svg-kind-"]')).toHaveCount(0);
+
+  // A graphic saved before the Clock existed, its time layer bound as the old countdown, under the
+  // name this file's drop gives the walk.
+  await awaitDurableReady(page);
+  const seeded = await page.evaluate(async (markup) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const { runsOldCountdown } = await import('/src/templates/importedDesign/reimport.ts');
+    const { svgSourceRevision } = await import('/src/ai/svgInterpretation/contract.ts');
+    const { createGraphic } = await import('/src/model/library.ts');
+    const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
+    const patch = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+    const row = patch.svgFields!.find((f) => f.clock)!;
+    const draft = mergeDraft(initialDraft(), patch);
+    const countdown = mergeDraft(draft, { svgFields: draft.svgFields.map((f) => (f.candidateId === row.candidateId ? { ...f, kind: 'countdown' as const } : f)) });
+    const clock = mergeDraft(draft, { svgClock: { candidateId: row.candidateId, mode: 'duration', revision: svgSourceRevision(draft.designSvg!.markup) } });
+    const old = buildDraftTemplate(variant, countdown);
+    const fresh = buildDraftTemplate(variant, clock);
+    createGraphic(old, { name: 'Score clock 1' });
+    return {
+      // The rule on the draft alone: plain is a new import; a countdown row is an existing draft.
+      plain: D.svgCountdownOffered(draft, null),
+      countdownDraft: D.svgCountdownOffered(countdown, null),
+      // A saved graphic is read by what it runs: the old engine, never the Clock's readout.
+      savedOld: runsOldCountdown(old),
+      savedClock: runsOldCountdown(fresh),
+    };
+  }, readFileSync(SCORE_CLOCK, 'utf8'));
+  expect(seeded).toEqual({ plain: false, countdownDraft: true, savedOld: true, savedClock: false });
+  await settleDurableWrites(page);
+
+  // The reimport: the same name, so the row offers the old kind again and binds it.
+  await openImportDoor(page, SCORE_CLOCK);
+  const time = await rowLabelled(page, /match.?time/i);
+  const kind = page.getByTestId(`map-svg-kind-${time}`);
+  await expect(kind.locator('option')).toHaveText(['Text', 'Countdown']);
+  await kind.selectOption('countdown');
+  // One clock engine per graphic: with the old countdown bound, the Clock is not offered.
+  await expect(page.getByTestId('map-svg-clock-mode')).toHaveCount(0);
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  await settleDurableWrites(page);
+  const saved = await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { runsOldCountdown } = await import('/src/templates/importedDesign/reimport.ts');
+    return loadGraphics().map((g) => ({ name: g.name, old: runsOldCountdown(g.template), minutes: g.template.fields.some((f) => / \(minutes\)$/.test(f.title)) }));
+  });
+  // Saved over the earlier graphic, still running the old countdown with its length in minutes.
+  expect(saved).toEqual([{ name: 'Score clock 1', old: true, minutes: true }]);
+});
+
 test('imported quiz: the behaviour survives the export and runs standalone from a file', async ({ page }, testInfo) => {
   // EXPORT IS WHERE AN IMPORTED GRAPHIC STOPS BEING OURS. Everything above runs inside the app;
   // this asserts the same board works as a folder on a playout machine, with no NoaCG around it.

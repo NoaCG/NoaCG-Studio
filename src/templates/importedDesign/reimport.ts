@@ -35,6 +35,15 @@ export function artOf(doc: Document): Element | null {
   return arts.length === 1 ? arts[0] : null;
 }
 
+/** Whether a saved graphic runs the OLD countdown engine: its clock display carries
+ *  `.{prefix}-clock` and no `data-count`, which only the Clock part's readout writes (svgBind.ts).
+ *  The mapping step keeps the row-level Countdown for a reimport over such a graphic (#1876). */
+export function runsOldCountdown(template: SpxTemplate): boolean {
+  if (!template.html?.includes(`${PREFIX}-clock`)) return false;
+  const art = artOf(parseHtml(template.html));
+  return !!art && [...art.querySelectorAll(`.${PREFIX}-clock`)].some((el) => !el.hasAttribute('data-count'));
+}
+
 export function parseHtml(html: string): Document {
   return new DOMParser().parseFromString(html, 'text/html');
 }

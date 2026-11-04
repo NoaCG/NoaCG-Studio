@@ -16,6 +16,8 @@ import {
   creditsSourceLayers,
   takenOff,
   svgDesignOptions,
+  svgCountdownOffered,
+  svgSavedOver,
 } from './draft';
 import { SVG_ALIGN_WORD } from '../../../templates/importedDesign/svg';
 import { creditsArtworkFields } from '../../../templates/importedDesign/creditsRoll';
@@ -1028,6 +1030,16 @@ export default function MapSvgFieldsStep({
   // repaints nothing itself; the offscreen render stays exactly as the designer drew it, which
   // is what measureOutline needs it for.
 
+  // ONE CLOCK CHOICE ON A NEW IMPORT (#1876): the Clock in the behaviour section. The old
+  // row-level Countdown stays only where it is already in use (`svgCountdownOffered`), and with
+  // Text its one other answer, the row then has nothing to choose, so the picker is not drawn.
+  const savedOver = useMemo(() => svgSavedOver(draft.name), [draft.name]);
+  const countdownOffered = useMemo(
+    () => svgCountdownOffered(draft, savedOver),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- exactly what the answer reads
+    [draft.svgFields, draft.svgBehaviour, draft.designSvg, savedOver],
+  );
+
   if (!svg) return null;
 
   // Text-shaped groups first, everything else after — a STABLE sort, so within each half the
@@ -1396,7 +1408,7 @@ export default function MapSvgFieldsStep({
                   )}
                 </>
               )}
-              {f.clock && !driven && (
+              {f.clock && !driven && countdownOffered && (
                 /* A clock-shaped layer ("10:00") can be a COUNTDOWN: the node becomes the
                    ticking display and the operator sets the length in minutes. One per
                    graphic - the shared clock runtime drives one display - so once a row
