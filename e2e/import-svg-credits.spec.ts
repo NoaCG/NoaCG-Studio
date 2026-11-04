@@ -751,7 +751,7 @@ test('role-above credits chosen to play as cards change on Next card, and a card
 // role and name layers from the first role down (rows 19 and 20); `block` keeps the same drawing
 // as fixed artwork, every one of those layers scrolling (#1962).
 type RollBuild = { layout: string; motion: string; engine: string | null; js: string; html: string };
-function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block', face: boolean, playback: 'roll' | 'static' | 'cards' = 'roll', advance?: number): Promise<RollBuild[]> {
+function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' | 'block' | 'editable', face: boolean, playback: 'roll' | 'static' | 'cards' = 'roll', advance?: number): Promise<RollBuild[]> {
   return page.evaluate(async ({ source, roleWord, as, face, playback, advance }) => {
     const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
     const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
@@ -760,6 +760,21 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
     const { withUniversalMotion } = await import('/src/components/wizard/draft/template.ts');
     const { composeDocument } = await import('/src/preview/composeDocument.ts');
     const imp = importSvgMarkup(source);
+    const motions = (template: ReturnType<typeof IMPORTED_SVG.create>, svg: Parameters<typeof C.creditsEngine>[0], layout: string) => (['drop', 'rise', 'pop'] as const).map((motion) => ({
+      layout, motion, engine: C.creditsEngine(svg), js: template.js,
+      html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: motion, motionOut: 'fade' } }), IMPORTED_SVG)),
+    }));
+    if (as === 'editable') {
+      // A saved credits graphic from before the original-artwork marker: the editable roll of its
+      // one Credits text, the layer whose label is roleWord.
+      const fields = imp.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+      const svg = {
+        markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [],
+        fonts: face ? [{ family: 'Anton', fontId: 'anton' }] : [],
+        behaviour: { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits: fields.findIndex((f) => f.title === roleWord) } },
+      };
+      return motions(IMPORTED_SVG.create({ designSvg: svg }), svg, 'editable');
+    }
     const content = imp.candidates.find((c) => c.sample === roleWord)!.id;
     const host = document.createElement('div');
     host.innerHTML = imp.markup;
@@ -778,11 +793,7 @@ function buildRolls(page: Page, source: string, roleWord: string, as: 'styled' |
         ? { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback, ...(advance === undefined ? {} : { advance }), anchors: preview.anchors } }
         : { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, options: { artwork: true }, artworkLayers: block.filter((id) => id !== content) },
     };
-    const template = IMPORTED_SVG.create({ designSvg: svg });
-    return (['drop', 'rise', 'pop'] as const).map((motion) => ({
-      layout: preview.layout, motion, engine: C.creditsEngine(svg), js: template.js,
-      html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: motion, motionOut: 'fade' } }), IMPORTED_SVG)),
-    }));
+    return motions(IMPORTED_SVG.create({ designSvg: svg }), svg, preview.layout);
   }, { source, roleWord, as, face, playback, advance });
 }
 
@@ -811,13 +822,10 @@ function rollPoses(page: Page) {
   });
 }
 
-test('styled credits, role above and role beside, enter and leave the whole frame, measure again when their faces land, and replay alike', async ({ page }) => {
-  await page.goto('/app');
-  // The design ships its own face (Anton), held back until the take has measured in a fallback.
-  const ABOVE = readFileSync(ABOVE_CREDITS_SVG, 'utf8').replace('font-family="sans-serif"', 'font-family="Anton"');
-  const BESIDE = readFileSync(BESIDE_CREDITS_SVG, 'utf8').replace(/font-family="[^"]*"/, 'font-family="Anton"');
-  const builds = [...await buildRolls(page, ABOVE, 'Research', 'styled', true), ...await buildRolls(page, BESIDE, 'Réalisation', 'styled', true)];
-  expect(builds.map((b) => [b.layout, b.engine])).toEqual([...Array(3).fill(['role-above', 'styled']), ...Array(3).fill(['role-beside', 'styled'])]);
+/** Each build takes while its face (Anton) is held back, so the take measures in a fallback; then
+ *  the face lands. The roll is measured again in it and carries on from the share it had reached,
+ *  then enters and leaves the whole frame, and Out and the same take again replay it alike. */
+async function lateFaceWalk(page: Page, builds: RollBuild[]) {
   for (const b of builds) expect(b.js).toContain('function creditsSettle(tween)');
   // Every request for the face is held until released, each with its own resolver.
   const held: (() => void)[] = [];
@@ -828,6 +836,11 @@ test('styled credits, role above and role beside, enter and leave the whole fram
     await route.fulfill({ body: readFileSync('public/fonts/anton.woff2'), contentType: 'font/woff2' });
   });
   const release = () => { for (const resolve of held.splice(0)) resolve(); };
+  type Reading = { distance: number; duration: number; reached: number; clock: number; fonts: string };
+  const reading = () => page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsTween: { progress(): number }; noacgCreditsLast: { distance: number; duration: number }; gsap: { ticker: { time: number } } };
+    return { distance: w.noacgCreditsLast.distance, duration: w.noacgCreditsLast.duration, reached: w.noacgCreditsTween.progress(), clock: w.gsap.ticker.time, fonts: document.fonts.status };
+  }) as Promise<Reading>;
   for (const [i, b] of builds.entries()) {
     const at = `${b.layout} after ${b.motion}`;
     await page.goto('/robots.txt');
@@ -837,19 +850,22 @@ test('styled credits, role above and role beside, enter and leave the whole fram
     await expect.poll(() => page.evaluate(() => document.fonts.status), `${at}: the face is on its way`).toBe('loading');
     await page.evaluate(() => (window as unknown as { play(): void }).play());
     await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: the roll starts`).toBe(true);
-    const early = await page.evaluate(async () => {
-      const w = window as unknown as { noacgCreditsTween: { progress(): number }; noacgCreditsLast: { distance: number } };
-      await new Promise((r) => setTimeout(r, 300));
-      return { distance: w.noacgCreditsLast.distance, reached: w.noacgCreditsTween.progress(), fonts: document.fonts.status };
-    });
+    await page.waitForTimeout(300);
+    const early = await reading();
     expect(early.fonts, `${at}: measured before the face landed`).toBe('loading');
     // This document's own request is held, so releasing frees it rather than an older one.
     await expect.poll(() => asked.some((url) => url.includes(`take=${i}`)) && held.length > 0, `${at}: the face's request is held`).toBe(true);
     release();
-    await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsLast: { distance: number } }).noacgCreditsLast.distance), `${at}: measured again in the face`).not.toBe(early.distance);
-    // It carried on from where it was rather than starting again.
-    const reached = await page.evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
-    expect(reached, `${at}: the roll kept its progress`).toBeGreaterThanOrEqual(early.reached);
+    await expect.poll(async () => (await reading()).distance, `${at}: measured again in the face`).not.toBe(early.distance);
+    // It carried on from where it was rather than starting again: on GSAP's own clock, the share
+    // reached is the early share plus the time since, run at the first take's pace until the face
+    // landed and at the second's after it, so it lies between the two paces' answers.
+    const late = await reading();
+    const since = late.clock - early.clock;
+    const near = [early.reached + since / Math.max(early.duration, late.duration), early.reached + since / Math.min(early.duration, late.duration)];
+    const kept = `${at}: the roll kept its progress ${JSON.stringify({ early, late, near })}`;
+    expect(late.reached, kept).toBeGreaterThanOrEqual(near[0] - 0.002);
+    expect(late.reached, kept).toBeLessThanOrEqual(near[1] + 0.002);
     const settled = await rollPoses(page);
     const say = `${at}: ${JSON.stringify(settled)}`;
     // The defect sides: a row already showing at the start, or still showing at the end.
@@ -860,14 +876,39 @@ test('styled credits, role above and role beside, enter and leave the whole fram
     expect(settled.middle.top, say).toBeCloseTo((settled.start.top + settled.end.top) / 2, 0);
     // Out, and the same take again: the same roll.
     await page.evaluate(() => (window as unknown as { stop(): void }).stop());
-    await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: Out stops the roll`).toBeNull();
+    // The styled roll lets go of its tween at Out. The editable roll has no Out stop: its emitted
+    // bytes are pinned as saved graphics built them, and its next take replaces the old roll.
+    if (b.engine !== 'editable') await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: Out stops the roll`).toBeNull();
+    await page.evaluate(() => { (window as unknown as { noacgCreditsOut?: unknown; noacgCreditsTween: unknown }).noacgCreditsOut = (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween; });
     await page.evaluate(() => (window as unknown as { play(): void }).play());
-    await expect.poll(() => page.evaluate(() => !!(window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: the replay starts`).toBe(true);
+    await expect.poll(() => page.evaluate(() => { const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsOut?: unknown }; return !!w.noacgCreditsTween && w.noacgCreditsTween !== w.noacgCreditsOut; }), `${at}: the replay starts`).toBe(true);
     const replay = await rollPoses(page);
     expect(Math.abs(replay.distance - settled.distance), `${at}: the replay measures the same roll: ${JSON.stringify(replay)}`).toBeLessThan(1);
     expect(Math.abs(replay.start.top - replay.frameBottom), `${at}: replay start`).toBeLessThan(0.5);
     expect(Math.abs(replay.end.bottom - replay.frameTop), `${at}: replay end`).toBeLessThan(0.5);
   }
+}
+
+test('styled credits, role above and role beside, enter and leave the whole frame, measure again when their faces land, and replay alike', async ({ page }) => {
+  await page.goto('/app');
+  // The design ships its own face (Anton), held back until the take has measured in a fallback.
+  const ABOVE = readFileSync(ABOVE_CREDITS_SVG, 'utf8').replace('font-family="sans-serif"', 'font-family="Anton"');
+  const BESIDE = readFileSync(BESIDE_CREDITS_SVG, 'utf8').replace(/font-family="[^"]*"/, 'font-family="Anton"');
+  const builds = [...await buildRolls(page, ABOVE, 'Research', 'styled', true), ...await buildRolls(page, BESIDE, 'Réalisation', 'styled', true)];
+  expect(builds.map((b) => [b.layout, b.engine])).toEqual([...Array(3).fill(['role-above', 'styled']), ...Array(3).fill(['role-beside', 'styled'])]);
+  await lateFaceWalk(page, builds);
+});
+
+// #1965: the editable roll of a saved credits graphic (from before the original-artwork marker,
+// or a styled binding gone stale) measures again when the design's face lands, as the styled one.
+test('a saved editable credits roll measures again when its face lands after the take, and replays alike', async ({ page }) => {
+  await page.goto('/app');
+  const LEGACY = readFileSync(CREDITS_SVG, 'utf8').replace(/Oswald-(Regular|Bold), Oswald/g, 'Anton');
+  const builds = await buildRolls(page, LEGACY, 'Credits', 'editable', true);
+  expect(builds.map((b) => b.engine)).toEqual(Array(3).fill('editable'));
+  // Drop and Rise: under Pop the take measures at the entrance's scale, so where in the entrance
+  // the face lands moves the travel by about a pixel (#2098), and the replay check would time it.
+  await lateFaceWalk(page, builds.filter((b) => b.motion !== 'pop'));
 });
 
 // jev-svg-import row 22 (AC-13): a still page. The rows stand where the drawing put them and
@@ -1186,7 +1227,7 @@ for (const layout of CARD_LAYOUTS) {
     await write(list);
     await cardsDispatch(page, 'play');
     const started = Date.now();
-    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: timed`, timeout: 6000 }).toBe(1);
+    await expect.poll(async () => (await cardsState(page)).shown, { message: `${at}: timed`, timeout: 6000, intervals: [25] }).toBe(1);
     const held = Date.now() - started;
     expect(held, `${at}: the first card held its two seconds`).toBeGreaterThanOrEqual(1900);
     await cardsDispatch(page, 'next');
@@ -1212,7 +1253,7 @@ for (const layout of CARD_LAYOUTS) {
 
     // OUT DURING A CHANGE: nothing half-faded is left for the next look at the graphic off air.
     await cardsDispatch(page, 'next');
-    await expect.poll(async () => Number((await cardsState(page)).opacity), `${at}: the change is fading`).toBeLessThan(0.9);
+    await expect.poll(async () => Number((await cardsState(page)).opacity), { message: `${at}: the change is fading`, intervals: [25] }).toBeLessThan(0.9);
     await cardsDispatch(page, 'stop');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: Out mid-change`).toBe(-1);
     await write(list);
