@@ -136,10 +136,27 @@ export function typedAfter(prev: Record<string, TypedValues>, graphic: string, m
  * renderer's merged data does, and a plain resend of the cue's own time never erases the origin.
  * `now` is the monitor's receive instant, standing in for a row's server time when it has none.
  */
-export function programItems(air: AirPart, items: readonly ReplayItem[], specs: ClockSpecs, now: number): { air: AirPart; out: ControlSendItem[] } {
+export function programItems(
+  air: AirPart,
+  items: readonly ReplayItem[],
+  specs: ClockSpecs,
+  now: number,
+  /** Commands heard (`claimAndApply`), not a stage rebuilt: a clock verb then counts as moving its
+   *  clock for the resolve's guard. */
+  heard = false,
+): { air: AirPart; out: ControlSendItem[] } {
   const out: ControlSendItem[] = [];
   let clocks = air.clocks;
   let speaking = air.speaking;
+  /** A clock verb moves its clock's state with no field carried: counted like a carried field, so
+   *  a resolve answered after it keeps this page's clock (issue #2099). */
+  let carried = air.carried;
+  const verbMoved = (graphic: string, fields: readonly string[]) => {
+    if (!heard) return;
+    const counts = { ...(carried?.[graphic] ?? {}) };
+    for (const field of fields) counts[field] = (counts[field] ?? 0) + 1;
+    carried = { ...carried, [graphic]: counts };
+  };
   /** The item with its clock write before or after it, as the effect says. */
   const around = (item: ControlSendItem, clockItem: ControlSendItem, when: 'before' | 'after') => {
     if (when === 'before') out.push(clockItem);
@@ -180,6 +197,7 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
         staged = { graphic: item.graphic, msg: { ...msg, data: forwarded } };
       }
       const effect = speakingClockRowEffect({ msg, created_at: item.created_at }, pair, held, now);
+      if (effect) verbMoved(item.graphic, Object.keys(effect.values));
       if (effect || moved) speaking = { ...speaking, [item.graphic]: effect ? { ...held, ...effect.values } : held };
       if (effect) around(staged, { graphic: item.graphic, msg: { t: 'update', data: effect.values } }, effect.when);
       else out.push(staged);
@@ -207,9 +225,10 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
       continue;
     }
     clocks = { ...clocks, [item.graphic]: effect.value };
+    verbMoved(item.graphic, [clock.field]);
     around(staged, { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } }, effect.when);
   }
-  return { air: clocks === air.clocks && speaking === air.speaking ? air : { ...air, clocks, speaking }, out };
+  return { air: clocks === air.clocks && speaking === air.speaking && carried === air.carried ? air : { ...air, clocks, speaking, ...(carried ? { carried } : {}) }, out };
 }
 
 /**
@@ -237,7 +256,7 @@ export function claimAndApply(
   }
   // A marker never touches what was aired, so the commands are remembered together, in order.
   if (program.length > 0) next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length };
-  return programItems(next, program, specs, now);
+  return programItems(next, program, specs, now, true);
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
@@ -272,12 +291,11 @@ function clockSeedFromReport(clock: ClockSpec, reported: string): string {
   return clock.fixedInstant ? clock.seed : reported;
 }
 
-/** A graphic's fields a command carried since the request, with what air's record holds for them. */
-function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<string, string> {
+/** A graphic's fields a command carried, or a clock verb moved, since the request. */
+function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Set<string> {
   const now = air.carried?.[graphic] ?? {};
   const then = at.carried?.[graphic] ?? {};
-  const record = air.aired[graphic] ?? {};
-  return Object.fromEntries(Object.keys(now).filter((key) => now[key] !== then[key] && key in record).map((key) => [key, record[key]]));
+  return new Set(Object.keys(now).filter((key) => now[key] !== then[key]));
 }
 
 /**
@@ -318,11 +336,14 @@ export function seedFromResolve(
     // A field a command moved while the read was out holds that command's figure, and its clock
     // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
     // back, and the next +1 counted from it).
-    const moved = air.commands !== at.commands ? movedSince(air, at, graphic) : {};
+    const movedKeys = air.commands !== at.commands ? movedSince(air, at, graphic) : new Set<string>();
+    const record = air.aired[graphic] ?? {};
+    /** What air's record holds for the moved fields it has. */
+    const moved = Object.fromEntries([...movedKeys].filter((key) => key in record).map((key) => [key, record[key]]));
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
-    if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
-      clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
+    if (clock && values[clock.field] !== undefined) {
+      if (!movedKeys.has(clock.field)) clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       values[clock.field] = plainClockValue(values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
@@ -330,11 +351,8 @@ export function seedFromResolve(
       const memory: Record<string, string> = {};
       for (const field of [pair.fieldA, pair.fieldB]) {
         const held = speaking[graphic]?.[field];
-        if (field in moved) {
-          if (held !== undefined) memory[field] = held;
-          continue;
-        }
-        memory[field] = wire(field);
+        if (!movedKeys.has(field)) memory[field] = wire(field);
+        else if (held !== undefined) memory[field] = held;
         values[field] = plainClockValue(values[field]);
       }
       speaking = { ...speaking, [graphic]: memory };

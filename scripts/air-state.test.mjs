@@ -272,6 +272,36 @@ test('a field kept over the report still takes another screen\'s later row once 
   assert.equal(caught.aired.lt.f0, '9');
 });
 
+test('A CLOCK VERB HEARD WHILE THE READ WAS OUT (#2099): its start, stop or reset is not put back by the older report', () => {
+  const event = (graphic, name, oid) => ({ graphic, msg: { t: 'event', event: name, oid } });
+  const reported = (data) => ({ liveCue: { score: 'c2' }, live: { score: { data } } });
+  // Stopped at 10:00 when the read was asked; started during it; the report still says stopped.
+  const stopped = claimAndApply(NO_AIR, [update('score', { f5: '10:00' }, 'c0')], createAppliedOnce(), CLOCKS, T).air;
+  const started = claimAndApply(stopped, [event('score', 'clockStart', 'c1')], createAppliedOnce(), CLOCKS, T).air;
+  assert.notEqual(started.clocks.score, stopped.clocks.score, 'the start moved the clock');
+  const afterStart = seedFromResolve(started, reported({ f5: '10:00' }), [], airAtRequest(stopped), CUES, CLOCKS);
+  assert.equal(afterStart.clocks.score, started.clocks.score, 'still running');
+  // Running when asked; stopped (and then reset) during the read; the report still says running.
+  for (const verb of ['clockStop', 'clockReset']) {
+    const held = claimAndApply(started, [event('score', verb, `v-${verb}`)], createAppliedOnce(), CLOCKS, T + 5000).air;
+    const seeded = seedFromResolve(held, reported({ f5: started.clocks.score }), [], airAtRequest(started), CUES, CLOCKS);
+    assert.equal(seeded.clocks.score, held.clocks.score, `${verb} stands`);
+  }
+  // With no verb meanwhile the report still seeds the clock, as before.
+  assert.equal(seedFromResolve(stopped, reported({ f5: `09:00@${T}` }), [], airAtRequest(stopped), CUES, CLOCKS).clocks.score, `09:00@${T}`);
+});
+
+test('a speaking-clock verb heard while the read was out keeps that clock\'s memory; the other takes the report', () => {
+  const both = claimAndApply(NO_AIR, [update('debate', { fa: '05:00', fb: '05:00' }, 'd0')], createAppliedOnce(), DEBATE, T).air;
+  const switched = claimAndApply(both, [{ graphic: 'debate', msg: { t: 'event', event: 'switch', oid: 'd1' } }], createAppliedOnce(), DEBATE, T).air;
+  const [movedField] = Object.keys(switched.speaking.debate).filter((f) => switched.speaking.debate[f] !== both.speaking.debate?.[f]);
+  assert.ok(movedField, 'the switch moved a clock');
+  const other = movedField === 'fa' ? 'fb' : 'fa';
+  const air = seedFromResolve(switched, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: '05:00', fb: `04:30@${T}` } } } }, [], airAtRequest(both), CUES, DEBATE);
+  assert.equal(air.speaking.debate[movedField], switched.speaking.debate[movedField]);
+  if (other === 'fb') assert.equal(air.speaking.debate.fb, `04:30@${T}`);
+});
+
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {
   const live = { score: { data: { f5: `10:00@${T}` } } };
   const air = seedFromResolve(NO_AIR, { liveCue: { score: 'c2' }, live }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
