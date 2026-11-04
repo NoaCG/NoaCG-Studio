@@ -923,6 +923,12 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
     const file = files.get(url.pathname.replace(/^\//, ''));
     return file == null ? route.fulfill({ status: 404, body: 'nf' }) : route.fulfill({ status: 200, contentType: 'text/html', body: file });
   };
+  /** How many refused sends each page has had its answer to. */
+  const refusedAnswers = new Map<Page, number>();
+  const refusedSeen = (p: Page) => refusedAnswers.get(p) ?? 0;
+  const countRefusals = (p: Page) => p.on('response', (r) => {
+    if (r.url().endsWith('/relay/send') && r.status() === 500) refusedAnswers.set(p, refusedSeen(p) + 1);
+  });
   /** The program rows sent since `from`, as `t` or `t f2=value`. */
   const sent = (from: number) => rows.slice(from).filter((r) => r.stream === 'program' && r.msg.t !== 'cue')
     .map((r) => (r.msg.data?.f2 !== undefined ? `${r.msg.t} f2=${r.msg.data.f2}` : r.msg.t));
@@ -934,6 +940,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   // THE STANDALONE PANEL.
   const panel = await context.newPage();
   await panel.route('http://clock-relay.local/**', serve);
+  countRefusals(panel);
   await panel.goto('http://clock-relay.local/panel.html', { waitUntil: 'load' });
   await expect.poll(() => panel.evaluate(() => (window as unknown as { relayOk?: boolean }).relayOk)).toBe(true);
   let from = rows.length;
@@ -980,6 +987,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   // THE PRODUCTION CONTROLLER.
   const ctl = await context.newPage();
   await ctl.route('http://clock-relay.local/**', serve);
+  countRefusals(ctl);
   await ctl.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
   await expect(ctl.locator('#mode')).toHaveText('● SHOW');
   await ctl.locator('#cue-c1').click();
@@ -1033,9 +1041,8 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   // value it last sent itself, which was already off air and would bank nothing.
   const heard = rows.length;
   await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= heard);
-  const refusedAnswers = Promise.all([0, 1].map(() => panel.waitForResponse((r) => r.url().endsWith('/relay/send') && r.status() === 500)));
   refuse();
-  await refusedAnswers;
+  await expect.poll(() => refusedSeen(panel)).toBe(2);
   refusing = null;
   from = rows.length;
   await panel.getByRole('button', { name: '■ Stop' }).click();
@@ -1072,9 +1079,8 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:10@${STAMP}/0:20/0:10$`));
   const panelRow = rows.length;
   await ctl.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= panelRow);
-  const ctlRefused = Promise.all([0, 1].map(() => ctl.waitForResponse((r) => r.url().endsWith('/relay/send') && r.status() === 500)));
   refuseCtl();
-  await ctlRefused;
+  await expect.poll(() => refusedSeen(ctl)).toBe(2);
   refusing = null;
   from = rows.length;
   await ctl.locator('#v-out').click();
