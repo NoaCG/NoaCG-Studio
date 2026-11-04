@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/templates/importedDesign/runtime/svgFit.js, src/templates/importedDesign/runtime/svgGrowth.js
+// guards: src/templates/importedDesign/runtime/svgFit.js
 //
 // AN OPERATOR'S LINE BREAKS ARE KEPT ON AIR (#1977), AND A VALUE WITHOUT ONE IS PAINTED AS BEFORE.
 //
@@ -13,12 +13,13 @@
 //   wrap       svgWrapLines starts a line at every break, wraps a long line inside the count, and
 //              answers a break-free value line for line as the previous greedy fill did
 //   readback   svgFitValue reads a painted block back with its breaks, and without one as before
-//   ladder     fitSvgText paints three typed lines as three lines, keeps a break-free value's
-//              painted bytes identical to the previous ladder's, and shrinks a block whose breaks
-//              need more lines than the room holds rather than dropping a break
+//   ladder     fitSvgText paints three typed lines as three lines, paints a break-free value the
+//              same with the new greedy fill as with the previous one, and shrinks a block whose
+//              breaks need more lines than the room holds - past the 55% floor where it has to,
+//              since condensing cannot make a block shorter - rather than dropping a break
 //
-// The corpus-wide proof that break-free values are unchanged is the `runtime` record of
-// scripts/svg-import-passes.test.mjs, which this change leaves as it was.
+// The proof that the whole ladder is unchanged for break-free values is corpus-wide: the
+// `runtime` record of scripts/svg-import-passes.test.mjs, which this change leaves as it was.
 //
 //   node --test scripts/svg-hard-lines.test.mjs
 import test from 'node:test';
@@ -91,6 +92,8 @@ test('wrap: a break starts a line, a long line wraps inside the count, and a bre
       crlf: run('Doors open at 19:00\r\n\r\nTickets at the door\n', 2000, 5),
       wrapped: run(`Doors open at 19:00\n${long}`, 500, 6),
       tight: run(`Doors open at 19:00\n${long}`, 500, 2),
+      // A PLACED line is an HTML span with a width alone: it never wraps, so a break never splits it.
+      placed: window.svgHardLines(document.createElement('span'), 'Doors open\nTickets at the door'),
       plain: [200, 500, 900].map((budget) => [2, 3, 6].map((max) => [run(long, budget, max).lines, window.oldWrapLines(el, long, budget, max)])),
     };
   }, LONG);
@@ -100,6 +103,7 @@ test('wrap: a break starts a line, a long line wraps inside the count, and a bre
   assert.ok(got.wrapped.lines.length > 2, 'the long second line wraps');
   assert.deepEqual(got.wrapped.breaks, [1], 'and only its first line starts at a break');
   assert.deepEqual(got.tight.lines, ['Doors open at 19:00', LONG], 'a count with no spare line keeps the break and leaves the width to the shrink');
+  assert.deepEqual(got.placed, ['Doors open\nTickets at the door'], 'a placed HTML line keeps the old path');
   for (const row of got.plain) for (const [now, before] of row) assert.deepEqual(now, before, 'a break-free value wraps line for line as before');
 });
 
@@ -148,14 +152,21 @@ test('ladder: three typed lines air as three, a break-free value paints the same
     const before = at(long);
     window.svgWrapLines = keep;
     const many = at(Array.from({ length: 9 }, (_, i) => `Line ${i + 1}`).join('\n'));
-    return { typed, plain, before, many };
+    const most = at(Array.from({ length: 14 }, (_, i) => `Line ${i + 1}`).join('\n'));
+    most.height = el.getBBox().height;
+    most.ceiling = window.svgFitRoom.f1.height;
+    return { typed, plain, before, many, most };
   }, LONG);
   assert.deepEqual(got.typed.lines, ['Doors open at 19:00', 'Entry from the main gate', 'Tickets at the door']);
   assert.equal(got.typed.size, 34, 'at the drawn size, since the room holds it');
   assert.equal(got.typed.value, 'Doors open at 19:00\nEntry from the main gate\nTickets at the door', 'and it reads back as typed');
   assert.ok(got.typed.settled, 'a second pass gives the same artwork');
-  assert.equal(got.plain.html, got.before.html, 'a break-free value is painted byte for byte as the previous ladder painted it');
+  assert.equal(got.plain.html, got.before.html, 'a break-free value is painted byte for byte as with the previous greedy fill');
   assert.equal(got.many.lines.length, 9, 'nine typed lines stay nine lines');
   assert.ok(got.many.size < 34, 'and the type shrinks to hold them');
   assert.ok(got.many.settled);
+  assert.equal(got.most.lines.length, 14, 'fourteen typed lines stay fourteen');
+  assert.ok(got.most.size < 34 * 0.55, `and shrink past the 55% floor to fit the room (${got.most.size}px)`);
+  assert.ok(got.most.height <= got.most.ceiling + 0.5, `inside the room's height (${got.most.height} of ${got.most.ceiling})`);
+  assert.ok(got.most.over.includes('f1'), 'reported too long, as anything past 55% is');
 });

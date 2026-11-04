@@ -136,8 +136,9 @@ measured defect; §3 holds the evidence:
   picks the line COUNT; an operator's breaks are then evened out** (`svgBalanceLines`), never
   changing the count, the size or the overflow report. The drawn value is painted as before.
   **A line break in a value is a HARD line boundary** (`svgHardLines`, owner ruling on #1977): the
-  count never drops below the value's own lines, so a block that cannot hold them shrinks, and
-  balancing never moves a word across one. A value without a break takes the old path unchanged.
+  count never drops below the value's own lines, so a block that cannot hold them shrinks (past
+  55% where condensing cannot help, reported) and balancing never moves a word across one. A value
+  without a break, the drawn value and a placed line take the old path unchanged.
 - **Past 55% a value is reported too long; type shrinks to a 30% floor, then is SQUEEZED no narrower than 70%**
   (`svgSqueeze`), only what no size can hold, because nothing may ever paint outside the panel.
 - **Measure exactly, and from the DESIGN**: screen px convert through the element's CTM, never an

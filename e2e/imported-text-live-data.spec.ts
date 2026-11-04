@@ -27,7 +27,7 @@ const tabOf = (body: string) => [['Field ID', 'Label', 'Value'], ['f0', 'Title',
 
 /** The lines a bound block shows on air: one per painted line, or its text as one line. */
 function onAir(el: Element): string[] {
-  const painted = [...el.querySelectorAll('tspan')].map((t) => (t.textContent ?? '').trim()).filter(Boolean);
+  const painted = [...el.querySelectorAll(':scope > tspan[data-noacg-line]')].map((t) => (t.textContent ?? '').trim()).filter(Boolean);
   if (painted.length) return painted;
   const text = (el.textContent ?? '').trim();
   return text ? [text] : [];

@@ -1093,7 +1093,8 @@ function measureSvgRoom() {
  *  for its dy to move and would be lost anyway. */
 function svgHardLines(el, value) {
   var text = String(value);
-  if (!/[\r\n]/.test(text) || value === svgFitDrawn[el.id]) return [value];
+  // A PLACED line is one HTML line with a width alone, and never wraps (§6b).
+  if (!/[\r\n]/.test(text) || value === svgFitDrawn[el.id] || svgFitPlaced(el)) return [value];
   var parts = text.split(/\r\n?|\n/);
   var out = [];
   for (var i = 0; i < parts.length; i++) {
@@ -1154,14 +1155,18 @@ function svgEvenOut(el, value, budget, size, lineHeight, room) {
   var even = [];
   even.breaks = {};
   var run = [];
+  var measured = false;
   for (var i = 0; i <= painted.length; i++) {
     if (i < painted.length && !(run.length && svgLineBreaks(painted[i]))) { run.push(painted[i].textContent); continue; }
     if (even.length) even.breaks[even.length] = true;
+    measured = measured || run.length > 1;
     var balanced = run.length > 1 ? svgBalanceLines(el, run, budget) : run;
     for (var b = 0; b < balanced.length; b++) even.push(balanced[b]);
     if (i < painted.length) run = [painted[i].textContent];
   }
-  // Measuring writes over the block, so it is painted again whatever the answer.
+  // Measuring writes over the block, so it is painted again whatever the answer - and only then:
+  // a block whose every run is one line was measured by nothing and stands as painted.
+  if (!measured) return;
   svgPaintLines(el, even, size, lineHeight, room);
 }
 
@@ -1419,6 +1424,10 @@ function fitSvgText() {
     var floor = drawnSize * SVG_FIT_FLOOR;
     var hardFloor = drawnSize * SVG_FIT_HARD_FLOOR;
     var lineHeight = svgLineHeight(el);         // the designer's leading, or the house 1.2
+    // An operator's breaks are a floor on the count (svgHardLines): a block that cannot hold them
+    // at a size is TALL there, and the size comes down as it does for any tall block. Past the 30%
+    // floor it keeps its lines and is reported too long, as an unbroken word is.
+    var hard = svgHardLines(el, value).length;
     // WHERE A GROWING PANEL PUTS ITS CEILING. Sideways, growth is more BUDGET (above). Downwards
     // it is not a budget at all - it is somewhere to WRAP into, so it raises the ceiling this
     // block may fill and the panel is then grown to whatever the settled block actually needed
@@ -1453,11 +1462,8 @@ function fitSvgText() {
       // counts is what guarantees the last line stays inside the shape it was drawn in - at the
       // floor this settles on one long line, which overruns sideways where somebody can see it
       // rather than over somebody else's artwork.
-      // An operator's breaks are a floor on the count (svgHardLines): a block that cannot hold
-      // them at this size is TALL, and the size comes down as it does for any tall block.
       var width = 0;
       var tall = false;
-      var hard = svgHardLines(el, value).length;
       for (var n = Math.max(maxLines, hard); n >= hard; n--) {
         svgPaintLines(el, n > 1 ? svgWrapLines(el, value, budget, n) : [value], size, lineHeight, room);
         width = svgBlockWidth(el);
@@ -1501,7 +1507,9 @@ function fitSvgText() {
     // CONDENSE, bounded by legibility (svgSqueeze). Where that is enough the block fills the room
     // the design gave it, and the ladder is done.
     svgSqueeze(el, budget);
-    if (svgBlockWidth(el) <= budget + 0.5) break;
+    // Condensing narrows a block and cannot make it shorter, so a block too tall for its
+    // operator's own lines goes on to spend size.
+    if (svgBlockWidth(el) <= budget + 0.5 && !(tall && hard > 1)) break;
     // Not enough, and the alternative to shrinking further is words standing outside the panel.
     // Take the condensing off and let the second attempt spend size instead.
     if (attempt === 0) svgUnsqueeze(el);
