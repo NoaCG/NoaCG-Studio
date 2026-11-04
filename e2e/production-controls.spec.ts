@@ -594,11 +594,20 @@ test('scorebug actions group by section and drive the clock; a plain lower third
   // Full time is destructive (one way only) and marked as such.
   await expect(page.getByTestId('cue-action-final')).toHaveClass(/destructive/);
 
-  // #1889: paused for a stoppage, then a goal sent with ✎ Update. The Update resends the cue's whole
-  // value set, the clock's typed time included, and that is a resend, not a correction: PROGRAM's
+  // #1889: the operator sets the match time by typing it (the cue now stores and resends it), runs
+  // the clock, pauses for a stoppage, then sends a goal with ✎ Update. The Update resends the cue's
+  // whole value set, the typed time included, and that is a resend, not a correction: PROGRAM's
   // clock stays where it was paused.
   const clock = page.frameLocator('[data-testid="program-stage"] iframe').locator('[data-start]');
-  await expect.poll(async () => clockSeconds(await clock.textContent()), { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+  await stop.click();
+  await expect(start).toBeEnabled();
+  const clockBox = page.getByTestId(`cue-field-${await clock.getAttribute('id')}`);
+  await clockBox.fill('30:00');
+  await page.getByTestId('verb-update').click();
+  await expect(clock).toHaveText('30:00');
+  await start.click();
+  await expect.poll(async () => clockSeconds(await clock.textContent()), { timeout: 10_000 }).not.toBe(30 * 60);
+  await page.waitForTimeout(1100);
   await stop.click();
   await expect(start).toBeEnabled();
   const paused = await clock.textContent();
