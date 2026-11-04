@@ -29,6 +29,7 @@ Editable graphics cover every supported SVG import behaviour, plus a title, lowe
 - **Digital clock and timer / Score and clock**: choose Clock's duration, elapsed or target-time mode at import. `12:00` is one live text object named `Clock`. See **CLOCKS.md** for drawing, layer names and controls.
 - **Ticker**: change Kicker and Story. Update changes the line on air.
 - **End credits**: the fixed-artwork option. The complete imported layout scrolls from below the frame until it leaves the top. Scroll speed changes its pace. For editable names in playout, use the separate editable credits example.
+- **Editable credits**: the design supplies role and name styles; paste the full list in playout or connect a Google Sheet. See **EDITABLE-CREDITS.md** for drawing, layer names and controls.
 
 Names in these examples are made up.
 
@@ -73,6 +74,7 @@ A letter or number after a space says which row a name belongs to: `Answer A`, `
 | **Digital clock / timer** | `Clock`, one live `12:00` text | none | `Panel`; optional `Clock box` |
 | **Ticker** | `Kicker`, `Story` | none | `Panel`, `Kicker box` |
 | **End credits** | `Credits`, one long text object | none | none |
+| **Editable credits** | `Credits`, `Credits 2`, etc.: one role or name per live text object; optional `Heading` | none | optional `Panel` |
 
 The fixed-artwork credits keep their original layout. Their Illustrator source has a Text group inside Frame so SVG export preserves it. Text below the artboard scrolls into view. Keep the 1920 by 1080 artboard as the output frame.
 
