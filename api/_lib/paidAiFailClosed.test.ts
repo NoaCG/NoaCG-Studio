@@ -22,6 +22,7 @@ import { liteProfile } from './aiLiteProfile.js';
 import { proProfile } from './aiProProfile.js';
 import { importAnalysisProfile } from './aiImportAnalysisProfile.js';
 import { resetTaskRateLimitForTests } from './aiLiteRateLimit.js';
+import { userAiKeysCookie } from './aiCredentials.js';
 import { allows } from '../../src/entitlements/contract.js';
 import { IMPORT_ANALYSIS_GRAPHIC_TYPES } from '../../src/ai/importAnalysis/contract.js';
 import type { ModelRoute } from '../../src/ai/modelTypes.js';
@@ -430,5 +431,33 @@ test('an untagged managed call refuses when the switches cannot be read, and run
     const ok = await generate.fetch(post('/api/ai/generate', managedCall()));
     assert.equal(ok.status, 200, await ok.clone().text());
     assert.equal(sent.model.length, 1);
+  }
+});
+
+test('a gated call whose primary is the caller\'s own key but whose fallback is ours reads the plan strictly', async () => {
+  process.env.AI_KEY_ENCRYPTION_SECRET = 'a'.repeat(64);
+  try {
+    // The caller's own key covers anthropic; the vercel fallback would spend the managed key.
+    const cookie = userAiKeysCookie(
+      new Request('https://noacg.test/api/ai/credentials', { headers: { origin: 'https://noacg.test' } }),
+      { anthropic: 'user-supplied-key' },
+      USER,
+    ).split(';')[0];
+    const call = {
+      route: { provider: 'anthropic', model: 'claude-sonnet-5' },
+      fallbacks: [{ provider: 'vercel', model: 'openai/gpt-5-mini' }],
+      request: { system: 'You are a test.', messages: [{ role: 'user', content: 'hi' }] },
+      surface: 'video',
+    };
+    db = { settings: 'ok', failAccount: 'user_plans' };
+    const refused = await generate.fetch(post('/api/ai/generate', call, { cookie }));
+    assert.equal(refused.status, 503, await refused.clone().text());
+    assert.deepEqual(sent.model, [], 'neither the caller\'s key nor ours was used');
+
+    // A call with only the caller's own key keeps the fail-open plan read: it spends nothing of ours.
+    const byoOnly = await generate.fetch(post('/api/ai/generate', { ...call, fallbacks: [] }, { cookie }));
+    assert.notEqual(byoOnly.status, 503, await byoOnly.clone().text());
+  } finally {
+    delete process.env.AI_KEY_ENCRYPTION_SECRET;
   }
 });

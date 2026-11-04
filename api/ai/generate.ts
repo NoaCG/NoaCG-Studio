@@ -98,11 +98,13 @@ export default {
      *  tag. Nothing stronger exists here (a proxy that will run any prompt cannot know what
      *  the answer is used for), and it is still what makes suspension and the instance-wide
      *  kill switch reach the video harness instead of changing a row nothing reads. */
-    const guardSurface = async (byoPrimary: boolean): Promise<void> => {
+    const guardSurface = async (): Promise<void> => {
       const feature = gatedFeature(body.surface);
       if (!feature || !bearerToken(req)) return;
-      // Verifies the token on the way through; strict when the call spends the managed key.
-      const entitlement = await (byoPrimary ? entitlementFor() : paidEntitlementFor());
+      // Verifies the token on the way through. Strict when ANY route of the call could spend the
+      // managed key: a BYO primary with a managed fallback still spends ours when it falls back.
+      const managedPossible = [body.route, ...(body.fallbacks ?? [])].some((route) => !userKeys[route.provider]);
+      const entitlement = await (managedPossible ? paidEntitlementFor() : entitlementFor());
       if (surfaceRefused(feature, Boolean(auth.user), entitlement)) {
         throw new GatewayError(
           'authentication_required',
@@ -156,9 +158,9 @@ export default {
       // keyFor is handed a PROVIDER, not a route, so find the route this request would use it
       // for - the primary if it matches, otherwise the fallback that does.
       const candidate = [body.route, ...(body.fallbacks ?? [])].find((route) => route.provider === provider);
-      const settings = await readSystemSettings();
-      if (!settings.ok) throw unavailable();
-      if (candidate && routeDisabled(settings.settings, candidate)) {
+      const settings = candidate ? await readSystemSettings() : null;
+      if (settings && !settings.ok) throw unavailable();
+      if (candidate && settings?.ok && routeDisabled(settings.settings, candidate)) {
         // 'unavailable', not a new code: from the caller's side a switched-off route is
         // indistinguishable from one the deployment never had, and it is not retryable by
         // them - so the existing vocabulary already says the true thing.
@@ -180,15 +182,17 @@ export default {
       // own key on their own model is not ours to route - and "is this BYO" is decided here from
       // the presented keys rather than inside keyFor, because the policy is a property of the
       // whole request while keyFor answers per provider.
+      await guardSurface();
       const byoPrimary = Boolean(userKeys[body.route.provider]);
-      await guardSurface(byoPrimary);
       // HOSTED NoaCG Pro: a managed Pro call must ride a live reservation, which is what turns
       // the surface tag from a label into an allowance (api/_lib/pro/managedCall.ts). BYO is
       // excluded by the same rule the routing policy below uses - a caller's own key on their
       // own model is not ours to meter. The entitlement was already resolved by guardSurface;
       // this adds the profile, the funded-route check and the quota.
       if (body.surface === 'pro' && !byoPrimary && proAllowanceEnforceable()) {
-        await verifyCaller(); // so auth.user is resolved below; guardSurface read the plan
+        // Resolves auth.user below. With a token, guardSurface already read the plan strictly;
+        // without one, admission refuses a null user before it books anything.
+        await verifyCaller();
         await admitManagedProCall(body, auth.user?.userId ?? null);
         proReservationAdmitted = true;
       }
