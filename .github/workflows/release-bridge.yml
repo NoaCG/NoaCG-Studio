@@ -8,10 +8,11 @@
 #     this repository carrying NoaCG-Bridge-<version>.exe, by THIS workflow.
 # The Bridge's number moves only when the Bridge changes, so a CLI-only fix leaves it alone.
 #
-# "LATEST" IS RESOLVED PER PRODUCT. The Releases page carries Bridge releases only, and every one
-# is created with `--latest`, so `releases/latest` is always the newest Bridge (the file name
-# carries the version, so there is no fixed download URL) even though older `cli-v*` Releases from
-# before the split still sit on the page. The public Downloads page (noacg.studio/downloads) goes
+# "LATEST" IS RESOLVED PER PRODUCT. Every Bridge release is created with `--latest`, so
+# `releases/latest` is always the newest Bridge (the file name carries the version, so there is no
+# fixed download URL) even though older `cli-v*` Releases from before the split and the Companion
+# module's `companion-v*` Releases (release-companion.yml, each with `--latest=false`) share the
+# page. The public Downloads page (noacg.studio/downloads) goes
 # one step further and asks the API for the newest `bridge-v*` release by tag, and npm for the
 # CLI's `latest`, so neither product can ever be offered as the other.
 #

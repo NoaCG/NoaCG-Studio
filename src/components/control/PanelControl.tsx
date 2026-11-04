@@ -16,6 +16,7 @@ import {
 } from '../../control/panelRelay';
 import { workerInterval } from '../../control/workerTicker';
 import type { PanelOffer } from '../../control/panelActions';
+import { COMPANION_SETUP_URL, DOWNLOADS_COMPANION_URL } from '../../downloads/links';
 import { useModalGate } from '../spaceKey';
 import './panel.css';
 
@@ -278,6 +279,20 @@ function statusWords(answer: PanelAnswerState, list: PanelList | null): string {
   return 'No page answers the panel.';
 }
 
+/** Where the Companion module and its setup steps are: what a first pairing needs before a code. */
+function ModuleLinks() {
+  return (
+    <p className="hint panel-module-links">
+      <a href={DOWNLOADS_COMPANION_URL} target="_blank" rel="noopener" data-testid="panel-module-download">
+        Download the Companion module
+      </a>
+      <a href={COMPANION_SETUP_URL} target="_blank" rel="noopener" data-testid="panel-module-setup">
+        Setup steps
+      </a>
+    </p>
+  );
+}
+
 /** The dialog: the switch, pairing, and the paired panels. */
 export function PanelDialog({
   slug,
@@ -365,9 +380,12 @@ export function PanelDialog({
         </div>
         <div className="settings-content">
           {!slug ? (
-            <p className="hint" data-testid="panel-unpublished">
-              Publish this production once, then pair a panel here.
-            </p>
+            <>
+              <p className="hint" data-testid="panel-unpublished">
+                Publish this production once, then pair a panel here.
+              </p>
+              <ModuleLinks />
+            </>
           ) : (
             <>
               <section>
@@ -406,6 +424,7 @@ export function PanelDialog({
                     Pair a panel
                   </button>
                 )}
+                <ModuleLinks />
               </section>
               <section>
                 <p className="dlg-caption">Paired panels</p>

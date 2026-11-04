@@ -43,6 +43,12 @@ test('the Panel door is in Setup, before All out, and before a publish its dialo
   // No answer line, no pairing and no list before a publish: the control slug they need does not exist.
   await expect(page.getByTestId('panel-answer')).toHaveCount(0);
   await expect(page.getByTestId('panel-pair')).toHaveCount(0);
+  // Where to get the Companion module is the one thing a first pairing needs before any of that.
+  // A new tab, so the production page stays open and a pairing code stays on screen.
+  const download = dialog.getByTestId('panel-module-download');
+  await expect(download).toHaveAttribute('href', '/downloads#companion');
+  await expect(download).toHaveAttribute('target', '_blank');
+  await expect(dialog.getByTestId('panel-module-setup')).toHaveAttribute('href', '/downloads#companion-setup');
   await page.getByTestId('panel-close').click();
   await expect(dialog).toBeHidden();
   await expect(page.getByTestId('panel-header-status')).toHaveCount(0);

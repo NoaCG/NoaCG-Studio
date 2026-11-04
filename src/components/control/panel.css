@@ -22,6 +22,7 @@
 .panel-answer-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; }
 
 .panel-code-line { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.settings-content .panel-module-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 12px 0 0; }
 .panel-code {
   font-family: var(--font-mono);
   font-size: 26px;

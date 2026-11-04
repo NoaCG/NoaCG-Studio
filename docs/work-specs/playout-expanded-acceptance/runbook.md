@@ -52,9 +52,11 @@ URL** on the production's card in Productions to copy it). Detail and known OBS 
 Follow the module's own guide, which Companion shows as the **?** beside the connection
 ([`companion-module/companion/HELP.md`](../../../companion-module/companion/HELP.md)). In short:
 
-1. In Companion open **Modules**, press **Import module package** and choose the file
-   `noacg-studio-0.2.0.tgz` (or newer) that the maintainer gives you.
-2. On the production page open **Setup**, then **Stream Deck panel…**, and press **Pair a panel**.
+1. Download the Companion module from [noacg.studio/downloads](https://noacg.studio/downloads#companion)
+   (the panel dialog in step 2 links it too). It is the file `noacg-studio-<version>.tgz`, also on
+   the repository's [Releases page](https://github.com/NoaCG/NoaCG-Studio/releases?q=companion).
+   In Companion open **Modules**, press **Import module package** and choose the file.
+2. Publish the production once. On its page open **Setup**, then **Stream Deck panel…**, and press **Pair a panel**.
    A code like `ABCD-EFGH` appears; it works once, for five minutes.
 3. In Companion open **Connections**, search `NoaCG`, press **Add** beside **NoaCG: NoaCG
    Studio**, then **Add** again. Type the code into **Pairing code**, name the panel, press
