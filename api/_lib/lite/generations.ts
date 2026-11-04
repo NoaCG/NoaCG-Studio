@@ -187,6 +187,20 @@ function aggregateResults(first: ModelResult, second: ModelResult): ModelResult 
   };
 }
 
+/** The first result plus what a repair call that THREW had already been served (#2092): the
+ *  provider billed those replies, so the failed record books them with the first. A failure with
+ *  no first result keeps the conservative booking instead, and one served nothing adds nothing. */
+export function withServedRepair(
+  result: ModelResult | undefined,
+  error: unknown,
+  profile: ReturnType<typeof liteProfile>,
+): ModelResult | undefined {
+  if (!result || !(error instanceof GatewayError) || !error.servedUsage) return result;
+  // The repair runs on the first result's route, with no fallback.
+  const route = { provider: result.provider, model: result.model };
+  return { ...result, usage: sumUsage([result.usage, withTokenCost(error.servedUsage, route, routePrice(profile, route))]) };
+}
+
 function withProfileCost(result: ModelResult, profile: ReturnType<typeof liteProfile>): ModelResult {
   const route = { provider: result.provider, model: result.model };
   return { ...result, usage: withTokenCost(result.usage, route, routePrice(profile, route)) };
@@ -527,6 +541,7 @@ export default {
       };
       return json(result);
     } catch (error) {
+      accountedResult = withServedRepair(accountedResult, error, profile);
       await failRecord(
         record,
         error instanceof GatewayError ? error.code : internalFailureCode(error),

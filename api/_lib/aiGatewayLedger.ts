@@ -7,7 +7,8 @@
 // a deployment without Supabase (self-hosted, offline) simply keeps no ledger.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AiGatewayRequestBody, AiProviderId, ModelResult } from '../../src/ai/modelTypes.js';
+import type { AiGatewayRequestBody, AiProviderId, ModelResult, ModelUsage } from '../../src/ai/modelTypes.js';
+import { usageCostUsd } from './aiGateway.js';
 import { supabaseSecretKey } from './jobStore.js';
 
 export interface GatewayLedgerEntry {
@@ -29,8 +30,9 @@ export interface GatewayLedgerEntry {
   providerCostUsd: number;
 }
 
-/** Build the row for one gateway execution. On failure the primary route is charged
- *  with zero usage - the gateway surfaces no per-route usage for failed attempts. */
+/** Build the row for one gateway execution. On failure the primary route is charged with the
+ *  usage of the attempts that were served before it failed (`servedUsage`, #2092), else zero:
+ *  an attempt that was never served left nothing to count. */
 export function gatewayLedgerEntry(input: {
   userId: string | null;
   ipHash: string;
@@ -38,9 +40,10 @@ export function gatewayLedgerEntry(input: {
   userKeys: Partial<Record<AiProviderId, string>>;
   result?: ModelResult;
   errorCode?: string;
+  servedUsage?: ModelUsage;
 }): GatewayLedgerEntry {
   const provider = input.result?.provider ?? input.body.route.provider;
-  const usage = input.result?.usage;
+  const usage = input.result?.usage ?? input.servedUsage;
   return {
     task: input.body.surface === 'pro' ? 'pro-generate' : 'byo-generate',
     userId: input.userId,
@@ -54,7 +57,7 @@ export function gatewayLedgerEntry(input: {
     outputTokens: usage?.outputTokens ?? 0,
     cachedInputTokens: usage?.cachedInputTokens ?? 0,
     reasoningTokens: usage?.reasoningTokens ?? 0,
-    providerCostUsd: usage?.estimatedCost?.amount ?? usage?.requestFeeUsd ?? 0,
+    providerCostUsd: usageCostUsd(usage),
   };
 }
 

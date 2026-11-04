@@ -40,6 +40,10 @@ export class GatewayError extends Error {
   readonly code: AiGatewayErrorCode;
   readonly status: number;
   readonly retryable: boolean;
+  /** Set by the executor on the error it finally throws, when attempts were served before the
+   *  request failed: their summed usage, each fee once, priced as a success would be (#2092).
+   *  The gateway billed those replies, so the ledger and Pro settlement book them. */
+  servedUsage?: ModelUsage;
 
   constructor(
     code: AiGatewayErrorCode,
@@ -1067,6 +1071,10 @@ export interface GatewayExecutionPolicy {
   retryLimit?: number;
   timeoutMs?: number;
   gateway?: GatewayRoutingPolicy;
+  /** Prices a served reply that reported no cost, per attempt and on that attempt's own route.
+   *  Defaults to `configuredPrice`; a caller with an audited price table (Pro's catalog) passes
+   *  it so no served attempt settles at its fee alone (#2092). */
+  priceFor?: (route: ModelRoute) => ModelPrice | null;
 }
 
 export interface ModelPrice {
@@ -1232,61 +1240,72 @@ export async function executeGatewayRequest(
   const attempts: ModelResult['attempts'] = [];
   // Every reply the gateway served and billed, each with its request fee once (#2055). A retry
   // after an unusable reply still pays for that reply; an attempt that was never served (a
-  // refusal, a server error, a timeout) left no usage to count, as before.
+  // refusal, a server error, a timeout) left no usage to count, as before: nothing measured
+  // shows such an attempt billed, so it is not charged at a guessed worst case (#2114).
   const served: ModelUsage[] = [];
+  const priceFor = policy?.priceFor ?? configuredPrice;
   const charge = (usage: ModelUsage, route: ModelRoute) => served.push(withTokenCost(
     withRequestFee(usage, gatewayRequestFeeUsd(route, policy?.gateway)),
     route,
-    configuredPrice(route),
+    priceFor(route),
   ));
+  // A request that fails after served attempts still paid for them: the error carries the sum.
+  const failed = (error: unknown): unknown => {
+    if (served.length && error instanceof GatewayError) error.servedUsage = sumUsage(served);
+    return error;
+  };
   let lastError: GatewayError | null = null;
   let totalAttempts = 0;
   const retries = policy?.retryLimit ?? configuredRetryLimit();
   const maxAttempts = policy?.maxAttempts ?? Number.POSITIVE_INFINITY;
 
-  for (const route of routes) {
-    if (totalAttempts >= maxAttempts) break;
-    const key = await dependencies.keyFor(route.provider);
-    if (!key) {
-      lastError = new GatewayError('missing_key', `No ${route.provider} API key is configured.`, 412, false);
-      attempts.push({ route, attempts: 0 });
-      continue;
-    }
-    const adapter = AI_ADAPTERS[route.provider];
-    let routeAttempts = 0;
-    for (let retry = 0; retry <= retries && totalAttempts < maxAttempts; retry++) {
-      routeAttempts += 1;
-      totalAttempts += 1;
-      try {
-        const result = await oneAttempt(adapter, body.request, route, key, fetchImpl, policy);
-        const output = servedParse(result.usage, () => {
-          const decoded = decodeStructuredOutput(result.output, body.request);
-          validateStructuredOutput(decoded, body.request);
-          return decoded;
-        });
-        charge(result.usage, route);
-        attempts.push({ route, attempts: routeAttempts });
-        return {
-          output,
-          usage: sumUsage(served),
-          provider: route.provider,
-          model: route.model,
-          attempts,
-          ...(result.images ? { images: result.images } : {}),
-        };
-      } catch (error) {
-        if (error instanceof ServedAttemptError) charge(error.usage, route);
-        lastError = error instanceof GatewayError
-          ? error
-          : new GatewayError('unavailable', 'The AI provider could not be reached.', 503, true);
-        if (!lastError.retryable || retry === retries || totalAttempts >= maxAttempts) break;
-        await sleep(250 * (retry + 1));
+  try {
+    for (const route of routes) {
+      if (totalAttempts >= maxAttempts) break;
+      const key = await dependencies.keyFor(route.provider);
+      if (!key) {
+        lastError = new GatewayError('missing_key', `No ${route.provider} API key is configured.`, 412, false);
+        attempts.push({ route, attempts: 0 });
+        continue;
       }
+      const adapter = AI_ADAPTERS[route.provider];
+      let routeAttempts = 0;
+      for (let retry = 0; retry <= retries && totalAttempts < maxAttempts; retry++) {
+        routeAttempts += 1;
+        totalAttempts += 1;
+        try {
+          const result = await oneAttempt(adapter, body.request, route, key, fetchImpl, policy);
+          const output = servedParse(result.usage, () => {
+            const decoded = decodeStructuredOutput(result.output, body.request);
+            validateStructuredOutput(decoded, body.request);
+            return decoded;
+          });
+          charge(result.usage, route);
+          attempts.push({ route, attempts: routeAttempts });
+          return {
+            output,
+            usage: sumUsage(served),
+            provider: route.provider,
+            model: route.model,
+            attempts,
+            ...(result.images ? { images: result.images } : {}),
+          };
+        } catch (error) {
+          if (error instanceof ServedAttemptError) charge(error.usage, route);
+          lastError = error instanceof GatewayError
+            ? error
+            : new GatewayError('unavailable', 'The AI provider could not be reached.', 503, true);
+          if (!lastError.retryable || retry === retries || totalAttempts >= maxAttempts) break;
+          await sleep(250 * (retry + 1));
+        }
+      }
+      attempts.push({ route, attempts: routeAttempts });
+      if (lastError && !lastError.retryable) break;
     }
-    attempts.push({ route, attempts: routeAttempts });
-    if (lastError && !lastError.retryable) break;
-  }
 
-  throw lastError ?? new GatewayError('unavailable', 'No AI route was available.', 503, false);
+    throw lastError ?? new GatewayError('unavailable', 'No AI route was available.', 503, false);
+  } catch (error) {
+    throw failed(error);
+  }
 }
 

@@ -1,10 +1,11 @@
 import { bearerToken, ipHash, json, methodGuard, readJson } from '../_lib/http.js';
 import { serverAuthConfigured, verifyUser, type AuthedUser } from '../_lib/auth.js';
 import { hasUserAiKeysCookie, managedAiKey, readUserAiKeys } from '../_lib/aiCredentials.js';
-import { executeGatewayRequest, GatewayError, validateGatewayBody } from '../_lib/aiGateway.js';
+import { executeGatewayRequest, GatewayError, validateGatewayBody, type GatewayExecutionPolicy } from '../_lib/aiGateway.js';
 import { surfaceExecutionPolicy, surfaceRoutePolicy } from '../_lib/aiSurfacePolicy.js';
 import { gatewayLedgerEntry, recordGatewayRequest } from '../_lib/aiGatewayLedger.js';
 import { admitManagedProCall, proAllowanceEnforceable, settleManagedProCall } from '../_lib/pro/managedCall.js';
+import { proRoutePrice } from '../_lib/aiProProfile.js';
 import { checkAiGenerateRateLimit } from '../_lib/rateLimit.js';
 import { gatedFeature, resolvePaidAiAccess, resolveUserEntitlement, surfaceRefused } from '../_lib/entitlements.js';
 import { allows } from '../../src/entitlements/contract.js';
@@ -173,6 +174,7 @@ export default {
     let failure: GatewayError | null = null;
     /** Set once a managed Pro call has been admitted, so only an admitted call settles. */
     let proReservationAdmitted = false;
+    let pricing: Pick<GatewayExecutionPolicy, 'priceFor'> = {};
     try {
       // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
       // refusal is an outcome worth counting, not a hole in the accounting.
@@ -193,8 +195,11 @@ export default {
         // Resolves auth.user below. With a token, guardSurface already read the plan strictly;
         // without one, admission refuses a null user before it books anything.
         await verifyCaller();
-        await admitManagedProCall(body, auth.user?.userId ?? null);
+        const profile = await admitManagedProCall(body, auth.user?.userId ?? null);
         proReservationAdmitted = true;
+        // Every funded Pro route has a catalog price: a reply that reports no cost is priced from
+        // its tokens on its own route, so settlement never books the fee alone (#2092).
+        pricing = { priceFor: (route) => proRoutePrice(profile, route) };
       }
       const gateway = byoPrimary ? undefined : surfaceRoutePolicy(body.surface, body.route);
       // A surface may also carry an EXECUTION policy - attempt budget and timeout. Only the
@@ -206,7 +211,7 @@ export default {
       result = await executeGatewayRequest(
         body,
         { keyFor },
-        gateway || execution ? { ...execution, ...(gateway ? { gateway } : {}) } : undefined,
+        gateway || execution || pricing.priceFor ? { ...execution, ...pricing, ...(gateway ? { gateway } : {}) } : undefined,
       );
     } catch (error) {
       failure = error instanceof GatewayError
@@ -218,8 +223,10 @@ export default {
     // write below - the two record different things (a generation's running spend against its
     // ceiling, versus one request's content-free accounting) and only the first can refuse the
     // next call. Awaited for the same reason: a serverless instance must not drop it.
+    // A failed call settles the attempts served before it failed, which were billed (#2092).
+    const usage = result?.usage ?? failure?.servedUsage;
     if (proReservationAdmitted) {
-      await settleManagedProCall(body, auth.user?.userId ?? null, result);
+      await settleManagedProCall(body, auth.user?.userId ?? null, usage);
     }
 
     // Content-free accounting; awaited so a serverless instance can't drop the write,
@@ -229,7 +236,7 @@ export default {
       ipHash: ipHash(req),
       body,
       userKeys,
-      ...(result ? { result } : { errorCode: failure?.code }),
+      ...(result ? { result } : { errorCode: failure?.code, servedUsage: failure?.servedUsage }),
     }));
 
     return result ? json(result) : errorResponse(failure ?? new GatewayError('unavailable', 'No AI route was available.', 503, false));
