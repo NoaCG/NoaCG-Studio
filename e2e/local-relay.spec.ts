@@ -898,7 +898,8 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
     if (url.pathname === '/relay/head') return route.fulfill({ json: { head } });
     if (url.pathname === '/relay/log') {
       const after = Number(url.searchParams.get('after') ?? '0');
-      return route.fulfill({ json: { rows: rows.filter((r) => r.id > after), head } });
+      // Pages of at most 500, as relay.py and relay.ps1 answer.
+      return route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } });
     }
     if (url.pathname === '/relay/send') {
       const body = route.request().postDataJSON() as { graphic?: string; msg?: unknown; items?: typeof rows };
@@ -912,6 +913,9 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const sent = (from: number) => rows.slice(from).filter((r) => r.stream === 'program' && r.msg.t !== 'cue')
     .map((r) => (r.msg.data?.f2 !== undefined ? `${r.msg.t} f2=${r.msg.data.f2}` : r.msg.t));
   const STAMP = '1\\d{12}';
+  /** Rows of another graphic, so a page that boots must page through the whole log to find a clock. */
+  const filler = (n: number) => { for (let i = 0; i < n; i++) rows.push({ id: ++head, graphic: 'Other', stream: 'program', msg: { t: 'cue' } }); };
+  filler(600);
 
   // THE STANDALONE PANEL.
   const panel = await context.newPage();
@@ -984,8 +988,10 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:20@${STAMP}/0:30/0:20$`));
 
   // A SECOND CONTROLLER WINDOW (or this one reloaded) boots at the log's head and still learns the
-  // running clock from the log: its own cue's 0:30 reaches the running clock as a correction,
-  // stamped, never as a plain time that would stop the count.
+  // running clock from the log, 600 rows back and past the relay's 500-row page: its own cue's
+  // 0:30 reaches the running clock as a correction, stamped, never as a plain time that would
+  // stop the count.
+  filler(600);
   const ctl2 = await context.newPage();
   await ctl2.route('http://clock-relay.local/**', serve);
   await ctl2.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
