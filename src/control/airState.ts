@@ -63,14 +63,27 @@ export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): 
   const typedWas = air.typedAired ?? {};
   const stepsWas = air.typedSteps ?? {};
   const { typedAired, typedSteps } = items.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), { typedAired: typedWas, typedSteps: stepsWas });
-  if (aired === air.aired && looks === was && typedAired === typedWas && typedSteps === stepsWas) return air;
+  const carriedWas = air.carried ?? {};
+  const carried = items.reduce(carriedAfter, carriedWas);
+  if (aired === air.aired && looks === was && typedAired === typedWas && typedSteps === stepsWas && carried === carriedWas) return air;
   return {
     ...air,
     aired,
+    ...(carried === carriedWas ? {} : { carried }),
     ...(looks === was ? {} : { looks }),
     ...(typedAired === typedWas ? {} : { typedAired }),
     ...(typedSteps === stepsWas ? {} : { typedSteps }),
   };
+}
+
+/** One command's count on the fields it carries (an update's data, an event's payload). */
+function carriedAfter(carried: NonNullable<AirPart['carried']>, item: ControlSendItem): NonNullable<AirPart['carried']> {
+  const msg = item.msg;
+  const fields = msg.t === 'update' ? msg.data : msg.t === 'event' ? msg.payload : undefined;
+  if (!fields || Object.keys(fields).length === 0) return carried;
+  const counts = { ...(carried[item.graphic] ?? {}) };
+  for (const key of Object.keys(fields)) counts[key] = (counts[key] ?? 0) + 1;
+  return { ...carried, [item.graphic]: counts };
 }
 
 type TypedAir = { typedAired: Record<string, TypedValues>; typedSteps: Record<string, readonly ControlSendItem['msg'][]> };
@@ -228,15 +241,15 @@ export function claimAndApply(
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
- *  and what they had left on air's record, so its answer can tell it is older than the screen. */
+ *  and the fields they had carried, so its answer can tell it is older than the screen. */
 export interface AirAtRequest {
   moves: number;
   commands: number;
-  aired?: AiredMap;
+  carried?: AirPart['carried'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, aired: air.aired };
+  return { moves: air.moves, commands: air.commands, carried: air.carried };
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -259,9 +272,12 @@ function clockSeedFromReport(clock: ClockSpec, reported: string): string {
   return clock.fixedInstant ? clock.seed : reported;
 }
 
-/** The fields of a graphic's record that differ from what it held at the request. */
-function movedSince(then: Record<string, string> | undefined, now: Record<string, string> | undefined): Record<string, string> {
-  return Object.fromEntries(Object.entries(now ?? {}).filter(([key, value]) => then?.[key] !== value));
+/** A graphic's fields a command carried since the request, with what air's record holds for them. */
+function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<string, string> {
+  const now = air.carried?.[graphic] ?? {};
+  const then = at.carried?.[graphic] ?? {};
+  const record = air.aired[graphic] ?? {};
+  return Object.fromEntries(Object.keys(now).filter((key) => now[key] !== then[key] && key in record).map((key) => [key, record[key]]));
 }
 
 /**
@@ -302,17 +318,22 @@ export function seedFromResolve(
     // A field a command moved while the read was out holds that command's figure, and its clock
     // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
     // back, and the next +1 counted from it).
-    const moved = air.commands !== at.commands ? movedSince(at.aired?.[graphic], air.aired[graphic]) : {};
+    const moved = air.commands !== at.commands ? movedSince(air, at, graphic) : {};
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
       clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       values[clock.field] = plainClockValue(values[clock.field]);
     }
-    if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined && !(pair.fieldA in moved) && !(pair.fieldB in moved)) {
-      speaking = { ...speaking, [graphic]: { [pair.fieldA]: wire(pair.fieldA), [pair.fieldB]: wire(pair.fieldB) } };
-      values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
-      values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
+    if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
+      // Field by field: one a command moved keeps this page's memory, the other takes the report's.
+      const memory = { ...(moved[pair.fieldA] !== undefined || moved[pair.fieldB] !== undefined ? (speaking[graphic] ?? {}) : {}) };
+      for (const field of [pair.fieldA, pair.fieldB]) {
+        if (field in moved) continue;
+        memory[field] = wire(field);
+        values[field] = plainClockValue(values[field]);
+      }
+      speaking = { ...speaking, [graphic]: memory };
     }
     Object.assign(values, moved);
     if (Object.keys(values).length > 0) seed[graphic] = values;

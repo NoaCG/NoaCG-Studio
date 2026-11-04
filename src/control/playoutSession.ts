@@ -118,6 +118,9 @@ export interface AirPart {
    *  graphic reports no pose, so PROGRAM is rebuilt at its step by replaying them. ADDITIVE
    *  OPTIONAL: absent is none. */
   typedSteps?: Readonly<Record<string, readonly ReplayItem['msg'][]>>;
+  /** Per graphic and field, how many commands applied here carried that field: what a resolve
+   *  answered later tells a field moved meanwhile by, whatever its value. ADDITIVE OPTIONAL. */
+  carried?: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 
 export const NO_AIR: AirPart = { liveCue: {}, moves: 0, aired: {}, clocks: {}, speaking: {}, commands: 0, reports: null, bootReplay: null, bootLive: null };

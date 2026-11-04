@@ -226,6 +226,30 @@ test('a speaking pair a command moved while the read was out keeps this page\'s 
   assert.deepEqual(air.speaking.debate, heard.speaking.debate);
 });
 
+test('a speaking pair with one field moved while the read was out: that field keeps this page\'s memory, the other takes the report\'s', () => {
+  const before = claimAndApply(NO_AIR, [update('debate', { fa: '05:00', fb: '05:00' }, 'u5')], createAppliedOnce(), DEBATE, T).air;
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('debate', { fa: `04:00@${T}` }, 'u6')], createAppliedOnce(), DEBATE, T).air;
+  const air = seedFromResolve(heard, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: `04:30@${T}` } } } }, [], asked, CUES, DEBATE);
+  assert.equal(air.speaking.debate.fa, heard.speaking.debate.fa, 'the moved field keeps the page\'s memory');
+  assert.equal(air.speaking.debate.fb, `04:30@${T}`, 'the other takes the report\'s stamped value');
+  assert.equal(air.aired.debate.fb, '04:30', 'and its baseline is plain');
+  assert.equal(air.aired.debate.fa, heard.aired.debate.fa);
+});
+
+test('a field a command set during the read counts as moved even when it set the figure the page already held', () => {
+  // The page holds 5 (a row was missed on a reconnect); the screen and the report say 8; a
+  // command heard during the read sets 5 again, and that command is what the screen shows now.
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: '5' } } }]);
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('lt', { f0: '5' }, 'u7')], createAppliedOnce(), NO_CLOCKS, T).air;
+  const reported = { liveCue: RESOLVED.liveCue, live: { lt: { data: { f0: '8' } } } };
+  assert.deepEqual(seedFromResolve(heard, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: '5' });
+  // +1 then -1 during the read: both commands moved it, and the last stands.
+  const twice = claimAndApply(before, [update('lt', { f0: '6' }, 'u8'), update('lt', { f0: '5' }, 'u9')], createAppliedOnce(), NO_CLOCKS, T).air;
+  assert.deepEqual(seedFromResolve(twice, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: '5' });
+});
+
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {
   const live = { score: { data: { f5: `10:00@${T}` } } };
   const air = seedFromResolve(NO_AIR, { liveCue: { score: 'c2' }, live }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
