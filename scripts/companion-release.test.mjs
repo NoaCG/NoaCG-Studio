@@ -139,4 +139,5 @@ test('the module release never takes latest, and the workflow never holds a writ
   assert.ok(packageJob.length > 0 && !packageJob.includes('contents: write'));
   assert.match(jobs.slice(jobs.indexOf('\n  publish:')), /contents: write/);
   assert.match(jobs.slice(jobs.indexOf('\n  publish:')), /needs\.decide\.outputs\.dry_run == 'false'/);
+  assert.ok(!/^concurrency:/m.test(workflow), 'a concurrency group would cancel a pending release');
 });
