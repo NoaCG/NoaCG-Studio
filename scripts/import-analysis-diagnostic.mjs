@@ -168,6 +168,9 @@ export async function diagnose(server, { key, fetchImpl }) {
   const price = server.profile.importAnalysisPrice(profile);
   const base = {
     route: profile.route,
+    // What the route reads from its environment, so a mismatch with production is visible.
+    promptVersion: profile.promptVersion,
+    maxTokens: profile.outputTokens,
     policy: policy ? { zeroDataRetention: policy.zeroDataRetention, disallowPromptTraining: policy.disallowPromptTraining, only: policy.only, sort: policy.sort ?? null } : null,
   };
   if (!policy || !price) return { ...base, sent: false, refused: 'not-configured: no gateway policy or catalog price for the route' };

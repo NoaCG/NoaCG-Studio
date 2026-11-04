@@ -84,6 +84,8 @@ test('sends exactly the production request: route, schema, image part and privac
     tags: ['surface:import-analysis-diagnostic'],
   });
   assert.equal(record.outcome, 'refused');
+  assert.equal(record.promptVersion, profile.promptVersion);
+  assert.equal(record.maxTokens, profile.outputTokens);
   assert.ok(record.maxUsd > 0 && record.maxUsd <= COST_CAP_USD);
 });
 
