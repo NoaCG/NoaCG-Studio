@@ -493,6 +493,13 @@ export default function WizardPreview({
       if (msg && typeof msg === 'object' && msg.type === PREVIEW_BOX_TYPE) {
         setBox({ x: msg.x, y: msg.y, w: msg.w, h: msg.h });
         dropAfterimage();
+        // AND THAT FIRST FRAME LANDS ON THE STAGE, beside `data-doc-rev`. A loaded document is not
+        // yet the picture: its values are settled or played in a moment later, after its fonts,
+        // so a reading taken at `data-doc-rev` can see the text unfitted (#1997). Stamped with
+        // the frame's own generation, so a late report from a replaced frame cannot claim it.
+        if (stageRef.current && frameRef.current?.dataset.gen) {
+          stageRef.current.dataset.docShown = frameRef.current.dataset.gen;
+        }
       }
     };
     window.addEventListener('message', onMessage);
@@ -817,6 +824,7 @@ export default function WizardPreview({
 
     const el = document.createElement('iframe');
     el.title = 'Wizard live preview';
+    el.dataset.gen = String(gen);
     el.setAttribute('sandbox', 'allow-scripts');
     el.style.width = `${width}px`;
     el.style.height = `${height}px`;
