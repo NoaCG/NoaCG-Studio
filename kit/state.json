@@ -48,10 +48,12 @@
  "inFlight": [
   {
    "phase": "cf11",
-   "step": "build",
-   "session": "session_017SdbwMqZdJrL7CPJW2AmxM",
-   "nonce": "cf11-b-975f",
-   "launchedAt": "2026-11-04T19:55:02Z"
+   "step": "check",
+   "session": "session_017SdbwPvuA23YmqN6DQXnbd",
+   "nonce": "cf11-c-f683",
+   "launchedAt": "2026-11-04T21:02:34Z",
+   "mergeSha": "3ed797a695496d4fdfab5b7d0d833ec754a1d822",
+   "pr": 2142
   }
  ],
  "owner": [],
@@ -231,6 +233,12 @@
    "mergeSha": "64e1d9eaf33bd46d83e6a10749d90ecaa85ee62f",
    "mergedAt": "2026-11-04T16:19:52Z",
    "what": "#2094: catalog, live, endurance Playwright configs stop watching files"
+  },
+  {
+   "pr": 2142,
+   "mergeSha": "3ed797a695496d4fdfab5b7d0d833ec754a1d822",
+   "mergedAt": "2026-11-04T21:01:21Z",
+   "what": "cf11 final selector change; miss-audit reset; cf18 earliest = merge + 14 days (2026-11-18T21:01Z); ends M1/M2/M3 sides of every cf13 group"
   }
  ]
 }
