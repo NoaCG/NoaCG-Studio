@@ -197,6 +197,7 @@ export default {
           maxAttempts: profile.maxAttempts,
           retryLimit: 1,
           timeoutMs: profile.timeoutMs,
+          timeoutCostFor: () => worstCase,
           ...(gateway ? { gateway } : {}),
         },
       ), profile);
