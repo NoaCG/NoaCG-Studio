@@ -622,7 +622,7 @@ window.addEventListener('unhandledrejection', function (ev) {
       try {
         window.noacgSnap && window.noacgSnap(
           msg.assignments || null,
-          msg.timers === false || msg.awards ? { timers: msg.timers !== false, awards: msg.awards } : undefined
+          { timers: msg.timers !== false, awards: msg.awards }
         );
       } catch (e) {}
     } else if (msg.cmd === 'state') {
