@@ -230,7 +230,7 @@ export interface OutputPayload {
  *  applied, kept here because the report's RPC stores `state` as sent, so no migration. A graphic
  *  airing typed data adds `typed`, `steps` and `on`, its typed baseline (E1.2b, ./outputRecovery.ts
  *  `reportedTyped`). */
-export type ReportState = { groups?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number; on?: boolean } | null;
+export type ReportState = { groups?: Record<string, string>; awards?: Record<string, string>; appearance?: AppliedAppearance; typed?: unknown; steps?: number; on?: boolean } | null;
 
 export type LiveReportMap = Record<
   string,

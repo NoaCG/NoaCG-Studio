@@ -1164,7 +1164,10 @@ async function boot(): Promise<void> {
     }
     // A held graphic's pose is not put back: nothing but a stop reaches it until its data does.
     if (mine.state?.groups && !typedRefused.has(key)) {
-      stage.apply(key, { t: 'snap', snap: mine.state.groups });
+      // A score board's latched scoring row rides beside the pose (#1908), so the rebuilt output
+      // lights the team the one that stayed up shows.
+      const awards = mine.state.awards;
+      stage.apply(key, { t: 'snap', snap: mine.state.groups, ...(awards ? { awards } : {}) });
       liveGraphics.add(key);
       // …and the data half AGAIN. Snap resets the graphic before composing the pose, which
       // clears every inline style — including ones the DATA layer owns, like the display:none

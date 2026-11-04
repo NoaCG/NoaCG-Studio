@@ -128,7 +128,7 @@ export type PreviewCmd =
    *  simulatorRuntime.ts) while the liveControl script recovers (timers arm,
    *  composeDocument.ts) — so a sender should always state `timers` explicitly: `false` for a
    *  design-view park, `true` for renderer recovery (the output stage does). */
-  | { cmd: 'snap'; assignments: Record<string, string> | null; timers?: boolean }
+  | { cmd: 'snap'; assignments: Record<string, string> | null; timers?: boolean; awards?: Record<string, string> }
   /**
    * TYPE AND COLOUR (playout adjustments, phase 2): replace the style this document holds with
    * `vars` (`:root` variables by name without dashes, set on `document.documentElement`, which no

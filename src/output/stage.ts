@@ -966,7 +966,7 @@ export function createOutputStage(
       case 'snap':
         // Recovery semantics stated explicitly — the wire field means opposite things to the
         // editor simulator (parked design view, timers off) and to a renderer (timers arm).
-        post(graphic, { cmd: 'snap', assignments: msg.snap, timers: true });
+        post(graphic, { cmd: 'snap', assignments: msg.snap, timers: true, ...(msg.awards ? { awards: msg.awards } : {}) });
         break;
       default:
         return; // 'hello' and status rows ('cue'/'staged'/'live') are not renderer commands

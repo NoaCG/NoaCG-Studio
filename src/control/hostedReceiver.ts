@@ -377,7 +377,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       given(mine.data);
       if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
       if (mine.state && mine.state.groups && typeof noacgSnap === 'function') {
-        noacgSnap(mine.state.groups);
+        noacgSnap(mine.state.groups, mine.state.awards ? { awards: mine.state.awards } : undefined);
         // Snap resets the graphic first, clearing every inline style — including the ones the
         // DATA layer owns (an image field with no picture is hidden inline). Restate the data.
         if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
