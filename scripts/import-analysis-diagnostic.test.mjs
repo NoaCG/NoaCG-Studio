@@ -1,5 +1,5 @@
 // gate: build
-// guards: scripts/import-analysis-diagnostic.mjs, .github/workflows/import-analysis-diagnostic.yml, api/_lib/importAnalysis/request.ts, api/_lib/importAnalysis/analyze.ts, api/_lib/aiImportAnalysisProfile.ts, api/_lib/aiGateway.ts, src/ai/importAnalysis/contract.ts
+// guards: scripts/import-analysis-diagnostic.mjs, scripts/fixtures/import-analysis-diagnostic.jpg, src/ai/importAnalysis/client.ts, .github/workflows/import-analysis-diagnostic.yml, api/_lib/importAnalysis/request.ts, api/_lib/importAnalysis/analyze.ts, api/_lib/aiImportAnalysisProfile.ts, api/_lib/aiGateway.ts, src/ai/importAnalysis/contract.ts
 //
 // THE ONE #2022 DIAGNOSTIC REQUEST: what it sends, how often, at what worst case, and what it
 // keeps. Mocks only: no network, no key. The server modules are compiled from this checkout, as
@@ -47,14 +47,20 @@ function recorder(respond) {
 
 const refusal = (status, body) => () => new Response(JSON.stringify(body), { status });
 
-test('synthetic artwork: a real PNG of the stated size, in the shape the route accepts', () => {
+test('synthetic artwork: a baseline JPEG of the stated size, the format the browser sends', () => {
   const art = synthesizeArtwork();
-  const png = Buffer.from(art.base64, 'base64');
-  assert.equal(art.mediaType, 'image/png');
-  assert.ok(art.base64.startsWith('iVBORw0KGgo'));
-  assert.equal(png.readUInt32BE(16), art.width);
-  assert.equal(png.readUInt32BE(20), art.height);
-  assert.equal(art.base64, synthesizeArtwork().base64, 'deterministic');
+  const jpeg = Buffer.from(art.base64, 'base64');
+  assert.equal(art.mediaType, 'image/jpeg');
+  // The route's own prefix check for a JPEG body.
+  assert.ok(art.base64.startsWith('/9j/'));
+  // The baseline frame header (SOF0) carries the height, then the width.
+  const sof = jpeg.indexOf(Buffer.from([0xff, 0xc0]));
+  assert.ok(sof > 0, 'baseline JPEG');
+  assert.equal(jpeg.readUInt16BE(sof + 5), art.height);
+  assert.equal(jpeg.readUInt16BE(sof + 7), art.width);
+  assert.deepEqual([art.width, art.height], [480, 270]);
+  // The browser's client is what fixes the format; if it ever stops sending JPEG, so must this.
+  assert.match(readFileSync(root('src/ai/importAnalysis/client.ts'), 'utf8'), /mediaType: 'image\/jpeg'/);
 });
 
 test('sends exactly the production request: route, schema, image part and privacy policy', async () => {
@@ -72,7 +78,7 @@ test('sends exactly the production request: route, schema, image part and privac
   assert.equal(body.messages[0].content, expected.system);
   assert.deepEqual(body.messages[1].content, [
     { type: 'text', text: JSON.stringify({ canvas: { width: art.width, height: art.height }, instructions: '' }) },
-    { type: 'image_url', image_url: { url: `data:image/png;base64,${art.base64}` } },
+    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${art.base64}` } },
   ]);
   assert.equal(body.max_tokens, profile.outputTokens);
   assert.deepEqual(body.response_format.json_schema.schema, expected.structuredOutput.schema);
@@ -103,12 +109,12 @@ test('one request only: a retryable refusal is not retried, and a second call ne
 });
 
 test('keeps the sanitized provider error: status, type, code and a redacted message', async () => {
-  const echoed = 'iVBORw0KGgo' + 'A'.repeat(200);
+  const echoed = '/9j/4AAQSkZJRg' + 'A'.repeat(200);
   const gateway = recorder(refusal(400, {
     error: {
       type: 'AI_APICallError',
       code: 'invalid_argument',
-      message: `Invalid JSON payload: Unknown name "oneOf" at 'generation_config.response_json_schema.properties[2]'; data:image/png;base64,${echoed} key Bearer ${'k'.repeat(48)}`,
+      message: `Invalid JSON payload: Unknown name "oneOf" at 'generation_config.response_json_schema.properties[2]'; data:image/jpeg;base64,${echoed} key Bearer ${'k'.repeat(48)}`,
       responseBody: `{"error":{"status":"INVALID_ARGUMENT","echo":"${echoed}"}}`,
     },
   }));

@@ -6,7 +6,7 @@
 // What it sends: exactly the request the production route builds
 // (api/_lib/importAnalysis/request.ts), on the production route, schema and privacy policy
 // (importAnalysisPolicy: zero data retention, no prompt training, providers from the env), over a
-// SYNTHETIC picture drawn here - no user or holdout content. One attempt: no retry, no fallback,
+// SYNTHETIC JPEG fixture drawn from rectangles - no user or holdout content. One attempt: no retry, no fallback,
 // and a fetch that refuses a second call. The priced worst case must be at most $0.01 before
 // anything is sent.
 //
@@ -16,71 +16,31 @@
 //   node scripts/import-analysis-diagnostic.mjs --out <file>          (needs AI_GATEWAY_API_KEY)
 //   node scripts/import-analysis-diagnostic.mjs --dry-run --out <file> (mock gateway, no key)
 
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { deflateSync } from 'node:zlib';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const COST_CAP_USD = 0.01;
 /** Per-image input-token bound, the one the jev-svg-eval image arm priced with. */
 export const IMAGE_TOKEN_BOUND = 8_000;
 export const ARTWORK = { width: 480, height: 270 };
 
-// ---- Synthetic artwork: a plain lower third, drawn as pixels ----
+// ---- Synthetic artwork: a plain lower third, in production's image format ----
 
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
+/** The browser always sends a JPEG (src/ai/importAnalysis/client.ts: canvas `image/jpeg` at
+ *  quality 0.85), so the diagnostic does too. The fixture is a 480x270 baseline JPEG at quality
+ *  85, drawn from rectangles only: a dark backdrop, a lower-third bar with an accent block and
+ *  two "text line" strips. Nobody's artwork. Made with Pillow:
+ *    Image.new('RGB', (480, 270), (18, 22, 34)); rectangles (24,180,300x64) (235,238,245),
+ *    (24,180,10x64) (220,60,50), (46,190,180x18) (30,34,48), (46,216,120x12) (90,96,112);
+ *    save('JPEG', quality=85, progressive=False). */
+export const ARTWORK_PATH = 'scripts/fixtures/import-analysis-diagnostic.jpg';
 
-function crc32(bytes) {
-  let c = 0xffffffff;
-  for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-function chunk(type, data) {
-  const head = Buffer.alloc(8);
-  head.writeUInt32BE(data.length, 0);
-  head.write(type, 4, 'ascii');
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])), 0);
-  return Buffer.concat([head, data, crc]);
-}
-
-/** A 480x270 RGB PNG: a dark backdrop, a lower-third bar with an accent block and two
- *  light "text line" strips. Deterministic, and nobody's artwork. */
-export function synthesizeArtwork({ width, height } = ARTWORK) {
-  const rects = [
-    { x: 0, y: 0, w: width, h: height, rgb: [18, 22, 34] },
-    { x: 24, y: 180, w: 300, h: 64, rgb: [235, 238, 245] },
-    { x: 24, y: 180, w: 10, h: 64, rgb: [220, 60, 50] },
-    { x: 46, y: 190, w: 180, h: 18, rgb: [30, 34, 48] },
-    { x: 46, y: 216, w: 120, h: 12, rgb: [90, 96, 112] },
-  ];
-  const raw = Buffer.alloc((width * 3 + 1) * height);
-  for (let y = 0; y < height; y++) {
-    const row = y * (width * 3 + 1);
-    raw[row] = 0;
-    for (let x = 0; x < width; x++) {
-      let rgb = rects[0].rgb;
-      for (const r of rects) if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) rgb = r.rgb;
-      raw.set(rgb, row + 1 + x * 3);
-    }
-  }
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
-  const png = Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw)),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-  return { base64: png.toString('base64'), mediaType: 'image/png', width, height };
+export function synthesizeArtwork() {
+  const bytes = readFileSync(path.join(repoRoot, ARTWORK_PATH));
+  return { base64: bytes.toString('base64'), mediaType: 'image/jpeg', ...ARTWORK };
 }
 
 // ---- The recorded error ----
@@ -149,8 +109,6 @@ export function worstCaseUsd(modelRequest, price) {
   const input = Buffer.byteLength(text, 'utf8') + IMAGE_TOKEN_BOUND;
   return (input * price.inputPerMillion + (modelRequest.maxTokens ?? 0) * price.outputPerMillion) / 1_000_000;
 }
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export async function loadServer() {
   const { buildApiRuntime } = await import('./api-runtime-build.mjs');
