@@ -1652,7 +1652,7 @@ test('one Clock choice on a new import: it sits beside the score tracker, and a 
 
 test('the old Countdown kind: gone from a new import, kept where a draft or a saved graphic already runs it', async ({ page }) => {
   // #1876: a new import has ONE clock choice, the Clock. The row-level Countdown is the old engine,
-  // offered only where it is already in use (draft.ts `svgCountdownOffered`): a row bound as one,
+  // offered only where it is already in use (draft.ts `svgCountdownInUse`): a row bound as one,
   // the countdown behaviour or its drawn moments (the TIMER_SVG walks above), or a saved graphic
   // that runs it under the name this walk saves over, so a reimport can bind it again.
   const SCORE_CLOCK = fileURLToPath(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url));
@@ -1683,8 +1683,8 @@ test('the old Countdown kind: gone from a new import, kept where a draft or a sa
     createGraphic(old, { name: 'Score clock 1' });
     return {
       // The rule on the draft alone: plain is a new import; a countdown row is an existing draft.
-      plain: D.svgCountdownOffered(draft, null),
-      countdownDraft: D.svgCountdownOffered(countdown, null),
+      plain: D.svgCountdownInUse(draft, null),
+      countdownDraft: D.svgCountdownInUse(countdown, null),
       // A saved graphic is read by what it runs: the old engine, never the Clock's readout.
       savedOld: runsOldCountdown(old),
       savedClock: runsOldCountdown(fresh),

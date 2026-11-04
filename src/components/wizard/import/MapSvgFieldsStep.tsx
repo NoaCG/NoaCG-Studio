@@ -16,7 +16,7 @@ import {
   creditsSourceLayers,
   takenOff,
   svgDesignOptions,
-  svgCountdownOffered,
+  svgCountdownInUse,
   svgSavedOver,
 } from './draft';
 import { SVG_ALIGN_WORD } from '../../../templates/importedDesign/svg';
@@ -1031,11 +1031,11 @@ export default function MapSvgFieldsStep({
   // is what measureOutline needs it for.
 
   // ONE CLOCK CHOICE ON A NEW IMPORT (#1876): the Clock in the behaviour section. The old
-  // row-level Countdown stays only where it is already in use (`svgCountdownOffered`), and with
+  // row-level Countdown stays only where it is already in use (`svgCountdownInUse`), and with
   // Text its one other answer, the row then has nothing to choose, so the picker is not drawn.
   const savedOver = useMemo(() => svgSavedOver(draft.name), [draft.name]);
   const countdownInUse = useMemo(
-    () => svgCountdownOffered(draft, savedOver),
+    () => svgCountdownInUse(draft, savedOver),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- exactly what the answer reads
     [draft.svgFields, draft.svgBehaviour, draft.designSvg, savedOver],
   );

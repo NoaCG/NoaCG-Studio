@@ -1223,14 +1223,14 @@ export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
 }
 
 /**
- * WHETHER A CLOCK-SHAPED ROW STILL OFFERS THE OLD COUNTDOWN KIND (#1876). A new import has one clock
+ * WHETHER THE OLD COUNTDOWN IS IN USE, so a clock-shaped row still offers its kind (#1876). A new import has one clock
  * choice, the Clock; the row-level Countdown is the old engine, kept only where it is already in
  * use: a row of this draft is bound as one, the countdown behaviour is held, the file drew the
  * moments only it paints (`svgCountdownDrawn`), or the name this walk saves under holds a saved
  * graphic that runs it (`savedOver`, read by `svgSavedOver`), so a reimport can bind it again.
  * An unticked countdown row counts: unticking is not a change of mind about the engine.
  */
-export function svgCountdownOffered(draft: SvgImportDraft, savedOver: SpxTemplate | null): boolean {
+export function svgCountdownInUse(draft: SvgImportDraft, savedOver: SpxTemplate | null): boolean {
   return (
     draft.svgFields.some((f) => f.kind === 'countdown') ||
     draft.svgBehaviour?.kind === 'timer' ||
