@@ -50,7 +50,7 @@
 // covers: docs/svg-samples/**
 
 import { test, expect, type BrowserContext, type TestInfo, type FrameLocator, type Page, type Route } from '@playwright/test';
-import { finishIntoNewEditor, openExportWindow } from './_create';
+import { addToProductionFromFinish, finishIntoNewEditor, openExportWindow } from './_create';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -62,7 +62,6 @@ import {
   bindEveryTextLayer,
   boxGrowOf,
   dropSvg,
-  intoExistingProduction,
   intoProduction,
   rowLabelled,
   tutorialShot,
@@ -988,7 +987,22 @@ test('a second author reopens a saved quiz in a fresh browser, makes it a true n
   await p2.getByTestId('map-svg-option-noLock').check();
   await expect(p2.getByTestId('map-svg-option-lock')).toHaveCount(0);
   await expect(p2.getByTestId('map-svg-option-autoReveal')).toHaveCount(0);
-  await intoExistingProduction(p2, 'Olympics quiz', 'Quiz Night');
+  // Finish says, calmly, which actions the saved quiz answered and this version will not
+  // (#1987 point 4); it saves over the graphic all the same.
+  const next = p2.locator('.wz-modal').getByRole('button', { name: 'Next' });
+  await next.click(); // Animation
+  await expect(p2.getByTestId('wz-stepcount')).toContainText('4');
+  await next.click(); // Finish
+  await expect(p2.getByTestId('wz-stepcount')).toContainText('5');
+  await p2.getByTestId('wz-finish-name').fill('Olympics quiz');
+  // Mutation: deleting the line in FinishStep fails here.
+  await expect(p2.getByTestId('wz-finish-reimport-events')).toContainText('No longer answers: ');
+  await expect(p2.getByTestId('wz-finish-reimport-events')).toContainText('Lock it in');
+  await expect(p2.getByTestId('wz-finish-reimport')).toHaveCount(0);
+  const pick = p2.getByTestId('wz-finish-production');
+  await pick.selectOption((await pick.locator('option', { hasText: 'Quiz Night' }).getAttribute('value'))!);
+  await addToProductionFromFinish(p2);
+  await expect(p2.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
   await settleDurableWrites(p2);
 
   // ONE graphic, same fields, same styling, same animation targets: only its behaviour changed.

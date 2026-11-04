@@ -41,6 +41,9 @@ export interface DoorIo {
   built(): { template: SpxTemplate; graphicId: string | null };
   /** Open the export window over the wizard, on the graphic the store holds. */
   openExport(): void;
+  /** Before the editor door opens the build: over a held SVG import, make the working document
+   *  what the other doors would save (`reimportForEditor` in walkState.ts, #1986). */
+  prepareEditor(name: string): void;
   /** Open the new editor in place of the wizard's route. */
   openEditor(): void;
   /** Ask the production page for its whole-show export once it opens. */
@@ -198,11 +201,15 @@ export function makeDoors(io: DoorIo) {
   };
 
   /** The editor door saves nothing: it opens the built document in the new editor, and keeps
-   *  the walk-back warning in force before a stale wizard draft could replace edits there. */
-  const editArtwork = async (apply: Apply): Promise<void> => {
+   *  the walk-back warning in force before a stale wizard draft could replace edits there. Over a
+   *  graphic the name already holds, the document first reads as the other doors would save it
+   *  (`prepareEditor`), so the editor's own Save never mints an unreconciled twin (#1986). */
+  const editArtwork = async (apply: Apply, name?: DoorName): Promise<void> => {
     const template = await apply();
     if (!template) return;
-    io.noteMade(template.name, null, { view: 'editor-foundation' });
+    const graphic = name?.() || template.name;
+    io.prepareEditor(graphic);
+    io.noteMade(graphic, null, { view: 'editor-foundation' });
     io.openEditor();
     io.closeGallery();
   };

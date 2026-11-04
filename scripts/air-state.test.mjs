@@ -188,13 +188,88 @@ test('a late resolve over a newer one changes nothing', () => {
   assert.deepEqual(late.liveCue, { lt: 'c2' });
 });
 
-test('a command applied while the replay was read: the seed lands, the rows are not replayed (they are older)', () => {
+test('a command applied while the replay was read: the seed lands, the rows are not replayed (they are older), and the field the command moved keeps its figure', () => {
   const asked = airAtRequest(NO_AIR);
   const commanded = claimAndApply(NO_AIR, [update('lt', { f0: 'NEWER' }, 'u1')], createAppliedOnce(), NO_CLOCKS, T).air;
   const air = seedFromResolve(commanded, RESOLVED, [update('lt', { f0: 'OLDER ROW' })], asked, CUES, NO_CLOCKS);
   assert.deepEqual(air.liveCue, RESOLVED.liveCue, 'the marker did not move, so it seeds');
   assert.deepEqual(air.bootReplay, []);
-  assert.deepEqual(air.aired.lt, { f0: 'REPORTED' }, 'the report, without the older row on it');
+  // Heard after the read was asked, the command is at least as new as the report (issue #2088).
+  assert.deepEqual(air.aired.lt, { f0: 'NEWER' }, 'the command\'s figure, neither the report nor the older row');
+});
+
+test('a +1 heard while the read was out is not put back by the report; the fields it did not move take the report', () => {
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: 'REPORTED' } } }]);
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('lt', { f0: 'PLUS ONE' }, 'u2')], createAppliedOnce(), NO_CLOCKS, T).air;
+  const reported = { liveCue: RESOLVED.liveCue, live: { lt: { data: { f0: 'REPORTED', f1: 'ALSO REPORTED' } } } };
+  const air = seedFromResolve(heard, reported, [], asked, CUES, NO_CLOCKS);
+  assert.deepEqual(air.aired.lt, { f0: 'PLUS ONE', f1: 'ALSO REPORTED' });
+  // With nothing applied meanwhile the report still stands over what the page held.
+  assert.deepEqual(seedFromResolve(before, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: 'REPORTED', f1: 'ALSO REPORTED' });
+});
+
+test('a clock a command moved while the read was out keeps this page\'s memory and figure, not the older report\'s', () => {
+  const asked = airAtRequest(NO_AIR);
+  const heard = claimAndApply(NO_AIR, [update('score', { f5: `09:00@${T}` }, 'u3')], createAppliedOnce(), CLOCKS, T).air;
+  assert.notEqual(heard.clocks.score, undefined, 'the command set the clock memory');
+  const air = seedFromResolve(heard, { liveCue: { score: 'c2' }, live: { score: { data: { f5: `10:00@${T}` } } } }, [], asked, CUES, CLOCKS);
+  assert.equal(air.clocks.score, heard.clocks.score);
+  assert.equal(air.aired.score.f5, heard.aired.score.f5);
+});
+
+test('a speaking pair a command moved while the read was out keeps this page\'s memory, not the older report\'s', () => {
+  const asked = airAtRequest(NO_AIR);
+  const heard = claimAndApply(NO_AIR, [update('debate', { fa: `04:00@${T}`, fb: '05:00' }, 'u4')], createAppliedOnce(), DEBATE, T).air;
+  assert.notEqual(heard.speaking.debate, undefined, 'the command set the pair\'s memory');
+  const air = seedFromResolve(heard, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: '05:00' } } } }, [], asked, CUES, DEBATE);
+  assert.deepEqual(air.speaking.debate, heard.speaking.debate);
+});
+
+test('a speaking pair with one field moved while the read was out: that field keeps this page\'s memory, the other takes the report\'s', () => {
+  const before = claimAndApply(NO_AIR, [update('debate', { fa: '05:00', fb: '05:00' }, 'u5')], createAppliedOnce(), DEBATE, T).air;
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('debate', { fa: `04:00@${T}` }, 'u6')], createAppliedOnce(), DEBATE, T).air;
+  const air = seedFromResolve(heard, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: `04:30@${T}` } } } }, [], asked, CUES, DEBATE);
+  assert.equal(air.speaking.debate.fa, heard.speaking.debate.fa, 'the moved field keeps the page\'s memory');
+  assert.equal(air.speaking.debate.fb, `04:30@${T}`, 'the other takes the report\'s stamped value');
+  assert.equal(air.aired.debate.fb, '04:30', 'and its baseline is plain');
+  assert.equal(air.aired.debate.fa, heard.aired.debate.fa);
+});
+
+test('a field a command set during the read counts as moved even when it set the figure the page already held', () => {
+  // The page holds 5 (a row was missed on a reconnect); the screen and the report say 8; a
+  // command heard during the read sets 5 again, and that command is what the screen shows now.
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: '5' } } }]);
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('lt', { f0: '5' }, 'u7')], createAppliedOnce(), NO_CLOCKS, T).air;
+  const reported = { liveCue: RESOLVED.liveCue, live: { lt: { data: { f0: '8' } } } };
+  assert.deepEqual(seedFromResolve(heard, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: '5' });
+  // +1 then -1 during the read: both commands moved it, and the last stands.
+  const twice = claimAndApply(before, [update('lt', { f0: '6' }, 'u8'), update('lt', { f0: '5' }, 'u9')], createAppliedOnce(), NO_CLOCKS, T).air;
+  assert.deepEqual(seedFromResolve(twice, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: '5' });
+});
+
+test('a live graphic with nothing to seed from keeps its whole record when a +1 is heard during the read', () => {
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: '5', f1: 'NAME' } } }]);
+  const asked = airAtRequest(before);
+  const heard = claimAndApply(before, [update('lt', { f0: '6' }, 'u10')], createAppliedOnce(), NO_CLOCKS, T).air;
+  // Live on a cue this page has no values for, and no renderer report yet.
+  const air = seedFromResolve(heard, { liveCue: { lt: 'gone' }, live: {} }, [], asked, CUES, NO_CLOCKS);
+  assert.deepEqual(air.aired.lt, { f0: '6', f1: 'NAME' });
+});
+
+test('a field kept over the report still takes another screen\'s later row once it is heard', () => {
+  // After a reconnect the report already holds another screen's 9; this page's +1 (8) is heard
+  // during the read, so the seed keeps 8; the other screen's row, heard next, puts 9.
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: '7' } } }]);
+  const asked = airAtRequest(before);
+  const applied = createAppliedOnce();
+  const heard = claimAndApply(before, [update('lt', { f0: '8' }, 'mine')], applied, NO_CLOCKS, T).air;
+  const seeded = seedFromResolve(heard, { liveCue: RESOLVED.liveCue, live: { lt: { data: { f0: '9' } } } }, [], asked, CUES, NO_CLOCKS);
+  assert.equal(seeded.aired.lt.f0, '8');
+  const caught = claimAndApply(seeded, [update('lt', { f0: '9' }, 'theirs')], applied, NO_CLOCKS, T).air;
+  assert.equal(caught.aired.lt.f0, '9');
 });
 
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {

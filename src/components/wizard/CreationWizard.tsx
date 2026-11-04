@@ -1,9 +1,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState, type SetStateAction } from 'react';
-import { syncSampleData, useTemplateStore } from '../../store/templateStore';
+import { useTemplateStore } from '../../store/templateStore';
 import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   brandOrClearPatch,
-  buildDraftTemplate, finishReimport, reimportIo,
+  buildDraftTemplate, finishReimport,
   draftFormatSelection,
   draftName,
   draftResolution,
@@ -57,8 +57,8 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
-import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
-import { graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
+import { walkLibrary } from './shell/walkLibrary';
+import { graphicNameIndex, type LibraryNameEntry } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
@@ -93,9 +93,9 @@ import {
   noteMade,
   reduce,
   rememberWalk,
+  reimportForEditor,
   saveBuiltGraphic,
   type FinishedWalk,
-  type LibraryIo,
   type WalkMemory,
 } from './shell/walkState';
 import { useWalkLifecycle } from './shell/useWalkLifecycle';
@@ -126,14 +126,6 @@ const STUDIO_DOOR_IO = {
   setShowLook, captureLookFromTemplate, saveTemplateSetToProduction, trackEvent,
 };
 
-/** The library as the walk's save sees it (shell/walkState.ts `saveBuiltGraphic`). */
-const LIBRARY_IO: LibraryIo = {
-  index: graphicNameIndex,
-  effect: librarySaveEffect,
-  linkTo: (id) => useTemplateStore.getState().setSaved({ graphicId: id, dirty: true, status: 'idle' }),
-  saveCurrent: (name) => saveCurrentGraphic({ name }),
-  saveAs: (name) => saveGraphicAs(name, { kind: 'standalone' }),
-};
 
 /**
  * The choose-first creation wizard (replaces the old template gallery). Six steps —
@@ -547,7 +539,8 @@ export default function CreationWizard() {
   /** Every ending of the walk (shell/doors.ts), each taking the mode's applier below. */
   const doors = makeDoors({
     ...STUDIO_DOOR_IO,
-    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, { replace: memory.current.replaceOver }),
+    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, walkLibrary(), { replace: memory.current.replaceOver }),
+    prepareEditor: (name) => void reimportForEditor(memory.current, name, walkLibrary()),
     // The record's id and name are read from the store once the save linked it; a reimport kept separate took a free name, which Finish then carries (no second press renames it back).
     noteMade: (name, production, landedOn = null, made = useTemplateStore.getState().template.name || name) => {
       noteMade(memory.current, { name: made, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn }); if (made !== name) dispatch({ type: 'patch', patch: { name: made } });
@@ -1269,9 +1262,9 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={importedFile.template.fields.map((f) => f.field)} packageOnly={isForeignGraphic(importedFile.template)}
                 defaultProductionId={contextProductionId}
-                madeId={finishMadeId}
+                madeId={finishMadeId} reimport={finishReimport(importedFile.template, importedName(), finishLibrary, finishMadeId, memory.current)}
                 onAddToProduction={(dest) => void doors.addToProduction(applyImportedFile, dest, importedName)}
-                onEditArtwork={isForeignGraphic(importedFile.template) ? undefined : () => void doors.editArtwork(applyImportedFile)}
+                onEditArtwork={isForeignGraphic(importedFile.template) ? undefined : () => void doors.editArtwork(applyImportedFile, importedName)}
                 onExport={() => void doors.export(applyImportedFile, importedName)}
                 busy={false}
               />
@@ -1288,9 +1281,9 @@ export default function CreationWizard() {
                 libraryIndex={finishLibrary}
                 fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
-                madeId={finishMadeId} reimport={variant && mode === 'svg' ? finishReimport(previewTemplate, draftName(variant, draft), finishLibrary, finishMadeId, memory.current) : null}
+                madeId={finishMadeId} reimport={finishReimport(previewTemplate, draftName(variant, draft), finishLibrary, finishMadeId, memory.current)}
                 onAddToProduction={(dest) => void doors.addToProduction(applyDraftProject, dest, catalogName)}
-                onEditArtwork={() => void doors.editArtwork(applyDraftProject)}
+                onEditArtwork={() => void doors.editArtwork(applyDraftProject, catalogName)}
                 onExport={() => void doors.export(applyDraftProject, catalogName)}
                 busy={!previewTemplate}
               />

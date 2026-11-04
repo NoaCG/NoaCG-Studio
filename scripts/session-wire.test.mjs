@@ -8,7 +8,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { moveLiveCue } from '../src/control/airState.ts';
+import { claimAndApply, moveLiveCue } from '../src/control/airState.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, createPlayoutSession } from '../src/control/playoutSession.ts';
 import { HANDOVER_CONFIRM_MS, HANDOVER_RETRIES, HANDOVER_RETRY_MS, LOG_HISTORY_SPAN, SEEN_EVERY_MS, startSessionWire } from '../src/control/sessionWire.ts';
@@ -230,6 +230,26 @@ test('THE MOVES GUARD through the lifetime: a Take while the resolve or its repl
     assert.deepEqual(session.air.get().liveCue, { lt: 'c9' }, `a Take during the ${when} is not overwritten`);
     assert.equal(session.air.get().bootLive, null, 'and no boot recovery is keyed');
     assert.ok(page.said.includes('recovered lt'), 'what air holds is still known: the follow carries the rest');
+    stop();
+  }
+});
+
+test('A +1 HEARD WHILE THE RESOLVE OR ITS REPLAY IS OUT (#2088): the older report does not put it back', async () => {
+  for (const when of ['resolve', 'replay']) {
+    const wire = scriptedWire();
+    const page = fakePage();
+    const { session, stop } = start(wire, page);
+    await flush();
+    // The row of this page's +1, heard on the follow as the page hears it (`claimAndApply`).
+    const plusOne = () => session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, [{ graphic: 'lt', msg: { t: 'update', data: { f0: 'PLUS ONE' }, oid: 'p1' } }], session.applied, { clocks: new Map(), pairs: new Map() }, 0).air }));
+    if (when === 'resolve') plusOne();
+    wire.resolves[0].resolve({ ok: true, value: { ...RESOLVED, live: { lt: { data: { f0: 'REPORTED', f1: 'ALSO REPORTED' } } } } });
+    await flush();
+    if (when === 'replay') plusOne();
+    wire.replays[0].resolve([{ graphic: 'lt', msg: { t: 'update', data: { f0: 'OLDER ROW' } } }]);
+    await flush();
+    assert.deepEqual(session.air.get().aired.lt, { f0: 'PLUS ONE', f1: 'ALSO REPORTED' }, `a +1 heard during the ${when} stands; the rest seeds from the report`);
+    assert.deepEqual(session.air.get().liveCue, { lt: 'c1' }, 'the marker seeds as before');
     stop();
   }
 });
