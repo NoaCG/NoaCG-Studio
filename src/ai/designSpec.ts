@@ -193,7 +193,17 @@ const SPEC_INPUT_SCHEMA: Record<string, unknown> = {
         properties: {
           presetId: { type: 'string', description: "One of the chassis's listed motion presets." },
           easing: { type: 'string', enum: [...EASINGS.map((e) => e.id as string), 'auto'] },
-          speed: { type: 'number', enum: [0.75, 1, 1.5] },
+          // BOUNDS, NOT AN ENUM: Gemini refuses any enum that is not of type string ("For
+          // schema with enum values, schema type should be STRING", #2022, #2077), and a user's
+          // own Google key or a `google/*` gateway model receives this tool. specToTemplate
+          // keeps only 0.75, 1 and 1.5 and drops anything else, so nothing is lost - the same
+          // fix Lite's schema carries (src/ai/lite/contract.ts).
+          speed: {
+            type: 'number',
+            minimum: 0.75,
+            maximum: 1.5,
+            description: 'Motion speed. Use exactly 0.75 (slower), 1 (default), or 1.5 (faster); any other value is ignored.',
+          },
           steps: { type: 'boolean', description: 'Reveal further lines on the operator\'s Continue press.' },
         },
       },
