@@ -71,11 +71,12 @@ function completion(output: unknown): Response {
 // One stable stub for the whole file: the Supabase clients capture `fetch` when they are built.
 globalThis.fetch = (async (input: string | URL | Request) => {
   const url = input instanceof Request ? input.url : String(input);
-  if (!url.startsWith(DB)) {
+  const parsed = new URL(url);
+  if (parsed.origin !== DB) {
     sent.model.push(url);
     return completion(modelAnswer());
   }
-  const path = url.slice(DB.length);
+  const path = parsed.pathname + parsed.search;
   if (path.startsWith('/auth/v1/user')) return Response.json(user());
   const fail = (read: AccountRead | 'system_settings') => {
     if (read === 'system_settings' ? db.settings === 'throw' : false) throw new TypeError('fetch failed');
