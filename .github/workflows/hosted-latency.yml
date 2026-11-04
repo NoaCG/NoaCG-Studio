@@ -330,12 +330,12 @@ jobs:
             NOACG_INSTRUMENT=1 npm run test:e2e:live -- "${SPEC}" --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure | tee "${RUNNER_TEMP}/spec-run.log"
             code=${PIPESTATUS[0]}
             set -e
+            if [ "${code}" != 0 ]; then exit "${code}"; fi
             # Every test skipping exits 0 too; a reading that ran nothing is not green.
-            if ! grep -Eq '^ +[0-9]+ passed' "${RUNNER_TEMP}/spec-run.log"; then
-              echo "::error title=Nothing ran::${SPEC} ran no test to a pass on this shard."
+            if ! grep -Eq '^ +[0-9]+ (passed|flaky)' "${RUNNER_TEMP}/spec-run.log"; then
+              echo "::error title=Nothing ran::${SPEC} ran no test on this shard (all skipped?)."
               exit 1
             fi
-            exit "${code}"
           else
             npm run test:e2e:live -- "--shard=${SHARD}" --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure || true
           fi

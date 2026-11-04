@@ -25,7 +25,9 @@ test.skip(!process.env.NOACG_INSTRUMENT, 'NOACG_INSTRUMENT=1 runs this timing in
 // does: it asserts one play per press and nothing about time, and the hosted suite has no minutes
 // to spare for it. For the wire a studio sees, dispatch hosted-latency.yml with `spec` set to
 // e2e/configured/press-latency.spec.ts; that sets the variable. Locally against a stack, set it yourself. The
-// numbers are printed and attached (`press-latency.json`). With 8 presses a p90 is the slowest
+// numbers are printed and attached (`press-latency.json`). `graphicPlay` ends when the graphic's
+// play listeners return, so work a graphic starts later is not in it, and `graphicFrame` is the
+// first frame of an entrance, not the finished picture. With 8 presses a p90 is the slowest
 // one, so it reports the median and the slowest.
 
 /** In every document of a page: the top one stamps every Realtime frame and the command fetch and,
@@ -134,7 +136,7 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
       const anna = (await deck.rows())[0].id;
       const playsOf = async () => Number(await air.evaluate(() => document.body.getAttribute('data-plays')));
 
-      const hops: Record<string, number[]> = { relay: [], pageDispatch: [], sendRpc: [], logToRenderer: [], handToGraphic: [], graphicPlay: [], graphicFrame: [], pressToFrame: [], pressToResult: [], secondWait: [], secondToFrame: [] };
+      const hops: Record<string, number[]> = { relay: [], pageDispatch: [], sendRpc: [], logToRenderer: [], handToGraphic: [], graphicPlay: [], graphicFrame: [], pressToFrame: [], pressToResult: [], secondWait: [], secondToFrame: [], flipped: [] };
       for (let round = 0; round < ROUNDS; round++) {
         const before = await deck.state((s) => !(s.live as string[]).includes(anna), 'Anna off air');
         const plays = await playsOf();
@@ -209,29 +211,29 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         const o = await hopsOf(op);
         const a = await hopsOf(air);
         const after = (list: Hop[], at: number | undefined, test: (h: Hop) => boolean) => (at === undefined ? undefined : list.find((h) => h.at >= at && test(h)));
+        const firstId = (await first).id;
+        const heardFirst = o.find((h) => h.kind === 'ws' && h.text.includes(firstId));
         const heard = after(o, pressAt, (h) => h.kind === 'ws' && h.text.includes(second.id));
         const send = after(o, heard?.at, (h) => h.kind === 'send');
+        // The two presses are two relay calls, so they can reach the page in the other order. Such a
+        // round is counted, not timed: its "second" press is the first one the page ran.
         const handed = after(a, pressAt, (h) => h.kind === 'handed' && h.text === String(plays + 2));
         const rx = after(a, handed?.at, (h) => h.kind === 'gfxRx');
         const played = after(a, rx?.at, (h) => h.kind === 'gfxPlayed');
         const painted = after(a, played?.at, (h) => h.kind === 'gfxPainted');
-        if (heard && send && painted) {
+        if (heardFirst && heard && heard.at < heardFirst.at) {
+          hops.flipped.push(heardFirst.at - heard.at);
+          console.log(`back to back ${round}: the page heard the second press ${heardFirst.at - heard.at} ms before the first`);
+        } else if (heard && send && painted) {
           hops.secondWait.push(send.at - heard.at);
           hops.secondToFrame.push(painted.at - pressAt);
         } else {
           console.log(`back to back ${round}: a stamp is missing`, JSON.stringify({ heard: !!heard, send: !!send, handed: !!handed, rx: !!rx, played: !!played, painted: !!painted }));
         }
-        // Off again: Ben's key first, as an operator would press it. Should the page refuse it, what
-        // it said and what it publishes are printed (the page's view of air after two presses in
-        // flight is a finding of its own), and All out clears the round.
+        // Off again with All out, drawn from what the page publishes now: after two presses in flight
+        // a cue key drawn from a passing state is refused stale (the page's own check, kept).
         await op.waitForTimeout(500);
-        const up = await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
-        const off = await deck.press('take-cue', ben, up.ver as number);
-        if (off.outcome !== 'ran') {
-          const latest = await deck.state();
-          console.log(`back to back ${round}: Ben's Out ${off.outcome} (${off.note ?? ''}); the page now publishes live ${JSON.stringify(latest.live)} at ver ${latest.ver}, the key was drawn at ver ${up.ver} with live ${JSON.stringify(up.live)}`);
-          expect((await deck.press('all-out', '', latest.ver as number)).outcome).toBe('ran');
-        }
+        expect((await deck.press('all-out', '', (await deck.state()).ver as number)).outcome).toBe('ran');
         await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
         await op.waitForTimeout(600);
       }
@@ -241,7 +243,7 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
       await test.info().attach('press-latency.json', { body: JSON.stringify({ graphic, report }, null, 2), contentType: 'application/json' });
       // Most rounds must have every stamp, or the instrument measured nothing.
       expect(hops.pressToFrame.length).toBeGreaterThanOrEqual(ROUNDS - 2);
-      expect(hops.secondToFrame.length).toBeGreaterThanOrEqual(3);
+      expect(hops.secondToFrame.length + hops.flipped.length).toBeGreaterThanOrEqual(3);
       await deck.close();
     } finally {
       await outCtx.close();
