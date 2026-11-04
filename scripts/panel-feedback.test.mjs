@@ -1,4 +1,4 @@
-// guards: src/control/panelFeedback.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql
+// guards: src/control/panelFeedback.ts, src/control/workerTicker.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql
 //
 // HARDWARE PANELS, THE PAGE'S CHECKS (docs/work-specs/hardware-panel-control/spec.md AC-4, AC-7;
 // protocol.md §6.2 and §8): a relayed press is judged against what the page shows now and what its
@@ -466,6 +466,53 @@ test('a foreign press is judged like any graphic action and runs the typed butto
   assert.deepEqual(calls, [['highlight', true, 'cue_r1', undefined], ['highlight', true, 'cue_r1', { team: 2 }]]);
   // A package edit that drops the action presses nothing.
   assert.deepEqual(await runCapability(judge({}).run, { ...machine, buttons: [] }, {}, verbs), { outcome: 'refused', note: 'that action is no longer on Results' });
+});
+
+// ── THE TIMER BEHIND THE BEAT AND A HELD PRESS ────────────────────────────────────────────────────
+
+const { workerInterval } = await import('../src/control/workerTicker.ts');
+
+/** A stand-in for the browser's Worker, handed to the test as it is made. */
+function stubWorker(t) {
+  const made = [];
+  globalThis.Worker = class {
+    terminated = false;
+    constructor() {
+      made.push(this);
+    }
+    terminate() {
+      this.terminated = true;
+    }
+  };
+  t.after(() => delete globalThis.Worker);
+  return made;
+}
+
+test('a worker ticks the timer until it is stopped, with no plain interval running', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const made = stubWorker(t);
+  let ticks = 0;
+  const stop = workerInterval(100, () => ticks++);
+  made[0].onmessage();
+  assert.equal(ticks, 1);
+  t.mock.timers.tick(1000);
+  assert.equal(ticks, 1);
+  stop();
+  assert.equal(made[0].terminated, true);
+});
+
+test('a worker that fails after it started hands over to a plain interval, which stopping also ends', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const made = stubWorker(t);
+  let ticks = 0;
+  const stop = workerInterval(100, () => ticks++);
+  made[0].onerror();
+  assert.equal(made[0].terminated, true);
+  t.mock.timers.tick(100);
+  assert.equal(ticks, 1);
+  stop();
+  t.mock.timers.tick(1000);
+  assert.equal(ticks, 1);
 });
 
 // ── THE ORDER OF ONE PANEL'S PRESSES (protocol §6.2, issue #2109) ─────────────────────────────────

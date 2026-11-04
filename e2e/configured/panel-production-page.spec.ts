@@ -157,10 +157,28 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await deck.close();
 });
 
-// protocol §6.2, issue #2109. The later press is sent first and the earlier one 100 ms behind it,
-// inside the page's 500 ms bound: nothing here relies on the wire flipping them by chance.
+// protocol §6.2, issue #2109. The deck presses in order; the page's own Realtime socket is routed, so
+// the earlier press reaches the page 100 ms after the later one, inside the page's 500 ms bound.
+// Nothing here relies on the wire flipping them by chance.
 test('presses that reach the production page reversed run in the order they were pressed, each judged against what the one before it drew', async ({ page }) => {
   test.setTimeout(180_000);
+  let swap: { earlier: string; later: string; held: (() => void) | null; laterSent: boolean } | null = null;
+  await page.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
+    const server = ws.connectToServer();
+    server.onMessage((frame) => {
+      const text = typeof frame === 'string' ? frame : frame.toString();
+      const forward = () => ws.send(frame);
+      if (swap && text.includes(`"${swap.earlier}"`) && !swap.laterSent) {
+        swap.held = forward;
+        return;
+      }
+      forward();
+      if (swap && text.includes(`"${swap.later}"`)) {
+        swap.laterSent = true;
+        if (swap.held) setTimeout(swap.held, 100);
+      }
+    });
+  });
   await publishTwoCues(page, `Panel Order ${Date.now()}`);
   const op = page;
   await shutStatusPanel(op);
@@ -169,10 +187,11 @@ test('presses that reach the production page reversed run in the order they were
   await op.getByTestId('panel-close').click();
   await deck.hello();
   const [anna, ben] = (await deck.rows()).map((r) => r.id);
-  const reversed = async (later: () => ReturnType<typeof deck.press>, earlier: () => ReturnType<typeof deck.press>) => {
-    const second = later();
-    await op.waitForTimeout(100);
-    const first = earlier();
+  /** Two Takes pressed in order, drawn from one state, whose presses reach the page reversed. */
+  const reversed = async (cues: [string, string], ver: number, ids: [string, string]) => {
+    swap = { earlier: ids[0], later: ids[1], held: null, laterSent: false };
+    const first = deck.press('take-cue', cues[0], ver, ids[0]);
+    const second = deck.press('take-cue', cues[1], ver, ids[1]);
     return { first: await first, second: await second };
   };
 
@@ -183,10 +202,7 @@ test('presses that reach the production page reversed run in the order they were
   // A PICK AND THEN A REVEAL: Ben, pressed last, stands, though the page heard him first. Run as
   // they arrived, Anna would have replaced him.
   const ready = await deck.state((s) => s.selected === anna, 'Anna selected');
-  const pair = await reversed(
-    () => deck.press('take-cue', ben, ready.ver as number, 'orderdeck:3'),
-    () => deck.press('take-cue', anna, ready.ver as number, 'orderdeck:2'),
-  );
+  const pair = await reversed([anna, ben], ready.ver as number, ['orderdeck:2', 'orderdeck:3']);
   expect([pair.first.outcome, pair.second.outcome]).toEqual(['ran', 'ran']);
   await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
   await op.waitForTimeout(500);
@@ -199,10 +215,7 @@ test('presses that reach the production page reversed run in the order they were
 
   // ONE KEY PRESSED TWICE, both drawn with Anna off air: by the time the second runs the page has
   // drawn the first, so it is refused rather than taking her back off.
-  const twice = await reversed(
-    () => deck.press('take-cue', anna, clear.ver as number, 'orderdeck:6'),
-    () => deck.press('take-cue', anna, clear.ver as number, 'orderdeck:5'),
-  );
+  const twice = await reversed([anna, anna], clear.ver as number, ['orderdeck:5', 'orderdeck:6']);
   expect(twice.first.outcome).toBe('ran');
   expect(twice.second.outcome).toBe('stale');
   await op.waitForTimeout(500);
