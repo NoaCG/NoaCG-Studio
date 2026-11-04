@@ -1,5 +1,5 @@
 // covers: src/templates/importedDesign/creditsRoll.ts, src/templates/importedDesign/svg.ts
-// covers: src/control/contentFormats.ts, src/components/home/SourcesLine.tsx
+// covers: src/control/contentFormats.ts, src/components/home/SourcesLine.tsx, src/components/home/CueEditor.tsx
 // covers: e2e/fixtures/jev-svg/dev/credits-1.svg, e2e/fixtures/jev-svg/dev/credits-2.svg
 //
 // LINKED CREDITS ON AIR (jev-svg-import row 24, AC-14 and AC-24). A Sheet connected to imported
@@ -7,7 +7,9 @@
 //
 //  - A ROLL OR CARDS ON AIR KEEP THE LIST THEY TOOK. A refresh reaches the graphic, which holds it
 //    for the next Take: the moving rows and the card on screen do not change under the viewer,
-//    the roll is not restarted, and the production page says newer data shows on the next Take.
+//    the roll is not restarted, and the production page says newer data shows on the next Take,
+//    from the graphic's own answer on PROGRAM (#1980): on the source line and, for a typed Update,
+//    in the on-air cue's editor (#1979).
 //    A new Scroll speed or Card time still acts on air, as before.
 //  - A STILL PAGE shows a refresh at once: nothing moves, so nothing replays.
 //  - OFF AIR the prepared rows follow every write, and the next Take airs the newest list. An
@@ -106,6 +108,8 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   expect(during.progress!, 'the roll was not restarted').toBeGreaterThan(before.progress!);
   await expect(waitingLine).toHaveText('· Newer data shows on the next Take');
   await expect(waitingLine).toHaveAttribute('title', 'On air: Live roll');
+  // The on-air cue's editor says it too, beside Update (#1979), from the same answer.
+  await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
 
   // THE NEXT TAKE airs the newest list, from the start of a new roll, and the line clears.
   await page.getByTestId('verb-retake').click();
@@ -113,6 +117,7 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   await expect.poll(async () => (await roll()).mark).toBeNull();
   expect((await roll()).waiting).toBe(false);
   await expect(waitingLine).toHaveCount(0);
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
 
   // EMPTY: the Sheet emptied while on air waits as any change does; the next Take clears the list.
   sheet.set([['Role', 'Name']]);
@@ -147,6 +152,68 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   await expect.poll(() => roll().then((r) => r.waiting), { timeout: 20_000 }).toBe(true);
   await expect(waitingLine).toBeVisible();
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  // Paused again, the list read before the pause still waits, and the line still says so (#1980).
+  await page.getByTestId('source-pause').click();
+  await expect(page.getByTestId('sources-line')).toContainText('paused');
+  await expect(waitingLine).toBeVisible();
+});
+
+test('a typed Update on a held roll says the new list shows on the next Re-take, from what PROGRAM holds; an Update that leaves the list as taken says nothing; reload keeps it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await styledCreditsProduction(page, 'roll', 'Typed roll');
+  const list = page.getByTestId('cue-field-f1');
+  await expect(list).toHaveValue(LIST);
+  const fate = page.getByTestId('cue-unsent');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  const waiting = () => air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsWaiting: boolean }).noacgCreditsWaiting);
+  await page.getByTestId('verb-take').click();
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(fate).toBeEmpty();
+
+  // A corrected name, sent with Update: PROGRAM keeps the list its Take took, and the editor says
+  // when the new one shows. Before Update the unsent note asks for Update as always.
+  await list.fill(OTHER);
+  await expect(fate).toHaveText('1 change not on air yet. Press ✎ Update');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(waiting).toBe(true);
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+  await expect(fate).toHaveAttribute('title', /keeps the names its Take took/);
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+
+  // RELOAD: the page comes back to the same answer from PROGRAM, not from a memory of its own.
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue(OTHER);
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+
+  // The list put back as taken, sent: nothing waits any more, so nothing is said.
+  await page.getByTestId('cue-field-f1').fill(LIST);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(waiting).toBe(false);
+  await expect(fate).toBeEmpty();
+
+  // A change to another field leaves the list as taken: nothing is said either.
+  await page.getByTestId('cue-field-f0').fill('CREW');
+  await page.getByTestId('verb-update').click();
+  await expect(air.getByText('CREW')).toBeVisible();
+  await expect.poll(waiting).toBe(false);
+  await expect(fate).toBeEmpty();
+
+  // Changed again and sent, then RE-TAKE: the new list airs and the note clears.
+  await page.getByTestId('cue-field-f1').fill(OTHER);
+  await page.getByTestId('verb-update').click();
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+  await page.getByTestId('verb-retake').click();
+  await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+  await expect(fate).toBeEmpty();
+  // OUT: off air nothing waits.
+  await page.getByTestId('cue-field-f1').fill(LIST);
+  await page.getByTestId('verb-update').click();
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+  await page.getByTestId('verb-out').click();
+  await expect(fate).toBeEmpty();
 });
 
 test('cards on air keep the cards they took: a refresh waits for the next Take, Next card turns the cards taken', async ({ page }) => {
@@ -165,6 +232,7 @@ test('cards on air keep the cards they took: a refresh waits for the next Take, 
   await expect.poll(waiting, { timeout: 20_000, message: 'the refresh reached the graphic' }).toBe(true);
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
   await expect(page.getByTestId('source-waiting')).toHaveText('· Newer data shows on the next Take');
+  await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
   // The prepared cue follows the refresh: PREVIEW shows the newer first card meanwhile.
   await expect(page.frameLocator('[data-testid="production-preview"] iframe').locator('.imported-design-credits-row')).toHaveText(['Camera', 'Jonas Berg']);
   // Next card turns to the second card of the list taken, not of the newer one.

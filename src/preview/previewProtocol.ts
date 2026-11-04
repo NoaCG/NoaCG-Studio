@@ -192,6 +192,13 @@ export interface PreviewStateMessage {
    */
   overflow?: string[] | null;
   /**
+   * A NEWER LIST WAITS FOR THE NEXT TAKE: the styled credits roll or cards on air keep the list
+   * their Take took, and the field has changed since (`noacgCreditsWaiting`, creditsRoll.ts
+   * `creditsHeldJs`). The graphic's own flag, so the production page says it from what is
+   * rendered rather than guessing from when a source changed. Absent or false otherwise.
+   */
+  waits?: boolean;
+  /**
    * HOW FAR THE DOCUMENT'S ANIMATIONS HAVE RUN — the summed playhead of every animation GSAP
    * holds plus every web animation the document is running, in milliseconds. It is a reading, not a verdict: two consecutive replies with the
    * SAME number mean nothing moved in between, which is how a caller tells a settled graphic

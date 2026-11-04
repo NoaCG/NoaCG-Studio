@@ -124,7 +124,7 @@ export default function PlayoutMonitors({
   show: Show;
   library: GraphicDoc[];
   programRef: Ref<ProgramStageHandle>;
-  onState: (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => void;
+  onState: (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[], waits?: boolean) => void;
   onReady: () => void;
   /** The field ids PREVIEW reports as too long to fit, each time the answer changes. */
   onOverflow: (keys: string[]) => void;

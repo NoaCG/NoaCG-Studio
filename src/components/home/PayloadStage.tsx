@@ -31,8 +31,9 @@ const PayloadStage = forwardRef<
      *
      *  `overflow` rides the same reply: the field ids the graphic could not make fit even at
      *  its readability floor, so a host with field boxes can warn before the value airs
-     *  (docs/SVG_IMPORT_PLAN.md §3). Empty for every graphic that fits. */
-    onState?: (graphic: string, state: PreviewMachineState | null, overflow: string[]) => void;
+     *  (docs/SVG_IMPORT_PLAN.md §3). Empty for every graphic that fits. `waits` too: a held
+     *  credits list on air has a newer one waiting for the next Take (PreviewStateMessage.waits). */
+    onState?: (graphic: string, state: PreviewMachineState | null, overflow: string[], waits: boolean) => void;
     /**
      * Fired every time a FRESH stage exists — first mount and every rebuild.
      *
@@ -87,7 +88,7 @@ const PayloadStage = forwardRef<
     stage.current = built;
     plays.current = 0;
     root.setAttribute('data-plays', '0');
-    built.onState((graphic, state, over) => onStateRef.current?.(graphic, state, over));
+    built.onState((graphic, state, over, waits) => onStateRef.current?.(graphic, state, over, waits));
 
     // RE-ASK FOR MACHINE STATE, once a second, exactly as the published /output renderer has
     // always done (src/output/main.ts). The stage posts a single `{cmd:'state'}` after each

@@ -636,6 +636,9 @@ window.addEventListener('unhandledrejection', function (ev) {
       /* WHICH VALUES DID NOT FIT (previewProtocol.ts's PreviewStateMessage.overflow). */
       var over = null;
       try { over = window.noacgTextOverflow ? window.noacgTextOverflow() : null; } catch (e2) {}
+      /* …whether a NEWER LIST WAITS for the next take (PreviewStateMessage.waits)… */
+      var waits = false;
+      try { waits = window.noacgCreditsWaiting === true; } catch (e6) {}
       /* …and HOW FAR ITS ANIMATIONS HAVE RUN (PreviewStateMessage.motion): the summed playhead
          of everything on GSAP's global timeline, which every house template animates on, plus
          the document's own web animations, which an imported design may use instead. Two equal
@@ -653,7 +656,7 @@ window.addEventListener('unhandledrejection', function (ev) {
         for (var ci = 0; ci < css.length; ci++) motion += Math.round(Number(css[ci].currentTime) || 0);
       } catch (e4) {}
       try {
-        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over, motion: motion }, '*');
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over, waits: waits, motion: motion }, '*');
       } catch (e5) {}
     }
   }

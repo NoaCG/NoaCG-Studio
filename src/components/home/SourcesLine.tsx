@@ -7,9 +7,8 @@ import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/li
 import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
 import type { SavedGraphic } from '../../model/packets';
 import { sourcePaths } from '../../model/productionData';
-import { heldListOnAir, listsWaitingForTake, type TakeMarks } from '../../control/contentFormats';
+import { heldListOnAir } from '../../control/contentFormats';
 import type { LiveCueMap } from '../../control/liveCue';
-import type { LogEntry } from '../../control/eventLog';
 
 /** A graphic of the production whose own code reads a Sheet (the retired block, data-sources C6). */
 export interface OwnSheetReader {
@@ -123,42 +122,33 @@ export function toggleSourcePause(show: Show, setShows: (shows: Show[]) => void,
   if (source.paused) store.poke(source.id);
 }
 
-/** What is on air, for a source's line: the graphics up, by name, and the action log (newest
- *  first), whose latest Take of each says which airing it is. */
+/** What is on air, for a source's line: the graphics up, by name, and which of them the PROGRAM
+ *  monitor says hold a list with a newer one waiting for the next Take (PreviewStateMessage.waits). */
 export interface OnAir {
   live: LiveCueMap;
-  log: readonly LogEntry[];
+  waits: Readonly<Record<string, boolean>>;
 }
 
 /**
- * The graphics on air that hold this source's list from their Take (the imported credits roll and
- * cards, control/contentFormats.ts `heldListOnAir`), each with the log id of its latest Take.
+ * The graphics on air whose held list (the imported credits roll and cards, control/contentFormats.ts
+ * `heldListOnAir`) is this source's and has a newer one waiting: the graphic's own answer, so an
+ * edit that leaves the list as taken says nothing, and a Pause does not hide a list still waiting.
  */
-function heldFromSource(show: Show, source: ShowSource, onAir: OnAir): Record<string, number | null> {
-  const held: Record<string, number | null> = {};
+export function listsWaiting(show: Show, source: ShowSource, onAir: OnAir): string[] {
+  const waiting: string[] = [];
   for (const { graphic, fieldId } of sourcePaths(show.bindings, source.id)) {
-    if (!onAir.live[graphic]) continue;
+    if (!onAir.live[graphic] || !onAir.waits[graphic] || waiting.includes(graphic)) continue;
     const saved = show.graphics.find((g) => g.name === graphic);
-    if (!saved || heldListOnAir(saved)?.main !== fieldId) continue;
-    held[graphic] = onAir.log.find((e) => e.graphic === graphic && (e.kind === 'take' || e.kind === 'play'))?.id ?? null;
+    if (saved && heldListOnAir(saved)?.main === fieldId) waiting.push(graphic);
   }
-  return held;
+  return waiting;
 }
-
-/** Per production and source, the Takes the source lines have marked (`listsWaitingForTake`). */
-const TAKE_MARKS = new Map<string, TakeMarks>();
 
 /** One source's line: name, status, stale, the fix when it fails, Pause, and a list on air that
  *  waits for the next Take. */
 function SourceLine({ show, setShows, source, store, onAir }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; onAir?: OnAir }) {
   const { status, now } = useSourceStatus(store, source.id);
-  // Which airing each held graphic is on, and the source's change it was taken after: kept for
-  // the page's life (TAKE_MARKS), so a change after its Take is told apart from one before it
-  // when the Data view or a dialog has unmounted this line meanwhile.
-  const key = `${show.id}:${source.id}`;
-  const held = onAir ? listsWaitingForTake(TAKE_MARKS.get(key) ?? {}, heldFromSource(show, source, onAir), status?.changedAt ?? null) : null;
-  if (held) TAKE_MARKS.set(key, held.marks);
-  const waiting = !source.paused && held ? held.waiting : [];
+  const waiting = onAir ? listsWaiting(show, source, onAir) : [];
   return (
     <div
       className="pd-source-line hint"

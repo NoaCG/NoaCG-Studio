@@ -835,6 +835,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  not about the cue sitting on preview. Only the monitor can answer it - the fit ladder is a
    *  measurement of the rendered graphic, and no source check can stand in for it. */
   const [programOverflow, setProgramOverflow] = useState<Record<string, string[]>>({});
+  /** Per graphic, whether the PROGRAM monitor's graphic holds a list on air with a newer one
+   *  waiting for the next Take (the styled credits' own `noacgCreditsWaiting`, carried on the
+   *  same reply as the overflow). What the source line and the cue editor say it from. */
+  const [programWaits, setProgramWaits] = useState<Record<string, boolean>>({});
   /** What the OUTPUTS say each imported OGraf package did (control/ografOutcome.ts), from their
    *  reports alone: the PROGRAM monitor never loads a package, so nothing here is simulated. */
   const [outputOgraf, setOutputOgraf] = useState<Record<string, OgrafOutcome>>({});
@@ -849,7 +853,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setOutputOgraf((m) => (JSON.stringify(m[graphic] ?? null) === JSON.stringify(o) ? m : { ...m, [graphic]: o }));
   }, []);
   const noteMachineState = useCallback(
-    (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
+    (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[], waits?: boolean) => {
       setMachineStates((m) => {
         if (JSON.stringify(m[graphic] ?? null) === JSON.stringify(state)) return m;
         return { ...m, [graphic]: state };
@@ -861,6 +865,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         if ((m[graphic] ?? []).join(',') === overflow.join(',')) return m;
         return { ...m, [graphic]: overflow };
       });
+      setProgramWaits((m) => (!!m[graphic] === !!waits ? m : { ...m, [graphic]: !!waits }));
     },
     [],
   );
@@ -2915,8 +2920,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  reply counts. A graphic still loading in the monitor is never asked (the stage drops a state
    *  ask for an unloaded document), so its first reply follows its queued Take; one already loaded
    *  applies the Take at once, so a poll answer crossing it is a few milliseconds early at most. */
-  const noteProgramState = (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
-    noteMachineState(graphic, state, overflow);
+  const noteProgramState = (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[], waits?: boolean) => {
+    noteMachineState(graphic, state, overflow, waits);
     armEngine.current?.onProgramState(graphic);
   };
 
@@ -4087,7 +4092,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
-        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} onAir={{ live: liveCue, log: wireLog }} />
+        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} onAir={{ live: liveCue, waits: programWaits }} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&
@@ -4162,6 +4167,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             hasUnsent={hasUnsent}
             unsentFields={unsentFields}
             keptStates={keptStates}
+            listWaits={!!(editingIsLive && !view.disabled.retake && selectedGraphic && liveCue[selectedGraphic] && programWaits[selectedGraphic])}
             overflowKeys={overflowKeys}
             overflowSet={overflowSet}
             descriptors={descriptors}

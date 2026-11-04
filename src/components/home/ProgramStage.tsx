@@ -30,6 +30,7 @@ const ProgramStage = forwardRef<
       graphic: string,
       state: { groups?: Record<string, string> } | null,
       overflow: string[],
+      waits: boolean,
     ) => void;
     /** A fresh stage exists and knows nothing about air — see PayloadStage.onReady. */
     onReady?: () => void;
