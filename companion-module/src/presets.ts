@@ -51,6 +51,10 @@ function graphicFeedbacks(o: GraphicKeyOptions, text: string): Feedback[] {
 	]
 }
 
+/** A preset's id, from what it presses and never its place in the list: Companion 5.1's Linked key
+ *  follows its preset by id, so a key must not become another control when the list changes. */
+const stableId = (...parts: string[]) => `graphic_${Buffer.from(JSON.stringify(parts)).toString('base64url')}`
+
 /**
  * THE PINNED GRAPHICS' LIVE CONTROLS AS KEYS (L1 AC-8): for each graphic pinned on the production's
  * pages, its block's controls in the block's order, a pick as one key per option and a number as
@@ -66,10 +70,10 @@ export function graphicPresets(
 	const presets: Presets = {}
 	const groups: { id: string; name: string; ids: string[] }[] = []
 	const pinned = (actions?.graphics ?? []).filter((g) => g.pinned)
-	pinned.forEach((g, i) => {
+	for (const g of pinned) {
 		const ids: string[] = []
 		const key = (text: string, name: string, o: GraphicKeyOptions, extra: Feedback[] = []) => {
-			const id = `graphic_${i}_${ids.length}`
+			const id = stableId(o.graphic, o.cap, o.option, o.delta)
 			ids.push(id)
 			presets[id] = {
 				type: 'simple',
@@ -102,8 +106,8 @@ export function graphicPresets(
 				key(row ? `${c.label}\\n${row}` : c.label, row ? `${c.label} ${row}` : c.label, { ...base, cap: c.id })
 			}
 		}
-		if (ids.length > 0) groups.push({ id: `graphic_${i}`, name: g.graphic, ids })
-	})
+		if (ids.length > 0) groups.push({ id: stableId(g.graphic), name: g.graphic, ids })
+	}
 	return { presets, groups }
 }
 

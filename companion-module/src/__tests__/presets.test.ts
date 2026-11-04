@@ -279,6 +279,39 @@ test('(3) a graphic with actions and figures of its own loses nothing, and a pag
 	)
 })
 
+test('a preset keeps its id when the list around it changes, so a Linked key never becomes another control', () => {
+	// Companion 5.1 keeps a Linked key on its preset by id (Controls/ControlTypes/Button/PresetReference.ts).
+	const idsByName = (graphics: Record<string, unknown>[]) => {
+		const built = buildPresets('noacg', [], offered(graphics))
+		return new Map(
+			section(built, 'Pinned graphics')!.groups.flatMap((g) => g.keys.map((id) => [keyNames(built, [id])[0], id])),
+		)
+	}
+	const strip = (covered?: number[]) =>
+		banner([
+			cap('event:goalA', 'Goal A'),
+			cap('step:f1', 'Score A', covered ? { covered } : {}),
+			cap('step:f3', 'Score B', covered ? { covered } : {}),
+		])
+	const before = idsByName([strip()])
+	const after = idsByName([strip([1])])
+	// Leaving out Score A +1 moves nothing else onto its id.
+	assert.equal(after.get('Score B -1 (Score banner)'), before.get('Score B -1 (Score banner)'))
+	assert.equal(after.get('Score A -1 (Score banner)'), before.get('Score A -1 (Score banner)'))
+	assert.ok(![...after.values()].includes(before.get('Score A +1 (Score banner)')!))
+	// Nor does another graphic pinned ahead of it, and two controls never share an id.
+	const other = { ...strip(), graphic: 'Other' }
+	assert.equal(idsByName([other, strip()]).get('Goal A (Score banner)'), before.get('Goal A (Score banner)'))
+	assert.equal(new Set(before.values()).size, before.size)
+	const picks = cap('event:choose', 'Answer', {
+		options: [
+			{ value: 'A', label: 'Same' },
+			{ value: 'B', label: 'Other' },
+		],
+	})
+	assert.equal(idsByName([banner([picks])]).size, 2)
+})
+
 test('(3) a step left out of the presets stays on offer: a key already on a deck keeps working', () => {
 	const actions = offered([banner(DUEL)])
 	assert.equal(capabilityState(actions, 'Score banner', 'step:f1').state, 'allowed')

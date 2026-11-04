@@ -47,7 +47,7 @@ The **Take** key from **Show control** says what its next press does for the sel
 | PREVIEW and its name        | the page puts a cue on PREVIEW before taking it                                              | puts it on PREVIEW                       |
 | FROM THE TOP                | a One-by-one folder has reached its end, no graphic up                                       | goes back to its first cue; nothing airs |
 
-A Take key dragged from an older module keeps the words it was dragged with, because a button holds its own copy: it reads TAKE OFF instead of OUT, and never PREVIEW. To change it, drag the preset onto it again.
+A Take key placed as a copy from an older module, as every key is before Companion 5.1, keeps the words it was dragged with: it reads TAKE OFF instead of OUT, and never PREVIEW. To change it, drag the preset onto it again. A Linked key, the default in Companion 5.1, takes the new words by itself.
 
 On a One-by-one folder, the Take key's OUT takes off its graphics and its clips play on. The **Out** key takes off its clips too.
 

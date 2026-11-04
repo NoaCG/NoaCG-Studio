@@ -373,7 +373,7 @@ test("L1 AC-8: presets list the pinned graphics' live controls only, picks as op
 			['Quiz', ['Reveal (Quiz)', 'Answer: Answer A (Quiz)', 'Answer: Answer B (Quiz)']],
 		],
 	)
-	const answerB = presets['graphic_1_2'] as {
+	const answerB = presets[groups[1].ids[2]] as {
 		steps: { down: { actionId: string; options: unknown }[] }[]
 		feedbacks: { feedbackId: string }[]
 	}
