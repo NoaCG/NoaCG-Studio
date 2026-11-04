@@ -83,7 +83,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 						{ id: 'take', label: 'Takes the selected cue' },
 						{ id: 'take-off', label: 'Takes it off air' },
 						{ id: 'preview', label: 'Puts it on PREVIEW' },
-						{ id: 'from-the-top', label: 'Starts its folder again from the top' },
+						{ id: 'from-the-top', label: 'Goes back to the top of its folder' },
 					],
 					default: 'take-off',
 				},

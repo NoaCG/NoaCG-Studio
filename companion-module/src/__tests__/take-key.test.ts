@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { CompanionPresetFeedback } from '@companion-module/base'
 import { UpdateActions } from '../actions.js'
-import { AMBER, BLACK, GREY, RED, UpdateFeedbacks, WHITE, type FeedbacksSchema } from '../feedbacks.js'
+import { AMBER, BLACK, DARK_AMBER, GREY, RED, UpdateFeedbacks, WHITE, type FeedbacksSchema } from '../feedbacks.js'
 import { PanelClient } from '../panel.js'
 import { buildPresets } from '../presets.js'
 import type { PanelRows, PanelState, PanelVerb } from '../protocol.js'
@@ -124,7 +124,7 @@ test('preview first: the key says the press only previews', async () => {
 	show(state({ selected: 'cue_a', space: 'preview', live: [] }))
 	const key = draw(p.style, p.feedbacks)
 	assert.equal(key.text, 'PREVIEW\\nAnna')
-	assert.notEqual(key.bgcolor, RED, 'nothing airs, so not the on-air red')
+	assert.equal(key.bgcolor, DARK_AMBER, 'nothing airs, so not the on-air red')
 })
 
 test("a held folder: the word comes from what the page says a press does, though `live` only lists a folder's cues", async () => {

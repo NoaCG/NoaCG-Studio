@@ -37,15 +37,17 @@ To stop a panel, press **Revoke** beside it in the page's panel list. To pair ag
 
 The **Take** key from **Show control** says what its next press does for the selected cue, without you doing anything:
 
-| Reads, for the selected cue | When                                                | The next press          |
-| --------------------------- | --------------------------------------------------- | ----------------------- |
-| TAKE and its name           | it is off air, even if another cue is on air        | takes it                |
-| OUT and its name, on red    | it is on air                                        | takes it off            |
-| Grey TAKE, no name          | nothing is selected                                 | does nothing            |
-| PREVIEW and its name        | the page puts a cue on PREVIEW before taking it     | puts it on PREVIEW      |
-| FROM THE TOP                | a One-by-one folder has reached its end, nothing up | starts the folder again |
+| Reads, for the selected cue | When                                                                                         | The next press                           |
+| --------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| TAKE and its name           | it is off air, even if another cue is on air; or a One-by-one folder has another cue to take | takes it, or that next cue               |
+| OUT and its name, on red    | it is on air                                                                                 | takes it off                             |
+| Grey TAKE                   | nothing is selected (no name), or the page would not take it now                             | does nothing                             |
+| PREVIEW and its name        | the page puts a cue on PREVIEW before taking it                                              | puts it on PREVIEW                       |
+| FROM THE TOP                | a One-by-one folder has reached its end, no graphic up                                       | goes back to its first cue; nothing airs |
 
 A Take key dragged from an older module keeps the words it was dragged with, because a button holds its own copy: it reads TAKE OFF instead of OUT, and never PREVIEW. To change it, drag the preset onto it again.
+
+On a One-by-one folder, OUT takes off its graphics; its clips play on.
 
 A graphic's key also shows what its last press came to:
 
