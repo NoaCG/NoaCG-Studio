@@ -134,7 +134,7 @@ export interface SvgRecipeRoles {
 export interface SvgProposalContext {
   inventory: SvgProposalInventory;
   recipes: Readonly<Record<string, SvgRecipeRoles>>;
-  /** Recipe ids, `recipe.key:value` ids and `countdown` the caller supports. */
+  /** Recipe ids, `recipe.key:value` ids and `field.countdown` the caller supports. */
   capabilities: readonly string[];
 }
 

@@ -318,7 +318,13 @@ async function inPage({ dev, cases, legacy, artwork }) {
     artwork: build(base(artImp, { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: artImp.candidates.findIndex((c) => c.label === 'Programme text') }, options: { artwork: true } })),
     ...Object.fromEntries(dev.map((d) => [`fixed:${d.id}`, build(base(imported(d.markup)))])),
   };
-  if (!C || typeof C.analyseCreditsStyle !== 'function') return { pins };
+  // The editable roll's raw html with its list field, for the formatter round trip (#1955).
+  const editableRaw = (() => {
+    const behaviour = { kind: 'recipe', recipe: 'credits', layers: box ? { box } : {}, fields: { credits } };
+    const tpl = I.IMPORTED_SVG.create({ designSvg: base(legacyImp, behaviour) });
+    return { html: tpl.html, field: tpl.fields.find((f) => f.value.includes('\n')) };
+  })();
+  if (!C || typeof C.analyseCreditsStyle !== 'function') return { pins, editableRaw };
 
   const parser = new Function(`${window.NOACG_PARSER.CREDITS_PARSER_JS}\nreturn parseCredits;`)();
   const parse = (list) => parser(list, (s) => s);
@@ -437,7 +443,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     const field = tpl.fields.find((f) => f.ftype === 'textarea');
     return { preview, engine: C.creditsEngine(svg), errors: C.validateCreditsBinding(svg), doc: window.NOACG_COMPOSE.composeDocument(tpl), html: tpl.html, css: tpl.css, js: tpl.js, field, fieldCount: tpl.fields.length, sourceMarkup: imp.markup, anchors: preview.anchors };
   };
-  if (typeof C.styledCredits !== 'function') return { pins };
+  if (typeof C.styledCredits !== 'function') return { pins, editableRaw };
   // Previews only: the reading of a pick, as the drawn answer and as the other column.
   const previewOf = (markup, word, choice = {}) => {
     const imp = imported(markup);
@@ -571,6 +577,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     cards,
     issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
     pins,
+    editableRaw,
     devResults,
     caseResults,
     several,
@@ -616,10 +623,13 @@ const sha = (o) => hash(JSON.stringify(o));
 
 /** Taken on main e680acd1 before this row, and equal on this branch: saved editable and original-
  *  artwork credits, and each dev drawing imported as plain artwork, build byte for byte as before.
- *  Re-taken for #1977: the imported fit runtime's own text changed (line breaks kept on air), so
- *  every one of these builds' js moved with it; on the previous runtime the previous pins hold. */
+ *  Re-taken for #1955: on main 8eddbde1 the editable build was 0c878096aa7d0a8b; its html now adds
+ *  only the `prettier-ignore` comment before the list holder and one sentence in the comment
+ *  above it (the #1955 test below reads the holder back after formatting). Re-taken again for
+ *  #1977: the imported fit runtime's own text changed (line breaks kept on air), so every one of
+ *  these builds' js moved with it; on the previous runtime the previous pins hold. */
 const PINS = {
-  editable: '819d9723dfbfcc13',
+  editable: 'b6ac84dbe38d168e',
   artwork: 'b93e7de7d63bedf0',
   'fixed:credits-1': '45c6d1897600f92e',
   'fixed:credits-2': '363aa7f9c94d107a',
@@ -1000,6 +1010,19 @@ test('row 19: the list holder keeps its line breaks through the editor\'s code f
   const holder = new RegExp(`<div id="${R.styled.one.field.field}"[^>]*>([\\s\\S]*?)</div>`).exec(formatted);
   assert.ok(holder, 'the holder is in the formatted html');
   assert.equal(holder[1], R.styled.one.field.value);
+});
+
+test('#1955: the editable roll\'s list holder keeps its line breaks through the code formatter', async () => {
+  // Saved editable rolls (no styled engine) keep the operator's list in the same kind of holder,
+  // and the production page formats it with these options. Formatting twice changes nothing more.
+  const { html, field } = R.editableRaw;
+  assert.ok(field && field.value.split('\n').length > 2, 'the sample list has several lines');
+  const options = { printWidth: 100, tabWidth: 2, endOfLine: 'lf', parser: 'html' };
+  const formatted = await prettier.format(html, options);
+  const holderOf = (doc) => new RegExp(`<div id="${field.field}"[^>]*>([\\s\\S]*?)</div>`).exec(doc)?.[1];
+  const escaped = field.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  assert.equal(holderOf(formatted), escaped);
+  assert.equal(holderOf(await prettier.format(formatted, options)), escaped);
 });
 
 // ── Row 20: role-beside credits rendered in the artwork's own styling ────────────────────────
