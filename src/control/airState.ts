@@ -267,10 +267,13 @@ export interface AirAtRequest {
   moves: number;
   commands: number;
   carried?: AirPart['carried'];
+  /** The clock memory this page held when asked: only a clock it held is kept over the report. */
+  clocks?: AirPart['clocks'];
+  speaking?: AirPart['speaking'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, carried: air.carried };
+  return { moves: air.moves, commands: air.commands, carried: air.carried, clocks: air.clocks, speaking: air.speaking };
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -345,23 +348,27 @@ export function seedFromResolve(
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined) {
-      const kept = movedKeys.has(clock.field) ? air.clocks[graphic] : undefined;
+      // Kept when this page held the clock when it asked, or a command's data carried it: a verb on a
+      // clock it never held was worked out from the design's seed, and the report knows better.
+      const kept = movedKeys.has(clock.field) && (at.clocks?.[graphic] !== undefined || clock.field in moved) ? air.clocks[graphic] : undefined;
       if (kept === undefined) clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       // A clock this page kept has its baseline from what it kept, unless air's record holds the
       // field (then the record's figure stands, as it would with no read).
       values[clock.field] = plainClockValue(kept ?? values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
-      // Field by field: one a command moved keeps this page's memory, the other takes the report's.
+      // Field by field: one a command moved keeps this page's memory (if it held one when it asked),
+      // the other takes the report's.
       const memory: Record<string, string> = {};
       for (const field of [pair.fieldA, pair.fieldB]) {
         const held = speaking[graphic]?.[field];
-        memory[field] = !movedKeys.has(field) ? wire(field) : (held ?? moved[field] ?? wire(field));
+        const keep = movedKeys.has(field) && held !== undefined && (at.speaking?.[graphic]?.[field] !== undefined || field in moved);
+        memory[field] = keep ? held : wire(field);
         values[field] = plainClockValue(values[field]);
       }
       // One speaker holds the floor: a clock a verb started meanwhile stops the other where it
       // stood at that instant, whatever the older report says it was doing.
-      const started = [pair.fieldA, pair.fieldB].find((field) => movedKeys.has(field) && clockOriginOf(memory[field]) !== null);
+      const started = [pair.fieldA, pair.fieldB].find((field) => movedKeys.has(field) && memory[field] === speaking[graphic]?.[field] && clockOriginOf(memory[field]) !== null);
       const since = started ? clockOriginOf(memory[started]) : null;
       for (const field of [pair.fieldA, pair.fieldB]) {
         if (since !== null && field !== started && !movedKeys.has(field) && clockOriginOf(memory[field]) !== null) memory[field] = speakingClockAt(memory[field], since);
