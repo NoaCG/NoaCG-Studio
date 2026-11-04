@@ -27,11 +27,9 @@ import type { LogEntry } from './eventLog';
 import type { AirPart, LogPart } from './playoutSession';
 import { withLiveCue, type LiveCueMap } from './liveCue.ts';
 import {
-  clockOriginOf,
   clockRowEffect,
   clockValueAfterUpdate,
   plainClockValue,
-  speakingClockAt,
   speakingClockRowEffect,
   type ClockSpec,
   type SpeakingClockPair,
@@ -138,27 +136,10 @@ export function typedAfter(prev: Record<string, TypedValues>, graphic: string, m
  * renderer's merged data does, and a plain resend of the cue's own time never erases the origin.
  * `now` is the monitor's receive instant, standing in for a row's server time when it has none.
  */
-export function programItems(
-  air: AirPart,
-  items: readonly ReplayItem[],
-  specs: ClockSpecs,
-  now: number,
-  /** Commands heard (`claimAndApply`), not a stage rebuilt: a clock verb then counts as moving its
-   *  clock for the resolve's guard. */
-  heard = false,
-): { air: AirPart; out: ControlSendItem[] } {
+export function programItems(air: AirPart, items: readonly ReplayItem[], specs: ClockSpecs, now: number): { air: AirPart; out: ControlSendItem[] } {
   const out: ControlSendItem[] = [];
   let clocks = air.clocks;
   let speaking = air.speaking;
-  /** A clock verb moves its clock's state with no field carried: counted like a carried field, so
-   *  a resolve answered after it keeps this page's clock (issue #2099). */
-  let carried = air.carried;
-  const verbMoved = (graphic: string, fields: readonly string[]) => {
-    if (!heard) return;
-    const counts = { ...(carried?.[graphic] ?? {}) };
-    for (const field of fields) counts[field] = (counts[field] ?? 0) + 1;
-    carried = { ...carried, [graphic]: counts };
-  };
   /** The item with its clock write before or after it, as the effect says. */
   const around = (item: ControlSendItem, clockItem: ControlSendItem, when: 'before' | 'after') => {
     if (when === 'before') out.push(clockItem);
@@ -199,7 +180,6 @@ export function programItems(
         staged = { graphic: item.graphic, msg: { ...msg, data: forwarded } };
       }
       const effect = speakingClockRowEffect({ msg, created_at: item.created_at }, pair, held, now);
-      if (effect) verbMoved(item.graphic, Object.keys(effect.values));
       if (effect || moved) speaking = { ...speaking, [item.graphic]: effect ? { ...held, ...effect.values } : held };
       if (effect) around(staged, { graphic: item.graphic, msg: { t: 'update', data: effect.values } }, effect.when);
       else out.push(staged);
@@ -227,10 +207,9 @@ export function programItems(
       continue;
     }
     clocks = { ...clocks, [item.graphic]: effect.value };
-    verbMoved(item.graphic, [clock.field]);
     around(staged, { graphic: item.graphic, msg: { t: 'update', data: { [clock.field]: effect.value } } }, effect.when);
   }
-  return { air: clocks === air.clocks && speaking === air.speaking && carried === air.carried ? air : { ...air, clocks, speaking, ...(carried ? { carried } : {}) }, out };
+  return { air: clocks === air.clocks && speaking === air.speaking ? air : { ...air, clocks, speaking }, out };
 }
 
 /**
@@ -258,7 +237,7 @@ export function claimAndApply(
   }
   // A marker never touches what was aired, so the commands are remembered together, in order.
   if (program.length > 0) next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length };
-  return programItems(next, program, specs, now, true);
+  return programItems(next, program, specs, now);
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
@@ -267,13 +246,10 @@ export interface AirAtRequest {
   moves: number;
   commands: number;
   carried?: AirPart['carried'];
-  /** The clock memory this page held when asked: only a clock it held is kept over the report. */
-  clocks?: AirPart['clocks'];
-  speaking?: AirPart['speaking'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, carried: air.carried, clocks: air.clocks, speaking: air.speaking };
+  return { moves: air.moves, commands: air.commands, carried: air.carried };
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -296,11 +272,12 @@ function clockSeedFromReport(clock: ClockSpec, reported: string): string {
   return clock.fixedInstant ? clock.seed : reported;
 }
 
-/** A graphic's fields a command carried, or a clock verb moved, since the request. */
-function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Set<string> {
+/** A graphic's fields a command carried since the request, with what air's record holds for them. */
+function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<string, string> {
   const now = air.carried?.[graphic] ?? {};
   const then = at.carried?.[graphic] ?? {};
-  return new Set(Object.keys(now).filter((key) => now[key] !== then[key]));
+  const record = air.aired[graphic] ?? {};
+  return Object.fromEntries(Object.keys(now).filter((key) => now[key] !== then[key] && key in record).map((key) => [key, record[key]]));
 }
 
 /**
@@ -341,37 +318,24 @@ export function seedFromResolve(
     // A field a command moved while the read was out holds that command's figure, and its clock
     // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
     // back, and the next +1 counted from it).
-    const movedKeys = air.commands !== at.commands ? movedSince(air, at, graphic) : new Set<string>();
-    const record = air.aired[graphic] ?? {};
-    /** What air's record holds for the moved fields it has. */
-    const moved = Object.fromEntries([...movedKeys].filter((key) => key in record).map((key) => [key, record[key]]));
+    const moved = air.commands !== at.commands ? movedSince(air, at, graphic) : {};
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
-    if (clock && values[clock.field] !== undefined) {
-      // Kept when this page held the clock when it asked, or a command's data carried it: a verb on a
-      // clock it never held was worked out from the design's seed, and the report knows better.
-      const kept = movedKeys.has(clock.field) && (at.clocks?.[graphic] !== undefined || clock.field in moved) ? air.clocks[graphic] : undefined;
-      if (kept === undefined) clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
-      // A clock this page kept has its baseline from what it kept, unless air's record holds the
-      // field (then the record's figure stands, as it would with no read).
-      values[clock.field] = plainClockValue(kept ?? values[clock.field]);
+    if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
+      clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
+      values[clock.field] = plainClockValue(values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
-      // Field by field: one a command moved keeps this page's memory (if it held one when it asked),
-      // the other takes the report's.
+      // Field by field: one a command moved keeps this page's memory, the other takes the report's.
       const memory: Record<string, string> = {};
       for (const field of [pair.fieldA, pair.fieldB]) {
         const held = speaking[graphic]?.[field];
-        const keep = movedKeys.has(field) && held !== undefined && (at.speaking?.[graphic]?.[field] !== undefined || field in moved);
-        memory[field] = keep ? held : wire(field);
+        if (field in moved) {
+          if (held !== undefined) memory[field] = held;
+          continue;
+        }
+        memory[field] = wire(field);
         values[field] = plainClockValue(values[field]);
-      }
-      // One speaker holds the floor: a clock a verb started meanwhile stops the other where it
-      // stood at that instant, whatever the older report says it was doing.
-      const started = [pair.fieldA, pair.fieldB].find((field) => movedKeys.has(field) && memory[field] === speaking[graphic]?.[field] && clockOriginOf(memory[field]) !== null);
-      const since = started ? clockOriginOf(memory[started]) : null;
-      for (const field of [pair.fieldA, pair.fieldB]) {
-        if (since !== null && field !== started && !movedKeys.has(field) && clockOriginOf(memory[field]) !== null) memory[field] = speakingClockAt(memory[field], since);
       }
       speaking = { ...speaking, [graphic]: memory };
     }

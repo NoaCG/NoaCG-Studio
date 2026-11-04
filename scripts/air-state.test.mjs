@@ -232,8 +232,7 @@ test('a speaking pair with one field moved while the read was out: that field ke
   const heard = claimAndApply(before, [update('debate', { fa: `04:00@${T}` }, 'u6')], createAppliedOnce(), DEBATE, T).air;
   const air = seedFromResolve(heard, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: `04:30@${T}` } } } }, [], asked, CUES, DEBATE);
   assert.equal(air.speaking.debate.fa, heard.speaking.debate.fa, 'the moved field keeps the page\'s memory');
-  // fa runs since T, so fb, which the older report has running too, stops where it stood then.
-  assert.equal(air.speaking.debate.fb, '04:30', 'the other takes the report\'s time, stopped: one speaker holds the floor');
+  assert.equal(air.speaking.debate.fb, `04:30@${T}`, 'the other takes the report\'s stamped value');
   assert.equal(air.aired.debate.fb, '04:30', 'and its baseline is plain');
   assert.equal(air.aired.debate.fa, heard.aired.debate.fa);
 });
@@ -271,85 +270,6 @@ test('a field kept over the report still takes another screen\'s later row once 
   assert.equal(seeded.aired.lt.f0, '8');
   const caught = claimAndApply(seeded, [update('lt', { f0: '9' }, 'theirs')], applied, NO_CLOCKS, T).air;
   assert.equal(caught.aired.lt.f0, '9');
-});
-
-test('A CLOCK VERB HEARD WHILE THE READ WAS OUT (#2099): its start, stop or reset is not put back by the older report', () => {
-  const event = (graphic, name, oid) => ({ graphic, msg: { t: 'event', event: name, oid } });
-  const reported = (data) => ({ liveCue: { score: 'c2' }, live: { score: { data } } });
-  // Stopped at 10:00 when the read was asked; started during it; the report still says stopped.
-  const stopped = claimAndApply(NO_AIR, [update('score', { f5: '10:00' }, 'c0')], createAppliedOnce(), CLOCKS, T).air;
-  const started = claimAndApply(stopped, [event('score', 'clockStart', 'c1')], createAppliedOnce(), CLOCKS, T).air;
-  assert.notEqual(started.clocks.score, stopped.clocks.score, 'the start moved the clock');
-  const afterStart = seedFromResolve(started, reported({ f5: '10:00' }), [], airAtRequest(stopped), CUES, CLOCKS);
-  assert.equal(afterStart.clocks.score, started.clocks.score, 'still running');
-  // Running when asked; stopped (and then reset) during the read; the report still says running.
-  for (const verb of ['clockStop', 'clockReset']) {
-    const held = claimAndApply(started, [event('score', verb, `v-${verb}`)], createAppliedOnce(), CLOCKS, T + 5000).air;
-    const seeded = seedFromResolve(held, reported({ f5: started.clocks.score }), [], airAtRequest(started), CUES, CLOCKS);
-    assert.equal(seeded.clocks.score, held.clocks.score, `${verb} stands`);
-  }
-  // With no verb meanwhile the report still seeds the clock, as before.
-  assert.equal(seedFromResolve(stopped, reported({ f5: `09:00@${T}` }), [], airAtRequest(stopped), CUES, CLOCKS).clocks.score, `09:00@${T}`);
-});
-
-test('a speaking-clock verb heard while the read was out keeps that clock\'s memory; the other takes the report', () => {
-  const both = claimAndApply(NO_AIR, [update('debate', { fa: '05:00', fb: '05:00' }, 'd0')], createAppliedOnce(), DEBATE, T).air;
-  const switched = claimAndApply(both, [{ graphic: 'debate', msg: { t: 'event', event: 'switch', oid: 'd1' } }], createAppliedOnce(), DEBATE, T).air;
-  const [movedField] = Object.keys(switched.speaking.debate).filter((f) => switched.speaking.debate[f] !== both.speaking.debate?.[f]);
-  assert.ok(movedField, 'the switch moved a clock');
-  const other = movedField === 'fa' ? 'fb' : 'fa';
-  const air = seedFromResolve(switched, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: '05:00', fb: `04:30@${T}` } } } }, [], airAtRequest(both), CUES, DEBATE);
-  assert.equal(air.speaking.debate[movedField], switched.speaking.debate[movedField]);
-  // The switch started movedField at T, so the other reads the report's time, not running.
-  if (other === 'fb') assert.equal(air.speaking.debate.fb, '04:30');
-});
-
-test('a moved pair field this page held no memory for takes the report\'s, so the pair keeps both fields', () => {
-  const asked = airAtRequest(NO_AIR);
-  // The page's memory for the pair is gone (a rebuilt stage), and a command moves fa during the read.
-  const heard = { ...claimAndApply(NO_AIR, [update('debate', { fa: '04:00' }, 'p1')], createAppliedOnce(), DEBATE, T).air, speaking: {} };
-  const air = seedFromResolve(heard, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: `04:30@${T}` } } } }, [], asked, CUES, DEBATE);
-  assert.deepEqual(Object.keys(air.speaking.debate).sort(), ['fa', 'fb']);
-  assert.equal(air.speaking.debate.fb, `04:30@${T}`);
-});
-
-test('a clock a verb moved during the read, with no field on air\'s record, takes its baseline from the clock it kept', () => {
-  const event = (name, oid) => ({ graphic: 'score', msg: { t: 'event', event: name, oid } });
-  // The page holds the clock (its monitor's memory) but no field on air's record.
-  const holding = { ...NO_AIR, clocks: { score: '10:00' } };
-  const asked = airAtRequest(holding);
-  const started = claimAndApply(holding, [event('clockStart', 's1')], createAppliedOnce(), CLOCKS, T).air;
-  assert.equal(started.aired.score?.f5, undefined, 'no field on the record');
-  const air = seedFromResolve(started, { liveCue: { score: 'c2' }, live: { score: { data: { f5: '07:00' } } } }, [], asked, CUES, CLOCKS);
-  assert.equal(air.clocks.score, started.clocks.score);
-  assert.notEqual(air.aired.score.f5, '07:00', 'the baseline is the kept clock\'s, not the report\'s');
-});
-
-test('a speaking-clock switch heard during the read stops the other clock even when the older report has it running', () => {
-  // The page holds both stopped; the report (older, from a missed row) has fb running since T.
-  const both = claimAndApply(NO_AIR, [update('debate', { fa: '05:00', fb: '05:00' }, 'w0')], createAppliedOnce(), DEBATE, T).air;
-  const switched = claimAndApply(both, [{ graphic: 'debate', msg: { t: 'event', event: 'switch', oid: 'w1', }, created_at: new Date(T + 30_000).toISOString() }], createAppliedOnce(), DEBATE, T + 30_000).air;
-  const running = Object.keys(switched.speaking.debate).find((f) => switched.speaking.debate[f].includes('@'));
-  assert.ok(running, 'the switch started one clock');
-  const other = running === 'fa' ? 'fb' : 'fa';
-  const air = seedFromResolve(switched, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: '05:00', fb: '05:00', [other]: `05:00@${T}` } } } }, [], airAtRequest(both), CUES, DEBATE);
-  assert.equal(air.speaking.debate[running], switched.speaking.debate[running], 'the switched-to clock runs');
-  assert.ok(!air.speaking.debate[other].includes('@'), 'the other clock is stopped');
-  assert.equal(air.speaking.debate[other], '04:30', 'where it stood at the switch');
-});
-
-test('a clock verb heard during the read on a page that held no clock when it asked takes the report, as on main', () => {
-  const event = (name, oid) => ({ graphic: 'score', msg: { t: 'event', event: name, oid } });
-  // A fresh page: no clock memory at the ask. A start heard meanwhile is worked out from the seed.
-  for (const verb of ['clockStart', 'clockStop']) {
-    const heard = claimAndApply(NO_AIR, [event(verb, `f-${verb}`)], createAppliedOnce(), CLOCKS, T + 180_000).air;
-    const air = seedFromResolve(heard, { liveCue: { score: 'c2' }, live: { score: { data: { f5: '07:00' } } } }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
-    assert.equal(air.clocks.score, '07:00', `${verb}: the report's clock, not one made up from the seed`);
-  }
-  // A debate board likewise: a switch on a page with no pair memory takes the report's clocks.
-  const switched = claimAndApply(NO_AIR, [{ graphic: 'debate', msg: { t: 'event', event: 'switch', oid: 'f-sw' } }], createAppliedOnce(), DEBATE, T + 60_000).air;
-  const debate = seedFromResolve(switched, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `04:00@${T}`, fb: '05:00' } } } }, [], airAtRequest(NO_AIR), CUES, DEBATE);
-  assert.deepEqual(debate.speaking.debate, { fa: `04:00@${T}`, fb: '05:00' });
 });
 
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {
