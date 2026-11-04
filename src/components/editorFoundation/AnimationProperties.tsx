@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { baseValues } from '../../blocks/baseEdits';
-import { CONTROL_CHANNELS, isArmed, keyedAt, poseKey, sequenceAuthoringReason, writeChannel, type NumericProperty } from '../../blocks/editorAnimation';
+import { CONTROL_CHANNELS, controlKeyReason, isArmed, keyedAt, poseKey, writeChannel, type NumericProperty } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { RenderedPart } from './protocol';
@@ -57,7 +57,9 @@ export default function AnimationProperties({ template, selector, session, appea
   const [error, setError] = useState('');
   let base;
   try { base = baseValues(template, selector); } catch { return null; }
-  const reason = sequenceAuthoringReason(readTimeline(template).data);
+  // Position, Scale and Rotation are refused together or not at all (#1982: a whole sequence, a
+  // look, or measured geometry), so one control answers for the panel.
+  const reason = controlKeyReason(template, readTimeline(template).data, selector, 'x');
   if (reason) return <p className="ef-muted">{reason} Use Edit base values below.</p>;
   // On a flag a layer can edit the departing cue, whose pose the arriving preview keeps hidden.
   const pose = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue);
