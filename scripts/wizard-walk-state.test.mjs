@@ -611,17 +611,22 @@ test('a Replace anyway tick replaces only for the list it was given for (#1987 p
   assert.ok(unseen.log.includes('saveAs Guest 2'), unseen.log.join(', '));
 });
 
-test('the editor door over a held SVG import: reconciled when everything carries, else the separate name (#1986)', () => {
+test('the editor door links a fully reconciled SVG import, but keeps unresolved work separate (#2103)', () => {
   const clean = heldLibrary([]);
   assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', clean.lib), 'reconciled');
   assert.ok(clean.log.includes('apply'));
+  assert.ok(clean.log.includes('link g-held'), 'Save updates the reconciled original');
   assert.ok(!clean.log.some((l) => l.startsWith('nameWorking')));
   const gone = heldLibrary(GONE);
   assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', gone.lib), 'separate');
   assert.ok(!gone.log.includes('apply'), 'unresolved work is not applied');
   assert.ok(gone.log.includes('nameWorking Guest 2'));
-  // Nothing written either way: the editor's own Save decides.
-  assert.ok(![...clean.log, ...gone.log].some((l) => /^(saveAs|saveCurrent|link|keepCopy)/.test(l)));
+  assert.ok(!gone.log.some((l) => l.startsWith('link')), 'unresolved work never links to the original');
+  const checked = heldLibrary(GONE);
+  assert.equal(W.reimportForEditor({ finished: null, made: null, replaceOver: true, replaceFor: sigOf(GONE) }, 'Guest', checked.lib), 'separate');
+  assert.ok(!checked.log.some((l) => /^(apply|link|keepCopy)/.test(l)), 'a saving-door override cannot bypass the editor protection');
+  // Opening the editor still writes no library record: only its Save commits the change.
+  assert.ok(![...clean.log, ...gone.log].some((l) => /^(saveAs|saveCurrent|keepCopy)/.test(l)));
   // A fresh name, or a record the reconcile does not read as an SVG import: the ordinary door.
   const fresh = library({ index: [] });
   assert.equal(W.reimportForEditor({ finished: null, made: null }, 'New', fresh.lib), null);
