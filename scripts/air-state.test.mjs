@@ -19,10 +19,13 @@ import {
   rememberAired,
   restoreItems,
   seedFromResolve,
+  seedOffAirClocks,
+  offAirClockGraphics,
   withReports,
 } from '../src/control/airState.ts';
 import { createAppliedOnce } from '../src/control/commandRoads.ts';
-import { clockRowEffect, clockValueAfterUpdate } from '../src/control/matchClockWire.ts';
+import { clockHeldBeforeRow, clockRowEffect, clockValueAfterUpdate } from '../src/control/matchClockWire.ts';
+import { monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, NO_LOG, createPlayoutSession } from '../src/control/playoutSession.ts';
 
@@ -300,18 +303,27 @@ test('a whole match through the monitor: the start stamps BEFORE, a plain resend
   assert.equal(air.clocks.score, '10:00');
   const start = step({ graphic: 'score', msg: { t: 'event', event: 'clockStart' }, created_at: at(0) });
   assert.deepEqual(start.map((i) => i.msg.t), ['update', 'event'], 'the origin is in the document before the start');
-  assert.equal(start[0].msg.data.f5, `10:00@${T}`);
+  // A native value carries its length (the reset time) and what the cue last sent (#1889).
+  assert.equal(start[0].msg.data.f5, `10:00@${T}/10:00/10:00`);
   // A goal re-sends the cue's whole value set, its plain 10:00 included: the origin survives.
   const goal = step({ graphic: 'score', msg: { t: 'update', data: { f1: '1', f5: '10:00' } }, created_at: at(5) });
   assert.equal(goal.length, 1);
-  assert.equal(air.clocks.score, `10:00@${T}`);
+  assert.equal(air.clocks.score, `10:00@${T}/10:00/10:00`);
+  assert.equal(goal[0].msg.data.f5, air.clocks.score, 'PROGRAM is sent the clock it holds, not the cue\'s time');
   const half = step({ graphic: 'score', msg: { t: 'event', event: 'clockStop' }, created_at: at(5) });
   assert.deepEqual(half.map((i) => i.msg.t), ['event', 'update'], 'the banked time follows the stop');
-  assert.equal(half[1].msg.data.f5, '5:00', 'half time banks the five minutes run, not the seed');
+  assert.equal(half[1].msg.data.f5, '5:00@/10:00/10:00', 'half time banks the five minutes run, not the seed');
+  // #1889: a score Update after the Pause resends the cue's 10:00, which is a resend, not a correction.
+  const score = step({ graphic: 'score', msg: { t: 'update', data: { f1: '2', f5: '10:00' } }, created_at: at(6) });
+  assert.equal(air.clocks.score, '5:00@/10:00/10:00', 'a paused clock stays where it was paused');
+  assert.equal(score[0].msg.data.f5, '5:00@/10:00/10:00');
+  // …while a time the operator types is still a correction.
+  step({ graphic: 'score', msg: { t: 'update', data: { f5: '4:30' } }, created_at: at(6) });
+  assert.equal(air.clocks.score, '4:30@/10:00/4:30');
   const reset = step({ graphic: 'score', msg: { t: 'event', event: 'clockReset' }, created_at: at(6) });
-  assert.equal(reset[1].msg.data.f5, '10:00');
+  assert.equal(reset[1].msg.data.f5, '10:00@/10:00/4:30');
   step({ graphic: 'score', msg: { t: 'stop' } });
-  assert.equal('score' in air.clocks, false, 'off air forgets the clock');
+  assert.equal(air.clocks.score, '10:00@/10:00/4:30', 'off air keeps the clock, as the renderer does (#1889)');
 });
 
 /** An imported duration (jev-svg-import row 9): its own verbs, started by the Take. */
@@ -323,16 +335,23 @@ const DURATIONS = { clocks: new Map([['bug', DURATION]]), pairs: new Map() };
 
 test('an imported duration on the monitor holds the value air holds, through an Out and the next Take', () => {
   // Air's own decision, row by row, in output/main.ts order: the merge, then the row's clock effect.
-  const air = (rows) => rows.reduce((held, row) => {
+  const air = (rows) => rows.reduce((state, row) => {
+    // A duration air holds nothing for and does not show has never been taken (#1903).
+    const held = clockHeldBeforeRow(DURATION, state.held, state.on);
     const merged = row.msg.t === 'update' ? clockValueAfterUpdate(held, row.msg.data.f2) : held;
-    return clockRowEffect(row, DURATION, merged, T)?.value ?? merged;
-  }, undefined);
+    const on = row.msg.t === 'play' ? true : row.msg.t === 'stop' ? false : state.on;
+    return { held: clockRowEffect(row, DURATION, merged, T)?.value ?? merged, on };
+  }, { held: undefined, on: false }).held;
   const monitor = (rows) => rows.reduce((part, row) => programItems(part, [{ graphic: 'bug', ...row }], DURATIONS, T).air, NO_AIR).clocks.bug;
   const row = (mins, msg) => ({ msg, created_at: at(mins) });
   const take = (mins, f2) => [row(mins, { t: 'update', data: { f2 } }), row(mins, { t: 'play' })];
   const walks = {
     'corrected on air, out, taken again': [...take(0, '0:30'), row(0.1, { t: 'update', data: { f2: '0:20' } }), row(0.2, { t: 'stop' }), ...take(0.3, '0:20')],
     'a new length typed off air, reset, taken': [...take(0, '0:30'), row(0.1, { t: 'stop' }), row(0.2, { t: 'update', data: { f2: '0:45' } }), row(0.3, { t: 'event', event: 'clock_reset' }), ...take(0.4, '0:45')],
+    // #1903: never taken is off air, so a Reset or Pause before the first Take keeps it so.
+    'never taken: typed, reset, typed again, taken': [row(0, { t: 'update', data: { f2: '0:45' } }), row(0.1, { t: 'event', event: 'clock_reset' }), row(0.2, { t: 'update', data: { f2: '0:50' } }), ...take(0.3, '0:50')],
+    'never taken: typed, paused, typed again, taken': [row(0, { t: 'update', data: { f2: '0:45' } }), row(0.1, { t: 'event', event: 'clock_pause' }), row(0.2, { t: 'update', data: { f2: '0:50' } }), ...take(0.3, '0:50')],
+    'never taken: reset with nothing sent, typed, taken': [row(0, { t: 'event', event: 'clock_reset' }), row(0.1, { t: 'update', data: { f2: '0:50' } }), ...take(0.2, '0:50')],
   };
   for (const [name, rows] of Object.entries(walks)) {
     for (let n = 1; n <= rows.length; n += 1) {
@@ -341,6 +360,9 @@ test('an imported duration on the monitor holds the value air holds, through an 
   }
   assert.match(air(walks['corrected on air, out, taken again']), /^0:30@\d+\/0:30\/0:20$/, 'a correction on air never becomes the length');
   assert.match(air(walks['a new length typed off air, reset, taken']), /^0:45@\d+\/0:45\/0:45$/, 'a time typed off air is the length');
+  for (const name of ['never taken: typed, reset, typed again, taken', 'never taken: typed, paused, typed again, taken', 'never taken: reset with nothing sent, typed, taken']) {
+    assert.match(air(walks[name]), /^0:50@\d+\/0:50\/0:50$/, `${name}: the first Take counts the time in the field (#1903)`);
+  }
 });
 
 test('the monitor is sent the imported clock it holds, so a resend never resets a paused clock on PROGRAM', () => {
@@ -362,7 +384,7 @@ test('the monitor is sent the imported clock it holds, so a resend never resets 
 
 test('a row with no server time is stamped with the monitor\'s own receive instant', () => {
   const run = programItems(NO_AIR, [{ graphic: 'score', msg: { t: 'event', event: 'clockStart' } }], CLOCKS, T + 42);
-  assert.equal(run.out[0].msg.data.f5, `10:00@${T + 42}`, 'from the seed, at now');
+  assert.equal(run.out[0].msg.data.f5, `10:00@${T + 42}/10:00/10:00`, 'from the seed, at now');
 });
 
 test('a graphic with no clock passes through untouched, and the part stays the same', () => {
@@ -393,7 +415,7 @@ test('claimAndApply runs the clock fold over what it applies, once', () => {
   assert.equal(first.out.length, 2);
   const echo = claimAndApply(first.air, [start], applied, CLOCKS, T + 5_000);
   assert.deepEqual(echo.out, []);
-  assert.equal(echo.air.clocks.score, `10:00@${T}`, 'the echo does not restamp the origin');
+  assert.equal(echo.air.clocks.score, `10:00@${T}/10:00/10:00`, 'the echo does not restamp the origin');
 });
 
 // ── Rebuilding a fresh PROGRAM stage ───────────────────────────────────────────────────────────
@@ -468,4 +490,99 @@ test('a host that reports a target\'s painted text never moves the monitor off i
   const targets = { clocks: new Map([['bug', TARGET]]), pairs: new Map() };
   const seeded = seedFromResolve(NO_AIR, { liveCue: { bug: 'c1' }, live: { bug: { data: { f2: '3:39:30' } } } }, [], airAtRequest(NO_AIR), [{ id: 'c1', values: { f2: '219:30@1000' } }], targets);
   assert.equal(seeded.clocks.bug, '219:30@1000');
+});
+
+// ── #1906: the monitor rebuilds an OFF-AIR clock on reload from its report AND the rows after it ──
+//
+// Air (a renderer, src/output/main.ts's order) applies every row to its clock and reports it now
+// and then, so the report can be older than an Out and an off-air edit. A page reloaded after that
+// reseeds its PROGRAM memory from the report folded through the rows after it (phase-11 M1), and
+// its next Take then counts exactly what air counts. Walked for the imported duration of the issue
+// and for a native clock, which the monitor now keeps through an Out too (#1889).
+
+test('a reloaded monitor counts what air counts on the next Take of an off-air clock, with commands after the report (#1906)', () => {
+  const NATIVE = { field: 'f2', countsDown: false, seed: '0:00', resetTo: '0:00' };
+  const row = (id, mins, msg) => ({ id, graphic: 'bug', msg, created_at: at(mins) });
+  const take = (id, mins, f2) => [row(id, mins, { t: 'update', data: { f2 } }), row(id + 1, mins, { t: 'play' })];
+  const cases = {
+    // The issue's own example: the report holds the running 0:45; an Out and an off-air 0:20 follow.
+    duration: {
+      clock: DURATION,
+      before: [...take(1, 0, '0:45'), row(3, 0.05, { t: 'update', data: { f1: 'HOME' } })],
+      reportAfter: 3,
+      after: [row(4, 0.2, { t: 'stop' }), row(5, 0.3, { t: 'update', data: { f2: '0:20' } })],
+      next: take(6, 0.5, '0:20'),
+    },
+    // A correction on air (sent 0:30, length 0:45), out: the next Take resends 0:30 and counts the length.
+    'duration, corrected then out': {
+      clock: DURATION,
+      before: [...take(1, 0, '0:45'), row(3, 0.1, { t: 'update', data: { f2: '0:30' } })],
+      reportAfter: 3,
+      after: [row(4, 0.2, { t: 'stop' })],
+      next: take(5, 0.5, '0:30'),
+    },
+    // #1889 on a reload: a native clock paused and taken out; the next Take resends the cue's time.
+    native: {
+      clock: NATIVE,
+      before: [...take(1, 0, '0:00'), row(3, 0, { t: 'event', event: 'clockStart' })],
+      reportAfter: 3,
+      after: [row(4, 10, { t: 'event', event: 'clockStop' }), row(5, 10.5, { t: 'stop' })],
+      next: take(6, 11, '0:00'),
+    },
+  };
+  for (const [name, c] of Object.entries(cases)) {
+    const specs = { clocks: new Map([['bug', c.clock]]), pairs: new Map() };
+    // AIR: every row, in order.
+    const airAfter = (rows, held) => rows.reduce((value, r) => {
+      const merged = r.msg.t === 'update' && r.msg.data.f2 !== undefined ? clockValueAfterUpdate(value, r.msg.data.f2) : value;
+      return clockRowEffect(r, c.clock, merged, T)?.value ?? merged;
+    }, held);
+    const reported = airAfter(c.before);
+    const onAir = airAfter([...c.after, ...c.next], reported);
+    // THE PAGE, reloaded after `after`: the resolve's report (baseline id `reportAfter`), the rows
+    // the off-air read answers (outputRecovery's own filter), the seed, then the next Take.
+    const resolved = { liveCue: { bug: '' }, live: { bug: { event: c.reportAfter, data: { f1: 'HOME', f2: reported } } } };
+    const graphics = offAirClockGraphics(resolved, specs);
+    assert.deepEqual(graphics, ['bug'], `${name}: an off-air clock with a report is rebuilt`);
+    const { snapshotAt } = planOutputRecovery(graphics, resolved.live);
+    const log = [...c.before, ...c.after];
+    const rows = monitorReplay(graphics, snapshotAt, log);
+    assert.equal(rows.length, c.after.length, `${name}: only the rows after the report`);
+    const seeded = seedOffAirClocks(NO_AIR, resolved, { graphics, rows }, airAtRequest(NO_AIR), specs, T);
+    const monitor = programItems(seeded, c.next, specs, T).air.clocks.bug;
+    assert.equal(monitor, onAir, `${name}: the monitor's next Take counts what air counts`);
+    // Without the rows after the report (the withdrawn row 11 fix), or without any reseed (before),
+    // the monitor would count something else: the case reaches the fault.
+    const reportOnly = programItems(seedOffAirClocks(NO_AIR, resolved, { graphics, rows: [] }, airAtRequest(NO_AIR), specs, T), c.next, specs, T).air.clocks.bug;
+    const unseeded = programItems(NO_AIR, c.next, specs, T).air.clocks.bug;
+    assert.ok(reportOnly !== onAir || unseeded !== onAir, `${name}: the case tells the fix from the faults (${reportOnly}, ${unseeded} vs ${onAir})`);
+  }
+});
+
+test('an off-air clock is not rebuilt over a command applied while the resolve was out, nor with no report or a read that failed (#1906 M2, M3)', () => {
+  const resolved = { liveCue: { bug: '' }, live: { bug: { event: 3, data: { f2: '0:45@out/0:45/0:45' } } } };
+  const specs = { clocks: new Map([['bug', DURATION]]), pairs: new Map() };
+  const graphics = offAirClockGraphics(resolved, specs);
+  const asked = airAtRequest(NO_AIR);
+  // A command applied meanwhile is newer than the rows: the page keeps its own memory.
+  const moved = programItems({ ...NO_AIR, commands: 1 }, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:50' } } }], specs, T).air;
+  assert.equal(seedOffAirClocks(moved, resolved, { graphics, rows: [] }, asked, specs, T).clocks.bug, moved.clocks.bug);
+  // No report: nothing to rebuild from.
+  assert.deepEqual(offAirClockGraphics({ liveCue: {}, live: {} }, specs), []);
+  // The read did not answer for it (not read to the head): no reseed from a report the rows may contradict.
+  assert.equal('bug' in seedOffAirClocks(NO_AIR, resolved, { graphics: [], rows: [] }, asked, specs, T).clocks, false);
+  // A clock on air is the on-air seed's, not this one's.
+  assert.deepEqual(offAirClockGraphics({ liveCue: { bug: 'c1' }, live: resolved.live }, specs), []);
+});
+
+test('only a duration held nowhere and off air there is never taken; on air or reported, it reads as before (#1903 N1, N2)', () => {
+  assert.equal(clockHeldBeforeRow(DURATION, undefined, false), '12:08@out/12:08/12:08', 'never sent, off air: the start time, off air');
+  assert.equal(clockHeldBeforeRow(DURATION, undefined, true), undefined, 'on air with nothing held (a lost report): unknown, as before');
+  assert.equal(clockHeldBeforeRow(DURATION, '0:18', false), '0:18', 'a bare value (a host\'s painted report) is not absent');
+  assert.equal(clockHeldBeforeRow(MATCH, undefined, false), undefined, 'a clock the operator starts has no Take to wait for');
+  // The monitor: a duration on air that it holds nothing for, corrected, stays a correction on air.
+  const live = { ...NO_AIR, liveCue: { bug: 'c1' } };
+  assert.equal(programItems(live, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:20' } } }], DURATIONS, T).air.clocks.bug, '0:20');
+  // …and off air it is the length.
+  assert.equal(programItems(NO_AIR, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:20' } } }], DURATIONS, T).air.clocks.bug, '0:20@out/0:20/0:20');
 });

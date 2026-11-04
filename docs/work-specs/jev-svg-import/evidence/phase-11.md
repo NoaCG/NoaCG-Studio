@@ -125,3 +125,99 @@ On a fresh branch from `origin/main`, landed through the merge queue:
 
 The revert paints a target's hours as minutes again and restores rows 9 and 10's wire, monitor and
 resolver behaviour. No stored format changes, so nothing published needs republishing.
+
+## Follow-up: the clock wire and the monitor (#1889, #1903, #1906)
+
+After the run, on `4e6b1114` (PR #2067 landed: server-instant stamping, `clockFollower`, both
+exported pages carrying the wire's decision). One owner, branch
+`claude/fix-clock-wire-1889-1903-1906`. #1884 item 1 (the same length typed twice off air) waits
+on the owner's decision whether an off-air Take counts the length or the field's last sent value,
+and is not touched; #1884 item 2 (re-fit as the clock ticks) belongs to `importedClockJs`, which
+another follow-up owns.
+
+### Rules, stated before the code
+
+Risky scenario (reload and recovery rules change). Each line is observable.
+
+- **W1 (#1889) A native clock's value says what the cue last sent.** Once a clock row has moved a
+  native clock (Start, Pause, Reset, a correction while it runs), its wire value has the imported
+  clock's shape, `time@slot/length/sent`, with the design's reset time as its length. A resend of
+  the cue's time (equal to `sent`) moves nothing: Start, Pause, then a score Update leaves the
+  clock at the paused time on air, on the program monitor and after a reload. The same holds
+  running (a Pause, a Start, then a score Update does not pull it back to the cue's time).
+- **W2 A typed time is still a correction.** Held, the clock holds at the typed time. Running, it
+  runs on from the typed time, counted from the update row's instant, and a reload shows it
+  running (before, the wire banked it held, so a reload showed it stopped). The Update keeps its
+  fast road (the owner's slow-road decision covers imported clocks only), so live outputs count
+  from their own arrival as the native runtime always did, and a reload counts from the instant in
+  the report it boots from (the reporting renderer's arrival) or, replaying the row, from its server
+  time: they can differ by the fast road's lead, under a second.
+- **W3 Out and Take of a native clock.** Out leaves the clock as it stands, as before; the next
+  Take resends the cue's time, which moves nothing. The program monitor keeps a native clock's
+  value through an Out, as every output does (`airState.ts` `programItems` drops the line that
+  forgot it, which made a re-Take on the monitor read the cue's time while air kept the clock), and
+  is sent the value it holds rather than the cue's resend for every match clock, native included
+  (the same function's staging, which did that for imported clocks only).
+- **W4 Values written before this change still read.** A plain or `time@origin` native value reads
+  as it did; the next clock row writes the new shape. A value banked before the change does not
+  know what the cue sent, so the first resend after a Pause that spans the deploy can still jump
+  once.
+- **W4b A host that reports painted text keeps the old fault (known limit, follow-up).** A
+  `hostedReceiver.ts` host applies the log's rows as they came and reports its layer's text
+  (`harvest`), so its own template judges a resend by itself, and a reader booting from such a
+  report gets a bare time. Moving `harvest` to the wire value is the fix #1903 names; it is outside
+  this change: #2116.
+- **W5 Every reader of a native value reads the new shape.** The template runtime's parsers stop
+  at `@` and read the origin as a number that ends at `/`; the dashboard, the hosted page and both
+  exported pages show the plain time; the exported pages' copy of the decision changes with the
+  TypeScript and stays pinned equal (scripts/clock-page-wire.test.mjs). A package exported before
+  keeps its own page script and its old native values; its own templates read both.
+- **N1 (#1903) An imported duration never taken is off air.** Durations only (`startsOnTake`): a
+  count-up or a native clock has no Take to wait for. A reader whose held value for the clock is
+  ABSENT (nothing sent, nothing reported) AND which does not show the graphic on air (the
+  renderer's own `onAirHere`, the monitor's ON AIR marker) holds the design's start time in the
+  off-air slot before it folds the row (`clockHeldBeforeRow`). So a time typed before the first
+  Take is the length, a Reset or Pause before the Take keeps it so, and the first Take counts the
+  time in the field (type 0:45, Reset, type 0:50, Take: the clock counts 0:50). A graphic on air
+  with nothing held (a lost report, a boot that put a layer up from its head) reads as before.
+  Known limit: a renderer that boots with no report for such a duration and replays its rows from
+  the log asks `onAirHere` from the log's head (protocol 2) while it replays, so rows from before
+  the first Take read as on air there, as they all did before this change.
+- **N2 A bare value still reads as on air.** Only an absent value is "never taken". A host that
+  reports the painted text (`hostedReceiver.ts` `harvest`) still produces bare values while on
+  air, and those read exactly as before (phase-11 H1b).
+- **N3 The exported pages keep their own rule (known limit, follow-up).** The standalone panel and
+  the production controller are the only senders their relay has, and they do not yet say whether
+  a graphic is on air to their clock fold; a Reset before the first Take there behaves as before.
+  Filed as #2117. The dashboard and the hosted control page offer no Reset, Pause or Update off air
+  ("Take the cue first"), so on a hosted production the sequence comes only from another sender;
+  the renderer and the monitor now read it right whoever sends it.
+- **M1 (#1906) The program monitor reseeds an off-air clock on reload.** For every match clock
+  (native or imported, not a target time) whose graphic is off air and has a renderer report with
+  a baseline, the monitor's clock memory is that report's value folded through the rows after the
+  report, in log order (`clockAfterRows`: `clockValueAfterUpdate`, then `clockRowEffect`), exactly as
+  a renderer rebuilds it. The next Take on the monitor counts what air counts. Those rows are read
+  per graphic (`bootClockReplay`, `control_tail` for that graphic from its own baseline) and
+  seeded after the on-air seed (`seedOffAirClocks`), so an old off-air report never holds up the
+  on-air seed or another clock's reseed.
+- **M2 A clock the page moved meanwhile keeps the page's memory.** If a command was applied while
+  the resolve was out, the off-air reseed is skipped, as the on-air replay is.
+- **M3 No report, no reseed.** An off-air clock with no report, one whose report carries no
+  baseline, or one whose rows were not read to the head, stays unseeded, as today. The on-air
+  replay stands either way.
+
+### Rules review
+
+A fresh read-only `/so` on the rules alone (`session_017SdbwMomDi8u9wA1JakUvM`, on `ddf71327`):
+AGREE WITH CORRECTIONS, B. Its four corrections, all taken before the code was committed: N1
+decided from the reader's own on-air record and limited to durations; the off-air rows read apart
+and failing alone (M1, M3); the monitor's staging and Out lines named (W3); the painted-text host
+named as a limit (W4b).
+
+### Code review (/check)
+
+Delegated review of `4e6b1114..df6d5178` (8 candidates). Fixed: the off-air read held up the
+on-air seed (`Promise.all`), one stale report blocked every off-air clock (one range read), the
+fold read `Date.now()` itself, the hosted page's unsent baseline took a clock's wire value (now its
+plain time), the off-air eligibility was decided in three places, and three aliases of one clock
+lookup in `applyCommand`. Named as a limit, not changed: the boot catch-up's `onAirHere` (N1).

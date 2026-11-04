@@ -1374,6 +1374,8 @@ test('a resend of the cue’s own clock value keeps the origin, so half time ban
     step('clockStart', { t: 'event', event: 'clockStart' }, at(0));
     step('goal (whole value set, plain f5)', { t: 'update', data: { f1: '1', f5: '10:00' } }, at(5));
     step('clockStop (half time)', { t: 'event', event: 'clockStop' }, at(5));
+    // #1889: a score after the Pause resends the cue's plain 10:00 again; it must not pull back.
+    step('goal while paused (plain f5)', { t: 'update', data: { f1: '2', f5: '10:00' } }, at(6));
 
     return {
       trace,
@@ -1387,8 +1389,11 @@ test('a resend of the cue’s own clock value keeps the origin, so half time ban
   });
 
   // The origin survives the goal, so half time banks the five minutes that were actually run.
-  expect(walk.trace[2].held).toBe(`10:00@${1_755_600_000_000}`);
-  expect(walk.trace[3].effect).toBe('5:00');
+  // The value also carries the clock's length (its reset time) and what the cue last sent (#1889).
+  expect(walk.trace[2].held).toBe(`10:00@${1_755_600_000_000}/10:00/10:00`);
+  expect(walk.trace[3].effect).toBe('5:00@/10:00/10:00');
+  // …so a resend after the Pause is a resend: the paused clock stays at 5:00 (#1889).
+  expect(walk.trace[4].held).toBe('5:00@/10:00/10:00');
   // A plain value equal to the held value's PLAIN half is a resend; anything else is an edit.
   expect(walk.resendKeepsOrigin).toBe(`10:00@${1_755_600_000_000}`);
   expect(walk.correctionWins).toBe('43:12');
@@ -1464,20 +1469,21 @@ test('the clock walks a whole match through the log: start, bump, stop, restart,
     ['clockReset', 'after'],
   ]);
   // Kick-off stamps 0:00 at T; 22 minutes later a renderer booting cold reads 22:00.
-  expect(walk.trace[1].value).toBe(`0:00@${1_755_600_000_000}`);
+  // The value carries its length (the reset time) and what the cue last sent after the origin (#1889).
+  expect(walk.trace[1].value).toBe(`0:00@${1_755_600_000_000}/0:00/0:00`);
   expect(walk.atKickoffPlus22).toBe('22:00');
   // Half time banks the DERIVED 45:00 as a plain time — a held clock reads the same five
   // minutes later, which is what "held" has to mean.
-  expect(walk.trace[3].value).toBe('45:00');
+  expect(walk.trace[3].value).toBe('45:00@/0:00/0:00');
   expect(walk.atHalfTime).toBe('45:00');
   // The second half resumes FROM 45:00, stamped at kick-off of the half, so seven minutes in it
   // reads 52:00 — not 7:00, and emphatically not 0:00.
-  expect(walk.trace[4].value).toBe(`45:00@${1_755_600_000_000 + 60 * 60_000}`);
+  expect(walk.trace[4].value).toBe(`45:00@${1_755_600_000_000 + 60 * 60_000}/0:00/0:00`);
   expect(walk.secondHalfPlus7).toBe('52:00');
   // Reset goes to the period's own start, held.
-  expect(walk.trace[6]).toEqual({ row: 'clockReset', value: '0:00', when: 'after' });
+  expect(walk.trace[6]).toEqual({ row: 'clockReset', value: '0:00@/0:00/0:00', when: 'after' });
   // No server time: the caller's instant, and the held value still leads.
-  expect(walk.localRow).toEqual({ value: `30:00@${1_755_600_000_000}`, when: 'before' });
+  expect(walk.localRow).toEqual({ value: `30:00@${1_755_600_000_000}/0:00/30:00`, when: 'before' });
 });
 
 test('a debate’s two clocks survive a renderer reboot: the stamp says which one is running', async ({ page }) => {

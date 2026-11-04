@@ -38,6 +38,7 @@ function scriptedWire() {
   const calls = [];
   const resolves = [];
   const replays = [];
+  const clockReplays = [];
   const tails = [];
   const follows = [];
   const seen = [];
@@ -60,6 +61,13 @@ function scriptedWire() {
         opts.onRetry?.();
         if (opts.stop?.()) return answer;
       }
+    },
+    // Asked only when a clock is off air with a report (the off-air clocks test below).
+    bootClockReplay: (slug, _resolved, graphics) => {
+      calls.push(`clocks ${slug} ${graphics.join(',')}`);
+      const d = deferred();
+      clockReplays.push(d);
+      return d.promise;
     },
     bootMonitorReplay: (slug) => {
       calls.push(`replay ${slug}`);
@@ -115,7 +123,7 @@ function scriptedWire() {
       return timerId;
     },
   };
-  const wire = { io, calls, resolves, replays, tails, follows, seen, arms, pings, timers, onPing: null };
+  const wire = { io, calls, resolves, replays, clockReplays, tails, follows, seen, arms, pings, timers, onPing: null };
   return wire;
 }
 
@@ -185,6 +193,32 @@ test('the lifetime in order: resolve, reports, replay, seed, history, then the f
   assert.deepEqual(air.aired.lt, { f0: 'REPORTED', f1: 'row' });
   assert.deepEqual(session.log.get().entries.map((e) => e.id), [990], 'the history is in the log');
   stop();
+});
+
+test('an off-air clock is rebuilt from its report and the rows after it, read after the seed and never holding it up (#1906)', async () => {
+  const DURATION = { field: 'f2', countsDown: true, seed: '0:30', resetTo: '0:30', events: { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' }, startsOnTake: true };
+  const resolved = { ...RESOLVED, live: { ...RESOLVED.live, bug: { event: 900, data: { f2: '0:30@1800000000000/0:30/0:30' } } } };
+  const run = async (commandMeanwhile) => {
+    const wire = scriptedWire();
+    const page = fakePage({ clocks: () => ({ clocks: new Map([['bug', DURATION]]), pairs: new Map() }) });
+    const { session, stop } = start(wire, page);
+    await boot(wire, resolved);
+    // The on-air seed is in, and the follow started, while the off-air read is still out.
+    assert.deepEqual(session.air.get().aired.lt, { f0: 'REPORTED' }, 'the on-air seed did not wait');
+    assert.ok(wire.calls.includes('clocks ctl-1 bug') && wire.calls.includes('follow prod-1 1000'));
+    assert.equal('bug' in session.air.get().clocks, false);
+    if (commandMeanwhile) session.apply((parts) => ({ ...parts, air: { ...parts.air, commands: parts.air.commands + 1 } }));
+    wire.clockReplays[0].resolve({ graphics: ['bug'], rows: [
+      { graphic: 'bug', msg: { t: 'stop' }, created_at: new Date(1_800_000_010_000).toISOString() },
+      { graphic: 'bug', msg: { t: 'update', data: { f2: '0:20' } }, created_at: new Date(1_800_000_020_000).toISOString() },
+    ] });
+    await flush();
+    const held = session.air.get().clocks.bug;
+    stop();
+    return held;
+  };
+  assert.equal(await run(false), '0:20@out/0:20/0:20', 'the report, then its Out and the off-air edit after it');
+  assert.equal(await run(true), undefined, 'a command applied meanwhile is newer than those rows');
 });
 
 test('a resolve that fails is asked again, and the header says so until it answers', async () => {

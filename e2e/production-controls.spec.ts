@@ -593,7 +593,38 @@ test('scorebug actions group by section and drive the clock; a plain lower third
 
   // Full time is destructive (one way only) and marked as such.
   await expect(page.getByTestId('cue-action-final')).toHaveClass(/destructive/);
+
+  // #1889: the operator sets the match time by typing it (the cue now stores and resends it), runs
+  // the clock, pauses for a stoppage, then sends a goal with ✎ Update. The Update resends the cue's
+  // whole value set, the typed time included, and that is a resend, not a correction: PROGRAM's
+  // clock stays where it was paused.
+  const clock = page.frameLocator('[data-testid="program-stage"] iframe').locator('[data-start]');
+  await stop.click();
+  await expect(start).toBeEnabled();
+  const clockBox = page.getByTestId(`cue-field-${await clock.getAttribute('id')}`);
+  await clockBox.fill('30:00');
+  await page.getByTestId('verb-update').click();
+  await expect(clock).toHaveText('30:00');
+  await start.click();
+  await expect.poll(async () => clockSeconds(await clock.textContent()), { timeout: 10_000 }).not.toBe(30 * 60);
+  await page.waitForTimeout(1100);
+  await stop.click();
+  await expect(start).toBeEnabled();
+  const paused = await clock.textContent();
+  await page.waitForTimeout(1100);
+  await expect(clock).toHaveText(paused!);
+  const score = page.getByTestId('cue-field-f1');
+  await score.fill(String(Number((await score.inputValue()) || '0') + 1));
+  await page.getByTestId('verb-update').click();
+  await expect(page.frameLocator('[data-testid="program-stage"] iframe').locator('#f1')).toHaveText(await score.inputValue());
+  await page.waitForTimeout(1100);
+  await expect(clock, 'a score Update after a Pause leaves the clock where it was paused').toHaveText(paused!);
 });
+
+/** "1:05" -> 65. */
+function clockSeconds(text: string | null): number {
+  return (text ?? '').trim().split(':').map(Number).reduce((total, n) => total * 60 + n, 0);
+}
 
 test('a match board reaches every one of its controls from the cockpit: both clock verbs, the interval, the crests', async ({ page }) => {
   test.setTimeout(120_000);
@@ -1072,7 +1103,7 @@ test('an exported package recovers a running match clock when the renderer reloa
     }
     return null;
   });
-  expect(logged?.data.f5, 'the logged clock value must carry its time origin').toMatch(/^10:00@\d{13}$/);
+  expect(logged?.data.f5, 'the logged clock value must carry its time origin').toMatch(/^10:00@\d{13}\/10:00\/10:00$/);
 
   // THE RELOAD. The graphic announces itself, the panel rebuilds it from that log, and what
   // comes back must be the MATCH time — not the value the last Take carried.
@@ -1146,7 +1177,7 @@ test('the EXPORTED CONTROLLER stamps the clock too: the origin rides the wire be
   // ORDER MATTERS: the origin has to be in the document by the time startMatchClock runs, or the
   // runtime mints a local one and the wire's origin is never the one on air.
   expect(sent[0].t).toBe('update');
-  expect(sent[0].data!.f5, 'the controller must stamp the clock field').toMatch(/^10:00@\d{13}$/);
+  expect(sent[0].data!.f5, 'the controller must stamp the clock field').toMatch(/^10:00@\d{13}\/10:00\/10:00$/);
   expect(sent[1]).toMatchObject({ t: 'event', event: 'clockStart' });
 
   // …and it is STAGED into the cue, so the whole value set a later ⟳ TAKE or ✎ Update sends
