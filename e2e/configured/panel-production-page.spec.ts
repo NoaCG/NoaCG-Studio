@@ -395,7 +395,8 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
       const a = await hopsOf(air);
       const heard = o.find((h) => h.kind === 'ws' && h.text.includes(take.id));
       const send = o.find((h) => h.kind === 'send');
-      const sent = o.find((h) => h.kind === 'sent');
+      // This press's own answer: the previous Out's can still land inside the window.
+      const sent = o.find((h) => h.kind === 'sent' && h.at >= (send?.at ?? Infinity));
       const frame = a.find((h) => h.kind === 'ws' && /batch/.test(h.text) && h.at >= (send?.at ?? 0));
       const played = a.find((h) => h.kind === 'played');
       const painted = a.find((h) => h.kind === 'painted');
@@ -414,6 +415,11 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
       // Off again, and settled, before the next press.
       const up = await deck.state((s) => (s.live as string[]).includes(anna), 'Anna on air');
       expect((await deck.press('take-cue', anna, up.ver as number)).outcome).toBe('ran');
+      // The page sends one payload per graphic at a time (control/seqSend.ts createGraphicFifo), and
+      // the log row can bring "off air" back before the Out's own call answers. A press made in that
+      // gap waits for the answer by design; this times a press on its own, as an operator's are.
+      await deck.state((s) => !(s.live as string[]).includes(anna), 'Anna off air');
+      await op.waitForTimeout(600);
     }
     const report = Object.fromEntries(Object.entries(hops).map(([k, v]) => [k, stats(v)]));
     console.log(`#2089 press latency, ${graphic}:`);
