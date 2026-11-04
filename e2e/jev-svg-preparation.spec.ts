@@ -910,7 +910,12 @@ test('row 38 diagnostic: three notice zones, each zone\'s words operated alone; 
   const zoneControls = await page.locator('[data-testid^="cue-action-"]').count();
   expect(zoneControls, 'no control takes one zone on or off').toBe(0);
   const plates = await air.locator('.imported-design svg g rect').count();
-  const bodyShown = (f: string) => air.locator(`#${f}`).evaluate((el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true })).catch(() => false);
+  // A body no longer in the document is not shown; asked first, because an evaluate on a missing
+  // element waits rather than throws.
+  const bodyShown = async (f: string) => {
+    const body = air.locator(`#${f}`);
+    return (await body.count()) > 0 && body.evaluate((el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }));
+  };
   for (const f of bodies) expect(await bodyShown(f), `${f} is on the program renderer before Out`).toBe(true);
   await page.getByTestId('verb-out').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');

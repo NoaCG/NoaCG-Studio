@@ -44,13 +44,15 @@ async function airOpacity(graphic: FrameLocator): Promise<number> {
 
 // THE SHARED TEST ACCOUNT IS LEFT CLEAN however the walk ends (#2041): a failure part-way would
 // otherwise leave a published production and an open output context behind. The walk's own
-// unpublish stays in the body, where it is asserted.
+// unpublish stays in the body, where it is asserted. Each step is best-effort, as in
+// hosted-control-profile.spec.ts: one failing step must not skip the others or replace the walk's
+// own failure.
 let outputContext: BrowserContext | null = null;
 test.afterEach(async ({ page }) => {
-  await outputContext?.close();
+  await outputContext?.close().catch(() => {});
   outputContext = null;
-  await clearPublishedShows(page);
-  await wipeMyGraphics(page);
+  await clearPublishedShows(page).catch(() => {});
+  await wipeMyGraphics(page).catch(() => {});
 });
 
 async function openOutput(output: Page, origin: string, slug: string): Promise<FrameLocator> {
