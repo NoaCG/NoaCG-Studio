@@ -35,6 +35,24 @@ const ROWS = [
 ];
 const INCOMING = ['0:30', '0:25', '0:18', '1:10', '0:30@1800000005000', '0:20@/0:30/0:20'];
 
+test('an off-air duration Take counts the field even after the same value was an on-air correction (#1884)', () => {
+  const held = '0:24@out/0:05/0:30';
+  const updated = clockValueAfterUpdate(held, '0:30');
+  assert.equal(updated, '0:30@out/0:30/0:30', 'off air a resend is the field length too');
+  assert.equal(page.clockAfterUpdate(held, '0:30'), updated);
+  const reset = { value: '0:30@out/0:30/0:30', when: 'after' };
+  assert.deepEqual(clockRowEffect({ msg: { t: 'event', event: 'clock_reset' } }, CLOCKS.duration, updated, T), reset);
+  assert.deepEqual(page.clockRowStep(CLOCKS.duration, { t: 'event', event: 'clock_reset' }, updated, T), reset);
+  const expected = { value: `0:30@${T}/0:30/0:30`, when: 'before' };
+  assert.deepEqual(clockRowEffect({ msg: { t: 'play' } }, CLOCKS.duration, held, T), expected);
+  assert.deepEqual(page.clockRowStep(CLOCKS.duration, { t: 'play' }, held, T), expected);
+  for (const slot of ['', String(T - 5000)]) {
+    const onAir = `0:24@${slot}/0:05/0:30`;
+    assert.equal(clockRowEffect({ msg: { t: 'event', event: 'clock_reset' } }, CLOCKS.duration, onAir, T).value, '0:05@/0:05/0:30');
+    assert.equal(clockRowEffect({ msg: { t: 'play' } }, CLOCKS.duration, onAir, T).value, `0:05@${T}/0:05/0:30`, 'a re-Take on air retains the current take length');
+  }
+});
+
 test('the exported pages fold an Update into the clock exactly as the wire does', () => {
   let cases = 0;
   for (const held of HELD) {

@@ -668,13 +668,27 @@ test('an imported count-up waits for Start; Pause holds it and Reset returns to 
   await expect(clock).toHaveText(DRAWN);
 });
 
-test('an imported duration starts on the Take and counts down from its drawn time', async ({ page }) => {
+test('an imported duration starts on the Take and counts down from its drawn time', async ({ page }, testInfo) => {
   await importedClockProduction(page, 'duration');
   await page.getByTestId('verb-take').click();
   const clock = airClock(page);
   // No Start pressed: the Take started it.
   await expect.poll(async () => secondsOf(await clock.textContent()), { timeout: 5000 }).toBeLessThan(secondsOf(DRAWN));
   for (const event of CLOCK_EVENTS) await expect(page.getByTestId(`cue-action-${event}`)).toBeVisible();
+  const field = page.getByTestId(`cue-field-${await clock.getAttribute('id')}`);
+  await field.fill('0:30');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(async () => secondsOf(await clock.textContent())).toBeLessThan(30);
+  await page.getByTestId('cue-action-clock_reset').click();
+  await expect(clock).toHaveText(DRAWN);
+  await field.fill('0:30');
+  await page.getByTestId('verb-update').click();
+  await page.getByTestId('verb-out').click();
+  await field.fill('0:30');
+  await page.getByTestId('verb-take').click();
+  await expect(clock).toHaveAttribute('data-start', '0:30');
+  await expect.poll(async () => secondsOf(await clock.textContent())).toBeLessThan(30);
+  await testInfo.attach('Same-value off-air duration', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
 test('an imported target time shows hours, offers no Start, Pause or Reset, and no live mode choice', async ({ page }) => {

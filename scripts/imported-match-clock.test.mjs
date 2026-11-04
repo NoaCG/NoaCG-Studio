@@ -181,6 +181,9 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'reset after corrections'],
       ['out'], ['wait', 3000], ['take'], ['wait', SETTLE], ['read', 'second Take'], ['wait', 2000], ['read', 'two seconds into it'],
       ['out'], ['wait', 3000], ['update', '0:09'], ['take'], ['wait', SETTLE], ['read', 'a new length set off air'],
+      ['update', '0:30'], ['wait', 1000], ['score', '3'], ['read', 'a running correction resends with a score'],
+      ['out'], ['wait', 3000], ['update', '0:30'], ['event', 'clock_reset'], ['wait', SETTLE], ['read', 'same correction typed off air'],
+      ['take'], ['wait', SETTLE], ['read', 'same value taken'],
     ]),
     // #1884: the same scorebug with its time on a plate just wide enough for "9:57", counting up
     // through 10:00 with no data update between.
@@ -266,11 +269,18 @@ test('a duration starts on Take from the length set before it, holds at zero, an
   assert.equal(at(r, 'corrected while paused').time, '0:20');
   assert.equal(at(r, 'reset after corrections').time, '0:05', 'a correction on air, running or paused, leaves the length alone');
   const again = at(r, 'second Take');
-  assert.ok(secs(again.time) >= 4, `a second Take is a new count of the same length (${again.time})`);
+  assert.equal(again.start, '0:20', 'an off-air Take counts the field, including the last on-air correction');
+  assert.ok(secs(again.time) >= 18 && secs(again.time) <= 20, again.time);
   assert.equal(secs(again.time) - secs(at(r, 'two seconds into it').time), 2);
   const fresh = at(r, 'a new length set off air');
   assert.equal(fresh.start, '0:09');
   assert.ok(secs(fresh.time) >= 8, `the next Take counts the length set off air (${fresh.time})`);
+  const correction = at(r, 'a running correction resends with a score');
+  assert.deepEqual([correction.start, correction.value, correction.scores[0]], ['0:09', '0:29', '3'], 'on-air score resends preserve the take length and running origin');
+  assert.deepEqual([at(r, 'same correction typed off air').start, at(r, 'same correction typed off air').time], ['0:30', '0:30'], 'the repeated time is the off-air Reset length too');
+  const same = at(r, 'same value taken');
+  assert.equal(same.start, '0:30');
+  assert.ok(secs(same.time) >= 28 && secs(same.time) <= 30, same.time);
 });
 
 test('the ticking time keeps the line the fit centred: its tspan and dy survive every paint (M1)', () => {

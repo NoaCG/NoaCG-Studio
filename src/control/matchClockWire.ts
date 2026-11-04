@@ -156,7 +156,7 @@ export function formatClock(total: number): string {
 // Pause, or after a correction, the cue no longer holds the clock's time, so comparing what arrives
 // with the clock's own state misreads a resend as a change. An imported clock's value therefore
 // carries three more facts after its origin, where every reader already looks past it: its LENGTH
-// (what Reset returns to, and a duration's Take counts), the time the cue last SENT (a resend is
+// (what Reset returns to, and an on-air re-Take counts), the time the cue last SENT (a resend is
 // that time, anything else is the operator's), and in the origin slot whether it is held on air
 // or off air. `"0:18@/0:30/0:25"` is held on air at 0:18, length 0:30, last sent 0:25;
 // `"0:30@1800000000000/0:30/0:30"` runs. `plainClockValue` reads the time, `clockOriginOf` the origin
@@ -238,13 +238,14 @@ export function clockValueAfterUpdate(held: string | undefined, incoming: string
   if (read) {
     // A clock row has moved it (an imported clock, or a native one since #1889): a resend is the
     // time the cue last sent. A cue edit that happens to equal the time shown changes nothing on air but is what the cue sends from now on. Anything else is
-    // the operator's: off air, the new length; on air, a correction that leaves the length alone,
+    // the operator's: off air, the field is the new length even on a resend (#1884); on air,
+    // a correction leaves the length alone,
     // held where it is held, and where it RUNS running on from the update row's own instant, which
     // this function does not know: it is marked (`CORRECTED_ORIGIN`) and the row's clock effect
     // stamps it with the row's server time.
     const time = plainClockValue(incoming);
-    if (time === read.sent) return held!;
     if (read.slot === OFF_AIR) return durationValue(time, OFF_AIR, time, time);
+    if (time === read.sent) return held!;
     // Held only: a running value's time is the time it STARTED from, not the one on screen, so
     // typing it while it runs sets the clock back to it (#1890).
     if (time === read.time && clockOriginOf(held) === null) return durationValue(read.time, read.slot, read.length, time);
@@ -353,12 +354,13 @@ export function clockAfterRows(
  * moves it, and its length is always the design's reset time, which is what the RUNTIME returns to
  * (`resetMatchClock`), so a reboot after a Reset recovers the number on air.
  *
- * THE TAKE counts the length: a time typed off air is the length (row 8), and a paused, reset or
- * run-out clock is taken from the top, as the graphic's entrance does. BEFORE the play, as a start is: the graphic keeps that origin for its
+ * THE OFF-AIR TAKE counts the field (#1884), which becomes the new Reset length. A re-Take on air
+ * counts the current take's length. BEFORE the play, as a start is: the graphic keeps that origin for its
  * entrance (importedDesign/svg.ts, its start), so the count is the server's from its first frame.
  *
  * THE OUT holds it, marked off air, running or not, as the old countdown's exit stopped it: the wire
- * cannot see on air from off air, and only a time typed off air is a new length.
+ * cannot see on air from off air. An off-air field resend is a length too, even when that same
+ * value was a correction on air; no input gesture or protocol flag is needed.
  */
 function slottedRowEffect(
   row: Pick<ControlEventRow, 'msg' | 'created_at'>,
@@ -378,7 +380,11 @@ function slottedRowEffect(
   const offAir = read?.slot === OFF_AIR;
   if (msg.t === 'play') {
     if (!clock.startsOnTake) return null;
-    const taken = read ? length : time;
+    // An off-air Take counts the operator's field (#1884), including a resend of a correction
+    // made on air. The wire cannot distinguish retyping the same value from resending it, and
+    // need not: both mean the next Take starts from the value the operator sees. Reset and a
+    // re-Take while on air still use this take's length.
+    const taken = offAir ? sent : read ? length : time;
     return { value: durationValue(taken, at, taken, sent), when: 'before' };
   }
   if (msg.t === 'stop') {
