@@ -892,7 +892,6 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const rows: { id: number; graphic: string; stream: string; msg: { t: string; data?: Record<string, string> } }[] = [];
   let head = 0;
   let refusing: { page: string; until: Promise<void> } | null = null;
-  let bootRead: Promise<void> | null = null;
   let refused = 0;
   /** Hold the named page's sends open until the answer this returns is called, then refuse them. */
   const refuseSends = (page: string) => {
@@ -908,12 +907,6 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
     if (url.pathname === '/relay/head') return route.fulfill({ json: { head } });
     if (url.pathname === '/relay/log') {
       const after = Number(url.searchParams.get('after') ?? '0');
-      // A boot read held back (`bootRead`), so a page's own poll can overtake it.
-      if (after === 0 && bootRead) {
-        const page = bootRead;
-        bootRead = null;
-        return page.then(() => route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } }));
-      }
       // Pages of at most 500, as relay.py and relay.ps1 answer.
       return route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } });
     }
@@ -1104,10 +1097,22 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
 
   // A CONTROLLER WHOSE BOOT READ ANSWERS LATE: its poll has already taken the panel's newer clock
   // row, and the late read's older rows do not put the older clock back.
+  // The last page of its boot read, held back: it answers the log as it stood when it was asked,
+  // as a slow answer does, and arrives after the poll has taken a newer row.
   let answerBootRead = () => {};
-  bootRead = new Promise<void>((resolve) => { answerBootRead = resolve; });
+  const bootRead = new Promise<void>((resolve) => { answerBootRead = resolve; });
+  let lastPageHeld = false;
+  let lateAnswered = false;
   const ctl3 = await context.newPage();
-  await ctl3.route('http://clock-relay.local/**', serve);
+  await ctl3.route('http://clock-relay.local/**', (route) => {
+    const url = new URL(route.request().url());
+    const after = Number(url.searchParams.get('after') ?? '-1');
+    const left = rows.filter((r) => r.id > after);
+    if (url.pathname !== '/relay/log' || lastPageHeld || after >= head || left.length > 500) return serve(route);
+    lastPageHeld = true;
+    const answer = { rows: left, head };
+    return bootRead.then(() => route.fulfill({ json: answer })).then(() => { lateAnswered = true; });
+  });
   await ctl3.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
   await expect(ctl3.locator('#mode')).toHaveText('● SHOW');
   // The panel has read the controller's Out, so 0:12 typed off air is one row, the new length.
@@ -1120,9 +1125,10 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const newest = sent(from)[0].slice('update f2='.length);
   const held3 = () => ctl3.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'] ?? null);
   await expect.poll(held3).toBe(newest);
-  const lateRead = ctl3.waitForResponse((r) => r.url().endsWith('/relay/log?after=0'));
+  expect(lastPageHeld, 'the boot read reached its last page').toBe(true);
   answerBootRead();
-  await lateRead;
+  await expect.poll(() => lateAnswered).toBe(true);
+  // A task later, the page has read the late page.
   await ctl3.evaluate(() => new Promise((r) => setTimeout(r, 50)));
   expect(await held3(), 'the late boot read leaves the newer clock').toBe(newest);
   await ctl3.close();
