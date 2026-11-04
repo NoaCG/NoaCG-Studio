@@ -600,6 +600,8 @@ export interface LibraryIo {
   reconcile?(id: string): { unresolved: ReimportItem[]; apply(): void } | null;
   /** Keep record `id` as its own library entry, so a reviewed replace leaves it recoverable. */
   keepCopy?(id: string): boolean;
+  /** Name the working document, unsaved: the editor door's separate name (`reimportForEditor`). */
+  nameWorking?(name: string): void;
 }
 
 /**
@@ -698,18 +700,18 @@ export async function saveBuiltGraphic(
  * never written over. What the door owes is the same reading the other two doors make
  * (`reimportTarget`, then the reconcile): with nothing unresolved the working document becomes the
  * reconciled build, carrying the earlier ids, keys and labels; with anything unresolved it opens
- * under the separate name Finish named (`rename`), as the other doors would save it. A Replace
+ * under the separate name Finish named, as the other doors would save it. A Replace
  * anyway tick does not apply here: the editor's Save cannot write over a record. Returns what it
  * did, or null for the ordinary case.
  */
-export function reimportForEditor(memory: WalkMemory, name: string, lib: LibraryIo, rename: (name: string) => void): 'reconciled' | 'separate' | null {
+export function reimportForEditor(memory: WalkMemory, name: string, lib: LibraryIo): 'reconciled' | 'separate' | null {
   const index = lib.index();
   const effect = lib.effect(index, name, memory.made?.graphicId ?? null);
   const over = effect.targetId;
   const reimport = over && reimportTarget(effect, memory.made, index) ? lib.reconcile?.(over) ?? null : null;
   if (!reimport) return null;
   if (reimport.unresolved.length) {
-    rename(freeName(index.map((g) => g.name), name));
+    lib.nameWorking?.(freeName(index.map((g) => g.name), name));
     return 'separate';
   }
   reimport.apply();

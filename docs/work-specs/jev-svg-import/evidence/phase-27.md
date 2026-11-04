@@ -60,10 +60,12 @@ PR challenged them against that code. Rules found after coding are marked (after
 - **R6 A label changed after the import wins** on a verified match, and the definition in the
   markup is rewritten with it.
 - **R7 Action identity is the operator event's name, carried by the recipe.** A verified build
-  answers the same events by construction (the behaviour test compares them). An action the walk
-  itself drops, through a behaviour profile the reader chose (a quiz with no Lock), is that
-  choice, not lost work, and is not listed (narrowed after coding: the first version listed it,
-  which broke AC-22's reopen-and-change journey in `import-svg-behaviour.spec.ts`).
+  answers the same events by construction (the behaviour test compares them). Which actions the
+  new build answers is decided by the walk's current behaviour (a quiz with no Lock, or a
+  proposal that missed the recipe), so a dropped action is not listed as unresolved (narrowed
+  after coding: the first version listed it, which broke AC-22's reopen-and-change journey in
+  `import-svg-behaviour.spec.ts`). Finish says it in one calm line instead, without changing
+  where the save goes: "No longer answers: Lock" (#1987 point 4).
 - **R8 Unresolved work is never written over.** A removed, look-alike or untargeted item makes
   every Finish door save the new version as a separate graphic (`<name> 2`), leaving the earlier
   graphic, its bindings and cues untouched. Finish names the items first. Replace anyway is the

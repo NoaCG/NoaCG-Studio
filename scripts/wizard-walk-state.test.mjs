@@ -589,6 +589,7 @@ function heldLibrary(unresolved) {
     return { unresolved, apply: () => log.push('apply') };
   };
   lib.keepCopy = (id) => { log.push(`keepCopy ${id}`); return true; };
+  lib.nameWorking = (name) => log.push(`nameWorking ${name}`);
   return { lib, log };
 }
 const GONE = [{ kind: 'removed', label: 'Job title' }];
@@ -611,21 +612,20 @@ test('a Replace anyway tick replaces only for the list it was given for (#1987 p
 
 test('the editor door over a held SVG import: reconciled when everything carries, else the separate name (#1986)', () => {
   const clean = heldLibrary([]);
-  const renamed = [];
-  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', clean.lib, (n) => renamed.push(n)), 'reconciled');
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', clean.lib), 'reconciled');
   assert.ok(clean.log.includes('apply'));
-  assert.deepEqual(renamed, []);
+  assert.ok(!clean.log.some((l) => l.startsWith('nameWorking')));
   const gone = heldLibrary(GONE);
-  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', gone.lib, (n) => renamed.push(n)), 'separate');
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', gone.lib), 'separate');
   assert.ok(!gone.log.includes('apply'), 'unresolved work is not applied');
-  assert.deepEqual(renamed, ['Guest 2']);
+  assert.ok(gone.log.includes('nameWorking Guest 2'));
   // Nothing written either way: the editor's own Save decides.
   assert.ok(![...clean.log, ...gone.log].some((l) => /^(saveAs|saveCurrent|link|keepCopy)/.test(l)));
   // A fresh name, or a record the reconcile does not read as an SVG import: the ordinary door.
   const fresh = library({ index: [] });
-  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'New', fresh.lib, (n) => renamed.push(n)), null);
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'New', fresh.lib), null);
   const plain = heldLibrary([]);
   plain.lib.reconcile = () => null;
-  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', plain.lib, (n) => renamed.push(n)), null);
-  assert.deepEqual(renamed, ['Guest 2']);
+  assert.equal(W.reimportForEditor({ finished: null, made: null }, 'Guest', plain.lib), null);
+  assert.ok(!plain.log.some((l) => /^(apply|nameWorking)/.test(l)));
 });

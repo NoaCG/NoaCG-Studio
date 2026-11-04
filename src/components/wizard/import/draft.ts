@@ -2297,7 +2297,7 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
 /** The working document as the reimport seam reads and writes it (the template store). */
 interface ReimportStore {
   getState(): { template: SpxTemplate };
-  setState(patch: { template: SpxTemplate; baseline: SpxTemplate; sampleData: Record<string, string> }): void;
+  setState(patch: { template: SpxTemplate; baseline?: SpxTemplate; sampleData?: Record<string, string> }): void;
 }
 
 /** The library seam's reimport half (shell/walkState.ts `LibraryIo`): the working document is the
@@ -2305,8 +2305,9 @@ interface ReimportStore {
 export function reimportIo(
   store: ReimportStore,
   sampleData: (template: SpxTemplate, existing: Record<string, string>) => Record<string, string>,
-): Pick<LibraryIo, 'reconcile' | 'keepCopy'> {
+): Pick<LibraryIo, 'reconcile' | 'keepCopy' | 'nameWorking'> {
   return {
+    nameWorking: (name) => store.setState({ template: { ...store.getState().template, name } }),
     reconcile: (id) => {
       const held = graphicById(id);
       const done = held ? svgReimported({ template: held.template, baseline: held.baseline }, store.getState().template) : null;

@@ -1,9 +1,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState, type SetStateAction } from 'react';
-import { syncSampleData, useTemplateStore } from '../../store/templateStore';
+import { useTemplateStore } from '../../store/templateStore';
 import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   brandOrClearPatch,
-  buildDraftTemplate, finishReimport, reimportIo,
+  buildDraftTemplate, finishReimport,
   draftFormatSelection,
   draftName,
   draftResolution,
@@ -57,8 +57,8 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
-import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
-import { graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
+import { walkLibrary } from './shell/walkLibrary';
+import { graphicNameIndex, type LibraryNameEntry } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
@@ -96,7 +96,6 @@ import {
   reimportForEditor,
   saveBuiltGraphic,
   type FinishedWalk,
-  type LibraryIo,
   type WalkMemory,
 } from './shell/walkState';
 import { useWalkLifecycle } from './shell/useWalkLifecycle';
@@ -127,14 +126,6 @@ const STUDIO_DOOR_IO = {
   setShowLook, captureLookFromTemplate, saveTemplateSetToProduction, trackEvent,
 };
 
-/** The library as the walk's save sees it (shell/walkState.ts `saveBuiltGraphic`). */
-const LIBRARY_IO: LibraryIo = {
-  index: graphicNameIndex,
-  effect: librarySaveEffect,
-  linkTo: (id) => useTemplateStore.getState().setSaved({ graphicId: id, dirty: true, status: 'idle' }),
-  saveCurrent: (name) => saveCurrentGraphic({ name }),
-  saveAs: (name) => saveGraphicAs(name, { kind: 'standalone' }),
-};
 
 /**
  * The choose-first creation wizard (replaces the old template gallery). Six steps —
@@ -548,11 +539,8 @@ export default function CreationWizard() {
   /** Every ending of the walk (shell/doors.ts), each taking the mode's applier below. */
   const doors = makeDoors({
     ...STUDIO_DOOR_IO,
-    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, { replace: memory.current.replaceOver }),
-    prepareEditor: (name) => void reimportForEditor(memory.current, name, { ...LIBRARY_IO, ...reimportIo(useTemplateStore, syncSampleData) }, (separate) => {
-      const s = useTemplateStore.getState();
-      useTemplateStore.setState({ template: { ...s.template, name: separate } });
-    }),
+    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, walkLibrary(), { replace: memory.current.replaceOver }),
+    prepareEditor: (name) => void reimportForEditor(memory.current, name, walkLibrary()),
     // The record's id and name are read from the store once the save linked it; a reimport kept separate took a free name, which Finish then carries (no second press renames it back).
     noteMade: (name, production, landedOn = null, made = useTemplateStore.getState().template.name || name) => {
       noteMade(memory.current, { name: made, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn }); if (made !== name) dispatch({ type: 'patch', patch: { name: made } });
