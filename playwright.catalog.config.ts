@@ -60,6 +60,8 @@ export default defineConfig({
     // offline guard reads the server's real env, so a checkout with a local .env fails the
     // guard under any shorter list (found the day a worktree first carried one).
     env: {
+      // No file watching (vite.config.ts, `watch`), so a mid-run edit cannot split a module (#1897).
+      NOACG_E2E_SERVER: '1',
       VITE_SUPABASE_URL: '',
       VITE_SUPABASE_ANON_KEY: '',
       VITE_RENDER_API: '1',

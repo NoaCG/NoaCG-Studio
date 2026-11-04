@@ -62,5 +62,7 @@ export default defineConfig({
     // NO Supabase override here (unlike the offline config): Vite loads VITE_SUPABASE_URL / _ANON_KEY
     // from .env, so the app runs in configured mode. The editor itself is open (no login wall);
     // account features gate themselves, and the specs sign in through the topbar dialog.
+    // No file watching (vite.config.ts, `watch`), so a mid-run edit cannot split a module (#1897).
+    env: { NOACG_E2E_SERVER: '1' },
   },
 });

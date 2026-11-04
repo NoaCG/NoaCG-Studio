@@ -10,12 +10,12 @@ sweeps) are in its "Running the suite: traps".
   `reuseExistingServer: true` adopts a dev server already running on THIS checkout's port, with
   the real `.env`. Kill that server first. Other worktrees' servers are harmless.
 - **Stale modules.** After many edits the dev server can serve a stale module (HMR lag). If state
-  reads disagree with the visible UI, restart it and reload before trusting them. The suite's own
-  server does not watch files (`NOACG_E2E_SERVER`, vite.config.ts), so this applies only to a
+  reads disagree with the visible UI, restart it and reload before trusting them. A server a Playwright
+  config starts itself does not watch files (`NOACG_E2E_SERVER`, vite.config.ts), so this applies only to a
   reused developer server.
 - **A source edit during a run, on a watching server, splits a module in two.** Vite stamps the
   app's imports with `?t=`, and a spec's bare `import('/src/…')` loads a second copy whose store
-  nothing renders (#1897: the export window never opened). The suite's own server is immune; a
+  nothing renders (#1897: the export window never opened). A config's own server is immune; a
   reused developer server is not, so do not edit sources while a run uses it.
 - **Inside `page.evaluate`, an `import('/src/…')` MUST carry the `.ts` extension.** Vite gives the
   extensionless URL its own module registry, so it can resolve a second instance (a "ghost store")

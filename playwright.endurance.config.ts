@@ -39,5 +39,7 @@ export default defineConfig({
     // Its own server, always: one already on this port may carry another backend.
     reuseExistingServer: false,
     timeout: 120_000,
+    // No file watching (vite.config.ts, `watch`), so a mid-run edit cannot split a module (#1897).
+    env: { NOACG_E2E_SERVER: '1' },
   },
 });
