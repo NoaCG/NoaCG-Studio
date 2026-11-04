@@ -278,3 +278,23 @@ On a fresh branch from `origin/main`, landed through the merge queue:
 
 A reimport then writes over the saved graphic as before. No persisted format changed; a separate
 graphic or a copy made meanwhile stays an ordinary library entry.
+
+## After row 27: #1986 and #1987
+
+- **#1986, fixed.** "Edit this graphic" reads a held name as the other doors do
+  (`reimportForEditor`, shell/walkState.ts): nothing unresolved, the editor opens the reconciled
+  build (earlier ids, keys and labels); anything unresolved, it opens under the separate name
+  Finish named. It still saves nothing, so the editor's Save never writes over the earlier graphic.
+- **#1987, each point:**
+  1. Fixed. The save honours Replace anyway only when its own list has the signature the tick was
+     given for (`reimportSig`); Finish leaves the tick as it is when no list shows.
+  2. Fixed. The file-mode Finish shows the review, and the catalog Finish lost its SVG-mode gate
+     (the reconcile is null for anything that is not an SVG import).
+  3. Documented limit, pinned by a test: state-machine edits made after the import are not
+     compared (`carryKeys`). No surface edits the machine today.
+  4. Fixed. Finish says "No longer answers: …" when the earlier graphic answered actions the new
+     build does not, without changing where it saves; R7 reworded above.
+  5. and 6. Fixed: one escaped `idHeld` helper with either quote (templates/importedDesign/reimport.ts).
+  7. Fixed: the positive branch has its test.
+  8. Documented limit in `svgReimported`: an id shaped `artwork-N` gets the strict check whoever
+     wrote it. A separate graphic, never lost work; provenance is not worth its code.
