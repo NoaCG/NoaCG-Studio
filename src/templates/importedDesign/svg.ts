@@ -233,7 +233,7 @@ paintMatchClock = function () {
     el.textContent = '';
     el.appendChild(line);
   }
-  if (!el || importedClockUpdating || importedClockFitted < 0 || typeof fitSvgText !== 'function') return;
+  if (!el || importedClockUpdating || importedClockFitted < 0) return;   // -1 too where no fit is emitted
   if (importedClockWidth(el) > importedClockFitted + 0.5) fitSvgText();
 };
 
