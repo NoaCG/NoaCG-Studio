@@ -7,6 +7,11 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadWizardModule } from './wizard-load.mjs';
 
 const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, PressOrder, PRESS_HOLD_MS, PRESS_DRAW_MS, SnapshotRing, wireState, wireRows, rundownPanelRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
   await import('../src/control/panelFeedback.ts');
@@ -257,6 +262,38 @@ test('a number says which of its steps one event already presses, so a panel nee
   assert.equal(both.find((c) => c.id === 'step:f3').covered, undefined);
   assert.deepEqual([both.find((c) => c.id === 'step:f1').allowed, both.find((c) => c.id === 'step:f1').invocable], [true, true]);
   assert.deepEqual(both.filter((c) => c.covered === undefined && c.kind === 'event').length, 3);
+});
+
+test('an imported score tracker, compiled for real, says its point presses cover its figures, and its row travels with a pinned control', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'panel-recipe-'));
+  const entry = join(dir, 'entry.ts');
+  const src = (file) => fileURLToPath(new URL(`../src/${file}`, import.meta.url)).replaceAll('\\', '/');
+  writeFileSync(entry, [
+    `export { compileBinding } from '${src('templates/importedDesign/behaviour.ts')}';`,
+    `export { compileMachine } from '${src('templates/types/graphicType.ts')}';`,
+  ].join('\n'));
+  let compiler;
+  try {
+    compiler = await loadWizardModule(entry);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // The owner's banner (issue #2087): two players, each a name and a figure called "player N point".
+  const art = [['f0', 'textfield', 'Player 1'], ['f1', 'number', 'Player 1 point'], ['f2', 'textfield', 'Player 2'], ['f3', 'number', 'Player 2 point']].map(([field, ftype, title]) => ({ field, ftype, title, value: '0' }));
+  const type = compiler.compileBinding(art, { recipe: 'score', rows: ['1', '2'], fields: { team: { 1: 0, 2: 2 }, score: { 1: 1, 2: 3 } }, layers: {} }).type();
+  const machine = compiler.compileMachine(type, { steps: [] }, { easeIn: 'power2.in', easeOut: 'power2.out' });
+  const buttons = machine.controls;
+  const caps = graphicCapabilities(controls({
+    arranged: arrangeControls(buttons, { score2: { pinned: true } }),
+    numbers: liveNumberFields(fieldDescriptors(art), buttons),
+  }));
+  assert.deepEqual(caps.filter((c) => c.kind === 'step').map((c) => [c.id, c.label, c.covered]), [
+    ['step:f1', 'Player 1 point', [1, -1]],
+    ['step:f3', 'Player 2 point', [1, -1]],
+  ]);
+  // Lifted above the fold, Player 2's +1 still names its row.
+  const pinned = caps.find((c) => c.id === 'event:score2');
+  assert.deepEqual([pinned.place, pinned.label, pinned.section], ['pinned', '+1', 'Player 2']);
 });
 
 test('a graphic with nothing to press, or a name the relay cannot carry, is not offered', () => {

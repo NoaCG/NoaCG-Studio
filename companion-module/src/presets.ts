@@ -121,8 +121,8 @@ const noKeysYet = (id: string): CompanionPresetSection<ModuleSchema>['definition
 ]
 
 /**
- * The ready keys an operator drags onto the grid: the transport, the clip clock, one Select and one
- * Take key per rundown row, one Play now key per cue, and the pinned graphics' live controls,
+ * The ready keys an operator drags onto the grid: the transport, the clip clock, one Select key per
+ * rundown row, one Take and one Play now key per cue, and the pinned graphics' live controls,
  * rebuilt whenever the production's rows or the graphics' controls change.
  */
 export function buildPresets(

@@ -155,6 +155,10 @@ export function UpdateActions(self: ModuleInstance): void {
 		allowCustom: true,
 		minChoicesForSearch: 8,
 	}
+	// A folder row is there to be selected: the page refuses it for the other two. A key already saved
+	// keeps its row, since the option allows a custom value.
+	const cues = choices.filter((c) => self.panel.rows?.rows.some((r) => r.id === c.id && r.kind === 'cue'))
+	const cueOption = { ...rowOption, choices: cues, default: cues[0]?.id ?? '' }
 	self.setActionDefinitions({
 		...plain,
 		select_cue: {
@@ -168,7 +172,7 @@ export function UpdateActions(self: ModuleInstance): void {
 		take_cue: {
 			name: VERB_NAMES['take-cue'],
 			description: DESCRIPTIONS['take-cue'],
-			options: [rowOption],
+			options: [cueOption],
 			callback: async (event) => {
 				await self.press('take-cue', String(event.options.row))
 			},
@@ -176,12 +180,7 @@ export function UpdateActions(self: ModuleInstance): void {
 		trigger_cue: {
 			name: VERB_NAMES['trigger-cue'],
 			description: DESCRIPTIONS['trigger-cue'],
-			options: [
-				{
-					...rowOption,
-					choices: choices.filter((c) => self.panel.rows?.rows.some((r) => r.id === c.id && r.kind === 'cue')),
-				},
-			],
+			options: [cueOption],
 			callback: async (event) => {
 				await self.press('trigger-cue', String(event.options.row))
 			},

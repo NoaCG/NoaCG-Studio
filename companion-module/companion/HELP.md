@@ -82,7 +82,7 @@ The hosted control page has no server clips, so it refuses the clip keys with "n
 ### Graphic keys
 
 - The **Pinned graphics** presets list the graphics pinned on the production page, each with its controls in the page's order. To get keys for another graphic, pin it, or add a **Graphic action** to a button yourself. Unpinning a graphic later stops nothing: its keys keep working.
-- A score's +1 key is its action, which plays the point on air. A number gets its own -1 or +1 key only where no action of the graphic already moves it that way. A number's key dragged from an older module keeps working.
+- A score's +1 key is its action, which plays the point on air. A number gets its own -1 or +1 key only where no action of the graphic already moves it that way. To correct a figure with nothing playing on air, add a **Graphic action** to a button and choose the number as its **Action** and its **Step**. A number's key dragged from an older module keeps working.
 - A key remembers its control by its name in the graphic, not by its label or place. If a graphic is edited and the control is gone or renamed, the key turns dark with "?" and does nothing; drag the new preset onto it.
 - A graphic action runs only on the cue that was on air when the key was drawn. If another cue of that graphic went on air in between, the press is refused rather than sent to the new cue.
 - One press is one action. A press that got no answer is never repeated: the key reads "?" and `last_press` says "Not confirmed". Look at the output before pressing again.

@@ -41,8 +41,8 @@ Ask after the tasks, without the guide open. Write down the answer in the partic
 2. Two laptops have the production open. Which one runs your presses, and how do you change that?
    (Right: the one that has the panel, shown by "Panel ✓"; "Use here" on the other moves it.)
 3. A key has grey text. What does that mean? (Right: the page would not run that action now.)
-4. What is the difference between a cue's Take key and its Trigger key? (Right: Take airs or
-   takes off; Trigger plays or restarts it; neither moves the selection.)
+4. What is the difference between a cue's Take a cue now key and its Play now key? (Right: Take
+   airs or takes off; Play now plays or restarts it; neither moves the selection.)
 5. Someone else got hold of your Companion file. How do you lock them out? (Right: Revoke the
    panel in the page's panel list.)
 

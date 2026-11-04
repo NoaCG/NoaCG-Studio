@@ -161,6 +161,20 @@ test('(2) the actions read the same words, and a key on a deck keeps its action 
 	const { name: takeName, description: take } = self.actions.take_cue
 	const { name: triggerName, description: trigger } = self.actions.trigger_cue
 	assert.deepEqual([selectName, takeName, triggerName], ['Select a cue', 'Take a cue now', 'Play now, keep selection'])
+	// A folder can be selected, and only selected: the page refuses the other two for it.
+	const folders = {
+		...self,
+		panel: {
+			rows: { ...rows(), rows: [...rows().rows, { id: 'fold_1', label: 'Part two', kind: 'folder', source: null }] },
+			actions: null,
+		},
+	}
+	UpdateActions(folders as unknown as ModuleInstance)
+	const choices = (id: string) =>
+		(folders.actions[id].options[0] as unknown as { choices: { id: string }[] }).choices.map((c) => c.id)
+	assert.ok(choices('select_cue').includes('fold_1'))
+	assert.ok(!choices('take_cue').includes('fold_1'))
+	assert.ok(!choices('trigger_cue').includes('fold_1'))
 	assert.match(select!, /Nothing airs: the Take key airs it/)
 	assert.match(take!, /at once.*takes it off.*selection stays/)
 	assert.match(trigger!, /at once.*restarts it.*selection and PREVIEW stay/)
@@ -231,6 +245,18 @@ test('(3) the imported score tracker: its rows read +1 and -1, so the key says w
 			n.replace(' (Score banner)', ''),
 		),
 		['Home', 'Home -1', 'Home +1'],
+	)
+})
+
+test('(3) a control lifted out of its section still says which row, when the page sends it', () => {
+	assert.deepEqual(
+		pinnedKeys([
+			banner([
+				cap('event:score1', '+1', { place: 'pinned', section: 'Player 1' }),
+				cap('event:score2', '+1', { place: 'more', section: 'Player 2' }),
+			]),
+		]),
+		['+1 Player 1', '+1 Player 2'],
 	)
 })
 
