@@ -112,7 +112,7 @@ function moduleVersion() {
 }
 
 function succeeds(command, args) {
-  return spawnSync(command, args, { cwd: ROOT, stdio: 'ignore' }).status === 0;
+  return spawnSync(command, args, { cwd: ROOT, stdio: 'ignore', windowsHide: true }).status === 0;
 }
 
 function decide() {
