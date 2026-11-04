@@ -627,6 +627,11 @@ export function fastEventGraphics(graphics: { key: string; html: string; js: str
  * own starting time when it has seen nothing yet) cannot tell running from held, so a time that
  * differs from it counts as a correction: a held clock's edit then waits the half second too, and a
  * resend of the same time never does.
+ *
+ * AN OUT STAYS FAST, a known and safe limit: it banks a running duration off air at each output's
+ * arrival, so two outputs can bank it up to a second apart, but nothing shows that time on air (the
+ * next Take counts the length again). The slow road applies on protocol 2 productions too, whose
+ * outputs never use the fast road: the sender cannot tell, so it takes the safe road there as well.
  */
 export function needsServerInstant(clock: ClockSpec | undefined, msg: ControlEventRow['msg'], held: string | undefined): boolean {
   if (!clock?.events || clock.fixedInstant) return false;
