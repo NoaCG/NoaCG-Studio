@@ -83,3 +83,4 @@ Project: {"version":1,"id":"plan-cicd-followup-2026-11-02","ownership":"local-si
 - Cross-run: the JEV coordinator routed several requests here; ownership answered from the spec (#1503, #2094 and #1750 not ours, #1939 is cf15's), and owner-only decisions (backend exception) went to the owner.
 - Next half: cf10, cf14 and cf13 change CI cost and speed; cf18 cannot start before 2026-11-18T20:50Z, so plan cf16 and cf17 to finish by then.
 - 2026-11-04T21:22:22.871Z phase 11 build {"actor":"builder-cf10-cf10-b-0977","session":"session_017SdbwQVzyMvFagukPqVTGi","nonce":"cf10-b-0977","evidence":"create_session at 2026-11-04T21:22:08Z from 3ed797a6"}
+- 2026-11-04T23:15:54.129Z phase 11 landed {"mergeSha":"314862e635ee0ceaa2fae3b2560eac94a137b1be","pr":2151}
