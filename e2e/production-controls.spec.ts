@@ -593,7 +593,29 @@ test('scorebug actions group by section and drive the clock; a plain lower third
 
   // Full time is destructive (one way only) and marked as such.
   await expect(page.getByTestId('cue-action-final')).toHaveClass(/destructive/);
+
+  // #1889: paused for a stoppage, then a goal sent with ✎ Update. The Update resends the cue's whole
+  // value set, the clock's typed time included, and that is a resend, not a correction: PROGRAM's
+  // clock stays where it was paused.
+  const clock = page.frameLocator('[data-testid="program-stage"] iframe').locator('[data-start]');
+  await expect.poll(async () => clockSeconds(await clock.textContent()), { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+  await stop.click();
+  await expect(start).toBeEnabled();
+  const paused = await clock.textContent();
+  await page.waitForTimeout(1100);
+  await expect(clock).toHaveText(paused!);
+  const score = page.getByTestId('cue-field-f1');
+  await score.fill(String(Number((await score.inputValue()) || '0') + 1));
+  await page.getByTestId('verb-update').click();
+  await expect(page.frameLocator('[data-testid="program-stage"] iframe').locator('#f1')).toHaveText(await score.inputValue());
+  await page.waitForTimeout(1100);
+  await expect(clock, 'a score Update after a Pause leaves the clock where it was paused').toHaveText(paused!);
 });
+
+/** "1:05" -> 65. */
+function clockSeconds(text: string | null): number {
+  return (text ?? '').trim().split(':').map(Number).reduce((total, n) => total * 60 + n, 0);
+}
 
 test('a match board reaches every one of its controls from the cockpit: both clock verbs, the interval, the crests', async ({ page }) => {
   test.setTimeout(120_000);

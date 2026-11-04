@@ -677,6 +677,26 @@ test('an imported duration starts on the Take and counts down from its drawn tim
   for (const event of CLOCK_EVENTS) await expect(page.getByTestId(`cue-action-${event}`)).toBeVisible();
 });
 
+test('an imported duration never taken keeps the time typed before its first Take through a Reset, and the Take counts it (#1903)', async ({ page }) => {
+  await importedClockProduction(page, 'duration');
+  // The clock's own box, found by the time the designer drew in it.
+  const boxes = page.locator('input[data-testid^="cue-field-"]');
+  let box = boxes.first();
+  for (let i = 0; i < (await boxes.count()); i += 1) {
+    if ((await boxes.nth(i).inputValue()) === DRAWN) box = boxes.nth(i);
+  }
+  await expect(box).toHaveValue(DRAWN);
+  // A new length typed before the first Take, sent to the graphic off air, then Reset off air.
+  await box.fill('0:50');
+  await page.getByTestId('verb-update').click();
+  await page.getByTestId('cue-action-clock_reset').click();
+  await page.getByTestId('verb-take').click();
+  const clock = airClock(page);
+  // The Take counts the time in the field, not the drawn one: never taken is off air.
+  await expect.poll(async () => secondsOf(await clock.textContent()), { timeout: 5000 }).toBeLessThan(50);
+  expect(secondsOf(await clock.textContent()), 'the Take counts 0:50, not the drawn 12:08').toBeGreaterThan(40);
+});
+
 test('an imported target time shows hours, offers no Start, Pause or Reset, and no live mode choice', async ({ page }) => {
   // Three hours and forty minutes on, to the minute, in UTC: the clock reads 3:39:xx.
   const at = new Date(Math.ceil((Date.now() + (3 * 60 + 40) * 60_000) / 60_000) * 60_000);
