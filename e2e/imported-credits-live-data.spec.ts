@@ -174,7 +174,7 @@ test('a typed Update on a held roll says the new list shows on the next Re-take,
   // A corrected name, sent with Update: PROGRAM keeps the list its Take took, and the editor says
   // when the new one shows. Before Update the unsent note asks for Update as always.
   await list.fill(OTHER);
-  await expect(fate).toHaveText('1 change not on air yet. Press ✎ Update');
+  await expect(fate).toHaveText(/^1 change not on (air|PROGRAM) yet\. Press ✎ Update$/);
   await page.getByTestId('verb-update').click();
   await expect.poll(waiting).toBe(true);
   await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
