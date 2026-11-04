@@ -143,7 +143,7 @@ const WALK = async ({ markup, target, wall, driven, script }) => {
 };
 
 /** The template's readers, which import the type registry and so run in the bundle. */
-let clockTargetStart, clockReadout, CLOCK_PICKER_MODES, t10, foldOnFinish;
+let clockTargetStart, clockReadout, CLOCK_PICKER_MODES, t10, foldOnFinish, gapOnFinish;
 
 const walk = await withBundledPage(SPECS, async (page) => {
   await installDrivenPage(page);
@@ -204,6 +204,29 @@ const walk = await withBundledPage(SPECS, async (page) => {
       // The earlier one went by before the answer: nothing is swapped for the later one.
       gone: answer(asked.earlier, Date.parse('2026-10-25T00:45:00Z')),
       goneAsked: fold(clock, Date.parse('2026-10-25T00:45:00Z')),
+    };
+  }, { markup: SCORE_CLOCK });
+  gapOnFinish = await page.evaluate(({ markup }) => {
+    const { NOACG_SVG: R, NOACG_DRAFT: D, NOACG_CONTRACT: C } = window;
+    const drop = window.__importDraft(R.importSvgMarkup(markup));
+    const row = drop.svgFields.find((f) => f.on && f.clock);
+    const clock = { candidateId: row.candidateId, mode: 'target-time', revision: C.svgSourceRevision(drop.designSvg.markup), target: '2027-03-27T03:30:00+02:00[Europe/Helsinki]', targetProposed: true };
+    const draft = (c) => ({ ...drop, svgClock: c });
+    const now = Date.parse('2027-03-27T01:40:00Z');
+    const corrected = { ...clock, target: '2027-03-27T04:30:00+02:00[Europe/Helsinki]' };
+    return {
+      asked: D.svgClockGap(draft(clock), now),
+      ahead: D.svgClockGap(draft(clock), Date.parse('2027-03-27T01:10:00Z')),
+      dated: D.svgClockGap(draft({ ...clock, targetProposed: undefined }), now),
+      countUp: D.svgClockGap(draft({ ...clock, mode: 'count-up' }), now),
+      otherArtwork: D.svgClockGap(draft({ ...clock, revision: 'another' }), now),
+      wake: D.svgClockFoldWake(draft(clock), Date.parse('2027-03-27T01:10:00Z')),
+      gapWake: D.svgClockFoldWake(draft(clock), now),
+      gone: D.svgClockGap(draft(clock), Date.parse('2027-03-28T02:30:00Z')),
+      rolled: D.svgClockTarget(clock, Date.parse('2027-03-28T02:30:00Z')),
+      nextWake: D.svgClockFoldWake(draft(corrected), Date.parse('2027-03-27T02:31:00Z')),
+      followingWake: D.svgClockFoldWake(draft(corrected), Date.parse('2027-03-28T01:31:00Z')),
+      datedWake: D.svgClockFoldWake(draft({ ...corrected, targetProposed: undefined }), now),
     };
   }, { markup: SCORE_CLOCK });
   return page.evaluate(WALK, {
@@ -360,6 +383,18 @@ test('#1898: an undated target that passed into a fold is asked again on Finish,
   assert.equal(f.stale, null, 'an instant that was not offered is no answer');
   assert.equal(f.gone, null, 'an answer whose instant has gone is never swapped for the other');
   assert.equal(f.goneAsked, null, 'once the first has gone the next occurrence is the repeat alone (T1), so nothing is asked');
+});
+
+test('#2118: Finish asks for a new time when the next undated occurrence is skipped', () => {
+  assert.deepEqual(gapOnFinish.asked, { kind: 'gap', date: '2027-03-28', time: '03:30', zone: HEL });
+  for (const key of ['ahead', 'dated', 'countUp', 'otherArtwork']) assert.equal(gapOnFinish[key], null, key);
+  assert.equal(gapOnFinish.wake, Date.parse('2027-03-27T01:30:00Z'), 'the question appears when the stored instant passes');
+  assert.equal(gapOnFinish.gapWake, Date.parse('2027-03-27T01:40:15Z'), 'an open gap is rechecked as local time advances');
+  assert.equal(gapOnFinish.gone, null, 'when the gap is behind local time, tomorrow has a single next occurrence');
+  assert.equal(gapOnFinish.rolled, '2027-03-29T03:30:00+03:00[Europe/Helsinki]');
+  assert.equal(gapOnFinish.nextWake, Date.parse('2027-03-28T01:30:00Z'), 'a corrected target wakes at the next occurrence, across the offset change');
+  assert.equal(gapOnFinish.followingWake, Date.parse('2027-03-29T01:30:00Z'), 'the resolved target keeps waking after the stored instant has long passed');
+  assert.equal(gapOnFinish.datedWake, null, 'explicit dates never roll or schedule another occurrence');
 });
 
 test('T5: the stored form round-trips the instant and the zone', () => {

@@ -10,7 +10,8 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
-// covers: src/templates/behaviours/clock.ts, src/templates/shared/matchClock.ts, src/components/wizard/import/BehaviourSection.tsx
+// covers: src/components/wizard/CreationWizard.tsx
+// covers: src/templates/behaviours/clock.ts, src/templates/shared/matchClock.ts, src/components/wizard/import/{BehaviourSection,ClockFold}.tsx, src/components/wizard/import/draft.ts
 // focus
 //
 // THE CLIP CLOCK AND THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.3, §6.4 and §6.7, phase 2):
@@ -762,3 +763,71 @@ test('an undated target that passes into a DST fold before Finish is asked there
   expect(built.later).toBeTruthy();
   expect(built.start).toBe(built.later);
 });
+
+for (const boundary of ['while Finish is open', 'at a door press']) {
+  test(`an undated target that passes into a DST gap ${boundary} is corrected before building (#2118)`, async ({ page }) => {
+    // 03:10 winter time in Helsinki, a day before the clocks skip tomorrow's 03:30.
+    await page.clock.install({ time: new Date('2027-03-27T01:10:00Z') });
+    await page.goto('/app');
+    await dropSvg(page, SCORE_CLOCK_SVG);
+    await page.getByTestId('map-svg-clock-mode').selectOption('target-time');
+    await page.getByTestId('map-svg-clock-target-zone').selectOption('Europe/Helsinki');
+    await page.getByTestId('map-svg-clock-target-time').fill('03:30');
+    await page.getByTestId('wz-skip-to-finish').click();
+    const gap = page.getByTestId('wz-finish-clock-gap');
+    const doors = ['wz-finish-export', 'wz-finish-production-go', 'wz-finish-edit-artwork'];
+    for (const id of doors) await expect(page.getByTestId(id)).toBeEnabled();
+    await expect(gap).toHaveCount(0);
+    if (boundary === 'at a door press') {
+      // Date changes without running the wake timer: the enabled door must recheck before building.
+      await page.clock.setSystemTime(new Date('2027-03-27T01:40:00Z'));
+      await page.getByTestId('wz-finish-export').click();
+      await expect(page.getByTestId('export-window')).toHaveCount(0);
+    } else await page.clock.fastForward('30:00');
+    await expect(gap).toBeVisible();
+    for (const id of doors) await expect(page.getByTestId(id)).toBeDisabled();
+    if (process.env.NOACG_SHOTS) await page.screenshot({ path: `${process.env.NOACG_SHOTS}/finish-clock-gap-${boundary.replaceAll(' ', '-')}.png` });
+    const time = page.getByTestId('wz-finish-clock-gap-time');
+    await expect(time).toHaveValue('03:30');
+    // Another skipped time and an empty field must both leave the doors blocked.
+    await time.fill('03:15');
+    await expect(gap).toBeVisible();
+    await expect(time).toHaveValue('03:15');
+    for (const id of doors) await expect(page.getByTestId(id)).toBeDisabled();
+    await time.fill('');
+    for (const id of doors) await expect(page.getByTestId(id)).toBeDisabled();
+    // An unambiguous future time resolves on Finish itself; the build stores that exact instant.
+    await time.fill('04:30');
+    await expect(gap).toHaveCount(0);
+    for (const id of doors) await expect(page.getByTestId(id)).toBeEnabled();
+    // The correction is today's next 04:30, not the skipped date tomorrow. Confirm it in view
+    // before a door builds it, with the complete zone rather than the browser's own zone.
+    const targetSummary = page.locator('.wz-finish-summary > div').filter({ has: page.getByText('Clock target', { exact: true }) });
+    await expect(targetSummary).toBeVisible();
+    await expect(targetSummary).toContainText(/Mar.*27.*2027|27.*Mar.*2027/);
+    await expect(targetSummary).toContainText(/0?4:30/);
+    await expect(targetSummary).toContainText('Europe/Helsinki');
+    let expectedTarget = '2027-03-27T04:30:00+02:00[Europe/Helsinki]';
+    if (boundary === 'while Finish is open') {
+      // Keep Finish open through two successive targets: after the stored instant passes,
+      // the next resolved occurrence must keep waking the summary too (including the DST shift).
+      await page.clock.fastForward('51:00');
+      await expect(targetSummary).toContainText(/Mar.*28.*2027|28.*Mar.*2027/);
+      await page.clock.fastForward('23:00:00');
+      await expect(targetSummary).toContainText(/Mar.*29.*2027|29.*Mar.*2027/);
+      await expect(targetSummary).toContainText(/0?4:30/);
+      await expect(targetSummary).toContainText('Europe/Helsinki');
+      expectedTarget = '2027-03-29T04:30:00+03:00[Europe/Helsinki]';
+    }
+    await page.getByTestId('wz-finish-export').click();
+    await expect(page.getByTestId('export-window')).toBeVisible();
+    const built = await evaluateInPage(page, async (target) => {
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { clockTargetStart } = await import('/src/templates/behaviours/clock.ts');
+      const doc = new DOMParser().parseFromString(useTemplateStore.getState().template.html, 'text/html');
+      return { start: doc.querySelector('.imported-design-clock')?.getAttribute('data-start'), expected: clockTargetStart(target) };
+    }, expectedTarget);
+    expect(built.expected).toBeTruthy();
+    expect(built.start).toBe(built.expected);
+  });
+}

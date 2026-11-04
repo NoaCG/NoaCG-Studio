@@ -1270,7 +1270,8 @@ export function svgSavedOver(name: string): SpxTemplate | null {
  * is a wall time until the graphic is built: once its stored instant is behind `now`, it moves to
  * the next occurrence. One the clocks skip or repeat by then keeps its stored instant (T4: no
  * silent choice), which the import step shows as past; a repeat is asked again on Finish
- * (`svgClockFold`), and no door builds until it is answered.
+ * (`svgClockFold`), and a skipped time is corrected on Finish (`svgClockGap`). No door builds
+ * either unresolved target.
  */
 export function svgClockTarget(clock: Pick<SvgClockDraft, 'target' | 'targetProposed'>, now: number): string | undefined {
   const stored = parseClockTarget(clock.target);
@@ -1307,14 +1308,26 @@ export function svgClockFold(draft: SvgImportDraft, now: number): Extract<ClockT
   return r.kind === 'fold' ? r : null;
 }
 
-/** The next moment `svgClockFold` can change its answer after `now`: when the stored instant
- *  passes, or, while asked, when the earlier of the two has gone and the repeat is the next
- *  occurrence (T1). Null when nothing will change. */
+/** #2118: a skipped next occurrence needs a new time, rather than the passed stored instant. */
+export function svgClockGap(draft: SvgImportDraft, now: number): Extract<ClockTargetResolution, { kind: 'gap' }> | null {
+  const stored = undatedTarget(draft);
+  if (!stored || stored.at > now || !svgClockOption(draft, now)) return null;
+  const r = resolveClockTarget({ time: stored.time, zone: stored.zone }, now);
+  return r.kind === 'gap' ? r : null;
+}
+
+/** The next moment an undated target's question or readback can change: its next resolved
+ *  occurrence, or, while a fold is asked, when the earlier one has gone (T1). A skipped time is
+ *  rechecked while its local date can advance. Null when nothing will change. */
 export function svgClockFoldWake(draft: SvgImportDraft, now: number): number | null {
   const stored = undatedTarget(draft);
   if (!stored) return null;
   if (stored.at > now) return stored.at;
-  return svgClockFold(draft, now)?.earlier ?? null;
+  const fold = svgClockFold(draft, now);
+  if (fold) return fold.earlier;
+  if (svgClockGap(draft, now)) return now + 15_000;
+  const next = resolveClockTarget({ time: stored.time, zone: stored.zone }, now);
+  return next.kind === 'resolved' && next.at > now ? next.at : null;
 }
 
 /** The clock with a fold answered, still undated as the import step stores it. Null unless the

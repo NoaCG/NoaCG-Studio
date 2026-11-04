@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { DraftPatch, WizardDraft } from '../draft/core';
-import type { ClockTargetResolution } from '../../../control/clockTarget';
-import { svgClockFold, svgClockFoldWake, svgClockWithFold } from './draft';
+import { formatClockTarget, parseClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
+import { svgClockFold, svgClockFoldWake, svgClockGap, svgClockOption, svgClockWithFold } from './draft';
 import SectionHead from '../SectionHead';
 
 /** An instant as the target's line names it, in `zone`. */
@@ -26,17 +26,41 @@ export function ClockFoldPick({ fold, format, onPick, testId }: { fold: Extract<
   );
 }
 
+/** A gap has no instant to choose. Keep unfinished input local until a new time resolves. */
+function ClockGapTime({ gap, onTarget }: { gap: Extract<ClockTargetResolution, { kind: 'gap' }>; onTarget: (target: string, proposed: boolean) => void }) {
+  const [time, setTime] = useState(gap.time);
+  const [result, setResult] = useState<ClockTargetResolution | null>(null);
+  const format = useMemo(() => targetFormat(gap.zone), [gap.zone]);
+  const apply = (next: string, fold?: 'earlier' | 'later') => {
+    setTime(next);
+    const r = resolveClockTarget({ time: next, zone: gap.zone, fold }, Date.now());
+    setResult(r);
+    if (r.kind === 'resolved' && !r.expired) onTarget(formatClockTarget(r), r.proposed);
+  };
+  return (
+    <div className="map-svg-row">
+      <label className="save-field">
+        <span>Time · {gap.zone}</span>
+        <input type="time" value={time} onChange={(e) => apply(e.target.value)} data-testid="wz-finish-clock-gap-time" />
+      </label>
+      {result?.kind === 'invalid' && <p className="map-svg-note">Enter a time.</p>}
+      {result?.kind === 'fold' && <ClockFoldPick fold={result} format={format} onPick={(which) => apply(time, which)} testId="wz-finish-clock-gap-fold" />}
+    </div>
+  );
+}
+
 /**
- * #1898: AN UNDATED TARGET THAT HAS PASSED INTO A DST FOLD BY FINISH. Its stored instant is gone
- * and the next occurrence happens twice, so Finish asks which (owner: carry the choice to Finish;
- * never pick silently, never build the passed instant). `question` is the step's own "Which one",
- * shown until it is answered; `asks()` is the doors' check at the moment of pressing, since the
+ * #1898/#2118: AN UNDATED TARGET THAT HAS PASSED INTO A DST FOLD OR GAP BY FINISH. Its stored
+ * instant is gone and the next occurrence repeats or is skipped, so Finish asks which instant
+ * or offers a new time (owner: never pick silently, never build the passed instant). `question`
+ * stays shown until it is answered; `asks()` is the doors' check at the moment of pressing, since the
  * instant can pass between two renders. A timer wakes the hook at the next moment the answer can
  * change (`svgClockFoldWake`).
  */
-export function useSvgClockFold(draft: WizardDraft, patch: (p: DraftPatch) => void): { question: ReactNode; asks: () => boolean } {
+export function useSvgClockFold(draft: WizardDraft, patch: (p: DraftPatch) => void): { question: ReactNode; targetSummary: string | null; asks: () => boolean } {
   const [now, setNow] = useState(() => Date.now());
   const fold = svgClockFold(draft, now);
+  const gap = svgClockGap(draft, now);
   const wake = svgClockFoldWake(draft, now);
   useEffect(() => {
     if (wake === null) return;
@@ -64,12 +88,26 @@ export function useSvgClockFold(draft: WizardDraft, patch: (p: DraftPatch) => vo
           testId="wz-finish-clock-fold-pick"
         />
       </div>
+    ) : gap && clock ? (
+      <div className="panel-section" data-testid="wz-finish-clock-gap">
+        <SectionHead title="Clock" summary="The clocks skip that time. Choose another." testid="wz-finish-clock-gap-why">
+          The time it counts to has passed, and its next one does not exist because the clocks go forward. Choose a new time before it is built.
+        </SectionHead>
+        <ClockGapTime key={`${gap.date}/${gap.zone}/${gap.time}`} gap={gap} onTarget={(target, proposed) => {
+          patch({ svgClock: { ...clock, target, targetProposed: proposed || undefined } });
+          setNow(Date.now());
+        }} />
+      </div>
     ) : null;
   const asks = () => {
     const at = Date.now();
-    if (!svgClockFold(draft, at)) return false;
+    if (!svgClockFold(draft, at) && !svgClockGap(draft, at)) return false;
     setNow(at);
     return true;
   };
-  return { question, asks };
+  // A time typed alone may resolve on a different date. Read the same current target the build
+  // would store, including its zone, without treating this confirmation as an unanswered question.
+  const target = !question ? parseClockTarget(svgClockOption(draft, now)?.target) : null;
+  const targetSummary = target ? `${targetFormat(target.zone).format(target.at)} · ${target.zone}` : null;
+  return { question, targetSummary, asks };
 }
