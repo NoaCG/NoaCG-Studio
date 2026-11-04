@@ -157,6 +157,60 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await deck.close();
 });
 
+// protocol §6.2, issue #2109. The later press is sent first and the earlier one 100 ms behind it,
+// inside the page's 500 ms bound: nothing here relies on the wire flipping them by chance.
+test('presses that reach the production page reversed run in the order they were pressed, each judged against what the one before it drew', async ({ page }) => {
+  test.setTimeout(180_000);
+  await publishTwoCues(page, `Panel Order ${Date.now()}`);
+  const op = page;
+  await shutStatusPanel(op);
+  const deck = await pairPanel(op);
+  await answerPanel(op);
+  await op.getByTestId('panel-close').click();
+  await deck.hello();
+  const [anna, ben] = (await deck.rows()).map((r) => r.id);
+  const reversed = async (later: () => ReturnType<typeof deck.press>, earlier: () => ReturnType<typeof deck.press>) => {
+    const second = later();
+    await op.waitForTimeout(100);
+    const first = earlier();
+    return { first: await first, second: await second };
+  };
+
+  // The deck's first press sets the page's count for it (the module's own ids count the same way).
+  const start = await deck.state((s) => Array.isArray(s.live));
+  expect((await deck.press('select-cue', anna, start.ver as number, 'orderdeck:1')).outcome).toBe('ran');
+
+  // A PICK AND THEN A REVEAL: Ben, pressed last, stands, though the page heard him first. Run as
+  // they arrived, Anna would have replaced him.
+  const ready = await deck.state((s) => s.selected === anna, 'Anna selected');
+  const pair = await reversed(
+    () => deck.press('take-cue', ben, ready.ver as number, 'orderdeck:3'),
+    () => deck.press('take-cue', anna, ready.ver as number, 'orderdeck:2'),
+  );
+  expect([pair.first.outcome, pair.second.outcome]).toEqual(['ran', 'ran']);
+  await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
+  await op.waitForTimeout(500);
+  await expect(op.getByTestId('live-cue-chip')).toContainText('Ben');
+  expect((await deck.state()).live).toEqual([ben]);
+
+  const up = await deck.state();
+  expect((await deck.press('all-out', '', up.ver as number, 'orderdeck:4')).outcome).toBe('ran');
+  const clear = await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
+
+  // ONE KEY PRESSED TWICE, both drawn with Anna off air: by the time the second runs the page has
+  // drawn the first, so it is refused rather than taking her back off.
+  const twice = await reversed(
+    () => deck.press('take-cue', anna, clear.ver as number, 'orderdeck:6'),
+    () => deck.press('take-cue', anna, clear.ver as number, 'orderdeck:5'),
+  );
+  expect(twice.first.outcome).toBe('ran');
+  expect(twice.second.outcome).toBe('stale');
+  await op.waitForTimeout(500);
+  await expect(op.getByTestId('live-cue-chip')).toContainText('Anna');
+
+  await deck.close();
+});
+
 test('the clip clock a panel counts follows the server clip the production page plays', async ({ page }) => {
   // AC-7, protocol §7.4 and §8: with a server clip on air the state names it and its end in the
   // page's clock; the server moving the clip moves that end; a pause from the panel freezes it; an
