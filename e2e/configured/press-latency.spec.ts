@@ -221,8 +221,15 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         } else {
           console.log(`back to back ${round}: a stamp is missing`, JSON.stringify({ heard: !!heard, send: !!send, handed: !!handed, rx: !!rx, played: !!played, painted: !!painted }));
         }
-        const up = await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
-        expect((await deck.press('take-cue', ben, up.ver as number)).outcome).toBe('ran');
+        // Off again. Two presses in flight move the page's state twice, so a key drawn from a state
+        // still settling is refused stale (the page's own check, kept): settle, then draw it fresh.
+        let off = '';
+        for (let attempt = 0; attempt < 3 && off !== 'ran'; attempt++) {
+          await op.waitForTimeout(500);
+          const up = await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
+          off = (await deck.press('take-cue', ben, up.ver as number)).outcome;
+        }
+        expect(off).toBe('ran');
         await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
         await op.waitForTimeout(600);
       }
