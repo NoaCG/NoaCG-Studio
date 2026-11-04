@@ -44,7 +44,7 @@ import {
   loadServer,
   mapRegionsToLayers,
   mockGateway,
-  MOCK_REQUEST_FEE_USD,
+  REQUEST_FEE_USD,
   newLedger,
   openHoldout,
   planRequest,
@@ -756,6 +756,17 @@ test('every admitted route is priced, and each attempt\'s ceiling is positive', 
   assert.deepEqual(CAP.partitionUsd, { development: 2, holdout: 3 });
 });
 
+test('#2015: every attempt ceiling carries the request fee, the same fee the server charges', () => {
+  assert.equal(REQUEST_FEE_USD, server.gateway.GATEWAY_TAG_WRITE_USD);
+  for (const [model, route] of Object.entries(ROUTES)) {
+    // One tag per arm, so one write per request.
+    assert.equal(server.gateway.gatewayRequestFeeUsd({ provider: 'vercel', model }, armGateway(model)), REQUEST_FEE_USD, model);
+    // 512 is the framing allowance in attemptCeilingUsd.
+    const tokens = ((1000 + 512) * route.input + 10 * route.output) / 1_000_000;
+    assert.ok(Math.abs(attemptCeilingUsd(model, { bytes: 1000, outputTokens: 10 }) - (tokens + REQUEST_FEE_USD)) < 1e-15, model);
+  }
+});
+
 // ---- M13: one receipt chain across runs ----
 
 test('M13: a paid run continues only the newest ledger; a lost run blocks paid work until a reconcile names it', () => {
@@ -893,7 +904,7 @@ test('C6: an answer that reports no usage or cost is an unread bill, charged its
   const priced = harnessDeps(mockGateway(), null, { fetchImpl: answer({ prompt_tokens: 900, completion_tokens: 40, cost: 0.0002 }) });
   const known = await callArm(arm, d, CONFIG, p, priced);
   assert.equal(known.unknown, 0);
-  assert.ok(Math.abs(known.reportedUsd - (0.0002 + MOCK_REQUEST_FEE_USD)) < 1e-12, 'the reported cost plus the request fee (#2015)');
+  assert.ok(Math.abs(known.reportedUsd - (0.0002 + REQUEST_FEE_USD)) < 1e-12, 'the reported cost plus the request fee (#2015)');
 });
 
 test('C6: a Jev answer with no usage is an unread bill and is not waited for when settling', async () => {

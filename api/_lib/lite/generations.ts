@@ -506,7 +506,7 @@ export default {
         await failRecord(record, semantic.errors.join(','), modelResult);
         return liteError('generation_failed', 'Lite could not produce a usable design decision for this brief.', 422);
       }
-      const actualCost = modelResult.usage.estimatedCost?.amount ?? 0;
+      const actualCost = usageCostUsd(modelResult.usage);
       if (actualCost > profile.maxProviderCostUsd) {
         await store.update(record?.id ?? '', { ...modelResultPatch(modelResult), status: 'failed', rejectionReason: 'cost_ceiling' });
         return liteError('cost_ceiling', 'This Lite generation exceeded its cost ceiling and was stopped.', 503);

@@ -13,7 +13,7 @@
 import { bearerToken, ipHash, json, methodGuard, readJson } from '../http.js';
 import { verifyUser } from '../auth.js';
 import { managedAiKey } from '../aiCredentials.js';
-import { executeGatewayRequest, GatewayError, withTokenCost, worstAttemptCostUsd } from '../aiGateway.js';
+import { executeGatewayRequest, GatewayError, usageCostUsd, withTokenCost, worstAttemptCostUsd } from '../aiGateway.js';
 import { liteError } from '../aiLiteHttp.js';
 import {
   importAnalysisPolicy,
@@ -222,7 +222,7 @@ export default {
         },
       ), profile);
       accounted = result;
-      const actualCost = result.usage.estimatedCost?.amount ?? 0;
+      const actualCost = usageCostUsd(result.usage);
       if (actualCost > profile.maxProviderCostUsd) {
         await store.update(record?.id ?? '', {
           ...modelResultPatch(result),
