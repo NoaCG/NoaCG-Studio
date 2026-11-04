@@ -891,6 +891,8 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
 
   const rows: { id: number; graphic: string; stream: string; msg: { t: string; data?: Record<string, string> } }[] = [];
   let head = 0;
+  let refusePanel: Promise<void> | null = null;
+  let refused = 0;
   const files = new Map([['panel.html', pages.panel], ['native.html', pages.nativePanel], ['controller.html', pages.controller], ['g0.html', '<p>g</p>'], ['g1.html', '<p>g</p>']]);
   const serve = (route: Route) => {
     const url = new URL(route.request().url());
@@ -902,6 +904,11 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
       return route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } });
     }
     if (url.pathname === '/relay/send') {
+      // A relay that holds the panel's sends open and then refuses them (`refusePanel`).
+      if (refusePanel && (route.request().headers().referer ?? '').endsWith('/panel.html')) {
+        refused += 1;
+        return refusePanel.then(() => route.fulfill({ status: 500, body: 'refused' }));
+      }
       const body = route.request().postDataJSON() as { graphic?: string; msg?: unknown; items?: typeof rows };
       for (const item of body.items ?? [body as (typeof rows)[number]]) rows.push({ id: ++head, graphic: item.graphic, stream: item.stream || 'program', msg: item.msg });
       return route.fulfill({ json: { head } });
@@ -991,6 +998,14 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   // running clock from the log, 600 rows back and past the relay's 500-row page: its own cue's
   // 0:30 reaches the running clock as a correction, stamped, never as a plain time that would
   // stop the count.
+  // THE PANEL'S OWN SEND THAT THE RELAY REFUSES: its correction is held open while another window
+  // moves the clock, then refused. The panel skipped the other window's row while its own was out,
+  // and takes it back once its own is refused (checked by the panel's ■ Stop below).
+  let refuse = () => {};
+  refusePanel = new Promise<void>((resolve) => { refuse = resolve; });
+  await panel.locator('.field[data-key="f2"] input').fill('0:10');
+  await panel.getByRole('button', { name: '✎ Update' }).click();
+  await expect.poll(() => refused).toBe(2);
   filler(600);
   const ctl2 = await context.newPage();
   await ctl2.route('http://clock-relay.local/**', serve);
@@ -1012,6 +1027,10 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   // value it last sent itself, which was already off air and would bank nothing.
   const heard = rows.length;
   await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= heard);
+  const refusedAnswers = Promise.all([0, 1].map(() => panel.waitForResponse((r) => r.url().endsWith('/relay/send') && r.status() === 500)));
+  refuse();
+  await refusedAnswers;
+  refusePanel = null;
   from = rows.length;
   await panel.getByRole('button', { name: '■ Stop' }).click();
   await expect.poll(() => sent(from).length).toBe(2);

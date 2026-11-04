@@ -382,13 +382,17 @@ if (location.protocol === 'http:' || location.protocol === 'https:') {
     })
     .catch(function () { /* not relay-hosted */ });
 }
-function sendRelay(graphic, msg) {
+// failed(), when given, is told of a send the relay did not take (an imported clock's follow).
+function sendRelay(graphic, msg, failed) {
   if (!relayOk) return;
   fetch('/relay/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ graphic: graphic, msg: msg }),
-  }).catch(function () { /* the BroadcastChannel path still works */ });
+  }).then(function (r) { if (!r.ok && failed) failed(); }, function () {
+    /* the BroadcastChannel path still works */
+    if (failed) failed();
+  });
 }
 
 ${MATCH_CLOCK_PAGE_JS}
@@ -460,7 +464,7 @@ GRAPHICS.forEach(function (g) {
     }).catch(function () { /* offline / blocked — the local BroadcastChannel path still works */ });
   }
 
-  function post(msg) { if (ch) ch.postMessage(msg); sendRemote(msg); if (msg.t !== 'hello') { sendRelay(g.name, msg); record(msg); } }
+  function post(msg, failed) { if (ch) ch.postMessage(msg); sendRemote(msg); if (msg.t !== 'hello') { sendRelay(g.name, msg, failed); record(msg); } }
   // PREPARED vs PUBLISHED: with Live off, edits stay in this panel (staged — the badge
   // says so) and go on air only on an explicit ✎ Update / ▶ Play. Nothing airs merely
   // because it was typed.
@@ -504,26 +508,36 @@ GRAPHICS.forEach(function (g) {
   // so this card follows the clock rows of the relay's log, the whole log at boot and then as it
   // grows: a Pause pressed here then banks the time the clock really stands at. The values this
   // card sent and has not seen back yet are held (clockOwn): a row before the first of them is
-  // older than this card's own press and moves nothing, and its own row coming back is already
-  // held. One that never comes back (a failed send) stops counting after a few seconds.
+  // older than this card's own press, and its own row coming back is already held. A send the
+  // relay did not take, or one not back within a few seconds, stops counting, and the newest row
+  // another page sent meanwhile (clockSkipped) is the clock again.
   var clockOwn = [];
-  function noteClockSent(value) {
-    if (!relayOk || !clockSlots(value)) return;
+  var clockSkipped = null;
+  function clockOwnSettle(keep) {
     var now = Date.now();
-    clockOwn = clockOwn.filter(function (o) { return now - o.at < 7000; });
-    clockOwn.push({ value: value, at: now });
+    clockOwn = clockOwn.filter(function (o) { return o !== keep && now - o.at < 7000; });
+    if (clockOwn.length === 0 && clockSkipped !== null) { clockHeld = clockSkipped; clockSkipped = null; }
+  }
+  // Answers what to call if the relay does not take the send.
+  function noteClockSent(value) {
+    if (!relayOk || !clockSlots(value)) return undefined;
+    var own = { value: value, at: Date.now() };
+    clockOwnSettle(null);
+    clockOwn.push(own);
+    return function () { clockOwnSettle(own); };
   }
   function followRelayClock(row) {
     var m = row.msg || {};
     if (row.graphic !== g.name || (row.stream && row.stream !== 'program')) return;
     if (m.t !== 'update' || !m.data || m.data[CLOCK.field] === undefined || !clockSlots(m.data[CLOCK.field])) return;
     var value = m.data[CLOCK.field];
-    var now = Date.now();
-    clockOwn = clockOwn.filter(function (o) { return now - o.at < 7000; });
+    clockOwnSettle(null);
     for (var i = 0; i < clockOwn.length; i++) {
-      if (clockOwn[i].value === value) { clockOwn = clockOwn.slice(i + 1); return; }
+      // This card's own row: every row before it was older, and only its newer sends still count.
+      if (clockOwn[i].value === value) { clockOwn = clockOwn.slice(i + 1); clockSkipped = null; return; }
     }
     if (clockOwn.length === 0) clockHeld = value;
+    else clockSkipped = value;
   }
   if (CLOCK && CLOCK.events) relayReady.push(function () {
     var cursor = 0;
@@ -545,11 +559,11 @@ GRAPHICS.forEach(function (g) {
     if (CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined) {
       clockHeld = clockAfterUpdate(clockHeld, msg.data[CLOCK.field]);
       msg.data[CLOCK.field] = clockHeld;
-      noteClockSent(clockHeld);
+      var failed = noteClockSent(clockHeld);
     }
     var effect = clockRowStep(CLOCK, msg, CLOCK.events ? clockHeld : state[CLOCK.field], Date.now());
     if (effect && effect.when === 'before') applyClock(effect.value);
-    post(msg);
+    post(msg, failed);
     if (effect && effect.when === 'after') applyClock(effect.value);
   }
   // Bank the clock's new value onto the wire, which is what puts it in the log this panel replays
@@ -560,8 +574,8 @@ GRAPHICS.forEach(function (g) {
   function applyClock(value) {
     var data = {};
     data[CLOCK.field] = value;
-    post({ t: 'update', data: data });
-    if (CLOCK.events) { clockHeld = value; noteClockSent(value); return; }
+    post({ t: 'update', data: data }, CLOCK.events ? noteClockSent(value) : undefined);
+    if (CLOCK.events) { clockHeld = value; return; }
     state[CLOCK.field] = value;
     lastSent[CLOCK.field] = value;     // it just aired: not staged
     if (clockInput) clockInput.value = clockPlain(value);
