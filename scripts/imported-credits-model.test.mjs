@@ -1031,8 +1031,12 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  row 24 (coordinator-approved): their js gains the snapshot rule and nothing else, html and css
  *  unchanged; the diff is in docs/work-specs/jev-svg-import/evidence/phase-24.md, and the test
  *  "row 24: ..." below asserts the rule is there. Re-taken for #1977 when the imported fit runtime's
- *  text changed: the js moves with that runtime, and the row-24 rule asserted below is unchanged. */
-const ROLE_ABOVE_PINS = { one: '4b1d59a134053cbd', bold: 'f7aac19cecfc3c56', grouped: 'da2693fdbc70ac5e', roleGroup: 'e067775c2960f085', idGroup: 'a4b7523b653d3544' };
+ *  text changed: the js moves with that runtime, and the row-24 rule asserted below is unchanged.
+ *  Re-taken by #2057: their js gains the hold at the cue (creditsEntrance, the list held there
+ *  only while the rows show the list last written, and rows older than the holder built again off
+ *  air, creditsOffAir) and nothing else, html and css unchanged; the test "#2057: ..." below
+ *  asserts it. */
+const ROLE_ABOVE_PINS = { one: '22f3af645dfb976f', bold: '8f62fc7260393803', grouped: '8f2c7c796bf4e786', roleGroup: '842855bb7c8ec637', idGroup: 'e1c996ced7f613db' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1049,6 +1053,19 @@ test('row 24: a styled roll keeps the list its take took while on air; the edita
     assert.ok(js.includes('noacgCreditsHeld = null;\n  noacgCreditsWaiting = false;'), `${k}: Out lets go of the held list`);
   }
   for (const k of ['editable', 'artwork']) assert.ok(!R.pins[k].js.includes('noacgCreditsHeld'), `${k}: no snapshot rule`);
+});
+
+test('#2057: a styled take cued by play() keeps the list its first frame shows, whatever update lands before the take runs', () => {
+  for (const k of ROLE_ABOVE) {
+    const { js } = R.styled[k];
+    assert.ok(js.includes('function creditsEntrance()') && js.includes('tl.time() !== 0') && js.includes('!tl.parent || tl.paused()'), `${k}: the cue is read off the entrance play() built`);
+    assert.ok(js.includes('noacgCreditsHeld = noacgCreditsShown;'), `${k}: an update at the cue holds the list the rows show`);
+    assert.ok(js.includes('noacgCreditsShown = text;'), `${k}: the rows record the list they show`);
+    assert.ok(js.includes('noacgCreditsCued.entrance === creditsLive()') && js.includes('noacgCreditsHeld = cued ? cued.list :'), `${k}: the take keeps the list held at its own cue`);
+    assert.ok(js.includes('noacgCreditsHeld === null && noacgCreditsShown === before ? creditsEntrance() : null'), `${k}: a cue holds the rows only when they show the list last written`);
+    assert.ok(js.includes('if (noacgCreditsHeld === null) noacgCreditsWritten = text;'), `${k}: rows built from the holder record the list written`);
+    assert.ok(js.includes('function creditsOffAir()') && js.includes('if (!out) rebuild();') && js.includes('holder.textContent === noacgCreditsShown) return;'), `${k}: off air, rows older than the holder are built again`);
+  }
 });
 
 test('row 20: a role-beside binding builds the styled engine, one Credits field holding the drawn list', () => {
