@@ -1156,6 +1156,9 @@ for (const layout of CARD_LAYOUTS) {
         await page.waitForTimeout(2500);
         expect((await cardsState(page)).shown, `${at}: no card time, no change`).toBe(0);
       }
+      // The change into this card must have ended: its opacity can read 1 in its last frames,
+      // and a Next during a change is that change (creditsTurn; #1988, run 41866854833).
+      await changeEnded(page, `${at}: card ${k}`);
       await cardsDispatch(page, 'next');
     }
     // ORDERING: the cards, in order, are the list without its blank line.
