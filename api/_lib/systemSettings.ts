@@ -2,15 +2,19 @@
 //
 // The point is the incident case: when a model starts returning garbage or a feature breaks
 // at 9pm, the fix should be a switch, not a redeploy. Everything here is therefore read on
-// the request path - and, because it is on the request path, everything here FAILS OPEN on a
-// read error. A control plane that cannot be reached must not take the product down with it;
-// the controls exist to turn things off deliberately, never by accident.
+// the request path, and there are two readers with opposite failure postures:
 //
-// The exception to fail-open is model routing, and it is deliberate: a route that has been
-// switched off stays off, because the reason to switch a route off is usually that its output
-// is wrong or its cost has spiked, and serving it anyway is the outcome the switch exists to
-// prevent. See disabledRoute() below. The server tick's switch fails closed for the same reason
-// (dataTickOn() at the end).
+// - systemSettings() FAILS OPEN: a read error answers empty settings. The maintenance notice,
+//   the beta list and template visibility use it, because a control plane that cannot be
+//   reached must not take the product down with it.
+// - readSystemSettings() says when the read failed, and every PAID AI request uses it and
+//   refuses on failure (#2034). A route or feature switched off from /admin stays off: the
+//   reason to switch one off is that its output is wrong or its cost has spiked, and an
+//   unreadable switch must not serve it anyway. The server tick's switch fails closed for the
+//   same cost reason (dataTickOn() at the end).
+//
+// A deployment with no backend configured has nothing to read; both readers answer empty
+// settings there, which is a successful read of "nothing is switched off".
 
 import { adminConfigured, adminDb } from './adminAuth.js';
 import { isFeatureKey, type FeatureKey } from '../../src/entitlements/contract.js';
@@ -62,13 +66,17 @@ export function resetSystemSettingsCache(): void {
   cache = null;
 }
 
-export async function systemSettings(): Promise<SystemSettings> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.value;
-  if (!adminConfigured()) return EMPTY;
+/** A settings read that can fail. Paid AI requests use this and refuse on `ok: false`, so a
+ *  failed read can never be mistaken for "nothing is switched off". */
+export type SystemSettingsRead = { ok: true; settings: SystemSettings } | { ok: false };
+
+export async function readSystemSettings(): Promise<SystemSettingsRead> {
+  if (cache && Date.now() - cache.at < TTL_MS) return { ok: true, settings: cache.value };
+  if (!adminConfigured()) return { ok: true, settings: EMPTY };
   try {
     const db = await adminDb();
     const { data, error } = await db.from('system_settings').select('key, value');
-    if (error) return EMPTY;
+    if (error) return { ok: false };
 
     const byKey = new Map((data ?? []).map((row) => [row.key as string, (row as { value: unknown }).value]));
     const value: SystemSettings = {
@@ -78,10 +86,16 @@ export async function systemSettings(): Promise<SystemSettings> {
       betaUserIds: stringArray(byKey.get('beta_user_ids'), 500),
     };
     cache = { at: Date.now(), value };
-    return value;
+    return { ok: true, settings: value };
   } catch {
-    return EMPTY;
+    return { ok: false };
   }
+}
+
+/** The fail-open reader for everything that spends nothing: a failed read is empty settings. */
+export async function systemSettings(): Promise<SystemSettings> {
+  const read = await readSystemSettings();
+  return read.ok ? read.settings : EMPTY;
 }
 
 /** Has this route been switched off? Reads the already-loaded settings rather than querying,

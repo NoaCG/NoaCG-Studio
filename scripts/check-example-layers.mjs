@@ -32,7 +32,10 @@
 //   text     Text holds named text objects (and `f:` pictures) only, each spelled the one taught
 //            way: a word, then the row last after a space. A name the importer reads as a
 //            behaviour role must be that role's taught spelling (`Answer A`, never `Vastaus A`).
-//            A simple type (title, name tag, credits) uses its field set and nothing else.
+//            A simple type (title, name tag, credits) uses its field set and nothing else, plus
+//            a `numbered` field repeated with a number: editable credits draw each role and each
+//            name as its own line, `Credits` first (the layer the import binds), then `Credits 2`,
+//            `Credits 3` top to bottom. The import reads those lines by their looks, not names.
 //   moments  Moments holds hidden groups named for a behaviour's moment (`Selected A`), or a
 //            gauge bar drawn at full length (`Bar 1`), and every row it names exists in Text.
 //   board    Board text is `static:`. Of the shapes under every text, the background is the one
@@ -501,6 +504,9 @@ export function auditSvg(src, { system, words }) {
   }
   const simple = system.simpleTypes;
   const simpleFields = new Set(simple.flatMap((t) => t.fields));
+  /** `Credits 2` in a type whose `numbered` holds `Credits`: one more line of the same field. */
+  const isNumbered = (type, name) => /^\d+$/.test(rowOf(name) ?? '') && (type.numbered ?? []).includes(headOf(name));
+  const isSimpleField = (type, name) => type.fields.includes(name) || isNumbered(type, name);
   const textRoles = roles.filter((r) => r.pool === 'text' && r.head);
   const taughtText = new Set(textRoles.map((r) => r.head));
   // A graphic with moments, or with a clock drawn as its sample (the countdown's readout has no
@@ -508,7 +514,7 @@ export function auditSvg(src, { system, words }) {
   const moments = byName.get(MOMENTS)?.children ?? [];
   let readsAsBehaviour = moments.length > 0 || texts.some(({ el }) => /^\d{1,2}:\d{2}(?::\d{2})?$/.test(textOf(el)));
   for (const { name } of texts) {
-    if (simpleFields.has(name)) continue;
+    if (simpleFields.has(name) || simple.some((t) => isNumbered(t, name))) continue;
     const head = headOf(name);
     const reading = textRoles.filter((r) => matchesRole(r, name));
     if (reading.length > 0) readsAsBehaviour = true;
@@ -521,10 +527,11 @@ export function auditSvg(src, { system, words }) {
   // A simple type's field set is closed: once a graphic with no behaviour uses one of its names,
   // every text is one of that set, and the first of the set is there.
   if (!readsAsBehaviour) {
-    const used = simple.filter((t) => texts.some(({ name }) => t.fields.includes(name)));
+    const used = simple.filter((t) => texts.some(({ name }) => isSimpleField(t, name)));
     if (used.length > 1) fail('text', `the texts mix ${used.map((t) => t.type).join(' and ')} names - a graphic is one of them`);
     for (const type of used.length === 1 ? used : []) {
-      for (const { name } of texts) if (!type.fields.includes(name)) fail('text', `"${name}" is not a ${type.type} field - a ${type.type} graphic has ${type.fields.join(' and ')}`);
+      const numbered = (type.numbered ?? []).map((f) => `, then ${f} 2, ${f} 3 for each further line`).join('');
+      for (const { name } of texts) if (!isSimpleField(type, name)) fail('text', `"${name}" is not a ${type.type} field - a ${type.type} graphic has ${type.fields.join(' and ')}${numbered}`);
       if (!texts.some(({ name }) => name === type.fields[0])) fail('text', `a ${type.type} graphic has a "${type.fields[0]}" text`);
     }
   }

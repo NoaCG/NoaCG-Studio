@@ -209,7 +209,9 @@ a gate, and spend from the two remaining function slots.
 reads - keeps one resolver but is a cache in front of access control. Nothing writes it when a
 grant expires or a kill switch flips, and both fail modes are wrong: fail-closed locks people
 out when a cache write fails, against the neutrality rule and the fail-open posture of
-`api/_lib/entitlements.ts`; fail-open makes the gate decorative.
+`api/_lib/entitlements.ts`; fail-open makes the gate decorative. (Paid AI requests are the one
+fail-closed exception: they resolve through `resolvePaidAiAccess()` and refuse when the plan or
+the kill switches cannot be read, #2034.)
 
 **What shipped (`0022`): only the PRECEDENCE-FREE ABSOLUTES are in SQL, and plan-level gating of
 these keys plainly does not bite.** Four inputs win outright in the contract, so a policy testing
