@@ -173,5 +173,62 @@
  "traps": [
   "A builder's PR body must not use a closing keyword for an issue the phase says to keep open until a later receipt (cf01: 'close #1951' closed it at merge).",
   "Closing keywords in a PR's commits did not auto-close issues when merged through the merge queue (#1998: #1954/#1926 stayed open); check after each merge and close by hand with a pointer."
+ ],
+ "ciLandings": [
+  {
+   "pr": 1503,
+   "mergeSha": "d97509d023768c3a3b64c5e35f83d0c31bacf129",
+   "mergedAt": "2026-11-04T11:50:18Z",
+   "what": "e2e durations table re-recorded from run 41447757102 (landed by the JEV follow-up coordinator)",
+   "note": "during cf12's measurement window: shard balance changes the table-minute share the measure script prices; cf13 side rule decides whether it ends sides"
+  },
+  {
+   "pr": 2070,
+   "mergeSha": "feeb9078",
+   "mergedAt": "2026-11-04T13:43:15Z",
+   "what": "JEV test upkeep"
+  },
+  {
+   "pr": 2072,
+   "mergeSha": "babc7030",
+   "mergedAt": "2026-11-04T13:43:15Z",
+   "what": "JEV test upkeep"
+  },
+  {
+   "pr": 2080,
+   "mergeSha": "0f297d1d6133dd673f8e6d39691daca2fe078e77",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1750 cause fix (PreviewController pending until restore reply); spec leaves quarantine automatically"
+  },
+  {
+   "pr": 2081,
+   "mergeSha": "74fbcc03",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1915 drag test, partial"
+  },
+  {
+   "pr": 2082,
+   "mergeSha": "aa2ea8fe",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1997"
+  },
+  {
+   "pr": 2085,
+   "mergeSha": "6f72e4699733a7a4b27f84d04fe257de61255df8",
+   "mergedAt": "2026-11-04T14:46:15Z",
+   "what": "#1897: e2e suite server stops watching files (playwright.config.ts, vite.config.ts)"
+  },
+  {
+   "pr": 2083,
+   "mergeSha": "4cca7743",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1988 spec sync"
+  },
+  {
+   "pr": 2112,
+   "mergeSha": "64e1d9eaf33bd46d83e6a10749d90ecaa85ee62f",
+   "mergedAt": "2026-11-04T16:19:52Z",
+   "what": "#2094: catalog, live, endurance Playwright configs stop watching files"
+  }
  ]
 }
