@@ -71,7 +71,7 @@ test('the exported pages read every row as the same clock move as the wire', () 
 //  goes back to the last confirmed clock; R5 ... or to the newer row another page sent meanwhile;
 //  R6 two overlapping sends both refused go back to the confirmed clock, never to the first refused
 //  one; R7 a send not back within 7 s counts as lost; R8 a later send coming back stands over an
-//  earlier refused one.
+//  earlier refused one; R9 an earlier send coming back after a later one was refused is the clock.
 const clockTime = { now: 1_800_000_000_000 };
 const follower = new Function('Date', `${MATCH_CLOCK_PAGE_JS}\nreturn clockFollower;`)({ now: () => clockTime.now });
 const RUN = '0:30@1800000000000/0:30/0:30';
@@ -123,4 +123,12 @@ test('a page sharing a relay keeps the clock the relay confirms, whatever happen
   f.held = B; f.sent(B);
   r3(); f.row(B);
   assert.deepEqual(at(f), { held: B, confirmed: B }, 'R8');
+
+  f = follower(RUN);
+  f.held = A; f.sent(A);
+  f.held = B; const r4 = f.sent(B);
+  r4();
+  assert.equal(f.held, B, 'R9: the earlier send is still out');
+  f.row(A);
+  assert.deepEqual(at(f), { held: A, confirmed: A }, 'R9');
 });

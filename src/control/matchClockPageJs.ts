@@ -177,7 +177,7 @@ function relayLogWalk(after, onRow, done) {
 //    relay refuses it;
 //  - f.row(value) takes a clock row of the log, in log order: a row before this page's own pending
 //    send is older than that press and is kept aside (skipped); the page's own row coming back
-//    confirms it;
+//    confirms it, and is the clock when nothing newer of its own is still out;
 //  - f.settle() drops sends refused or not back within 7 s; once none is out, the clock is the
 //    newest row another page sent meanwhile, else the last confirmed clock, which is what the
 //    relay's outputs still hold.
@@ -200,7 +200,14 @@ function clockFollower(held) {
   f.row = function (value) {
     f.settle(null);
     for (var i = 0; i < f.own.length; i++) {
-      if (f.own[i].value === value) { f.own = f.own.slice(i + 1); f.skipped = null; f.confirmed = value; return; }
+      if (f.own[i].value === value) {
+        f.own = f.own.slice(i + 1);
+        f.skipped = null;
+        f.confirmed = value;
+        // Nothing of this page's still out (a newer send was refused meanwhile): this is the clock.
+        if (f.own.length === 0) f.held = value;
+        return;
+      }
     }
     if (f.own.length === 0) { f.held = value; f.confirmed = value; }
     else f.skipped = value;
