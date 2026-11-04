@@ -358,7 +358,7 @@ test('an imported duration on the monitor holds the value air holds, through an 
       assert.equal(monitor(rows.slice(0, n)), air(rows.slice(0, n)), `${name}, after row ${n}: the monitor holds what air holds`);
     }
   }
-  assert.match(air(walks['corrected on air, out, taken again']), /^0:30@\d+\/0:30\/0:20$/, 'a correction on air never becomes the length');
+  assert.match(air(walks['corrected on air, out, taken again']), /^0:20@\d+\/0:20\/0:20$/, 'after Out, the next Take counts the field even when it repeats the on-air correction (#1884)');
   assert.match(air(walks['a new length typed off air, reset, taken']), /^0:45@\d+\/0:45\/0:45$/, 'a time typed off air is the length');
   for (const name of ['never taken: typed, reset, typed again, taken', 'never taken: typed, paused, typed again, taken', 'never taken: reset with nothing sent, typed, taken']) {
     assert.match(air(walks[name]), /^0:50@\d+\/0:50\/0:50$/, `${name}: the first Take counts the time in the field (#1903)`);
