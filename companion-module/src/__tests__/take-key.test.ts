@@ -57,7 +57,7 @@ async function paired() {
 		const text = (out.text ?? '').replace(/\$\(noacg:(\w+)\)/g, (_, name: string) => String(values[name] ?? ''))
 		return { text, color: out.color, bgcolor: out.bgcolor }
 	}
-	return { relay, clock, self, show, draw }
+	return { relay, self, show, draw }
 }
 
 const takePreset = () => buildPresets('noacg', rows().rows).presets['take']!
