@@ -22,7 +22,7 @@
 import type { FieldDescriptor } from '../model/fieldModel';
 import type { ArrangeRead, ArrangedControl, ArrangedControls, ControlButton } from './controlModel';
 import type { VerbSelection } from './graphicVerbs';
-import { arrangeControls, isEventLegal } from './controlModel.ts';
+import { arrangeControls, isEventLegal, movedKeys } from './controlModel.ts';
 import { withLiveLabels } from '../blocks/controlLabels.ts';
 import { actionCarriesValues } from './selectionAir.ts';
 import { liveNumberFields, offAirNote, pickButton, pickOptions, unheldNote } from './liveControls.ts';
@@ -77,6 +77,10 @@ export interface PanelCapability {
   /** False for a control a panel cannot press (a foreign action whose arguments this version does
    *  not carry): advertised, visible and disabled, never run. */
   invocable: boolean;
+  /** A ± number only: the steps (-1, 1) an event of this graphic already presses, moving this figure
+   *  and nothing else, so a panel's ready keys need no second key for them. The step itself stays
+   *  on offer, so a saved key keeps working. */
+  covered?: number[];
 }
 
 /** One pool graphic as a panel sees it. */
@@ -192,8 +196,12 @@ export function graphicControls(g: {
 export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   const live = !!g.live;
   const caps: PanelCapability[] = [];
+  const covered = new Map<string, number[]>();
   const control = (c: ArrangedControl, place: PanelCapability['place'], section?: string) => {
     if (c.button.typed) return void caps.push(foreignCapability(g, c, place, section));
+    const [field, ...others] = movedKeys(c.button);
+    const delta = others.length === 0 ? c.button.adjust?.[field] : undefined;
+    if ((delta === 1 || delta === -1) && CAP_ID.test(`event:${c.button.event}`)) covered.set(field, [...(covered.get(field) ?? []), delta]);
     const allowed = live && g.legal(c.button.event);
     const note = !live ? offAirNote(g.graphic) : allowed ? undefined : `${c.label} cannot fire in the graphic's state now`;
     const options = c.options?.options;
@@ -217,7 +225,8 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
   for (const d of g.numbers) {
     const allowed = live && g.stepping;
     const note = !live ? offAirNote(g.graphic) : allowed ? undefined : unheldNote(g.graphic);
-    caps.push({ id: `step:${d.key}`, kind: 'step', label: d.label, place: 'section', args: STEP_ARGS, allowed, ...(note ? { note } : {}), invocable: true });
+    const steps = covered.get(d.key);
+    caps.push({ id: `step:${d.key}`, kind: 'step', label: d.label, place: 'section', args: STEP_ARGS, allowed, ...(note ? { note } : {}), invocable: true, ...(steps ? { covered: steps } : {}) });
   }
   return caps.filter((c) => CAP_ID.test(c.id)).slice(0, ACTION_CAPS_MAX);
 }

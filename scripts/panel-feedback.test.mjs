@@ -236,6 +236,29 @@ test('a graphic advertises exactly the controls its live block draws: ids, label
   assert.equal(graphicCapabilities(controls({ stepping: false })).find((c) => c.id === 'step:away').allowed, false);
 });
 
+test('a number says which of its steps one event already presses, so a panel needs no second key for them', () => {
+  const caps = (buttons, numbers = ['f1']) => graphicCapabilities(controls({
+    arranged: arrangeControls(buttons, undefined),
+    numbers: numbers.map((key) => ({ key, label: key })),
+  }));
+  const covered = (buttons) => caps(buttons).find((c) => c.id === 'step:f1').covered;
+  // A two-player score (templates/types/duelScore.ts): a point and its undo each move one figure.
+  const duel = [{ event: 'pointA', label: '+1 P1', adjust: { f1: 1 } }, { event: 'undoA', label: '−1 P1', adjust: { f1: -1 } }, { event: 'newGame', label: 'Reset', set: { f1: '0' } }];
+  assert.deepEqual(covered(duel), [1, -1]);
+  // The football strip (templates/types/scoreboard.ts): a goal moves it up, and only the step corrects it down.
+  assert.deepEqual(covered([{ event: 'goalA', label: 'Goal A', adjust: { f1: 1 } }]), [1]);
+  // A press that does more or other than one step of this figure is a control of its own.
+  assert.equal(covered([{ event: 'try', label: 'Try', adjust: { f1: 5 } }]), undefined);
+  assert.equal(covered([{ event: 'swing', label: 'Swing', adjust: { f1: 1, f3: -1 } }]), undefined);
+  assert.equal(covered([{ event: 'bonus', label: 'Bonus', adjust: { f1: 1 }, set: { f5: 'x' } }]), undefined);
+  assert.equal(covered([{ event: 'other', label: 'Other', adjust: { f3: 1 } }]), undefined);
+  // The event names no other figure, and the step stays on offer, pressable, for a key on a deck.
+  const both = caps(duel, ['f1', 'f3']);
+  assert.equal(both.find((c) => c.id === 'step:f3').covered, undefined);
+  assert.deepEqual([both.find((c) => c.id === 'step:f1').allowed, both.find((c) => c.id === 'step:f1').invocable], [true, true]);
+  assert.deepEqual(both.filter((c) => c.covered === undefined && c.kind === 'event').length, 3);
+});
+
 test('a graphic with nothing to press, or a name the relay cannot carry, is not offered', () => {
   assert.equal(panelGraphic(controls({ arranged: { pinned: [], sections: [], more: [] }, numbers: [] })), null);
   assert.equal(panelGraphic(controls({ graphic: 'x'.repeat(129) })), null);

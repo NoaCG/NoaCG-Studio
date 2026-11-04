@@ -39,9 +39,11 @@ export type GraphicKeyOptions = { graphic: string; cap: string; option: string; 
 const DESCRIPTIONS: Partial<Record<PanelVerb, string>> = {
 	take: 'The SPACE key on the answering page: takes the selected cue, or takes it off when it is on air.',
 	'all-out': 'Takes everything off air, like the header button on the production page.',
-	'take-cue': 'Airs this cue whatever the SPACE mode; pressed while it is on air, takes it off.',
-	'trigger-cue': 'Plays or restarts this cue, preserving selection and preview. Does not start a rundown sequence.',
-	'select-cue': 'Moves the selection to this cue. Nothing airs.',
+	'select-cue': 'Moves the selection to this cue. Nothing airs: the Take key airs it.',
+	'take-cue':
+		'Airs this cue at once, whatever the SPACE mode; pressed while it is on air, takes it off. The selection stays.',
+	'trigger-cue':
+		'Airs this cue at once, or restarts it if on air. The selection and PREVIEW stay. Does not start a rundown sequence.',
 }
 
 export function rowChoices(self: ModuleInstance): DropdownChoice<string>[] {
