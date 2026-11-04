@@ -347,7 +347,9 @@ jobs:
     needs: hosted
     # Also after a shard was cut off by its timeout: its tests are then missing from the merged
     # report, the verdict's floor says so, and the last step names the shard job's result.
-    if: ${{ !cancelled() }}
+    # Not for a one-spec dispatch: every shard ran the same file, so there is no suite to judge and
+    # four reports of one spec do not merge. Its readings are in each shard's log.
+    if: ${{ !cancelled() && !inputs.spec }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

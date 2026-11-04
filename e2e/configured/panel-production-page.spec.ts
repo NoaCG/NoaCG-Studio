@@ -286,8 +286,8 @@ test('the clip clock a panel counts follows the server clip the production page 
 //
 // It asserts the press's effect, once per press, and NOTHING about time: the numbers are printed
 // and attached (`press-latency.json`) for a person to read, because a ceiling drawn through one
-// runner's numbers is the next flaky alarm. Run it against hosted staging (hosted-latency.yml) for
-// the wire a studio sees; the local stack answers in about a millisecond, so there the network
+// runner's numbers is the next flaky alarm. Run it against hosted staging for the wire a studio
+// sees: dispatch hosted-latency.yml with `spec` set to this file and the test's line; the local stack answers in about a millisecond, so there the network
 // hops read as the floor and the page hops as what the browser costs (a dev server's, which is
 // slower than the built app's: playout-lag-bench.mjs).
 
