@@ -544,6 +544,7 @@ GRAPHICS.forEach(function (g) {
     var walking = true;
     relayLogWalk(0, followRelayClock, function (at) { cursor = at; walking = false; });
     setInterval(function () {
+      clockOwnSettle(null);
       if (walking) return;
       walking = true;
       relayLogWalk(cursor, followRelayClock, function (at) { cursor = at; walking = false; });
@@ -556,6 +557,8 @@ GRAPHICS.forEach(function (g) {
   // Reset banks what the RUNTIME returns to, never what the element happens to read.
   function sendClocked(msg) {
     if (!CLOCK) { post(msg); return; }
+    // A send of this card's that never came back stops counting before the clock is read.
+    if (CLOCK.events) clockOwnSettle(null);
     if (CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined) {
       clockHeld = clockAfterUpdate(clockHeld, msg.data[CLOCK.field]);
       msg.data[CLOCK.field] = clockHeld;

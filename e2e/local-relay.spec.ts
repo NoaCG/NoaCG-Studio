@@ -891,8 +891,15 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
 
   const rows: { id: number; graphic: string; stream: string; msg: { t: string; data?: Record<string, string> } }[] = [];
   let head = 0;
-  let refusePanel: Promise<void> | null = null;
+  let refusing: { page: string; until: Promise<void> } | null = null;
   let refused = 0;
+  /** Hold the named page's sends open until the answer this returns is called, then refuse them. */
+  const refuseSends = (page: string) => {
+    let release = () => {};
+    refusing = { page, until: new Promise<void>((resolve) => { release = resolve; }) };
+    refused = 0;
+    return () => release();
+  };
   const files = new Map([['panel.html', pages.panel], ['native.html', pages.nativePanel], ['controller.html', pages.controller], ['g0.html', '<p>g</p>'], ['g1.html', '<p>g</p>']]);
   const serve = (route: Route) => {
     const url = new URL(route.request().url());
@@ -904,10 +911,10 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
       return route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } });
     }
     if (url.pathname === '/relay/send') {
-      // A relay that holds the panel's sends open and then refuses them (`refusePanel`).
-      if (refusePanel && (route.request().headers().referer ?? '').endsWith('/panel.html')) {
+      // A relay that holds one page's sends open and then refuses them (`refusing`).
+      if (refusing && (route.request().headers().referer ?? '').endsWith(refusing.page)) {
         refused += 1;
-        return refusePanel.then(() => route.fulfill({ status: 500, body: 'refused' }));
+        return refusing.until.then(() => route.fulfill({ status: 500, body: 'refused' }));
       }
       const body = route.request().postDataJSON() as { graphic?: string; msg?: unknown; items?: typeof rows };
       for (const item of body.items ?? [body as (typeof rows)[number]]) rows.push({ id: ++head, graphic: item.graphic, stream: item.stream || 'program', msg: item.msg });
@@ -1001,8 +1008,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   // THE PANEL'S OWN SEND THAT THE RELAY REFUSES: its correction is held open while another window
   // moves the clock, then refused. The panel skipped the other window's row while its own was out,
   // and takes it back once its own is refused (checked by the panel's ■ Stop below).
-  let refuse = () => {};
-  refusePanel = new Promise<void>((resolve) => { refuse = resolve; });
+  const refuse = refuseSends('/panel.html');
   await panel.locator('.field[data-key="f2"] input').fill('0:10');
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => refused).toBe(2);
@@ -1030,7 +1036,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const refusedAnswers = Promise.all([0, 1].map(() => panel.waitForResponse((r) => r.url().endsWith('/relay/send') && r.status() === 500)));
   refuse();
   await refusedAnswers;
-  refusePanel = null;
+  refusing = null;
   from = rows.length;
   await panel.getByRole('button', { name: '■ Stop' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
@@ -1045,6 +1051,34 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await ctl.locator('#v-out').click();
   await expect.poll(() => rows.slice(from).length).toBeGreaterThan(0);
   await expect.poll(() => sent(from)).toEqual(['stop']);
+
+  // THE CONTROLLER'S OWN SEND THAT THE RELAY REFUSES, as the panel's above: its correction is held
+  // open while the panel moves the clock, then refused. The controller takes the panel's row back
+  // instead of its value from before the send, so its Out banks the panel's clock (sent 0:10).
+  from = rows.length;
+  await ctl.locator('#v-take').click();
+  await expect.poll(() => sent(from)).toContain('play');
+  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toMatch(/^0:20@1\d+\/0:20\/0:20$/);
+  const refuseCtl = refuseSends('/controller.html');
+  await ctl.locator('.field', { hasText: 'Time' }).locator('input').fill('0:15');
+  await ctl.locator('#v-update').click();
+  await expect.poll(() => refused).toBe(1);
+  await expect.poll(() => panel.evaluate(() => 1)).toBe(1);
+  from = rows.length;
+  await panel.getByRole('button', { name: '✎ Update' }).click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:10@${STAMP}/0:20/0:10$`));
+  const panelRow = rows.length;
+  await ctl.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= panelRow);
+  const ctlRefused = ctl.waitForResponse((r) => r.url().endsWith('/relay/send') && r.status() === 500);
+  refuseCtl();
+  await ctlRefused;
+  refusing = null;
+  from = rows.length;
+  await ctl.locator('#v-out').click();
+  await expect.poll(() => sent(from).length).toBe(2);
+  expect(sent(from)[0]).toBe('stop');
+  expect(sent(from)[1], 'the Out banks the panel\'s clock').toMatch(/^update f2=0:\d\d@out\/0:20\/0:10$/);
 
   // The native scorebug's Take on the same controller: no clock row.
   await ctl.locator('#cue-c2').click();

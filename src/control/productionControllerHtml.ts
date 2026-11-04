@@ -492,22 +492,42 @@ function clockEffectFor(g, cue, event, at) {
 // a page that boots reads the clock rows of the whole log first, so a reload or a second
 // window does not send a running clock a plain time.
 var clockHeld = {};
+// Per program graphic: the id of the log row the held clock came from, raised to the log's head
+// when this page moves the clock itself, so an older row (a late page of the boot read) never
+// puts it back.
+var clockRowAt = {};
+// Per program graphic: the newest row another page sent while this page's own send was out. It is
+// older than this page's send when that send's row comes back, and the clock when it never does.
+var clockSkipped = {};
+function clockOwnOut(graphic, field) {
+  var own = heldOf(graphic, field);
+  return !!own && Date.now() - own.at < SENT_HOLD_MS;
+}
+function settleClock(graphic, field) {
+  var key = 'program|' + graphic;
+  var skipped = clockSkipped[key];
+  if (!skipped || clockOwnOut(graphic, field)) return;
+  delete clockSkipped[key];
+  if (skipped.id > (clockRowAt[key] || 0)) { clockHeld[key] = skipped.value; clockRowAt[key] = skipped.id; }
+}
 function withClocks(items) {
   var out = [];
   var at = Date.now();
   var before = {};
-  var hold = function (key, value) {
-    if (!Object.prototype.hasOwnProperty.call(before, key)) before[key] = clockHeld[key];
+  var hold = function (key, value, graphic, field) {
+    if (!Object.prototype.hasOwnProperty.call(before, key)) before[key] = { value: clockHeld[key], graphic: graphic, field: field };
     clockHeld[key] = value;
+    if (key.indexOf('program|') === 0) clockRowAt[key] = Math.max(clockRowAt[key] || 0, cursor);
   };
   items.forEach(function (it) {
     var g = graphicByName(it.graphic);
     var clock = g && g.clock;
     if (!clock || !clock.events) { out.push(it); return; }
     var key = (it.stream || 'program') + '|' + it.graphic;
+    if (key.indexOf('program|') === 0) settleClock(it.graphic, clock.field);
     var msg = it.msg;
     if (msg.t === 'update' && msg.data && msg.data[clock.field] !== undefined) {
-      hold(key, clockAfterUpdate(clockHeld[key], msg.data[clock.field]));
+      hold(key, clockAfterUpdate(clockHeld[key], msg.data[clock.field]), it.graphic, clock.field);
       var data = {};
       for (var dk in msg.data) data[dk] = msg.data[dk];
       data[clock.field] = clockHeld[key];
@@ -519,7 +539,7 @@ function withClocks(items) {
     }
     var effect = clockRowStep(clock, msg, clockHeld[key], at);
     if (!effect) { out.push(it); return; }
-    hold(key, effect.value);
+    hold(key, effect.value, it.graphic, clock.field);
     var cd = {};
     cd[clock.field] = effect.value;
     var clockRow = { graphic: it.graphic, stream: it.stream, msg: { t: 'update', data: cd } };
@@ -529,8 +549,14 @@ function withClocks(items) {
   });
   var after = {};
   for (var k in before) after[k] = clockHeld[k];
-  // A send that failed moved no clock: each goes back unless a later send has moved it since.
-  var undo = function () { for (var u in before) if (clockHeld[u] === after[u]) clockHeld[u] = before[u]; };
+  // A send that failed moved no clock: each goes back unless a later send has moved it since, and
+  // a row another page sent meanwhile is then the clock.
+  var undo = function () {
+    for (var u in before) {
+      if (clockHeld[u] === after[u]) clockHeld[u] = before[u].value;
+      if (u.indexOf('program|') === 0) settleClock(before[u].graphic, before[u].field);
+    }
+  };
   return { items: out, undo: undo };
 }
 function followClock(row) {
@@ -539,9 +565,15 @@ function followClock(row) {
   var clock = g && g.clock;
   if (!clock || !clock.events || row.stream === 'preview' || m.t !== 'update' || !m.data) return;
   var value = m.data[clock.field];
-  var own = heldOf(row.graphic, clock.field);
-  if (value === undefined || !clockSlots(value) || (own && Date.now() - own.at < SENT_HOLD_MS)) return;
-  clockHeld['program|' + row.graphic] = value;
+  var key = 'program|' + row.graphic;
+  if (value === undefined || !clockSlots(value) || row.id <= (clockRowAt[key] || 0)) return;
+  if (clockOwnOut(row.graphic, clock.field)) {
+    if (!clockSkipped[key] || row.id > clockSkipped[key].id) clockSkipped[key] = { value: value, id: row.id };
+    return;
+  }
+  delete clockSkipped[key];
+  clockHeld[key] = value;
+  clockRowAt[key] = row.id;
 }
 
 // ── Monitors: every pool graphic stacked by its LAYER number, per stream. The iframes are
