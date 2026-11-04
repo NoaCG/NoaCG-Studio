@@ -968,6 +968,7 @@ export default function CueEditor({
   hasUnsent,
   unsentFields,
   keptStates,
+  listWaits,
   overflowKeys,
   overflowSet,
   descriptors,
@@ -1032,6 +1033,9 @@ export default function CueEditor({
   unsentFields: string[];
   /** The machine states ✎ Update keeps on air, as words; empty when none. */
   keptStates: string;
+  /** The on-air cue's graphic keeps the list its Take took, and a newer one waits: the graphic's
+   *  own answer on PROGRAM (PreviewStateMessage.waits). Said once nothing is left unsent. */
+  listWaits: boolean;
   overflowKeys: string[];
   overflowSet: ReadonlySet<string>;
   descriptors: FieldDescriptor[];
@@ -1210,14 +1214,17 @@ export default function CueEditor({
           data-testid="cue-label"
         />
         <span
-          className={hasUnsent ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
+          className={hasUnsent || listWaits ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
           data-testid="cue-unsent"
+          title={!hasUnsent && listWaits ? 'A credits list on air keeps the names its Take took. ⟳ Re-take plays the new list from the start' : undefined}
         >
           {hasUnsent
             ? keptStates
               ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. ✎ Update keeps ${keptStates} ${rehearsing ? 'up' : 'on air'}, ⟳ Re-take starts over with these values`
               : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. Press ✎ Update`
-            : null}
+            : listWaits
+              ? 'New list shows on the next ⟳ Re-take'
+              : null}
         </span>
         <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
         {picker && <CandidateMenu picker={picker} />}

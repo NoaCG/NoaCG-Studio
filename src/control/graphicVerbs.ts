@@ -107,6 +107,8 @@ export interface VerbSender {
   /** Published: apply a command here first, minted id and all (`applyCommand`). */
   applyHere: Parameters<GraphicVerbIo['sendControlVerbs']>[0]['applyHere'];
   fastEvent: (graphic: string) => boolean;
+  /** Which Takes and Updates the row's server time stamps (hostedControl.ts `serverInstant`). */
+  serverInstant?: (item: ControlSendItem) => boolean;
   /** The record of failed sends (a getter: the page renews it with the wire). */
   debts: () => ReturnType<typeof createSendDebts>;
   /** Something that could air a graphic is reporting now. */
@@ -621,6 +623,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
         // entry, and books nothing.
         applyHere: (items) => applyOwn([...new Set(items.map((item) => item.graphic))], () => p.applyHere?.(items)),
         fastEvents: p.fastEvent,
+        serverInstant: p.serverInstant,
         allOut,
       });
       answerMarkers(pressed, (m) => reachedOutput(sent, m.graphic));

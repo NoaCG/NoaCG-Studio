@@ -225,8 +225,11 @@ test('a recognised quiz asks nothing: Select, Lock and Reveal are ready', async 
 test('credits are one choice: the list is picked, previewed and editable', async ({ page }) => {
   await page.goto('/app');
   await dropSvg(page, dev('credits-1'));
-  // The choice says what credits now are, not only the fixed-artwork roll (#2001).
-  await expect(page.getByTestId('map-svg-behaviour-kind').locator('option[value="credits"]')).toContainText('An editable list of roles and names');
+  // The choice says what credits now are, not only the fixed-artwork roll (#2001), and promises
+  // editing only for separate role and name layers; one text block rolls as drawn (#2033).
+  const choice = page.getByTestId('map-svg-behaviour-kind').locator('option[value="credits"]');
+  await expect(choice).toContainText('One block of text rolls as drawn');
+  await expect(choice).toContainText('separate role and name layers become an editable list');
   await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
   // Six text layers: the title reads as no list, so the first role is picked for the author.
   const preview = page.getByTestId('map-svg-credits-preview');
@@ -905,10 +908,22 @@ test('row 38 diagnostic: three notice zones, each zone\'s words operated alone; 
   await expect(air.locator('#f1')).toHaveText(words.f1);
 
   // NOT OFFERED: no control takes one zone on or off. The graphic's only verbs act on all three.
+  // The record below states these limits, so each is asserted: a per-zone control appearing one
+  // day fails here instead of quietly changing the annotation (#2041).
   const zoneControls = await page.locator('[data-testid^="cue-action-"]').count();
+  expect(zoneControls, 'no control takes one zone on or off').toBe(0);
   const plates = await air.locator('.imported-design svg g rect').count();
+  // A body no longer in the document is not shown; asked first, because an evaluate on a missing
+  // element waits rather than throws.
+  const bodyShown = async (f: string) => {
+    const body = air.locator(`#${f}`);
+    return (await body.count()) > 0 && body.evaluate((el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }));
+  };
+  for (const f of bodies) expect(await bodyShown(f), `${f} is on the program renderer before Out`).toBe(true);
   await page.getByTestId('verb-out').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // Out moves all three together: every zone's body leaves the program renderer.
+  for (const f of bodies) await expect.poll(() => bodyShown(f), { message: `${f} left the program renderer after Out` }).toBe(false);
   info.annotations.push({
     type: 'notice-zones',
     description:

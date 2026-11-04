@@ -55,13 +55,19 @@ export class PreviewController {
   private pendingTemplate: SpxTemplate | null = null;
   private pendingCopies: { source: string; attributes: [string, string][][] }[] = [];
   private draftMotion = false;
+  /** A cancelled draft's source pose is owed (#1750). The source revision does not move on a
+   *  cancel, so nothing else marks the canvas pending while it still draws the draft's handles,
+   *  and a press there would grab a handle where the layer no longer is. 'queued' until the
+   *  restoring request is sent, then that request's id until its reply lands. */
+  private restoring: 'queued' | number | null = null;
   private resolvedAssets: SpxTemplate['assets'] = [];
   private monitoringFrame = 0;
   private lastFrame = 0;
   private observer: PerformanceObserver | null = null;
   readonly metrics: PreviewMetrics = { samples: [], frameIntervals: [], longTasks: [], parentLongTasks: [], parentFrameIntervals: [], rejected: 0 };
   constructor(readonly documentId: string, private iframe: HTMLIFrameElement,
-    private report: (reply: PreviewReply | null, pending: boolean) => void) {
+    /** `reply` undefined reports only whether the shown pose is still owed. */
+    private report: (reply: PreviewReply | null | undefined, pending: boolean) => void) {
     window.addEventListener('message', this.receive);
     window.addEventListener('noacg-editor-read-metrics', this.readMetrics);
     window.addEventListener('noacg-editor-reset-metrics', this.resetFromEvent);
@@ -99,7 +105,7 @@ export class PreviewController {
       return;
     }
     this.acknowledgement = message; this.previewError = message.kind === 'error' ? message.message ?? 'Preview failed.' : null;
-    if (message.kind === 'error') { clearTimeout(this.timeout); this.inFlight = false; this.queued = false; this.ready = false; this.report(message, false); return; }
+    if (message.kind === 'error') { clearTimeout(this.timeout); this.inFlight = false; this.queued = false; this.ready = false; this.restoring = null; this.report(message, false); return; }
     if (message.kind !== 'ready' && message.kind !== 'pose') return;
     clearTimeout(this.timeout);
     const now = performance.timeOrigin + performance.now();
@@ -112,7 +118,9 @@ export class PreviewController {
     const wasReady = this.ready;
     this.inFlight = false;
     this.ready = true;
-    this.report(message, false);
+    // Only the latest request's reply is accepted, so once the restore is sent this reply is it.
+    if (typeof this.restoring === 'number') this.restoring = null;
+    this.report(message, this.restoring !== null);
     // Source update / undo waits for matching readiness, then restores the latest pose.
     if (!wasReady) this.seek(this.targetTime, 'restore', this.targetCue);
     else if (this.queued) this.flush();
@@ -128,6 +136,7 @@ export class PreviewController {
         message: 'Preview did not answer. Reload the preview or return to the existing editor.' }, false);
       this.previewError = 'Preview did not answer.';
       this.ready = false;
+      this.restoring = null;
     }, 10000);
   }
   async load(template: SpxTemplate, revision: Revision, sampleData: Record<string, string>, time: number, cue?: number) {
@@ -136,6 +145,7 @@ export class PreviewController {
     const canReuseFrame = !this.draftMotion && !this.pendingTemplate;
     this.previewError = null; this.transient = false;
     this.exitMode = null;
+    this.restoring = null;
     this.targetCue = cue;
     cancelAnimationFrame(this.pendingFrame);
     this.pendingFrame = 0;
@@ -219,6 +229,7 @@ export class PreviewController {
     this.seek(this.targetTime, kind, this.targetCue);
   }
   previewTemplate(template: SpxTemplate, kind = 'drag', copies: { source: string; target: string }[] = []) {
+    if (kind === 'cancel' && this.ready && this.template && this.expected) { this.restoring = 'queued'; this.report(undefined, true); }
     // Clone already rendered content (including sample data), applying only the registry's
     // changed IDs/references. No document HTML or template script is executed for a draft.
     this.pendingCopies = copies.map(copy => {
@@ -268,6 +279,7 @@ export class PreviewController {
     const exitKind = this.exitMode === 'start' ? 'exit-start' : this.exitMode === 'running' ? 'exit-time' : null;
     if (exitKind) { position.time = Math.max(0, this.targetTime - this.timeline!.out); this.exitMode = 'running'; }
     this.expected = this.envelope(this.expected.revision);
+    if (this.restoring === 'queued') this.restoring = this.expected.requestId;
     const css = this.pendingCss;
     this.pendingCss = null;
     const draft = this.pendingTemplate, copies = this.pendingCopies;

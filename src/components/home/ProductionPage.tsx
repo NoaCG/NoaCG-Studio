@@ -204,6 +204,7 @@ import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, 
 import {
   clockSpecFromHtml,
   fastEventGraphics,
+  needsServerInstant,
   speakingClocksFromHtml,
   type ClockSpec,
   type SpeakingClockPair,
@@ -835,6 +836,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  not about the cue sitting on preview. Only the monitor can answer it - the fit ladder is a
    *  measurement of the rendered graphic, and no source check can stand in for it. */
   const [programOverflow, setProgramOverflow] = useState<Record<string, string[]>>({});
+  /** Per graphic, whether the PROGRAM monitor's graphic holds a list on air with a newer one
+   *  waiting for the next Take (the styled credits' own `noacgCreditsWaiting`, carried on the
+   *  same reply as the overflow). What the source line and the cue editor say it from. */
+  const [programWaits, setProgramWaits] = useState<Record<string, boolean>>({});
+  const noteProgramWaits = useCallback((graphic: string, waits: boolean) => {
+    setProgramWaits((m) => (!!m[graphic] === waits ? m : { ...m, [graphic]: waits }));
+  }, []);
   /** What the OUTPUTS say each imported OGraf package did (control/ografOutcome.ts), from their
    *  reports alone: the PROGRAM monitor never loads a package, so nothing here is simulated. */
   const [outputOgraf, setOutputOgraf] = useState<Record<string, OgrafOutcome>>({});
@@ -2046,6 +2054,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }),
     [foldProgram],
   );
+  /** A fresh PROGRAM stage: it has said nothing yet about a list waiting, so nothing is said
+   *  until it does, and it is rebuilt from air. */
+  const programReady = useCallback(() => {
+    setProgramWaits({});
+    restoreProgram();
+  }, [restoreProgram]);
   // The boot half: the wire resolve lands after the stage is already up, so the first time the
   // WIRE says a layer is live there is nothing to have signalled.
   //
@@ -2448,6 +2462,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     armSpecFor: (cueId) => armEngine.current?.specFor(cueId) ?? null,
     applyHere: applyCommand,
     fastEvent: (graphic) => fastEventGraphicsRef.current.has(graphic),
+    // An imported duration's Take and a running clock's correction go slow, stamped by their row
+    // (#1886): judged against the clock as this page's PROGRAM holds it.
+    serverInstant: (item) => needsServerInstant(clockSpecsRef.current.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
     outputUsable: () => usableOutputRef.current,
     sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),
@@ -3897,7 +3914,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           library={library}
           programRef={programRef}
           onState={noteProgramState}
-          onReady={restoreProgram}
+          onWaits={noteProgramWaits}
+          onReady={programReady}
           onOverflow={notePreviewOverflow}
           air={programAir({ published: !!hostedSlug, sending: sendingNow, owed: sendOwed, loggedAt, lost: !!hostedSlug && (offline || resolveWaiting) })}
           serverLost={casparOn && (bridgeStatus?.state === 'bridge' || bridgeStatus?.state === 'server') ? bridgeStatus.state : null}
@@ -4087,7 +4105,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
         {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
-        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} onAir={{ live: liveCue, log: wireLog }} />
+        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} onAir={{ live: liveCue, waits: programWaits }} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&
@@ -4162,6 +4180,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             hasUnsent={hasUnsent}
             unsentFields={unsentFields}
             keptStates={keptStates}
+            listWaits={!!(editingIsLive && !view.disabled.retake && selectedGraphic && liveCue[selectedGraphic] && programWaits[selectedGraphic])}
             overflowKeys={overflowKeys}
             overflowSet={overflowSet}
             descriptors={descriptors}

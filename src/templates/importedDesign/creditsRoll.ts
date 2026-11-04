@@ -617,6 +617,12 @@ function creditsHeldJs(): string {
 var noacgCreditsHeld = null;
 var noacgCreditsWaiting = false;
 var noacgCreditsSettling = false;
+// The list the rows were last built from: what a viewer sees. The list last written to the
+// holder, as the rows or an update last saw it: rows showing another are older than the holder.
+// And a list held at a cue before its take ran (creditsListWaits), with the entrance it was for.
+var noacgCreditsShown = '';
+var noacgCreditsWritten = '';
+var noacgCreditsCued = null;
 
 // creditsHeldList(): the list the rows are built from - the one taken while on air, else the
 // holder's as it stands.
@@ -626,20 +632,57 @@ function creditsHeldList() {
   return holder ? holder.textContent : '';
 }
 
-// creditsHoldList(): a take takes the holder's list as it stands now.
+// creditsHoldList(): a take takes the holder's list as it stands now - unless an update already
+// held a list at this take's cue (creditsListWaits), and then it keeps that one.
 function creditsHoldList() {
   if (noacgCreditsSettling) return;
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
-  noacgCreditsHeld = holder ? holder.textContent : '';
-  noacgCreditsWaiting = false;
+  var cued = noacgCreditsCued && noacgCreditsCued.entrance === creditsLive() ? noacgCreditsCued : null;
+  noacgCreditsCued = null;
+  noacgCreditsHeld = cued ? cued.list : holder ? holder.textContent : '';
+  noacgCreditsWaiting = !!cued && !!holder && holder.textContent !== cued.list;
+}
+
+// creditsLive(): the entrance the last play() built (the shared runtime's own record), or null.
+function creditsLive() {
+  return typeof noacgLiveTimeline !== 'undefined' ? noacgLiveTimeline : null;
+}
+
+// creditsEntrance(): that entrance, while its first frame is up and its take (the entrance's call
+// at time 0, run on GSAP's first tick) has not run yet; else null. play() paints that frame at
+// once (noacgPaintFirstFrame), so the graphic can be on screen before the take. An entrance
+// killed or paused before it ticked (an Out, a snap) is no cue: it never takes.
+function creditsEntrance() {
+  var tl = creditsLive();
+  if (!tl || !tl.parent || tl.paused() || tl.time() !== 0 || (typeof noacgOutActive === 'function' && noacgOutActive())) return null;
+  return tl;
 }
 
 // creditsListWaits(): after update(), whether a take on air keeps its list, and so whether the
 // holder's list now waits for the next take. False off air: then the rows follow the holder.
+// Between play() and its take, the take is already cued: it keeps the list its first frame shows.
 function creditsListWaits() {
-  if (noacgCreditsHeld === null) return false;
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
-  noacgCreditsWaiting = !!holder && holder.textContent !== noacgCreditsHeld;
+  var written = holder ? holder.textContent : '';
+  var before = noacgCreditsWritten;
+  noacgCreditsWritten = written;
+  // A list held at a cue whose entrance will never take (a snap before its first tick) is let go,
+  // so off air the rows follow again. An Out under way keeps it until Out lets go itself.
+  if (noacgCreditsCued && noacgCreditsCued.entrance !== creditsEntrance() && !(typeof noacgOutActive === 'function' && noacgOutActive())) {
+    noacgCreditsCued = null;
+    noacgCreditsHeld = null;
+    noacgCreditsWaiting = false;
+  }
+  // The cue holds the rows only when they show the list last written before this update. Rows
+  // older than that (a list that waited behind a take, and they were not built again) are no list
+  // to hold: the rows follow, and the take airs the newest, as a take always did.
+  var entrance = noacgCreditsHeld === null && noacgCreditsShown === before ? creditsEntrance() : null;
+  if (entrance) {
+    noacgCreditsHeld = noacgCreditsShown;
+    noacgCreditsCued = { entrance: entrance, list: noacgCreditsShown };
+  }
+  if (noacgCreditsHeld === null) return false;
+  noacgCreditsWaiting = written !== noacgCreditsHeld;
   return true;
 }
 `;
@@ -1254,7 +1297,9 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   // The rows sit in the first role's own frame, so every step is in its units.
   rows.setAttribute('transform', 'matrix(' + [toContainer.a, toContainer.b, toContainer.c, toContainer.d, toContainer.e, toContainer.f].join(' ') + ')');
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
-  var text = ${held("holder ? holder.textContent : ''", 'creditsHeldList()')};
+  var text = ${held("holder ? holder.textContent : ''", 'creditsHeldList()')};${held('', `
+  noacgCreditsShown = text;
+  if (noacgCreditsHeld === null) noacgCreditsWritten = text;`)}
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);
@@ -1455,12 +1500,32 @@ function stopCreditsRoll() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
   noacgCreditsTween = null;${held('', `
   noacgCreditsHeld = null;
-  noacgCreditsWaiting = false;`)}${cards('', `
+  noacgCreditsWaiting = false;
+  creditsOffAir();`)}${cards('', `
   noacgCreditsCard = -1;
   noacgCreditsTurning = false;
   if (noacgCreditsLast) noacgCreditsLast.card = -1;`)}
 }
 
+${held('', `
+// creditsOffAir(): Out let go of the list taken. If the rows show an older list than the holder
+// (one waited behind the take), they are built again from the holder once the exit has ended,
+// off air, so the next take's first frame shows the newest list. Not while the exit is on
+// screen, and not after a new take. With no exit running (a styled stop, which rests the graphic
+// first) it is off air already: now.
+function creditsOffAir() {
+  var out = typeof noacgOutTimeline !== 'undefined' ? noacgOutTimeline : null;
+  var rebuild = function () {
+    // Off air: this Out's exit is still the last, or the graphic was rested (a snap) since.
+    var offAir = out ? noacgOutTimeline === out || (!noacgOutTimeline && !creditsLive()) : !creditsLive();
+    var holder = creditsField('${CREDITS_FIELD_ROLE}');
+    if (!offAir || noacgCreditsHeld !== null || !holder || holder.textContent === noacgCreditsShown) return;
+    ${cards('creditsRender();', 'creditsDeal();')}
+  };
+  if (!out) rebuild();
+  else if (typeof gsap !== 'undefined') gsap.delayedCall(Math.max(0, out.duration() - out.time()) + 0.05, rebuild);
+}
+`)}
 ${still(creditsTakeJs(faces === true, true), cards(creditsHoldJs(), creditsCardsJs()))}
 
 // Render once on load, so a preview shows the list before the first update(); again when the

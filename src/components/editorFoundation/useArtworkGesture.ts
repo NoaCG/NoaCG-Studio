@@ -169,7 +169,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         const corner = handle.kind === 'corner', points = corner ? part.corners : edgePoints(part.corners);
         const pivot = modifiers.altKey ? anchor : points[(handle.index + 2) % 4];
         const view = readTimeline(template), owner = ownerOf(view, originalBase.selector);
-        const keyed = keysControl(view.data, owner, 'scaleX') || keysControl(view.data, owner, 'scaleY');
+        const keyed = keysControl(view.data, owner, 'scaleX', template) || keysControl(view.data, owner, 'scaleY', template);
         const frame = keyed ? frameOf(part) : multiply(part.parent!, ownLinear(originalBase.mode === 'placed' ? originalBase.rotation : base.rotation, 1, 1));
         const ratios = handleRatios(frame, points[handle.index], pivot, delta, corner ? 'xy' : handle.index % 2 ? 'x' : 'y', linked !== modifiers.shiftKey);
         const shift = pivotShift(part.parent!, frame, ratios, pivot, anchor);

@@ -458,34 +458,97 @@ var relayOk = false;
 var cursor = 0;
 function send(items) {
   if (!relayOk) return;
+  var clocked = withClocks(items);
+  items = clocked.items;
   var noted = noteSent(items);
   // A send that never reached the relay holds nothing: its figures stop being the base, unless a
-  // newer send has held the field since.
-  var release = function () { releaseSent(noted); };
+  // newer send has held the field since, and an imported clock it moved goes back to what the
+  // relay's log confirmed (clockFollower).
+  var release = function () { releaseSent(noted); clocked.failed(); };
   fetch('/relay/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: items }) }).then(function (r) { if (!r.ok) release(); }, release);
 }
 
 ${MATCH_CLOCK_PAGE_JS}
 
-// clockEffectFor(): what one clock verb does to the graphic's clock field, and WHEN relative to
-// the event row itself — this page's copy of matchClockWire.ts's clockRowEffect, against the
-// cue's own resolved values. Same decision as the standalone panel makes, because the two ship
-// in the same package and an operator switching surfaces must not switch behaviour.
-//
-// 'before' for a START: the origin has to be in the document by the time startMatchClock runs,
-// or the runtime mints a local one instead. 'after' for a hold or a reset: the value banked is
-// what the graphic has just settled on. Reset banks the spec's resetTo — what the RUNTIME
-// returns to — never what the element happens to read, which by then is the running time.
+// clockEffectFor(): what one NATIVE clock verb does to the graphic's clock field, and WHEN
+// relative to the event row itself (the shared clockRowStep, the wire's decision), against the
+// cue's own resolved values: the value is staged into the cue's draft, so every later ⟳ TAKE and
+// ✎ Update re-sends it. An imported clock is folded on the way out instead (withClocks).
 function clockEffectFor(g, cue, event, at) {
   var clock = g && g.clock;
-  if (!clock) return null;
-  var values = cueValues(cue);
-  var from = values[clock.field] !== undefined ? values[clock.field] : clock.seed;
-  if (event === 'clockStart') return { field: clock.field, value: clockValueAt(from, clock.countsDown, at) + '@' + at, when: 'before' };
-  if (event === 'clockStop') return { field: clock.field, value: clockValueAt(from, clock.countsDown, at), when: 'after' };
-  if (event === 'clockReset') return { field: clock.field, value: clock.resetTo, when: 'after' };
-  return null;
+  if (!clock || clock.events) return null;
+  var effect = clockRowStep(clock, { t: 'event', event: event }, cueValues(cue)[clock.field], at);
+  return effect ? { field: clock.field, value: effect.value, when: effect.when } : null;
+}
+
+// AN IMPORTED CLOCK ON THE WIRE (#1887), per stream and graphic: where it stands (clockFollower,
+// the shared block above), its value carrying its length and what the cue last sent, so a cue
+// keeps the plain time it was typed with and the graphic is sent what the wire holds, as the
+// hosted renderer does. Every batch passes through withClocks on its way out, which folds each
+// Update into it (clockAfterUpdate) and writes the clock's row around each row that moves it
+// (clockRowStep): the origin BEFORE a start or a duration's Take, the banked time AFTER a hold, a
+// reset, an Out or a running correction. The stamp is this page's press: it is the only sender
+// the relay has. On the program stream the page also follows other pages' clock rows
+// (followClock), from the whole log at boot, and a send the relay refuses never becomes the clock.
+var clocks = {};
+function clockOf(key) { return clocks[key] || (clocks[key] = clockFollower(undefined)); }
+// Per program graphic: the id of the newest log row the clock was read from, raised to the log's
+// head when this page moves the clock itself, so an older row (a late page of the boot read) is
+// never taken for a newer one.
+var clockRowAt = {};
+function withClocks(items) {
+  var out = [];
+  var at = Date.now();
+  var fails = [];
+  items.forEach(function (it) {
+    var g = graphicByName(it.graphic);
+    var clock = g && g.clock;
+    if (!clock || !clock.events) { out.push(it); return; }
+    var key = (it.stream || 'program') + '|' + it.graphic;
+    var program = key.indexOf('program|') === 0;
+    var f = clockOf(key);
+    if (program) f.settle(null);
+    var set = function (value) {
+      f.held = value;
+      if (!program) return;
+      clockRowAt[key] = Math.max(clockRowAt[key] || 0, cursor);
+      fails.push(f.sent(value));
+    };
+    var msg = it.msg;
+    if (msg.t === 'update' && msg.data && msg.data[clock.field] !== undefined) {
+      set(clockAfterUpdate(f.held, msg.data[clock.field]));
+      var data = {};
+      for (var dk in msg.data) data[dk] = msg.data[dk];
+      data[clock.field] = f.held;
+      var folded = {};
+      for (var mk in msg) folded[mk] = msg[mk];
+      folded.data = data;
+      msg = folded;
+      it = { graphic: it.graphic, stream: it.stream, msg: msg };
+    }
+    var effect = clockRowStep(clock, msg, f.held, at);
+    if (!effect) { out.push(it); return; }
+    set(effect.value);
+    var cd = {};
+    cd[clock.field] = effect.value;
+    var clockRow = { graphic: it.graphic, stream: it.stream, msg: { t: 'update', data: cd } };
+    if (effect.when === 'before') out.push(clockRow);
+    out.push(it);
+    if (effect.when === 'after') out.push(clockRow);
+  });
+  return { items: out, failed: function () { fails.forEach(function (fail) { fail(); }); } };
+}
+function followClock(row) {
+  var m = row.msg || {};
+  var g = graphicByName(row.graphic);
+  var clock = g && g.clock;
+  if (!clock || !clock.events || row.stream === 'preview' || m.t !== 'update' || !m.data) return;
+  var value = m.data[clock.field];
+  var key = 'program|' + row.graphic;
+  if (value === undefined || !clockSlots(value) || row.id <= (clockRowAt[key] || 0)) return;
+  clockRowAt[key] = row.id;
+  clockOf(key).row(value);
 }
 
 // ── Monitors: every pool graphic stacked by its LAYER number, per stream. The iframes are
@@ -1068,6 +1131,7 @@ document.addEventListener('keydown', function (e) {
 function applyRow(row) {
   var m = row.msg || {};
   noteAired(row);
+  followClock(row);
   if (m.t !== 'cue') {
     if (m.t === 'update' || m.t === 'event') paintStack();
     return;
@@ -1078,6 +1142,8 @@ function applyRow(row) {
   paint();
 }
 function poll() {
+  // A clock send not back within its window stops counting (clockFollower).
+  for (var ck in clocks) clocks[ck].settle(null);
   fetch('/relay/log?after=' + cursor)
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) {
@@ -1465,6 +1531,9 @@ fetch('/relay/ping')
     if (!d || !d.ok) throw new Error('no relay');
     relayOk = true;
     cursor = d.head || 0;
+    // Booted at the head, the page still learns where each imported clock stands (followClock),
+    // from the whole log.
+    relayLogWalk(0, followClock, function () {});
     var mode = document.getElementById('mode');
     mode.textContent = '● SHOW';
     mode.className = 'mode on';

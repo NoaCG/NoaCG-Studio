@@ -40,12 +40,14 @@ import {
 import { boxPicksOf, recipeIdOf, withBoxPicks } from './fieldAutoMap';
 import { canonical } from '../../../model/publishedRecord';
 import { parseAnimData, spliceAnimData } from '../../../blocks/animData';
+import { allOperatorEvents } from '../../../blocks/animMachine';
+import { eventButtons } from '../../../control/controlModel';
 import { carrySvgIdentity } from '../../../blocks/svgIdentity';
 import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, updateGraphic, type LibraryNameEntry, type LibrarySaveEffect } from '../../../model/library';
 import { freeName } from '../../../model/poolIdentity';
 import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
 import { PREFIX } from '../../../templates/importedDesign/shared';
-import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
+import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, runsOldCountdown, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -1214,13 +1216,52 @@ export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
   if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
   if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
   const driven = pollDrivenLayers(draft.svgBehaviour);
-  return draft.svgFields.filter((f) => f.on && f.clock && CLOCK_TIME.test(f.sample.trim()) && !driven.has(f.candidateId));
+  return draft.svgFields.filter((f) => f.on && f.clock && svgClockTakes(f) && !driven.has(f.candidateId));
 }
 
 /** Whether the file drew the moments only the countdown paints: its names propose it, read the way
  *  the drop reads them. */
 export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
   return !!svg && bestProposal({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown';
+}
+
+/**
+ * WHETHER THE OLD COUNTDOWN IS IN USE, so a clock-shaped row still offers its kind (#1876). A new import has one clock
+ * choice, the Clock; the row-level Countdown is the old engine, kept only where it is already in
+ * use: a row of this draft is bound as one, the countdown behaviour is held, the file drew the
+ * moments only it paints (`svgCountdownDrawn`), or the name this walk saves under holds a saved
+ * graphic that runs it (`savedOver`, read by `svgSavedOver`), so a reimport can bind it again.
+ * An unticked countdown row counts: unticking is not a change of mind about the engine.
+ */
+export function svgCountdownInUse(
+  draft: SvgImportDraft,
+  savedOver: SpxTemplate | null,
+  /** `svgCountdownDrawn(draft.designSvg)`, which a caller re-rendering on every row edit caches. */
+  drawn: boolean = svgCountdownDrawn(draft.designSvg),
+): boolean {
+  return (
+    draft.svgFields.some((f) => f.kind === 'countdown') ||
+    draft.svgBehaviour?.kind === 'timer' ||
+    drawn ||
+    (!!savedOver && runsOldCountdown(savedOver))
+  );
+}
+
+/** Whether the Clock can show this row's time: minutes and seconds only (`CLOCK_TIME`). A
+ *  clock-shaped row it cannot take ("1:05:00") keeps the old Countdown kind as its one clock
+ *  choice, so no clock-shaped layer is left without one (#1876). */
+export function svgClockTakes(f: Pick<SvgFieldDraft, 'sample'>): boolean {
+  return CLOCK_TIME.test(f.sample.trim());
+}
+
+/** The saved graphic a save under `name` would write over, as Finish reads it (`librarySaveEffect`
+ *  with no record made yet), or null. Read without the walk's own record on purpose: a walk that
+ *  already saved and is then renamed onto a countdown graphic's name is offered the kind it would
+ *  not need, never denied one it does. */
+export function svgSavedOver(name: string): SpxTemplate | null {
+  if (!name.trim()) return null;
+  const target = librarySaveEffect(graphicNameIndex(), name, null).targetId;
+  return target ? graphicById(target)?.template ?? null : null;
 }
 
 /**
@@ -2133,6 +2174,20 @@ export interface SvgReimport {
   template: SpxTemplate;
   baseline: SpxTemplate;
   unresolved: ReimportItem[];
+  /** The earlier graphic's operator actions the new build no longer answers, by their control
+   *  labels (#1987 point 4). Not unresolved work: where the save goes is unchanged, but production
+   *  cues that send these stop doing anything, so Finish says it in one line. */
+  silenced: string[];
+}
+
+/** The actions `prior` answered that `now` does not, named as their controls are. */
+function silencedActions(prior: SpxTemplate, now: SpxTemplate): string[] {
+  const machine = parseAnimData(now.js)?.machine;
+  const kept = new Set(machine ? allOperatorEvents(machine) : []);
+  const was = parseAnimData(prior.js)?.machine;
+  if (!was) return [];
+  const labels = new Map(eventButtons(prior.js).map((b) => [b.event, b.label]));
+  return [...new Set(allOperatorEvents(was).filter((e) => !kept.has(e)).map((e) => labels.get(e) || e))];
 }
 
 /**
@@ -2155,8 +2210,9 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
   const firstData = prior.baseline ? parseAnimData(prior.baseline.js) : null;
   const builtData = parseAnimData(template.js);
   // Action identities ride on the recipe, which names its events: a verified build answers the
-  // same ones. An action the walk itself drops (a behaviour profile the reader chose, such as a
-  // quiz with no Lock) is that choice, not lost work, so it is not listed.
+  // same ones. Which actions the new build answers is decided by the walk's current behaviour (a
+  // quiz with no Lock, or a proposal that missed the recipe), so a dropped action is not listed as
+  // unresolved; Finish names it in one line instead (`silenced`).
   if (priorData && builtData) {
     const keys = carryKeys(priorData, firstData, builtData);
     unresolved.push(...keys.unresolved);
@@ -2180,6 +2236,10 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
       const doc = parseHtml(template.html);
       let found: Element | null = null;
       try { found = doc.querySelector(selector); } catch { /* not a selector this document answers */ }
+      // Told apart by SHAPE, not provenance (#1987 point 8, a documented limit): a designer who
+      // named a layer `artwork-1` gets this stricter check too, so if that layer moved or has a
+      // twin its keys are listed and the save is separate. Never lost work, and rare enough that
+      // recording who wrote each id is not worth its code.
       const minted = /^#artwork-\d+$/.test(selector);
       // A designer's own id names its layer in both versions; an identity the editor MINTED is
       // ours, so a node of the new artwork wearing it proves nothing until its source key agrees.
@@ -2226,6 +2286,7 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
   return {
     template,
     baseline,
+    silenced: silencedActions(prior.template, template),
     unresolved: unresolved
       .map(named)
       .filter((u) => !(u.kind === 'key' && gone.has(u.label)))
@@ -2236,7 +2297,7 @@ export function svgReimported(prior: { template: SpxTemplate; baseline?: SpxTemp
 /** The working document as the reimport seam reads and writes it (the template store). */
 interface ReimportStore {
   getState(): { template: SpxTemplate };
-  setState(patch: { template: SpxTemplate; baseline: SpxTemplate; sampleData: Record<string, string> }): void;
+  setState(patch: { template: SpxTemplate; baseline?: SpxTemplate; sampleData?: Record<string, string> }): void;
 }
 
 /** The library seam's reimport half (shell/walkState.ts `LibraryIo`): the working document is the
@@ -2244,8 +2305,9 @@ interface ReimportStore {
 export function reimportIo(
   store: ReimportStore,
   sampleData: (template: SpxTemplate, existing: Record<string, string>) => Record<string, string>,
-): Pick<LibraryIo, 'reconcile' | 'keepCopy'> {
+): Pick<LibraryIo, 'reconcile' | 'keepCopy' | 'nameWorking'> {
   return {
+    nameWorking: (name) => store.setState({ template: { ...store.getState().template, name } }),
     reconcile: (id) => {
       const held = graphicById(id);
       const done = held ? svgReimported({ template: held.template, baseline: held.baseline }, store.getState().template) : null;
@@ -2278,21 +2340,33 @@ export function finishReimport(built: SpxTemplate | null, name: string, library:
     reviewCache = { built, id: held.id, at: held.updatedAt, result: svgReimported({ template: held.template, baseline: held.baseline }, built) };
   }
   const unresolved = reviewCache.result?.unresolved ?? [];
-  if (unresolved.length === 0) return null;
-  // A Replace anyway tick belongs to the list it was given for, on this target.
-  const sig = JSON.stringify([held.id, held.updatedAt, unresolved]);
-  if (memory.replaceFor !== sig) {
+  const silenced = reviewCache.result?.silenced ?? [];
+  if (unresolved.length === 0 && silenced.length === 0) return null;
+  // A Replace anyway tick belongs to the list it was given for, on this target. With no list
+  // shown the tick is left as it was, and the save honours it only when its own list carries the
+  // same signature (shell/walkState.ts `saveBuiltGraphic`, #1987 point 1), so a tick can never
+  // outlive its list; clearing it here would leave the box FinishStep keeps ticked disagreeing.
+  const sig = reimportSig(held.id, held.updatedAt, unresolved);
+  if (unresolved.length && memory.replaceFor !== sig) {
     memory.replaceFor = sig;
     memory.replaceOver = false;
   }
   return {
     sig,
     unresolved,
+    silenced,
     separateName: freeName(library.map((g) => g.name), name),
     copyName: freeName(library.map((g) => g.name), `${name} copy`),
     replace: !!memory.replaceOver,
     onReplace: (replace: boolean) => { memory.replaceOver = replace; },
   };
+}
+
+/** The identity of one unresolved list over one version of a record: the Finish review and the
+ *  save (shell/walkState.ts `saveBuiltGraphic`) compare it, so a Replace anyway tick is honoured
+ *  only for the list the reader saw. */
+export function reimportSig(id: string, at: string | undefined, unresolved: ReimportItem[]): string {
+  return JSON.stringify([id, at ?? null, unresolved]);
 }
 
 /**

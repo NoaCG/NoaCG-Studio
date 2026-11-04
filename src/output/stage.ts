@@ -96,6 +96,11 @@ export interface OutputStage {
   /** Called whenever a document reports a state OR an overflow set that differs from the last
    *  one seen. Both ride the one reply, so one callback carries both. */
   onState(cb: (graphic: string, state: PreviewMachineState | null, overflow: string[]) => void): void;
+  /** Called when a document's answer to "does a newer list wait for the next Take?"
+   *  (PreviewStateMessage.waits) differs from the last one seen, and on the first answer of each
+   *  frame, so a host that keeps the fact can never hold one a rebuilt stage has not said. Apart
+   *  from `onState`: the output renderer reports on that, and this fact is the monitor's alone. */
+  onWaits(cb: (graphic: string, waits: boolean) => void): void;
   /** The PUBLISHED graphic keys the stage hosts, in LAYER order — furthest back first. Foreign
    *  packages are not listed: they answer no state request, which the boot catch-up waits on
    *  (catchUp.ts). Their keys are `ografReturns`'. */
@@ -355,6 +360,9 @@ export function createOutputStage(
   const motion = new Map<string, number>();
   const replies = new Map<string, number>();
   const stateCbs: ((graphic: string, state: PreviewMachineState | null, overflow: string[]) => void)[] = [];
+  /** Per graphic, the last `waits` answer; absent until its frame first answers. */
+  const waiting = new Map<string, boolean>();
+  const waitCbs: ((graphic: string, waits: boolean) => void)[] = [];
   let resolveLoaded: () => void = () => {};
   const allLoaded = new Promise<void>((resolve) => {
     resolveLoaded = resolve;
@@ -514,6 +522,7 @@ export function createOutputStage(
     }
     if (!states.has(frame.key)) states.set(frame.key, null);
     overflow.set(frame.key, []);
+    waiting.delete(frame.key);
     motion.set(frame.key, 0);
     if (!replies.has(frame.key)) replies.set(frame.key, 0);
     if (offAir) postTo(frame, { cmd: 'offair', on: true });
@@ -865,6 +874,11 @@ export function createOutputStage(
       overflow.set(key, nextOver);
       for (const cb of stateCbs) cb(key, next, nextOver);
     }
+    const nextWaits = data.waits === true;
+    if (waiting.get(key) !== nextWaits) {
+      waiting.set(key, nextWaits);
+      for (const cb of waitCbs) cb(key, nextWaits);
+    }
   };
   window.addEventListener('message', onMessage);
 
@@ -1013,6 +1027,7 @@ export function createOutputStage(
     motion,
     replies,
     onState: (cb) => stateCbs.push(cb),
+    onWaits: (cb) => waitCbs.push(cb),
     graphics,
     ografReturns,
     foreignLayer: (key) => foreign.get(key),
@@ -1122,7 +1137,7 @@ export function createOutputStage(
       frames.delete(graphic);
       const at = graphics.indexOf(graphic);
       if (at >= 0) graphics.splice(at, 1);
-      for (const map of [states, appearances, overflow, motion, replies, held, errors, sounds] as Map<string, unknown>[]) map.delete(graphic);
+      for (const map of [states, appearances, overflow, waiting, motion, replies, held, errors, sounds] as Map<string, unknown>[]) map.delete(graphic);
       dispose(frame);
     },
     destroy: () => {

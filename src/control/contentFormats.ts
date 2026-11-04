@@ -483,37 +483,31 @@ export function valueFor(field: FieldDescriptor, raw: string): string | null {
  * credits styled as a roll or as cards. A Sheet refresh still reaches the graphic, which holds the
  * newer list for its next Take (creditsRoll.ts `creditsHeldJs`). Read from the runtime that does
  * the holding, so a graphic saved before it, a still page and every native list answer null.
+ * Whether a newer list waits is the graphic's own answer (`noacgCreditsWaiting`), which the
+ * PROGRAM monitor carries to the production page (preview/previewProtocol.ts
+ * `PreviewStateMessage.waits`).
  */
 export function heldListOnAir(graphic: GraphicShape): ListFormat | null {
   const format = graphicListFormat(graphic);
   return format && /\bvar noacgCreditsHeld\b/.test(graphic.template.js ?? '') ? format : null;
 }
 
-/** Per graphic on air: the Take it is on (the log entry's id) and the source's last change then. */
-export type TakeMarks = Readonly<Record<string, { take: number | null; changedAt: number | null }>>;
-
 /**
- * WHICH GRAPHICS ON AIR SHOW AN OLDER LIST THAN THEIR SOURCE: those whose Take came before the
- * source's last change. `onAir` names the graphics on air that hold a list read from this source,
- * each with its latest Take (null when the log no longer holds it); `changedAt` is when the
- * source's content last changed, null before its first read. A graphic is marked with the change
- * it was taken after; a new Take marks it again, and off air it is forgotten. A Take the log has
- * dropped keeps its mark, and a mark made before the first read takes that read as its own, since
- * a first read says only that the source was read. Pure, so the line's rule runs in Node.
+ * WHICH GRAPHICS ON AIR HOLD AN OLDER LIST THAN THEIR SOURCE: of the graphics bound to the source
+ * (`bound`, each with the field it fills), those on air (`live`) whose held list is that field
+ * (`heldMain`, from `heldListOnAir`) and whose own runtime says a newer list waits (`waits`, the
+ * PROGRAM monitor's answer). Each once, in binding order. Pure, so the rule runs in Node.
  */
-export function listsWaitingForTake(
-  marks: TakeMarks,
-  onAir: Readonly<Record<string, number | null>>,
-  changedAt: number | null,
-): { marks: TakeMarks; waiting: string[] } {
-  const next: Record<string, { take: number | null; changedAt: number | null }> = {};
+export function heldListsWaiting(
+  bound: readonly { graphic: string; fieldId: string }[],
+  heldMain: (graphic: string) => string | null | undefined,
+  live: Readonly<Record<string, unknown>>,
+  waits: Readonly<Record<string, boolean>>,
+): string[] {
   const waiting: string[] = [];
-  for (const [graphic, take] of Object.entries(onAir)) {
-    const was = marks[graphic];
-    const same = was && (was.take === take || take === null);
-    const mark = same ? (was.changedAt === null ? { take: was.take, changedAt } : was) : { take, changedAt };
-    next[graphic] = mark;
-    if (changedAt !== null && changedAt !== mark.changedAt) waiting.push(graphic);
+  for (const { graphic, fieldId } of bound) {
+    if (!live[graphic] || !waits[graphic] || waiting.includes(graphic)) continue;
+    if (heldMain(graphic) === fieldId) waiting.push(graphic);
   }
-  return { marks: next, waiting };
+  return waiting;
 }

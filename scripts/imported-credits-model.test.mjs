@@ -318,7 +318,13 @@ async function inPage({ dev, cases, legacy, artwork }) {
     artwork: build(base(artImp, { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: artImp.candidates.findIndex((c) => c.label === 'Programme text') }, options: { artwork: true } })),
     ...Object.fromEntries(dev.map((d) => [`fixed:${d.id}`, build(base(imported(d.markup)))])),
   };
-  if (!C || typeof C.analyseCreditsStyle !== 'function') return { pins };
+  // The editable roll's raw html with its list field, for the formatter round trip (#1955).
+  const editableRaw = (() => {
+    const behaviour = { kind: 'recipe', recipe: 'credits', layers: box ? { box } : {}, fields: { credits } };
+    const tpl = I.IMPORTED_SVG.create({ designSvg: base(legacyImp, behaviour) });
+    return { html: tpl.html, field: tpl.fields.find((f) => f.value.includes('\n')) };
+  })();
+  if (!C || typeof C.analyseCreditsStyle !== 'function') return { pins, editableRaw };
 
   const parser = new Function(`${window.NOACG_PARSER.CREDITS_PARSER_JS}\nreturn parseCredits;`)();
   const parse = (list) => parser(list, (s) => s);
@@ -437,7 +443,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     const field = tpl.fields.find((f) => f.ftype === 'textarea');
     return { preview, engine: C.creditsEngine(svg), errors: C.validateCreditsBinding(svg), doc: window.NOACG_COMPOSE.composeDocument(tpl), html: tpl.html, css: tpl.css, js: tpl.js, field, fieldCount: tpl.fields.length, sourceMarkup: imp.markup, anchors: preview.anchors };
   };
-  if (typeof C.styledCredits !== 'function') return { pins };
+  if (typeof C.styledCredits !== 'function') return { pins, editableRaw };
   // Previews only: the reading of a pick, as the drawn answer and as the other column.
   const previewOf = (markup, word, choice = {}) => {
     const imp = imported(markup);
@@ -580,6 +586,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     cards,
     issue1941: { loose: loose.out, looseLaid: looseLaid.out, spellings: spellings.out },
     pins,
+    editableRaw,
     devResults,
     caseResults,
     several,
@@ -624,13 +631,18 @@ const R = await withBundledPage(
 const sha = (o) => hash(JSON.stringify(o));
 
 /** Taken on main e680acd1 before this row, and equal on this branch: saved editable and original-
- *  artwork credits, and each dev drawing imported as plain artwork, build byte for byte as before. */
+ *  artwork credits, and each dev drawing imported as plain artwork, build byte for byte as before.
+ *  Re-taken for #1955: on main 8eddbde1 the editable build was 0c878096aa7d0a8b; its html now adds
+ *  only the `prettier-ignore` comment before the list holder and one sentence in the comment
+ *  above it (the #1955 test below reads the holder back after formatting). Re-taken again for
+ *  #1977: the imported fit runtime's own text changed (line breaks kept on air), so every one of
+ *  these builds' js moved with it; on the previous runtime the previous pins hold. */
 const PINS = {
-  editable: '0c878096aa7d0a8b',
-  artwork: '68a2d80cedb3ac53',
-  'fixed:credits-1': '82aa9a1f71492d37',
-  'fixed:credits-2': 'f8df6ae2dc07db8f',
-  'fixed:credits-3': 'f6535d6218476819',
+  editable: 'b6ac84dbe38d168e',
+  artwork: 'b93e7de7d63bedf0',
+  'fixed:credits-1': '45c6d1897600f92e',
+  'fixed:credits-2': '363aa7f9c94d107a',
+  'fixed:credits-3': '810340a43436a423',
 };
 
 if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
@@ -1009,13 +1021,31 @@ test('row 19: the list holder keeps its line breaks through the editor\'s code f
   assert.equal(holder[1], R.styled.one.field.value);
 });
 
+test('#1955: the editable roll\'s list holder keeps its line breaks through the code formatter', async () => {
+  // Saved editable rolls (no styled engine) keep the operator's list in the same kind of holder,
+  // and the production page formats it with these options. Formatting twice changes nothing more.
+  const { html, field } = R.editableRaw;
+  assert.ok(field && field.value.split('\n').length > 2, 'the sample list has several lines');
+  const options = { printWidth: 100, tabWidth: 2, endOfLine: 'lf', parser: 'html' };
+  const formatted = await prettier.format(html, options);
+  const holderOf = (doc) => new RegExp(`<div id="${field.field}"[^>]*>([\\s\\S]*?)</div>`).exec(doc)?.[1];
+  const escaped = field.value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  assert.equal(holderOf(formatted), escaped);
+  assert.equal(holderOf(await prettier.format(formatted, options)), escaped);
+});
+
 // ── Row 20: role-beside credits rendered in the artwork's own styling ────────────────────────
 
 /** Taken on main bc9be3b before row 20: row 19's role-above builds, byte for byte. Re-taken by
  *  row 24 (coordinator-approved): their js gains the snapshot rule and nothing else, html and css
  *  unchanged; the diff is in docs/work-specs/jev-svg-import/evidence/phase-24.md, and the test
- *  "row 24: ..." below asserts the rule is there. */
-const ROLE_ABOVE_PINS = { one: '04dc9549e22f53d7', bold: 'bece698c794e6600', grouped: '868bf20efd79e78d', roleGroup: '840ba1d0e561ff3f', idGroup: 'c20cb61badf34408' };
+ *  "row 24: ..." below asserts the rule is there. Re-taken for #1977 when the imported fit runtime's
+ *  text changed: the js moves with that runtime, and the row-24 rule asserted below is unchanged.
+ *  Re-taken by #2057: their js gains the hold at the cue (creditsEntrance, the list held there
+ *  only while the rows show the list last written, and rows older than the holder built again off
+ *  air, creditsOffAir) and nothing else, html and css unchanged; the test "#2057: ..." below
+ *  asserts it. */
+const ROLE_ABOVE_PINS = { one: '22f3af645dfb976f', bold: '8f62fc7260393803', grouped: '8f2c7c796bf4e786', roleGroup: '842855bb7c8ec637', idGroup: 'e1c996ced7f613db' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1048,6 +1078,19 @@ test('row 24: a styled roll keeps the list its take took while on air; the edita
     assert.ok(js.includes('noacgCreditsHeld = null;\n  noacgCreditsWaiting = false;'), `${k}: Out lets go of the held list`);
   }
   for (const k of ['editable', 'artwork']) assert.ok(!R.pins[k].js.includes('noacgCreditsHeld'), `${k}: no snapshot rule`);
+});
+
+test('#2057: a styled take cued by play() keeps the list its first frame shows, whatever update lands before the take runs', () => {
+  for (const k of ROLE_ABOVE) {
+    const { js } = R.styled[k];
+    assert.ok(js.includes('function creditsEntrance()') && js.includes('tl.time() !== 0') && js.includes('!tl.parent || tl.paused()'), `${k}: the cue is read off the entrance play() built`);
+    assert.ok(js.includes('noacgCreditsHeld = noacgCreditsShown;'), `${k}: an update at the cue holds the list the rows show`);
+    assert.ok(js.includes('noacgCreditsShown = text;'), `${k}: the rows record the list they show`);
+    assert.ok(js.includes('noacgCreditsCued.entrance === creditsLive()') && js.includes('noacgCreditsHeld = cued ? cued.list :'), `${k}: the take keeps the list held at its own cue`);
+    assert.ok(js.includes('noacgCreditsHeld === null && noacgCreditsShown === before ? creditsEntrance() : null'), `${k}: a cue holds the rows only when they show the list last written`);
+    assert.ok(js.includes('if (noacgCreditsHeld === null) noacgCreditsWritten = text;'), `${k}: rows built from the holder record the list written`);
+    assert.ok(js.includes('function creditsOffAir()') && js.includes('if (!out) rebuild();') && js.includes('holder.textContent === noacgCreditsShown) return;'), `${k}: off air, rows older than the holder are built again`);
+  }
 });
 
 test('row 20: a role-beside binding builds the styled engine, one Credits field holding the drawn list', () => {

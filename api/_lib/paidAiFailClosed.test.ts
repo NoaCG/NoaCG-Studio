@@ -218,6 +218,8 @@ const analysisRequest = () => ({
 });
 const analysisOutput = () => ({
   version: 1, graphicType: IMPORT_ANALYSIS_GRAPHIC_TYPES[0], graphicTypeConfidence: 0.9, canvas: { aspect: 1.78 }, regions: [], warnings: [],
+  // The wire carries the speed as a string (#2022); the route returns the number.
+  animation: { presetId: 'design-fade', direction: 'both', speed: '1.5' },
 });
 
 test('image analysis refuses on every failed lookup with nothing booked or sent', async () => {
@@ -232,7 +234,9 @@ test('image analysis: an eligible request succeeds, and the switches and caps st
   modelAnswer = analysisOutput;
   const ok = await analyze.fetch(post('/api/ai/tasks/import-analysis', analysisRequest()));
   assert.equal(ok.status, 200, await ok.clone().text());
-  assert.equal((await ok.json() as { analysis: { version: number } }).analysis.version, 1);
+  const body = await ok.json() as { analysis: { version: number; animation?: { speed?: unknown } } };
+  assert.equal(body.analysis.version, 1);
+  assert.equal(body.analysis.animation?.speed, 1.5);
   assert.equal(sent.model.length, 1);
   assert.ok(ledger.includes('reserve'));
 

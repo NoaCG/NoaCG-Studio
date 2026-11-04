@@ -285,7 +285,24 @@ test('a clock-free graphic sends its events on the fast road, and a clock keeps 
       await sendControlVerb({ slug: 'offline', showId, items, fastEvents, applyHere: (fast) => applied.push(...fast.map((i) => i.msg.t)) });
       return applied;
     };
+    // AN IMPORTED CLOCK'S TAKE AND RUNNING CORRECTION (#1886): stamped by their row, so they go
+    // slow and hold the graphic back; a score Update and a clock-free Take stay fast.
+    const stampedRoad = async (items: { graphic: string; msg: { t: 'play' } | { t: 'update'; data: Record<string, string> } | { t: 'stop' } }[], showId: string) => {
+      const applied: string[] = [];
+      await sendControlVerb({
+        slug: 'offline', showId, items, fastEvents: () => true,
+        serverInstant: (item) => item.graphic === 'Clock' && (item.msg.t === 'play' || (item.msg.t === 'update' && item.msg.data.f2 === '0:20')),
+        applyHere: (fast) => applied.push(...fast.map((i) => `${i.graphic}:${i.msg.t}`)),
+      });
+      return applied;
+    };
+    const roads = {
+      take: await stampedRoad([{ graphic: 'Clock', msg: { t: 'update', data: { f2: '0:30' } } }, { graphic: 'Clock', msg: { t: 'play' } }, { graphic: 'Clock', msg: { t: 'stop' } }, { graphic: 'Other', msg: { t: 'play' } }], 'show-d'),
+      correction: await stampedRoad([{ graphic: 'Clock', msg: { t: 'update', data: { f2: '0:20' } } }, { graphic: 'Clock', msg: { t: 'update', data: { f1: 'AWAY' } } }], 'show-e'),
+      resend: await stampedRoad([{ graphic: 'Clock', msg: { t: 'update', data: { f2: '0:30', f1: 'AWAY' } } }, { graphic: 'Clock', msg: { t: 'stop' } }], 'show-f'),
+    };
     return {
+      roads,
       missed,
       quizzes,
       clocks,
@@ -307,4 +324,11 @@ test('a clock-free graphic sends its events on the fast road, and a clock keeps 
   // And with no show there is no fast road at all: the event goes slow AND holds the update
   // behind it, so a Take pressed next cannot overtake the row it is still waiting on.
   expect(result.unknownShow).toEqual([]);
+  // #1886: the Take of a clock its row stamps goes slow and holds the Out pressed behind it; the
+  // update before it and another graphic's Take stay fast.
+  expect(result.roads.take).toEqual(['Clock:update', 'Other:play']);
+  // A running correction goes slow and holds the score update behind it.
+  expect(result.roads.correction).toEqual([]);
+  // Every other Update and Out of the same graphic stays fast.
+  expect(result.roads.resend).toEqual(['Clock:update', 'Clock:stop']);
 });

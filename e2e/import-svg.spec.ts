@@ -1395,6 +1395,11 @@ test('svg import: clicking a text layer binds it, and clicking it again lets it 
   await expect(tick).toBeChecked();
 });
 
+// The pick surface holds a press made before the rebuilt document has reported its layers, the
+// way the draw surface above holds a drop (#1915). That window is not a spec's to hold open, so
+// it is verified by FAULT INJECTION: run the rebuild debounce in WizardPreview at 0 ms and ignore
+// CANVAS_RECTS_TYPE for 1.5 s after each rebuild. Without the hold this test then fails at the
+// `grow-y` assertion with `grow-x` received, the shape the rehearsal produced; with it, it passes.
 test('svg import: dragging a rectangle makes it the growing panel, and says which way', async ({ page }) => {
   await dropSvgMarkup(page, PICK_SVG, 'pick.svg');
   await page.locator('.wz-next').click();

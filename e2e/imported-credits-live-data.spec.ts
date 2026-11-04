@@ -1,5 +1,5 @@
 // covers: src/templates/importedDesign/creditsRoll.ts, src/templates/importedDesign/svg.ts
-// covers: src/control/contentFormats.ts, src/components/home/SourcesLine.tsx
+// covers: src/control/contentFormats.ts, src/components/home/SourcesLine.tsx, src/components/home/CueEditor.tsx
 // covers: e2e/fixtures/jev-svg/dev/credits-1.svg, e2e/fixtures/jev-svg/dev/credits-2.svg
 //
 // LINKED CREDITS ON AIR (jev-svg-import row 24, AC-14 and AC-24). A Sheet connected to imported
@@ -7,7 +7,9 @@
 //
 //  - A ROLL OR CARDS ON AIR KEEP THE LIST THEY TOOK. A refresh reaches the graphic, which holds it
 //    for the next Take: the moving rows and the card on screen do not change under the viewer,
-//    the roll is not restarted, and the production page says newer data shows on the next Take.
+//    the roll is not restarted, and the production page says newer data shows on the next Take,
+//    from the graphic's own answer on PROGRAM (#1980): on the source line and, for a typed Update,
+//    in the on-air cue's editor (#1979).
 //    A new Scroll speed or Card time still acts on air, as before.
 //  - A STILL PAGE shows a refresh at once: nothing moves, so nothing replays.
 //  - OFF AIR the prepared rows follow every write, and the next Take airs the newest list. An
@@ -106,6 +108,8 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   expect(during.progress!, 'the roll was not restarted').toBeGreaterThan(before.progress!);
   await expect(waitingLine).toHaveText('· Newer data shows on the next Take');
   await expect(waitingLine).toHaveAttribute('title', 'On air: Live roll');
+  // The on-air cue's editor says it too, beside Update (#1979), from the same answer.
+  await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
 
   // THE NEXT TAKE airs the newest list, from the start of a new roll, and the line clears.
   await page.getByTestId('verb-retake').click();
@@ -113,6 +117,7 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   await expect.poll(async () => (await roll()).mark).toBeNull();
   expect((await roll()).waiting).toBe(false);
   await expect(waitingLine).toHaveCount(0);
+  await expect(page.getByTestId('cue-unsent')).toBeEmpty();
 
   // EMPTY: the Sheet emptied while on air waits as any change does; the next Take clears the list.
   sheet.set([['Role', 'Name']]);
@@ -147,6 +152,77 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   await expect.poll(() => roll().then((r) => r.waiting), { timeout: 20_000 }).toBe(true);
   await expect(waitingLine).toBeVisible();
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  // Paused again, the list read before the pause still waits, and the line still says so (#1980).
+  await page.getByTestId('source-pause').click();
+  await expect(page.getByTestId('sources-line')).toContainText('paused');
+  await expect(waitingLine).toBeVisible();
+});
+
+test('a typed Update on a held roll says the new list shows on the next Re-take, from what PROGRAM holds; an Update that leaves the list as taken says nothing; a reload brings back no stale note', async ({ page }) => {
+  test.setTimeout(120_000);
+  await styledCreditsProduction(page, 'roll', 'Typed roll');
+  const list = page.getByTestId('cue-field-f1');
+  await expect(list).toHaveValue(LIST);
+  const fate = page.getByTestId('cue-unsent');
+  const air = page.frameLocator('[data-testid="program-stage"] iframe');
+  const rows = air.locator('.imported-design-credits-row');
+  const waiting = () => air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsWaiting: boolean }).noacgCreditsWaiting);
+  await page.getByTestId('verb-take').click();
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(fate).toBeEmpty();
+
+  // A corrected name, sent with Update: PROGRAM keeps the list its Take took, and the editor says
+  // when the new one shows. Before Update the unsent note asks for Update as always.
+  await list.fill(OTHER);
+  await expect(fate).toHaveText(/^1 change not on (air|PROGRAM) yet\. Press ✎ Update$/);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(waiting).toBe(true);
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+  await expect(fate).toHaveAttribute('title', /keeps the names its Take took/);
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+
+  // RELOAD: an unpublished production airs on this page only, so a reload leaves nothing on air
+  // and nothing waits. The note follows PROGRAM, not a memory of its own: none comes back, and
+  // the Take airs the list as typed.
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('cue-field-f1')).toHaveValue(OTHER);
+  await expect(page.getByTestId('verb-retake')).toBeDisabled();
+  await expect(fate).toBeEmpty();
+  await page.getByTestId('verb-take').click();
+  await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
+  await expect(fate).toBeEmpty();
+  // Sent again on air: it waits, as before the reload.
+  await page.getByTestId('cue-field-f1').fill(LIST);
+  await page.getByTestId('verb-update').click();
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+
+  // The list put back as taken, sent: nothing waits any more, so nothing is said.
+  await page.getByTestId('cue-field-f1').fill(OTHER);
+  await page.getByTestId('verb-update').click();
+  await expect.poll(waiting).toBe(false);
+  await expect(fate).toBeEmpty();
+
+  // A change to another field leaves the list as taken: nothing is said either.
+  await page.getByTestId('cue-field-f0').fill('CREW');
+  await page.getByTestId('verb-update').click();
+  await expect(air.getByText('CREW')).toBeVisible();
+  await expect.poll(waiting).toBe(false);
+  await expect(fate).toBeEmpty();
+
+  // Changed again and sent, then RE-TAKE: the new list airs and the note clears.
+  await page.getByTestId('cue-field-f1').fill(LIST);
+  await page.getByTestId('verb-update').click();
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+  await page.getByTestId('verb-retake').click();
+  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(fate).toBeEmpty();
+  // OUT: off air nothing waits.
+  await page.getByTestId('cue-field-f1').fill(OTHER);
+  await page.getByTestId('verb-update').click();
+  await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
+  await page.getByTestId('verb-out').click();
+  await expect(fate).toBeEmpty();
 });
 
 test('cards on air keep the cards they took: a refresh waits for the next Take, Next card turns the cards taken', async ({ page }) => {
@@ -165,6 +241,7 @@ test('cards on air keep the cards they took: a refresh waits for the next Take, 
   await expect.poll(waiting, { timeout: 20_000, message: 'the refresh reached the graphic' }).toBe(true);
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
   await expect(page.getByTestId('source-waiting')).toHaveText('· Newer data shows on the next Take');
+  await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
   // The prepared cue follows the refresh: PREVIEW shows the newer first card meanwhile.
   await expect(page.frameLocator('[data-testid="production-preview"] iframe').locator('.imported-design-credits-row')).toHaveText(['Camera', 'Jonas Berg']);
   // Next card turns to the second card of the list taken, not of the newer one.
@@ -261,6 +338,7 @@ const call = (page: Page, data: Record<string, string> | null, verb?: 'play' | '
 const fieldFor = (page: Page, role: string) => page.evaluate((role) => (window as unknown as { noacgFieldFor(role: string, key: null): string }).noacgFieldFor(role, null), role);
 const LIST = 'Research:\nNia Vale\nTomas Fen\nSound:\nAri Moss';
 const OTHER = 'Camera:\nJonas Berg\nIda Lake\nDirector:\nAlex Rivera';
+const THIRD = 'Editor:\nMia Holt';
 
 test('a roll on air keeps its list through updates, a new speed and its faces landing; Out lets the rows follow again', async ({ page }) => {
   await page.goto('/app');
@@ -349,6 +427,162 @@ test('cards on air keep the cards they took, while a new card time still applies
   expect(await cards()).toMatchObject({ cards: 3, waiting: false });
   expect(await rowTexts(page)).toEqual(['Camera', 'Jonas Berg']);
 });
+
+// #2057: play() paints the entrance's first frame at once, and the take holds its list on GSAP's
+// first tick after it. A design whose credits already show on that frame (here the entrance's fade
+// taken out) would show one list and then another if an update in between reached the rows: the
+// take holds the list that frame shows, and the newer one waits for the next take.
+for (const playback of ['roll', 'cards'] as const) {
+  test(`${playback}: an update between play() and the take waits, so the first frame's list is the one taken (#2057)`, async ({ page }) => {
+    await page.goto('/app');
+    const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), playback, false);
+    await page.goto('/robots.txt');
+    await page.setContent(built.html);
+    const field = await fieldFor(page, 'credits');
+    await call(page, { [field]: LIST });
+    const first = await page.evaluate(({ field, other }) => {
+      const w = window as unknown as { NOACG_ANIM: { steps: { layers: Record<string, Record<string, unknown>> }[] }; play(): void; update(d: Record<string, string>): void };
+      for (const tracks of Object.values(w.NOACG_ANIM.steps[0].layers)) delete tracks.opacity;
+      w.play();
+      // What the first frame paints: the rows, and whether they are visible at all.
+      const row = document.querySelector('.imported-design-credits-row');
+      let shown = row ? 1 : 0;
+      for (let el = row; el; el = el.parentElement) shown *= Number(getComputedStyle(el).opacity);
+      const rows = [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent);
+      w.update({ [field]: other });
+      return { shown, rows };
+    }, { field, other: OTHER });
+    expect(first.shown, 'the credits show on the first frame').toBeGreaterThan(0);
+    expect(first.rows[0], 'the first frame shows the list written before play()').toBe('Research');
+    const state = () => page.evaluate(() => {
+      const w = window as unknown as { noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean; noacgCreditsTween: unknown; noacgCreditsCard?: number };
+      return { taken: w.noacgCreditsCard === undefined ? !!w.noacgCreditsTween : w.noacgCreditsCard === 0, held: w.noacgCreditsHeld, waiting: w.noacgCreditsWaiting };
+    });
+    await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
+    expect(await state(), 'the take keeps the list its first frame showed; the newer one waits').toMatchObject({ held: LIST, waiting: true });
+    expect(await rowTexts(page), 'no frame after the first shows another list').toEqual(first.rows);
+    // The next take airs the newer list.
+    await call(page, null, 'play');
+    await expect.poll(async () => (await state()).held).toBe(OTHER);
+    expect([(await rowTexts(page))[0], (await state()).waiting]).toEqual(['Camera', false]);
+    // A LIST THAT WAITED AT OUT: once the exit has ended the rows show it, so the next take's first
+    // frame does too, and an update between play() and that take waits as above.
+    await call(page, { [field]: LIST });
+    expect([(await rowTexts(page))[0], (await state()).waiting], 'on air, the newer list waits').toEqual(['Camera', true]);
+    await call(page, null, 'stop');
+    await expect.poll(async () => (await rowTexts(page))[0], 'off air after Out, the rows show the list that waited').toBe('Research');
+    const again = await page.evaluate(({ field, third }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void };
+      w.play();
+      const rows = [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent);
+      w.update({ [field]: third });
+      return rows;
+    }, { field, third: THIRD });
+    expect(again[0], 'the first frame shows the list that waited').toBe('Research');
+    await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
+    expect(await state(), 'the take keeps the list its first frame showed').toMatchObject({ held: LIST, waiting: true });
+    expect(await rowTexts(page)).toEqual(again);
+    // Taken again before that exit ends: the rows still show the list taken, older than the
+    // holder, so they are no list to hold; the take airs the newest, as a re-take always did.
+    const retaken = await page.evaluate(async ({ field, other }) => {
+      const w = window as unknown as { play(): void; stop(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
+      w.stop();
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const out = w.noacgCreditsHeld;
+      w.play();
+      w.update({ [field]: other });
+      return out;
+    }, { field, other: OTHER });
+    expect(retaken, 'Out let go of the list').toBeNull();
+    await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
+    expect(await state(), 'the take airs the newest list, never the older one the rows still showed').toMatchObject({ held: OTHER, waiting: false });
+    // An entrance killed before its first tick (an Out or a snap) never takes, so it holds nothing,
+    // not even a list an update held at its cue: off air again, the rows follow the next write.
+    await call(page, null, 'stop');
+    await expect.poll(async () => (await state()).held).toBeNull();
+    expect((await rowTexts(page))[0], 'off air, the rows show the list taken, which nothing replaced').toBe('Camera');
+    await page.evaluate(({ field, other, list }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgLiveTimeline: { kill(): void } };
+      w.play();
+      w.update({ [field]: other });
+      w.noacgLiveTimeline.kill();
+      w.update({ [field]: list });
+    }, { field, other: OTHER, list: LIST });
+    expect([(await rowTexts(page))[0], (await state()).held], 'a killed entrance holds no list').toEqual(['Research', null]);
+    // A SNAP BETWEEN play() AND THE TAKE, after an update held a list at the cue: nothing takes,
+    // and the next take airs the newest list, never the one that cue held.
+    await page.evaluate(({ field, other }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgSnap(a: null): void };
+      w.play();
+      w.update({ [field]: other });
+      w.noacgSnap(null);
+    }, { field, other: OTHER });
+    // The next take, with an update between its play() and its first tick (a snap leaves the old
+    // roll's tween in place, so the take is waited for by frames, not by the tween).
+    const taken = await page.evaluate(async ({ field, third }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
+      w.play();
+      w.update({ [field]: third });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return w.noacgCreditsHeld;
+    }, { field, third: THIRD });
+    expect(taken, 'the take after a snapped cue airs the newest list').toBe(THIRD);
+    // The same with the entrance killed instead, which leaves the held cue in place until the next
+    // write: that write lets it go, and the rows still showing the held list are no list to hold.
+    await call(page, null, 'stop');
+    await expect.poll(async () => (await state()).held).toBeNull();
+    await call(page, { [field]: LIST });
+    const afterKill = await page.evaluate(async ({ field, other, third }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgLiveTimeline: { kill(): void }; noacgCreditsHeld: string | null };
+      w.play();
+      w.update({ [field]: other });
+      w.noacgLiveTimeline.kill();
+      w.play();
+      w.update({ [field]: third });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return w.noacgCreditsHeld;
+    }, { field, other: OTHER, third: THIRD });
+    expect(afterKill, 'the take after a killed cue airs the newest list, never the list that cue held').toBe(THIRD);
+    // A STOP WITH NO EXIT TO WAIT FOR (a styled stop rests the graphic, then Out lets go): a list
+    // that waited shows off air at once.
+    await call(page, { [field]: OTHER });
+    expect((await state()).waiting, 'on air, the newer list waits').toBe(true);
+    await page.evaluate(() => {
+      const w = window as unknown as { noacgResetGraphic(): void; stopCreditsRoll(): void };
+      w.noacgResetGraphic();
+      w.stopCreditsRoll();
+    });
+    expect([(await rowTexts(page))[0], (await state()).held], 'off air with no exit, the rows show the list that waited').toEqual(['Camera', null]);
+    // OUT BEFORE THE TAKE, THEN A TAKE INTERRUPTING THAT EXIT: the cue held the rows' list and a
+    // newer one waited; the next cue finds rows older than the list last written, holds nothing,
+    // and its take airs the newest list.
+    const interrupted = await page.evaluate(async ({ field, list, third }) => {
+      const w = window as unknown as { play(): void; stop(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
+      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      w.play();
+      w.update({ [field]: list });
+      w.stop();
+      await frames();
+      const out = w.noacgCreditsHeld;
+      w.play();
+      w.update({ [field]: third });
+      await frames();
+      return { out, taken: w.noacgCreditsHeld };
+    }, { field, list: LIST, third: THIRD });
+    expect(interrupted, 'Out let go, and the take after it airs the newest list').toEqual({ out: null, taken: THIRD });
+    // NO UPDATE BEFORE THE FIRST play(): the rows built at load are the list its first frame shows.
+    await page.setContent(built.html);
+    const first2 = await page.evaluate(async ({ field, other }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean };
+      const loaded = document.getElementById(field)!.textContent;
+      w.play();
+      w.update({ [field]: other });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return { same: w.noacgCreditsHeld === loaded, waiting: w.noacgCreditsWaiting };
+    }, { field, other: OTHER });
+    expect(first2, 'the first take after load keeps the list its rows were built with').toEqual({ same: true, waiting: true });
+  });
+}
 
 test('a still page shows an update on air at once, where the drawing put it', async ({ page }) => {
   // The held-still decision (phase 24): nothing on a still page moves, so an update has no

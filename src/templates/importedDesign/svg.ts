@@ -326,7 +326,9 @@ export function assembleImportedSvg(o: ResolvedOptions): SpxTemplate {
     : creditsField
     ? `
     <!-- ${escapeHtml(creditsField.title)} (${creditsField.field}) - the whole credit list, one line per name, written
-         by SPX and rolled by the credits engine in template.js; the drawn Credits text is its sample. -->
+         by SPX and rolled by the credits engine in template.js; the drawn Credits text is its sample.
+         Its line breaks are the list, so the code formatter leaves it as written. -->
+    <!-- prettier-ignore -->
     <div id="${creditsField.field}" class="${DATA_SOURCE_CLASS}">${escapeHtml(creditsField.value)}</div>`
     : '';
 
