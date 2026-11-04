@@ -3,9 +3,18 @@ import { afterEach, beforeEach, test } from 'node:test';
 import {
   decodeStructuredOutput,
   executeGatewayRequest,
+  GATEWAY_TAG_WRITE_USD,
+  gatewayRequestFeeUsd,
   GatewayError,
+  usageCostUsd,
   validateGatewayBody,
+  withRequestFee,
+  withTokenCost,
+  worstAttemptCostUsd,
+  type GatewayRoutingPolicy,
 } from './aiGateway.js';
+import { gatewayLedgerEntry } from './aiGatewayLedger.js';
+import { modelResultPatch } from './aiLiteStore.js';
 import { readUserAiKeys, userAiKeysCookie } from './aiCredentials.js';
 import { surfaceRoutePolicy } from './aiSurfacePolicy.js';
 import { APPROVED_MODEL_CATALOG } from './aiModelCatalog.js';
@@ -15,6 +24,7 @@ const CONTROLLED_ENV = [
   'AI_KEY_ENCRYPTION_SECRET',
   'AI_MODEL_PRICING_JSON',
   'AI_RETRY_LIMIT',
+  'AI_GATEWAY_TAG_WRITE_USD',
 ] as const;
 const originalEnv = new Map(CONTROLLED_ENV.map((name) => [name, process.env[name]]));
 
@@ -985,4 +995,255 @@ test('a normal finish_reason still parses - the truncation guard is not swallowi
     })),
   });
   assert.deepEqual(result.output, { version: 1 });
+});
+
+// ---- The gateway's per-request fee (#2015) ----
+//
+// Vercel AI Gateway bills $0.075 per 1,000 Custom Reporting writes, one per unique tag on a
+// request, on top of the tokens the reply reports. The eval ledgers measured exactly $0.000075
+// per served request carrying one tag, on chat completions and on /v1/evaluate, and $0 on a
+// request refused before inference.
+
+const TAGGED: GatewayRoutingPolicy = { zeroDataRetention: true, disallowPromptTraining: true, tags: ['surface:lite'] };
+const GATEWAY = { provider: 'vercel', model: 'vendor/model' } as const;
+
+const servedChat = (cost?: number) => async () => new Response(JSON.stringify({
+  choices: [{ message: { content: 'ok' } }],
+  usage: { prompt_tokens: 1000, completion_tokens: 100, ...(cost === undefined ? {} : { cost }) },
+}));
+
+test('the fee is one tag write per unique tag, only on a gateway route that sends tags', () => {
+  assert.equal(GATEWAY_TAG_WRITE_USD, 0.000075, 'the measured fee: $0.075 per 1,000 writes');
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), 0.000075);
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, { ...TAGGED, tags: ['surface:lite', 'surface:lite'] }), 0.000075, 'a repeated tag is one write');
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, { ...TAGGED, tags: ['a', 'b'] }), 0.00015);
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, { ...TAGGED, tags: [] }), 0, 'no tags, no writes');
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, undefined), 0, 'no routing policy sends no tags');
+  assert.equal(gatewayRequestFeeUsd({ provider: 'anthropic', model: 'x' }, TAGGED), 0, 'a direct provider key never reaches the gateway');
+});
+
+test('the fee price is configurable, and an unreadable value keeps the measured one', () => {
+  process.env.AI_GATEWAY_TAG_WRITE_USD = '0';
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), 0, 'set to 0 when the reported cost starts including it');
+  process.env.AI_GATEWAY_TAG_WRITE_USD = '0.0001';
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), 0.0001);
+  for (const bad of ['-1', 'abc', 'NaN']) {
+    process.env.AI_GATEWAY_TAG_WRITE_USD = bad;
+    assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), GATEWAY_TAG_WRITE_USD, bad);
+  }
+});
+
+test('a served reply settles at its reported cost plus the fee', async () => {
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat(0.0004) }, {
+    maxAttempts: 1, retryLimit: 0, gateway: TAGGED,
+  });
+  assert.equal(result.usage.requestFeeUsd, 0.000075);
+  assert.equal(result.usage.estimatedCost?.amount, 0.0004 + 0.000075);
+  assert.equal(result.usage.estimatedCost?.source, 'provider');
+  // The content-free ledger books the same figure.
+  const entry = gatewayLedgerEntry({ userId: null, ipHash: 'h', body: body('vercel', 'vendor/model'), userKeys: {}, result });
+  assert.equal(entry.providerCostUsd, 0.0004 + 0.000075);
+});
+
+test('a reply priced from its tokens gets the fee once, and re-pricing it never adds it again', async () => {
+  process.env.AI_MODEL_PRICING_JSON = JSON.stringify({ 'vercel:vendor/model': { inputPerMillion: 1, outputPerMillion: 2 } });
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat() }, {
+    maxAttempts: 1, retryLimit: 0, gateway: TAGGED,
+  });
+  const tokens = (1000 * 1 + 100 * 2) / 1_000_000;
+  assert.equal(result.usage.estimatedCost?.amount, tokens + 0.000075);
+  // A caller that prices the reply again (Lite, the judge, import analysis) or applies the fee
+  // again sees `requestFeeUsd` and leaves the amount alone: no double charge.
+  const again = withTokenCost(withRequestFee(result.usage, 0.000075), GATEWAY, { inputPerMillion: 1, outputPerMillion: 2 });
+  assert.equal(again.estimatedCost?.amount, tokens + 0.000075);
+  assert.equal(usageCostUsd(again), tokens + 0.000075);
+});
+
+test('a reply the server cannot price still carries its fee, and the caller adds tokens to it once', async () => {
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat() }, {
+    maxAttempts: 1, retryLimit: 0, gateway: TAGGED,
+  });
+  assert.equal(result.usage.estimatedCost, undefined, 'no reported cost and no configured price');
+  assert.equal(usageCostUsd(result.usage), 0.000075, 'the fee is still counted');
+  const priced = withTokenCost(result.usage, GATEWAY, { inputPerMillion: 1, outputPerMillion: 2 });
+  assert.equal(priced.estimatedCost?.amount, (1000 + 200) / 1_000_000 + 0.000075);
+});
+
+test('a request without tags, or on a user key, pays no fee', async () => {
+  const untagged = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat(0.0004) }, {
+    maxAttempts: 1, retryLimit: 0, gateway: { ...TAGGED, tags: undefined },
+  });
+  assert.equal(untagged.usage.estimatedCost?.amount, 0.0004);
+  assert.equal(untagged.usage.requestFeeUsd, undefined);
+  const byo = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat(0.0004) });
+  assert.equal(byo.usage.estimatedCost?.amount, 0.0004, 'BYO traffic carries no routing policy and so no tags');
+});
+
+test('a request refused before inference is booked at nothing, fee included', async () => {
+  const request = body('vercel', 'vendor/model');
+  await assert.rejects(executeGatewayRequest(request, {
+    keyFor,
+    fetchImpl: async () => new Response('{"error":{"message":"bad request"}}', { status: 400 }),
+  }, { maxAttempts: 1, retryLimit: 0, gateway: TAGGED }), GatewayError);
+  const entry = gatewayLedgerEntry({ userId: null, ipHash: 'h', body: request, userKeys: {}, errorCode: 'invalid_request' });
+  assert.equal(entry.providerCostUsd, 0);
+});
+
+test('the priced worst case of an attempt includes the fee', () => {
+  const price = { inputPerMillion: 0.1, outputPerMillion: 0.4 };
+  assert.equal(worstAttemptCostUsd(GATEWAY, 2000, 500, price, TAGGED), (2000 * 0.1 + 500 * 0.4) / 1_000_000 + 0.000075);
+  assert.equal(worstAttemptCostUsd(GATEWAY, 2000, 500, price, undefined), (2000 * 0.1 + 500 * 0.4) / 1_000_000);
+  assert.equal(worstAttemptCostUsd(GATEWAY, 2000, 500, undefined, TAGGED), null, 'an unpriced route stays unpriced');
+});
+
+// ---- Every served attempt is paid for (#2055) ----
+//
+// A reply that arrives (HTTP 200) is billed by the gateway, tokens plus the request fee, even
+// when the executor then throws it away and retries. The result must carry every such bill so
+// Lite settlement, the judge, import analysis, Pro settlement and the ledger all see it.
+
+const structuredBody = (): AiGatewayRequestBody => {
+  const request = body('vercel', 'vendor/model');
+  request.request.structuredOutput = {
+    name: 'result',
+    description: 'A required title.',
+    schema: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } },
+  };
+  return request;
+};
+
+/** One served chat reply whose structured answer is `args` (a string, sent as given). */
+const reply = (args: string, cost?: number, tokens: [number, number] = [1000, 100]) => new Response(JSON.stringify({
+  choices: [{ message: { content: null, tool_calls: [{ type: 'function', function: { name: 'result', arguments: args } }] } }],
+  usage: { prompt_tokens: tokens[0], completion_tokens: tokens[1], ...(cost === undefined ? {} : { cost }) },
+}));
+
+const sequence = (...responses: Array<() => Response>) => {
+  let call = 0;
+  return async () => responses[Math.min(call++, responses.length - 1)]();
+};
+
+const VALID = JSON.stringify({ title: 'Lower third' });
+const near = (actual: number | undefined, expected: number, message?: string) =>
+  assert.ok(Math.abs((actual ?? NaN) - expected) < 1e-12, `${message ?? ''} expected ${expected}, got ${actual}`);
+
+test('an invalid served reply and then a valid one settle at both costs plus two fees', async () => {
+  const result = await executeGatewayRequest(structuredBody(), {
+    keyFor,
+    sleep: async () => {},
+    // The first answer parses but misses the schema (validation), the second is fine.
+    fetchImpl: sequence(() => reply(JSON.stringify({ heading: 'wrong' }), 0.0003), () => reply(VALID, 0.0004)),
+  }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+  assert.deepEqual(result.output, { title: 'Lower third' });
+  near(result.usage.estimatedCost?.amount, 0.0003 + 0.0004 + 2 * 0.000075);
+  near(result.usage.requestFeeUsd, 2 * 0.000075);
+  assert.equal(result.usage.inputTokens, 2000);
+  assert.equal(result.usage.outputTokens, 200);
+  assert.equal(result.usage.estimatedCost?.source, 'provider');
+});
+
+test('an undecodable served reply and then a valid one settle at both costs plus two fees', async () => {
+  const result = await executeGatewayRequest(structuredBody(), {
+    keyFor,
+    sleep: async () => {},
+    // The first answer is not JSON at all: the adapter's parse fails, yet it was served.
+    fetchImpl: sequence(() => reply('{"title": "cut', 0.0002), () => reply(VALID, 0.0004)),
+  }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+  near(result.usage.estimatedCost?.amount, 0.0002 + 0.0004 + 2 * 0.000075);
+  near(usageCostUsd(result.usage), 0.0002 + 0.0004 + 2 * 0.000075);
+});
+
+test('an image answer without an image is still paid for when the retry delivers', async () => {
+  const imageBody: AiGatewayRequestBody = {
+    route: { provider: 'vercel', model: 'vendor/image-model' },
+    request: { system: 'Render.', messages: [{ role: 'user', content: 'brief' }], expect: 'image' },
+  };
+  const result = await executeGatewayRequest(imageBody, {
+    keyFor,
+    sleep: async () => {},
+    fetchImpl: sequence(
+      () => new Response(JSON.stringify({ choices: [{ message: { content: 'text only' } }], usage: { prompt_tokens: 10, completion_tokens: 20, cost: 0.01 } })),
+      () => new Response(JSON.stringify({
+        choices: [{ message: { images: [{ image_url: { url: 'data:image/png;base64,AAAA' } }] } }],
+        usage: { prompt_tokens: 10, completion_tokens: 20, cost: 0.02 },
+      })),
+    ),
+  }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+  near(result.usage.estimatedCost?.amount, 0.01 + 0.02 + 2 * 0.000075);
+});
+
+test('an unserved attempt before a success adds nothing: no reply, no usage, no fee', async () => {
+  for (const unserved of [
+    () => new Response('{"error":{"message":"overloaded"}}', { status: 503 }),
+    () => new Response('{"error":{"message":"rate limited"}}', { status: 429 }),
+    () => { throw new TypeError('network down'); },
+  ]) {
+    const result = await executeGatewayRequest(structuredBody(), {
+      keyFor,
+      sleep: async () => {},
+      fetchImpl: sequence(unserved, () => reply(VALID, 0.0004)),
+    }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+    near(result.usage.estimatedCost?.amount, 0.0004 + 0.000075);
+    near(result.usage.requestFeeUsd, 0.000075, 'one served attempt, one fee');
+  }
+});
+
+test('the fee of each served attempt is counted once, and re-pricing the sum adds nothing', async () => {
+  process.env.AI_MODEL_PRICING_JSON = JSON.stringify({ 'vercel:vendor/model': { inputPerMillion: 1, outputPerMillion: 2 } });
+  const result = await executeGatewayRequest(structuredBody(), {
+    keyFor,
+    sleep: async () => {},
+    // No reported cost: each attempt is priced from its tokens, with its own fee.
+    fetchImpl: sequence(() => reply('not json'), () => reply(VALID)),
+  }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+  const tokens = (1000 * 1 + 100 * 2) / 1_000_000;
+  near(result.usage.estimatedCost?.amount, 2 * (tokens + 0.000075));
+  const again = withTokenCost(withRequestFee(result.usage, 0.000075), GATEWAY, { inputPerMillion: 1, outputPerMillion: 2 });
+  near(again.estimatedCost?.amount, 2 * (tokens + 0.000075), 'neither the fee nor the tokens are added twice');
+});
+
+test('with no reported cost and no server price, the caller prices every served attempt once', async () => {
+  const result = await executeGatewayRequest(structuredBody(), {
+    keyFor,
+    sleep: async () => {},
+    fetchImpl: sequence(() => reply('not json'), () => reply(VALID)),
+  }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+  assert.equal(result.usage.estimatedCost, undefined);
+  near(usageCostUsd(result.usage), 2 * 0.000075, 'both fees are known even unpriced');
+  // Lite, the judge and import analysis price an unpriced reply with their own route price.
+  const priced = withTokenCost(result.usage, GATEWAY, { inputPerMillion: 1, outputPerMillion: 2 });
+  near(priced.estimatedCost?.amount, 2 * ((1000 + 200) / 1_000_000) + 2 * 0.000075);
+});
+
+test('Lite settlement, Pro settlement and the ledger all receive the summed amount', async () => {
+  const request = structuredBody();
+  const result = await executeGatewayRequest(request, {
+    keyFor,
+    sleep: async () => {},
+    fetchImpl: sequence(() => reply(JSON.stringify({ heading: 'wrong' }), 0.0003), () => reply(VALID, 0.0004)),
+  }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+  const expected = 0.0003 + 0.0004 + 2 * 0.000075;
+  near(modelResultPatch(result).providerCostUsd, expected, 'Lite and import analysis settle through modelResultPatch');
+  near(usageCostUsd(result.usage), expected, 'Lite\'s ceiling, the judge and Pro settlement read usageCostUsd');
+  near(gatewayLedgerEntry({ userId: null, ipHash: 'h', body: request, userKeys: {}, result }).providerCostUsd, expected);
+});
+
+test('a mix of priced and unpriced served attempts: the caller prices only the unpriced tokens, once', async () => {
+  const price = { inputPerMillion: 1, outputPerMillion: 2 };
+  const tokens = (1000 * 1 + 100 * 2) / 1_000_000;
+  for (const [first, second] of [[reply('not json', 0.0001), reply(VALID)], [reply('not json'), reply(VALID, 0.0001)]]) {
+    const result = await executeGatewayRequest(structuredBody(), {
+      keyFor,
+      sleep: async () => {},
+      fetchImpl: sequence(() => first, () => second),
+    }, { maxAttempts: 2, retryLimit: 1, gateway: TAGGED });
+    // Without a caller price, the known cost and both fees: never the fee alone.
+    near(usageCostUsd(result.usage), 0.0001 + 2 * 0.000075);
+    assert.deepEqual(result.usage.unpricedTokens, { input: 1000, output: 100 });
+    // Lite, the judge and import analysis price the rest at their route price, once.
+    const priced = withTokenCost(result.usage, GATEWAY, price);
+    near(priced.estimatedCost?.amount, 0.0001 + tokens + 2 * 0.000075);
+    assert.equal(priced.unpricedTokens, undefined);
+    near(withTokenCost(priced, GATEWAY, price).estimatedCost?.amount, 0.0001 + tokens + 2 * 0.000075, 're-pricing adds nothing');
+  }
 });

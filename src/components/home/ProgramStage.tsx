@@ -31,11 +31,13 @@ const ProgramStage = forwardRef<
       state: { groups?: Record<string, string> } | null,
       overflow: string[],
     ) => void;
+    /** A held list with a newer one waiting for the next Take — see PayloadStage.onWaits. */
+    onWaits?: (graphic: string, waits: boolean) => void;
     /** A fresh stage exists and knows nothing about air — see PayloadStage.onReady. */
     onReady?: () => void;
   }
 >(
-  function ProgramStage({ show, library, empty, emptyLabel, onState, onReady }, ref) {
+  function ProgramStage({ show, library, empty, emptyLabel, onState, onWaits, onReady }, ref) {
     const [payload, setPayload] = useState<OutputPayload | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +81,7 @@ const ProgramStage = forwardRef<
         error={error}
         emptyLabel={empty ? (emptyLabel ?? 'Nothing on air') : undefined}
         onState={onState}
+        onWaits={onWaits}
         onReady={onReady}
       />
     );

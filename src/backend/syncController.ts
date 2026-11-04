@@ -11,7 +11,7 @@ import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './account
 import { canAuthorAccount, changeSyncedElsewhere, commitDurableWrites, libraryInUse, markOwnWritesSynced, setAccountAuthoringEnabled } from '../model/durableStore';
 import { LocalStorageProvider } from './storage';
 import { SupabaseProvider } from './supabaseProvider';
-import { libraryHasArrived, runSync, type SyncResult } from './sync';
+import { libraryHasArrived, runSync, tombstoneCutoff, type SyncResult } from './sync';
 import type { StoredRecord } from './storage';
 import { purgeOldTombstones } from '../model/packets';
 import { purgeOldShowTombstones } from '../model/shows';
@@ -196,11 +196,13 @@ export async function syncNow(): Promise<SyncPassReceipt> {
       firstPass ? (plan) => setState({ phase: 'syncing', firstPass: true, incoming: countIncoming(plan.toLocal) }) : undefined,
     );
     if (epoch !== sessionEpoch) return unavailable;
-    // Coordinated tombstone purge: drop deletes older than the grace period from BOTH sides (same
-    // cutoff), so a purged tombstone can't be re-pulled. 90 days is generous; a device offline
+    // Coordinated tombstone purge: drop deletes older than the grace period from BOTH sides. The
+    // cloud dates a row by its server write time and this device by the record's own, so an old
+    // tombstone written to the cloud today outlives the local one; the pass never moves an expired
+    // tombstone for exactly that reason (`reconcile`). 90 days is generous; a device offline
     // longer than that could resurrect a delete — an acceptable edge for a beta. Best-effort.
     try {
-      const cutoff = new Date(Date.now() - 90 * 86_400_000).toISOString();
+      const cutoff = tombstoneCutoff();
       await remote.purgeTombstones(cutoff);
       purgeOldTombstones(cutoff);
       purgeOldShowTombstones(cutoff);

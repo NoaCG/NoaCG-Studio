@@ -60,10 +60,12 @@ PR challenged them against that code. Rules found after coding are marked (after
 - **R6 A label changed after the import wins** on a verified match, and the definition in the
   markup is rewritten with it.
 - **R7 Action identity is the operator event's name, carried by the recipe.** A verified build
-  answers the same events by construction (the behaviour test compares them). An action the walk
-  itself drops, through a behaviour profile the reader chose (a quiz with no Lock), is that
-  choice, not lost work, and is not listed (narrowed after coding: the first version listed it,
-  which broke AC-22's reopen-and-change journey in `import-svg-behaviour.spec.ts`).
+  answers the same events by construction (the behaviour test compares them). Which actions the
+  new build answers is decided by the walk's current behaviour (a quiz with no Lock, or a
+  proposal that missed the recipe), so a dropped action is not listed as unresolved (narrowed
+  after coding: the first version listed it, which broke AC-22's reopen-and-change journey in
+  `import-svg-behaviour.spec.ts`). Finish says it in one calm line instead, without changing
+  where the save goes: "No longer answers: Lock" (#1987 point 4).
 - **R8 Unresolved work is never written over.** A removed, look-alike or untargeted item makes
   every Finish door save the new version as a separate graphic (`<name> 2`), leaving the earlier
   graphic, its bindings and cues untouched. Finish names the items first. Replace anyway is the
@@ -276,3 +278,23 @@ On a fresh branch from `origin/main`, landed through the merge queue:
 
 A reimport then writes over the saved graphic as before. No persisted format changed; a separate
 graphic or a copy made meanwhile stays an ordinary library entry.
+
+## After row 27: #1986 and #1987
+
+- **#1986, fixed.** "Edit this graphic" reads a held name as the other doors do
+  (`reimportForEditor`, shell/walkState.ts): nothing unresolved, the editor opens the reconciled
+  build (earlier ids, keys and labels); anything unresolved, it opens under the separate name
+  Finish named. It still saves nothing, so the editor's Save never writes over the earlier graphic.
+- **#1987, each point:**
+  1. Fixed. The save honours Replace anyway only when its own list has the signature the tick was
+     given for (`reimportSig`); Finish leaves the tick as it is when no list shows.
+  2. Fixed. The file-mode Finish shows the review, and the catalog Finish lost its SVG-mode gate
+     (the reconcile is null for anything that is not an SVG import).
+  3. Documented limit, pinned by a test: state-machine edits made after the import are not
+     compared (`carryKeys`). No surface edits the machine today.
+  4. Fixed. Finish says "No longer answers: …" when the earlier graphic answered actions the new
+     build does not, without changing where it saves; R7 reworded above.
+  5. and 6. Fixed: one escaped `idHeld` helper with either quote (templates/importedDesign/reimport.ts).
+  7. Fixed: the positive branch has its test.
+  8. Documented limit in `svgReimported`: an id shaped `artwork-N` gets the strict check whoever
+     wrote it. A separate graphic, never lost work; provenance is not worth its code.

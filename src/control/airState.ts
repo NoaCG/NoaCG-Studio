@@ -63,14 +63,27 @@ export function rememberAired(air: AirPart, items: readonly ControlSendItem[]): 
   const typedWas = air.typedAired ?? {};
   const stepsWas = air.typedSteps ?? {};
   const { typedAired, typedSteps } = items.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), { typedAired: typedWas, typedSteps: stepsWas });
-  if (aired === air.aired && looks === was && typedAired === typedWas && typedSteps === stepsWas) return air;
+  const carriedWas = air.carried ?? {};
+  const carried = items.reduce(carriedAfter, carriedWas);
+  if (aired === air.aired && looks === was && typedAired === typedWas && typedSteps === stepsWas && carried === carriedWas) return air;
   return {
     ...air,
     aired,
+    ...(carried === carriedWas ? {} : { carried }),
     ...(looks === was ? {} : { looks }),
     ...(typedAired === typedWas ? {} : { typedAired }),
     ...(typedSteps === stepsWas ? {} : { typedSteps }),
   };
+}
+
+/** One command's count on the fields it carries (an update's data, an event's payload). */
+function carriedAfter(carried: NonNullable<AirPart['carried']>, item: ControlSendItem): NonNullable<AirPart['carried']> {
+  const msg = item.msg;
+  const fields = msg.t === 'update' ? msg.data : msg.t === 'event' ? msg.payload : undefined;
+  if (!fields || Object.keys(fields).length === 0) return carried;
+  const counts = { ...(carried[item.graphic] ?? {}) };
+  for (const key of Object.keys(fields)) counts[key] = (counts[key] ?? 0) + 1;
+  return { ...carried, [item.graphic]: counts };
 }
 
 type TypedAir = { typedAired: Record<string, TypedValues>; typedSteps: Record<string, readonly ControlSendItem['msg'][]> };
@@ -227,15 +240,16 @@ export function claimAndApply(
   return programItems(next, program, specs, now);
 }
 
-/** What the resolve's round trip read when it was asked: the marker's moves and the commands
- *  applied, so its answer can tell it is older than the screen. */
+/** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
+ *  and the fields they had carried, so its answer can tell it is older than the screen. */
 export interface AirAtRequest {
   moves: number;
   commands: number;
+  carried?: AirPart['carried'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands };
+  return { moves: air.moves, commands: air.commands, carried: air.carried };
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -258,12 +272,21 @@ function clockSeedFromReport(clock: ClockSpec, reported: string): string {
   return clock.fixedInstant ? clock.seed : reported;
 }
 
+/** A graphic's fields a command carried since the request, with what air's record holds for them. */
+function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<string, string> {
+  const now = air.carried?.[graphic] ?? {};
+  const then = at.carried?.[graphic] ?? {};
+  const record = air.aired[graphic] ?? {};
+  return Object.fromEntries(Object.keys(now).filter((key) => now[key] !== then[key] && key in record).map((key) => [key, record[key]]));
+}
+
 /**
  * THE RESOLVE'S SEED, guarded (§4.1 R3). The seed is a wholesale replace, so it is skipped
  * outright when the marker moved while the read was in flight (THE MOVES GUARD): the wire's map is
  * a snapshot, and a layer this operator took off meanwhile would come back on air, or a Take made
  * meanwhile would read as nothing on air with Out greyed. The rows after the reports replay only
- * if no command was applied since the request; a newer command is newer than they are.
+ * if no command was applied since the request; a newer command is newer than they are, so a field
+ * one moved meanwhile also keeps its figure over the report's.
  *
  * Seeded, `aired` takes what air shows for each live layer: the renderer's report, else the live
  * cue's values in the rundown, then the rows after the report. A clock's reported value carries its
@@ -292,18 +315,32 @@ export function seedFromResolve(
     };
     const clock = specs.clocks.get(graphic);
     const pair = specs.pairs.get(graphic);
+    // A field a command moved while the read was out holds that command's figure, and its clock
+    // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
+    // back, and the next +1 counted from it).
+    const moved = air.commands !== at.commands ? movedSince(air, at, graphic) : {};
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
-    if (clock && values[clock.field] !== undefined) {
+    if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
       clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       values[clock.field] = plainClockValue(values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
-      speaking = { ...speaking, [graphic]: { [pair.fieldA]: wire(pair.fieldA), [pair.fieldB]: wire(pair.fieldB) } };
-      values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
-      values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
+      // Field by field: one a command moved keeps this page's memory, the other takes the report's.
+      const memory: Record<string, string> = {};
+      for (const field of [pair.fieldA, pair.fieldB]) {
+        const held = speaking[graphic]?.[field];
+        if (field in moved) {
+          if (held !== undefined) memory[field] = held;
+          continue;
+        }
+        memory[field] = wire(field);
+        values[field] = plainClockValue(values[field]);
+      }
+      speaking = { ...speaking, [graphic]: memory };
     }
-    if (Object.keys(values).length > 0) seed[graphic] = values;
+    // Nothing to seed from (no report, no cue values): the record stays whole, moved fields and all.
+    if (Object.keys(values).length > 0) seed[graphic] = { ...values, ...moved };
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
   // A command applied here while the read was out is newer than every report: the looks stay.

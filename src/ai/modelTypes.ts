@@ -151,7 +151,16 @@ export interface ModelUsage {
   cachedInputTokens?: number;
   /** Reasoning tokens, when separately reported. Included in outputTokens. */
   reasoningTokens?: number;
-  /** An estimate only, derived from explicit operator pricing or provider-reported cost. */
+  /** The gateway's per-request fee for this reply (api/_lib/aiGateway.ts, `gatewayRequestFeeUsd`).
+   *  Its presence also says the fee has been applied: whenever `estimatedCost` is set it already
+   *  includes this amount, so the fee is never added twice. */
+  requestFeeUsd?: number;
+  /** Tokens of served attempts that had no price, summed into a usage whose `estimatedCost`
+   *  covers only the others (`sumUsage`, #2055). A caller that prices the usage
+   *  (`withTokenCost`) adds these at its price once and drops the field. */
+  unpricedTokens?: { input: number; output: number };
+  /** An estimate only, derived from explicit operator pricing or provider-reported cost, plus
+   *  `requestFeeUsd` when that is set. */
   estimatedCost?: {
     amount: number;
     currency: 'USD';

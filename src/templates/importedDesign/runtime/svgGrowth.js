@@ -640,9 +640,17 @@ function growOneRule(rule, index) {
     // …and as ONE line: a block still painted as wrapped tspans from a previous pass measures
     // its widest line, which understates what the panel actually has to hold. The fit below
     // repaints it either way.
+    // An operator's own breaks are lines of their own (svgHardLines), so the panel has to hold
+    // the widest of them, never all of them end to end.
     var whole = svgFitValue(el);
+    var hard = svgHardLines(el, whole);
+    var widest = 0;
+    for (var h = 0; h < hard.length; h++) {
+      if (el.textContent !== hard[h]) el.textContent = hard[h];
+      widest = Math.max(widest, svgTextWidth(el));
+    }
     if (el.textContent !== whole) el.textContent = whole;
-    var over = (svgTextWidth(el) - svgFitRoom[el.id].width) * svgUserScale(el);
+    var over = (widest - svgFitRoom[el.id].width) * svgUserScale(el);
     if (over > need) need = over;
   }
   if (!(need > 0)) return;

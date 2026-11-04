@@ -54,7 +54,7 @@ export function gatewayLedgerEntry(input: {
     outputTokens: usage?.outputTokens ?? 0,
     cachedInputTokens: usage?.cachedInputTokens ?? 0,
     reasoningTokens: usage?.reasoningTokens ?? 0,
-    providerCostUsd: usage?.estimatedCost?.amount ?? 0,
+    providerCostUsd: usage?.estimatedCost?.amount ?? usage?.requestFeeUsd ?? 0,
   };
 }
 

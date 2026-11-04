@@ -9,7 +9,7 @@
 import { bearerToken, ipHash, json, methodGuard, readJson } from '../http.js';
 import { verifyUser } from '../auth.js';
 import { managedAiKey } from '../aiCredentials.js';
-import { estimateModelCost, executeGatewayRequest, GatewayError } from '../aiGateway.js';
+import { executeGatewayRequest, GatewayError, usageCostUsd, withTokenCost, worstAttemptCostUsd } from '../aiGateway.js';
 import { liteError } from '../aiLiteHttp.js';
 import {
   liteJudgeConfigured,
@@ -136,11 +136,13 @@ export default {
     }
 
     const price = routePrice(profile, profile.judgeRoute) ?? undefined;
-    const worstCase = estimateModelCost(
+    // The worst case includes the gateway's per-request fee (#2015).
+    const worstCase = worstAttemptCostUsd(
       profile.judgeRoute,
       profile.judgeEstimatedInputTokens,
       profile.judgeOutputTokens,
       price,
+      liteJudgePolicy(profile),
     );
     if (worstCase === null || worstCase > profile.judgeMaxCostUsd) {
       return liteError('cost_ceiling', 'The configured judge route exceeds its cost ceiling.', 503);
@@ -190,9 +192,9 @@ export default {
           ...(gateway ? { gateway } : {}),
         },
       );
-      const costUsd = result.usage.estimatedCost?.amount
-        ?? estimateModelCost(profile.judgeRoute, result.usage.inputTokens, result.usage.outputTokens, price)
-        ?? 0;
+      // Tokens (reported, else priced) plus the request fee, counted once.
+      const usage = withTokenCost(result.usage, profile.judgeRoute, price);
+      const costUsd = usageCostUsd(usage);
       // Settle the booked worst case down (or up) to what the provider actually charged.
       // Best-effort: a settle failure leaves the booking standing, which over-counts the
       // fleet spend - the safe direction - and must never void a paid judgement. A run
@@ -210,14 +212,7 @@ export default {
         scores: parsed.scores,
         reason: parsed.reason,
         threshold: profile.judgeThreshold,
-        usage: {
-          ...result.usage,
-          ...(result.usage.estimatedCost
-            ? {}
-            : costUsd
-              ? { estimatedCost: { amount: costUsd, currency: 'USD' as const, source: 'configured' as const } }
-              : {}),
-        },
+        usage,
       };
       return json(response);
     } catch (error) {

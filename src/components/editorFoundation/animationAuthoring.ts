@@ -1,6 +1,6 @@
 import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BasePatch, type BaseValues, type TransformPatch } from '../../blocks/baseEdits';
-import { channelValue, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
+import { channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
@@ -87,14 +87,16 @@ export function nativeValue(pose: RenderedPart['appearance'], owner: string, key
   return key === 'x' || key === 'y' ? current + (value - before) * unit : key === 'rotation' ? current + value - before : before === 0 ? value : current * value / before;
 }
 /** Whether an edit of this control is a key (on a sequence the editor authors, where the control is
- *  animated) rather than a base write. */
-export const keysControl = (data: AnimData | null, owner: string, property: keyof TransformPatch) => !sequenceAuthoringReason(data) && isArmed(data, owner, property);
+ *  animated) rather than a base write. Given the template, a behaviour graphic's control keys where
+ *  the layer's property is the user's (#1982). */
+export const keysControl = (data: AnimData | null, owner: string, property: keyof TransformPatch, template?: SpxTemplate) =>
+  !(template ? controlKeyReason(template, data, owner, property) : sequenceAuthoringReason(data)) && isArmed(data, owner, property);
 /** A combined gesture keeps separated axes and mixed selections independent: each layer resolves
  *  its own segment and pose, and the caller commits every operation as one transaction. */
 export function authoredTransform(template: SpxTemplate, selector: string, base: BaseValues, appearance: RenderedPart['appearance'], values: TransformPatch, time: number): EditorOperation[] {
   requireCurrentPose(appearance, time, undefined, appearance?.cue);
   const edit = editSegment(template, selector, time, appearance?.cue), { view } = edit, pose = poseOf(edit, selector, appearance);
-  return transformOperations(view.data, selector, ownerOf(view, selector), base, pose, values, positionOf(edit));
+  return transformOperations(view.data, selector, ownerOf(view, selector), base, pose, values, positionOf(edit), template);
 }
 /**
  * The operations that take a layer's controls to `values` from the pose shown (R1.2a.6): each armed
@@ -103,12 +105,12 @@ export function authoredTransform(template: SpxTemplate, selector: string, base:
  * raw transform's) stays motion. One scale track keys both axes, so only a change keeping their
  * ratio can write it.
  */
-export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: TransformPatch, position: { step: number; time: number }): EditorOperation[] {
+export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: TransformPatch, position: { step: number; time: number }, template?: SpxTemplate): EditorOperation[] {
   const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: BasePatch = {};
   for (const [key, value] of Object.entries(values) as [keyof TransformPatch, number][]) {
     const before = displayedBase(base, pose, key);
     if (Math.abs(value - before) < .00001) continue;
-    if (keysControl(data, owner, key)) {
+    if (keysControl(data, owner, key, template)) {
       const channel = writeChannel(data, owner, key);
       operations.push({ kind: 'animation.key', selector, property: channel, ...position, value: nativeValue(pose, owner, key, channel, value, before), action: 'set' });
     } else unarmed[key] = base[key] + value - before;
@@ -188,7 +190,7 @@ export function resizeArtwork(template: SpxTemplate, parts: RenderedPart[], delt
     }
     // Base scale precedes the source's own transform; animated scale uses its existing writer.
     const view = readTimeline(template), owner = ownerOf(view, part.selector);
-    const unarmed = delta.x && !keysControl(view.data, owner, 'scaleX') || delta.y && !keysControl(view.data, owner, 'scaleY');
+    const unarmed = delta.x && !keysControl(view.data, owner, 'scaleX', template) || delta.y && !keysControl(view.data, owner, 'scaleY', template);
     if (base.axisResizeReason && unarmed) throw new Error(base.axisResizeReason);
     const pose = editingPose(template, part.selector, part.appearance, time, part.appearance?.cue);
     const corners = part.corners;

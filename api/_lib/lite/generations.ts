@@ -3,8 +3,11 @@ import { verifyUser } from '../auth.js';
 import { managedAiKey } from '../aiCredentials.js';
 import {
   executeGatewayRequest,
-  estimateModelCost,
   GatewayError,
+  sumUsage,
+  usageCostUsd,
+  withTokenCost,
+  worstAttemptCostUsd,
   type GatewayExecutionPolicy,
 } from '../aiGateway.js';
 import { liteError } from '../aiLiteHttp.js';
@@ -177,50 +180,16 @@ function zeroUsage(): ModelUsage {
 }
 
 function aggregateResults(first: ModelResult, second: ModelResult): ModelResult {
-  const firstCost = first.usage.estimatedCost?.amount ?? 0;
-  const secondCost = second.usage.estimatedCost?.amount ?? 0;
   return {
     ...second,
     attempts: [...first.attempts, ...second.attempts],
-    usage: {
-      inputTokens: first.usage.inputTokens + second.usage.inputTokens,
-      outputTokens: first.usage.outputTokens + second.usage.outputTokens,
-      totalTokens: first.usage.totalTokens + second.usage.totalTokens,
-      cachedInputTokens: (first.usage.cachedInputTokens ?? 0) + (second.usage.cachedInputTokens ?? 0),
-      reasoningTokens: (first.usage.reasoningTokens ?? 0) + (second.usage.reasoningTokens ?? 0),
-      ...(firstCost || secondCost
-        ? {
-            estimatedCost: {
-              amount: firstCost + secondCost,
-              currency: 'USD' as const,
-              source: first.usage.estimatedCost?.source === 'provider' || second.usage.estimatedCost?.source === 'provider'
-                ? 'provider' as const
-                : 'configured' as const,
-            },
-          }
-        : {}),
-    },
+    usage: sumUsage([first.usage, second.usage]),
   };
 }
 
 function withProfileCost(result: ModelResult, profile: ReturnType<typeof liteProfile>): ModelResult {
-  if (result.usage.estimatedCost) return result;
-  const price = routePrice(profile, { provider: result.provider, model: result.model });
-  const amount = estimateModelCost(
-    { provider: result.provider, model: result.model },
-    result.usage.inputTokens,
-    result.usage.outputTokens,
-    price ?? undefined,
-  );
-  return amount === null
-    ? result
-    : {
-        ...result,
-        usage: {
-          ...result.usage,
-          estimatedCost: { amount, currency: 'USD', source: 'configured' },
-        },
-      };
+  const route = { provider: result.provider, model: result.model };
+  return { ...result, usage: withTokenCost(result.usage, route, routePrice(profile, route)) };
 }
 
 export function reservationError(reservation: Exclude<LiteReservation, { status: 'created' }>): Response {
@@ -403,17 +372,20 @@ export default {
       return json(result);
     }
 
-    const worstPrimary = estimateModelCost(
+    // Each worst case includes the gateway's per-request fee (#2015).
+    const worstPrimary = worstAttemptCostUsd(
       profile.primary,
       profile.estimatedInputTokens,
       profile.outputTokens,
       routePrice(profile, profile.primary) ?? undefined,
+      liteGatewayPolicy(profile, profile.primary),
     );
-    const worstFallback = estimateModelCost(
+    const worstFallback = worstAttemptCostUsd(
       profile.fallback,
       profile.estimatedInputTokens,
       profile.outputTokens,
       routePrice(profile, profile.fallback) ?? undefined,
+      liteGatewayPolicy(profile, profile.fallback),
     );
     if (worstPrimary === null || worstFallback === null || worstPrimary + worstFallback > profile.maxProviderCostUsd) {
       return liteError('cost_ceiling', 'The configured Lite routes exceed the per-request cost ceiling.', 503);
@@ -514,7 +486,7 @@ export default {
         await failRecord(record, semantic.errors.join(','), modelResult);
         return liteError('generation_failed', 'Lite could not produce a usable design decision for this brief.', 422);
       }
-      const actualCost = modelResult.usage.estimatedCost?.amount ?? 0;
+      const actualCost = usageCostUsd(modelResult.usage);
       if (actualCost > profile.maxProviderCostUsd) {
         await store.update(record?.id ?? '', { ...modelResultPatch(modelResult), status: 'failed', rejectionReason: 'cost_ceiling' });
         return liteError('cost_ceiling', 'This Lite generation exceeded its cost ceiling and was stopped.', 503);

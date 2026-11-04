@@ -54,6 +54,28 @@ export class GatewayError extends Error {
   }
 }
 
+/** A reply that ARRIVED (HTTP 200, so the gateway billed it) but is not usable: a structured
+ *  result that does not parse or validate, or an image request answered without an image. It
+ *  carries the reply's usage so the executor can charge the attempt when it retries (#2055). */
+export class ServedAttemptError extends GatewayError {
+  readonly usage: ModelUsage;
+
+  constructor(error: GatewayError, usage: ModelUsage) {
+    super(error.code, error.message, error.status, error.retryable);
+    this.usage = usage;
+  }
+}
+
+/** Run `parse` on a reply whose usage is already known; a failure keeps that usage. */
+function servedParse<T>(usage: ModelUsage, parse: () => T): T {
+  try {
+    return parse();
+  } catch (error) {
+    if (error instanceof GatewayError && !(error instanceof ServedAttemptError)) throw new ServedAttemptError(error, usage);
+    throw error;
+  }
+}
+
 const safeNumber = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 
@@ -452,15 +474,16 @@ export const openAiAdapter: ProviderAdapter = {
     const outputDetails = data.usage && typeof data.usage === 'object'
       ? object(usage.output_tokens_details ?? {})
       : {};
+    const served = totalUsage(
+      usage.input_tokens,
+      usage.output_tokens,
+      undefined,
+      inputDetails.cached_tokens,
+      outputDetails.reasoning_tokens,
+    );
     return {
-      output: request.structuredOutput ? parseStructured(text) : text,
-      usage: totalUsage(
-        usage.input_tokens,
-        usage.output_tokens,
-        undefined,
-        inputDetails.cached_tokens,
-        outputDetails.reasoning_tokens,
-      ),
+      output: request.structuredOutput ? servedParse(served, () => parseStructured(text)) : text,
+      usage: served,
     };
   },
 };
@@ -560,17 +583,20 @@ export const vercelGatewayAdapter: ProviderAdapter = {
             return parsed ? [parsed] : [];
           })
         : [];
+      const imageUsage = (usage: Record<string, unknown>) =>
+        totalUsage(usage.prompt_tokens, usage.completion_tokens, providerCost(usage.cost));
       if (images.length === 0) {
         // Retryable like other structured misses: image models occasionally answer with
-        // text only, and a fresh attempt within the bounded budget usually delivers.
-        throw new GatewayError('malformed_response', 'The model did not return an image.', 502, true);
+        // text only, and a fresh attempt within the bounded budget usually delivers. The
+        // answer was still served, so it carries its usage (#2055).
+        throw new ServedAttemptError(
+          new GatewayError('malformed_response', 'The model did not return an image.', 502, true),
+          imageUsage(data.usage && typeof data.usage === 'object' && !Array.isArray(data.usage)
+            ? data.usage as Record<string, unknown>
+            : {}),
+        );
       }
-      const imageUsage = object(data.usage ?? {});
-      return {
-        output: '',
-        images,
-        usage: totalUsage(imageUsage.prompt_tokens, imageUsage.completion_tokens, providerCost(imageUsage.cost)),
-      };
+      return { output: '', images, usage: imageUsage(object(data.usage ?? {})) };
     }
     // SAY WHEN THE ANSWER WAS CUT OFF. The Anthropic and OpenAI adapters have always checked
     // their own truncation signal and reported it in these words; this one - the MANAGED
@@ -619,15 +645,16 @@ export const vercelGatewayAdapter: ProviderAdapter = {
     const completionDetails = usage.completion_tokens_details && typeof usage.completion_tokens_details === 'object'
       ? object(usage.completion_tokens_details)
       : {};
+    const served = totalUsage(
+      usage.prompt_tokens,
+      usage.completion_tokens,
+      providerCost(usage.cost),
+      promptDetails.cached_tokens,
+      completionDetails.reasoning_tokens,
+    );
     return {
-      output: request.structuredOutput ? parseStructured(toolArguments || text) : text,
-      usage: totalUsage(
-        usage.prompt_tokens,
-        usage.completion_tokens,
-        providerCost(usage.cost),
-        promptDetails.cached_tokens,
-        completionDetails.reasoning_tokens,
-      ),
+      output: request.structuredOutput ? servedParse(served, () => parseStructured(toolArguments || text)) : text,
+      usage: served,
     };
   },
 };
@@ -1072,18 +1099,125 @@ export function estimateModelCost(
   return (inputTokens * price.inputPerMillion + outputTokens * price.outputPerMillion) / 1_000_000;
 }
 
-function withEstimatedCost(usage: ModelUsage, route: ModelRoute): ModelUsage {
-  if (usage.estimatedCost) return usage;
-  const price = configuredPrice(route);
-  if (!price) return usage;
+// ---- The gateway's per-request fee (#2015) ----
+//
+// Vercel AI Gateway bills "Custom Reporting" writes on top of tokens: $0.075 per 1,000 writes,
+// where each unique tag (or user id, or quota entity id) on a request is one write
+// (vercel.com/docs/ai-gateway/pricing, "Add-on surcharges"). Every managed call carries one
+// `surface:*` tag, so every served request costs $0.000075 more than the cost the reply reports.
+//
+// Measured, not inferred: the eval ledgers of runs 41620061986 and 41621970771 show the balance
+// debit minus the reported cost is exactly $0.000075 per request on `/v1/evaluate` (Jev, Elephant)
+// and on chat completions (Claude Haiku 5.5), 50 requests in one batch included. The reported cost
+// (`usage.cost`, `providerMetadata.gateway.cost`) is tokens at the listed price and nothing else.
+// A request the gateway refuses before inference (a 4xx) was charged nothing.
+//
+// So the fee follows the TAGS, not the model: a request without tags, or sent past the gateway
+// (a user's own provider key), carries none. If Vercel changes the price, or turns Custom
+// Reporting off, or starts including the fee in the reported cost, set
+// AI_GATEWAY_TAG_WRITE_USD (0 removes it) rather than editing callers.
+
+/** The price of one Custom Reporting write, in USD. */
+export const GATEWAY_TAG_WRITE_USD = 0.000075;
+
+export function gatewayTagWriteUsd(): number {
+  const raw = process.env.AI_GATEWAY_TAG_WRITE_USD?.trim();
+  if (!raw) return GATEWAY_TAG_WRITE_USD;
+  const value = Number(raw);
+  // A typo must not silently drop the fee: anything unreadable keeps the measured price.
+  return Number.isFinite(value) && value >= 0 ? value : GATEWAY_TAG_WRITE_USD;
+}
+
+/** The fee one served request to `route` pays under this routing policy: one write per unique
+ *  tag, and nothing for a route the gateway does not carry or a request with no tags. */
+export function gatewayRequestFeeUsd(route: ModelRoute, gateway?: GatewayRoutingPolicy | null): number {
+  if (route.provider !== 'vercel' || !gateway?.tags?.length) return 0;
+  return new Set(gateway.tags).size * gatewayTagWriteUsd();
+}
+
+/** Add the request fee to a reply's usage, exactly once. `requestFeeUsd` marks it applied, so a
+ *  second call (or a caller re-pricing the reply) never charges it again. */
+export function withRequestFee(usage: ModelUsage, feeUsd: number): ModelUsage {
+  if (usage.requestFeeUsd !== undefined || feeUsd <= 0) return usage;
   return {
     ...usage,
-    estimatedCost: {
-      amount: (usage.inputTokens * price.inputPerMillion + usage.outputTokens * price.outputPerMillion) / 1_000_000,
-      currency: 'USD',
-      source: 'configured',
-    },
+    requestFeeUsd: feeUsd,
+    ...(usage.estimatedCost
+      ? { estimatedCost: { ...usage.estimatedCost, amount: usage.estimatedCost.amount + feeUsd } }
+      : {}),
   };
+}
+
+/** Price a reply that reported no cost: its tokens at `price`, plus the request fee it already
+ *  carries. A reply that has a cost (which includes the fee) is returned unchanged, except for
+ *  the tokens of summed attempts that had none (`unpricedTokens`), which are priced once. */
+export function withTokenCost(usage: ModelUsage, route: ModelRoute, price?: ModelPrice | null): ModelUsage {
+  if (usage.estimatedCost && usage.unpricedTokens) {
+    const tokens = estimateModelCost(route, usage.unpricedTokens.input, usage.unpricedTokens.output, price ?? undefined);
+    if (tokens === null) return usage;
+    const { unpricedTokens: _priced, ...rest } = usage;
+    return { ...rest, estimatedCost: { ...usage.estimatedCost, amount: usage.estimatedCost.amount + tokens } };
+  }
+  if (usage.estimatedCost) return usage;
+  const tokens = estimateModelCost(route, usage.inputTokens, usage.outputTokens, price ?? undefined);
+  if (tokens === null) return usage;
+  return { ...usage, estimatedCost: { amount: tokens + (usage.requestFeeUsd ?? 0), currency: 'USD', source: 'configured' } };
+}
+
+/** What a reply cost as far as is known: its estimate (fee included), else at least its fee. */
+export function usageCostUsd(usage: ModelUsage | undefined): number {
+  return usage?.estimatedCost?.amount ?? usage?.requestFeeUsd ?? 0;
+}
+
+/** Several served replies as one usage: tokens and request fees add up, and so does the cost.
+ *  The sum has a cost estimate when any part has one, amounting to every part's
+ *  `usageCostUsd` (an unpriced part counts its fee); the unpriced parts' tokens stay in
+ *  `unpricedTokens` for the caller to price. With no estimate at all, the caller prices the
+ *  summed tokens. Either way `withTokenCost` adds each token and each fee once. */
+export function sumUsage(parts: readonly ModelUsage[]): ModelUsage {
+  if (parts.length === 1) return parts[0];
+  const total = (read: (usage: ModelUsage) => number | undefined) =>
+    parts.reduce((sum, usage) => sum + (read(usage) ?? 0), 0);
+  const cachedInputTokens = total((usage) => usage.cachedInputTokens);
+  const reasoningTokens = total((usage) => usage.reasoningTokens);
+  const fees = parts.filter((usage) => usage.requestFeeUsd !== undefined);
+  const priced = parts.filter((usage) => usage.estimatedCost);
+  const unpriced = (read: (tokens: { input: number; output: number }) => number) => total((usage) =>
+    usage.estimatedCost
+      ? usage.unpricedTokens && read(usage.unpricedTokens)
+      : read({ input: usage.inputTokens, output: usage.outputTokens }));
+  const unpricedTokens = { input: unpriced((tokens) => tokens.input), output: unpriced((tokens) => tokens.output) };
+  return {
+    inputTokens: total((usage) => usage.inputTokens),
+    outputTokens: total((usage) => usage.outputTokens),
+    totalTokens: total((usage) => usage.totalTokens),
+    ...(cachedInputTokens ? { cachedInputTokens } : {}),
+    ...(reasoningTokens ? { reasoningTokens } : {}),
+    ...(fees.length ? { requestFeeUsd: total((usage) => usage.requestFeeUsd) } : {}),
+    ...(priced.length
+      ? {
+          estimatedCost: {
+            amount: total(usageCostUsd),
+            currency: 'USD' as const,
+            source: priced.some((usage) => usage.estimatedCost?.source === 'provider') ? 'provider' as const : 'configured' as const,
+          },
+          ...(unpricedTokens.input || unpricedTokens.output ? { unpricedTokens } : {}),
+        }
+      : {}),
+  };
+}
+
+/** The most one attempt can cost: tokens at the priced worst case plus the request fee. Null
+ *  when the route has no price, exactly like `estimateModelCost`. */
+export function worstAttemptCostUsd(
+  route: ModelRoute,
+  inputTokens: number,
+  outputTokens: number,
+  price: ModelPrice | undefined,
+  gateway?: GatewayRoutingPolicy | null,
+): number | null {
+  const tokens = estimateModelCost(route, inputTokens, outputTokens, price);
+  return tokens === null ? null : tokens + gatewayRequestFeeUsd(route, gateway);
 }
 
 /** Execute a normalized request. Provider changes occur only along the explicit route list. */
@@ -1096,6 +1230,15 @@ export async function executeGatewayRequest(
   const sleep = dependencies.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const routes = [body.route, ...(body.fallbacks ?? [])];
   const attempts: ModelResult['attempts'] = [];
+  // Every reply the gateway served and billed, each with its request fee once (#2055). A retry
+  // after an unusable reply still pays for that reply; an attempt that was never served (a
+  // refusal, a server error, a timeout) left no usage to count, as before.
+  const served: ModelUsage[] = [];
+  const charge = (usage: ModelUsage, route: ModelRoute) => served.push(withTokenCost(
+    withRequestFee(usage, gatewayRequestFeeUsd(route, policy?.gateway)),
+    route,
+    configuredPrice(route),
+  ));
   let lastError: GatewayError | null = null;
   let totalAttempts = 0;
   const retries = policy?.retryLimit ?? configuredRetryLimit();
@@ -1116,18 +1259,23 @@ export async function executeGatewayRequest(
       totalAttempts += 1;
       try {
         const result = await oneAttempt(adapter, body.request, route, key, fetchImpl, policy);
-        const output = decodeStructuredOutput(result.output, body.request);
-        validateStructuredOutput(output, body.request);
+        const output = servedParse(result.usage, () => {
+          const decoded = decodeStructuredOutput(result.output, body.request);
+          validateStructuredOutput(decoded, body.request);
+          return decoded;
+        });
+        charge(result.usage, route);
         attempts.push({ route, attempts: routeAttempts });
         return {
           output,
-          usage: withEstimatedCost(result.usage, route),
+          usage: sumUsage(served),
           provider: route.provider,
           model: route.model,
           attempts,
           ...(result.images ? { images: result.images } : {}),
         };
       } catch (error) {
+        if (error instanceof ServedAttemptError) charge(error.usage, route);
         lastError = error instanceof GatewayError
           ? error
           : new GatewayError('unavailable', 'The AI provider could not be reached.', 503, true);

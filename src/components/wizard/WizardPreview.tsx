@@ -347,7 +347,13 @@ export default function WizardPreview({
   // The layer under the pointer while picking (plan §6a step 5), and the grab a drag started
   // from. Declared here with the other rect state because the highlight below reads them.
   const [pickHover, setPickHover] = useState<string | null>(null);
-  const pickFrom = useRef<{ x: number; y: number; sel: string } | null>(null);
+  const pickFrom = useRef<{ x: number; y: number; sel: string | null } | null>(null);
+  // A pick whose document had not answered yet (#1915). Every rebuild drops the old rects, and
+  // the new document reports its own a frame or more after it loads; on a loaded machine that gap
+  // is long enough to land a press in, and a press that found no layer used to be dropped, so a
+  // drag that meant "grow downwards" left the panel growing sideways. It is HELD instead and
+  // answered at the point it was made once the layers report (the effect below).
+  const heldPick = useRef<{ x: number; y: number; drag: 'x' | 'y' | null } | null>(null);
   // What the highlight box is drawn around. A layer under the POINTER wins over one a checklist
   // row is pointing at: the reader's hand is the more recent statement of what they mean.
   const hoverRect = pickHover ? rects[pickHover] ?? null : highlightSelector ? rects[highlightSelector] ?? null : null;
@@ -493,6 +499,13 @@ export default function WizardPreview({
       if (msg && typeof msg === 'object' && msg.type === PREVIEW_BOX_TYPE) {
         setBox({ x: msg.x, y: msg.y, w: msg.w, h: msg.h });
         dropAfterimage();
+        // AND THAT FIRST FRAME LANDS ON THE STAGE, beside `data-doc-rev`. A loaded document is not
+        // yet the picture: its values are settled or played in a moment later, after its fonts,
+        // so a reading taken at `data-doc-rev` can see the text unfitted (#1997). Stamped with
+        // the frame's own generation, so a late report from a replaced frame cannot claim it.
+        if (stageRef.current && frameRef.current?.dataset.gen) {
+          stageRef.current.dataset.docShown = frameRef.current.dataset.gen;
+        }
       }
     };
     window.addEventListener('message', onMessage);
@@ -657,11 +670,23 @@ export default function WizardPreview({
     }
     return best?.sel ?? null;
   };
+  // Whether the document on the stage has answered for every pickable layer (a rect, or null for
+  // one it does not draw). Until it has, a miss means "not measured yet", not "empty artwork".
+  const pickMeasured = (pickKey ? pickKey.split('|') : []).every((sel) => sel in rects);
+  useEffect(() => {
+    const held = heldPick.current;
+    if (!held || !pickMeasured) return;
+    heldPick.current = null;
+    const sel = pickAt(held);
+    if (sel) onPick?.(sel, held.drag);
+  });
 
   const onPickDown = (ev: React.PointerEvent) => {
     const p = pointToCanvas(ev);
-    const sel = p && pickAt(p);
-    if (!p || !sel) return;
+    if (!p) return;
+    heldPick.current = null; // a new gesture supersedes one still waiting
+    const sel = pickAt(p);
+    if (!sel && pickMeasured) return; // empty artwork: nothing to pick
     ev.currentTarget.setPointerCapture(ev.pointerId);
     pickFrom.current = { ...p, sel };
   };
@@ -691,7 +716,8 @@ export default function WizardPreview({
     const DRAG_MIN = 24;
     const drag =
       Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_MIN ? null : Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
-    onPick(from.sel, drag);
+    if (from.sel) onPick(from.sel, drag);
+    else heldPick.current = { x: from.x, y: from.y, drag };
   };
 
   const onPickLeave = () => {
@@ -817,6 +843,7 @@ export default function WizardPreview({
 
     const el = document.createElement('iframe');
     el.title = 'Wizard live preview';
+    el.dataset.gen = String(gen);
     el.setAttribute('sandbox', 'allow-scripts');
     el.style.width = `${width}px`;
     el.style.height = `${height}px`;

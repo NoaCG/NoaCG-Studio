@@ -24,6 +24,7 @@
 import {
   AI_GATEWAY_BASE_URL,
   estimateModelCost,
+  gatewayRequestFeeUsd,
   providerFailure,
   type GatewayError,
   type GatewayRoutingPolicy,
@@ -212,11 +213,13 @@ function decisionBody(request: DecisionRequest, gateway: GatewayRoutingPolicy): 
 const FRAMING_TOKENS = 512;
 const OUTPUT_TOKENS_PER_QUESTION = 32;
 
-/** One request, serialized once: the body exactly as sent, its size, and the most one attempt at
- *  it can cost. The size and cost checks and the call all read this one value. */
+/** One request, serialized once: the body exactly as sent, its size, the gateway's fee for one
+ *  served attempt, and the most one attempt can cost (tokens plus that fee). The size and cost
+ *  checks and the call all read this one value. */
 export interface PreparedDecision {
   body: string;
   bytes: number;
+  requestFeeUsd: number;
   attemptCeilingUsd: number;
 }
 
@@ -224,8 +227,9 @@ export function prepareDecision(request: DecisionRequest, gateway: GatewayRoutin
   const body = decisionBody(request, gateway);
   const bytes = Buffer.byteLength(body, 'utf8');
   const questions = Object.keys(request.questions).length;
-  const attemptCeilingUsd = estimateModelCost(request.route, bytes + FRAMING_TOKENS, questions * OUTPUT_TOKENS_PER_QUESTION, price) ?? 0;
-  return { body, bytes, attemptCeilingUsd };
+  const requestFeeUsd = gatewayRequestFeeUsd(request.route, gateway);
+  const tokensUsd = estimateModelCost(request.route, bytes + FRAMING_TOKENS, questions * OUTPUT_TOKENS_PER_QUESTION, price) ?? 0;
+  return { body, bytes, requestFeeUsd, attemptCeilingUsd: tokensUsd + requestFeeUsd };
 }
 
 /** The largest request a route takes: the task's bound, or less when the model's context is
@@ -260,7 +264,7 @@ export async function executeDecisionRequest(
 ): Promise<DecisionOutcome> {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const sleep = deps.sleep ?? sleepFor;
-  const { body, attemptCeilingUsd: worstAttempt } = prepared;
+  const { body, requestFeeUsd, attemptCeilingUsd: worstAttempt } = prepared;
   let costUsd = 0;
   let attempts = 0;
   let reason: DecisionFailure = 'unavailable';
@@ -284,8 +288,8 @@ export async function executeDecisionRequest(
         // Read to classify, never copied: the outcome carries a code, not the provider's words.
         const detail = await response.text().then((t) => t.slice(0, 2000)).catch(() => '');
         const error = providerFailure(response.status, detail);
-        // A refusal before inference (4xx) is not billed; a server failure or a timeout may
-        // have been, so it is charged at its worst case.
+        // A refusal before inference (4xx) is not billed, request fee included (#2015 ledgers); a
+        // server failure or a timeout may have been, so it is charged at its worst case.
         if (response.status >= 500 || response.status === 408) costUsd += worstAttempt;
         reason = error.code;
         retryable = error.retryable;
@@ -304,12 +308,13 @@ export async function executeDecisionRequest(
         const input = tokens(usage.inputTokens);
         const output = tokens(usage.outputTokens);
         // The bill: the gateway's own cost when it reports one, else the usage at the audited
-        // price, else the attempt's worst case. Never zero for want of a number.
-        const billed = usd(gateway.cost)
+        // price, else the attempt's worst case. Never zero for want of a number. The reported cost
+        // is tokens only, so a served attempt adds the request fee once; the worst case has it.
+        const tokensUsd = usd(gateway.cost)
           ?? (input !== null && output !== null
             ? estimateModelCost(request.route, input, output, policy.price)
-            : null)
-          ?? worstAttempt;
+            : null);
+        const billed = tokensUsd === null ? worstAttempt : tokensUsd + requestFeeUsd;
         costUsd += billed;
         const routing = isRecord(gateway.routing) ? gateway.routing : {};
         const finalProvider = typeof routing.finalProvider === 'string' ? routing.finalProvider : null;

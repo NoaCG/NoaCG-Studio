@@ -1080,25 +1080,59 @@ function measureSvgRoom() {
   }
 }
 
+/** THE LINES AN OPERATOR BROKE ON PURPOSE (#1977, owner: "preserve intentional line breaks
+ *  while retaining the existing wrapping, fitting and shrinking rules"). A Sheet cell or a typed
+ *  value holding "Doors open at 19:00" over "Tickets at the door" means two lines, and reading it
+ *  as words reflowed them into one paragraph on air with nothing reporting it.
+ *
+ *  Each break is a HARD line boundary; the ladder then wraps, fits and shrinks within and across
+ *  those lines exactly as before. A value with no break answers [value], untouched, so it takes
+ *  the very same path it always did. So does the DRAWN value: a hand-written file may carry a
+ *  newline inside its own text that SVG shows as a space, and the artwork at rest stays the
+ *  artwork. Blank lines fold into the break around them, since an empty tspan carries no glyph
+ *  for its dy to move and would be lost anyway. */
+function svgHardLines(el, value) {
+  var text = String(value);
+  // A PLACED line is one HTML line with a width alone, and never wraps (§6b).
+  if (!/[\r\n]/.test(text) || value === svgFitDrawn[el.id] || svgFitPlaced(el)) return [value];
+  var parts = text.split(/\r\n?|\n/);
+  var out = [];
+  for (var i = 0; i < parts.length; i++) {
+    var part = parts[i].replace(/^\s+|\s+$/g, '');
+    if (part) out.push(part);
+  }
+  return out.length > 1 ? out : [value];
+}
+
 /** Break a value into at most "max" lines no wider than "budget", at the current size. A word
  *  longer than the budget stays whole and simply overflows - the shrink answers that. This greedy
  *  fill decides HOW MANY lines; where they break is evened out once the ladder has settled
- *  (svgEvenOut). */
+ *  (svgEvenOut).
+ *
+ *  An operator's own break always starts a line (svgHardLines), and a soft wrap is taken only
+ *  while the lines still to come keep one line each inside "max". Which lines start at a hard
+ *  break is said in lines.breaks, by index, for svgPaintLines to stamp. */
 function svgWrapLines(el, value, budget, max) {
-  var words = value.split(/\s+/);
+  var paras = svgHardLines(el, value);
   var lines = [];
-  var line = '';
-  for (var i = 0; i < words.length; i++) {
-    var next = line ? line + ' ' + words[i] : words[i];
-    el.textContent = next;
-    if (line && el.getComputedTextLength() > budget && lines.length + 1 < max) {
-      lines.push(line);
-      line = words[i];
-    } else {
-      line = next;
+  lines.breaks = {};
+  for (var p = 0; p < paras.length; p++) {
+    var words = paras[p].split(/\s+/);
+    var later = paras.length - 1 - p;
+    var line = '';
+    if (p > 0) lines.breaks[lines.length] = true;
+    for (var i = 0; i < words.length; i++) {
+      var next = line ? line + ' ' + words[i] : words[i];
+      el.textContent = next;
+      if (line && el.getComputedTextLength() > budget && lines.length + 1 + later < max) {
+        lines.push(line);
+        line = words[i];
+      } else {
+        line = next;
+      }
     }
+    if (line) lines.push(line);
   }
-  if (line) lines.push(line);
   return lines;
 }
 
@@ -1116,10 +1150,32 @@ function svgEvenOut(el, value, budget, size, lineHeight, room) {
   if (painted.length < 2 || svgFitOver[el.id] || (svgFitExtra[el.id] || 0) > 0) return;
   var words = function (s) { return String(s).split(/\s+/).filter(Boolean).join(' '); };
   if (words(value) === words(svgFitDrawn[el.id])) return;
-  var lines = [];
-  for (var i = 0; i < painted.length; i++) lines.push(painted[i].textContent);
+  // An operator's hard break is a wall the balance never moves a word across: each run of lines
+  // between two breaks is evened out on its own, keeping its own line count.
+  var runs = [[]];
+  var measured = false;
+  for (var i = 0; i < painted.length; i++) {
+    if (i && svgLineBreaks(painted[i])) runs.push([]);
+    var run = runs[runs.length - 1];
+    run.push(painted[i].textContent);
+    if (run.length > 1) measured = true;
+  }
+  // A block whose every run is one line has nothing to even out, and stands as painted.
+  if (!measured) return;
+  var even = [];
+  even.breaks = {};
+  for (var r = 0; r < runs.length; r++) {
+    if (r) even.breaks[even.length] = true;
+    var balanced = runs[r].length > 1 ? svgBalanceLines(el, runs[r], budget) : runs[r];
+    for (var b = 0; b < balanced.length; b++) even.push(balanced[b]);
+  }
   // Measuring writes over the block, so it is painted again whatever the answer.
-  svgPaintLines(el, svgBalanceLines(el, lines, budget), size, lineHeight, room);
+  svgPaintLines(el, even, size, lineHeight, room);
+}
+
+/** Does this painted line start at an operator's own break? (svgPaintLines stamps it.) */
+function svgLineBreaks(line) {
+  return line.getAttribute('data-noacg-line') === 'break';
 }
 
 /** EVEN LINES, NOT A FULL ONE OVER A STRANDED WORD (issue #778). A greedy fill puts whatever is
@@ -1207,10 +1263,12 @@ function svgWrappedBlock(el) {
  *  a plain line, or a kerned line's runs - is its own textContent, untouched. */
 function svgFitValue(el) {
   if (!svgWrappedBlock(el)) return el.textContent;
+  // A line that starts at an operator's break reads back as that break (#1977), so the next pass
+  // fits the value that was typed rather than a paragraph made of it.
   var kids = el.children;
-  var parts = [];
-  for (var i = 0; i < kids.length; i++) parts.push(kids[i].textContent);
-  return parts.join(' ');
+  var value = kids[0].textContent;
+  for (var i = 1; i < kids.length; i++) value += (svgLineBreaks(kids[i]) ? '\n' : ' ') + kids[i].textContent;
+  return value;
 }
 
 /** Paint a wrapped value as tspans on the node's own x, stepping down by the line height - in
@@ -1230,6 +1288,7 @@ function svgPaintLines(el, lines, size, lineHeight, room) {
   // the previous one ended and the wrap paints a staircase running out of the panel.
   var x = el.getAttribute('x');
   if (x === null) x = '0';
+  var breaks = lines.breaks || {};
   el.textContent = '';
   for (var i = 0; i < lines.length; i++) {
     // The namespace comes from the node itself rather than a literal URL: an XML namespace is
@@ -1249,8 +1308,9 @@ function svgPaintLines(el, lines, size, lineHeight, room) {
     // says where "composed" is, and the two are one number by the time they reach the dy.
     var rise = i === 0 ? svgSnapY(room) - svgRise(room, lines.length) * size * lh : size * lh;
     t.setAttribute('dy', rise.toFixed(2));
-    // MARKED AS OURS, so svgFitValue can read the value back with its spaces intact.
-    t.setAttribute('data-noacg-line', '');
+    // MARKED AS OURS, so svgFitValue can read the value back with its spaces intact - and with
+    // an operator's breaks, on the lines that start at one.
+    t.setAttribute('data-noacg-line', breaks[i] ? 'break' : '');
     t.textContent = lines[i];
     el.appendChild(t);
   }
@@ -1367,6 +1427,10 @@ function fitSvgText() {
     var floor = drawnSize * SVG_FIT_FLOOR;
     var hardFloor = drawnSize * SVG_FIT_HARD_FLOOR;
     var lineHeight = svgLineHeight(el);         // the designer's leading, or the house 1.2
+    // An operator's breaks are a floor on the count (svgHardLines): a block that cannot hold them
+    // at a size is TALL there, and the size comes down as it does for any tall block. Past the 30%
+    // floor it keeps its lines and is reported too long, as an unbroken word is.
+    var hard = svgHardLines(el, value).length;
     // WHERE A GROWING PANEL PUTS ITS CEILING. Sideways, growth is more BUDGET (above). Downwards
     // it is not a budget at all - it is somewhere to WRAP into, so it raises the ceiling this
     // block may fill and the panel is then grown to whatever the settled block actually needed
@@ -1403,7 +1467,7 @@ function fitSvgText() {
       // rather than over somebody else's artwork.
       var width = 0;
       var tall = false;
-      for (var n = maxLines; n >= 1; n--) {
+      for (var n = Math.max(maxLines, hard); n >= hard; n--) {
         svgPaintLines(el, n > 1 ? svgWrapLines(el, value, budget, n) : [value], size, lineHeight, room);
         width = svgBlockWidth(el);
         // THE BLOCK'S OWN HEIGHT against the room, rather than where its bottom lands. The two
@@ -1444,9 +1508,11 @@ function fitSvgText() {
     // Fitted without needing the last rungs at all - much the commonest case, and untouched.
     if (!svgFitOver[el.id]) break;
     // CONDENSE, bounded by legibility (svgSqueeze). Where that is enough the block fills the room
-    // the design gave it, and the ladder is done.
+    // the design gave it, and the ladder is done. Condensing narrows a block and cannot make it
+    // shorter, so a block too tall for its operator's own lines goes straight on to spend size.
+    if (attempt === 0 && tall && hard > 1) continue;
     svgSqueeze(el, budget);
-    if (svgBlockWidth(el) <= budget + 0.5) break;
+    if (svgBlockWidth(el) <= budget + 0.5 && !(tall && hard > 1)) break;
     // Not enough, and the alternative to shrinking further is words standing outside the panel.
     // Take the condensing off and let the second attempt spend size instead.
     if (attempt === 0) svgUnsqueeze(el);

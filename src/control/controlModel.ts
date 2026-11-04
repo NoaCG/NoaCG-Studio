@@ -831,7 +831,9 @@ export type ControlMessage =
   // `typed` (docs/work-specs/playout-ograf-controls/spec.md, E2.1): a foreign OGraf custom action's
   // typed arguments in E1's action envelope, naming this event; sent only to outputs that read it.
   | { t: 'event'; event: string; payload?: Record<string, string>; at?: number; typed?: TypedActionCall }
-  | { t: 'snap'; snap: Record<string, string> | null }
+  // `awards`: a score board's latched scoring rows (figure group -> field), from the report a
+  // reboot recovers (#1908); only a boot sends it, and a graphic without a score board ignores it.
+  | { t: 'snap'; snap: Record<string, string> | null; awards?: Record<string, string> }
   | { t: 'hello' };
 
 /** What the graphic sends back on the same channel: its machine state after every handled

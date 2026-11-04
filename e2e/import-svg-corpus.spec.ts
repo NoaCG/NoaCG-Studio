@@ -1383,6 +1383,10 @@ test('corpus: the same question fits the same way whatever was toggled before it
     await page.getByTestId('map-svg-behaviour-kind').selectOption(kind);
     await expect(stage).not.toHaveAttribute('data-doc-rev', before!, SETTLED);
     await expect(stage).not.toHaveAttribute('data-doc-pending', '1', SETTLED);
+    // Loaded is not yet shown: the new document's values are settled in after its fonts, and a
+    // reading taken in between saw the question unwrapped (#1997). Wait for its first frame.
+    const rev = await stage.getAttribute('data-doc-rev');
+    await expect(stage).toHaveAttribute('data-doc-shown', rev!, SETTLED);
   };
 
   await typeQuestion(page, qId, value);

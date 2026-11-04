@@ -565,12 +565,18 @@ export function holdoutGate(ledger, { configSha256, manifestSha256, config = nul
 
 // ---- Pricing a request ----
 
-/** The most one attempt can cost, from its serialized bytes (a token is at least one byte). */
+/** What the gateway debits per served request beyond the cost it reports: one Custom Reporting
+ *  write for the one tag every arm sends (`armGateway`), $0.075 per 1,000 (#2015). The server's
+ *  `GATEWAY_TAG_WRITE_USD` is the same number; a test holds them equal. */
+export const REQUEST_FEE_USD = 0.000075;
+
+/** The most one attempt can cost, from its serialized bytes (a token is at least one byte), plus
+ *  the request fee. */
 export function attemptCeilingUsd(model, { bytes, outputTokens, images = 0 }) {
   const route = ROUTES[model];
   if (!route) return null;
   const input = bytes + FRAMING_TOKENS + images * (route.image ?? 0);
-  return (input * route.input + outputTokens * route.output) / 1_000_000;
+  return (input * route.input + outputTokens * route.output) / 1_000_000 + REQUEST_FEE_USD;
 }
 
 // ---- Scoring (frozen) ----
@@ -1129,8 +1135,8 @@ export async function readDesigns(designs, { previews }) {
 // ---- Dry-run mocks ----
 
 /** A mock gateway for the dry run: answers `/v1/evaluate` and chat completions with
- *  deterministic pseudo-probabilities and a reported cost, and debits a mock balance. Never the
- *  network. */
+ *  deterministic pseudo-probabilities and a reported cost, and debits a mock balance that cost
+ *  plus the request fee, as the live balance does. Never the network. */
 export function mockGateway({ balance = 6.936136654, totalUsed = 48.063863346 } = {}) {
   const state = { balance, totalUsed, calls: 0 };
   const p = (s) => (parseInt(sha256(s).slice(0, 8), 16) % 1000) / 1000;
@@ -1143,7 +1149,7 @@ export function mockGateway({ balance = 6.936136654, totalUsed = 48.063863346 } 
     const body = JSON.parse(init.body);
     const bytes = Buffer.byteLength(init.body, 'utf8');
     const cost = attemptCeilingUsd(body.model, { bytes, outputTokens: 64 }) / 4;
-    charge(cost);
+    charge(cost + REQUEST_FEE_USD);
     if (String(url).endsWith('/evaluate')) {
       const answers = Object.fromEntries(Object.keys(body.questions).map((k) => [k, { type: 'boolean', probability: p(k + body.state.sourceRevision) }]));
       return new Response(JSON.stringify({ model: body.model, answers, usage: { inputTokens: bytes, outputTokens: 0 }, providerMetadata: { gateway: { cost: String(cost) } } }), { status: 200 });
