@@ -1,0 +1,80 @@
+name: Import analysis diagnostic
+
+# The ONE owner-approved diagnostic request for #2022: image analysis through the AI Gateway
+# answers HTTP 400. Sends the production import-analysis request (route, schema, image format,
+# zero data retention, no prompt training, providers google and vertex) over synthetic artwork,
+# once, with no retry and a priced worst case of at most $0.01, and keeps the sanitized provider
+# error. scripts/import-analysis-diagnostic.mjs says what is sent and what is kept.
+#
+# Manual, main only, the protected `jev-svg-evaluation` environment, and serialized with the
+# evaluation that shares its key. ONE RUN EVER: a run refuses when any earlier run of this
+# workflow reached the send step. Another request needs a new owner approval and a reviewed
+# change to this file.
+run-name: Import analysis diagnostic (#2022)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: jev-svg-evaluation
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: github.repository == 'NoaCG/NoaCG-Studio' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: jev-svg-evaluation
+    steps:
+      - name: Refuse any workflow but main's
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          test "$WORKFLOW_REF" = "NoaCG/NoaCG-Studio/.github/workflows/import-analysis-diagnostic.yml@refs/heads/main" \
+            || { echo "FAIL: this workflow runs only from main"; exit 1; }
+
+      - name: Refuse a second request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ids="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/import-analysis-diagnostic.yml/runs?per_page=100" --jq '.workflow_runs[].id')"
+          for id in $ids; do
+            [ "$id" = "$GITHUB_RUN_ID" ] && continue
+            steps="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?filter=all&per_page=100" --jq '.jobs[].steps[]? | select(.conclusion != "skipped" and .status != "queued" and .status != "pending") | .name')"
+            if grep -qx 'Send the one diagnostic request' <<< "$steps"; then
+              echo "FAIL: run $id already sent the one approved request"
+              exit 1
+            fi
+          done
+          echo "no earlier request"
+
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      - name: Send the one diagnostic request
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+          AI_IMPORT_ANALYSIS_GATEWAY_PROVIDERS: google,vertex
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          node scripts/import-analysis-diagnostic.mjs --out "$RUNNER_TEMP/out/diagnostic.json"
+
+      - name: Keep the record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: import-analysis-diagnostic
+          path: ${{ runner.temp }}/out/diagnostic.json
+          retention-days: 90
+          if-no-files-found: ignore
