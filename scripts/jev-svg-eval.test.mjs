@@ -44,6 +44,7 @@ import {
   loadServer,
   mapRegionsToLayers,
   mockGateway,
+  MOCK_REQUEST_FEE_USD,
   newLedger,
   openHoldout,
   planRequest,
@@ -892,7 +893,7 @@ test('C6: an answer that reports no usage or cost is an unread bill, charged its
   const priced = harnessDeps(mockGateway(), null, { fetchImpl: answer({ prompt_tokens: 900, completion_tokens: 40, cost: 0.0002 }) });
   const known = await callArm(arm, d, CONFIG, p, priced);
   assert.equal(known.unknown, 0);
-  assert.ok(Math.abs(known.reportedUsd - 0.0002) < 1e-12);
+  assert.ok(Math.abs(known.reportedUsd - (0.0002 + MOCK_REQUEST_FEE_USD)) < 1e-12, 'the reported cost plus the request fee (#2015)');
 });
 
 test('C6: a Jev answer with no usage is an unread bill and is not waited for when settling', async () => {

@@ -1128,9 +1128,14 @@ export async function readDesigns(designs, { previews }) {
 
 // ---- Dry-run mocks ----
 
+/** What the real gateway debits per served request beyond the cost it reports: one Custom
+ *  Reporting write for the one `surface:*` tag every arm sends (#2015). The adapters add it to
+ *  the cost they report, so the mock debits it too, as the live balance did. */
+export const MOCK_REQUEST_FEE_USD = 0.000075;
+
 /** A mock gateway for the dry run: answers `/v1/evaluate` and chat completions with
- *  deterministic pseudo-probabilities and a reported cost, and debits a mock balance. Never the
- *  network. */
+ *  deterministic pseudo-probabilities and a reported cost, and debits a mock balance (that cost
+ *  plus the request fee). Never the network. */
 export function mockGateway({ balance = 6.936136654, totalUsed = 48.063863346 } = {}) {
   const state = { balance, totalUsed, calls: 0 };
   const p = (s) => (parseInt(sha256(s).slice(0, 8), 16) % 1000) / 1000;
@@ -1143,7 +1148,7 @@ export function mockGateway({ balance = 6.936136654, totalUsed = 48.063863346 } 
     const body = JSON.parse(init.body);
     const bytes = Buffer.byteLength(init.body, 'utf8');
     const cost = attemptCeilingUsd(body.model, { bytes, outputTokens: 64 }) / 4;
-    charge(cost);
+    charge(cost + MOCK_REQUEST_FEE_USD);
     if (String(url).endsWith('/evaluate')) {
       const answers = Object.fromEntries(Object.keys(body.questions).map((k) => [k, { type: 'boolean', probability: p(k + body.state.sourceRevision) }]));
       return new Response(JSON.stringify({ model: body.model, answers, usage: { inputTokens: bytes, outputTokens: 0 }, providerMetadata: { gateway: { cost: String(cost) } } }), { status: 200 });
