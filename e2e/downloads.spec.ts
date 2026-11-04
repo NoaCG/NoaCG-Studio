@@ -1,4 +1,5 @@
-// The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
+// The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge, the Companion module
+// and the NoaCG CLI.
 // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
 // and its footer, so both of those specs ride along. public/downloads/ holds the SVG examples
 // zip the page links, and downloads.spec.ts fetches it.
@@ -29,14 +30,15 @@ import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 const EXAMPLE_INVENTORY = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-examples/examples.json', import.meta.url), 'utf8')) as { slug: string; preview: string }[];
 const EXAMPLES = EXAMPLE_INVENTORY.map((entry) => entry.slug);
 
-// THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships two things you
-// install - NoaCG Bridge and the NoaCG CLI - and a visitor has to be able to find both from the
-// landing page without knowing where to look (owner, 2026-09-23).
+// THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships three things you
+// install - NoaCG Bridge, the Companion module and the NoaCG CLI - and a visitor has to be able to
+// find each from the landing page without knowing where to look (owner, 2026-09-23, 2026-11-04).
 //
-// One version, two channels (docs/BRIDGE.md §6): each card resolves ITS OWN artifact - the newest
-// `bridge-v*` GitHub Release for the Bridge, npm's `latest` for the CLI. Both lookups are faked
-// here at the network layer, because the subject is what the page does with each answer: filter
-// the Bridge by tag, link that release's exe, and stay a working page when neither answers.
+// Each its own channel (docs/BRIDGE.md §6): each card resolves ITS OWN artifact - the newest
+// `bridge-v*` GitHub Release for the Bridge, the newest `companion-v*` one for the module, npm's
+// `latest` for the CLI. The lookups are faked here at the network layer, because the subject is
+// what the page does with each answer: filter by tag, link that release's file, and stay a working
+// page when neither answers.
 
 const RELEASES = 'https://api.github.com/repos/NoaCG/NoaCG-Studio/releases**';
 const NPM_LATEST = 'https://registry.npmjs.org/@noacg/cli/latest';
@@ -89,13 +91,14 @@ test('the landing names both tools and links each download where it is introduce
   const playout = page.locator('#playout');
   await expect(playout).toContainText('NoaCG Bridge');
   await expect(playout.locator('a[href="/downloads#bridge"]')).toBeVisible();
+  await expect(playout.locator('a[href="/downloads#companion"]')).toBeVisible();
   const agents = page.locator('#agents');
   await expect(agents).toContainText('NoaCG CLI');
   await expect(agents.locator('a[href="/downloads#cli"]')).toBeVisible();
 
   await page.locator('header nav a[href="/downloads"]').click();
   await expect(page).toHaveURL(/\/downloads$/);
-  await expect(page.locator('h1')).toHaveText('Two tools you can install');
+  await expect(page.locator('h1')).toHaveText('Three tools you can install');
 });
 
 test('each card resolves its own channel: the newest bridge-v* exe, and npm latest for the CLI', async ({ page }) => {
@@ -168,6 +171,88 @@ test('with neither API answering the page still downloads the newest Bridge and 
   await expect(page.getByTestId('cli-version')).toHaveText('latest');
 });
 
+// THE COMPANION MODULE (issue #2068; .github/workflows/release-companion.yml). Its releases sit on
+// the same page as the Bridge's and never take "latest", so it finds its own by tag, and neither
+// card can be offered as the other.
+const MODULE_BASE = 'https://github.com/NoaCG/NoaCG-Studio/releases/download/companion-v0.3.0';
+const moduleRelease = (over: Record<string, unknown> = {}) => ({
+  tag_name: 'companion-v0.3.0',
+  html_url: 'https://github.com/NoaCG/NoaCG-Studio/releases/tag/companion-v0.3.0',
+  draft: false,
+  prerelease: false,
+  published_at: '2026-11-04T09:00:00Z',
+  assets: [asset('companion-v0.3.0', 'noacg-studio-0.3.0.tgz'), asset('companion-v0.3.0', 'noacg-studio-0.3.0.tgz.sha256')],
+  ...over,
+});
+
+test('the module card offers the newest companion-v* package, and the Bridge card stays the Bridge', async ({ page }) => {
+  await fakeChannels(page, 'ok', [
+    moduleRelease({ tag_name: 'companion-v0.4.0-rc', prerelease: true, published_at: '2026-11-05T09:00:00Z' }),
+    moduleRelease({ tag_name: 'companion-v0.3.1', draft: true, published_at: null }),
+    moduleRelease(),
+    moduleRelease({ tag_name: 'companion-v0.2.0', published_at: '2026-10-01T09:00:00Z', assets: [asset('companion-v0.2.0', 'noacg-studio-0.2.0.tgz')] }),
+    ...releases,
+  ]);
+  await page.goto('/downloads');
+  await expect(page.locator('h1')).toHaveText('Three tools you can install');
+  await expect(page.getByTestId('companion-version')).toHaveText('0.3.0');
+  await expect(page.getByTestId('companion-download')).toHaveAttribute('href', `${MODULE_BASE}/noacg-studio-0.3.0.tgz`);
+  await expect(page.locator('[data-checksum="companion"]')).toHaveAttribute('href', `${MODULE_BASE}/noacg-studio-0.3.0.tgz.sha256`);
+  await expect(page.getByTestId('companion-release-notes')).toHaveAttribute('href', 'https://github.com/NoaCG/NoaCG-Studio/releases/tag/companion-v0.3.0');
+  // A newer module release never takes the Bridge's place, on either side.
+  await expect(page.getByTestId('bridge-version')).toHaveText('0.4.1');
+  await expect(page.getByTestId('bridge-download')).toHaveAttribute('href', 'https://github.com/NoaCG/NoaCG-Studio/releases/download/bridge-v0.4.1/NoaCG-Bridge.exe');
+  await expect(page.getByTestId('cli-version')).toHaveText('0.4.2');
+
+  // The steps a first pairing follows, as the page and Companion name them, in a reader's order.
+  await page.goto('/downloads#companion-setup');
+  await expect(page.locator('#companion-setup')).toBeInViewport();
+  const steps = page.getByTestId('companion-steps').locator('li');
+  await expect(steps).toHaveCount(4);
+  await expect(steps.nth(0)).toContainText('Import module package');
+  await expect(steps.nth(1)).toContainText('Stream Deck panel…');
+  await expect(steps.nth(1)).toContainText('Pair a panel');
+  await expect(steps.nth(2)).toContainText('Pairing code');
+  await expect(page.getByTestId('companion-guide')).toHaveAttribute('href', /companion-module\/companion\/HELP\.md$/);
+});
+
+test('with no module release yet the card says so and offers no download, and the Bridge still works', async ({ page }) => {
+  await fakeChannels(page, 'ok');
+  await page.goto('/downloads#companion');
+  await expect(page.getByTestId('companion-version')).toHaveText('not released yet');
+  await expect(page.getByTestId('companion-download')).toBeHidden();
+  await expect(page.getByTestId('companion-release-notes')).toBeHidden();
+  await expect(page.getByTestId('companion-steps')).toBeVisible();
+  await expect(page.getByTestId('bridge-version')).toHaveText('0.4.1');
+});
+
+test('with GitHub not answering the module links its own releases, never the Bridge\'s latest', async ({ page }) => {
+  await fakeChannels(page, 'down');
+  await page.goto('/downloads#companion');
+  await expect(page.getByTestId('companion-version')).toHaveText('latest');
+  const download = page.getByTestId('companion-download');
+  await expect(download).toBeVisible();
+  await expect(download).toHaveAttribute('href', 'https://github.com/NoaCG/NoaCG-Studio/releases?q=companion-v&expanded=true');
+});
+
+test('the tools sit side by side on a desktop, the module beside the Bridge, and stack on a phone', async ({ page }) => {
+  await fakeChannels(page, 'down');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/downloads');
+  const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
+  const [bridge, companion, cli] = [await box('download-bridge'), await box('download-companion'), await box('download-cli')];
+  expect(companion.x).toBeGreaterThan(bridge.x + bridge.width - 1);
+  expect(companion.y).toBe(bridge.y);
+  expect(cli.x).toBe(companion.x);
+  expect(cli.y).toBeGreaterThan(companion.y + companion.height - 1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const [phoneBridge, phoneCompanion, phoneCli] = [await box('download-bridge'), await box('download-companion'), await box('download-cli')];
+  expect(phoneCompanion.y).toBeGreaterThan(phoneBridge.y + phoneBridge.height - 1);
+  expect(phoneCli.y).toBeGreaterThan(phoneCompanion.y + phoneCompanion.height - 1);
+  expect(phoneCompanion.y - (phoneBridge.y + phoneBridge.height)).toBeLessThan(40);
+});
+
 test('the Bridge card says which browsers work, and what to do about one that keeps asking', async ({ page }) => {
   await fakeChannels(page, 'down');
   await page.goto('/downloads#browsers');
@@ -190,13 +275,13 @@ test('the Bridge card says which browsers work, and what to do about one that ke
   await expect(page.getByTestId('download-bridge')).toContainText('LoopbackNetworkAccessAllowedForUrls');
 });
 
-test('the SVG examples sit under the two tools and their zip is served from /downloads', async ({ page, request }) => {
+test('the SVG examples sit under the tools and their zip is served from /downloads', async ({ page, request }) => {
   await fakeChannels(page, 'down');
   await page.goto('/downloads#svg-examples');
   const card = page.getByTestId('download-svg-examples');
   await expect(card).toBeVisible();
-  // Example files, not a third tool: the heading still counts two tools.
-  await expect(page.locator('h1')).toHaveText('Two tools you can install');
+  // Example files, not a fourth tool: the heading still counts three tools.
+  await expect(page.locator('h1')).toHaveText('Three tools you can install');
   await expect(card).toContainText('Illustrator');
   await expect(card.getByTestId('svg-examples-download')).toHaveAttribute('href', SVG_EXAMPLES_ZIP_URL);
   // The anchor a later surface (the Import step) links to is this card.

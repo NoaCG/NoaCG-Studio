@@ -30,3 +30,7 @@ yarn package   # the .tgz Companion 4.3 and later import as a developer module
 ```
 
 This folder is outside the NoaCG app's lint, typecheck and build; its own commands above cover it.
+
+## Release
+
+Move `version` in `package.json` and write its section at the top of [`CHANGELOG.md`](CHANGELOG.md). Landing that on NoaCG Studio's `main` publishes the package as a GitHub Release tagged `companion-vX.Y.Z` (`.github/workflows/release-companion.yml` in that repository), and the Downloads page offers it. Changes not ready to release wait under `## Unreleased`.

@@ -1,23 +1,27 @@
 /* THE DOWNLOADS PAGE (downloads.html). The header, footer and buttons are the site's
    (src/site-chrome.css); the headings, command blocks and copy button are the docs'
-   (src/docs/docs.css); this file adds only the two tool cards. */
+   (src/docs/docs.css); this file adds only the tool cards. */
 
-/* Two tools side by side, each a card of the same height, so neither reads as the main one:
-   they are for different people. One column on a phone or a narrow window. */
+/* The tools side by side, so none reads as the main one: they are for different people. The
+   Bridge runs long, so it takes the whole left column, with the Companion module beside it (both
+   are for the operator) and the CLI under that. One column on a phone or a narrow window. */
 .dl-grid.doc-body {
   max-width: none;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto 1fr;
   gap: 24px;
   padding: 26px 0 80px;
   align-items: start;
 }
+.dl-grid.doc-body > #bridge { grid-row: span 2; }
 @media (max-width: 900px) {
-  .dl-grid.doc-body { grid-template-columns: minmax(0, 1fr); }
+  .dl-grid.doc-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .dl-grid.doc-body > #bridge { grid-row: auto; }
 }
 
-/* The SVG examples sit UNDER the two tools, full width: they are example files to learn
-   from, not a third tool, so they must not read as one of the pair. The grid above keeps its
+/* The SVG examples sit UNDER the tools, full width: they are example files to learn
+   from, not a third tool, so they must not read as one of them. The grid above keeps its
    own bottom padding off (padding-bottom 0 here takes it back) so the gap between the two rows
    is the grid's 24px gap, not 80px. */
 .dl-grid.doc-body:has(+ .dl-extra) { padding-bottom: 0; }

@@ -42,6 +42,9 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await expect(door).toHaveAttribute('data-state', 'off');
   await door.click();
   await expect(op.getByTestId('panel-status')).toContainText('No page answers the panel');
+  // A published production offers the Companion module and its steps beside the pairing.
+  await expect(op.getByTestId('panel-module-download')).toHaveAttribute('href', '/downloads#companion');
+  await expect(op.getByTestId('panel-module-setup')).toHaveAttribute('href', '/downloads#companion-setup');
 
   // PAIRING: a code, typed into the "module", and the panel appears in the list.
   const deck = await pairPanel(op);
