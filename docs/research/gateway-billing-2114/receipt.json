@@ -1,0 +1,300 @@
+{
+  "issue": 2114,
+  "sourceSha": "4276b4bfacdfa80b185932ff94f6ce7e43ec0b1d",
+  "startedAt": "2026-11-04T19:19:39.866978+00:00",
+  "approval": {
+    "maxGenerationRequests": 3,
+    "totalCapUsd": 0.01,
+    "retries": 0
+  },
+  "plannedGenerationRequests": 2,
+  "generationRequests": [
+    {
+      "kind": "normal",
+      "reservedAt": "2026-11-04T19:20:01.857709+00:00",
+      "worstCaseUsd": 0.0001902,
+      "requestBytes": 254,
+      "inputTokenCeiling": 1024,
+      "outputTokenCeiling": 32,
+      "timeoutSeconds": 20,
+      "before": {
+        "at": "2026-11-04T19:20:01.857096+00:00",
+        "label": "normal-before",
+        "balance": 6.890205379,
+        "totalUsed": 48.109794621
+      },
+      "state": "observed",
+      "completedAt": "2026-11-04T19:20:03.972248+00:00",
+      "curlExit": 0,
+      "httpStatus": 200,
+      "elapsedSeconds": 2.112,
+      "responseIds": {
+        "x-vercel-id": "sfo1::cle1::bvcpf-1793820002065-627d34577ba9"
+      },
+      "id": "gen_01M6M021SXSP4QSHRY7VMAWRYG",
+      "model": "openai/gpt-4.1-nano",
+      "usage": {
+        "prompt_tokens": 12,
+        "completion_tokens": 2,
+        "total_tokens": 14,
+        "cost": 2e-06,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": null,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0
+        },
+        "cache_creation_input_tokens": 0,
+        "market_cost": 2e-06,
+        "surcharge_cost": 7.5e-05,
+        "gateway_cost": 7.7e-05,
+        "reporting_tag_write_cost": 7.5e-05
+      },
+      "finishReasons": [
+        "stop"
+      ]
+    },
+    {
+      "kind": "timeout",
+      "reservedAt": "2026-11-04T19:20:46.114562+00:00",
+      "worstCaseUsd": 0.0018157999999999998,
+      "requestBytes": 341,
+      "inputTokenCeiling": 1024,
+      "outputTokenCeiling": 4096,
+      "timeoutSeconds": 1.2,
+      "before": {
+        "at": "2026-11-04T19:20:46.113961+00:00",
+        "label": "timeout-before",
+        "balance": 6.890128379,
+        "totalUsed": 48.109871621
+      },
+      "state": "observed",
+      "completedAt": "2026-11-04T19:20:47.329982+00:00",
+      "curlExit": 28,
+      "httpStatus": 0,
+      "elapsedSeconds": 1.215,
+      "responseIds": {}
+    }
+  ],
+  "creditReadings": [
+    {
+      "at": "2026-11-04T19:19:40.421629+00:00",
+      "label": "initial-baseline",
+      "balance": 6.890205379,
+      "totalUsed": 48.109794621
+    },
+    {
+      "at": "2026-11-04T19:20:01.216456+00:00",
+      "label": "quiet-baseline-confirmation",
+      "balance": 6.890205379,
+      "totalUsed": 48.109794621
+    },
+    {
+      "at": "2026-11-04T19:20:01.857096+00:00",
+      "label": "normal-before",
+      "balance": 6.890205379,
+      "totalUsed": 48.109794621
+    },
+    {
+      "at": "2026-11-04T19:20:04.338016+00:00",
+      "label": "normal-immediate-after",
+      "balance": 6.890128379,
+      "totalUsed": 48.109871621
+    },
+    {
+      "at": "2026-11-04T19:20:45.294912+00:00",
+      "label": "normal-settled",
+      "balance": 6.890128379,
+      "totalUsed": 48.109871621
+    },
+    {
+      "at": "2026-11-04T19:20:46.113961+00:00",
+      "label": "timeout-before",
+      "balance": 6.890128379,
+      "totalUsed": 48.109871621
+    },
+    {
+      "at": "2026-11-04T19:20:47.653167+00:00",
+      "label": "timeout-immediate-after",
+      "balance": 6.890013679,
+      "totalUsed": 48.109986321
+    },
+    {
+      "at": "2026-11-04T19:21:16.521825+00:00",
+      "label": "timeout-after-quiet-window",
+      "balance": 6.890013679,
+      "totalUsed": 48.109986321
+    },
+    {
+      "at": "2026-11-04T19:22:38.605574+00:00",
+      "label": "timeout-after-90s",
+      "balance": 6.890013679,
+      "totalUsed": 48.109986321
+    }
+  ],
+  "generationLookups": [
+    {
+      "at": "2026-11-04T19:20:45.728234+00:00",
+      "curlExit": 0,
+      "httpStatus": 200,
+      "elapsedSeconds": 0.383,
+      "responseIds": {
+        "x-vercel-id": "sfo1::cle1::qkjxw-1793820045544-ccf4374d9a0e"
+      },
+      "data": {
+        "id": "gen_01M6M021SXSP4QSHRY7VMAWRYG",
+        "total_cost": 7.699999999999999e-05,
+        "market_cost": 2e-06,
+        "surcharge_cost": 7.5e-05,
+        "gateway_cost": 7.699999999999999e-05,
+        "usage": 7.699999999999999e-05,
+        "created_at": "2026-11-04T19:20:02.000Z",
+        "model": "openai/gpt-4.1-nano",
+        "is_byok": false,
+        "provider_name": "azure",
+        "streamed": false,
+        "finish_reason": "stop",
+        "latency": 1803,
+        "generation_time": 1803,
+        "tokens_prompt": 12,
+        "tokens_completion": 2,
+        "native_tokens_prompt": 12,
+        "native_tokens_completion": 2,
+        "native_tokens_reasoning": 0
+      }
+    }
+  ],
+  "model": {
+    "id": "openai/gpt-4.1-nano",
+    "object": "model",
+    "created": 1755815280,
+    "released": 1744588800,
+    "owned_by": "openai",
+    "name": "GPT-4.1 nano",
+    "description": "GPT-4.1 nano is the fastest, most cost-effective GPT 4.1 model.",
+    "context_window": 1047576,
+    "max_tokens": 32768,
+    "type": "language",
+    "zdr": "all",
+    "no_training": "all",
+    "tags": [
+      "file-input",
+      "implicit-caching",
+      "tool-use",
+      "vision",
+      "web-search",
+      "structured-output"
+    ],
+    "supported_specifications": [
+      "v2",
+      "v3",
+      "v4"
+    ],
+    "modalities": {
+      "input": [
+        "text",
+        "image",
+        "pdf"
+      ],
+      "output": [
+        "text"
+      ]
+    },
+    "supported_parameters": [
+      "max_tokens",
+      "temperature",
+      "stop",
+      "tools",
+      "tool_choice",
+      "response_format",
+      "structured_outputs"
+    ],
+    "temperature": true,
+    "knowledge": "2024-06-01",
+    "pricing": {
+      "input": "0.0000001",
+      "output": "0.0000004",
+      "input_cache_read": "0.00000003",
+      "web_search": "14"
+    }
+  },
+  "endpoint": {
+    "name": "azure | openai/gpt-4.1-nano",
+    "model_name": "GPT-4.1 nano",
+    "context_length": 1047576,
+    "pricing": {
+      "prompt": "0.0000001",
+      "completion": "0.0000004",
+      "request": "0",
+      "image": "0",
+      "image_output": "0",
+      "web_search": "0.014",
+      "internal_reasoning": "0",
+      "input_cache_read": "0.00000003",
+      "input_cache_write": "0",
+      "discount": 0
+    },
+    "provider_name": "azure",
+    "has_zdr": true,
+    "has_no_training": true,
+    "tags": [
+      "file-input",
+      "implicit-caching",
+      "tool-use",
+      "vision",
+      "web-search",
+      "structured-output"
+    ],
+    "quantization": null,
+    "max_completion_tokens": 32768,
+    "max_prompt_tokens": null,
+    "supported_parameters": [
+      "max_tokens",
+      "temperature",
+      "stop",
+      "tools",
+      "tool_choice",
+      "response_format",
+      "structured_outputs"
+    ],
+    "status": 0,
+    "uptime_last_15m": 100,
+    "uptime_last_1h": 100,
+    "uptime_last_1d": 99.9969,
+    "latency_last_1h": {
+      "p50": 492,
+      "p95": 1387.6999999999998
+    },
+    "throughput_last_1h": {
+      "p50": 249,
+      "p95": 281
+    },
+    "supports_implicit_caching": true
+  },
+  "pricing": {
+    "inputPerTokenUsd": 1e-07,
+    "outputPerTokenUsd": 4e-07,
+    "inputTokenCeiling": 1024,
+    "tagWriteUsd": 7.5e-05,
+    "normalOutputTokenCeiling": 32,
+    "timeoutOutputTokenCeiling": 4096,
+    "threeRequestWorstCaseUsd": 0.0038218
+  },
+  "metadataSha256": "0f0eb379cfe219f7db3eed7cbf8a8b7071c58605c109de73f54dd9878ae5d1f0",
+  "notes": [
+    "Synthetic prompts only; no secrets or user documents sent.",
+    "No SDK retries, curl retry=0, redirects not followed, one azure provider, no fallback models.",
+    "One production-style surface tag; its surcharge included in the approved reservation.",
+    "No supported controlled real 5xx injection found; no third request planned.",
+    "Team-level credits can include background traffic; zero debit is not evidence of no delayed charge."
+  ]
+}

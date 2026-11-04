@@ -127,8 +127,11 @@ export async function admitManagedProCall(
  * own route (generate.ts passes `proRoutePrice` to the executor), so it never settles at its fee
  * alone. Every Pro route has that price, because `proRouteFunded` above requires it.
  *
- * LIMIT: an attempt that ended in a server error or a timeout is not in that usage, on a success
- * or a failure, because nothing measured shows the gateway bills one (#2114).
+ * LIMIT (#2114): a measured client deadline can bill, but managed Pro has no defensible
+ * per-request input ceiling (only an output limit and a generation-wide budget), and image
+ * output needs separate pricing. Those deadlines remain absent from usage until admission
+ * reserves a tight per-call bound. HTTP 408/5xx and network failures are also unmeasured.
+ * See docs/research/gateway-billing-2114/README.md for evidence and the follow-up.
  */
 export async function settleManagedProCall(
   body: AiGatewayRequestBody,

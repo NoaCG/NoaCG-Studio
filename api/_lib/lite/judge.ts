@@ -189,6 +189,7 @@ export default {
           maxAttempts: 2,
           retryLimit: 1,
           timeoutMs: profile.timeoutMs,
+          timeoutCostFor: () => worstCase,
           ...(gateway ? { gateway } : {}),
         },
       );
@@ -216,6 +217,12 @@ export default {
       };
       return json(response);
     } catch (error) {
+      // Failed attempts can cost more than the original booking (#2114). Retain that
+      // conservative booking when the known aggregate is smaller or unavailable; only
+      // add the excess, atomically, so another judgement's booking cannot be overwritten.
+      const extraCost = Math.max(0,
+        usageCostUsd(error instanceof GatewayError ? error.servedUsage : undefined) - profile.judgeMaxCostUsd);
+      if (extraCost > 0) await store.settleJudgeCost(request.generationId, extraCost).catch(() => null);
       if (error instanceof GatewayError) {
         return error.code === 'rate_limited' || error.code === 'unavailable' || error.code === 'timeout'
           ? liteError('provider_unavailable', error.message, error.status, true)

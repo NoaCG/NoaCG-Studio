@@ -1254,7 +1254,7 @@ test('a mix of priced and unpriced served attempts: the caller prices only the u
 // The executor throws when no attempt was usable. The replies it was served were billed all the
 // same, so the error carries their summed usage, each fee once, and the ledger books it.
 
-const failing = async (fetchImpl: () => Promise<Response>, policy: GatewayExecutionPolicy = {}) => {
+const failing = async (fetchImpl: typeof fetch, policy: GatewayExecutionPolicy = {}) => {
   try {
     await executeGatewayRequest(structuredBody(), { keyFor, sleep: async () => {}, fetchImpl }, {
       maxAttempts: 2, retryLimit: 1, gateway: TAGGED, ...policy,
@@ -1301,8 +1301,8 @@ test('a failure that was never served carries nothing, and the ledger books $0',
 });
 
 test('a served reply and then a server error: only the served one is booked, its fee once', async () => {
-  // Pins the documented limit of #2114: a 5xx or timeout attempt is not charged, because
-  // nothing measured shows the gateway bills one (the decision adapter charges its worst case).
+  // Pins the remaining limit of #2114: genuine HTTP 5xx remains unmeasured, distinct
+  // from a client deadline (the decision adapter conservatively reserves its worst case).
   const error = await failing(sequence(
     () => reply('not json', 0.0003),
     () => new Response('{"error":{"message":"overloaded"}}', { status: 503 }),
@@ -1373,4 +1373,86 @@ test('an error object a caller reuses never carries an earlier request\'s served
   assert.ok(refusal.servedUsage, 'the first request served a reply');
   await assert.rejects(executeGatewayRequest(body('anthropic', 'fallback'), { keyFor: async () => { throw refusal; } }));
   assert.equal(refusal.servedUsage, undefined, 'the second request served nothing');
+});
+
+const hangUntilDeadline: typeof fetch = async (_url, init) => new Promise((_resolve, reject) => {
+  init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+});
+
+test('a client deadline carries the supplied attempt ceiling to settlement and ledger, fee once', async () => {
+  const error = await failing(hangUntilDeadline, {
+    timeoutMs: 5, maxAttempts: 1, timeoutCostFor: () => 0.001,
+  });
+  assert.equal(error.code, 'timeout');
+  near(usageCostUsd(error.servedUsage), 0.001);
+  near(error.servedUsage?.requestFeeUsd, GATEWAY_TAG_WRITE_USD);
+  assert.equal(error.servedUsage?.estimatedCost?.source, 'configured');
+  assert.equal(error.servedUsage?.totalTokens, 0, 'no token counts are invented');
+  near(gatewayLedgerEntry({
+    userId: null, ipHash: 'h', body: structuredBody(), userKeys: {}, errorCode: error.code, servedUsage: error.servedUsage,
+  }).providerCostUsd, 0.001);
+  near(usageCostUsd(withTokenCost(withRequestFee(error.servedUsage!, GATEWAY_TAG_WRITE_USD), GATEWAY,
+    { inputPerMillion: 10, outputPerMillion: 20 })), 0.001, 'downstream pricing adds nothing');
+});
+
+test('deadline during a successful response body is a timeout and keeps earlier served cost', async () => {
+  const blockedBody: typeof fetch = async (_url, init) => new Response(new ReadableStream({
+    start(controller) {
+      init?.signal?.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), { once: true });
+    },
+  }));
+  let calls = 0;
+  const error = await failing(async (url, init) => ++calls === 1 ? reply('not json', 0.0003) : blockedBody(url, init), {
+    timeoutMs: 5, timeoutCostFor: () => 0.001,
+  });
+  assert.equal(calls, 2);
+  assert.equal(error.code, 'timeout');
+  near(usageCostUsd(error.servedUsage), 0.0003 + GATEWAY_TAG_WRITE_USD + 0.001);
+  near(error.servedUsage?.requestFeeUsd, 2 * GATEWAY_TAG_WRITE_USD);
+});
+
+test('timeout then fallback success prices the deadline on its own route and stays within attempts', async () => {
+  const request = structuredBody();
+  request.fallbacks = [{ provider: 'vercel', model: 'vendor/fallback' }];
+  const pricedRoutes: string[] = [];
+  let calls = 0;
+  const result = await executeGatewayRequest(request, {
+    keyFor, sleep: async () => {},
+    fetchImpl: async (url, init) => ++calls === 1 ? hangUntilDeadline(url, init) : reply(VALID, 0.0004),
+  }, {
+    timeoutMs: 5, maxAttempts: 2, retryLimit: 0, gateway: TAGGED,
+    timeoutCostFor: (route) => { pricedRoutes.push(route.model); return route.model === GATEWAY.model ? 0.001 : 0.002; },
+  });
+  assert.equal(calls, 2);
+  assert.deepEqual(pricedRoutes, [GATEWAY.model]);
+  assert.equal(result.attempts.reduce((sum, attempt) => sum + attempt.attempts, 0), 2);
+  near(usageCostUsd(result.usage), 0.001 + 0.0004 + GATEWAY_TAG_WRITE_USD);
+  near(result.usage.requestFeeUsd, 2 * GATEWAY_TAG_WRITE_USD);
+});
+
+test('HTTP 408, 5xx and immediate network failure remain distinct from the measured client deadline', async () => {
+  for (const fetchImpl of [
+    async () => new Response('', { status: 408 }),
+    async () => new Response('', { status: 503 }),
+    async () => { throw new DOMException('External abort', 'AbortError'); },
+  ]) {
+    let priced = false;
+    const error = await failing(fetchImpl, {
+      maxAttempts: 1, timeoutCostFor: () => { priced = true; return 0.001; },
+    });
+    assert.equal(error.servedUsage, undefined);
+    assert.equal(priced, false);
+  }
+});
+
+test('an unbounded deadline or non-gateway deadline does not receive a guessed charge', async () => {
+  for (const ceiling of [undefined, null, NaN, Infinity, -1, GATEWAY_TAG_WRITE_USD / 2]) {
+    const error = await failing(hangUntilDeadline, {
+      timeoutMs: 5, maxAttempts: 1, timeoutCostFor: () => ceiling as number | null,
+    });
+    assert.equal(error.servedUsage, undefined);
+  }
+  await assert.rejects(executeGatewayRequest(body(), { keyFor, fetchImpl: hangUntilDeadline }, {
+    timeoutMs: 5, maxAttempts: 1, timeoutCostFor: () => 0.001,
+  }), (error) => error instanceof GatewayError && error.code === 'timeout' && !error.servedUsage);
 });

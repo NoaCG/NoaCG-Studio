@@ -10,6 +10,8 @@
 //     caller's signal, retry only on a transient failure, and a STRICT check of the answers
 //     against the questions asked. It never throws for a provider outcome: it reports what was
 //     spent, including a conservative charge for an attempt whose bill is unknown.
+//     #2114 measured a billed Chat Completions client deadline, not /evaluate or HTTP 408/5xx.
+//     The latter remain an explicit conservative reservation here, not a measured charge.
 //   - `runSvgInterpretation`: the SVG task's ladder before and after that call, the server half
 //     of /api/ai/tasks/import-analysis's ladder - flag, registry gate, durable ledger, kill switch,
 //     entitlement, consent, evidence policy, size and priced worst case, then the existing ledger

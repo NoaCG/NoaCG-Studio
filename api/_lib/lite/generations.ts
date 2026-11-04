@@ -161,6 +161,7 @@ function policyFor(
   profile: ReturnType<typeof liteProfile>,
   route: ModelRoute,
   maxAttempts: number,
+  outputTokens = profile.outputTokens,
 ): GatewayExecutionPolicy {
   const gatewayRoute = route.provider === 'vercel'
     ? route
@@ -171,6 +172,10 @@ function policyFor(
     maxAttempts,
     retryLimit: 0,
     timeoutMs: profile.timeoutMs,
+    timeoutCostFor: (attemptRoute) => worstAttemptCostUsd(
+      attemptRoute, profile.estimatedInputTokens, outputTokens,
+      routePrice(profile, attemptRoute) ?? undefined, gateway,
+    ),
     ...(gateway ? { gateway } : {}),
   };
 }
@@ -486,7 +491,7 @@ export default {
             route: repairRoute,
           },
           { keyFor: async (provider) => managedAiKey(provider) },
-          policyFor(profile, repairRoute, profile.maxAttempts - usedAttempts),
+          policyFor(profile, repairRoute, profile.maxAttempts - usedAttempts, profile.repairOutputTokens),
         ), profile);
         modelResult = aggregateResults(modelResult, repair);
         accountedResult = modelResult;

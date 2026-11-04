@@ -40,9 +40,9 @@ export class GatewayError extends Error {
   readonly code: AiGatewayErrorCode;
   readonly status: number;
   readonly retryable: boolean;
-  /** Set by the executor on the error it finally throws, when attempts were served before the
-   *  request failed: their summed usage, each fee once, priced as a success would be (#2092).
-   *  The gateway billed those replies, so the ledger and Pro settlement book them. */
+  /** Set on the final error: served attempts plus configured ceilings for bounded client
+   *  deadlines (#2092, #2114), summed with each fee once just as on success. The ceiling is
+   *  conservative booking, not a claim to know an aborted attempt's exact bill or tokens. */
   servedUsage?: ModelUsage;
 
   constructor(
@@ -954,6 +954,11 @@ export function providerFailure(status: number, body = ''): GatewayError {
   return new GatewayError('provider_rejected', 'The AI provider rejected the request.', 502, false);
 }
 
+/** Only our own elapsed deadline, distinct from an HTTP 408 or a caller cancelling. */
+class ClientDeadlineError extends GatewayError {
+  constructor() { super('timeout', 'The AI provider timed out.', 504, true); }
+}
+
 async function oneAttempt(
   adapter: ProviderAdapter,
   request: ModelRequest,
@@ -982,8 +987,12 @@ async function oneAttempt(
     }
     return adapter.parseResponse(data, request, route);
   } catch (error) {
+    // Also catches an abort while reading a successful response body. A provider's HTTP
+    // error remains its own outcome even if reading its detail reached our deadline.
+    if (controller.signal.aborted && !(error instanceof GatewayError && error.code !== 'malformed_response')) {
+      throw new ClientDeadlineError();
+    }
     if (error instanceof GatewayError) throw error;
-    if (controller.signal.aborted) throw new GatewayError('timeout', 'The AI provider timed out.', 504, true);
     throw new GatewayError('unavailable', 'The AI provider could not be reached.', 503, true);
   } finally {
     clearTimeout(timer);
@@ -1075,6 +1084,10 @@ export interface GatewayExecutionPolicy {
    *  Defaults to `configuredPrice`; a caller with an audited price table (Pro's catalog) passes
    *  it so no served attempt settles at its fee alone (#2092). */
   priceFor?: (route: ModelRoute) => ModelPrice | null;
+  /** A conservative per-route attempt ceiling INCLUDING its fee, supplied by the funded
+   *  caller. A client deadline can still bill (#2114); no tokens or exact cost are invented.
+   *  Applies only to Vercel deadlines, not HTTP 408/5xx, network failure or BYO providers. */
+  timeoutCostFor?: (route: ModelRoute) => number | null;
 }
 
 export interface ModelPrice {
@@ -1238,10 +1251,9 @@ export async function executeGatewayRequest(
   const sleep = dependencies.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   const routes = [body.route, ...(body.fallbacks ?? [])];
   const attempts: ModelResult['attempts'] = [];
-  // Every reply the gateway served and billed, each with its request fee once (#2055). A retry
-  // after an unusable reply still pays for that reply; an attempt that was never served (a
-  // refusal, a server error, a timeout) left no usage to count, as before: nothing measured
-  // shows such an attempt billed, so it is not charged at a guessed worst case (#2114).
+  // Served replies, plus explicitly bounded client deadlines: a measured client timeout
+  // still debited gateway credits (#2114). HTTP 408/5xx and network failures remain unmeasured.
+  // A retry pays for the earlier attempt too; each attempt's fee is included exactly once.
   const served: ModelUsage[] = [];
   const priceFor = policy?.priceFor ?? configuredPrice;
   const charge = (usage: ModelUsage, route: ModelRoute) => served.push(withTokenCost(
@@ -1299,6 +1311,17 @@ export async function executeGatewayRequest(
           };
         } catch (error) {
           if (error instanceof ServedAttemptError) charge(error.usage, route);
+          if (error instanceof ClientDeadlineError && route.provider === 'vercel') {
+            const ceiling = policy?.timeoutCostFor?.(route);
+            const fee = gatewayRequestFeeUsd(route, policy?.gateway);
+            if (typeof ceiling === 'number' && Number.isFinite(ceiling) && ceiling >= fee && ceiling >= 0) {
+              served.push({
+                inputTokens: 0, outputTokens: 0, totalTokens: 0,
+                requestFeeUsd: fee,
+                estimatedCost: { amount: ceiling, currency: 'USD', source: 'configured' },
+              });
+            }
+          }
           lastError = error instanceof GatewayError
             ? error
             : new GatewayError('unavailable', 'The AI provider could not be reached.', 503, true);

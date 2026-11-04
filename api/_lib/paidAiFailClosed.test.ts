@@ -7,7 +7,7 @@
 // readable settings and plan still goes through, with the daily caps applying as before.
 
 import assert from 'node:assert/strict';
-import { afterEach, beforeEach, test } from 'node:test';
+import { afterEach, beforeEach, test, type TestContext } from 'node:test';
 import analyze from './importAnalysis/analyze.js';
 import liteGenerations from './lite/generations.js';
 import liteJudge from './lite/judge.js';
@@ -15,14 +15,14 @@ import proGenerations from './pro/generations.js';
 import generate from '../ai/generate.js';
 import { resolveProGate } from './pro/gate.js';
 import { getLiteGenerationStore } from './aiLiteStore.js';
-import { GATEWAY_TAG_WRITE_USD } from './aiGateway.js';
+import { GATEWAY_TAG_WRITE_USD, worstAttemptCostUsd } from './aiGateway.js';
 import { surfaceRoutePolicy } from './aiSurfacePolicy.js';
 import { resetAdminDb } from './adminAuth.js';
 import { resetSystemSettingsCache, systemSettings } from './systemSettings.js';
 import { loadEntitlementRows, resolvePaidAiAccess, resolveUserEntitlement } from './entitlements.js';
-import { liteProfile } from './aiLiteProfile.js';
+import { liteJudgePolicy, liteProfile, routePrice } from './aiLiteProfile.js';
 import { proProfile } from './aiProProfile.js';
-import { importAnalysisProfile } from './aiImportAnalysisProfile.js';
+import { importAnalysisPolicy, importAnalysisPrice, importAnalysisProfile } from './aiImportAnalysisProfile.js';
 import { resetTaskRateLimitForTests } from './aiLiteRateLimit.js';
 import { userAiKeysCookie } from './aiCredentials.js';
 import { allows } from '../../src/entitlements/contract.js';
@@ -51,6 +51,7 @@ interface FakeDb {
 
 let db: FakeDb = { settings: 'ok' };
 let modelAnswer: () => unknown = () => ({ text: 'ok' });
+let modelFetch: ((init?: RequestInit) => Promise<Response>) | undefined;
 const sent = { model: [] as string[], other: [] as string[] };
 
 const user = () => ({ id: USER, aud: 'authenticated', role: 'authenticated', email: 'someone@example.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' });
@@ -79,7 +80,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   const parsed = new URL(url);
   if (parsed.origin !== DB) {
     sent.model.push(url);
-    return completion(modelAnswer());
+    return modelFetch ? modelFetch(init) : completion(modelAnswer());
   }
   const path = parsed.pathname + parsed.search;
   if (path.startsWith('/auth/v1/user')) return Response.json(user());
@@ -139,6 +140,7 @@ beforeEach(async () => {
   USER = `0b0c0d0e-0000-4000-8000-${String((users += 1)).padStart(12, '0')}`;
   db = { settings: 'ok' };
   modelAnswer = () => ({ text: 'ok' });
+  modelFetch = undefined;
   sent.model.length = 0;
   sent.other.length = 0;
   gatewayRows.length = 0;
@@ -505,3 +507,85 @@ test('a gated call whose primary is the caller\'s own key but whose fallback is 
     delete process.env.AI_KEY_ENCRYPTION_SECRET;
   }
 });
+
+
+// The real handlers and memory store, with only the provider and elapsed wall time stubbed.
+function shortDeadlines(context: TestContext, timeoutMs: number): void {
+  const native = globalThis.setTimeout;
+  context.mock.method(globalThis, 'setTimeout', ((callback: (...args: unknown[]) => void, ms?: number, ...args: unknown[]) =>
+    native(callback, ms === timeoutMs ? 1 : ms, ...args)) as typeof setTimeout);
+}
+
+const deadline = (init?: RequestInit): Promise<Response> => new Promise((_resolve, reject) => {
+  init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+});
+
+function failedAttempts(second: 'deadline' | 'expensive-served' | 'cheap-served' | 'unavailable', ceiling: number): void {
+  modelFetch = async (init) => {
+    if (second === 'unavailable') return new Response('', { status: 503 });
+    if (sent.model.length === 1 || second === 'deadline') return deadline(init);
+    return Response.json({
+      choices: [{ message: { content: 'not valid JSON' } }],
+      usage: { prompt_tokens: 10, completion_tokens: 10, cost: second === 'expensive-served' ? 2 * ceiling : 0.000001 },
+    });
+  };
+}
+
+for (const second of ['deadline', 'expensive-served', 'cheap-served', 'unavailable'] as const) {
+  test(`failed judge books at least its reservation and both attempts: ${second}`, async (context) => {
+    const profile = liteProfile();
+    const generationId = await liveGeneration();
+    const store = await getLiteGenerationStore();
+    const before = (await store.get(generationId))!.providerCostUsd;
+    const ceiling = worstAttemptCostUsd(profile.judgeRoute, profile.judgeEstimatedInputTokens,
+      profile.judgeOutputTokens, routePrice(profile, profile.judgeRoute) ?? undefined, liteJudgePolicy(profile));
+    assert.ok(ceiling !== null);
+    shortDeadlines(context, profile.timeoutMs);
+    failedAttempts(second, ceiling);
+    const response = await liteJudge.fetch(post('/api/ai/lite/judge', judgeRequest(generationId)));
+    assert.notEqual(response.status, 200);
+    assert.equal(sent.model.length, 2, 'the real executor honors the two-attempt limit');
+    const aggregate = second === 'deadline' ? 2 * ceiling
+      : second === 'expensive-served' ? 3 * ceiling + GATEWAY_TAG_WRITE_USD
+        : second === 'cheap-served' ? ceiling + 0.000001 + GATEWAY_TAG_WRITE_USD : 0;
+    const after = await store.get(generationId);
+    assert.ok(Math.abs(after!.providerCostUsd - before - Math.max(profile.judgeMaxCostUsd, aggregate)) < 1e-12);
+    assert.equal(after!.judgeCount, 1);
+    const usage = await store.usage('lite', USER, Date.now());
+    assert.ok(usage.dailyFleetSpendUsd >= after!.providerCostUsd, 'fleet accounting retains the failed spend');
+  });
+
+  test(`failed import analysis books at least its reservation and both attempts: ${second}`, async (context) => {
+    const initial = importAnalysisProfile();
+    const ceiling = worstAttemptCostUsd(initial.route, initial.estimatedInputTokens, initial.outputTokens,
+      importAnalysisPrice(initial) ?? undefined, importAnalysisPolicy(initial));
+    assert.ok(ceiling !== null);
+    const previousCap = process.env.AI_IMPORT_ANALYSIS_MAX_COST_USD;
+    process.env.AI_IMPORT_ANALYSIS_MAX_COST_USD = String(1.5 * ceiling);
+    try {
+      const profile = importAnalysisProfile();
+      shortDeadlines(context, profile.timeoutMs);
+      failedAttempts(second, ceiling);
+      const request = analysisRequest();
+      const response = await analyze.fetch(post('/api/ai/tasks/import-analysis', request));
+      assert.notEqual(response.status, 200);
+      assert.equal(sent.model.length, 2);
+      const store = await getLiteGenerationStore();
+      const duplicate = await store.reserve({ userId: USER, ipHash: 'test-ip-hash',
+        idempotencyKey: request.idempotencyKey, requestedCategory: null, now: Date.now(), profile });
+      assert.equal(duplicate.status, 'duplicate');
+      if (duplicate.status !== 'duplicate') throw new Error('failed analysis record missing');
+      const aggregate = second === 'deadline' ? 2 * ceiling
+        : second === 'expensive-served' ? 3 * ceiling + GATEWAY_TAG_WRITE_USD
+          : second === 'cheap-served' ? ceiling + 0.000001 + GATEWAY_TAG_WRITE_USD : 0;
+      assert.ok(Math.abs(duplicate.record.providerCostUsd - Math.max(profile.maxProviderCostUsd, aggregate)) < 1e-12);
+      assert.equal(duplicate.record.status, 'failed');
+      assert.equal(duplicate.record.inputTokens, 0, 'the cost correction invents no token counts');
+      const usage = await store.usage(profile.id, USER, Date.now());
+      assert.ok(usage.dailyFleetSpendUsd >= duplicate.record.providerCostUsd);
+    } finally {
+      if (previousCap === undefined) delete process.env.AI_IMPORT_ANALYSIS_MAX_COST_USD;
+      else process.env.AI_IMPORT_ANALYSIS_MAX_COST_USD = previousCap;
+    }
+  });
+}
