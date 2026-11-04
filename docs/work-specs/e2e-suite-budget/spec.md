@@ -94,10 +94,13 @@ do not grow with the suite's file count.
    (`e2e/quarantine.json`, `scripts/e2e-traced.json`, `scripts/e2e-durations.json`, a revert that
    removes the files it reverts); any other file it touches is checked like any pull request.
 4. **Fixers cannot write exceptions or lower protection.** The build check `check:e2e-protection`
-   refuses a change that removes a spec, removes test declarations, adds `test.skip`/`fixme`, or
+   refuses a change that removes a spec, removes tests, adds `test.skip`/`fixme`, or
    raises a per-test timeout above 120 s in the merge-gate set, unless the same change carries a
    maintenance entry (section "Test maintenance" in a work spec: behaviours preserved, replacement
-   check, evidence receipt). The root auto-fix rule gains: a repair never writes a budget exception
+   check, evidence receipt). Since cf10 (#1911) Playwright's `--list` counts the tests, so a test
+   declared in a loop counts, and an entry covers a removal only while it is current: it ends
+   `, owner miwco, expires YYYY-MM-DD` (the accountable owner in `scripts/growth-ceilings.json`,
+   at most 30 days ahead). A lapsed or undated line stays on record and covers nothing. The root auto-fix rule gains: a repair never writes a budget exception
    or a maintenance entry. Both entries are reviewed by `/check` like any other claim.
 5. **Selection extends `scripts/e2e-affected.mjs`; nothing new selects.** The expired sprint focus
    is replaced by an explicit, reviewed `SHARED_CHANGE_SET` in `scripts/e2e-lists.mjs`: the specs
@@ -214,7 +217,9 @@ in the durations table, and the capacity line reads 76% (82% on the 2026-11-02 r
 ## Test maintenance
 
 Each entry: date, spec files, behaviours preserved, replacement check, evidence receipt, measured
-saving.
+saving, then `, owner miwco, expires YYYY-MM-DD` (at most 30 days ahead; decision 4). The two
+lines below predate the owner and expiry (cf10, #1911): they stay as the record of their landings
+and cover no later removal.
 
 - 2026-10-17 `e2e/save-transaction.spec.ts`: 78 of its 107 matrix cases moved unchanged (same titles, same assertions, same fault injector) into `e2e/save-transaction-holds.spec.ts`, `-wizard`, `-leave`, `-leave-shortcut` and `-leave-modal.spec.ts`, with the shared helpers in `e2e/_saveMatrix.ts`; every row of the repair-6 and repair-7 matrices (docs/work-specs/editor-leave-reliability) stays protected by the same case. Replacement check: `npx playwright test --list` over the six files declares exactly the 107 titles the one file declared. Receipt: issue #1405; the file measured 26.7 minutes on one runner in run 39048521384's retry job, above the 20-minute shard cap, so no shard could ever carry it. Measured saving: none - the same 26.7 minutes, split so the packer can place them.
 - 2026-11-01 `e2e/editor-proposal-task.spec.ts`: merged into `e2e/editor-command-task.spec.ts` as the third walk of each viewport test (UI, semantic, proposal), every assertion moved unchanged; the reviewed-proposal behaviours (review before Apply, Cancel, the Assistant path's parity with the UI walk) are guarded there now, and the UI reference walk the two files both ran now runs once per viewport. Replacement check: six injected faults (command handler, history, proposal review, commit before review, Cancel, UI text path) fail the merged spec at the same assertion as the old files, on all three viewports. Receipt: docs/work-specs/cicd-improvement/evidence/phase-ci10.md. Measured saving: about a quarter of the two files' test time (430 and 448 s to 321 and 332 s on one cloud worker, alternating).
