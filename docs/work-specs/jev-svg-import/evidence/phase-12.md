@@ -74,6 +74,41 @@ means a new key in the report that every receiver passes back to the snap (`outp
 `hostedReceiver.ts`, `receiverScript.ts`, `localReceiver.ts`, `realtimeControl.ts`) and that every
 surface reading `groups` would see. That belongs with the owner of the report shape, not this row.
 
+Resolved after the run by the #1908 follow-up, below.
+
+## Follow-up: #1908 item 2, a reboot from a report
+
+Rules, observable and tested in `scripts/imported-score-event.test.mjs` ("an output rebooted from
+its report"). Written after the code, not before it.
+
+- **R1** A score board's machine-state answer carries `awards` (figure group -> the field that
+  scored) beside `groups`, never inside it: `GraphicControlPage` and the OGraf off-air test read
+  every `groups` value as a state. The renderer's report stores the answer as it is, so the report
+  carries `awards` with no change to the report writer.
+- **R2** An output rebuilt from that report (data, snap, data, as `output/main.ts` boots, and as the
+  hosted receiver boots) lights the same team as the output that stayed up, after a typed
+  correction to another team and after a `+1` bound to shared data, and plays no pop.
+- **R3** A snap that carries no `awards` (an operator's snap row, a report from a page built before
+  this change, any graphic that is not a score board) keeps the latch the page holds, as before.
+  Such a report reboots with the flag up and no team lit until the next `+1`, as before.
+- **R4** A snap that carries `awards` replaces the page's latch with them. An entry is kept only
+  when it names a number field of that group (the runtime), and only string entries of a plain
+  object leave the report (`reportedSnap`); anything else is ignored.
+- **R5** Items 1 and 3 (PR #1909) are unchanged: the latch moves only on a press, and a snap pops
+  nothing. No per-repaint inference comes back.
+
+Carried by `output/main.ts` boot through `reportedSnap` (`control/outputRecovery.ts`), the stage's
+`snapCommand` (`preview/previewProtocol.ts`) and the renderer frame (`preview/composeDocument.ts`),
+which passes it as `noacgSnap`'s options; the test builds its commands through those two helpers.
+The hosted receiver's boot passes it the same way, handing on only a plain object; no test
+drives that receiver page.
+
+Limits: a live snap row carries no `awards` (nobody sends one), so the exported receivers'
+live-snap handlers do not read it (R3 holds there). An OGraf export snaps only on the page that
+holds the latch (skipAnimation), and OGraf hands a reloaded graphic no saved state to restore. A saved score
+board keeps its old runtime until rebuilt in the import step; its reports then simply carry no
+`awards` (R3). Two corpus `emit.js` hashes move, the same two score boards as row 12.
+
 ## Blast radius
 
 - **Native templates:** unchanged. `node scripts/check-catalog-emit.mjs`: PASS, 528 designs equal
