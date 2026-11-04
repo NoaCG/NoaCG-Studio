@@ -208,6 +208,16 @@ them. Other estimates are emitted only when the operator supplies current prices
 through `AI_MODEL_PRICING_JSON`, keyed by `provider:model` with `inputPerMillion` and
 `outputPerMillion`. Missing pricing produces no estimate rather than a stale claim.
 
+The reported cost is tokens only. Vercel AI Gateway also bills each Custom Reporting write,
+$0.075 per 1,000, one per unique tag on a request, and every managed call carries one
+`surface:*` tag: $0.000075 per served request, measured exactly on the eval ledgers of runs
+41620061986 and 41621970771 on chat completions and `/v1/evaluate` alike (#2015). A request the
+gateway refuses before inference was charged nothing. `gatewayRequestFeeUsd` prices the fee
+from the tags actually sent (`AI_GATEWAY_TAG_WRITE_USD` overrides the price); the gateway
+executor adds it once to a served reply's estimate and marks it with `usage.requestFeeUsd`, so
+no caller adds it twice, and every task's priced worst case (`worstAttemptCostUsd`, the decision
+adapter's `attemptCeilingUsd`) includes it. A user's own key on a direct provider pays none.
+
 Provider response bodies and credentials are never copied into errors or logs. User-facing
 errors use stable gateway codes and sanitized messages.
 

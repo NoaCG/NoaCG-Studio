@@ -3,9 +3,17 @@ import { afterEach, beforeEach, test } from 'node:test';
 import {
   decodeStructuredOutput,
   executeGatewayRequest,
+  GATEWAY_TAG_WRITE_USD,
+  gatewayRequestFeeUsd,
   GatewayError,
+  usageCostUsd,
   validateGatewayBody,
+  withRequestFee,
+  withTokenCost,
+  worstAttemptCostUsd,
+  type GatewayRoutingPolicy,
 } from './aiGateway.js';
+import { gatewayLedgerEntry } from './aiGatewayLedger.js';
 import { readUserAiKeys, userAiKeysCookie } from './aiCredentials.js';
 import { surfaceRoutePolicy } from './aiSurfacePolicy.js';
 import { APPROVED_MODEL_CATALOG } from './aiModelCatalog.js';
@@ -15,6 +23,7 @@ const CONTROLLED_ENV = [
   'AI_KEY_ENCRYPTION_SECRET',
   'AI_MODEL_PRICING_JSON',
   'AI_RETRY_LIMIT',
+  'AI_GATEWAY_TAG_WRITE_USD',
 ] as const;
 const originalEnv = new Map(CONTROLLED_ENV.map((name) => [name, process.env[name]]));
 
@@ -985,4 +994,103 @@ test('a normal finish_reason still parses - the truncation guard is not swallowi
     })),
   });
   assert.deepEqual(result.output, { version: 1 });
+});
+
+// ---- The gateway's per-request fee (#2015) ----
+//
+// Vercel AI Gateway bills $0.075 per 1,000 Custom Reporting writes, one per unique tag on a
+// request, on top of the tokens the reply reports. The eval ledgers measured exactly $0.000075
+// per served request carrying one tag, on chat completions and on /v1/evaluate, and $0 on a
+// request refused before inference.
+
+const TAGGED: GatewayRoutingPolicy = { zeroDataRetention: true, disallowPromptTraining: true, tags: ['surface:lite'] };
+const GATEWAY = { provider: 'vercel', model: 'vendor/model' } as const;
+
+const servedChat = (cost?: number) => async () => new Response(JSON.stringify({
+  choices: [{ message: { content: 'ok' } }],
+  usage: { prompt_tokens: 1000, completion_tokens: 100, ...(cost === undefined ? {} : { cost }) },
+}));
+
+test('the fee is one tag write per unique tag, only on a gateway route that sends tags', () => {
+  assert.equal(GATEWAY_TAG_WRITE_USD, 0.000075, 'the measured fee: $0.075 per 1,000 writes');
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), 0.000075);
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, { ...TAGGED, tags: ['surface:lite', 'surface:lite'] }), 0.000075, 'a repeated tag is one write');
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, { ...TAGGED, tags: ['a', 'b'] }), 0.00015);
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, { ...TAGGED, tags: [] }), 0, 'no tags, no writes');
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, undefined), 0, 'no routing policy sends no tags');
+  assert.equal(gatewayRequestFeeUsd({ provider: 'anthropic', model: 'x' }, TAGGED), 0, 'a direct provider key never reaches the gateway');
+});
+
+test('the fee price is configurable, and an unreadable value keeps the measured one', () => {
+  process.env.AI_GATEWAY_TAG_WRITE_USD = '0';
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), 0, 'set to 0 when the reported cost starts including it');
+  process.env.AI_GATEWAY_TAG_WRITE_USD = '0.0001';
+  assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), 0.0001);
+  for (const bad of ['-1', 'abc', 'NaN']) {
+    process.env.AI_GATEWAY_TAG_WRITE_USD = bad;
+    assert.equal(gatewayRequestFeeUsd(GATEWAY, TAGGED), GATEWAY_TAG_WRITE_USD, bad);
+  }
+});
+
+test('a served reply settles at its reported cost plus the fee', async () => {
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat(0.0004) }, {
+    maxAttempts: 1, retryLimit: 0, gateway: TAGGED,
+  });
+  assert.equal(result.usage.requestFeeUsd, 0.000075);
+  assert.equal(result.usage.estimatedCost?.amount, 0.0004 + 0.000075);
+  assert.equal(result.usage.estimatedCost?.source, 'provider');
+  // The content-free ledger books the same figure.
+  const entry = gatewayLedgerEntry({ userId: null, ipHash: 'h', body: body('vercel', 'vendor/model'), userKeys: {}, result });
+  assert.equal(entry.providerCostUsd, 0.0004 + 0.000075);
+});
+
+test('a reply priced from its tokens gets the fee once, and re-pricing it never adds it again', async () => {
+  process.env.AI_MODEL_PRICING_JSON = JSON.stringify({ 'vercel:vendor/model': { inputPerMillion: 1, outputPerMillion: 2 } });
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat() }, {
+    maxAttempts: 1, retryLimit: 0, gateway: TAGGED,
+  });
+  const tokens = (1000 * 1 + 100 * 2) / 1_000_000;
+  assert.equal(result.usage.estimatedCost?.amount, tokens + 0.000075);
+  // A caller that prices the reply again (Lite, the judge, import analysis) or applies the fee
+  // again sees `requestFeeUsd` and leaves the amount alone: no double charge.
+  const again = withTokenCost(withRequestFee(result.usage, 0.000075), GATEWAY, { inputPerMillion: 1, outputPerMillion: 2 });
+  assert.equal(again.estimatedCost?.amount, tokens + 0.000075);
+  assert.equal(usageCostUsd(again), tokens + 0.000075);
+});
+
+test('a reply the server cannot price still carries its fee, and the caller adds tokens to it once', async () => {
+  const result = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat() }, {
+    maxAttempts: 1, retryLimit: 0, gateway: TAGGED,
+  });
+  assert.equal(result.usage.estimatedCost, undefined, 'no reported cost and no configured price');
+  assert.equal(usageCostUsd(result.usage), 0.000075, 'the fee is still counted');
+  const priced = withTokenCost(result.usage, GATEWAY, { inputPerMillion: 1, outputPerMillion: 2 });
+  assert.equal(priced.estimatedCost?.amount, (1000 + 200) / 1_000_000 + 0.000075);
+});
+
+test('a request without tags, or on a user key, pays no fee', async () => {
+  const untagged = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat(0.0004) }, {
+    maxAttempts: 1, retryLimit: 0, gateway: { ...TAGGED, tags: undefined },
+  });
+  assert.equal(untagged.usage.estimatedCost?.amount, 0.0004);
+  assert.equal(untagged.usage.requestFeeUsd, undefined);
+  const byo = await executeGatewayRequest(body('vercel', 'vendor/model'), { keyFor, fetchImpl: servedChat(0.0004) });
+  assert.equal(byo.usage.estimatedCost?.amount, 0.0004, 'BYO traffic carries no routing policy and so no tags');
+});
+
+test('a request refused before inference is booked at nothing, fee included', async () => {
+  const request = body('vercel', 'vendor/model');
+  await assert.rejects(executeGatewayRequest(request, {
+    keyFor,
+    fetchImpl: async () => new Response('{"error":{"message":"bad request"}}', { status: 400 }),
+  }, { maxAttempts: 1, retryLimit: 0, gateway: TAGGED }), GatewayError);
+  const entry = gatewayLedgerEntry({ userId: null, ipHash: 'h', body: request, userKeys: {}, errorCode: 'invalid_request' });
+  assert.equal(entry.providerCostUsd, 0);
+});
+
+test('the priced worst case of an attempt includes the fee', () => {
+  const price = { inputPerMillion: 0.1, outputPerMillion: 0.4 };
+  assert.equal(worstAttemptCostUsd(GATEWAY, 2000, 500, price, TAGGED), (2000 * 0.1 + 500 * 0.4) / 1_000_000 + 0.000075);
+  assert.equal(worstAttemptCostUsd(GATEWAY, 2000, 500, price, undefined), (2000 * 0.1 + 500 * 0.4) / 1_000_000);
+  assert.equal(worstAttemptCostUsd(GATEWAY, 2000, 500, undefined, TAGGED), null, 'an unpriced route stays unpriced');
 });
