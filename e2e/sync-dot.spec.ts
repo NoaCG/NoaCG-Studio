@@ -26,7 +26,7 @@ async function cloud(page: Page) {
     localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
   }, { owner, user, token, expires });
   const state = {
-    rows: new Map<string, Row>(), reads: 0, silent: false, silentWrites: false, held: 0, down: false,
+    rows: new Map<string, Row>(), reads: 0, silent: false, silentWrites: false, silentStorage: false, held: 0, down: false,
     doc: null as { id: string } | null, token: '2026-10-06T00:00:00.000Z', revision: 0,
   };
   const hold = () => {
@@ -45,6 +45,10 @@ async function cloud(page: Page) {
       if (url.pathname === '/rest/v1/team_members') return respond(state.doc ? [{ team_id: team, user_id: owner, display_name: 'Operator', role: 'owner', joined_at: state.token }] : []);
       return respond(teamRow());
     }
+    if (url.pathname.startsWith('/storage/v1/object/')) {
+      if (state.silentStorage) await hold();
+      return route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('font bytes') }).catch(() => {});
+    }
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
       if (state.silent) await hold();
       if (state.down) return route.abort('connectionfailed').catch(() => {});
@@ -61,11 +65,11 @@ async function cloud(page: Page) {
         state.reads++;
         const kind = url.searchParams.get('kind')?.replace('eq.', '');
         const found = [...state.rows.values()].filter(row => row.kind === kind);
-        const ids = url.searchParams.get('id')?.replace(/^in\.\(|\)$/g, '').replace(/"/g, '').split(',');
+        const ids = url.searchParams.get('id')?.replace(/^(in\.\(|eq\.)|\)$/g, '').replace(/"/g, '').split(',');
         return respond(url.searchParams.get('select')?.includes('body,') ? found.filter(row => !ids || ids.includes(row.id)) : found.map(row => ({ id: row.id, deleted: row.deleted, updatedAt: row.body.updatedAt })));
       }
+      if (state.silentWrites && request.method() !== 'GET') await hold();
       if (request.method() === 'POST') {
-        if (state.silentWrites) await hold();
         const row = request.postDataJSON();
         state.rows.set(row.id, row);
         return respond({ body: row.body });
@@ -179,6 +183,29 @@ test('a save the cloud reads for but never answers ends in one reason, and the r
   await page.getByTestId('sync-action').click();
   await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
   expect([...state.rows.values()].some(row => cueLabel(row.body) === 'Pushed by the retry')).toBe(true);
+});
+
+test('a stored file the cloud never answers for fails the pull, so it is neither Synced nor blanked', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  await production(page);
+  const id = '00000000-0000-4000-8000-0000000000bb';
+  const updatedAt = new Date().toISOString();
+  state.rows.set(id, { id, kind: 'look', deleted: false, body: { id, name: 'With a font', updatedAt, deleted: false, font: { path: 'f.woff2', data: 'spx-storage:u/abc' } } });
+  state.silentStorage = true;
+  const fontOfLook = () => page.evaluate(async id => {
+    const look = (await import('/src/model/packets.ts')).loadAllLooks().find(l => l.id === id) as unknown as { font?: { data?: string } } | undefined;
+    return look?.font?.data ?? null;
+  }, id);
+  await page.evaluate(async () => { void (await import('/src/backend/syncController.ts')).syncNow(); });
+  await expect.poll(() => state.held).toBeGreaterThan(0);
+  await page.clock.fastForward(A_MINUTE + TO_THE_LIMIT);
+  await expectAmber(page, /^The cloud did not answer/);
+  expect(await fontOfLook()).toBeNull();
+  state.silentStorage = false;
+  await page.getByTestId('sync-action').click();
+  await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+  await expect.poll(fontOfLook).toMatch(/^data:/);
 });
 
 test('a retry pressed while the pass still waits runs as soon as that pass gives up', async ({ page }) => {

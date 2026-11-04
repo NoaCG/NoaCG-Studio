@@ -26,7 +26,7 @@ export const CLOUD_NO_ANSWER = 'The cloud did not answer. Changes stay on this d
  *  back from the library as the name of a browser error, and an operator reads this on air. Whole
  *  messages only: a line that lists several records keeps each one's own reason. */
 export function cloudFailureWords(message: string): string {
-  return /^(Cloud \S+ failed: )?(\w+: )?(The cloud did not answer\.|Failed to fetch|NetworkError when attempting to fetch resource\.|Load failed)$/.test(message) ? CLOUD_NO_ANSWER : message;
+  return /^(Cloud \S+ failed: |asset upload failed: )?(\w+: )?(The cloud did not answer\.|Failed to fetch|NetworkError when attempting to fetch resource\.|Load failed)$/.test(message) ? CLOUD_NO_ANSWER : message;
 }
 
 function bodyBytes(body: BodyInit | null | undefined): number {

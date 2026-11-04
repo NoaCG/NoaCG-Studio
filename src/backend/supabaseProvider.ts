@@ -199,8 +199,12 @@ export class SupabaseProvider implements StorageProvider {
 
   private async download(sb: SupabaseClient, key: string): Promise<string | null> {
     const { data, error } = await sb.storage.from(BUCKET).download(key);
-    if (error || !data) return null;
-    return blobToDataUrl(data);
+    if (data) return blobToDataUrl(data);
+    // Only an object that is really gone may read as blank (rehydrateAssets). A read that failed
+    // fails the pull, or the blank would be saved here, read as Synced and pushed to every device.
+    const { statusCode, message } = (error ?? {}) as { statusCode?: unknown; message?: unknown };
+    if (String(statusCode) === '404' || /not found/i.test(String(message))) return null;
+    throw new Error(`Cloud get(asset) failed: ${String(message ?? 'no answer')}`);
   }
 }
 

@@ -90,7 +90,7 @@ test('an edge function keeps its own time', async () => {
 
 test('only a failure that is the whole message turns into words', async () => {
   const { cloudFailureWords, CLOUD_NO_ANSWER } = await clientExports();
-  for (const message of ['Cloud list(look) failed: AbortError: The cloud did not answer.', 'Cloud put(show) failed: TypeError: Failed to fetch', 'TypeError: Failed to fetch', 'The cloud did not answer.', 'Load failed']) {
+  for (const message of ['Cloud list(look) failed: AbortError: The cloud did not answer.', 'Cloud put(show) failed: TypeError: Failed to fetch', 'TypeError: Failed to fetch', 'The cloud did not answer.', 'Load failed', 'asset upload failed: The cloud did not answer.', 'Cloud get(asset) failed: The cloud did not answer.']) {
     assert.equal(cloudFailureWords(message), CLOUD_NO_ANSWER, message);
   }
   for (const message of ['3 records failed to sync — graphic "A": too large; show "C": Cloud put(show) failed: TypeError: Failed to fetch', 'graphic "Load failed": refused', 'Browser storage is full']) {
