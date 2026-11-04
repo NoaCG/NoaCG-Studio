@@ -79,6 +79,9 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   'playwright.production.config.ts',
   // The election endurance run's one long walk (E8.1b), started only by endurance.yml's script.
   'playwright.endurance.config.ts',
+  // Timing instruments (e2e/instruments/, issue #2089): the live config pointed at a folder no
+  // suite runs, started by hand or by hosted-latency.yml's `spec` dispatch.
+  'playwright.instrument.config.ts',
   'privacy.html', 'public', 're-design', 'render-worker', 'roadmap.html', 'scripts', 'src',
   'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts', 'whats-new.html',
 ]);
