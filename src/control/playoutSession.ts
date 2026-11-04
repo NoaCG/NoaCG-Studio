@@ -119,7 +119,9 @@ export interface AirPart {
    *  OPTIONAL: absent is none. */
   typedSteps?: Readonly<Record<string, readonly ReplayItem['msg'][]>>;
   /** Per graphic and field, how many commands applied here carried that field: what a resolve
-   *  answered later tells a field moved meanwhile by, whatever its value. ADDITIVE OPTIONAL. */
+   *  answered later tells a field moved meanwhile by, whatever its value. Only differences are
+   *  read, so it is never reset; it holds one number per field a graphic ever aired. ADDITIVE
+   *  OPTIONAL. */
   carried?: Readonly<Record<string, Readonly<Record<string, number>>>>;
 }
 

@@ -327,9 +327,13 @@ export function seedFromResolve(
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
       // Field by field: one a command moved keeps this page's memory, the other takes the report's.
-      const memory = { ...(moved[pair.fieldA] !== undefined || moved[pair.fieldB] !== undefined ? (speaking[graphic] ?? {}) : {}) };
+      const memory: Record<string, string> = {};
       for (const field of [pair.fieldA, pair.fieldB]) {
-        if (field in moved) continue;
+        const held = speaking[graphic]?.[field];
+        if (field in moved) {
+          if (held !== undefined) memory[field] = held;
+          continue;
+        }
         memory[field] = wire(field);
         values[field] = plainClockValue(values[field]);
       }

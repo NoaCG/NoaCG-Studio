@@ -259,6 +259,19 @@ test('a live graphic with nothing to seed from keeps its whole record when a +1 
   assert.deepEqual(air.aired.lt, { f0: '6', f1: 'NAME' });
 });
 
+test('a field kept over the report still takes another screen\'s later row once it is heard', () => {
+  // After a reconnect the report already holds another screen's 9; this page's +1 (8) is heard
+  // during the read, so the seed keeps 8; the other screen's row, heard next, puts 9.
+  const before = rememberAired(NO_AIR, [{ graphic: 'lt', msg: { t: 'update', data: { f0: '7' } } }]);
+  const asked = airAtRequest(before);
+  const applied = createAppliedOnce();
+  const heard = claimAndApply(before, [update('lt', { f0: '8' }, 'mine')], applied, NO_CLOCKS, T).air;
+  const seeded = seedFromResolve(heard, { liveCue: RESOLVED.liveCue, live: { lt: { data: { f0: '9' } } } }, [], asked, CUES, NO_CLOCKS);
+  assert.equal(seeded.aired.lt.f0, '8');
+  const caught = claimAndApply(seeded, [update('lt', { f0: '9' }, 'theirs')], applied, NO_CLOCKS, T).air;
+  assert.equal(caught.aired.lt.f0, '9');
+});
+
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {
   const live = { score: { data: { f5: `10:00@${T}` } } };
   const air = seedFromResolve(NO_AIR, { liveCue: { score: 'c2' }, live }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
