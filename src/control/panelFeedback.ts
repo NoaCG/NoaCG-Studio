@@ -61,7 +61,7 @@ export interface PanelClip {
 export interface PanelSnapshot {
   title: string;
   selected: string | null;
-  space: SpaceAction | null;
+  space: SpaceAction | 'from-the-top' | null;
   live: string[];
   allowed: Record<SharedPanelVerb, boolean>;
   blocked: string[];

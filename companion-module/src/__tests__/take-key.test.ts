@@ -133,8 +133,11 @@ test("a held folder: the word comes from what the page says a press does, though
 	show(state({ selected: 'fold_1', space: 'take-off', live: ['cue_a'], allowed: allowsTake }), withFolder)
 	assert.deepEqual(draw(p.style, p.feedbacks), { text: 'OUT\\nPart two', color: WHITE, bgcolor: RED })
 	// A One-by-one folder at its end with nothing up: the page's own face is FROM THE TOP.
-	show(state({ ver: 6, selected: 'fold_1', space: 'preview', live: [], allowed: allowsTake }), withFolder)
+	show(state({ ver: 6, selected: 'fold_1', space: 'from-the-top', live: [], allowed: allowsTake }), withFolder)
 	assert.equal(draw(p.style, p.feedbacks).text, 'FROM THE TOP\\nPart two')
+	// Past the rows a panel is sent, it has no name, and still says what the press does.
+	show(state({ ver: 7, selected: 'fold_9', space: 'from-the-top', live: [], allowed: allowsTake }), withFolder)
+	assert.equal(draw(p.style, p.feedbacks).text, 'FROM THE TOP\\n')
 })
 
 test('the words follow what a press does, not the on-air list, when the two disagree for a moment', async () => {

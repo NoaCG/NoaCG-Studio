@@ -228,7 +228,8 @@ export function panelSnapshot(view: VerbView, facts: PanelFacts): PanelSnapshot 
     // The row the verbs act on: a held folder's header, else the selected cue itself, even while its
     // folder is collapsed, since the panel's rows list a collapsed folder's cues.
     selected: view.folderHeld ? facts.cursorRow : (view.selectedCue?.id ?? null),
-    space: view.folderHeld || view.selectedCue ? view.take.space : null,
+    // A One-by-one folder's step back to the top airs nothing and is no preview, though the bar paints it like one.
+    space: view.take.step?.tone === 'still' ? 'from-the-top' : view.folderHeld || view.selectedCue ? view.take.space : null,
     live: [...facts.live],
     allowed: {
       // The dispatcher's Take of a cue also waits for `canTake` (a server cue while the Bridge is down).

@@ -1,6 +1,6 @@
 import type { DropdownChoice } from '@companion-module/base'
 import { PANEL_VERBS, VERB_NAMES, capabilityState, type PanelVerb } from './protocol.js'
-import { SELECTED, clipClock, isAllowed, isOnAir, isSelected, resolveRow, takeDoes } from './view.js'
+import { SELECTED, clipClock, isAllowed, isOnAir, isSelected, resolveRow } from './view.js'
 import { graphicKeyOptions, rowChoices } from './actions.js'
 import type ModuleInstance from './main.js'
 
@@ -88,7 +88,10 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 					default: 'take-off',
 				},
 			],
-			callback: (fb) => takeDoes(self.panel.state, self.panel.rows) === fb.options.does,
+			// The page's own word for the press (`space`, protocol §8), never worked out here from `live`: it
+			// depends on the SPACE mode and on a held folder's step, which only the page knows, and a press
+			// is refused as stale when it changes.
+			callback: (fb) => self.panel.state?.space === fb.options.does,
 		},
 		allowed: {
 			type: 'boolean',

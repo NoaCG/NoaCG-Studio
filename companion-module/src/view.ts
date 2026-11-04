@@ -14,18 +14,6 @@ export function isOnAir(state: PanelState | null, row: string): boolean {
 	return state.live.includes(id) || (id === state.selected && state.space === 'take-off')
 }
 
-/**
- * The page's own word for the press (`space`, protocol §8), never worked out here from `live`: it
- * depends on the SPACE mode and on a held folder's step, which only the page knows, and a press is
- * refused as stale when it changes. A folder is never previewed, so `preview` on one is its
- * One-by-one step going back to the top, where nothing airs.
- */
-export function takeDoes(state: PanelState | null, rows: PanelRows | null): PanelState['space'] | 'from-the-top' {
-	if (!state) return null
-	const onFolder = state.space === 'preview' && rows?.rows.some((r) => r.id === state.selected && r.kind === 'folder')
-	return onFolder ? 'from-the-top' : state.space
-}
-
 export function isSelected(state: PanelState | null, row: string): boolean {
 	return !!state && !!row && state.selected === row
 }

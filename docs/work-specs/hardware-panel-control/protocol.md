@@ -267,7 +267,7 @@ per-second message is needed. The variables tick every 250 ms while a clip runs.
 |---|---|
 | `where` | `production` or `control` |
 | `selected` | the row id PREVIEW and the verbs act on, or null |
-| `space` | what `take` does now: `take`, `take-off` or `preview`; null with nothing selected. On a held folder `preview` is only a One-by-one folder's step back to the top, which airs nothing |
+| `space` | what `take` does now: `take`, `take-off`, `preview`, or `from-the-top` for a One-by-one folder's step back to its first cue, which airs nothing; null with nothing selected. A reader that does not know a value treats it as null |
 | `live` | the cue ids on air now, graphics and server cues |
 | `allowed` | each panel verb's enabled state as the page draws it; `select-cue`, `take-cue` and `trigger-cue` are per row |
 | `blocked` | row ids whose `take-cue` or `trigger-cue` would be refused now |

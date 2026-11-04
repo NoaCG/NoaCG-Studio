@@ -157,8 +157,8 @@ test("what a panel's Take key is told it does (`space`) is what a press of it do
   // Up and with a next cue, the press takes that cue; with everything on air it is refused, greying the key.
   assert.deepEqual(told(step({ kind: 'take', cueId: 'c2', off: ['c1'] }, { up: true, stepped: true })), ['take', true, { do: 'folder-step', folderId: 'F' }]);
   assert.deepEqual(told(step({ kind: 'none' }, { up: true })), ['take', false, { do: 'folder-step', folderId: 'F' }]);
-  // The one `preview` a folder publishes: its step back to the top, which airs nothing.
-  assert.deepEqual(told(step({ kind: 'top', off: [] }, { stepped: true })), ['preview', true, { do: 'folder-step', folderId: 'F' }]);
+  // Its step back to the top, which airs nothing: the bar paints it as a preview, but no panel key may say so.
+  assert.deepEqual(told(step({ kind: 'top', off: [] }, { stepped: true })), ['from-the-top', true, { do: 'folder-step', folderId: 'F' }]);
 });
 
 test('H, All out and a trigger fire once per press, never on a held key', () => {
