@@ -223,6 +223,26 @@ test('an edit made while the failed pull waited is kept as a copy, not overwritt
   assert.ok([...local.held.values()].some((r) => r.body.name === 'made during the wait (conflicted copy)'));
 });
 
+test('a version pulled during a pass is settled: the next local edit pushes, with no conflict', async () => {
+  const engine = syncEngine();
+  const local = memory([graphicAt('g', ago(60), 'old')]);
+  const remote = memory([graphicAt('g', ago(60), 'old')]);
+  await engine.runSync(local, remote);
+  // Another device saves after this pass has started, and the pass still lists and pulls it.
+  const list = remote.list;
+  remote.list = async (kind) => {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    if (kind === 'graphic') remote.held.set('g', graphicAt('g', new Date().toISOString(), 'theirs'));
+    return list(kind);
+  };
+  assert.equal((await engine.runSync(local, remote)).pulled, 1);
+  remote.list = list;
+  local.held.set('g', graphicAt('g', new Date(Date.now() + 1000).toISOString(), 'mine'));
+  const next = await engine.runSync(local, remote);
+  assert.deepEqual({ conflicts: next.conflicts, pushed: next.pushed }, { conflicts: 0, pushed: 1 });
+  assert.equal(remote.held.get('g').body.name, 'mine');
+});
+
 test('a conflict whose winner keeps failing makes no copies until it can be read, then one', async () => {
   const engine = syncEngine();
   const at = (seconds) => new Date(Date.now() + seconds * 1000).toISOString();

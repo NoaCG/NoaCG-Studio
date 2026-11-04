@@ -63,8 +63,10 @@ function answeredFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Re
   };
   return fetch(input, { ...init, signal: limit.signal }).then((response) => {
     clearTimeout(timer);
-    // A Response refuses a body on these statuses, whatever the browser handed over.
-    if (!response.body || [101, 204, 205, 304].includes(response.status)) return response;
+    // A Response refuses a body on these statuses, whatever the browser handed over. An engine
+    // without the stream classes (a CasparCG server's old browser reads through this too) keeps the
+    // limit on the first byte, which beats a dead layer on air.
+    if (!response.body || [101, 204, 205, 304].includes(response.status) || typeof TransformStream !== 'function') return response;
     waitAgain();
     const watched = response.body.pipeThrough(new TransformStream({
       transform(chunk, reader) {

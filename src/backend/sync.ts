@@ -23,7 +23,6 @@
 //     is skipped and the conflict branch is forced again next pass, until the copy materializes.
 //   - pendingPull: keys whose pull failed - the cloud's version is still owed, so a local edit since
 //     then is a true conflict, not a plain last-write-wins push over the other device's work.
-// The bookmark is the moment the pass STARTED, so an edit made while it ran stays newer than it.
 // Conflict copies are applied BEFORE the pulls that overwrite their originals, so a crash or
 // failure mid-pass can never lose the only copy of a user's work.
 //
@@ -195,9 +194,9 @@ const FETCH_BATCH = 20;
 /**
  * The pulls with every SUMMARY replaced by its whole record, fetched a batch at a time so a pass
  * never asks the database for everything at once. This is still READING the remote side, so a
- * failed fetch fails the pass exactly as a failed list() does and the bookmark stays put: a pull
- * that failed after the bookmark moved could lose a remote edit to a later local one by plain
- * last-write-wins. A summary the backend no longer holds has nothing to pull and is dropped.
+ * failed fetch fails the pass exactly as a failed list() does and the bookmark stays put: nothing
+ * has been applied yet, so there is nothing for the bookmark to vouch for. A summary the backend no
+ * longer holds has nothing to pull and is dropped.
  */
 async function withWholeRecords(remote: StorageProvider, pulls: StoredRecord[]): Promise<StoredRecord[]> {
   const byKind = new Map<SyncKind, StoredRecord[]>();
@@ -239,7 +238,6 @@ export async function runSync(
   };
   const meta = loadSyncMeta();
   const arriving = !arrived(meta);
-  const passStart = new Date().toISOString();
   // list() failures DO fail the whole pass: without both sides there is nothing to reconcile, and
   // the bookmark stays put (correct — nothing was applied).
   const localRecs = (await Promise.all(SYNC_KINDS.map((k) => local.list(k)))).flat();
@@ -418,9 +416,15 @@ export async function runSync(
 
   // The pass ran to completion, so the bookmark advances — per-record failures are carried in the
   // pending sets (rebuilt each pass from what actually failed), never by freezing the bookmark.
+  // An edit made while a failed pull waited is older than the bookmark about to be set, and would
+  // read as no edit at all when the owed pull arrives. It is a conflict, so it keeps its copy.
+  for (const r of plan.toLocal) {
+    const key = recordKey(r);
+    if (pendingPull.has(key) && JSON.stringify((await local.get(r.kind, r.id)) ?? undefined) !== original.get(key)) pendingConflict.add(key);
+  }
   sameWorkspace();
   saveSyncMeta({
-    lastSyncedAt: passStart,
+    lastSyncedAt: new Date().toISOString(),
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
     pendingPull: [...pendingPull],

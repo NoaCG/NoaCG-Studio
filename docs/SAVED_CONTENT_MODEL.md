@@ -124,7 +124,7 @@ unconfirmed change is a minute old; a failed write or an expired session reads N
 (playout-workflow-simplification D14). A tab that hears another tab's change returns to Synced
 when that tab's pass confirms it, and a pass that only re-checks (a window regaining focus) does
 not announce itself. A team production's header wears the same chip for its own save, and reads
-Not synced as well with its session or network gone or its last read failed. Amber always says why
+Not synced as well with its session gone, a minute off the network or its last read failed. Amber always says why
 and has its retry live, and the shared client ends a request the cloud leaves unanswered for 75 s
 so that the retry can run. Authentication expiry flushes pending
 authoring work, preserves the account library and pauses account editing. Playout transport
