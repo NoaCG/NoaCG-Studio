@@ -143,7 +143,7 @@ const WALK = async ({ markup, target, wall, driven, script }) => {
 };
 
 /** The template's readers, which import the type registry and so run in the bundle. */
-let clockTargetStart, clockReadout, CLOCK_PICKER_MODES, t10;
+let clockTargetStart, clockReadout, CLOCK_PICKER_MODES, t10, foldOnFinish;
 
 const walk = await withBundledPage(SPECS, async (page) => {
   await installDrivenPage(page);
@@ -177,6 +177,35 @@ const walk = await withBundledPage(SPECS, async (page) => {
       none: at(undefined, true, now) ?? null,
     };
   }, { now: 1793539230000 });
+  // #1898 through the draft's own readers: an undated 03:30 proposed on the eve of the fall-back
+  // night, reaching Finish after it passed. The draft is the drop's, with the clock on its time layer.
+  foldOnFinish = await page.evaluate(({ markup }) => {
+    const { NOACG_SVG: R, NOACG_DRAFT: D, NOACG_CONTRACT: C } = window;
+    const drop = window.__importDraft(R.importSvgMarkup(markup));
+    const row = drop.svgFields.find((f) => f.on && f.clock);
+    const clock = { candidateId: row.candidateId, mode: 'target-time', revision: C.svgSourceRevision(drop.designSvg.markup), target: '2026-10-24T03:30:00+03:00[Europe/Helsinki]', targetProposed: true };
+    const draft = (c) => ({ ...drop, svgClock: c });
+    const fold = (c, when) => { const f = D.svgClockFold(draft(c), when); return f && { earlier: f.earlier, later: f.later }; };
+    const built = Date.parse('2026-10-24T01:00:00Z'); // 04:00 on the eve, the stored instant gone
+    const asked = D.svgClockFold(draft(clock), built);
+    const answer = (at, when = built) => D.svgClockWithFold(clock, at, when);
+    const earlier = answer(asked.earlier);
+    const later = answer(asked.later);
+    return {
+      asked: fold(clock, built),
+      ahead: fold(clock, Date.parse('2026-10-24T00:10:00Z')),
+      dated: fold({ ...clock, targetProposed: undefined }, built),
+      countUp: fold({ ...clock, mode: 'count-up' }, built),
+      otherArtwork: fold({ ...clock, revision: 'another' }, built),
+      plainNight: fold({ ...clock, target: '2026-10-23T03:30:00+03:00[Europe/Helsinki]' }, Date.parse('2026-10-23T01:00:00Z')),
+      earlier: earlier && { target: earlier.target, proposed: earlier.targetProposed, again: fold(earlier, built), builds: D.svgClockOption(draft(earlier), built)?.target },
+      later: later && { target: later.target, again: fold(later, built), builds: D.svgClockOption(draft(later), built)?.target },
+      stale: answer(Date.parse('2026-10-24T00:30:00Z')),
+      // The earlier one went by before the answer: nothing is swapped for the later one.
+      gone: answer(asked.earlier, Date.parse('2026-10-25T00:45:00Z')),
+      goneAsked: fold(clock, Date.parse('2026-10-25T00:45:00Z')),
+    };
+  }, { markup: SCORE_CLOCK });
   return page.evaluate(WALK, {
     markup: SCORE_CLOCK,
     target: TARGET,
@@ -315,6 +344,22 @@ test('T10: an undated target moves to its next occurrence once behind the build;
   assert.equal(t10.dated, '2026-11-01T16:00:00+02:00[Europe/Helsinki]');
   assert.equal(t10.fold, '2026-10-24T03:30:00+03:00[Europe/Helsinki]', 'no silent choice of a fold');
   assert.equal(t10.none, null);
+});
+
+test('#1898: an undated target that passed into a fold is asked again on Finish, and the answer is kept', () => {
+  const f = foldOnFinish;
+  // Both repeats of 03:30 on 2026-10-25, still ahead when Finish is reached.
+  assert.deepEqual(f.asked, { earlier: Date.parse('2026-10-25T00:30:00Z'), later: Date.parse('2026-10-25T01:30:00Z') });
+  assert.equal(f.ahead, null, 'not asked while the stored instant is still ahead');
+  assert.equal(f.dated, null, 'a dated target is fixed (T2), never asked');
+  assert.equal(f.countUp, null);
+  assert.equal(f.otherArtwork, null, 'no clock on other artwork, so nothing to ask');
+  assert.equal(f.plainNight, null, 'a night without a fold moves on by itself (T10)');
+  assert.deepEqual(f.earlier, { target: '2026-10-25T03:30:00+03:00[Europe/Helsinki]', proposed: true, again: null, builds: '2026-10-25T03:30:00+03:00[Europe/Helsinki]' });
+  assert.deepEqual(f.later, { target: '2026-10-25T03:30:00+02:00[Europe/Helsinki]', again: null, builds: '2026-10-25T03:30:00+02:00[Europe/Helsinki]' });
+  assert.equal(f.stale, null, 'an instant that was not offered is no answer');
+  assert.equal(f.gone, null, 'an answer whose instant has gone is never swapped for the other');
+  assert.equal(f.goneAsked, null, 'once the first has gone the next occurrence is the repeat alone (T1), so nothing is asked');
 });
 
 test('T5: the stored form round-trips the instant and the zone', () => {

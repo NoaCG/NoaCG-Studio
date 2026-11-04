@@ -48,6 +48,7 @@ import {
   type FillPick,
 } from './fieldAutoMap';
 import { measureLayers } from './stageMeasure';
+import { ClockFoldPick, targetFormat } from './ClockFold';
 import { CREDITS_CARD_SECONDS } from '../../../templates/behaviours/credits';
 import { CREDITS_RENDERED, creditsPreview, type CreditsListItem, type CreditsPreview } from '../../../templates/importedDesign/creditsRoll';
 import type { DesignSvgCredits } from '../../../model/wizard';
@@ -1622,10 +1623,6 @@ function timeZones(...own: string[]): string[] {
   return [...new Set([...own, ...RUNTIME_ZONES])];
 }
 
-/** An instant as the target's line names it, in `zone`. */
-function targetFormat(zone: string): Intl.DateTimeFormat {
-  return new Intl.DateTimeFormat(undefined, { timeZone: zone, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
-}
 
 /** What the line under the fields says for a target that does not resolve. */
 const TARGET_UNRESOLVED: Record<'gap' | 'time' | 'date' | 'zone', string> = {
@@ -1704,18 +1701,7 @@ function ClockTargetFields({ target, proposed, onTarget }: { target?: string; pr
           ))}
         </select>
       </label>
-      {fold && (
-        <label className="save-field grow">
-          <span>Which one</span>
-          <select value="" onChange={(e) => apply({ fold: e.target.value as 'earlier' | 'later' })} data-testid="map-svg-clock-target-fold">
-            <option value="" disabled>
-              The clocks go back: choose
-            </option>
-            <option value="earlier">{format.format(fold.earlier)}</option>
-            <option value="later">{format.format(fold.later)}</option>
-          </select>
-        </label>
-      )}
+      {fold && <ClockFoldPick fold={fold} format={format} onPick={(which) => apply({ fold: which })} testId="map-svg-clock-target-fold" />}
       {reads && (
         <p className="map-svg-note" data-testid="map-svg-clock-target-reads">
           {reads}

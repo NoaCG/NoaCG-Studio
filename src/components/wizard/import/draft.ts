@@ -27,7 +27,7 @@ import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from
 import { recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_MODES, CLOCK_NAME, CLOCK_TIME } from '../../../templates/behaviours/clock';
 import { quizHasNoLock } from '../../../templates/behaviours/quiz';
-import { formatClockTarget, parseClockTarget, resolveClockTarget } from '../../../control/clockTarget';
+import { formatClockTarget, parseClockTarget, resolveClockTarget, type ClockTargetResolution } from '../../../control/clockTarget';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
 import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
 import { validateSvgProposal } from '../../../ai/svgInterpretation/validate';
@@ -1269,7 +1269,8 @@ export function svgSavedOver(name: string): SpxTemplate | null {
  * one stays expired). An undated one (the first proposal, or a time typed alone: `targetProposed`)
  * is a wall time until the graphic is built: once its stored instant is behind `now`, it moves to
  * the next occurrence. One the clocks skip or repeat by then keeps its stored instant (T4: no
- * silent choice), which the import step shows as past.
+ * silent choice), which the import step shows as past; a repeat is asked again on Finish
+ * (`svgClockFold`), and no door builds until it is answered.
  */
 export function svgClockTarget(clock: Pick<SvgClockDraft, 'target' | 'targetProposed'>, now: number): string | undefined {
   const stored = parseClockTarget(clock.target);
@@ -1288,6 +1289,45 @@ export function svgClockOption(draft: SvgImportDraft, now: number = Date.now()):
   const option: DesignSvgClock = { kind: 'clock', name: CLOCK_NAME, field: clock.candidateId, mode: clock.mode };
   const target = clock.mode === 'target-time' ? svgClockTarget(clock, now) : undefined;
   return target ? { ...option, target } : option;
+}
+
+/** The undated target's stored wall time, for a clock that counts to one; or null. */
+function undatedTarget(draft: SvgImportDraft): ReturnType<typeof parseClockTarget> {
+  const clock = draft.svgClock;
+  return clock?.mode === 'target-time' && clock.targetProposed ? parseClockTarget(clock.target) : null;
+}
+
+/** #1898: the DST fold an UNDATED target has passed into by `now`: its stored instant is gone and
+ *  the next occurrence of its wall time happens twice. Finish asks which (owner: never pick one
+ *  silently, never build the passed instant), so this is null for any other clock. */
+export function svgClockFold(draft: SvgImportDraft, now: number): Extract<ClockTargetResolution, { kind: 'fold' }> | null {
+  const stored = undatedTarget(draft);
+  if (!stored || stored.at > now || !svgClockOption(draft, now)) return null;
+  const r = resolveClockTarget({ time: stored.time, zone: stored.zone }, now);
+  return r.kind === 'fold' ? r : null;
+}
+
+/** The next moment `svgClockFold` can change its answer after `now`: when the stored instant
+ *  passes, or, while asked, when the earlier of the two has gone and the repeat is the next
+ *  occurrence (T1). Null when nothing will change. */
+export function svgClockFoldWake(draft: SvgImportDraft, now: number): number | null {
+  const stored = undatedTarget(draft);
+  if (!stored) return null;
+  if (stored.at > now) return stored.at;
+  return svgClockFold(draft, now)?.earlier ?? null;
+}
+
+/** The clock with a fold answered, still undated as the import step stores it. Null unless the
+ *  chosen instant is still one of the two offered and still ahead: an answer is never swapped for
+ *  the other. Like any undated target it is a wall time, so once the earlier one has gone its
+ *  next occurrence is the repeat (T1), as on the import step. */
+export function svgClockWithFold(clock: SvgClockDraft, at: number, now: number): SvgClockDraft | null {
+  const stored = parseClockTarget(clock.target);
+  if (!stored) return null;
+  const fold = resolveClockTarget({ time: stored.time, zone: stored.zone }, now);
+  if (fold.kind !== 'fold' || (at !== fold.earlier && at !== fold.later)) return null;
+  const r = resolveClockTarget({ time: stored.time, zone: stored.zone, fold: at === fold.earlier ? 'earlier' : 'later' }, now);
+  return r.kind === 'resolved' && !r.expired ? { ...clock, target: formatClockTarget(r), targetProposed: r.proposed } : null;
 }
 
 /** One line saying what the graphic DOES, for the Finish step and the mapping step's summary. */

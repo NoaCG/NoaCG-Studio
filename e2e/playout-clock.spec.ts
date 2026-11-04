@@ -710,3 +710,41 @@ test('editing a target time: a time the clocks skip asks for another and says wh
   await expect(reads).toContainText('The clocks skip that time. Choose another.');
   await expect(reads).toContainText(/still counts to .*2031.*(19[:.]00|7[:.]00)/);
 });
+
+test('an undated target that passes into a DST fold before Finish is asked there, and no door builds until it is answered (#1898)', async ({ page }) => {
+  // 03:10 summer time in Helsinki on the eve of the fall-back night: 03:30 typed alone is today's.
+  await page.clock.install({ time: new Date('2026-10-24T00:10:00Z') });
+  await page.goto('/app');
+  await dropSvg(page, SCORE_CLOCK_SVG);
+  await page.getByTestId('map-svg-clock-mode').selectOption('target-time');
+  await page.getByTestId('map-svg-clock-target-zone').selectOption('Europe/Helsinki');
+  await page.getByTestId('map-svg-clock-target-time').fill('03:30');
+  await expect(page.getByTestId('map-svg-clock-target-reads')).toContainText('2026');
+  await page.getByTestId('wz-skip-to-finish').click();
+  const fold = page.getByTestId('wz-finish-clock-fold');
+  const exportDoor = page.getByTestId('wz-finish-export');
+  // Still ahead: nothing to ask.
+  await expect(exportDoor).toBeEnabled();
+  await expect(fold).toHaveCount(0);
+  // It passes while Finish is open; its next occurrence, tomorrow's 03:30, happens twice.
+  await page.clock.fastForward('30:00');
+  await expect(fold).toBeVisible();
+  await expect(fold).toContainText('Which one');
+  await expect(fold.getByTestId('wz-finish-clock-fold-pick').locator('option:not([disabled])')).toHaveCount(2);
+  await expect(exportDoor).toBeDisabled();
+  await expect(page.getByTestId('wz-finish-production-go')).toBeDisabled();
+  // The second one (winter time) is chosen, and the graphic is built counting to it.
+  await fold.getByTestId('wz-finish-clock-fold-pick').selectOption('later');
+  await expect(fold).toHaveCount(0);
+  await expect(exportDoor).toBeEnabled();
+  await exportDoor.click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  const built = await evaluateInPage(page, async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { clockTargetStart } = await import('/src/templates/behaviours/clock.ts');
+    const doc = new DOMParser().parseFromString(useTemplateStore.getState().template.html, 'text/html');
+    return { start: doc.querySelector('.imported-design-clock')?.getAttribute('data-start'), later: clockTargetStart('2026-10-25T03:30:00+02:00[Europe/Helsinki]') };
+  });
+  expect(built.later).toBeTruthy();
+  expect(built.start).toBe(built.later);
+});

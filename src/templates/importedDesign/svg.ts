@@ -205,7 +205,25 @@ function importedClockJs(duration: boolean): string {
 // carries the snap (svgPaintLines), and the match clock's paint replaces the whole text every
 // second, which would drop the line back to its drawn baseline. So the paint is wrapped: the
 // new time goes into that same tspan, and the fit's size and squeeze on the layer stay as set.
+// A TIME THAT GROWS WIDER THAN THE FIT MEASURED IS FITTED AGAIN (#1884): a count-up at 10:00 or
+// 1:00:00, or any tick whose figures are wider in a proportional face. The width the fit leaves is
+// recorded each time it runs, and a tick that paints wider runs it once more; a narrower time
+// already fits, so no other tick fits anything. A paint inside update() leaves it to update()'s
+// own fit, which runs straight after.
 var importedClockMatchPaint = paintMatchClock;
+var importedClockFitted = -1;     // the time's width when the fit last ran, or -1 before it has
+var importedClockUpdating = false;
+function importedClockWidth(el) {
+  try { return el.getBBox().width; } catch (e) { return -1; }   // not rendered: nothing to measure
+}
+if (typeof fitSvgText === 'function') {
+  var importedClockFit = fitSvgText;
+  fitSvgText = function () {
+    importedClockFit.apply(this, arguments);
+    var el = matchClockEl();
+    if (el) importedClockFitted = importedClockWidth(el);
+  };
+}
 paintMatchClock = function () {
   var el = matchClockEl();
   var line = el && el.children.length === 1 && el.firstElementChild.tagName === 'tspan' ? el.firstElementChild : null;
@@ -215,6 +233,8 @@ paintMatchClock = function () {
     el.textContent = '';
     el.appendChild(line);
   }
+  if (!el || importedClockUpdating || importedClockFitted < 0) return;   // -1 too where no fit is emitted
+  if (importedClockWidth(el) > importedClockFitted + 0.5) fitSvgText();
 };
 
 // importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
@@ -223,7 +243,8 @@ var importedClockTakeAt = null;   // the origin the wire last stamped, for the n
 ` : ''}function importedClockUpdate(fields) {
   var el = matchClockEl();
   if (!el || !fields || !Object.prototype.hasOwnProperty.call(fields, el.id)) return;
-  matchClockUpdate(el.id, fields[el.id]);
+  importedClockUpdating = true;
+  try { matchClockUpdate(el.id, fields[el.id]); } finally { importedClockUpdating = false; }
 ${duration ? `  // A duration's length is a time the operator typed while the graphic was off air.
   var value = String(fields[el.id] == null ? '' : fields[el.id]).trim();
   if (value === importedClockLast) return;
