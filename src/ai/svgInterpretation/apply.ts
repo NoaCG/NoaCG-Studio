@@ -94,11 +94,13 @@ export const SVG_RECIPE_ROLES: Readonly<Record<string, SvgRecipeRoles>> = Object
   }]));
 
 /** A2: what today's draft can hold. One behaviour, so only full recipes; the countdown field;
- *  the quiz's existing Lock and reveal options. */
+ *  the quiz's Lock (required, or none at all: `noLock`) and reveal options. No lock with an
+ *  automatic reveal stays refused by the contract (`SVG_UNSUPPORTED_INTENT`). */
 export const SVG_DRAFT_CAPABILITIES: readonly string[] = [
   ...BEHAVIOUR_RECIPES.filter((r) => !r.instanced).map((r) => r.id),
   COUNTDOWN_CAPABILITY,
   intentCapability('quiz', 'lock', 'lock'),
+  intentCapability('quiz', 'lock', 'no-lock'),
   intentCapability('quiz', 'reveal', 'manual'),
   intentCapability('quiz', 'reveal', 'automatic'),
 ];

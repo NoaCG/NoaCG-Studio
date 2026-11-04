@@ -145,6 +145,39 @@ const RULES = ({ LOWER_THIRD, SCORE, QUIZ, TIMER, TWO_CLOCKS, POLL }) => {
     for (const k of Object.keys(out.capability)) out.capability[k] = out.capability[k].ok ? 'accepted' : out.capability[k].errors.map((e) => e.code).join(',');
   }
 
+  // #1917: the true no-Lock quiz is proposed, reported and round-tripped through the draft.
+  {
+    const draft = drop(QUIZ);
+    const p = base(QUIZ);
+    const quiz = p.components[0];
+    const withIntent = (intent) => ({ ...p, components: [{ ...quiz, intent: { ...quiz.intent, ...intent } }] });
+    const proposed = apply(draft, withIntent({ lock: 'no-lock', reveal: 'manual' }));
+    const report = (d) => D.svgProposalOfDraft(d).proposal.components[0].intent;
+    // The author ticks No lock as the step does: the draft reports it.
+    const ticked = { ...draft, svgBehaviour: { ...draft.svgBehaviour, options: { lock: false, noLock: true } } };
+    const tickedReport = report(ticked);
+    // A proposal replacing an untouched no-Lock behaviour keeps it: the reference IS the no-Lock board.
+    const asReference = { ...proposed.next, ...proposed.patch };
+    const replaced = apply(asReference, withIntent({ lock: 'no-lock', reveal: 'default' }));
+    const automatic = apply(draft, withIntent({ lock: 'no-lock', reveal: 'automatic' }));
+    // The author's ticked No lock stays when a proposal asks for a Lock.
+    const kept = apply(ticked, withIntent({ lock: 'lock', reveal: 'manual' }));
+    const summary = (d) => D.behaviourSummary(d).split(' · ')[1];
+    const plainLock = { ...proposed.next, svgBehaviour: { ...proposed.next.svgBehaviour, options: { lock: false } } };
+    out.noLock = {
+      options: proposed.next.svgBehaviour.options,
+      report: report(proposed.next),
+      again: JSON.stringify(apply(proposed.next, D.svgProposalOfDraft(proposed.next).proposal).patch) === JSON.stringify(proposed.patch),
+      gate: build(proposed.next).gate,
+      tickedReport,
+      roundTrip: (() => { const r = apply(ticked, D.svgProposalOfDraft(ticked).proposal); return [r.ok, r.ok && r.next.svgBehaviour.options, r.ok && r.kept]; })(),
+      replaced: [replaced.ok, replaced.next.svgBehaviour.options],
+      automatic: automatic.ok ? 'accepted' : automatic.errors.map((e) => `${e.code} ${e.at}`),
+      kept: [kept.next.svgBehaviour.options, kept.kept],
+      summary: [summary(proposed.next), summary(plainLock)],
+    };
+  }
+
   // A4, A3: per value, corrections win; untouched values take the proposal's; a later proposal
   // replaces an earlier proposal's value but never the author's.
   {
@@ -409,7 +442,23 @@ test('A1 AC-4: an invalid, stale, conflicting or injected proposal is refused wh
 });
 
 test('A2: only what the draft can hold; a second full recipe meets the one-full-recipe guard', () => {
-  assert.deepEqual(rules.capability, { noLock: 'unsupported-capability', two: 'conflicting-ownership', clock: 'unsupported-capability,unsupported-capability' });
+  assert.deepEqual(rules.capability, { noLock: 'accepted', two: 'conflicting-ownership', clock: 'unsupported-capability,unsupported-capability' });
+});
+
+test('#1917: the true no-Lock quiz is proposed, reported and round-tripped, never with an automatic reveal', () => {
+  const n = rules.noLock;
+  assert.deepEqual(n.options, { lock: false, noLock: true, autoReveal: false }, 'no-lock is written as the step writes it');
+  assert.deepEqual(n.report, { lock: 'no-lock', reveal: 'manual' }, 'and read back as no-lock');
+  assert.equal(n.again, true, 'its own proposal applies to no change');
+  assert.deepEqual(n.gate, []);
+  assert.deepEqual(n.tickedReport, { lock: 'no-lock', reveal: 'default' }, 'a ticked No lock reports no-lock, not default');
+  assert.deepEqual(n.roundTrip, [true, { lock: false, noLock: true }, []]);
+  assert.deepEqual(n.replaced, [true, { lock: false, noLock: true }], 'a proposal replacing the behaviour keeps noLock');
+  assert.deepEqual(n.automatic, ['unsupported-capability components[0].intent'], 'no lock with an automatic reveal stays refused');
+  assert.deepEqual(n.kept, [{ lock: false, noLock: true }, ['behaviour']], "the author's No lock wins");
+  const [noLock, lock] = n.summary;
+  assert.equal(noLock, '3 of 9 moments drawn, the rest use NoaCG’s own look', 'a three-answer no-Lock board has no Locked in moment');
+  assert.equal(lock, '3 of 10 moments drawn, the rest use NoaCG’s own look');
 });
 
 test('A3 A4: corrections win per value, and a later proposal replaces an earlier one only', () => {
