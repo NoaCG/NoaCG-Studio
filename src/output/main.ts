@@ -852,11 +852,11 @@ async function boot(): Promise<void> {
     const row = { graphic, msg: incoming, created_at: createdAt };
     // A DURATION THIS RENDERER HOLDS NOTHING FOR, AND DOES NOT SHOW, HAS NEVER BEEN TAKEN (#1903): it
     // holds its start time off air, so a time typed before the first Take is that Take's length.
-    const clockHere = clockSpecs.get(graphic);
-    if (clockHere) {
-      const before = mergedData.get(graphic)?.[clockHere.field];
-      const first = clockHeldBeforeRow(clockHere, before, onAirHere(graphic));
-      if (first !== undefined && first !== before) mergedData.set(graphic, { ...mergedData.get(graphic), [clockHere.field]: first });
+    const clock = clockSpecs.get(graphic);
+    if (clock) {
+      const before = mergedData.get(graphic)?.[clock.field];
+      const first = clockHeldBeforeRow(clock, before, onAirHere(graphic));
+      if (first !== undefined && first !== before) mergedData.set(graphic, { ...mergedData.get(graphic), [clock.field]: first });
     }
     // `let`, because an update row's CLOCK fields are forwarded as this renderer HOLDS them
     // rather than as the row carried them — see the rewrite in the update branch below.
@@ -865,7 +865,6 @@ async function boot(): Promise<void> {
       const merged = { ...mergedData.get(row.graphic), ...msg.data };
       // …except the CLOCK fields, which are not ordinary values: a resend of the cue's plain
       // time must not erase the origin this renderer stamped onto it (clockValueAfterUpdate).
-      const held = clockSpecs.get(row.graphic);
       const prior = mergedData.get(row.graphic);
       const data = msg.data;
       const clockFields: string[] = [];
@@ -874,7 +873,7 @@ async function boot(): Promise<void> {
         if (data[field] === undefined) return;
         merged[field] = clockValueAfterUpdate(prior?.[field], data[field]);
       };
-      if (held) keepOrigin(held.field);
+      if (clock) keepOrigin(clock.field);
       // Both speaking clocks, for the same reason and by the same rule: the cue stores the plain
       // allowance forever, so every Take mid-debate re-sends "05:00" over a running speech.
       const pair = speakingClocks.get(row.graphic);
@@ -903,7 +902,6 @@ async function boot(): Promise<void> {
       liveGraphics.delete(row.graphic);
       commanded.add(row.graphic);
     }
-    const clock = clockSpecs.get(row.graphic);
     const speaking = speakingClocks.get(row.graphic);
     // A graphic carries one kind of clock or the other, never both: the match clock is read from
     // `.<prefix>-clock` and the speaking pair from `data-speaking`, and no design draws both.

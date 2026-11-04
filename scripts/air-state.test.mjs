@@ -19,6 +19,7 @@ import {
   rememberAired,
   restoreItems,
   seedFromResolve,
+  seedOffAirClocks,
   offAirClockGraphics,
   withReports,
 } from '../src/control/airState.ts';
@@ -547,12 +548,12 @@ test('a reloaded monitor counts what air counts on the next Take of an off-air c
     const log = [...c.before, ...c.after];
     const rows = monitorReplay(graphics, snapshotAt, log);
     assert.equal(rows.length, c.after.length, `${name}: only the rows after the report`);
-    const seeded = seedFromResolve(NO_AIR, resolved, [], airAtRequest(NO_AIR), CUES, specs, { graphics, rows });
+    const seeded = seedOffAirClocks(NO_AIR, resolved, { graphics, rows }, airAtRequest(NO_AIR), specs, T);
     const monitor = programItems(seeded, c.next, specs, T).air.clocks.bug;
     assert.equal(monitor, onAir, `${name}: the monitor's next Take counts what air counts`);
     // Without the rows after the report (the withdrawn row 11 fix), or without any reseed (before),
     // the monitor would count something else: the case reaches the fault.
-    const reportOnly = programItems(seedFromResolve(NO_AIR, resolved, [], airAtRequest(NO_AIR), CUES, specs, { graphics, rows: [] }), c.next, specs, T).air.clocks.bug;
+    const reportOnly = programItems(seedOffAirClocks(NO_AIR, resolved, { graphics, rows: [] }, airAtRequest(NO_AIR), specs, T), c.next, specs, T).air.clocks.bug;
     const unseeded = programItems(NO_AIR, c.next, specs, T).air.clocks.bug;
     assert.ok(reportOnly !== onAir || unseeded !== onAir, `${name}: the case tells the fix from the faults (${reportOnly}, ${unseeded} vs ${onAir})`);
   }
@@ -565,11 +566,11 @@ test('an off-air clock is not rebuilt over a command applied while the resolve w
   const asked = airAtRequest(NO_AIR);
   // A command applied meanwhile is newer than the rows: the page keeps its own memory.
   const moved = programItems({ ...NO_AIR, commands: 1 }, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:50' } } }], specs, T).air;
-  assert.equal(seedFromResolve(moved, resolved, [], asked, CUES, specs, { graphics, rows: [] }).clocks.bug, moved.clocks.bug);
+  assert.equal(seedOffAirClocks(moved, resolved, { graphics, rows: [] }, asked, specs, T).clocks.bug, moved.clocks.bug);
   // No report: nothing to rebuild from.
   assert.deepEqual(offAirClockGraphics({ liveCue: {}, live: {} }, specs), []);
-  // The read did not reach the head (null): no reseed from a report the rows may contradict.
-  assert.equal('bug' in seedFromResolve(NO_AIR, resolved, [], asked, CUES, specs, null).clocks, false);
+  // The read did not answer for it (not read to the head): no reseed from a report the rows may contradict.
+  assert.equal('bug' in seedOffAirClocks(NO_AIR, resolved, { graphics: [], rows: [] }, asked, specs, T).clocks, false);
   // A clock on air is the on-air seed's, not this one's.
   assert.deepEqual(offAirClockGraphics({ liveCue: { bug: 'c1' }, live: resolved.live }, specs), []);
 });

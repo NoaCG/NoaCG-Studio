@@ -94,7 +94,7 @@ import { styleContextFor } from '../control/cueStyle';
 import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
 import HostedCueAdjust from './control/HostedCueAdjust';
 import { isBackendConfigured } from '../backend/config';
-import { fastEventGraphics as clockFreeGraphics, needsServerInstant, serverInstantClocks } from '../control/matchClockWire';
+import { clockSpecFromHtml, fastEventGraphics as clockFreeGraphics, needsServerInstant, plainClockValue, serverInstantClocks } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -414,7 +414,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           (aired, item) => airedAfter(aired, item.graphic, item.msg),
           Object.fromEntries(
             Object.entries(resolved.live)
-              .map(([graphic, report]) => [graphic, report?.data ?? {}] as const)
+              .map(([graphic, report]) => [graphic, plainClockOf(resolved.output?.graphics ?? [], graphic, report?.data ?? {})] as const)
               .filter(([, data]) => Object.keys(data).length > 0),
           ) as AiredMap,
         ),
@@ -2612,4 +2612,13 @@ function HostedCueEditor({
   ) : (
     editor
   );
+}
+
+/** A report's values as the cue holds them: a match clock's report is its wire value (its origin,
+ *  length and what the cue last sent; #1889), the cue the plain time it was typed with, so the
+ *  unsent baseline takes the plain time, as the production page's seed does (airState.ts). */
+function plainClockOf(graphics: readonly { key: string; html: string }[], graphic: string, data: Record<string, string>): Record<string, string> {
+  const html = graphics.find((g) => g.key === graphic)?.html;
+  const clock = html ? clockSpecFromHtml(html) : null;
+  return clock && data[clock.field] !== undefined ? { ...data, [clock.field]: plainClockValue(data[clock.field]) } : data;
 }

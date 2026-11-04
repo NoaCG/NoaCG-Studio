@@ -53,7 +53,7 @@ import {
   type SeqSession,
 } from './seqSend';
 import { fieldDescriptors, type ControlMessage } from './controlModel';
-import { createLogFollower } from './logFollow';
+import { CONTROL_TAIL_PAGE, createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 import { SHEET_LEASE_MS, initialStatus, type SheetLeaseDoor, type SheetReadState, type SheetStatus } from './sheetSource';
 import { preparedCue, type JsonObject } from '../model/productionData';
@@ -2309,21 +2309,44 @@ export interface ClockReplay {
  * THE ROWS AFTER AN OFF-AIR CLOCK'S REPORT (#1906). The PROGRAM monitor keeps a clock's value
  * through an Out, as every output does, so a reload has to rebuild it for a graphic that is off
  * air too: from its renderer's last report, and the rows after that report, because a report can
- * be older than an Out and an off-air edit. Read apart from `bootMonitorReplay`, so an old report
- * here never makes the on-air layers' read too long to finish. Only graphics whose report carries
- * a baseline are answered for; null when the read did not reach the head, and then none is.
+ * be older than an Out and an off-air edit. Each graphic is read on its own (`control_tail` for
+ * that graphic, from its own baseline), so an old report of one clock never stops another being
+ * rebuilt, and none of this touches the on-air layers' read (`bootMonitorReplay`). A graphic whose
+ * report carries no baseline, or whose rows were not read to the head, is left out.
  */
 export async function bootClockReplay(
   slug: string,
   resolved: Pick<ResolvedControlShow, 'live' | 'lastEventId'>,
   offAir: readonly string[],
-): Promise<ClockReplay | null> {
-  const { followFrom, snapshotAt } = planOutputRecovery(offAir, resolved.live);
-  const graphics = offAir.filter((graphic) => snapshotAt.has(graphic));
-  if (graphics.length === 0) return null;
-  if (followFrom >= resolved.lastEventId) return { graphics, rows: [] };
-  const rows = await hostedControlRange(slug, followFrom, resolved.lastEventId);
-  return rows ? { graphics, rows: monitorReplay(graphics, snapshotAt, rows) } : null;
+): Promise<ClockReplay> {
+  const { snapshotAt } = planOutputRecovery(offAir, resolved.live);
+  const read = await Promise.all(
+    [...snapshotAt].map(async ([graphic, after]) => ({ graphic, rows: await graphicRows(slug, graphic, after, resolved.lastEventId) })),
+  );
+  const done = read.filter((r): r is { graphic: string; rows: ControlEventRow[] } => r.rows !== null);
+  return {
+    graphics: done.map((r) => r.graphic),
+    rows: monitorReplay(done.map((r) => r.graphic), snapshotAt, done.flatMap((r) => r.rows)),
+  };
+}
+
+/** One graphic's rows after `after`, up to `upTo`, paged; null when a page failed or the walk did
+ *  not reach `upTo` in `maxPages`. A short page is the end of that graphic's rows. */
+async function graphicRows(slug: string, graphic: string, after: number, upTo: number, maxPages = 4): Promise<ControlEventRow[] | null> {
+  const sb = await getSupabase();
+  if (!sb) return null;
+  const rows: ControlEventRow[] = [];
+  let from = after;
+  for (let page = 0; page < maxPages; page += 1) {
+    if (from >= upTo) return rows;
+    const { data, error } = await sb.rpc('control_tail', { p_slug: slug, p_graphic: graphic, p_after: from });
+    if (error) return null;
+    const got = (data ?? []) as ControlEventRow[];
+    for (const row of got) if (row.id <= upTo) rows.push(row);
+    if (got.length < CONTROL_TAIL_PAGE) return rows;
+    from = got[got.length - 1].id;
+  }
+  return from >= upTo ? rows : null;
 }
 
 /**

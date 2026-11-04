@@ -42,7 +42,7 @@ import type {
   untilAnswered,
 } from './hostedControl';
 import type { PlayoutSession } from './playoutSession';
-import { airAtRequest, forgetBootReplay, logged, offAirClockGraphics, seedFromResolve, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
+import { airAtRequest, forgetBootReplay, logged, offAirClockGraphics, seedFromResolve, seedOffAirClocks, withReports, type AirAtRequest, type AppendLog, type ClockSpecs } from './airState.ts';
 import { writeArms } from './cueArmEngine.ts';
 import { handoverPingId } from './prepareLive.ts';
 
@@ -150,15 +150,21 @@ export function startSessionWire(session: PlayoutSession, io: SessionWireIo, ada
     // The reports must be in hand before the seed commits and the boot recovery fires.
     session.apply((parts) => ({ ...parts, air: withReports(parts.air, resolved.live) }));
     // …and the rows after each report (a report trails its graphic's last change by 800 ms).
-    // …and, read apart, the rows after each off-air clock's report, which the monitor keeps through
-    // an Out as every output does (#1906).
-    const [sinceReports, offAirClocks] = await Promise.all([
-      io.bootMonitorReplay(slug, resolved),
-      io.bootClockReplay(slug, resolved, offAirClockGraphics(resolved, page().clocks())),
-    ]);
+    const sinceReports = await io.bootMonitorReplay(slug, resolved);
     if (!live()) return;
     const p = page();
-    session.apply((parts) => ({ ...parts, air: seedFromResolve(parts.air, resolved, sinceReports, at, p.cues(), p.clocks(), offAirClocks) }));
+    session.apply((parts) => ({ ...parts, air: seedFromResolve(parts.air, resolved, sinceReports, at, p.cues(), p.clocks()) }));
+    // …then, read apart so the seed above never waits for it, each off-air clock's report and the
+    // rows after it: the monitor keeps a clock through an Out, as every output does (#1906).
+    const offAir = offAirClockGraphics(resolved, p.clocks());
+    if (offAir.length > 0) {
+      void io.bootClockReplay(slug, resolved, offAir).then(
+        (replay) => {
+          if (live()) session.apply((parts) => ({ ...parts, air: seedOffAirClocks(parts.air, resolved, replay, at, page().clocks(), Date.now()) }));
+        },
+        () => {},
+      );
+    }
     p.recovered(resolved);
     // TIMED CUES, published: only on the numbered log, whose seq orders the arm rows.
     if (resolved.seq) {

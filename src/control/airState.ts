@@ -305,7 +305,6 @@ export function seedFromResolve(
   at: AirAtRequest,
   cues: readonly { id: string; values: Record<string, string> }[],
   specs: ClockSpecs,
-  offAirClocks: ClockReplay | null = null,
 ): AirPart {
   if (air.moves !== at.moves) return air;
   const replay = air.commands === at.commands ? [...sinceReports] : [];
@@ -347,20 +346,6 @@ export function seedFromResolve(
     }
     // Nothing to seed from (no report, no cue values): the record stays whole, moved fields and all.
     if (Object.keys(values).length > 0) seed[graphic] = { ...values, ...moved };
-  }
-  // THE CLOCKS OFF AIR (#1906, phase-11 M1-M3): the monitor keeps a clock through an Out, as every
-  // output does, so its next Take counts what air counts. Each is its renderer's report folded
-  // through the rows after it, as the renderer folds them; none when a command was applied since the
-  // request (newer than these rows), when the rows were not read to the head, or with no report.
-  if (offAirClocks && air.commands === at.commands) {
-    for (const graphic of offAirClocks.graphics) {
-      const clock = specs.clocks.get(graphic);
-      const reported = clock ? resolved.live[graphic]?.data?.[clock.field] : undefined;
-      if (!clock || clock.fixedInstant || resolved.liveCue[graphic] || reported === undefined) continue;
-      const rows = offAirClocks.rows.filter((item) => item.graphic === graphic);
-      const value = clockAfterRows(clock, reported, rows, Date.now());
-      if (value !== undefined) clocks = { ...clocks, [graphic]: value };
-    }
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
   // A command applied here while the read was out is newer than every report: the looks stay.
@@ -407,9 +392,39 @@ export function seedFromResolve(
 }
 
 /** The graphics whose clock the monitor rebuilds off air at boot (#1906): a match clock that is
- *  not a target time, off air, with a renderer report that carries its value. */
+ *  not a target time, off air, with a renderer report that carries its value. The one place this
+ *  is decided; `seedOffAirClocks` rebuilds exactly the ones the read answered for. */
 export function offAirClockGraphics(resolved: { liveCue: LiveCueMap; live: LiveReportMap }, specs: ClockSpecs): string[] {
   return [...specs.clocks].filter(([graphic, clock]) => !clock.fixedInstant && !resolved.liveCue[graphic] && resolved.live[graphic]?.data?.[clock.field] !== undefined).map(([graphic]) => graphic);
+}
+
+/**
+ * THE CLOCKS OFF AIR, after the boot seed (#1906, phase-11 M1-M3). The monitor keeps a clock
+ * through an Out, as every output does, so its next Take counts what air counts. Each is its
+ * renderer's report folded through the rows after it, as the renderer folds them (`clockAfterRows`).
+ * Applied apart from `seedFromResolve`, once its own read is back, so the on-air seed never waits
+ * for it. None when a command was applied since the request (newer than these rows); a graphic the
+ * read did not answer for (no baseline, not read to the head) stays as it is. `now` stands in for
+ * a row's server time when it has none.
+ */
+export function seedOffAirClocks(
+  air: AirPart,
+  resolved: { live: LiveReportMap },
+  replay: ClockReplay,
+  at: AirAtRequest,
+  specs: ClockSpecs,
+  now: number,
+): AirPart {
+  if (air.commands !== at.commands) return air;
+  let clocks = air.clocks;
+  for (const graphic of replay.graphics) {
+    const clock = specs.clocks.get(graphic);
+    const reported = clock ? resolved.live[graphic]?.data?.[clock.field] : undefined;
+    if (!clock || reported === undefined) continue;
+    const value = clockAfterRows(clock, reported, replay.rows.filter((item) => item.graphic === graphic), now);
+    if (value !== undefined && value !== clocks[graphic]) clocks = { ...clocks, [graphic]: value };
+  }
+  return clocks === air.clocks ? air : { ...air, clocks };
 }
 
 /**
