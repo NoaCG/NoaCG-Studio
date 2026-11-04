@@ -166,4 +166,44 @@ function relayLogWalk(after, onRow, done) {
       else done(after);
     })
     .catch(function () { done(after); });
+}
+
+// clockFollower(): where one imported clock stands for a page that shares a local relay with other
+// pages (the production controller, other panels), starting from "held". The relay's log is the
+// record every relay-driven output follows, so:
+//  - f.held is the clock this page computes its next press from;
+//  - f.confirmed is the last clock the log showed (this page's own row coming back, or another's);
+//  - f.sent(value) notes a clock value this page put on the relay, and answers what to call if the
+//    relay refuses it;
+//  - f.row(value) takes a clock row of the log, in log order: a row before this page's own pending
+//    send is older than that press and is kept aside (skipped); the page's own row coming back
+//    confirms it;
+//  - f.settle() drops sends refused or not back within 7 s; once none is out, the clock is the
+//    newest row another page sent meanwhile, else the last confirmed clock, which is what the
+//    relay's outputs still hold.
+function clockFollower(held) {
+  var f = { held: held, confirmed: held, own: [], skipped: null };
+  f.settle = function (drop) {
+    var now = Date.now();
+    var was = f.own.length;
+    f.own = f.own.filter(function (o) { return o !== drop && now - o.at < 7000; });
+    if (f.own.length > 0 || f.own.length === was) return;
+    if (f.skipped !== null) { f.confirmed = f.skipped; f.skipped = null; }
+    f.held = f.confirmed;
+  };
+  f.sent = function (value) {
+    var own = { value: value, at: Date.now() };
+    f.settle(null);
+    f.own.push(own);
+    return function () { f.settle(own); };
+  };
+  f.row = function (value) {
+    f.settle(null);
+    for (var i = 0; i < f.own.length; i++) {
+      if (f.own[i].value === value) { f.own = f.own.slice(i + 1); f.skipped = null; f.confirmed = value; return; }
+    }
+    if (f.own.length === 0) { f.held = value; f.confirmed = value; }
+    else f.skipped = value;
+  };
+  return f;
 }`;

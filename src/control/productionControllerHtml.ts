@@ -458,12 +458,13 @@ var relayOk = false;
 var cursor = 0;
 function send(items) {
   if (!relayOk) return;
-  var clocks = withClocks(items);
-  items = clocks.items;
+  var clocked = withClocks(items);
+  items = clocked.items;
   var noted = noteSent(items);
   // A send that never reached the relay holds nothing: its figures stop being the base, unless a
-  // newer send has held the field since; nor does a clock it moved, unless a newer send moved it.
-  var release = function () { releaseSent(noted); clocks.undo(); };
+  // newer send has held the field since, and an imported clock it moved goes back to what the
+  // relay's log confirmed (clockFollower).
+  var release = function () { releaseSent(noted); clocked.failed(); };
   fetch('/relay/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: items }) }).then(function (r) { if (!r.ok) release(); }, release);
 }
@@ -481,65 +482,54 @@ function clockEffectFor(g, cue, event, at) {
   return effect ? { field: clock.field, value: effect.value, when: effect.when } : null;
 }
 
-// AN IMPORTED CLOCK ON THE WIRE (#1887), per stream and graphic: its value as last sent there,
-// carrying its length and what the cue last sent, so a cue keeps the plain time it was typed with
-// and the graphic is sent what the wire holds, as the hosted renderer does. Every batch passes
-// through withClocks on its way out, which folds each Update into it (clockAfterUpdate) and writes
-// the clock's row around each row that moves it (clockRowStep): the origin BEFORE a start or a
-// duration's Take, the banked time AFTER a hold, a reset, an Out or a running correction. The
-// stamp is this page's press: it is the only sender the relay has. Another window's clock rows on
-// the program log are followed (followClock), once nothing this page sent is still on its way, and
-// a page that boots reads the clock rows of the whole log first, so a reload or a second
-// window does not send a running clock a plain time.
-var clockHeld = {};
-// Per program graphic: the id of the log row the held clock came from, raised to the log's head
-// when this page moves the clock itself, so an older row (a late page of the boot read) never
-// puts it back.
+// AN IMPORTED CLOCK ON THE WIRE (#1887), per stream and graphic: where it stands (clockFollower,
+// the shared block above), its value carrying its length and what the cue last sent, so a cue
+// keeps the plain time it was typed with and the graphic is sent what the wire holds, as the
+// hosted renderer does. Every batch passes through withClocks on its way out, which folds each
+// Update into it (clockAfterUpdate) and writes the clock's row around each row that moves it
+// (clockRowStep): the origin BEFORE a start or a duration's Take, the banked time AFTER a hold, a
+// reset, an Out or a running correction. The stamp is this page's press: it is the only sender
+// the relay has. On the program stream the page also follows other pages' clock rows
+// (followClock), from the whole log at boot, and a send the relay refuses never becomes the clock.
+var clocks = {};
+function clockOf(key) { return clocks[key] || (clocks[key] = clockFollower(undefined)); }
+// Per program graphic: the id of the newest log row the clock was read from, raised to the log's
+// head when this page moves the clock itself, so an older row (a late page of the boot read) is
+// never taken for a newer one.
 var clockRowAt = {};
-// Per program graphic: the newest row another page sent while this page's own send was out. It is
-// older than this page's send when that send's row comes back, and the clock when it never does.
-var clockSkipped = {};
-function clockOwnOut(graphic, field) {
-  var own = heldOf(graphic, field);
-  return !!own && Date.now() - own.at < SENT_HOLD_MS;
-}
-function settleClock(graphic, field) {
-  var key = 'program|' + graphic;
-  var skipped = clockSkipped[key];
-  if (!skipped || clockOwnOut(graphic, field)) return;
-  delete clockSkipped[key];
-  if (skipped.id > (clockRowAt[key] || 0)) { clockHeld[key] = skipped.value; clockRowAt[key] = skipped.id; }
-}
 function withClocks(items) {
   var out = [];
   var at = Date.now();
-  var before = {};
-  var hold = function (key, value, graphic, field) {
-    if (!Object.prototype.hasOwnProperty.call(before, key)) before[key] = { value: clockHeld[key], graphic: graphic, field: field };
-    clockHeld[key] = value;
-    if (key.indexOf('program|') === 0) clockRowAt[key] = Math.max(clockRowAt[key] || 0, cursor);
-  };
+  var fails = [];
   items.forEach(function (it) {
     var g = graphicByName(it.graphic);
     var clock = g && g.clock;
     if (!clock || !clock.events) { out.push(it); return; }
     var key = (it.stream || 'program') + '|' + it.graphic;
-    if (key.indexOf('program|') === 0) settleClock(it.graphic, clock.field);
+    var program = key.indexOf('program|') === 0;
+    var f = clockOf(key);
+    if (program) f.settle(null);
+    var set = function (value) {
+      f.held = value;
+      if (!program) return;
+      clockRowAt[key] = Math.max(clockRowAt[key] || 0, cursor);
+      fails.push(f.sent(value));
+    };
     var msg = it.msg;
     if (msg.t === 'update' && msg.data && msg.data[clock.field] !== undefined) {
-      hold(key, clockAfterUpdate(clockHeld[key], msg.data[clock.field]), it.graphic, clock.field);
+      set(clockAfterUpdate(f.held, msg.data[clock.field]));
       var data = {};
       for (var dk in msg.data) data[dk] = msg.data[dk];
-      data[clock.field] = clockHeld[key];
+      data[clock.field] = f.held;
       var folded = {};
       for (var mk in msg) folded[mk] = msg[mk];
       folded.data = data;
       msg = folded;
       it = { graphic: it.graphic, stream: it.stream, msg: msg };
     }
-    var effect = clockRowStep(clock, msg, clockHeld[key], at);
+    var effect = clockRowStep(clock, msg, f.held, at);
     if (!effect) { out.push(it); return; }
-    hold(key, effect.value, it.graphic, clock.field);
+    set(effect.value);
     var cd = {};
     cd[clock.field] = effect.value;
     var clockRow = { graphic: it.graphic, stream: it.stream, msg: { t: 'update', data: cd } };
@@ -547,17 +537,7 @@ function withClocks(items) {
     out.push(it);
     if (effect.when === 'after') out.push(clockRow);
   });
-  var after = {};
-  for (var k in before) after[k] = clockHeld[k];
-  // A send that failed moved no clock: each goes back unless a later send has moved it since, and
-  // a row another page sent meanwhile is then the clock.
-  var undo = function () {
-    for (var u in before) {
-      if (clockHeld[u] === after[u]) clockHeld[u] = before[u].value;
-      if (u.indexOf('program|') === 0) settleClock(before[u].graphic, before[u].field);
-    }
-  };
-  return { items: out, undo: undo };
+  return { items: out, failed: function () { fails.forEach(function (fail) { fail(); }); } };
 }
 function followClock(row) {
   var m = row.msg || {};
@@ -567,13 +547,8 @@ function followClock(row) {
   var value = m.data[clock.field];
   var key = 'program|' + row.graphic;
   if (value === undefined || !clockSlots(value) || row.id <= (clockRowAt[key] || 0)) return;
-  if (clockOwnOut(row.graphic, clock.field)) {
-    if (!clockSkipped[key] || row.id > clockSkipped[key].id) clockSkipped[key] = { value: value, id: row.id };
-    return;
-  }
-  delete clockSkipped[key];
-  clockHeld[key] = value;
   clockRowAt[key] = row.id;
+  clockOf(key).row(value);
 }
 
 // ── Monitors: every pool graphic stacked by its LAYER number, per stream. The iframes are
@@ -1167,6 +1142,8 @@ function applyRow(row) {
   paint();
 }
 function poll() {
+  // A clock send not back within its window stops counting (clockFollower).
+  for (var ck in clocks) clocks[ck].settle(null);
   fetch('/relay/log?after=' + cursor)
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) {

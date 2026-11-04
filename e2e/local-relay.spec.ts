@@ -1029,7 +1029,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await ctl2.route('http://clock-relay.local/**', serve);
   await ctl2.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
   await expect(ctl2.locator('#mode')).toHaveText('● SHOW');
-  await expect.poll(() => ctl2.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toMatch(/^0:20@1/);
+  await expect.poll(() => ctl2.evaluate(() => (window as unknown as { clocks: Record<string, { held?: string }> }).clocks['program|Countdown']?.held)).toMatch(/^0:20@1/);
   await ctl2.locator('#cue-c1').click();
   from = rows.length;
   await ctl2.locator('#v-take').click();
@@ -1057,7 +1057,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
 
   // Back on the first controller window, which follows that row: the clock is off air already, so
   // its Out sends no clock row, exactly as the wire reads an Out of a clock held off air.
-  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toBe(banked);
+  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clocks: Record<string, { held?: string }> }).clocks['program|Countdown']?.held)).toBe(banked);
   from = rows.length;
   await ctl.locator('#v-out').click();
   await expect.poll(() => rows.slice(from).length).toBeGreaterThan(0);
@@ -1071,7 +1071,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   from = rows.length;
   await ctl.locator('#v-take').click();
   await expect.poll(() => sent(from)).toContain('play');
-  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toMatch(/^0:20@1\d+\/0:20\/0:20$/);
+  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clocks: Record<string, { held?: string }> }).clocks['program|Countdown']?.held)).toMatch(/^0:20@1\d+\/0:20\/0:20$/);
   const refuseCtl = refuseSends('/controller.html');
   await ctl.locator('.field', { hasText: 'Time' }).locator('input').fill('0:15');
   await ctl.locator('#v-update').click();
@@ -1123,7 +1123,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => sent(from).length).toBe(1);
   const newest = sent(from)[0].slice('update f2='.length);
-  const held3 = () => ctl3.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'] ?? null);
+  const held3 = () => ctl3.evaluate(() => (window as unknown as { clocks: Record<string, { held?: string }> }).clocks['program|Countdown']?.held ?? null);
   await expect.poll(held3).toBe(newest);
   expect(lastPageHeld, 'the boot read reached its last page').toBe(true);
   answerBootRead();
