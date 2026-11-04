@@ -721,7 +721,8 @@ export function readerIndex(sources) {
       // asserts on it (cicd-followup cf11, #1921). A query cut off (`?t=${now}`) leaves the file.
       if (/^\/src\//.test(lit)) {
         const path = lit.slice(1).replace(/[?#].*$/, '');
-        found.push({ path, prefix: prefix && path === lit.slice(1) });
+        // A cut template or a folder (`'/src/templates/' + name`) is a prefix; a cut query is not.
+        found.push({ path, prefix: (prefix || path.endsWith('/')) && path === lit.slice(1) });
         continue;
       }
       if (!lit.includes('/') || /\s|^[a-z][\w+.-]*:|^\/|^[#?*@]/i.test(lit) || /^\.{0,2}\/?$/.test(lit)) continue;
@@ -763,9 +764,15 @@ function refNames(ref, file) {
   if (ref.all) return true;
   if (!ref.path.replace(/\/$/, '').includes('/')) return false;
   if (ref.prefix) return file.startsWith(ref.path);
-  // A module named as an import names it (`'../src/control/playoutProtocol'` is that `.ts`, cf11).
-  return file === ref.path || file.startsWith(`${ref.path}/`) || file.replace(/\.(?:m?[jt]sx?)$/, '') === ref.path;
+  if (file === ref.path || file.startsWith(`${ref.path}/`)) return true;
+  // A module named as an import names it (cf11): `'../src/control/playoutProtocol'` and
+  // `'../src/control/playoutProtocol.js'` are that `.ts`, as the bundler resolves them.
+  const stem = file.replace(MODULE_EXT, '');
+  return stem !== file && (stem === ref.path || stem === ref.path.replace(/\.js$/, ''));
 }
+
+/** The extensions an import may leave off, or write as `.js` for TypeScript. */
+const MODULE_EXT = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 
 /**
  * The specs that read `file` by path or open it by route, through any module they import.

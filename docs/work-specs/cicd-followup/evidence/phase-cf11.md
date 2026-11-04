@@ -37,8 +37,8 @@ Acceptance, verbatim:
   open. This PR changes selector code, so the miss audit's 14-day window restarts at its merge, and
   its commit carries a `Selection-audit-reset:` trailer. cf18's earliest date moves to 14 days
   after this merge (section 4).
-- **Cost** over the last 80 merges to `main`, replayed with CI's flags: 13 merges gain specs, a
-  mean of **+0.73** measured spec-minutes per merge (median 0, p90 2.0, max 22.9) on plans of
+- **Cost** over the last 81 merges to `main`, replayed with CI's flags: 13 merges gain specs, a
+  mean of **+0.72** measured spec-minutes per merge (median 0, p90 2.0, max 22.9) on plans of
   15 to 104 minutes. No merge loses a spec, no plan changes mode, and no catalog gate flips.
 
 ## 1. (a) The three misses, reproduced and explained
@@ -115,7 +115,7 @@ with no video change. The only static path from each culprit to the failing spec
 | Class | What was checked | Result |
 | --- | --- | --- |
 | 1. Modules a spec loads in the page by URL (`/src/...` in `page.evaluate`) | 281 e2e files reference `/src/` modules (235 distinct). `readerIndex` skipped every literal starting with `/`, so none of these specs was planned for a change to the module it loads. | **Gap, fixed.** Such a URL now names its file; a query cut from a template (`?t=${now}`) still names the file, and a URL cut at `${` names a prefix. |
-| 2. Modules a spec imports in Node without an extension (`'../src/control/playoutProtocol'`) | 33 such references, in 30 specs and helpers. The reference resolved to `src/control/playoutProtocol` with no extension, which names no file. | **Gap, fixed.** An extensionless reference now names the module with a module extension (`.ts`, `.tsx`, `.js`, `.mjs`, `.jsx`). |
+| 2. Modules a spec imports in Node without an extension (`'../src/control/playoutProtocol'`) | 33 such references, in 30 specs and helpers. The reference resolved to `src/control/playoutProtocol` with no extension, which names no file. | **Gap, fixed.** An extensionless reference, or one written `.js` for a TypeScript module, now names the module as the bundler resolves it. About half are `import type`, which a test run erases: those specs are now planned for a type change they cannot fail on. That is the broad side of the error, and small (`src/model/types.ts` gains 19 specs). |
 | 3. Shared stores and other CORE files | CORE escalated to the shared-change set and its own headers, never its readers (#1921). With classes 1 and 2, 37 CORE modules have readers. | **Gap, fixed** (#1921): a CORE file plans its readers too, except `app.html`, whose readers are all 227 specs. Example: `src/store/videoProjectStore.ts` now plans the six video specs, `video-hyperframes` among them. |
 | 4. Shared e2e helpers and generated modules | Helpers: `helperReach` plans a helper's importers, and helpers that load modules by URL now pass those modules' readers through to every spec that imports them (`e2e/_create.ts` loads `formatCode.ts` and `ExportWindow.tsx`). Generated modules: `?raw` text plans its importers (`rawImportEdges`); the generators (`gen-video-font-css.mjs` writes into `render-worker/`, which no offline spec loads; `build-player-host.mjs` and the pack builders are suite-critical scripts). | Covered; nothing further to change. |
 | 5. A covered module's own imports (the #1900 premise: the spec covers the wizard, the wizard imports X) | Measured over all 1,316 non-CORE `src/` modules: following importers one hop adds a mean of 10.8 specs per file (p90 40); two hops 22.5; transitively, stopping at CORE, a median of 128 of 239 specs, because almost every module reaches `src/App.tsx`. | **Not adopted.** The graph is complete, so this is not missing information; it is not evidence of use either. All three misses had an import path only through the shell, and none was caused by it. Stated here so a later phase can revisit it with a runtime signal (the traced map already adds the specs whose browser ran a file). |
@@ -137,9 +137,9 @@ None of the nine is CORE, so none selected the whole configured set before.
 `scripts/e2e-affected.mjs`:
 
 - `readerIndex`: a literal starting `/src/` is the repository file at that path (query and hash
-  dropped).
-- `refNames`: an extensionless reference also names the module with that name and a module
-  extension.
+  dropped); a cut template or a folder (`'/src/packs/' + name`) is a prefix.
+- `refNames`: an extensionless reference, or a `.js` one, also names the module with that stem and
+  a module extension.
 - `planFor`, CORE branch: `addReaders(file)` unless the file is `app.html` (`APP_SHELL`).
 
 `scripts/e2e-affected.test.mjs`, run against the old planner (a copy of `4276b4bf`) and the new:
@@ -154,14 +154,14 @@ None of the nine is CORE, so none selected the whole configured set before.
 `readers: null`, as the neighbouring planner tests do: with a synthetic header and the real reader
 index it saw the specs that load `svg.ts` by URL. Its assertion is unchanged and still exact.
 
-Cost, replayed with `planFor(files, { sprintFocus: true, specsOnDisk, helpers })` over the 80
-first-parent merges in this clone (`main` to `4276b4bf`, 2026-11-02 to 2026-11-04), spec-minutes
+Cost, replayed with `planFor(files, { sprintFocus: true, specsOnDisk, helpers })` over the 81
+first-parent merges in this clone (`main` to `eab37f56`, 2026-11-02 to 2026-11-04), spec-minutes
 from `scripts/e2e-durations.json`:
 
 | | Value |
 | --- | --- |
-| merges that gain specs | 13 of 80 |
-| added spec-minutes per merge | mean 0.73, median 0, p90 1.97, max 22.94 |
+| merges that gain specs | 13 of 81 |
+| added spec-minutes per merge | mean 0.72, median 0, p90 1.97, max 22.94 |
 | largest gains | `5787a44a` (#2084, `composeDocument.ts` and preview protocol) +40 specs, 22.9 min on 76.1; `91971d0b` (#2060, same files) +26, 13.2 on 97.2 |
 
 Single files with the largest gains: `src/templates/catalog.ts` (+97), `src/format/formatCode.ts`
@@ -194,13 +194,12 @@ in the page by that many specs, mostly through the `_create.ts` helper.
 
 - `node --test scripts/e2e-affected.test.mjs scripts/catalog-affected.test.mjs
   scripts/configured-selection.test.mjs scripts/keyed-selection.test.mjs
-  scripts/e2e-selection-misses.test.mjs scripts/e2e-traced.test.mjs`: 304 tests, all pass after
-  the traced-test isolation above (before it, 303 of 304).
-- `node --test scripts/check-docs-index.test.mjs scripts/command-match.test.mjs
-  scripts/execution-profile.test.mjs scripts/gates.test.mjs scripts/harness-reprobe.test.mjs`:
-  98 of 98 pass.
+  scripts/e2e-selection-misses.test.mjs scripts/e2e-traced.test.mjs scripts/check-docs-index.test.mjs
+  scripts/command-match.test.mjs scripts/execution-profile.test.mjs scripts/gates.test.mjs
+  scripts/harness-reprobe.test.mjs`: 394 of 394 pass, after the traced-test isolation above
+  (before it, one failed).
 - The cf11 tests against the old planner: two fail, as section 3 shows.
-- Every file in the repository (7,823 non-image files) planned alone with the old and new planner:
+- Every file in the repository (7,824 non-image files) planned alone with the old and new planner:
   no spec lost, no mode change, no catalog flip.
 - GitHub reads: the three runs' failed jobs and their retry jobs, run 36985533946's failed shard,
   the main CI runs around each culprit, three compares, quarantine at six commits, red-main issue
@@ -219,5 +218,6 @@ in the page by that many specs, mostly through the `_create.ts` helper.
 - Traps: a `planFor` test with made-up coverage and the real reader index now sees URL-loaded
   modules; pass `readers: null` to keep such a test to its own rule. In the history replay, pass
   the `helpers` map as CI does, or a changed helper escalates as CORE and its importers appear as
-  readers. A Bash command whose text contains the word `vite` trips the dev-server hook in this
+  readers. Not followed, stated: a module URL built from a variable or a full origin
+  (`${baseURL}/src/x.ts`); `e2e/` has none today. A Bash command whose text contains the word `vite` trips the dev-server hook in this
   repository; keep it out of regexes in ad hoc commands.

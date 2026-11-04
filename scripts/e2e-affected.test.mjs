@@ -2318,6 +2318,8 @@ test('cf11: a module URL or an extensionless import names the module it loads', 
     ['e2e/d.spec.ts', 'const m = await import(`/src/templates/${name}.ts`);'],
     ['e2e/_h.ts', "export const load = (page) => page.evaluate(() => import('/src/format/formatCode.ts'));"],
     ['e2e/e.spec.ts', "import { load } from './_h';"],
+    ['e2e/f.spec.ts', "const m = await page.evaluate((n) => import('/src/packs/' + n + '.ts'), name);"],
+    ['e2e/g.spec.ts', "import { cue } from '../src/control/cueAdjust.js';"],
   ]));
   const of = (file) => readersOf(file, index).specs;
   assert.deepEqual(of('src/store/videoProjectStore.ts'), ['a.spec.ts']);
@@ -2327,6 +2329,8 @@ test('cf11: a module URL or an extensionless import names the module it loads', 
   assert.deepEqual(of('src/control/playoutProtocol.css'), [], 'only a module extension completes an import');
   assert.deepEqual(of('src/templates/news/lower.ts'), ['d.spec.ts'], 'a URL cut at ${ names a prefix');
   assert.deepEqual(of('src/format/formatCode.ts'), ['e.spec.ts'], 'through the helper that loads it');
+  assert.deepEqual(of('src/packs/news.ts'), ['f.spec.ts'], 'a URL folder joined to a name is a prefix');
+  assert.deepEqual(of('src/control/cueAdjust.ts'), ['g.spec.ts'], 'a .js specifier names its .ts module');
 });
 
 test('cf11: a CORE file plans the specs that load it, beside the shared-change set', () => {
@@ -2356,7 +2360,8 @@ test('cf11: every module URL a spec loads names a file or folder in this checkou
   for (const [from, refs] of checkoutReaders().refs) {
     for (const ref of refs) {
       if (!ref.path.startsWith('src/') || ref.prefix) continue;
-      const candidates = [ref.path, ...['.ts', '.tsx', '.mjs', '.js', '.jsx'].map((e) => ref.path + e)];
+      const stem = ref.path.replace(/\.js$/, '');
+      const candidates = [ref.path, ...['.ts', '.tsx', '.mjs', '.js', '.jsx'].map((e) => stem + e)];
       if (!candidates.some((f) => existsSync(join(root, f)))) missing.push(`${from}: ${ref.path}`);
     }
   }
