@@ -349,6 +349,7 @@ const timers = new Map<string, ReturnType<typeof setTimeout>>();
 let running: { userId: string; stop: () => void } | null = null;
 let refreshing: Promise<void> | null = null;
 let refreshAgain = false;
+let askedAgain = false;
 
 /** The display name for a user id in a team, "you" for this account, or "a former member". */
 export function teamMemberName(teamId: string, userId: string | null): string {
@@ -369,7 +370,7 @@ export function startTeamSync(userId: string): void {
   setState({ loaded: false, loadError: null });
   const unsubscribeEdits = onTeamShowEdit(scheduleSave);
   const onVisible = () => {
-    if (document.visibilityState === 'visible' && Date.now() >= readsResumeAt) void refreshTeams();
+    if (document.visibilityState === 'visible' && Date.now() >= readsResumeAt) void refreshTeams(false);
   };
   // Back online is worth asking at once: the wait after a failed read is for a server in trouble.
   const onOnline = () => void refreshTeams();
@@ -413,21 +414,26 @@ export function stopTeamSync(): void {
 /**
  * Ask the server again: teams, members and every production's head, then the documents whose
  * token moved. Calls that arrive while one is out coalesce into ONE follow-up, so a join followed
- * by a focus event is two reads, not a queue of them.
+ * by a focus event is two reads, not a queue of them. `asked` is false only for the poll.
  */
-export function refreshTeams(): Promise<void> {
+export function refreshTeams(asked = true): Promise<void> {
   if (!running) return Promise.resolve();
   if (refreshing) {
     refreshAgain = true;
+    askedAgain ||= asked;
     return refreshing;
   }
   refreshing = (async () => {
     try {
+      let again = false;
       do {
         refreshAgain = false;
+        askedAgain = false;
         await refreshOnce();
-        // A read that just failed has set its own wait; a call queued behind it does not jump that.
-      } while (refreshAgain && running && Date.now() >= readsResumeAt);
+        // A read that just failed has set its own wait; a poll queued behind it does not jump
+        // that, and something somebody asked for does.
+        again = refreshAgain && (askedAgain || Date.now() >= readsResumeAt);
+      } while (again && running);
     } finally {
       refreshing = null;
     }

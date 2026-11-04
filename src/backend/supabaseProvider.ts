@@ -19,7 +19,7 @@
 // reads `body_updated_at`, the copy a trigger keeps (migration 0107).
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getSupabase } from './supabase';
+import { NOT_ANSWERED, getSupabase, isNotAnswered } from './supabase';
 import { isSingleton, markPutDenied, toStoredRecord, type StorageProvider, type StoredRecord, type SyncKind } from './storage';
 import { externalizeAssets, rehydrateAssets, dataUrlToBlob, blobToDataUrl, classifyAssetRefusal } from './assets';
 import { deterministicUuid } from '../model/id';
@@ -74,8 +74,12 @@ export class SupabaseProvider implements StorageProvider {
     const { data, error } = await sb.auth.getUser();
     // A request that failed says nothing about the session. Saying "Not signed in" for it would
     // send somebody with a live session to sign in again.
-    if (!data.user) throw new Error(error?.name === 'AuthRetryableFetchError' ? 'The cloud did not answer.' : 'Not signed in.');
+    if (!data.user) throw new Error(error?.name === 'AuthRetryableFetchError' ? NOT_ANSWERED : 'Not signed in.');
     return data.user.id;
+  }
+
+  stoppedAnswering(error: unknown): boolean {
+    return isNotAnswered(error);
   }
 
   async list(kind: SyncKind): Promise<StoredRecord[]> {

@@ -20,13 +20,18 @@ const NO_ANSWER_MS = 75_000;
  *  link worth waiting for, about 256 kbit/s. */
 const SEND_BYTES_PER_MS = 32;
 
+/** What a request ended by that limit fails with, wherever it shows up in a longer message. */
+export const NOT_ANSWERED = 'The cloud did not answer.';
+export const isNotAnswered = (error: unknown): boolean => error instanceof Error && error.message.includes(NOT_ANSWERED);
+
 export const CLOUD_NO_ANSWER = 'The cloud did not answer. Changes stay on this device.';
+const REQUEST_FAILED = new RegExp(`^(Cloud \\S+ failed: |asset upload failed: )?(\\w+: )?(${NOT_ANSWERED}|Failed to fetch|NetworkError when attempting to fetch resource\\.|Load failed)$`);
 
 /** A failed cloud request, in words. A request nobody answered, or a connection that failed, comes
  *  back from the library as the name of a browser error, and an operator reads this on air. Whole
  *  messages only: a line that lists several records keeps each one's own reason. */
 export function cloudFailureWords(message: string): string {
-  return /^(Cloud \S+ failed: |asset upload failed: )?(\w+: )?(The cloud did not answer\.|Failed to fetch|NetworkError when attempting to fetch resource\.|Load failed)$/.test(message) ? CLOUD_NO_ANSWER : message;
+  return REQUEST_FAILED.test(message) ? CLOUD_NO_ANSWER : message;
 }
 
 function bodyBytes(body: BodyInit | null | undefined): number {
@@ -50,7 +55,7 @@ function answeredFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Re
   const asked = init?.signal ?? request?.signal;
   if (asked?.aborted) limit.abort(asked.reason);
   else asked?.addEventListener('abort', () => limit.abort(asked.reason), { once: true });
-  const giveUp = () => limit.abort(new DOMException('The cloud did not answer.', 'AbortError'));
+  const giveUp = () => limit.abort(new DOMException(NOT_ANSWERED, 'AbortError'));
   let timer = setTimeout(giveUp, NO_ANSWER_MS + bodyBytes(init?.body) / SEND_BYTES_PER_MS);
   const waitAgain = () => {
     clearTimeout(timer);

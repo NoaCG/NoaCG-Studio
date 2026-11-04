@@ -123,14 +123,15 @@ test('a body that goes silent fails too, while one that keeps moving takes as lo
   assert.equal(whole.timers.size, 0, 'a body that ended leaves no limit behind');
 });
 
-test('a cloud that stops answering is asked once in a pass, and what the pass did land still moves the bookmark', async () => {
+/** The real sync engine over a bookmark this test can read. */
+function syncEngine() {
   const exports = {};
   const compiled = ts.transpileModule(readFileSync(new URL('../src/backend/sync.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const store = new Map();
   const stubs = {
-    './assets': { hasStorageSentinel: () => false },
+    './assets': { hasStorageSentinel: (body) => JSON.stringify(body).includes('spx-storage:') },
     './storage': { isPutDenied: () => false, isSingleton: () => false },
     '../model/id': { uuid: () => crypto.randomUUID() },
     '../model/accountScope': { accountKey: (key) => key },
@@ -140,25 +141,86 @@ test('a cloud that stops answering is asked once in a pass, and what the pass di
     require: (name) => stubs[name],
     localStorage: { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) },
   });
-  const updatedAt = new Date().toISOString();
-  const records = ['a', 'b', 'c'].map((id) => ({ kind: 'graphic', id, updatedAt, deleted: false, body: { id, updatedAt } }));
-  const local = { list: async (kind) => (kind === 'graphic' ? records : []), get: async () => null, put: async () => {} };
+  return { ...exports, meta: () => JSON.parse([...store.values()][0]) };
+}
+
+const NO_ANSWER = () => new Error('Cloud put(graphic) failed: AbortError: The cloud did not answer.');
+const stoppedAnswering = (error) => /did not answer/.test(error.message);
+const graphicAt = (id, updatedAt, name = id) => ({ kind: 'graphic', id, updatedAt, deleted: false, body: { id, name, updatedAt } });
+/** One side as the engine sees it, in memory. A record whose file cannot be read fails `get`. */
+function memory(records, extra = {}) {
+  const held = new Map(records.map((r) => [r.id, r]));
+  return {
+    held,
+    list: async (kind) => (kind === 'graphic' ? [...held.values()] : []),
+    get: async (_kind, id) => held.get(id) ?? null,
+    put: async (record) => { held.set(record.id, record); },
+    ...extra,
+  };
+}
+const ago = (seconds) => new Date(Date.now() - seconds * 1000).toISOString();
+
+test('a cloud that stops answering is asked once in a pass, and what the pass did land still moves the bookmark', async () => {
+  const engine = syncEngine();
+  const updatedAt = ago(5);
   const asked = [];
   // The first record lands, the second gets no answer, the third is never asked about.
-  const remote = {
-    list: async () => [],
+  const remote = memory([], {
+    stoppedAnswering,
     put: async (record) => {
       asked.push(record.id);
-      if (asked.length > 1) throw new Error('Cloud put(graphic) failed: AbortError: The cloud did not answer.');
+      if (asked.length > 1) throw NO_ANSWER();
     },
-  };
-  const result = await exports.runSync(local, remote);
+  });
+  const result = await engine.runSync(memory(['a', 'b', 'c'].map((id) => graphicAt(id, updatedAt))), remote);
   assert.deepEqual(asked, ['a', 'b']);
   assert.equal(result.pushed, 1);
+  assert.equal(result.unanswered, true);
   assert.deepEqual(Array.from(result.failures, (f) => f.id), ['b', 'c']);
-  const meta = JSON.parse([...store.values()][0]);
-  assert.ok(meta.lastSyncedAt > updatedAt || meta.lastSyncedAt === updatedAt, 'the bookmark moved past what landed');
-  assert.deepEqual(meta.pendingPush, ['graphic:b', 'graphic:c'], 'and the rest are owed');
+  assert.ok(engine.meta().lastSyncedAt > updatedAt, 'the bookmark moved past what landed');
+  assert.deepEqual(engine.meta().pendingPush, ['graphic:b', 'graphic:c'], 'and the rest are owed');
+});
+
+test('an edit made after a failed pull does not overwrite the other device\'s version', async () => {
+  const engine = syncEngine();
+  // This device holds a stale copy. Another device's version is in the cloud, with a stored file
+  // the cloud does not answer for.
+  const theirs = { ...graphicAt('g', ago(30), 'their edit'), body: { id: 'g', name: 'their edit', updatedAt: ago(30), font: 'spx-storage:u/a' } };
+  theirs.updatedAt = theirs.body.updatedAt;
+  const local = memory([graphicAt('g', ago(60), 'stale')]);
+  const remote = memory([theirs], { stoppedAnswering, get: async () => { throw NO_ANSWER(); } });
+  const first = await engine.runSync(local, remote);
+  assert.equal(first.pulled, 0);
+  assert.deepEqual(engine.meta().pendingPull, ['graphic:g'], 'the pull is owed past the bookmark');
+  // Edited on this device before the next pass, with the cloud answering again.
+  local.held.set('g', graphicAt('g', new Date(Date.now() + 1000).toISOString(), 'my edit'));
+  remote.get = async (_kind, id) => remote.held.get(id);
+  const second = await engine.runSync(local, remote);
+  assert.equal(remote.held.get('g').body.name, 'their edit', 'the cloud keeps their version');
+  assert.equal(local.held.get('g').body.name, 'their edit', 'and this device takes it');
+  assert.equal(second.conflicts, 1);
+  assert.ok([...local.held.values()].some((r) => r.body.name === 'my edit (conflicted copy)'), 'and my edit survives as a copy');
+  assert.deepEqual(engine.meta().pendingPull, [], 'the debt is paid');
+});
+
+test('a pull still owed with no edit since is taken, even when the cloud\'s version is the older one', async () => {
+  const engine = syncEngine();
+  // A true conflict the local edit lost, though its clock reads later: its copy was made, the copy's
+  // upload got no answer, and so the winner's pull was never asked for.
+  const since = ago(100);
+  const winner = graphicAt('g', ago(50), 'winner');
+  const loser = graphicAt('g', ago(40), 'loser');
+  const plan = engine.reconcile([loser], [winner], since, { pull: new Set(['graphic:g']) });
+  assert.equal(plan.toRemote.length, 0, 'the loser is not pushed over the winner');
+  assert.deepEqual(Array.from(plan.toLocal, (r) => r.body.name), ['winner']);
+  assert.equal(plan.conflicts.length, 1, 'edited since the bookmark, so a copy is kept');
+  const clean = engine.reconcile([loser], [winner], ago(10), { pull: new Set(['graphic:g']) });
+  assert.equal(clean.toRemote.length, 0);
+  assert.deepEqual(Array.from(clean.toLocal, (r) => r.body.name), ['winner']);
+  assert.equal(clean.conflicts.length, 0, 'not edited since, so nothing to keep twice');
+  // Edited while the cloud's version was arriving: both are owed, and the edit still gets its copy.
+  const editing = engine.reconcile([loser], [winner], ago(10), { pull: new Set(['graphic:g']), conflict: new Set(['graphic:g']) });
+  assert.equal(editing.conflicts.length, 1);
 });
 
 test('the caller\'s own abort still ends the request, with the caller\'s reason', async () => {

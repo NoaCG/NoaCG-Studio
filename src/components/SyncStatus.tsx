@@ -50,8 +50,9 @@ function describe(state: SyncState, now: number): Reading {
     case 'error': {
       // Every record failing for one reason is that reason, once, not a list of them.
       const records = state.last?.failures ?? [];
-      const unanswered = records.length > 0 && records.every((f) => cloudFailureWords(f.message) === CLOUD_NO_ANSWER);
-      return notSynced(failure(unanswered ? CLOUD_NO_ANSWER : state.detail ?? 'Cloud save failed. Pending changes stay on this device.'));
+      if (records.length > 0 && records.every((f) => cloudFailureWords(f.message) === CLOUD_NO_ANSWER)) return notSynced(failure(CLOUD_NO_ANSWER));
+      const listed = records.reduce((line, f) => line.replace(f.message, cloudFailureWords(f.message)), state.detail ?? 'Cloud save failed. Pending changes stay on this device.');
+      return notSynced(failure(listed));
     }
     case 'offline':
       return owner
@@ -135,7 +136,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
     else {
       // The panel holding the focused button is about to unmount: hand focus back to the trigger.
       host.current?.querySelector<HTMLButtonElement>('.sync-status')?.focus();
-      if (team) void flushTeamProduction(team.productionId).then(refreshTeams);
+      if (team) void flushTeamProduction(team.productionId).then(() => refreshTeams());
       else void syncNow();
     }
   };
@@ -144,7 +145,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
   return (
     <div ref={host} className="lib-menu-host">
       <button
-        className={`sync-status sync-${team ? teamSaving ?? 'synced' : state.phase}`}
+        className={`sync-status sync-${team ? (tone === 'ok' ? 'synced' : teamSaving ?? state.phase) : state.phase}`}
         data-tone={tone}
         aria-label={`Sync: ${summary}`}
         aria-expanded={open}

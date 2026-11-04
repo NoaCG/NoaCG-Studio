@@ -72,6 +72,9 @@ export interface SyncPending {
   push?: Set<string>;
   /** Record keys whose "(conflicted copy)" is still owed: force the conflict branch again. */
   conflict?: Set<string>;
+  /** Record keys whose last pull FAILED: the cloud's version is still owed whatever the bookmark
+   *  says, so a local edit since then is a conflict, and with none it is pulled. */
+  pull?: Set<string>;
 }
 
 /** One record the pass could not apply. Surfaced in SyncStatus; retried next pass. */
@@ -90,6 +93,8 @@ export interface SyncResult {
   conflicts: number;
   /** Per-record failures the pass survived. Empty on a clean pass. */
   failures: SyncFailure[];
+  /** The cloud stopped answering during this pass. */
+  unanswered?: boolean;
 }
 
 // Looks/shows/graphics reconcile by id; singletons (brand, project) reconcile by KIND — there is at most
@@ -151,9 +156,16 @@ export function reconcile(
     // A record whose last push FAILED is locally-changed no matter what the bookmark says — its
     // edit never reached the cloud, so the bookmark can't vouch for it.
     const localChanged = l.updatedAt > since || pending?.push?.has(key) === true;
-    const remoteChanged = r.updatedAt > since;
+    const owedPull = pending?.pull?.has(key) === true;
+    const remoteChanged = r.updatedAt > since || owedPull;
     // An owed "(conflicted copy)" forces the conflict branch again until the copy materializes.
     const owedCopy = pending?.conflict?.has(key) === true;
+    // Nothing happened here since the pull that failed, so the cloud's version is simply still
+    // owed, even when it is the older one: it won a conflict, and the copy of this one exists.
+    if (owedPull && !localChanged && !owedCopy) {
+      plan.toLocal.push(r);
+      continue;
+    }
 
     // Singletons can't have a "(conflicted copy)" (there's only ever one), so they're always plain
     // last-write-wins — a concurrent edit just means the newer device wins.
@@ -232,6 +244,7 @@ export async function runSync(
   const plan = reconcile(localRecs, remoteRecs, meta.lastSyncedAt, {
     push: new Set(meta.pendingPush),
     conflict: new Set(meta.pendingConflict),
+    pull: new Set(meta.pendingPull),
   }, tombstoneCutoff());
   onPlan?.(plan);
   // Before anything is applied: a summary is never written, and a fetch that fails must fail
@@ -242,6 +255,7 @@ export async function runSync(
   const failures: SyncFailure[] = [];
   const pendingPush = new Set<string>();
   const pendingConflict = new Set<string>();
+  const pendingPull = new Set<string>();
   let pushed = 0;
   let pulled = 0;
   let conflicts = 0;
@@ -250,10 +264,11 @@ export async function runSync(
   // after the first would wait out the same limit, with the retry queued behind them all. Each one
   // still fails as a record does, because what this pass did land needs the bookmark to move: left
   // behind, the next edit of a pushed record reads as a concurrent edit and loses to its own past.
-  let silent: Error | null = null;
-  const askCloud = <T>(ask: () => Promise<T>): Promise<T> => (silent ? Promise.reject(silent) : ask());
+  let silent: unknown = null;
+  const askCloud = <T>(ask: () => Promise<T>): Promise<T> => (silent === null ? ask() : Promise.reject(silent));
   const fail = (op: SyncFailure['op'], r: StoredRecord, e: unknown): void => {
-    if (e instanceof Error && /did not answer/.test(e.message)) silent = e;
+    if (remote.stoppedAnswering?.(e)) silent = e;
+    if (op === 'pull') pendingPull.add(recordKey(r));
     failures.push({
       kind: r.kind,
       id: r.id,
@@ -314,8 +329,8 @@ export async function runSync(
 
   // 2. Pull. A record whose body still holds a Storage sentinel is re-fetched via get(), so the
   //    provider can rehydrate its externalized assets; every other record is applied as fetched.
-  //    Falls back to the fetched record if get() returns nothing. A failed pull just retries next
-  //    pass — LWW re-derives it from the unchanged timestamps.
+  //    Falls back to the fetched record if get() returns nothing. A failed pull is carried in
+  //    `pendingPull` to the next pass, because the bookmark moves past it (SyncPending).
   //
   //    EVERYTHING FETCHED IS APPLIED IN ONE GO when the provider can (`putMany`). The local store
   //    keeps each kind as one list, so a put per record rewrites the whole library per record,
@@ -358,8 +373,7 @@ export async function runSync(
       await local.putMany(safe);
       pulled += safe.length;
     } catch (e) {
-      // Nothing is known to have landed, so every record is owed again; the next pass re-derives
-      // them from the unchanged timestamps, as for any failed pull.
+      // Nothing is known to have landed, so every record is owed again, as for any failed pull.
       for (const r of fetched) fail('pull', r, e);
     }
   }
@@ -392,9 +406,10 @@ export async function runSync(
     lastSyncedAt: new Date().toISOString(),
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
+    pendingPull: [...pendingPull],
     pullsOwed: arriving && failures.some((f) => f.op === 'pull'),
   });
-  return { pushed, pulled, conflicts, failures };
+  return { pushed, pulled, conflicts, failures, unanswered: silent !== null };
 }
 
 /** Duplicate a conflict loser under a fresh id + name so both edits survive. */
@@ -426,6 +441,7 @@ interface SyncMeta {
   lastSyncedAt: string;
   pendingPush: string[];
   pendingConflict: string[];
+  pendingPull: string[];
   /** The library's first pass on this browser COMPLETED without landing its pulls (the local
    *  store refused them). The bookmark moved anyway, so this is what still says the library has
    *  not arrived (`libraryHasArrived`) until a later pass lands them. */
@@ -441,10 +457,11 @@ function loadSyncMeta(): SyncMeta {
       lastSyncedAt: typeof m.lastSyncedAt === 'string' && m.lastSyncedAt ? m.lastSyncedAt : EPOCH,
       pendingPush: strings(m.pendingPush),
       pendingConflict: strings(m.pendingConflict),
+      pendingPull: strings(m.pendingPull),
       pullsOwed: m.pullsOwed === true,
     };
   } catch {
-    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [], pullsOwed: false };
+    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [], pendingPull: [], pullsOwed: false };
   }
 }
 

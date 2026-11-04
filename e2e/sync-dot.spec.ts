@@ -26,7 +26,7 @@ async function cloud(page: Page) {
     localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
   }, { owner, user, token, expires });
   const state = {
-    rows: new Map<string, Row>(), reads: 0, silent: false, silentWrites: false, silentStorage: false, held: 0, down: false,
+    rows: new Map<string, Row>(), reads: 0, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
     doc: null as { id: string } | null, token: '2026-10-06T00:00:00.000Z', revision: 0,
   };
   const hold = () => {
@@ -40,6 +40,7 @@ async function cloud(page: Page) {
     if (url.pathname === '/auth/v1/logout') return respond({});
     const teamRow = () => (state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []);
     if (url.pathname === '/rest/v1/teams' || url.pathname === '/rest/v1/team_members' || url.pathname === '/rest/v1/team_productions') {
+      if (state.silentReads) await hold();
       if (state.down) return route.abort('connectionfailed').catch(() => {});
       if (url.pathname === '/rest/v1/teams') return respond(state.doc ? [{ id: team, name: 'Dot team', join_code: 'testcode', owner_id: owner, created_at: state.token }] : []);
       if (url.pathname === '/rest/v1/team_members') return respond(state.doc ? [{ team_id: team, user_id: owner, display_name: 'Operator', role: 'owner', joined_at: state.token }] : []);
@@ -47,6 +48,7 @@ async function cloud(page: Page) {
     }
     if (url.pathname.startsWith('/storage/v1/object/')) {
       if (state.silentStorage) await hold();
+      if (state.goneStorage) return respond({ statusCode: '404', error: 'not_found', message: 'Object not found' }, 400);
       return route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('font bytes') }).catch(() => {});
     }
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
@@ -206,6 +208,36 @@ test('a stored file the cloud never answers for fails the pull, so it is neither
   await page.getByTestId('sync-action').click();
   await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
   await expect.poll(fontOfLook).toMatch(/^data:/);
+});
+
+test('a stored file that is really gone stays blank and does not hold the chip on amber', async ({ page }) => {
+  const state = await cloud(page);
+  await production(page);
+  const id = '00000000-0000-4000-8000-0000000000cc';
+  const updatedAt = new Date().toISOString();
+  state.rows.set(id, { id, kind: 'look', deleted: false, body: { id, name: 'Lost font', updatedAt, deleted: false, font: { path: 'f.woff2', data: 'spx-storage:u/gone' } } });
+  state.goneStorage = true;
+  await page.evaluate(async () => { await (await import('/src/backend/syncController.ts')).syncNow(); });
+  await expect(chip(page)).toHaveText('Synced');
+  expect(await page.evaluate(async id => ((await import('/src/model/packets.ts')).loadAllLooks().find(l => l.id === id) as unknown as { font: { data: string } }).font.data, id)).toBe('');
+});
+
+test('a retry pressed while a team read waits runs as soon as that read gives up', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  await teamProduction(page, state);
+  state.down = true;
+  await page.evaluate(async () => { await (await import('/src/backend/teamProductions.ts')).refreshTeams(); });
+  await expectAmber(page, /did not answer/);
+  state.down = false;
+  state.silentReads = true;
+  await page.evaluate(async () => { void (await import('/src/backend/teamProductions.ts')).refreshTeams(); });
+  await expect.poll(() => state.held).toBeGreaterThan(0);
+  await page.getByTestId('sync-action').click();
+  state.silentReads = false;
+  await page.clock.fastForward(A_MINUTE + TO_THE_LIMIT);
+  // Sooner than the wait that follows a failed read, so this is the press and not the poll.
+  await expect(chip(page)).toHaveText('Synced', { timeout: 10_000 });
 });
 
 test('a retry pressed while the pass still waits runs as soon as that pass gives up', async ({ page }) => {

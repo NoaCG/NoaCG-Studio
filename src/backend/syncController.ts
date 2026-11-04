@@ -202,7 +202,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
     // tombstone for exactly that reason (`reconcile`). 90 days is generous; a device offline
     // longer than that could resurrect a delete — an acceptable edge for a beta. Best-effort.
     // Not with a cloud that just stopped answering: the retry would queue behind one more wait.
-    if (!result.failures.some((f) => /did not answer/.test(f.message))) {
+    if (!result.unanswered) {
       try {
         const cutoff = tombstoneCutoff();
         await remote.purgeTombstones(cutoff);
