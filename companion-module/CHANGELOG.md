@@ -8,7 +8,7 @@ Write a section the way you would tell an operator what they get by importing ag
 
 ## Unreleased
 
-- The Take key from Show control now says what its next press does: OUT on red when it takes the selected cue or folder off air, TAKE and the name when it takes a cue, also with another cue on air and for a One-by-one folder's next cue, PREVIEW in the page's preview-first mode, and FROM THE TOP when a One-by-one folder has reached its end with no graphic up. A Take key already on your deck keeps its old words until you drag the preset onto it again.
+- The Take key from Show control now says what its next press does: OUT on red when it takes the selected cue or folder off air, TAKE and the selected name when it takes a cue, also with another cue on air (on a One-by-one folder that name is the folder's, and the press takes its next cue), PREVIEW in the page's preview-first mode, and FROM THE TOP when a One-by-one folder has reached its end with no graphic up. A Take key already on your deck keeps its old words until you drag the preset onto it again.
 
 ## 0.2.0 - 2026-11-04
 
