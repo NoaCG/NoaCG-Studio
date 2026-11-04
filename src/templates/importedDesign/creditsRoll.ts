@@ -617,6 +617,10 @@ function creditsHeldJs(): string {
 var noacgCreditsHeld = null;
 var noacgCreditsWaiting = false;
 var noacgCreditsSettling = false;
+// The list the rows were last built from: what a viewer sees. And a list held at a cue before its
+// take ran (creditsListWaits), with the entrance it was held for.
+var noacgCreditsShown = '';
+var noacgCreditsCued = null;
 
 // creditsHeldList(): the list the rows are built from - the one taken while on air, else the
 // holder's as it stands.
@@ -626,17 +630,41 @@ function creditsHeldList() {
   return holder ? holder.textContent : '';
 }
 
-// creditsHoldList(): a take takes the holder's list as it stands now.
+// creditsHoldList(): a take takes the holder's list as it stands now - unless an update already
+// held a list at this take's cue (creditsListWaits), and then it keeps that one.
 function creditsHoldList() {
   if (noacgCreditsSettling) return;
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
-  noacgCreditsHeld = holder ? holder.textContent : '';
-  noacgCreditsWaiting = false;
+  var cued = noacgCreditsCued && noacgCreditsCued.entrance === creditsLive() ? noacgCreditsCued : null;
+  noacgCreditsCued = null;
+  noacgCreditsHeld = cued ? cued.list : holder ? holder.textContent : '';
+  noacgCreditsWaiting = !!cued && !!holder && holder.textContent !== cued.list;
+}
+
+// creditsLive(): the entrance the last play() built (the shared runtime's own record), or null.
+function creditsLive() {
+  return typeof noacgLiveTimeline !== 'undefined' ? noacgLiveTimeline : null;
+}
+
+// creditsEntrance(): that entrance, while its first frame is up and its take (the entrance's call
+// at time 0, run on GSAP's first tick) has not run yet; else null. play() paints that frame at
+// once (noacgPaintFirstFrame), so the graphic can be on screen before the take. An entrance
+// killed or paused before it ticked (an Out, a snap) is no cue: it never takes.
+function creditsEntrance() {
+  var tl = creditsLive();
+  if (!tl || !tl.parent || tl.paused() || tl.time() !== 0 || (typeof noacgOutActive === 'function' && noacgOutActive())) return null;
+  return tl;
 }
 
 // creditsListWaits(): after update(), whether a take on air keeps its list, and so whether the
 // holder's list now waits for the next take. False off air: then the rows follow the holder.
+// Between play() and its take, the take is already cued: it keeps the list its first frame shows.
 function creditsListWaits() {
+  var entrance = noacgCreditsHeld === null ? creditsEntrance() : null;
+  if (entrance) {
+    noacgCreditsHeld = noacgCreditsShown;
+    noacgCreditsCued = { entrance: entrance, list: noacgCreditsShown };
+  }
   if (noacgCreditsHeld === null) return false;
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
   noacgCreditsWaiting = !!holder && holder.textContent !== noacgCreditsHeld;
@@ -1248,7 +1276,8 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   // The rows sit in the first role's own frame, so every step is in its units.
   rows.setAttribute('transform', 'matrix(' + [toContainer.a, toContainer.b, toContainer.c, toContainer.d, toContainer.e, toContainer.f].join(' ') + ')');
   var holder = creditsField('${CREDITS_FIELD_ROLE}');
-  var text = ${held("holder ? holder.textContent : ''", 'creditsHeldList()')};
+  var text = ${held("holder ? holder.textContent : ''", 'creditsHeldList()')};${held('', `
+  noacgCreditsShown = text;`)}
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);

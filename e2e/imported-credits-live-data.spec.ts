@@ -350,6 +350,57 @@ test('cards on air keep the cards they took, while a new card time still applies
   expect(await rowTexts(page)).toEqual(['Camera', 'Jonas Berg']);
 });
 
+// #2057: play() paints the entrance's first frame at once, and the take holds its list on GSAP's
+// first tick after it. A design whose credits already show on that frame (here the entrance's fade
+// taken out) would show one list and then another if an update in between reached the rows: the
+// take holds the list that frame shows, and the newer one waits for the next take.
+for (const playback of ['roll', 'cards'] as const) {
+  test(`${playback}: an update between play() and the take waits, so the first frame's list is the one taken (#2057)`, async ({ page }) => {
+    await page.goto('/app');
+    const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), playback, false);
+    await page.goto('/robots.txt');
+    await page.setContent(built.html);
+    const field = await fieldFor(page, 'credits');
+    await call(page, { [field]: LIST });
+    const first = await page.evaluate(({ field, other }) => {
+      const w = window as unknown as { NOACG_ANIM: { steps: { layers: Record<string, Record<string, unknown>> }[] }; play(): void; update(d: Record<string, string>): void };
+      for (const tracks of Object.values(w.NOACG_ANIM.steps[0].layers)) delete tracks.opacity;
+      w.play();
+      // What the first frame paints: the rows, and whether they are visible at all.
+      const row = document.querySelector('.imported-design-credits-row');
+      let shown = row ? 1 : 0;
+      for (let el = row; el; el = el.parentElement) shown *= Number(getComputedStyle(el).opacity);
+      const rows = [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent);
+      w.update({ [field]: other });
+      return { shown, rows };
+    }, { field, other: OTHER });
+    expect(first.shown, 'the credits show on the first frame').toBeGreaterThan(0);
+    expect(first.rows[0], 'the first frame shows the list written before play()').toBe('Research');
+    const state = () => page.evaluate(() => {
+      const w = window as unknown as { noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean; noacgCreditsTween: unknown; noacgCreditsCard?: number };
+      return { taken: w.noacgCreditsCard === undefined ? !!w.noacgCreditsTween : w.noacgCreditsCard === 0, held: w.noacgCreditsHeld, waiting: w.noacgCreditsWaiting };
+    });
+    await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
+    expect(await state(), 'the take keeps the list its first frame showed; the newer one waits').toMatchObject({ held: LIST, waiting: true });
+    expect(await rowTexts(page), 'no frame after the first shows another list').toEqual(first.rows);
+    // The next take airs the newer list.
+    await call(page, null, 'play');
+    await expect.poll(async () => (await state()).held).toBe(OTHER);
+    expect([(await rowTexts(page))[0], (await state()).waiting]).toEqual(['Camera', false]);
+    // An entrance killed before its first tick (an Out or a snap) never takes, so it holds nothing:
+    // off air again, the rows follow the next write.
+    await call(page, null, 'stop');
+    await expect.poll(async () => (await state()).held).toBeNull();
+    await page.evaluate(({ field, list }) => {
+      const w = window as unknown as { play(): void; update(d: Record<string, string>): void; noacgLiveTimeline: { kill(): void } };
+      w.play();
+      w.noacgLiveTimeline.kill();
+      w.update({ [field]: list });
+    }, { field, list: LIST });
+    expect([(await rowTexts(page))[0], (await state()).held], 'a killed entrance holds no list').toEqual(['Research', null]);
+  });
+}
+
 test('a still page shows an update on air at once, where the drawing put it', async ({ page }) => {
   // The held-still decision (phase 24): nothing on a still page moves, so an update has no
   // motion to replay, and a last-minute correction reaches air at once, refitted in place.
