@@ -13,7 +13,7 @@ test.skip(!process.env.NOACG_INSTRUMENT, 'NOACG_INSTRUMENT=1 runs this timing in
 //
 // The owner, 2026-11-04: from a Stream Deck press a few hundred ms pass before OBS's picture
 // changes. This walks the same road a Companion press takes - the module's `panel_press`, the
-// relay to the answering page, the page's own dispatcher and `control_send_many`, the log frame to
+// relay to the answering page, the page's own dispatcher and `control_send_seq` (`control_send_many` on an older database), the log frame to
 // the REAL /output page in its own browser context (what OBS and CasparCG load), the output handing
 // it to the graphic's frame, the graphic's own play handler, and the first frame after it - and
 // stamps every hop on this machine's one clock: `Date.now()` in Node, in both pages and inside the
@@ -29,7 +29,7 @@ test.skip(!process.env.NOACG_INSTRUMENT, 'NOACG_INSTRUMENT=1 runs this timing in
 // play listeners return, so work a graphic starts later is not in it, and `graphicFrame` is the
 // first frame of an entrance, not the finished picture. A failed first attempt prints its readings
 // before the suite's one retry prints again: read the last block per graphic. With 8 presses a p90 is the slowest
-// one, so it reports the median and the slowest.
+// one, so it reports the median (the lower one, for an even count) and the slowest.
 
 /** In every document of a page: the top one stamps every Realtime frame and the command fetch and,
  *  on the renderer, every play it hands to a graphic; a graphic's own frame stamps the play
