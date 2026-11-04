@@ -1064,14 +1064,15 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const refuseCtl = refuseSends('/controller.html');
   await ctl.locator('.field', { hasText: 'Time' }).locator('input').fill('0:15');
   await ctl.locator('#v-update').click();
-  await expect.poll(() => refused).toBe(1);
+  // Two held open: the preview refresh the typing sends, and the correction.
+  await expect.poll(() => refused).toBe(2);
   from = rows.length;
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
   expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:10@${STAMP}/0:20/0:10$`));
   const panelRow = rows.length;
   await ctl.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= panelRow);
-  const ctlRefused = ctl.waitForResponse((r) => r.url().endsWith('/relay/send') && r.status() === 500);
+  const ctlRefused = Promise.all([0, 1].map(() => ctl.waitForResponse((r) => r.url().endsWith('/relay/send') && r.status() === 500)));
   refuseCtl();
   await ctlRefused;
   refusing = null;
