@@ -544,7 +544,7 @@ export function keyArgs(
 }
 
 /** What a graphic key shows of its capability's offer, for redefining presets and choices: the
- *  graphics, their pins and their capabilities' ids, labels, options and covered steps, never what
+ *  graphics, their pins and their capabilities' ids, labels, options, sections and covered steps, never what
  *  moves live. */
 export function offerShape(actions: PanelActions | null): string {
 	if (!actions) return ''
@@ -557,6 +557,7 @@ export function offerShape(actions: PanelActions | null): string {
 				c.label,
 				c.invocable,
 				c.options?.map((o) => [o.value, o.label]) ?? null,
+				c.section ?? null,
 				c.covered ?? null,
 			]),
 		]),

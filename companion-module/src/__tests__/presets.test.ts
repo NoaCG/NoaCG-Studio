@@ -17,6 +17,8 @@ import { offer, rows } from './fakes.js'
 
 type Built = ReturnType<typeof buildPresets>
 
+const NOTHING_PINNED = 'Pin a graphic on the production page to get its controls here.'
+
 /**
  * The sections and groups as Companion 5.0.6 draws them (its `Thread/Presets.ts` `convertGroup` and
  * `PresetsSectionsList`): a simple group with no preset is dropped, and a section left with no group
@@ -74,7 +76,7 @@ test('(1) with nothing pinned the Pinned graphics section still shows, holding i
 		const built = buildPresets('noacg', rows().rows, actions)
 		const pinned = section(built, 'Pinned graphics')
 		assert.ok(pinned, 'Companion draws the section')
-		assert.equal(pinned.description, 'Pin a graphic on the production page to get its controls here.')
+		assert.equal(pinned.description, NOTHING_PINNED)
 		assert.deepEqual(
 			pinned.groups.map((g) => [g.name, g.keys]),
 			[['', []]],
@@ -84,6 +86,11 @@ test('(1) with nothing pinned the Pinned graphics section still shows, holding i
 			for (const d of s.definitions)
 				if (typeof d !== 'string' && d.type === 'template') assert.ok(built.presets[d.presetId], d.presetId)
 	}
+})
+
+test('(1) a pinned graphic with no control a panel can press leaves the line, not a hidden section', () => {
+	const built = buildPresets('noacg', [], offered([banner([cap('foreign:mark', 'Mark', { invocable: false })])]))
+	assert.equal(section(built, 'Pinned graphics')?.description, NOTHING_PINNED)
 })
 
 test('(1) with something pinned the section holds its controls, and the line to pin is gone', () => {
@@ -133,6 +140,12 @@ test('(2) a key that airs at once does not read like a key that only selects', (
 	assert.equal(text('select_cue_a'), 'Anna')
 	assert.equal(text('take_cue_a'), 'TAKE\\nAnna')
 	assert.equal(text('trigger_cue_a'), '▶ Anna')
+	// Pressed again it takes the cue off, and the key says so, as the Show control Take does.
+	const onAir = (id: string) =>
+		(presets[id]!.feedbacks.find((f) => f.feedbackId === 'on_air') as unknown as { style: { text?: string } }).style
+	assert.equal(onAir('take_cue_a')?.text, 'OUT\\nAnna')
+	assert.equal(onAir('select_cue_a')?.text, undefined)
+	assert.equal(onAir('trigger_cue_a')?.text, undefined)
 })
 
 test('(2) the actions read the same words, and a key on a deck keeps its action id and option', () => {
@@ -212,6 +225,13 @@ test('(3) the imported score tracker: its rows read +1 and -1, so the key says w
 	)
 	assert.equal((built.presets[ids[0]] as CompanionSimplePresetDefinition<never>).style.text, '+1\\nPlayer 1')
 	assert.equal((built.presets[ids[4]] as CompanionSimplePresetDefinition<never>).style.text, 'New game')
+	// A figure of that label is not a second control of that name: "Home" stays "Home".
+	assert.deepEqual(
+		pinnedKeys([banner([cap('event:home', 'Home', { section: 'Sides' }), cap('step:f1', 'Home')])]).map((n) =>
+			n.replace(' (Score banner)', ''),
+		),
+		['Home', 'Home -1', 'Home +1'],
+	)
 })
 
 test('(3) a graphic with actions and figures of its own loses nothing, and a page that says nothing keeps both', () => {
@@ -242,4 +262,9 @@ test('(3) a step left out of the presets stays on offer: a key already on a deck
 	const odd = offered([banner([cap('step:f1', 'Score 1', { covered: [1, 5, '-1'] })])])
 	assert.deepEqual(odd.graphics[0].caps[0].covered, [1])
 	assert.notEqual(offerShape(actions), offerShape(offered([banner(DUEL.map((c) => ({ ...c, covered: undefined })))])))
+	// A row's new name redraws them too, since the key reads it.
+	assert.notEqual(
+		offerShape(offered([banner([cap('event:score1', '+1', { section: 'Player 1' })])])),
+		offerShape(offered([banner([cap('event:score1', '+1', { section: 'Home' })])])),
+	)
 })

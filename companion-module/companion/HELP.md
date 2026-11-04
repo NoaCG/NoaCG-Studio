@@ -13,7 +13,7 @@ Companion 4.3 or later (the steps below use Companion 5.1's words). If **NoaCG: 
 1. Publish the production in NoaCG once. On the production page open **Setup**, then **Stream Deck panel…** (on the hosted control page, **Panel** is in the header). Press **Pair a panel**. A code like `ABCD-EFGH` appears. It works once, for five minutes.
 2. In Companion, open **Connections**, type `NoaCG` in the search box on the right, press **Add** beside **NoaCG: NoaCG Studio**, then **Add** again. Type the code into **Pairing code**, give the panel a name in **Panel name**, and press **Save**. The code field clears and the panel appears in the page's list.
 3. Keep the production page open. It answers the panel by itself; the header shows **Panel ✓**.
-4. Open **Buttons**, then the **Presets** tab, press **NoaCG**, open a section and drag keys onto your buttons: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), **Cues** (Select, Take and Play now keys for each cue of your rundown), and **Pinned graphics** (the live controls of each graphic you pinned on the production page; until you pin one, it holds only a line saying to).
+4. Open **Buttons**, then the **Presets** tab, press **NoaCG**, open a section and drag keys onto your buttons: **Show control** (Take, Out, Next and the rest), **Server clip** (the clip clock), **Cues** (Select, Take and Play now keys for each cue of your rundown, and a Select key for each folder), and **Pinned graphics** (the live controls of each graphic you pinned on the production page; until you pin one, it holds only a line saying to).
 
 The usual way to run a show: a **Select a cue** key picks the cue, and the **Take** key from **Show control** airs it. The **Pinned graphics** keys go straight to air. So do **Take a cue now** and **Play now, keep selection**, for a cue you want on air without moving the selection.
 
@@ -72,7 +72,7 @@ A graphic's key also shows what its last press came to:
 - **Pause the server clip**, **Resume the server clip** and **Pause or resume the clip on air**: the clip clock's keys.
 - **All out**: takes everything off air.
 - **Select a cue**: moves the selection to that cue. Nothing airs: the **Take** key airs it.
-- **Take a cue now**: airs that cue at once, whatever the SPACE mode; pressed again while it is on air, takes it off. The selection stays where it was.
+- **Take a cue now**: airs that cue at once, whatever the SPACE mode; pressed again while it is on air, takes it off. Its key reads OUT then. The selection stays where it was.
 - **Play now, keep selection**: airs that cue at once, or restarts it if it is on air. The selection and PREVIEW stay where they were.
 
 - **Graphic action**: one live control of one graphic, as its block on the production page draws it. It acts on the cue on air on that graphic, never on the selected cue. Choose the **Graphic** and the **Action**; a pick also takes its **Option**, a number its **Step** (+1 or -1). An OGraf action sends the on-air cue's arguments, as the button on the page does, unless you type your own into **Arguments** as JSON, like `{"team": 2}`. Empty, or `{}`, means the cue's.

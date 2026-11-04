@@ -97,11 +97,12 @@ export function graphicPresets(
 					])
 			} else {
 				// The imported score tracker's rows all read +1 and -1: the row's name tells two keys apart.
-				const row = c.section && g.caps.filter((x) => x.label === c.label).length > 1 ? c.section : ''
+				const row =
+					c.section && g.caps.filter((x) => x.kind !== 'step' && x.label === c.label).length > 1 ? c.section : ''
 				key(row ? `${c.label}\\n${row}` : c.label, row ? `${c.label} ${row}` : c.label, { ...base, cap: c.id })
 			}
 		}
-		groups.push({ id: `graphic_${i}`, name: g.graphic, ids })
+		if (ids.length > 0) groups.push({ id: `graphic_${i}`, name: g.graphic, ids })
 	})
 	return { presets, groups }
 }
@@ -206,12 +207,12 @@ export function buildPresets(
 	const triggerIds: string[] = []
 	for (const row of rows) {
 		const name = row.kind === 'folder' ? `Folder: ${row.label}` : row.label
-		const tally: Feedback[] = [
+		const tally = (onAir: { text?: string } = {}): Feedback[] => [
 			{ feedbackId: 'selected', options: { row: row.id }, style: { bgcolor: GREEN, color: WHITE } },
-			{ feedbackId: 'on_air', options: { row: row.id }, style: { bgcolor: RED, color: WHITE } },
+			{ feedbackId: 'on_air', options: { row: row.id }, style: { bgcolor: RED, color: WHITE, ...onAir } },
 		]
-		// Trigger (Play now) plays or restarts a cue by its own row id and leaves the selection alone; a
-		// folder has nothing to play, so only cues get one.
+		// A folder row is there to be selected. Only a cue can be taken or played by its own row id, which
+		// leaves the selection alone. Take names its next press, as the Show control Take does.
 		const keys = [
 			{
 				verb: 'select-cue',
@@ -220,17 +221,19 @@ export function buildPresets(
 				title: `Select ${name}`,
 				action: 'select_cue',
 				text: row.label,
-			},
-			{
-				verb: 'take-cue',
-				ids: takeIds,
-				prefix: 'take',
-				title: `Take ${name} now`,
-				action: 'take_cue',
-				text: `TAKE\\n${row.label}`,
+				onAir: {},
 			},
 			...(row.kind === 'cue'
 				? [
+						{
+							verb: 'take-cue',
+							ids: takeIds,
+							prefix: 'take',
+							title: `Take ${name} now`,
+							action: 'take_cue',
+							text: `TAKE\\n${row.label}`,
+							onAir: { text: `OUT\\n${row.label}` },
+						} as const,
 						{
 							verb: 'trigger-cue',
 							ids: triggerIds,
@@ -238,11 +241,12 @@ export function buildPresets(
 							title: `Play ${name} now, keep selection`,
 							action: 'trigger_cue',
 							text: `\u25B6 ${row.label}`,
+							onAir: {},
 						} as const,
 					]
 				: []),
 		] as const
-		for (const { verb, ids, prefix, title, action, text } of keys) {
+		for (const { verb, ids, prefix, title, action, text, onAir } of keys) {
 			const id = `${prefix}_${row.id}`
 			ids.push(id)
 			presets[id] = {
@@ -250,7 +254,7 @@ export function buildPresets(
 				name: title,
 				style: { text, size: 'auto', color: WHITE, bgcolor: BLACK },
 				steps: [{ down: [{ actionId: action, options: { row: row.id } }], up: [] }],
-				feedbacks: [...tally, ...verbFeedbacks(verb, row.id), ...statusFeedbacks(label)],
+				feedbacks: [...tally(onAir), ...verbFeedbacks(verb, row.id), ...statusFeedbacks(label)],
 			}
 		}
 	}
