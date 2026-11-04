@@ -34,6 +34,10 @@ const SPECS = [
 /** A scorebug drawn as one piece of artwork: two names, two figures and the match time. */
 const SCORE_CLOCK = readFileSync(root('e2e/fixtures/jev-svg/dev/score-clock-1.svg'), 'utf8');
 
+/** The time drawn as 7:05 on a plate just wide enough for it, where "10:00" does not fit at the drawn size (#1884). */
+const TIGHT_PLATE = 104;
+const TIGHT_CLOCK = SCORE_CLOCK.replace('<rect x="460" y="40" width="280"', `<rect x="${600 - TIGHT_PLATE / 2}" y="40" width="${TIGHT_PLATE}"`).replace('>12:08</text>', '>7:05</text>');
+
 /** Runs in the browser: the helpers every run below shares. */
 const HELPERS = () => {
   const { NOACG_SVG: R, NOACG_DRAFT: D, NOACG_IMPORTED: I, NOACG_CONTRACT: C, NOACG_VALIDATE: V } = window;
@@ -96,14 +100,18 @@ const ANATOMY = ({ markup, mode }) => {
 };
 
 /** Runs in the browser: a graphic played on the driven clock, a script of steps read as it goes. */
-const RUN = async ({ markup, mode, script }) => {
+const RUN = async ({ markup, mode, script, plate }) => {
   const { draft, row } = window.__clockDraft(markup, mode);
   const { designSvg, template } = window.__build(draft);
   const field = `f${designSvg.fields.findIndex((f) => f.candidateId === row.candidateId)}`;
   const scores = designSvg.fields.flatMap((f, i) => (f.numeric ? [`f${i}`] : []));
   let values = window.__values(template);
-  let w = await window.__mountDesign(template);
+  // Every run of the fit, counted: the time's paint calls it through the global name.
+  let fits = 0;
+  const counted = (win) => { const fit = win.fitSvgText; if (fit) win.fitSvgText = function () { fits++; return fit.apply(this, arguments); }; return win; };
+  let w = counted(await window.__mountDesign(template));
   const read = () => ({
+    fits,
     time: w.document.getElementById(field).textContent,
     // The clock's truth; the painted time follows it on the next one-second repaint.
     value: w.formatMatchClock(w.matchClockValue()),
@@ -113,6 +121,12 @@ const RUN = async ({ markup, mode, script }) => {
     scores: scores.map((s) => w.document.getElementById(s).textContent),
     // The fit's own line: a centred value rides a tspan whose dy carries the vertical snap.
     line: (() => { const kid = w.document.getElementById(field).firstElementChild; return kid ? `${kid.tagName}:${kid.getAttribute('dy')}` : null; })(),
+    // The painted time's ink against the plate drawn behind it, in screen px.
+    ...(plate ? (() => {
+      const t = w.document.getElementById(field).getBoundingClientRect();
+      const p = w.document.querySelector(plate).getBoundingClientRect();
+      return { inside: t.left >= p.left - 0.5 && t.right <= p.right + 0.5, width: Math.round(t.width) };
+    })() : {}),
   });
   const out = [];
   for (const [verb, arg] of script) {
@@ -123,7 +137,7 @@ const RUN = async ({ markup, mode, script }) => {
     else if (verb === 'out') w.stop();
     else if (verb === 'event') w.noacgDispatch(arg);
     else if (verb === 'wait') w.__advance(arg);
-    else if (verb === 'reload') w = await window.__mountDesign(template);
+    else if (verb === 'reload') w = counted(await window.__mountDesign(template));
     else if (verb === 'read') out.push({ label: arg, ...read() });
   }
   document.getElementById('fx')?.remove();
@@ -141,7 +155,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
   await page.evaluate(HELPERS);
   const anatomy = {};
   for (const mode of ['count-up', 'duration', 'target-time']) anatomy[mode] = await page.evaluate(ANATOMY, { markup: SCORE_CLOCK, mode });
-  const run = (mode, script) => page.evaluate(RUN, { markup: SCORE_CLOCK, mode, script });
+  const run = (mode, script, markup = SCORE_CLOCK, plate) => page.evaluate(RUN, { markup, mode, script, plate });
   return {
     anatomy,
     // Every event is read after SETTLE: a state's calls run inside its own short transition.
@@ -168,6 +182,13 @@ const runs = await withBundledPage(SPECS, async (page) => {
       ['out'], ['wait', 3000], ['take'], ['wait', SETTLE], ['read', 'second Take'], ['wait', 2000], ['read', 'two seconds into it'],
       ['out'], ['wait', 3000], ['update', '0:09'], ['take'], ['wait', SETTLE], ['read', 'a new length set off air'],
     ]),
+    // #1884: the same scorebug with its time on a plate just wide enough for "9:57", counting up
+    // through 10:00 with no data update between.
+    widens: await run('count-up', [
+      ['take'], ['update', '9:57'], ['event', 'clock_start'], ['wait', SETTLE], ['read', 'before 10:00'],
+      ['wait', 3000], ['read', 'past 10:00'], ['wait', 5000], ['read', 'five ticks later'],
+      ['update', '10:01'], ['read', 'fitted by an update at the same width'],
+    ], TIGHT_CLOCK, `rect[width="${TIGHT_PLATE}"]`),
     recovery: await run('count-up', [
       ['take'], ['event', 'clock_start'], ['wait', 60000],
       ['reload'], ['take'], ['stamped', { value: '12:08', ago: 60000 }], ['read', 'a reloaded output given the running origin'],
@@ -258,6 +279,23 @@ test('the ticking time keeps the line the fit centred: its tspan and dy survive 
   const first = runs.up.out[0].line;
   assert.match(first, /^tspan:-?\d/, 'the fit centred the time with a dy (otherwise this test proves nothing)');
   assert.deepEqual(lines.filter((l) => !l.endsWith(`: ${first}`)), [], 'every reading keeps it');
+});
+
+test('a count-up that gains a digit is fitted again and stays inside its plate, with no update between (#1884)', () => {
+  assert.notEqual(TIGHT_CLOCK, SCORE_CLOCK, 'the plate was narrowed');
+  const before = at(runs.widens, 'before 10:00');
+  const after = at(runs.widens, 'past 10:00');
+  const updated = at(runs.widens, 'fitted by an update at the same width');
+  assert.match(before.time, /^9:5\d$/);
+  assert.match(after.time, /^10:0\d$/);
+  assert.ok(before.inside, `9:5x fits its plate (${before.width}px)`);
+  assert.ok(after.inside, `the tick to ${after.time} stays inside its ${TIGHT_PLATE}px plate (${after.width}px)`);
+  // What the tick left is what the fit gives the same time on a data update.
+  assert.equal(after.width, updated.width);
+  // One fit for the one tick that widened the time; the ticks either side measure nothing.
+  assert.equal(after.fits - before.fits, 1, 'the tick to 10:00 runs the fit once');
+  assert.equal(at(runs.widens, 'five ticks later').fits, after.fits, 'a tick that does not widen the time runs no fit');
+  assert.ok(updated.inside);
 });
 
 test('a reloaded output given the running origin comes back at the real time (M5)', () => {

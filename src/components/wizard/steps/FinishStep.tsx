@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ALL_PRESETS } from '../../../blocks/presetRegistry';
 import { FONTS } from '../../../model/fonts';
 import type { SpxTemplate } from '../../../model/types';
@@ -69,8 +69,11 @@ interface Props {
   onEditArtwork?: () => void;
   /** Create it, save it to the library, and go straight to the export window. */
   onExport: () => void;
-  /** Disabled while there is nothing built to finish. */
+  /** Disabled while there is nothing built to finish, or a question below is unanswered. */
   busy: boolean;
+  /** A question the graphic still owes before any door can build it (an imported clock's DST
+   *  fold, #1898), shown above the doors. */
+  question?: ReactNode;
   /** A stranger's OGraf package: Export gives that package back and nothing else, so its door says so. */
   packageOnly?: boolean;
   /** The library record this stretch of wizard has ALREADY made, when the reader has been here
@@ -262,6 +265,7 @@ export default function FinishStep({
   onEditArtwork,
   onExport,
   busy,
+  question,
   packageOnly = false,
   madeId = null,
   libraryIndex = [],
@@ -458,6 +462,8 @@ export default function FinishStep({
           ))}
         </dl>
       </div>
+
+      {question}
 
       {/* Where the graphic joins a show: the primary door's one decision. */}
       <div className="panel-section" data-testid="wz-finish-production-pick">

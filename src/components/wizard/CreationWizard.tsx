@@ -24,6 +24,7 @@ import {
   PrepareDesignStep,
   PlaceFieldsStep,
   MapSvgFieldsStep,
+  useSvgClockFold,
   artDropPatch,
   clearSvgPatch,
   svgDropPatch,
@@ -453,6 +454,9 @@ export default function CreationWizard() {
     return () => window.removeEventListener('spx-data-changed', rereadFinish);
   }, [onFinish, rereadFinish]);
   const finishMadeId = memory.current.made?.graphicId ?? null;
+  // #1898: an undated clock target that has passed into a DST fold is asked on Finish, and no
+  // door builds while it is (applyDraftProject).
+  const clockFold = useSvgClockFold(draft, (p) => dispatch({ type: 'patch', patch: p }));
 
   if (!open) return null;
 
@@ -637,7 +641,7 @@ export default function CreationWizard() {
    * Returns the applied template (read back from the store, post-format) or null.
    */
   const applyDraftProject = async (): Promise<SpxTemplate | null> => {
-    if (!previewTemplate || !variant) return null;
+    if (!previewTemplate || !variant || clockFold.asks()) return null;
     remember();
     // The two modes whose preview carries preview-only extras rebuild without them — design's
     // stretch-demo line, and the SVG mapping step's candidate markers. Create is reachable from
@@ -1285,7 +1289,8 @@ export default function CreationWizard() {
                 onAddToProduction={(dest) => void doors.addToProduction(applyDraftProject, dest, catalogName)}
                 onEditArtwork={() => void doors.editArtwork(applyDraftProject, catalogName)}
                 onExport={() => void doors.export(applyDraftProject, catalogName)}
-                busy={!previewTemplate}
+                busy={!previewTemplate || !!clockFold.question}
+                question={clockFold.question}
               />
             )}
             {/* Finish — Create with AI takes the SAME branch: the result is summarised off the

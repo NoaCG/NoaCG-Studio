@@ -6,7 +6,8 @@
 // below is exactly what they need.
 //
 //   the shell (CreationWizard.tsx) - the step components it mounts per import mode, and the
-//     drop doors (./drop.ts) its Import graphic card calls; it reads no ./draft.ts function
+//     drop doors (./drop.ts) its Import graphic card calls, and the clock question it carries to
+//     Finish (useSvgClockFold); it reads no ./draft.ts function
 //   the draft (draft.ts, draft/core.ts) - the capability's draft state and its build passes
 //   FinishStep.tsx - behaviourSummary, which it reads through the draft barrel today and will
 
@@ -18,3 +19,4 @@ export { default as ImportDesignStep } from './ImportDesignStep';
 export { default as PrepareDesignStep } from './PrepareDesignStep';
 export { default as PlaceFieldsStep } from './PlaceFieldsStep';
 export { default as MapSvgFieldsStep } from './MapSvgFieldsStep';
+export { useSvgClockFold } from './BehaviourSection';

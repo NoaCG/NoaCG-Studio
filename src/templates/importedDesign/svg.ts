@@ -205,7 +205,11 @@ function importedClockJs(duration: boolean): string {
 // carries the snap (svgPaintLines), and the match clock's paint replaces the whole text every
 // second, which would drop the line back to its drawn baseline. So the paint is wrapped: the
 // new time goes into that same tspan, and the fit's size and squeeze on the layer stay as set.
+// A TIME THAT GAINS A CHARACTER IS FITTED AGAIN (#1884): a count-up at 10:00 or 1:00:00 is wider
+// than the time the fit measured, so the paint that widens it runs the fit once. A narrower time
+// already fits, so no other tick measures anything.
 var importedClockMatchPaint = paintMatchClock;
+var importedClockPainted = -1;    // the length of the time last painted
 paintMatchClock = function () {
   var el = matchClockEl();
   var line = el && el.children.length === 1 && el.firstElementChild.tagName === 'tspan' ? el.firstElementChild : null;
@@ -215,6 +219,10 @@ paintMatchClock = function () {
     el.textContent = '';
     el.appendChild(line);
   }
+  var length = el ? el.textContent.length : -1;
+  var wider = importedClockPainted !== -1 && length > importedClockPainted;
+  importedClockPainted = length;
+  if (wider && typeof fitSvgText === 'function') fitSvgText();
 };
 
 // importedClockUpdate(fields): the match clock adopts what update() just wrote into its layer.
