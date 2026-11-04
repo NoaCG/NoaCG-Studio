@@ -130,13 +130,14 @@ jobs:
       # suite budget spec, decision 4). Playwright counts the tests, so a test declared in a loop
       # counts (#1911); that needs node_modules, which is why this is in the build and not the plan
       # job (5-minute cap, no dependencies, on every job's critical path). Failing it fails the
-      # build, which the gate requires. Main has landed already.
+      # build, which the gate requires. Main has landed already. On a pull request the base is
+      # HEAD^1, the main this run's merge ref was built on: the event's recorded base sha can be
+      # older, and a diff from it would charge main's own later removals to the pull request.
       - name: E2E protection check
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
-        run: node scripts/check-e2e-protection.mjs --changed "${PR_BASE:-${MERGE_GROUP_BASE:-}}"
+        run: node scripts/check-e2e-protection.mjs --changed "${MERGE_GROUP_BASE:-HEAD^1}"
 
       - name: Build (typecheck + lint + bundle)
         run: npm run build

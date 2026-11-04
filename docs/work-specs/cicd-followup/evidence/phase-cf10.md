@@ -69,7 +69,11 @@ with a real Playwright config and spec, and runs the checker's command line as c
    at the merge base);
 8. a base that cannot be diffed fails;
 9. a helper change under a 6,000-case looped spec passes with every spec counted. A listing that
-   size came back cut off through a pipe; with the piped reader this case failed three runs of three.
+   size came back cut off through a pipe; with the piped reader this case failed three runs of three;
+10. ci.yml's own step command, read from the workflow and run as written for a pull request: `main`
+   drops a looped case after the PR's recorded base, the PR changes no spec, and the merge ref
+   passes. Diffed from the stale recorded base, the same merge ref is refused for `main`'s removal.
+   With the step's earlier base (`pull_request.base.sha`) this case failed.
 
 `scripts/check-e2e-protection.test.mjs` holds the unit tests: the diff reader, the `--list` parser
 and its total check, the config map (each config's `testDir` is read from the config file itself),
@@ -99,6 +103,7 @@ mutant in a scratch copy of the scripts it needs:
 | M16 the owner is read from the head | killed |
 | M17 `git diff --name-status` split on spaces | killed |
 | M18 the listing read from a pipe (the head graded C) | killed, three runs of three |
+| M19 ci.yml diffs a pull request from `pull_request.base.sha` (the head graded B) | killed |
 
 Each mutant was run on the final code. The harness copies `check-e2e-protection.mjs` with one
 replacement, the scripts it imports and the three Playwright configs into a scratch folder, and
@@ -166,10 +171,22 @@ A fresh read-only `/so` (separate cloud session) on head 9cc64d93 graded the dif
 full listing came back cut off through a pipe, so a helper or config change failed with no
 `Total:` line (it failed closed; no coverage leaked). Also: the plan job's 5-minute cap against an
 `npm ci` fallback, and the Playwright path never ran on Actions. Fixed: the listing goes to a file
-(reproduced and regression-tested above), and the check moved to the build job. Still true: this
-pull request touches no spec, so its own CI runs the check without a listing. The first pull
-request that touches a spec or helper is the first Actions run of that path, and it fails closed if
-anything there is wrong.
+(reproduced and regression-tested above), and the check moved to the build job. 
+
+A second fresh `/so` on head adeb86b7 graded it B and confirmed both fixes. CI run 41923472813 on
+that head was green. Its `E2E protection check` step listed six spec files at the base and the head in
+about 3.5 seconds and exited 0 (for example `e2e/downloads.spec.ts: 9 -> 14`). Those were `main`'s
+own spec changes, not this pull request's. The step diffed from `pull_request.base.sha`, and the
+merge ref includes `main` commits newer than that sha. The review's new finding follows from this.
+Before this phase, a stale base mattered little, because old entries excused every removal. Now old
+entries excuse nothing and the owner is read at the base. So a stale base can fail a pull request
+for `main`'s own changes. A base from before 2026-11-02 fails with no `ownerLogin`, and a base from
+before a later removal on `main` asks the pull request for an entry it must never write. Fixed: on a
+pull request the step diffs from `HEAD^1`, the `main` the merge ref was built on. The merge queue
+keeps `merge_group.base_sha`, which was already exact. Regression case 10 above guards it. The
+count-every-spec path has still only run locally (14 to 20 seconds for 322 specs). Its first run
+on Actions will be a pull request that touches an e2e helper or a Playwright config, and it fails
+closed if anything is wrong there.
 
 `/simplify` (four reviewers: reuse, simplification, efficiency, altitude). Applied: the head and
 base listings and each config's listing run in parallel; one `git ls-tree` replaces a `cat-file`

@@ -1,4 +1,4 @@
-// guards: scripts/check-e2e-protection.mjs, scripts/alarm-owner.mjs, scripts/growth-ceilings.json
+// guards: scripts/check-e2e-protection.mjs, scripts/alarm-owner.mjs, scripts/growth-ceilings.json, .github/workflows/ci.yml
 // The regression for #1911, end to end and black-box: removing one case from a looped test fails
 // the test-removal check. It imports nothing from the checker and drives its command line in a
 // throwaway git repository with a real Playwright listing, exactly as ci.yml runs it, so the same
@@ -127,6 +127,29 @@ test('removing one looped case fails the check, and a current entry lets it thro
   const many = check(manyBase);
   assert.equal(many.status, 0, `a large listing with nothing removed passes:\n${many.stdout}`);
   assert.match(many.stdout, /every spec is counted/);
+
+  // ci.yml's step on a pull request, run as written. The PR's recorded base can be older than the
+  // main GitHub merged it onto; diffing from it would charge main's own removals to the PR. Main
+  // here drops a looped case after the PR's base, the PR changes no spec, and the merge ref (the
+  // PR merged onto that main) must pass, while a diff from the stale base would refuse it.
+  writeFileSync(ceilings, readFileSync(ceilings, 'utf8').replace('"ownerLogin": "claude"', '"ownerLogin": "miwco"'));
+  commit('the owner back');
+  const staleBase = git('rev-parse', 'HEAD').trim();
+  writeFileSync(path.join(repo, 'e2e', 'configured', 'moved.spec.ts'), `${spec(['a'])}\n`);
+  commit('main drops a looped case');
+  git('checkout', '-q', '-b', 'feature', staleBase);
+  writeFileSync(path.join(repo, 'docs', 'work-specs', 'fixture', 'notes.md'), 'a change that touches no spec\n');
+  git('add', '-A');
+  commit('feature');
+  git('checkout', '-q', '--detach', 'main');
+  git('merge', '-q', '--no-ff', '-m', 'merge ref', 'feature');
+  const workflow = readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const step = /- name: E2E protection check\n[\s\S]*?\n {8}run: (.+)\n/.exec(workflow)?.[1];
+  assert.ok(step, 'ci.yml has an E2E protection check step');
+  const prRun = spawnSync('bash', ['-c', step], { cwd: repo, encoding: 'utf8', windowsHide: true, env: { ...env, PR_BASE: staleBase, MERGE_GROUP_BASE: '' } });
+  assert.equal(prRun.status, 0, `ci.yml's step must judge only the pull request's own change:\n${prRun.stdout}${prRun.stderr}`);
+  assert.equal(check(staleBase).status, 1, 'the same merge ref diffed from the stale base is refused for main\'s removal');
+  git('checkout', '-q', 'main');
 
   // A base the check cannot diff fails the check instead of passing it.
   const missing = check('1234567890abcdef1234567890abcdef12345678');
