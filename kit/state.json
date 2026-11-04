@@ -156,6 +156,11 @@
    "phase": "cf11",
    "verdict": "PASS",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2142#issuecomment-6642411071"
+  },
+  {
+   "phase": "cf10",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2151#issuecomment-6645401403"
   }
  ],
  "decisions": [
