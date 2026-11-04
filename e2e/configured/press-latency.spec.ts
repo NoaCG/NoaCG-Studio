@@ -216,7 +216,8 @@ for (const graphic of ['Hairline', 'League Table', 'Arena Quiz']) {
         const heardFirst = o.find((h) => h.kind === 'ws' && h.text.includes(firstId));
         const heard = after(o, pressAt, (h) => h.kind === 'ws' && h.text.includes(second.id));
         // The second press's own send is the second send of the round: the first press's may still
-        // leave after the second press is heard.
+        // leave after the second press is heard. Paired by position, so a resend of the first press
+        // inside its attempt window would take this place (none was seen in the hosted runs).
         const send = o.filter((h) => h.kind === 'send')[1];
         // The two presses are two relay calls, so they can reach the page in the other order. Such a
         // round is counted, not timed: its "second" press is the first one the page ran.
