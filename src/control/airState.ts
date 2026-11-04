@@ -14,6 +14,7 @@
 //   row) applies once, on the id its press minted (./commandRoads.ts `createAppliedOnce`).
 // - `seedFromResolve`: the resolve's picture replaces the marker only if no move happened since
 //   the request (THE MOVES GUARD), and the rows after the reports replay only if no command did.
+//   One whose clock moved after the report still replays its rows, with what was heard after them.
 // - `programItems`: the match and speaking clocks' decisions around a command, against the
 //   monitor's own receive instant (./matchClockWire.ts).
 // - `restoreItems`: what rebuilds a fresh PROGRAM stage from the marker, the reports and the rows.
@@ -24,7 +25,8 @@
 import type { ClockReplay, ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
 import type { AppliedOnce } from './commandRoads';
 import type { LogEntry } from './eventLog';
-import type { AirPart, LogPart } from './playoutSession';
+import type { AirPart, HeardClockCommand, LogPart } from './playoutSession';
+import { oidOf } from './commandRoads.ts';
 import { withLiveCue, type LiveCueMap } from './liveCue.ts';
 import {
   clockAfterRows,
@@ -223,7 +225,9 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
  * (a second `play` re-runs an entrance). A cue marker moves the ON AIR marker on the same road as
  * the picture; typing, a renderer's report and a ping are not commands for the stage; everything
  * else is remembered as aired and goes to PROGRAM, and the monitor has then moved past the boot
- * replay. `out` is what the stage is handed.
+ * replay. `out` is what the stage is handed. On a graphic with a clock it is noted too, for a
+ * resolve answered after it (`seedFromResolve`); a stage rebuilt and an unpublished apply go
+ * straight to `programItems`, so they note nothing.
  */
 export function claimAndApply(
   air: AirPart,
@@ -238,11 +242,88 @@ export function claimAndApply(
     if (!applied.claim(item.msg)) continue;
     const msg = item.msg;
     if (msg.t === 'cue') next = moveLiveCue(next, (m) => withLiveCue(m, item.graphic, msg.cue));
-    else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') program.push({ graphic: item.graphic, msg });
+    else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
+      program.push({ graphic: item.graphic, msg });
+      if (specs.pairs.has(item.graphic) || specs.clocks.has(item.graphic)) next = noteHeardClock(next, { graphic: item.graphic, msg, created_at: new Date(now).toISOString(), command: next.commands + program.length });
+    }
   }
   // A marker never touches what was aired, so the commands are remembered together, in order.
   if (program.length > 0) next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length };
   return programItems(next, program, specs, now);
+}
+
+/** How many commands a graphic's note keeps, the newest. Far more than one read sees, so the note
+ *  cannot grow however long a read stays out. One out through more than this leaves the oldest
+ *  unreplayed, on this page's monitor only. */
+const HEARD_CLOCK_KEPT = 128;
+
+function noteHeardClock(air: AirPart, command: HeardClockCommand): AirPart {
+  const noted = [...(air.heardClock?.[command.graphic] ?? []), command].slice(-HEARD_CLOCK_KEPT);
+  return { ...air, heardClock: { ...air.heardClock, [command.graphic]: noted } };
+}
+
+/**
+ * Whether a command moves this graphic's clock with no field carried, by what the clock's own reader
+ * does with it: an event verb, under an imported clock's names too, and the Take and Out of a
+ * duration, and a pair's Out, which bank or start it the same way. A target time has none. A pair's
+ * penalty and Out move only a running clock, so the reader is asked with one running.
+ */
+function isClockVerb(graphic: string, msg: ReplayItem['msg'], specs: ClockSpecs): boolean {
+  if (msg.t !== 'event' && msg.t !== 'play' && msg.t !== 'stop') return false;
+  const pair = specs.pairs.get(graphic);
+  if (pair) return speakingClockRowEffect({ msg }, pair, { [pair.fieldA]: '0:00@1' }, 1) !== null;
+  const clock = specs.clocks.get(graphic);
+  return !!clock && clockRowEffect({ msg }, clock, undefined, 1) !== null;
+}
+
+/** The fields a graphic's clock tells the time in: a pair's two, or a match clock's one. */
+function clockTimes(graphic: string, specs: ClockSpecs): string[] {
+  const pair = specs.pairs.get(graphic);
+  const clock = specs.clocks.get(graphic);
+  return pair ? [pair.fieldA, pair.fieldB] : clock ? [clock.field] : [];
+}
+
+/** Whether a command moves the clock past the report: a verb, or one carrying a field the clock
+ *  reads (its time, a pair's allowance and penalty size). */
+function movesClock(graphic: string, msg: ReplayItem['msg'], specs: ClockSpecs): boolean {
+  if (isClockVerb(graphic, msg, specs)) return true;
+  const pair = specs.pairs.get(graphic);
+  const fields = [...clockTimes(graphic, specs), pair?.allowanceField, pair?.penaltyField];
+  const carried = msg.t === 'update' ? msg.data : msg.t === 'event' ? msg.payload : undefined;
+  return fields.some((field) => field && carried?.[field] !== undefined);
+}
+
+/**
+ * What a graphic took since its report, once a command was applied since the request: its rows
+ * after the report, which that command would leave unreplayed, then what was heard here, each half
+ * in its own order. Never sorted across the two: a command this page applied before its row has only
+ * this machine's clock, which says nothing against a row's server time. `replays` when one of them
+ * moves the clock. That includes this page's own Update, which resends the cue's whole value set: a
+ * fresh page holds nothing to keep it against, and the fold tells a resend from a correction by what
+ * the report holds, as a renderer does. A bare time (a host's painted text, an old value) cannot tell
+ * them apart, so over one an Update with nothing else moving the clock keeps the per-field rule.
+ *
+ * TODAY A VERB COMES IN THE ROWS. The follow opens after the seed and a clock's events never ride
+ * the fast road, so all a read hears is this page's own fast commands. Of those only an Out counts as
+ * a verb here, and its marker moves with it, which skips the seed (THE MOVES GUARD). A road that heard
+ * a verb sooner would also have to bring a row's server time, and tell a row the report already holds
+ * by its id against the baseline.
+ *
+ * THE LIMIT: a command pressed here has no row id yet, so one the report already holds, on a read
+ * slower than a report's 800 ms, looks like one whose row is still to come, and goes after the rows
+ * too. Going after them is right for the second. For the first it applies again, which shows on a
+ * pair's plain time, on a step (`next`), and on any clock when two presses set its time in one read:
+ * the older goes after the newer whose row came back. Only on a read that slow, with a clock's row in
+ * it, and only on this monitor.
+ */
+function clockSinceReport(air: AirPart, at: AirAtRequest, rowsAfter: readonly ReplayItem[], graphic: string, specs: ClockSpecs, base: Readonly<Record<string, string>> | undefined): { heard: ReplayItem[]; after: ReplayItem[]; replays: boolean } {
+  const rows = rowsAfter.filter((item) => item.graphic === graphic);
+  const rowIds = new Set(rows.map((item) => oidOf(item.msg)).filter(Boolean));
+  const heard = (air.heardClock?.[graphic] ?? []).filter((heardHere) => heardHere.command > at.commands && !rowIds.has(oidOf(heardHere.msg)));
+  const reportSays = clockTimes(graphic, specs).some((field) => String(base?.[field] ?? '').includes('@'));
+  const replays = rows.some((item) => movesClock(graphic, item.msg, specs))
+    || heard.some((item) => (reportSays ? movesClock : isClockVerb)(graphic, item.msg, specs));
+  return { heard, after: [...rows, ...heard], replays };
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
@@ -296,6 +377,14 @@ function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<str
  * Seeded, `aired` takes what air shows for each live layer: the renderer's report, else the live
  * cue's values in the rundown, then the rows after the report. A clock's reported value carries its
  * origin stamp, which goes to the monitor's clock memory while the baseline keeps the plain time.
+ *
+ * A CLOCK VERB meanwhile carries no field, and this page's own clock memory may never have known the
+ * clock or may have gone stale, so neither source is the answer alone (#2099). The memory is the
+ * report with the verbs replayed over it, each at its own instant, as a renderer applied them, and
+ * with whatever else moved that clock in between in its place. The monitor's own fold does it. The
+ * machine moves with the clock, so all of that goes on replaying when a stage is rebuilt, what was
+ * heard here last.
+ *
  * `bootLive` is the wire's own answer, the one thing the boot recovery is keyed on.
  */
 export function seedFromResolve(
@@ -307,7 +396,9 @@ export function seedFromResolve(
   specs: ClockSpecs,
 ): AirPart {
   if (air.moves !== at.moves) return air;
-  const replay = air.commands === at.commands ? [...sinceReports] : [];
+  const overtaken = air.commands !== at.commands;
+  const replay = overtaken ? [] : [...sinceReports];
+  const replayedClocks: ReplayItem[] = [];
   const seed: AiredMap = {};
   let clocks = air.clocks;
   let speaking = air.speaking;
@@ -315,43 +406,71 @@ export function seedFromResolve(
     if (!cueId) continue;
     const reported = resolved.live[graphic]?.data;
     const base = reported && Object.keys(reported).length > 0 ? reported : cues.find((c) => c.id === cueId)?.values;
-    const values = {
-      ...replay.reduce<AiredMap>((aired, item) => (item.graphic === graphic ? airedAfter(aired, graphic, item.msg) : aired), base ? { [graphic]: base } : {})[graphic],
-    };
     const clock = specs.clocks.get(graphic);
     const pair = specs.pairs.get(graphic);
+    // Only a report with a baseline has rows after it: without one every row in range comes back.
+    const hasBaseline = base === reported && typeof resolved.live[graphic]?.event === 'number';
+    const { heard, after, replays } = overtaken && (clock || pair)
+      ? clockSinceReport(air, at, hasBaseline ? sinceReports : [], graphic, specs, base)
+      : { heard: [], after: [], replays: false };
+    const values = {
+      ...(replays ? after : replay).reduce<AiredMap>((aired, item) => (item.graphic === graphic ? airedAfter(aired, graphic, item.msg) : aired), base ? { [graphic]: base } : {})[graphic],
+    };
     // A field a command moved while the read was out holds that command's figure, and its clock
     // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
     // back, and the next +1 counted from it).
-    const moved = air.commands !== at.commands ? movedSince(air, at, graphic) : {};
+    // Replayed, a press whose row came back stands where its row does, and a later row may pass it.
+    const pending = heard.map((item) => (item.msg.t === 'update' ? item.msg.data : item.msg.t === 'event' ? item.msg.payload : undefined));
+    const moved = !overtaken ? {} : Object.fromEntries(Object.entries(movedSince(air, at, graphic)).filter(([field]) => !replays || pending.some((fields) => fields?.[field] !== undefined)));
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
-    if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
-      clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
-      values[clock.field] = plainClockValue(values[clock.field]);
-    }
-    if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
-      // Field by field: one a command moved keeps this page's memory, the other takes the report's.
-      const memory: Record<string, string> = {};
-      for (const field of [pair.fieldA, pair.fieldB]) {
-        const held = speaking[graphic]?.[field];
-        if (field in moved) {
-          if (held !== undefined) memory[field] = held;
-          continue;
-        }
-        memory[field] = wire(field);
-        values[field] = plainClockValue(values[field]);
+    // A stage replays over a report's data: with none to go on it is rebuilt from what was aired.
+    if (replays && base === reported) replayedClocks.push(...after);
+    const times = clockTimes(graphic, specs);
+    if (replays && times.every((field) => base?.[field] !== undefined)) {
+      // The monitor's own fold over what the report holds, with a pair's allowance and penalty size
+      // as a renderer holds them. Every item has its instant, so its receive instant is never read.
+      const reportedFields = [...times, pair?.allowanceField, pair?.penaltyField].flatMap((field) => (field && base?.[field] !== undefined ? [[field, base[field]]] : []));
+      const fold = programItems({
+        ...air,
+        clocks: clock ? { ...clocks, [graphic]: clockSeedFromReport(clock, base![clock.field]) } : clocks,
+        speaking: pair ? { ...speaking, [graphic]: Object.fromEntries(reportedFields) } : speaking,
+      }, after, specs, 0).air;
+      clocks = fold.clocks;
+      speaking = fold.speaking;
+      for (const field of times) values[field] = plainClockValue(pair ? fold.speaking[graphic][field] : fold.clocks[graphic]);
+    } else {
+      if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
+        clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
+        values[clock.field] = plainClockValue(values[clock.field]);
       }
-      speaking = { ...speaking, [graphic]: memory };
+      if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
+        // Field by field: one a command moved keeps this page's memory, the other takes the report's.
+        const memory: Record<string, string> = {};
+        for (const field of [pair.fieldA, pair.fieldB]) {
+          const held = speaking[graphic]?.[field];
+          if (field in moved) {
+            if (held !== undefined) memory[field] = held;
+            continue;
+          }
+          memory[field] = wire(field);
+          values[field] = plainClockValue(values[field]);
+        }
+        speaking = { ...speaking, [graphic]: memory };
+      }
     }
     // Nothing to seed from (no report, no cue values): the record stays whole, moved fields and all.
     if (Object.keys(values).length > 0) seed[graphic] = { ...values, ...moved };
   }
+  // What a stage replays over its report, which air's record of place, size and typed data follows.
+  const onStage = [...replay, ...replayedClocks];
+  const reportStands = (graphic: string) => !overtaken || replayedClocks.some((item) => item.graphic === graphic);
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
-  // A command applied here while the read was out is newer than every report: the looks stay.
+  // A command applied here while the read was out is newer than every report: the looks stay, unless
+  // that graphic's rows and what was heard are replayed over its report.
   let looks: AppliedLooks = { ...(air.looks ?? {}) };
   // A report is the renderer's word for its graphic: no appearance in it clears an older entry.
-  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
+  for (const [graphic, report] of Object.entries(resolved.live).filter(([graphic]) => reportStands(graphic))) {
     const look = reportedLook(report);
     if (look) looks = { ...looks, [graphic]: look };
     else if (graphic in looks) {
@@ -359,13 +478,13 @@ export function seedFromResolve(
       looks = rest;
     }
   }
-  looks = replay.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), looks);
+  looks = onStage.reduce<AppliedLooks>((next, item) => lookAfter(next, item.graphic, item.msg), looks);
   // The envelopes the reports bank (E1.2b, ./outputRecovery.ts `reportedTyped`), with the steps since
   // each entrance, then what the rows after them leave on air. A graphic no report banks has its
   // rows as its only word. Only a live layer keeps one.
   const fromReports: TypedAir = { typedAired: { ...(air.typedAired ?? {}) }, typedSteps: { ...(air.typedSteps ?? {}) } };
   // A report is the renderer's word for its graphic: one without typed data ends an older entry.
-  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
+  for (const [graphic, report] of Object.entries(resolved.live).filter(([graphic]) => reportStands(graphic))) {
     const base = reportedTypedAir(report);
     if (!base?.envelope) {
       delete fromReports.typedAired[graphic];
@@ -375,7 +494,7 @@ export function seedFromResolve(
     fromReports.typedAired[graphic] = base.envelope;
     fromReports.typedSteps[graphic] = base.steps;
   }
-  const folded = replay.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), fromReports);
+  const folded = onStage.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), fromReports);
   const typedAired = Object.fromEntries(Object.entries(folded.typedAired).filter(([graphic]) => resolved.liveCue[graphic]));
   const typedSteps = Object.fromEntries(Object.entries(folded.typedSteps).filter(([graphic]) => graphic in typedAired));
   return {
@@ -386,7 +505,7 @@ export function seedFromResolve(
     speaking,
     typedAired,
     typedSteps,
-    bootReplay: replay,
+    bootReplay: onStage,
     bootLive: resolved.liveCue,
   };
 }

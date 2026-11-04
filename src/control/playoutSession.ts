@@ -123,7 +123,14 @@ export interface AirPart {
    *  read, so it is never reset; it holds one number per field a graphic ever aired. ADDITIVE
    *  OPTIONAL. */
   carried?: Readonly<Record<string, Readonly<Record<string, number>>>>;
+  /** Per graphic with a clock, the newest commands heard, each with the instant this page heard it
+   *  and its place in `commands`: those past the request are what goes over a report when its clock
+   *  moved after it (./airState.ts `seedFromResolve`). Only the newest are kept, so it cannot grow
+   *  however long a read stays out. ADDITIVE OPTIONAL. */
+  heardClock?: Readonly<Record<string, readonly HeardClockCommand[]>>;
 }
+
+export type HeardClockCommand = ReplayItem & { command: number };
 
 export const NO_AIR: AirPart = { liveCue: {}, moves: 0, aired: {}, clocks: {}, speaking: {}, commands: 0, reports: null, bootReplay: null, bootLive: null };
 

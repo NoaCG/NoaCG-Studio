@@ -24,7 +24,7 @@ import {
   withReports,
 } from '../src/control/airState.ts';
 import { createAppliedOnce } from '../src/control/commandRoads.ts';
-import { clockHeldBeforeRow, clockRowEffect, clockValueAfterUpdate } from '../src/control/matchClockWire.ts';
+import { clockHeldBeforeRow, clockOriginOf, clockRowEffect, clockValueAfterUpdate, plainClockValue } from '../src/control/matchClockWire.ts';
 import { monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, NO_LOG, createPlayoutSession } from '../src/control/playoutSession.ts';
@@ -280,6 +280,392 @@ test('a reported clock keeps its origin stamp in the monitor memory and the plai
   const air = seedFromResolve(NO_AIR, { liveCue: { score: 'c2' }, live }, [], airAtRequest(NO_AIR), CUES, CLOCKS);
   assert.equal(air.clocks.score, `10:00@${T}`);
   assert.equal(air.aired.score.f5, '10:00', 'a stamped value would read as "not on air yet" forever');
+});
+
+// ── A clock verb heard while the read was out (#2099): replayed over the report ─────────────────
+
+const verb = (graphic, event, oid) => ({ graphic, msg: { t: 'event', event, oid } });
+const SECOND = 1_000;
+const MINUTE = 60 * SECOND;
+/** The score graphic live on c2, its renderer reporting this clock value. */
+const reportedClock = (f5) => ({ liveCue: { score: 'c2' }, live: { score: { data: { f5 } } } });
+/** The debate board live on c3, its renderer reporting these two clocks. */
+const reportedPair = (fa, fb, more = {}) => ({ liveCue: { debate: 'c3' }, live: { debate: { data: { fa, fb, ...more } } } });
+/** The read is asked, on this air. */
+const asking = (air) => ({ listening: air, asked: airAtRequest(air) });
+const assertClock = (raw, time, origin, label) => {
+  assert.equal(plainClockValue(raw), time, label);
+  assert.equal(clockOriginOf(raw), origin, label);
+};
+
+test('a fresh page loses no start: the clock runs from the reported time at the instant it was heard, and PROGRAM rebuilds it so (#2099)', () => {
+  const { listening, asked } = asking(NO_AIR);
+  const heard = claimAndApply(listening, [verb('score', 'clockStart', 's1')], createAppliedOnce(), CLOCKS, T + 3 * MINUTE).air;
+  const report = reportedClock('07:00');
+  const air = seedFromResolve(withReports(heard, report.live), report, [], asked, CUES, CLOCKS);
+  assertClock(air.clocks.score, '7:00', T + 3 * MINUTE, 'running from 07:00 at T+3 min');
+  assert.equal(air.aired.score.f5, '7:00', 'the baseline is its plain time');
+  // The stage comes up from the report and takes the verb itself, with its origin written before it.
+  const rebuilt = restoreItems(air, {}, CLOCKS);
+  const out = programItems(rebuilt.air, rebuilt.items, CLOCKS, T + 4 * MINUTE).out;
+  const start = out.findIndex((item) => item.msg.t === 'event');
+  assert.equal(out[start].msg.event, 'clockStart', 'the machine moves with the clock');
+  assertClock(out[start - 1].msg.data.f5, '7:00', T + 3 * MINUTE, 'the monitor is handed the running clock');
+});
+
+test('a fresh page loses no reset: back to the reset time, stopped, over a running report (#2099)', () => {
+  const { listening, asked } = asking(NO_AIR);
+  const heard = claimAndApply(listening, [verb('score', 'clockReset', 'r1')], createAppliedOnce(), CLOCKS, T + MINUTE).air;
+  const air = seedFromResolve(heard, reportedClock(`07:00@${T}`), [], asked, CUES, CLOCKS);
+  assertClock(air.clocks.score, MATCH.resetTo, null, 'resetTo, stopped');
+  assert.equal(air.aired.score.f5, MATCH.resetTo);
+});
+
+test('a stale stop acts on the report, never on the stale stamp this page held (#2099)', () => {
+  // The page held 10:00 running since T; it missed the rows that reset the clock on the output.
+  const { listening, asked } = asking({ ...NO_AIR, clocks: { score: `10:00@${T}` } });
+  const heard = claimAndApply(listening, [verb('score', 'clockStop', 'h1')], createAppliedOnce(), CLOCKS, T + 5 * MINUTE).air;
+  assert.equal(plainClockValue(heard.clocks.score), '5:00', 'worked out from the stale stamp');
+  const air = seedFromResolve(heard, reportedClock('10:00'), [], asked, CUES, CLOCKS);
+  assertClock(air.clocks.score, '10:00', null, '10:00 stopped, not 5:00');
+  assert.equal(air.aired.score.f5, '10:00');
+  // The same stop over a report that runs on a stamp of its own banks the report's time.
+  const running = seedFromResolve(heard, reportedClock(`10:00@${T + 4 * MINUTE}`), [], asked, CUES, CLOCKS);
+  assertClock(running.clocks.score, '9:00', null, 'stopped where the report had it at T+5 min');
+});
+
+test('a switch over a running report: the one speaking stops where it stood, the other runs from that instant (#2099)', () => {
+  const { listening, asked } = asking({ ...NO_AIR, speaking: { debate: { fa: '05:00', fb: '05:00' } } });
+  const heard = claimAndApply(listening, [verb('debate', 'switch', 'w1')], createAppliedOnce(), DEBATE, T + 30 * SECOND).air;
+  const air = seedFromResolve(heard, reportedPair('05:00', `05:00@${T}`), [], asked, CUES, DEBATE);
+  assertClock(air.speaking.debate.fb, '04:30', null, 'fb stopped where it stood at T+30 s');
+  assertClock(air.speaking.debate.fa, '05:00', T + 30 * SECOND, 'fa running from that instant');
+  assert.equal(air.aired.debate.fa, '05:00');
+  assert.equal(air.aired.debate.fb, '04:30');
+});
+
+test('no clock verb heard: the report seeds the clocks exactly as it always did (#2099)', () => {
+  const specs = { clocks: CLOCKS.clocks, pairs: DEBATE.pairs };
+  const { listening, asked } = asking(NO_AIR);
+  const reported = { liveCue: { score: 'c2', debate: 'c3' }, live: { score: { data: { f5: `07:00@${T}`, f1: '3' } }, debate: { data: { fa: `04:00@${T}`, fb: '03:30' } } } };
+  // A goal and a +1 are commands, and no clock's: neither touches the clock memory.
+  const heard = claimAndApply(listening, [verb('score', 'goal', 'g1'), update('score', { f1: '4' }, 'u1'), verb('debate', 'nextTopic', 'n1')], createAppliedOnce(), specs, T + MINUTE).air;
+  for (const air of [seedFromResolve(NO_AIR, reported, [], asked, CUES, specs), seedFromResolve(heard, reported, [], asked, CUES, specs)]) {
+    assert.equal(air.clocks.score, `07:00@${T}`);
+    assert.equal(air.aired.score.f5, '07:00');
+    assert.deepEqual(air.speaking.debate, { fa: `04:00@${T}`, fb: '03:30' });
+    assert.equal(air.aired.debate.fa, '04:00');
+  }
+});
+
+test('this page\'s own Update during the read is a resend over the report, not a stopped clock: a fresh page and a stale one (#2099)', () => {
+  const running = `10:00@${T}/10:00/10:00`;
+  const fresh = asking(NO_AIR);
+  // ✎ Update resends the cue's whole value set, the clock's time with it.
+  const resend = claimAndApply(fresh.listening, [update('score', { f1: '4', f5: '10:00' }, 'u1')], createAppliedOnce(), CLOCKS, T + 3 * MINUTE).air;
+  assert.equal(resend.clocks.score, '10:00', 'all a fresh page knows is the plain time');
+  const air = seedFromResolve(resend, reportedClock(running), [], fresh.asked, CUES, CLOCKS);
+  assert.equal(air.clocks.score, running, 'the report\'s running clock stands');
+  assert.equal(air.aired.score.f1, '4');
+  assert.equal(air.aired.score.f5, '10:00', 'and the field\'s figure stays the command\'s');
+  const stop = claimAndApply(air, [verb('score', 'clockStop', 'h1')], createAppliedOnce(), CLOCKS, T + 4 * MINUTE).air;
+  assert.equal(plainClockValue(stop.clocks.score), '6:00', 'so the next Stop banks what air banks');
+
+  // A correction in that Update still corrects, from the instant it was heard.
+  const typed = claimAndApply(fresh.listening, [update('score', { f5: '8:00' }, 'u2')], createAppliedOnce(), CLOCKS, T + 3 * MINUTE).air;
+  assertClock(seedFromResolve(typed, reportedClock(running), [], fresh.asked, CUES, CLOCKS).clocks.score, '8:00', T + 3 * MINUTE, 'running on from the typed time');
+
+  // A stale stamp this page held is no better than none.
+  const stale = asking({ ...NO_AIR, clocks: { score: `10:00@${T - 9 * MINUTE}` } });
+  const again = claimAndApply(stale.listening, [update('score', { f5: '10:00' }, 'u3')], createAppliedOnce(), CLOCKS, T + 3 * MINUTE).air;
+  assert.equal(seedFromResolve(again, reportedClock(running), [], stale.asked, CUES, CLOCKS).clocks.score, running);
+
+  // A board's two clocks: the running speaker stays the report's, one of them.
+  const board = asking(NO_AIR);
+  const resent = claimAndApply(board.listening, [update('debate', { fa: '05:00', fb: '05:00', f0: 'ROUND' }, 'u4')], createAppliedOnce(), DEBATE, T + MINUTE).air;
+  const seeded = seedFromResolve(resent, reportedPair(`05:00@${T}`, '05:00'), [], board.asked, CUES, DEBATE);
+  assertClock(seeded.speaking.debate.fa, '05:00', T, 'still speaking');
+  assertClock(seeded.speaking.debate.fb, '05:00', null);
+  assert.equal(seeded.aired.debate.f0, 'ROUND');
+});
+
+test('a report whose clock value is not text does not stop the seed (#2099)', () => {
+  const { listening, asked } = asking(NO_AIR);
+  const heard = claimAndApply(listening, [update('score', { f5: '8:00' }, 'u1')], createAppliedOnce(), CLOCKS, T).air;
+  const air = seedFromResolve(heard, reportedClock(90), [], asked, CUES, CLOCKS);
+  assert.equal(air.clocks.score, '8:00');
+});
+
+test('over a bare reported time an Update stays the field rule\'s: this page\'s memory, for a match clock and a pair (#2099)', () => {
+  const held = asking({ ...NO_AIR, clocks: { score: `8:00@${T}/10:00/10:00` } });
+  const resend = claimAndApply(held.listening, [update('score', { f5: '10:00' }, 'u1')], createAppliedOnce(), CLOCKS, T + MINUTE).air;
+  // A host's painted text: no stamp, no baseline, and nothing to tell a resend by.
+  const air = seedFromResolve(resend, reportedClock('6:12'), [], held.asked, CUES, CLOCKS);
+  assert.equal(air.clocks.score, `8:00@${T}/10:00/10:00`);
+  assert.equal(air.aired.score.f5, '10:00');
+  assert.deepEqual(air.bootReplay, []);
+
+  const board = asking({ ...NO_AIR, speaking: { debate: { fa: `04:00@${T}`, fb: '05:00' } } });
+  const resent = claimAndApply(board.listening, [update('debate', { fa: '05:00' }, 'u2')], createAppliedOnce(), DEBATE, T + MINUTE).air;
+  const pair = seedFromResolve(resent, reportedPair('03:10', '05:00'), [], board.asked, CUES, DEBATE);
+  assert.equal(pair.speaking.debate.fa, resent.speaking.debate.fa);
+  assert.equal(pair.speaking.debate.fb, '05:00');
+});
+
+test('verbs replay in order, each at the instant it was heard (#2099)', () => {
+  const applied = createAppliedOnce();
+  const { listening, asked } = asking(NO_AIR);
+  let air = listening;
+  const hear = (event, oid, mins) => {
+    air = claimAndApply(air, [verb('score', event, oid)], applied, CLOCKS, T + mins * MINUTE).air;
+  };
+  hear('clockStart', 's1', 1);
+  hear('clockStop', 'h1', 2);
+  hear('clockStart', 's2', 4);
+  const seeded = seedFromResolve(air, reportedClock('07:00'), [], asked, CUES, CLOCKS);
+  // Counts down from 7:00 for the minute it ran, then on from 6:00 at T+4.
+  assertClock(seeded.clocks.score, '6:00', T + 4 * MINUTE, 'each verb at its own instant');
+  assert.equal(seeded.aired.score.f5, '6:00');
+});
+
+test('an imported clock\'s verbs replay by its own event names; a target time has none, and keeps its stamped start (#2099)', () => {
+  const imported = { field: 'f5', countsDown: false, seed: '0:00', resetTo: '0:00', events: { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' } };
+  const specs = { clocks: new Map([['score', imported]]), pairs: new Map() };
+  const { listening, asked } = asking(NO_AIR);
+  const heard = claimAndApply(listening, [verb('score', 'clock_start', 'i1')], createAppliedOnce(), specs, T + MINUTE).air;
+  assertClock(seedFromResolve(heard, reportedClock('2:00'), [], asked, CUES, specs).clocks.score, '2:00', T + MINUTE, 'clock_start runs it');
+  // Its native names mean nothing on it, and the report stands.
+  const foreign = claimAndApply(listening, [verb('score', 'clockStart', 'i2')], createAppliedOnce(), specs, T + MINUTE).air;
+  assert.equal(seedFromResolve(foreign, reportedClock('2:00'), [], asked, CUES, specs).clocks.score, '2:00');
+
+  const stamped = `0:10@${T}/0:10/0:10`;
+  const target = { field: 'f5', countsDown: true, seed: stamped, resetTo: stamped, events: imported.events, fixedInstant: true };
+  const targetSpecs = { clocks: new Map([['score', target]]), pairs: new Map() };
+  const onTarget = claimAndApply(listening, [verb('score', 'clock_pause', 't1')], createAppliedOnce(), targetSpecs, T + MINUTE).air;
+  assert.equal(seedFromResolve(onTarget, reportedClock('3:39:30'), [], asked, CUES, targetSpecs).clocks.score, stamped);
+});
+
+test('a penalty and a reset replay over the report with the penalty size and allowance it holds (#2099)', () => {
+  const docking = { ...PAIR, penaltyField: 'fp', penaltySeed: '10' };
+  const specs = { clocks: new Map(), pairs: new Map([['debate', docking]]) };
+  const report = reportedPair(`05:00@${T}`, '03:00', { fp: '20', fl: '06:00' });
+  const { listening, asked } = asking(NO_AIR);
+  const docked = claimAndApply(listening, [verb('debate', 'penalty', 'p1')], createAppliedOnce(), specs, T + 30 * SECOND).air;
+  const air = seedFromResolve(docked, report, [], asked, CUES, specs);
+  assertClock(air.speaking.debate.fa, '04:10', T + 30 * SECOND, 'docked by the reported 20 s, still running');
+  assert.equal(air.speaking.debate.fb, '03:00');
+  // With nobody running on this page a penalty still counts as a verb: the report may have a speaker.
+  assert.equal(docked.heardClock.debate.length, 1);
+
+  const reset = claimAndApply(listening, [verb('debate', 'reset', 'r1')], createAppliedOnce(), specs, T + 30 * SECOND).air;
+  const back = seedFromResolve(reset, report, [], asked, CUES, specs);
+  assert.equal(back.speaking.debate.fa, '06:00', 'both back to the reported allowance, neither running');
+  assert.equal(back.speaking.debate.fb, '06:00');
+  assert.equal(back.aired.debate.fa, '06:00');
+});
+
+test('only commands are noted, and only those past the request count: a stage rebuilt, an unpublished apply or a verb before it do not replay (#2099)', () => {
+  const start = verb('score', 'clockStart', 's1');
+  const { listening } = asking({ ...NO_AIR, liveCue: { score: 'c2' } });
+  const applied = programItems(rememberAired(listening, [start]), [start], CLOCKS, T).air;
+  assert.equal(applied.heardClock, undefined, 'an unpublished apply');
+  const rebuilt = restoreItems({ ...listening, bootReplay: [start], reports: { score: { data: { f5: '10:00' } } } }, {}, CLOCKS);
+  assert.equal(programItems(rebuilt.air, rebuilt.items, CLOCKS, T).air.heardClock, undefined, 'a stage rebuilt');
+
+  const during = claimAndApply(NO_AIR, [start], createAppliedOnce(), CLOCKS, T).air;
+  assert.equal(during.heardClock.score.length, 1);
+  const retried = asking(during);
+  const plusOne = claimAndApply(retried.listening, [update('score', { f1: '4' }, 'u1')], createAppliedOnce(), CLOCKS, T + MINUTE).air;
+  assert.equal(seedFromResolve(plusOne, reportedClock('07:00'), [], retried.asked, CUES, CLOCKS).clocks.score, '07:00', 'the report answers for what came before it was asked');
+});
+
+test('the moves guard still skips the whole answer with a verb heard: the page\'s memory stands (#2099)', () => {
+  const { listening, asked } = asking(NO_AIR);
+  const heard = claimAndApply(listening, [verb('score', 'clockStart', 's1')], createAppliedOnce(), CLOCKS, T).air;
+  const taken = moveLiveCue(heard, (m) => withLiveCue(m, 'score', 'c9'));
+  assert.equal(seedFromResolve(taken, reportedClock('07:00'), [], asked, CUES, CLOCKS), taken);
+});
+
+test('the note cannot grow if a read never answers: it holds the newest verbs of each graphic (#2099)', () => {
+  const applied = createAppliedOnce();
+  let air = asking(NO_AIR).listening;
+  for (let i = 0; i < 200; i += 1) air = claimAndApply(air, [verb('score', i % 2 ? 'clockStop' : 'clockStart', `v${i}`)], applied, CLOCKS, T + i * SECOND).air;
+  assert.equal(air.heardClock.score.length, 128);
+  assert.equal(Date.parse(air.heardClock.score.at(-1).created_at), T + 199 * SECOND);
+  assert.equal(Date.parse(air.heardClock.score[0].created_at), T + 72 * SECOND);
+});
+
+test('a verb in the rows after the report still counts when this page applied a command during the read: those rows replay, with that command on top (#2099)', () => {
+  // The follow opens after the seed, so this is the road a clock verb takes during the read: its row
+  // is read back after the report, while this page's own +1 rides the fast road and is heard.
+  const start = { ...verb('score', 'clockStart', 's1'), created_at: at(1) };
+  const { listening, asked } = asking(NO_AIR);
+  const plusOne = claimAndApply(listening, [update('score', { f1: '4' }, 'u1')], createAppliedOnce(), CLOCKS, T + 2 * MINUTE).air;
+  const withBaseline = { liveCue: { score: 'c2' }, live: { score: { data: { f5: '07:00' }, event: 40 } } };
+  const older = update('score', { f1: 'OLDER ROW', f2: 'THEIRS' });
+  const air = seedFromResolve(plusOne, withBaseline, [start, older, { graphic: 'other', msg: { t: 'play' } }], asked, CUES, CLOCKS);
+  assert.deepEqual(air.bootReplay.map((item) => item.msg.oid ?? item.msg.data?.f1), ['s1', 'OLDER ROW', 'u1'], 'a stage takes its rows as on a quiet read, then what this page applied');
+  assert.equal(air.aired.score.f1, '4');
+  assert.equal(air.aired.score.f2, 'THEIRS');
+  assertClock(air.clocks.score, '7:00', T + MINUTE, 'but the clock runs from the row\'s instant');
+  // With nothing heard the rows replay as they always did, and the seed stays the report's.
+  const quiet = seedFromResolve(listening, withBaseline, [start], asked, CUES, CLOCKS);
+  assert.deepEqual(quiet.bootReplay, [start]);
+  assert.equal(quiet.clocks.score, '07:00');
+  // A report with no baseline, or no report at all: those rows may be from before it, so they stay out.
+  assert.equal(seedFromResolve(plusOne, reportedClock('07:00'), [start], asked, CUES, CLOCKS).clocks.score, '07:00');
+  const unreported = seedFromResolve(plusOne, { liveCue: { score: 'c2' }, live: {} }, [start], asked, [{ id: 'c2', values: { f5: '45:00' } }], CLOCKS);
+  assert.equal(unreported.clocks.score, '45:00', 'the rundown time, not old rows over it');
+
+  const pairRead = asking(NO_AIR);
+  const pairBaseline = { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: '05:00', fb: '05:00' }, event: 40 } } };
+  // One heard here and read back in the rows too acts once, at the row's instant.
+  const row = { ...verb('debate', 'switch', 'w1'), created_at: at(1) };
+  const twice = claimAndApply(pairRead.listening, [{ graphic: row.graphic, msg: row.msg }], createAppliedOnce(), DEBATE, T + 90 * SECOND).air;
+  const once = seedFromResolve(twice, pairBaseline, [row], pairRead.asked, CUES, DEBATE);
+  assertClock(once.speaking.debate.fa, '05:00', T + MINUTE, 'fa opens once');
+  assertClock(once.speaking.debate.fb, '05:00', null, 'and the floor is not handed on');
+  // A slow laptop clock never reorders: this page's own update reads T+30 s, the Reset's row T+60 s,
+  // and the renderer took the Reset first, so the update still comes after it.
+  const clockRead = asking(NO_AIR);
+  const typed = claimAndApply(clockRead.listening, [update('score', { f5: '8:00' }, 'u2')], createAppliedOnce(), CLOCKS, T + 30 * SECOND).air;
+  const reset = { ...verb('score', 'clockReset', 'r2'), created_at: at(1) };
+  assert.equal(plainClockValue(seedFromResolve(typed, withBaseline, [reset], clockRead.asked, CUES, CLOCKS).clocks.score), '8:00', 'the typed time stands, not the reset');
+  // Nor is it dropped as older than a stamp on the report, which is the server's clock.
+  const stampedReport = { liveCue: { score: 'c2' }, live: { score: { data: { f5: `10:00@${T + MINUTE}` }, event: 40 } } };
+  assert.equal(plainClockValue(seedFromResolve(typed, stampedReport, [reset], clockRead.asked, CUES, CLOCKS).clocks.score), '8:00');
+  // A correction in the rows moved the clock past the report as a verb does.
+  const correction = { ...update('score', { f5: '8:00' }), created_at: at(1) };
+  const corrected = seedFromResolve(plusOne, withBaseline, [correction], asked, CUES, CLOCKS);
+  assert.equal(plainClockValue(corrected.clocks.score), '8:00');
+  assert.equal(corrected.aired.score.f5, '8:00');
+  assert.equal(corrected.bootReplay[0], correction);
+  // Rows that move no clock are older than the command, as ever: nothing of them replays.
+  const quietRows = seedFromResolve(plusOne, withBaseline, [older], asked, CUES, CLOCKS);
+  assert.deepEqual(quietRows.bootReplay, []);
+  assert.equal(quietRows.clocks.score, '07:00');
+  assert.equal(quietRows.aired.score.f2, undefined);
+  // Whatever this page applied goes on a rebuilt stage, an appearance with no field too.
+  const look = { x: 10, y: 20, scale: 1 };
+  const looked = claimAndApply(listening, [{ graphic: 'score', msg: { t: 'update', data: {}, appearance: look, oid: 'l1' } }], createAppliedOnce(), CLOCKS, T + MINUTE).air;
+  const seededLook = seedFromResolve(withReports(looked, withBaseline.live), withBaseline, [start], asked, CUES, CLOCKS);
+  const rebuilt = restoreItems(seededLook, {}, CLOCKS).items;
+  assert.equal(rebuilt.at(-1).msg.oid, 'l1');
+  assert.deepEqual(rebuilt.at(-1).msg.appearance, look);
+});
+
+test('a report with no data, and this page\'s Update during the read: the clock takes the cue\'s values, and a stage is rebuilt from what was aired (#2099)', () => {
+  const { listening, asked } = asking(NO_AIR);
+  const typed = claimAndApply(listening, [update('score', { f0: 'HOME', f1: '4', f5: '8:00' }, 'u1'), verb('score', 'clockStop', 'h1')], createAppliedOnce(), CLOCKS, T + MINUTE).air;
+  const report = { liveCue: { score: 'c2' }, live: { score: { data: {}, event: 40 } } };
+  const air = seedFromResolve(withReports(typed, report.live), report, [], asked, [{ id: 'c2', values: { f0: 'HOME', f1: '3', f2: 'AWAY', f5: '10:00' } }], CLOCKS);
+  assert.equal(plainClockValue(air.clocks.score), '8:00');
+  assert.deepEqual(air.bootReplay, []);
+  const first = restoreItems(air, {}, CLOCKS).items[0];
+  assert.deepEqual({ f0: first.msg.data.f0, f1: first.msg.data.f1, f2: first.msg.data.f2 }, { f0: 'HOME', f1: '4', f2: 'AWAY' }, 'every field reaches the monitor');
+});
+
+test('place and size follow what a stage replays: the report\'s, the rows\', then what was heard, on that graphic alone (#2099)', () => {
+  const look = (dx) => ({ v: 1, frame: { dx, dy: 0, s: 1, ox: 0, oy: 0 } });
+  const { listening, asked } = asking({ ...NO_AIR, looks: { score: look(1), other: look(2) } });
+  const start = { ...verb('score', 'clockStart', 's1'), created_at: at(1) };
+  const report = (more) => ({ liveCue: { score: 'c2', other: 'c1' }, live: { score: { data: { f5: '07:00' }, event: 40, state: { appearance: look(10) } }, other: { data: { f0: 'A' }, event: 40, state: { appearance: look(20) } } } , ...more });
+  const plusOne = claimAndApply(listening, [update('score', { f1: '4' }, 'u1')], createAppliedOnce(), CLOCKS, T + 2 * MINUTE).air;
+  const moved = { ...update('score', { f1: '3' }), msg: { t: 'update', data: { f1: '3' }, appearance: look(30) } };
+  const fromRows = seedFromResolve(plusOne, report(), [start, moved], asked, CUES, CLOCKS);
+  assert.deepEqual(fromRows.looks.score, look(30), 'the row after the report');
+  assert.deepEqual(fromRows.looks.other, look(2), 'a graphic not replayed keeps what this page held, as before');
+  assert.deepEqual(seedFromResolve(plusOne, report(), [start], asked, CUES, CLOCKS).looks.score, look(10), 'the report\'s, with no row to move it');
+  const own = claimAndApply(listening, [{ graphic: 'score', msg: { t: 'update', data: {}, appearance: look(40), oid: 'l1' } }], createAppliedOnce(), CLOCKS, T + 2 * MINUTE).air;
+  assert.deepEqual(seedFromResolve(own, report(), [start, moved], asked, CUES, CLOCKS).looks.score, look(40), 'what this page applied stands over both');
+});
+
+test('a press whose row came back stands where its row does: a later row from another screen wins the field (#2099)', () => {
+  const { listening, asked } = asking(NO_AIR);
+  const mine = update('score', { f1: '4' }, 'u1');
+  const heard = claimAndApply(listening, [mine], createAppliedOnce(), CLOCKS, T + MINUTE).air;
+  const report = { liveCue: { score: 'c2' }, live: { score: { data: { f5: '07:00' }, event: 40 } } };
+  const rows = [{ ...verb('score', 'clockStart', 's1'), created_at: at(1) }, { ...mine, created_at: at(1) }, { ...update('score', { f1: '9' }, 'u2'), created_at: at(2) }];
+  const air = seedFromResolve(heard, report, rows, asked, CUES, CLOCKS);
+  assert.equal(air.aired.score.f1, '9');
+  assert.equal(air.bootReplay.length, 3, 'and it replays once');
+});
+
+test('a setting changed in the rows after a penalty does not reach back to it (#2099)', () => {
+  const specs = { clocks: new Map(), pairs: new Map([['debate', { ...PAIR, penaltyField: 'fp' }]]) };
+  const { listening, asked } = asking(NO_AIR);
+  const plusOne = claimAndApply(listening, [update('debate', { fx: '1' }, 'u1')], createAppliedOnce(), specs, T + MINUTE).air;
+  const report = { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: '05:00', fp: '10' }, event: 40 } } };
+  const rows = [{ ...verb('debate', 'penalty', 'p1'), created_at: new Date(T + 10 * SECOND).toISOString() }, { ...update('debate', { fp: '20' }, 'u2'), created_at: new Date(T + 20 * SECOND).toISOString() }];
+  const air = seedFromResolve(plusOne, report, rows, asked, CUES, specs);
+  assertClock(air.speaking.debate.fa, '04:40', T + 10 * SECOND, 'docked by the size it was then');
+  assert.equal(air.aired.debate.fa, '04:40');
+  assert.equal(air.aired.debate.fp, '20');
+});
+
+test('a Take that starts a duration and an Out that banks a speaker count as the verbs do; a native clock\'s Take does not (#2099)', () => {
+  const duration = { field: 'f5', countsDown: true, seed: '0:30', resetTo: '0:30', events: { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' }, startsOnTake: true };
+  const specs = { clocks: new Map([['score', duration]]), pairs: DEBATE.pairs };
+  const { listening, asked } = asking(NO_AIR);
+  const plusOne = claimAndApply(listening, [update('score', { f1: '4' }, 'u1'), update('debate', { fx: '1' }, 'u2')], createAppliedOnce(), specs, T + 2 * MINUTE).air;
+  const takeRow = { graphic: 'score', msg: { t: 'play' }, created_at: at(1) };
+  const taken = seedFromResolve(plusOne, { liveCue: { score: 'c2' }, live: { score: { data: { f5: '0:30@out/0:30/0:30' }, event: 40 } } }, [takeRow], asked, CUES, specs);
+  assertClock(taken.clocks.score, '0:30', T + MINUTE, 'counting from the Take');
+
+  const outRow = { graphic: 'debate', msg: { t: 'stop' }, created_at: new Date(T + 30 * SECOND).toISOString() };
+  const stage = { graphic: 'debate', msg: { t: 'play' }, created_at: at(1) };
+  const out = seedFromResolve(plusOne, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: '05:00' }, event: 40 } } }, [outRow, stage], asked, CUES, specs);
+  assertClock(out.speaking.debate.fa, '04:30', null, 'banked by the Out');
+
+  const native = seedFromResolve(plusOne, { liveCue: { score: 'c2' }, live: { score: { data: { f5: '07:00' }, event: 40 } } }, [takeRow], asked, CUES, CLOCKS);
+  assert.equal(native.clocks.score, '07:00', 'nothing moved it');
+  assert.equal(claimAndApply(NO_AIR, [play('lt', 'p1')], createAppliedOnce(), CLOCKS, T).air.heardClock, undefined, 'a graphic with no clock notes nothing');
+});
+
+test('a command that moved the clock replays in its place between the verbs, over the report; a pair ends with one clock running (#2099)', () => {
+  const { listening, asked } = asking(NO_AIR);
+  const typed = claimAndApply(listening, [update('score', { f5: '8:00' }, 'u1'), verb('score', 'clockStart', 's1')], createAppliedOnce(), CLOCKS, T + MINUTE).air;
+  const match = seedFromResolve(typed, reportedClock(`07:00@${T}`), [], asked, CUES, CLOCKS);
+  assertClock(match.clocks.score, '8:00', T + MINUTE, 'the typed time, then the start');
+  assert.equal(match.aired.score.f5, '8:00', 'the field rule: the command\'s figure');
+
+  const before = claimAndApply(NO_AIR, [update('debate', { fa: '05:00', fb: '05:00' }, 'u5')], createAppliedOnce(), DEBATE, T).air;
+  const pairRead = asking(before);
+  const both = claimAndApply(pairRead.listening, [update('debate', { fa: '04:00' }, 'u6'), verb('debate', 'switch', 'w1')], createAppliedOnce(), DEBATE, T + MINUTE).air;
+  const pair = seedFromResolve(both, reportedPair('05:00', `05:00@${T}`), [], pairRead.asked, CUES, DEBATE);
+  assertClock(pair.speaking.debate.fa, '04:00', T + MINUTE, 'the typed time, then the floor');
+  assertClock(pair.speaking.debate.fb, '04:00', null, 'stopped where the report had it at T+1 min, not what this page held');
+  assert.equal(pair.aired.debate.fa, '04:00');
+  assert.equal(pair.aired.debate.fb, '04:00');
+
+  // Editing one clock leaves the other the report's, running.
+  const other = asking({ ...NO_AIR, speaking: { debate: { fa: '05:00', fb: '05:00' } } });
+  const specs = { clocks: new Map(), pairs: new Map([['debate', { ...PAIR, penaltyField: 'fp' }]]) };
+  const edited = claimAndApply(other.listening, [update('debate', { fb: '04:00' }, 'u7'), verb('debate', 'penalty', 'p1')], createAppliedOnce(), specs, T + 10 * SECOND).air;
+  const onReport = seedFromResolve(edited, reportedPair(`05:00@${T}`, '05:00'), [], other.asked, CUES, specs);
+  assertClock(onReport.speaking.debate.fa, '04:40', T + 10 * SECOND, 'still running, docked 10 s from where it stood');
+  assertClock(onReport.speaking.debate.fb, '04:00', null);
+
+  // A penalty size retyped after a penalty does not reach back to it; one before it counts.
+  const size = asking(NO_AIR);
+  const running = reportedPair(`05:00@${T}`, '05:00', { fp: '10' });
+  const later = claimAndApply(size.listening, [verb('debate', 'penalty', 'p2'), update('debate', { fp: '20' }, 'u8')], createAppliedOnce(), specs, T + 10 * SECOND).air;
+  assertClock(seedFromResolve(later, running, [], size.asked, CUES, specs).speaking.debate.fa, '04:40', T + 10 * SECOND, 'the size at the time');
+  const earlier = claimAndApply(size.listening, [update('debate', { fp: '20' }, 'u9'), verb('debate', 'penalty', 'p3')], createAppliedOnce(), specs, T + 10 * SECOND).air;
+  assertClock(seedFromResolve(earlier, running, [], size.asked, CUES, specs).speaking.debate.fa, '04:30', T + 10 * SECOND, 'the new size');
+
+  // A verb in the rows replays over the report with a field moved here too, and a correction in the rows counts.
+  const rowsRead = asking(NO_AIR);
+  const moved = claimAndApply(rowsRead.listening, [update('debate', { fb: '04:00' }, 'u10')], createAppliedOnce(), DEBATE, T + 2 * MINUTE).air;
+  const withBaseline = { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: '05:00' }, event: 40 } } };
+  const overRows = seedFromResolve(moved, withBaseline, [{ ...verb('debate', 'switch', 'w2'), created_at: at(1) }], rowsRead.asked, CUES, DEBATE);
+  assertClock(overRows.speaking.debate.fa, '04:00', null, 'the switch in the rows stopped it');
+  assertClock(overRows.speaking.debate.fb, '04:00', null, 'and the typed time, after it, replaced the running clock\'s value');
+  const clockRows = asking(NO_AIR);
+  const plusOne = claimAndApply(clockRows.listening, [update('score', { f1: '4' }, 'u11')], createAppliedOnce(), CLOCKS, T + 2 * MINUTE).air;
+  const reportHeld = { liveCue: { score: 'c2' }, live: { score: { data: { f5: '07:00' }, event: 40 } } };
+  const corrected = seedFromResolve(plusOne, reportHeld, [{ ...update('score', { f5: '8:00' }), created_at: at(0.5) }, { ...verb('score', 'clockStart', 's3'), created_at: at(1) }], clockRows.asked, CUES, CLOCKS);
+  assertClock(corrected.clocks.score, '8:00', T + MINUTE, 'the correction in the rows, then the start');
 });
 
 test('after the session ends, a resolve that lands writes nothing', () => {

@@ -288,6 +288,61 @@ test('A +1 HEARD WHILE THE RESOLVE OR ITS REPLAY IS OUT (#2088): the older repor
   }
 });
 
+test('A CLOCK VERB HEARD WHILE THE RESOLVE OR ITS REPLAY IS OUT (#2099) replays over the report; one heard before the request does not', async () => {
+  const CLOCK = { field: 'f5', countsDown: true, seed: '10:00', resetTo: '10:00' };
+  const specs = { clocks: new Map([['lt', CLOCK]]), pairs: new Map() };
+  const hearVerb = (session, oid, event, instant) => session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, [{ graphic: 'lt', msg: { t: 'event', event, oid } }], session.applied, specs, instant).air }));
+  for (const when of ['resolve', 'replay']) {
+    const wire = scriptedWire();
+    const page = fakePage({ clocks: () => specs });
+    const { session, stop } = start(wire, page);
+    await flush();
+    if (when === 'resolve') hearVerb(session, 's1', 'clockStart', 5_000_000);
+    wire.resolves[0].resolve({ ok: true, value: { ...RESOLVED, live: { lt: { data: { f0: 'REPORTED', f5: '07:00' } } } } });
+    await flush();
+    if (when === 'replay') hearVerb(session, 's1', 'clockStart', 5_000_000);
+    wire.replays[0].resolve([]);
+    await flush();
+    assert.ok(session.air.get().clocks.lt.startsWith('7:00@5000000'), `a start heard during the ${when} runs the reported time: ${session.air.get().clocks.lt}`);
+    stop();
+  }
+  const wire = scriptedWire();
+  const page = fakePage({ clocks: () => specs });
+  const { session, stop } = start(wire, page);
+  await flush();
+  // Heard during an attempt that failed: the attempt that answers is asked after it.
+  hearVerb(session, 's0', 'clockStart', 5_000_000);
+  wire.resolves[0].resolve({ ok: false, error: 'outage' });
+  await flush();
+  wire.resolves[1].resolve({ ok: true, value: { ...RESOLVED, live: { lt: { data: { f0: 'REPORTED', f5: '07:00' } } } } });
+  await flush();
+  wire.replays[0].resolve([]);
+  await flush();
+  assert.equal(session.air.get().clocks.lt, '07:00', 'the report answers for what came before it was asked');
+  stop();
+});
+
+test('A CLOCK VERB\'S ROW READ BACK AFTER THE REPORT, with this page\'s own +1 applied during the read (#2099): the road a verb takes today', async () => {
+  const CLOCK = { field: 'f5', countsDown: true, seed: '10:00', resetTo: '10:00' };
+  const specs = { clocks: new Map([['lt', CLOCK]]), pairs: new Map() };
+  const wire = scriptedWire();
+  const page = fakePage({ clocks: () => specs });
+  const { session, stop } = start(wire, page);
+  await flush();
+  // The fast road's own apply: the page claims its press before the send.
+  session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, [{ graphic: 'lt', msg: { t: 'update', data: { f0: 'PLUS ONE' }, oid: 'p1' } }], session.applied, specs, 9_000_000).air }));
+  wire.resolves[0].resolve({ ok: true, value: { ...RESOLVED, live: { lt: { data: { f0: 'REPORTED', f5: '07:00' }, event: 40 } } } });
+  await flush();
+  const created_at = new Date(5_000_000).toISOString();
+  wire.replays[0].resolve([{ graphic: 'lt', msg: { t: 'event', event: 'clockStart', oid: 's1' }, created_at }]);
+  await flush();
+  const air = session.air.get();
+  assert.ok(air.clocks.lt.startsWith('7:00@5000000'), `the clock runs from its row's instant: ${air.clocks.lt}`);
+  assert.equal(air.aired.lt.f0, 'PLUS ONE');
+  assert.deepEqual(air.bootReplay.map((item) => item.msg.t), ['event', 'update'], 'a stage takes the verb itself, then the +1 on top');
+  stop();
+});
+
 test('the request read is the attempt that ANSWERS: a move before a failed attempt does not skip the seed', async () => {
   const wire = scriptedWire();
   const page = fakePage();
