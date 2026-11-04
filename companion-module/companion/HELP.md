@@ -47,7 +47,7 @@ The **Take** key from **Show control** says what its next press does for the sel
 
 A Take key dragged from an older module keeps the words it was dragged with, because a button holds its own copy: it reads TAKE OFF instead of OUT, and never PREVIEW. To change it, drag the preset onto it again.
 
-On a One-by-one folder, OUT takes off its graphics; its clips play on.
+On a One-by-one folder, the Take key's OUT takes off its graphics and its clips play on. The **Out** key takes off its clips too.
 
 A graphic's key also shows what its last press came to:
 

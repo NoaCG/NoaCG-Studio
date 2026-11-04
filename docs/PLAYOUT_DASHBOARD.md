@@ -717,7 +717,7 @@ the exported controller, the output and a pack see the flat rundown they always 
   takes the graphics off and goes back to the top, and the next press takes the first cue. A cue of
   the folder taken on its own moves the step to it; a cue already on air is never taken again by a
   step. Where the step stands is page memory (after a reload it is read off what is on air), and the
-  rundown marks the cue it takes next `NEXT`. TAKE OFF, `0` or Out on the header takes every cue of
+  rundown marks the cue it takes next `NEXT`. `0` or Out on the header takes every cue of
   the folder that is up off, clips included, and starts it again from the top; so does All out.
 - **Play through** plays its clips one after another on its slot as one sequence the Bridge runs,
   round again with Loop the folder; taking a clip in it plays from that clip to the end. **All
