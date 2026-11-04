@@ -210,43 +210,28 @@ test('no model request: a read fetches the Sheet export and nothing else', async
 
 // ── Row 24: on air, a text field shows every refresh; only a held credits list waits ──────────
 
+test('#1980: a source line names a held list on air only when its graphic says a newer one waits', () => {
+  const { heldListsWaiting } = formats;
+  const bound = [{ graphic: 'Roll', fieldId: 'f1' }, { graphic: 'Roll', fieldId: 'f0' }, { graphic: 'Cards', fieldId: 'f2' }, { graphic: 'Notice', fieldId: 'f0' }];
+  const held = { Roll: 'f1', Cards: 'f2' };
+  const heldMain = (g) => held[g] ?? null;
+  const live = { Roll: 'c1', Cards: 'c2', Notice: 'c3' };
+  // Nothing waits: nothing is said, whatever changed in the source.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, {}), []);
+  // The graphic says its list waits: named once, though bound twice.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, { Roll: true }), ['Roll']);
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, { Roll: true, Cards: true }), ['Roll', 'Cards']);
+  // Off air, a stale answer says nothing.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, { Cards: 'c2' }, { Roll: true, Cards: true }), ['Cards']);
+  // A graphic that holds no list, or whose bound field is not its held list, says nothing.
+  assert.deepEqual(heldListsWaiting(bound, heldMain, live, { Notice: true }), []);
+  assert.deepEqual(heldListsWaiting([{ graphic: 'Roll', fieldId: 'f0' }], heldMain, live, { Roll: true }), []);
+});
+
 test('row 24: a text field holds no list on air, so a refresh reaches it at once and nothing says it waits', () => {
   for (const t of [NOTICE, STRIP, NATIVE]) assert.equal(formats.heldListOnAir(shapeOf(t)), null, `${t.name} shows every refresh`);
   // The update hook that carries a refresh only writes fields and repaints: it plays nothing.
   const hook = NOTICE.js.slice(NOTICE.js.indexOf('function update('));
   const body = hook.slice(0, hook.indexOf('\n}\n'));
   assert.doesNotMatch(body, /\bplay\(|\.restart\(|\.seek\(0|killTweensOf/, 'update() replays or stops no motion');
-});
-
-test('row 24: a held list waits from the first change after its Take until the next Take, and off air is forgotten', () => {
-  const { listsWaitingForTake } = formats;
-  // Taken (log entry 7) after the source last changed at 100: nothing waits.
-  let r = listsWaitingForTake({}, { Roll: 7 }, 100);
-  assert.deepEqual(r.waiting, []);
-  // The source changes on air: the roll shows an older list.
-  r = listsWaitingForTake(r.marks, { Roll: 7 }, 160);
-  assert.deepEqual(r.waiting, ['Roll']);
-  // A second change still waits; the next Take (entry 9) marks it again and clears it.
-  r = listsWaitingForTake(r.marks, { Roll: 7 }, 220);
-  assert.deepEqual(r.waiting, ['Roll']);
-  r = listsWaitingForTake(r.marks, { Roll: 9 }, 220);
-  assert.deepEqual(r.waiting, []);
-  // Off air it is forgotten; taken again later, it is marked from that Take.
-  r = listsWaitingForTake(r.marks, {}, 300);
-  assert.deepEqual([r.waiting, r.marks], [[], {}]);
-  r = listsWaitingForTake(r.marks, { Roll: 12 }, 300);
-  assert.deepEqual(r.waiting, []);
-  // Taken before the source's first read: that read is not a change; a later one is.
-  r = listsWaitingForTake({}, { Roll: 1 }, null);
-  assert.deepEqual(r.waiting, []);
-  r = listsWaitingForTake(r.marks, { Roll: 1 }, 400);
-  assert.deepEqual(r.waiting, [], 'the first read');
-  r = listsWaitingForTake(r.marks, { Roll: 1 }, 450);
-  assert.deepEqual(r.waiting, ['Roll']);
-  // The log dropped the Take entry (it keeps 200): the mark and its waiting stay.
-  r = listsWaitingForTake(r.marks, { Roll: null }, 450);
-  assert.deepEqual(r.waiting, ['Roll']);
-  // Two graphics are judged apart.
-  r = listsWaitingForTake({ Roll: { take: 1, changedAt: 50 } }, { Roll: 1, Cards: 2 }, 80);
-  assert.deepEqual(r.waiting, ['Roll']);
 });

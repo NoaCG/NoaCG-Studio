@@ -74,6 +74,7 @@ export default function PlayoutMonitors({
   library,
   programRef,
   onState,
+  onWaits,
   onReady,
   onOverflow,
   live = false,
@@ -125,6 +126,8 @@ export default function PlayoutMonitors({
   library: GraphicDoc[];
   programRef: Ref<ProgramStageHandle>;
   onState: (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => void;
+  /** PROGRAM's held lists with a newer one waiting (ProgramStage.onWaits). */
+  onWaits: (graphic: string, waits: boolean) => void;
   onReady: () => void;
   /** The field ids PREVIEW reports as too long to fit, each time the answer changes. */
   onOverflow: (keys: string[]) => void;
@@ -466,6 +469,7 @@ export default function PlayoutMonitors({
               empty={liveLayers.length === 0 && !(programClip && programThumb)}
               emptyLabel={programClip ? `${programClip.name} plays on the server` : undefined}
               onState={onState}
+              onWaits={onWaits}
               onReady={onReady}
             />
           </div>

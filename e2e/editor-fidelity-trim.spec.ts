@@ -3,12 +3,13 @@
 // covers: src/model/structure.ts, src/templates/shared/{animRuntime,easeRuntime}.ts
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx, e2e/fixtures/interpreter-pre-g01.js
 // covers: docs/research/editor-r1-1d/baseline/**, src/templates/importedDesign/svg.ts, src/templates/importedDesign/runtime/**
+// covers: src/blocks/behaviourKeys.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { bindEveryTextLayer, dropSvg } from './_svg-import';
+import { bindEveryTextLayer, dropSvg, QUIZ_SVG } from './_svg-import';
 import { finishIntoNewEditor } from './_create';
 import { settleDurableWrites } from './_durable';
 import type { EditorOperation } from '../src/components/editorFoundation/operations';
@@ -30,6 +31,42 @@ async function preview(page: Page) { return (await (await page.locator('iframe[t
 async function data(page: Page) { return page.evaluate(async () => (await import('/src/blocks/animData.ts')).parseAnimData((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js)!); }
 async function execute(page: Page, operations: EditorOperation[]) {
   await page.evaluate(async operations => { const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations }); }, operations); await ready(page);
+}
+/** One `animation.key` set through the editor's session: '' when accepted, else the refusal. */
+async function tryKey(page: Page, key: { selector: string; property: string; value: number; time?: number; step?: number }) {
+  const message = await page.evaluate(async ({ selector, property, value, time, step }) => {
+    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'animation.key', selector, step, property, time, value, action: 'set' }] as never }); return ''; } catch (e) { return String(e); }
+  }, { step: 0, time: .4, ...key });
+  if (!message) await ready(page);
+  return message;
+}
+const LOOK = 'This graphic shows and hides this layer on air. It takes no keys; its look is preserved.';
+/** The ownership rule's answer for each (layer, channel) of the working graphic (#1982). */
+async function ownership(page: Page, asks: [string, string][]) {
+  return page.evaluate(async asks => {
+    const { keyAuthoringReason } = await import('/src/blocks/editorAnimation.ts'), { parseAnimData } = await import('/src/blocks/animData.ts');
+    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    return asks.map(([selector, channel]) => keyAuthoringReason(t, parseAnimData(t.js), selector, channel));
+  }, asks);
+}
+/** A layer's tracks in the cue that opens a package's animation data. */
+async function packagedKeys(page: Page, target: string, selector: string) {
+  return page.evaluate(async ({ target, selector }) => {
+    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(e => e.id === target)!.build(t);
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    for (const name of Object.keys(zip.files)) {
+      if (zip.files[name].dir || !/\.(m?js|html)$/.test(name)) continue;
+      const text = await zip.file(name)!.async('string');
+      // OGraf's module carries the graphic's sources as string constants.
+      for (const js of [text, ...[...text.matchAll(/^const [A-Z_]+ = (".*");$/gm)].map(m => JSON.parse(m[1]) as string)]) {
+        const data = js.includes('var NOACG_ANIM') ? parseAnimData(js) : null;
+        if (data) return data.steps[0].layers[selector];
+      }
+    }
+    return null;
+  }, { target, selector });
 }
 async function select(page: Page, selector: string) { await page.locator('.ef-track[data-selector=' + JSON.stringify(selector) + '] .ef-layer').click(); await ready(page); }
 async function seek(page: Page, time: number) {
@@ -417,35 +454,47 @@ test('a nested imported field stays a field and an animation target, with its ti
   await output.close();
 });
 
-// AC-15, row 26: on a behaviour graphic the recipe owns its moments. The drawn flash and final
-// layers are painted by class and offered as no row; the machine owns the sequence, so a key is
-// refused whole and changes nothing; the nested score is still a field and a placeable layer, and
-// after save and reopen the paint runtime still owns the looks.
-test('a nested field on a behaviour graphic keeps its field and its placement, and the recipe keeps its paint, through save and reopen', async ({ page }) => {
+// AC-15, row 26, and #1982 (docs/research/editor-behaviour-keys): on a behaviour graphic the
+// recipe owns its moments. The drawn flash and final layers are painted by class, are offered as
+// no row and take no key (K4); the nested score is a field the recipe only writes text into, so
+// it takes keys (K6) while the machine, its calls and the paint table stay byte for byte (K7). On
+// air the key plays and the flash still paints (K8); save, reopen and the packages keep the key.
+test('a nested field on a behaviour graphic takes keys, a drawn look refuses them, and the recipe keeps its paint, through save, reopen, air and packages', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 }); await page.goto('/app');
   await dropSvg(page, fileURLToPath(new URL('./fixtures/svg-corpus/illustrator-four-team-scoreboard.svg', import.meta.url)));
   await bindEveryTextLayer(page);
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('score');
   await finishIntoNewEditor(page); await ready(page);
-  const prepared = await source(page);
+  const prepared = await source(page), before = await data(page);
   const scoreField = prepared.fields.find(f => f.field === 'f2')!;
   expect([scoreField.title, scoreField.ftype]).toEqual(['Score 1', 'number']);
   const looks = ['#Flash_x20_1', '#Flash_x20_2', '#Flash_x20_3', '#Flash_x20_4', '#Full_x20_time'];
   const rows = await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector')));
   expect(rows).toEqual(expect.arrayContaining(['#Row_x20_1', '#f1', '#f2']));
   for (const look of looks) expect(rows).not.toContain(look);
-  const refuseKey = () => page.evaluate(async () => {
-    const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
-    try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'animation.key', selector: '#f2', step: 0, property: 'x', time: .4, value: 20, action: 'set' }] }); return ''; } catch (e) { return String(e); }
-  });
-  expect(await refuseKey()).toContain('state-machine ownership');
+  // K4: a look takes no key on any property, and the refusal changes nothing. The editor offers
+  // no look as a layer at all; the ownership rule names it too, on the real document.
+  for (const property of ['x', 'opacity'] as const) expect(await tryKey(page, { selector: '#Flash_x20_1', property, value: .5 })).not.toBe('');
   expect(await source(page)).toEqual(prepared);
-  await select(page, '#f2');
-  await expect(page.getByText(/state-machine ownership/)).toBeVisible();
+  expect(await ownership(page, [['#Flash_x20_1', 'opacity'], ['#Flash_x20_1', 'x'], ['#Full_x20_time', 'scaleX'], ['#f2', 'x'], ['#f2', 'opacity'], ['#Row_x20_1', 'x']]))
+    .toEqual([LOOK, LOOK, LOOK, null, null, null]);
+  // A base placement edit is still the layer's own and leaves the animation data alone.
   const baseX = await page.evaluate(async template => (await import('/src/blocks/baseEdits.ts')).baseValues(template, '#f2').x, prepared);
   await execute(page, [{ kind: 'base.set', selector: '#f2', values: { x: baseX + 12 } }]);
-  const placed = await source(page);
-  expect(placed.js).toBe(prepared.js); expect(placed.fields).toEqual(prepared.fields);
+  expect((await source(page)).js).toBe(prepared.js); expect((await source(page)).fields).toEqual(prepared.fields);
+  // K6: the nested score takes keys from the panel's own controls.
+  await select(page, '#f2');
+  await expect(page.getByText(/state-machine ownership|shows and hides/)).toHaveCount(0);
+  await seek(page, 0); await page.getByRole('button', { name: 'Enable Position X animation', exact: true }).click(); await ready(page);
+  const shownX = Number(await page.locator('.ef-animation-properties').getByRole('textbox', { name: 'Position X', exact: true }).inputValue());
+  await seek(page, .4); await number(page, 'Position X', shownX + 20);
+  const keyed = await data(page), track = keyed.steps[0].layers['#f2'].x;
+  expect(track.map(key => key.time)).toEqual([0, .4]); expect(track[1].value - track[0].value).toBeCloseTo(20, 3);
+  // K7: only the user's track changed; the machine, the calls and the paint table did not.
+  expect({ ...keyed, steps: keyed.steps.map(s => ({ ...s, layers: { ...s.layers, '#f2': undefined } })) })
+    .toEqual({ ...before, steps: before.steps.map(s => ({ ...s, layers: { ...s.layers, '#f2': undefined } })) });
+  const table = (js: string) => js.slice(js.indexOf('var NOACG_BEHAVIOUR'), js.indexOf('};', js.indexOf('var NOACG_BEHAVIOUR')));
+  expect(table((await source(page)).js)).toBe(table(prepared.js));
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Nested score'); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); const saved = await source(page);
 
@@ -453,14 +502,16 @@ test('a nested field on a behaviour graphic keeps its field and its placement, a
   const reopened = await source(page);
   for (const ext of ['html', 'css', 'js'] as const) expect(reopened[ext]).toBe(saved[ext]);
   expect(reopened.fields).toEqual(prepared.fields);
+  expect((await data(page)).steps).toEqual(keyed.steps);
   expect((await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector'))))).toEqual(rows);
-  expect(await refuseKey()).toContain('state-machine ownership'); expect((await source(page)).js).toBe(saved.js);
-  await select(page, '#f2'); await expect(page.getByText(/state-machine ownership/)).toBeVisible();
+  expect(await tryKey(page, { selector: '#Flash_x20_2', property: 'scaleX', value: 1.2 })).not.toBe(''); expect((await source(page)).js).toBe(saved.js);
+  expect(await ownership(page, [['#Flash_x20_2', 'scaleX'], ['#f2', 'x']])).toEqual([LOOK, null]);
+  // The packages carry the key in their animation data.
+  for (const target of ['spx', 'ograf']) expect(await packagedKeys(page, target, '#f2')).toEqual(keyed.steps[0].layers['#f2']);
   const compose = (template: typeof prepared) => page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), template);
   const output = await page.context().newPage();
   // Where #f2 stands in artwork units, read through the artwork's own scale.
   const standing = () => output.evaluate(() => { const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!; return (document.querySelector('#f2') as SVGGraphicsElement).getScreenCTM()!.e / art.a; });
-  await output.setContent(await compose(prepared)); const drawn = await standing();
   await output.setContent(await compose(reopened));
   const on = 'imported-design-on';
   const flash = () => output.locator('[data-noacg-role~="team.flash/1"]');
@@ -468,14 +519,67 @@ test('a nested field on a behaviour graphic keeps its field and its placement, a
   await w('update', JSON.stringify({ f2: '3' })); await w('play');
   await expect(output.locator('#Row_x20_1 > #f2')).toHaveText('3');
   await expect(flash()).not.toHaveClass(new RegExp(on));
+  // K8: the key plays on air, where the editor shows it at the end of the cue.
+  const inEditor = async (time: number) => { await seek(page, time); return (await preview(page)).evaluate(() => { const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!; return ((document.querySelector('#f2') as SVGGraphicsElement).getScreenCTM()!.e - art.e) / art.a; }); };
+  const shown = await inEditor(.8);
+  expect(shown - await inEditor(0)).toBeCloseTo(20, 1);
+  const relative = () => output.evaluate(() => { const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!; return ((document.querySelector('#f2') as SVGGraphicsElement).getScreenCTM()!.e - art.e) / art.a; });
+  await expect.poll(relative).toBeCloseTo(shown, 1);
   const placedAt = await standing();
-  expect(placedAt - drawn).toBeCloseTo(12, 1);
   // The cue sends +1 as the adjusted value (the control's `adjust`), as the production page does.
   await w('noacgDispatch', 'score1', { f2: '4' });
   await expect(output.locator('#f2')).toHaveText('4');
   await expect(flash()).toHaveClass(new RegExp(on));
   await expect(output.locator('[data-noacg-role~="team.flash/2"]')).not.toHaveClass(new RegExp(on));
-  // The placement edit is the layer's own; the paint never moved it.
+  // The keyed pose is the user's; the paint never moved it.
   expect(await standing()).toBeCloseTo(placedAt, 3);
   await output.close();
+});
+
+// #1982: a quiz's answers take keys on the walk's own cues, and its drawn moments do not (K4, K6).
+// A key on Reveal replays when the operator's Reveal arrow enters that cue, after the pick and the
+// lock (K8). The credits roll keeps its whole sequence (K2): every key is refused, by name.
+test('a quiz takes keys on its answers and its cues, its drawn moments refuse them, and credits keep the whole roll', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 }); await page.goto('/app');
+  await dropSvg(page, QUIZ_SVG);
+  await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('quiz');
+  await finishIntoNewEditor(page); await ready(page);
+  const prepared = await source(page);
+  const lookId = await page.evaluate(html => new DOMParser().parseFromString(html, 'text/html').querySelector('[data-noacg-role~="answer.selected/B"]')!.id, prepared.html);
+  expect(await tryKey(page, { selector: '#' + lookId, property: 'opacity', value: .5 })).not.toBe('');
+  expect(await source(page)).toEqual(prepared);
+  expect(await ownership(page, [['#' + lookId, 'opacity'], ['#f1', 'x'], ['#f0', 'rotation']])).toEqual([LOOK, null, null]);
+  const steps = (await data(page)).steps;
+  expect(steps.map(s => s.name)).toEqual(['Question', 'Reveal', 'Out']);
+  expect(await tryKey(page, { selector: '#f1', property: 'x', time: 0, value: 0 })).toBe('');
+  expect(await tryKey(page, { selector: '#f1', property: 'x', time: .4, value: 15 })).toBe('');
+  expect(await tryKey(page, { selector: '#f1', property: 'x', step: 1, time: .45, value: 30 })).toBe('');
+  const keyed = await data(page);
+  expect([keyed.steps[0].layers['#f1'].x.length, keyed.steps[1].layers['#f1'].x.length]).toEqual([2, 1]);
+  const output = await page.context().newPage();
+  await output.setContent(await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), await source(page)));
+  const x = () => output.evaluate(() => Number((window as unknown as { gsap: { getProperty(t: string, p: string): number } }).gsap.getProperty('#f1', 'x')));
+  const w = (fn: string, ...args: unknown[]) => output.evaluate(({ fn, args }) => { (window as unknown as Record<string, (...a: unknown[]) => unknown>)[fn](...args); }, { fn, args });
+  const on = /imported-design-on/;
+  await w('play'); await expect.poll(x).toBeCloseTo(15, 1);
+  await w('noacgDispatch', 'select', { f6: 'B' });
+  await expect(output.locator('[data-noacg-role~="answer.selected/B"]')).toHaveClass(on);
+  await w('noacgDispatch', 'lock');
+  await expect(output.locator('[data-noacg-role~="locked"]')).toHaveClass(on);
+  expect(await x()).toBeCloseTo(15, 1);
+  await w('noacgDispatch', 'judge', { f5: 'C' });
+  await expect(output.locator('[data-noacg-role~="answer.correct/C"]')).toHaveClass(on);
+  await expect.poll(x).toBeCloseTo(30, 1);
+  await output.close();
+
+  await page.goto('/app');
+  await dropSvg(page, fileURLToPath(new URL('./fixtures/credits-artwork.svg', import.meta.url)));
+  await page.getByTestId('map-svg-behaviour-kind').selectOption('credits');
+  await finishIntoNewEditor(page); await ready(page);
+  const credits = await source(page);
+  const layers = (await page.locator('.ef-track').evaluateAll(els => els.map(e => e.getAttribute('data-selector')!))).filter(s => s.startsWith('#'));
+  expect(layers.length).toBeGreaterThan(0);
+  for (const selector of layers.slice(0, 3)) expect(await tryKey(page, { selector, property: 'opacity', value: .5 })).toContain('credits roll measures');
+  expect(await source(page)).toEqual(credits);
+  await select(page, layers[0]); await expect(page.getByText(/credits roll measures this artwork/)).toBeVisible();
 });

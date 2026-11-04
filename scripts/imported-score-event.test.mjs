@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/templates/behaviours/score.ts, src/templates/importedDesign/behaviourRuntime.ts, src/templates/shared/animRuntime.ts, src/control/controlModel.ts, src/control/graphicVerbs.ts, src/control/matchClockWire.ts
+// guards: src/templates/behaviours/score.ts, src/templates/importedDesign/behaviourRuntime.ts, src/templates/shared/animRuntime.ts, src/control/controlModel.ts, src/control/graphicVerbs.ts, src/control/matchClockWire.ts, src/control/outputRecovery.ts, src/preview/previewProtocol.ts
 //
 // THE SCORE EVENT ON ARTWORK NOBODY NAMED FOR US (docs/work-specs/jev-svg-import/spec.md, row 12,
 // AC-10 and AC-21). The boards here are the plan's own development fixtures, drawn with generic
@@ -19,7 +19,8 @@
 // - S4 clock rows leave the scores and the flash alone and replay nothing, and score rows the clock: New game zeroes
 //   the scores and leaves the clock running; Full time, Out and Take keep both figures.
 // - S5 an output that missed rows and caught up agrees with one that saw them all, and a snap
-//   recovers the moment without replaying it. A reboot from a report does not yet (#1908, item 2).
+//   recovers the moment without replaying it; an output rebooted from the report lights the team
+//   the one that stayed up shows, and plays nothing (#1908).
 // - S6 at the surface, the recipe's own buttons through the real `pressSend` and verbs: a failed
 //   send writes nothing into the cue, and an event that went while its shared value did not move
 //   says so in words distinct from a failed send.
@@ -50,6 +51,7 @@ const { createGraphicVerbs } = await import('../src/control/graphicVerbs.ts');
 const { createPlayoutSession } = await import('../src/control/playoutSession.ts');
 const { withLiveCue } = await import('../src/control/liveCue.ts');
 const { SHARED_NOT_MOVED } = await import('../src/control/liveControls.ts');
+const { reportedSnap } = await import('../src/control/outputRecovery.ts');
 
 const root = (rel) => fileURLToPath(new URL(`../${rel}`, import.meta.url));
 const SPECS = [
@@ -59,6 +61,8 @@ const SPECS = [
   ['preview/composeDocument.ts', 'NOACG_COMPOSE'],
   ['ai/svgInterpretation/contract.ts', 'NOACG_CONTRACT'],
   ['control/matchClockWire.ts', 'NOACG_WIRE'],
+  ['control/outputRecovery.ts', 'NOACG_RECOVERY'],
+  ['preview/previewProtocol.ts', 'NOACG_PROTOCOL'],
 ].map(([rel, globalName]) => ({ entry: root(`src/${rel}`), globalName }));
 
 /** A hidden group the way a designer draws a moment: off in the file, a plain shape inside. */
@@ -107,8 +111,9 @@ const RUN = async ({ template, scoreFields, script }) => {
   let wall = 1800000000000;
   const log = [];
   const outputs = [];
+  // Composed as output/stage.ts composes a renderer's frame, its command listener included.
   const mount = async (name) => {
-    const html = window.NOACG_COMPOSE.composeDocument(template);
+    const html = window.NOACG_COMPOSE.composeDocument(template, { liveControl: true });
     const srcdoc = html.replace(/<head[^>]*>/i, (m) => m + window.__TEST_CLOCK.replace('var origin = 1700000000000', `var origin = ${wall}`));
     const frame = document.createElement('iframe');
     frame.id = `out-${name}`;
@@ -174,6 +179,29 @@ const RUN = async ({ template, scoreFields, script }) => {
   };
   outputs.push(await mount('A'), await mount('B'));
   const [A, B] = outputs;
+  /** An output rebuilt from A's report, as output/main.ts boots one: the data half, the pose
+   *  (`reportedSnap`, as main.ts reads it) mapped to the frame's command as output/stage.ts maps it
+   *  (`snapCommand`), and the data again, through the renderer's own message handler
+   *  (composeDocument), the report having been stored as JSON. */
+  let rebooted = null;
+  const reboot = async () => {
+    const report = JSON.parse(JSON.stringify({ data: A.held, state: A.w.noacgMachineState() }));
+    const out = await mount('C');
+    out.held = { ...report.data };
+    const P = window.NOACG_PROTOCOL;
+    const post = (cmd) => out.w.postMessage({ type: P.PREVIEW_CMD_TYPE, ...cmd }, '*');
+    post({ cmd: 'update', data: JSON.stringify(report.data) });
+    post(P.snapCommand(window.NOACG_RECOVERY.reportedSnap(report)));
+    post({ cmd: 'update', data: JSON.stringify(report.data) });
+    // Delivered as tasks, behind the renderer's own waits on the driven clock: every output's clock
+    // moves in step until the pose has landed.
+    const step = () => { advance(20); out.w.__advance(20); return new Promise((r) => setTimeout(r, 0)); };
+    for (let i = 0; i < 200 && JSON.stringify(out.w.noacgMachineState().groups) !== JSON.stringify(report.state.groups); i++) await step();
+    for (let i = 0; i < 5; i++) await step();
+    // From here on it takes every row and every tick, as the outputs that stayed up do.
+    rebooted = out;
+    outputs.push(out);
+  };
   let cue = { ...values };
   const readings = [];
   for (const [verb, arg, extra] of script) {
@@ -197,7 +225,8 @@ const RUN = async ({ template, scoreFields, script }) => {
     else if (verb === 'wait') advance(arg);
     else if (verb === 'disconnect') B.connected = false;
     else if (verb === 'reconnect') { B.connected = true; for (const row of B.missed.splice(0)) deliver(B, row); }
-    else if (verb === 'read') readings.push({ label: arg, A: read(A), B: read(B) });
+    else if (verb === 'reboot') await reboot();
+    else if (verb === 'read') readings.push({ label: arg, A: read(A), B: read(B), ...(rebooted ? { C: read(rebooted) } : {}) });
   }
   for (const out of outputs) document.getElementById(`out-${out.name}`)?.remove();
   return { readings, scores };
@@ -297,6 +326,16 @@ const runs = await withBundledPage(SPECS, async (page) => {
     snap: await run(twoClock, [
       ['take'], s, ['+1', 1], s, r('+1 SHORE'),
       ['snap'], s, r('snapped to where it stands'),
+    ]),
+    reboot: await run(twoClock, [
+      ['take'], s, ['event', 'clock_start'], s,
+      ['+1', 0], s, ['+1', 1], s, ['type', 0, 7], s, r('SHORE scored, FIELD typed up'),
+      ['reboot'], s, r('rebooted from the report'),
+      ['+1', 0], s, r('+1 FIELD after the reboot'),
+    ]),
+    rebootFour: await run(four, [
+      ['take'], s, ['+1', 2], s, ['award', 1], s,
+      ['reboot'], s, r('rebooted after a bound +1'),
     ]),
     reconnect: await run(twoClock, [
       ['take'], s, ['event', 'clock_start'], s,
@@ -467,6 +506,37 @@ test('an output that missed the rows and caught up agrees with the one that saw 
   assert.deepEqual(later.B.scores, later.A.scores);
   flashOnly(later, 2, 'caught up after a point');
   assert.equal(later.B.time, later.A.time);
+});
+
+test('an output rebooted from its report lights the team that scored, and plays nothing (#1908, AC-21)', () => {
+  const r = runs.reboot;
+  const before = at(r, 'SHORE scored, FIELD typed up');
+  flashOnly(before, 2, 'before the reboot');
+  const booted = at(r, 'rebooted from the report');
+  const { A, C } = booted;
+  assert.equal(C.flag, 'shown', 'the flag is up');
+  assert.deepEqual(C.scores, A.scores, 'the figures');
+  assert.deepEqual(C.flashes, A.flashes, 'the rebooted output lights the same team');
+  assert.deepEqual(C.flashes, [false, true], 'SHORE, which scored, not FIELD, which was typed up');
+  assert.equal(C.final, A.final);
+  assert.equal(C.clock, A.clock, 'the clock group');
+  assert.equal(C.time, A.time, 'the clock reads the same second');
+  assert.deepEqual(C.pops, {}, 'a reboot recovers the moment without replaying it');
+  const next = at(r, '+1 FIELD after the reboot');
+  assert.deepEqual(next.C.flashes, next.A.flashes, 'a press after the reboot moves both alike');
+  assert.deepEqual(next.C.flashes, [true, false]);
+  assert.deepEqual(next.C.pops, { 'team.flash/1': 1 }, 'and plays once');
+  const bound = at(runs.rebootFour, 'rebooted after a bound +1').C;
+  assert.deepEqual(bound.flashes, [false, true, false, false], 'a press with no figure on it survives the reboot too');
+});
+
+test('a report\'s pose carries the scoring rows beside it, and nothing that is not one (#1908)', () => {
+  const groups = { main: 'on-air', flag: 'shown' };
+  assert.deepEqual(reportedSnap({ state: { groups, awards: { score: 'f3' } } }), { t: 'snap', snap: groups, awards: { score: 'f3' } });
+  assert.deepEqual(reportedSnap({ state: { groups } }), { t: 'snap', snap: groups }, 'a report from before the scoring rows');
+  for (const awards of ['f3', ['f3'], null, { score: 3 }, {}]) assert.deepEqual(reportedSnap({ state: { groups, awards } }), { t: 'snap', snap: groups }, JSON.stringify(awards));
+  assert.equal(reportedSnap({ state: { awards: { score: 'f3' } } }), null, 'no pose, no snap');
+  assert.equal(reportedSnap(null), null);
 });
 
 test('a +1 bound to shared data lights its team at the press, and the figure arriving later moves nothing (S1, AC-21)', () => {
