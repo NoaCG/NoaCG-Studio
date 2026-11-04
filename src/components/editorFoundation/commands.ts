@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { artworkText } from '../../blocks/artworkEdits';
 import { baseValues } from '../../blocks/baseEdits';
-import { animationSource, sequenceAuthoringReason, writeChannel } from '../../blocks/editorAnimation';
+import { animationSource, keyAuthoringReason, sequenceAuthoringReason, writeChannel } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import { readTimeline, ownerOf } from './timelineView';
 import type { EditorOperation, OperationPatch } from './operations';
@@ -76,7 +76,7 @@ function operation(template: SpxTemplate, id: CommandId, raw: unknown): EditorOp
   const selector = selectorFor(template, args.targetId as string);
   if (id === 'text.set' && !artworkText(template, selector)) throw new Refusal('unsupported_target', 'Use a plain text layer. Styled runs, outlined and driven values retain their source.');
   if (id === 'animation.key') {
-    const data = animationSource(template), reason = sequenceAuthoringReason(data);
+    const data = animationSource(template), reason = keyAuthoringReason(template, data, selector, args.property as string);
     if (reason) throw new Refusal('unsupported_target', reason);
     const owner = ownerOf(readTimeline(template), selector);
     if (writeChannel(data, owner, args.property as 'x' | 'y') !== args.property) throw new Refusal('unsupported_target', 'This layer uses percent position. Use its existing UI channel control.');
@@ -129,7 +129,7 @@ export class EditorCommands {
         const info = capability(() => { const text = artworkText(template, part.selector); if (!text) throw new Error('Use plain text. Styled runs, outlined and driven text retain their source.'); applyOperations(template, [{ kind: 'text.set', selector: part.selector, text: text.text }], false); return text; });
         const text = info.supported ? artworkText(template, part.selector) : null;
         const base = capability(() => { const value = baseValues(template, part.selector); applyOperations(template, [{ kind: 'base.set', selector: part.selector, values: { x: value.x + 1, y: value.y + 1 } }], false); return value; });
-        const position = capability(() => { const data = animationSource(template); const reason = sequenceAuthoringReason(data); if (reason) throw new Error(reason);
+        const position = capability(() => { const data = animationSource(template); const reason = keyAuthoringReason(template, data, part.selector, 'x'); if (reason) throw new Error(reason);
           const owner = ownerOf(view, part.selector); if (!base.supported) throw new Error(base.reason);
           for (const p of ['x', 'y'] as const) { if (writeChannel(data, owner, p) !== p) throw new Error('This layer uses percent position. Use its existing UI channel control.'); applyOperations(template, [{ kind: 'animation.key', selector: part.selector, step: 0, time: 0, property: p, value: 0, action: 'set' }], false); } });
         const unstable = { supported: false as const, reason: 'Commit a unique source ID through the existing UI before semantic edits.' };

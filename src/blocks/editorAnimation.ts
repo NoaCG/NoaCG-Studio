@@ -5,6 +5,8 @@ import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase, type BasePatch } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
+import { locateBehaviourData, parseBehaviourData } from './behaviourData';
+import { behaviourSequenceReason, claimReason, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim, type Relation } from './behaviourKeys';
 
 /** A transform or opacity control of the inspector and canvas. */
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
@@ -76,10 +78,74 @@ export function writeChannel(data: AnimData | null, owner: string, property: Num
   if (clash) throw new Error(`${owner} animates ${NAMES[property]} with both ${clash[0]} and ${clash[1]} tracks, so a key could not say which one it changes. Its source is preserved.`);
   return armed[0] ?? property;
 }
+/** Whether the editor may change the sequence's STRUCTURE: cues, Set Out, bars and group pivots.
+ *  A machine, calls, measured motion or loops keep it as authored (R1.1c; on a behaviour graphic
+ *  K3 of docs/research/editor-behaviour-keys). Keys ask `keyAuthoringReason`. */
 export function sequenceAuthoringReason(data: AnimData | null): string | null {
   if (!data) return 'This source has no supported animation data.';
-  return data.machine || data.steps.some(step => step.calls?.length || step.dynamics?.length || Object.keys(step.loops ?? {}).length)
-    ? 'This sequence has calls, measured motion, loops or state-machine ownership. Canvas edits base placement; its animation is preserved.' : null;
+  return sequenceOwned(data) ? SEQUENCE_REFUSAL : null;
+}
+/** The behaviour paint runtime's own entry point, which a recipe's table needs to mean anything. */
+const BEHAVIOUR_RUNTIME = /function noacgRepaint\(/;
+/**
+ * Whether keys may be authored on this sequence (#1982): a plain one, or an owned one where a
+ * behaviour recipe is every writer and each is known (K1, K2). Which layers and properties are
+ * the user's is `keyAuthoringReason`.
+ */
+export function keySequenceReason(template: SpxTemplate, data: AnimData | null): string | null {
+  const reason = sequenceAuthoringReason(data);
+  if (!reason || !data) return reason;
+  return behaviourSequenceReason(data, parseBehaviourData(template.js), BEHAVIOUR_RUNTIME.test(template.js));
+}
+/** The recipe's claims on one template, read once per source (#1982): a drag asks per frame. */
+let claimed: { js: string; html: string; claims: RecipeClaim[] } | null = null;
+function claimsOf(template: SpxTemplate, doc: Document): RecipeClaim[] {
+  if (claimed?.js !== template.js || claimed.html !== template.html) {
+    const drawn = (token: string) => { try { return !!doc.querySelector(stamped(token)); } catch { return true; } };
+    claimed = { js: template.js, html: template.html, claims: recipeClaims(parseBehaviourData(template.js)!, drawn) };
+  }
+  return claimed.claims;
+}
+/** How each element a claim selects stands to `layers` (K5's containment stops at the artwork).
+ *  A claim that cannot be resolved stands as the layer itself: unknown ownership refuses. */
+function claimRelations(doc: Document, layers: Element[]) {
+  return (selector: string): Relation[] => {
+    let found: Element[];
+    try { found = Array.from(doc.querySelectorAll(selector)); } catch { return ['self']; }
+    return found.flatMap(el => layers.map((layer): Relation => el === layer ? 'self' : layer.contains(el) && !!layer.closest('svg') ? 'inside' : el.contains(layer) ? 'contains' : 'none'));
+  };
+}
+/**
+ * K4 to K6: the reason a key on `channel` of the layers `selector` matches is refused on a
+ * behaviour graphic, or null where they are the user's. Null on a plain sequence; the sequence's
+ * own reason where keys are refused whole.
+ */
+export function keyAuthoringReason(template: SpxTemplate, data: AnimData | null, selector: string, channel: string): string | null {
+  const reason = keySequenceReason(template, data);
+  if (reason || !data || !sequenceOwned(data)) return reason;
+  const doc = parsed(template.html);
+  let layers: Element[];
+  try { layers = Array.from(doc.querySelectorAll(selector)); } catch { return SEQUENCE_REFUSAL; }
+  if (!layers.length) return SEQUENCE_REFUSAL;
+  const relations = claimRelations(doc, layers);
+  return claimReason(claimsOf(template, doc).map(claim => ({ claim, relations: relations(claim.selector) })), channel);
+}
+/** The reason a control of a layer cannot be keyed: the first of its channels that refuses. */
+export function controlKeyReason(template: SpxTemplate, data: AnimData | null, selector: string, control: NumericProperty): string | null {
+  for (const channel of CONTROL_CHANNELS[control]) { const reason = keyAuthoringReason(template, data, selector, channel); if (reason) return reason; }
+  return null;
+}
+/** K7: on an owned sequence, an edit may change only tracks that are the user's, checked on every
+ *  element each changed track's selector matches. */
+function requireUserEdit(template: SpxTemplate, before: AnimData, after: AnimData) {
+  if (!sequenceOwned(before)) return;
+  requireUserTracksOnly(before, after, (owner, channel) => !keyAuthoringReason(template, before, owner, channel));
+}
+/** K7: the paint table a key edit leaves exactly as it was. */
+function keepRecipe(before: SpxTemplate, after: SpxTemplate): SpxTemplate {
+  const table = (js: string) => { const at = locateBehaviourData(js); return at ? js.slice(at.start, at.end) : null; };
+  if (table(before.js) !== table(after.js)) throw new Error('This edit would change what the behaviour owns. No keys changed.');
+  return after;
 }
 const documents = new Map<string, Document>();
 /** The template's document, parsed once per html. */
@@ -141,17 +207,18 @@ export function trackOwners(template: SpxTemplate, data: AnimData, selectors: st
     try { return [selector, layerOwner(data, selector, names(selector))]; } catch { return [selector, selector]; }
   }));
 }
-/** Refuse what playback owns and return the layer's owner. */
-export function animationTarget(template: SpxTemplate, data: AnimData, selector: string) {
+/** Refuse what playback owns and return the layer's owner. Keys on `channels` ask whose they
+ *  are (#1982); without channels the edit is structural (a bar), which an owned sequence keeps. */
+export function animationTarget(template: SpxTemplate, data: AnimData, selector: string, channels?: readonly string[]) {
   const node = artworkNode(template, selector);
   if (node.matches(data.root)) throw new Error('The graphic root is owned by playback. Animate an artwork layer.');
-  const reason = sequenceAuthoringReason(data);
+  const reason = channels?.length ? channels.map(channel => keyAuthoringReason(template, data, selector, channel)).find(Boolean) ?? null : sequenceAuthoringReason(data);
   if (reason) throw new Error(reason);
   return trackOwner(template, data, selector);
 }
 /** Throws unless a layer's Scale handles can key it: both axes have a channel to write. */
 export function requireScaleWritable(template: SpxTemplate, selector: string) {
-  const data = animationSource(template), owner = animationTarget(template, data, selector);
+  const data = animationSource(template), owner = animationTarget(template, data, selector, [...CONTROL_CHANNELS.scaleX, ...CONTROL_CHANNELS.scaleY]);
   writeChannel(data, owner, 'scaleX'); writeChannel(data, owner, 'scaleY');
 }
 /** Where removing a Position axis's motion keeps its displayed pose as a pixel base, its percent
@@ -232,10 +299,13 @@ function requireTextPivot(template: SpxTemplate, selector: string, channel: Chan
   if (base.mode === 'placed' && base.anchor) throw new Error(`${selector} has its anchor on its placed box, but a ${channel} key turns or scales its text inside that box about the text's own centre, not the anchor. Its source is preserved.`);
 }
 export function applyAnimation(template: SpxTemplate, operation: AnimationOperation): SpxTemplate {
+  const original = template;
   const source = animationSource(template), { selector, step } = operation;
   if (operation.kind === 'animation.key' && operation.action === 'set') requireTextPivot(template, selector, operation.property);
-  const owner = animationTarget(template, source, selector);
+  const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as NumericProperty] ?? [operation.property];
+  const owner = animationTarget(template, source, selector, channels);
   const { data, ended } = animateLayer(source, owner, operation, source.speed / template.fps, documentContains(template.html));
+  requireUserEdit(template, source, data);
   // The controls whose motion ended (only a key removal ends any) keep the displayed pose as their base.
   if (ended.length && operation.kind === 'animation.key') {
     const js = writeAnimData(template.js, data);
@@ -252,17 +322,23 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   }
   const js = step > 0 && step === data.steps.length - 1 ? writeOutData(template.js, data) : writeAnimData(template.js, data);
   if (js === null) throw new Error('The animation region cannot be written without replacing source.');
-  return { ...template, js };
+  return keepRecipe(original, { ...template, js });
+}
+
+/** Refuse a key selection unless every key is on a track that is the user's (#1982). */
+function requireUserKeys(template: SpxTemplate, data: AnimData, keys: KeyRef[]) {
+  const reason = keySequenceReason(template, data) ?? (Array.isArray(keys) ? keys : []).map(key => keyAuthoringReason(template, data, key.selector, key.property)).find(Boolean);
+  if (reason) throw new Error(reason);
 }
 
 /** Move the selected keys, across flags too. An older known interpreter is re-emitted where Out
  *  changes, as Set Out does, and a custom one refuses there. */
 export function applyKeyMove(template: SpxTemplate, operation: KeyMoveOperation): SpxTemplate {
   const data = animationSource(template);
-  const reason = sequenceAuthoringReason(data);
-  if (reason) throw new Error(reason);
+  requireUserKeys(template, data, operation.keys);
   const next = moveKeys(data, operation.keys, operation.delta);
   if (next === data) return template;
+  requireUserEdit(template, data, next);
   const out = next.steps.length - 1;
   return writeKeys(template, next, out > 0 && JSON.stringify(next.steps[out]) !== JSON.stringify(data.steps[out]), 'the moved keys');
 }
@@ -271,11 +347,11 @@ export function applyKeyMove(template: SpxTemplate, operation: KeyMoveOperation)
  *  interpreter is re-emitted to play the new forms, and a custom one refuses. */
 export function applyKeyEase(template: SpxTemplate, operation: KeyEaseOperation): SpxTemplate {
   const data = animationSource(template);
-  const reason = sequenceAuthoringReason(data);
-  if (reason) throw new Error(reason);
   if (!Array.isArray(operation.keys) || !operation.keys.length) throw new Error('Select keys to ease. No ease changed.');
+  requireUserKeys(template, data, operation.keys);
   const next = easeKeys(data, operation.keys, operation.preset);
   if (next === data) return template;
+  requireUserEdit(template, data, next);
   return writeKeys(template, next, data.steps.length > 1 && operation.keys.some(key => key.step === data.steps.length - 1), 'the new eases');
 }
 
@@ -284,5 +360,5 @@ export function applyKeyEase(template: SpxTemplate, operation: KeyEaseOperation)
 function writeKeys(template: SpxTemplate, next: AnimData, exit: boolean, what: string): SpxTemplate {
   const js = exit ? writeOutData(template.js, next) : writeAnimData(template.js, next);
   if (js === null) throw new Error(`This interpreter has custom source, so ${what} cannot be written safely. Its source is preserved.`);
-  return { ...template, js };
+  return keepRecipe(template, { ...template, js });
 }
