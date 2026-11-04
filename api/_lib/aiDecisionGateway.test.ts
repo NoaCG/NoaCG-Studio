@@ -10,6 +10,7 @@ import {
   decisionQuestionsRefusal,
   decisionRequestBytes,
   executeDecisionRequest,
+  prepareDecision,
   runSvgInterpretation,
   type DecisionQuestions,
   type SvgInterpretationDependencies,
@@ -24,6 +25,7 @@ import {
 } from './aiModelCatalog.js';
 import {
   SVG_DECISION_LIMITS,
+  svgInterpretationPolicy,
   svgInterpretationProfile,
   type SvgDecisionEvidence,
   type SvgInterpretationProfile,
@@ -37,6 +39,10 @@ import {
 } from './aiTaskRegistry.js';
 import { hasCurrentAiConsent } from './aiConsentStore.js';
 import { MemoryLiteGenerationStore } from './aiLiteStore.js';
+import { GATEWAY_TAG_WRITE_USD } from './aiGateway.js';
+
+/** The gateway's fee for one served request: the task sends one `surface:*` tag (#2015). */
+const FEE = GATEWAY_TAG_WRITE_USD;
 import { resetSystemSettingsCache, systemSettings, type SystemSettings } from './systemSettings.js';
 import { resetAdminDb } from './adminAuth.js';
 import { resolveUserEntitlement } from './entitlements.js';
@@ -289,7 +295,7 @@ test('an invalid decision payload is refused, not retried, and the deterministic
   assert.equal(sent.length, 1);
   const [record] = await records(store);
   assert.equal(record?.status, 'failed');
-  assert.equal(record?.providerCostUsd, 0.0000378, 'a billed answer that was refused still counts');
+  assert.equal(record?.providerCostUsd, 0.0000378 + FEE, 'a billed answer that was refused still counts, fee included');
 });
 
 test('an answer from another model or an unlisted provider is refused', async () => {
@@ -360,7 +366,7 @@ test('a billed cost above the ceiling fails the request and keeps the determinis
   const result = await runSvgInterpretation(input(), { ...deps, fetchImpl });
   assert.equal(!result.ok && result.reason, 'cost_ceiling');
   const [record] = await records(store);
-  assert.deepEqual([record?.status, record?.rejectionReason, record?.providerCostUsd], ['failed', 'cost_ceiling', 0.5]);
+  assert.deepEqual([record?.status, record?.rejectionReason, record?.providerCostUsd], ['failed', 'cost_ceiling', 0.5 + FEE]);
 });
 
 // ---- Reservations ----
@@ -376,7 +382,7 @@ test('a request books the existing reservation, settles it, and releases the slo
   assert.equal(record?.status, 'usable');
   assert.equal(record?.model, JEV);
   assert.equal(record?.attemptCount, 1);
-  assert.equal(record?.providerCostUsd, 0.0000378, 'the gateway-reported cost replaces the booked ceiling');
+  assert.equal(record?.providerCostUsd, 0.0000378 + FEE, 'the reported cost plus the request fee replaces the booked ceiling');
   assert.deepEqual([record?.inputTokens, record?.outputTokens], [900, 12]);
   // Released: the same user may start the next request at once (one at a time per user).
   const next = await runSvgInterpretation(input(), { ...deps, fetchImpl });
@@ -931,4 +937,94 @@ test('a failing provider is retried once at most, and every failure answers the 
     assert.equal(model.sent.length, attempts, `${label}: attempts`);
     assert.deepEqual((await records(store)).map((r) => r?.status), [settled], `${label}: the booking is settled`);
   }
+});
+
+// ---- The gateway's per-request fee (#2015) ----
+//
+// Measured on the eval ledgers (runs 41620061986 and 41621970771): every served /v1/evaluate
+// request debited $0.000075 more than the cost it reported, and a request refused before
+// inference debited nothing. The fee is the gateway's charge for the one `surface:*` tag.
+
+test('the worst case of an attempt, and so the booked ceiling check, includes the fee', () => {
+  const profile = enabledProfile();
+  const gateway = svgInterpretationPolicy(profile)!;
+  const price = profile.prices[`vercel:${JEV}`];
+  const request = { route: profile.route, state: evidence(), questions: QUESTIONS };
+  const prepared = prepareDecision(request, gateway, price);
+  assert.equal(prepared.requestFeeUsd, FEE);
+  assert.equal(prepareDecision(request, { ...gateway, tags: [] }, price).requestFeeUsd, 0, 'no tag, no fee');
+  // Input bounded by the body's bytes plus 512 framing tokens; Jev bills no output tokens.
+  const tokensUsd = (prepared.bytes + 512) * price.inputPerMillion / 1_000_000;
+  assert.ok(Math.abs(prepared.attemptCeilingUsd - (tokensUsd + FEE)) < 1e-15, `${prepared.attemptCeilingUsd}`);
+});
+
+test('a ceiling that fits the tokens but not the fee is refused before anything is sent', async () => {
+  const profile = enabledProfile();
+  const request = { route: profile.route, state: evidence(), questions: QUESTIONS };
+  const { attemptCeilingUsd } = prepareDecision(request, svgInterpretationPolicy(profile)!, profile.prices[`vercel:${JEV}`]);
+  // Room for both attempts' tokens and one fee, but not two fees.
+  const maxProviderCostUsd = profile.maxAttempts * attemptCeilingUsd - FEE / 2;
+  const { fetchImpl, sent } = provider(served());
+  const { deps, store } = harness({ fetchImpl, profile: enabledProfile({ maxProviderCostUsd }) });
+  const result = await runSvgInterpretation(input(), deps);
+  assert.equal(!result.ok && result.reason, 'cost_ceiling');
+  assert.equal(sent.length, 0);
+  assert.equal((await records(store)).length, 0);
+});
+
+test('a refusal before inference books nothing; a server failure books its worst case, fee included', async () => {
+  const profile = enabledProfile();
+  const { attemptCeilingUsd } = prepareDecision(
+    { route: profile.route, state: evidence(), questions: QUESTIONS },
+    svgInterpretationPolicy(profile)!,
+    profile.prices[`vercel:${JEV}`],
+  );
+  {
+    const { deps, store } = harness();
+    const { fetchImpl } = provider(400);
+    const result = await runSvgInterpretation(input(), { ...deps, fetchImpl });
+    assert.equal(result.ok, false);
+    assert.equal((await records(store))[0]?.providerCostUsd, 0, 'refused before inference: no tokens and no fee');
+  }
+  {
+    const { deps, store } = harness();
+    const { fetchImpl } = provider(503, 503);
+    await runSvgInterpretation(input(), { ...deps, fetchImpl });
+    assert.equal((await records(store))[0]?.providerCostUsd, 2 * attemptCeilingUsd, 'billing unknown: both attempts at their worst case');
+  }
+});
+
+test('the ledger batch reproduces: three requests reported $0.00011991 and debited $0.00034491', async () => {
+  // Batch 0 of run 41620061986. The per-request split is not in the ledger; any split of the
+  // reported total settles to the same sum.
+  const reported = ['0.00003997', '0.00003997', '0.00003997'];
+  const { deps, store } = harness();
+  for (const [i, cost] of reported.entries()) {
+    const { fetchImpl } = provider(served({ providerMetadata: { gateway: { routing: { finalProvider: 'typesafe-ai' }, cost } } }));
+    const result = await runSvgInterpretation(input({ userId: `user-${i}` }), { ...deps, fetchImpl });
+    assert.equal(result.ok, true);
+  }
+  const settled = (await records(store)).reduce((sum, record) => sum + (record?.providerCostUsd ?? 0), 0);
+  assert.ok(Math.abs(settled - 0.00034491) < 1e-12, `settled ${settled}, debited 0.00034491`);
+});
+
+test('the fleet spend ceiling counts the fee: N served requests use N times (cost + fee)', async () => {
+  // A request is admitted while settled spend plus one booking fits the fleet ceiling. With room
+  // for $0.0008 of settled spend and $0.00004 reported per request, forgetting the fee would
+  // admit 21 requests; counting it ($0.000115 each) admits 7: 7 x 0.000115 = 0.000805 > 0.0008.
+  const N = 7;
+  const room = 0.0008;
+  const profile = enabledProfile();
+  const { deps, store } = harness({ profile: enabledProfile({ dailyFleetSpendUsd: profile.maxProviderCostUsd + room }) });
+  const { fetchImpl } = provider(served({ providerMetadata: { gateway: { routing: { finalProvider: 'typesafe-ai' }, cost: '0.00004' } } }));
+  for (let i = 0; i < N; i++) {
+    const result = await runSvgInterpretation(input({ userId: `fleet-${i}` }), { ...deps, fetchImpl });
+    assert.equal(result.ok, true, `request ${i}`);
+  }
+  const settled = (await records(store)).reduce((sum, record) => sum + (record?.providerCostUsd ?? 0), 0);
+  assert.ok(Math.abs(settled - N * (0.00004 + FEE)) < 1e-12, `settled ${settled}`);
+  assert.ok(settled > room && N * 0.00004 < room, 'only the fee takes the fleet past its room');
+  const next = await runSvgInterpretation(input({ userId: 'fleet-next' }), { ...deps, fetchImpl });
+  assert.equal(!next.ok && next.reason, 'allowance');
+  assert.equal(!next.ok && next.detail, 'fleet-spend');
 });

@@ -3,8 +3,10 @@ import { verifyUser } from '../auth.js';
 import { managedAiKey } from '../aiCredentials.js';
 import {
   executeGatewayRequest,
-  estimateModelCost,
   GatewayError,
+  usageCostUsd,
+  withTokenCost,
+  worstAttemptCostUsd,
   type GatewayExecutionPolicy,
 } from '../aiGateway.js';
 import { liteError } from '../aiLiteHttp.js';
@@ -177,8 +179,9 @@ function zeroUsage(): ModelUsage {
 }
 
 function aggregateResults(first: ModelResult, second: ModelResult): ModelResult {
-  const firstCost = first.usage.estimatedCost?.amount ?? 0;
-  const secondCost = second.usage.estimatedCost?.amount ?? 0;
+  const firstCost = usageCostUsd(first.usage);
+  const secondCost = usageCostUsd(second.usage);
+  const requestFeeUsd = (first.usage.requestFeeUsd ?? 0) + (second.usage.requestFeeUsd ?? 0);
   return {
     ...second,
     attempts: [...first.attempts, ...second.attempts],
@@ -188,6 +191,7 @@ function aggregateResults(first: ModelResult, second: ModelResult): ModelResult 
       totalTokens: first.usage.totalTokens + second.usage.totalTokens,
       cachedInputTokens: (first.usage.cachedInputTokens ?? 0) + (second.usage.cachedInputTokens ?? 0),
       reasoningTokens: (first.usage.reasoningTokens ?? 0) + (second.usage.reasoningTokens ?? 0),
+      ...(requestFeeUsd ? { requestFeeUsd } : {}),
       ...(firstCost || secondCost
         ? {
             estimatedCost: {
@@ -204,23 +208,8 @@ function aggregateResults(first: ModelResult, second: ModelResult): ModelResult 
 }
 
 function withProfileCost(result: ModelResult, profile: ReturnType<typeof liteProfile>): ModelResult {
-  if (result.usage.estimatedCost) return result;
-  const price = routePrice(profile, { provider: result.provider, model: result.model });
-  const amount = estimateModelCost(
-    { provider: result.provider, model: result.model },
-    result.usage.inputTokens,
-    result.usage.outputTokens,
-    price ?? undefined,
-  );
-  return amount === null
-    ? result
-    : {
-        ...result,
-        usage: {
-          ...result.usage,
-          estimatedCost: { amount, currency: 'USD', source: 'configured' },
-        },
-      };
+  const route = { provider: result.provider, model: result.model };
+  return { ...result, usage: withTokenCost(result.usage, route, routePrice(profile, route)) };
 }
 
 export function reservationError(reservation: Exclude<LiteReservation, { status: 'created' }>): Response {
@@ -403,17 +392,20 @@ export default {
       return json(result);
     }
 
-    const worstPrimary = estimateModelCost(
+    // Each worst case includes the gateway's per-request fee (#2015).
+    const worstPrimary = worstAttemptCostUsd(
       profile.primary,
       profile.estimatedInputTokens,
       profile.outputTokens,
       routePrice(profile, profile.primary) ?? undefined,
+      liteGatewayPolicy(profile, profile.primary),
     );
-    const worstFallback = estimateModelCost(
+    const worstFallback = worstAttemptCostUsd(
       profile.fallback,
       profile.estimatedInputTokens,
       profile.outputTokens,
       routePrice(profile, profile.fallback) ?? undefined,
+      liteGatewayPolicy(profile, profile.fallback),
     );
     if (worstPrimary === null || worstFallback === null || worstPrimary + worstFallback > profile.maxProviderCostUsd) {
       return liteError('cost_ceiling', 'The configured Lite routes exceed the per-request cost ceiling.', 503);

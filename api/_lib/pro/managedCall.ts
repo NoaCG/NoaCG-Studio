@@ -10,7 +10,7 @@
 // BYO IS UNTOUCHED. A caller spending their own key on their own chosen model is not ours to
 // meter, the same line the disabled-route switch and the surface routing policy already draw.
 
-import { GatewayError } from '../aiGateway.js';
+import { GatewayError, usageCostUsd } from '../aiGateway.js';
 import { serverAuthConfigured } from '../auth.js';
 import { getLiteGenerationStore, liteLedgerConfigured } from '../aiLiteStore.js';
 import { proCapacityRetryPlan, proProfile, proRouteFunded, type ProProfile } from '../aiProProfile.js';
@@ -137,7 +137,7 @@ export async function settleManagedProCall(
     await (await getLiteGenerationStore()).recordProCall({
       generationId: body.proGenerationId,
       userId,
-      costUsd: result.usage.estimatedCost?.amount ?? 0,
+      costUsd: usageCostUsd(result.usage),
       // The heartbeat: this call finished, so the generation is alive and keeps its fleet slot
       // for another lease. An abandoned one stops renewing and frees the slot for the class.
       leaseMs: proCapacityRetryPlan(proProfile()).activeLeaseMs,

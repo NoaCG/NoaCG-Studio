@@ -230,7 +230,8 @@ export function modelResultPatch(result: ModelResult): Partial<LiteGenerationRec
     outputTokens: result.usage.outputTokens,
     cachedInputTokens: result.usage.cachedInputTokens ?? 0,
     reasoningTokens: result.usage.reasoningTokens ?? 0,
-    providerCostUsd: result.usage.estimatedCost?.amount ?? 0,
+    // The estimate includes the gateway's request fee; with no estimate, the fee is still known.
+    providerCostUsd: result.usage.estimatedCost?.amount ?? result.usage.requestFeeUsd ?? 0,
   };
 }
 
