@@ -27,9 +27,11 @@ import type { LogEntry } from './eventLog';
 import type { AirPart, LogPart } from './playoutSession';
 import { withLiveCue, type LiveCueMap } from './liveCue.ts';
 import {
+  clockOriginOf,
   clockRowEffect,
   clockValueAfterUpdate,
   plainClockValue,
+  speakingClockAt,
   speakingClockRowEffect,
   type ClockSpec,
   type SpeakingClockPair,
@@ -353,8 +355,15 @@ export function seedFromResolve(
       const memory: Record<string, string> = {};
       for (const field of [pair.fieldA, pair.fieldB]) {
         const held = speaking[graphic]?.[field];
-        memory[field] = movedKeys.has(field) && held !== undefined ? held : wire(field);
+        memory[field] = !movedKeys.has(field) ? wire(field) : (held ?? moved[field] ?? wire(field));
         values[field] = plainClockValue(values[field]);
+      }
+      // One speaker holds the floor: a clock a verb started meanwhile stops the other where it
+      // stood at that instant, whatever the older report says it was doing.
+      const started = [pair.fieldA, pair.fieldB].find((field) => movedKeys.has(field) && clockOriginOf(memory[field]) !== null);
+      const since = started ? clockOriginOf(memory[started]) : null;
+      for (const field of [pair.fieldA, pair.fieldB]) {
+        if (since !== null && field !== started && !movedKeys.has(field) && clockOriginOf(memory[field]) !== null) memory[field] = speakingClockAt(memory[field], since);
       }
       speaking = { ...speaking, [graphic]: memory };
     }
