@@ -377,7 +377,10 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
       given(mine.data);
       if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));
       if (mine.state && mine.state.groups && typeof noacgSnap === 'function') {
-        noacgSnap(mine.state.groups, mine.state.awards ? { awards: mine.state.awards } : undefined);
+        // A score board's latched scoring rows ride beside the pose (#1908); only a plain object
+        // is handed on, as control/outputRecovery.ts reportedSnap does for the output renderer.
+        var awards = mine.state.awards;
+        noacgSnap(mine.state.groups, awards && typeof awards === 'object' && !Array.isArray(awards) ? { awards: awards } : undefined);
         // Snap resets the graphic first, clearing every inline style — including the ones the
         // DATA layer owns (an image field with no picture is hidden inline). Restate the data.
         if (mine.data && typeof update === 'function') update(JSON.stringify(mine.data));

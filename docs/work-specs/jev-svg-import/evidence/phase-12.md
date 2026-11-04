@@ -100,7 +100,8 @@ its report"). Written after the code, not before it.
 Carried by `output/main.ts` boot through `reportedSnap` (`control/outputRecovery.ts`), the stage's
 `snapCommand` (`preview/previewProtocol.ts`) and the renderer frame (`preview/composeDocument.ts`),
 which passes it as `noacgSnap`'s options; the test builds its commands through those two helpers.
-The hosted receiver's boot passes it the same way; no test drives that receiver page.
+The hosted receiver's boot passes it the same way, handing on only a plain object; no test
+drives that receiver page.
 
 Limits: a live snap row carries no `awards` (nobody sends one), so the exported receivers'
 live-snap handlers do not read it (R3 holds there). An OGraf export snaps only on the page that
