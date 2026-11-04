@@ -204,6 +204,7 @@ import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, 
 import {
   clockSpecFromHtml,
   fastEventGraphics,
+  needsServerInstant,
   speakingClocksFromHtml,
   type ClockSpec,
   type SpeakingClockPair,
@@ -2461,6 +2462,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     armSpecFor: (cueId) => armEngine.current?.specFor(cueId) ?? null,
     applyHere: applyCommand,
     fastEvent: (graphic) => fastEventGraphicsRef.current.has(graphic),
+    // An imported duration's Take and a running clock's correction go slow, stamped by their row
+    // (#1886): judged against the clock as this page's PROGRAM holds it.
+    serverInstant: (item) => needsServerInstant(clockSpecsRef.current.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
     outputUsable: () => usableOutputRef.current,
     sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),

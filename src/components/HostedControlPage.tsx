@@ -94,7 +94,7 @@ import { styleContextFor } from '../control/cueStyle';
 import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
 import HostedCueAdjust from './control/HostedCueAdjust';
 import { isBackendConfigured } from '../backend/config';
-import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
+import { fastEventGraphics as clockFreeGraphics, needsServerInstant, serverInstantClocks } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -561,6 +561,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * republishes, recomputes its own answer at that moment.
    */
   const fastEventGraphics = useMemo(() => clockFreeGraphics(payload?.graphics ?? []), [payload]);
+  /** The imported clocks whose Take or running correction its row's server time stamps, so they go
+   *  slow (#1886). This page keeps no clock of its own: what it last saw sent stands in for it. */
+  const importedClocks = useMemo(() => serverInstantClocks(payload?.graphics ?? []), [payload]);
+  const serverInstant = (item: ControlSendItem): boolean => {
+    const clock = importedClocks.get(item.graphic);
+    if (!clock) return false;
+    const held = airedRef.current[item.graphic]?.[clock.field] ?? reportsRef.current[item.graphic]?.data?.[clock.field];
+    return needsServerInstant(clock, item.msg, held);
+  };
   const layerOf = useCallback(
     (graphic: string) => payload?.graphics.find((g) => g.key === graphic)?.layer ?? null,
     [payload],
@@ -798,6 +807,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       items,
       applyHere: applyCommand,
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
+      serverInstant,
       allOut,
     }).then(
       () => {
@@ -822,6 +832,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       batches,
       applyHere: applyCommand,
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
+      serverInstant,
       allOut,
     }).then(
       (sent) => {

@@ -367,21 +367,32 @@ function noteAnswer() {
 // for same-origin tabs; a relay-driven OBS source cannot answer, so relay presence also
 // stands the no-listener banner down.
 var relayOk = false;
+// What each card starts once the relay answers (an imported clock's follow).
+var relayReady = [];
 if (location.protocol === 'http:' || location.protocol === 'https:') {
   fetch('/relay/ping')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
-      if (d && d.ok) { relayOk = true; document.getElementById('nolisten').style.display = 'none'; paintStatus(); }
+      if (d && d.ok) {
+        relayOk = true;
+        document.getElementById('nolisten').style.display = 'none';
+        paintStatus();
+        relayReady.forEach(function (start) { start(); });
+      }
     })
     .catch(function () { /* not relay-hosted */ });
 }
-function sendRelay(graphic, msg) {
+// failed(), when given, is told of a send the relay did not take (an imported clock's follow).
+function sendRelay(graphic, msg, failed) {
   if (!relayOk) return;
   fetch('/relay/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ graphic: graphic, msg: msg }),
-  }).catch(function () { /* the BroadcastChannel path still works */ });
+  }).then(function (r) { if (!r.ok && failed) failed(); }, function () {
+    /* the BroadcastChannel path still works */
+    if (failed) failed();
+  });
 }
 
 ${MATCH_CLOCK_PAGE_JS}
@@ -453,7 +464,7 @@ GRAPHICS.forEach(function (g) {
     }).catch(function () { /* offline / blocked — the local BroadcastChannel path still works */ });
   }
 
-  function post(msg) { if (ch) ch.postMessage(msg); sendRemote(msg); if (msg.t !== 'hello') { sendRelay(g.name, msg); record(msg); } }
+  function post(msg, failed) { if (ch) ch.postMessage(msg); sendRemote(msg); if (msg.t !== 'hello') { sendRelay(g.name, msg, failed); record(msg); } }
   // PREPARED vs PUBLISHED: with Live off, edits stay in this panel (staged — the badge
   // says so) and go on air only on an explicit ✎ Update / ▶ Play. Nothing airs merely
   // because it was typed.
@@ -472,7 +483,7 @@ GRAPHICS.forEach(function (g) {
     // what the log said had already been sent, and persistLog wrote the rewrite to disk.
     var snapshot = {};
     for (var k in state) snapshot[k] = state[k];
-    post({ t: 'update', data: snapshot });
+    sendClocked({ t: 'update', data: snapshot });
     for (var uk in state) lastSent[uk] = state[uk];
     paintStaged();
   }
@@ -482,36 +493,73 @@ GRAPHICS.forEach(function (g) {
   var repaint = {};
 
   // ── The clock verbs. CLOCK is this graphic's clock spec, or null for the graphics that carry
-  // no clock — which is most of them. The arithmetic is the shared block above
-  // (control/matchClockPageJs.ts); what follows is this page's own copy of the DECISION.
+  // no clock — which is most of them. The arithmetic and the decision are the shared block above
+  // (control/matchClockPageJs.ts); what follows is where this page keeps the clock and sends it.
   var CLOCK = g.clock || null;
   var clockInput = null;               // the operator's correction box, so a banked time repaints
-  // What one clock verb does to the field, and WHEN relative to the event itself — the panel's
-  // copy of matchClockWire.ts's clockRowEffect, and it must stay the same decision.
-  //
-  // 'before' for a START: the origin has to be in the document by the time startMatchClock runs,
-  // or the runtime mints a local one and this panel's log has no origin to replay.
-  // 'after' for a hold or a reset: the value banked is what the graphic has just settled on.
-  // Reset banks the spec's resetTo — what the RUNTIME returns to — rather than what the element
-  // happens to read, or a reboot after a reset would recover a different time from the one aired.
-  function clockEffect(event, at) {
-    if (!CLOCK) return null;
-    var from = state[CLOCK.field] !== undefined ? state[CLOCK.field] : CLOCK.seed;
-    if (event === 'clockStart') return { value: clockValueAt(from, CLOCK.countsDown, at) + '@' + at, when: 'before' };
-    if (event === 'clockStop') return { value: clockValueAt(from, CLOCK.countsDown, at), when: 'after' };
-    if (event === 'clockReset') return { value: CLOCK.resetTo, when: 'after' };
-    return null;
+  // AN IMPORTED CLOCK'S VALUE ON THE WIRE, as last sent (#1887). Its value carries its length and
+  // what the cue last sent, so the field the operator types stays the plain time and this is what
+  // the graphic is sent, as the hosted renderer sends it. Back from the log on a reload, where the
+  // box is given the time the cue last sent. A native clock keeps its value in the field itself.
+  // ON A LOCAL RELAY, ANOTHER PAGE MAY MOVE THE CLOCK (the production controller, another panel),
+  // so the card follows the clock rows of the relay's log, the whole log at boot and then as it
+  // grows (clockFollower, the shared block above): a Pause pressed here then banks the time the
+  // clock really stands at, and a send the relay refuses never becomes the clock.
+  var clock = clockFollower(CLOCK && CLOCK.events && log.data ? log.data[CLOCK.field] : undefined);
+  var clockRead = clockSlots(clock.held);
+  if (clockRead) { state[CLOCK.field] = clockRead.sent; lastSent[CLOCK.field] = clockRead.sent; }
+  // A clock value this card puts on the relay; answers what to call if the relay refuses it.
+  function noteClockSent(value) {
+    return relayOk && clockSlots(value) ? clock.sent(value) : undefined;
   }
-  // Bank the clock's new value: into the field state, so every later ✎ Update re-sends it (a
-  // STAMPED value is idempotent — re-sending it a minute later still resolves to the right
-  // second, where a raw counter snapshot pulled the clock backwards on every score bump), and
-  // onto the wire, which is what puts it in the log this panel replays when a rebooted graphic
-  // announces itself. That replay IS the recovery.
+  function followRelayClock(row) {
+    var m = row.msg || {};
+    if (row.graphic !== g.name || (row.stream && row.stream !== 'program')) return;
+    if (m.t !== 'update' || !m.data || m.data[CLOCK.field] === undefined || !clockSlots(m.data[CLOCK.field])) return;
+    clock.row(m.data[CLOCK.field]);
+  }
+  if (CLOCK && CLOCK.events) relayReady.push(function () {
+    var cursor = 0;
+    var walking = true;
+    relayLogWalk(0, followRelayClock, function (at) { cursor = at; walking = false; });
+    setInterval(function () {
+      clock.settle(null);
+      if (walking) return;
+      walking = true;
+      relayLogWalk(cursor, followRelayClock, function (at) { cursor = at; walking = false; });
+    }, 1000);
+  });
+  // Send one command with the clock's value written around it, in the order and by the decision
+  // of the wire (clockAfterUpdate and clockRowStep, the shared block above, pinned to
+  // matchClockWire.ts): the origin BEFORE a start or a duration's Take, so the runtime adopts it
+  // instead of minting one; the banked time AFTER a hold, a reset, an Out or a running correction.
+  // Reset banks what the RUNTIME returns to, never what the element happens to read.
+  function sendClocked(msg) {
+    if (!CLOCK) { post(msg); return; }
+    // A send of this card's that never came back stops counting before the clock is read.
+    if (CLOCK.events) clock.settle(null);
+    if (CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined) {
+      clock.held = clockAfterUpdate(clock.held, msg.data[CLOCK.field]);
+      msg.data[CLOCK.field] = clock.held;
+      var failed = noteClockSent(clock.held);
+    }
+    var effect = clockRowStep(CLOCK, msg, CLOCK.events ? clock.held : state[CLOCK.field], Date.now());
+    if (effect && effect.when === 'before') applyClock(effect.value);
+    post(msg, failed);
+    if (effect && effect.when === 'after') applyClock(effect.value);
+  }
+  // Bank the clock's new value onto the wire, which is what puts it in the log this panel replays
+  // when a rebooted graphic announces itself. That replay IS the recovery. A native clock's value
+  // also goes into the field state, so every later ✎ Update re-sends it (a STAMPED value is
+  // idempotent, where a raw counter snapshot pulled the clock backwards on every score bump); an
+  // imported clock's field keeps the plain time, since its Update is folded into what is held.
   function applyClock(value) {
     var data = {};
     data[CLOCK.field] = value;
+    if (CLOCK.events) clock.held = value;
+    post({ t: 'update', data: data }, CLOCK.events ? noteClockSent(value) : undefined);
+    if (CLOCK.events) return;
     state[CLOCK.field] = value;
-    post({ t: 'update', data: data });
     lastSent[CLOCK.field] = value;     // it just aired: not staged
     if (clockInput) clockInput.value = clockPlain(value);
     paintStaged();
@@ -740,12 +788,8 @@ GRAPHICS.forEach(function (g) {
       kept.splice(at, 1);
       stage(rk, kept.join('\\n'));
     }
-    // A clock verb writes the clock's own value around the event, in the order the wire module
-    // fixes: the origin BEFORE a start, the banked time AFTER a hold or a reset.
-    var effect = clockEffect(e.event, Date.now());
-    if (effect && effect.when === 'before') applyClock(effect.value);
-    post(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event });
-    if (effect && effect.when === 'after') applyClock(effect.value);
+    // A clock verb writes the clock's own value around the event (sendClocked).
+    sendClocked(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event });
     // The payload just aired those fields — they are no longer merely staged.
     if (payload) { for (var pk in payload) lastSent[pk] = payload[pk]; paintStaged(); }
   }
@@ -815,7 +859,7 @@ GRAPHICS.forEach(function (g) {
       if (send || live()) sendUpdate(); else paintStaged();
     }
     var entryPlay = el('button', { class: 'primary', title: 'Play the graphic with this entry' }, ['▶ Play entry']);
-    entryPlay.onclick = function () { applyEntry(true); post({ t: 'play' }); };
+    entryPlay.onclick = function () { applyEntry(true); sendClocked({ t: 'play' }); };
     var entryLoad = el('button', { title: 'Load this entry into the fields (airs on ✎ Update or ▶ Play unless live)' }, ['Load']);
     entryLoad.onclick = function () { applyEntry(false); };
     entrySel.onchange = function () { applyEntry(false); };
@@ -865,8 +909,8 @@ GRAPHICS.forEach(function (g) {
   // glossary's word for values PLUS the entrance, which is ▶ Play on this panel.
   var upd = el('button', { title: 'Push the edited values to the live graphic without re-animating it' }, ['✎ Update']);
   var next = el('button', {}, ['» Next']);
-  play.onclick = function () { sendUpdate(); post({ t: 'play' }); };
-  stop.onclick = function () { post({ t: 'stop' }); };
+  play.onclick = function () { sendUpdate(); sendClocked({ t: 'play' }); };
+  stop.onclick = function () { sendClocked({ t: 'stop' }); };
   upd.onclick = sendUpdate;
   next.onclick = function () { post({ t: 'next' }); };
   card.appendChild(el('div', { class: 'actions' }, [play, stop, upd, next]));
