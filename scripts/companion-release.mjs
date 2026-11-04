@@ -80,7 +80,7 @@ ${changes}
 
 ## Install
 
-Download the \`.tgz\` below. In Companion 4.3 or later, open **Modules**, press **Import module package** and choose the file. Then pair it from the production page: **Setup**, **Stream Deck panel…**, **Pair a panel**.
+Download the \`.tgz\` below. In Companion 4.3 or later, open **Modules**, press **Import module package** and choose the file. Then publish the production once and pair it from its page: **Setup**, **Stream Deck panel…**, **Pair a panel**.
 
 Setup steps: https://noacg.studio/downloads#companion-setup
 `;
@@ -135,8 +135,13 @@ function decide() {
 }
 
 function main([command, argument]) {
-  const version = moduleVersion();
+  const known = command === 'decide' || command === 'check' || command === 'notes' || (command === 'verify' && argument);
+  if (!known) {
+    console.error('usage: companion-release.mjs decide | check | notes | verify <dir>');
+    return 2;
+  }
   if (command === 'decide') return decide();
+  const version = moduleVersion();
   if (command === 'verify') {
     const problems = packageProblems(argument, version);
     for (const problem of problems) console.error(`  - ${problem}`);
@@ -151,11 +156,7 @@ function main([command, argument]) {
     return 1;
   }
   if (command === 'check') console.log(`companion-release: module ${version} has notes a person can read.`);
-  else if (command === 'notes') console.log(releasePage(sectionOf(changelog, version)));
-  else {
-    console.error('usage: companion-release.mjs decide | check | notes | verify <dir>');
-    return 2;
-  }
+  else console.log(releasePage(sectionOf(changelog, version)));
   return 0;
 }
 

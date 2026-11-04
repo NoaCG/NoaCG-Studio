@@ -80,7 +80,7 @@ async function fakeChannels(page: Page, answer: 'ok' | 'down', answered: unknown
   );
 }
 
-test('the landing names both tools and links each download where it is introduced, plus its nav and footer', async ({ page }) => {
+test('the landing names the tools and links each download where it is introduced, plus its nav and footer', async ({ page }) => {
   await fakeChannels(page, 'down');
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto('/');

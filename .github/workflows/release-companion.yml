@@ -47,9 +47,10 @@ on:
         type: boolean
         default: true
 
-# A release is never superseded by a newer one.
+# A release is never superseded by a newer one, and a rehearsal never waits in its group: GitHub
+# keeps one pending run per group, so one would replace a release waiting there.
 concurrency:
-  group: release-companion-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+  group: release-companion-${{ (github.event_name == 'push' || inputs.dry_run == false) && 'release' || github.run_id }}
   cancel-in-progress: false
 
 permissions:

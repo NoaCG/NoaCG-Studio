@@ -9,7 +9,7 @@ It is free and open source, and it runs in your browser. You need no account to 
 graphics. NoaCG is in beta.
 
 **[noacg.studio](https://noacg.studio)** (the app) · **[Docs](https://noacg.studio/docs)** ·
-**[Downloads](https://noacg.studio/downloads)** (NoaCG Bridge and the NoaCG CLI)
+**[Downloads](https://noacg.studio/downloads)** (NoaCG Bridge, the Companion module and the NoaCG CLI)
 
 ## 1. Make a graphic
 

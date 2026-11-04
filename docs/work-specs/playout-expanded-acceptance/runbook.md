@@ -56,7 +56,7 @@ Follow the module's own guide, which Companion shows as the **?** beside the con
    (the panel dialog in step 2 links it too). It is the file `noacg-studio-<version>.tgz`, also on
    the repository's [Releases page](https://github.com/NoaCG/NoaCG-Studio/releases?q=companion-v).
    In Companion open **Modules**, press **Import module package** and choose the file.
-2. On the production page open **Setup**, then **Stream Deck panel…**, and press **Pair a panel**.
+2. Publish the production once. On its page open **Setup**, then **Stream Deck panel…**, and press **Pair a panel**.
    A code like `ABCD-EFGH` appears; it works once, for five minutes.
 3. In Companion open **Connections**, search `NoaCG`, press **Add** beside **NoaCG: NoaCG
    Studio**, then **Add** again. Type the code into **Pairing code**, name the panel, press

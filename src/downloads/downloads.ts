@@ -20,13 +20,20 @@
 const REPO = 'NoaCG/NoaCG-Studio';
 const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=100`;
 const NPM_LATEST = 'https://registry.npmjs.org/@noacg/cli/latest';
-const BRIDGE = {
+interface Product {
+  /** What the card's `data-*` attributes name it. */
+  card: string;
+  tagPrefix: string;
+  asset: RegExp;
+}
+
+const BRIDGE: Product = {
   card: 'bridge',
   tagPrefix: 'bridge-v',
   // 0.4.0 to 0.6.0 shipped a fixed name; later releases carry their version in it.
   asset: /^NoaCG-Bridge(-\d+\.\d+\.\d+)?\.exe$/,
 };
-const COMPANION = { card: 'companion', tagPrefix: 'companion-v', asset: /^noacg-studio-\d+\.\d+\.\d+\.tgz$/ };
+const COMPANION: Product = { card: 'companion', tagPrefix: 'companion-v', asset: /^noacg-studio-\d+\.\d+\.\d+\.tgz$/ };
 /** A lookup that has not answered by now is left as "latest"; the page already works. */
 const TIMEOUT_MS = 6000;
 
@@ -53,7 +60,7 @@ async function getJson<T>(url: string): Promise<T | null> {
 }
 
 /** The product's newest published release that actually carries its file, or null. */
-function newestRelease(releases: GitHubRelease[], product: typeof BRIDGE): GitHubRelease | null {
+function newestRelease(releases: GitHubRelease[], product: Product): GitHubRelease | null {
   const own = releases.filter(
     (r) =>
       r.tag_name.startsWith(product.tagPrefix) &&
@@ -74,7 +81,7 @@ function setHref(selector: string, href: string): void {
 }
 
 /** Point a product's card at its release's file. */
-function showRelease(release: GitHubRelease, { card, tagPrefix, asset }: typeof BRIDGE): void {
+function showRelease(release: GitHubRelease, { card, tagPrefix, asset }: Product): void {
   const file = release.assets.find((a) => asset.test(a.name));
   const checksum = release.assets.find((a) => a.name === `${file?.name}.sha256`);
   setText(`[data-version="${card}"]`, release.tag_name.slice(tagPrefix.length));
