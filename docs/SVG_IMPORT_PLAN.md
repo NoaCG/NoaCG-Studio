@@ -615,9 +615,10 @@ presentation attributes; a value that already carries a unit is untouched.
   is `design-stagger` (designPresets.ts), offered by svg01 only, emitting an ARRAY of the
   top-level named groups (`PresetConfig.layers`, `structure.ts svgLayerSelectors` - a hidden
   outlined group is not a layer) with `stagger:` - the shape the data importer turns into
-  per-layer keyframe offsets. The CLOCK ftype is a per-row "Binds as" choice on any
-  clock-shaped layer (`looksClock`: M:SS / H:MM:SS) - Text (default; "22:40" may be the time of
-  day) or COUNTDOWN: the node takes the `imported-design-clock` class (never the field id - update()
+  per-layer keyframe offsets. The CLOCK ftype is a per-row "Binds as" choice on a
+  clock-shaped layer (`looksClock`: M:SS / H:MM:SS), offered only where the old countdown is
+  already in use (`svgCountdownInUse`, #1876; a new import gets the Clock part instead) - Text
+  (default; "22:40" may be the time of day) or COUNTDOWN: the node takes the `imported-design-clock` class (never the field id - update()
   would overwrite the readout), the field becomes the length in minutes (`clockSampleMinutes`,
   "22:40" = 22.67) in a hidden `noacg-data-source` holder, the shared `templates/shared/clock.ts`
   runtime rides outside the region, and the data gains `startClock`/`stopClock` step calls (a

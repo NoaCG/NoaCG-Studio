@@ -1230,17 +1230,24 @@ export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
  * graphic that runs it (`savedOver`, read by `svgSavedOver`), so a reimport can bind it again.
  * An unticked countdown row counts: unticking is not a change of mind about the engine.
  */
-export function svgCountdownInUse(draft: SvgImportDraft, savedOver: SpxTemplate | null): boolean {
+export function svgCountdownInUse(
+  draft: SvgImportDraft,
+  savedOver: SpxTemplate | null,
+  /** `svgCountdownDrawn(draft.designSvg)`, which a caller re-rendering on every row edit caches. */
+  drawn: boolean = svgCountdownDrawn(draft.designSvg),
+): boolean {
   return (
     draft.svgFields.some((f) => f.kind === 'countdown') ||
     draft.svgBehaviour?.kind === 'timer' ||
-    svgCountdownDrawn(draft.designSvg) ||
+    drawn ||
     (!!savedOver && runsOldCountdown(savedOver))
   );
 }
 
 /** The saved graphic a save under `name` would write over, as Finish reads it (`librarySaveEffect`
- *  with no record made yet), or null. */
+ *  with no record made yet), or null. Read without the walk's own record on purpose: a walk that
+ *  already saved and is then renamed onto a countdown graphic's name is offered the kind it would
+ *  not need, never denied one it does. */
 export function svgSavedOver(name: string): SpxTemplate | null {
   if (!name.trim()) return null;
   const target = librarySaveEffect(graphicNameIndex(), name, null).targetId;
