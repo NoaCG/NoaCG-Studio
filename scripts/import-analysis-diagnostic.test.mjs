@@ -160,4 +160,6 @@ test('workflow: manual, main only, the protected environment, one run ever, the 
   const guard = yml.indexOf('- name: Refuse a second request');
   assert.ok(guard > 0 && guard < yml.indexOf('- uses: actions/checkout@v5'));
   assert.match(yml, /grep -qx 'Send the one diagnostic request'/);
+  // A re-run keeps the run id, which the listing skips: only a first attempt may proceed.
+  assert.match(yml.slice(guard), /^\s+\[ "\$GITHUB_RUN_ATTEMPT" = "1" \] \|\| \{ echo "FAIL: [^"]+"; exit 1; \}$/m);
 });

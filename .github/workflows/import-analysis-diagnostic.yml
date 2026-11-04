@@ -40,6 +40,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # A re-run keeps GITHUB_RUN_ID, so the listing below would skip its own earlier attempt.
+          [ "$GITHUB_RUN_ATTEMPT" = "1" ] || { echo "FAIL: a re-run could send a second request"; exit 1; }
           ids="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/import-analysis-diagnostic.yml/runs?per_page=100" --jq '.workflow_runs[].id')"
           for id in $ids; do
             [ "$id" = "$GITHUB_RUN_ID" ] && continue
