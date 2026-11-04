@@ -18,8 +18,9 @@
 #      not ready to release wait under its "## Unreleased" heading, which releases nothing.
 #      scripts/companion-release.test.mjs refuses a version without its section in the build.
 #      Land it on main through /queue-merge.
-#   2. That is all. Landing it releases it: this workflow runs on the push to main, and when the
-#      version is one the Releases page does not have yet, it tests and packages the module from
+#   2. That is all. Landing it releases it: this workflow runs on the push to main, and when that
+#      push brought the version's notes and the Releases page does not have the version yet (a
+#      failed run is re-run, or re-driven by hand), it tests and packages the module from
 #      that commit, checks the package, and creates the Release (and its tag) with the .tgz and its
 #      checksum. Pushing a companion-v* tag re-drives a release by hand.
 #
@@ -73,6 +74,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DISPATCH_DRY_RUN: ${{ inputs.dry_run }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: node scripts/companion-release.mjs decide
 
   # Everything that runs the module's code and its dependencies, without a write token.

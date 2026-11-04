@@ -9,10 +9,10 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { decideRelease, notesProblems, packageProblems, releasePage, TAG_PREFIX } from './companion-release.mjs';
+import { decideRelease, notesNewSince, notesProblems, packageProblems, releasePage, TAG_PREFIX } from './companion-release.mjs';
 
 const repoFile = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-const run = (over) => ({ event: 'push', ref: 'refs/heads/main', version: '1.2.3', released: false, onMain: true, ...over });
+const run = (over) => ({ event: 'push', ref: 'refs/heads/main', version: '1.2.3', released: false, onMain: true, notesAreNew: true, ...over });
 const PROSE = 'The keys now show what is on air, and a press that was refused flashes amber so the operator sees it at once. Nothing to change in your setup, just import the new file.';
 
 test('a push to main releases a version the Releases page does not have, and passes over one it has', () => {
@@ -23,6 +23,15 @@ test('a push to main releases a version the Releases page does not have, and pas
   const again = decideRelease(run({ released: true }));
   assert.equal(again.release, false);
   assert.equal(again.refusal, undefined, 'an unrelated change to the notes stays green');
+});
+
+test('a landing that did not bring the version\'s notes releases nothing, while that version is still being built', () => {
+  const decision = decideRelease(run({ notesAreNew: false }));
+  assert.deepEqual([decision.release, decision.dryRun, decision.refusal], [false, true, undefined]);
+  const withUnreleased = `## Unreleased\n\nNot ready.\n\n## 1.2.3\n\n${PROSE}\n`;
+  assert.equal(notesNewSince(withUnreleased, '1.2.3'), false, 'an Unreleased-only landing');
+  assert.equal(notesNewSince(withUnreleased, '1.3.0'), true, 'a landing that moves the version');
+  assert.equal(notesNewSince(null, '1.2.3'), true, 'the first release: no changelog before it');
 });
 
 test('a pull request and a default manual run rehearse, and never publish', () => {

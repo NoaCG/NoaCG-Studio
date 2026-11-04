@@ -27,12 +27,14 @@ export const TAG_PREFIX = 'companion-v';
 /**
  * Pure: what one workflow run does. `dryRun` is true unless a real release was decided, so an
  * event nobody thought of can never publish. A refusal says why a run that asked to publish must
- * not, and fails the workflow.
+ * not, and fails the workflow. A push to main is a release request only when it brought the
+ * version's notes: a later landing of unfinished work, with notes under `## Unreleased`, must not
+ * publish that work as this version while the first run is still building it.
  *
- * @param {{ event: string, ref: string, version: string, released: boolean, onMain: boolean, dispatchDryRun?: boolean }} run
+ * @param {{ event: string, ref: string, version: string, released: boolean, onMain: boolean, notesAreNew?: boolean, dispatchDryRun?: boolean }} run
  * @returns {{ release: boolean, dryRun: boolean, why: string, refusal?: string }}
  */
-export function decideRelease({ event, ref, version, released, onMain, dispatchDryRun = true }) {
+export function decideRelease({ event, ref, version, released, onMain, notesAreNew = false, dispatchDryRun = true }) {
   const rehearsal = (why) => ({ release: true, dryRun: true, why });
   const nothing = (why) => ({ release: false, dryRun: true, why });
   const refused = (refusal) => ({ release: false, dryRun: true, why: refusal, refusal });
@@ -49,7 +51,8 @@ export function decideRelease({ event, ref, version, released, onMain, dispatchD
   }
   if (event !== 'push') return nothing(`A ${event} event does not release the module.`);
   if (ref === 'refs/heads/main') {
-    return released ? nothing(`Module ${version} is already on the Releases page.`) : real();
+    if (released) return nothing(`Module ${version} is already on the Releases page.`);
+    return notesAreNew ? real() : nothing(`This push did not bring the notes of module ${version}, so it is no release request.`);
   }
   if (ref.startsWith(`refs/tags/${TAG_PREFIX}`)) {
     const tag = ref.slice('refs/tags/'.length);
@@ -57,6 +60,12 @@ export function decideRelease({ event, ref, version, released, onMain, dispatchD
     return askedToPublish();
   }
   return nothing(`A push to ${ref} does not release the module.`);
+}
+
+/** Pure: this version has no notes in the changelog as it stood before the push. No changelog at
+ *  all (null) counts: that is the module's first release. */
+export function notesNewSince(previousChangelog, version) {
+  return previousChangelog === null || sectionOf(previousChangelog, version) === null;
 }
 
 /** Pure: why this changelog cannot release this version - an empty list when it can. The version
@@ -115,6 +124,12 @@ function succeeds(command, args) {
   return spawnSync(command, args, { cwd: ROOT, stdio: 'ignore', windowsHide: true }).status === 0;
 }
 
+/** The changelog at the commit main was on before this push, or null when it had none. */
+function changelogBeforePush() {
+  const before = spawnSync('git', ['show', `${process.env.BEFORE_SHA}:${CHANGELOG}`], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
+  return before.status === 0 ? before.stdout : null;
+}
+
 function decide() {
   const version = moduleVersion();
   const decision = decideRelease({
@@ -123,6 +138,7 @@ function decide() {
     version,
     released: succeeds('gh', ['release', 'view', `${TAG_PREFIX}${version}`, '--json', 'tagName']),
     onMain: succeeds('git', ['merge-base', '--is-ancestor', 'HEAD', 'origin/main']),
+    notesAreNew: notesNewSince(changelogBeforePush(), version),
     dispatchDryRun: process.env.DISPATCH_DRY_RUN !== 'false',
   });
   console.log(decision.why);
