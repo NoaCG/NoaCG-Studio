@@ -13,7 +13,9 @@ An acceptance criterion that needs an automated check names its layer (a Node te
 browser spec, a journey in an existing E2E file, the configured suite, scheduled validation); a
 new E2E file is the choice only for a new user-visible flow. Two optional sections carry the
 suite-budget records the CI gate reads: `## Test maintenance` (one line per spec whose coverage
-this work moves, merges or retires: what stays protected, by what, and the receipt) and
+this work moves, merges or retires: `- e2e/x.spec.ts: <what stays protected, by what; receipt>,
+owner miwco, expires YYYY-MM-DD`, at most 30 days; an expired line stays on record and covers
+nothing) and
 `## Budget exceptions` (`- e2e/x.spec.ts: <minutes> min, protects <behaviour>, expires YYYY-MM-DD`,
 at most 30 days). Grammar and reasons: `scripts/check-e2e-protection.mjs`, `scripts/e2e-capacity.mjs`.
 

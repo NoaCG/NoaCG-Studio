@@ -306,22 +306,45 @@ jobs:
           echo "Guided mod checks: $RUN (base '${BASE}')"
           echo "run=$RUN" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
       # PROTECTION LEAVES THE GATE ON PURPOSE OR NOT AT ALL. A pull request or merge group that
-      # deletes a spec, removes test declarations, adds an unconditional skip or raises a per-test
-      # timeout past the gate's ceiling needs a `## Test maintenance` entry in its work spec naming
-      # what stays protected and by what (scripts/check-e2e-protection.mjs; the suite budget spec,
-      # decision 4). Here rather than in the build, because the build's checkout has no diff base.
-      # Failing this job fails the gate, which requires the plan. Main has landed already.
+      # deletes a spec, removes tests, adds an unconditional skip or raises a per-test timeout past
+      # the gate's ceiling needs a current `## Test maintenance` entry in its work spec naming what
+      # stays protected and by what, with owner and expiry (scripts/check-e2e-protection.mjs; the
+      # suite budget spec, decision 4). Here rather than in the build, because the build's checkout
+      # has no diff base. Failing this job fails the gate, which requires the plan. Main has landed
+      # already. Playwright counts the tests (a test declared in a loop counts, #1911), so a change
+      # that touches a spec file restores node_modules first; any other change skips that.
+      - name: Does this change touch an e2e spec?
+        id: specs
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          BASE="${PR_BASE:-${MERGE_GROUP_BASE:-}}"
+          TOUCHED=true
+          if [ -n "$BASE" ] && git cat-file -e "${BASE}^{commit}" 2>/dev/null \
+            && [ -z "$(git diff --name-only "$BASE...HEAD" -- 'e2e/*.spec.ts')" ]; then
+            TOUCHED=false
+          fi
+          echo "E2E spec files touched: $TOUCHED"
+          echo "touched=$TOUCHED" >> "$GITHUB_OUTPUT"
+
+      # node_modules from cache, or `npm ci` on a miss - the action carries the measurement.
+      - if: ${{ steps.specs.outputs.touched == 'true' }}
+        uses: ./.github/actions/node-modules
+
       - name: E2E protection check
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
         run: node scripts/check-e2e-protection.mjs --changed "${PR_BASE:-${MERGE_GROUP_BASE:-}}"
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
 
       - name: Work out what this change can affect
         id: plan

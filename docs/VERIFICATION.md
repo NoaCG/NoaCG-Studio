@@ -69,8 +69,8 @@ the configured suite for backend-dependent behaviour, scheduled validation for e
 (`docs/work-specs/e2e-suite-budget/spec.md`, decision 9). Verify product changes with targeted
 checks plus in-browser checks (`.agent-workflows/verify.md`); the full build and the browser
 suites run on GitHub Actions. Never mark work done on green checks alone if the behaviour is
-observable. Coverage leaves the merge gate only with a `## Test maintenance` entry in the work
-spec (`scripts/check-e2e-protection.mjs`), and a change that adds spec-minutes above the capacity
+observable. Coverage leaves the merge gate only with a current `## Test maintenance` entry in the work
+spec, owned and dated (`scripts/check-e2e-protection.mjs`; Playwright counts the tests), and a change that adds spec-minutes above the capacity
 line needs a `## Budget exceptions` entry (`scripts/e2e-capacity.mjs`); an automatic repair writes
 neither.
 
