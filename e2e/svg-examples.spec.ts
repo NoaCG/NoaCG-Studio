@@ -263,8 +263,8 @@ test('the seven SVG examples import with their fields and moments and run from o
   expect(errors).toEqual([]);
 });
 
-// Every advertised behavior also runs through its own imported Illustrator export.
-interface Example { slug: string; name: string; recipe: string | null }
+// Every advertised behavior runs through its downloadable editable source or Illustrator export.
+interface Example { slug: string; name: string; recipe: string | null; source?: 'illustrator' | 'svg' }
 const examples = JSON.parse(readFileSync(new URL('../docs/tutorials/svg-examples/examples.json', import.meta.url), 'utf8')) as Example[];
 const selection: Record<string, string> = { vote: 'poll', countdown: 'timer' };
 const role = (air: FrameLocator, name: string) => air.locator(`[data-noacg-role~="${name}"]`);
@@ -287,7 +287,7 @@ async function fill(page: Page, air: FrameLocator, title: string, value: string)
 test('the advertised behavior inventory equals the live import registry', async ({ page, request }) => {
   await page.goto('/app');
   const registered = await page.evaluate(async () => (await import('/src/templates/behaviours/registry.ts')).BEHAVIOUR_RECIPES.map((entry) => entry.id));
-  expect(examples.flatMap((entry) => entry.recipe ? [entry.recipe] : []).sort()).toEqual(registered.sort());
+  expect([...new Set(examples.flatMap((entry) => entry.recipe ? [entry.recipe] : []))].sort()).toEqual(registered.sort());
   for (const entry of examples) {
     const response = await request.get(`/docs/examples/svg-examples/${entry.slug}.svg`);
     expect(response.status(), entry.slug).toBe(200);
@@ -296,13 +296,17 @@ test('the advertised behavior inventory equals the live import registry', async 
 });
 
 for (const example of examples.filter((entry) => entry.recipe)) {
-  test(`${example.name}: its Illustrator export imports and its controls change the output`, async ({ page }, testInfo) => {
+  test(`${example.name}: its ${example.source === 'svg' ? 'editable SVG source' : 'Illustrator export'} imports and its controls change the output`, async ({ page }, testInfo) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/app');
     await dropSvg(page, fileURLToPath(new URL(`../docs/tutorials/svg-examples/SVG/${example.slug}.svg`, import.meta.url)));
     if (example.recipe === 'alert') await page.getByTestId('map-svg-behaviour-kind').selectOption('alert');
-    if (example.recipe === 'switch' || example.recipe === 'choice') {
+    if (example.recipe === 'clock') {
+      await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(example.slug === 'scorebug-clock' ? 'score' : 'none');
+      await expect(page.getByTestId('map-svg-clock-mode')).toHaveValue('none');
+      await page.getByTestId('map-svg-clock-mode').selectOption('duration');
+    } else if (example.recipe === 'switch' || example.recipe === 'choice') {
       const extras = page.getByTestId('map-svg-extras');
       await expect(extras).toBeVisible();
       await expect(extras.locator(example.recipe === 'switch' ? 'input[value="Sponsor"]' : 'input[value="Status"]')).toHaveCount(example.recipe === 'switch' ? 1 : 3);
@@ -310,7 +314,13 @@ for (const example of examples.filter((entry) => entry.recipe)) {
       await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue(selection[example.recipe!] ?? example.recipe!);
       await expect(page.getByTestId('map-svg-behaviour-missing')).toHaveCount(0);
     }
-    if (example.recipe === 'credits') {
+    if (example.slug === 'editable-credits') {
+      await expect(page.getByTestId('map-svg-credits-engine')).toHaveValue('editable');
+      await expect(page.getByTestId('map-svg-credits-preview')).toHaveAttribute('data-layout', 'role-above');
+      await expect(page.getByTestId('map-svg-credits-list')).toContainText('Alex Rivera');
+      await expect(page.getByTestId('map-svg-credits-fallback')).toHaveCount(0);
+    }
+    if (example.slug === 'end-credits') {
       await expect(page.locator('.wz-stage').first()).not.toHaveAttribute('data-doc-pending', '1');
       await expect(page.locator('.wz-stage').first()).toHaveAttribute('data-doc-rev', /\d/);
       await expect(page.getByTestId('map-svg-why-fields').locator('..')).toContainText('0 editable, 1 artwork');
@@ -333,6 +343,9 @@ for (const example of examples.filter((entry) => entry.recipe)) {
     }
     await intoProduction(page, example.name, `${example.name} qualification`);
     await settleDurableWrites(page);
+    if (example.slug === 'editable-credits') {
+      await page.getByTestId('cue-field-f1').fill('Director: Casey Hill\nCamera:\nRobin Vale\nAri Moss');
+    }
     await page.getByTestId('verb-take').click();
     const air = page.frameLocator('[data-testid="program-stage"] iframe');
     await expect(air.locator('svg').first()).toBeVisible();
@@ -348,6 +361,23 @@ for (const example of examples.filter((entry) => entry.recipe)) {
         await page.getByTestId('cue-action-score1').click();
         await expect(await fieldLayer(air, 'score', '1')).toHaveText('1');
         break;
+      case 'clock': {
+        const readout = air.locator('.imported-design-clock');
+        await expect(readout).toHaveAttribute('data-count', 'down');
+        await expect(readout).not.toHaveText('12:00', { timeout: 4_000 });
+        await page.getByTestId('cue-action-clock_pause').click();
+        const held = await readout.textContent();
+        await page.waitForTimeout(1_100);
+        await expect(readout).toHaveText(held!);
+        await page.getByTestId('cue-action-clock_reset').click();
+        await expect(readout).toHaveText('12:00');
+        if (example.slug === 'scorebug-clock') {
+          await page.getByTestId('cue-action-score1').click();
+          await expect(await fieldLayer(air, 'score', '1')).toHaveText('1');
+          await expect(readout).toHaveText('12:00');
+        }
+        break;
+      }
       case 'countdown':
         await page.getByTestId('cue-action-pause').click();
         await expect(role(air, 'paused')).toHaveClass(/imported-design-on/);
@@ -429,6 +459,10 @@ for (const example of examples.filter((entry) => entry.recipe)) {
         await expect(role(air, 'latest')).toHaveText('7');
         break;
       case 'credits':
+        if (example.slug === 'editable-credits') {
+          await expect(air.locator('.imported-design-credits-row')).toHaveText(['Director', 'Casey Hill', 'Camera', 'Robin Vale', 'Ari Moss']);
+          break;
+        }
         await expect(air.locator('.imported-design-credits')).toContainText('The Weekly Show 2026');
         await expect.poll(() => air.locator('.imported-design-credits').evaluate(() => (window as unknown as { noacgCreditsTween?: { progress(): number } }).noacgCreditsTween?.progress() ?? 0)).toBeGreaterThan(0);
         break;

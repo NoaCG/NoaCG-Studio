@@ -41,16 +41,9 @@ export const BEHAVIOUR_RECIPES: readonly BehaviourRecipe[] = [
   creditsRecipe,
   switchRecipe,
   choiceRecipe,
+  clockRecipe,
 ];
 
-/**
- * Recipes the compiler and the mapping step's own controls know, but that are not yet in the list
- * above: the list is what the name proposal reads and what the downloadable Illustrator examples
- * must cover (scripts/check-svg-example-coverage.mjs). The CLOCK waits here for its example; it is
- * chosen in the step, never proposed from a name, so the proposal loses nothing meanwhile.
- */
-const PICKED_RECIPES: readonly BehaviourRecipe[] = [clockRecipe];
-
 export function recipeById(id: string): BehaviourRecipe | null {
-  return BEHAVIOUR_RECIPES.find((r) => r.id === id) ?? PICKED_RECIPES.find((r) => r.id === id) ?? null;
+  return BEHAVIOUR_RECIPES.find((r) => r.id === id) ?? null;
 }

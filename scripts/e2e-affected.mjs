@@ -313,7 +313,7 @@ const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 //     writers' guide; the build skips it.
 //   - research/editor-r1-1d/baseline/: the recorded wizard baseline editor-fidelity-trim reads.
 const DOCS_LOADED = String.raw`svg-samples\/|tutorials\/svg-examples\/|whats-new\/|GOALS\.md$|research\/editor-r1-1d\/baseline\/`;
-const MD_LOADED = String.raw`docs\/tutorials\/svg-examples\/README\.md$|docs\/whats-new\/(?!README\.md$)|docs\/GOALS\.md$`;
+const MD_LOADED = String.raw`docs\/tutorials\/svg-examples\/.*\.md$|docs\/whats-new\/(?!README\.md$)|docs\/GOALS\.md$`;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
 const IGNORE = [new RegExp(`^docs/(?!${DOCS_LOADED})`), new RegExp(`^(?!${MD_LOADED}).*\\.md$`), /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
