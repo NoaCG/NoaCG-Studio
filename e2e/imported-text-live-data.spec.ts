@@ -86,7 +86,7 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   // ladder wraps and shrinks within and across those lines, and never reflows them into one.
   const lines = () => body.evaluate(onAir);
   // The block starts where it was drawn and stays inside the artwork's frame (0 to 1100). Where
-  // the ladder sets its room on this drawing is the import's own rule, not this row's (#1977).
+  // the ladder sets its room on this drawing is the import's own rule, not this row's (#2078).
   const inside = () => body.evaluate((el) => {
     const b = (el as SVGTextElement).getBBox();
     return { inside: b.x === 85 && b.x + b.width <= 1100, x: b.x, right: b.x + b.width };
