@@ -186,7 +186,9 @@ Risky scenario (reload and recovery rules change). Each line is observable.
 - **N3 The exported pages keep their own rule (known limit, follow-up).** The standalone panel and
   the production controller are the only senders their relay has, and they do not yet say whether
   a graphic is on air to their clock fold; a Reset before the first Take there behaves as before.
-  Filed as #2117.
+  Filed as #2117. The dashboard and the hosted control page offer no Reset, Pause or Update off air
+  ("Take the cue first"), so on a hosted production the sequence comes only from another sender;
+  the renderer and the monitor now read it right whoever sends it.
 - **M1 (#1906) The program monitor reseeds an off-air clock on reload.** For every match clock
   (native or imported, not a target time) whose graphic is off air and has a renderer report with
   a baseline, the monitor's clock memory is that report's value folded through the rows after the
