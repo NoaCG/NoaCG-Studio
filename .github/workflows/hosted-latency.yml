@@ -51,8 +51,9 @@ name: hosted-latency
 on:
   schedule:
     - cron: '40 2 * * 0,3' # Sundays and Wednesdays, 02:40 UTC
-  # `spec` runs one spec file on every shard instead of the whole suite: a hosted reading of one
-  # instrument in minutes (issue #2089's press-latency test). Only a dispatch can set it, and a
+  # `spec` runs one spec file on every shard instead of the whole suite, with the timing
+  # instruments switched on: a hosted reading of one instrument in minutes (issue #2089's
+  # press-latency test). Only a dispatch can set it, and a
   # branch's dispatch never files or closes the rolling issue (below).
   workflow_dispatch:
     inputs:
@@ -320,9 +321,15 @@ jobs:
           TMPDIR: ${{ runner.temp }}
           SPEC: ${{ inputs.spec }}
           SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+        # A one-spec dispatch also switches on the timing instruments (NOACG_INSTRUMENT), which the
+        # suite skips otherwise, and its shard fails when that spec does: there is no verdict job
+        # to say so for it.
         run: |
-          if [ -n "${SPEC}" ]; then set -- "${SPEC}"; else set -- "--shard=${SHARD}"; fi
-          npm run test:e2e:live -- "$@" --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure || true
+          if [ -n "${SPEC}" ]; then
+            NOACG_INSTRUMENT=1 npm run test:e2e:live -- "${SPEC}" --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure
+          else
+            npm run test:e2e:live -- "--shard=${SHARD}" --global-timeout=1500000 --reporter=list,blob --trace=retain-on-failure || true
+          fi
 
       - name: Upload shard report
         uses: actions/upload-artifact@v4
