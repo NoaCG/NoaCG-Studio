@@ -174,7 +174,7 @@ export default {
     let failure: GatewayError | null = null;
     /** Set once a managed Pro call has been admitted, so only an admitted call settles. */
     let proReservationAdmitted = false;
-    let pricing: Pick<GatewayExecutionPolicy, 'priceFor'> = {};
+    let priceFor: GatewayExecutionPolicy['priceFor'];
     try {
       // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
       // refusal is an outcome worth counting, not a hole in the accounting.
@@ -199,7 +199,7 @@ export default {
         proReservationAdmitted = true;
         // Every funded Pro route has a catalog price: a reply that reports no cost is priced from
         // its tokens on its own route, so settlement never books the fee alone (#2092).
-        pricing = { priceFor: (route) => proRoutePrice(profile, route) };
+        priceFor = (route) => proRoutePrice(profile, route);
       }
       const gateway = byoPrimary ? undefined : surfaceRoutePolicy(body.surface, body.route);
       // A surface may also carry an EXECUTION policy - attempt budget and timeout. Only the
@@ -211,7 +211,7 @@ export default {
       result = await executeGatewayRequest(
         body,
         { keyFor },
-        gateway || execution || pricing.priceFor ? { ...execution, ...pricing, ...(gateway ? { gateway } : {}) } : undefined,
+        { ...execution, ...(priceFor ? { priceFor } : {}), ...(gateway ? { gateway } : {}) },
       );
     } catch (error) {
       failure = error instanceof GatewayError

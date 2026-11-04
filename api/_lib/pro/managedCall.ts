@@ -126,6 +126,9 @@ export async function admitManagedProCall(
  * A reply that reports no cost is priced from its tokens at the catalog price, per attempt on its
  * own route (generate.ts passes `proRoutePrice` to the executor), so it never settles at its fee
  * alone. Every Pro route has that price, because `proRouteFunded` above requires it.
+ *
+ * LIMIT: an attempt that ended in a server error or a timeout is not in that usage, on a success
+ * or a failure, because nothing measured shows the gateway bills one (#2114).
  */
 export async function settleManagedProCall(
   body: AiGatewayRequestBody,

@@ -196,9 +196,9 @@ export function withServedRepair(
   profile: ReturnType<typeof liteProfile>,
 ): ModelResult | undefined {
   if (!result || !(error instanceof GatewayError) || !error.servedUsage) return result;
-  // The repair runs on the first result's route, with no fallback.
-  const route = { provider: result.provider, model: result.model };
-  return { ...result, usage: sumUsage([result.usage, withTokenCost(error.servedUsage, route, routePrice(profile, route))]) };
+  // The repair runs on the first result's route, with no fallback, and adds no attempt here:
+  // attempt_count is Lite's bounded session counter.
+  return aggregateResults(result, withProfileCost({ ...result, attempts: [], usage: error.servedUsage }, profile));
 }
 
 function withProfileCost(result: ModelResult, profile: ReturnType<typeof liteProfile>): ModelResult {

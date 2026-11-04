@@ -1250,9 +1250,16 @@ export async function executeGatewayRequest(
     priceFor(route),
   ));
   // A request that fails after served attempts still paid for them: the error carries the sum.
+  // A non-gateway error (a caller's key lookup that throws) becomes one so the sum survives, and
+  // the field is always overwritten, so an error object a caller reuses never keeps another
+  // request's usage.
   const failed = (error: unknown): unknown => {
-    if (served.length && error instanceof GatewayError) error.servedUsage = sumUsage(served);
-    return error;
+    if (!(error instanceof GatewayError) && !served.length) return error;
+    const gatewayError = error instanceof GatewayError
+      ? error
+      : new GatewayError('unavailable', 'The AI request could not be completed.', 503, true);
+    gatewayError.servedUsage = served.length ? sumUsage(served) : undefined;
+    return gatewayError;
   };
   let lastError: GatewayError | null = null;
   let totalAttempts = 0;

@@ -1343,3 +1343,34 @@ test('a caller price prices each unpriced served attempt on its own route, succe
   const error = await failing(sequence(() => reply('not json'), () => reply('not json')), { priceFor });
   near(usageCostUsd(error.servedUsage), 2 * (cheap + 0.000075), 'never the fee alone');
 });
+
+test('a raw error after served attempts becomes a gateway error that keeps their cost', async () => {
+  const request = structuredBody();
+  request.fallbacks = [{ provider: 'anthropic', model: 'fallback' }];
+  const rejected = executeGatewayRequest(request, {
+    keyFor: async (provider) => { if (provider === 'anthropic') throw new TypeError('settings read failed'); return 'key'; },
+    sleep: async () => {},
+    fetchImpl: sequence(() => reply('not json', 0.0003)),
+  }, { maxAttempts: 3, retryLimit: 0, gateway: TAGGED });
+  await assert.rejects(rejected, (error) => error instanceof GatewayError
+    && Math.abs(usageCostUsd(error.servedUsage) - (0.0003 + 0.000075)) < 1e-12);
+  // With nothing served, the raw error passes through untouched, as before.
+  const raw = new TypeError('settings read failed');
+  await assert.rejects(executeGatewayRequest(body('vercel', 'vendor/model'), {
+    keyFor: async () => { throw raw; },
+  }), (error) => error === raw);
+});
+
+test('an error object a caller reuses never carries an earlier request\'s served cost', async () => {
+  const refusal = new GatewayError('authentication_required', 'no', 403, false);
+  const request = structuredBody();
+  request.fallbacks = [{ provider: 'anthropic', model: 'fallback' }];
+  await assert.rejects(executeGatewayRequest(request, {
+    keyFor: async (provider) => { if (provider === 'anthropic') throw refusal; return 'key'; },
+    sleep: async () => {},
+    fetchImpl: sequence(() => reply('not json', 0.0003)),
+  }, { maxAttempts: 3, retryLimit: 0, gateway: TAGGED }));
+  assert.ok(refusal.servedUsage, 'the first request served a reply');
+  await assert.rejects(executeGatewayRequest(body('anthropic', 'fallback'), { keyFor: async () => { throw refusal; } }));
+  assert.equal(refusal.servedUsage, undefined, 'the second request served nothing');
+});
