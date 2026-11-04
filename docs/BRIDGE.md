@@ -754,7 +754,10 @@ never shared:
   the older `cli-v*` Releases from before the split still on the page; the Downloads page asks
   GitHub for the newest `bridge-v*` release BY TAG and links its asset. The file name carries the
   version (`NoaCG-Bridge-0.6.1.exe`, with `.sha256` beside it), so there is no fixed direct link;
-  0.4.0 to 0.6.0 were published as plain `NoaCG-Bridge.exe` and the page still accepts that;
+  0.4.0 to 0.6.0 were published as plain `NoaCG-Bridge.exe` and the page still accepts that.
+  The Companion module also has Releases on that page (`companion-v*`,
+  `.github/workflows/release-companion.yml`), created with `--latest=false` so they never take
+  `releases/latest`, and its card resolves its own tag the same way;
 - the CLI: npm's `latest` for `@noacg/cli`, which the Downloads page reads from the registry.
 
 Each card on the Downloads page shows the version of the file it links to. The Bridge card

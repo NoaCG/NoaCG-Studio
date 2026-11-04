@@ -29,7 +29,12 @@ function skipUnrecorded(testInfo: TestInfo, ...names: string[]): void {
   test.skip(missing && !updating, `no ${process.platform} baseline recorded yet`);
 }
 
+// A page's own lookups answer on no fixed schedule, and what they answer can change its height: the
+// Downloads page takes rows off its Companion card when GitHub lists no module release. An answer
+// arriving after snapToWholePixel leaves the footer on a fraction again, and its picture a pixel
+// taller (#2134). Refused, each page holds still at the layout it was served with.
 async function open(page: Page, path: string, size: (typeof SIZES)[number]): Promise<void> {
+  await page.route(/^https:\/\/(api\.github\.com|registry\.npmjs\.org)\//, (route) => route.abort());
   await page.setViewportSize({ width: size.width, height: size.height });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(path);

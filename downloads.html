@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <!--
-  THE DOWNLOADS PAGE (/downloads): the two things NoaCG ships that you install.
+  THE DOWNLOADS PAGE (/downloads): the three things NoaCG ships that you install.
 
-  NoaCG itself runs in the browser and needs nothing installed. Two optional tools sit beside it,
-  and a new visitor could not find either: NoaCG Bridge was linked only from Settings -> Playout,
-  and the CLI only from one landing section. This page names both, says what each is FOR, and
-  gets each one onto a machine. Under the two tools sits the SVG examples package: layered
+  NoaCG itself runs in the browser and needs nothing installed. Optional tools sit beside it, and
+  a new visitor could not find them: NoaCG Bridge was linked only from Settings -> Playout, the
+  CLI only from one landing section, and the Companion module nowhere. This page names each, says
+  what it is FOR, and gets it onto a machine. Under the tools sits the SVG examples package: layered
   example graphics to open, learn the layer names from and import, a zip rather than a program.
 
   EACH CARD ANSWERS THREE THINGS, in this order: what it is, who needs it, and the one step to
@@ -13,13 +13,15 @@
   coding agent; a browser source, or NoaCG Playout to CasparCG with NoaCG Bridge. A reader who
   arrives from the landing meets the same names here.
 
-  TWO PRODUCTS, TWO VERSION LINES (owner, 2026-10-24). The Bridge is for the operator connecting
+  EACH PRODUCT, ITS OWN VERSION LINE (owner, 2026-10-24). The Bridge is for the operator connecting
   NoaCG to a playout system, the CLI for a creator making graphics with an agent. They are built
   from one package (cli/) but each has its own version and channel: the Bridge as
   NoaCG-Bridge-X.Y.Z.exe on a GitHub Release tagged bridge-vX.Y.Z, the CLI to npm, tagged
-  cli-vX.Y.Z. Each card resolves ITS OWN artifact: src/downloads/downloads.ts asks GitHub for the
-  newest bridge-v* release and npm for @noacg/cli's `latest`, and shows the version of exactly
-  the file or package it links to.
+  cli-vX.Y.Z. The Companion module, for an operator with a Stream Deck, is noacg-studio-X.Y.Z.tgz
+  on a GitHub Release tagged companion-vX.Y.Z (.github/workflows/release-companion.yml). Each card
+  resolves ITS OWN artifact: src/downloads/downloads.ts asks GitHub for the newest release by tag
+  prefix and npm for @noacg/cli's `latest`, and shows the version of exactly the file or package
+  it links to.
 
   ONE BRIDGE ON THE PAGE. The Bridge card offers the download only. It used to add
   `npx -y @noacg/cli bridge`, which runs the Bridge code inside the newest CLI: that can be newer
@@ -28,8 +30,9 @@
 
   The page is complete with no JavaScript: the Bridge button then points at GitHub's
   releases/latest page (release-bridge.yml marks every Bridge release as the latest; the file name
-  carries the version, so there is no fixed file link), and the
-  versions read "latest". The voice is the docs page's (src/docs/AGENTS.md): plain information,
+  carries the version, so there is no fixed file link), the Companion button at the Releases page
+  searched for its name, never releases/latest, which is the Bridge's, and the versions read
+  "latest". The voice is the docs page's (src/docs/AGENTS.md): plain information,
   no em-dashes, and every command is one that has been run. The commands here are the
   distribution table's (docs/AGENT_CLI.md, docs.html #agent-setup), never new ones. The button
   and field names quoted in the Bridge steps are the app's own (BridgePairPage.tsx,
@@ -42,7 +45,7 @@
   <title>Downloads - NoaCG Studio</title>
   <meta
     name="description"
-    content="Two optional tools for NoaCG Studio. NoaCG Bridge connects NoaCG Playout to CasparCG. The NoaCG CLI lets your AI coding agent, such as Claude Code or Codex, make NoaCG graphics. Also here: example SVG graphics to learn the layer names from."
+    content="Three optional tools for NoaCG Studio. NoaCG Bridge connects NoaCG Playout to CasparCG. The Companion module runs a production from a Stream Deck. The NoaCG CLI lets your AI coding agent, such as Claude Code or Codex, make NoaCG graphics. Also here: example SVG graphics to learn the layer names from."
   />
   <meta name="theme-color" content="#0a0c10" />
   <link rel="canonical" href="https://noacg.studio/downloads" />
@@ -50,12 +53,12 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
   <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin />
-  <meta property="og:title" content="NoaCG downloads: NoaCG Bridge and the NoaCG CLI" />
-  <meta property="og:description" content="NoaCG Bridge connects NoaCG Playout to CasparCG. The NoaCG CLI lets your AI coding agent make NoaCG graphics." />
+  <meta property="og:title" content="NoaCG downloads: NoaCG Bridge, the Companion module and the NoaCG CLI" />
+  <meta property="og:description" content="NoaCG Bridge connects NoaCG Playout to CasparCG. The Companion module runs a production from a Stream Deck. The NoaCG CLI lets your AI coding agent make NoaCG graphics." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://noacg.studio/downloads" />
   <!-- The site's chrome (src/site-chrome.css) and the docs stylesheet's type, so this page and
-       the docs look like one site; downloads.css adds only the two tool cards. -->
+       the docs look like one site; downloads.css adds only the tool cards. -->
   <link rel="stylesheet" href="/src/site-chrome.css" />
   <link rel="stylesheet" href="/src/docs/docs.css" />
   <link rel="stylesheet" href="/src/downloads/downloads.css" />
@@ -66,14 +69,14 @@
 
     <div class="doc-hero">
       <p class="kicker">Downloads</p>
-      <h1>Two tools you can install</h1>
+      <h1>Three tools you can install</h1>
       <p class="lede">
         NoaCG runs in your browser. Install one of these only if you need what it does.
       </p>
     </div>
 
     <!-- `.doc-body` borrows the docs page's reading type and its copy button on every command
-         block (src/docs/docs.ts); `.dl-grid` lays the two tools side by side. -->
+         block (src/docs/docs.ts); `.dl-grid` lays the tools side by side. -->
     <div class="doc-body dl-grid">
       <!-- NoaCG BRIDGE. `id="bridge"` is an address: Playout settings in the studio links here. -->
       <section class="dl-card" id="bridge" data-testid="download-bridge">
@@ -183,6 +186,55 @@
         <p class="dl-more"><a href="/docs#casparcg-connect">The CasparCG guide in the docs</a></p>
       </section>
 
+      <!-- THE COMPANION MODULE. `id="companion"` and `id="companion-setup"` are addresses: the
+           production page's Stream Deck panel dialog links both. It has no fixed file link either,
+           and releases/latest is the Bridge's, so with no JavaScript or no API answer its links
+           are the Releases page searched for its name. The steps are the short form of
+           companion-module/companion/HELP.md, in the words Companion and the page use. -->
+      <section class="dl-card" id="companion" data-testid="download-companion">
+        <p class="kicker">For Stream Deck</p>
+        <h2>NoaCG Companion module</h2>
+        <p class="dl-what">
+          Runs a production from a Stream Deck or any surface
+          <a href="https://bitfocus.io/companion">Bitfocus Companion</a> supports: Take, Out, cues
+          and a graphic's live controls, with what is on air shown on the keys.
+        </p>
+        <p class="dl-meta">
+          Companion 4.3 or later &middot; version
+          <span data-version="companion" data-testid="companion-version">latest</span>
+        </p>
+        <p class="dl-actions" data-needs-release="companion">
+          <a
+            class="btn btn-amber"
+            href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion&amp;expanded=true"
+            data-download="companion"
+            data-testid="companion-download"
+          >Download the Companion module</a>
+        </p>
+        <p class="dl-links" data-needs-release="companion">
+          <a href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion&amp;expanded=true" data-release-notes="companion" data-testid="companion-release-notes">What changed in this version</a>
+          &middot;
+          <a href="https://github.com/NoaCG/NoaCG-Studio/releases?q=companion&amp;expanded=true" data-checksum="companion">SHA-256 checksum</a>
+        </p>
+
+        <h3 id="companion-setup">Set it up</h3>
+        <ol data-testid="companion-steps">
+          <li>In Companion open <strong>Modules</strong>, press
+            <strong>Import module package</strong> and choose the file you downloaded.</li>
+          <li>Publish the production once. On its page open <strong>Setup</strong>, then
+            <strong>Stream Deck panel&hellip;</strong>, and press <strong>Pair a panel</strong>.
+            The code works once, for five minutes.</li>
+          <li>In Companion open <strong>Connections</strong>, search <code>NoaCG</code> and press
+            <strong>Add</strong> beside <strong>NoaCG: NoaCG Studio</strong>, then
+            <strong>Add</strong> again. Type the code into <strong>Pairing code</strong>, name the
+            panel and press <strong>Save</strong>.</li>
+          <li>Keep the production page open. In Companion's <strong>Buttons</strong>, open
+            <strong>Presets</strong>, press <strong>NoaCG</strong>, open a section and drag keys
+            onto your buttons.</li>
+        </ol>
+        <p class="dl-more"><a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/companion-module/companion/HELP.md" data-testid="companion-guide">The full guide</a></p>
+      </section>
+
       <!-- THE NoaCG CLI. `id="cli"` is an address too. -->
       <section class="dl-card" id="cli" data-testid="download-cli">
         <p class="kicker">For AI coding agents</p>
@@ -240,7 +292,7 @@
       </section>
     </div>
 
-    <!-- THE SVG EXAMPLES. Not a tool to install, so it sits under the two cards rather than
+    <!-- THE SVG EXAMPLES. Not a tool to install, so it sits under the tool cards rather than
          beside them: a zip of layered example graphics, each named to the one layer-naming
          system. docs/tutorials/svg-examples is its source, scripts/illustrator/build-svg-examples.jsx
          draws it in Illustrator and scripts/illustrator/pack-svg-examples.mjs writes the zip into

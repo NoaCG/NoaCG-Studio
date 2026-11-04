@@ -23,7 +23,7 @@ import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.m
 // ograf.html is the public FREE OGRAF STARTERS page at "/ograf" (docs/OGRAF.md), and
 // bridge.html is the headless BRIDGE at "/bridge" the `noacg` CLI / MCP server drives
 // (noindex, docs/AGENT_CLI.md), and downloads.html is the public DOWNLOADS page at "/downloads"
-// (static, indexed): NoaCG Bridge and the NoaCG CLI, the two tools you install. whats-new.html
+// (static, indexed): NoaCG Bridge, the Companion module and the NoaCG CLI, the tools you install. whats-new.html
 // ("/whats-new") and roadmap.html ("/roadmap") are public pages whose lists are generated at
 // build from docs/whats-new/ and docs/GOALS.md (generatedPages below).
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev

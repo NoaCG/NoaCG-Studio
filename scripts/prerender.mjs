@@ -193,7 +193,7 @@ function sitemap(entries) {
     { loc: `${SITE_ORIGIN}/docs`, priority: '0.8' },
     // The free OGraf starters page (ograf.html) — a public, indexable landing of its own.
     { loc: `${SITE_ORIGIN}/ograf`, priority: '0.8' },
-    // The Downloads page (downloads.html) — NoaCG Bridge and the NoaCG CLI, the tools you install.
+    // The Downloads page (downloads.html) — NoaCG Bridge, the Companion module and the NoaCG CLI, the tools you install.
     { loc: `${SITE_ORIGIN}/downloads`, priority: '0.7' },
     // What's new (whats-new.html) and the roadmap (roadmap.html) - public pages built from
     // docs/whats-new/ and docs/GOALS.md.
