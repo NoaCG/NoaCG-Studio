@@ -209,6 +209,23 @@ test('a +1 heard while the read was out is not put back by the report; the field
   assert.deepEqual(seedFromResolve(before, reported, [], asked, CUES, NO_CLOCKS).aired.lt, { f0: 'REPORTED', f1: 'ALSO REPORTED' });
 });
 
+test('a clock a command moved while the read was out keeps this page\'s memory and figure, not the older report\'s', () => {
+  const asked = airAtRequest(NO_AIR);
+  const heard = claimAndApply(NO_AIR, [update('score', { f5: `09:00@${T}` }, 'u3')], createAppliedOnce(), CLOCKS, T).air;
+  assert.notEqual(heard.clocks.score, undefined, 'the command set the clock memory');
+  const air = seedFromResolve(heard, { liveCue: { score: 'c2' }, live: { score: { data: { f5: `10:00@${T}` } } } }, [], asked, CUES, CLOCKS);
+  assert.equal(air.clocks.score, heard.clocks.score);
+  assert.equal(air.aired.score.f5, heard.aired.score.f5);
+});
+
+test('a speaking pair a command moved while the read was out keeps this page\'s memory, not the older report\'s', () => {
+  const asked = airAtRequest(NO_AIR);
+  const heard = claimAndApply(NO_AIR, [update('debate', { fa: `04:00@${T}`, fb: '05:00' }, 'u4')], createAppliedOnce(), DEBATE, T).air;
+  assert.notEqual(heard.speaking.debate, undefined, 'the command set the pair\'s memory');
+  const air = seedFromResolve(heard, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: '05:00' } } } }, [], asked, CUES, DEBATE);
+  assert.deepEqual(air.speaking.debate, heard.speaking.debate);
+});
+
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {
   const live = { score: { data: { f5: `10:00@${T}` } } };
   const air = seedFromResolve(NO_AIR, { liveCue: { score: 'c2' }, live }, [], airAtRequest(NO_AIR), CUES, CLOCKS);

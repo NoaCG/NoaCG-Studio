@@ -299,20 +299,22 @@ export function seedFromResolve(
     };
     const clock = specs.clocks.get(graphic);
     const pair = specs.pairs.get(graphic);
+    // A field a command moved while the read was out holds that command's figure, and its clock
+    // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
+    // back, and the next +1 counted from it).
+    const moved = air.commands !== at.commands ? movedSince(at.aired?.[graphic], air.aired[graphic]) : {};
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
-    if (clock && values[clock.field] !== undefined) {
+    if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
       clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
       values[clock.field] = plainClockValue(values[clock.field]);
     }
-    if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
+    if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined && !(pair.fieldA in moved) && !(pair.fieldB in moved)) {
       speaking = { ...speaking, [graphic]: { [pair.fieldA]: wire(pair.fieldA), [pair.fieldB]: wire(pair.fieldB) } };
       values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
       values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
     }
-    // A field a command moved while the read was out holds that command's figure: the report is
-    // older (issue #2088: a +1 heard meanwhile was put back, and the next +1 counted from it).
-    if (air.commands !== at.commands) Object.assign(values, movedSince(at.aired?.[graphic], air.aired[graphic]));
+    Object.assign(values, moved);
     if (Object.keys(values).length > 0) seed[graphic] = values;
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
