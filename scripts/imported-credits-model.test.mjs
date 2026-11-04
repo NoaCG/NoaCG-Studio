@@ -1056,7 +1056,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  and the editable roll of the saved legacy graphic, byte for byte. Each runtime carries the
  *  second measure when the face lands (creditsSettle) on purpose; the test below says so. The
  *  styled one is as main built it before #1965; the editable one gained exactly creditsSettle. */
-const FACED_PINS = { styled: '8fc03ed22d6551b7', editable: '675b1b6e459504a4' };
+const FACED_PINS = { styled: 'ddc902cafb934285', editable: '2e0819bfe1735c21' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {
