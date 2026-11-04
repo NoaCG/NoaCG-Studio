@@ -105,10 +105,12 @@ export interface ImportedGraphicAnalysisV1 {
   animation?: {
     presetId: 'design-fade' | 'design-slide' | 'design-pop' | 'design-blur';
     direction: 'both' | 'in' | 'out';
-    speed?: 0.75 | 1 | 1.5;
+    speed?: (typeof IMPORT_ANALYSIS_SPEEDS)[number];
   };
   warnings: string[];
 }
+
+export const IMPORT_ANALYSIS_SPEEDS = [0.75, 1, 1.5] as const;
 
 const norm = { type: 'number', minimum: 0, maximum: 1 };
 
@@ -189,7 +191,10 @@ export const IMPORT_ANALYSIS_OUTPUT: StructuredOutput = {
         properties: {
           presetId: { type: 'string', enum: ['design-fade', 'design-slide', 'design-pop', 'design-blur'] },
           direction: { type: 'string', enum: ['both', 'in', 'out'] },
-          speed: { type: 'number', enum: [0.75, 1, 1.5] },
+          // A string on the wire: Gemini refuses any enum that is not of type string ("For
+          // schema with enum values, schema type should be STRING", #2022), which failed every
+          // analysis with HTTP 400. importAnalysisFromWire turns it back into the number.
+          speed: { type: 'string', enum: IMPORT_ANALYSIS_SPEEDS.map(String) },
         },
       },
       warnings: {
@@ -200,6 +205,17 @@ export const IMPORT_ANALYSIS_OUTPUT: StructuredOutput = {
     },
   },
 };
+
+/** The model's answer, already validated against IMPORT_ANALYSIS_OUTPUT, as the analysis the
+ *  route returns: the one wire-only encoding (the speed as a string) decoded back. */
+export function importAnalysisFromWire(output: unknown): ImportedGraphicAnalysisV1 {
+  const analysis = output as ImportedGraphicAnalysisV1;
+  const speed: unknown = analysis.animation?.speed;
+  if (!analysis.animation || typeof speed !== 'string') return analysis;
+  const decoded = IMPORT_ANALYSIS_SPEEDS.find((value) => String(value) === speed);
+  const { speed: _wire, ...animation } = analysis.animation;
+  return { ...analysis, animation: decoded === undefined ? animation : { ...animation, speed: decoded } };
+}
 
 // ---- Wire types (browser client <-> /api/ai/tasks/import-analysis[-status|-outcome]) ----
 

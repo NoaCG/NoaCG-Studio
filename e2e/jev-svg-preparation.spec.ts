@@ -905,10 +905,22 @@ test('row 38 diagnostic: three notice zones, each zone\'s words operated alone; 
   await expect(air.locator('#f1')).toHaveText(words.f1);
 
   // NOT OFFERED: no control takes one zone on or off. The graphic's only verbs act on all three.
+  // The record below states these limits, so each is asserted: a per-zone control appearing one
+  // day fails here instead of quietly changing the annotation (#2041).
   const zoneControls = await page.locator('[data-testid^="cue-action-"]').count();
+  expect(zoneControls, 'no control takes one zone on or off').toBe(0);
   const plates = await air.locator('.imported-design svg g rect').count();
+  // A body no longer in the document is not shown; asked first, because an evaluate on a missing
+  // element waits rather than throws.
+  const bodyShown = async (f: string) => {
+    const body = air.locator(`#${f}`);
+    return (await body.count()) > 0 && body.evaluate((el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true }));
+  };
+  for (const f of bodies) expect(await bodyShown(f), `${f} is on the program renderer before Out`).toBe(true);
   await page.getByTestId('verb-out').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // Out moves all three together: every zone's body leaves the program renderer.
+  for (const f of bodies) await expect.poll(() => bodyShown(f), { message: `${f} left the program renderer after Out` }).toBe(false);
   info.annotations.push({
     type: 'notice-zones',
     description:

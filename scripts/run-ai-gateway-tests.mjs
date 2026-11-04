@@ -13,6 +13,7 @@ import { measured } from './measured.mjs';
 /** The sources compiled below, and the one list the count is taken from. */
 const sources = [
   'api/_lib/aiGateway.test.ts',
+  'api/_lib/importAnalysis/request.test.ts',
   'api/_lib/aiGenerate.test.ts',
   'api/_lib/aiModelDiscovery.test.ts',
   'api/_lib/aiTaskRegistry.test.ts',
