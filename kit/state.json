@@ -49,10 +49,12 @@
  "inFlight": [
   {
    "phase": "cf10",
-   "step": "build",
-   "session": "session_017SdbwQVzyMvFagukPqVTGi",
-   "nonce": "cf10-b-0977",
-   "launchedAt": "2026-11-04T21:22:08Z"
+   "step": "check",
+   "session": "session_017SdbwPi2FkMZnw3jbG9r1D",
+   "nonce": "cf10-c-6ffc",
+   "launchedAt": "2026-11-04T23:16:25Z",
+   "mergeSha": "314862e635ee0ceaa2fae3b2560eac94a137b1be",
+   "pr": 2151
   }
  ],
  "owner": [],
@@ -243,6 +245,12 @@
    "mergeSha": "3ed797a695496d4fdfab5b7d0d833ec754a1d822",
    "mergedAt": "2026-11-04T21:01:21Z",
    "what": "cf11 final selector change; miss-audit reset; cf18 earliest = merge + 14 days (2026-11-18T21:01Z); ends M1/M2/M3 sides of every cf13 group"
+  },
+  {
+   "pr": 2151,
+   "mergeSha": "314862e635ee0ceaa2fae3b2560eac94a137b1be",
+   "mergedAt": "2026-11-04T23:15:33Z",
+   "what": "cf10: protection check moved to the build job (Playwright --list, fetch-depth 0)"
   }
  ]
 }
