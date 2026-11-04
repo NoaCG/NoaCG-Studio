@@ -100,10 +100,18 @@ function withConfiguredCost(result: ModelResult, profile: ImportAnalysisProfile)
   return { ...result, usage: withTokenCost(result.usage, route, importAnalysisPrice(profile)) };
 }
 
-async function failRecord(record: LiteGenerationRecord | null, reason: string, result?: ModelResult): Promise<void> {
+async function failRecord(
+  record: LiteGenerationRecord | null,
+  reason: string,
+  result?: ModelResult,
+  failedCostUsd = 0,
+): Promise<void> {
   if (!record) return;
   await (await getLiteGenerationStore()).update(record.id, {
     ...(result ? modelResultPatch(result) : {}),
+    // A failed retry sequence may exceed the original booking. Never lower that
+    // conservative reservation for unknown or only partly accounted attempts (#2114).
+    providerCostUsd: Math.max(record.providerCostUsd, result ? usageCostUsd(result.usage) : 0, failedCostUsd),
     status: 'failed',
     rejectionReason: reason.slice(0, 80),
   }).catch(() => null);
@@ -229,7 +237,8 @@ export default {
       };
       return json(response);
     } catch (error) {
-      await failRecord(record, error instanceof GatewayError ? error.code : 'internal', accounted);
+      await failRecord(record, error instanceof GatewayError ? error.code : 'internal', accounted,
+        usageCostUsd(error instanceof GatewayError ? error.servedUsage : undefined));
       if (error instanceof GatewayError) {
         if (error.code === 'rate_limited' || error.code === 'unavailable' || error.code === 'timeout') {
           return liteError('provider_unavailable', error.message, error.status, true);
