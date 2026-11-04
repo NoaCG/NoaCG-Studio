@@ -271,8 +271,8 @@ test('a conflict whose winner keeps failing makes no copies until it can be read
 
 test('a pull still owed with no edit since is taken, even when the cloud\'s version is the older one', async () => {
   const engine = syncEngine();
-  // A true conflict the local edit lost, though its clock reads later: its copy was made, the copy's
-  // upload got no answer, and so the winner's pull was never asked for.
+  // A true conflict the local edit lost, though its clock reads later: its copy was made, and the
+  // local store then refused the winner's pull.
   const since = ago(100);
   const winner = graphicAt('g', ago(50), 'winner');
   const loser = graphicAt('g', ago(40), 'loser');
