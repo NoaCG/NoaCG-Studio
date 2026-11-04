@@ -26,6 +26,7 @@ import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../..
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
 import { recipeById } from '../../../templates/behaviours/registry';
 import { CLOCK_MODES, CLOCK_NAME, CLOCK_TIME } from '../../../templates/behaviours/clock';
+import { quizHasNoLock } from '../../../templates/behaviours/quiz';
 import { formatClockTarget, parseClockTarget, resolveClockTarget } from '../../../control/clockTarget';
 import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
 import { svgSourceRevision, type SvgProposal, type SvgProposalComponent, type SvgProposalError, type SvgUnresolvedIntent } from '../../../ai/svgInterpretation/contract';
@@ -1259,8 +1260,10 @@ export function behaviourSummary(draft: SvgImportDraft): string {
     if (behaviour.kind === 'quiz') {
       // The moments a quiz can show, and how many the designer drew - the rest wear NoaCG's own
       // look (docs/SVG_STATES_FROM_ARTWORK.md §5.2 asked for exactly this row).
-      const drawn = behaviour.rows.reduce((n, r) => n + [r.selected, r.correct, r.wrong].filter(Boolean).length, 0) + (behaviour.locked ? 1 : 0);
-      const total = behaviour.rows.length * 3 + 1;
+      // A no-Lock board never reaches its Locked in moment, so it is not one of them.
+      const lock = quizHasNoLock(behaviour.options) ? 0 : 1;
+      const drawn = behaviour.rows.reduce((n, r) => n + [r.selected, r.correct, r.wrong].filter(Boolean).length, 0) + (lock && behaviour.locked ? 1 : 0);
+      const total = behaviour.rows.length * 3 + lock;
       parts.push(drawn === total ? 'every moment drawn' : `${drawn} of ${total} moments drawn, the rest use NoaCG’s own look`);
     }
   }
@@ -1914,7 +1917,8 @@ function svgComponentOf(b: SvgBehaviourDraft, rows: Record<string, SvgRowAnswer>
   if (recipe === 'quiz') {
     // An option the author set answers its key, whatever was open before.
     const options = b.kind === 'quiz' ? b.options : undefined;
-    intent.lock = options?.lock === true ? 'lock' : options?.lock === false ? 'default' : isOpen('lock') ? 'unresolved' : 'default';
+    // A no-Lock board also carries `lock: false`, so `noLock` is read first.
+    intent.lock = quizHasNoLock(options) ? 'no-lock' : options?.lock === true ? 'lock' : options?.lock === false ? 'default' : isOpen('lock') ? 'unresolved' : 'default';
     intent.reveal = options?.autoReveal === true ? 'automatic' : options?.autoReveal === false ? 'manual' : isOpen('reveal') ? 'unresolved' : 'default';
   }
   if (recipe === 'credits') {
@@ -1932,6 +1936,8 @@ function svgBehaviourOfComponent(c: SvgProposalComponent, count: number): SvgBeh
   if (c.recipe === 'quiz') {
     const options: Record<string, boolean> = {};
     if (c.intent.lock === 'lock') options.lock = true;
+    // The true no-Lock board, written as the step's No lock tick writes it.
+    if (c.intent.lock === 'no-lock') Object.assign(options, { lock: false, noLock: true });
     if (c.intent.reveal === 'manual') options.autoReveal = false;
     if (c.intent.reveal === 'automatic') options.autoReveal = true;
     empty = {
