@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/templates/behaviours/score.ts, src/templates/importedDesign/behaviourRuntime.ts, src/templates/shared/animRuntime.ts, src/control/controlModel.ts, src/control/graphicVerbs.ts, src/control/matchClockWire.ts
+// guards: src/templates/behaviours/score.ts, src/templates/importedDesign/behaviourRuntime.ts, src/templates/shared/animRuntime.ts, src/control/controlModel.ts, src/control/graphicVerbs.ts, src/control/matchClockWire.ts, src/control/outputRecovery.ts, src/preview/previewProtocol.ts
 //
 // THE SCORE EVENT ON ARTWORK NOBODY NAMED FOR US (docs/work-specs/jev-svg-import/spec.md, row 12,
 // AC-10 and AC-21). The boards here are the plan's own development fixtures, drawn with generic
@@ -51,7 +51,7 @@ const { createGraphicVerbs } = await import('../src/control/graphicVerbs.ts');
 const { createPlayoutSession } = await import('../src/control/playoutSession.ts');
 const { withLiveCue } = await import('../src/control/liveCue.ts');
 const { SHARED_NOT_MOVED } = await import('../src/control/liveControls.ts');
-const { PREVIEW_CMD_TYPE } = await import('../src/preview/previewProtocol.ts');
+const { reportedSnap } = await import('../src/control/outputRecovery.ts');
 
 const root = (rel) => fileURLToPath(new URL(`../${rel}`, import.meta.url));
 const SPECS = [
@@ -61,6 +61,8 @@ const SPECS = [
   ['preview/composeDocument.ts', 'NOACG_COMPOSE'],
   ['ai/svgInterpretation/contract.ts', 'NOACG_CONTRACT'],
   ['control/matchClockWire.ts', 'NOACG_WIRE'],
+  ['control/outputRecovery.ts', 'NOACG_RECOVERY'],
+  ['preview/previewProtocol.ts', 'NOACG_PROTOCOL'],
 ].map(([rel, globalName]) => ({ entry: root(`src/${rel}`), globalName }));
 
 /** A hidden group the way a designer draws a moment: off in the file, a plain shape inside. */
@@ -100,7 +102,7 @@ const BUILD = ({ markup, teams, clock }) => {
 /** Runs in the browser: one graphic on two outputs over one command log, driven by `script`.
  *  Each output applies a row as output/main.ts does, the clock's half included (an update keeps a
  *  stamped clock, a row's clock effect is written beside it, an event carries its row's instant). */
-const RUN = async ({ template, scoreFields, script, cmdType }) => {
+const RUN = async ({ template, scoreFields, script }) => {
   const W = window.NOACG_WIRE;
   const spec = W.clockSpecFromHtml(template.html);
   const clockField = spec?.field ?? null;
@@ -177,17 +179,19 @@ const RUN = async ({ template, scoreFields, script, cmdType }) => {
   };
   outputs.push(await mount('A'), await mount('B'));
   const [A, B] = outputs;
-  /** An output rebuilt from A's report, as output/main.ts boots one: the data half, the pose with
-   *  what the report carries beside it, and the data again, through the renderer's own message
-   *  handler (composeDocument), the report having been stored as JSON. */
+  /** An output rebuilt from A's report, as output/main.ts boots one: the data half, the pose
+   *  (`reportedSnap`, as main.ts reads it) mapped to the frame's command as output/stage.ts maps it
+   *  (`snapCommand`), and the data again, through the renderer's own message handler
+   *  (composeDocument), the report having been stored as JSON. */
   let rebooted = null;
   const reboot = async () => {
     const report = JSON.parse(JSON.stringify({ data: A.held, state: A.w.noacgMachineState() }));
     const out = await mount('C');
     out.held = { ...report.data };
-    const post = (cmd) => out.w.postMessage({ type: cmdType, ...cmd }, '*');
+    const P = window.NOACG_PROTOCOL;
+    const post = (cmd) => out.w.postMessage({ type: P.PREVIEW_CMD_TYPE, ...cmd }, '*');
     post({ cmd: 'update', data: JSON.stringify(report.data) });
-    post({ cmd: 'snap', assignments: report.state.groups, timers: true, ...(report.state.awards ? { awards: report.state.awards } : {}) });
+    post(P.snapCommand(window.NOACG_RECOVERY.reportedSnap(report)));
     post({ cmd: 'update', data: JSON.stringify(report.data) });
     // Delivered as tasks, behind the renderer's own waits on the driven clock: every output's clock
     // moves in step until the pose has landed.
@@ -259,7 +263,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
   const build = (markup, teams, clock) => page.evaluate(BUILD, { markup, teams, clock });
   // The teams' figures, in row order: what each `+1` moves (a board can draw other numbers, a year).
   const figures = (template) => eventButtons(template.js).filter((b) => /^score\d+$/.test(b.event)).map((b) => Object.keys(b.adjust)[0]);
-  const run = (template, script) => page.evaluate(RUN, { template, scoreFields: figures(template), script, cmdType: PREVIEW_CMD_TYPE });
+  const run = (template, script) => page.evaluate(RUN, { template, scoreFields: figures(template), script });
   const twoClock = await build(SCORE_CLOCK, TWO, 'count-up');
   const four = await build(FOUR, FOUR_TEAMS, null);
   const r = (label) => ['read', label];
@@ -524,6 +528,15 @@ test('an output rebooted from its report lights the team that scored, and plays 
   assert.deepEqual(next.C.pops, { 'team.flash/1': 1 }, 'and plays once');
   const bound = at(runs.rebootFour, 'rebooted after a bound +1').C;
   assert.deepEqual(bound.flashes, [false, true, false, false], 'a press with no figure on it survives the reboot too');
+});
+
+test('a report\'s pose carries the scoring rows beside it, and nothing that is not one (#1908)', () => {
+  const groups = { main: 'on-air', flag: 'shown' };
+  assert.deepEqual(reportedSnap({ state: { groups, awards: { score: 'f3' } } }), { t: 'snap', snap: groups, awards: { score: 'f3' } });
+  assert.deepEqual(reportedSnap({ state: { groups } }), { t: 'snap', snap: groups }, 'a report from before the scoring rows');
+  for (const awards of ['f3', ['f3'], null, { score: 3 }, {}]) assert.deepEqual(reportedSnap({ state: { groups, awards } }), { t: 'snap', snap: groups }, JSON.stringify(awards));
+  assert.equal(reportedSnap({ state: { awards: { score: 'f3' } } }), null, 'no pose, no snap');
+  assert.equal(reportedSnap(null), null);
 });
 
 test('a +1 bound to shared data lights its team at the press, and the figure arriving later moves nothing (S1, AC-21)', () => {

@@ -1162,8 +1162,8 @@ if (typeof noacgFire === 'function') {
 // The latch is part of the board's state, so an output rebuilt from its report lights the same
 // team (#1908): the machine-state answer carries it as \`awards\` (figure group -> the field that
 // scored), beside \`groups\` and never inside it, because every surface reads a \`groups\` value as
-// a state. A snap handed it back (\`opts.awards\`) restores it before the pose is composed, and a
-// snap without it keeps the latch this page holds.
+// a state. A snap handed it back (\`opts.awards\`) replaces this page's latch with it before the
+// pose is composed, and a snap without it keeps the latch this page holds.
 if (typeof noacgMachineState === 'function') {
   var noacgMachineStateBare = noacgMachineState;
   noacgMachineState = function () {
@@ -1179,6 +1179,7 @@ if (typeof noacgSnap === 'function') {
   noacgSnap = function (assignments, opts) {
     var given = opts && opts.awards, kinds = NOACG_BEHAVIOUR.kinds || {};
     if (given && typeof given === 'object') {
+      noacgBehaviourMemory.rose = {};
       for (var g in given) {
         if (!Object.prototype.hasOwnProperty.call(given, g)) continue;
         var spec = Object.prototype.hasOwnProperty.call(kinds, given[g]) ? kinds[given[g]] : null;

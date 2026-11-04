@@ -160,6 +160,13 @@ export function postPreviewCmd(win: Window | null | undefined, msg: PreviewCmd):
   win?.postMessage({ type: PREVIEW_CMD_TYPE, ...msg }, '*');
 }
 
+/** A snap row as a renderer's frame takes it: recovery semantics stated explicitly (the wire field
+ *  means opposite things to the editor simulator, parked with timers off, and to a renderer, where
+ *  timers arm), and a score board's latched scoring rows passed on when the row has them (#1908). */
+export function snapCommand(msg: { snap: Record<string, string> | null; awards?: Record<string, string> }): PreviewCmd {
+  return { cmd: 'snap', assignments: msg.snap, timers: true, ...(msg.awards ? { awards: msg.awards } : {}) };
+}
+
 /** The graphic's machine pointers — what a state chip names and what greys an event button.
  *  `groups` is OPTIONAL because the value is whatever the template's own noacgMachineState()
  *  returned: an emitted or imported template may hand-write that function with another shape
@@ -167,6 +174,8 @@ export function postPreviewCmd(win: Window | null | undefined, msg: PreviewCmd):
  *  as "no answer yet" rather than crash the operator surface on it. */
 export interface PreviewMachineState {
   groups?: Record<string, string>;
+  /** A score board's latched scoring rows (figure group -> field), beside `groups` (#1908). */
+  awards?: Record<string, string>;
 }
 
 export interface PreviewBoxMessage {
