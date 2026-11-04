@@ -551,6 +551,17 @@ test('drawn look entrances persist and animate landings and re-entry without rep
   const changed = await source(page);
   expect(changed.html).toContain('data-noacg-look-entrance="fade"');
   expect(changed.js).toContain(original.js.trimEnd()); expect(await data(page)).toEqual(animation);
+  const refusalChecks = await page.evaluate(async template => {
+    const { behaviourLooks, setLookEntrance } = await import('/src/blocks/behaviourLook.ts');
+    const selector = behaviourLooks(template)[0].selector;
+    const original = setLookEntrance(template, selector, '');
+    const extension = template.js.slice(template.js.indexOf('// BEGIN NOACG LOOK ENTRANCE '));
+    const altered = [template.js + '\n' + extension, template.js.replace('LOOK ENTRANCE 1', 'LOOK ENTRANCE 2'), template.js.replace('var active = []', 'var active = [custom]')];
+    return { restored: !original.html.includes('data-noacg-look-entrance'), refused: altered.map(js => {
+      try { setLookEntrance({ ...template, js }, selector, 'cut'); return false; } catch { return true; }
+    }) };
+  }, changed);
+  expect(refusalChecks).toEqual({ restored: true, refused: [true, true, true] });
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
   expect(await source(page)).toEqual(original);
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);

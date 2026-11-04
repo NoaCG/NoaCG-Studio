@@ -7,7 +7,7 @@ import { LOOK_ENTRANCE_RUNTIME } from '../templates/shared/lookEntrance';
 
 export type LookEntrance = 'cut' | 'fade' | 'pop';
 export const LOOK_ENTRANCE_ATTR = 'data-noacg-look-entrance';
-const START = '// BEGIN NOACG LOOK ENTRANCE 1', END = '// END NOACG LOOK ENTRANCE 1';
+const START = '// BEGIN NOACG LOOK ENTRANCE ', END = '// END NOACG LOOK ENTRANCE ';
 
 /** Drawn looks only: generated fallback treatments retain their recipe behavior. This registry
  * is derived from the binding table and the same role stamps the paint runtime resolves. */
@@ -30,8 +30,9 @@ export function setLookEntrance(template: SpxTemplate, selector: string, entranc
   if (!['function noacgLookShow(', 'function noacgPop(', 'function noacgRepaint(', 'function noacgSnap(', 'function noacgResetGraphic(', 'function noacgResetPointers('].every(name => template.js.includes(name))) {
     throw new Error('This saved runtime does not support look entrances. Its source is preserved.');
   }
-  const installed = template.js.includes(START);
-  if ((installed && !template.js.includes(LOOK_ENTRANCE_RUNTIME)) || (!installed && template.js.includes(END))) {
+  const begins = template.js.split(START).length - 1, ends = template.js.split(END).length - 1;
+  const installed = begins === 1 && ends === 1 && template.js.includes(LOOK_ENTRANCE_RUNTIME);
+  if ((begins || ends) && !installed) {
     throw new Error('This look entrance runtime has custom changes. Its source is preserved.');
   }
   const doc = new DOMParser().parseFromString(template.html, 'text/html');
