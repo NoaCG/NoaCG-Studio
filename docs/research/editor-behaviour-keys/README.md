@@ -18,7 +18,7 @@ board and both credits fixtures, and read from `behaviourRuntime.ts` and `credit
 | Writer | When | What it writes |
 | --- | --- | --- |
 | `noacgRepaint` (every recipe state, the entrance cue and every recipe cue) | state entry, data write, clock tick | a look's `-on` class (display), a pop (`scale` tween) on a look that lands, a gauge's `width`, `d` or `scaleX`, a readout's text and `fill`, a place rule's `transform` attribute on a row and the field its role compiled to |
-| clock engines (`noacgClockReset`; the match clock's `startMatchClock`, `stopMatchClock`, `resetMatchClock`; the countdown clock's `startClock`, `stopClock`, which `svg.ts` adds for a clock field) | entrance, Out, clock states | the clock field's text, classes on the graphic root |
+| clock engines (`noacgClockReset`; the match clock's `startMatchClock`, `stopMatchClock`, `resetMatchClock`; the countdown clock's `startClock`, `stopClock`, which `svg.ts` adds for a clock field, and its hold, `pauseClock`, `resumeClock`) | entrance, Out, clock states | the clock field's text, classes on the graphic root |
 | credits roll (`noacgCreditsRoll`, `stopCreditsRoll`) | Rolling, Out | rebuilds the credits text into a measured window, moves it by its measured height |
 | the machine's off-path and parallel states | operator events | only the calls above; their own timelines carry no layer keys |
 | the wizard's entrance preset | On air, Out | keys on `.imported-design-box`: ordinary keys, not the recipe's |
@@ -35,9 +35,11 @@ Observable lines; `scripts/behaviour-keys.test.mjs` checks the pure rule and
   with a machine or calls only when it carries the behaviour paint runtime and a readable
   `NOACG_BEHAVIOUR` table, every call on every cue and machine state is one of exactly
   `noacgRepaint`, `noacgClockReset`, `startMatchClock`, `stopMatchClock`, `resetMatchClock`,
-  `startClock` or `stopClock` (`KNOWN_CALLS`, pinned to the builders' names by the unit test), no cue has measured motion (`dynamics`) or loops, and no machine state outside the
+  `startClock`, `stopClock`, `pauseClock` or `resumeClock` (`KNOWN_CALLS`, pinned to the builders' names by the unit test), no cue has measured motion (`dynamics`) or loops, and no machine state outside the
   default path carries layer keys. Otherwise every key is refused whole, as before, and nothing
-  changes. A catalog graphic's machine is unchanged by this rule.
+  changes. A catalog graphic's machine is unchanged by this rule. A graphic with a paint table but no machine and no
+  calls is a plain sequence, keyable as before this rule; the wizard always adds the repaint calls,
+  so a recipe it builds never reads that way.
 - **K2 The credits roll keeps the whole sequence.** It rebuilds and measures the text it moves, so
   a key anywhere could change what it measures. Keys stay refused with a reason that names the
   credits roll.

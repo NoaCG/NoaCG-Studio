@@ -20,10 +20,11 @@ export const GEOMETRY_REFUSAL = 'This graphic measures and moves this layer on a
 /** The calls whose writes are known and touch no keyable property of an artwork layer: the
  *  behaviour runtime's repaint (`REPAINT_CALL`; what it writes is the paint table's, claimed
  *  below) and its clock reset, the match clock's engine (`ENGINE_CALLS`) and the countdown
- *  clock's lifecycle (`startClock`, `stopClock`, added by `svg.ts` for a clock field) - field
- *  text and classes on the graphic root. Spelled here because blocks never import the template
+ *  clock's lifecycle (`startClock`, `stopClock`, added by `svg.ts` for a clock field) and its
+ *  hold (`pauseClock`, `resumeClock`, kept by the countdown recipe) - field text and classes on
+ *  the graphic root. Spelled here because blocks never import the template
  *  builders; `scripts/behaviour-keys.test.mjs` pins them to the builders' own names. */
-export const KNOWN_CALLS: readonly string[] = ['noacgRepaint', 'noacgClockReset', 'startMatchClock', 'stopMatchClock', 'resetMatchClock', 'startClock', 'stopClock'];
+export const KNOWN_CALLS: readonly string[] = ['noacgRepaint', 'noacgClockReset', 'startMatchClock', 'stopMatchClock', 'resetMatchClock', 'startClock', 'stopClock', 'pauseClock', 'resumeClock'];
 /** The credits roll's calls: it rebuilds and measures the text it moves (K2). */
 export const CREDITS_CALLS: readonly string[] = ['noacgCreditsRoll', 'stopCreditsRoll'];
 

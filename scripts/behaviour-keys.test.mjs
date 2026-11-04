@@ -1,4 +1,4 @@
-// guards: src/blocks/behaviourKeys.ts, src/templates/importedDesign/shared.ts, src/templates/importedDesign/reimport.ts, src/blocks/behaviourData.ts, src/templates/behaviours/recipe.ts, src/templates/behaviours/clock.ts, src/templates/behaviours/credits.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/behaviourRuntime.ts
+// guards: src/blocks/behaviourKeys.ts, src/templates/importedDesign/shared.ts, src/templates/importedDesign/reimport.ts, src/blocks/behaviourData.ts, src/templates/behaviours/recipe.ts, src/templates/behaviours/clock.ts, src/templates/behaviours/countdown.ts, src/templates/behaviours/credits.ts, src/templates/importedDesign/svg.ts, src/templates/importedDesign/behaviourRuntime.ts
 //
 // KEYS ON A BEHAVIOUR GRAPHIC (#1982, docs/research/editor-behaviour-keys/README.md). The pure
 // ownership rule: which owned sequences open to keys (K1, K2), what the recipe's paint table
@@ -58,6 +58,10 @@ test('the calls the rule knows are the builders\' own names', () => {
   const svg = source('src/templates/importedDesign/svg.ts');
   for (const call of ['startClock', 'stopClock']) { assert.match(svg, new RegExp(`call: '${call}'`)); assert.ok(KNOWN_CALLS.includes(call)); }
   assert.match(source('src/templates/importedDesign/behaviourRuntime.ts'), /function noacgClockReset\(\)/);
+  // Every call the countdown recipe keeps beside its repaint.
+  const countdown = /\[('\w+'(?:, '\w+')*)\],\s*\);\s*\}\s*export const countdownRecipe/.exec(source('src/templates/behaviours/countdown.ts'))[1].match(/'(\w+)'/g).map(s => s.slice(1, -1));
+  assert.deepEqual(countdown.sort(), ['noacgClockReset', 'pauseClock', 'resumeClock']);
+  for (const call of countdown) assert.ok(KNOWN_CALLS.includes(call), call);
   assert.match(source('src/templates/behaviours/credits.ts'), /export const CREDITS_ROLL_CALL = 'noacgCreditsRoll';/);
   assert.match(svg, /call: 'stopCreditsRoll'/);
   assert.deepEqual([...CREDITS_CALLS], ['noacgCreditsRoll', 'stopCreditsRoll']);
@@ -69,6 +73,7 @@ test('K1, K2: an owned sequence opens only where every writer is a known recipe 
   assert.equal(behaviourSequenceReason(score(), scoreTable, true), null);
   // The countdown clock's lifecycle and the match clock's engine are known writers.
   const clock = score(); clock.steps[0].calls.push({ time: 0.8, call: 'startClock' }, { time: 0, call: 'startMatchClock' }); clock.steps[1].calls = [{ time: 0, call: 'stopClock' }];
+  clock.machine.groups[1].states[0].timeline.calls.push({ time: 0, call: 'pauseClock' }); clock.machine.groups[1].states[1].timeline.calls.push({ time: 0, call: 'resumeClock' });
   assert.equal(behaviourSequenceReason(clock, scoreTable, true), null);
   // No runtime, no table, an unknown call: refused whole, as before.
   assert.equal(behaviourSequenceReason(score(), scoreTable, false), SEQUENCE_REFUSAL);

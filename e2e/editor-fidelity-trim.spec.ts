@@ -3,7 +3,7 @@
 // covers: src/model/structure.ts, src/templates/shared/{animRuntime,easeRuntime}.ts
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx, e2e/fixtures/interpreter-pre-g01.js
 // covers: docs/research/editor-r1-1d/baseline/**, src/templates/importedDesign/svg.ts, src/templates/importedDesign/runtime/**
-// covers: src/blocks/behaviourKeys.ts, docs/research/editor-behaviour-keys/**
+// covers: src/blocks/behaviourKeys.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
