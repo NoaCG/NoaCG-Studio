@@ -302,6 +302,25 @@ test('a speaking-clock verb heard while the read was out keeps that clock\'s mem
   if (other === 'fb') assert.equal(air.speaking.debate.fb, `04:30@${T}`);
 });
 
+test('a moved pair field this page holds no memory for takes the report\'s, so the pair keeps both fields', () => {
+  const asked = airAtRequest(NO_AIR);
+  // The page's memory for the pair is gone (a rebuilt stage), and a command moves fa during the read.
+  const heard = { ...claimAndApply(NO_AIR, [update('debate', { fa: '04:00' }, 'p1')], createAppliedOnce(), DEBATE, T).air, speaking: {} };
+  const air = seedFromResolve(heard, { liveCue: { debate: 'c3' }, live: { debate: { data: { fa: `05:00@${T}`, fb: `04:30@${T}` } } } }, [], asked, CUES, DEBATE);
+  assert.deepEqual(Object.keys(air.speaking.debate).sort(), ['fa', 'fb']);
+  assert.equal(air.speaking.debate.fb, `04:30@${T}`);
+});
+
+test('a clock a verb moved during the read, with no field on air\'s record, takes its baseline from the clock it kept', () => {
+  const event = (name, oid) => ({ graphic: 'score', msg: { t: 'event', event: name, oid } });
+  const asked = airAtRequest(NO_AIR);
+  const started = claimAndApply(NO_AIR, [event('clockStart', 's1')], createAppliedOnce(), CLOCKS, T).air;
+  assert.equal(started.aired.score?.f5, undefined, 'no field on the record');
+  const air = seedFromResolve(started, { liveCue: { score: 'c2' }, live: { score: { data: { f5: '07:00' } } } }, [], asked, CUES, CLOCKS);
+  assert.equal(air.clocks.score, started.clocks.score);
+  assert.notEqual(air.aired.score.f5, '07:00', 'the baseline is the kept clock\'s, not the report\'s');
+});
+
 test('a reported clock keeps its origin stamp in the monitor memory and the plain time in the baseline', () => {
   const live = { score: { data: { f5: `10:00@${T}` } } };
   const air = seedFromResolve(NO_AIR, { liveCue: { score: 'c2' }, live }, [], airAtRequest(NO_AIR), CUES, CLOCKS);

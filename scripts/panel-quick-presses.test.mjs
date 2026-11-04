@@ -1,4 +1,4 @@
-// guards: companion-module/src/panel.ts, companion-module/src/actions.ts, src/control/panelRelay.ts, src/control/panelActions.ts, src/control/panelFeedback.ts, src/control/graphicVerbs.ts, src/control/liveControls.ts
+// guards: companion-module/src/panel.ts, companion-module/src/actions.ts, src/control/panelRelay.ts, src/control/panelActions.ts, src/control/panelFeedback.ts, src/control/graphicVerbs.ts, src/control/liveControls.ts, src/control/airState.ts
 //
 // QUICK +1 PRESSES FROM A DECK, END TO END (issue #2088; playout-companion-actions AC-2). A physical
 // deck's +1 key pressed three or five times in quick succession goes through every seam a studio

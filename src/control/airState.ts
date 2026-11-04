@@ -343,16 +343,17 @@ export function seedFromResolve(
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined) {
-      if (!movedKeys.has(clock.field)) clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
-      values[clock.field] = plainClockValue(values[clock.field]);
+      const kept = movedKeys.has(clock.field) ? air.clocks[graphic] : undefined;
+      if (kept === undefined) clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
+      // A clock this page kept has its baseline from what it kept, so the two cannot disagree.
+      values[clock.field] = plainClockValue(kept ?? values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
       // Field by field: one a command moved keeps this page's memory, the other takes the report's.
       const memory: Record<string, string> = {};
       for (const field of [pair.fieldA, pair.fieldB]) {
         const held = speaking[graphic]?.[field];
-        if (!movedKeys.has(field)) memory[field] = wire(field);
-        else if (held !== undefined) memory[field] = held;
+        memory[field] = movedKeys.has(field) && held !== undefined ? held : wire(field);
         values[field] = plainClockValue(values[field]);
       }
       speaking = { ...speaking, [graphic]: memory };
