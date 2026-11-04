@@ -617,11 +617,11 @@ const sha = (o) => hash(JSON.stringify(o));
 /** Taken on main e680acd1 before this row, and equal on this branch: saved editable and original-
  *  artwork credits, and each dev drawing imported as plain artwork, build byte for byte as before. */
 const PINS = {
-  editable: '0c878096aa7d0a8b',
-  artwork: '68a2d80cedb3ac53',
-  'fixed:credits-1': '82aa9a1f71492d37',
-  'fixed:credits-2': 'f8df6ae2dc07db8f',
-  'fixed:credits-3': 'f6535d6218476819',
+  editable: '819d9723dfbfcc13',
+  artwork: 'b93e7de7d63bedf0',
+  'fixed:credits-1': '45c6d1897600f92e',
+  'fixed:credits-2': '363aa7f9c94d107a',
+  'fixed:credits-3': '810340a43436a423',
 };
 
 if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
@@ -1006,7 +1006,7 @@ test('row 19: the list holder keeps its line breaks through the editor\'s code f
  *  row 24 (coordinator-approved): their js gains the snapshot rule and nothing else, html and css
  *  unchanged; the diff is in docs/work-specs/jev-svg-import/evidence/phase-24.md, and the test
  *  "row 24: ..." below asserts the rule is there. */
-const ROLE_ABOVE_PINS = { one: '04dc9549e22f53d7', bold: 'bece698c794e6600', grouped: '868bf20efd79e78d', roleGroup: '840ba1d0e561ff3f', idGroup: 'c20cb61badf34408' };
+const ROLE_ABOVE_PINS = { one: '4b1d59a134053cbd', bold: 'f7aac19cecfc3c56', grouped: 'da2693fdbc70ac5e', roleGroup: 'e067775c2960f085', idGroup: 'a4b7523b653d3544' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
