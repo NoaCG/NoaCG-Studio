@@ -76,9 +76,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DISPATCH_DRY_RUN: ${{ inputs.dry_run }}
-        run: |
-          git fetch --no-tags origin main
-          node scripts/companion-release.mjs decide
+        run: node scripts/companion-release.mjs decide
 
   # Everything that runs the module's code and its dependencies, without a write token.
   package:
@@ -92,8 +90,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Refuse a version with no release notes a person can read
-        run: node scripts/companion-release.mjs check
+      - name: Refuse a version with no release notes a person can read, or show its Release page
+        run: node scripts/companion-release.mjs notes
       - name: Install the module's dependencies
         working-directory: companion-module
         run: |
@@ -113,8 +111,6 @@ jobs:
           tar -xzf "companion-module/noacg-studio-${VERSION}.tgz" -C "$RUNNER_TEMP/unpacked"
           node scripts/companion-release.mjs verify "$RUNNER_TEMP/unpacked"
           (cd companion-module && sha256sum "noacg-studio-${VERSION}.tgz" > "noacg-studio-${VERSION}.tgz.sha256")
-      - name: Rehearse the Release page
-        run: node scripts/companion-release.mjs notes
       - uses: actions/upload-artifact@v4
         with:
           name: noacg-companion-module

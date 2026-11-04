@@ -3,8 +3,8 @@
 //
 //   node scripts/companion-release.mjs decide          write release=, dry_run= and version= for the
 //                                                      workflow (GITHUB_OUTPUT), or refuse
-//   node scripts/companion-release.mjs check           exit 1 unless the version's notes are fit
-//   node scripts/companion-release.mjs notes           print the Release page
+//   node scripts/companion-release.mjs notes           print the Release page, or exit 1 when the
+//                                                      version's notes are not fit
 //   node scripts/companion-release.mjs verify <dir>    exit 1 unless <dir>, the unpacked .tgz, is a
 //                                                      module Companion can import at that version
 //
@@ -37,14 +37,15 @@ export function decideRelease({ event, ref, version, released, onMain, dispatchD
   const nothing = (why) => ({ release: false, dryRun: true, why });
   const refused = (refusal) => ({ release: false, dryRun: true, why: refusal, refusal });
   const real = () => ({ release: true, dryRun: false, why: `Module ${version} is not released yet, so this run releases it.` });
-  const notOnMain = `this commit is not on main. Land it first; landing a new version releases it.`;
-  const taken = `module ${version} is already on the Releases page. Move the version in companion-module/package.json and write its section in ${CHANGELOG}.`;
+  const askedToPublish = () => {
+    if (!onMain) return refused('this commit is not on main. Land it first; landing a new version releases it.');
+    if (released) return refused(`module ${version} is already on the Releases page. Move the version in companion-module/package.json and write its section in ${CHANGELOG}.`);
+    return real();
+  };
 
   if (event === 'pull_request') return rehearsal('A pull request rehearses the release.');
   if (event === 'workflow_dispatch') {
-    if (dispatchDryRun) return rehearsal('A manual dry run.');
-    if (!onMain) return refused(notOnMain);
-    return released ? refused(taken) : real();
+    return dispatchDryRun ? rehearsal('A manual dry run.') : askedToPublish();
   }
   if (event !== 'push') return nothing(`A ${event} event does not release the module.`);
   if (ref === 'refs/heads/main') {
@@ -53,8 +54,7 @@ export function decideRelease({ event, ref, version, released, onMain, dispatchD
   if (ref.startsWith(`refs/tags/${TAG_PREFIX}`)) {
     const tag = ref.slice('refs/tags/'.length);
     if (tag !== `${TAG_PREFIX}${version}`) return refused(`tag ${tag} names another version than companion-module/package.json's ${version}.`);
-    if (!onMain) return refused(notOnMain);
-    return released ? refused(taken) : real();
+    return askedToPublish();
   }
   return nothing(`A push to ${ref} does not release the module.`);
 }
@@ -135,9 +135,9 @@ function decide() {
 }
 
 function main([command, argument]) {
-  const known = command === 'decide' || command === 'check' || command === 'notes' || (command === 'verify' && argument);
+  const known = command === 'decide' || command === 'notes' || (command === 'verify' && argument);
   if (!known) {
-    console.error('usage: companion-release.mjs decide | check | notes | verify <dir>');
+    console.error('usage: companion-release.mjs decide | notes | verify <dir>');
     return 2;
   }
   if (command === 'decide') return decide();
@@ -155,8 +155,7 @@ function main([command, argument]) {
     for (const problem of problems) console.error(`  - ${problem}`);
     return 1;
   }
-  if (command === 'check') console.log(`companion-release: module ${version} has notes a person can read.`);
-  else console.log(releasePage(sectionOf(changelog, version)));
+  console.log(releasePage(sectionOf(changelog, version)));
   return 0;
 }
 

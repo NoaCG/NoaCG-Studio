@@ -96,12 +96,11 @@ async function resolveReleases(): Promise<void> {
   const bridge = newestRelease(releases, BRIDGE);
   if (bridge) showRelease(bridge, BRIDGE);
   const companion = newestRelease(releases, COMPANION);
-  if (companion) {
-    showRelease(companion, COMPANION);
-    return;
+  if (companion) showRelease(companion, COMPANION);
+  else {
+    setText('[data-version="companion"]', 'not released yet');
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-needs-release="companion"]'))) el.hidden = true;
   }
-  setText('[data-version="companion"]', 'not released yet');
-  for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-needs-release="companion"]'))) el.hidden = true;
 }
 
 async function resolveCli(): Promise<void> {

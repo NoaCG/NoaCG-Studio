@@ -2,8 +2,9 @@
 //
 // NoaCG ships three things you install: NoaCG Bridge (a Windows program that lets NoaCG Playout
 // drive CasparCG), the Companion module (runs a production from a Stream Deck) and the NoaCG CLI
-// (an npm package for coding agents and terminals). They are described on ONE public page, /downloads (downloads.html), and in-app surfaces link there
-// rather than each explaining the tools again. The raw Bridge file stays one click away for the
+// (an npm package for coding agents and terminals). They are described on ONE public page,
+// /downloads (downloads.html), and in-app surfaces link there rather than each explaining the
+// tools again. The raw Bridge file stays one click away for the
 // operator who already knows what it is. The same page offers the SVG examples package, which is
 // not a tool: a zip of layered example graphics, linked under them.
 
