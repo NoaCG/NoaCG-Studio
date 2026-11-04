@@ -33,4 +33,4 @@ This folder is outside the NoaCG app's lint, typecheck and build; its own comman
 
 ## Release
 
-Move `version` in `package.json` and write its section at the top of [`CHANGELOG.md`](CHANGELOG.md). Landing that on NoaCG Studio's `main` publishes the package as a GitHub Release tagged `companion-vX.Y.Z` (`.github/workflows/release-companion.yml` in that repository), and the Downloads page offers it. Changes not ready to release wait under `## Unreleased`.
+Move `version` in `package.json`, write its section at the top of [`CHANGELOG.md`](CHANGELOG.md) and land that on NoaCG Studio's `main`. Then run `.github/workflows/release-companion.yml` in that repository with dry run off: it publishes the package as a GitHub Release tagged `companion-vX.Y.Z`, and the Downloads page offers it. Changes not ready to release wait under `## Unreleased`.

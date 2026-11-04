@@ -1,7 +1,7 @@
 // guards: companion-module/package.json, companion-module/CHANGELOG.md, companion-module/companion/manifest.json, .github/workflows/release-companion.yml
 //
-// Landing a new module version with its notes publishes it (release-companion.yml), and the
-// module's release must never become the repository's `releases/latest`, which is the Bridge's.
+// A run of release-companion.yml publishes only when asked to, from main, and the module's release
+// must never become the repository's `releases/latest`, which is the Bridge's.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,64 +9,29 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-import { decideRelease, notesNewSince, notesProblems, packageProblems, releasePage, TAG_PREFIX } from './companion-release.mjs';
+import { decideRelease, notesProblems, packageProblems, releasePage } from './companion-release.mjs';
 
 const repoFile = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-const run = (over) => ({ event: 'push', ref: 'refs/heads/main', version: '1.2.3', released: false, onMain: true, notesAreNew: true, ...over });
+const run = (over) => ({ version: '1.2.3', released: false, onMain: true, dispatchDryRun: false, ...over });
 const PROSE = 'The keys now show what is on air, and a press that was refused flashes amber so the operator sees it at once. Nothing to change in your setup, just import the new file.';
 
-test('a push to main releases a version the Releases page does not have, and passes over one it has', () => {
-  assert.deepEqual(
-    [decideRelease(run()).release, decideRelease(run()).dryRun],
-    [true, false],
-  );
-  const again = decideRelease(run({ released: true }));
-  assert.equal(again.release, false);
-  assert.equal(again.refusal, undefined, 'an unrelated change to the notes stays green');
+test('a run asked to publish releases a version the Releases page does not have', () => {
+  assert.equal(decideRelease(run()).dryRun, false);
+  assert.equal(decideRelease(run()).refusal, undefined);
 });
 
-test('a landing that did not bring the version\'s notes releases nothing, while that version is still being built', () => {
-  const decision = decideRelease(run({ notesAreNew: false }));
-  assert.deepEqual([decision.release, decision.dryRun, decision.refusal], [false, true, undefined]);
-  const withUnreleased = `## Unreleased\n\nNot ready.\n\n## 1.2.3\n\n${PROSE}\n`;
-  assert.equal(notesNewSince(withUnreleased, '1.2.3'), false, 'an Unreleased-only landing');
-  assert.equal(notesNewSince(withUnreleased, '1.3.0'), true, 'a landing that moves the version');
-  assert.equal(notesNewSince(null, '1.2.3'), true, 'the first release: no changelog before it');
-});
-
-test('a pull request and a default manual run rehearse, and never publish', () => {
-  for (const over of [
-    { event: 'pull_request', ref: 'refs/pull/1/merge', onMain: false },
-    { event: 'pull_request', ref: 'refs/pull/1/merge', released: true },
-    { event: 'workflow_dispatch', ref: 'refs/heads/some-branch', onMain: false },
-    { event: 'workflow_dispatch', ref: 'refs/heads/main', released: true },
-  ]) {
-    assert.deepEqual([decideRelease(run(over)).release, decideRelease(run(over)).dryRun], [true, true], JSON.stringify(over));
-  }
-});
-
-test('an event or a branch nobody thought of releases nothing', () => {
-  for (const over of [{ event: 'schedule' }, { ref: 'refs/heads/other' }, { ref: 'refs/tags/bridge-v1.2.3' }]) {
+test('a dry run rehearses from anywhere, and is what a run does unless asked otherwise', () => {
+  for (const over of [{ dispatchDryRun: true }, { dispatchDryRun: undefined }, { dispatchDryRun: true, onMain: false }, { dispatchDryRun: true, released: true }]) {
     const decision = decideRelease(run(over));
-    assert.deepEqual([decision.release, decision.dryRun], [false, true], JSON.stringify(over));
+    assert.equal(decision.dryRun, true, JSON.stringify(over));
+    assert.equal(decision.refusal, undefined, JSON.stringify(over));
   }
 });
 
-test('a run that asks to publish is refused off main, on a taken version, and on a tag naming another version', () => {
-  const dispatch = { event: 'workflow_dispatch', dispatchDryRun: false };
-  const tag = { ref: `refs/tags/${TAG_PREFIX}1.2.3` };
-  assert.equal(decideRelease(run(dispatch)).dryRun, false, 'a real manual run on main');
-  assert.equal(decideRelease(run(tag)).dryRun, false, 'a re-drive by tag');
-  for (const [over, why] of [
-    [{ ...dispatch, onMain: false }, /not on main/],
-    [{ ...dispatch, released: true }, /already on the Releases page/],
-    [{ ...tag, onMain: false }, /not on main/],
-    [{ ...tag, released: true }, /already on the Releases page/],
-    [{ ref: `refs/tags/${TAG_PREFIX}9.9.9` }, /another version/],
-  ]) {
+test('a run asked to publish is refused off main and on a version already released', () => {
+  for (const [over, why] of [[{ onMain: false }, /not on main/], [{ released: true }, /already on the Releases page/]]) {
     const decision = decideRelease(run(over));
     assert.match(decision.refusal ?? '', why, JSON.stringify(over));
-    assert.equal(decision.release, false);
     assert.equal(decision.dryRun, true);
   }
 });
@@ -148,5 +113,4 @@ test('the module release never takes latest, and the workflow never holds a writ
   assert.ok(packageJob.length > 0 && !packageJob.includes('contents: write'));
   assert.match(jobs.slice(jobs.indexOf('\n  publish:')), /contents: write/);
   assert.match(jobs.slice(jobs.indexOf('\n  publish:')), /needs\.decide\.outputs\.dry_run == 'false'/);
-  assert.ok(!/^concurrency:/m.test(workflow), 'a concurrency group would cancel a pending release');
 });

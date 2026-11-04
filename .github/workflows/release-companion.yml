@@ -18,29 +18,21 @@
 #      not ready to release wait under its "## Unreleased" heading, which releases nothing.
 #      scripts/companion-release.test.mjs refuses a version without its section in the build.
 #      Land it on main through /queue-merge.
-#   2. That is all. Landing it releases it: this workflow runs on the push to main, and when that
-#      push brought the version's notes and the Releases page does not have the version yet (a
-#      failed run is re-run, or re-driven by hand), it tests and packages the module from
-#      that commit, checks the package, and creates the Release (and its tag) with the .tgz and its
-#      checksum. Pushing a companion-v* tag re-drives a release by hand.
+#   2. Run this workflow from main with dry_run unticked (Actions tab, or
+#      `gh workflow run release-companion.yml -f dry_run=false`). It tests and packages the module
+#      from that commit, checks the package, and creates the Release (and its tag) with the .tgz and
+#      its checksum. It refuses a commit that is not on main and a version already released.
 #
-# A pull request that changes the module, and the Actions tab's "Run workflow" button by default,
-# are rehearsals: everything runs, and the package is kept as a workflow artifact. A dispatched run
-# needs this file on the default branch, so the pull request is also how a change to this workflow
-# gets rehearsed before it lands. Unticking dry_run publishes from the chosen commit.
+# RUN BY HAND, UNLIKE THE BRIDGE'S. Landing a version does not release it, because any job a landing
+# starts is priced per landing whatever its path filter says, and the overhead tier is past its line
+# (scripts/growth-controls.mjs), so the capacity gate refuses one. A run started by hand costs a
+# landing nothing. Starting this from a landing again is a capacity decision, not a bug fix.
+#
+# The default is a rehearsal: everything runs, and the package stays a workflow artifact. Once this
+# file is on main, `--ref <branch>` rehearses a branch.
 name: Release NoaCG Companion module
 
 on:
-  push:
-    branches: [main]
-    paths: ['companion-module/package.json', 'companion-module/CHANGELOG.md']
-    tags: ['companion-v*']
-  pull_request:
-    paths:
-      - 'companion-module/**'
-      - 'scripts/companion-release.mjs'
-      - 'cli/scripts/release-notes.mjs'
-      - '.github/workflows/release-companion.yml'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -48,20 +40,18 @@ on:
         type: boolean
         default: true
 
-# No concurrency group: GitHub keeps one pending run per group and cancels the rest, which would
-# lose a version that landed while two others were in flight. Two runs of one version cannot both
-# publish, because `gh release create` refuses a tag that already has a release.
+# Two runs of one version cannot both publish: `gh release create` refuses a tag that already has
+# a release, so this needs no concurrency group.
 permissions:
   contents: read
 
 jobs:
   decide:
-    name: Does this run release the module?
+    name: Rehearse or release?
     if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      release: ${{ steps.decide.outputs.release }}
       dry_run: ${{ steps.decide.outputs.dry_run }}
       version: ${{ steps.decide.outputs.version }}
     steps:
@@ -74,14 +64,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DISPATCH_DRY_RUN: ${{ inputs.dry_run }}
-          BEFORE_SHA: ${{ github.event.before }}
         run: node scripts/companion-release.mjs decide
 
   # Everything that runs the module's code and its dependencies, without a write token.
   package:
     name: Test and package the module
     needs: decide
-    if: ${{ needs.decide.outputs.release == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -133,8 +121,7 @@ jobs:
         with:
           name: noacg-companion-module
           path: ${{ runner.temp }}/package
-      # `--target` matters on a push to main and a manual dispatch, where there is no tag yet: gh
-      # creates `companion-vX.Y.Z` at the commit that was built. On a tag push the tag already exists.
+      # There is no tag yet: gh creates `companion-vX.Y.Z` at the commit that was built.
       - name: Create the Release with the package
         env:
           GH_TOKEN: ${{ github.token }}

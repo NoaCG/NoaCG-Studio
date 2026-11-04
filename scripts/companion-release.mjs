@@ -1,8 +1,8 @@
-// The decisions of .github/workflows/release-companion.yml: does this run release the Companion
+// The decisions of .github/workflows/release-companion.yml: may this run release the Companion
 // module, may these notes go on the Release page, and is this .tgz what Companion imports.
 //
-//   node scripts/companion-release.mjs decide          write release=, dry_run= and version= for the
-//                                                      workflow (GITHUB_OUTPUT), or refuse
+//   node scripts/companion-release.mjs decide          write dry_run= and version= for the workflow
+//                                                      (GITHUB_OUTPUT), or refuse
 //   node scripts/companion-release.mjs notes           print the Release page, or exit 1 when the
 //                                                      version's notes are not fit
 //   node scripts/companion-release.mjs verify <dir>    exit 1 unless <dir>, the unpacked .tgz, is a
@@ -22,50 +22,21 @@ import { newestVersionIn, problemsWith, sectionOf } from '../cli/scripts/release
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHANGELOG = 'companion-module/CHANGELOG.md';
 const MODULE_ID = 'noacg-studio';
-export const TAG_PREFIX = 'companion-v';
+const TAG_PREFIX = 'companion-v';
 
 /**
- * Pure: what one workflow run does. `dryRun` is true unless a real release was decided, so an
- * event nobody thought of can never publish. A refusal says why a run that asked to publish must
- * not, and fails the workflow. A push to main is a release request only when it brought the
- * version's notes: a later landing of unfinished work, with notes under `## Unreleased`, must not
- * publish that work as this version while the first run is still building it.
+ * Pure: what one run does. A rehearsal unless a real release was asked for by name. A refusal says
+ * why a run that asked to publish must not, and fails the workflow.
  *
- * @param {{ event: string, ref: string, version: string, released: boolean, onMain: boolean, notesAreNew?: boolean, dispatchDryRun?: boolean }} run
- * @returns {{ release: boolean, dryRun: boolean, why: string, refusal?: string }}
+ * @param {{ version: string, released: boolean, onMain: boolean, dispatchDryRun?: boolean }} run
+ * @returns {{ dryRun: boolean, why: string, refusal?: string }}
  */
-export function decideRelease({ event, ref, version, released, onMain, notesAreNew = false, dispatchDryRun = true }) {
-  const rehearsal = (why) => ({ release: true, dryRun: true, why });
-  const nothing = (why) => ({ release: false, dryRun: true, why });
-  const refused = (refusal) => ({ release: false, dryRun: true, why: refusal, refusal });
-  const real = () => ({ release: true, dryRun: false, why: `Module ${version} is not released yet, so this run releases it.` });
-  const askedToPublish = () => {
-    if (!onMain) return refused('this commit is not on main. Land it first; landing a new version releases it.');
-    if (released) return refused(`module ${version} is already on the Releases page. Move the version in companion-module/package.json and write its section in ${CHANGELOG}.`);
-    return real();
-  };
-
-  if (event === 'pull_request') return rehearsal('A pull request rehearses the release.');
-  if (event === 'workflow_dispatch') {
-    return dispatchDryRun ? rehearsal('A manual dry run.') : askedToPublish();
-  }
-  if (event !== 'push') return nothing(`A ${event} event does not release the module.`);
-  if (ref === 'refs/heads/main') {
-    if (released) return nothing(`Module ${version} is already on the Releases page.`);
-    return notesAreNew ? real() : nothing(`This push did not bring the notes of module ${version}, so it is no release request.`);
-  }
-  if (ref.startsWith(`refs/tags/${TAG_PREFIX}`)) {
-    const tag = ref.slice('refs/tags/'.length);
-    if (tag !== `${TAG_PREFIX}${version}`) return refused(`tag ${tag} names another version than companion-module/package.json's ${version}.`);
-    return askedToPublish();
-  }
-  return nothing(`A push to ${ref} does not release the module.`);
-}
-
-/** Pure: this version has no notes in the changelog as it stood before the push. No changelog at
- *  all (null) counts: that is the module's first release. */
-export function notesNewSince(previousChangelog, version) {
-  return previousChangelog === null || sectionOf(previousChangelog, version) === null;
+export function decideRelease({ version, released, onMain, dispatchDryRun = true }) {
+  const refused = (refusal) => ({ dryRun: true, why: refusal, refusal });
+  if (dispatchDryRun) return { dryRun: true, why: 'A dry run rehearses the release.' };
+  if (!onMain) return refused('this commit is not on main. Land it first, then run this from main.');
+  if (released) return refused(`module ${version} is already on the Releases page. Move the version in companion-module/package.json and write its section in ${CHANGELOG}.`);
+  return { dryRun: false, why: `Module ${version} is not released yet, so this run releases it.` };
 }
 
 /** Pure: why this changelog cannot release this version - an empty list when it can. The version
@@ -124,21 +95,12 @@ function succeeds(command, args) {
   return spawnSync(command, args, { cwd: ROOT, stdio: 'ignore', windowsHide: true }).status === 0;
 }
 
-/** The changelog at the commit main was on before this push, or null when it had none. */
-function changelogBeforePush() {
-  const before = spawnSync('git', ['show', `${process.env.BEFORE_SHA}:${CHANGELOG}`], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
-  return before.status === 0 ? before.stdout : null;
-}
-
 function decide() {
   const version = moduleVersion();
   const decision = decideRelease({
-    event: process.env.GITHUB_EVENT_NAME ?? '',
-    ref: process.env.GITHUB_REF ?? '',
     version,
     released: succeeds('gh', ['release', 'view', `${TAG_PREFIX}${version}`, '--json', 'tagName']),
     onMain: succeeds('git', ['merge-base', '--is-ancestor', 'HEAD', 'origin/main']),
-    notesAreNew: notesNewSince(changelogBeforePush(), version),
     dispatchDryRun: process.env.DISPATCH_DRY_RUN !== 'false',
   });
   console.log(decision.why);
@@ -146,7 +108,7 @@ function decide() {
     console.error(`::error title=Refused::${decision.refusal}`);
     return 1;
   }
-  appendFileSync(process.env.GITHUB_OUTPUT, `release=${decision.release}\ndry_run=${decision.dryRun}\nversion=${version}\n`);
+  appendFileSync(process.env.GITHUB_OUTPUT, `dry_run=${decision.dryRun}\nversion=${version}\n`);
   return 0;
 }
 
