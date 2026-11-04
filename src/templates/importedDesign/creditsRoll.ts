@@ -185,7 +185,7 @@ export function creditsRollCss(prefix: string): string {
 }
 
 /** The engine, emitted once for a design that bound a Credits text. */
-export function creditsRollRuntimeJs(prefix: string): string {
+export function creditsRollRuntimeJs(prefix: string, faces = false): string {
   const cls = creditsClass(prefix);
   return `
 // ── Credits roll (SVG) ────────────────────────────────────────────────────────
@@ -434,7 +434,7 @@ function creditsRender() {
   return { rows: rows, looks: looks };
 }
 
-${creditsTakeJs()}
+${creditsTakeJs(faces)}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the sample's line widths decide how the rows line up.
@@ -1008,6 +1008,12 @@ export interface CreditsStyledConfig {
   cards?: true;
 }
 
+/** The design ships faces of its own (`svgFontCss`: a bundled or custom face), which can land
+ *  after the take; then a roll measures again when they do. */
+export function creditsShipsFaces(svg: DesignSvg): boolean {
+  return svg.fonts.some((f) => f.fontId || f.customFont);
+}
+
 /** What the styled runtime of a design is built with, or null when it builds another engine.
  *  A step the sample does not show falls back as the editable roll's do. */
 export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null {
@@ -1015,7 +1021,7 @@ export function styledCreditsConfig(svg: DesignSvg): CreditsStyledConfig | null 
   if (!style) return null;
   const playback = svg.behaviour?.kind === 'recipe' ? svg.behaviour.credits?.playback : undefined;
   const flags: Pick<CreditsStyledConfig, 'faces' | 'still' | 'cards'> = {
-    ...(svg.fonts.some((f) => f.fontId || f.customFont) ? { faces: true as const } : {}),
+    ...(creditsShipsFaces(svg) ? { faces: true as const } : {}),
     ...(playback === 'static' || playback === 'cards' ? { still: true as const } : {}),
     ...(playback === 'cards' ? { cards: true as const } : {}),
   };

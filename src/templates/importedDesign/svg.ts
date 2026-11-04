@@ -46,7 +46,7 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { boundClock, countdownIndex, svgFields } from './artworkFields';
-import { creditsArtworkFields, creditsArtworkLayers, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
+import { creditsArtworkFields, creditsArtworkLayers, creditsIndex, creditsRollCss, creditsRollRuntimeJs, creditsShipsFaces, creditsStyledCss, creditsStyledRuntimeJs, isArtworkCredits, styledCreditsConfig } from './creditsRoll';
 import { creditsArtworkCss, creditsArtworkRuntimeJs } from './creditsArtwork';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
@@ -471,7 +471,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
     (behaviour ? `\n${behaviour.js(artworkFields.length)}` : '') +
     // AFTER the behaviour's table: the roll engine reads its field ids out of NOACG_BEHAVIOUR the
     // moment it first renders, and in a document whose markup is already parsed that is now.
-    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height, creditsArtworkLayers(svg).length > 0) : styledCredits ? creditsStyledRuntimeJs(PREFIX, styledCredits) : creditsRollRuntimeJs(PREFIX)}` : '') +
+    (creditsField ? `\n${artworkRoll ? creditsArtworkRuntimeJs(PREFIX, o.resolution.height, creditsArtworkLayers(svg).length > 0) : styledCredits ? creditsStyledRuntimeJs(PREFIX, styledCredits) : creditsRollRuntimeJs(PREFIX, creditsShipsFaces(svg))}` : '') +
     SVG_FIT_BOOT;
 
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA

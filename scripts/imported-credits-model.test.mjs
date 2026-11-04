@@ -427,7 +427,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
   };
   // ROW 19: the styled engine, role above. Each binding is the reading the wizard saves: the
   // anchors `creditsPreview` reads from the first role layer down, one Credits field, a roll.
-  const styledOf = (markup, roleWord, choice = {}) => {
+  const styledOf = (markup, roleWord, choice = {}, fonts = []) => {
     const imp = imported(markup);
     const content = imp.candidates.find((c) => c.sample === roleWord).id;
     const host = laidOut(imp.markup);
@@ -436,7 +436,7 @@ async function inPage({ dev, cases, legacy, artwork }) {
     const sources = new Set(preview.styled ? preview.anchors.map((a) => a.candidateId) : []);
     const fields = fieldsOf(imp).filter((f) => !sources.has(f.candidateId) || f.candidateId === content);
     const svg = {
-      markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [], fonts: [],
+      markup: imp.markup, width: imp.width, height: imp.height, fields, images: [], outlines: [], fonts,
       behaviour: { kind: 'recipe', recipe: 'credits', layers: {}, fields: { credits: fields.findIndex((f) => f.candidateId === content) }, credits: { v: 1, layout: preview.layout, playback: 'roll', anchors: preview.anchors } },
     };
     const tpl = I.IMPORTED_SVG.create({ designSvg: svg });
@@ -568,8 +568,17 @@ async function inPage({ dev, cases, legacy, artwork }) {
   const looseLaid = analyse(cases.loose, laidOut);
   const spellings = analyse(cases.spellings, parsed);
 
+  // #1965 and #1969: a design that ships its own face (a bundled one), whose rolls measure again
+  // when it lands - the styled roll (row 21) and the editable roll of a saved graphic.
+  const face = [{ family: 'Anton', fontId: 'anton' }];
+  const faced = {
+    styled: styledOf(dev[0].markup, 'Research', {}, face),
+    editable: build({ ...base(legacyImp, { kind: 'recipe', recipe: 'credits', layers: box ? { box } : {}, fields: { credits } }), fonts: face }),
+  };
+
   return {
     styled,
+    faced,
     fixedBlocks,
     previews,
     fallbacks,
@@ -1041,6 +1050,22 @@ const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideN
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
   for (const k of ROLE_ABOVE) assert.equal(sha({ html: R.styled[k].html, css: R.styled[k].css, js: R.styled[k].js }), ROLE_ABOVE_PINS[k], k);
+});
+
+/** #1969 and #1965: the builds of a design that ships its own face, styled (role above, credits-1)
+ *  and the editable roll of the saved legacy graphic, byte for byte. Each runtime carries the
+ *  second measure when the face lands (creditsSettle) on purpose; the test below says so. The
+ *  styled one is as main built it before #1965; the editable one gained exactly creditsSettle. */
+const FACED_PINS = { styled: 'ddc902cafb934285', editable: '2e0819bfe1735c21' };
+
+test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
+  for (const k of ['styled', 'editable']) {
+    const { html, css, js } = R.faced[k];
+    assert.equal(sha({ html, css, js }), FACED_PINS[k], k);
+    assert.ok(js.includes('function creditsSettle(tween)') && js.includes("if (document.fonts && document.fonts.status === 'loading') creditsSettle(noacgCreditsTween);"), `${k}: the take measures again when the face lands`);
+  }
+  // Without a face of its own, neither carries it: the editable pin above is that build.
+  assert.ok(!R.pins.editable.js.includes('function creditsSettle(') && !R.styled.one.js.includes('function creditsSettle('), 'no face, no second measure');
 });
 
 test('row 24: a styled roll keeps the list its take took while on air; the editable and artwork rolls keep their policy', () => {
