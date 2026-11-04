@@ -32,9 +32,7 @@ test('fewer runtime tests, unconditional skips and raised timeouts are findings;
   assert.equal(found.has('e2e/configured/e.spec.ts'), false, 'the timeout ceiling is the offline gate\'s, not the configured suite\'s');
 });
 
-test('a deleted spec file is a finding, from the diff header or from name-status; a rename inside e2e/ maps to its old path', () => {
-  const files = readDiff(diff('e2e/gone.spec.ts', ['-test(\'x\', async () => {});'], { deleted: true }));
-  assert.deepEqual(findings(files).get('e2e/gone.spec.ts'), ['the spec file is deleted']);
+test('a deleted spec file is a finding, read from name-status; a rename inside e2e/ maps to its old path', () => {
   const status = 'D\te2e/gone.spec.ts\nM\te2e/kept.spec.ts\nR100\te2e/old.spec.ts\tdocs/research/old.spec.ts\nR090\te2e/x.spec.ts\te2e/y.spec.ts';
   assert.deepEqual(deletedSpecs(status), ['e2e/gone.spec.ts', 'e2e/old.spec.ts']);
   assert.deepEqual([...renamedSpecs(status)], [['e2e/y.spec.ts', 'e2e/x.spec.ts']]);
@@ -110,7 +108,7 @@ test('an entry needs a justification, the accountable owner and an expiry within
 });
 
 test('an expired entry fails with a message naming the entry, its expiry and what to write', () => {
-  const entry = { spec: 'e2e/lapsed.spec.ts', text: 'x', justification: 'moved to unit tests', owner: 'miwco', expires: '2026-11-01', from: 'docs/work-specs/x/spec.md' };
+  const entry = { spec: 'e2e/lapsed.spec.ts', justification: 'moved to unit tests', owner: 'miwco', expires: '2026-11-01', from: 'docs/work-specs/x/spec.md' };
   const { refused } = verdict(new Map([['e2e/lapsed.spec.ts', ['1 test(s) fewer than before (2 -> 1, counted by playwright --list)']]]), [entry], OWNER);
   const message = refusalMessage(refused[0], OWNER);
   assert.match(message, /^e2e\/lapsed\.spec\.ts: 1 test\(s\) fewer than before/);

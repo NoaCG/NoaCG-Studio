@@ -53,11 +53,12 @@
 // later removal from it through, by anyone, for ever. Lines stay on record after they lapse; an
 // expired or incomplete line fails only a change that relies on it, and the failure names the line,
 // its expiry and what to write instead.
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 import { alarmOwner } from './alarm-owner.mjs';
 import { measured } from './measured.mjs';
@@ -76,11 +77,12 @@ const UNCONDITIONAL_SKIP = /\btest\.(?:describe\.)?(?:skip|fixme)\(\s*(?:true\b|
 const TIMEOUT = /\btest\.setTimeout\(\s*([\d_]+)\s*\)/;
 const SLOW = /\btest\.slow\(\)/;
 const DAY_MS = 86_400_000;
+const run = promisify(execFile);
 
 /**
  * Read a unified diff into per-file facts. Pure. Test counts are not read here: a diff cannot see a
  * test declared in a loop, so they come from `listCounts`.
- * @returns {Map<string, { deleted: boolean, skipsAdded: string[], timeoutsAdded: number[], slowAdded: boolean }>}
+ * @returns {Map<string, { skipsAdded: string[], timeoutsAdded: number[], slowAdded: boolean }>}
  */
 export function readDiff(diffText) {
   const files = new Map();
@@ -90,12 +92,11 @@ export function readDiff(diffText) {
       const m = /^diff --git a\/(.+?) b\/(.+)$/.exec(line);
       const after = m ? m[2].replace(/\\/g, '/') : null;
       current = after && SPEC.test(after) ? after : null;
-      if (current && !files.has(current)) files.set(current, { deleted: false, skipsAdded: [], timeoutsAdded: [], slowAdded: false });
+      if (current && !files.has(current)) files.set(current, { skipsAdded: [], timeoutsAdded: [], slowAdded: false });
       continue;
     }
     if (!current) continue;
     const facts = files.get(current);
-    if (line.startsWith('deleted file mode')) { facts.deleted = true; continue; }
     if (line.startsWith('+++') || line.startsWith('---')) continue;
     if (line.startsWith('+')) {
       const text = line.slice(1);
@@ -108,7 +109,7 @@ export function readDiff(diffText) {
   return files;
 }
 
-/** A rename away from e2e/ counts as a deletion; `git diff --name-status` says which. */
+/** Specs deleted or moved out of e2e/, from `git diff --name-status -M`. */
 export function deletedSpecs(nameStatus) {
   const out = [];
   for (const line of nameStatus.split(/\r?\n/)) {
@@ -178,21 +179,23 @@ export function parseList(text) {
  * `specs` (a file with none counts 0), or, with `specs` null, in every file each config runs.
  * Throws when a listing fails, so an uncounted file never reads as unchanged.
  */
-export function listCounts(tree, specs) {
+export async function listCounts(tree, specs) {
   const counts = new Map((specs ?? []).map((s) => [s, 0]));
   const byConfig = new Map(specs ? [] : Object.keys(CONFIGS).filter((c) => existsSync(path.join(tree, c))).map((c) => [c, []]));
   for (const s of specs ?? []) byConfig.set(configFor(s), [...(byConfig.get(configFor(s)) ?? []), s]);
   const cli = path.join(tree, 'node_modules', '@playwright', 'test', 'cli.js');
   if (!existsSync(cli)) throw new Error(`no Playwright in ${tree}/node_modules: install dependencies first (npm ci)`);
-  for (const [config, files] of byConfig) {
-    let out;
+  const listings = await Promise.all([...byConfig].map(async ([config, files]) => {
     try {
-      out = execFileSync(process.execPath, [cli, 'test', '--list', '--pass-with-no-tests', '--config', config, ...files], {
-        cwd: tree, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 28, windowsHide: true, env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+      const { stdout } = await run(process.execPath, [cli, 'test', '--list', '--pass-with-no-tests', '--config', config, ...files], {
+        cwd: tree, encoding: 'utf8', maxBuffer: 1 << 28, windowsHide: true, env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
       });
+      return [config, stdout];
     } catch (e) {
       throw new Error(`playwright --list failed for ${files.join(', ') || 'every spec'} under ${config}: ${String(e.stderr || e.stdout || e.message).trim().split('\n').slice(0, 3).join(' ')}`);
     }
+  }));
+  for (const [config, out] of listings) {
     for (const [rel, n] of parseList(out)) {
       const file = `${CONFIGS[config]}/${rel}`;
       if (!specs || counts.has(file)) counts.set(file, n);
@@ -211,7 +214,6 @@ export function findings(files, deleted = [], counts = new Map(), renamed = new 
   const add = (spec, reason) => out.set(spec, [...(out.get(spec) ?? []), reason]);
   for (const spec of deleted) add(spec, 'the spec file is deleted or moved out of e2e/');
   for (const [spec, f] of files) {
-    if (f.deleted && !deleted.includes(spec)) add(spec, 'the spec file is deleted');
     for (const s of f.skipsAdded) add(spec, `an unconditional skip is added: ${s}`);
     if (GATE_SPEC.test(spec)) {
       for (const ms of f.timeoutsAdded) if (ms > TIMEOUT_CEILING_MS) add(spec, `a per-test timeout of ${ms} ms is added, above the gate's ${TIMEOUT_CEILING_MS} ms ceiling`);
@@ -233,9 +235,8 @@ export function parseMaintenance(markdown) {
     if (/^##\s/.test(line)) break;
     const m = /^-\s+(?:\d{4}-\d{2}-\d{2}\s+)?`?(e2e\/[^\s:`]+\.spec\.ts)`?:\s*(\S.*)$/.exec(line.trim());
     if (!m) continue;
-    const text = m[2].trim();
-    const terms = /^(.*?),\s*owner\s+`?([A-Za-z0-9-]+)`?,\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(text);
-    out.push(terms ? { spec: m[1], text, justification: terms[1].trim(), owner: terms[2], expires: terms[3] } : { spec: m[1], text, justification: text, owner: null, expires: null });
+    const terms = /^(.*?),\s*owner\s+`?([A-Za-z0-9-]+)`?,\s*expires\s+(\d{4}-\d{2}-\d{2})\s*$/.exec(m[2].trim());
+    out.push(terms ? { spec: m[1], justification: terms[1].trim(), owner: terms[2], expires: terms[3] } : { spec: m[1], justification: m[2].trim(), owner: null, expires: null });
   }
   return out;
 }
@@ -305,8 +306,9 @@ export function scope({ root = ROOT, base }) {
   const files = readDiff(git('diff', '-M', `${mergeBase}..HEAD`, '--', 'e2e'));
   const nameStatus = git('diff', '--name-status', '-M', `${mergeBase}..HEAD`, '--', 'e2e');
   const broad = git('diff', '--name-only', '-M', `${mergeBase}..HEAD`).split(/\r?\n/).some(broadens);
-  const kept = [...files].filter(([, f]) => !f.deleted).map(([spec]) => spec);
-  return { git, mergeBase, files, deleted: deletedSpecs(nameStatus), renamed: renamedSpecs(nameStatus), broad, kept, needsPlaywright: broad || kept.length > 0 };
+  const deleted = deletedSpecs(nameStatus);
+  const kept = [...files.keys()].filter((spec) => !deleted.includes(spec));
+  return { git, mergeBase, files, deleted, renamed: renamedSpecs(nameStatus), broad, kept, needsPlaywright: broad || kept.length > 0 };
 }
 
 /**
@@ -314,20 +316,28 @@ export function scope({ root = ROOT, base }) {
  * merge base, so a change cannot name a new owner and an entry under that owner at once. Throws
  * when `base` cannot be diffed or a spec's tests cannot be counted.
  */
-export function check({ root = ROOT, base, today, entries = readMaintenance(root) }) {
+export async function check({ root = ROOT, base, today, entries = readMaintenance(root) }) {
   const { git, mergeBase, files, deleted, renamed, broad, kept, needsPlaywright } = scope({ root, base });
   const { login: ownerLogin } = alarmOwner(JSON.parse(git('show', `${mergeBase}:scripts/growth-ceilings.json`)));
   const was = (s) => renamed.get(s) ?? s;
   const counts = new Map();
   if (needsPlaywright) {
-    const after = listCounts(root, broad ? null : kept);
-    const olds = broad ? null : kept.map(was).filter((s) => { try { git('cat-file', '-e', `${mergeBase}:${s}`); return true; } catch { return false; } });
+    let olds = null;
+    if (!broad) {
+      const atBase = new Set(git('ls-tree', '-r', '--name-only', mergeBase, '--', 'e2e').split(/\r?\n/));
+      olds = kept.map(was).filter((s) => atBase.has(s));
+    }
     const tree = olds?.length === 0 ? null : baseTree(root, git, mergeBase);
+    let after;
     let before;
-    try { before = tree ? listCounts(tree.dir, olds) : new Map(); } finally { tree?.remove(); }
+    try {
+      [after, before] = await Promise.all([listCounts(root, broad ? null : kept), tree ? listCounts(tree.dir, olds) : new Map()]);
+    } finally {
+      tree?.remove();
+    }
     const movedAway = new Set(renamed.values());
     const specs = new Set([...after.keys(), ...[...before.keys()].filter((s) => !movedAway.has(s))]);
-    for (const spec of specs) if (!deleted.includes(spec) && !files.get(spec)?.deleted) counts.set(spec, { before: before.get(was(spec)) ?? 0, after: after.get(spec) ?? 0 });
+    for (const spec of specs) if (!deleted.includes(spec)) counts.set(spec, { before: before.get(was(spec)) ?? 0, after: after.get(spec) ?? 0 });
   }
   const found = findings(files, deleted, counts, renamed);
   return { files, deleted, counts, broad, ownerLogin, ...verdict(found, entries, { today, ownerLogin }) };
@@ -352,18 +362,19 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   let result;
   try {
-    result = check({ base, today });
+    result = await check({ base, today });
   } catch (e) {
     console.log(`::error title=E2E protection::cannot check the change against ${base}: ${String(e?.message ?? e).split('\n')[0]}. The check fails rather than read an unchecked change as removing nothing.`);
     process.exit(1);
   }
   const { files, deleted, counts, broad, ownerLogin, refused, allowed } = result;
-  measured.optional(files.size + deleted.length, 'changed spec files read from the diff', 'a change that touches no spec file has nothing to remove');
+  const changed = new Set([...files.keys(), ...deleted]).size;
+  measured.optional(changed, 'changed spec files read from the diff', 'a change that touches no spec file has nothing to remove');
   if (broad) console.log(`check-e2e-protection: the change touches an e2e helper, fixture or Playwright config, so every spec is counted (${counts.size}).`);
   for (const [spec, c] of counts) if (!broad || c.before !== c.after) console.log(`check-e2e-protection: ${spec}: ${c.before} -> ${c.after} tests (playwright --list).`);
   for (const a of allowed) console.log(`check-e2e-protection: ${a.spec} removes protection (${a.reasons.join('; ')}); the test-maintenance entry in ${a.entry.from} (owner ${a.entry.owner}, expires ${a.entry.expires}) covers it.`);
   if (refused.length === 0) {
-    console.log(`check-e2e-protection: OK - ${files.size + deleted.length} changed spec file(s)${broad ? ` and ${counts.size} counted` : ''}, none removes protection without a current entry.`);
+    console.log(`check-e2e-protection: OK - ${changed} changed spec file(s)${broad ? ` and ${counts.size} counted` : ''}, none removes protection without a current entry.`);
     process.exit(0);
   }
   for (const r of refused) console.log(`::error title=E2E protection::${refusalMessage(r, { today, ownerLogin })}`);

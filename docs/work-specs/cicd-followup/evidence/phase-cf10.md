@@ -31,7 +31,8 @@ never a lower count.
 
 - A change to a helper or fixture under `e2e/`, or to one of those three configs, can change what
   a spec declares without touching it (loop data in `e2e/_saveMatrix.ts`, a `testIgnore`). Then
-  every spec is counted: 322 files, about 27 seconds on this 4-CPU cloud machine.
+  every spec is counted: 322 files, 21 to 27 seconds on this 4-CPU cloud machine (the head and
+  base listings, and each config's, run in parallel).
 - A rename inside `e2e/` compares the new file with the old one. A move into another suite (for
   example from `e2e/` into `e2e/configured/`) is a finding of its own, since it leaves this gate.
 - A listing that fails, or a base the check cannot diff, fails the check. Before, an undiffable
@@ -40,7 +41,9 @@ never a lower count.
   measured cost of the obvious fix.
 
 **The case that started it.** On #1910's merge (23742966, base 23742966^1) the old checker prints
-`OK - 1 changed spec file(s)` and exits 0. The new one prints
+`OK - 1 changed spec file(s)` and exits 0. The new one, run on the same spec change (applied on top
+of 23742966^1 with this branch's scripts, since that old base has no `ownerLogin` and the check
+reads the owner at the base), prints
 `e2e/editor-arrangement.spec.ts: 2 test(s) fewer than before (25 -> 23, counted by playwright --list)`
 and exits 1. (#1910 is a reviewed maintenance change with its receipt in phase-ci08.md; the run here
 uses today's entries, where it has none.)
@@ -93,7 +96,9 @@ mutant in a scratch copy of the scripts it needs:
 | M16 the owner is read from the head | killed |
 | M17 `git diff --name-status` split on spaces | killed |
 
-MUTATION_RESULTS_PLACEHOLDER
+Each mutant was run on the final code. The harness copies `check-e2e-protection.mjs` with one
+replacement, the scripts it imports and the three Playwright configs into a scratch folder, and
+runs both test files there.
 
 ## (b) Exceptions are owned, justified and time-limited
 
@@ -127,7 +132,7 @@ touching `e2e/`), so nothing in flight relied on them.
   script whether it needs Playwright (`--needs-playwright`), and `node_modules` is restored only
   then. A change that touches no spec, e2e helper or config pays nothing. One that touches a spec
   pays the cache restore and two short listings. One that touches a helper or config pays the full
-  count (about 27 seconds). The plan job is on the critical path, so this cost is stated, not hidden.
+  count (21 to 27 seconds). The plan job is on the critical path, so this cost is stated, not hidden.
 - The entry format in `docs/work-specs/README.md`, `docs/VERIFICATION.md` and the e2e-suite-budget
   spec (decision 4 and its `## Test maintenance` preamble).
 
@@ -146,9 +151,21 @@ logic in shell. Accepted with a reason: the base listing uses the head's `node_m
 dependency change that breaks the base config's loading fails the check (fail closed), and it is
 rare. Reported, not fixed: loop data from `src/` (#2150).
 
+`/simplify` (four reviewers: reuse, simplification, efficiency, altitude). Applied: the head and
+base listings and each config's listing run in parallel; one `git ls-tree` replaces a `cat-file`
+per spec; deletions have one source (`--name-status -M`); an unused `text` field is gone; the
+loop test has one `check` and one `commit` helper. Skipped, with the reason: importing
+`EXCEPTION_MAX_DAYS` from `e2e-capacity.mjs` (that module loads the planner, and the
+`--needs-playwright` step runs before `node_modules`), so `ENTRY_MAX_DAYS` stays a local 30 with
+its source named; sharing `readMaintenance` with `readExceptions` (it would reshape unchanged code
+in `e2e-capacity.mjs`); always counting every spec (21 to 27 seconds on every pull request's critical
+path, against #2150's gap, which it would close; left to #2150); restoring `node_modules` on every
+change.
+
 ## Phase notes
 
-- **Previous verified main SHA:** PREVIOUS_MAIN_PLACEHOLDER
+- **Previous verified main SHA:** 2d454124 (2d45412447ea, CI push run 41915626548 green), merged into
+  this branch on 2026-11-04; the branch started from 3ed797a6 (run 41912103787 green).
 - **Revert:** `git revert -m 1 <merge commit of this PR on main>`. It restores the line-counting
   check and the undated entries' old effect. No data or setting changes.
 - **Decisions:**

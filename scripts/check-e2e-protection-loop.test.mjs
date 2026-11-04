@@ -18,7 +18,10 @@ const TODAY = '2026-11-04';
 test('removing one looped case fails the check, and a current entry lets it through', { timeout: 120_000 }, (t) => {
   const repo = mkdtempSync(path.join(os.tmpdir(), 'e2e-protection-fixture-'));
   t.after(() => rmSync(repo, { recursive: true, force: true }));
-  const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const env = { ...process.env, CI: '', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
+  const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const commit = (msg) => git('commit', '-qam', msg);
+  const check = (from, today = TODAY) => spawnSync(process.execPath, ['scripts/check-e2e-protection.mjs', '--changed', from, '--today', today], { cwd: repo, encoding: 'utf8', env });
   mkdirSync(path.join(repo, 'scripts'));
   mkdirSync(path.join(repo, 'e2e'));
   mkdirSync(path.join(repo, 'docs', 'work-specs', 'fixture'), { recursive: true });
@@ -32,33 +35,30 @@ test('removing one looped case fails the check, and a current entry lets it thro
   writeFileSync(path.join(repo, 'e2e', 'loop.spec.ts'), spec(['a', 'b', 'c']));
   writeFileSync(path.join(repo, 'docs', 'work-specs', 'fixture', 'spec.md'), '# Fixture\n');
   git('init', '-q', '-b', 'main');
-  git('-c', 'user.name=t', '-c', 'user.email=t@example.invalid', 'add', '-A');
-  git('-c', 'user.name=t', '-c', 'user.email=t@example.invalid', 'commit', '-qm', 'base');
+  git('add', '-A');
+  git('commit', '-qm', 'base');
   const base = git('rev-parse', 'HEAD').trim();
   // One looped case goes. No line that begins `test(` changes, so a line count sees nothing.
   writeFileSync(path.join(repo, 'e2e', 'loop.spec.ts'), spec(['a', 'b']));
-  const commit = (msg) => { git('-c', 'user.name=t', '-c', 'user.email=t@example.invalid', 'commit', '-qam', msg); };
   commit('drop one looped case');
-  const run = () => spawnSync(process.execPath, ['scripts/check-e2e-protection.mjs', '--changed', base, '--today', TODAY], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI: '' } });
 
-  const refused = run();
+  const refused = check(base);
   assert.equal(refused.status, 1, `the check must fail when a looped case is removed:\n${refused.stdout}${refused.stderr}`);
   assert.match(refused.stdout, /e2e\/loop\.spec\.ts: 1 test\(s\) fewer than before \(33 -> 32, counted by playwright --list\)/);
 
   writeFileSync(path.join(repo, 'docs', 'work-specs', 'fixture', 'spec.md'), '# Fixture\n\n## Test maintenance\n\n- e2e/loop.spec.ts: case c is covered by scripts/x.test.mjs; receipt evidence/x.md, owner miwco, expires 2026-11-10\n');
   commit('entry');
-  const allowed = run();
+  const allowed = check(base);
   assert.equal(allowed.status, 0, `a current entry covers it:\n${allowed.stdout}${allowed.stderr}`);
   assert.match(allowed.stdout, /owner miwco, expires 2026-11-10\) covers it/);
 
-  const lapsed = spawnSync(process.execPath, ['scripts/check-e2e-protection.mjs', '--changed', base, '--today', '2026-11-11'], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI: '' } });
+  const lapsed = check(base, '2026-11-11');
   assert.equal(lapsed.status, 1, 'the same entry fails once it has expired');
   assert.match(lapsed.stdout, /does not count: it expired on 2026-11-10\./);
 
   // A spec renamed inside e2e/ is compared with its old self: moving the file and dropping a case
   // still counts, and a pure move removes nothing.
   const head = git('rev-parse', 'HEAD').trim();
-  const check = (from) => spawnSync(process.execPath, ['scripts/check-e2e-protection.mjs', '--changed', from, '--today', TODAY], { cwd: repo, encoding: 'utf8', env: { ...process.env, CI: '' } });
   git('mv', 'e2e/loop.spec.ts', 'e2e/moved.spec.ts');
   commit('move');
   assert.equal(check(head).status, 0, 'a pure move removes nothing');
