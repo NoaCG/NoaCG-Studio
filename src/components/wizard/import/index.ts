@@ -19,4 +19,4 @@ export { default as ImportDesignStep } from './ImportDesignStep';
 export { default as PrepareDesignStep } from './PrepareDesignStep';
 export { default as PlaceFieldsStep } from './PlaceFieldsStep';
 export { default as MapSvgFieldsStep } from './MapSvgFieldsStep';
-export { useSvgClockFold } from './BehaviourSection';
+export { useSvgClockFold } from './ClockFold';
