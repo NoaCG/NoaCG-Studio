@@ -6,7 +6,7 @@
 // evidence (docs/work-specs/cicd-followup/evidence/phase-cf10.md) records that run and the mutations.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -74,6 +74,49 @@ test('removing one looped case fails the check, and a current entry lets it thro
   commit('break it');
   const broken = check(loaded);
   assert.equal(broken.status, 1, `an unlistable spec fails the check:\n${broken.stdout}`);
-  assert.match(broken.stdout, /cannot count the changed specs' tests: .*broken at load/);
+  assert.match(broken.stdout, /cannot check the change against .*broken at load/);
+
+  // Loop data in an e2e helper: the spec is untouched, one case goes from the helper.
+  writeFileSync(path.join(repo, 'e2e', 'moved.spec.ts'), `import { CASES } from './_cases';\n${spec(['a'])}\nfor (const c of CASES) test(\`helper \${c}\`, () => {});\n`);
+  writeFileSync(path.join(repo, 'e2e', '_cases.ts'), "export const CASES = ['x', 'y', 'z'];\n");
+  git('add', '-A');
+  commit('cases in a helper');
+  const helperBase = git('rev-parse', 'HEAD').trim();
+  writeFileSync(path.join(repo, 'e2e', '_cases.ts'), "export const CASES = ['x', 'y'];\n");
+  commit('drop a helper case');
+  const helper = check(helperBase);
+  assert.equal(helper.status, 1, `a case removed from helper data is refused:\n${helper.stdout}`);
+  assert.match(helper.stdout, /every spec is counted/);
+  assert.match(helper.stdout, /e2e\/moved\.spec\.ts: 1 test\(s\) fewer than before \(34 -> 33, counted by playwright --list\)/);
+
+  // A move into another suite takes the file out of this gate, whatever the count says.
+  mkdirSync(path.join(repo, 'e2e', 'configured'));
+  writeFileSync(path.join(repo, 'playwright.live.config.ts'), "import { defineConfig } from '@playwright/test';\nexport default defineConfig({ testDir: './e2e/configured' });\n");
+  git('add', '-A');
+  commit('live config');
+  const liveBase = git('rev-parse', 'HEAD').trim();
+  git('mv', 'e2e/moved.spec.ts', 'e2e/configured/moved.spec.ts');
+  writeFileSync(path.join(repo, 'e2e', 'configured', 'moved.spec.ts'), `${spec(['a'])}\nfor (const c of ['x', 'y']) test(\`helper \${c}\`, () => {});\n`);
+  commit('move to the configured suite');
+  const suite = check(liveBase);
+  assert.equal(suite.status, 1, `a move into another suite is refused:\n${suite.stdout}`);
+  assert.match(suite.stdout, /the spec moves from e2e\/moved\.spec\.ts under playwright\.config\.ts to playwright\.live\.config\.ts, a different suite/);
+
+  // The owner is read at the merge base: a change that renames the owner and writes an entry
+  // under the new name in one go is still refused.
+  const ownerBase = git('rev-parse', 'HEAD').trim();
+  const ceilings = path.join(repo, 'scripts', 'growth-ceilings.json');
+  writeFileSync(ceilings, readFileSync(ceilings, 'utf8').replace('"ownerLogin": "miwco"', '"ownerLogin": "claude"'));
+  writeFileSync(path.join(repo, 'e2e', 'configured', 'moved.spec.ts'), `${spec(['a'])}\nfor (const c of ['x']) test(\`helper \${c}\`, () => {});\n`);
+  writeFileSync(path.join(repo, 'docs', 'work-specs', 'fixture', 'spec.md'), '# Fixture\n\n## Test maintenance\n\n- e2e/configured/moved.spec.ts: case y is covered elsewhere, owner claude, expires 2026-11-10\n');
+  commit('rename the owner and use it');
+  const renamedOwner = check(ownerBase);
+  assert.equal(renamedOwner.status, 1, `an owner renamed in the same change does not count:\n${renamedOwner.stdout}`);
+  assert.match(renamedOwner.stdout, /its owner "claude" is not the accountable owner \(miwco/);
+
+  // A base the check cannot diff fails the check instead of passing it.
+  const missing = check('1234567890abcdef1234567890abcdef12345678');
+  assert.equal(missing.status, 1, `an undiffable base fails:\n${missing.stdout}`);
+  assert.match(missing.stdout, /cannot check the change against 1234567890abcdef/);
   assert.match(git('worktree', 'list'), /^[^\n]*\n?$/, 'each base worktree is removed afterwards');
 });
