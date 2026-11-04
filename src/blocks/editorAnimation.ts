@@ -6,7 +6,7 @@ import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase, type BasePatch } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
-import { behaviourSequenceReason, claimReason, recipeClaims, requireUserTracksOnly, sequenceOwned, SEQUENCE_REFUSAL, type Relation } from './behaviourKeys';
+import { behaviourSequenceReason, claimReason, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim, type Relation } from './behaviourKeys';
 
 /** A transform or opacity control of the inspector and canvas. */
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
@@ -97,12 +97,21 @@ export function keySequenceReason(template: SpxTemplate, data: AnimData | null):
   if (!reason || !data) return reason;
   return behaviourSequenceReason(data, parseBehaviourData(template.js), BEHAVIOUR_RUNTIME.test(template.js));
 }
-/** How each element a claim selects stands to `layers` (K5's containment stops at the artwork). */
-function claimRelations(html: string, layers: Element[]) {
-  const doc = parsed(html);
+/** The recipe's claims on one template, read once per source (#1982): a drag asks per frame. */
+let claimed: { js: string; html: string; claims: RecipeClaim[] } | null = null;
+function claimsOf(template: SpxTemplate, doc: Document): RecipeClaim[] {
+  if (claimed?.js !== template.js || claimed.html !== template.html) {
+    const drawn = (token: string) => { try { return !!doc.querySelector(stamped(token)); } catch { return true; } };
+    claimed = { js: template.js, html: template.html, claims: recipeClaims(parseBehaviourData(template.js)!, drawn) };
+  }
+  return claimed.claims;
+}
+/** How each element a claim selects stands to `layers` (K5's containment stops at the artwork).
+ *  A claim that cannot be resolved stands as the layer itself: unknown ownership refuses. */
+function claimRelations(doc: Document, layers: Element[]) {
   return (selector: string): Relation[] => {
     let found: Element[];
-    try { found = Array.from(doc.querySelectorAll(selector)); } catch { return []; }
+    try { found = Array.from(doc.querySelectorAll(selector)); } catch { return ['self']; }
     return found.flatMap(el => layers.map((layer): Relation => el === layer ? 'self' : layer.contains(el) && !!layer.closest('svg') ? 'inside' : el.contains(layer) ? 'contains' : 'none'));
   };
 }
@@ -114,12 +123,12 @@ function claimRelations(html: string, layers: Element[]) {
 export function keyAuthoringReason(template: SpxTemplate, data: AnimData | null, selector: string, channel: string): string | null {
   const reason = keySequenceReason(template, data);
   if (reason || !data || !sequenceOwned(data)) return reason;
-  const table = parseBehaviourData(template.js)!, doc = parsed(template.html);
+  const doc = parsed(template.html);
   let layers: Element[];
-  try { layers = Array.from(doc.querySelectorAll(selector)); } catch { return null; }
-  const drawn = (token: string) => { try { return !!doc.querySelector(`[data-noacg-role~=${JSON.stringify(token)}]`); } catch { return false; } };
-  const relations = claimRelations(template.html, layers);
-  return claimReason(recipeClaims(table, drawn).map(claim => ({ claim, relations: relations(claim.selector) })), channel);
+  try { layers = Array.from(doc.querySelectorAll(selector)); } catch { return SEQUENCE_REFUSAL; }
+  if (!layers.length) return SEQUENCE_REFUSAL;
+  const relations = claimRelations(doc, layers);
+  return claimReason(claimsOf(template, doc).map(claim => ({ claim, relations: relations(claim.selector) })), channel);
 }
 /** The reason a control of a layer cannot be keyed: the first of its channels that refuses. */
 export function controlKeyReason(template: SpxTemplate, data: AnimData | null, selector: string, control: NumericProperty): string | null {
@@ -203,13 +212,13 @@ export function trackOwners(template: SpxTemplate, data: AnimData, selectors: st
 export function animationTarget(template: SpxTemplate, data: AnimData, selector: string, channels?: readonly string[]) {
   const node = artworkNode(template, selector);
   if (node.matches(data.root)) throw new Error('The graphic root is owned by playback. Animate an artwork layer.');
-  const reason = channels ? channels.map(channel => keyAuthoringReason(template, data, selector, channel)).find(Boolean) ?? keySequenceReason(template, data) : sequenceAuthoringReason(data);
+  const reason = channels?.length ? channels.map(channel => keyAuthoringReason(template, data, selector, channel)).find(Boolean) ?? null : sequenceAuthoringReason(data);
   if (reason) throw new Error(reason);
   return trackOwner(template, data, selector);
 }
 /** Throws unless a layer's Scale handles can key it: both axes have a channel to write. */
 export function requireScaleWritable(template: SpxTemplate, selector: string) {
-  const data = animationSource(template), owner = animationTarget(template, data, selector, CONTROL_CHANNELS.scaleX);
+  const data = animationSource(template), owner = animationTarget(template, data, selector, [...CONTROL_CHANNELS.scaleX, ...CONTROL_CHANNELS.scaleY]);
   writeChannel(data, owner, 'scaleX'); writeChannel(data, owner, 'scaleY');
 }
 /** Where removing a Position axis's motion keeps its displayed pose as a pixel base, its percent

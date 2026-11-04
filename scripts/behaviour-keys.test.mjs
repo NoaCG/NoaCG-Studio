@@ -85,6 +85,9 @@ test('K1, K2: an owned sequence opens only where every writer is a known recipe 
   // A machine state outside the walk that keys layers is motion the rule does not model (K3).
   const keyed = score(); keyed.machine.groups[1].states[1].timeline.layers = { '#f2': { x: [k(0, 0), k(0.2, 5)] } };
   assert.equal(behaviourSequenceReason(keyed, scoreTable, true), SEQUENCE_REFUSAL);
+  // So would one on the walk itself, which the shape never carries.
+  const walk = score(); walk.machine.groups[0].states[1].timeline = { name: 'x', duration: 1, ease: 'none', layers: { '#f2': { x: [k(0, 0)] } } };
+  assert.equal(behaviourSequenceReason(walk, scoreTable, true), SEQUENCE_REFUSAL);
   // The credits roll keeps the whole sequence, with its own reason, table or not.
   const credits = score(); credits.steps[0].calls.unshift({ time: 0, call: 'noacgCreditsRoll' }); credits.steps[1].calls = [{ time: 0, call: 'stopCreditsRoll' }];
   assert.equal(behaviourSequenceReason(credits, { version: 1, recipe: 'credits', paint: [] }, true), CREDITS_REFUSAL);
@@ -97,7 +100,7 @@ test('K4, K5: the paint table\'s claims', () => {
   // A drawn quiz claims only its looks; an undrawn row's own look claims its anchor and its group.
   assert.deepEqual(recipeClaims(quizTable, () => true).map(c => c.kind), ['look', 'look', 'look']);
   const undrawn = recipeClaims(quizTable, token => token !== 'answer.selected/B');
-  assert.deepEqual(undrawn.filter(c => c.kind === 'geometry').map(c => c.selector), ['#f2', ':has(> #f2)']);
+  assert.deepEqual(undrawn.filter(c => c.kind === 'geometry').map(c => c.selector), ['[id="f2"]', ':has(> [id="f2"])']);
   // A badge with no anchor is drawn on the artwork's own box, which no layer key moves.
   assert.equal(recipeClaims({ ...quizTable, paint: [quizTable.paint[1]] }, () => false).filter(c => c.kind === 'geometry').length, 0);
   const vote = { version: 1, recipe: 'vote', rows: { option: ['A'] }, fields: { votes: { A: 'f3' } },
@@ -105,7 +108,7 @@ test('K4, K5: the paint table\'s claims', () => {
   assert.deepEqual(recipeClaims(vote, () => true), [{ selector: stamp('option.bar/A'), kind: 'geometry' }]);
   const standings = { version: 1, recipe: 'ranking', rows: { entry: ['1', '2'] }, fields: { name: { 1: 'f1', 2: 'f3' }, points: { 1: 'f2', 2: 'f4' } },
     paint: [{ place: 'entry', rows: 'entry', from: 'points:slot', anchor: 'name' }] };
-  assert.deepEqual(recipeClaims(standings, () => true).map(c => c.selector), [stamp('entry/1'), stamp('name/1'), '#f1', stamp('entry/2'), stamp('name/2'), '#f3']);
+  assert.deepEqual(recipeClaims(standings, () => true).map(c => c.selector), [stamp('entry/1'), stamp('name/1'), '[id="f1"]', stamp('entry/2'), stamp('name/2'), '[id="f3"]']);
 });
 
 test('K4 to K6: what each claim refuses', () => {

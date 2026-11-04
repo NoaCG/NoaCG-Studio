@@ -56,10 +56,9 @@ export function behaviourSequenceReason(data: AnimData, table: BehaviourData | n
   if (!runtime || !table) return SEQUENCE_REFUSAL;
   if (calls.some(call => !KNOWN_CALLS.includes(call))) return SEQUENCE_REFUSAL;
   // A machine state's own timeline is the recipe's; one that keys layers is motion this rule
-  // does not model (K3).
-  const path = new Set(data.machine?.groups[0]?.defaultPath ?? []);
-  const offPath = (data.machine?.groups ?? []).flatMap((g, i) => g.states.filter(s => !(i === 0 && path.has(s.id))));
-  if (offPath.some(s => Object.keys(s.timeline?.layers ?? {}).length || s.timeline?.reveals?.length || s.timeline?.hides?.length)) return SEQUENCE_REFUSAL;
+  // does not model (K3). (A default-path state plays its cue and carries no timeline of its own.)
+  const states = (data.machine?.groups ?? []).flatMap(g => g.states);
+  if (states.some(s => Object.keys(s.timeline?.layers ?? {}).length || s.timeline?.reveals?.length || s.timeline?.hides?.length)) return SEQUENCE_REFUSAL;
   return null;
 }
 
@@ -68,7 +67,10 @@ export function behaviourSequenceReason(data: AnimData, table: BehaviourData | n
  *  transform on it, inside it, or on a layer containing it inside the artwork would change (K5). */
 export interface RecipeClaim { selector: string; kind: 'look' | 'geometry' }
 
-const stamped = (token: string) => `[${BEHAVIOUR_ROLE_ATTR}~=${JSON.stringify(token)}]`;
+/** The selector for every layer stamped with a role token. */
+export const stamped = (token: string) => `[${BEHAVIOUR_ROLE_ATTR}~=${JSON.stringify(token)}]`;
+/** The selector for one id, quoted so any id the table names is a valid selector. */
+const byId = (id: string) => `[id=${JSON.stringify(id)}]`;
 const ID = /^f\d+$/;
 
 /** The keys a rule repeats over, as the runtime reads them: one row, a row set's keys, or none. */
@@ -85,7 +87,7 @@ function fieldOf(table: BehaviourData, role: string, key: string | null): string
 /** What plays a role for a row (`noacgRoleLayers`): its stamped layers and the field it compiled to. */
 function roleLayers(table: BehaviourData, role: string, key: string | null): string[] {
   const field = fieldOf(table, role, key);
-  return [stamped(roleToken(role, key)), ...(field ? ['#' + field] : [])];
+  return [stamped(roleToken(role, key)), ...(field ? [byId(field)] : [])];
 }
 
 /**
@@ -107,7 +109,7 @@ export function recipeClaims(table: BehaviourData, drawn: (token: string) => boo
         // Its own look is drawn around the anchor's fit panel (`svgFitContainer`), found at
         // runtime and usually a sibling of the field, so the field's whole group is claimed.
         const anchor = rule.default && rule.anchor ? fieldOf(table, rule.anchor, key) : null;
-        if (anchor && !drawn(token)) claims.push({ selector: '#' + anchor, kind: 'geometry' }, { selector: `:has(> #${anchor})`, kind: 'geometry' });
+        if (anchor && !drawn(token)) claims.push({ selector: byId(anchor), kind: 'geometry' }, { selector: `:has(> ${byId(anchor)})`, kind: 'geometry' });
       }
     } else if ('gauge' in rule) {
       for (const key of keysOf(table, rule)) claims.push({ selector: stamped(roleToken(rule.gauge, key)), kind: 'geometry' });
