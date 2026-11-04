@@ -347,7 +347,8 @@ export function seedFromResolve(
     if (clock && values[clock.field] !== undefined) {
       const kept = movedKeys.has(clock.field) ? air.clocks[graphic] : undefined;
       if (kept === undefined) clocks = { ...clocks, [graphic]: clockSeedFromReport(clock, wire(clock.field)) };
-      // A clock this page kept has its baseline from what it kept, so the two cannot disagree.
+      // A clock this page kept has its baseline from what it kept, unless air's record holds the
+      // field (then the record's figure stands, as it would with no read).
       values[clock.field] = plainClockValue(kept ?? values[clock.field]);
     }
     if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
