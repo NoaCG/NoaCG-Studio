@@ -4,6 +4,7 @@
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx, e2e/fixtures/interpreter-pre-g01.js
 // covers: docs/research/editor-r1-1d/baseline/**, src/templates/importedDesign/svg.ts, src/templates/importedDesign/runtime/**
 // covers: src/blocks/behaviourKeys.ts
+// covers: src/blocks/behaviourLook.ts, src/templates/shared/lookEntrance.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
@@ -533,6 +534,82 @@ test('a nested field on a behaviour graphic takes keys, a drawn look refuses the
   await expect(output.locator('[data-noacg-role~="team.flash/2"]')).not.toHaveClass(new RegExp(on));
   // The keyed pose is the user's; the paint never moved it.
   expect(await standing()).toBeCloseTo(placedAt, 3);
+  await output.close();
+});
+
+// #2061: looks have one entrance choice, separate from the cue timeline. Exercise the editor's
+// operation/undo/save path and the same final runtime that every export target carries.
+test('drawn look entrances persist and animate landings and re-entry without repaint or snap motion', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 }); await page.goto('/app');
+  await dropSvg(page, fileURLToPath(new URL('./fixtures/svg-corpus/illustrator-four-team-scoreboard.svg', import.meta.url)));
+  await bindEveryTextLayer(page); await finishIntoNewEditor(page); await ready(page);
+  const original = await source(page), animation = await data(page);
+  await page.getByText('Look entrances', { exact: true }).click();
+  const fade = page.getByRole('combobox', { name: 'Flash 1 entrance', exact: true });
+  await expect(fade).toHaveValue(''); await fade.selectOption('fade'); await ready(page);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  const changed = await source(page);
+  expect(changed.html).toContain('data-noacg-look-entrance="fade"');
+  expect(changed.js).toContain(original.js.trimEnd()); expect(await data(page)).toEqual(animation);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(original);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);
+  expect(await source(page)).toEqual(changed);
+  await page.getByRole('combobox', { name: 'Flash 2 entrance', exact: true }).selectOption('cut'); await ready(page);
+  await page.getByRole('combobox', { name: 'Flash 3 entrance', exact: true }).selectOption('pop'); await ready(page);
+  expect((await source(page)).js.match(/BEGIN NOACG LOOK ENTRANCE/g)).toHaveLength(1);
+  expect(await tryKey(page, { selector: '#Flash_x20_1', property: 'opacity', value: .5 })).not.toBe('');
+  expect(await ownership(page, [['#Flash_x20_1', 'opacity']])).toEqual([LOOK]);
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Look entrance examples'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page);
+  const saved = await source(page); await page.reload(); await ready(page); expect(await source(page)).toEqual(saved);
+  await page.getByText('Look entrances', { exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Flash 1 entrance', exact: true })).toHaveValue('fade');
+  await page.screenshot({ path: out('look-entrances.png') });
+  expect(await page.evaluate(async () => {
+    const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
+    const targets = (await import('/src/export/registry.ts')).EXPORT_TARGETS;
+    return Promise.all(targets.map(async target => {
+      const zip = await target.build(t), contents = await Promise.all(Object.values(zip.files).filter(file => !file.dir && /\.(?:m?js|html)$/.test(file.name)).map(file => file.async('string')));
+      return [target.id, contents.some(text => text.includes('BEGIN NOACG LOOK ENTRANCE 1') && text.includes('data-noacg-look-entrance'))];
+    }));
+  })).toEqual(expect.arrayContaining([['spx', true], ['html-overlay', true], ['h2r', true], ['casparcg', true], ['ograf', true], ['liveos', true]]));
+  const output = await page.context().newPage();
+  await output.setContent(await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), saved));
+  const result = await output.evaluate(() => {
+    const w = window as unknown as {
+      gsap: { fromTo(el: Element, from: Record<string, number>, to: unknown): unknown };
+      play(): void; stop(): void; update(value: string): void;
+      noacgDispatch(event: string, values: Record<string, string>): { progress(value: number): void } | null;
+      noacgGroupTl: Record<string, { progress(value: number): void }>;
+      noacgRepaintTick(): void; noacgRepaintData(): void;
+      noacgSnap(groups: Record<string, string>, options: { timers: boolean }): void;
+      noacgMachineState(): { groups: Record<string, string> };
+    };
+    const calls: { id: string; from: Record<string, number> }[] = [];
+    const fromTo = w.gsap.fromTo;
+    w.gsap.fromTo = function (el: Element, from: Record<string, number>, to: unknown) {
+      if (el instanceof Element && el.hasAttribute('data-noacg-look-entrance')) calls.push({ id: el.id, from });
+      return fromTo.call(this, el, from, to);
+    };
+    const finishCue = () => Object.values(w.noacgGroupTl).forEach(timeline => timeline.progress(1));
+    w.play(); finishCue();
+    const el = document.getElementById('Flash_x20_1')!;
+    el.setAttribute('transform', 'translate(7, 9) scale(.9)'); (el as HTMLElement).style.opacity = '0.6';
+    const authored = [el.getAttribute('transform'), el.getAttribute('style')];
+    w.noacgDispatch('score1', { f2: '4' })?.progress(1); const landed = calls.length;
+    w.update(JSON.stringify({ f2: '4' })); w.noacgRepaintTick(); w.noacgRepaintData(); const repainted = calls.length;
+    w.noacgDispatch('score1', { f2: '5' })?.progress(1); const reentered = calls.length;
+    w.stop(); const restored = [el.getAttribute('transform'), el.getAttribute('style')];
+    w.play(); finishCue(); w.noacgDispatch('score2', { f4: '2' })?.progress(1); const cut = calls.length;
+    w.noacgDispatch('score3', { f6: '2' })?.progress(1); const pop = calls.at(-1);
+    const beforeSnap = calls.length; w.noacgSnap(w.noacgMachineState().groups, { timers: false });
+    return { calls, landed, repainted, reentered, authored, restored, cut, pop, beforeSnap, afterSnap: calls.length };
+  });
+  expect(result.landed).toBe(1); expect(result.repainted).toBe(1); expect(result.reentered).toBe(2);
+  expect(result.calls[0].from.opacity).toBe(0); expect(result.restored).toEqual(result.authored);
+  expect(result.cut).toBe(2); expect(result.pop?.id).toBe('Flash_x20_3'); expect(result.pop?.from.scaleX).toBeCloseTo(1.04, 3);
+  expect(result.afterSnap).toBe(result.beforeSnap);
   await output.close();
 });
 

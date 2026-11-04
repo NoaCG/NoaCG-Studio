@@ -23,9 +23,11 @@ import { hasLiveData, liveDataBlock, stripLiveData } from '../../control/liveDat
 import { writeAnimData } from '../../templates/shared/animRuntime';
 import { spxSteps } from '../../blocks/animMachine';
 import { replaceDefinitionInHtml } from '../../model/spxDefinition';
+import { setLookEntrance, type LookEntrance } from '../../blocks/behaviourLook';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
+  | { kind: 'look.entrance'; selector: string; entrance: LookEntrance | '' }
   | { kind: 'graphic.insert'; variant: TemplateVariant; placement: InsertPlacement; steps: boolean }
   | { kind: 'graphic.activation'; selector: string; press: number }
   | { kind: 'liveData.set'; csvUrl: string; pollSeconds: number }
@@ -93,14 +95,16 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       operation = operation.kind === 'group.create' ? { ...operation, selectors } : { ...operation, members: selectors };
       next = reconcileOrganization(template, next, identities);
     }
-    if (committed && 'selector' in operation) {
+    if (committed && 'selector' in operation && operation.kind !== 'look.entrance') {
       const original = operation.selector;
       const identity = identities[original] ? { template: next, selector: identities[original] } : commitSvgIdentity(next, original);
       next = identity.template;
       if (identity.selector !== original) identities[original] = identity.selector;
       operation = { ...operation, selector: identity.selector };
     }
-    if (operation.kind === 'graphic.insert') {
+    if (operation.kind === 'look.entrance') {
+      next = setLookEntrance(next, operation.selector, operation.entrance); targets.add(operation.selector);
+    } else if (operation.kind === 'graphic.insert') {
       if (!losslessAnimData(next.js)) throw new Error('This animation has unsupported data. Its source is preserved.');
       const result = insertTemplateGraphic(next, operation.variant, operation);
       if ('error' in result) throw new Error(result.error);

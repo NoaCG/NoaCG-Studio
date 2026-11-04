@@ -13,6 +13,7 @@ import PathControls from './PathControls';
 import type { RenderedPart } from './protocol';
 import { editTarget } from './animationAuthoring';
 import { layerPress } from '../../blocks/animEdit';
+import { behaviourLooks, type LookEntrance } from '../../blocks/behaviourLook';
 interface Props {
   reveal: { key: string; id: string } | null;
   seek: (time: number, cue?: number) => void;
@@ -43,6 +44,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
 function Inspector({ reveal, seek, view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time, openAssets, editPoints }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
+  const looks = useMemo(() => behaviourLooks(template), [template]);
   const body = useRef<HTMLElement>(null), revealed = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!reveal || reveal.key === 'u' || reveal.id === revealed.current) return;
@@ -133,6 +135,15 @@ function Inspector({ reveal, seek, view, template, selection, select, session, l
           <dt>Motion</dt><dd>{view.data ? 'Source timeline' : 'Source controlled'}</dd></dl>
         <p className="ef-muted">Select artwork on the canvas or a layer below to inspect it.</p>
       </>}
+      {looks.length > 0 && <details><summary>Look entrances</summary>
+        <p className="ef-muted">Play when each look lands. Timeline keys stay on cues.</p>
+        {looks.map(look => <label className="ef-appearance-field" key={look.selector}>{look.label}
+          <select aria-label={look.label + ' entrance'} value={look.entrance} onChange={event => execute({ kind: 'look.entrance', selector: look.selector, entrance: event.target.value as LookEntrance | '' })}>
+            <option value="">Original</option><option value="cut">Cut</option><option value="fade">Fade</option><option value="pop">Pop</option>
+          </select>
+        </label>)}
+      </details>}
+      {!part && error && <p role="alert">{error}</p>}
     </div>}
   </aside>;
 }
