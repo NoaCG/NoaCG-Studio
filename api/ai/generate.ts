@@ -176,13 +176,13 @@ export default {
     try {
       // Inside the try so a refusal ledgers exactly like the BYO one does - an entitlement
       // refusal is an outcome worth counting, not a hole in the accounting.
+      await guardSurface();
       // A tagged surface's MANAGED traffic carries a routing policy (api/_lib/aiSurfacePolicy.ts):
       // zero-data-retention routing, cheapest eligible provider, per-surface spend tags.
       // BYO is excluded by the same rule the disabled-route switch uses - a user spending their
       // own key on their own model is not ours to route - and "is this BYO" is decided here from
       // the presented keys rather than inside keyFor, because the policy is a property of the
       // whole request while keyFor answers per provider.
-      await guardSurface();
       const byoPrimary = Boolean(userKeys[body.route.provider]);
       // HOSTED NoaCG Pro: a managed Pro call must ride a live reservation, which is what turns
       // the surface tag from a label into an allowance (api/_lib/pro/managedCall.ts). BYO is
