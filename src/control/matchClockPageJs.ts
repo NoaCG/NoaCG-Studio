@@ -151,4 +151,19 @@ function clockImportedStep(clock, msg, from, at) {
   if (msg.event === clock.events.stop) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), offAir ? 'out' : '', length, sent), when: 'after' };
   if (msg.event === clock.events.reset) return { value: clockSlotValue(length, offAir ? 'out' : '', length, sent), when: 'after' };
   return null;
+}
+
+// relayLogWalk(): read a local relay's log from "after" to its head, in the relay's pages of up to
+// 500 rows, handing each row to onRow, then done(the last id read). A page walks it from 0 when it
+// boots, so it knows where each imported clock stands however far back its last clock row is.
+function relayLogWalk(after, onRow, done) {
+  fetch('/relay/log?after=' + after)
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      var rows = data && data.rows ? data.rows : [];
+      for (var i = 0; i < rows.length; i++) { after = rows[i].id; onRow(rows[i]); }
+      if (rows.length > 0 && data.head > after) relayLogWalk(after, onRow, done);
+      else done(after);
+    })
+    .catch(function () { done(after); });
 }`;

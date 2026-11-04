@@ -1001,13 +1001,25 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   expect(sent(from)[3]).toBe('play');
   await ctl2.close();
 
-  // Back on the first window, which follows that row: its Out banks the clock the other window set.
-  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toMatch(/^0:30@1/);
+  // THE STANDALONE PANEL FOLLOWS THE RELAY TOO: still open from above, it has read the clock the
+  // controller set, so its ■ Stop banks that clock off air (length 0:30, sent 0:30), never the
+  // value it last sent itself, which was already off air and would bank nothing.
+  const heard = rows.length;
+  await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= heard);
   from = rows.length;
-  await ctl.locator('#v-out').click();
+  await panel.getByRole('button', { name: '■ Stop' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
   expect(sent(from)[0]).toBe('stop');
   expect(sent(from)[1]).toMatch(/^update f2=0:[23]\d@out\/0:30\/0:30$/);
+  const banked = sent(from)[1].slice('update f2='.length);
+
+  // Back on the first controller window, which follows that row: the clock is off air already, so
+  // its Out sends no clock row, exactly as the wire reads an Out of a clock held off air.
+  await expect.poll(() => ctl.evaluate(() => (window as unknown as { clockHeld: Record<string, string> }).clockHeld['program|Countdown'])).toBe(banked);
+  from = rows.length;
+  await ctl.locator('#v-out').click();
+  await expect.poll(() => rows.slice(from).length).toBeGreaterThan(0);
+  await expect.poll(() => sent(from)).toEqual(['stop']);
 
   // The native scorebug's Take on the same controller: no clock row.
   await ctl.locator('#cue-c2').click();

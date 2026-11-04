@@ -489,7 +489,7 @@ function clockEffectFor(g, cue, event, at) {
 // duration's Take, the banked time AFTER a hold, a reset, an Out or a running correction. The
 // stamp is this page's press: it is the only sender the relay has. Another window's clock rows on
 // the program log are followed (followClock), once nothing this page sent is still on its way, and
-// a page that boots reads the clock rows of the log's recent rows first, so a reload or a second
+// a page that boots reads the clock rows of the whole log first, so a reload or a second
 // window does not send a running clock a plain time.
 var clockHeld = {};
 function withClocks(items) {
@@ -1522,11 +1522,9 @@ fetch('/relay/ping')
     if (!d || !d.ok) throw new Error('no relay');
     relayOk = true;
     cursor = d.head || 0;
-    // Booted at the head, the page still learns where each imported clock stands (followClock).
-    fetch('/relay/log?after=' + Math.max(0, cursor - 500))
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) { (data && data.rows ? data.rows : []).forEach(followClock); })
-      .catch(function () {});
+    // Booted at the head, the page still learns where each imported clock stands (followClock),
+    // from the whole log.
+    relayLogWalk(0, followClock, function () {});
     var mode = document.getElementById('mode');
     mode.textContent = '● SHOW';
     mode.className = 'mode on';

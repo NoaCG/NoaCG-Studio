@@ -367,11 +367,18 @@ function noteAnswer() {
 // for same-origin tabs; a relay-driven OBS source cannot answer, so relay presence also
 // stands the no-listener banner down.
 var relayOk = false;
+// What each card starts once the relay answers (an imported clock's follow).
+var relayReady = [];
 if (location.protocol === 'http:' || location.protocol === 'https:') {
   fetch('/relay/ping')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
-      if (d && d.ok) { relayOk = true; document.getElementById('nolisten').style.display = 'none'; paintStatus(); }
+      if (d && d.ok) {
+        relayOk = true;
+        document.getElementById('nolisten').style.display = 'none';
+        paintStatus();
+        relayReady.forEach(function (start) { start(); });
+      }
     })
     .catch(function () { /* not relay-hosted */ });
 }
@@ -493,6 +500,41 @@ GRAPHICS.forEach(function (g) {
   var clockHeld = CLOCK && CLOCK.events && log.data ? log.data[CLOCK.field] : undefined;
   var clockRead = clockSlots(clockHeld);
   if (clockRead) { state[CLOCK.field] = clockRead.sent; lastSent[CLOCK.field] = clockRead.sent; }
+  // ON A LOCAL RELAY, ANOTHER PAGE MAY MOVE THE CLOCK (the production controller, another panel),
+  // so this card follows the clock rows of the relay's log, the whole log at boot and then as it
+  // grows: a Pause pressed here then banks the time the clock really stands at. The values this
+  // card sent and has not seen back yet are held (clockOwn): a row before the first of them is
+  // older than this card's own press and moves nothing, and its own row coming back is already
+  // held. One that never comes back (a failed send) stops counting after a few seconds.
+  var clockOwn = [];
+  function noteClockSent(value) {
+    if (!relayOk || !clockSlots(value)) return;
+    var now = Date.now();
+    clockOwn = clockOwn.filter(function (o) { return now - o.at < 7000; });
+    clockOwn.push({ value: value, at: now });
+  }
+  function followRelayClock(row) {
+    var m = row.msg || {};
+    if (row.graphic !== g.name || (row.stream && row.stream !== 'program')) return;
+    if (m.t !== 'update' || !m.data || m.data[CLOCK.field] === undefined || !clockSlots(m.data[CLOCK.field])) return;
+    var value = m.data[CLOCK.field];
+    var now = Date.now();
+    clockOwn = clockOwn.filter(function (o) { return now - o.at < 7000; });
+    for (var i = 0; i < clockOwn.length; i++) {
+      if (clockOwn[i].value === value) { clockOwn = clockOwn.slice(i + 1); return; }
+    }
+    if (clockOwn.length === 0) clockHeld = value;
+  }
+  if (CLOCK && CLOCK.events) relayReady.push(function () {
+    var cursor = 0;
+    var walking = true;
+    relayLogWalk(0, followRelayClock, function (at) { cursor = at; walking = false; });
+    setInterval(function () {
+      if (walking) return;
+      walking = true;
+      relayLogWalk(cursor, followRelayClock, function (at) { cursor = at; walking = false; });
+    }, 1000);
+  });
   // Send one command with the clock's value written around it, in the order and by the decision
   // of the wire (clockAfterUpdate and clockRowStep, the shared block above, pinned to
   // matchClockWire.ts): the origin BEFORE a start or a duration's Take, so the runtime adopts it
@@ -503,6 +545,7 @@ GRAPHICS.forEach(function (g) {
     if (CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined) {
       clockHeld = clockAfterUpdate(clockHeld, msg.data[CLOCK.field]);
       msg.data[CLOCK.field] = clockHeld;
+      noteClockSent(clockHeld);
     }
     var effect = clockRowStep(CLOCK, msg, CLOCK.events ? clockHeld : state[CLOCK.field], Date.now());
     if (effect && effect.when === 'before') applyClock(effect.value);
@@ -518,7 +561,7 @@ GRAPHICS.forEach(function (g) {
     var data = {};
     data[CLOCK.field] = value;
     post({ t: 'update', data: data });
-    if (CLOCK.events) { clockHeld = value; return; }
+    if (CLOCK.events) { clockHeld = value; noteClockSent(value); return; }
     state[CLOCK.field] = value;
     lastSent[CLOCK.field] = value;     // it just aired: not staged
     if (clockInput) clockInput.value = clockPlain(value);
