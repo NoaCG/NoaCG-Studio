@@ -1152,21 +1152,24 @@ function svgEvenOut(el, value, budget, size, lineHeight, room) {
   if (words(value) === words(svgFitDrawn[el.id])) return;
   // An operator's hard break is a wall the balance never moves a word across: each run of lines
   // between two breaks is evened out on its own, keeping its own line count.
+  var runs = [[]];
+  var measured = false;
+  for (var i = 0; i < painted.length; i++) {
+    if (i && svgLineBreaks(painted[i])) runs.push([]);
+    var run = runs[runs.length - 1];
+    run.push(painted[i].textContent);
+    if (run.length > 1) measured = true;
+  }
+  // A block whose every run is one line has nothing to even out, and stands as painted.
+  if (!measured) return;
   var even = [];
   even.breaks = {};
-  var run = [];
-  var measured = false;
-  for (var i = 0; i <= painted.length; i++) {
-    if (i < painted.length && !(run.length && svgLineBreaks(painted[i]))) { run.push(painted[i].textContent); continue; }
-    if (even.length) even.breaks[even.length] = true;
-    measured = measured || run.length > 1;
-    var balanced = run.length > 1 ? svgBalanceLines(el, run, budget) : run;
+  for (var r = 0; r < runs.length; r++) {
+    if (r) even.breaks[even.length] = true;
+    var balanced = runs[r].length > 1 ? svgBalanceLines(el, runs[r], budget) : runs[r];
     for (var b = 0; b < balanced.length; b++) even.push(balanced[b]);
-    if (i < painted.length) run = [painted[i].textContent];
   }
-  // Measuring writes over the block, so it is painted again whatever the answer - and only then:
-  // a block whose every run is one line was measured by nothing and stands as painted.
-  if (!measured) return;
+  // Measuring writes over the block, so it is painted again whatever the answer.
   svgPaintLines(el, even, size, lineHeight, room);
 }
 
@@ -1263,8 +1266,8 @@ function svgFitValue(el) {
   // A line that starts at an operator's break reads back as that break (#1977), so the next pass
   // fits the value that was typed rather than a paragraph made of it.
   var kids = el.children;
-  var value = '';
-  for (var i = 0; i < kids.length; i++) value += (i ? (svgLineBreaks(kids[i]) ? '\n' : ' ') : '') + kids[i].textContent;
+  var value = kids[0].textContent;
+  for (var i = 1; i < kids.length; i++) value += (svgLineBreaks(kids[i]) ? '\n' : ' ') + kids[i].textContent;
   return value;
 }
 
@@ -1505,10 +1508,10 @@ function fitSvgText() {
     // Fitted without needing the last rungs at all - much the commonest case, and untouched.
     if (!svgFitOver[el.id]) break;
     // CONDENSE, bounded by legibility (svgSqueeze). Where that is enough the block fills the room
-    // the design gave it, and the ladder is done.
+    // the design gave it, and the ladder is done. Condensing narrows a block and cannot make it
+    // shorter, so a block too tall for its operator's own lines goes straight on to spend size.
+    if (attempt === 0 && tall && hard > 1) continue;
     svgSqueeze(el, budget);
-    // Condensing narrows a block and cannot make it shorter, so a block too tall for its
-    // operator's own lines goes on to spend size.
     if (svgBlockWidth(el) <= budget + 0.5 && !(tall && hard > 1)) break;
     // Not enough, and the alternative to shrinking further is words standing outside the panel.
     // Take the condensing off and let the second attempt spend size instead.
