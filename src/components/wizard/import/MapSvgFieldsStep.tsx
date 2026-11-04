@@ -16,6 +16,10 @@ import {
   creditsSourceLayers,
   takenOff,
   svgDesignOptions,
+  svgClockTakes,
+  svgCountdownDrawn,
+  svgCountdownInUse,
+  svgSavedOver,
 } from './draft';
 import { SVG_ALIGN_WORD } from '../../../templates/importedDesign/svg';
 import { creditsArtworkFields } from '../../../templates/importedDesign/creditsRoll';
@@ -1028,6 +1032,25 @@ export default function MapSvgFieldsStep({
   // repaints nothing itself; the offscreen render stays exactly as the designer drew it, which
   // is what measureOutline needs it for.
 
+  // ONE CLOCK CHOICE ON A NEW IMPORT (#1876): the Clock in the behaviour section. The old
+  // row-level Countdown stays only where it is already in use (`svgCountdownInUse`), and with
+  // Text its one other answer, the row then has nothing to choose, so the picker is not drawn.
+  // A row whose time the Clock cannot show ("1:05:00", `svgClockTakes`) keeps it: its one clock.
+  const savedOver = useMemo(() => svgSavedOver(draft.name), [draft.name]);
+  // The drawn moments are a read of the whole artwork, so they wait for a new artwork, not a row edit.
+  const countdownDrawn = useMemo(() => svgCountdownDrawn(draft.designSvg), [draft.designSvg]);
+  const countdownInUse = useMemo(
+    () => svgCountdownInUse(draft, savedOver, countdownDrawn),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- exactly what the answer reads
+    [draft.svgFields, draft.svgBehaviour, countdownDrawn, savedOver],
+  );
+  // Once offered on this artwork it stays, so setting a countdown row back to Text never takes
+  // the picker away from under the pointer with no way back. A different artwork starts over.
+  const markup = draft.designSvg?.markup ?? null;
+  const [countdownKeptFor, setCountdownKeptFor] = useState<string | null>(null);
+  if (countdownInUse && markup && countdownKeptFor !== markup) setCountdownKeptFor(markup);
+  const countdownOffered = countdownInUse || (!!markup && countdownKeptFor === markup);
+
   if (!svg) return null;
 
   // Text-shaped groups first, everything else after — a STABLE sort, so within each half the
@@ -1396,7 +1419,7 @@ export default function MapSvgFieldsStep({
                   )}
                 </>
               )}
-              {f.clock && !driven && (
+              {f.clock && !driven && (countdownOffered || !svgClockTakes(f)) && (
                 /* A clock-shaped layer ("10:00") can be a COUNTDOWN: the node becomes the
                    ticking display and the operator sets the length in minutes. One per
                    graphic - the shared clock runtime drives one display - so once a row

@@ -45,7 +45,7 @@ import { duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect, upd
 import { freeName } from '../../../model/poolIdentity';
 import type { LibraryIo, MadeGraphic, WalkMemory } from '../shell/walkState';
 import { PREFIX } from '../../../templates/importedDesign/shared';
-import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
+import { artOf, carryKeys, carryTitles, matchReimport, parseHtml, renameFields, runsOldCountdown, sourceKey, type ReimportItem } from '../../../templates/importedDesign/reimport';
 
 /**
  * THE IMPORT-GRAPHIC ROAD'S SLICE OF THE WIZARD DRAFT.
@@ -1214,13 +1214,52 @@ export function svgClockRows(draft: SvgImportDraft): SvgFieldDraft[] {
   if (draft.svgBehaviour?.kind === 'timer' || svgCountdownDrawn(draft.designSvg)) return [];
   if (draft.svgFields.some((f) => f.on && f.kind === 'countdown')) return [];
   const driven = pollDrivenLayers(draft.svgBehaviour);
-  return draft.svgFields.filter((f) => f.on && f.clock && CLOCK_TIME.test(f.sample.trim()) && !driven.has(f.candidateId));
+  return draft.svgFields.filter((f) => f.on && f.clock && svgClockTakes(f) && !driven.has(f.candidateId));
 }
 
 /** Whether the file drew the moments only the countdown paints: its names propose it, read the way
  *  the drop reads them. */
 export function svgCountdownDrawn(svg: SvgImportResult | null): boolean {
   return !!svg && bestProposal({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) })?.recipe === 'countdown';
+}
+
+/**
+ * WHETHER THE OLD COUNTDOWN IS IN USE, so a clock-shaped row still offers its kind (#1876). A new import has one clock
+ * choice, the Clock; the row-level Countdown is the old engine, kept only where it is already in
+ * use: a row of this draft is bound as one, the countdown behaviour is held, the file drew the
+ * moments only it paints (`svgCountdownDrawn`), or the name this walk saves under holds a saved
+ * graphic that runs it (`savedOver`, read by `svgSavedOver`), so a reimport can bind it again.
+ * An unticked countdown row counts: unticking is not a change of mind about the engine.
+ */
+export function svgCountdownInUse(
+  draft: SvgImportDraft,
+  savedOver: SpxTemplate | null,
+  /** `svgCountdownDrawn(draft.designSvg)`, which a caller re-rendering on every row edit caches. */
+  drawn: boolean = svgCountdownDrawn(draft.designSvg),
+): boolean {
+  return (
+    draft.svgFields.some((f) => f.kind === 'countdown') ||
+    draft.svgBehaviour?.kind === 'timer' ||
+    drawn ||
+    (!!savedOver && runsOldCountdown(savedOver))
+  );
+}
+
+/** Whether the Clock can show this row's time: minutes and seconds only (`CLOCK_TIME`). A
+ *  clock-shaped row it cannot take ("1:05:00") keeps the old Countdown kind as its one clock
+ *  choice, so no clock-shaped layer is left without one (#1876). */
+export function svgClockTakes(f: Pick<SvgFieldDraft, 'sample'>): boolean {
+  return CLOCK_TIME.test(f.sample.trim());
+}
+
+/** The saved graphic a save under `name` would write over, as Finish reads it (`librarySaveEffect`
+ *  with no record made yet), or null. Read without the walk's own record on purpose: a walk that
+ *  already saved and is then renamed onto a countdown graphic's name is offered the kind it would
+ *  not need, never denied one it does. */
+export function svgSavedOver(name: string): SpxTemplate | null {
+  if (!name.trim()) return null;
+  const target = librarySaveEffect(graphicNameIndex(), name, null).targetId;
+  return target ? graphicById(target)?.template ?? null : null;
 }
 
 /**
