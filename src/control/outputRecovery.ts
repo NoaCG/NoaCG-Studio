@@ -211,6 +211,20 @@ export function reportedTyped(report: { state?: unknown } | null | undefined): {
   return { typed, steps: typeof steps === 'number' && Number.isInteger(steps) && steps >= 0 && steps <= TYPED_STEPS_MAX ? steps : 0, on: on === true };
 }
 
+/** The boot's visual half from a report: its pose, and beside it a score board's latched scoring
+ *  rows (`awards`, figure group -> the field that scored, #1908), so the rebuilt output lights the
+ *  team the one that stayed up shows. Null when the report has no pose. Only string entries of a
+ *  plain object are kept; the graphic's own runtime checks each names a figure. */
+export function reportedSnap(report: { state?: unknown } | null | undefined): { t: 'snap'; snap: Record<string, string>; awards?: Record<string, string> } | null {
+  const state = report?.state as { groups?: unknown; awards?: unknown } | null | undefined;
+  if (typeof state !== 'object' || state === null || typeof state.groups !== 'object' || state.groups === null) return null;
+  const snap = state.groups as Record<string, string>;
+  const given = state.awards;
+  if (typeof given !== 'object' || given === null || Array.isArray(given)) return { t: 'snap', snap };
+  const awards = Object.fromEntries(Object.entries(given).filter(([, field]) => typeof field === 'string')) as Record<string, string>;
+  return Object.keys(awards).length > 0 ? { t: 'snap', snap, awards } : { t: 'snap', snap };
+}
+
 /** A report's typed baseline as a PROGRAM monitor rebuilds it: the envelope read (null when this
  *  build cannot read it, so the output holds that graphic) and its steps as the `next`s that replay
  *  them. Null for a native report. */

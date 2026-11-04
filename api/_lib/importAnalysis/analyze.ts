@@ -13,7 +13,7 @@
 import { bearerToken, ipHash, json, methodGuard, readJson } from '../http.js';
 import { verifyUser } from '../auth.js';
 import { managedAiKey } from '../aiCredentials.js';
-import { estimateModelCost, executeGatewayRequest, GatewayError } from '../aiGateway.js';
+import { executeGatewayRequest, GatewayError, usageCostUsd, withTokenCost, worstAttemptCostUsd } from '../aiGateway.js';
 import { liteError } from '../aiLiteHttp.js';
 import {
   importAnalysisPolicy,
@@ -96,16 +96,8 @@ function reservationError(reservation: Exclude<LiteReservation, { status: 'creat
 }
 
 function withConfiguredCost(result: ModelResult, profile: ImportAnalysisProfile): ModelResult {
-  if (result.usage.estimatedCost) return result;
-  const amount = estimateModelCost(
-    { provider: result.provider, model: result.model },
-    result.usage.inputTokens,
-    result.usage.outputTokens,
-    importAnalysisPrice(profile) ?? undefined,
-  );
-  return amount === null
-    ? result
-    : { ...result, usage: { ...result.usage, estimatedCost: { amount, currency: 'USD', source: 'configured' } } };
+  const route = { provider: result.provider, model: result.model };
+  return { ...result, usage: withTokenCost(result.usage, route, importAnalysisPrice(profile)) };
 }
 
 async function failRecord(record: LiteGenerationRecord | null, reason: string, result?: ModelResult): Promise<void> {
@@ -168,11 +160,13 @@ export default {
       return liteError('invalid_request', 'The analysis request exceeds its supported size or shape.', 400);
     }
 
-    const worstCase = estimateModelCost(
+    // The worst case includes the gateway's per-request fee (#2015).
+    const worstCase = worstAttemptCostUsd(
       profile.route,
       profile.estimatedInputTokens,
       profile.outputTokens,
       importAnalysisPrice(profile) ?? undefined,
+      gateway,
     );
     if (worstCase === null || worstCase > profile.maxProviderCostUsd) {
       return liteError('cost_ceiling', 'The configured analysis route exceeds the per-request cost ceiling.', 503);
@@ -207,7 +201,7 @@ export default {
         },
       ), profile);
       accounted = result;
-      const actualCost = result.usage.estimatedCost?.amount ?? 0;
+      const actualCost = usageCostUsd(result.usage);
       if (actualCost > profile.maxProviderCostUsd) {
         await store.update(record?.id ?? '', {
           ...modelResultPatch(result),

@@ -22,6 +22,7 @@ import {
   PREVIEW_HELD_TYPE,
   PREVIEW_READY_TYPE,
   PREVIEW_STATE_TYPE,
+  snapCommand,
   type PreviewErrorMessage,
   type PreviewHeldMessage,
   type PreviewCmd,
@@ -964,9 +965,7 @@ export function createOutputStage(
         break;
       }
       case 'snap':
-        // Recovery semantics stated explicitly — the wire field means opposite things to the
-        // editor simulator (parked design view, timers off) and to a renderer (timers arm).
-        post(graphic, { cmd: 'snap', assignments: msg.snap, timers: true });
+        post(graphic, snapCommand(msg));
         break;
       default:
         return; // 'hello' and status rows ('cue'/'staged'/'live') are not renderer commands

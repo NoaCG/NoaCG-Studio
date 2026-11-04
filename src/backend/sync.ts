@@ -47,6 +47,16 @@ export const SYNC_KINDS: SyncKind[] = ['look', 'brand', 'project', 'show', 'vide
 const SYNC_META_KEY = 'spx-gfx-sync';
 const EPOCH = '1970-01-01T00:00:00.000Z';
 
+/** How long a delete travels. After every pass both sides drop tombstones older than this
+ *  (syncController.ts): this device by the record's own `updatedAt`, the cloud by its server
+ *  write time. */
+export const TOMBSTONE_GRACE_MS = 90 * 86_400_000;
+
+/** The `updatedAt` before which a tombstone has EXPIRED (see `reconcile`). */
+export function tombstoneCutoff(now = Date.now()): string {
+  return new Date(now - TOMBSTONE_GRACE_MS).toISOString();
+}
+
 export interface SyncPlan {
   /** Local records to write to the cloud. */
   toRemote: StoredRecord[];
@@ -96,12 +106,22 @@ const recordName = (r: StoredRecord): string => {
  * Pure reconciliation. `since` is when this device last synced; a record whose BOTH sides changed
  * after it is a genuine concurrent-edit conflict. `pending` carries the per-record debts from
  * earlier passes (see SyncPending).
+ *
+ * `expiredBefore` (tombstoneCutoff): a tombstone older than it never travels to a side that does
+ * not hold the record, because there is nothing there to delete and the purge would drop it again.
+ * The two sides purge by different clocks: on 2026-11-04 a browser holding 27 tombstones past the
+ * grace pushed them as new cloud rows, which the cloud keeps for 90 days from that write, and then
+ * dropped them itself after the pass. Every pass after that pulled the same 27 back, rewrote the
+ * library, purged them, and that write started the next pass: about 260 passes in 20 minutes, and
+ * a studio page too busy to move a cue (#2063). A tombstone for a record the other side still
+ * holds is applied as before, so an old delete still wins over an older live copy.
  */
 export function reconcile(
   local: StoredRecord[],
   remote: StoredRecord[],
   since: string,
   pending?: SyncPending,
+  expiredBefore: string = EPOCH,
 ): SyncPlan {
   const plan: SyncPlan = { toRemote: [], toLocal: [], conflicts: [] };
   const L = new Map(local.map((r) => [recordKey(r), r]));
@@ -112,16 +132,17 @@ export function reconcile(
   // divergence (e.g. an offline draft vs a newer cloud copy) as a concurrent edit and spawn a
   // spurious "(conflicted copy)". So on a first sync we use pure last-write-wins, no conflicts.
   const firstSync = since === EPOCH;
+  const expired = (r: StoredRecord) => r.deleted && r.updatedAt < expiredBefore;
 
   for (const key of new Set([...L.keys(), ...R.keys()])) {
     const l = L.get(key);
     const r = R.get(key);
     if (l && !r) {
-      plan.toRemote.push(l);
+      if (!expired(l)) plan.toRemote.push(l);
       continue;
     }
     if (r && !l) {
-      plan.toLocal.push(r);
+      if (!expired(r)) plan.toLocal.push(r);
       continue;
     }
     if (!l || !r) continue;
@@ -211,7 +232,7 @@ export async function runSync(
   const plan = reconcile(localRecs, remoteRecs, meta.lastSyncedAt, {
     push: new Set(meta.pendingPush),
     conflict: new Set(meta.pendingConflict),
-  });
+  }, tombstoneCutoff());
   onPlan?.(plan);
   // Before anything is applied: a summary is never written, and a fetch that fails must fail
   // the pass rather than one record (see withWholeRecords).

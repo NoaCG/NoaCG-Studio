@@ -1072,18 +1072,80 @@ export function estimateModelCost(
   return (inputTokens * price.inputPerMillion + outputTokens * price.outputPerMillion) / 1_000_000;
 }
 
-function withEstimatedCost(usage: ModelUsage, route: ModelRoute): ModelUsage {
-  if (usage.estimatedCost) return usage;
-  const price = configuredPrice(route);
-  if (!price) return usage;
+// ---- The gateway's per-request fee (#2015) ----
+//
+// Vercel AI Gateway bills "Custom Reporting" writes on top of tokens: $0.075 per 1,000 writes,
+// where each unique tag (or user id, or quota entity id) on a request is one write
+// (vercel.com/docs/ai-gateway/pricing, "Add-on surcharges"). Every managed call carries one
+// `surface:*` tag, so every served request costs $0.000075 more than the cost the reply reports.
+//
+// Measured, not inferred: the eval ledgers of runs 41620061986 and 41621970771 show the balance
+// debit minus the reported cost is exactly $0.000075 per request on `/v1/evaluate` (Jev, Elephant)
+// and on chat completions (Claude Haiku 5.5), 50 requests in one batch included. The reported cost
+// (`usage.cost`, `providerMetadata.gateway.cost`) is tokens at the listed price and nothing else.
+// A request the gateway refuses before inference (a 4xx) was charged nothing.
+//
+// So the fee follows the TAGS, not the model: a request without tags, or sent past the gateway
+// (a user's own provider key), carries none. If Vercel changes the price, or turns Custom
+// Reporting off, or starts including the fee in the reported cost, set
+// AI_GATEWAY_TAG_WRITE_USD (0 removes it) rather than editing callers.
+
+/** The price of one Custom Reporting write, in USD. */
+export const GATEWAY_TAG_WRITE_USD = 0.000075;
+
+export function gatewayTagWriteUsd(): number {
+  const raw = process.env.AI_GATEWAY_TAG_WRITE_USD?.trim();
+  if (!raw) return GATEWAY_TAG_WRITE_USD;
+  const value = Number(raw);
+  // A typo must not silently drop the fee: anything unreadable keeps the measured price.
+  return Number.isFinite(value) && value >= 0 ? value : GATEWAY_TAG_WRITE_USD;
+}
+
+/** The fee one served request to `route` pays under this routing policy: one write per unique
+ *  tag, and nothing for a route the gateway does not carry or a request with no tags. */
+export function gatewayRequestFeeUsd(route: ModelRoute, gateway?: GatewayRoutingPolicy | null): number {
+  if (route.provider !== 'vercel' || !gateway?.tags?.length) return 0;
+  return new Set(gateway.tags).size * gatewayTagWriteUsd();
+}
+
+/** Add the request fee to a reply's usage, exactly once. `requestFeeUsd` marks it applied, so a
+ *  second call (or a caller re-pricing the reply) never charges it again. */
+export function withRequestFee(usage: ModelUsage, feeUsd: number): ModelUsage {
+  if (usage.requestFeeUsd !== undefined || feeUsd <= 0) return usage;
   return {
     ...usage,
-    estimatedCost: {
-      amount: (usage.inputTokens * price.inputPerMillion + usage.outputTokens * price.outputPerMillion) / 1_000_000,
-      currency: 'USD',
-      source: 'configured',
-    },
+    requestFeeUsd: feeUsd,
+    ...(usage.estimatedCost
+      ? { estimatedCost: { ...usage.estimatedCost, amount: usage.estimatedCost.amount + feeUsd } }
+      : {}),
   };
+}
+
+/** Price a reply that reported no cost: its tokens at `price`, plus the request fee it already
+ *  carries. A reply that has a cost (which includes the fee) is returned unchanged. */
+export function withTokenCost(usage: ModelUsage, route: ModelRoute, price?: ModelPrice | null): ModelUsage {
+  if (usage.estimatedCost) return usage;
+  const tokens = estimateModelCost(route, usage.inputTokens, usage.outputTokens, price ?? undefined);
+  if (tokens === null) return usage;
+  return { ...usage, estimatedCost: { amount: tokens + (usage.requestFeeUsd ?? 0), currency: 'USD', source: 'configured' } };
+}
+
+/** What a reply cost as far as is known: its estimate (fee included), else at least its fee. */
+export function usageCostUsd(usage: ModelUsage | undefined): number {
+  return usage?.estimatedCost?.amount ?? usage?.requestFeeUsd ?? 0;
+}
+
+/** The most one attempt can cost: tokens at the priced worst case plus the request fee. Null
+ *  when the route has no price, exactly like `estimateModelCost`. */
+export function worstAttemptCostUsd(
+  route: ModelRoute,
+  inputTokens: number,
+  outputTokens: number,
+  price: ModelPrice | undefined,
+  gateway?: GatewayRoutingPolicy | null,
+): number | null {
+  const tokens = estimateModelCost(route, inputTokens, outputTokens, price);
+  return tokens === null ? null : tokens + gatewayRequestFeeUsd(route, gateway);
 }
 
 /** Execute a normalized request. Provider changes occur only along the explicit route list. */
@@ -1121,7 +1183,11 @@ export async function executeGatewayRequest(
         attempts.push({ route, attempts: routeAttempts });
         return {
           output,
-          usage: withEstimatedCost(result.usage, route),
+          usage: withTokenCost(
+            withRequestFee(result.usage, gatewayRequestFeeUsd(route, policy?.gateway)),
+            route,
+            configuredPrice(route),
+          ),
           provider: route.provider,
           model: route.model,
           attempts,
