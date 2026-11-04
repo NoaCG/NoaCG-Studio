@@ -19,9 +19,9 @@ test('removing one looped case fails the check, and a current entry lets it thro
   const repo = mkdtempSync(path.join(os.tmpdir(), 'e2e-protection-fixture-'));
   t.after(() => rmSync(repo, { recursive: true, force: true }));
   const env = { ...process.env, CI: '', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
-  const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const git = (...a) => execFileSync('git', a, { cwd: repo, encoding: 'utf8', env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   const commit = (msg) => git('commit', '-qam', msg);
-  const check = (from, today = TODAY) => spawnSync(process.execPath, ['scripts/check-e2e-protection.mjs', '--changed', from, '--today', today], { cwd: repo, encoding: 'utf8', env });
+  const check = (from, today = TODAY) => spawnSync(process.execPath, ['scripts/check-e2e-protection.mjs', '--changed', from, '--today', today], { cwd: repo, encoding: 'utf8', env, windowsHide: true });
   mkdirSync(path.join(repo, 'scripts'));
   mkdirSync(path.join(repo, 'e2e'));
   mkdirSync(path.join(repo, 'docs', 'work-specs', 'fixture'), { recursive: true });

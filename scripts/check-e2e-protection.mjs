@@ -192,7 +192,7 @@ export async function listCounts(tree, specs) {
       });
       return [config, stdout];
     } catch (e) {
-      throw new Error(`playwright --list failed for ${files.join(', ') || 'every spec'} under ${config}: ${String(e.stderr || e.stdout || e.message).trim().split('\n').slice(0, 3).join(' ')}`);
+      throw new Error(`playwright --list failed for ${files.join(', ') || 'every spec'} under ${config}: ${String(e.stderr || e.stdout || e.message).trim().split('\n').slice(0, 3).join(' ')}`, { cause: e });
     }
   }));
   for (const [config, out] of listings) {
