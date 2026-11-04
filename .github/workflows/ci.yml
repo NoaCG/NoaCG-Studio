@@ -109,6 +109,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+        with:
+          # The E2E protection check below diffs against the change's base.
+          fetch-depth: 0
 
       # Node 24 (LTS) is the version the project is developed on, so npm validates the
       # lockfile exactly the way the machine that wrote it does.
@@ -119,6 +122,21 @@ jobs:
 
       # node_modules from cache, or `npm ci` on a miss - the action carries the measurement.
       - uses: ./.github/actions/node-modules
+
+      # PROTECTION LEAVES THE GATE ON PURPOSE OR NOT AT ALL. A pull request or merge group that
+      # deletes a spec, removes tests, adds an unconditional skip or raises a per-test timeout past
+      # the gate's ceiling needs a current `## Test maintenance` entry in its work spec naming what
+      # stays protected and by what, with owner and expiry (scripts/check-e2e-protection.mjs; the
+      # suite budget spec, decision 4). Playwright counts the tests, so a test declared in a loop
+      # counts (#1911); that needs node_modules, which is why this is in the build and not the plan
+      # job (5-minute cap, no dependencies, on every job's critical path). Failing it fails the
+      # build, which the gate requires. Main has landed already.
+      - name: E2E protection check
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+        run: node scripts/check-e2e-protection.mjs --changed "${PR_BASE:-${MERGE_GROUP_BASE:-}}"
 
       - name: Build (typecheck + lint + bundle)
         run: npm run build
@@ -309,34 +327,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-
-      # PROTECTION LEAVES THE GATE ON PURPOSE OR NOT AT ALL. A pull request or merge group that
-      # deletes a spec, removes tests, adds an unconditional skip or raises a per-test timeout past
-      # the gate's ceiling needs a current `## Test maintenance` entry in its work spec naming what
-      # stays protected and by what, with owner and expiry (scripts/check-e2e-protection.mjs; the
-      # suite budget spec, decision 4). Here rather than in the build, because the build's checkout
-      # has no diff base. Failing this job fails the gate, which requires the plan. Main has landed
-      # already. Playwright counts the tests (a test declared in a loop counts, #1911), so a change
-      # the script says needs a count (a spec, an e2e helper or a Playwright config) restores
-      # node_modules first; any other change skips that.
-      - name: Does the protection check need Playwright?
-        id: specs
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
-        run: echo "needed=$(node scripts/check-e2e-protection.mjs --changed "${PR_BASE:-${MERGE_GROUP_BASE:-}}" --needs-playwright)" >> "$GITHUB_OUTPUT"
-
-      # node_modules from cache, or `npm ci` on a miss - the action carries the measurement.
-      - if: ${{ steps.specs.outputs.needed == 'true' }}
-        uses: ./.github/actions/node-modules
-
-      - name: E2E protection check
-        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
-          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
-        run: node scripts/check-e2e-protection.mjs --changed "${PR_BASE:-${MERGE_GROUP_BASE:-}}"
 
       - name: Work out what this change can affect
         id: plan

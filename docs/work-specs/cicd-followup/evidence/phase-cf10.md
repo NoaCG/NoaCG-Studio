@@ -13,7 +13,7 @@ Acceptance:
 ## Result
 
 Both met. The check (`scripts/check-e2e-protection.mjs`, the `E2E protection check` step of
-ci.yml's plan job) now counts runtime tests with Playwright's own discovery
+ci.yml's build job since this phase) now counts runtime tests with Playwright's own discovery
 (`playwright test --list`) at the merge base and at the head, instead of counting lines that begin
 `test(`. Its exceptions, the `## Test maintenance` lines, now need a justification, the
 accountable owner and an expiry at most 30 days ahead. A lapsed, undated or wrongly owned line
@@ -31,8 +31,9 @@ never a lower count.
 
 - A change to a helper or fixture under `e2e/`, or to one of those three configs, can change what
   a spec declares without touching it (loop data in `e2e/_saveMatrix.ts`, a `testIgnore`). Then
-  every spec is counted: 322 files, 21 to 27 seconds on this 4-CPU cloud machine (the head and
-  base listings, and each config's, run in parallel).
+  every spec is counted: 322 files, 14 to 16 seconds in three runs on this 4-CPU cloud machine
+  after a one-line change to `e2e/_bench.ts` (the head and base listings, and each config's, run in
+  parallel).
 - A rename inside `e2e/` compares the new file with the old one. A move into another suite (for
   example from `e2e/` into `e2e/configured/`) is a finding of its own, since it leaves this gate.
 - A listing that fails, or a base the check cannot diff, fails the check. Before, an undiffable
@@ -66,7 +67,9 @@ with a real Playwright config and spec, and runs the checker's command line as c
 6. a move into `e2e/configured/` fails as a suite change;
 7. an owner renamed in `growth-ceilings.json` in the same change does not count (the owner is read
    at the merge base);
-8. a base that cannot be diffed fails.
+8. a base that cannot be diffed fails;
+9. a helper change under a 6,000-case looped spec passes with every spec counted. A listing that
+   size came back cut off through a pipe; with the piped reader this case failed three runs of three.
 
 `scripts/check-e2e-protection.test.mjs` holds the unit tests: the diff reader, the `--list` parser
 and its total check, the config map (each config's `testDir` is read from the config file itself),
@@ -95,6 +98,7 @@ mutant in a scratch copy of the scripts it needs:
 | M15 an undiffable base passes | killed |
 | M16 the owner is read from the head | killed |
 | M17 `git diff --name-status` split on spaces | killed |
+| M18 the listing read from a pipe (the head graded C) | killed, three runs of three |
 
 Each mutant was run on the final code. The harness copies `check-e2e-protection.mjs` with one
 replacement, the scripts it imports and the three Playwright configs into a scratch folder, and
@@ -127,12 +131,19 @@ touching `e2e/`), so nothing in flight relied on them.
 ## What changed
 
 - `scripts/check-e2e-protection.mjs`: the count, the entry rules, the fail-closed paths.
+  Playwright's listing is written to a file, not read from a pipe: Playwright exits as soon as it
+  has listed, and a piped listing of a few hundred kilobytes arrived cut off (52,881 and 63,881 of
+  271,933 bytes, two runs of three on this machine). The real repository's full listing (319,053
+  bytes for `playwright.config.ts`) is in that range.
 - `scripts/check-e2e-protection.test.mjs`, `scripts/check-e2e-protection-loop.test.mjs`: the tests.
-- `.github/workflows/ci.yml`, plan job: setup-node moves before the check. A new step asks the
-  script whether it needs Playwright (`--needs-playwright`), and `node_modules` is restored only
-  then. A change that touches no spec, e2e helper or config pays nothing. One that touches a spec
-  pays the cache restore and two short listings. One that touches a helper or config pays the full
-  count (21 to 27 seconds). The plan job is on the critical path, so this cost is stated, not hidden.
+- `.github/workflows/ci.yml`: the `E2E protection check` step moves from the plan job to the
+  build job, which already restores `node_modules`, and whose checkout now fetches full history
+  (`fetch-depth: 0`, about 4 seconds more: 6 s against the plan job's 10 s in run 41920716469). The
+  plan job is back as on main. Why the build and not the plan job: the plan job has a 5-minute cap
+  and every other job waits for it, and a `node_modules` cache miss falls back to `npm ci` (a
+  6.4-minute mean in the node-modules action's own notes). The build job has a 15-minute cap, runs
+  about 8 minutes, and the gate already requires it, so the count adds 0 to about 16 seconds off the
+  critical path and the gate wiring is unchanged.
 - The entry format in `docs/work-specs/README.md`, `docs/VERIFICATION.md` and the e2e-suite-budget
   spec (decision 4 and its `## Test maintenance` preamble).
 
@@ -151,16 +162,24 @@ logic in shell. Accepted with a reason: the base listing uses the head's `node_m
 dependency change that breaks the base config's loading fails the check (fail closed), and it is
 rare. Reported, not fixed: loop data from `src/` (#2150).
 
+A fresh read-only `/so` (separate cloud session) on head 9cc64d93 graded the diff C. Blocking: the
+full listing came back cut off through a pipe, so a helper or config change failed with no
+`Total:` line (it failed closed; no coverage leaked). Also: the plan job's 5-minute cap against an
+`npm ci` fallback, and the Playwright path never ran on Actions. Fixed: the listing goes to a file
+(reproduced and regression-tested above), and the check moved to the build job. Still true: this
+pull request touches no spec, so its own CI runs the check without a listing. The first pull
+request that touches a spec or helper is the first Actions run of that path, and it fails closed if
+anything there is wrong.
+
 `/simplify` (four reviewers: reuse, simplification, efficiency, altitude). Applied: the head and
 base listings and each config's listing run in parallel; one `git ls-tree` replaces a `cat-file`
 per spec; deletions have one source (`--name-status -M`); an unused `text` field is gone; the
 loop test has one `check` and one `commit` helper. Skipped, with the reason: importing
 `EXCEPTION_MAX_DAYS` from `e2e-capacity.mjs` (that module loads the planner, and the
-`--needs-playwright` step runs before `node_modules`), so `ENTRY_MAX_DAYS` stays a local 30 with
+check must not load the planner), so `ENTRY_MAX_DAYS` stays a local 30 with
 its source named; sharing `readMaintenance` with `readExceptions` (it would reshape unchanged code
-in `e2e-capacity.mjs`); always counting every spec (21 to 27 seconds on every pull request's critical
-path, against #2150's gap, which it would close; left to #2150); restoring `node_modules` on every
-change.
+in `e2e-capacity.mjs`); always counting every spec (about 15 seconds on every pull request, against
+#2150's gap, which it would close; left to #2150).
 
 ## Phase notes
 
@@ -174,8 +193,8 @@ change.
     evaluate loop bounds.
   - Plain `--list` output with the `Total:` cross-check, because the catalog config refuses
     `--reporter`.
-  - The check stays in the plan job, so the gate wiring is unchanged. `node_modules` is restored
-    only when the script says a count is needed.
+  - The check runs in the build job: dependencies are there, its cap is 15 minutes, it is off
+    the critical path, and the gate already requires it.
   - The 30-day window reuses the budget exceptions' limit instead of inventing a new one. The
     owner comes from the same `growth-ceilings.json` field the alarms use.
   - Legacy entries are not migrated. Each covered one landing that has already happened. Giving

@@ -114,6 +114,20 @@ test('removing one looped case fails the check, and a current entry lets it thro
   assert.equal(renamedOwner.status, 1, `an owner renamed in the same change does not count:\n${renamedOwner.stdout}`);
   assert.match(renamedOwner.stdout, /its owner "claude" is not the accountable owner \(miwco/);
 
+  // A listing of a few hundred kilobytes is read whole. Through a pipe it arrived cut off when
+  // Playwright exited (two runs of three at 3,000 cases), and the check failed on a missing Total.
+  const titles = Array.from({ length: 6000 }, (_, i) => `case number ${i} with a long descriptive title so the listing grows`);
+  writeFileSync(path.join(repo, 'e2e', '_many.ts'), `export const MANY = ${JSON.stringify(titles)};\n`);
+  writeFileSync(path.join(repo, 'e2e', 'many.spec.ts'), "import { test } from '@playwright/test';\nimport { MANY } from './_many';\nfor (const t of MANY) test(t, () => {});\n");
+  git('add', '-A');
+  commit('a large looped spec');
+  const manyBase = git('rev-parse', 'HEAD').trim();
+  writeFileSync(path.join(repo, 'e2e', '_many.ts'), `// touched\nexport const MANY = ${JSON.stringify(titles)};\n`);
+  commit('touch the helper');
+  const many = check(manyBase);
+  assert.equal(many.status, 0, `a large listing with nothing removed passes:\n${many.stdout}`);
+  assert.match(many.stdout, /every spec is counted/);
+
   // A base the check cannot diff fails the check instead of passing it.
   const missing = check('1234567890abcdef1234567890abcdef12345678');
   assert.equal(missing.status, 1, `an undiffable base fails:\n${missing.stdout}`);

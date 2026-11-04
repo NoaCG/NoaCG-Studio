@@ -2,14 +2,14 @@
 // gate: workflow ci.yml
 // guards: e2e/**, docs/work-specs/**/spec.md
 // PROTECTION IS REMOVED ON PURPOSE OR NOT AT ALL (docs/work-specs/e2e-suite-budget/spec.md,
-// decision 4). A change that takes coverage out of the merge gate - a spec file deleted, test
+// decision 4). A change that takes coverage out of the merge gate - a spec file deleted,
 // tests removed, an unconditional skip added, a per-test timeout raised past the gate's
 // ceiling - must carry a test-maintenance entry naming what stays protected and by what. Without
-// one the plan job fails and so does the gate.
+// one the build job fails and so does the gate.
 //
 //   node scripts/check-e2e-protection.mjs --changed <base> [--today YYYY-MM-DD]   # the diff this change makes
 //
-// Needs node_modules (Playwright counts the tests); ci.yml's plan job restores it when a spec changed.
+// Needs node_modules (Playwright counts the tests) and the base in history; ci.yml runs it in the build job.
 //
 // WHY. The suite budget work asks for tests to be moved, merged and retired, and the root auto-fix
 // rule says a repair never loosens a test, check or limit. Nothing mechanical told the two apart:
@@ -53,12 +53,11 @@
 // later removal from it through, by anyone, for ever. Lines stay on record after they lapse; an
 // expired or incomplete line fails only a change that relies on it, and the failure names the line,
 // its expiry and what to write instead.
-import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 
 import { alarmOwner } from './alarm-owner.mjs';
 import { measured } from './measured.mjs';
@@ -77,7 +76,30 @@ const UNCONDITIONAL_SKIP = /\btest\.(?:describe\.)?(?:skip|fixme)\(\s*(?:true\b|
 const TIMEOUT = /\btest\.setTimeout\(\s*([\d_]+)\s*\)/;
 const SLOW = /\btest\.slow\(\)/;
 const DAY_MS = 86_400_000;
-const run = promisify(execFile);
+
+/**
+ * Run a command with its stdout written to a file, and resolve with that text. Not through a pipe:
+ * Playwright exits as soon as it has listed, and a piped stdout of a few hundred kilobytes then
+ * arrives cut off (reproduced: 52,881 and 63,881 of 271,933 bytes, two runs of three).
+ */
+function runToFile(command, args, { cwd, env }) {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'e2e-protection-list-'));
+  const file = path.join(dir, 'out.txt');
+  const fd = openSync(file, 'w');
+  return new Promise((resolve, reject) => {
+    let stderr = '';
+    const child = spawn(command, args, { cwd, env, stdio: ['ignore', fd, 'pipe'], windowsHide: true });
+    child.stderr.on('data', (d) => { stderr += d; });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      closeSync(fd);
+      const stdout = readFileSync(file, 'utf8');
+      rmSync(dir, { recursive: true, force: true });
+      if (code === 0) resolve(stdout);
+      else reject(Object.assign(new Error(`exit ${code}`), { stdout, stderr }));
+    });
+  });
+}
 
 /**
  * Read a unified diff into per-file facts. Pure. Test counts are not read here: a diff cannot see a
@@ -187,10 +209,9 @@ export async function listCounts(tree, specs) {
   if (!existsSync(cli)) throw new Error(`no Playwright in ${tree}/node_modules: install dependencies first (npm ci)`);
   const listings = await Promise.all([...byConfig].map(async ([config, files]) => {
     try {
-      const { stdout } = await run(process.execPath, [cli, 'test', '--list', '--pass-with-no-tests', '--config', config, ...files], {
-        cwd: tree, encoding: 'utf8', maxBuffer: 1 << 28, windowsHide: true, env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
-      });
-      return [config, stdout];
+      return [config, await runToFile(process.execPath, [cli, 'test', '--list', '--pass-with-no-tests', '--config', config, ...files], {
+        cwd: tree, env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
+      })];
     } catch (e) {
       throw new Error(`playwright --list failed for ${files.join(', ') || 'every spec'} under ${config}: ${String(e.stderr || e.stdout || e.message).trim().split('\n').slice(0, 3).join(' ')}`, { cause: e });
     }
@@ -349,15 +370,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const today = value('--today') ?? new Date().toISOString().slice(0, 10);
   const base = value('--changed');
   if (!base || /^0{40}$/.test(base)) {
-    if (args.includes('--needs-playwright')) console.log('false');
-    else console.log('check-e2e-protection: no base to diff against - nothing to check.');
-    process.exit(0);
-  }
-  if (args.includes('--needs-playwright')) {
-    // For ci.yml: whether to restore node_modules before the check. Unsure means yes.
-    let needs = true;
-    try { needs = scope({ base }).needsPlaywright; } catch { /* the check itself reports it */ }
-    console.log(String(needs));
+    console.log('check-e2e-protection: no base to diff against - nothing to check.');
     process.exit(0);
   }
   let result;
