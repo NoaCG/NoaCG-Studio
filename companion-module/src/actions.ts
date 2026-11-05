@@ -4,7 +4,7 @@ import type {
 	CompanionInputFieldTextInput,
 	DropdownChoice,
 } from '@companion-module/base'
-import { VERB_NAMES, keyArgs, type PanelActions, type PanelVerb } from './protocol.js'
+import { VERB_NAMES, keyArgs, rowOf, type PanelActions, type PanelVerb } from './protocol.js'
 import type { PanelClient, PressOutcome } from './panel.js'
 import type ModuleInstance from './main.js'
 
@@ -39,9 +39,11 @@ export type GraphicKeyOptions = { graphic: string; cap: string; option: string; 
 const DESCRIPTIONS: Partial<Record<PanelVerb, string>> = {
 	take: 'The SPACE key on the answering page: takes the selected cue, or takes it off when it is on air.',
 	'all-out': 'Takes everything off air, like the header button on the production page.',
-	'take-cue': 'Airs this cue whatever the SPACE mode; pressed while it is on air, takes it off.',
-	'trigger-cue': 'Plays or restarts this cue, preserving selection and preview. Does not start a rundown sequence.',
-	'select-cue': 'Moves the selection to this cue. Nothing airs.',
+	'select-cue': 'Moves the selection to this cue. Nothing airs: the Take key airs it.',
+	'take-cue':
+		'Airs this cue at once, whatever the SPACE mode; pressed while it is on air, takes it off. The selection stays.',
+	'trigger-cue':
+		'Airs this cue at once, or restarts it if on air. The selection and PREVIEW stay. Does not start a rundown sequence.',
 }
 
 export function rowChoices(self: ModuleInstance): DropdownChoice<string>[] {
@@ -69,7 +71,10 @@ export function graphicChoices(actions: PanelActions | null): DropdownChoice<str
 export function capChoices(actions: PanelActions | null): DropdownChoice<string>[] {
 	const named = new Map<string, string[]>()
 	for (const g of actions?.graphics ?? [])
-		for (const c of g.caps) named.set(c.id, [...(named.get(c.id) ?? []), `${c.label} (${g.graphic})`])
+		for (const c of g.caps) {
+			const row = rowOf(g, c)
+			named.set(c.id, [...(named.get(c.id) ?? []), `${c.label}${row ? ` ${row}` : ''} (${g.graphic})`])
+		}
 	return [...named].map(([id, labels]) => ({ id, label: labels.join(', ') }))
 }
 
@@ -153,6 +158,10 @@ export function UpdateActions(self: ModuleInstance): void {
 		allowCustom: true,
 		minChoicesForSearch: 8,
 	}
+	// A folder row is there to be selected: the page refuses it for the other two. A key already saved
+	// keeps its row, since the option allows a custom value.
+	const cues = choices.filter((c) => self.panel.rows?.rows.some((r) => r.id === c.id && r.kind === 'cue'))
+	const cueOption = { ...rowOption, choices: cues, default: cues[0]?.id ?? '' }
 	self.setActionDefinitions({
 		...plain,
 		select_cue: {
@@ -166,7 +175,7 @@ export function UpdateActions(self: ModuleInstance): void {
 		take_cue: {
 			name: VERB_NAMES['take-cue'],
 			description: DESCRIPTIONS['take-cue'],
-			options: [rowOption],
+			options: [cueOption],
 			callback: async (event) => {
 				await self.press('take-cue', String(event.options.row))
 			},
@@ -174,12 +183,7 @@ export function UpdateActions(self: ModuleInstance): void {
 		trigger_cue: {
 			name: VERB_NAMES['trigger-cue'],
 			description: DESCRIPTIONS['trigger-cue'],
-			options: [
-				{
-					...rowOption,
-					choices: choices.filter((c) => self.panel.rows?.rows.some((r) => r.id === c.id && r.kind === 'cue')),
-				},
-			],
+			options: [cueOption],
 			callback: async (event) => {
 				await self.press('trigger-cue', String(event.options.row))
 			},

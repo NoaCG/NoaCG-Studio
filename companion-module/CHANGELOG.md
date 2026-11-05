@@ -8,7 +8,14 @@ Write a section the way you would tell an operator what they get by importing ag
 
 ## Unreleased
 
-- The Take key from Show control now says what its next press does: OUT on red when it takes the selected cue or folder off air, TAKE and the selected name when it takes a cue, also with another cue on air (on a One-by-one folder that name is the folder's, and the press takes its next cue), PREVIEW in the page's preview-first mode, and FROM THE TOP when a One-by-one folder has reached its end with no graphic up. A Take key already on your deck keeps its old words until you drag the preset onto it again.
+## 0.3.0 - 2026-11-05
+
+What to do: import the new file, then drag the **Take** preset from **Show control** onto your Take key again, and the **Take a cue now** preset onto any key of that kind, so they show the new words. Your other keys keep working as they are.
+
+- The Take key now says what its next press does: OUT on red when it takes the selected cue or folder off air, TAKE and the selected name when it takes a cue, also with another cue on air (on a One-by-one folder that name is the folder's, and the press takes its next cue), PREVIEW in the page's preview-first mode, and FROM THE TOP when a One-by-one folder has reached its end with no graphic up.
+- The **Pinned graphics** section always shows. Before, it stayed hidden until you pinned something; with nothing pinned it now says to pin a graphic's live controls on the open production page to get them here. **Cues** does the same before a page answers.
+- The cue keys follow the usual way of working: a **Select a cue** key picks the cue, then the Take key airs it. Select now comes first, and the section says how the other two differ. **Take a cue** is now **Take a cue now**, and it reads TAKE on the key, or OUT on red while its cue is on air, so it does not look like a Select key. A folder no longer offers one, because a folder could never be taken that way. **Trigger a cue** is now **Play now, keep selection**. What a press does has not changed.
+- A pinned score banner offers one set of controls: its own +1 and -1 keys, which play the point on air, and no longer a second key that moves its number the same way with nothing playing. A number keeps a key only for a step no action covers, like the -1 that corrects a goal on the football strip. To correct a figure silently where no key is left, add a **Graphic action** with its number and **Step**. A number's key already on your deck keeps working. This needs the production page from 2026-11-05 or later, so reload an open page; an older page still offers both.
 
 ## 0.2.0 - 2026-11-04
 

@@ -3,7 +3,7 @@ import type {
 	CompanionPresetSection,
 	CompanionPresetFeedback,
 } from '@companion-module/base'
-import type { PanelActions, PanelRow, PanelVerb } from './protocol.js'
+import { VERB_NAMES, rowOf, type PanelActions, type PanelRow, type PanelVerb } from './protocol.js'
 import { ACTION_VERBS, type GraphicKeyOptions } from './actions.js'
 import { AMBER, BLACK, DARK_AMBER, DIM, GREEN, GREY, RED, WHITE, type FeedbacksSchema } from './feedbacks.js'
 import type { ModuleSchema } from './main.js'
@@ -51,11 +51,17 @@ function graphicFeedbacks(o: GraphicKeyOptions, text: string): Feedback[] {
 	]
 }
 
+/** A preset's id, from what it presses and never its place in the list: Companion 5.1's Linked key
+ *  follows its preset by id, so a key must not become another control when the list changes. */
+const stableId = (...parts: string[]) => `graphic_${Buffer.from(JSON.stringify(parts)).toString('base64url')}`
+
 /**
  * THE PINNED GRAPHICS' LIVE CONTROLS AS KEYS (L1 AC-8): for each graphic pinned on the production's
  * pages, its block's controls in the block's order, a pick as one key per option and a number as
- * its -1 and +1. A pin decides only what is listed here: every graphic's actions stay pressable
- * through the Graphic action, and a saved key keeps working after its graphic is unpinned.
+ * its -1 and +1, leaving out a step an event of the graphic already presses (a score's +1 key is the
+ * event that plays the point, not the bare number). A pin decides only what is listed here: every
+ * graphic's actions stay pressable through the Graphic action, and a saved key keeps working after
+ * its graphic is unpinned or its step is left out here.
  */
 export function graphicPresets(
 	label: string,
@@ -64,10 +70,10 @@ export function graphicPresets(
 	const presets: Presets = {}
 	const groups: { id: string; name: string; ids: string[] }[] = []
 	const pinned = (actions?.graphics ?? []).filter((g) => g.pinned)
-	pinned.forEach((g, i) => {
+	for (const g of pinned) {
 		const ids: string[] = []
 		const key = (text: string, name: string, o: GraphicKeyOptions, extra: Feedback[] = []) => {
-			const id = `graphic_${i}_${ids.length}`
+			const id = stableId(o.graphic, o.cap, o.option, o.delta)
 			ids.push(id)
 			presets[id] = {
 				type: 'simple',
@@ -82,8 +88,8 @@ export function graphicPresets(
 			// A control the page says no panel can press gets no ready key.
 			if (!c.invocable) continue
 			if (c.kind === 'step') {
-				key(`-1\\n${c.label}`, `${c.label} -1`, { ...base, cap: c.id, delta: '-1' })
-				key(`+1\\n${c.label}`, `${c.label} +1`, { ...base, cap: c.id })
+				if (!c.covered?.includes(-1)) key(`-1\\n${c.label}`, `${c.label} -1`, { ...base, cap: c.id, delta: '-1' })
+				if (!c.covered?.includes(1)) key(`+1\\n${c.label}`, `${c.label} +1`, { ...base, cap: c.id })
 			} else if (c.options?.length) {
 				for (const opt of c.options)
 					key(`${opt.label}`, `${c.label}: ${opt.label}`, { ...base, cap: c.id, option: opt.value }, [
@@ -93,16 +99,32 @@ export function graphicPresets(
 							style: { bgcolor: GREEN, color: WHITE },
 						},
 					])
-			} else key(c.label, c.label, { ...base, cap: c.id })
+			} else {
+				const row = rowOf(g, c)
+				key(row ? `${c.label}\\n${row}` : c.label, row ? `${c.label} ${row}` : c.label, { ...base, cap: c.id })
+			}
 		}
-		groups.push({ id: `graphic_${i}`, name: g.graphic, ids })
-	})
+		if (ids.length > 0) groups.push({ id: stableId(g.graphic), name: g.graphic, ids })
+	}
 	return { presets, groups }
 }
 
+/** Companion hides a section with no keys, and with it the section's description. A template group
+ *  with no values draws no key and keeps the section, so its description can say how to get keys. */
+const noKeysYet = (id: string): CompanionPresetSection<ModuleSchema>['definitions'] => [
+	{
+		id: `${id}_none`,
+		type: 'template',
+		name: '',
+		presetId: 'status',
+		templateVariableName: 'none',
+		templateValues: [],
+	},
+]
+
 /**
- * The ready keys an operator drags onto the grid: the transport, the clip clock, one Take and one
- * Select key per rundown row, one Trigger key per cue, and the pinned graphics' live controls,
+ * The ready keys an operator drags onto the grid: the transport, the clip clock, one Select key per
+ * rundown row, one Take and one Play now key per cue, and the pinned graphics' live controls,
  * rebuilt whenever the production's rows or the graphics' controls change.
  */
 export function buildPresets(
@@ -187,37 +209,54 @@ export function buildPresets(
 	const triggerIds: string[] = []
 	for (const row of rows) {
 		const name = row.kind === 'folder' ? `Folder: ${row.label}` : row.label
-		const tally: Feedback[] = [
+		const tally = (onAir: { text?: string } = {}): Feedback[] => [
 			{ feedbackId: 'selected', options: { row: row.id }, style: { bgcolor: GREEN, color: WHITE } },
-			{ feedbackId: 'on_air', options: { row: row.id }, style: { bgcolor: RED, color: WHITE } },
+			{ feedbackId: 'on_air', options: { row: row.id }, style: { bgcolor: RED, color: WHITE, ...onAir } },
 		]
-		// Trigger plays or restarts a cue by its own row id and leaves the selection alone; a folder
-		// has nothing to play, so only cues get one.
+		// A folder row is there to be selected. Only a cue can be taken or played by its own row id, which
+		// leaves the selection alone. Take names its next press, as the Show control Take does.
 		const keys = [
-			{ verb: 'take-cue', ids: takeIds, prefix: 'take', title: 'Take', action: 'take_cue', text: row.label },
-			{ verb: 'select-cue', ids: selectIds, prefix: 'select', title: 'Select', action: 'select_cue', text: row.label },
+			{
+				verb: 'select-cue',
+				ids: selectIds,
+				prefix: 'select',
+				title: `Select ${name}`,
+				action: 'select_cue',
+				text: row.label,
+				onAir: {},
+			},
 			...(row.kind === 'cue'
 				? [
+						{
+							verb: 'take-cue',
+							ids: takeIds,
+							prefix: 'take',
+							title: `Take ${name} now`,
+							action: 'take_cue',
+							text: `TAKE\\n${row.label}`,
+							onAir: { text: `OUT\\n${row.label}` },
+						} as const,
 						{
 							verb: 'trigger-cue',
 							ids: triggerIds,
 							prefix: 'trigger',
-							title: 'Trigger',
+							title: `Play ${name} now, keep selection`,
 							action: 'trigger_cue',
 							text: `\u25B6 ${row.label}`,
+							onAir: {},
 						} as const,
 					]
 				: []),
 		] as const
-		for (const { verb, ids, prefix, title, action, text } of keys) {
+		for (const { verb, ids, prefix, title, action, text, onAir } of keys) {
 			const id = `${prefix}_${row.id}`
 			ids.push(id)
 			presets[id] = {
 				type: 'simple',
-				name: `${title} ${name}`,
+				name: title,
 				style: { text, size: 'auto', color: WHITE, bgcolor: BLACK },
 				steps: [{ down: [{ actionId: action, options: { row: row.id } }], up: [] }],
-				feedbacks: [...tally, ...verbFeedbacks(verb, row.id), ...statusFeedbacks(label)],
+				feedbacks: [...tally(onAir), ...verbFeedbacks(verb, row.id), ...statusFeedbacks(label)],
 			}
 		}
 	}
@@ -242,21 +281,25 @@ export function buildPresets(
 			id: 'cues',
 			name: 'Cues',
 			description: rows.length
-				? "Take, Select and Trigger keys for each cue of this production's rundown: red on air, green selected."
-				: 'The cues appear here once an operator page answers the panel.',
-			definitions: [
-				{ id: 'take_cues', type: 'simple', name: 'Take a cue', presets: takeIds },
-				{ id: 'select_cues', type: 'simple', name: 'Select a cue', presets: selectIds },
-				{ id: 'trigger_cues', type: 'simple', name: 'Trigger a cue', presets: triggerIds },
-			],
+				? 'Select a cue, then press Take in Show control. The other two go straight to air and keep the selection: Take a cue now takes it off on a second press, Play now restarts it. Red on air, green selected.'
+				: 'The cues of your rundown appear here while an operator page answers the panel.',
+			definitions: rows.length
+				? [
+						{ id: 'select_cues', type: 'simple', name: VERB_NAMES['select-cue'], presets: selectIds },
+						{ id: 'take_cues', type: 'simple', name: VERB_NAMES['take-cue'], presets: takeIds },
+						{ id: 'trigger_cues', type: 'simple', name: VERB_NAMES['trigger-cue'], presets: triggerIds },
+					]
+				: noKeysYet('cues'),
 		},
 		{
 			id: 'graphics',
 			name: 'Pinned graphics',
 			description: graphics.groups.length
-				? "The live controls of each graphic pinned on the production page. They act on that graphic's cue on air."
-				: 'Pin a graphic on the production page to list its live controls here.',
-			definitions: graphics.groups.map((g) => ({ id: g.id, type: 'simple' as const, name: g.name, presets: g.ids })),
+				? "The live controls of each graphic pinned on the production page. They go straight to air, on that graphic's cue on air."
+				: "Pin a graphic's live controls on the open production page to get them here.",
+			definitions: graphics.groups.length
+				? graphics.groups.map((g) => ({ id: g.id, type: 'simple' as const, name: g.name, presets: g.ids }))
+				: noKeysYet('graphics'),
 		},
 	]
 	return { structure, presets }

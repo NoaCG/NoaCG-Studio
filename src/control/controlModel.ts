@@ -343,6 +343,8 @@ export interface ArrangedControl {
   button: ControlButton;
   /** The word the operator reads: the profile's `name`, else the control's declared label. */
   label: string;
+  /** The section it belongs to before a pin or More lifts it out: the profile's, else its own. */
+  home?: string;
   /** The label names a field the surface reads from air ("+1 ANNA"), so the button holds a fixed
    *  slot. False once the production renamed it: the word is then the operator's own. */
   named: boolean;
@@ -434,6 +436,7 @@ export function arrangeControls(
       button,
       label: entry.name || button.label,
       named: !!button.labelTemplate && !entry.name,
+      home: entry.section || button.section,
       section: entry.section || button.section || 'Actions',
       hidden: entry.hidden === true,
       pinned: entry.hidden !== true && entry.pinned === true,
@@ -457,7 +460,7 @@ export function arrangeControls(
   const sections: [string, ArrangedControl[]][] = [];
   for (const r of resolved) {
     const options = pick?.(r.button);
-    const control: ArrangedControl = options ? { button: r.button, label: r.label, named: r.named, options } : { button: r.button, label: r.label, named: r.named };
+    const control: ArrangedControl = { button: r.button, label: r.label, named: r.named, ...(r.home ? { home: r.home } : {}), ...(options ? { options } : {}) };
     if (r.hidden) {
       more.push(control);
       continue;

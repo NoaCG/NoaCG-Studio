@@ -44,8 +44,8 @@ export const VERB_NAMES: Record<PanelVerb, string> = {
 	'pause-toggle': 'Pause or resume the clip on air',
 	'all-out': 'All out',
 	'select-cue': 'Select a cue',
-	'take-cue': 'Take a cue',
-	'trigger-cue': 'Trigger a cue',
+	'take-cue': 'Take a cue now',
+	'trigger-cue': 'Play now, keep selection',
 }
 
 /** The press as the module sends it. */
@@ -320,6 +320,8 @@ export interface Capability {
 	note?: string
 	/** False for a control the page says a panel cannot press: shown, never pressed. */
 	invocable: boolean
+	/** A number's steps (-1, 1) an event of this graphic already presses: no ready key for them. */
+	covered?: number[]
 }
 
 export interface ActionGraphic {
@@ -405,6 +407,7 @@ export function readActions(p: unknown): PanelActions | 'newer' | null {
 				allowed: invocable && c.allowed === true,
 				...(typeof c.note === 'string' && c.note ? { note: c.note } : {}),
 				invocable,
+				...(Array.isArray(c.covered) ? { covered: c.covered.filter((n) => n === 1 || n === -1) } : {}),
 			})
 		}
 		graphics.push({
@@ -540,15 +543,29 @@ export function keyArgs(
 	return fault ? { refused: fault } : { args: parsed }
 }
 
+/** The row that tells a control from another of the same words: an imported score tracker's rows all
+ *  read +1 and -1. Empty when its label says enough. */
+export function rowOf(g: ActionGraphic, c: Capability): string {
+	return c.section && g.caps.filter((x) => x.kind !== 'step' && x.label === c.label).length > 1 ? c.section : ''
+}
+
 /** What a graphic key shows of its capability's offer, for redefining presets and choices: the
- *  graphics, their pins and their capabilities' ids, labels and options, never what moves live. */
+ *  graphics, their pins and their capabilities' ids, labels, options, sections and covered steps, never what
+ *  moves live. */
 export function offerShape(actions: PanelActions | null): string {
 	if (!actions) return ''
 	return JSON.stringify(
 		actions.graphics.map((g) => [
 			g.graphic,
 			g.pinned,
-			g.caps.map((c) => [c.id, c.label, c.invocable, c.options?.map((o) => [o.value, o.label]) ?? null]),
+			g.caps.map((c) => [
+				c.id,
+				c.label,
+				c.invocable,
+				c.options?.map((o) => [o.value, o.label]) ?? null,
+				c.section ?? null,
+				c.covered ?? null,
+			]),
 		]),
 	)
 }

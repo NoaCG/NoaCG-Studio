@@ -400,8 +400,8 @@ const VERB_WORDS: Record<PanelVerb, string> = {
   'pause-toggle': 'Pause or resume',
   'all-out': 'All out',
   'select-cue': 'Select a cue',
-  'take-cue': 'Take a cue',
-  'trigger-cue': 'Trigger a cue',
+  'take-cue': 'Take a cue now',
+  'trigger-cue': 'Play now, keep selection',
 };
 
 export function verbWords(verb: PanelVerb): string {

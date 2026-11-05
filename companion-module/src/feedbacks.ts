@@ -45,7 +45,7 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 	}
 	const forRow = {
 		...rowOrSelected,
-		label: 'Cue (for Select a cue and Take a cue)',
+		label: 'Cue (for the keys of one cue)',
 		choices: [{ id: '', label: 'None' }, ...rows],
 		default: '',
 	}

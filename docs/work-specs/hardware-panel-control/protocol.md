@@ -351,6 +351,8 @@ calls `panel_hello`, so a missed `actions` event is sent again (§7.1).
 | `caps[].args` | the argument object's schema in E1's typed model (`src/model/ografTyped.ts` `TypedNode`), or null |
 | `allowed`, `note` | the page's own greying of that control, and why not |
 | `invocable` | false for a control a panel cannot press (a foreign action whose arguments this version does not carry, or any foreign action from a page before E6.2): shown, refused `not-here` |
+| `section` | the section it is drawn in, or for a `pinned` or `more` control the section it belongs to; a module's key names it when two controls of the graphic read the same |
+| `covered` | on a `step:` capability only, when an event of the graphic moves that figure and nothing else by the same amount: the steps (`-1`, `1`) that event already presses. A module leaves those steps out of its ready keys. They stay pressable, so a saved key keeps working. Absent from an older page, and an older module ignores it |
 
 A foreign OGraf action (`foreign:<action id>`, E6.2) is offered for each typed ⚡ button its
 graphic's block draws, under the block's label and place, with the manifest's argument schema. Its

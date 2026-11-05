@@ -373,7 +373,7 @@ test("L1 AC-8: presets list the pinned graphics' live controls only, picks as op
 			['Quiz', ['Reveal (Quiz)', 'Answer: Answer A (Quiz)', 'Answer: Answer B (Quiz)']],
 		],
 	)
-	const answerB = presets['graphic_1_2'] as {
+	const answerB = presets[groups[1].ids[2]] as {
 		steps: { down: { actionId: string; options: unknown }[] }[]
 		feedbacks: { feedbackId: string }[]
 	}
@@ -407,7 +407,7 @@ test("L1 AC-8: presets list the pinned graphics' live controls only, picks as op
 	)
 	assert.equal(
 		buildPresets('noacg', [], null).structure.at(-1)!.description,
-		'Pin a graphic on the production page to list its live controls here.',
+		"Pin a graphic's live controls on the open production page to get them here.",
 	)
 })
 
