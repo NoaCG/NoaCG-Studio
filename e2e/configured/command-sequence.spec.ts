@@ -9,7 +9,7 @@
 // covers: src/control/seqSend.ts, src/control/seqFollow.ts, src/control/hostedControl.ts
 // covers: src/output/main.ts, src/components/HostedControlPage.tsx, src/control/commandRoads.ts
 // covers: supabase/migrations/0069_control_heads.sql, supabase/migrations/0070_seq_topic.sql
-// covers: supabase/migrations/0071_command_sequence.sql
+// covers: supabase/migrations/0071_command_sequence.sql, supabase/migrations/0109_seq_head_announce.sql
 // covers: src/control/liveCue.ts, src/control/cueItems.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
@@ -434,14 +434,43 @@ test('a press of several batches never undoes a later press, and nothing pressed
 });
 
 /**
- * Stand between one page and Realtime, passing every frame through, with two faults on demand:
+ * Stand between one page and Realtime, passing every frame through, with three faults on demand:
  * `refuseFirst(prefix)` answers the first join of a topic starting with `prefix` with an error (a
- * passing failure: a playout box whose network is not up yet, a slow authorisation), and
+ * passing failure: a playout box whose network is not up yet, a slow authorisation),
  * `close(prefix)` sends the page a server close of that topic's channel, as Realtime does when a
- * channel exceeds its Presence rate limit.
+ * channel exceeds its Presence rate limit, and `dropBroadcasts(prefix, event)` loses every
+ * broadcast of that event on such a topic until it is called with an empty prefix.
  */
 async function realtimeFaults(page: Page) {
-  const faults = { refuse: '' as string, refused: 0, closed: 0 };
+  const faults = { refuse: '' as string, refused: 0, closed: 0, drop: { prefix: '', event: '' }, dropped: 0 };
+  /** Is this server message a broadcast `faults.drop` names? Realtime sends a broadcast as text
+   *  (`[joinRef, ref, topic, 'broadcast', {event, payload}]`, or the v1 object) or as a binary
+   *  frame (kind 4, then the topic's and the event's lengths; realtime-js serializer.js). */
+  const dropped = (message: string | Buffer): boolean => {
+    const { prefix, event } = faults.drop;
+    if (!prefix) return false;
+    let topic: unknown;
+    let name: unknown;
+    if (typeof message === 'string') {
+      try {
+        const m = JSON.parse(message) as unknown;
+        const [, , t, e, payload] = Array.isArray(m)
+          ? (m as unknown[])
+          : [null, null, (m as { topic?: unknown }).topic, (m as { event?: unknown }).event, (m as { payload?: unknown }).payload];
+        if (e !== 'broadcast') return false;
+        topic = t;
+        name = (payload as { event?: unknown } | null)?.event;
+      } catch {
+        return false;
+      }
+    } else {
+      if (message.length < 5 || message[0] !== 4) return false;
+      const topicEnd = 5 + message[1];
+      topic = message.subarray(5, topicEnd).toString('utf8');
+      name = message.subarray(topicEnd, topicEnd + message[2]).toString('utf8');
+    }
+    return typeof topic === 'string' && topic.startsWith(`realtime:${prefix}`) && name === event;
+  };
   /** Per joined topic, its join ref and whether the page speaks the array (v2) wire format. */
   const joined = new Map<string, { joinRef: unknown; array: boolean }>();
   let toPage: ((message: string) => void) | null = null;
@@ -472,10 +501,19 @@ async function realtimeFaults(page: Page) {
       }
       server.send(message);
     });
-    server.onMessage((message) => ws.send(message));
+    server.onMessage((message) => {
+      if (dropped(message)) {
+        faults.dropped += 1;
+        return;
+      }
+      ws.send(message);
+    });
   });
   return {
     faults,
+    dropBroadcasts: (prefix: string, event: string) => {
+      faults.drop = { prefix, event };
+    },
     refuseFirst: (prefix: string) => {
       faults.refuse = prefix;
     },
@@ -521,6 +559,46 @@ test('a renderer whose first numbered join fails joins again within seconds, and
   expect(tookMs, 'the Take reached air within the quick retry, not the 15 s backoff or the 30 s poll').toBeLessThan(8_000);
   expect(realtime.faults.refused).toBe(1);
   await expect(air.locator('pre')).toContainText('realtime: following');
+
+  await air.unrouteAll({ behavior: 'ignoreErrors' });
+  await Promise.all([op.close(), air.close()]);
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+});
+
+// A FRAME LOST WITH NO LATER ROW (#1802, migration 0109). A follower finds a lost frame from the
+// gap in front of the next one, and the last write before a production goes quiet has no next one:
+// before 0109 it waited for the 30 s poll, past the 10 s ceiling a bound field is held to. Here the
+// renderer loses every `batch` frame from the Take on, so nothing but the database's head
+// announcement can tell it, and the Take is pressed just after a tail read, so no poll is near.
+// Red without either half: with no announcement, or a renderer that ignores it, the Take airs at the
+// poll.
+test('a Take whose frame the renderer lost, with nothing after it, airs within the 10 s ceiling', async ({ page }) => {
+  test.setTimeout(300_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
+  await clearPublishedShows(page);
+  const { hosted, output } = await publishScorebug(page, `Lost Frame ${Date.now()}`);
+  const op = await openOperator(page, hosted);
+
+  const air = await page.context().newPage();
+  const realtime = await realtimeFaults(air);
+  await air.goto(`/output?production=${encodeURIComponent(output)}&debug=1`);
+  await expect(air.locator('pre')).toContainText('protocol: numbered log', { timeout: 60_000 });
+  await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
+  // A tail read (the join's refill, or failing that a 30 s poll tick): the next tick is then at
+  // least 25 s away, so a Take that airs inside 10 s was not brought by the poll.
+  await air.waitForRequest(/\/rpc\/control_output_tail_seq\b/, { timeout: 45_000 });
+
+  realtime.dropBroadcasts('seq-', 'batch');
+  const pressedAt = Date.now();
+  await op.getByTestId('hosted-take-cue').click();
+  await expect.poll(() => airPlays(air), { timeout: 45_000 }).toBe('1');
+  const tookMs = Date.now() - pressedAt;
+  realtime.dropBroadcasts('', '');
+  expect(realtime.faults.dropped, 'the Take\'s frame was lost on its way to the renderer').toBeGreaterThan(0);
+  expect(tookMs, 'the lost Take reached air at the head announcement, not at the 30 s poll').toBeLessThan(10_000);
 
   await air.unrouteAll({ behavior: 'ignoreErrors' });
   await Promise.all([op.close(), air.close()]);
