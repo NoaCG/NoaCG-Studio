@@ -476,6 +476,7 @@ test('published: a press answer older than a read already held is passed over, a
   t.answers.slugPatches[0].resolve({ home: 2, away: 0 });
   assert.equal(await press, true, 'the press itself landed');
   assert.deepEqual(t.session.data.get().liveData, { home: 2, away: 3 }, 'the press answer is older than the read held');
+  assert.equal(t.calls.fetched.length, 3, 'a write answer passed over is followed by a fresh read');
   const next = t.data.patchBoundValues([{ path: 'home', text: '3', verb: 'adjust' }]);
   t.answers.slugPatches[1].resolve({ home: 3, away: 3 });
   await next;
@@ -491,6 +492,34 @@ test('published: an owner edit answer older than a read already held is passed o
   t.answers.patches[0].resolve({ home: 5, clock: '10:00' });
   await flush();
   assert.deepEqual(t.session.data.get().liveData, { home: 5, clock: '10:01' });
+});
+
+test('published: a write answer passed over reads again, since an unbound edit appends no row to start one (#1572)', async () => {
+  const t = await publishedWith({ note: 'a' });
+  void t.data.refresh(); // left before the edit landed: it answers the old value
+  t.data.setLiveData({ note: 'b' });
+  void t.data.refresh();
+  t.answers.fetches[2].resolve({ data: { note: 'a' } });
+  await flush();
+  t.answers.patches[0].resolve({ note: 'b' });
+  await flush();
+  assert.equal(t.calls.fetched.length, 4, 'the passed-over answer asks again');
+  t.answers.fetches[3].resolve({ data: { note: 'b' } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { note: 'b' });
+  assert.equal(t.calls.fetched.length, 4, 'a read answer passed over asks nothing more');
+});
+
+test('published: an edit that changes nothing sends nothing and never passes over the first read (#1572)', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.data.setLiveData({}); // Clear before the first read answered
+  assert.equal(t.calls.patched.length, 0);
+  t.answers.fetches[0].resolve({ data: { home: 1 } });
+  await flush();
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 1 }, dataKey: 'key-1', treeRead: true });
 });
 
 test('published: a read that left before a press cannot undo the press on screen (#1572)', async () => {
