@@ -1,5 +1,6 @@
 // covers: src/templates/importedDesign/svg.ts, src/control/contentFormats.ts
 // covers: e2e/fixtures/jev-svg/qualification/multiline.svg
+// covers: src/templates/importedDesign/artworkFields.ts, src/assets/svgImport.ts
 //
 // A LINKED MULTILINE SVG FIELD ON AIR (jev-svg-import row 24, AC-14 and AC-24). An imported
 // design's text layer follows a Sheet through the existing keyed-values adapter, and a refresh
@@ -14,6 +15,9 @@
 // serves a sign-in page; each is said on the source line, writes nothing, and the field keeps its
 // last good lines with its motion running. The next good read reconnects with the newest lines.
 // No model is asked anything on the way.
+//
+// Typed in the product (#2079, #2078): the stacked body is a multi-line box in the cue editor, an
+// operator's Enter is a line on air, and a long value stays inside the drawn plate.
 
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
@@ -31,6 +35,12 @@ function onAir(el: Element): string[] {
   if (painted.length) return painted;
   const text = (el.textContent ?? '').trim();
   return text ? [text] : [];
+}
+
+/** Where a bound block paints: from where it was drawn, never past its plate's right edge. */
+function insidePlate(el: Element) {
+  const b = (el as SVGTextElement).getBBox();
+  return { inside: b.x === 85 && b.x + b.width <= 1055, x: b.x, right: b.x + b.width };
 }
 
 async function stubSheet(page: Page, rows: string[][]) {
@@ -85,18 +95,14 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   // The LINES on air, in order. A line break in the Sheet is a line of its own on air (#1977): the
   // ladder wraps and shrinks within and across those lines, and never reflows them into one.
   const lines = () => body.evaluate(onAir);
-  // The block starts where it was drawn and stays inside the artwork's frame (0 to 1100). Where
-  // the ladder sets its room on this drawing is the import's own rule, not this row's (#2078).
-  const inside = () => body.evaluate((el) => {
-    const b = (el as SVGTextElement).getBBox();
-    return { inside: b.x === 85 && b.x + b.width <= 1100, x: b.x, right: b.x + b.width };
-  });
+  // The block starts where it was drawn and stays inside its plate (x 45 to 1055, #2078).
+  const inside = () => body.evaluate(insidePlate);
 
   // REPLACE: three new lines arrive as three lines, in the drawn look, and nothing replays.
   const before = await motion();
   sheet.set(tabOf('Doors open at 19:00\nEntry from the main gate\nTickets at the door'));
   await expect.poll(lines, { timeout: 20_000, message: 'the refresh reached air' }).toEqual(['Doors open at 19:00', 'Entry from the main gate', 'Tickets at the door']);
-  expect(await inside(), 'where it was drawn, inside the frame').toMatchObject({ inside: true });
+  expect(await inside(), 'where it was drawn, inside the plate').toMatchObject({ inside: true });
   expect(await look(), 'the drawn styling is kept').toEqual(drawn);
   const after = await motion();
   expect(after.active, 'the motion beside the text still runs').toBe(true);
@@ -185,4 +191,35 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
     await page.context().unrouteAll({ behavior: 'ignoreErrors' });
     await fake.close();
   }
+});
+
+test('an operator types line breaks into the imported multiline field, and they reach air as lines inside the plate', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/app');
+  await dropSvg(page, NOTICE_SVG);
+  await intoProduction(page, 'Notice', 'Notice night');
+  await settleDurableWrites(page);
+
+  // The drawn stacked body is a multi-line box (#2079); the one-line title stays one line.
+  const field = page.getByTestId('cue-field-f1');
+  await expect(field).toHaveJSProperty('tagName', 'TEXTAREA');
+  await expect(page.getByTestId('cue-field-f0')).toHaveJSProperty('tagName', 'INPUT');
+  // Typed, with Enter between the lines: the breaks are the operator's own.
+  await field.fill('');
+  await field.pressSequentially('Doors open at 19:00');
+  await field.press('Enter');
+  await field.pressSequentially('Tickets at the door');
+  await expect(field).toHaveValue('Doors open at 19:00\nTickets at the door');
+
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('action-log')).toContainText('Took');
+  const body = page.frameLocator('[data-testid="program-stage"] iframe').locator('#f1');
+  await expect.poll(() => body.evaluate(onAir), { timeout: 20_000 }).toEqual(['Doors open at 19:00', 'Tickets at the door']);
+  expect(await body.evaluate(insidePlate)).toMatchObject({ inside: true });
+
+  // A long value with no break wraps or shrinks inside the plate rather than running past it (#2078).
+  await field.fill('Doors open at 19:00 Entry from the main gate Tickets at the door Step-free access on the east side');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(() => body.evaluate((el) => el.textContent ?? ''), { timeout: 20_000 }).toContain('east side');
+  expect(await body.evaluate(insidePlate), 'the long line stays inside the plate').toMatchObject({ inside: true });
 });
