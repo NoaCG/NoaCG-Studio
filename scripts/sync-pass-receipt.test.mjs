@@ -20,16 +20,17 @@ function load(file, stubs, window = new EventTarget(), timers = []) {
   vm.runInNewContext(compiled, { exports, require: name => {
     assert.ok(name in stubs, `unexpected dependency: ${name}`);
     return stubs[name];
-  }, window, CustomEvent: Event, setTimeout: fn => timers.push(fn), clearTimeout: () => {} });
+  }, window, CustomEvent: Event, setTimeout: (fn, ms) => timers.push(Object.assign(fn, { ms })), clearTimeout: () => {} });
   return exports;
 }
-function controller() {
+function controller(timers = []) {
   const window = new EventTarget(), passes = [];
   let user = 'owner', auth;
   const noop = () => {};
   const stubs = {
     './config': { isBackendConfigured: () => true },
-    './pacing': { focusPassDue: () => true },
+    './pacing': { focusPassDue: () => true, backoffDelay: (failures, base, max) => Math.min(max, base * 2 ** (failures - 1)) },
+    './supabase': { CLOUD_NO_ANSWER: 'no answer', cloudFailureWords: (message) => (/did not answer/.test(message) ? 'no answer' : message) },
     './auth': { getSignedInUserId: async () => user, subscribeAuth: cb => { auth = cb; }, consumeDeliberateSignOut: () => true },
     './accountLibrary': { followLibraryChangesInOtherTabs: noop },
     '../model/durableStore': { libraryInUse: () => 'owner', canAuthorAccount: () => true,
@@ -43,7 +44,7 @@ function controller() {
     '../model/videoProject': { purgeOldVideoTombstones: noop },
     '../model/library': { purgeOldGraphicTombstones: noop },
   };
-  const api = load('syncController', stubs, window);
+  const api = load('syncController', stubs, window, timers);
   api.startAutoSync();
   return { api, passes, edit: () => window.dispatchEvent(new Event('spx-data-changed')),
     signOut() { user = null; auth({ status: 'signed-out' }); } };
@@ -96,6 +97,31 @@ test('coalesced callers released without a runnable next pass receive no complet
   assert.equal((await first).completed, false);
   assert.equal((await second).completed, false);
   assert.equal(h.passes.length, 1);
+});
+
+test('a pass the cloud did not answer tries again by itself, later each time, until one is answered (#2154)', async () => {
+  const timers = [], h = controller(timers);
+  // The debounce after an edit is shorter; what waits a retry's base or longer is a retry.
+  const retries = () => timers.filter((fn) => fn.ms >= 15_000).map((fn) => fn.ms);
+  void h.api.syncNow();
+  await tick(); h.passes[0].resolve({ failures: [{ kind: 'look', name: 'A', message: 'Cloud get(look) failed: The cloud did not answer.' }], unanswered: true });
+  await tick(); assert.deepEqual(retries(), [15_000]);
+  timers.at(-1)(); await tick();
+  assert.equal(h.passes.length, 2, 'the retry runs a pass with nobody pressing');
+  h.passes[1].reject(new Error('Cloud list(look) failed: AbortError: The cloud did not answer.'));
+  await tick(); assert.deepEqual(retries(), [15_000, 30_000]);
+  timers.at(-1)(); await tick();
+  h.passes[2].resolve(result());
+  await tick(); assert.equal(h.api.getSyncState().phase, 'synced');
+  assert.deepEqual(retries(), [15_000, 30_000], 'an answered pass arms nothing');
+});
+
+test('a pass that failed for another reason waits for its usual triggers', async () => {
+  const timers = [], h = controller(timers);
+  void h.api.syncNow();
+  await tick(); h.passes[0].reject(new Error('Browser storage is full'));
+  await tick(); assert.equal(h.api.getSyncState().phase, 'error');
+  assert.deepEqual(timers.filter((fn) => fn.ms >= 15_000), []);
 });
 
 function lookup() {

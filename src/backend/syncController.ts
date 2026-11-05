@@ -5,7 +5,8 @@
 // untouched.
 
 import { isBackendConfigured } from './config';
-import { focusPassDue } from './pacing';
+import { backoffDelay, focusPassDue } from './pacing';
+import { CLOUD_NO_ANSWER, cloudFailureWords } from './supabase';
 import { consumeDeliberateSignOut, getSignedInUserId, subscribeAuth } from './auth';
 import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './accountLibrary';
 import { canAuthorAccount, changeSyncedElsewhere, commitDurableWrites, libraryInUse, markOwnWritesSynced, setAccountAuthoringEnabled } from '../model/durableStore';
@@ -105,6 +106,18 @@ let confirmedRevision = -1;
 let sessionEpoch = 0;
 let checkedThisPage = false;
 
+/** After a pass the cloud did not answer, the next one goes by itself, from 15 s up to 2 min, so
+ *  the chip settles once the cloud is back without anybody pressing Sync now (#2154). Any pass that
+ *  starts sooner takes its place. */
+const RETRY_MS = 15_000;
+const MAX_RETRY_MS = 120_000;
+let unansweredPasses = 0;
+let retry: ReturnType<typeof setTimeout> | undefined;
+function retryIfUnanswered(unanswered: boolean): void {
+  unansweredPasses = unanswered ? unansweredPasses + 1 : 0;
+  if (unanswered) retry = setTimeout(() => void syncNow(), backoffDelay(unansweredPasses, RETRY_MS, MAX_RETRY_MS));
+}
+
 
 /**
  * Callers who asked for a sync WHILE ONE WAS ALREADY RUNNING, waiting to be told that a pass
@@ -168,6 +181,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
     });
   }
   running = true;
+  clearTimeout(retry);
   if (debounce) clearTimeout(debounce);
   debounce = null;
   const startedRevision = revision;
@@ -215,6 +229,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
       }
     }
     if (epoch !== sessionEpoch) return unavailable;
+    retryIfUnanswered(result.unanswered === true);
     // Completed reads answer this caller even when a newer revision queues another pass.
     receipt = { completed: true };
     if (result.failures.length > 0) {
@@ -243,7 +258,11 @@ export async function syncNow(): Promise<SyncPassReceipt> {
     }
   } catch (e) {
     // A pass that throws never moved the bookmark, so a first pass is still owed.
-    if (epoch === sessionEpoch) setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e), firstPass });
+    if (epoch === sessionEpoch) {
+      const detail = e instanceof Error ? e.message : String(e);
+      setState({ phase: 'error', detail, firstPass });
+      retryIfUnanswered(cloudFailureWords(detail) === CLOUD_NO_ANSWER);
+    }
   } finally {
     running = false;
     answer(answered, receipt);
