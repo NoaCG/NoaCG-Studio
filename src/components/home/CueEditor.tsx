@@ -412,17 +412,23 @@ function CueConnectReview({
   const reuseFile = async (source: { id: string; config: { name: string; format: FileFormat } }) => {
     // Any read still in flight lands nowhere: this pick's answer, or its refusal, is the one shown.
     cancelRead();
+    // Another choice made while Chrome asks (a newer read) makes this one land nowhere.
+    const no = readNo.current;
     const handle = await loadFileHandle(source.id);
+    if (no !== readNo.current) return;
     if (!handle) return setRead({ error: `This computer has not chosen ${source.config.name}`, fix: 'Use Local file… to choose it here.' });
-    if (!(await allowFile(source.id))) return setRead({ error: `Chrome did not allow reading ${source.config.name}`, fix: 'Choose it again and press Allow.' });
+    const allowed = await allowFile(source.id);
+    if (no !== readNo.current) return;
+    if (!allowed) return setRead({ error: `Chrome did not allow reading ${source.config.name}`, fix: 'Choose it again and press Allow.' });
     void readFile({ name: source.config.name, format: source.config.format, handle });
   };
   /** Local file…: Chrome's picker, then the one-button Connect on what it read (#2184). */
   const chooseFile = async () => {
     cancelRead();
     setReading(false);
+    const no = readNo.current;
     const picked = await pickFile();
-    if (!picked) return;
+    if (!picked || no !== readNo.current) return;
     if ('error' in picked) return setRead({ error: picked.error, fix: 'Choose a .csv or .xlsx file.' });
     setReuse(null);
     setLinkText('');

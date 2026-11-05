@@ -1823,6 +1823,8 @@ async function stubFilePicker(page: Page): Promise<void> {
       kind: 'file',
       queryPermission: async () => localStorage.getItem('e2e-file-permission') ?? 'granted',
       requestPermission: async () => {
+        // Chrome's prompt stays open while `e2e-file-hold` is set, until the test answers it.
+        if (localStorage.getItem('e2e-file-hold')) await new Promise<void>((resolve) => ((window as unknown as Record<string, unknown>).__answerPrompt = resolve));
         localStorage.removeItem('e2e-file-permission');
         return 'granted';
       },
@@ -1891,6 +1893,21 @@ test('a local file connects with one pick, a saved change reaches PROGRAM with n
   expect((await storedBindings(page, showId)).sources).toHaveLength(1);
   await choose.click();
   await expect(page.getByTestId('cue-connected-line')).toContainText(/read \d+ s ago/, { timeout: 12_000 });
+
+  // Picking the file from existing content, then something else while Chrome still asks: the
+  // late answer lands nowhere, so the review never shows the file under another choice.
+  await page.evaluate(() => localStorage.setItem('e2e-file-hold', '1'));
+  await page.getByTestId('cue-connect').click();
+  await review.getByTestId('cue-connect-reuse').selectOption({ index: 1 });
+  await review.getByTestId('cue-connect-reuse').selectOption({ index: 0 });
+  await page.evaluate(() => {
+    localStorage.removeItem('e2e-file-hold');
+    ((window as unknown as Record<string, unknown>).__answerPrompt as () => void)();
+  });
+  await page.waitForTimeout(1_000);
+  await expect(review.getByTestId('cue-connect-map')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(review).toBeHidden();
 
   // Without the browser's file access (Firefox, Safari), Connect data says what to use instead.
   await page.evaluate(() => delete (window as unknown as Record<string, unknown>).showOpenFilePicker);
