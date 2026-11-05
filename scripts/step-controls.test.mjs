@@ -3,8 +3,8 @@
 // « BACK AND ⟲ RESET, the two step presses that replaced the recovery list on both dashboards
 // (#2181: its "Back to start" took a graphic off air, and no entry in it went back a step). Both are
 // snaps, so both are answered from the machine alone: Back is the state before the current one on
-// the route a snap replays (`canonicalPath`), Reset is the first step with every other group at
-// rest. What they look like on air is e2e/production-controls.spec.ts (the League Table walk).
+// the route a snap replays (`canonicalPath`), Reset is the first step; both move the main group
+// only. What they look like on air is e2e/production-controls.spec.ts (the League Table walk).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
@@ -61,7 +61,7 @@ test('Back walks a plain stepped graphic too, from the machine its steps derive'
   assert.equal(backTarget(lowerThird, at('name')), null);
 });
 
-test('Reset is the first step ON air, with every other group at rest', () => {
-  assert.deepEqual(resetTarget(board), { main: 'enter', flag: 'none' }, 'never `off`, which takes the graphic off air');
+test('Reset is the first step ON air, and the other groups keep where they are', () => {
+  assert.deepEqual(resetTarget(board), { main: 'enter' }, 'never `off`, which takes the graphic off air, and never a running clock group');
   assert.equal(resetTarget('var x = 1;'), null, 'no data block, nothing to stand on');
 });

@@ -806,15 +806,15 @@ export function backTarget(
 }
 
 /**
- * What ⟲ Reset snaps the live graphic to: its FIRST step, still on air, with every other group at
- * its initial state - the visual half of a reset that does not take the graphic off. Null for a
- * graphic with no step to stand on.
+ * What ⟲ Reset snaps the live graphic to: its FIRST step, still on air - the visual half of a
+ * reset that does not take the graphic off. Like Back it moves the main group only: a parallel
+ * group (a match clock, a power play) keeps where it is, so one stray press beside Arrange cannot
+ * stop a running clock. Null for a graphic with no step to stand on.
  */
 export function resetTarget(js: string): Record<string, string> | null {
-  const machine = machineOf(js);
-  const first = machine?.groups[0]?.defaultPath?.[0];
-  if (!machine || !first) return null;
-  return Object.fromEntries(machine.groups.map((g, i) => [g.id, i === 0 ? first : g.initial]));
+  const main = machineOf(js)?.groups[0];
+  const first = main?.defaultPath?.[0];
+  return main && first ? { [main.id]: first } : null;
 }
 
 /**

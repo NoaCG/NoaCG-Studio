@@ -236,7 +236,8 @@ function next() {
 // A SNAP to the board's first step (« Back to it, ⟲ Reset) or off it is play()'s visual reset
 // without the entrance. A design's marks (a lit row, a shown result, a FINAL) are classes, which
 // the snap's reset of inline styles never touches, so they are cleared first, as play() clears
-// them (#2181). A snap to a later state keeps them: the state it lands on fires only its own call.
+// them (#2181). A snap to a later state keeps them: the state it lands on fires only its own call,
+// so a board with two middle steps would need its own paint-from-state on snap (#2201).
 if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
   var compSnap = noacgSnap;
   noacgSnap = function (assignments) {

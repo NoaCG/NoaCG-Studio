@@ -885,8 +885,9 @@ is a control that will not be used.
   whose "Back to start" only ever took a graphic off air and whose state entries never went back
   a step). « Back sits beside » Next on the verb bar and moves the live graphic one step back:
   the previous waypoint, or the step a branch was entered from (`controlModel.ts backTarget`, the
-  route a snap replays). ⟲ Reset, in the ⚡ block's head, puts it on its first step, still on air,
-  every other group at rest (`resetTarget`). Both jump with NO animation and ride with a re-send
+  route a snap replays). ⟲ Reset, in the ⚡ block's head, puts it on its first step, still on air
+  (`resetTarget`). Both move the main group only: a parallel group such as a match clock keeps
+  where it is. Both jump with NO animation and ride with a re-send
   of the on-air cue's values, because recovery is two operations (`docs/STATE_MACHINE_SCHEMA.md`:
   reset the visual state and reset the data are never conflated, and a lone snap replays
   intermediate states with suppressed callbacks, so call-painted looks need the trailing data
