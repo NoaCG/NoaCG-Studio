@@ -113,7 +113,10 @@ E1–E3 phases later in the same programme. Their executable child specs own tho
   and Bridge packaging changes remain outside this programme.
 - Excel Online and local TXT/CSV/JSON/XLSX source readers: tracked in
   [#1507](https://github.com/NoaCG/NoaCG-Studio/issues/1507). CSV starter downloads are in scope;
-  live local-file reading is not. RSS/Atom remains C4.
+  live local-file reading is not. RSS/Atom remains C4. Owner, 2026-11-05 (#2184): a local CSV or
+  .xlsx file is now a live source kind, `file`, read by Chrome while a production page is open
+  (src/control/fileSource.ts) through the same reader, cadence, limits and stale rule as a Sheet;
+  NoaCG Bridge watching the file is the planned second step.
 
 ## The model
 

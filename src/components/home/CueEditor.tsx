@@ -183,7 +183,7 @@ function CueConnectedLine({ source, store, onDisconnect }: { source: ShowSource;
       <span className={status?.stale || status?.state === 'failing' ? 'status-warn' : undefined}>
         Connected to {source.kind === 'file' ? source.label : `${sourceKindWord(source)}: ${source.label}`} · {when}
       </span>{' '}
-      {source.kind === 'file' && <FileAskButton source={source} status={status} store={store} />}
+      {source.kind === 'file' && <FileAskButton source={source} status={status} store={store} />}{' '}
       <button type="button" className="link-inline" onClick={onDisconnect} data-testid="cue-connected-disconnect">
         Disconnect
       </button>

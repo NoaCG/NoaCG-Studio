@@ -23,6 +23,7 @@ import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
+import { fileAsk } from '../../control/fileSource';
 import { FileAskButton, OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
 import { loadGraphics } from '../../model/library';
 import { ownReaderHolds, subscribeOwnReaderHolds } from '../../model/ownReaderHolds';
@@ -477,7 +478,7 @@ function OverviewSource({ show, setShows, source, store, pool }: { show: Show; s
       <span className="hint" data-testid="data-source-status">
         {statusWords(source.paused, status, now, false)}
         {status?.stale && !source.paused && <strong className="status-warn"> · stale</strong>}
-        {status?.state === 'failing' && status.fix && !source.paused && <span className="status-warn"> · {status.fix}</span>}
+        {status?.state === 'failing' && status.fix && !source.paused && !fileAsk(status.error) && <span className="status-warn"> · {status.fix}</span>}
         {!source.paused && status?.problems.map((p) => (
           <span key={p} className="status-warn" data-testid="data-source-problem"> · {p}.</span>
         ))}

@@ -203,7 +203,8 @@ function SourceLine({ show, setShows, source, store, onAir }: { show: Show; setS
         {source.paused ? 'Resume' : 'Pause'}
       </button>
       <FileAskButton source={source} status={status} store={store} />
-      {status?.state === 'failing' && status.fix && <span className="status-warn" data-testid="source-fix"> {status.fix}</span>}
+      {/* The file's one click says the fix itself. */}
+      {status?.state === 'failing' && status.fix && !fileAsk(status.error) && <span className="status-warn" data-testid="source-fix"> {status.fix}</span>}
       {status?.problems.map((p) => (
         <span key={p} className="status-warn" data-testid="source-problem"> {p}.</span>
       ))}
