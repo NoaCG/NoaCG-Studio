@@ -456,7 +456,9 @@ export async function runSync(
   // A record not pushed, or edited here while the pass ran, can be older than the bookmark about
   // to be set, so it is carried with the cloud version the pass left (pendingLocal, header). That
   // includes an edit made while a failed pull waited: the owed pull then meets a local edit, and
-  // it keeps its copy.
+  // it keeps its copy. The bookmark is dated BEFORE that last read: an edit landing after the read
+  // is then newer than the bookmark, and the next pass sees it as changed.
+  const bookmark = new Date().toISOString();
   for (const r of (await Promise.all(SYNC_KINDS.map((k) => local.list(k)))).flat()) {
     const key = recordKey(r);
     const left = leftHere.get(key);
@@ -464,7 +466,7 @@ export async function runSync(
   }
   sameWorkspace();
   saveSyncMeta({
-    lastSyncedAt: new Date().toISOString(),
+    lastSyncedAt: bookmark,
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
     pendingPull: [...pendingPull],
