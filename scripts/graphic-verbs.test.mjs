@@ -558,7 +558,7 @@ test('a direct trigger carries `direct` and arms only its own timed end; a cue w
   await settle();
   assert.deepEqual(r.sends[0].batches[0][2].msg, { t: 'cue', cue: 'c1', direct: true, auto: { then: 'out', ms: 3000 }, oid: 'oid-1' });
   r.sends[0].answer.resolve({ ...noneLeft });
-  assert.deepEqual(await taking, { ok: true, note: '✓ Play now C1: C1' });
+  assert.deepEqual(await taking, { ok: true, note: '✓ Play now C1' });
   assert.equal(await r.verbs.takeGraphic({ id: 'x', label: 'X', values: {} }, 'Take'), null);
   assert.equal(r.sends.length, 1);
 });
