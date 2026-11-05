@@ -289,6 +289,33 @@ test('a Snap of the floor to the other speaker moves the wire with it', async ({
   await reportNames(debate, 'f5', 'speakerA');
 });
 
+test('a Snap that reaches a board already down brings it back: the next Switch names one speaker on the wire and on the screen', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+  debate.write({ t: 'stop' });
+  await expect.poll(() => debate.report()?.data.f5 ?? '', { timeout: 20_000 }).toContain('@out/');
+
+  await snapTheBoard(page, debate, { floor: 'speakerB' }, 'BACK TO B');
+  await expect.poll(() => read(clockB(page)), { timeout: 10_000 }).toBeLessThan(260);
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockB(page), clockA(page), 240);
+  await reportNames(debate, 'f5', 'speakerA');
+});
+
+test('a Snap to rest that reaches a board already down ends its off-air mark too: the next Switch opens with A on both', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+  debate.write({ t: 'stop' });
+  await expect.poll(() => debate.report()?.data.f5 ?? '', { timeout: 20_000 }).toContain('@out/');
+
+  await snapTheBoard(page, debate, null, 'BACK AT REST');
+  debate.write({ t: 'event', event: 'switch' });
+  await expect.poll(() => read(clockA(page)), { timeout: 10_000 }).toBeLessThan(240);
+  await reportNames(debate, 'f5', 'speakerA');
+});
+
 test('every floor state stays enterable by an instant Snap in the board itself, whichever speaker came before', async ({ page }) => {
   const debate = await openDebate(page);
   await takeTheBoard(page, debate);

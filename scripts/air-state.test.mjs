@@ -562,6 +562,20 @@ test('#2175: on the monitor the stamp follows a snap that names the floor, and l
   assert.equal(plainClockValue(m.held().fa), '03:00');
 });
 
+test('#2175: on the monitor any snap brings a board that was down back up: its off-air marks end, and the next Switch counts', () => {
+  for (const to of [null, { floor: 'armed' }, { floor: 'speakerB' }, { penalty: 'clear' }]) {
+    const m = debateMonitor();
+    m.update(0);
+    m.event('switch', 0);
+    m.stop(1);
+    m.row({ t: 'snap', snap: to }, 2);
+    const stamped = to?.floor === 'speakerB';
+    assert.equal(clockOriginOf(m.held().fb), stamped ? T + 2 * MINUTE : null, JSON.stringify(to));
+    m.event('switch', 3);
+    assert.equal(clockOriginOf(m.held().fa), T + 3 * MINUTE, `the Switch after ${JSON.stringify(to)} stamps A`);
+  }
+});
+
 test('#2161: on the monitor a penalty keeps what the cue sent, so the next resend gives no time back', () => {
   const m = debateMonitor();
   m.update(0);

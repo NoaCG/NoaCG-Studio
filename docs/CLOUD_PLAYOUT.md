@@ -427,7 +427,7 @@ The page:
   an origin stamp, and that one is running.** `switch` banks the stamped clock held and stamps
   the other (neither stamped → the first, because somebody has to open); `penalty` docks whichever
   is stamped; `reset` returns both to the allowance on screen; going off air banks the stamped
-  one. No state id is named and no edge is read, and it agrees with the machine because the
+  one. No edge is read, no state id is named but where a snap names one, and it agrees with the machine because the
   design's own engine already alternates the same way (`scoreboards/debateFloor.ts`
   `debateStart`). The design DECLARES its clocks with one attribute vocabulary —
   `data-speaking="a" | "b" | "allowance" | "penalty"` — because unlike the match clock there is

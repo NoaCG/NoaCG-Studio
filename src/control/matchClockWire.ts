@@ -652,14 +652,15 @@ export function speakingClockRowEffect(
     // THE ONE ROW THAT NAMES THE FLOOR: a snap is told where to go rather than what happened, so the
     // stamp follows it, or the next Switch would start a different speaker on air than on the wire.
     // Null is every group at its initial state. A snap not naming the floor leaves it where it is.
+    // Any snap brings a board that was down back up, as it does in the engine, so its marks end here.
+    const values = carrying((r) => (r.slot === OFF_AIR ? durationValue(r.time, null, r.length, r.sent) : null), 'after')?.values ?? {};
     const floor = row.msg.snap === null ? 'armed' : row.msg.snap?.floor;
-    if (floor !== 'armed' && floor !== 'speakerA' && floor !== 'speakerB') return null;
-    const side = floor === 'armed' ? null : floor === 'speakerA' ? 'a' : 'b';
-    if (running === side) return null;
-    const values: Record<string, string> = {};
-    if (running) values[fieldOf(running)] = speakingValue(valueOf(running), speakingClockAt(valueOf(running), at), null);
-    if (side) values[fieldOf(side)] = speakingValue(valueOf(side), speakingClockAt(valueOf(side), at), at);
-    return { values, when: 'after' };
+    if (floor === 'armed' || floor === 'speakerA' || floor === 'speakerB') {
+      const side = floor === 'armed' ? null : floor === 'speakerA' ? 'a' : 'b';
+      if (running && running !== side) values[fieldOf(running)] = speakingValue(valueOf(running), speakingClockAt(valueOf(running), at), null);
+      if (side && running !== side) values[fieldOf(side)] = speakingValue(valueOf(side), speakingClockAt(valueOf(side), at), at);
+    }
+    return Object.keys(values).length > 0 ? { values, when: 'after' } : null;
   }
   if (row.msg.t !== 'event') return null;
 
