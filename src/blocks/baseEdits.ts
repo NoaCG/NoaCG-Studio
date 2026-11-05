@@ -212,6 +212,34 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1),
     rotation: Number(declaration(template.css, target, '--base-rotation') ?? 0) };
 }
+/**
+ * An SVG layer's base offset is a CSS translate, which adds to the layer's own transform attribute
+ * only while nothing animates its transform. Once GSAP animates it, GSAP takes that attribute as the
+ * whole pose and clears the translate, so the layer jumps back to where it was drawn (#2062; without
+ * an attribute GSAP folds the translate in and nothing is lost). Moving the offset into the attribute,
+ * a translate ahead of the layer's own in the same parent units, keeps the layer where it shows.
+ * Returns the template and the offset moved, by which GSAP's x and y readings grow.
+ */
+export function settleSvgOffset(template: SpxTemplate, selector: string): { template: SpxTemplate; x: number; y: number } {
+  const unchanged = { template, x: 0, y: 0 };
+  let base: BaseValues;
+  try { base = baseValues(template, selector); } catch { return unchanged; }
+  const dx = number(template.css, base.target, '--base-x'), dy = number(template.css, base.target, '--base-y');
+  if (base.mode !== 'svg' || !dx && !dy) return unchanged;
+  const node = artworkNode(template, selector);
+  if (!node.hasAttribute('transform')) return unchanged;
+  const range = artworkRange(template.html, node), opening = template.html.slice(range.start, range.content);
+  const attr = /(\stransform\s*=\s*)(["'])(.*?)\2/;
+  if (!attr.test(opening)) throw new Error('This SVG uses an unsupported transform attribute. Its source is preserved.');
+  const offset = 'translate(' + transformPrecision(dx) + ' ' + transformPrecision(dy) + ')';
+  const changed = opening.replace(attr, (_, lead: string, quote: string, own: string) => lead + quote + offset + ' ' + own + quote);
+  let css = setCssDeclaration(template.css, base.target, '--base-x', '0px');
+  css = setCssDeclaration(css, base.target, '--base-y', '0px');
+  const next = { ...template, html: template.html.slice(0, range.start) + changed + template.html.slice(range.content), css };
+  const after = baseValues(next, selector);
+  if (Math.abs(after.x - base.x) > 1e-6 || Math.abs(after.y - base.y) > 1e-6) throw new Error('This SVG base offset cannot move into its transform exactly. Its source is preserved.');
+  return { template: next, x: dx, y: dy };
+}
 /** Base values a source edit writes. The anchor (R1.2b.1) is written as a pair, in layer pixels. */
 export interface BasePatch { x?: number; y?: number; scaleX?: number; scaleY?: number; rotation?: number; anchorX?: number; anchorY?: number }
 /** The base values that are also transform controls (Position, Scale, Rotation). */

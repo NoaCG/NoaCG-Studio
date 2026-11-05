@@ -3,7 +3,7 @@ import { losslessAnimData, type AnimData } from './animData';
 import { deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
 import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
-import { baseValues, editBase, type BasePatch } from './baseEdits';
+import { baseValues, editBase, settleSvgOffset, type BasePatch } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
 import { behaviourSequenceReason, claimReason, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim, type Relation } from './behaviourKeys';
@@ -37,6 +37,8 @@ export const controlsOf = (channel: string) => CONTROLS.filter(control => CONTRO
  *  `autoAlpha` as opacity. */
 export const poseKey = (channel: Channel, control: NumericProperty): keyof NumericPose => channel === 'scale' || channel === 'autoAlpha' ? control : channel as keyof NumericPose;
 const NAMES: Record<NumericProperty, string> = { x: 'Position X', y: 'Position Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity' };
+/** The channels through which GSAP animates a layer's transform. */
+const TRANSFORM_CHANNELS: readonly string[] = ['x', 'y', 'xPercent', 'yPercent', 'scale', 'scaleX', 'scaleY', 'rotation', 'skewX', 'skewY', 'transform'];
 const animates = (data: AnimData | null, owner: string, channel: string) => !!data?.steps.some(step => step.layers[owner]?.[channel]?.length);
 
 export function animationSource(template: SpxTemplate): AnimData {
@@ -304,6 +306,13 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   if (operation.kind === 'animation.key' && operation.action === 'set') requireTextPivot(template, selector, operation.property);
   const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as NumericProperty] ?? [operation.property];
   const owner = animationTarget(template, source, selector, channels);
+  // The first key on an SVG layer's transform keeps its base offset (#2062). The key's value is
+  // GSAP's reading before the offset moved into the transform it reads, so it moves with it.
+  if (operation.kind === 'animation.key' && operation.action === 'set' && owner === selector && TRANSFORM_CHANNELS.includes(operation.property) && !TRANSFORM_CHANNELS.some(c => animates(source, owner, c))) {
+    const settled = settleSvgOffset(template, selector);
+    template = settled.template;
+    if (operation.property === 'x' || operation.property === 'y') operation = { ...operation, value: operation.value + settled[operation.property] };
+  }
   const { data, ended } = animateLayer(source, owner, operation, source.speed / template.fps, documentContains(template.html));
   requireUserEdit(template, source, data);
   // The controls whose motion ended (only a key removal ends any) keep the displayed pose as their base.

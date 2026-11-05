@@ -69,6 +69,13 @@ async function packagedKeys(page: Page, target: string, selector: string) {
     return null;
   }, { target, selector });
 }
+/** Where a layer stands in the editor preview, in artwork units from the artwork's origin. */
+async function standsAt(page: Page, selector: string) {
+  return (await preview(page)).evaluate(selector => {
+    const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!, at = (document.querySelector(selector) as SVGGraphicsElement).getScreenCTM()!;
+    return [(at.e - art.e) / art.a, (at.f - art.f) / art.d];
+  }, selector);
+}
 async function select(page: Page, selector: string) { await page.locator('.ef-track[data-selector=' + JSON.stringify(selector) + '] .ef-layer').click(); await ready(page); }
 async function seek(page: Page, time: number) {
   const ruler = page.getByRole('slider', { name: 'Playhead' }), fps = (await source(page)).fps, frames = Math.round(time * fps);
@@ -486,8 +493,11 @@ test('a nested field on a behaviour graphic takes keys, a drawn look refuses the
   // K6: the nested score takes keys from the panel's own controls.
   await select(page, '#f2');
   await expect(page.getByText(/state-machine ownership|shows and hides/)).toHaveCount(0);
-  await seek(page, 0); await page.getByRole('button', { name: 'Enable Position X animation', exact: true }).click(); await ready(page);
+  await seek(page, 0); const placed = await standsAt(page, '#f2');
+  await page.getByRole('button', { name: 'Enable Position X animation', exact: true }).click(); await ready(page);
   const shownX = Number(await page.locator('.ef-animation-properties').getByRole('textbox', { name: 'Position X', exact: true }).inputValue());
+  // #2062: turning the animation on keeps the base edit; the layer stays where it was placed.
+  (await standsAt(page, '#f2')).forEach((v, i) => expect(v).toBeCloseTo(placed[i], 3)); expect(shownX).toBeCloseTo(baseX + 12, 3);
   await seek(page, .4); await number(page, 'Position X', shownX + 20);
   const keyed = await data(page), track = keyed.steps[0].layers['#f2'].x;
   expect(track.map(key => key.time)).toEqual([0, .4]); expect(track[1].value - track[0].value).toBeCloseTo(20, 3);
@@ -670,4 +680,42 @@ test('a quiz takes keys on its answers and its cues, its drawn moments refuse th
   for (const selector of layers.slice(0, 3)) expect(await tryKey(page, { selector, property: 'opacity', value: .5 })).toContain('credits roll measures');
   expect(await source(page)).toEqual(credits);
   await select(page, layers[0]); await expect(page.getByText(/credits roll measures this artwork/)).toBeVisible();
+});
+
+
+// #2062: an imported SVG layer with a transform of its own holds a base offset as a CSS translate,
+// which GSAP clears once it animates that transform. Turning on Position X or Rotation keeps the
+// layer where it was placed, in the editor and on air, and the keys go on from there.
+test('turning on Position X or Rotation keeps an SVG layer\'s base offset', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 }); await imported(page); await seek(page, 0);
+  const base = await page.evaluate(async template => (await import('/src/blocks/baseEdits.ts')).baseValues(template, '#sibling'), await source(page));
+  const drawn = await standsAt(page, '#sibling');
+  await execute(page, [{ kind: 'base.set', selector: '#sibling', values: { x: base.x + 12, y: base.y + 7 } }]);
+  const placed = await standsAt(page, '#sibling');
+  expect([placed[0] - drawn[0], placed[1] - drawn[1]].map(v => Math.round(v * 1000) / 1000)).toEqual([12, 7]);
+  const settled = await source(page);
+  await select(page, '#sibling');
+  for (const button of ['Enable Position X animation', 'Enable Rotation animation']) {
+    await seek(page, 0);
+    await page.getByRole('button', { name: button, exact: true }).click(); await ready(page);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    (await standsAt(page, '#sibling')).forEach((v, i) => expect(v, button).toBeCloseTo(placed[i], 3));
+    expect(Number(await page.locator('.ef-animation-properties').getByRole('textbox', { name: 'Position X', exact: true }).inputValue()), button).toBeCloseTo(base.x + 12, 3);
+    await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+    expect(await source(page)).toEqual(settled);
+  }
+  // Position X keyed: a second key moves on from the placed pose, and air plays the same.
+  await seek(page, 0);
+  await page.getByRole('button', { name: 'Enable Position X animation', exact: true }).click(); await ready(page);
+  await seek(page, .4); await number(page, 'Position X', base.x + 32);
+  expect((await standsAt(page, '#sibling'))[0]).toBeCloseTo(placed[0] + 20, 3);
+  await seek(page, 0); expect((await standsAt(page, '#sibling'))[0]).toBeCloseTo(placed[0], 3);
+  const output = await page.context().newPage();
+  await output.setContent(await page.evaluate(async template => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(template), await source(page)));
+  await output.evaluate(() => (window as unknown as { play(): void }).play());
+  await expect.poll(() => output.evaluate(() => {
+    const art = (document.querySelector('svg.imported-design-art') as SVGGraphicsElement).getScreenCTM()!, at = (document.querySelector('#sibling') as SVGGraphicsElement).getScreenCTM()!;
+    return Math.round(((at.e - art.e) / art.a - 20) * 1000) / 1000;
+  })).toBeCloseTo(placed[0], 2);
+  await output.close();
 });
