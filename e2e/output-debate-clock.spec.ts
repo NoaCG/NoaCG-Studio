@@ -333,6 +333,41 @@ test('every floor state stays enterable by an instant Snap in the board itself, 
   expect(landed).toEqual(['speakerA', 'armed', 'speakerB', 'armed', 'speakerB', 'speakerA']);
 });
 
+test('a debate board whose animation region is hand-written, with no machine runtime, still loads and counts after an Out and a Take', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/app#/home');
+  const after = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } = await import('/src/templates/lowerThirds/animPresets.ts');
+    const template = variantById('dc01')!.create({});
+    const start = template.js.indexOf(ANIMATION_MARK_OPEN);
+    const end = template.js.indexOf(ANIMATION_MARK_CLOSE) + ANIMATION_MARK_CLOSE.length;
+    const handWritten = 'function buildInTimeline() { return gsap.timeline(); }\nfunction buildOutTimeline() { return gsap.timeline(); }';
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;left:-4000px;top:0;width:1920px;height:1080px;border:0;';
+    document.body.appendChild(frame);
+    await new Promise((loaded) => {
+      frame.onload = loaded;
+      frame.srcdoc = composeDocument({ ...template, js: template.js.slice(0, start) + handWritten + template.js.slice(end) });
+    });
+    const w = frame.contentWindow as unknown as Record<string, (arg?: string) => void>;
+    const read = () => frame.contentDocument!.querySelector('#f5')!.textContent;
+    w.update(JSON.stringify({ f5: '04:00' }));
+    w.play();
+    w.runSpeakerA();
+    w.stop();
+    w.play();
+    w.runSpeakerA();
+    await new Promise((r) => setTimeout(r, 1_300));
+    return { machine: typeof w.noacgMachinePlay, shown: read() };
+  });
+  expect(after.machine, 'this board has no machine runtime').toBe('undefined');
+  expect(errors, 'nothing threw while the board loaded').toEqual([]);
+  expect(seconds(after.shown), 'the speaker counts again after the Take').toBeLessThan(240);
+});
+
 test('the runtime bench presses every arrow of the floor, each from the state it starts in', async ({ page }) => {
   await page.goto('/app');
   const skipped = await page.evaluate(async () => {
