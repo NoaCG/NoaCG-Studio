@@ -207,6 +207,19 @@ red('two agents alive after a handover', (r) => (r.samples[100].agentsAlive = 2)
 red('controller memory growing window on window', (r) => {
   for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.controller.heap = 45 * MIB;
 }, /memory and instance counts/);
+test('each agent lifetime names what its memory is made of at either end, when the agent said', () => {
+  assert.ok(judge(healthy()).lifetimes.filter((l) => l.series === 'agent.rss').every((l) => !l.parts));
+  const r = healthy();
+  for (const s of r.samples) Object.assign(s.agent, { memory: { rss: 60 * MIB, heapTotal: 20 * MIB, heapUsed: 15 * MIB, external: 12 * MIB, arrayBuffers: MIB }, resources: { TCPWrap: 2, Timeout: 3 }, anon: (s.at - r.t0) / 1_000, file: 40 * MIB, threads: 11 });
+  const lives = judge(r).lifetimes.filter((l) => l.series === 'agent.rss');
+  assert.ok(lives.length >= 3);
+  for (const l of lives) {
+    assert.deepEqual(Object.keys(l.parts), ['heapUsed', 'external', 'arrayBuffers', 'anon', 'file', 'threads', 'handles']);
+    assert.deepEqual(l.parts.handles, [5, 5]);
+    assert.ok(l.parts.anon[1] > l.parts.anon[0], 'first and last, in order');
+  }
+  assert.deepEqual(failed(r), []);
+});
 red('the agent\'s memory growing', (r) => {
   for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.agent.rss = 120 * MIB;
 }, /memory and instance counts/);

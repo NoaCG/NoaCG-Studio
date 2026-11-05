@@ -580,8 +580,13 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     if (minutes > 0) setTimeout(resolve, minutes * 60_000);
   });
   const stopRenewing = sender?.keepClaim();
-  // Spawned with an IPC channel (the endurance run), it answers what waits in it, and nothing else.
-  const answerBacklog = (message) => message?.ask === 'backlog' && process.send?.({ id: message.id, backlog: { ...connector.backlog(), posting: sender?.posting() ?? 0 } });
+  // Spawned with an IPC channel (the endurance run), it answers what waits in it and what it holds
+  // (its memory by kind, its live handles by type), and nothing else.
+  const holding = () => ({
+    memory: process.memoryUsage(),
+    resources: process.getActiveResourcesInfo().reduce((n, type) => ({ ...n, [type]: (n[type] ?? 0) + 1 }), {}),
+  });
+  const answerBacklog = (message) => message?.ask === 'backlog' && process.send?.({ id: message.id, backlog: { ...connector.backlog(), posting: sender?.posting() ?? 0, ...holding() } });
   if (process.send) process.on('message', answerBacklog);
   connector.start();
   await done;
