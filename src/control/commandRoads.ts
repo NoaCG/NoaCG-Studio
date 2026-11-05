@@ -116,6 +116,11 @@ export function seqTopic(showId: string): string {
 /** The numbered topic's broadcast event name. */
 export const SEQ_BATCH_EVENT = 'batch';
 
+/** The numbered topic's other event: `{epoch, seq}`, where the head stands, sent by the database a
+ *  few seconds after a write (migration 0109), so a frame lost with no later row still shows as a
+ *  gap (seqFollow.ts `announce`). A follower that does not know it hears nothing. */
+export const SEQ_HEAD_EVENT = 'head';
+
 /**
  * HOW MANY APPLIED IDS A SURFACE REMEMBERS.
  *

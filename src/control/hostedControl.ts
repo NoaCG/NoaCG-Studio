@@ -33,7 +33,7 @@ import { lookImportedFace, withLookFaceIn } from './productionLook';
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { isForeignGraphic, verifyForeignPackage } from '../model/foreignPackage';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';
 import { noteSend, withSender } from './livePath';
@@ -1341,6 +1341,13 @@ function readSeqFrame(payload: unknown): SeqFrame<SeqLogRow> | null {
   return { epoch: typeof p.epoch === 'string' ? p.epoch : null, rows: p.rows.filter(isSeqRow), ...(head ? { head } : {}) };
 }
 
+/** A `head` announcement off `seq-<show>` (0109): where the head stands, or null. */
+function readSeqAnnouncement(payload: unknown): { epoch: string; seq: number } | null {
+  const p = payload as { epoch?: unknown; seq?: unknown } | null;
+  if (!p || typeof p !== 'object' || typeof p.epoch !== 'string' || typeof p.seq !== 'number' || !Number.isSafeInteger(p.seq)) return null;
+  return { epoch: p.epoch, seq: p.seq };
+}
+
 /** A `control_*tail_seq` answer (a frame's shape, plus `reset`), or null when it is not one. */
 function readSeqTail(data: unknown): SeqTail<SeqLogRow> | null {
   const frame = readSeqFrame(data);
@@ -2115,8 +2122,10 @@ export async function followControlLog(opts: {
  * FOLLOW THE NUMBERED LOG (protocol 2, migrations 0070 and 0071): `seq-<show>` frames through the
  * sequence follower (seqFollow.ts has every rule and why), a refill on every join (spread on a
  * rejoin) and every CONTROL_POLL_MS whatever the socket does, and the same status reporting as the
- * id road. The renderer calls this directly, because it needs each batch whole (`replayed` is where
- * a superseded animation may be elided); a page gets it through `followControlLog`'s `seq`.
+ * id road. The database also announces the head on the same topic a few seconds after each write
+ * (0109), so a frame lost with no later row is a gap within seconds, not at the next poll. The
+ * renderer calls this directly, because it needs each batch whole (`replayed` is where a
+ * superseded animation may be elided); a page gets it through `followControlLog`'s `seq`.
  */
 export function followSeqLog(opts: {
   showId: string;
@@ -2154,6 +2163,10 @@ export function followSeqLog(opts: {
       const frame = readSeqFrame(payload);
       if (frame) follower.offer(frame);
     },
+    onAnnounce: (payload) => {
+      const head = readSeqAnnouncement(payload);
+      if (head) follower.announce(head.epoch, head.seq);
+    },
     onStatus: (next) => {
       status = next;
       if (next === 'SUBSCRIBED') {
@@ -2173,6 +2186,8 @@ export function followSeqLog(opts: {
 /** What one follower of a production's numbered topic hears. */
 interface SeqTopicUser {
   onBatch: (payload: unknown) => void;
+  /** A `head` announcement: where the log's head stands, a few seconds after a write. */
+  onAnnounce: (payload: unknown) => void;
   /** Each status the join reports; a user that arrives after the join hears where it stands. */
   onStatus: (status: string) => void;
 }
@@ -2247,6 +2262,9 @@ async function openSeqTopic(showId: string, state: SeqTopicState): Promise<void>
   state.channel = ch;
   ch.on('broadcast', { event: SEQ_BATCH_EVENT }, (frame: { payload?: unknown }) => {
     for (const user of [...state.users]) user.onBatch(frame.payload);
+  });
+  ch.on('broadcast', { event: SEQ_HEAD_EVENT }, (frame: { payload?: unknown }) => {
+    for (const user of [...state.users]) user.onAnnounce(frame.payload);
   });
   ch.subscribe((status) => {
     if (state.closed || state.channel !== ch) return;
