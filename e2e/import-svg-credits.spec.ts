@@ -876,9 +876,9 @@ async function lateFaceWalk(page: Page, builds: RollBuild[]) {
     expect(settled.middle.top, say).toBeCloseTo((settled.start.top + settled.end.top) / 2, 0);
     // Out, and the same take again: the same roll.
     await page.evaluate(() => (window as unknown as { stop(): void }).stop());
-    // The styled roll lets go of its tween at Out. The editable roll has no Out stop: its emitted
-    // bytes are pinned as saved graphics built them, and its next take replaces the old roll.
-    if (b.engine !== 'editable') await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: Out stops the roll`).toBeNull();
+    // Out stops the roll, the editable one included (#2098), so a face landing after Out
+    // measures no hidden roll.
+    await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween), `${at}: Out stops the roll`).toBeNull();
     await page.evaluate(() => { (window as unknown as { noacgCreditsOut?: unknown; noacgCreditsTween: unknown }).noacgCreditsOut = (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween; });
     await page.evaluate(() => (window as unknown as { play(): void }).play());
     await expect.poll(() => page.evaluate(() => { const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsOut?: unknown }; return !!w.noacgCreditsTween && w.noacgCreditsTween !== w.noacgCreditsOut; }), `${at}: the replay starts`).toBe(true);
@@ -906,9 +906,47 @@ test('a saved editable credits roll measures again when its face lands after the
   const LEGACY = readFileSync(CREDITS_SVG, 'utf8').replace(/Oswald-(Regular|Bold), Oswald/g, 'Anton');
   const builds = await buildRolls(page, LEGACY, 'Credits', 'editable', true);
   expect(builds.map((b) => b.engine)).toEqual(Array(3).fill('editable'));
-  // Drop and Rise: under Pop the take measures at the entrance's scale, so where in the entrance
-  // the face lands moves the travel by about a pixel (#2098), and the replay check would time it.
-  await lateFaceWalk(page, builds.filter((b) => b.motion !== 'pop'));
+  // Pop too: the take measures at the graphic's rest scale (#2098), so where in the entrance the
+  // face lands no longer moves the travel.
+  await lateFaceWalk(page, builds);
+});
+
+// #2098: a roll taken during a Pop entrance measures its travel at the graphic's rest scale. The
+// take runs on the entrance's first tick, with the box scaled; text laid out at another screen
+// size measures differently by up to a pixel or so, so the travel would depend on when in the
+// entrance the take ran. Here each take is forced at a scale the Pop passes through.
+test('a roll taken at any scale of a Pop entrance measures the same travel as at rest (#2098)', async ({ page }) => {
+  await page.goto('/app');
+  const LEGACY = readFileSync(CREDITS_SVG, 'utf8').replace(/Oswald-(Regular|Bold), Oswald/g, 'Anton');
+  const ABOVE = readFileSync(ABOVE_CREDITS_SVG, 'utf8').replace('font-family="sans-serif"', 'font-family="Anton"');
+  const builds = [
+    ...(await buildRolls(page, LEGACY, 'Credits', 'editable', true)),
+    ...(await buildRolls(page, ABOVE, 'Research', 'styled', true)),
+  ].filter((b) => b.motion === 'pop');
+  expect(builds.map((b) => b.engine)).toEqual(['editable', 'styled']);
+  for (const b of builds) {
+    await page.goto('/robots.txt');
+    await page.setContent(b.html);
+    await page.evaluate(() => document.fonts.ready);
+    const travel = await page.evaluate(async () => {
+      const w = window as unknown as { play(): void; noacgCreditsRoll(): unknown; noacgCreditsLast: { distance: number } | null; gsap: { set(t: Element, v: Record<string, unknown>): void } };
+      // What the Pop scales: every element its first frame gave a scale.
+      w.play();
+      const scaled = [...document.querySelectorAll<HTMLElement>('*')].filter((el) => /scale/.test(el.style.transform));
+      await new Promise((r) => setTimeout(r, 1500));
+      const at = (scale: number) => {
+        const kept = scaled.map((el) => el.style.transform);
+        for (const el of scaled) w.gsap.set(el, { scale });
+        w.noacgCreditsRoll();
+        scaled.forEach((el, i) => { el.style.transform = kept[i]; });
+        return w.noacgCreditsLast!.distance;
+      };
+      return { scaled: scaled.length, rest: at(1), scales: [0.72, 0.8, 0.86, 0.9, 0.95].map((scale) => ({ scale, distance: at(scale) })) };
+    });
+    const say = `${b.engine}: ${JSON.stringify(travel)}`;
+    expect(travel.scaled, `${b.engine}: the Pop scales the graphic`).toBeGreaterThan(0);
+    for (const { distance } of travel.scales) expect(Math.abs(distance - travel.rest), say).toBeLessThan(0.01);
+  }
 });
 
 // jev-svg-import row 22 (AC-13): a still page. The rows stand where the drawing put them and
