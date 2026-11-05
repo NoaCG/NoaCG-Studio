@@ -1810,41 +1810,43 @@ test('a Sheet that needs a look stays open on its review, and Another system sta
   expect((await storedBindings(page, showId)).bindings).toEqual(bindings);
 });
 
-/** Chrome's file picker, answering a real file handle from the browser's own private storage
- *  (OPFS), so the handle is kept across a reload as a picked one is. Permission is what
- *  `e2e-file-permission` in localStorage says (granted when absent), as Chrome asks again after a
- *  reload. */
+/** Chrome's file picker, answering a handle over a file the test saves (its text and time in
+ *  localStorage, so it outlives a reload as a file on disk does). Permission is what
+ *  `e2e-file-permission` says, granted when absent, as Chrome may ask again. A real handle cannot
+ *  be used: Playwright's off-the-record context closes the page when one is read back from
+ *  IndexedDB (a persistent Chrome profile reads it fine), and this one cannot be stored there at
+ *  all, so a reload finds no handle, as another computer would. */
 async function stubFilePicker(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const w = window as unknown as Record<string, unknown>;
-    w.showOpenFilePicker = async () => {
-      const dir = await navigator.storage.getDirectory();
-      return [await dir.getFileHandle('results.csv', { create: true })];
+    const handle = {
+      name: 'results.csv',
+      kind: 'file',
+      queryPermission: async () => localStorage.getItem('e2e-file-permission') ?? 'granted',
+      requestPermission: async () => {
+        localStorage.removeItem('e2e-file-permission');
+        return 'granted';
+      },
+      getFile: async () =>
+        new File([localStorage.getItem('e2e-file') ?? ''], 'results.csv', { lastModified: Number(localStorage.getItem('e2e-file-at') ?? 1) }),
     };
-    const proto = (globalThis as unknown as { FileSystemHandle: { prototype: Record<string, unknown> } }).FileSystemHandle.prototype;
-    proto.queryPermission = async () => localStorage.getItem('e2e-file-permission') ?? 'granted';
-    proto.requestPermission = async () => {
-      localStorage.removeItem('e2e-file-permission');
-      return 'granted';
-    };
+    (window as unknown as Record<string, unknown>).showOpenFilePicker = async () => [handle];
   });
 }
 
 /** Save the picked file with new text, as an operator saving it in Excel would. */
 async function saveLocalFile(page: Page, text: string): Promise<void> {
-  await page.evaluate(async (body) => {
-    const dir = await navigator.storage.getDirectory();
-    const file = await (await dir.getFileHandle('results.csv', { create: true })).createWritable();
-    await file.write(body);
-    await file.close();
+  await page.evaluate((body) => {
+    localStorage.setItem('e2e-file', body);
+    localStorage.setItem('e2e-file-at', String(Date.now()));
   }, text);
 }
 
-test('a local file connects with one pick, a saved change reaches PROGRAM with no press, and a reload asks once to read it again (#2184)', async ({ page }) => {
+test('a local file connects with one pick, a saved change reaches PROGRAM with no press, and Allow or Choose is one click (#2184)', async ({ page }) => {
   test.setTimeout(120_000);
   await stubFilePicker(page);
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await productionFor(page, 'File Show');
+  // European Excel's CSV: a BOM and semicolons.
   await saveLocalFile(page, '\uFEFFName;Value\nName;Ann Lee\nRole;Editor\n');
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
 
@@ -1870,25 +1872,25 @@ test('a local file connects with one pick, a saved change reaches PROGRAM with n
   await expect(card.locator('body')).toContainText('Cy Dale', { timeout: 12_000 });
   expect(await stage.getAttribute('data-plays')).toBe(plays);
 
-  // After a reload Chrome wants permission again: the link stays, says so, and one click reads on.
+  // Chrome asks again: the line says so with one click, the value holds, and Allow reads on.
   await page.evaluate(() => localStorage.setItem('e2e-file-permission', 'prompt'));
-  page.on('crash', () => console.log('DEBUG crash'));
-  page.on('close', () => console.log('DEBUG close'));
-  page.on('pageerror', (e) => console.log('DEBUG pageerror', e.message));
+  const ask = line.getByTestId('source-file-ask');
+  await expect(ask).toHaveText('Allow reading results.csv', { timeout: 12_000 });
+  await saveLocalFile(page, 'Name;Value\nName;Di Fox\nRole;Editor\n');
+  await expect(card.locator('body')).toContainText('Cy Dale');
+  await ask.click();
+  await expect(card.locator('body')).toContainText('Di Fox', { timeout: 12_000 });
+  await expect(line.getByTestId('source-file-ask')).toHaveCount(0);
+
+  // A reload with no handle kept (another computer): the link stays, and Choose the file… is one click.
   await settleDurableWrites(page);
   await page.reload();
-  console.log('DEBUG reloaded', page.url());
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
-  const allow = page.getByTestId('cue-connected-line').getByTestId('source-file-ask');
-  await expect(allow).toHaveText('Allow reading results.csv', { timeout: 12_000 });
+  const choose = page.getByTestId('cue-connected-line').getByTestId('source-file-ask');
+  await expect(choose).toHaveText('Choose the file…', { timeout: 12_000 });
   expect((await storedBindings(page, showId)).sources).toHaveLength(1);
-  await saveLocalFile(page, 'Name;Value\nName;Di Fox\nRole;Editor\n');
-  await allow.click();
+  await choose.click();
   await expect(page.getByTestId('cue-connected-line')).toContainText(/read \d+ s ago/, { timeout: 12_000 });
-  await expect(page.getByTestId('cue-connected-line').getByTestId('source-file-ask')).toHaveCount(0);
-  // The value read after the click is what airs.
-  await page.getByTestId('verb-take').click();
-  await expect(card.locator('body')).toContainText('Di Fox', { timeout: 12_000 });
 
   // Without the browser's file access (Firefox, Safari), Connect data says what to use instead.
   await page.evaluate(() => delete (window as unknown as Record<string, unknown>).showOpenFilePicker);
