@@ -412,8 +412,10 @@ test('a file whose opening hangs (a network share, a cloud placeholder) goes sta
   assert.equal(r.writes.length, 1);
   const getFile = handle.getFile;
   handle.getFile = () => new Promise(() => {});
-  // Each turn the check gives up at 10 s, a miss, as for a Sheet read; three make it stale.
-  await r.clock.advance(3 * (SHEET_READ_MS + 10_000));
+  // Each turn the check gives up at 10 s and tries again at once, a miss, as a Sheet read that
+  // times out does: three make it stale at 30 s, on a Sheet's clock.
+  await r.clock.advance(SHEET_READ_MS + 3 * 10_000);
+  assert.equal(r.status().stale, true);
   assert.equal(r.status().state, 'failing');
   assert.equal(r.status().stale, true);
   assert.equal(r.writes.length, 1);

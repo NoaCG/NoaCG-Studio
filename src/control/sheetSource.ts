@@ -657,7 +657,9 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
         if (o.paused() || peek?.paused) report({ ...before, state: 'paused' });
         else report((unable = missedStatus(before, cannot, io.now(), 'this')));
       }
-      schedule(renew);
+      // As after a read: a check that hung for its timeout tries again at once, so it goes stale on
+      // a Sheet's clock; one that failed fast keeps the cadence.
+      schedule(Math.max(0, started + renew - io.now()));
       return;
     }
     unable = null;
