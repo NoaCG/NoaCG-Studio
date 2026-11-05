@@ -36,7 +36,7 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
-import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { airedAfter, heldFirst, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
 import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
 import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
@@ -437,7 +437,7 @@ export function seedOffAirClocks(
  */
 export function restoreItems(
   air: AirPart,
-  machineStates: Readonly<Record<string, { groups?: Record<string, string> } | null | undefined>>,
+  machineStates: Readonly<Record<string, { groups?: Record<string, string>; held?: Record<string, string> } | null | undefined>>,
   specs: ClockSpecs,
 ): { air: AirPart; items: ReplayItem[] } {
   let clocks = air.clocks;
@@ -498,7 +498,12 @@ export function restoreItems(
       all.push(...items, ...(replaying ? rows : []));
       continue;
     }
-    if (data || look) items.push({ graphic, msg: { t: 'update', data: data ?? {}, ...(look ? { appearance: look } : {}) } });
+    // A credits list held on air goes in first, so the take replayed below takes it and the newest
+    // waits for the next Take, as on air (#2075): the report's word while its rows replay, else the
+    // monitor's last answer, else at boot the report's.
+    const heldState = replaying || (!(graphic in machineStates) && air.bootReplay !== null) ? report?.state : machineStates[graphic];
+    const first = data ? heldFirst(data, heldState) : data;
+    if (data || look) items.push({ graphic, msg: { t: 'update', data: first ?? {}, ...(look ? { appearance: look } : {}) } });
     if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
     // Without a state the graphic plays in, unless the replayed rows carry its entrance.
     else if (!rows.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });
