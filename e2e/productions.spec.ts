@@ -1616,8 +1616,8 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
   // the minute it ran. Without this a board taken down keeps its stamp and "runs" off air. Both
   // are marked off air, so the next Take's resend is the time they come up on.
   expect(walk.trace[6].values).toEqual({ f5: '00:50@out/05:00/05:00', f6: '04:00@out/05:00/05:00' });
-  // Re-arming returns both to the allowance ON SCREEN, still off air, and with no stamp anywhere,
-  // the next Switch hands to A again.
+  // Re-arming returns both to the allowance ON SCREEN, still marked off air, so the next Take
+  // brings them up there; with no stamp anywhere, its first Switch hands to A again.
   expect(walk.trace[7].values).toEqual({ f5: '05:00@out/05:00/05:00', f6: '05:00@out/05:00/05:00' });
   expect(walk.runningAfterReset).toBeNull();
   // A row with no server time still opens the debate, against the caller's instant.
