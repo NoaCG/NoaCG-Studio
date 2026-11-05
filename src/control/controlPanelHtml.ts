@@ -506,7 +506,7 @@ GRAPHICS.forEach(function (g) {
     for (var uk in state) lastSent[uk] = state[uk];
     paintStaged();
   }
-  function onChange(field, value) { state[field] = value; if (live()) relayPress(sendUpdate); else paintStaged(); }
+  function onChange(field, value) { state[field] = value; if (live()) press(sendUpdate); else paintStaged(); }
   // Per-field repainters for a value the PANEL moved itself (an event's adjust) - registered by
   // the controls that can show one; a field with none simply keeps its box.
   var repaint = {};
@@ -553,11 +553,28 @@ GRAPHICS.forEach(function (g) {
     }
     paintStaged();
   }
+  // A PRESS DURING THE BOOT READ WAITS FOR IT, as on the production controller (#2074): until the
+  // card has read the whole relay log it does not know where the clock stands, and a press would
+  // work from the design's start time over a clock another page is running. Held in order, sent
+  // as soon as the read is done.
+  var booting = false;
+  var waitingPresses = [];
+  function press(run) {
+    if (booting) waitingPresses.push(run);
+    else relayPress(run);
+  }
   if (CLOCK && CLOCK.events) relayReady.push(function () {
     var cursor = 0;
     var walking = true;
     var walked = function (at) { cursor = at; walking = false; followClockBox(); };
-    relayLogWalk(0, followRelayClock, walked);
+    booting = true;
+    relayLogWalk(0, followRelayClock, function (at) {
+      walked(at);
+      booting = false;
+      var presses = waitingPresses;
+      waitingPresses = [];
+      presses.forEach(relayPress);
+    });
     setInterval(function () {
       clock.settle(null);
       followClockBox();
@@ -575,6 +592,8 @@ GRAPHICS.forEach(function (g) {
     if (!CLOCK) { post(msg); return; }
     // A send of this card's that never came back stops counting before the clock is read.
     if (CLOCK.events) clock.settle(null);
+    // A duration never taken holds its start time off air until its first Take (#2117).
+    if (CLOCK.events) clock.held = clockHeldBefore(CLOCK, clock.held, onAirHere());
     if (CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined) {
       clock.held = clockAfterUpdate(clock.held, msg.data[CLOCK.field]);
       msg.data[CLOCK.field] = clock.held;
@@ -761,12 +780,25 @@ GRAPHICS.forEach(function (g) {
       chip.style.display = 'inline-block';
       // The red tally: 'main' is the lifecycle group on every template (a parallel group's
       // own state — an alert level, a language — says nothing about being on air).
-      var onAir;
-      if (machineState.groups.main !== undefined) onAir = machineState.groups.main !== 'off';
-      else { onAir = false; for (var og in machineState.groups) { if (machineState.groups[og] !== 'off') { onAir = true; break; } } }
-      card.className = onAir ? 'card on-air' : 'card';
+      card.className = groupsOnAir(machineState.groups) ? 'card on-air' : 'card';
     }
     eventBtns.forEach(function (entry) { entry.btn.disabled = !legalNow(entry.event); });
+  }
+  function groupsOnAir(groups) {
+    if (groups.main !== undefined) return groups.main !== 'off';
+    for (var og in groups) { if (groups[og] !== 'off') return true; }
+    return false;
+  }
+  // Whether the graphic is on air, as this card knows it: the state the graphic last reported,
+  // else this card's own last ▶ Play or ■ Stop (a relay-driven graphic cannot answer).
+  function onAirHere() {
+    if (machineState && machineState.groups) return groupsOnAir(machineState.groups);
+    for (var i = log.sent.length - 1; i >= 0; i--) {
+      var t = log.sent[i].msg && log.sent[i].msg.t;
+      if (t === 'play') return true;
+      if (t === 'stop') return false;
+    }
+    return false;
   }
   function sendEvent(e) {
     // The SAME rule as controlModel.ts eventPayload (this page ships without it): payload
@@ -826,7 +858,7 @@ GRAPHICS.forEach(function (g) {
       stage(rk, kept.join('\\n'));
     }
     // A clock verb writes the clock's own value around the event (sendClocked).
-    relayPress(function () { sendClocked(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event }); });
+    press(function () { sendClocked(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event }); });
     // The payload just aired those fields — they are no longer merely staged.
     if (payload) { for (var pk in payload) lastSent[pk] = payload[pk]; paintStaged(); }
   }
@@ -896,9 +928,9 @@ GRAPHICS.forEach(function (g) {
       if (send || live()) sendUpdate(); else paintStaged();
     }
     var entryPlay = el('button', { class: 'primary', title: 'Play the graphic with this entry' }, ['▶ Play entry']);
-    entryPlay.onclick = function () { relayPress(function () { applyEntry(true); sendClocked({ t: 'play' }); }); };
+    entryPlay.onclick = function () { press(function () { applyEntry(true); sendClocked({ t: 'play' }); }); };
     var entryLoad = el('button', { title: 'Load this entry into the fields (airs on ✎ Update or ▶ Play unless live)' }, ['Load']);
-    entryLoad.onclick = function () { relayPress(function () { applyEntry(false); }); };
+    entryLoad.onclick = function () { press(function () { applyEntry(false); }); };
     entrySel.onchange = entryLoad.onclick;
     var entriesWrap = el('div', { class: 'events' }, [el('h3', {}, ['Entries'])]);
     entriesWrap.appendChild(el('div', { class: 'row' }, [entrySel, entryLoad, entryPlay]));
@@ -946,9 +978,9 @@ GRAPHICS.forEach(function (g) {
   // glossary's word for values PLUS the entrance, which is ▶ Play on this panel.
   var upd = el('button', { title: 'Push the edited values to the live graphic without re-animating it' }, ['✎ Update']);
   var next = el('button', {}, ['» Next']);
-  play.onclick = function () { relayPress(function () { sendUpdate(); sendClocked({ t: 'play' }); }); };
-  stop.onclick = function () { relayPress(function () { sendClocked({ t: 'stop' }); }); };
-  upd.onclick = function () { relayPress(sendUpdate); };
+  play.onclick = function () { press(function () { sendUpdate(); sendClocked({ t: 'play' }); }); };
+  stop.onclick = function () { press(function () { sendClocked({ t: 'stop' }); }); };
+  upd.onclick = function () { press(sendUpdate); };
   next.onclick = function () { post({ t: 'next' }); };
   card.appendChild(el('div', { class: 'actions' }, [play, stop, upd, next]));
 
