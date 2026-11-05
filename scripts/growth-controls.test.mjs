@@ -184,12 +184,21 @@ test('(b) the ledger is append-only and the ceilings move only by a reviewed rev
   assert.match(ledgerChanges({ base, head: clone(base), shardCap: { base: 20, head: 25 } }).join(), /SHARD_CAP_MINUTES rose/);
 });
 
-test('(b) the ci04 catalog-gate exception holds to 2026-11-30, then its cost counts and growth is refused', () => {
+// cicd-followup cf14 recorded the one short extension the spec allows (#1863): ci04's entry still
+// ends on 2026-11-30, the extension holds 2026-12-01 to 2026-12-14, and nothing holds after it.
+test('(b) the ci04 catalog-gate exception holds to 2026-11-30, its one extension to 2026-12-14, then its cost counts and growth is refused', () => {
   const seed = CEILINGS.measurement;
   const added = [{ tier: 'graphics', id: 'spec:e2e/catalog/x.spec.ts', perLanding: 0.5, perDay: 0 }];
   const held = assessTiers({ ceilings: CEILINGS, measurement: { ...seed, windowEnd: '2026-11-28' }, items: [], today: '2026-11-29' });
   assert.ok(held.tiers.graphics.share < 0.85, 'held as the exception, not as headroom');
-  const after = assessTiers({ ceilings: CEILINGS, measurement: { ...seed, windowEnd: '2026-11-30' }, items: added, today: '2026-12-01' });
+  const graphics = (day) => exceptionStatus(CEILINGS.exceptions, day, CEILINGS.exceptionMaxDays).active.filter((e) => e.tier === 'graphics').map((e) => e.id);
+  assert.deepEqual(graphics('2026-11-30'), ['ci04-catalog-gate']);
+  assert.deepEqual(graphics('2026-12-01'), ['cf14-catalog-gate-extension']);
+  assert.deepEqual(graphics('2026-12-14'), ['cf14-catalog-gate-extension']);
+  assert.deepEqual(graphics('2026-12-15'), []);
+  const extended = assessTiers({ ceilings: CEILINGS, measurement: { ...seed, windowEnd: '2026-12-13' }, items: [], today: '2026-12-14' });
+  assert.ok(extended.tiers.graphics.share < 0.85, 'held as the extension, not as headroom');
+  const after = assessTiers({ ceilings: CEILINGS, measurement: { ...seed, windowEnd: '2026-12-14' }, items: added, today: '2026-12-15' });
   assert.equal(after.tiers.graphics.status, 'refuse');
   assert.deepEqual(costBreaches(after).map((b) => b.key), ['cost:graphics']);
   assert.equal(CEILINGS.exceptions[0].repayment, '#1862');

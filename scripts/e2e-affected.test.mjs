@@ -1371,6 +1371,43 @@ test('a source file no spec covers escalates to the full suite, exactly as befor
   assert.deepEqual(planFor(['cli/src/index.ts']).unmapped, []);
 });
 
+// cicd-followup cf14 (#1862): paths no offline or catalog spec can observe stop escalating to the
+// shared-change set and the catalog gate. Before, each was unmapped: 79 specs and the gate.
+test('cf14: the mapped #1862 paths never escalate or raise the catalog gate', () => {
+  const quiet = [
+    'companion-module/src/feedbacks.ts', 'companion-module/package.json', 'companion-module/yarn.lock',
+    'benchmarks/harness/ladder/L2/baseline/cells/x/cell.json',
+    'e2e/endurance/election-endurance.ts', 'playwright.endurance.config.ts',
+    'e2e/instruments/press-latency.ts', 'playwright.instrument.config.ts',
+  ];
+  for (const file of quiet) {
+    const plan = planFor([file], { sprintFocus: true });
+    assert.deepEqual(plan.unmapped, [], file);
+    assert.equal(plan.focusApplied, false, `${file} no longer escalates`);
+    assert.equal(plan.catalog, false, `${file} cannot move a catalog measurement`);
+  }
+  // A Companion change is a product change, so the critical journeys still run for it (cf12).
+  assert.equal(planFor(['companion-module/src/feedbacks.ts'], { sprintFocus: true }).mode, 'subset');
+  // A spec or test file in those suite folders would be collected by the offline config: it still escalates.
+  for (const file of ['e2e/instruments/new.spec.ts', 'e2e/endurance/new.spec.ts', 'e2e/instruments/new.test.ts', 'e2e/endurance/new.test.mts']) assert.deepEqual(planFor([file]).unmapped, [file], file);
+});
+
+// THE OTHER DIRECTION, pinned beside it: every kind of change that can move a design still raises
+// the gate, alone and beside a #1862 path. The catalog reach is asked before CENTRAL, so the corpus
+// fixture the catalog's ograf-parity spec reads, and the control code the OGraf target imports, stay in.
+test('cf14: every change that can move a design still raises the catalog gate', () => {
+  const moving = [
+    'src/templates/catalog.ts', 'src/blocks/text.ts', 'src/assets/svgImport.ts', 'public/fonts/inter.woff2',
+    'src/model/fonts.ts', 'src/validation/runtimeBench.ts', 'src/export/targets/ograf.ts',
+    'src/control/hostedControl.ts', 'src/preview/composeDocument.ts', 'e2e/fixtures/svg-corpus/x.svg',
+    'e2e/catalog/catalog-bench.spec.ts', 'playwright.catalog.config.ts', 'package.json',
+  ];
+  for (const file of moving) {
+    assert.equal(planFor([file], { sprintFocus: true }).catalog, true, file);
+    assert.equal(planFor([file, 'companion-module/src/feedbacks.ts'], { sprintFocus: true }).catalog, true, `${file} beside a #1862 path`);
+  }
+});
+
 // ci05: the header that names spaceKey.ts adds its spec and can no longer cancel the escalation the
 // CENTRAL comment documents. Before, it planned one spec unless the traced map happened to list it
 // as broad; `traced: null` is that case.
