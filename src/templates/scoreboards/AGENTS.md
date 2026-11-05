@@ -41,8 +41,9 @@ second instead of at the allowance. `data-speaking="a" | "b" | "allowance" | "pe
 four elements is how `control/matchClockWire.ts` finds them — **which of the two is running is
 never asked of the machine: the STAMP is the pointer**, at most one clock carries one, and
 `switch` or a snap naming the floor moves it. The floor group stays with a running speaker through
-`play()`, and a snap to armed stops the count (`debateFloor.ts`), so the two never name different
-speakers. `speakingClockUpdate(key, value)` (the guarded per-field hook in `shared.ts`,
+`play()`, and a snap to armed stops the count (`debateFloor.ts`), so on a board made from the catalog
+since #2175 the two name the same speaker. A half-typed time on a running clock can still part them
+until a Reset, and a saved board keeps its older engine and the fault (#2182). `speakingClockUpdate(key, value)` (the guarded per-field hook in `shared.ts`,
 beside `matchClockUpdate`) is the engine's half, and it tells the three kinds of arriving value
 apart the way the match clock does — stamped, plain, and a resend of the cue's own text.
 **Its two halves are `flex: 1 1 0`, never a px basis** - the owner's 2026-08-23 ruling that a
