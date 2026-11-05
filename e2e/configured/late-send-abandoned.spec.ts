@@ -11,7 +11,7 @@
 //
 // Mutation-tested: with the attempt deadline taken out, the held Take commits at 6 s and the
 // output's entrance count reads 1.
-// covers: src/control/failedSends.ts
+// covers: src/control/failedSends.ts, src/control/markerSender.ts, src/components/HostedControlPage.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
@@ -100,13 +100,14 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   await expect(notice).toContainText('on this monitor only', { timeout: 10_000 });
   // Due at about 3.4 s; the bound is the hold, since before this change the notice never came.
   expect(Date.now() - takenAt, 'the notice comes before the held request would have been let go').toBeLessThan(HOLD_MS);
+  // The live marker the fast road moved at the press goes back with the failure (#1713): a second
+  // operator reads it to know what is on air, and nothing is. So there is nothing to play out.
+  await expect(chip).toContainText('nothing on air');
+  await expect(op.getByTestId('hosted-out-cue')).toBeDisabled();
   await Promise.all(held);
   await op.waitForTimeout(3000);
   expect(await airPlays(), 'an abandoned Take must never reach air').toBe('0');
-  // Out goes through, lands, and the graphic it was about is owed nothing any more.
-  await op.getByTestId('hosted-out-cue').click();
   await expect(chip).toContainText('nothing on air');
-  await expect(notice).toHaveCount(0, { timeout: 30_000 });
 
   // ── The late Take of §5.6. ──────────────────────────────────────────────────────────────────
   held.length = 0;

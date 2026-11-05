@@ -87,6 +87,31 @@ test('the marker book: a press landed names its cue unless a newer one landed or
   assert.equal(landedLate({}, 'Bug', 7, 'c2').Bug, undefined, 'no press out: nothing to book');
 });
 
+test('on protocol 1 the marker follows the last answer, which is the last commit, not the newest press (#1721)', () => {
+  // Take c1, then Take c2; c2 lands first, then c1 lands with no skip: c1 is what airs.
+  let book = pressMarker(pressMarker({}, { Bug: 'c0' }, 'Bug', 1, 'c1'), { Bug: 'c1' }, 'Bug', 2, 'c2');
+  let step = answerMarker(book, { Bug: 'c2' }, 'Bug', 2, true, false);
+  assert.equal(step.write, 'c2');
+  assert.deepEqual(answerMarker(step.book, { Bug: 'c2' }, 'Bug', 1, true, false), { book: {}, write: 'c1' });
+  // The same answers on protocol 2: the server skipped c1 under c2, so c2 stands.
+  step = answerMarker(book, { Bug: 'c2' }, 'Bug', 2, true);
+  assert.deepEqual(answerMarker(step.book, { Bug: 'c2' }, 'Bug', 1, true), { book: {} });
+  // c1 lands while c2 is still out: c1 is on air until c2 commits.
+  step = answerMarker(book, { Bug: 'c2' }, 'Bug', 1, true, false);
+  assert.equal(step.write, 'c1');
+  // c2 then fails: c1, the last that landed, stays.
+  assert.deepEqual(answerMarker(step.book, { Bug: 'c1' }, 'Bug', 2, false, false), { book: {} });
+  // c2 lands, then c1 fails: c2, the last that landed.
+  step = answerMarker(book, { Bug: 'c2' }, 'Bug', 2, true, false);
+  assert.deepEqual(answerMarker(step.book, { Bug: 'c2' }, 'Bug', 1, false, false), { book: {} });
+  // A press heard landing late is the last commit heard, over a newer one that landed.
+  book = pressMarker(pressMarker(pressMarker({}, {}, 'Bug', 5, 'c1'), {}, 'Bug', 6, 'c2'), {}, 'Bug', 7, 'c3');
+  book = answerMarker(book, {}, 'Bug', 5, false, false).book;
+  book = answerMarker(book, {}, 'Bug', 6, true, false).book;
+  assert.equal(landedLate(book, 'Bug', 5, 'c1').Bug.landed.cue, 'c2', 'protocol 2: the newer landing stands');
+  assert.equal(landedLate(book, 'Bug', 5, 'c1', false).Bug.landed.cue, 'c1', 'protocol 1: the late commit is the last');
+});
+
 test('withoutOwnMarkers drops only the cue markers it is told are owned (#1696)', () => {
   const items = [
     { graphic: 'Bug', msg: { t: 'cue', cue: 'c1', oid: 'mine' } },
