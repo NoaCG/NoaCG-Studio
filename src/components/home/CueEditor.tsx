@@ -426,7 +426,8 @@ function CueConnectReview({
     if (!handle) {
       return setRead({
         error: `This computer has not chosen ${source.config.name}`,
-        fix: canPickFiles() ? 'Use Local file… to choose it here.' : 'Open this production in Chrome or Edge on the computer that has it.',
+        // The connected line's Choose the file… keeps this source and its connections; Local file… would make another.
+        fix: canPickFiles() ? 'Use Choose the file… on the cue’s connected line, which keeps its connections.' : 'Open this production in Chrome or Edge on the computer that has it.',
       });
     }
     setReading(true);

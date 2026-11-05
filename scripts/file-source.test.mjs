@@ -412,14 +412,14 @@ test('a file whose opening hangs (a network share, a cloud placeholder) goes sta
   assert.equal(r.writes.length, 1);
   const getFile = handle.getFile;
   handle.getFile = () => new Promise(() => {});
-  // Each turn: the check gives up at 10 s, the read gives up at 10 s, a miss; three make it stale.
-  await r.clock.advance(4 * (SHEET_READ_MS + 20_000));
+  // Each turn the check gives up at 10 s, a miss, as for a Sheet read; three make it stale.
+  await r.clock.advance(3 * (SHEET_READ_MS + 10_000));
   assert.equal(r.status().state, 'failing');
   assert.equal(r.status().stale, true);
   assert.equal(r.writes.length, 1);
   handle.getFile = getFile;
   handle.save('Two\n');
-  await r.clock.advance(SHEET_READ_MS + 20_000);
+  await r.clock.advance(SHEET_READ_MS + 10_000);
   assert.deepEqual(r.writes.at(-1), { file: { f1: { lines: 'Two' } } });
   assert.equal(r.status().stale, false);
   r.reader.stop();

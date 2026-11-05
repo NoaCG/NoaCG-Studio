@@ -280,7 +280,7 @@ function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-const TIMED_OUT: SheetRead = { ok: false, error: 'the file did not open in 10 seconds', fix: 'Reading carries on by itself.' };
+const TIMED_OUT = { ok: false as const, error: 'the file did not open in 10 seconds', fix: 'Reading carries on by itself.' };
 
 const errorName = (error: unknown): string => (error && typeof error === 'object' && 'name' in error ? String((error as { name: unknown }).name) : '');
 
@@ -347,8 +347,8 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
     last = { lastModified: file.lastModified, size: file.size, rows };
     return { ok: true, rows };
   };
-  // A check that times out says nothing: the read then makes its own bounded attempt, and its
-  // timeout counts as a missed read, so the data still goes stale.
+  // A check that times out is a missed read at once, as a Sheet read that times out is: the data
+  // goes stale on the Sheet's clock, and this page leaves the lease to one that can open the file.
   const canRead = async (signal: AbortSignal) => {
     try {
       const can = await untilAborted(access(), signal);
@@ -356,7 +356,9 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
       // A handle whose file is gone cannot read either: another computer's may.
       await untilAborted(can.handle.getFile(), signal);
     } catch (error) {
-      if (errorName(error) === 'NotFoundError') return { error: FILE_GONE, fix: GONE_FIX };
+      const name = errorName(error);
+      if (name === 'NotFoundError') return { error: FILE_GONE, fix: GONE_FIX };
+      if (name === 'TimeoutError') return { error: TIMED_OUT.error, fix: TIMED_OUT.fix };
     }
     return null;
   };
