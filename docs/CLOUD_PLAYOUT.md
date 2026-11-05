@@ -745,10 +745,10 @@ answer: the log read back in the words an operator would use, newest first.
 The six zip targets and the whole-show export are untouched. (The whole-PACKAGE export
 retired with packages themselves - step 3 of the student release; whole-show export covers
 the need.)
-`buildShowZip` keeps producing the offline `show_controlpanel.html` + per-graphic folders, and
-a published production still bakes the hosted receiver into exported graphics — the
-self-hosted/offline path is the same production operated over the same log, with the renderer
-swapped from `/output` to the user's own hosting. The long-term output model:
+`buildShowZip` keeps producing the offline `show_controlpanel.html` + per-graphic folders. Since
+2026-08-05 an exported graphic carries no hosted receiver (`showExport.ts` strips it, see the known
+limits below): the playout host drives the package, and a hosted production airs through
+`/output`. The long-term output model:
 
 1. **NoaCG Cloud Output** — the `/output` URL (this doc), plus the **output embed**
    (`src/export/outputEmbed.ts`) for a host that loads template FILES and has nowhere to paste a
@@ -764,7 +764,8 @@ swapped from `/output` to the user's own hosting. The long-term output model:
    origin may frame: `vercel.json` sends it no `X-Frame-Options` and no `frame-ancestors`, while
    every other page keeps `frame-ancestors 'self'`. It holds only the render capability, so a
    framing page has nothing to click; `scripts/vercel-frame-headers.test.mjs` guards both halves.
-2. **Self-hosted NoaCG Output** — the exported package + hosted receiver (existing).
+2. **Self-hosted NoaCG Output** — the exported package driven by its own local relay and
+   controller (the hosted receiver it once carried was removed on 2026-08-05).
 3. **Portable package export** — the six targets (existing; offline, archival, restricted
    networks).
 
