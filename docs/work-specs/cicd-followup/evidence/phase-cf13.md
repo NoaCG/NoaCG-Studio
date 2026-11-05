@@ -52,7 +52,7 @@ The E2E capacity gate itself does not refuse it: with `SELECTED_SHARD_MINUTES` s
 returns WARN, as it does on main, because it prices added spec files and added jobs, not a change
 to a stack-count constant. The gate passing is a gap in what it can see, not permission, so rank 1
 is recorded as tried and not landed for cost, and counts toward the three. It stays a measured
-next step for cf20(c) once the backend tier has room. The gap is filed as its own issue (section 6).
+next step for cf20(c) once the backend tier has room. The gap is filed as #2172.
 
 ## 2. Rank 2: the Build step's parts in parallel, in the one Build job
 
@@ -202,4 +202,4 @@ Filled in before landing.
 
 ## 6. Issues
 
-Filled in before landing.
+- #2172: the E2E capacity gate does not price a change to the configured stack count (section 1).
