@@ -209,14 +209,14 @@ exported panel) while two printed names, from two hand-rolled copies of the same
 
 There is one formatter now - `controlModel.ts` `formatMachineState` over `machineStateNames` - and
 all five surfaces call it. `machineStateNames` is deliberately not `machineStateGroups`: that one
-is the snap PICKER's list and is empty without an explicit machine on purpose, while NAMING has to
+is the Bridge's list of states and is empty without an explicit machine on purpose, while NAMING has to
 work for a machine-less graphic too, so it falls back to the derived machine (whose states are
 named after the steps - a lower third now reads "Enter"). The exported panel ships without React,
 so it carries the map baked in at export.
 
-**5.3 There is no snap / recovery control at all.** The production page builds one out of
-`machineStateGroups` (`.pd-snap`, a per-group state picker plus a `::reset` entry that snaps every
-group to its initial - the VISUAL half of reset); the per-graphic page never calls that function.
+**5.3 There is no snap / recovery control at all.** The production page has two (« Back beside
+» Next and ⟲ Reset in the ⚡ block, `controlModel.ts backTarget` / `resetTarget`, which replaced the
+`.pd-snap` state picker in #2181); the per-graphic page has neither.
 "Every state is enterable two ways - by transition or by SNAP" (`docs/STATE_MACHINE_SCHEMA.md` §3)
 is therefore false on this surface: an operator who lands in the wrong state has ■ Stop and a
 replay, and there is no reset-visual-state separate from resetting data.

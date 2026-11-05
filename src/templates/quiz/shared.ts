@@ -560,15 +560,23 @@ ${lock ? `  if (state === 'selected' || state === 'locked') applySelection();
   markQuizPaint();                 // this WAS a full repaint (clear + state's marks) — certify it
 }
 
-// A SNAP (« Back, ⟲ Reset, a recovery) clears the board first. Its marks are classes, which the
-// snap never touches, and the picks made since the last full paint were partial painters, so the
-// signature stamped before them can match the state the snap returns to: the trailing data
-// write's repaint was then skipped and a lock stayed on a board back at its question (#2181).
+// A SNAP (« Back, ⟲ Reset, a recovery, an OGraf skipAnimation) clears the board and then paints
+// it whole from the machine and the fields. Its marks are classes, which the snap never touches,
+// and the picks made since the last full paint were partial painters, so the signature stamped
+// before them could match the state the snap returned to: the repaint was skipped and a lock
+// stayed on a board back at its question (#2181). Painting here, not only on the data write that
+// usually follows, is what an OGraf skipAnimation needs: it re-snaps with no data write at all.
 if (typeof noacgSnap === 'function') {
   var quizSnap = noacgSnap;
   noacgSnap = function () {
     clearReveal();
-    return quizSnap.apply(this, arguments);
+    var state = quizSnap.apply(this, arguments);
+    // The target state's own call may have stamped the signature (the audience result does), and
+    // the marks of the states the snap passed through are still missing: paint it whole.
+    var root = document.querySelector('.quiz');
+    if (root) root.removeAttribute('data-noacg-paint');
+    paintQuizState();
+    return state;
   };
 }
 

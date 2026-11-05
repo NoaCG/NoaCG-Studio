@@ -499,9 +499,8 @@ export function machineStateGroups(js: string): MachineStateGroup[] {
  * Every state's NAME, by group then by state id — what a surface needs to say where the
  * graphic is in words.
  *
- * Deliberately not `machineStateGroups` above: that one is the SNAP PICKER's list and is
- * empty without an explicit machine on purpose (a plain linear template's picker would only
- * duplicate ▶/»/■). Naming is the opposite question — a lower third's `enter` should read
+ * Deliberately not `machineStateGroups` above: that one is the Bridge's list of states and is
+ * empty without an explicit machine on purpose. Naming is the opposite question — a lower third's `enter` should read
  * "Enter" exactly as a quiz's `sealed` should read "Locked, choice hidden" — so this falls
  * back to the DERIVED machine, which names its states after the steps. Nothing is fetched:
  * the names travel inside the template's own data block.
