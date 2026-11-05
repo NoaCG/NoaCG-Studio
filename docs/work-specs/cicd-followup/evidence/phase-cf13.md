@@ -34,7 +34,7 @@ cites those workflow lines and changes nothing.
 | Item | State |
 | --- | --- |
 | Rank 1, 8 configured stacks | skipped for cost, untried: it grows the backend tier, which is in an active cost breach (section 1); does not count toward the three; goes to cf20(c) |
-| Rank 2, Build step in parallel | first of the three tries; this PR; lands when its before side holds cf03's minimum n (section 2) |
+| Rank 2, Build step in parallel | first of the three tries; this PR; lands on cost grounds, expected unmeasured (section 2.2) |
 | Rank 3, ESLint and tsc caches | second try, only if rank 2 does not improve beyond the spread; then rank 4 as the third |
 | Ranks 5 to 8 | untried; they go to cf20(c) |
 | (b) | this PR: preview-trial.yml was the one PR workflow without cancellation (section 3) |
@@ -134,16 +134,16 @@ Group `none`, metrics M1, M2 waiting, M2 execution, M3, with cf03's values uncha
   ends `none` sides and before this PR's `merged_at`. Today that landing is cf14 (#2167, merge
   86749ef1, merged 2026-11-05T01:09:30Z); `phase-cf03-baseline.mjs rule acf26dbe` (#2170) ends
   nothing. Every later merge is checked with `rule` before the count is used.
-- **Landing condition.** This PR lands only once the before side holds at least 12 `none`
-  merges (the largest minimum above, M3), so every metric can be measured on that side. If a
-  side-ending landing arrives first, the before side restarts after it.
+- **Landing condition.** Replaced by section 2.2: no group can reach cf03's minimum within the
+  bound, so the PR lands on cost grounds without waiting.
 - **After side.** `none` merges whose final head's PR run was created after this PR's
   `merged_at`, up to the next landing whose `ends` include `none`, or 7 days after the candidate's
   start, whichever is first.
 - **Candidate start and the 7-day bound.** The candidate started when this PR opened on
   2026-11-05. If either side has not reached the minimum by 2026-11-12, the candidate is recorded
   unmeasured with the n it reached, counts toward the three and goes to cf20(c).
-- **Reading.** Collect the window with `CF03_FROM=<before-side start> CF03_UNTIL=<read time>`,
+- **Reading.** Use a fresh `--cache` folder for every collection: the collector caches its PR
+  list and day listings per window, so a reused cache misses newer merges. Collect the window with `CF03_FROM=<before-side start> CF03_UNTIL=<read time>`,
   `phase-cf03-collect.mjs` until it prints `complete`, then `phase-cf03-baseline.mjs derive`, then
   `phase-cf13-sides.mjs --group none --before-from <ISO> --land <ISO> --after-until <ISO>`.
   It prints n, median and p95 per side and metric, the verdicts of cf03 section 5.2 and the M4
@@ -151,6 +151,37 @@ Group `none`, metrics M1, M2 waiting, M2 execution, M3, with cf03's values uncha
   and everything after ci01 (cf03's sides D, A and A2 together) as the after side: `none` M1
   median 5.2 on B, as cf03 reports, and M4 7 of 122 against 15 of 79, which is cf03's B (7 of 122)
   against its D, A and A2 added up (10 of 44, 5 of 34, 0 of 1).
+
+### 2.2 Re-plan before landing (2026-11-05)
+
+The coordinator collected 2026-11-05T01:09:30Z to 14:00Z with these scripts: 13 merges, one of
+them `none` (M1 7.97). Since cf12 every product change plans the critical journeys, so a change
+with no offline shard is now close to docs-only, about one per 13 hours. Neither `none` side can
+reach 12 (or the M1 minimum of 8) by 2026-11-12. Checked for every other metric and group,
+with cf03's values unchanged:
+
+- **M3, `cap+cfg`.** Builds per merge: about 3.1 PR heads (cf03 side A), one merge group run and
+  one push run on `main`, so about 5; at 2.2 runner-minutes saved each, about 11 per merge.
+  cf03's spread is 290.26 (minimum 12 per side): the effect is 0.04 spreads. Not measurable.
+- **M3, `cap`.** The group ended at ci06 (cf03 section 3.2) and its spread is 709.74. Not
+  measurable.
+- **M1 and M2 execution, `cap+cfg`.** Build is off the critical path: on cf03's side A it ends at
+  6.1 minutes, against the configured verdict at 14.4 on the PR and the catalog gate (11.2) or
+  the offline shards (9.7) in the merge group. No effect.
+- **`small`, `small+cfg`, `none+cfg`.** cf03 gives no spread or minimum ("no comparison").
+
+So rank 2 cannot be measured within the bound whatever its landing time. It lands now on cost
+grounds (no added job, about 11 runner-minutes less per merge, a shorter Build for every change)
+and is recorded unmeasured with the n each side reaches, counting as the first of the three tries
+and going to cf20(c).
+
+**The same check on the next candidates.** Rank 3 (ESLint and tsc caches) also shortens only the
+Build step, so it fails the same check: M3 effect about -10 per merge against 290.26, no M1 or
+M2 effect for `cap+cfg`, and `none` too rare. Rank 4 alone moves `cap+cfg` M2 execution by -0.1
+against 0.62 (cf03 section 7). Rank 5 moves `cap+cfg` M1 by -0.9 against 1.04. Rank 6 needs over
+120 per side for its p95. The one candidate with an effect above a spread on a group that still
+flows is rank 1 (`cap+cfg` M1 -2.6 against 1.04, minimum 10 per side, about 20 hours of merges),
+which is skipped because the backend tier is in breach (section 1).
 
 ### If it does not improve beyond the spread
 
