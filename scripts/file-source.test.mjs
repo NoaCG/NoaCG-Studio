@@ -405,6 +405,26 @@ test('a file read that stalls past the timeout is a missed read, and reading car
   r.reader.stop();
 });
 
+test('a file whose opening hangs (a network share, a cloud placeholder) goes stale and reading carries on', async () => {
+  const handle = fakeHandle('ticker.csv', 'One\n');
+  const r = reader(handle);
+  await r.clock.advance(0);
+  assert.equal(r.writes.length, 1);
+  const getFile = handle.getFile;
+  handle.getFile = () => new Promise(() => {});
+  // Each turn: the check gives up at 10 s, the read gives up at 10 s, a miss; three make it stale.
+  await r.clock.advance(4 * (SHEET_READ_MS + 20_000));
+  assert.equal(r.status().state, 'failing');
+  assert.equal(r.status().stale, true);
+  assert.equal(r.writes.length, 1);
+  handle.getFile = getFile;
+  handle.save('Two\n');
+  await r.clock.advance(SHEET_READ_MS + 20_000);
+  assert.deepEqual(r.writes.at(-1), { file: { f1: { lines: 'Two' } } });
+  assert.equal(r.status().stale, false);
+  r.reader.stop();
+});
+
 test('the review reads a file once, through the reader’s own read', async () => {
   const handle = fakeHandle('a.csv', 'Name,Value\nHome,2\n');
   const read = await fileRead({ handle: async () => handle, format: 'csv' }).read(signal());

@@ -384,7 +384,7 @@ export interface SheetReaderOptions {
   /** Why this page cannot read the source at all, asked before each claim, or null when it can.
    *  A page that cannot read never takes or keeps the lease, so it cannot starve a page that can:
    *  a local file is readable only on the computer that picked it (control/fileSource.ts). */
-  canRead?: () => Promise<{ error: string; fix: string } | null>;
+  canRead?: (signal: AbortSignal) => Promise<{ error: string; fix: string } | null>;
   /** One read of another kind of source, in a Sheet read's form (control/feedSource.ts). */
   read?: (signal: AbortSignal) => Promise<SheetRead>;
   /** How often it reads (SHEET_READ_MS), and how long one read may take (SHEET_TIMEOUT_MS). */
@@ -630,7 +630,17 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
 
   const read = async () => {
     const started = io.now();
-    const cannot = o.canRead ? await o.canRead().catch(() => null) : null;
+    // Asked under the read's own timeout, so a check that hangs never keeps the reader busy.
+    let cannot: { error: string; fix: string } | null = null;
+    if (o.canRead) {
+      const ask = new AbortController();
+      const cut = io.setTimer(() => ask.abort(), o.timeoutMs ?? SHEET_TIMEOUT_MS);
+      try {
+        cannot = await o.canRead(ask.signal).catch(() => null);
+      } finally {
+        io.clearTimer(cut);
+      }
+    }
     if (stopped) return;
     if (cannot) {
       // This page cannot read: it never keeps the lease. When another page holds it, its status is

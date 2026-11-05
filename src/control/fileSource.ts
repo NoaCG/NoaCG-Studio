@@ -78,6 +78,8 @@ export const FILE_NOT_HERE = 'this computer has not chosen the file';
 /** What the read says when the chosen file is no longer where it was (moved or deleted): choosing
  *  it again under the same source keeps every connection. */
 export const FILE_GONE = 'can’t find the file (moved, renamed or deleted)';
+/** Choose the file… takes only a file of the same name, so a renamed file is named back first. */
+const GONE_FIX = 'Put it back under the same name, or choose it where it is now.';
 
 /** Whether a failing status needs the operator's click, and which. */
 export function fileAsk(error: string | null | undefined): 'allow' | 'choose' | null {
@@ -293,7 +295,7 @@ const errorName = (error: unknown): string => (error && typeof error === 'object
 export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; format: FileFormat }): {
   read: (signal: AbortSignal) => Promise<SheetRead>;
   /** Why this page cannot read the file at all (no handle here, no permission yet), or null. */
-  canRead: () => Promise<{ error: string; fix: string } | null>;
+  canRead: (signal: AbortSignal) => Promise<{ error: string; fix: string } | null>;
   parses: () => number;
 } {
   let last: { lastModified: number; size: number; rows: string[][] } | null = null;
@@ -307,7 +309,12 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
     return { handle };
   };
   const read = async (signal: AbortSignal): Promise<SheetRead> => {
-    const can = await access();
+    let can: Awaited<ReturnType<typeof access>>;
+    try {
+      can = await untilAborted(access(), signal);
+    } catch {
+      return TIMED_OUT;
+    }
     if (!('handle' in can)) return { ok: false, ...can };
     const { handle } = can;
     let file: FileLike;
@@ -316,7 +323,7 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
     } catch (error) {
       const name = errorName(error);
       if (name === 'TimeoutError') return TIMED_OUT;
-      if (name === 'NotFoundError') return { ok: false, error: FILE_GONE, fix: 'Put it back, or choose it again.' };
+      if (name === 'NotFoundError') return { ok: false, error: FILE_GONE, fix: GONE_FIX };
       if (name === 'NotAllowedError' || name === 'SecurityError') return { ok: false, error: FILE_PERMISSION, fix: 'Press Allow to go on reading it.' };
       // Excel holds a file while it saves it: the next read finds it again.
       return { ok: false, error: 'can’t read the file just now', fix: 'Reading carries on by itself.' };
@@ -340,14 +347,16 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
     last = { lastModified: file.lastModified, size: file.size, rows };
     return { ok: true, rows };
   };
-  const canRead = async () => {
-    const can = await access();
-    if (!('handle' in can)) return can;
-    // A handle whose file is gone cannot read either: another computer's may.
+  // A check that times out says nothing: the read then makes its own bounded attempt, and its
+  // timeout counts as a missed read, so the data still goes stale.
+  const canRead = async (signal: AbortSignal) => {
     try {
-      await can.handle.getFile();
+      const can = await untilAborted(access(), signal);
+      if (!('handle' in can)) return can;
+      // A handle whose file is gone cannot read either: another computer's may.
+      await untilAborted(can.handle.getFile(), signal);
     } catch (error) {
-      if (errorName(error) === 'NotFoundError') return { error: FILE_GONE, fix: 'Put it back, or choose it again.' };
+      if (errorName(error) === 'NotFoundError') return { error: FILE_GONE, fix: GONE_FIX };
     }
     return null;
   };
