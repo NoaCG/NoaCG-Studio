@@ -733,6 +733,25 @@ test('a repeat of a held press is dropped, and a late or repeated press goes on 
   assert.equal(c.ran.at(-1), 'deck01:2', 'a press past the bound still has its effect');
 });
 
+test('a late or unnumbered press that runs during a gap starts a gap of its own, which the waiting press also waits out', () => {
+  for (const between of ['deck01:1', 'nonumber']) {
+    const c = pressOrder();
+    c.hear('deck01:2');
+    c.hear('deck01:3');
+    c.advance(PRESS_DRAW_MS - 10);
+    c.hear(between);
+    assert.deepEqual(c.ran, ['deck01:2', between], 'it runs at once, inside the gap behind press 2');
+    c.advance(10);
+    assert.deepEqual(c.ran, ['deck01:2', between], `press 3 waits for the page to draw ${between} too`);
+    c.advance(PRESS_DRAW_MS - 11);
+    assert.equal(c.ran.length, 2);
+    c.advance(1);
+    assert.deepEqual(c.ran, ['deck01:2', between, 'deck01:3']);
+    c.advance(PRESS_DRAW_MS);
+    assert.equal(c.timers.length, 0);
+  }
+});
+
 test("each panel has its own count, the draw gap is the page's, and an id with no number is never held", () => {
   const c = pressOrder();
   c.hear('deck01:1');

@@ -146,13 +146,17 @@ own claim's presses run in press order, per panel, by the `n` of their press id
 that heard it; one ahead of its turn is held until the presses before it arrive. 500 ms after a
 press was first held with none in its turn, everything held goes, and the ones that never came are
 given up on. A press in its turn runs no sooner than 50 ms after the last press this page ran, from
-any panel, so it is judged against a page that has drawn that one, however close together they
-arrived (issue #2144); a press with none in the 50 ms before it does not wait. A press after its
-turn runs at once, so one arriving past the bound still
-has its one effect. The first press this page hears from a panel sets the count and never waits,
-because the module may have pressed long before this page opened; a reversed pair at that very
-moment runs as it arrived. A press refused by the relay or lost on the way leaves a gap, so the
-next press of that panel waits out the 500 ms once.
+any panel, however close together they arrived (issue #2144); a press with none in the 50 ms before
+it does not wait. A press after its turn, or one with no number, runs at once, so one arriving past
+the bound still has its one effect, and the next press waits out 50 ms behind it too. The gap is
+meant to let the page draw the press before, and it assumes that press's effect reaches the page's
+drawn state within 50 ms. That is its remaining limit: a graphic's Take first waits its turn behind
+the graphic's earlier verbs, the page's flush and any measuring of the cue's box
+(`control/graphicVerbs.ts` `takeOn`), and when that takes longer, a second Take is judged against
+the page before the first and can still run. The first press this page hears from a panel sets the
+count and never waits, because the module may have pressed long before this page opened; a reversed
+pair at that very moment runs as it arrived. A press refused by the relay or lost on the way leaves
+a gap, so the next press of that panel waits out the 500 ms once.
 
 Then, in this order, on each `press`:
 

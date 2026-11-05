@@ -274,7 +274,11 @@ export const PRESS_HOLD_MS = 500;
 /** The gap behind every press that runs. The page judges and runs a press from what it last drew
  *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged against
  *  a page that has not drawn the press before it, however the two arrived (issues #2109, #2144).
- *  50 ms is what an operator's quick pair has anyway. */
+ *  50 ms is what an operator's quick pair has anyway. It covers a press whose effect the page draws
+ *  within it. A press whose effect takes longer is not waited for: a graphic's Take reaches the
+ *  drawn state only after its turn behind the graphic's earlier verbs, the page's flush and any
+ *  measuring of the cue's box (`graphicVerbs.ts` `takeOn`), so a second Take let go after the gap
+ *  can still be judged against the page before the first and run. */
 export const PRESS_DRAW_MS = 50;
 
 /** At most this many panels' counts are kept: a module start is a new panel. */
@@ -295,12 +299,13 @@ interface OrderedPanel {
  * always numbered them, `<instance>:<n>` counting up per module start, so no module needs an update.
  *
  * A press in its turn runs in the task that heard it, unless another press, from any panel, ran in
- * the PRESS_DRAW_MS before it: then it waits out the rest of that gap, so the page has drawn that
- * press first (issue #2144). A press on its own never waits, and needs no timer. One ahead of its
- * turn is held until the presses before it arrive. PRESS_HOLD_MS after a press was first held with
- * none in its turn, everything held goes, in order, and the presses that never came are given up
- * on. A press after its turn, a late one or a repeat, runs at once: its id decides whether it has
- * an effect (PressMemory), so a +1 arriving late still adds its point. The first press this page
+ * the PRESS_DRAW_MS before it: then it waits out the rest of that gap, so the page can draw that
+ * press first (issue #2144; PRESS_DRAW_MS says what it does not cover). A press on its own never
+ * waits, and needs no timer. One ahead of its turn is held until the presses before it arrive.
+ * PRESS_HOLD_MS after a press was first held with none in its turn, everything held goes, in order,
+ * and the presses that never came are given up on. A press after its turn, a late one or a repeat,
+ * runs at once, and the gap starts again behind it: its id decides whether it has an effect
+ * (PressMemory), so a +1 arriving late still adds its point. The first press this page
  * hears from a panel sets the count and never waits for the ones before it, since a module may have
  * pressed long before this page opened.
  */
@@ -406,9 +411,15 @@ export class PressOrder {
     run();
   }
 
-  /** The gap is over, whatever the clock says now: the panel that has waited longest goes first,
-   *  and one with more to run waits again behind the others. */
+  /** The gap is over: the panel that has waited longest goes first, and one with more to run waits
+   *  again behind the others. A late or unnumbered press that ran during the gap has a gap of its
+   *  own, so the wait goes on for the rest of that. */
   #drawn(): void {
+    const since = this.#now() - this.#ranAt;
+    if (since >= 0 && since < PRESS_DRAW_MS) {
+      this.#drawing = this.#after(PRESS_DRAW_MS - since, () => this.#drawn());
+      return;
+    }
     this.#drawing = null;
     this.#ranAt = -Infinity;
     for (const panel of [...this.#waiting]) {
