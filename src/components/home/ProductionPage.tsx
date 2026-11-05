@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter, type ProductionSub } from '../../app/router';
+import { holdReload } from '../../app/deploySkew';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -800,6 +801,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  unpublished Take never leaves this page. */
   const [sendingNow, setSendingNow] = useState(0);
   const [sendOwed, setSendOwed] = useState(false);
+  // A page left open across a deploy reloads for a code file it can no longer fetch, but never
+  // while this production has anything up or a press on its way (app/deploySkew.ts, issue #758).
+  // Set where the layers on air are derived, below.
+  const airHeldRef = useRef(false);
+  useEffect(() => holdReload(() => airHeldRef.current), []);
   const [loggedAt, setLoggedAt] = useState<number | null>(null);
   /** The browser has no network: nothing from the server reaches this page. */
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
@@ -2634,6 +2640,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const playoutSettings = loadPlayoutSettings();
   /** The server cues this page has put up, by channel and then front to back. */
   const livePlayoutLayers = serverLayers(serverOnAir, playoutItems, cues);
+  airHeldRef.current =
+    liveLayers.length > 0 ||
+    livePlayoutLayers.length > 0 ||
+    sendingFolders.size > 0 ||
+    sendingNow > 0 ||
+    sendOwed ||
+    clearing ||
+    Object.values(folderStates).some((f) => (f?.onAir.length ?? 0) > 0) ||
+    folders.some((f) => folderPlayout.running(f.id));
 
   const selectedGraphic = selectedCue ? cueGraphicName(selectedCue) : null;
   /** A cue over the playout server's library, and whether THIS cue is what this page last put

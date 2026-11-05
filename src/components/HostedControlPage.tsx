@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { packageLayerPeers, withPeersOff } from '../control/ografOutcome';
+import { holdReload } from '../app/deploySkew';
 import {
   adjustWords,
   controlName,
@@ -677,6 +678,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // screen came up blank, reporting "Off" a second after the reload.
   //
   // Read through refs: a stage can come up long after the render that passed this callback.
+  // Left open across a deploy, the page reloads for a code file it can no longer fetch, but never
+  // while a graphic is up here or a press is still being sent: an Out clears the marker before
+  // its request lands (app/deploySkew.ts, #758).
+  const sendsOut = useRef(0);
+  useEffect(() => holdReload(() => sendsOut.current > 0 || Object.values(liveCueRef.current).some(Boolean)), []);
   const machineStateRef = useRef(machineState);
   machineStateRef.current = machineState;
   /** Sends the cue editor's typing still inside its debounce (`sendVerb` says why). */
@@ -828,6 +834,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const sendVerb = (items: ControlSendItem[], allOut = false): Promise<boolean> => {
     flushTyping.current();
+    sendsOut.current += 1;
     return sendControlVerb({
       slug,
       showId: resolved?.id ?? null,
@@ -845,7 +852,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         surfaceSendError(verbSentItems(e) ?? items, e);
         return false;
       },
-    );
+    ).finally(() => {
+      sendsOut.current -= 1;
+    });
   };
 
   /** A press that leaves as several batches (All out over more than four layers): numbered and based together at the press, sent in order, stopping at the first that
@@ -853,6 +862,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  the send came to when it landed, or null when it did not. */
   const sendVerbs = (batches: ControlSendItem[][], allOut = false): Promise<VerbSent | null> => {
     flushTyping.current();
+    sendsOut.current += 1;
     return sendControlVerbs({
       slug,
       showId: resolved?.id ?? null,
@@ -872,7 +882,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         surfaceSendError(verbSentItems(e) ?? batches[landed] ?? [], e);
         return null;
       },
-    );
+    ).finally(() => {
+      sendsOut.current -= 1;
+    });
   };
 
   /** The layers that are up, front to back. */
