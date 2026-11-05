@@ -469,7 +469,9 @@ function CueConnectReview({
   const torn = mapping.filter((r) => (r.status === 'ambiguous' && chosen(r) === null) || (r.current !== null && r.current !== r.path && r.path !== null)).length;
   // A field already following something else counts as matched; the link needs a match to THIS read.
   const matchesRead = id !== '' && mapping.some((r) => r.status !== 'refused' && isSourcePath(id, chosen(r) ?? ''));
-  const clean = Boolean(content) && matchesRead && torn === 0 && content!.problems.length === 0;
+  // A list's warnings sit on its preview rows (a missing header row, a short row), a values tab's in
+  // `problems`: either holds the review open.
+  const clean = Boolean(content) && matchesRead && torn === 0 && content!.problems.length === 0 && content!.preview.every((r) => !r.problem);
   useEffect(() => {
     if (!auto || reading || !read) return;
     setAuto(false);

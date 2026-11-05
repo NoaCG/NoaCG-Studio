@@ -1718,6 +1718,12 @@ test('a first Sheet connection is one button: the template rows connect live, th
   // The link from the Sheet's Share button names no tab.
   await review.getByTestId('cue-connect-link').fill('https://docs.google.com/spreadsheets/d/1NoaCGStubSheet0000000000/edit?usp=sharing');
   await expect(review.getByTestId('cue-connect-api')).toHaveCount(0);
+  // A Sheet that lost its header row would turn the first team into column headings: it waits.
+  tab.csv = `${first}\n`;
+  await review.getByTestId('cue-connect-go').click();
+  await expect(review.getByTestId('cue-connect-held')).toBeVisible();
+  await expect(review.getByTestId('cue-connect-preview')).toContainText('The first row names the columns');
+  tab.csv = starter.text;
   await review.getByTestId('cue-connect-go').click();
   await expect(review).toBeHidden();
 
@@ -1778,6 +1784,28 @@ test('a Sheet that needs a look stays open on its review, and Another system sta
   await review.getByTestId('cue-connect-link').fill(SHEET_LINK.replace('gid=0', 'gid=7'));
   await review.getByTestId('cue-connect-go').click();
   await expect(review.getByTestId('cue-connect-held')).toBeVisible();
+  expect((await storedBindings(page, showId)).bindings).toEqual(bindings);
+
+  // A Connect still reading when the operator picks existing content instead: the pick is a
+  // review of its own, so the earlier press never links it.
+  await review.getByTestId('cue-connect-cancel').click();
+  tab.csv = 'Name,Value\nName,Cy Dale\n';
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.getByTestId('cue-connect').click();
+  await review.getByTestId('cue-connect-link').fill(SHEET_LINK.replace('gid=0', 'gid=8'));
+  await review.getByTestId('cue-connect-go').click();
+  await review.getByTestId('cue-connect-reuse').selectOption({ index: 1 });
+  release();
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  await expect(review.getByTestId('cue-connect-row-f0')).toContainText('Cy Dale');
+  // Linking would close the review within a render of the read landing; it stays.
+  await page.waitForTimeout(1_000);
+  await expect(review).toBeVisible();
   expect((await storedBindings(page, showId)).bindings).toEqual(bindings);
 });
 
