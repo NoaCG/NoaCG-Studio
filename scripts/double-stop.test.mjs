@@ -18,6 +18,11 @@
 // also held to actually changing a design that is on air, so one whose exit never ran cannot pass
 // by staying put in both runs.
 //
+// After the single Stop, each design is taken again in the same document, the way CasparCG, SPX
+// and OGraf hosts call play() after stop(), and must look as its first Take did. A results board's
+// Out faded its rows' container, which its entrance never animates, so the second Take aired the
+// header over an empty board (#1795; the /output page had its own fix in #1793).
+//
 // A design SAVED before the fix carries the old `stop()` in its own code. The composer upgrades it
 // (blocks/animMigration.ts), so a few designs also run with the guard taken back out of their code,
 // the way a saved one reads, and must still exit cleanly.
@@ -113,14 +118,22 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
     w.__advance(repeatMs ?? 0);
     if (repeatMs !== null) w.stop();
     w.__advance(exitMs);
-    return { ...before, after: pose(w), seenAfter: visible(w), root: rootOpacity(w) };
+    const ended = { ...before, after: pose(w), seenAfter: visible(w), root: rootOpacity(w) };
+    if (repeatMs !== null) return ended;
+    // Taken again in the same loaded document, the way CasparCG, SPX and OGraf hosts call it.
+    w.play();
+    w.__advance(onAirMs);
+    return { ...ended, again: pose(w) };
   };
 
   const single = await session(null);
   const repeats = [];
   for (const ms of repeatsMs) repeats.push({ ms, ...(await session(ms)) });
   document.getElementById('fx')?.remove();
-  return { id, single, repeats, unguarded };
+  // A rotating ticker takes its rotation up at the next story on a new Take (tickerIndex is data,
+  // never a state), so its picture a moment into the second Take is a different story by design.
+  const rotates = /var TICKER_ROTATE = true;/.test(template.js);
+  return { id, single, repeats, unguarded, rotates };
 };
 
 const { ids: only } = parseOnly(process.argv.slice(2));
@@ -183,6 +196,15 @@ test('a second Stop, in the same instant or during the exit, ends where a single
     }
   }
   assert.deepEqual(frozen, [], `${frozen.length} repeated Stop(s) left a design somewhere a single Stop does not:\n${frozen.join('\n')}`);
+});
+
+test('a Take after the Out looks as the first Take did (#1795)', () => {
+  const differ = [];
+  for (const r of results.filter((x) => !x.rotates)) {
+    const diff = firstDifference(r.single.onAir, r.single.again);
+    if (diff) differ.push(`${r.id}: ${diff}`);
+  }
+  assert.deepEqual(differ, [], `${differ.length} design(s) came back different after Out and Take:\n${differ.join('\n')}`);
 });
 
 test('nothing a viewer could see is left on air after Stop', () => {
