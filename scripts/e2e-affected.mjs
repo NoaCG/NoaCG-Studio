@@ -170,9 +170,9 @@ export const CENTRAL = [
   // The harness bench's cells and briefs: read by scripts/harness-bench.mjs and its helpers.
   [/^benchmarks\/harness\//, []],
   // Suites with their own Playwright configs and workflows (endurance.yml, hosted-latency.yml):
-  // the offline and catalog configs never load them. A `.spec.` file there would be collected by
-  // playwright.config.ts (testDir ./e2e), so one stays unmapped and escalates.
-  [/^(e2e\/(endurance|instruments)\/(?!.*\.spec\.[cm]?[jt]sx?$)|playwright\.(endurance|instrument)\.config\.ts$)/, []],
+  // the offline and catalog configs never load them. A `.spec.` or `.test.` file there would be
+  // collected by playwright.config.ts (testDir ./e2e, default testMatch), so one stays unmapped.
+  [/^(e2e\/(endurance|instruments)\/(?!.*\.(spec|test)\.[cm]?[jt]sx?$)|playwright\.(endurance|instrument)\.config\.ts$)/, []],
 ];
 
 /**

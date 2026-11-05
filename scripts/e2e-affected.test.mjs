@@ -1388,8 +1388,8 @@ test('cf14: the mapped #1862 paths never escalate or raise the catalog gate', ()
   }
   // A Companion change is a product change, so the critical journeys still run for it (cf12).
   assert.equal(planFor(['companion-module/src/feedbacks.ts'], { sprintFocus: true }).mode, 'subset');
-  // A spec file in those suite folders would be collected by the offline config: it still escalates.
-  for (const file of ['e2e/instruments/new.spec.ts', 'e2e/endurance/new.spec.ts']) assert.deepEqual(planFor([file]).unmapped, [file], file);
+  // A spec or test file in those suite folders would be collected by the offline config: it still escalates.
+  for (const file of ['e2e/instruments/new.spec.ts', 'e2e/endurance/new.spec.ts', 'e2e/instruments/new.test.ts', 'e2e/endurance/new.test.mts']) assert.deepEqual(planFor([file]).unmapped, [file], file);
 });
 
 // THE OTHER DIRECTION, pinned beside it: every kind of change that can move a design still raises

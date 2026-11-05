@@ -106,8 +106,8 @@ spec observes (a spec that reads one by path is still planned for it, `readerInd
 - `e2e/endurance/`, `playwright.endurance.config.ts`, `e2e/instruments/`,
   `playwright.instrument.config.ts`: suites with their own Playwright configs and workflows
   (`endurance.yml`, `hosted-latency.yml`). The offline and catalog configs never load them. A
-  `.spec.` file in those folders would be collected by `playwright.config.ts` (testDir `./e2e`), so
-  the rule leaves one unmapped and it escalates. The
+  `.spec.` or `.test.` file in those folders would be collected by `playwright.config.ts` (testDir
+  `./e2e`, Playwright's default testMatch), so the rule leaves one unmapped and it escalates. The
   instrument pair is the same case as #1862's endurance pair and met the replay (#2100).
 
 The catalog reach is asked before `CENTRAL` (`inCatalogReach`, before `IGNORE`), so a file the gate
@@ -120,8 +120,8 @@ measures through cannot be routed around it by a mapping.
   every change that can move a design still raises the catalog gate": templates, blocks, assets,
   bundled fonts, the font registry, the bench, the OGraf target, control code in the reach,
   `composeDocument`, the svg-corpus fixture, a catalog spec, the catalog config and `package.json`,
-  each alone and beside a mapped path. A new spec file under `e2e/instruments/` or `e2e/endurance/`
-  still escalates. The existing ci04 and ci05 tests (the corpus stays in the
+  each alone and beside a mapped path. A new spec or test file under `e2e/instruments/` or
+  `e2e/endurance/` still escalates. The existing ci04 and ci05 tests (the corpus stays in the
   reach; every fixture plans a spec) pass unchanged.
 - **Before and after** (`phase-cf14-replay.mjs`): today's planner over the 285 first-parent
   landings since 2026-10-24, with and without the three entries. Gate: 112 before, 108 after.

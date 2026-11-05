@@ -22,7 +22,7 @@ const at = process.argv.indexOf('--since');
 const since = at > 0 ? process.argv[at + 1] : '2026-10-24';
 
 // The three entries cf14 added, by their exact source: a reworded entry stops the replay.
-const CF14_SOURCES = ['^companion-module\\/', '^benchmarks\\/harness\\/', String.raw`^(e2e\/(endurance|instruments)\/(?!.*\.spec\.[cm]?[jt]sx?$)|playwright\.(endurance|instrument)\.config\.ts$)`];
+const CF14_SOURCES = ['^companion-module\\/', '^benchmarks\\/harness\\/', String.raw`^(e2e\/(endurance|instruments)\/(?!.*\.(spec|test)\.[cm]?[jt]sx?$)|playwright\.(endurance|instrument)\.config\.ts$)`];
 const cf14Entries = CENTRAL.filter(([r]) => CF14_SOURCES.includes(r.source));
 if (cf14Entries.length !== CF14_SOURCES.length) throw new Error(`expected the ${CF14_SOURCES.length} cf14 CENTRAL entries, found ${cf14Entries.length}`);
 const before = CENTRAL.filter((e) => !cf14Entries.includes(e));
