@@ -662,11 +662,19 @@ test('scorebug actions group by section and drive the clock; a plain lower third
   await expect(start).toBeDisabled();
 
   // ⟲ Reset moves the board to its first step and leaves the clock group alone: one stray press
-  // beside Arrange must never stop a running match clock (#2181).
+  // beside Arrange must never stop a running match clock (#2181). Read off the digits, not the
+  // chip: the snap cancels timers and replays every group, so the proof is that the painted
+  // clock neither restarts nor freezes.
+  const running = page.frameLocator('[data-testid="program-stage"] iframe').locator('[data-start]');
+  const startedAt = clockSeconds(await running.textContent());
+  await expect.poll(async () => Math.abs(clockSeconds(await running.textContent()) - startedAt), { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+  const beforeReset = clockSeconds(await running.textContent());
   await page.getByTestId('cue-actions-reset').click();
-  await page.waitForTimeout(600);
   await expect(page.getByTestId('machine-state-chip')).toContainText(/running/i);
   await expect(stop).toBeEnabled();
+  const afterReset = clockSeconds(await running.textContent());
+  expect(Math.abs(afterReset - startedAt), 'Reset did not put the clock back to where it started').toBeGreaterThanOrEqual(Math.abs(beforeReset - startedAt));
+  await expect.poll(async () => clockSeconds(await running.textContent()), { timeout: 5_000 }).not.toBe(afterReset);
 
   // Full time is destructive (one way only) and marked as such.
   await expect(page.getByTestId('cue-action-final')).toHaveClass(/destructive/);
