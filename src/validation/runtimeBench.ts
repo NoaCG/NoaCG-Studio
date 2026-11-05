@@ -667,6 +667,64 @@ function ellipsized(el: Element, anc: Element, win: Window): boolean {
   return false;
 }
 
+/** The text as it paints, after its text-transform. */
+function transformed(text: string, transform: string): string {
+  if (transform === 'uppercase') return text.toUpperCase();
+  if (transform === 'lowercase') return text.toLowerCase();
+  if (transform === 'capitalize') return text.replace(/(^|\s)(\S)/g, (_m, s: string, c: string) => s + c.toUpperCase());
+  return text;
+}
+
+/**
+ * How far up and down the BODY of `el`'s letters reaches inside `mask`: from the cap line to the
+ * baseline of each text run, null when it has no text. Not its line boxes - a line box is the
+ * font's ascent and descent, which most glyphs never fill (digits put nothing below the baseline),
+ * so a mask that hugs one hides empty space by design. And not its whole ink either: a reveal mask
+ * sized to a tight line box trims the tail of a "g" or the top of an accent across the catalog,
+ * which is glyph overhang, not the cut the reader sees (#1259). The baseline is the run's box top
+ * plus the font's ascent; a run, or the part of one, that a box between it and the mask already
+ * clips (a two-line clamp) is not the mask's doing.
+ */
+function bodyExtent(el: Element, mask: Element, win: Window): { top: number; bottom: number } | null {
+  const doc = el.ownerDocument;
+  const ctx = doc.createElement('canvas').getContext('2d');
+  if (!ctx) return null;
+  const walker = doc.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+  let top = Infinity;
+  let bottom = -Infinity;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent?.trim();
+    const parent = node.parentElement;
+    if (!text || !parent) continue;
+    const cs = win.getComputedStyle(parent);
+    if (cs.visibility === 'hidden') continue;
+    ctx.font = cs.font || `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const m = ctx.measureText(transformed(text, cs.textTransform));
+    if (!m.fontBoundingBoxAscent) continue;
+    const cap = Math.min(m.actualBoundingBoxAscent, ctx.measureText('H').actualBoundingBoxAscent);
+    let clipTop = -Infinity;
+    let clipBottom = Infinity;
+    for (let box: Element | null = parent; box && box !== mask; box = box.parentElement) {
+      if (!clips(win.getComputedStyle(box).overflowY)) continue;
+      const r = box.getBoundingClientRect();
+      clipTop = Math.max(clipTop, r.top);
+      clipBottom = Math.min(clipBottom, r.bottom);
+    }
+    const range = doc.createRange();
+    range.selectNodeContents(node);
+    for (const r of Array.from(range.getClientRects())) {
+      if (!r.width || !r.height) continue;
+      const baseline = r.top + m.fontBoundingBoxAscent;
+      const runTop = Math.max(baseline - cap, clipTop);
+      const runBottom = Math.min(baseline, clipBottom);
+      if (runBottom <= runTop) continue;
+      top = Math.min(top, runTop);
+      bottom = Math.max(bottom, runBottom);
+    }
+  }
+  return bottom > top ? { top, bottom } : null;
+}
+
 /** The part of `rect` (the box of `el`) that the ancestors below `surface` let paint: each one's
  *  overflow on the axes it clips, and its clip-path. Null when they hide all of it. */
 function paintedPart(el: Element, rect: DOMRect, surface: Element, win: Window): DOMRect | null {
@@ -724,8 +782,9 @@ function overflowIssues(
         // line's end off at rest - a neutral scoreboard showed "18" of a score of 188 under the
         // stress name, and its corner bug "Konstantopou" - while this loop skipped the mask and
         // (a2) below described the hidden part as text past its panel. So a mask is measured on
-        // the one axis it has no business cutting at rest. Vertically it is still exempt: there
-        // it hugs a line box its glyphs routinely overhang. A tracked line's last letter carries
+        // the one axis it has no business cutting at rest. Vertically its BOX is still exempt: there
+        // it hugs a line box its glyphs routinely overhang, so the vertical check below measures
+        // the glyphs' ink instead. A tracked line's last letter carries
         // its letter-spacing as empty advance past the ink, and centred tracked caps hang exactly
         // that much past their mask (lt33), so that much is not a cut. A WARNING until the
         // catalog has been calibrated against it, like (a2). The line is measured by its TEXT, so
@@ -733,8 +792,31 @@ function overflowIssues(
         // line moved wholly outside its mask is parked for an entrance, and an ellipsis is a
         // truncation the design chose and shows. A line squeezed out of sight by a mask the
         // layout shrank to nothing (ls07's role lines) is the worst cut of all and still counts.
-        if (anc === el || maskCut || !clips(win.getComputedStyle(anc).overflowX)) continue;
+        if (anc === el || maskCut) continue;
         const ar = anc.getBoundingClientRect();
+        // DOWN AND UP, by the letters (#1259). A mask cuts a line vertically at rest when its edge
+        // crosses the letters' body, cap line to baseline: a numeral edited taller than its mask, a
+        // line-height pulled far below the type, a mask given a fixed height. The mask's box is no
+        // measure of that, and neither is the whole ink (see bodyExtent). A line a transform moves
+        // inside its mask is not at rest: parked for an entrance, or mid-way through the pop an
+        // Update plays, which the stress pass can catch.
+        if (clips(win.getComputedStyle(anc).overflowY) && clipReaches(anc, el, win) && !movedWithin(el, anc, win)) {
+          const body = bodyExtent(el, anc, win);
+          const over = body ? Math.max(ar.top - body.top, body.bottom - ar.bottom) : 0;
+          if (body && over > 2) {
+            maskCut = true;
+            const edge = body.bottom - ar.bottom >= ar.top - body.top ? 'bottom' : 'top';
+            warnings.push(
+              issue(
+                'bench-overflow',
+                `${labelFor(el)} is cut off by its mask ${labelFor(anc)} ${phase} - the mask's ${edge} edge cuts ${Math.round(over)}px into the letters, ` +
+                  `so their ${edge} never shows. Give the line its height back (a line-height of at least 1, no fixed height on the mask).`,
+              ),
+            );
+            continue;
+          }
+        }
+        if (!clips(win.getComputedStyle(anc).overflowX)) continue;
         const words = el.ownerDocument.createRange();
         words.selectNodeContents(el);
         const ink = words.getBoundingClientRect();
