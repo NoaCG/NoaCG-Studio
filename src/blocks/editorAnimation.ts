@@ -4,6 +4,7 @@ import { deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, tr
 import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
+import { allTimelines } from './animMachine';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
 import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
@@ -296,7 +297,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   const owner = animationTarget(template, source, selector, channels);
   // The first key on an SVG layer's transform keeps its base offset (#2062). The key's value is
   // GSAP's reading before the offset moved into the transform it reads, so it moves with it.
-  if (operation.kind === 'animation.key' && operation.action === 'set' && owner === selector && TRANSFORM_CHANNELS.includes(operation.property) && !TRANSFORM_CHANNELS.some(c => animates(source, owner, c))) {
+  if (operation.kind === 'animation.key' && operation.action === 'set' && owner === selector && TRANSFORM_CHANNELS.includes(operation.property) && !allTimelines(source).some(step => TRANSFORM_CHANNELS.some(c => step.layers[owner]?.[c]?.length))) {
     const settled = settleSvgOffset(template, selector);
     template = settled.template;
     if (operation.property === 'x' || operation.property === 'y') operation = { ...operation, value: operation.value + settled[operation.property] };

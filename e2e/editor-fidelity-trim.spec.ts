@@ -729,6 +729,20 @@ test('turning on Position X or Rotation keeps an SVG layer\'s base offset, and a
     await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
     expect(await source(page)).toEqual(settled);
   }
+  // A Rotation that plays only inside a state counts as animated too, and a move then goes into the
+  // attribute; the offset already in the CSS stays there (on a graphic saved before #2062 GSAP hides it).
+  expect(await page.evaluate(async template => {
+    const { parseAnimData } = await import('/src/blocks/animData.ts'), { writeAnimData } = await import('/src/templates/shared/animRuntime.ts'), { editBase, baseValues } = await import('/src/blocks/baseEdits.ts');
+    const data = parseAnimData(template.js)!;
+    const spin = { id: 'spin', timeline: { name: 'Spin', duration: 1, ease: 'none', layers: { '#sibling': { rotation: [{ time: 0, value: 0 }, { time: 1, value: 90 }] } } } };
+    const walk = data.steps.map((_, i) => 'cue' + i);
+    data.machine = { groups: [{ id: 'main', initial: 'off', defaultPath: walk, states: [{ id: 'off' }, ...walk.map(id => ({ id }))], transitions: [] },
+      { id: 'fx', initial: 'idle', states: [{ id: 'idle' }, spin], transitions: [] }] };
+    const spun = { ...template, js: writeAnimData(template.js, data)! }, x = baseValues(spun, '#sibling').x;
+    if (!parseAnimData(spun.js)?.machine?.groups[1].states[1].timeline) throw new Error('The state timeline did not round-trip.');
+    const moved = editBase(spun, '#sibling', { x: x + 5 });
+    return [new DOMParser().parseFromString(moved.html, 'text/html').querySelector('#sibling')!.getAttribute('transform'), moved.css.match(/--base-x:\s*([^;]+)/)![1], baseValues(moved, '#sibling').x - x];
+  }, settled)).toEqual(['translate(765 420) rotate(-12)', '12px', 5]);
   // Position X keyed: a second key moves on from the placed pose, and air plays the same.
   await seek(page, 0);
   await page.getByRole('button', { name: 'Enable Position X animation', exact: true }).click(); await ready(page);
