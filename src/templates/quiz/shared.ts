@@ -560,6 +560,18 @@ ${lock ? `  if (state === 'selected' || state === 'locked') applySelection();
   markQuizPaint();                 // this WAS a full repaint (clear + state's marks) — certify it
 }
 
+// A SNAP (« Back, ⟲ Reset, a recovery) clears the board first. Its marks are classes, which the
+// snap never touches, and the picks made since the last full paint were partial painters, so the
+// signature stamped before them can match the state the snap returns to: the trailing data
+// write's repaint was then skipped and a lock stayed on a board back at its question (#2181).
+if (typeof noacgSnap === 'function') {
+  var quizSnap = noacgSnap;
+  noacgSnap = function () {
+    clearReveal();
+    return quizSnap.apply(this, arguments);
+  };
+}
+
 // update(data): SPX sends field values as JSON, e.g. {"f0":"…","f1":"${content.answers[0]}","${id.correct}":"${content.correct}"}.
 // Each value is written into the element whose id matches the field name (f0 -> id="f0");
 // the correct letter (${id.correct}) lands in a hidden element that next() reads later.

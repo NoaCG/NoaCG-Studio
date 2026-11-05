@@ -593,7 +593,7 @@ test('the League Table steps: Next and Back move one step on air, Reset keeps it
   const lit = program.locator('.results-board-row-on');
 
   // Two quick actions, named by what they show; "Whole table" is gone, since Back and Reset show it.
-  await expect(page.getByTestId('cue-actions').locator('.pd-actions-groups button')).toHaveText(['Highlight row', 'Final table']);
+  await expect(page.getByTestId('cue-actions').locator('.pd-actions-groups button')).toHaveText(['⚡ Highlight row', '⚡ Final table']);
 
   await page.getByTestId('verb-take').click();
   await expect(chip).toHaveText('Enter');
