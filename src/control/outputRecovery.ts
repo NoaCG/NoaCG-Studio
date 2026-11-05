@@ -41,7 +41,7 @@
 // re-animation is recoverable, a lost take is not.
 
 import type { ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
-import { typedOutputGate, typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
+import { typedOutputGate, typedValuesOf, type TypedOutputState, type TypedValues } from '../model/ografTyped.ts';
 
 export interface OutputRecoveryPlan {
   /** The row to follow the log FROM — rows after it are fetched and replayed at boot. */
@@ -237,8 +237,20 @@ export function reportedTypedAir(report: { state?: unknown } | null | undefined)
  *  it holds (model/ografTyped.ts `typedOutputGate`, the same gate): nothing but a stop until an
  *  update it can air releases it, then everything. What a PROGRAM monitor replays for it. */
 export function rowsPastHold<R extends { msg: ControlSendItem['msg'] }>(rows: readonly R[]): R[] {
-  const state = { held: new Map([['g', 'held']]), airing: new Set<string>() };
+  const state = heldGate();
   return rows.filter((row) => typedOutputGate(state, 'g', row.msg).apply);
+}
+
+/** Whether a command ends the output's hold on the graphic it holds, through the same gate: an
+ *  update it can air. A step, an event, a play or another unreadable envelope leaves it held. */
+export function endsHold(msg: ControlSendItem['msg']): boolean {
+  const state = heldGate();
+  typedOutputGate(state, 'g', msg);
+  return !state.held.has('g');
+}
+
+function heldGate(): TypedOutputState {
+  return { held: new Map([['g', 'held']]), airing: new Set<string>() };
 }
 
 /** The steps a graphic has taken since its entrance, after one command: an entrance (or a pose)
