@@ -472,8 +472,8 @@ export function seedOffAirClocks(
  * rebuilds itself (the clocks move on from the reported values, so their memory is dropped first);
  * a layer nothing reported, or a stage after this page applied a command, is rebuilt from what was
  * aired, with the clocks' wire values over the plain ones. The items go through `programItems`.
- * `only` names the layers to rebuild when the stage is not fresh: the boot recovery's, since a
- * layer this page took during the read is already on it (`seedFromResolve`).
+ * `only`, when given, names the layers to rebuild: the boot recovery passes the ones it seeded,
+ * since a layer this page took during the read is already on the stage (`seedFromResolve`).
  */
 export function restoreItems(
   air: AirPart,
