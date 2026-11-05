@@ -1587,6 +1587,11 @@ export async function sendControlVerb(opts: {
   // the operator had seen, read NOW, at the press (or as its road is decided) - not when the send
   // leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
+  // A press whose wait for the road ran out without either answer counts as unanswered, like the
+  // resolve, and never turns into a send by row id (#1697). Decided before this page's own monitor
+  // moves: it plays nothing that will not be sent (#1719). By row id only when decided so before
+  // the send: the server has no sequence road, or no such production.
+  const waitRanOut = !session && !missing && !givenUp() && !!(await getSupabase().catch(() => null));
   const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
   // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
   // has pressed again since: that later press is what stands, on air and here (the server leaves
@@ -1627,7 +1632,7 @@ export async function sendControlVerb(opts: {
   // THIS PAGE'S OWN MONITOR, before the round trip. It is applying commands it has not sent yet,
   // which is safe for the same reason the two roads are: the minted id means the echo it gets
   // back - broadcast or durable row, whichever arrives - is recognised and dropped.
-  if (fast.length > 0) opts.applyHere?.(fast);
+  if (fast.length > 0 && !waitRanOut) opts.applyHere?.(fast);
   const send = {};
   const keys = [...new Set(opts.items.map((item) => `${opts.slug}:${item.graphic}`))];
   for (const key of keys) newestSend.set(key, send);
@@ -1644,10 +1649,8 @@ export async function sendControlVerb(opts: {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
-      // commit after a later press. By row id only when decided so before the send: the server has
-      // no sequence road, or no such production. A press whose wait ran out without either counts as
-      // unanswered, like the resolve, and never turns into a send by row id on a retry (#1697).
-      if (!missing && !givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
+      // commit after a later press.
+      if (waitRanOut) throw unansweredError();
       await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
     noteSend(true);
@@ -1667,7 +1670,7 @@ export async function sendControlVerb(opts: {
     // The items go with it as they were sent, minted ids and all, so the page can recognise the
     // row if this send commits after all.
     const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[] };
-    failed.aired = fast.length > 0;
+    failed.aired = fast.length > 0 && !waitRanOut;
     failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
     throw failed;
   } finally {

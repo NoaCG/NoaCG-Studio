@@ -147,13 +147,18 @@ export function pressMarker(book: MarkerBook, live: LiveCueMap, graphic: string,
  * them, unless a newer press stands, or the marker names a cue none of them did (another screen moved
  * it since). Another screen's cue marker heard meanwhile is what stood before them from then on
  * (`foreignMarker`). An older press still out does not count: the marker names it once it lands.
+ *
+ * `ordered` false is protocol 1 (hostedControl.ts `sendsInOrder`): the server keeps no per-graphic
+ * order, so an older press can commit after a newer one and be what airs. There the last answer is
+ * the last commit (#1721): a press that landed names its cue whatever this page pressed since, and
+ * a failure gives back the press that landed last, by answer.
  */
-export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string, n: number, landed: boolean): { book: MarkerBook; write?: string | null } {
+export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string, n: number, landed: boolean, ordered = true): { book: MarkerBook; write?: string | null } {
   const t = book[graphic];
   const press = t?.out.find((p) => p.n === n);
   if (!t || !press) return { book };
   const out = t.out.filter((p) => p.n !== n);
-  const newerLanded = t.landed !== null && t.landed.n > n;
+  const newerLanded = ordered && t.landed !== null && t.landed.n > n;
   const kept = landed && !newerLanded ? press : t.landed;
   let next: MarkerBook;
   if (out.length > 0) next = { ...book, [graphic]: { ...t, out, landed: kept } };
@@ -161,8 +166,8 @@ export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string
     const { [graphic]: _done, ...rest } = book;
     next = rest;
   }
-  if (newerLanded || out.some((p) => p.n > n)) return { book: next };
-  if (landed) return { book: next, write: press.cue };
+  if (landed && !newerLanded && (!ordered || !out.some((p) => p.n > n))) return { book: next, write: press.cue };
+  if (landed || newerLanded || out.some((p) => p.n > n)) return { book: next };
   const now = live[graphic] ?? null;
   if (!t.named.includes(now)) return { book: next };
   const write = t.landed ? t.landed.cue : t.before;
@@ -170,10 +175,11 @@ export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string
 }
 
 /** Press `n`, which got no answer, was heard landing after all: an older press still out no longer
- *  marks over it when it lands, and a newer one that fails puts it back. */
-export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null): MarkerBook {
+ *  marks over it when it lands, and a newer one that fails puts it back. On protocol 1 (`ordered`
+ *  false) it is the last commit heard, whatever landed before it. */
+export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null, ordered = true): MarkerBook {
   const t = book[graphic];
-  if (!t || (t.landed !== null && t.landed.n > n)) return book;
+  if (!t || (ordered && t.landed !== null && t.landed.n > n)) return book;
   return { ...book, [graphic]: { ...t, landed: { n, cue }, named: [...t.named, cue] } };
 }
 

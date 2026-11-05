@@ -368,6 +368,7 @@ const GRAPHIC_VERB_IO: GraphicVerbIo = {
   pressSend,
   nameList,
   now: wallClock,
+  sendsInOrder,
   setTimeout: (run, ms) => setTimeout(run, ms),
   clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
 };
