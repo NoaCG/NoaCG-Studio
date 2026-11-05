@@ -90,8 +90,9 @@ export function judge(records, { group, beforeFrom, land, afterUntil }) {
   const m = out.metrics;
   out.improved = Boolean(m.m1.medianLowerBeyondSpread || m.m1.p95LowerBeyondSpread || m.m3.medianLowerBeyondSpread);
   out.regressed = Boolean(m.m2_wait.medianHigherBeyondSpread || m.m2_exec.medianHigherBeyondSpread || m.m2_wait.p95HigherBeyondSpread || m.m2_exec.p95HigherBeyondSpread || out.m4.regressed);
-  // Unmeasured when M1 and M3 both miss the minimum on a side: no claim can be made either way.
-  out.unmeasured = !m.m1.measured && !m.m3.measured;
+  // Unmeasured when M1 and M3 both miss the minimum on a side (no claim either way), or when an
+  // improvement shows but M2 waiting or execution misses its minimum, so "no regression" cannot be shown.
+  out.unmeasured = (!m.m1.measured && !m.m3.measured) || (out.improved && !out.regressed && !(m.m2_wait.measured && m.m2_exec.measured));
   out.verdict = out.unmeasured ? 'unmeasured' : out.improved && !out.regressed ? 'improved' : 'not improved';
   return out;
 }

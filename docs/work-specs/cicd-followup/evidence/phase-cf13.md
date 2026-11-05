@@ -103,7 +103,21 @@ landing.
 
 ### 2.1 Measured on this PR's own CI run
 
-Filled in from this PR's CI run before landing.
+PR run 41950548989 (head b3ac3a2f, 2026-11-05), Build job 126993773542, from its log:
+
+| Part | Sequential (merge group 41945882373) | Lanes (this PR) |
+| --- | ---: | ---: |
+| `npm run build` step | 402 s (6.7 min) | 268.6 s (4.5 min) |
+| gates lane | 280.7 s | 255.8 s, `node --test` 147.7 s against 173.3 |
+| typecheck and lint lane | 107.4 s, after the gates | 97.9 s, inside the gates lane |
+| Build job, start to end | about 7.4 min | 5.4 min |
+
+The typecheck and lint lane ended during `test:ai-gateway` and did not slow the gates lane: one
+run each, so the 25-second difference in the gates lane is runner noise, not a gain. The step is
+about 2.2 minutes shorter, more than the 1.2 to 1.7 expected above. Revised expectation for
+`none`: M1 median about 6.5 to 4.3, about 1.8 spreads; M2 execution lower by up to the same where
+Build is the group's chain; M3 about 2 runner-minutes lower per Build run, about 10 per merge,
+inside the 16.75 spread. One run is not a measurement; the sides are.
 
 ### Side windows
 
@@ -167,8 +181,11 @@ the merge queue or on `main`, and is one of the four path-filtered workflows cf0
 the PR from the queue at 12:48:13Z and cancelled its group run at 12:48:24Z, the queue's own
 behaviour for a dequeued group, not a concurrency setting (its group keys on the run id).
 
-**After the change**: filled in from this PR's own pushes (two pushes touching preview-trial.yml,
-the first run cancelled) and from Actions history after landing.
+**After the change, on this PR.** Pushing b3ac3a2f at 01:44:28Z cancelled the preview-trial run of
+the previous head (41950488091, created 01:43:57Z, cancelled) and the ci.yml PR run of that head
+(41950488062, cancelled); the new head's preview-trial run 41950549139 passed. The coordinator's
+reading after landing adds the history on other branches: merge group runs cancelled (expected
+0 by concurrency) and superseded preview-trial runs.
 
 **What this does not change.** A ci.yml push run on `main` that is still waiting when a newer push
 arrives is replaced under the `ci-refs/heads/main` group: 18 such runs on 2026-11-04. ci.yml lines
@@ -180,7 +197,20 @@ kind of cancelled run on `main`.
 
 ## 4. Verification
 
-Filled in before landing.
+| Criterion | Result | How |
+| --- | --- | --- |
+| (a) a candidate from the ranking lands | pending | this PR, when its before side holds 12 `none` merges |
+| (a) M1 or M3 lower beyond the spread, no M2 or M4 regression | open, not claimed | read after the after side fills (section 2) |
+| (a) rank 1 tried in order | recorded | section 1; the capacity gate's verdict reproduced locally (WARN) |
+| The lanes shorten the Build step on Actions | one run: 402 to 268.6 s | section 2.1 |
+| The lanes run concurrently, keep every failure and the first failing status | pass | `scripts/build-lanes.test.mjs` (5 tests; concurrency shown by each lane waiting for the other's file, not by timing) |
+| The build line still starts the build tier and ends with the after-build tier | pass | `node scripts/gates.mjs audit`; `scripts/gates.test.mjs` with the new exact prefix |
+| Targeted gates | pass | `npm run gates -- run --changed origin/main`: 49 pass, 0 fail |
+| Full build on CI | pass | PR run 41950548989: CI gate green, configured selection the whole set (70 specs, 4 stacks) |
+| Local production build | not passed here, unrelated | queued job j-0001: the typecheck and lint lane passed; the gates lane failed 13 `executorSandbox` tests, which fail the same way when `test:ai-gateway` runs alone on this machine's Node 22 (CI runs Node 24 and passed them) |
+| (b) every PR workflow cancels a superseded run | pass | section 3: ci.yml and toolkit-distribution.yml cite their lines; preview-trial.yml changed, and its superseded run 41950488091 was cancelled on this PR |
+| (b) no merge-queue or exact-merge run cancelled by concurrency | pass on `main` so far; re-read after landing | section 3 |
+| The side reader reproduces cf03 | pass | section 2, reading cf03's records |
 
 ## 5. Phase notes
 
