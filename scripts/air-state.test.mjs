@@ -27,6 +27,7 @@ import { createAppliedOnce } from '../src/control/commandRoads.ts';
 import { clockHeldBeforeRow, clockOriginOf, clockRowEffect, clockValueAfterUpdate, plainClockValue } from '../src/control/matchClockWire.ts';
 import { monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
+import { OGRAF_STANDARD, TYPED_VERSION } from '../src/model/ografTyped.ts';
 import { NO_AIR, NO_LOG, createPlayoutSession } from '../src/control/playoutSession.ts';
 
 const T = 1_755_600_000_000;
@@ -589,6 +590,23 @@ test('a press whose row came back stands where its row does: a later row from an
   const air = seedFromResolve(heard, report, rows, asked, CUES, CLOCKS);
   assert.equal(air.aired.score.f1, '9');
   assert.equal(air.bootReplay.length, 3, 'and it replays once');
+});
+
+test('the typed record follows what a stage replays: the report\'s envelope and steps, then the rows and what was heard, on that graphic alone (#2099)', () => {
+  const envelope = (title) => ({ v: TYPED_VERSION, kind: 'values', standard: OGRAF_STANDARD.commit, schema: 'hash', values: { title } });
+  const held = envelope('HELD');
+  const { listening, asked } = asking({ ...NO_AIR, typedAired: { score: held, other: held }, typedSteps: { score: [], other: [] } });
+  const stepped = claimAndApply(listening, [{ graphic: 'score', msg: { t: 'next', oid: 'n1' } }], createAppliedOnce(), CLOCKS, T + 2 * MINUTE).air;
+  const reported = envelope('REPORTED');
+  const report = { liveCue: { score: 'c2', other: 'c1' }, live: {
+    score: { data: { f5: '07:00' }, event: 40, state: { typed: reported, steps: 1 } },
+    other: { data: { f0: 'A' }, event: 40, state: { typed: reported, steps: 2 } },
+  } };
+  const air = seedFromResolve(stepped, report, [{ ...verb('score', 'clockStart', 's1'), created_at: at(1) }], asked, CUES, CLOCKS);
+  assert.deepEqual(air.typedAired.score, reported, 'the report\'s word, as its rows go over it');
+  assert.equal(air.typedSteps.score.length, 3, 'its one step, then the verb, then the step pressed here');
+  assert.deepEqual(air.typedAired.other, held, 'a graphic not replayed keeps what this page held, as before');
+  assert.equal(air.typedSteps.other.length, 0);
 });
 
 test('a setting changed in the rows after a penalty does not reach back to it (#2099)', () => {

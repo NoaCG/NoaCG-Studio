@@ -10,6 +10,10 @@
 // older than the verb, this page's own +1 applied during the read, `seedFromResolve`, `restoreItems`,
 // `programItems`. Expected: the monitor reads what air reads, and the next press moves both.
 //
+// AIR here runs the monitor's own fold, not src/output/main.ts, which shares its clock functions: so
+// this proves a report plus the replay lands where an uninterrupted run did, on real graphics. A
+// fault in the rule they share would not show here (#2161 is one to check on /output).
+//
 //   node --test scripts/clock-replay-monitor.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
