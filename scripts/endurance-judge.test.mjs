@@ -208,7 +208,8 @@ red('controller memory growing window on window', (r) => {
   for (const s of r.samples) if (s.at - r.t0 >= 20 * 60_000) s.controller.heap = 45 * MIB;
 }, /memory and instance counts/);
 test('each agent lifetime names what its memory is made of at either end, when the agent said', () => {
-  assert.ok(judge(healthy()).lifetimes.filter((l) => l.series === 'agent.rss').every((l) => !l.parts));
+  const before = judge(healthy()).lifetimes.filter((l) => l.series === 'agent.rss');
+  assert.ok(before.length >= 3 && before.every((l) => !l.parts), 'a record from before the agent said has no parts');
   const r = healthy();
   for (const s of r.samples) Object.assign(s.agent, { memory: { rss: 60 * MIB, heapTotal: 20 * MIB, heapUsed: 15 * MIB, external: 12 * MIB, arrayBuffers: MIB }, resources: { TCPWrap: 2, Timeout: 3 }, anon: (s.at - r.t0) / 1_000, file: 40 * MIB, threads: 11 });
   const lives = judge(r).lifetimes.filter((l) => l.series === 'agent.rss');

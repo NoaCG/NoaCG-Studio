@@ -346,12 +346,14 @@ test('the election data path holds for the minutes asked', async ({ page, browse
         };
         return { rss: field('VmRSS', 1024), anon: field('RssAnon', 1024), file: field('RssFile', 1024), threads: field('Threads', 1) };
       } catch {
-        return { rss: null };
+        return { rss: null, anon: null, file: null, threads: null };
       }
     };
     const sample = async (at: number, gc: boolean) => {
-      const waiting = await backlog(current);
-      const agent = waiting ? { ...waiting, ...proc(current.child.pid) } : null;
+      // One agent for the whole sample: a handover can replace `current` while the ask waits.
+      const asked = current;
+      const waiting = await backlog(asked);
+      const agent = waiting ? { ...waiting, ...proc(asked.child.pid) } : null;
       const snap = await snapshot();
       record.samples.push({
         at,
