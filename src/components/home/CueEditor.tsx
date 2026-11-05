@@ -416,7 +416,12 @@ function CueConnectReview({
     const no = readNo.current;
     const handle = await loadFileHandle(source.id);
     if (no !== readNo.current) return;
-    if (!handle) return setRead({ error: `This computer has not chosen ${source.config.name}`, fix: 'Use Local file… to choose it here.' });
+    if (!handle) {
+      return setRead({
+        error: `This computer has not chosen ${source.config.name}`,
+        fix: canPickFiles() ? 'Use Local file… to choose it here.' : 'Open this production in Chrome or Edge on the computer that has it.',
+      });
+    }
     const allowed = await allowFile(source.id);
     if (no !== readNo.current) return;
     if (!allowed) return setRead({ error: `Chrome did not allow reading ${source.config.name}`, fix: 'Choose it again and press Allow.' });

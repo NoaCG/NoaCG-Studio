@@ -3,7 +3,7 @@ import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowS
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
 import { FEED_READ_MS } from '../../control/feedSource';
 import { fileAsk } from '../../control/fileSource';
-import { allowFile, pickFile, saveFileHandle } from '../../control/fileHandles';
+import { allowFile, canPickFiles, pickFile, saveFileHandle } from '../../control/fileHandles';
 import { useNow } from './ClipClock';
 import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/liveData';
 import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
@@ -130,6 +130,14 @@ export function FileAskButton({ source, status, store }: { source: ShowSource; s
   // Only this page's own reason: another page's line is that page's to fix.
   const ask = source.kind === 'file' && !source.paused && status?.state === 'failing' && status.reader === 'this' ? fileAsk(status.error) : null;
   if (!ask || source.kind !== 'file') return null;
+  // Firefox and Safari cannot hold a file: say where it can be read rather than offer a button.
+  if (!canPickFiles()) {
+    return (
+      <span className="status-warn" data-testid="source-file-unsupported">
+        {' '}Open this production in Chrome or Edge on the computer that has {source.config.name}.
+      </span>
+    );
+  }
   const press = async () => {
     setRefused(null);
     if (ask === 'allow') {

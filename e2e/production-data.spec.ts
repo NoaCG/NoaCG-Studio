@@ -1914,6 +1914,12 @@ test('a local file connects with one pick, a saved change reaches PROGRAM with n
   await page.getByTestId('cue-connect').click();
   await expect(review.getByTestId('cue-connect-file-unsupported')).toHaveText('To link a CSV or Excel file on this computer, open NoaCG in Chrome or Edge.');
   await expect(review.getByTestId('cue-connect-file-pick')).toHaveCount(0);
+  // Its connected line offers no button it cannot honour, only where the file can be read.
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => localStorage.setItem('e2e-file-permission', 'prompt'));
+  const unsupported = page.getByTestId('cue-connected-line').getByTestId('source-file-unsupported');
+  await expect(unsupported).toHaveText(/Open this production in Chrome or Edge on the computer that has results\.csv\./, { timeout: 12_000 });
+  await expect(page.getByTestId('cue-connected-line').getByTestId('source-file-ask')).toHaveCount(0);
 });
 
 test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
