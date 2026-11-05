@@ -2,8 +2,9 @@
 //
 // A PAGE LEFT OPEN ACROSS A DEPLOY RELOADS ONLY AT A SAFE MOMENT (issue #758). When it cannot load
 // a code file, it reloads once nothing on it is on air, its own URL answers and saved work is on
-// disk; a second failure right after such a reload is a blocked network, not a deploy, and the page
-// stays. Pure, run here in Node; e2e/deploy-skew.spec.ts drives the built app.
+// disk; a second failure right after such a reload, on the same build, is a blocked network, not a
+// deploy, and the page stays. Pure, run here in Node; scripts/deploy-skew-build.test.mjs drives the
+// built app.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,9 +36,10 @@ function page({ held = () => false, served = () => true, last = null } = {}) {
     },
     reload: () => log.push('reload'),
     now: () => clock,
+    build: 'b1',
     lastReload: () => stamp,
-    markReload: (at) => {
-      stamp = at;
+    markReload: (mark) => {
+      stamp = mark;
     },
     wait: async (ms) => {
       log.push(`wait ${ms}`);
@@ -52,7 +54,7 @@ test('nothing on air: settles, then reloads once and remembers when', async () =
   const recover = createSkewRecovery(p.doors);
   assert.equal(await recover(), 'reloaded');
   assert.deepEqual(p.log, ['settle', 'reload']);
-  assert.equal(p.stamp(), p.at());
+  assert.deepEqual(p.stamp(), { at: p.at(), build: 'b1' });
 });
 
 test('a graphic on air holds the reload until air clears', async () => {
@@ -95,12 +97,25 @@ test('a page whose own URL does not answer waits instead of reloading into an er
   assert.equal(p.log.filter((l) => l.startsWith('wait')).length, 2);
 });
 
-test('a second failure soon after a recovery reload stands down: no reload loop', async () => {
-  const fresh = page({ last: 1_000_000 - 1_000 });
+test('a second failure soon after a recovery reload into the same build stands down: no loop', async () => {
+  const fresh = page({ last: { at: 1_000_000 - 1_000, build: 'b1' } });
   assert.equal(await createSkewRecovery(fresh.doors)(), 'looped');
   assert.deepEqual(fresh.log, []);
-  const later = page({ last: 1_000_000 - LOOP_MS - 1 });
+  const later = page({ last: { at: 1_000_000 - LOOP_MS - 1, build: 'b1' } });
   assert.equal(await createSkewRecovery(later.doors)(), 'reloaded');
+});
+
+test('a reload that came back on a new build may reload again for the next deploy', async () => {
+  const p = page({ last: { at: 1_000_000 - 1_000, build: 'b0' } });
+  assert.equal(await createSkewRecovery(p.doors)(), 'reloaded');
+});
+
+test('a refused recovery is not remembered: a later failure asks afresh', async () => {
+  const p = page({ last: { at: 1_000_000 - 1_000, build: 'b1' } });
+  const recover = createSkewRecovery(p.doors);
+  assert.equal(await recover(), 'looped');
+  await p.doors.wait(LOOP_MS);
+  assert.equal(await recover(), 'reloaded');
 });
 
 test('several failures at once make one recovery', async () => {

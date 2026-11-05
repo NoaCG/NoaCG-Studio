@@ -4,6 +4,7 @@ import './styles/index.css';
 import { trackPageVisit } from './backend/events';
 import { flushDurableStore, hydrateDurableStore } from './model/durableStore';
 import { installDeploySkewRecovery } from './app/deploySkew';
+import { LIVE_BUILD } from './control/livePath';
 
 // Boot stages for app.html's watchdog (its inline script owns the values): 'html' is set
 // inline before this module loads, 'js' proves the entry chunk executed, 'mounted' proves
@@ -27,7 +28,14 @@ if (!diagMode) trackPageVisit();
 
 // A page left open across a deploy asks for code files the new deploy no longer has: reload it at
 // a safe moment (app/deploySkew.ts, issue #758).
-if (!diagMode) installDeploySkewRecovery(flushDurableStore);
+if (!diagMode) {
+  installDeploySkewRecovery(LIVE_BUILD, async () => {
+    // The debounced autosaves write on this event (store/templateStore.ts, store/videoProjectStore.ts,
+    // components/home/useDeferredEdits.ts), as before an account reload (backend/accountLibrary.ts).
+    window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+    await flushDurableStore();
+  });
+}
 
 // The saved documents live in IndexedDB behind a synchronous mirror (model/durableStore.ts).
 // Loading that mirror is the one asynchronous step in the boot, and it MUST finish before the

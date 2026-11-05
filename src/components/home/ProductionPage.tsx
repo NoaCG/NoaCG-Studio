@@ -2662,7 +2662,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const playoutSettings = loadPlayoutSettings();
   /** The server cues this page has put up, by channel and then front to back. */
   const livePlayoutLayers = serverLayers(serverOnAir, playoutItems, cues);
-  airHeldRef.current = liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || sendingNow > 0 || sendOwed;
+  airHeldRef.current =
+    liveLayers.length > 0 ||
+    livePlayoutLayers.length > 0 ||
+    sendingFolders.size > 0 ||
+    sendingNow > 0 ||
+    sendOwed ||
+    clearing ||
+    Object.values(folderStates).some((f) => (f?.onAir.length ?? 0) > 0) ||
+    folders.some((f) => folderPlayout.running(f.id));
 
   const selectedGraphic = selectedCue ? cueGraphicName(selectedCue) : null;
   /** A cue over the playout server's library, and whether THIS cue is what this page last put

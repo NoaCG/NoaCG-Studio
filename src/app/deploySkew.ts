@@ -14,18 +14,21 @@
 //                                     the server, so nothing that was on air is lost.
 //   Only once its own URL answers     a reload during an outage would leave the browser's error
 //                                     page where the studio was. An answer slower than PROBE_MS
-//                                     counts as none, as on the output (../output/reload.ts).
-//   Only once saved work is on disk   the durable store is flushed before the reload.
-//   Never twice in a row              a reload that fails the same way within LOOP_MS is not a
-//                                     deploy but a network that blocks the file: the page stays,
-//                                     with the caller's own error, instead of reloading forever.
+//                                     counts as none, as on the output (../output/reload.ts, which
+//                                     this layer may not import).
+//   Only once saved work is on disk   pending autosaves and the durable store are flushed first.
+//   Never twice into the same build   a reload that came back on the SAME build and fails again
+//                                     within LOOP_MS is not a deploy but a network that blocks the
+//                                     file: the page stays, with the caller's own error, instead of
+//                                     reloading forever. A reload that came back on a NEW build may
+//                                     reload again for the deploy after it.
 //
 // The output page reloads by its own rules (../output/main.ts, issue #757), so it does not use this.
 // Pure apart from the doors: scripts/deploy-skew.test.mjs runs it in Node.
 
 /** How often a held reload asks again whether air is clear. */
 export const RETRY_MS = 5_000;
-/** A second stale-file reload within this long of the first is refused. */
+/** A second stale-file reload from the same build within this long of the first is refused. */
 export const LOOP_MS = 120_000;
 /** How long the page waits for its own URL before it counts as not answering. */
 export const PROBE_MS = 10_000;
@@ -39,28 +42,29 @@ export interface SkewDoors {
   settle: () => Promise<void>;
   reload: () => void;
   now: () => number;
-  /** When this tab last reloaded for a stale file, if it remembers. */
-  lastReload: () => number | null;
-  markReload: (at: number) => void;
+  /** The build this page was loaded from. */
+  build: string;
+  /** When this tab last reloaded for a stale file, and from which build, if it remembers. */
+  lastReload: () => { at: number; build: string } | null;
+  markReload: (mark: { at: number; build: string }) => void;
   wait: (ms: number) => Promise<void>;
 }
 
-export type SkewOutcome = 'reloaded' | 'looped' | 'pending';
+export type SkewOutcome = 'reloaded' | 'looped';
 
 /** What to do when the page cannot load a code file. One recovery at a time: a second failure
- *  while one waits joins it. */
+ *  while one waits joins it; a failure after a refused one asks afresh. */
 export function createSkewRecovery(doors: SkewDoors): () => Promise<SkewOutcome> {
   let running: Promise<SkewOutcome> | null = null;
   const recover = async (): Promise<SkewOutcome> => {
     const last = doors.lastReload();
-    if (last !== null && doors.now() - last < LOOP_MS) return 'looped';
+    if (last && last.build === doors.build && doors.now() - last.at < LOOP_MS) return 'looped';
     for (;;) {
-      if (!doors.held()) {
+      if (!doors.held() && (await doors.probe().catch(() => false))) {
         await doors.settle();
-        const served = await doors.probe().catch(() => false);
-        // Read AGAIN after the round trip: a Take may have landed while the probe was out.
-        if (served && !doors.held()) {
-          doors.markReload(doors.now());
+        // Read AGAIN after the round trips: a Take may have landed while they were out.
+        if (!doors.held()) {
+          doors.markReload({ at: doors.now(), build: doors.build });
           doors.reload();
           return 'reloaded';
         }
@@ -68,7 +72,10 @@ export function createSkewRecovery(doors: SkewDoors): () => Promise<SkewOutcome>
       await doors.wait(RETRY_MS);
     }
   };
-  return () => (running ??= recover());
+  return () =>
+    (running ??= recover().finally(() => {
+      running = null;
+    }));
 }
 
 // What holds a reload on this page. A production or control page registers while it is mounted.
@@ -89,8 +96,9 @@ export function reloadHeld(): boolean {
 
 const STAMP_KEY = 'spx-gfx-stale-build-reload';
 
-/** Listen for code files this page can no longer load, in the browser. */
-export function installDeploySkewRecovery(settle: () => Promise<void>): void {
+/** Listen for code files this page can no longer load, in the browser. `build` names the deploy
+ *  the page was loaded from; `settle` puts saved work on disk. */
+export function installDeploySkewRecovery(build: string, settle: () => Promise<void>): void {
   const recover = createSkewRecovery({
     held: reloadHeld,
     probe: async () => {
@@ -105,17 +113,18 @@ export function installDeploySkewRecovery(settle: () => Promise<void>): void {
     settle: () => settle().catch(() => undefined),
     reload: () => window.location.reload(),
     now: () => Date.now(),
+    build,
     lastReload: () => {
       try {
-        const value = Number(window.sessionStorage.getItem(STAMP_KEY));
-        return value > 0 ? value : null;
+        const [at, ...rest] = (window.sessionStorage.getItem(STAMP_KEY) ?? '').split(' ');
+        return Number(at) > 0 ? { at: Number(at), build: rest.join(' ') } : null;
       } catch {
         return null;
       }
     },
-    markReload: (at) => {
+    markReload: (mark) => {
       try {
-        window.sessionStorage.setItem(STAMP_KEY, String(at));
+        window.sessionStorage.setItem(STAMP_KEY, `${mark.at} ${mark.build}`);
       } catch {
         // No session storage: the loop guard is lost, the reload is not.
       }
