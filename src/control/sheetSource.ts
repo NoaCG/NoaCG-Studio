@@ -630,16 +630,19 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
     const cannot = o.canRead ? await o.canRead().catch(() => null) : null;
     if (stopped) return;
     if (cannot) {
-      // Let go of a lease held from before, and say why here without counting it as the source's
-      // miss: another page may be reading it well.
-      if (claimId !== null) door.release();
+      // This page cannot read: it never keeps the lease. When another page holds it, its status is
+      // the source's; otherwise nothing reads, so this page's reason counts as a missed read and
+      // the data goes stale after three, as for a failed read.
+      const peek = await door.claim(claimId).catch(() => null);
+      if (stopped) return;
       claimId = null;
-      const before = shown?.reader === 'this' && shown.error === cannot.error ? shown : null;
-      report(
-        o.paused()
-          ? { ...initialStatus('this'), state: 'paused' }
-          : { ...initialStatus('this'), state: 'failing', error: cannot.error, fix: cannot.fix, failingSince: before?.failingSince ?? io.now() },
-      );
+      if (peek && !peek.held) {
+        report({ ...(peek.status ?? initialStatus(peek.reader)), reader: peek.reader });
+      } else {
+        door.release();
+        const before = shown?.reader === 'this' ? shown : initialStatus('this');
+        report(o.paused() || peek?.paused ? { ...before, state: 'paused' } : missedStatus(before, cannot, io.now(), 'this'));
+      }
       schedule(renew);
       return;
     }

@@ -329,8 +329,12 @@ test('a page that cannot read the file never holds the lease, so the page that c
   await clock.advance(0);
   assert.equal(without.status().error, FILE_NOT_HERE);
   assert.equal(without.status().reader, 'this');
-  assert.equal(without.status().stale, false);
-  assert.equal(leases.size, 0, 'it took no lease');
+  const held = () => [...leases.values()].some((l) => l.until > clock.now());
+  assert.equal(held(), false, 'it keeps no lease');
+  // Nothing reads: its reason counts as a miss, and the data goes stale after three.
+  await clock.advance(2 * SHEET_READ_MS);
+  assert.equal(without.status().stale, true);
+  assert.equal(fileAsk(without.status().error), 'choose');
   const withFile = reader(handle, { clock, leases, tab: 'studio' });
   await clock.advance(SHEET_READ_MS);
   assert.deepEqual(withFile.writes, [{ file: { f1: { lines: 'One' } } }]);
@@ -339,11 +343,15 @@ test('a page that cannot read the file never holds the lease, so the page that c
   await clock.advance(3 * SHEET_READ_MS);
   assert.deepEqual(withFile.writes.at(-1), { file: { f1: { lines: 'Two' } } });
   assert.equal(without.writes.length, 0);
+  // The page without the file now shows the reading page's healthy status, with no button.
+  assert.equal(without.status().reader, 'other');
+  assert.equal(without.status().state, 'ok');
+  assert.equal(without.status().stale, false);
   // A page that held the lease and then lost the file's permission lets it go.
   handle.permission = 'prompt';
   await clock.advance(SHEET_READ_MS);
   assert.equal(withFile.status().error, FILE_PERMISSION);
-  assert.equal([...leases.values()][0].until <= clock.now(), true, 'the lease was let go');
+  assert.equal(held(), false, 'the lease was let go');
   without.reader.stop();
   withFile.reader.stop();
 });
