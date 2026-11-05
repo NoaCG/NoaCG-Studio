@@ -34,6 +34,7 @@
 
 import type { Show } from './shows';
 import { settleFolders } from './showFolders.ts';
+import { freeName } from './poolIdentity.ts';
 
 /** A top-level field's readable name, for the "your change to … was replaced" line. */
 const FIELD_LABEL: Record<string, string> = {
@@ -192,6 +193,31 @@ function separateNewLayers(merged: Item[], base: unknown, theirs: unknown): Item
 }
 
 /**
+ * TWO NEW GRAPHICS, ONE NAME (issue #779). Two members who each add their own "Lower third" from
+ * the same base both keep it, but the output, the live state and the bindings key a production's
+ * graphics by name, so one name can stand for only one of them. As with layers, theirs keeps its
+ * name and the one WE added takes the next free one ("Lower third 2"), the name its add would have
+ * picked had it seen theirs (model/poolIdentity.ts `poolPlacement`).
+ */
+function separateNewNames(merged: Item[], base: unknown, theirs: unknown): Item[] {
+  const ids = (list: unknown) => new Set(isItemList(list) ? list.map((item) => item.id) : []);
+  const inBase = ids(base);
+  const inTheirs = ids(theirs);
+  const ourNew = (g: Item) => !inBase.has(g.id) && !inTheirs.has(g.id);
+  const nameOf = (g: Item) => (g as { name?: unknown }).name;
+  const used = new Set(merged.filter((g) => !ourNew(g)).map(nameOf).filter((n): n is string => typeof n === 'string'));
+  return merged.map((g) => {
+    const name = nameOf(g);
+    if (!ourNew(g) || typeof name !== 'string') return g;
+    const free = freeName(used, name);
+    used.add(free);
+    if (free === name) return g;
+    const template = (g as { template?: Record<string, unknown> }).template;
+    return { ...g, name: free, ...(template ? { template: { ...template, name: free } } : {}) };
+  });
+}
+
+/**
  * Merge a refused local document onto the one a teammate saved. `at` becomes the result's
  * `updatedAt`, so the merged record reads as the newest edit it is.
  */
@@ -219,7 +245,7 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     }
     const items = mergeItems(b[key], o[key], t[key]);
     if (items) {
-      doc[key] = key === 'graphics' ? separateNewLayers(items.value, b[key], t[key]) : items.value;
+      doc[key] = key === 'graphics' ? separateNewNames(separateNewLayers(items.value, b[key], t[key]), b[key], t[key]) : items.value;
       if (items.conflict) lost.push(FIELD_LABEL[key] ?? key);
       continue;
     }
