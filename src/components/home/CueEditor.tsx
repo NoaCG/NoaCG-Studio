@@ -44,6 +44,7 @@ import { useStorePart } from './useStorePart';
 import type { SourceListAdapter } from '../../control/externalSource';
 import { productionDataKey } from '../../control/productionDataApi';
 import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
+import { ago, statusWords, useSourceStatus } from './SourcesLine';
 
 /** The edited cue's text, as the draft shows it. */
 export type CueEditorView = CueText;
@@ -169,6 +170,24 @@ function CueConnectedMark({ source, store }: { source: ShowSource; store: Source
   );
 }
 
+/** The graphic's connected state beside Connect data… (#2185): which source it follows, when that
+ *  was last read, and Disconnect, which hands every field it feeds back to the cue. */
+function CueConnectedLine({ source, store, onDisconnect }: { source: ShowSource; store: SourceStatusStore; onDisconnect: () => void }) {
+  const { status, now } = useSourceStatus(store, source.id);
+  const fresh = !source.paused && status && (status.state === 'ok' || status.state === 'empty') && status.checkedAt !== null;
+  const when = fresh ? `read ${ago(status.checkedAt!, now)}` : statusWords(source.paused, status, now, false);
+  return (
+    <span className="pd-connected-line hint" data-testid="cue-connected-line" data-stale={status?.stale ? 'true' : undefined}>
+      <span className={status?.stale || status?.state === 'failing' ? 'status-warn' : undefined}>
+        Connected to {source.label} · {when}
+      </span>{' '}
+      <button type="button" className="link-inline" onClick={onDisconnect} data-testid="cue-connected-disconnect">
+        Disconnect
+      </button>
+    </span>
+  );
+}
+
 /** A tab or a feed read for the review: its link or address, rows, or the failure with its fix;
  *  or Another system, which has nothing to read: its paths are offered from the fields (C5); or a
  *  connector's JSON sample (E5.2), read for the review and never applied. */
@@ -227,6 +246,10 @@ function CueConnectReview({
   const [read, setRead] = useState<ConnectRead | null>(null);
   const [reading, setReading] = useState(false);
   const [firstTab, setFirstTab] = useState(false);
+  /** The one-button Connect (#2185): read, and link at once when the proposal needs nothing from
+   *  the operator; otherwise the review stays open on what needs a look. */
+  const [auto, setAuto] = useState(false);
+  const [autoHeld, setAutoHeld] = useState(false);
   const [label, setLabel] = useState('');
   const [choices, setChoices] = useState<Record<string, string | null>>({});
   const [saving, setSaving] = useState(false);
@@ -357,6 +380,7 @@ function CueConnectReview({
     setChoices({});
     setColumns({});
     setFirstTab(false);
+    setAutoHeld(false);
     return readNo.current;
   };
   const close = onClose;
@@ -435,6 +459,38 @@ function CueConnectReview({
     if (sourceToRead) store.poke(sourceToRead);
     close();
   };
+  // The one-button Connect lands here once its read is in: a Sheet or a feed that matched at least
+  // one field, with no field torn between two matches or already following something else and no
+  // row it could not use, is linked at once. A field the read has nothing for stays the cue's own,
+  // as in the review (a link naming no tab reads its first tab). Anything else stays open on the
+  // review, as Check matches first leaves it.
+  const torn = mapping.filter((r) => (r.status === 'ambiguous' && chosen(r) === null) || (r.current !== null && r.current !== r.path && r.path !== null)).length;
+  const clean = Boolean(content) && matched > 0 && torn === 0 && content!.problems.length === 0;
+  useEffect(() => {
+    if (!auto || reading || !read) return;
+    setAuto(false);
+    if (clean && !saving) void confirm();
+    else if (!('error' in read)) setAutoHeld(true);
+    // confirm reads this render's review, which is the one the read just produced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, reading, read, clean]);
+  /** Start a read of what the box says: a Sheet tab, a feed on a ticker, else a JSON address. */
+  const startRead = (link: boolean) => {
+    const start = (go: () => Promise<void>) => {
+      setLabel((l) => l || poolGraphic.name);
+      setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
+      setAuto(link);
+      void go();
+    };
+    const sheet = parseSheetLink(linkText);
+    if (!('error' in sheet)) return start(() => readTab(sheet.link));
+    if (/docs\.google\.com/.test(linkText)) return setRead({ error: sheet.error, fix: 'Copy the link from the Sheet’s Share button.' });
+    // Not a Sheet: on a ticker, any other web address is read as a news feed; on any other
+    // graphic, as a JSON endpoint (a new connector), its sample read by the hosted fetcher.
+    const address = normalizeFeedAddress(linkText);
+    if ('error' in address) return setRead({ error: address.error.replace(/\.$/, '').replace('feed', 'web'), fix: takesFeed ? 'Copy the feed’s address from its site.' : 'Copy the address from the provider.' });
+    start(() => (takesFeed ? readFeed(address.url) : readJson(address.url, null)));
+  };
 
   return (
     <>
@@ -464,43 +520,17 @@ function CueConnectReview({
         />
         <button
           type="button"
-          disabled={reading || linkText.trim() === ''}
-          onClick={() => {
-            const start = (go: () => Promise<void>) => {
-              setLabel((l) => l || poolGraphic.name);
-              setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
-              void go();
-            };
-            const sheet = parseSheetLink(linkText);
-            if (!('error' in sheet)) return start(() => readTab(sheet.link));
-            if (/docs\.google\.com/.test(linkText)) return setRead({ error: sheet.error, fix: 'Copy the link from the Sheet’s Share button.' });
-            // Not a Sheet: on a ticker, any other web address is read as a news feed; on any other
-            // graphic, as a JSON endpoint (a new connector), its sample read by the hosted fetcher.
-            const address = normalizeFeedAddress(linkText);
-            if ('error' in address) return setRead({ error: address.error.replace(/\.$/, '').replace('feed', 'web'), fix: takesFeed ? 'Copy the feed’s address from its site.' : 'Copy the address from the provider.' });
-            start(() => (takesFeed ? readFeed(address.url) : readJson(address.url, null)));
-          }}
-          data-testid="cue-connect-read"
+          className="primary"
+          disabled={reading || saving || linkText.trim() === ''}
+          onClick={() => startRead(true)}
+          data-testid="cue-connect-go"
         >
-          {reading ? 'Reading…' : 'Read'}
+          {reading && auto ? 'Connecting…' : 'Connect'}
+        </button>
+        <button type="button" className="link-inline" disabled={reading || linkText.trim() === ''} onClick={() => startRead(false)} data-testid="cue-connect-read">
+          {reading && !auto ? 'Reading…' : 'Check matches first'}
         </button>
       </div>
-      {/* Another system writes this graphic's fields through the data key (C5): nothing to
-          read, every field offered its own path, reviewed and confirmed once like a Sheet. */}
-      <button
-        type="button"
-        onClick={() => {
-          cancelRead();
-          setReading(false);
-          setReuse(null);
-          setLinkText('');
-          setChoices({});
-          setRead({ api: true });
-        }}
-        data-testid="cue-connect-api"
-      >
-        Another system
-      </button>
       {fieldSources.length > 0 && (
         <select
           value={reuse?.id ?? ''}
@@ -530,9 +560,36 @@ function CueConnectReview({
           ))}
         </select>
       )}
+      {/* Another system writes this graphic's fields through the data key (C5): nothing to
+          read, every field offered its own path, reviewed and confirmed once like a Sheet. A
+          separate choice, gone once a link is typed or read, so connecting a Sheet can never end
+          wired to it (#2185). */}
+      {!read && !reading && linkText.trim() === '' && (
+        <div className="pd-connect-other" data-testid="cue-connect-other">
+          <p className="hint">Or let another program, such as scoring software, write these fields.</p>
+          <button
+            type="button"
+            onClick={() => {
+              cancelRead();
+              setReading(false);
+              setReuse(null);
+              setChoices({});
+              setRead({ api: true });
+            }}
+            data-testid="cue-connect-api"
+          >
+            Another system…
+          </button>
+        </div>
+      )}
       {read && 'error' in read && (
         <p className="status-warn" data-testid="cue-connect-error">
           {read.error}. {read.fix}
+        </p>
+      )}
+      {autoHeld && reviewing && !api && (
+        <p className="hint" data-testid="cue-connect-held">
+          Check the matches below, then Connect.
         </p>
       )}
       {api && (
@@ -659,8 +716,8 @@ function CueConnectReview({
                 {saveError}
               </p>
             )}
-            <button type="button" disabled={(noTab && !firstTab) || saving} onClick={() => void confirm()} data-testid="cue-connect-confirm">
-              Connect
+            <button type="button" className="primary" disabled={(noTab && !firstTab) || saving} onClick={() => void confirm()} data-testid="cue-connect-confirm">
+              {api ? 'Connect to another system' : 'Connect'}
             </button>
             {/* Fill copies what the read gives into this cue and connects nothing: the cue keeps
                 it whatever the source does next. */}
@@ -672,9 +729,10 @@ function CueConnectReview({
                   onFill(previewValues);
                   close();
                 }}
+                title="Copies today’s values into this cue. Later changes do not reach it."
                 data-testid="cue-connect-fill"
               >
-                Fill this cue
+                Copy values once
               </button>
             )}
             <button type="button" onClick={close} data-testid="cue-connect-cancel">
@@ -742,15 +800,18 @@ function ConnectorColumns({
  * offers the explicit migration first (C6, `CueOwnReader`), so no field ever has two readers. The
  * review (CueConnectReview) exists only while open, so a closed menu costs the editor nothing.
  */
-function CueConnectData({ ownReader, ...props }: Omit<Parameters<typeof CueConnectReview>[0], 'onClose' | 'onRefused'> & { ownReader: OwnReader }) {
+function CueConnectData({ ownReader, fed, onDisconnect, ...props }: Omit<Parameters<typeof CueConnectReview>[0], 'onClose' | 'onRefused'> & { ownReader: OwnReader; fed: ShowSource[]; onDisconnect: (source: ShowSource) => void }) {
   const [open, setOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const close = () => setOpen(false);
   return (
     <span className="lib-menu-host pd-connect-host">
       {/* The head's compact button, as the switch beside it: the head keeps its height. */}
+      {fed.map((source) => (
+        <CueConnectedLine key={source.id} source={source} store={props.store} onDisconnect={() => onDisconnect(source)} />
+      ))}
       <button type="button" className="pd-editor-switch" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="cue-connect">
-        Connect data…
+        {fed.length > 0 ? 'Change…' : 'Connect data…'}
       </button>
       {refusal && (
         <span className="status-warn" data-testid="cue-connect-refused"> {refusal}</span>
@@ -1148,8 +1209,8 @@ export default function CueEditor({
           {source ? (
             <CueConnectedMark source={source} store={sourceStatus} />
           ) : isApiPath(path) ? (
-            <span className="pd-bound-mark" title={`Connected to Another system: ${path}`} data-testid="cue-connected-mark">
-              🔗 Another system
+            <span className="pd-bound-mark" title={`Another system writes ${path}`} data-testid="cue-connected-mark">
+              Another system controls this
             </span>
           ) : (
             <span className="pd-bound-mark" title={`Bound to production data: ${path}`}>
@@ -1169,7 +1230,6 @@ export default function CueEditor({
             list is read-only here and says where to edit it (sheet spec). */}
         {isApiPath(path) && (
           <span className="hint" data-testid="cue-connected-note">
-            Another system writes <code>{path}</code>.{' '}
             <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
               Disconnect
             </button>
@@ -1254,6 +1314,8 @@ export default function CueEditor({
           onPreview={onConnectPreview}
           onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !fixed(k))) })}
           ownReader={ownReader}
+          fed={fed.filter((source) => source.kind !== 'youtube')}
+          onDisconnect={(source) => disconnect(Object.keys(bound).filter((f) => isSourcePath(source.id, bound[f]) && descriptors.some((d) => d.key === f)))}
         />
         {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
             line that names it rather than hidden from the operator entirely. */}
