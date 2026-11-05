@@ -1,4 +1,4 @@
-// guards: src/control/panelFeedback.ts, src/control/workerTicker.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql
+// guards: src/control/panelFeedback.ts, src/control/workerTicker.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql, src/templates/importedDesign/behaviour.ts, src/templates/behaviours/score.ts
 //
 // HARDWARE PANELS, THE PAGE'S CHECKS (docs/work-specs/hardware-panel-control/spec.md AC-4, AC-7;
 // protocol.md §6.2 and §8): a relayed press is judged against what the page shows now and what its
@@ -294,6 +294,9 @@ test('an imported score tracker, compiled for real, says its point presses cover
   // Lifted above the fold, Player 2's +1 still names its row.
   const pinned = caps.find((c) => c.id === 'event:score2');
   assert.deepEqual([pinned.place, pinned.label, pinned.section], ['pinned', '+1', 'Player 2']);
+  // A row the production renamed reads the same pinned as it does on the page.
+  const renamed = graphicCapabilities(controls({ arranged: arrangeControls(buttons, { score2: { pinned: true, section: 'Away' } }), numbers: [] }));
+  assert.equal(renamed.find((c) => c.id === 'event:score2').section, 'Away');
 });
 
 test('a graphic with nothing to press, or a name the relay cannot carry, is not offered', () => {

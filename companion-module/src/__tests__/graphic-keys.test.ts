@@ -407,7 +407,7 @@ test("L1 AC-8: presets list the pinned graphics' live controls only, picks as op
 	)
 	assert.equal(
 		buildPresets('noacg', [], null).structure.at(-1)!.description,
-		'Pin a graphic on the production page to get its controls here.',
+		"Pin a graphic's live controls on the production page to get them here.",
 	)
 })
 

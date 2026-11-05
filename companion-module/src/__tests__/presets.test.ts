@@ -17,7 +17,7 @@ import { offer, rows } from './fakes.js'
 
 type Built = ReturnType<typeof buildPresets>
 
-const NOTHING_PINNED = 'Pin a graphic on the production page to get its controls here.'
+const NOTHING_PINNED = "Pin a graphic's live controls on the production page to get them here."
 
 /**
  * The sections and groups as Companion 5.0.6 draws them (its `Thread/Presets.ts` `convertGroup` and

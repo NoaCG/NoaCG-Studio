@@ -296,7 +296,7 @@ export function buildPresets(
 			name: 'Pinned graphics',
 			description: graphics.groups.length
 				? "The live controls of each graphic pinned on the production page. They go straight to air, on that graphic's cue on air."
-				: 'Pin a graphic on the production page to get its controls here.',
+				: "Pin a graphic's live controls on the production page to get them here.",
 			definitions: graphics.groups.length
 				? graphics.groups.map((g) => ({ id: g.id, type: 'simple' as const, name: g.name, presets: g.ids }))
 				: noKeysYet('graphics'),

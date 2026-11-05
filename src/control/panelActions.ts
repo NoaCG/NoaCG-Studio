@@ -65,8 +65,8 @@ export interface PanelCapability {
   label: string;
   /** Where the page draws it: pinned above the fold, in a section, or behind More. */
   place: 'pinned' | 'section' | 'more';
-  /** Its section; for a pinned or More control, the section it declares, which a panel's key names
-   *  when two controls read the same (an imported score's +1 per row). */
+  /** Its section; for a pinned or More control, the one it belongs to, which a panel's key names when
+   *  two controls read the same (an imported score's +1 per row). */
   section?: string;
   /** The argument object's schema (E1's model), or null for a press that takes none. */
   args: TypedNode | null;
@@ -221,9 +221,9 @@ export function graphicCapabilities(g: GraphicControls): PanelCapability[] {
       invocable: true,
     });
   };
-  for (const c of g.arranged.pinned) control(c, 'pinned', c.button.section);
+  for (const c of g.arranged.pinned) control(c, 'pinned', c.home);
   for (const [section, controls] of g.arranged.sections) for (const c of controls) control(c, 'section', section);
-  for (const c of g.arranged.more) control(c, 'more', c.button.section);
+  for (const c of g.arranged.more) control(c, 'more', c.home);
   for (const d of g.numbers) {
     const allowed = live && g.stepping;
     const note = !live ? offAirNote(g.graphic) : allowed ? undefined : unheldNote(g.graphic);
