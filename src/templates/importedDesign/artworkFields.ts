@@ -4,7 +4,7 @@
 // Split out of svg.ts so the behaviour compiler can read the same list without importing the
 // assembler that imports it.
 
-import { clockSampleMinutes } from '../../assets/svgImport';
+import { clockSampleMinutes, SVG_CANDIDATE_ATTR, SVG_WRAPPED_LINE_ATTR } from '../../assets/svgImport';
 import type { SpxField } from '../../model/types';
 import type { DesignSvg } from '../../model/wizard';
 import { asClockMode, clockReadout, type ClockMode } from '../behaviours/clock';
@@ -32,10 +32,27 @@ export function countdownIndex(svg: DesignSvg): number {
   return svg.fields.findIndex((f) => f.countdown);
 }
 
+/** The text layers the import stamped as WRAPPING BLOCKS (`markWrappedBlock`): drawn as stacked
+ *  lines, so their field is a multi-line box an operator can type a line break into (#2079). A
+ *  one-line layer keeps its one-line field. Memoised on the markup, which `svgFields` is asked for
+ *  several times per assemble. */
+function wrappedBlocks(markup: string): Set<string> {
+  if (blocksMemo?.markup === markup) return blocksMemo.ids;
+  const ids = new Set<string>();
+  const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+  for (const el of Array.from(doc.querySelectorAll(`text[${SVG_CANDIDATE_ATTR}]`))) {
+    if (el.firstElementChild?.hasAttribute(SVG_WRAPPED_LINE_ATTR)) ids.add(el.getAttribute(SVG_CANDIDATE_ATTR) ?? '');
+  }
+  blocksMemo = { markup, ids };
+  return ids;
+}
+
+let blocksMemo: { markup: string; ids: Set<string> } | null = null;
+
 /** The SPX DataFields: one per bound text layer (numeric samples as real number fields;
  *  the countdown layer as its LENGTH in minutes, the drawn readout converted - "10:00" is
- *  ten; the credits layer as ONE textarea holding the sample's lines), then one per bound
- *  picture layer. */
+ *  ten; the credits layer as ONE textarea holding the sample's lines; a wrapping block as a
+ *  multi-line box), then one per bound picture layer. */
 export function svgFields(svg: DesignSvg): SpxField[] {
   const clock = countdownIndex(svg);
   const bound = boundClock(svg);
@@ -66,7 +83,7 @@ export function svgFields(svg: DesignSvg): SpxField[] {
       }
       return {
         field: `f${i}`,
-        ftype: f.numeric ? 'number' : 'textfield',
+        ftype: f.numeric ? 'number' : wrappedBlocks(svg.markup).has(f.candidateId) ? 'textarea' : 'textfield',
         title: f.title,
         value: f.sample,
       };

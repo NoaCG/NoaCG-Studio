@@ -11922,7 +11922,7 @@
    "fields": [
     {
      "field": "f0",
-     "ftype": "textfield",
+     "ftype": "textarea",
      "title": "Question",
      "value": "Which Finnish city hosted the 1952 Summer Olympics, and in which month did they open?"
     },
@@ -12010,7 +12010,7 @@
     "@font-face {\n  font-family: \"Inter-Medium\";\n  src: url(\"fonts/inter-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 500;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
    ],
    "emit": {
-    "html": "e01bc30da92d2864bb6cf81a4987f30de25106d529a8cbff849d9bd4823c287a",
+    "html": "e0421311f74f0fdc9b0d337886569cd303d72b72f5679995121d3180eafcb374",
     "css": "d6e19eaa2d16388f117db6f11bc237e54890461e31d6e0ebf85bbff61c44fa43",
     "js": "9305094d591293bd43509a7718c232ca5548f43de6aed491187db038c1cf3021"
    },
@@ -13660,7 +13660,7 @@
    "fields": [
     {
      "field": "f0",
-     "ftype": "textfield",
+     "ftype": "textarea",
      "title": "Question",
      "value": "Which Finnish city hosted the 1952 Summer Olympics?"
     },
@@ -13748,7 +13748,7 @@
     "@font-face {\n  font-family: \"Inter-Medium\";\n  src: url(\"fonts/inter-latin-ext.woff2\") format(\"woff2\");\n  font-weight: 500;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */\n  font-display: swap;\n  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;  /* latin-ext: Š Ž Ł ő ğ and the rest of Latin Extended */\n}"
    ],
    "emit": {
-    "html": "b06da0aa293cee9d33582588fd26fb69f8a6b3a814787d65d477d3b7c9679477",
+    "html": "cdc3e6645bcaab75fd1e6969a9441b27d6baa1acc4c1cc4fd8aedd8de04224db",
     "css": "d6e19eaa2d16388f117db6f11bc237e54890461e31d6e0ebf85bbff61c44fa43",
     "js": "9305094d591293bd43509a7718c232ca5548f43de6aed491187db038c1cf3021"
    },

@@ -481,6 +481,14 @@ The page:
   for good after a deploy, so after three failures in a row the page reloads itself, but only
   when its own URL answers: a reload during an outage would put the browser's error page on air
   (`e2e/output-boot-resilience.spec.ts`).
+- A studio or control page (`/app`) left open across a deploy asks for the old deploy's code
+  files when it opens something new, and they answer 404. It reloads itself
+  (`src/app/deploySkew.ts`, issue #758), but only with nothing on air or on its way from that page
+  and no unfinished wizard draft or brand edit, once its own URL answers and saved work is on disk (a failed save
+  refuses it), and at most once in two minutes from the same build, so a
+  network that blocks the files leaves the page's own error rather than a reload loop. A
+  production with a graphic up waits for air to clear; until then the feature that needed the
+  file says it did not load. The output page has no such files beyond supabase-js (above).
 
 The URL is persistent by construction, and that now includes unpublishing. IDENTITY (which URLs
 address a production) and PUBLICATION (whether they resolve) are separate: publication is the
