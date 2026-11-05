@@ -424,8 +424,8 @@ function slottedRowEffect(
 // From there every verb is arithmetic over a PAIR: `switch` banks the stamped clock as a held
 // time and stamps the other one; with neither stamped it stamps the first, because somebody has
 // to open. `penalty` docks whichever clock is stamped. `reset` returns both to the allowance,
-// held. Going off air banks the stamped one. No state id is named here and no edge is read: the
-// alternation lives in the two values themselves.
+// held. Going off air banks the stamped one. No edge is read, and no state id is named but where a
+// snap names one: the alternation lives in the two values themselves.
 //
 // It agrees with the machine because both describe the same two-sided board — the floor group's
 // `armed | speakerA | speakerB` under `switch` is the same three-way alternation as
@@ -648,6 +648,19 @@ export function speakingClockRowEffect(
   if (row.msg.t === 'update') return carrying((r) => (r.slot === CORRECTED_ORIGIN ? durationValue(r.time, at, r.length, r.sent) : null), 'after');
   // The entrance ends the off-air mark. BEFORE it, so the board comes up on the value it keeps.
   if (row.msg.t === 'play') return carrying((r) => (r.slot === OFF_AIR ? durationValue(r.time, null, r.length, r.sent) : null), 'before');
+  if (row.msg.t === 'snap') {
+    // THE ONE ROW THAT NAMES THE FLOOR: a snap is told where to go rather than what happened, so the
+    // stamp follows it, or the next Switch would start a different speaker on air than on the wire.
+    // Null is every group at its initial state. A snap not naming the floor leaves it where it is.
+    const floor = row.msg.snap === null ? 'armed' : row.msg.snap?.floor;
+    if (floor !== 'armed' && floor !== 'speakerA' && floor !== 'speakerB') return null;
+    const side = floor === 'armed' ? null : floor === 'speakerA' ? 'a' : 'b';
+    if (running === side) return null;
+    const values: Record<string, string> = {};
+    if (running) values[fieldOf(running)] = speakingValue(valueOf(running), speakingClockAt(valueOf(running), at), null);
+    if (side) values[fieldOf(side)] = speakingValue(valueOf(side), speakingClockAt(valueOf(side), at), at);
+    return { values, when: 'after' };
+  }
   if (row.msg.t !== 'event') return null;
 
   switch (row.msg.event) {

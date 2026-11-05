@@ -418,6 +418,7 @@ function debateMonitor() {
     return run.out;
   };
   return {
+    row,
     update: (minute, values = {}) => row({ t: 'update', data: { ...whole, ...values } }, minute),
     event: (name, minute) => row({ t: 'event', event: name }, minute),
     stop: (minute) => row({ t: 'stop' }, minute),
@@ -536,6 +537,29 @@ test('#2161: on the monitor a Switch that reaches a board already down starts no
   m.play(3);
   assert.equal(plainClockValue(m.held().fa), '05:00');
   assert.equal(plainClockValue(m.held().fb), '05:00');
+});
+
+test('#2175: on the monitor the stamp follows a snap that names the floor, and leaves one that does not alone', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  const snap = (to, minute) => m.row({ t: 'snap', snap: to }, minute);
+  assert.deepEqual(snap({ penalty: 'clear' }, 1).map((i) => i.msg.t), ['snap'], 'not naming the floor moves no clock');
+  assert.equal(clockOriginOf(m.held().fa), T);
+  assert.deepEqual(snap({ floor: 'speakerA' }, 1).map((i) => i.msg.t), ['snap'], 'nor does the speaker already on it');
+  const toB = snap({ floor: 'speakerB' }, 1);
+  assert.deepEqual(toB.map((i) => i.msg.t), ['snap', 'update']);
+  assert.equal(clockOriginOf(m.held().fa), null);
+  assert.equal(plainClockValue(m.held().fa), '04:00');
+  assert.equal(clockOriginOf(m.held().fb), T + MINUTE);
+  snap(null, 2);
+  assert.equal(clockOriginOf(m.held().fb), null, 'null is every group at rest');
+  assert.equal(plainClockValue(m.held().fb), '04:00');
+  m.event('switch', 2);
+  assert.equal(clockOriginOf(m.held().fa), T + 2 * MINUTE, 'nobody had the floor, so the next Switch opens with A');
+  snap({ floor: 'armed' }, 3);
+  assert.equal(clockOriginOf(m.held().fa), null);
+  assert.equal(plainClockValue(m.held().fa), '03:00');
 });
 
 test('#2161: on the monitor a penalty keeps what the cue sent, so the next resend gives no time back', () => {

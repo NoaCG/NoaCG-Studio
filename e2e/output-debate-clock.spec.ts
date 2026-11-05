@@ -238,39 +238,83 @@ test('an output booting with no pose plays the board again: the running clock ke
   await reportNames(debate, 'f6', 'speakerB');
 });
 
-test('a Snap to rest with A speaking: the next Switch hands over to B on the wire and on the screen', async ({ page }) => {
-  // What the production page sends for a Snap: the pose, then the cue's values (graphicVerbs.ts).
+/** What the production page sends for a Snap: the pose, then the cue's values (graphicVerbs.ts). */
+async function snapTheBoard(page: Page, debate: Debate, snap: Record<string, string> | null, title: string): Promise<void> {
+  debate.write({ t: 'snap', snap });
+  debate.write({ t: 'update', data: { ...debate.cue, f0: title } });
+  await expect(round(page)).toHaveText(title, { timeout: 20_000 });
+}
+
+/** The report says nobody is speaking, each clock at its time, and the machine at rest. */
+async function reportRests(debate: Debate, a: string): Promise<void> {
+  await expect.poll(() => {
+    const report = debate.report();
+    const groups = (report?.state as { groups?: Record<string, string> } | null)?.groups;
+    return report ? [report.data.f5.split('@')[0], /@[1-9]/.test(report.data.f5), /@[1-9]/.test(report.data.f6), groups?.floor] : null;
+  }, { timeout: 20_000 }).toEqual([a, false, false, 'armed']);
+}
+
+for (const [how, snap] of [['every group to its start', null], ['the floor to Armed', { floor: 'armed' }]] as const) {
+  test(`a Snap of ${how} with A speaking lands at rest: nobody speaks, the clocks hold, and the next Switch opens with A`, async ({ page }) => {
+    const debate = await openDebate(page);
+    await takeTheBoard(page, debate);
+    debate.write({ t: 'event', event: 'switch' }, 60_000);
+    await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThanOrEqual(240);
+
+    await snapTheBoard(page, debate, snap, 'SNAPPED');
+    await expect.poll(() => railsFavour(page), { timeout: 10_000 }).toBe('neither');
+    const held = await clockA(page).textContent();
+    await page.waitForTimeout(1_200);
+    await expect(clockA(page), 'nobody is counting').toHaveText(held!);
+    await expect(clockB(page)).toHaveText('05:00');
+    await reportRests(debate, held!);
+
+    debate.write({ t: 'event', event: 'switch' });
+    await floorPassed(page, clockB(page), clockA(page), seconds(held));
+    await reportNames(debate, 'f5', 'speakerA');
+  });
+}
+
+test('a Snap of the floor to the other speaker moves the wire with it', async ({ page }) => {
   const debate = await openDebate(page);
   await takeTheBoard(page, debate);
-  await aThenB(page, debate);
-  debate.write({ t: 'event', event: 'switch' }, 10_000);
-  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThanOrEqual(230);
+  debate.write({ t: 'event', event: 'switch' }, 60_000);
+  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThanOrEqual(240);
 
-  debate.write({ t: 'snap', snap: null });
-  debate.write({ t: 'update', data: { ...debate.cue, f0: 'SNAPPED' } });
-  await expect(round(page)).toHaveText('SNAPPED', { timeout: 20_000 });
-  await reportNames(debate, 'f5', 'speakerA');
-  debate.write({ t: 'event', event: 'switch' });
-  await floorPassed(page, clockA(page), clockB(page), 270);
+  await snapTheBoard(page, debate, { floor: 'speakerB' }, 'TO B');
+  await floorPassed(page, clockA(page), clockB(page), 300);
   await reportNames(debate, 'f6', 'speakerB');
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockB(page), clockA(page), 240);
+  await reportNames(debate, 'f5', 'speakerA');
 });
 
-test('an output booting from a report that rests the floor with a clock stamped comes back with that speaker', async ({ page }) => {
-  // The pose road of a boot: data, snap, data. Such a report comes from an older board.
+test('every floor state stays enterable by an instant Snap in the board itself, whichever speaker came before', async ({ page }) => {
   const debate = await openDebate(page);
-  debate.onAirWith({
-    data: { ...debate.cue, f5: `04:00@${Date.now() - 20_000}/05:00/05:00`, f6: '04:30@/05:00/05:00' },
-    state: { groups: { floor: 'armed' } },
-    seq: 0,
+  await takeTheBoard(page, debate);
+  const landed = await page.frameLocator(`iframe[title="${GRAPHIC}"]`).locator('.scoreboard').evaluate((root) => {
+    const w = root.ownerDocument.defaultView as unknown as { noacgSnap: (a: Record<string, string> | null) => { groups: Record<string, string> } };
+    return [
+      w.noacgSnap({ floor: 'speakerA' }).groups.floor,
+      w.noacgSnap({ floor: 'armed' }).groups.floor,
+      w.noacgSnap({ floor: 'speakerB' }).groups.floor,
+      w.noacgSnap(null).groups.floor,
+      w.noacgSnap({ floor: 'speakerB' }).groups.floor,
+      w.noacgSnap({ floor: 'speakerA' }).groups.floor,
+    ];
   });
-  await page.goto('/output?production=debate-probe');
-  await expect.poll(() => read(clockA(page)), { timeout: 30_000 }).toBeLessThanOrEqual(220);
-  await expect(clockB(page)).toHaveText('04:30');
-  await expect.poll(() => railsFavour(page), { timeout: 10_000 }).toBe('a');
+  expect(landed).toEqual(['speakerA', 'armed', 'speakerB', 'armed', 'speakerB', 'speakerA']);
+});
 
-  debate.write({ t: 'event', event: 'switch' });
-  await floorPassed(page, clockA(page), clockB(page), 270);
-  await reportNames(debate, 'f6', 'speakerB');
+test('the runtime bench presses every arrow of the floor, each from the state it starts in', async ({ page }) => {
+  await page.goto('/app');
+  const skipped = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const bench = await import('/src/validation/runtimeBench.ts');
+    const result = await bench.benchTemplateRuntime(variantById('dc01')!.create({}), { fieldPaints: true });
+    return [...result.errors, ...result.warnings].filter((f) => f.rule === 'bench-events-skipped').map((f) => f.message);
+  });
+  expect(skipped).toEqual([]);
 });
 
 test('a Switch that reaches a board already down starts nothing, and the Take after it starts over', async ({ page }) => {

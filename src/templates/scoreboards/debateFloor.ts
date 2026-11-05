@@ -266,35 +266,36 @@ function holdClocks() {
   debatePaintClockColors();
 }
 
-// RESTING THE MACHINE DOES NOT TAKE THE FLOOR AWAY. play() and a snap rest the floor group at armed,
-// but a speaker still counting through them has not stopped: this engine and the wire's stamp both
-// say who it is. Left armed, the next Switch would start A whoever the wire handed the floor to, and
-// the two would name different speakers from then on. So the floor goes straight back to that
-// speaker. debateStart then finds that side already running and changes nothing, so this holds in a
-// boot's recovery too, where play() follows the report's data with no data after it. A board that
-// has been off air holds nobody, and neither does a first Take.
-function debateFloorState() {
-  if (!debateActive) return null;
-  return debateActive === 'a' ? 'speakerA' : 'speakerB';
-}
-
+// A TAKE ON AIR DOES NOT TAKE THE FLOOR AWAY. play() rests every machine group at its initial state,
+// which for the floor is armed, but a speaker still counting through a Take has not stopped: this
+// engine and the wire's stamp both say who it is. Left armed, the next Switch would start A whoever
+// the wire handed the floor to, and the two would name different speakers from then on. So the floor
+// goes straight back to that speaker. debateStart then finds that side already running and changes
+// nothing, so this holds in a boot's recovery too, where play() follows the report's data with no
+// data after it. A board that has been off air holds nobody, and neither does a first Take.
 var debateMachinePlay = noacgMachinePlay;
 noacgMachinePlay = function () {
   debateOffAir = false;
   var entrance = debateMachinePlay();
-  var state = debateFloorState();
-  for (var g = 0; state && g < noacgMachine.groups.length; g++) {
-    if (noacgMachine.groups[g].id === 'floor') noacgFire(noacgMachine.groups[g], { to: state });
+  for (var g = 0; debateActive && g < noacgMachine.groups.length; g++) {
+    if (noacgMachine.groups[g].id === 'floor') noacgFire(noacgMachine.groups[g], { to: debateActive === 'a' ? 'speakerA' : 'speakerB' });
   }
   return entrance;
 };
 
+// A SNAP TO ARMED MEANS IT: nobody speaks, and each clock holds what it reads. A snap skips a group
+// bound for its initial state, so armed's own call never runs and the count would outlive the pose.
+// The wire banks the same row (control/matchClockWire.ts). The numbers are not reset: that is Reset.
 var debateMachineSnap = noacgSnap;
 noacgSnap = function (assignments, opts) {
   debateOffAir = false;
   var pose = debateMachineSnap(assignments, opts);
-  var state = debateFloorState();
-  return state && pose.groups.floor === 'armed' ? debateMachineSnap({ floor: state }, opts) : pose;
+  if (debateActive && pose.groups.floor === 'armed') {
+    debateStopTimer();
+    debateActive = null;
+    debatePaintClockColors();
+  }
+  return pose;
 };
 
 // Both clocks back to the set allowance, nothing running — the reset button's whole job.
