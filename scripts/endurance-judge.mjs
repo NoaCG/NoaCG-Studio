@@ -26,9 +26,11 @@ const EXPECTED_REFUSALS = /not taken \((?:\d{3} )?(?:too_soon|paused|moved|epoch
 const OLD_OWNER_REFUSED = /not taken \((?:409 )?(?:moved|epoch)\)|not claimed \(409 held by another agent\)/;
 /** Lines that say something was not taken or failed to reach the production. */
 const REFUSAL = / not taken \(| not claimed \(| renewal failed| claim failed| the sender failed| waiting as the production asked/;
-/** A request to the production that ended without its answer, in any wording but the production's
- *  own verdict (`the sender failed: not taken (...)` repeats a refusal the agent logged already). */
-const HANDOVER_FAILURE = / (?:renewal|claim|the sender) failed: (?!not taken \()/;
+/** A request to the production that a handover ended before its answer, in each wording the agent
+ *  gives one (scripts/external-data-connector.mjs): aborted as it stops, timed out, or cut off by
+ *  the network (`fetch failed`, with or without its cause). Anything else, a verdict or a bug's
+ *  error, is not the handover's doing. */
+const HANDOVER_FAILURE = / (?:renewal|claim|the sender) failed: (?:stopped|fetch failed|the production did not answer in \d+ seconds)(?: \(|$)/;
 const MIB = 1024 * 1024;
 /** What this run does not measure, said in every verdict so a green run is not read as more. */
 export const UNMEASURED = [
@@ -158,11 +160,11 @@ export function judge(record) {
   // A tripwire: the route refuses a larger revision before storing it, so the stored size cannot
   // exceed the cap; a refusal shows in the check below. Kept to report the largest size stored.
   check('every accepted revision stayed inside the ingress limit (holds by construction: the route refuses a larger one before storing it)', bytes > 0 && bytes <= (fx.capBytes ?? 262144), `largest ${bytes} bytes`);
-  // A handover ends the old owner's requests in flight, and each fails with whatever the network
-  // says: a released agent aborts them as it stops (`stopped`), a frozen one finds them timed out or
-  // reset as it wakes. Expected of that agent only, inside its own handover: from the release, or
-  // from the waking (a frozen agent writes nothing), to the handover's end. An old owner that lived
-  // on would show its failures. The production's verdicts (`not taken (...)`) are never excused here.
+  // A handover ends the old owner's requests in flight: a released agent aborts them as it stops
+  // (`stopped`), a frozen one finds them timed out or cut off as it wakes (HANDOVER_FAILURE).
+  // Expected of that agent only, inside its own handover: from the release, or from the waking (a
+  // frozen agent writes nothing), to the handover's end. An old owner that lived on would show its
+  // failures. The production's verdicts (`not taken (...)`) are never excused here.
   const ownHandover = (r) => kinds('handover').some((f) => r.agent === f.from && r.at >= (f.woke ?? f.at) && r.at <= (f.end ?? f.woke ?? f.at) && HANDOVER_FAILURE.test(r.line));
   const unexpected = reads.filter((r) => REFUSAL.test(r.line) && !EXPECTED_REFUSALS.test(r.line) && !ownHandover(r));
   check('no revision was refused for size, budget or anything the run did not cause', unexpected.length === 0, unexpected.slice(0, 3).map((r) => r.line).join(' | '));
