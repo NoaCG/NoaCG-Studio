@@ -1872,7 +1872,12 @@ test('a local file connects with one pick, a saved change reaches PROGRAM with n
 
   // After a reload Chrome wants permission again: the link stays, says so, and one click reads on.
   await page.evaluate(() => localStorage.setItem('e2e-file-permission', 'prompt'));
+  page.on('crash', () => console.log('DEBUG crash'));
+  page.on('close', () => console.log('DEBUG close'));
+  page.on('pageerror', (e) => console.log('DEBUG pageerror', e.message));
+  await settleDurableWrites(page);
   await page.reload();
+  console.log('DEBUG reloaded', page.url());
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
   const allow = page.getByTestId('cue-connected-line').getByTestId('source-file-ask');
   await expect(allow).toHaveText('Allow reading results.csv', { timeout: 12_000 });
