@@ -129,9 +129,9 @@ The operator decides which fields your system fills, in the studio:
    connected keeps its path; two graphics with the same name get different groups.
 2. The review shows every field with its proposed path and the value it would show, on the
    PREVIEW monitor too. Pick another path or "Not connected" for any field, then press
-   **Connect** once. Fields prepared messages use are refused, as for every source.
-3. The connected field says "Another system" and names its path; **Disconnect** returns it to
-   the cue with the value it last showed.
+   **Connect to another system** once. Fields prepared messages use are refused, as for every source.
+3. The connected field says "Another system controls this" (its path is in the tooltip and on
+   the Data tab's card); **Disconnect** returns it to the cue with the value it last showed.
 4. The Data tab's **Another system** card lists the connected paths, a `curl` example that
    writes all of them, and **⬇ For the sample sender**, a file with the address, the example
    body and which field each path fills (never the key).

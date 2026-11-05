@@ -634,9 +634,10 @@ test('Another system connects a whole graphic in one confirmation; the card list
   expect(Object.keys(stored.bindings.Hairline)).toEqual(['f0']);
   const path = stored.bindings.Hairline.f0;
   expect(path).toMatch(/^api\.hairline\.[a-z0-9_]+$/);
-  // The connected field names its source and its path, with Disconnect beside it.
-  await expect(page.getByTestId('cue-bound-f0')).toContainText('Another system');
-  await expect(page.getByTestId('cue-bound-f0').getByTestId('cue-connected-note')).toContainText(path);
+  // The connected field says one short line, with Disconnect beside it; its path is in the tooltip (#2185).
+  await expect(page.getByTestId('cue-bound-f0').getByTestId('cue-connected-mark')).toHaveText('Another system controls this');
+  await expect(page.getByTestId('cue-bound-f0').getByTestId('cue-connected-mark')).toHaveAttribute('title', `Another system writes ${path}`);
+  await expect(page.getByTestId('cue-bound-f0')).not.toContainText(path);
 
   // ── The card: the connected path, the generated example (key from the environment), the file. ──
   const data = await openData(page);
@@ -1696,6 +1697,116 @@ test('Sheet tabs fill a schedule, standings and credits on air, and each follows
   await expect(table.locator('.results-board-row').nth(0)).toContainText('NAVI');
   await expect(roll.locator('#credits-track')).toContainText('Bo Chen', { timeout: 12_000 });
   expect(await stage.getAttribute('data-plays')).toBe(plays);
+});
+
+test('a first Sheet connection is one button: the template rows connect live, the cue says so, and Another system cannot be picked on the way (#2185)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await bootstrapGraphic(page, { name: 'League Table' });
+  const showId = await productionFor(page, 'Sheet League');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+
+  // The template's own rows become the Sheet, as a first-time user makes it.
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  const starter = await downloaded(page, () => review.getByTestId('cue-connect-template').click());
+  const [header, first] = starter.text.trim().split(/\r?\n/);
+  expect(first, 'the template has a row to start from').toBeTruthy();
+  const tab = await stubSheet(page, starter.text);
+
+  // Another system is its own choice, and it is gone as soon as a Sheet link is typed.
+  await expect(review.getByTestId('cue-connect-api')).toBeVisible();
+  // The link from the Sheet's Share button names no tab.
+  await review.getByTestId('cue-connect-link').fill('https://docs.google.com/spreadsheets/d/1NoaCGStubSheet0000000000/edit?usp=sharing');
+  await expect(review.getByTestId('cue-connect-api')).toHaveCount(0);
+  // A Sheet that lost its header row would turn the first team into column headings: it waits.
+  tab.csv = `${first}\n`;
+  await review.getByTestId('cue-connect-go').click();
+  await expect(review.getByTestId('cue-connect-held')).toBeVisible();
+  await expect(review.getByTestId('cue-connect-preview')).toContainText('The first row names the columns');
+  tab.csv = starter.text;
+  await review.getByTestId('cue-connect-go').click();
+  await expect(review).toBeHidden();
+
+  // Linked, never wired to Another system: rows and headers follow the Sheet.
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toHaveLength(1);
+  const sourceId = stored.sources[0].id;
+  const paths = Object.values(stored.bindings['League Table'] ?? {});
+  expect(paths.sort()).toEqual([`sheet.${sourceId}.headers`, `sheet.${sourceId}.rows`]);
+  const line = page.getByTestId('cue-connected-line');
+  await expect(line).toContainText(/Connected to Sheet: League Table · read \d+ s ago/);
+  await expect(page.getByTestId('cue-connect')).toHaveText('Change…');
+
+  // On air, a changed cell reaches PROGRAM with no further press.
+  await page.getByTestId('verb-take').click();
+  const table = page.frameLocator('[data-testid="program-stage"] iframe[title="League Table"]');
+  const team = first.split(',')[0];
+  await expect(table.locator('.results-board-row').first()).toContainText(team, { timeout: 12_000 });
+  const plays = await page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first().getAttribute('data-plays');
+  tab.csv = `${header}\nNoa United${first.slice(team.length)}\n`;
+  await expect(table.locator('.results-board-row').first()).toContainText('Noa United', { timeout: 12_000 });
+  await expect(table.locator('.results-board-row')).toHaveCount(1);
+  expect(await page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first().getAttribute('data-plays')).toBe(plays);
+
+  // Disconnect on the connected line hands the fields back to the cue, holding what they showed.
+  await line.getByTestId('cue-connected-disconnect').click();
+  await expect(page.getByTestId('cue-connected-line')).toHaveCount(0);
+  await expect(page.getByTestId('cue-connect')).toHaveText('Connect data…');
+  expect(await storedBindings(page, showId)).toEqual({ bindings: {}, sources: [] });
+});
+
+test('a Sheet that needs a look stays open on its review, and Another system stays out of it (#2185)', async ({ page }) => {
+  test.setTimeout(60_000);
+  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\nRole,Editor\nRole,Writer\n');
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'Sheet Check');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-link').fill(SHEET_LINK);
+  await review.getByTestId('cue-connect-go').click();
+  // A row it cannot use (Role twice) holds the one-button link on the review.
+  await expect(review.getByTestId('cue-connect-held')).toBeVisible();
+  await expect(review.getByTestId('cue-connect-api')).toHaveCount(0);
+  await expect(review.getByTestId('cue-connect-confirm')).toHaveText('Connect');
+  await expect(review.getByTestId('cue-connect-fill')).toHaveText('Copy values once');
+  expect(await storedBindings(page, showId)).toEqual({ bindings: {}, sources: [] });
+  await review.getByTestId('cue-connect-confirm').click();
+  await expect(review).toBeHidden();
+  const { bindings } = await storedBindings(page, showId);
+  expect(bindings.Hairline?.f0, 'linked to the Sheet, never to Another system').toMatch(/^sheet\./);
+  expect(Object.values(bindings.Hairline).every((p) => p.startsWith('sheet.'))).toBe(true);
+
+  // Change… to a Sheet that matches nothing: the fields still follow the first one, so Connect
+  // stays on the review rather than closing as if it had linked.
+  tab.csv = 'Colour,Shade\nSky,Blue\n';
+  await page.getByTestId('cue-connect').click();
+  await review.getByTestId('cue-connect-link').fill(SHEET_LINK.replace('gid=0', 'gid=7'));
+  await review.getByTestId('cue-connect-go').click();
+  await expect(review.getByTestId('cue-connect-held')).toBeVisible();
+  expect((await storedBindings(page, showId)).bindings).toEqual(bindings);
+
+  // A Connect still reading when the operator picks existing content instead: the pick is a
+  // review of its own, so the earlier press never links it.
+  await review.getByTestId('cue-connect-cancel').click();
+  tab.csv = 'Name,Value\nName,Cy Dale\n';
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.context().route(/^https:\/\/docs\.google\.com\/spreadsheets\/d\/[^/]+\/export/, async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.getByTestId('cue-connect').click();
+  await review.getByTestId('cue-connect-link').fill(SHEET_LINK.replace('gid=0', 'gid=8'));
+  await review.getByTestId('cue-connect-go').click();
+  await review.getByTestId('cue-connect-reuse').selectOption({ index: 1 });
+  release();
+  await expect(review.getByTestId('cue-connect-map')).toBeVisible();
+  await expect(review.getByTestId('cue-connect-row-f0')).toContainText('Cy Dale');
+  // Linking would close the review within a render of the read landing; it stays.
+  await page.waitForTimeout(1_000);
+  await expect(review).toBeVisible();
+  expect((await storedBindings(page, showId)).bindings).toEqual(bindings);
 });
 
 test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
