@@ -555,13 +555,19 @@ GRAPHICS.forEach(function (g) {
   }
   // A PRESS DURING THE BOOT READ WAITS FOR IT, as on the production controller (#2074): until the
   // card has read the whole relay log it does not know where the clock stands, and a press would
-  // work from the design's start time over a clock another page is running. Held in order, sent
-  // as soon as the read is done.
+  // work from the design's start time over a clock another page is running. The press runs at
+  // once, so its messages carry the values of that moment, but they are held (collecting) and
+  // sent through the clock, in order, as soon as the read is done (sendClocked).
   var booting = false;
+  var collecting = null;
   var waitingPresses = [];
   function press(run) {
-    if (booting) waitingPresses.push(run);
-    else relayPress(run);
+    if (!booting) { relayPress(run); return; }
+    collecting = [];
+    try { run(); } finally {
+      waitingPresses.push(collecting);
+      collecting = null;
+    }
   }
   if (CLOCK && CLOCK.events) relayReady.push(function () {
     var cursor = 0;
@@ -573,7 +579,15 @@ GRAPHICS.forEach(function (g) {
       booting = false;
       var presses = waitingPresses;
       waitingPresses = [];
-      presses.forEach(relayPress);
+      presses.forEach(function (held) {
+        relayPress(function () {
+          held.forEach(function (h) {
+            var read = h.untouched ? clockSlots(clock.held) : null;
+            if (read) h.msg.data[CLOCK.field] = read.sent;
+            sendClocked(h.msg);
+          });
+        });
+      });
     });
     setInterval(function () {
       clock.settle(null);
@@ -589,6 +603,13 @@ GRAPHICS.forEach(function (g) {
   // instead of minting one; the banked time AFTER a hold, a reset, an Out or a running correction.
   // Reset banks what the RUNTIME returns to, never what the element happens to read.
   function sendClocked(msg) {
+    // Held during the boot read. A clock time the operator did not touch is the box's boot value,
+    // not a correction: it takes the clock's own last-sent time once the read has found it.
+    if (collecting) {
+      var untouched = !!(CLOCK && CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined && msg.data[CLOCK.field] === lastSent[CLOCK.field]);
+      collecting.push({ msg: msg, untouched: untouched });
+      return;
+    }
     if (!CLOCK) { post(msg); return; }
     // A send of this card's that never came back stops counting before the clock is read.
     if (CLOCK.events) clock.settle(null);
