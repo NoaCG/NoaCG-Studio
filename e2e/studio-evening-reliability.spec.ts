@@ -209,6 +209,9 @@ test('V and F directly restart independent effects while selection and video sta
   await holdKeyRepeats(page, 6, 'KeyV', 'v');
   await page.keyboard.up('v');
   await expect.poll(() => bridge.actions.filter(a => a.verb === 'take' && a.slot.layer === 5).length).toBe(1);
+  // The deck's words for this key (Companion's "Play now, keep selection"), on the page too.
+  await expect(page.getByTestId('production-note')).toHaveText('✓ Play now: VICTORY on 2-5');
+  await expect(page.locator('.pd-cue', { hasText: 'VICTORY' }).locator('.pd-cue-hotkey')).toHaveAttribute('title', 'Play now, keep selection');
   await page.keyboard.press('f');
   await expect.poll(() => bridge.actions.filter(a => a.verb === 'take' && a.slot.layer === 5).length).toBe(2);
   await page.keyboard.press('v');

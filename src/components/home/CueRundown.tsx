@@ -19,6 +19,7 @@ import { CueAccentControl } from './RundownColors';
 import { folderMode, placeRefusal, type Movable, type Place } from '../../model/showFolders';
 import { bandAt, folderName, headerBandAt, planDrop, rowCueIds, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
 import { fieldDescriptors } from '../../control/controlModel';
+import { verbWords } from '../../control/panelFeedback';
 import { viewOf, type CueDraft } from '../../control/cueDraft';
 import { useStorePart } from './useStorePart';
 import {
@@ -787,7 +788,7 @@ export default function CueRundown({
                 aria-current={isSelected ? 'true' : undefined}
               >
                 <strong>{view.label}</strong>
-                {cue.hotkey && <kbd className="pd-cue-hotkey" title="Direct trigger; keeps the selection">{cueShortcutLabel(cue.hotkey)}</kbd>}
+                {cue.hotkey && <kbd className="pd-cue-hotkey" title={verbWords('trigger-cue')}>{cueShortcutLabel(cue.hotkey)}</kbd>}
                 <span className="pd-cue-type" data-testid="cue-type-text">{kind.name}</span>
                 {/* What the clip does at its end, after its name: a loop is stopped by Out alone, a
                     clip that plays the next one hands over by itself, and a clear leaves the layer

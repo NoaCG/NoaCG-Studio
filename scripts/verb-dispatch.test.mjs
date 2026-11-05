@@ -172,11 +172,11 @@ test('H, All out and a trigger fire once per press, never on a held key', () => 
 test('a trigger takes its cue direct, out of its folder; a refusal or a down Bridge is said, never sent', () => {
   const d = decideVerb('trigger-cue', press({ cue: 'c2' }), view());
   assert.equal(d.do, 'trigger');
-  assert.equal(d.label, 'Trigger C2');
+  assert.equal(d.label, 'Play now');
   assert.equal(d.refused, null);
   assert.equal(d.cue.folderId, undefined);
-  assert.equal(decideVerb('trigger-cue', press({ cue: 'c1' }), view({}, { directBlocked: () => 'Not on this server' })).refused, 'Trigger C1 was not sent: Not on this server');
-  assert.equal(decideVerb('trigger-cue', press({ cue: 'v1' }), view({ bridgeDown: true })).refused, 'Trigger V1 was not sent: NoaCG Bridge is not connected.');
+  assert.equal(decideVerb('trigger-cue', press({ cue: 'c1' }), view({}, { directBlocked: () => 'Not on this server' })).refused, 'Play now was not sent for C1: Not on this server');
+  assert.equal(decideVerb('trigger-cue', press({ cue: 'v1' }), view({ bridgeDown: true })).refused, 'Play now was not sent for V1: NoaCG Bridge is not connected.');
   assert.equal(decideVerb('trigger-cue', press({ cue: 'c1' }), view({ bridgeDown: true })).refused, null);
   assert.deepEqual(decideVerb('trigger-cue', press({ cue: 'gone' }), view()), { do: 'none' });
 });
