@@ -25,6 +25,7 @@ import type { ImportedTemplateResult } from '../../../model/importTemplate';
 import type { LibraryNameEntry, librarySaveEffect } from '../../../model/library';
 import { reimportSig, reimportTarget } from '../import';
 import { freeName } from '../../../model/poolIdentity';
+import { prepareOutRuntime } from '../../../blocks/animMigration';
 import type { ReimportItem } from '../../../templates/importedDesign/reimport';
 import type { Show } from '../../../model/shows';
 import type { SpxTemplate } from '../../../model/types';
@@ -315,6 +316,15 @@ function reached(prev: WalkState, next: WalkState): WalkState {
   return next.step > next.lastStep ? { ...next, lastStep: next.step } : next;
 }
 
+/** A template file as it was written, except NoaCG's own runtime brought current as preview, save
+ *  and export bring it (`prepareOutRuntime`, known bodies only). Finish's preview, its re-import
+ *  review and its doors then read one source, and a build made before an interpreter change opens
+ *  already holding what its first Save writes, so that Save rewrites nothing under the user. */
+function current(file: ImportedTemplateResult): ImportedTemplateResult {
+  const js = prepareOutRuntime(file.template.js);
+  return js === file.template.js ? file : { ...file, template: { ...file.template, js } };
+}
+
 /** `state` with `changes`, or `state` itself when every change is the value already held. */
 function settle(state: WalkState, changes: Partial<WalkState>): WalkState {
   const keys = Object.keys(changes) as (keyof WalkState)[];
@@ -546,7 +556,7 @@ export function reduce(state: WalkState, action: WalkAction): WalkState {
       });
     case 'file':
       return settle(state, {
-        ...(action.file !== undefined ? { importedFile: action.file } : {}),
+        ...(action.file !== undefined ? { importedFile: action.file && current(action.file) } : {}),
         ...(action.error !== undefined ? { importedFileError: action.error } : {}),
       });
     case 'buildMode':

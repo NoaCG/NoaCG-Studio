@@ -94,7 +94,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   const zip = await JSZip.loadAsync(readFileSync('e2e/fixtures/cli-round-trip/riverlight.zip'));
   for (const asset of initial.assets) expect(asset.data.split(',')[1]).toBe(await zip.file(asset.path)!.async('base64'));
   // The build predates the current interpreter. It opens already holding the runtime its first
-  // Save writes, so that Save rewrites nothing under the user (main red after #2215).
+  // Save writes, so that Save rewrites nothing under the user.
   const current = (js: string) => page.evaluate(async js => (await import('/src/blocks/animMigration.ts')).prepareOutRuntime(js), js);
   const built = await zip.file('js/template.js')!.async('string');
   expect(await current(built), 'the fixture carries an earlier interpreter, so this check bites').not.toBe(built);

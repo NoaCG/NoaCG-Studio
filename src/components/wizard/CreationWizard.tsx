@@ -70,7 +70,6 @@ import { createShowNamedChecked, loadShows, setShowLook, type Show } from '../..
 import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
 import { publishGate } from '../../validation/publishGate';
 import { commitDurableWrites } from '../../model/durableStore';
-import { prepareOutRuntime } from '../../blocks/animMigration';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
 import {
@@ -670,15 +669,16 @@ export default function CreationWizard() {
   /** The catalog walk's name for what it built, read once the applier has built it. */
   const catalogName = () => (variant ? draftName(variant, draft) : '');
 
-  /* ── A finished template file, applied as written (`applyTemplate`, never reformatted). Two edits: the
-     name (it slugs the zip and the SPX/CasparCG folder), and NoaCG's own runtime brought current as
-     save and export would (`prepareOutRuntime`), so a first Save rewrites nothing under the user. */
+  /* ── A finished template file: its applier, over the file exactly as written ────────────
+     BYTE-FAITHFUL, deliberately: `applyTemplate` rather than `applyGenerated`, so nothing
+     Prettier-formats somebody else's HTML on the way in. The name is the only edit — it slugs
+     the zip and, on the SPX and CasparCG packages, the template FOLDER an operator reads. */
   const importedName = () => draft.name.trim() || importedFile?.template.name || 'Imported graphic';
 
   const applyImportedFile = (): SpxTemplate | null => {
     if (!importedFile) return null;
     remember();
-    const template = { ...importedFile.template, name: importedName(), js: prepareOutRuntime(importedFile.template.js) };
+    const template = { ...importedFile.template, name: importedName() };
     applyTemplate(template, { resetSampleData: true, keepGalleryOpen: true });
     trackEvent('activation', 'file');
     return useTemplateStore.getState().template;
