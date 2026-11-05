@@ -52,7 +52,19 @@
    "step": "build",
    "session": "session_017SdbwPWmpzLswZbC4Bn9W5",
    "nonce": "cf13-b-e654",
-   "launchedAt": "2026-11-05T01:30:41Z"
+   "launchedAt": "2026-11-05T01:30:41Z",
+   "pr": 2171,
+   "head": "e9f40a26914a6b61d6ec54bab9e651e98d253762",
+   "stamped": "2026-11-05T02:34Z",
+   "note": "rank 1 untried (backend 141%, #2172) -> cf20(c), accepted in PR comment 6648109922",
+   "rank2": {
+    "pr": 2171,
+    "mergeSha": "a235a93d35c70813abff0c4fb8f4a1b740af2c86",
+    "mergedAt": "2026-11-05T15:21:19Z",
+    "status": "landed on cost grounds; record unmeasured with side counts (before from 2026-11-05T01:09:30Z to merge, after to 2026-11-12)"
+   },
+   "rank3": "untried: superseded by rank 2 (lane timings), to cf20(c)",
+   "rank1": "waiting on owner: 30-day backend exception (option 1) or not (option 2), asked 2026-11-05T15:08Z"
   }
  ],
  "owner": [],
@@ -265,6 +277,12 @@
    "mergeSha": "86749ef1cf95b3a901f104706691b797671c4521",
    "mergedAt": "2026-11-05T01:09:30Z",
    "what": "cf14: #1862 mapping (selection change, audit reset) and graphics extension"
+  },
+  {
+   "pr": 2171,
+   "mergeSha": "a235a93d35c70813abff0c4fb8f4a1b740af2c86",
+   "mergedAt": "2026-11-05T15:21:19Z",
+   "what": "cf13 rank 2 Build lanes; preview-trial concurrency"
   }
  ]
 }
