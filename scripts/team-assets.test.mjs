@@ -93,6 +93,25 @@ test('a sound the cloud does not answer for fails the read, and nothing more is 
   assert.deepEqual(asked, ['u/audio-a']);
 });
 
+test('a record with several sounds fails once, after asking them together, when one gets no answer', async () => {
+  const body = { ...withSound(), bed: { hash: 'b'.repeat(64), name: 'bed.wav', bytes: 4, mime: 'audio/wav', storageKey: 'u/audio-b' } };
+  const asked = [];
+  let inFlight = 0;
+  let most = 0;
+  const read = rehydrateAssets(body, async (key) => {
+    asked.push(key);
+    inFlight += 1;
+    most = Math.max(most, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    inFlight -= 1;
+    if (key === 'u/audio-a') throw new Error(NO_ANSWER);
+    return dataUrl(4);
+  }, stopsRead);
+  await assert.rejects(read, (error) => error.message === NO_ANSWER);
+  assert.deepEqual(asked.sort(), ['u/audio-a', 'u/audio-b'], 'both sounds asked, no image');
+  assert.equal(most, 2, 'asked together, so the wait is one limit, not one per sound');
+});
+
 test('a sound that is gone or refused keeps its reference, and the rest of the record still reads', async () => {
   for (const failure of [async () => null, async () => { throw new Error('Cloud get(asset) failed: 503'); }]) {
     const read = await rehydrateAssets(withSound(), async (key) => (key === 'u/audio-a' ? failure() : dataUrl(4)), stopsRead);
