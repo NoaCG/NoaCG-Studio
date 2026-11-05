@@ -421,6 +421,9 @@ export function seedFromResolve(
     speaking,
     typedAired,
     typedSteps,
+    // A graphic this page moved meanwhile is rebuilt from what it aired, never from its older report
+    // (an unreadable envelope's would hold it off PROGRAM after the Take that released it).
+    reports: !air.reports || Object.keys(air.reports).every(current) ? air.reports : Object.fromEntries(Object.entries(air.reports).filter(([graphic]) => current(graphic))),
     bootReplay: replay,
     bootLive: answered,
   };

@@ -21,7 +21,8 @@ const {
   TYPED_STEPS_MAX, mayAirTyped, planOutputRecovery, rowsPastHold, reportedTyped, stepsAfter, unreportedPages, unreportedTypedRows,
 } = await import('../src/control/outputRecovery.ts');
 const { OGRAF_STANDARD, TYPED_VERSION, typedOutputGate } = await import('../src/model/ografTyped.ts');
-const { airAtRequest, restoreItems, seedFromResolve } = await import('../src/control/airState.ts');
+const { airAtRequest, claimAndApply, moveLiveCue, restoreItems, seedFromResolve } = await import('../src/control/airState.ts');
+const { createAppliedOnce } = await import('../src/control/commandRoads.ts');
 const { NO_AIR } = await import('../src/control/playoutSession.ts');
 const { CONTROL_TAIL_PAGE } = await import('../src/control/logFollow.ts');
 
@@ -161,6 +162,12 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
     const held = seedFromResolve({ ...NO_AIR, reports: unreadable }, { liveCue: { Board: 'c1' }, live: unreadable }, rows, airAtRequest(NO_AIR), [{ id: 'c1', values: { f0: 'x' } }], specs);
     assert.deepEqual(restoreItems(held, {}, specs).items, expected);
   }
+  // A native Take of it while the read was out (#2162) releases it: a fresh stage later rebuilds what
+  // the Take aired, not the hold.
+  const marked = moveLiveCue({ ...NO_AIR, reports: unreadable }, { Board: 'c2' }, ['Board']);
+  const taken = claimAndApply(marked, nativeTake.map((item) => ({ ...item, msg: { ...item.msg, oid: 't1' } })), createAppliedOnce(), specs, 0).air;
+  const released = seedFromResolve(taken, { liveCue: { Board: 'c1' }, live: unreadable }, [], airAtRequest({ ...NO_AIR, reports: unreadable }), [], specs);
+  assert.deepEqual(restoreItems(released, {}, specs).items.map((item) => item.msg.t), ['update', 'play', 'update']);
   // Its place and size still go back first (rule 4), as the output puts them back on the graphic it holds.
   const heldLook = { Board: { data: {}, state: { typed: envelope({}, 9), appearance: look }, event: 10 } };
   const withLook = seedFromResolve({ ...NO_AIR, reports: heldLook }, { liveCue: { Board: 'c1' }, live: heldLook }, nativeTake, airAtRequest(NO_AIR), [], specs);
