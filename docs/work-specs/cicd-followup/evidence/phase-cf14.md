@@ -15,15 +15,15 @@ to meet a limit."
 - **Paid down:** the avoidable share #1862 names. The Companion module, the harness bench's data
   and the endurance and instrument suites stop escalating to the shared-change set and the catalog
   gate. Over 285 landings since 2026-10-24, 4 of the 112 that reached the gate no longer do, and
-  none is added. Measured on those landings: 105.4 gate runner-minutes in 10 runs, **0.37 per
+  none is added. Measured on those landings: 94.4 gate runner-minutes in 10 runs, **0.33 per
   landing**. The JEV fixture folder stays as it is (#2166, section 3.3).
-- **Not paid down by 2026-11-30, with the reason** (section 4): the gate costs 29.1 runner-minutes
+- **Not paid down by 2026-11-30, with the reason** (section 4): the gate costs 23.6 runner-minutes
   per landing (2026-11-04, every run) against a ceiling of 10. The merge queue and main push runs
   alone are 10.2. Both are required coverage this run may not cancel or replace, and narrowing the
   catalog waits for cf18 and cf19.
 - **Extension recorded:** `cf14-catalog-gate-extension` in `scripts/growth-ceilings.json`,
   2026-12-01 to 2026-12-14 (14 days past the original date, once), 17.3 per landing (the reviewed
-  17.7 less the 0.37 repaid, so the allowance does not grow), owner `miwco` with the weekly owner
+  17.7 less the 0.33 repaid, rounded down, so the allowance does not grow), owner `miwco` with the weekly owner
   session as backup, decision on #1863
   ([comment](https://github.com/NoaCG/NoaCG-Studio/issues/1863#issuecomment-6645898515)), reduction
   plan #2165. Not renewed automatically: a further extension needs the owner's approval on #1863.
@@ -34,18 +34,20 @@ to meet a limit."
 ## 1. Current cost, measured
 
 The tier is measured three ways. Runner-minutes are job `completed_at - started_at`, every attempt
-(`filter=all`), cancelled jobs included, as the weekly report counts them. A landing is a push run
-on `main`.
+(`filter=all`), cancelled jobs included. A job a re-run attempt copied from an earlier attempt (same
+name, same start and end) is counted once: a re-run of failed jobs lists the passed ones again
+without running them. On 2026-11-04 that removed 22 copied gate jobs (231.4 minutes). A landing is
+a push run on `main`.
 
 | Source | Window | n | Method | Graphics tier | Catalog gate |
 | --- | --- | --- | --- | ---: | ---: |
 | Weekly growth report (the capacity gate's own, weekly-audit run 41704224273) | 2026-10-27 to 11-03 | 131 landings | stratified sample, 7 runs per ci.yml stratum, 550 API calls | 22.3 | 21.8 |
-| Every ci.yml run of one day (this phase) | 2026-11-04 00:00 to 24:00 UTC | 42 landings, 225 runs | every run, no sampling | | **29.1** |
-| Every ci.yml run of seven hours (this phase) | 2026-11-04 15:00 to 22:00 UTC | 18 landings, 80 runs | every run | | 26.7 |
+| Every ci.yml run of one day (this phase) | 2026-11-04 00:00 to 24:00 UTC | 42 landings, 225 runs | every run, no sampling | | **23.6** |
+| Every ci.yml run of seven hours (this phase) | 2026-11-04 15:00 to 22:00 UTC | 18 landings, 80 runs | every run | | 27.3 |
 | Frozen measurement before ci04 (`growth-ceilings.json`) | 2026-10-24 to 10-30 | 122 landings | ci01 reference week | 7.8 | |
 
-The weekly window starts four days before ci04 landed (2026-10-31), so it understates today's
-cost. The report's own collector with a 100-call budget (this run's bound) cannot measure a fresh
+The weekly window starts four days before ci04 landed (2026-10-31), which lowers its figure, and
+its collector counts copied re-run jobs, which raises it (#2168). The report's own collector with a 100-call budget (this run's bound) cannot measure a fresh
 window: on 2026-11-02 to 11-05 its run lists used the budget and it sampled one run per stratum,
 none with a gate, so it read 0 and marked the tier partial. That is why the day was read in full,
 in two passes of at most 100 calls, cached.
@@ -54,10 +56,10 @@ in two passes of at most 100 calls, cached.
 
 | Trigger | Runs | Gate jobs | Cancelled (minutes) | Failed | Per landing |
 | --- | ---: | ---: | --- | ---: | ---: |
-| Pull request | 128 | 101 | 38 (131.7) | 0 | 18.9 |
+| Pull request | 128 | 79 | 38 (131.7) | 0 | 13.4 |
 | Merge queue | 54 | 26 | 0 | 0 | 6.4 |
 | Main push | 42 | 19 | 4 (0) | 0 | 3.8 |
-| **Total** | | | | | **29.1** |
+| **Total** | | | | | **23.6** |
 
 A successful run takes 11.0 minutes (median of 104), almost all of it in the tripwire step (job
 setup and emit fingerprints under 0.5). Its 41.9 test-minutes on 4 workers (gate job logs of runs
@@ -77,13 +79,13 @@ and Playwright config changes, and the #1862 paths.
 
 | Candidate | Measured effect per landing | In this phase? |
 | --- | --- | --- |
-| Pull request heads re-running the gate on catalog input that did not change | up to 18.9 (65%) | No. Reusing an earlier head's result changes what the PR's CI gate accepts: it needs written rules and a fresh review before code (known-traps "Risky"). First item of #2165 |
+| Pull request heads re-running the gate on catalog input that did not change | up to 13.4 (57%) | No. Reusing an earlier head's result changes what the PR's CI gate accepts: it needs written rules and a fresh review before code (known-traps "Risky"). First item of #2165 |
 | Superseded pull request runs cancelled mid-gate | 3.1 | No. cf03 rank 8, a worker behaviour (#2165) |
 | Main push repeating the merge queue's calibration of the same commit | 3.8 | No. Exact-merge coverage is never cancelled or replaced; cf16 decides whether the merge group's run is equivalent evidence |
 | OGraf parity's 63% of each run | up to about 7 if halved | No. It already skips decoding identical frames; its time is real rendering of three mounts per design. A speed-up belongs to its owners (#2165) |
 | Run only the catalog specs whose own reach a change touches | about 10% of runs | No. It narrows the gate, which the owner put after narrowing's safety requirements pass (cf16 to cf19) |
-| Gate off pull requests, merge queue and main only | -18.9, but the rest is 10.2, still over | No. It moves every catalog failure into the queue and still does not fit |
-| **#1862: map paths that cannot move a design** | **-0.37**, and the same landings skip the shared-change set | **Yes** |
+| Gate off pull requests, merge queue and main only | -13.4, but the rest is 10.2, still over | No. It moves every catalog failure into the queue and still does not fit |
+| **#1862: map paths that cannot move a design** | **-0.33**, and the same landings skip the shared-change set | **Yes** |
 | Split the gate into two jobs (cf03 rank 4) | critical path only: +0.9 per run | No. A cf13 candidate; it raises cost |
 
 Critical-path impact: the gate ends the merge queue's run in about 30% of groups (cf03 section 3.5)
@@ -141,9 +143,8 @@ rule, so it stays as it is. Its two landings in the replay (#1853, #1820) still 
 
 The gate's runs on the four dropped landings, all attempts: 40771239684 (10.9, push), 40888647783
 (9.1, push), 41716995582 (11.2, PR), 41719670400 (11.5, merge queue), 41721685420 (11.7, push),
-41851987631 (4.0, PR, cancelled), 41856260630 (5.3, PR, cancelled), 41861459941 (2 x 11.1, PR,
-re-run), 41868667669 (9.0, merge queue), 41870484041 (10.6, push). 105.4 runner-minutes over 285
-landings: 0.37 per landing. Three more PR gate jobs of #2100 were cancelled at 0 minutes. The two
+41851987631 (4.0, PR, cancelled), 41856260630 (5.3, PR, cancelled), 41861459941 (11.1, PR; its re-run attempt only copied the gate job), 41868667669 (9.0, merge queue), 41870484041 (10.6, push). 94.4 runner-minutes over 285
+landings: 0.33 per landing. Three more PR gate jobs of #2100 were cancelled at 0 minutes. The two
 October landings ran the gate on their main push only (before ci04 coupled escalations to it), so
 under today's planner they would have cost more; the receipt counts what ran.
 
@@ -165,12 +166,12 @@ one active exception per tier, so it starts the day after `ci04-catalog-gate` ex
 | --- | --- |
 | id | `cf14-catalog-gate-extension` |
 | tier, covers | graphics, `job:ci.yml/Catalog calibration gate` |
-| perLanding | 17.3: the reviewed 17.7 less the 0.37 repaid. Measured cost above it counts against the ceiling: at the 2026-11-04 level the tier reads 124% and further graphics growth is refused |
+| perLanding | 17.3: the reviewed 17.7 less the 0.33 repaid, rounded down. Measured cost above it counts against the ceiling: at the 2026-11-04 level (23.6) the tier's per-landing use reads 69%; at the 7-hour window's 27.3 it reads 106%, where further graphics growth is refused |
 | owner | `miwco (primary); the weekly owner session (backup coverage)`, the ledger's owner string (#1951) |
 | from, expires | 2026-12-01, 2026-12-14 |
 | reviewed | #1863 [comment](https://github.com/NoaCG/NoaCG-Studio/issues/1863#issuecomment-6645898515) |
 | repayment | #2165 (the reduction plan) |
-| repaid | 0.37 per landing, 105.4 minutes, the 10 runs above, measured 2026-11-05 |
+| repaid | 0.33 per landing, 94.4 minutes, the 10 runs above, measured 2026-11-05 |
 
 Checked with `exceptionStatus`: valid; `ci04-catalog-gate` is the active graphics exception through
 2026-11-30 and this one from 2026-12-01 through 2026-12-14; none from 2026-12-15. With the weekly
@@ -181,14 +182,19 @@ and 22.3 after it (its share is 79% from the per-day side until then, 223% after
 pull request heads whose catalog input did not change; superseded runs; the main push's repeat
 (cf16); OGraf parity's share; catalog narrowing (cf18 and cf19). By 2026-12-14 the weekly owner
 session decides: a reviewed new ceilings version for the graphics tier (the frozen ceiling predates
-ci04's fix, which put the gate on about 40% of landings), or the refusal stands.
+ci04's fix, which put the gate on about 40% of landings), or the refusal stands. Owner miwco, with
+the weekly owner session as backup; item 1's written rules are due 2026-11-20 so a row can land and
+be measured before the extension ends. Merge queue plus main push alone exceed the ceiling, so
+unless cf16 accepts the merge group's run as the main push's evidence, the likely outcome is the
+ceiling decision, and #2165 says so.
 
 ## 5. Issues
 
 - Closes #1862: its mappings land here; the JEV folder moves to #2166.
 - #1863 stays open: item 1 is decided here, a further extension needs the owner's approval there,
   and items 2 to 5 (ci04 review notes) are not this phase's.
-- Filed: #2165 (P2, `area:ci`, the reduction plan), #2166 (P3, `area:e2e`, the JEV fixtures).
+- Filed: #2165 (P2, `area:ci`, the reduction plan), #2166 (P3, `area:e2e`, the JEV fixtures),
+  #2168 (P2, `area:ci`, the weekly report counts jobs a re-run attempt only copied).
 
 ## 6. Selection audit and cf13 sides
 
@@ -225,15 +231,19 @@ ci04's fix, which put the gate on about 40% of landings), or the refusal stands.
   - Pay down only what is safe and measured now (#1862), and extend for the rest. Every larger lever
     belongs to a later or gated decision (section 2).
   - The extension does not grow the reviewed allowance, although today's cost is higher: the
-    excess stays visible against the ceiling and refuses further graphics growth instead of being
-    excused.
+    excess stays visible against the ceiling, and refuses further graphics growth once it passes the
+    line, instead of being excused.
   - The owner string is the ledger's own (`miwco` with the weekly owner session), not the finished
     plan's coordinator the old entry names.
   - The JEV fixture folder is left out rather than bending ci05's rule.
+  - The cf14 builder recorded the extension and its decision comment, as the brief asked; the
+    coordinator confirms it on #1863 before or after landing, which is the separate review.
 - **Traps:**
   - `growth-report.mjs collect` at a 100-call budget spends the budget on run lists and samples one
     run per stratum: it reads 0 for the catalog gate. Read the jobs of every run instead, cached.
-  - The jobs API returns only the latest attempt unless `filter=all`.
+  - The jobs API returns only the latest attempt unless `filter=all`, and with it a re-run attempt
+    lists the jobs it copied, with the earlier attempt's times. Count a (name, start, end) once.
+    `scripts/growth-report.mjs` counts them all, so the weekly report over-counts re-runs (#2168).
   - The runs API sometimes answers 502: check each cached file parses before using it.
   - `planFor` gained a `central` option so the replay can plan without the new entries.
     `scripts/e2e-plan-compare.mjs` (the old-against-new planner comparison) fails on today's planner:
