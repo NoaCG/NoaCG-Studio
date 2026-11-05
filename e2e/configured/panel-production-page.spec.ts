@@ -180,6 +180,7 @@ test('presses that reach the production page reversed or together run in the ord
         if (swap.held && swap.together.later) {
           swap.laterSent = true;
           swap.held();
+          swap.held = null;
           swap.together.later();
         }
         return;
@@ -191,7 +192,9 @@ test('presses that reach the production page reversed or together run in the ord
       forward();
       if (swap && text.includes(`"${swap.later}"`)) {
         swap.laterSent = true;
+        // Once: another frame naming the later press must not deliver the earlier one again.
         if (swap.held) setTimeout(swap.held, 100);
+        swap.held = null;
       }
     });
   });
@@ -239,7 +242,8 @@ test('presses that reach the production page reversed or together run in the ord
 
   // THE TAKE KEY PRESSED TWICE, both drawn when it said Take, the two reaching the page in order and
   // back to back (issue #2144). The second waits for the page to draw the first, and is refused
-  // rather than taking Anna in a second time.
+  // rather than taking Anna in a second time. No edit is owed and Anna's box is measured, so the
+  // first Take reaches what the page draws inside the gap (protocol §6.2 says what it does not cover).
   const anna2 = await deck.state();
   expect((await deck.press('all-out', '', anna2.ver as number, 'orderdeck:7')).outcome).toBe('ran');
   const armed = await deck.state((s) => (s.live as string[]).length === 0 && s.selected === anna && s.space === 'take', 'Take ready for Anna');

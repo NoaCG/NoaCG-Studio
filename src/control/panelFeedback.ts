@@ -272,13 +272,14 @@ export class PressMemory {
 export const PRESS_HOLD_MS = 500;
 
 /** The gap behind every press that runs. The page judges and runs a press from what it last drew
- *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged against
- *  a page that has not drawn the press before it, however the two arrived (issues #2109, #2144).
- *  50 ms is what an operator's quick pair has anyway. It covers a press whose effect the page draws
- *  within it. A press whose effect takes longer is not waited for: a graphic's Take reaches the
- *  drawn state only after its turn behind the graphic's earlier verbs, the page's flush and any
- *  measuring of the cue's box (`graphicVerbs.ts` `takeOn`), so a second Take let go after the gap
- *  can still be judged against the page before the first and run. */
+ *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged
+ *  against a page that has not drawn the press before it, however the two arrived (issues #2109,
+ *  #2144). 50 ms is what an operator's quick pair has anyway. It covers a press whose effect the
+ *  page draws within it. A press whose effect takes longer is not waited for: a graphic's Take
+ *  reaches the drawn state only once the page has saved an edit still owed (`flush`) and settled
+ *  the cue's box (`appearanceOf`: adjust writes still saving, a measurement not yet made;
+ *  `graphicVerbs.ts` `takeOn`), so a second Take let go after the gap can still be judged against
+ *  the page before the first and run. */
 export const PRESS_DRAW_MS = 50;
 
 /** At most this many panels' counts are kept: a module start is a new panel. */

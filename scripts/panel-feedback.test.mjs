@@ -633,9 +633,11 @@ test('the first press heard from a panel sets its count and never waits', () => 
   const c = pressOrder();
   c.hear('deck01:57');
   assert.deepEqual(c.ran, ['deck01:57']);
+  assert.equal(c.timers.length, 0);
   c.advance(PRESS_DRAW_MS);
   c.hear('deck01:58');
   assert.deepEqual(c.ran, ['deck01:57', 'deck01:58']);
+  assert.equal(c.timers.length, 0);
 });
 
 test('a press ahead of its turn waits for the ones before it, then they run one gap apart', () => {
