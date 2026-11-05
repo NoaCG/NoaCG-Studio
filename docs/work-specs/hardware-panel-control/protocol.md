@@ -70,10 +70,10 @@ read or write them.
 | `panel_pair_start(p_slug)` | page | mints a code for 5 minutes; at most 5 unused codes per production | `{ok, code, expires_at}` |
 | `panel_pair_finish(p_code, p_label)` | module | spends the code once; mints a key | `{ok, key, key_id, label, title, feedback_topic}`; refusals `unknown-code`, `used-code`, `expired-code`, `slow-down` |
 | `panel_hello(p_key)` | module, on every (re)connect | updates last use; sends `want` on `pnp-` when a page answers | `{ok, key_id, label, title, feedback_topic, answering}`; refusals `unknown-key`, `revoked`, `no-page` (hosted control switched off for the account) |
-| `panel_press(p_key, p_press)` | module | validates the press, stamps the claim, sends `press` on `pnp-` | `{ok, claim}`; refusals `unknown-key`, `revoked`, `bad-press`, `not-a-panel-verb`, `no-page`, `slow-down` |
+| `panel_press(p_key, p_press)` | module | validates the press, records its id as the key's last press (never a lower number of the same instance), stamps the claim, sends `press` on `pnp-` | `{ok, claim}`; refusals `unknown-key`, `revoked`, `bad-press`, `not-a-panel-verb`, `no-page`, `slow-down` |
 | `panel_list(p_slug)` | page | | `{ok, press_topic, feedback_topic, claim, answering: {page, where, label, at} or null, panels: [{id, label, created_at, last_used_at}]}` |
 | `panel_revoke(p_slug, p_key_id)` | page | marks the key revoked; replaces `f`; sends `rotated` on `pnp-` | `{ok, feedback_topic}` |
-| `panel_lease(p_slug, p_page, p_where, p_label, p_move)` | page, taking the panel (by itself, or "Use here" with `p_move`) | free or lapsed, or `p_move`: claim + 1, records who, a lease of 15 s, sends `claim` on `pnp-`; already this page's: a fresh lease, the same claim | `{ok, claim, press_topic, feedback_topic}`; refusal `held` with `answering` |
+| `panel_lease(p_slug, p_page, p_where, p_label, p_move)` | page, taking the panel (by itself, or "Use here" with `p_move`) | free or lapsed, or `p_move`: claim + 1, records who, a lease of 15 s, sends `claim` on `pnp-`; already this page's: a fresh lease, the same claim | `{ok, claim, press_topic, feedback_topic, last_presses}`, `last_presses` each live key's last press id (0110); refusal `held` with `answering` |
 | `panel_renew(p_slug, p_page, p_claim)` | the answering page, on every beat | a fresh 15 s lease while `p_claim` is still current | `{ok, claim}`; refusal `lost` with `answering` |
 | `panel_claim(p_slug, p_page, p_where, p_label)` | pages built before the lease | takes a free panel for 12 hours; raises while another live page holds it | `{ok, claim, press_topic, feedback_topic}` |
 | `panel_release(p_slug, p_claim)` | page, on leaving the production | clears the answering page if `p_claim` is still current; sends `released` | `{ok, released}` |
@@ -148,10 +148,13 @@ press was first held with none in its turn, everything held goes, and the ones t
 given up on. Presses let go together run 50 ms apart, so each is judged against a page that has
 drawn the one before it; two that arrive in order have no such gap, however close together, and the
 second may be judged against a page that has not drawn the first. A press after its turn runs at once, so one arriving past the bound still
-has its one effect. The first press this page hears from a panel sets the count and never waits,
-because the module may have pressed long before this page opened; a reversed pair at that very
-moment runs as it arrived. A press refused by the relay or lost on the way leaves a gap, so the
-next press of that panel waits out the 500 ms once.
+has its one effect. Each panel's count starts after the last press the relay took from it before
+this page answered (`last_presses` from `panel_lease`, 0110), and a panel the page meets after that
+is a module started since, counting from 1, so the first pair this page hears runs in press order
+too (issue #2140). Against a database without 0110 the first press this page hears from a panel
+sets the count and never waits, and a reversed pair at that very moment runs as it arrived. A press
+refused by the relay or lost on the way leaves a gap, so the next press of that panel waits out the
+500 ms once.
 
 Then, in this order, on each `press`:
 
