@@ -38,6 +38,16 @@ for (let i = 0; i < 40; i++) {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(`pageerror ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()} ${m.text().slice(0, 200)}`); });
+    await page.addInitScript(() => {
+      if (window.top !== window) return;
+      const w = window as unknown as { __d: Record<string, number> };
+      w.__d = {};
+      document.addEventListener('DOMContentLoaded', () => { w.__d.dcl = performance.now(); });
+      new MutationObserver(() => {
+        if (!w.__d.root && document.getElementById('root')?.firstElementChild) { w.__d.root = performance.now(); w.__d.rootRes = performance.getEntriesByType('resource').length; }
+        if (!w.__d.modal && document.querySelector('.wz-modal')) { w.__d.modal = performance.now(); w.__d.modalRes = performance.getEntriesByType('resource').length; }
+      }).observe(document, { childList: true, subtree: true });
+    });
     const t0 = Date.now();
     await page.goto('/app');
     const tGoto = Date.now() - t0;
@@ -51,6 +61,13 @@ for (let i = 0; i < 40; i++) {
       await expect(page.locator('.wz-modal')).toBeVisible({ timeout: 60_000 }).catch(() => {});
       console.log(`DIAG1915 NOMODAL ${i} ${JSON.stringify({ tGoto, late: Date.now() - t0, state, errors })}`);
     }
+    const boot = await page.evaluate(() => {
+      const w = window as unknown as { __d: Record<string, number> };
+      const res = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+      const slow = res.filter((r) => r.duration > 500).sort((a, b) => b.duration - a.duration).slice(0, 5).map((r) => `${r.name.replace(location.origin, '')}:${Math.round(r.startTime)}+${Math.round(r.duration)}`);
+      return { ...Object.fromEntries(Object.entries(w.__d).map(([k, v]) => [k, Math.round(v)])), res: res.length, slow };
+    });
+    console.log(`DIAG1915 BOOT ${i} ${JSON.stringify(boot)}`);
     await page.locator('[data-entry="import-graphic"]').click();
     await page.locator('.wz-drop input[type="file"]').setInputFiles({ name: 'g.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SVG) });
     await page.locator('.wz-next').click();
