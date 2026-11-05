@@ -597,6 +597,9 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   let claimId: string | null = null;
   /** What the line last said, for a lease the door could not reach. */
   let shown: SheetStatus | null = null;
+  /** This page's own last reason it could not read (`canRead`), so its missed reads keep counting
+   *  while it briefly shows another page's status. */
+  let unable: SheetStatus | null = null;
 
   const report = (status: SheetStatus) => {
     const text = JSON.stringify(status);
@@ -640,12 +643,14 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
         report({ ...(peek.status ?? initialStatus(peek.reader)), reader: peek.reader });
       } else {
         door.release();
-        const before = shown?.reader === 'this' ? shown : initialStatus('this');
-        report(o.paused() || peek?.paused ? { ...before, state: 'paused' } : missedStatus(before, cannot, io.now(), 'this'));
+        const before = unable ?? initialStatus('this');
+        if (o.paused() || peek?.paused) report({ ...before, state: 'paused' });
+        else report((unable = missedStatus(before, cannot, io.now(), 'this')));
       }
       schedule(renew);
       return;
     }
+    unable = null;
     const answer = await door.claim(claimId).catch((error: Error) => error);
     if (stopped) return;
     if (answer instanceof Error && (answer as { code?: string }).code === 'no_lease') {

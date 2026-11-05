@@ -352,6 +352,11 @@ test('a page that cannot read the file never holds the lease, so the page that c
   await clock.advance(SHEET_READ_MS);
   assert.equal(withFile.status().error, FILE_PERMISSION);
   assert.equal(held(), false, 'the lease was let go');
+  // Now nothing reads: both pages count their misses and the data goes stale on each.
+  await clock.advance(3 * SHEET_READ_MS);
+  assert.equal(without.status().stale, true);
+  assert.equal(withFile.status().stale, true);
+  assert.equal(fileAsk(withFile.status().error), 'allow');
   without.reader.stop();
   withFile.reader.stop();
 });
