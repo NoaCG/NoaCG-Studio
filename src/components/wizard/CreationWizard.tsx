@@ -670,13 +670,9 @@ export default function CreationWizard() {
   /** The catalog walk's name for what it built, read once the applier has built it. */
   const catalogName = () => (variant ? draftName(variant, draft) : '');
 
-  /* ── A finished template file: its applier, over the file exactly as written ────────────
-     BYTE-FAITHFUL, deliberately: `applyTemplate` rather than `applyGenerated`, so nothing
-     Prettier-formats somebody else's HTML on the way in. The name is one edit — it slugs
-     the zip and, on the SPX and CasparCG packages, the template FOLDER an operator reads. The
-     other is NoaCG's own runtime, which preview, save and export bring current anyway
-     (`prepareOutRuntime`, known bodies only): a build made before an interpreter change opens
-     already holding what its first Save will write, so that Save rewrites nothing under the user. */
+  /* ── A finished template file, applied as written (`applyTemplate`, never reformatted). Two edits: the
+     name (it slugs the zip and the SPX/CasparCG folder), and NoaCG's own runtime brought current as
+     save and export would (`prepareOutRuntime`), so a first Save rewrites nothing under the user. */
   const importedName = () => draft.name.trim() || importedFile?.template.name || 'Imported graphic';
 
   const applyImportedFile = (): SpxTemplate | null => {
