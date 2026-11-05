@@ -1050,6 +1050,8 @@ interface TextRun {
   y: number | null;
   text: string;
   size: number;
+  /** Starts a new line by a `dy` step rather than a `y` of its own (`textFields`). */
+  stepped?: true;
 }
 
 /** One field, as the runs that make it: an array of LINES, each an array of runs. A field with
@@ -1064,14 +1066,15 @@ function numAttr(el: Element, name: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** The runs of one `<text>`, cut into LINES on a change of baseline. A run with no `y` continues
- *  the line it follows - it is the middle of one by definition. */
+/** The runs of one `<text>`, cut into LINES on a change of baseline, or on a `dy` step down to a
+ *  new line (`stepped`). Any other run with no `y` continues the line it follows - it is the
+ *  middle of one by definition. */
 function groupLines(runs: TextRun[]): TextRun[][] {
   const lines: TextRun[][] = [];
   let current: TextRun[] = [];
   let lineY: number | null = null;
   for (const run of runs) {
-    if (current.length && run.y !== null && lineY !== null && run.y !== lineY) {
+    if (current.length && (run.stepped || (run.y !== null && lineY !== null && run.y !== lineY))) {
       lines.push(current);
       current = [];
     }
@@ -1134,14 +1137,21 @@ function textFields(text: Element, fontSize: (el: Element) => number): TextField
   if (tspans.length < 2) {
     return [[[{ el: text, x: null, y: null, text: text.textContent ?? '', size: fontSize(text) }]]];
   }
+  // A LINE STACKED WITH `dy` IS A LINE TOO (#2078). A hand-written or Inkscape file writes each
+  // line as `x` back at the margin and a `dy` step down, with no `y`, and grouping on `y` alone
+  // read three such lines as one line of three runs: the block was never stamped, and the runtime
+  // measured it as one line wider than its plate. Only a step DOWN of at least 0.8 em with `x`
+  // reset counts (the runtime's own leading floor, `svgLineHeight`), so a baseline nudge inside a
+  // line - a superscript, a kerning shift - still continues it.
   const lines = groupLines(
-    tspans.map((el) => ({
-      el,
-      x: numAttr(el, 'x'),
-      y: numAttr(el, 'y'),
-      text: el.textContent ?? '',
-      size: fontSize(el),
-    })),
+    tspans.map((el) => {
+      const size = fontSize(el);
+      const x = numAttr(el, 'x');
+      const y = numAttr(el, 'y');
+      const dy = numAttr(el, 'dy');
+      const stepped = y === null && x !== null && dy !== null && dy >= size * 0.8;
+      return { el, x, y, text: el.textContent ?? '', size, ...(stepped ? { stepped } : {}) };
+    }),
   ).map(groupLine);
   // Stacked lines, none of them holding two placed labels: ONE wrapping field.
   if (lines.every((segments) => segments.length === 1)) return [lines.map((segments) => segments[0])];
