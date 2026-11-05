@@ -382,17 +382,36 @@ if (location.protocol === 'http:' || location.protocol === 'https:') {
     })
     .catch(function () { /* not relay-hosted */ });
 }
+// ONE PRESS IS ONE REQUEST (#2107). A press can put several rows on the relay (an imported
+// duration's Take is the Update, the clock row with its origin, and the play), and the relay
+// serves requests on threads, so rows sent as separate requests can land in its log in any order.
+// While a press runs (relayPress), sendRelay gathers its rows and the press sends them as one
+// { items: [...] } batch, which the relay logs in order, as the production controller does.
 // failed(), when given, is told of a send the relay did not take (an imported clock's follow).
+var relayBatch = null;
+function relayPress(run) {
+  if (relayBatch) { run(); return; }
+  relayBatch = { items: [], fails: [] };
+  try { run(); } finally {
+    var batch = relayBatch;
+    relayBatch = null;
+    relayPost(batch.items, batch.fails);
+  }
+}
 function sendRelay(graphic, msg, failed) {
   if (!relayOk) return;
+  if (!relayBatch) { relayPost([{ graphic: graphic, msg: msg }], failed ? [failed] : []); return; }
+  relayBatch.items.push({ graphic: graphic, msg: msg });
+  if (failed) relayBatch.fails.push(failed);
+}
+function relayPost(items, fails) {
+  if (items.length === 0) return;
+  var refused = function () { fails.forEach(function (fail) { fail(); }); };
   fetch('/relay/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ graphic: graphic, msg: msg }),
-  }).then(function (r) { if (!r.ok && failed) failed(); }, function () {
-    /* the BroadcastChannel path still works */
-    if (failed) failed();
-  });
+    body: JSON.stringify({ items: items }),
+  }).then(function (r) { if (!r.ok) refused(); }, refused); // the BroadcastChannel path still works
 }
 
 ${MATCH_CLOCK_PAGE_JS}
@@ -487,7 +506,7 @@ GRAPHICS.forEach(function (g) {
     for (var uk in state) lastSent[uk] = state[uk];
     paintStaged();
   }
-  function onChange(field, value) { state[field] = value; if (live()) sendUpdate(); else paintStaged(); }
+  function onChange(field, value) { state[field] = value; if (live()) relayPress(sendUpdate); else paintStaged(); }
   // Per-field repainters for a value the PANEL moved itself (an event's adjust) - registered by
   // the controls that can show one; a field with none simply keeps its box.
   var repaint = {};
@@ -517,16 +536,34 @@ GRAPHICS.forEach(function (g) {
     if (row.graphic !== g.name || (row.stream && row.stream !== 'program')) return;
     if (m.t !== 'update' || !m.data || m.data[CLOCK.field] === undefined || !clockSlots(m.data[CLOCK.field])) return;
     clock.row(m.data[CLOCK.field]);
+    followClockBox();
+  }
+  // THE TIME BOX FOLLOWS THE SHARED CLOCK (#2110). What the clock last sent becomes what this card
+  // last sent, so a later ✎ Update (a score's, say) resends that time and moves nothing, instead of
+  // reading the box's older time as a correction and putting it back on air. A time the operator
+  // has typed and not yet sent stays in the box, staged.
+  function followClockBox() {
+    var read = clockSlots(clock.held);
+    if (!read || read.sent === lastSent[CLOCK.field]) return;
+    var staged = state[CLOCK.field] !== lastSent[CLOCK.field];
+    lastSent[CLOCK.field] = read.sent;
+    if (!staged) {
+      state[CLOCK.field] = read.sent;
+      if (clockInput) clockInput.value = read.sent;
+    }
+    paintStaged();
   }
   if (CLOCK && CLOCK.events) relayReady.push(function () {
     var cursor = 0;
     var walking = true;
-    relayLogWalk(0, followRelayClock, function (at) { cursor = at; walking = false; });
+    var walked = function (at) { cursor = at; walking = false; followClockBox(); };
+    relayLogWalk(0, followRelayClock, walked);
     setInterval(function () {
       clock.settle(null);
+      followClockBox();
       if (walking) return;
       walking = true;
-      relayLogWalk(cursor, followRelayClock, function (at) { cursor = at; walking = false; });
+      relayLogWalk(cursor, followRelayClock, walked);
     }, 1000);
   });
   // Send one command with the clock's value written around it, in the order and by the decision
@@ -789,7 +826,7 @@ GRAPHICS.forEach(function (g) {
       stage(rk, kept.join('\\n'));
     }
     // A clock verb writes the clock's own value around the event (sendClocked).
-    sendClocked(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event });
+    relayPress(function () { sendClocked(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event }); });
     // The payload just aired those fields — they are no longer merely staged.
     if (payload) { for (var pk in payload) lastSent[pk] = payload[pk]; paintStaged(); }
   }
@@ -859,10 +896,10 @@ GRAPHICS.forEach(function (g) {
       if (send || live()) sendUpdate(); else paintStaged();
     }
     var entryPlay = el('button', { class: 'primary', title: 'Play the graphic with this entry' }, ['▶ Play entry']);
-    entryPlay.onclick = function () { applyEntry(true); sendClocked({ t: 'play' }); };
+    entryPlay.onclick = function () { relayPress(function () { applyEntry(true); sendClocked({ t: 'play' }); }); };
     var entryLoad = el('button', { title: 'Load this entry into the fields (airs on ✎ Update or ▶ Play unless live)' }, ['Load']);
-    entryLoad.onclick = function () { applyEntry(false); };
-    entrySel.onchange = function () { applyEntry(false); };
+    entryLoad.onclick = function () { relayPress(function () { applyEntry(false); }); };
+    entrySel.onchange = entryLoad.onclick;
     var entriesWrap = el('div', { class: 'events' }, [el('h3', {}, ['Entries'])]);
     entriesWrap.appendChild(el('div', { class: 'row' }, [entrySel, entryLoad, entryPlay]));
     card.appendChild(entriesWrap);
@@ -909,9 +946,9 @@ GRAPHICS.forEach(function (g) {
   // glossary's word for values PLUS the entrance, which is ▶ Play on this panel.
   var upd = el('button', { title: 'Push the edited values to the live graphic without re-animating it' }, ['✎ Update']);
   var next = el('button', {}, ['» Next']);
-  play.onclick = function () { sendUpdate(); sendClocked({ t: 'play' }); };
-  stop.onclick = function () { sendClocked({ t: 'stop' }); };
-  upd.onclick = sendUpdate;
+  play.onclick = function () { relayPress(function () { sendUpdate(); sendClocked({ t: 'play' }); }); };
+  stop.onclick = function () { relayPress(function () { sendClocked({ t: 'stop' }); }); };
+  upd.onclick = function () { relayPress(sendUpdate); };
   next.onclick = function () { post({ t: 'next' }); };
   card.appendChild(el('div', { class: 'actions' }, [play, stop, upd, next]));
 
@@ -933,13 +970,13 @@ GRAPHICS.forEach(function (g) {
     // the log — the latest data first (the data half of reset), then snap to the last known
     // state (the visual half; timers arm, recovery semantics). First boot has nothing
     // logged and replays nothing.
-    else if (m.t === 'graphic-online') {
+    else if (m.t === 'graphic-online') relayPress(function () {
       if (log.data) post({ t: 'update', data: log.data });
       if (log.state && log.state.groups) post({ t: 'snap', snap: log.state.groups });
       // Snap resets the graphic before composing the pose, clearing every inline style —
       // including the data layer's own (an image field with no picture hides itself inline).
       if (log.state && log.data) post({ t: 'update', data: log.data });
-    }
+    });
   };
   if (ch) post({ t: 'hello' });
 });
