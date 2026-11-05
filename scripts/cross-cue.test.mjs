@@ -1,4 +1,4 @@
-// guards: src/components/editorFoundation/keySelection.ts, src/blocks/presetApply.ts, src/blocks/animEdit.ts, src/blocks/editorOut.ts, src/blocks/editorAnimation.ts, src/blocks/animEval.ts, src/blocks/animData.ts, src/blocks/animMigration.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animRuntimeLegacy.ts, src/templates/shared/easeRuntime.ts, src/model/contentHash.ts, src/assets/gsap.min.js, e2e/fixtures/cross-cue.json, e2e/fixtures/interpreter-one-key-hold-v1.js
+// guards: src/components/editorFoundation/keySelection.ts, src/blocks/presetApply.ts, src/blocks/animEdit.ts, src/blocks/editorOut.ts, src/blocks/editorAnimation.ts, src/blocks/animEval.ts, src/blocks/animData.ts, src/blocks/animMigration.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animRuntimeLegacy.ts, src/templates/shared/easeRuntime.ts, src/model/contentHash.ts, src/assets/gsap.min.js, e2e/fixtures/cross-cue.json, e2e/fixtures/interpreter-one-key-hold-v1.js, e2e/fixtures/interpreter-exit-rest-v1.js
 //
 // R1.2a.5 CROSS-CUE MOVES AND THE OUT FLAG (docs/research/editor-r1-2a-5/README.md). The owner's
 // 2026-09-30 decision: the exit belongs to the Out flag, keeping its own timing from where it starts,
@@ -264,6 +264,20 @@ test('a graphic saved with the R1.2a.4 interpreter upgrades once, and custom sou
   ] }, 0.4);
   assert.ok(plain.steps[1].carried && !plain.steps.some(step => step.spans));
   assert.equal(runtime.writeAnimData(emitAnimRegion(plain).replace(ANIM_INTERPRETER_JS, () => before), plain), emitAnimRegion(plain), 'carried time alone');
+  assert.equal(writeOutData(saved.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;'), data), null, 'custom source still refuses');
+});
+
+test('a graphic saved with the reverted #2215 interpreter is recognized and re-emitted once', () => {
+  // #2215 reached production before its revert, so graphics saved then carry its body.
+  const before = readFileSync(path.join(root, 'e2e/fixtures/interpreter-exit-rest-v1.js'), 'utf8').replace(/\r\n/g, '\n');
+  assert.equal(contentHash(before.trim()), legacy.ANIM_INTERPRETER_EXIT_REST_V1_HASH, 'the fixture is the recorded body');
+  assert.ok(before.includes('noacgClearExitResidue') && !ANIM_INTERPRETER_JS.includes('noacgClearExitResidue'));
+  const data = moveOutBoundary(fixture(), 0.32), current = emitAnimRegion(data), saved = current.replace(ANIM_INTERPRETER_JS, () => before);
+  assert.notEqual(saved, current);
+  assert.equal(writeOutData(saved, data), current, 'Set Out and animation edits write it');
+  const upgraded = prepareOutRuntime(saved);
+  assert.equal(upgraded, current, 'preview, save and export re-emit the known body');
+  assert.equal(prepareOutRuntime(upgraded), upgraded, 'once');
   assert.equal(writeOutData(saved.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;'), data), null, 'custom source still refuses');
 });
 
