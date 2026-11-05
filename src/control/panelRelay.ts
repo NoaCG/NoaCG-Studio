@@ -16,6 +16,7 @@ import {
   PressMemory,
   PressOrder,
   SnapshotRing,
+  TAKE_CHANGED,
   judgePress,
   readPress,
   rowsChanged,
@@ -225,8 +226,8 @@ export function answerPanel(opts: {
   snapshot: () => PanelSnapshot;
   /** The verbs this surface runs at all; the rest are refused `not-here`. */
   runs: ReadonlySet<PanelVerb>;
-  /** The page's dispatcher, as a key press reaches it. */
-  run: (verb: PanelVerb, target: string) => void;
+  /** The page's dispatcher, as a key press reaches it: a Take it starts answers that Take's promise. */
+  run: (verb: PanelVerb, target: string) => void | Promise<unknown>;
   /** The graphic actions this page offers and runs (control/panelActions.ts), read at publish and
    *  at every press; null on a page that runs none, which publishes an empty list so a panel drops
    *  what an earlier page offered, and refuses a press `not-here`. */
@@ -347,6 +348,10 @@ export function answerPanel(opts: {
     offer.act(judged.run).then(settle, (err: unknown) => settle({ outcome: 'failed', note: (err as Error)?.message ?? 'failed' }));
   };
 
+  /** The cues a panel's Take is still taking (protocol §6.2): it saves an edit and settles the cue's
+   *  box before the page draws it on air, which can outlast the draw gap, so another panel Take of
+   *  that cue is refused until it settles. The page's own Take and Re-take are not held to this. */
+  const taking = new Set<string>();
   const runPress = (payload: unknown) => {
     if ((payload as { verb?: unknown } | null)?.verb === ACTION_VERB) {
       onActionMessage(payload);
@@ -355,8 +360,16 @@ export function answerPanel(opts: {
     const press = readPress(payload);
     const now = Date.now();
     if (!press || !admit(press, now)) return;
-    const verdict = judgePress(press, opts.snapshot(), ring.get(press.seen), opts.runs) ?? { outcome: 'ran' as const };
-    if (verdict.outcome === 'ran') opts.run(press.verb, press.target);
+    const takes = press.verb === 'take' || press.verb === 'take-cue';
+    const verdict = (takes && taking.has(press.target) ? TAKE_CHANGED : judgePress(press, opts.snapshot(), ring.get(press.seen), opts.runs)) ?? { outcome: 'ran' as const };
+    if (verdict.outcome === 'ran') {
+      const took = opts.run(press.verb, press.target);
+      if (takes && took instanceof Promise) {
+        taking.add(press.target);
+        const settled = () => taking.delete(press.target);
+        took.then(settled, settled);
+      }
+    }
     answer(press, verdict, now);
     opts.onPress({ panel: press.panel.label, verb: press.verb, verdict, at: now });
     // The press moved what the keys show; publish as soon as the page has drawn it.

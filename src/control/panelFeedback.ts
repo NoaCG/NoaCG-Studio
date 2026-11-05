@@ -275,11 +275,10 @@ export const PRESS_HOLD_MS = 500;
  *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged
  *  against a page that has not drawn the press before it, however the two arrived (issues #2109,
  *  #2144). 50 ms is what an operator's quick pair has anyway. It covers a press whose effect the
- *  page draws within it. A press whose effect takes longer is not waited for: a graphic's Take
+ *  page draws within it. A press whose effect takes longer is not waited for. A graphic's Take
  *  reaches the drawn state only once the page has saved an edit still owed (`flush`) and settled
- *  the cue's box (`appearanceOf`: adjust writes still saving, a measurement not yet made;
- *  `graphicVerbs.ts` `takeOn`), so a second Take let go after the gap can still be judged against
- *  the page before the first and run. */
+ *  the cue's box (`appearanceOf`; `graphicVerbs.ts` `takeOn`), so a panel's second Take of a cue
+ *  is refused while the first is still running instead (`answerPanel`). */
 export const PRESS_DRAW_MS = 50;
 
 /** At most this many panels' counts are kept: a module start is a new panel. */
@@ -431,6 +430,10 @@ export class PressOrder {
   }
 }
 
+/** A Take refused because what it would do is not what its key showed: the page drew something else
+ *  since, or a panel's Take of that cue is still running (`answerPanel`). */
+export const TAKE_CHANGED: PressVerdict = { outcome: 'stale', note: 'what Take does changed' };
+
 const SELECTED_ROW_VERBS: readonly PanelVerb[] = ['take', 'retake', 'update', 'next', 'out', 'pause', 'resume'];
 
 const VERB_WORDS: Record<PanelVerb, string> = {
@@ -472,7 +475,7 @@ export function judgePress(
     return { outcome: 'stale', note: 'the selection moved' };
   }
   if (verb === 'take' && (!then || then.space !== now.space)) {
-    return { outcome: 'stale', note: then ? 'what Take does changed' : 'the key was drawn too long ago' };
+    return then ? TAKE_CHANGED : { outcome: 'stale', note: 'the key was drawn too long ago' };
   }
   if ((verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') && !isRow(target)) {
     return { outcome: 'stale', note: 'that cue is no longer in the rundown' };

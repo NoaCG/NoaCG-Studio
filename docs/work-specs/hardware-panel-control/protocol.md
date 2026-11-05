@@ -150,12 +150,16 @@ any panel, however close together they arrived (issue #2144); a press with none 
 it does not wait. A press after its turn, or one with no number, runs at once, so one arriving past
 the bound still has its one effect, and the next press waits out 50 ms behind it too. The gap is
 meant to let the page draw the press before, and it assumes that press's effect reaches the page's
-drawn state within 50 ms. That is its remaining limit: a graphic's Take first saves an edit still
-owed and settles the cue's box (adjust writes still saving, a measurement not yet made;
-`control/graphicVerbs.ts` `takeOn`), and when that takes longer, a second Take is judged against the
-page before the first and can still run. The first press this page hears from a panel sets the count
-and never waits for the numbers before it, because the module may have pressed long before this page
-opened; a reversed pair at that very moment runs as it arrived. A press refused by the relay or lost
+drawn state within 50 ms. A graphic's Take can take longer: it first saves an edit still owed and
+settles the cue's box (adjust writes still saving, a measurement not yet made;
+`control/graphicVerbs.ts` `takeOn`). So on the production page, while a cue's Take started by a
+panel's `take` or `take-cue` is still running (until its send is answered), another panel `take` or
+`take-cue` of that cue is refused `stale` ("what Take does changed") without being judged; the
+page's own Take and Re-take are not held to this. The limit that remains is for the other verbs:
+one whose effect the page draws later than 50 ms after it ran is not waited for. The first press
+this page hears from a panel sets the count and never waits for the numbers before it, because the
+module may have pressed long before this page opened; a reversed pair at that very moment runs as it
+arrived. A press refused by the relay or lost
 on the way leaves a gap, so the next press of that panel waits out the 500 ms once.
 
 Then, in this order, on each `press`:

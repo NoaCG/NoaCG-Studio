@@ -333,7 +333,7 @@ function productionPage() {
     return (report) =>
       session.apply((parts) => ({ ...parts, air: seedFromResolve(parts.air, { liveCue: { Score: 'b1' }, live: { Score: { data: report } } }, [], at, cues, NO_CLOCKS) }));
   };
-  return { verbs, offer, hear, output, log, sends, fallbacks, resolve, cues: () => cues, toggleOther: () => (other = !other) };
+  return { verbs, page, offer, hear, output, log, sends, fallbacks, resolve, cues: () => cues, toggleOther: () => (other = !other) };
 }
 
 /** A deck connected to an answering production page, both through the relay, on one clock. */
@@ -937,3 +937,71 @@ test('a page that stops answering runs nothing it was still holding', async (t) 
     s.done();
   }
 });
+
+for (const ends of ['lands', 'fails']) {
+  test(`a Take key pressed twice while the first Take still saves an edit takes the cue once, and the next Take after the first ${ends} runs (issue #2144)`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
+    const hub = relayHub();
+    globalThis.__panelBackend = hub.backend;
+    // The real verbs, with the cue's edit still saving (`flush`) well past the draw gap.
+    const prod = productionPage();
+    const saving = held();
+    prod.page.flush = () => saving.promise;
+    const cue = { id: 'b2', sourceId: 'g-Score', label: 'B2', graphic: 'Score', values: { home: '0' } };
+    const takes = [];
+    const answer = answerPanel({
+      slug: 'slug-3',
+      where: 'production',
+      move: false,
+      label: 'Production',
+      snapshot: () => ({
+        title: 'Match',
+        selected: 'b2',
+        space: prod.page.liveCue.Score === 'b2' ? 'take-off' : 'take',
+        live: Object.values(prod.page.liveCue),
+        allowed: { take: true },
+        blocked: [],
+        clip: null,
+        bridge: 'ok',
+        rows: [{ id: 'b2', label: 'B2', kind: 'cue', source: 'graphic' }],
+      }),
+      runs: new Set(['take']),
+      // As ProductionPage's dispatcher: a Take answers its promise.
+      run: () => (takes.push(cue.id), prod.verbs.take(cue)),
+      onStatus: () => {},
+      onPress: () => {},
+    });
+    const clock = new HandClock(t);
+    const deck = new PanelClient({ relay: hub.relay, clock, instance: 'deck' });
+    try {
+      await deck.start({ key: 'ncpk_test', code: '', label: 'Deck' });
+      await drain();
+      answer.changed();
+      await drain();
+      assert.equal(deck.status, 'ok', deck.note);
+      const first = deck.press('take', 'b2');
+      const second = deck.press('take', 'b2');
+      await drain();
+      await drawGap(t);
+      assert.deepEqual(takes, ['b2'], 'the second Take is not run while the first is still saving');
+      const [one, two] = await Promise.all([first, second]);
+      assert.equal(one.result.outcome, 'ran');
+      assert.deepEqual([two.result.outcome, two.result.note], ['stale', 'what Take does changed']);
+      if (ends === 'lands') saving.resolve();
+      else saving.reject(new Error('the edit did not save'));
+      await drain();
+      assert.equal(prod.sends.length, ends === 'lands' ? 1 : 0, 'the cue is taken once');
+      if (ends === 'lands') await landNext(prod, 0, true);
+      answer.changed();
+      await clock.advance(PRESS_DRAW_MS);
+      // The first Take has settled: the next press of the key is judged as any other, and runs.
+      const third = await deck.press('take', 'b2');
+      assert.equal(third.result.outcome, 'ran');
+      assert.deepEqual(takes, ['b2', 'b2']);
+    } finally {
+      pagehide();
+      void deck.stop();
+      delete globalThis.__panelBackend;
+    }
+  });
+}
