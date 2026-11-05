@@ -1728,7 +1728,7 @@ test('a first Sheet connection is one button: the template rows connect live, th
   const paths = Object.values(stored.bindings['League Table'] ?? {});
   expect(paths.sort()).toEqual([`sheet.${sourceId}.headers`, `sheet.${sourceId}.rows`]);
   const line = page.getByTestId('cue-connected-line');
-  await expect(line).toContainText(/Connected to League Table · read \d+ s ago/);
+  await expect(line).toContainText(/Connected to Sheet: League Table · read \d+ s ago/);
   await expect(page.getByTestId('cue-connect')).toHaveText('Change…');
 
   // On air, a changed cell reaches PROGRAM with no further press.

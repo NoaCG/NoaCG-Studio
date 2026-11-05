@@ -179,7 +179,7 @@ function CueConnectedLine({ source, store, onDisconnect }: { source: ShowSource;
   return (
     <span className="pd-connected-line hint" data-testid="cue-connected-line" data-stale={status?.stale ? 'true' : undefined}>
       <span className={status?.stale || status?.state === 'failing' ? 'status-warn' : undefined}>
-        Connected to {source.label} · {when}
+        Connected to {sourceKindWord(source)}: {source.label} · {when}
       </span>{' '}
       <button type="button" className="link-inline" onClick={onDisconnect} data-testid="cue-connected-disconnect">
         Disconnect
