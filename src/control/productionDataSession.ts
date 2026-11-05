@@ -103,26 +103,35 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     });
   };
 
-  /** Reads of the published tree, numbered as they start: an answer that started before one
-   *  already held is older than it, and is passed over (a slow read must not put an older tree
-   *  back, E7.1). */
-  let reads = 0;
-  let readHeld = 0;
+  /** EVERY TREE THE SERVER ANSWERS IS NUMBERED AS ITS REQUEST STARTS: the reads and the PATCHes
+   *  alike, in one count. An answer whose request started before the tree already held is older
+   *  than it and is passed over, so a slow read cannot put an older tree back over a newer read
+   *  or a press's answer, and a slow PATCH answer cannot put one back over a later read (E7.1,
+   *  #1572). An optimistic tree holds its write's number too, so a read that left before the press
+   *  cannot undo the press on screen; a lease write's tree is numbered as it arrives. The answers
+   *  carry no version of their own, and a passed-over answer costs nothing: every write that lands
+   *  appends a row, and the row starts a read. */
+  let asked = 0;
+  let held = 0;
+  const hold = (from: number, n: number, patch: Partial<DataPart>) => {
+    if (from !== mode || n < held) return;
+    held = n;
+    write(from, patch);
+  };
   const refresh = async (): Promise<void> => {
     const from = mode;
     const key = part.get().dataKey;
     if (!key) return;
-    const n = ++reads;
+    const n = ++asked;
     const current = await io.fetchProductionData(key);
-    if (!current || n < readHeld) return;
-    readHeld = n;
-    write(from, { liveData: current.data as JsonObject, treeRead: true });
+    if (current) hold(from, n, { liveData: current.data as JsonObject, treeRead: true });
   };
 
   /** The operator's road for a tree change: optimistic on both, so the figure on screen moves at
    *  once and the next press counts from it. Answers whether it landed. */
   const operatorWrite = async (from: number, next: JsonObject, patch: JsonObject, failed: string): Promise<boolean> => {
-    write(from, { liveData: next });
+    const n = ++asked;
+    hold(from, n, { liveData: next });
     if (!slug) {
       io.saveLiveData(session.key, next);
       return true;
@@ -131,7 +140,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       // The ANSWER is what we hold: a feed tick that landed in the same moment is already merged
       // into it, so this write cannot silently overwrite the feed's.
       const server = await io.patchProductionDataBySlug(slug, patch);
-      write(from, { liveData: server as JsonObject });
+      hold(from, n, { liveData: server as JsonObject, treeRead: true });
       return from === mode;
     } catch (error) {
       if (!session.alive()) return false;
@@ -199,7 +208,8 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       const from = mode;
       const { liveData: before, dataKey } = part.get();
       // Optimistic either way, so typing stays immediate.
-      write(from, { liveData: next });
+      const n = ++asked;
+      hold(from, n, { liveData: next });
       if (!dataKey) {
         io.saveLiveData(session.key, next);
         return;
@@ -212,7 +222,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       if (Object.keys(patch).length === 0) return;
       void io
         .patchProductionData(dataKey, patch, session.key)
-        .then((server) => write(from, { liveData: server as JsonObject }))
+        .then((server) => hold(from, n, { liveData: server as JsonObject, treeRead: true }))
         .catch((error: Error) => {
           if (!session.alive()) return;
           io.note(`Production data not saved: ${error.message}`);
@@ -272,9 +282,10 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
       // row refuses must never sit in the local tree, where PREVIEW shows it and a Take airs it.
       // A reader is not a press, and waiting one round trip costs it nothing.
       while (Object.keys(send).length > 0) {
+        const n = ++asked;
         try {
           const server = await io.patchProductionDataBySlug(slug, send);
-          write(from, { liveData: server as JsonObject });
+          hold(from, n, { liveData: server as JsonObject, treeRead: true });
           break;
         } catch (error) {
           if (!session.alive() || from !== mode) return false;
@@ -298,7 +309,8 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
     },
 
     holdServerTree: (from, tree) => {
-      if (session.alive() && slug !== null && from === slug) write(mode, { liveData: tree });
+      // Numbered as it arrives: a read still in flight left before it, so it is older.
+      if (session.alive() && slug !== null && from === slug) hold(mode, ++asked, { liveData: tree });
     },
 
     refresh,
