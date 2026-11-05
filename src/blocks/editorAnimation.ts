@@ -6,7 +6,7 @@ import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase, settleSvgOffset, type BasePatch } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
-import { behaviourSequenceReason, claimReason, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim, type Relation } from './behaviourKeys';
+import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
 
 /** A transform or opacity control of the inspector and canvas. */
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
@@ -103,19 +103,9 @@ export function keySequenceReason(template: SpxTemplate, data: AnimData | null):
 let claimed: { js: string; html: string; claims: RecipeClaim[] } | null = null;
 function claimsOf(template: SpxTemplate, doc: Document): RecipeClaim[] {
   if (claimed?.js !== template.js || claimed.html !== template.html) {
-    const drawn = (token: string) => { try { return !!doc.querySelector(stamped(token)); } catch { return true; } };
-    claimed = { js: template.js, html: template.html, claims: recipeClaims(parseBehaviourData(template.js)!, drawn) };
+    claimed = { js: template.js, html: template.html, claims: recipeClaims(parseBehaviourData(template.js)!, token => !!doc.querySelector(stamped(token))) };
   }
   return claimed.claims;
-}
-/** How each element a claim selects stands to `layers` (K5's containment stops at the artwork).
- *  A claim that cannot be resolved stands as the layer itself: unknown ownership refuses. */
-function claimRelations(doc: Document, layers: Element[]) {
-  return (selector: string): Relation[] => {
-    let found: Element[];
-    try { found = Array.from(doc.querySelectorAll(selector)); } catch { return ['self']; }
-    return found.flatMap(el => layers.map((layer): Relation => el === layer ? 'self' : layer.contains(el) && !!layer.closest('svg') ? 'inside' : el.contains(layer) ? 'contains' : 'none'));
-  };
 }
 /**
  * K4 to K6: the reason a key on `channel` of the layers `selector` matches is refused on a

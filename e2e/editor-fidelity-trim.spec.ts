@@ -506,6 +506,18 @@ test('a nested field on a behaviour graphic takes keys, a drawn look refuses the
     .toEqual({ ...before, steps: before.steps.map(s => ({ ...s, layers: { ...s.layers, '#f2': undefined } })) });
   const table = (js: string) => js.slice(js.indexOf('var NOACG_BEHAVIOUR'), js.indexOf('};', js.indexOf('var NOACG_BEHAVIOUR')));
   expect(table((await source(page)).js)).toBe(table(prepared.js));
+  // #2069: easing and moving the user's keys stays inside the user's track too (K7), and undoes.
+  const keyedSource = await source(page);
+  await execute(page, [{ kind: 'key.ease', keys: [0, .4].map(time => ({ step: 0, selector: '#f2', property: 'x', time })), preset: 'easyEase' }]);
+  await execute(page, [{ kind: 'key.move', keys: [{ step: 0, selector: '#f2', property: 'x', time: .4 }], delta: .1 }]);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  const moved = await data(page), movedTrack = moved.steps[0].layers['#f2'].x;
+  expect(movedTrack.map(key => key.time)).toEqual([0, .5]); expect(movedTrack).not.toEqual(track.map((key, i) => ({ ...key, time: [0, .5][i] })));
+  expect({ ...moved, steps: moved.steps.map(s => ({ ...s, layers: { ...s.layers, '#f2': undefined } })) })
+    .toEqual({ ...before, steps: before.steps.map(s => ({ ...s, layers: { ...s.layers, '#f2': undefined } })) });
+  expect(table((await source(page)).js)).toBe(table(prepared.js));
+  for (let i = 0; i < 2; i++) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+  expect(await source(page)).toEqual(keyedSource);
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Nested score'); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); const saved = await source(page);
 
@@ -544,6 +556,12 @@ test('a nested field on a behaviour graphic takes keys, a drawn look refuses the
   await expect(output.locator('[data-noacg-role~="team.flash/2"]')).not.toHaveClass(new RegExp(on));
   // The keyed pose is the user's; the paint never moved it.
   expect(await standing()).toBeCloseTo(placedAt, 3);
+  // K8 (#2069): snap settles the cue's keys with callbacks off, then runs the state's calls, so the
+  // repaint lands after them: the key's pose and the painted score both stand.
+  await output.evaluate(() => { const w = window as unknown as { noacgSnap(groups: unknown, options: { timers: boolean }): void; noacgMachineState(): { groups: unknown } }; w.noacgSnap(w.noacgMachineState().groups, { timers: false }); });
+  expect(await standing()).toBeCloseTo(placedAt, 3);
+  await expect(output.locator('#f2')).toHaveText('4');
+  await expect(flash()).toHaveClass(new RegExp(on));
   await output.close();
 });
 
