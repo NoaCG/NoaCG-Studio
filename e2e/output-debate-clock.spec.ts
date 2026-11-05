@@ -140,7 +140,7 @@ async function updateTheRound(page: Page, debate: Debate, title: string, values:
   await expect(round(page)).toHaveText(title, { timeout: 20_000 });
 }
 
-test('an Update mid-debate leaves a waiting speaker\'s banked time and a running clock where they stand', async ({ page }) => {
+test('an Update mid-debate leaves a waiting speaker\'s banked time where it stands, and the first speech running', async ({ page }) => {
   const debate = await openDebate(page);
   await takeTheBoard(page, debate);
   await aThenB(page, debate);
@@ -150,12 +150,19 @@ test('an Update mid-debate leaves a waiting speaker\'s banked time and a running
   const b = await read(clockB(page));
   expect(b, 'the speaker on the floor keeps counting from their own time').toBeLessThanOrEqual(260);
   await expect.poll(() => read(clockB(page)), { timeout: 5_000, message: 'and the clock still runs' }).toBeLessThan(b);
+});
 
-  // A's second turn: its clock no longer starts from what the cue sends.
+test('an Update in a speaker\'s second turn leaves the running clock where it stands, still running', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+
+  // A's clock no longer starts from what the cue sends, and no Update has touched it yet.
   debate.write({ t: 'event', event: 'switch' });
   await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThan(240);
   const banked = await read(clockB(page));
   expect(banked).toBeLessThanOrEqual(260);
+
   await updateTheRound(page, debate, 'CLOSING');
   const a = await read(clockA(page));
   expect(a, 'a running clock is not put back to the cue\'s time').toBeLessThan(240);
