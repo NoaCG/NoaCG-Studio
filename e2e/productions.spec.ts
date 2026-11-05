@@ -1573,10 +1573,10 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
       localRow: w.speakingClockRowEffect({ msg: { t: 'event', event: 'switch' } } as never, clocks, {}, T),
       // A report written before #2161 holds plain values, and the floor still passes on them.
       oldReport: w.speakingClockRowEffect({ msg: { t: 'event', event: 'switch' }, created_at: at(240) } as never, clocks, { f5: '01:50', f6: `05:00@${T + 180_000}` }, T),
-      // …and an Out on that plain report banks the running side plain, as before #2161.
       // …and an Update over an old plain value: a bare value cannot tell a resend from a correction,
       // so the Update's time is taken, slotted from then on.
       oldReportUpdate: w.speakingClockAfterUpdate('01:50', '05:00'),
+      // …and an Out on that plain report banks the running side plain, as before #2161.
       oldReportStop: w.speakingClockRowEffect({ msg: { t: 'stop' }, created_at: at(240) } as never, clocks, { f5: '01:50', f6: `05:00@${T + 180_000}` }, T),
     };
   });
