@@ -409,7 +409,15 @@ export function answerPanel(opts: {
       opts.onStatus({ kind: 'failed', why: 'No NoaCG backend is configured' });
       return;
     }
-    let answer: { ok: boolean; claim: number; press_topic: string; feedback_topic: string; answering?: { label?: string } | null };
+    let answer: {
+      ok: boolean;
+      claim: number;
+      press_topic: string;
+      feedback_topic: string;
+      answering?: { label?: string } | null;
+      /** Each panel's last press the relay took (0110); absent from an older database. */
+      last_presses?: unknown;
+    };
     try {
       answer = await call('panel_lease', { p_slug: opts.slug, p_page: page, p_where: opts.where, p_label: opts.label, p_move: opts.move });
     } catch (err) {
@@ -438,6 +446,8 @@ export function answerPanel(opts: {
     if (same) rowsVer = before.rowsVer;
     // The graphic actions count the same way, for the same reason.
     actionsVer = resumed(before?.actionsVer);
+    // Where each panel's presses start, before the first of them can arrive (issue #2140).
+    if (Array.isArray(answer.last_presses)) order.counted(answer.last_presses);
     const ch = sb.channel(answer.press_topic, { config: { private: true } });
     pressChannel = ch;
     ch.on('broadcast', { event: 'press' }, (m: { payload: unknown }) => onPressMessage(m.payload));

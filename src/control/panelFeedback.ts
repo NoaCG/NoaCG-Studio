@@ -299,16 +299,31 @@ interface OrderedPanel {
  * waits. One ahead of its turn is held until the presses before it arrive. PRESS_HOLD_MS after a
  * press was first held with none in its turn, everything held goes, in order, and the presses that
  * never came are given up on. A press after its turn, a late one or a repeat, runs at once: its id
- * decides whether it has an effect (PressMemory), so a +1 arriving late still adds its point. The
- * first press this page hears from a panel sets the count and never waits, since a module may have
- * pressed long before this page opened.
+ * decides whether it has an effect (PressMemory), so a +1 arriving late still adds its point.
+ *
+ * WHERE A PANEL'S COUNT STARTS (issue #2140). The relay answers the page each panel's last press it
+ * took (`counted`, from `panel_lease`), so the first pair this page hears runs in press order too;
+ * and a panel the page meets after that is a module that started since, counting from 1. A database
+ * without it (before 0110) answers nothing, and the first press heard sets the count and never
+ * waits, since a module may have pressed long before this page opened.
  */
 export class PressOrder {
   /** Call `fn` once after `ms`; returns the cancel. */
   readonly #after: (ms: number, fn: () => void) => () => void;
   readonly #panels = new Map<string, OrderedPanel>();
+  /** Whether the relay said where every panel's count stands. */
+  #counted = false;
   constructor(after: (ms: number, fn: () => void) => () => void) {
     this.#after = after;
+  }
+
+  /** Each panel's last press the relay took before this page answered: its count starts after it. */
+  counted(lastPresses: readonly unknown[]): void {
+    this.#counted = true;
+    for (const pressId of lastPresses) {
+      const id = typeof pressId === 'string' ? /^(.+):(\d+)$/.exec(pressId) : null;
+      if (id && !this.#panels.has(id[1])) this.#met(id[1], Number(id[2]) + 1);
+    }
   }
 
   /** A press was heard: `run` is called exactly once, in its turn, unless this order stops first. */
@@ -319,7 +334,7 @@ export class PressOrder {
       return;
     }
     const n = Number(id[2]);
-    const panel = this.#panels.get(id[1]) ?? this.#met(id[1], n);
+    const panel = this.#panels.get(id[1]) ?? this.#met(id[1], this.#counted ? 1 : n);
     if (n < panel.next) {
       run();
       return;
