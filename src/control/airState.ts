@@ -9,12 +9,12 @@
 // after a reconnect or a replayed command on reload, which is why they live here and run in Node:
 //
 // - `moveLiveCue`: the one marker write. Every call counts as a move, moved or not, because the
-//   boot resolve's seed skips what the marker's writes touched while it was in flight.
+//   boot resolve's seed skips what was written while it was in flight.
 // - `claimAndApply`: a command from any road (this page's own send, the broadcast, the durable
 //   row) applies once, on the id its press minted (./commandRoads.ts `createAppliedOnce`).
-// - `seedFromResolve`: the resolve's picture replaces the marker on every layer no move since the
-//   request touched, and not at all after a layer went off (THE MOVES GUARD); the rows after the
-//   reports replay only if no command was applied.
+// - `seedFromResolve`: the resolve's picture replaces the marker on every layer no Take since the
+//   request touched, and not at all after any other marker write (THE MOVES GUARD); a graphic's
+//   rows after its report replay only if no command on it was applied.
 // - `programItems`: the match and speaking clocks' decisions around a command, against the
 //   monitor's own receive instant (./matchClockWire.ts).
 // - `restoreItems`: what rebuilds a fresh PROGRAM stage from the marker, the reports and the rows.
@@ -306,15 +306,15 @@ function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<str
 
 /**
  * THE RESOLVE'S SEED, guarded (§4.1 R3). The wire's map is a snapshot older than every marker
- * write since the request (THE MOVES GUARD). A write that took a layer off, or moved nothing, skips
- * the seed outright: a layer this operator took off meanwhile, maybe one this page did not know was
- * on, would come back on air. A layer only taken on meanwhile keeps this page's cue and record, or
- * it would read as nothing on air with Out greyed, and every other layer still seeds (#2162: a Take
- * of one graphic during the read kept the one already on air off this page's PROGRAM monitor). A
- * graphic's rows after its report, and its report's place, size and typed data, count only if no
- * command on it was applied since the request; a newer command is newer than they are, so a field
- * one moved meanwhile also keeps its figure over the report's. A command on another graphic (the
- * Take itself) leaves them standing.
+ * write since the request (THE MOVES GUARD). Any write but a Take's skips the seed outright: a
+ * layer this operator took off meanwhile, maybe one this page did not know was on, would come back
+ * on air. A layer a Take wrote meanwhile keeps this page's cue and record, or it would read as
+ * nothing on air with Out greyed, and every other layer still seeds (#2162: a Take of one graphic
+ * during the read kept the one already on air off this page's PROGRAM monitor). A graphic's rows
+ * after its report, and its report's place, size and typed data, count only if no command on it
+ * was applied since the request; a newer command is newer than they are, so a field one moved
+ * meanwhile also keeps its figure over the report's. A command on another graphic (the Take
+ * itself) leaves them standing.
  *
  * Seeded, `aired` takes what air shows for each live layer: the renderer's report, else the live
  * cue's values in the rundown, then the rows after the report. A clock's reported value carries its
