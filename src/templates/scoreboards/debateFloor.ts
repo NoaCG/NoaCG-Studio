@@ -262,6 +262,25 @@ function holdClocks() {
   debatePaintClockColors();
 }
 
+// A TAKE ON AIR DOES NOT TAKE THE FLOOR AWAY. play() rests every machine group at its initial state,
+// which for the floor is armed, but a speaker still counting through a Take has not stopped: this
+// engine and the wire's stamp both say who it is. Left armed, the next Switch would start A whoever
+// the wire handed the floor to, and the two would name different speakers from then on. So the floor
+// group goes straight back to that speaker. debateStart then finds that side already running and
+// changes nothing, so this holds in a boot's recovery too, where play() follows the report's data with
+// no data after it. Off air holdClocks has emptied debateActive, and a first Take finds it empty.
+var debateMachinePlay = noacgMachinePlay;
+noacgMachinePlay = function () {
+  var entrance = debateMachinePlay();
+  if (debateActive) {
+    for (var g = 0; g < noacgMachine.groups.length; g++) {
+      var group = noacgMachine.groups[g];
+      if (group.id === 'floor') noacgFire(group, { to: debateActive === 'a' ? 'speakerA' : 'speakerB' });
+    }
+  }
+  return entrance;
+};
+
 // Both clocks back to the set allowance, nothing running — the reset button's whole job.
 // RESET IS TWO OPERATIONS and this is the DATA half: it puts the numbers back. The floor group
 // walking to its own armed state is the visual half, and the machine owns that.

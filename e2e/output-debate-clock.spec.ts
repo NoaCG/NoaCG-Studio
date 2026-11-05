@@ -161,6 +161,14 @@ async function floorPassed(page: Page, from: ReturnType<typeof clockA>, to: Retu
   expect(await read(from), 'the speaker who gave it up holds still').toBe(held);
 }
 
+/** Whose rail the floor's marker has grown: each is a stub until its speaker has the floor. */
+const railsFavour = (page: Page): Promise<'a' | 'b' | 'neither'> =>
+  board(page).locator('.scoreboard').evaluate((root) => {
+    const width = (rail: string) => root.querySelector(`.scoreboard-rail-${rail}`)!.getBoundingClientRect().width;
+    const [a, b] = [width('a'), width('b')];
+    return a > b * 2 ? 'a' : b > a * 2 ? 'b' : 'neither';
+  });
+
 /** The floor has passed, on the wire and in the report: one stamp, on `to`, and the machine beside it. */
 async function reportNames(debate: Debate, running: 'f5' | 'f6', floor: string): Promise<void> {
   const held = running === 'f5' ? 'f6' : 'f5';
@@ -200,9 +208,12 @@ test('a Take on air with B speaking: the floor stays with B until the next Switc
   const debate = await openDebate(page);
   await takeTheBoard(page, debate);
   await aThenB(page, debate);
+  await expect.poll(() => railsFavour(page), { timeout: 5_000 }).toBe('b');
 
   await takeOnAir(page, debate, '2');
   await reportNames(debate, 'f6', 'speakerB');
+  // The floor's marker says it too, once the entrance has settled.
+  await expect.poll(() => railsFavour(page), { timeout: 10_000 }).toBe('b');
   debate.write({ t: 'event', event: 'switch' });
   await floorPassed(page, clockB(page), clockA(page), 240);
   await reportNames(debate, 'f5', 'speakerA');

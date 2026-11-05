@@ -448,7 +448,8 @@ function slottedRowEffect(
 //
 // AN OUT ENDS THE DEBATE, unlike a match clock's: the board comes back up on what the cue sends, as it
 // always has, because both clocks are marked off air as an imported duration's is and the Take's
-// resend is then a new time. A Take ON air is only a resend: neither clock moves.
+// resend is then a new time. A Take ON air is only a resend: neither clock moves, and the board keeps
+// the floor with whoever the stamp names through its entrance (scoreboards/debateFloor.ts).
 
 /**
  * A published debate board's two clocks, read off its own markup.
