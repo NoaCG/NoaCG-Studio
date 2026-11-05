@@ -1125,12 +1125,15 @@ async function cardsState(page: Page): Promise<CardsState> {
   });
   return { ...more, visibility: still.shown, over: still.over, field: still.field, rows: still.rows };
 }
-/** A timed change shows its card halfway, while the change still runs; a Next pressed then is that
- *  change (creditsTurn: one press, one card) and starts none of its own. Wait for the change to
- *  end before a Next that has to start one (#1988: the poll read the card in the change's last
+/** A timed change shows its card halfway, while the change still runs; a Next pressed then waits
+ *  for that change to end and runs after it (creditsTurn, #2086). Wait for the change to end
+ *  before a Next that has to start one now (#1988: the poll read the card in the change's last
  *  frames, and the Next was spent on it). */
 const changeEnded = (page: Page, at: string) =>
   expect.poll(async () => { const s = await cardsState(page); return [s.turning, s.opacity]; }, `${at}: the change has ended`).toEqual([false, '1']);
+/** Out keeps the cards' list until its exit has ended (#2108); off air after that, a write deals. */
+const exitEnded = (page: Page, at: string) =>
+  expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsHeld: string | null }).noacgCreditsHeld), `${at}: the exit has ended`).toBeNull();
 const names = (head: string, n: number, from = 1) => [head, ...Array.from({ length: n }, (_, i) => `Name ${i + from}`)];
 const cardsDispatch = (page: Page, call: 'play' | 'stop' | 'next') => page.evaluate((call) => {
   const w = window as unknown as { play(): void; stop(): void; noacgDispatch(event: string): void };
@@ -1225,6 +1228,7 @@ for (const layout of CARD_LAYOUTS) {
     // keep the list their take dealt (row 24).
     await cardsDispatch(page, 'stop');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: Out before the long lists`).toBe(-1);
+    await exitEnded(page, at);
     const long = [...groups[0], '', ...names('Cast:', layout.cast)];
     await write(long);
     const dealt = await cardsState(page);
@@ -1254,6 +1258,7 @@ for (const layout of CARD_LAYOUTS) {
     expect([refused.cards[1].refused, refused.visibility, refused.over.includes(field)], `${at}: refused`).toEqual([true, 'hidden', true]);
     await cardsDispatch(page, 'stop');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: Out`).toBe(-1);
+    await exitEnded(page, at);
     await write(list);
     expect((await cardsState(page)).over, `${at}: the report clears`).toEqual([]);
 
@@ -1308,6 +1313,7 @@ for (const layout of CARD_LAYOUTS) {
     await expect.poll(async () => Number((await cardsState(page)).opacity), { message: `${at}: the change is fading`, intervals: [25] }).toBeLessThan(0.9);
     await cardsDispatch(page, 'stop');
     await expect.poll(async () => (await cardsState(page)).card, `${at}: Out mid-change`).toBe(-1);
+    await exitEnded(page, at);
     await write(list);
     expect([(await cardsState(page)).shown, (await cardsState(page)).opacity], `${at}: off air after a cut-short change`).toEqual([0, '1']);
 
