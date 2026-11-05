@@ -24,7 +24,7 @@ registerHooks({
 
 const { createSkewRecovery, holdReload, reloadHeld, LOOP_MS, RETRY_MS } = await import('../src/app/deploySkew.ts');
 
-function page({ held = () => false, served = () => true, last = null } = {}) {
+function page({ held = () => false, served = () => true, last = null, saved = () => true } = {}) {
   const log = [];
   let clock = 1_000_000;
   let stamp = last;
@@ -33,6 +33,7 @@ function page({ held = () => false, served = () => true, last = null } = {}) {
     probe: async () => served(),
     settle: async () => {
       log.push('settle');
+      return saved();
     },
     reload: () => log.push('reload'),
     now: () => clock,
@@ -115,6 +116,16 @@ test('a refused recovery is not remembered: a later failure asks afresh', async 
   const recover = createSkewRecovery(p.doors);
   assert.equal(await recover(), 'looped');
   await p.doors.wait(LOOP_MS);
+  assert.equal(await recover(), 'reloaded');
+});
+
+test('a save that failed refuses the reload, and a later failure asks afresh', async () => {
+  let ok = false;
+  const p = page({ saved: () => ok });
+  const recover = createSkewRecovery(p.doors);
+  assert.equal(await recover(), 'unsaved');
+  assert.deepEqual(p.log, ['settle']);
+  ok = true;
   assert.equal(await recover(), 'reloaded');
 });
 

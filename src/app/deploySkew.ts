@@ -16,7 +16,10 @@
 //                                     page where the studio was. An answer slower than PROBE_MS
 //                                     counts as none, as on the output (../output/reload.ts, which
 //                                     this layer may not import).
-//   Only once saved work is on disk   pending autosaves and the durable store are flushed first.
+//   Only once saved work is on disk   pending autosaves are flushed first, and a save that failed
+//                                     refuses the reload: the work is still open here, and a
+//                                     later failure asks afresh. Work that lives only in memory
+//                                     (a wizard draft) registers a hold like air does.
 //   Never twice into the same build   a reload that came back on the SAME build and fails again
 //                                     within LOOP_MS is not a deploy but a network that blocks the
 //                                     file: the page stays, with the caller's own error, instead of
@@ -38,8 +41,8 @@ export interface SkewDoors {
   held: () => boolean;
   /** Whether this page's own URL answers within PROBE_MS; a throw counts as no. */
   probe: () => Promise<boolean>;
-  /** Put saved work on disk. */
-  settle: () => Promise<void>;
+  /** Put saved work on disk; false when a save failed. */
+  settle: () => Promise<boolean>;
   reload: () => void;
   now: () => number;
   /** The build this page was loaded from. */
@@ -50,7 +53,7 @@ export interface SkewDoors {
   wait: (ms: number) => Promise<void>;
 }
 
-export type SkewOutcome = 'reloaded' | 'looped';
+export type SkewOutcome = 'reloaded' | 'looped' | 'unsaved';
 
 /** What to do when the page cannot load a code file. One recovery at a time: a second failure
  *  while one waits joins it; a failure after a refused one asks afresh. */
@@ -61,7 +64,7 @@ export function createSkewRecovery(doors: SkewDoors): () => Promise<SkewOutcome>
     if (last && last.build === doors.build && doors.now() - last.at < LOOP_MS) return 'looped';
     for (;;) {
       if (!doors.held() && (await doors.probe().catch(() => false))) {
-        await doors.settle();
+        if (!(await doors.settle())) return 'unsaved';
         // Read AGAIN after the round trips: a Take may have landed while they were out.
         if (!doors.held()) {
           doors.markReload({ at: doors.now(), build: doors.build });
@@ -97,8 +100,8 @@ export function reloadHeld(): boolean {
 const STAMP_KEY = 'spx-gfx-stale-build-reload';
 
 /** Listen for code files this page can no longer load, in the browser. `build` names the deploy
- *  the page was loaded from; `settle` puts saved work on disk. */
-export function installDeploySkewRecovery(build: string, settle: () => Promise<void>): void {
+ *  the page was loaded from; `settle` puts saved work on disk and says whether it landed. */
+export function installDeploySkewRecovery(build: string, settle: () => Promise<boolean>): void {
   const recover = createSkewRecovery({
     held: reloadHeld,
     probe: async () => {
@@ -110,7 +113,7 @@ export function installDeploySkewRecovery(build: string, settle: () => Promise<v
         clearTimeout(timer);
       }
     },
-    settle: () => settle().catch(() => undefined),
+    settle: () => settle().catch(() => false),
     reload: () => window.location.reload(),
     now: () => Date.now(),
     build,

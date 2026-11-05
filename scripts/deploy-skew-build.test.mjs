@@ -11,7 +11,8 @@
 // browser then needs a missing file. Before #758 the page stayed broken ("The designs did not
 // load"); now it reloads, and the reloaded page shows the designs on the same step. A page whose
 // files fail again right after that reload is a network that blocks them, not a deploy: it reloads
-// once and stays. The rules about air are in scripts/deploy-skew.test.mjs.
+// once and stays, and a wizard holding a draft does not reload at all: the draft lives only in
+// memory. The rules about air are in scripts/deploy-skew.test.mjs.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,7 +64,7 @@ function host({ blocked = false } = {}) {
   };
 }
 
-async function openStudio(t, options) {
+async function openStudio(t, options = {}, prepare = async () => {}) {
   const site = host(options);
   const base = await site.listen();
   const browser = await chromium.launch();
@@ -75,6 +76,7 @@ async function openStudio(t, options) {
   await page.goto(`${base}/app`);
   await page.waitForFunction(() => window.__noacgBootStage === 'mounted');
   await page.getByRole('button', { name: /Start from a template/ }).waitFor();
+  await prepare(page);
   site.deploy();
   let loads = 0;
   page.on('domcontentloaded', () => (loads += 1));
@@ -99,4 +101,17 @@ test('files that fail again after the reload: one reload, then the page stays wi
   // Long enough for a second reload to have started, were the guard missing.
   await page.waitForTimeout(3_000);
   assert.equal(loads(), 1, 'one reload, no loop');
+});
+
+test('a wizard draft holds the reload: the draft is in memory only', async (t) => {
+  const { page, loads } = await openStudio(t, {}, async (p) => {
+    await p.getByRole('button', { name: /Start from a template/ }).click();
+    await p.getByTestId('wz-browse-count').waitFor();
+    await p.locator('.wz-variant').first().click();
+  });
+  // The next step's code is one the deploy took away.
+  await page.locator('.wz-next').first().click();
+  await page.waitForTimeout(8_000);
+  assert.equal(loads(), 0, 'no reload under a draft');
+  assert.match(page.url(), /#\/new\//, 'still in the wizard');
 });

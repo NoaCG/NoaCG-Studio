@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/index.css';
 import { trackPageVisit } from './backend/events';
-import { flushDurableStore, hydrateDurableStore } from './model/durableStore';
+import { commitDurableWrites, hydrateDurableStore } from './model/durableStore';
 import { installDeploySkewRecovery } from './app/deploySkew';
 import { LIVE_BUILD } from './control/livePath';
 
@@ -33,7 +33,13 @@ if (!diagMode) {
     // The debounced autosaves write on this event (store/templateStore.ts, store/videoProjectStore.ts,
     // components/home/useDeferredEdits.ts), as before an account reload (backend/accountLibrary.ts).
     window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
-    await flushDurableStore();
+    const failed = await commitDurableWrites();
+    // Claimed here, so announce it as an unclaimed one would be: the work stays open, unsaved.
+    if (failed) window.dispatchEvent(new CustomEvent('spx-storage-error', { detail: { message: failed } }));
+    // An earlier autosave that failed left the open graphic unsaved too (App.tsx marks it). The
+    // store is already loaded by the time anything can fail, so this import fetches nothing.
+    const { useTemplateStore } = await import('./store/templateStore');
+    return !failed && useTemplateStore.getState().saved.status !== 'failed';
   });
 }
 
