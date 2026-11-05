@@ -107,6 +107,9 @@ export interface AirPart {
   speaking: Readonly<Record<string, Record<string, string>>>;
   /** Commands applied to PROGRAM here, so a boot read can tell it is older. */
   commands: number;
+  /** The same per graphic, so a boot read is older only for the graphics a command moved.
+   *  ADDITIVE OPTIONAL: absent is none. */
+  commandsBy?: Readonly<Record<string, number>>;
   /** The renderers' last reports from the resolve, null until it answered. */
   reports: LiveReportMap | null;
   /** The rows after each report at the resolve, until a newer report or command; then null. */

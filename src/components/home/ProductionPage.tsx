@@ -778,6 +778,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * on a disabled Out button, and the page snapshot at that moment read "PROGRAM - ON AIR
    * nothing on air" while the server's `live_cue` held the take the spec had just asserted.
    * Only the hosted tier ever saw it, which is what that tier is for.
+   *
+   * A Take's write (control/graphicVerbs.ts `mark`) names its layers, so the seed skips only those
+   * (#2162). A write through this setter names none (an Out, a timed cue's Out and Take in one
+   * fold, the first publish's whole map) and skips the whole seed.
    */
   const setLiveCue = useCallback(
     (next: LiveCueMap | ((map: LiveCueMap) => LiveCueMap)) => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, next) })),

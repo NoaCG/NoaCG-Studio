@@ -248,20 +248,32 @@ export function claimAndApply(
     else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') program.push({ graphic: item.graphic, msg });
   }
   // A marker never touches what was aired, so the commands are remembered together, in order.
-  if (program.length > 0) next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length };
+  if (program.length > 0) {
+    const commandsBy = { ...next.commandsBy };
+    for (const { graphic } of program) commandsBy[graphic] = (commandsBy[graphic] ?? 0) + 1;
+    next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length, commandsBy };
+  }
   return programItems(next, program, specs, now);
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
- *  and the fields they had carried, so its answer can tell it is older than the screen. */
+ *  (per graphic too) and the fields they had carried, so its answer can tell it is older than the
+ *  screen. */
 export interface AirAtRequest {
   moves: number;
   commands: number;
+  commandsBy?: AirPart['commandsBy'];
   carried?: AirPart['carried'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, carried: air.carried };
+  return { moves: air.moves, commands: air.commands, commandsBy: air.commandsBy, carried: air.carried };
+}
+
+/** Whether a command on this graphic was applied here since the request: its rows and report are
+ *  older than the screen. */
+function commandedSince(air: AirPart, at: AirAtRequest, graphic: string): boolean {
+  return (air.commandsBy?.[graphic] ?? 0) !== (at.commandsBy?.[graphic] ?? 0);
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -298,9 +310,11 @@ function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<str
  * the seed outright: a layer this operator took off meanwhile, maybe one this page did not know was
  * on, would come back on air. A layer only taken on meanwhile keeps this page's cue and record, or
  * it would read as nothing on air with Out greyed, and every other layer still seeds (#2162: a Take
- * of one graphic during the read kept the one already on air off this page's PROGRAM monitor). The
- * rows after the reports replay only if no command was applied since the request; a newer command
- * is newer than they are, so a field one moved meanwhile also keeps its figure over the report's.
+ * of one graphic during the read kept the one already on air off this page's PROGRAM monitor). A
+ * graphic's rows after its report, and its report's place, size and typed data, count only if no
+ * command on it was applied since the request; a newer command is newer than they are, so a field
+ * one moved meanwhile also keeps its figure over the report's. A command on another graphic (the
+ * Take itself) leaves them standing.
  *
  * Seeded, `aired` takes what air shows for each live layer: the renderer's report, else the live
  * cue's values in the rundown, then the rows after the report. A clock's reported value carries its
@@ -320,8 +334,10 @@ export function seedFromResolve(
   const taken = new Set(Object.keys(air.tookAt ?? {}).filter((graphic) => air.tookAt![graphic] > at.moves));
   const answered: LiveCueMap = Object.fromEntries(Object.entries(resolved.liveCue).filter(([graphic]) => !taken.has(graphic)));
   const liveCue: LiveCueMap = { ...answered, ...Object.fromEntries([...taken].map((graphic) => [graphic, air.liveCue[graphic]])) };
-  const reports = Object.entries(resolved.live).filter(([graphic]) => !taken.has(graphic));
-  const replay = air.commands === at.commands ? sinceReports.filter((item) => !taken.has(item.graphic)) : [];
+  // The reports and rows this page holds nothing newer than.
+  const current = (graphic: string) => !taken.has(graphic) && !commandedSince(air, at, graphic);
+  const reports = Object.entries(resolved.live).filter(([graphic]) => current(graphic));
+  const replay = sinceReports.filter((item) => current(item.graphic));
   const seed: AiredMap = {};
   let clocks = air.clocks;
   let speaking = air.speaking;
@@ -337,7 +353,7 @@ export function seedFromResolve(
     // A field a command moved while the read was out holds that command's figure, and its clock
     // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
     // back, and the next +1 counted from it).
-    const moved = air.commands !== at.commands ? movedSince(air, at, graphic) : {};
+    const moved = commandedSince(air, at, graphic) ? movedSince(air, at, graphic) : {};
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
@@ -362,10 +378,10 @@ export function seedFromResolve(
     if (Object.keys(values).length > 0) seed[graphic] = { ...values, ...moved };
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
-  // A command applied here while the read was out is newer than every report: the looks stay.
+  // A command applied here while the read was out is newer than its graphic's report: its look stays.
   let looks: AppliedLooks = { ...(air.looks ?? {}) };
   // A report is the renderer's word for its graphic: no appearance in it clears an older entry.
-  if (air.commands === at.commands) for (const [graphic, report] of reports) {
+  for (const [graphic, report] of reports) {
     const look = reportedLook(report);
     if (look) looks = { ...looks, [graphic]: look };
     else if (graphic in looks) {
@@ -379,7 +395,7 @@ export function seedFromResolve(
   // rows as its only word. Only a live layer keeps one.
   const fromReports: TypedAir = { typedAired: { ...(air.typedAired ?? {}) }, typedSteps: { ...(air.typedSteps ?? {}) } };
   // A report is the renderer's word for its graphic: one without typed data ends an older entry.
-  if (air.commands === at.commands) for (const [graphic, report] of reports) {
+  for (const [graphic, report] of reports) {
     const base = reportedTypedAir(report);
     if (!base?.envelope) {
       delete fromReports.typedAired[graphic];

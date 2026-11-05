@@ -275,11 +275,17 @@ test('#2162 through the lifetime: a Take of one graphic while the replay is out 
   await flush();
   wire.resolves[0].resolve({ ok: true, value: RESOLVED });
   await flush();
+  // The Take as this page applies it: its marker, then its commands.
   session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m) => withLiveCue(m, 'score', 'c9'), ['score']) }));
-  wire.replays[0].resolve([]);
+  const clocks = { clocks: new Map(), pairs: new Map() };
+  session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, [{ graphic: 'score', msg: { t: 'update', data: { f1: '2' }, oid: 't1' } }, { graphic: 'score', msg: { t: 'play', oid: 't1' } }], session.applied, clocks, 0).air }));
+  const row = { graphic: 'lt', msg: { t: 'update', data: { f1: 'after the report' } } };
+  wire.replays[0].resolve([row]);
   await flush();
   assert.deepEqual(session.air.get().liveCue, { lt: 'c1', score: 'c9' });
   assert.deepEqual(session.air.get().bootLive, { lt: 'c1' }, 'the boot recovery puts the one on air on PROGRAM');
+  assert.deepEqual(session.air.get().bootReplay, [row], 'with the rows after its report');
+  assert.deepEqual(session.air.get().aired.lt, { f0: 'REPORTED', f1: 'after the report' });
   stop();
 });
 

@@ -187,11 +187,17 @@ test('#2162: a Take of one graphic while the read was out stands on its layer, a
   // The operator takes c9 on the lower third while the read is out, as the sender writes it.
   const marked = moveLiveCue(NO_AIR, (m) => withLiveCue(m, 'lt', 'c9'), ['lt']);
   const taken = claimAndApply(marked, [update('lt', { f0: 'TAKEN' }, 't9'), play('lt', 't9')], createAppliedOnce(), NO_CLOCKS, T).air;
-  // The answer had an older cue on that layer, and the scorebug on air.
-  const air = seedFromResolve(taken, RESOLVED, [update('lt', { f0: 'OLDER ROW' })], asked, CUES, NO_CLOCKS);
+  // The answer had an older cue on that layer, and the scorebug on air, placed, with a row after
+  // its report.
+  const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const answer = { ...RESOLVED, live: { ...RESOLVED.live, score: { data: { f1: '0' }, state: { appearance: look } } } };
+  const rows = [update('lt', { f0: 'OLDER ROW' }), update('score', { f1: '1' })];
+  const air = seedFromResolve(taken, answer, rows, asked, CUES, NO_CLOCKS);
   assert.deepEqual(air.liveCue, { lt: 'c9', score: 'c2' }, 'the taken cue stands, and the scorebug is on air here');
   assert.deepEqual(air.aired.lt, { f0: 'TAKEN' }, 'what the Take aired, not the report');
-  assert.deepEqual(air.aired.score, { f1: '0' }, 'the scorebug seeds as it would have');
+  assert.deepEqual(air.aired.score, { f1: '1' }, 'the scorebug seeds as it would have: its report, then its row');
+  assert.deepEqual(air.bootReplay, [rows[1]], 'its rows replay, the Take\'s commands are on another graphic');
+  assert.notEqual(air.looks?.score, undefined, 'and its place from the report');
   assert.deepEqual(air.bootLive, { score: 'c2' }, 'the boot recovery is keyed on the layer it seeded');
   // The recovery rebuilds that layer alone: the taken one is on the monitor already.
   assert.deepEqual([...new Set(restoreItems(air, {}, NO_CLOCKS, air.bootLive).items.map((item) => item.graphic))], ['score']);
