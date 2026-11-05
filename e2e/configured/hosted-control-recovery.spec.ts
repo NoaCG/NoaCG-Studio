@@ -349,7 +349,10 @@ test('a debate clock on the hosted PROGRAM keeps the time air keeps through an U
   await pass.click();
   await expect.poll(() => seconds(onAir.locator('#f6')), { timeout: 20_000 }).toBeLessThan(300);
   const banked = (await onAir.locator('#f5').textContent())!.trim();
-  await expect(program.locator('#f5')).toHaveText(banked, { timeout: 20_000 });
+  // Before the reload PROGRAM banks on this page's receive instants and air on the rows' server
+  // times, so the two agree within delivery skew: a second either side of a boundary.
+  const airSeconds = await seconds(onAir.locator('#f5'));
+  await expect.poll(async () => Math.abs((await seconds(program.locator('#f5'))) - airSeconds), { timeout: 20_000 }).toBeLessThanOrEqual(1);
 
   // The renderer reports it (800 ms debounce): A held at its banked time, B running. Then the hosted
   // page reloads and rebuilds PROGRAM from that report.

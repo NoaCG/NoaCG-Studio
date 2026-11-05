@@ -586,7 +586,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const fastEventGraphics = useMemo(() => clockFreeGraphics(payload?.graphics ?? []), [payload]);
   /** The imported clocks whose Take or running correction its row's server time stamps, so they go
-   *  slow (#1886). This page keeps no clock of its own: what it last saw sent stands in for it. */
+   *  slow (#1886). Judged against what this page last saw sent; the PROGRAM monitor's clock memory
+   *  (`programAir`) is the monitor's alone and decides no road. */
   const importedClocks = useMemo(() => serverInstantClocks(payload?.graphics ?? []), [payload]);
   const serverInstant = (item: ControlSendItem): boolean => {
     const clock = importedClocks.get(item.graphic);
@@ -686,13 +687,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     const replay = bootReplay.current;
     // At boot a fresh stage's clocks start from the reports; later from what this monitor held,
     // written over the plain times the aired values keep (airState.ts `restoreItems`).
-    const held = programAir.current;
+    const heldClocks = programAir.current;
     if (replay) programAir.current = NO_AIR;
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
       // At boot the snapshot is the REPORT, which the rows below were read against; later it is
       // what this page has seen since.
-      const data = replay ? reportsRef.current[graphic]?.data : heldClockData(airedRef.current[graphic] ?? reportsRef.current[graphic]?.data, graphic, held, programClocks.current);
+      const data = replay ? reportsRef.current[graphic]?.data : heldClockData(airedRef.current[graphic] ?? reportsRef.current[graphic]?.data, graphic, heldClocks, programClocks.current);
       const groups = machineStateRef.current[graphic]?.groups;
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       // A report of typed data banks its envelope and steps (E1.2b): PROGRAM airs that envelope,
