@@ -412,18 +412,27 @@ function CueConnectReview({
   const reuseFile = async (source: { id: string; config: { name: string; format: FileFormat } }) => {
     // Any read still in flight lands nowhere: this pick's answer, or its refusal, is the one shown.
     cancelRead();
+    // The last review goes now, so nothing read from another source is offered under this file
+    // while Chrome asks.
+    setRead(null);
+    setChoices({});
+    setColumns({});
+    setReading(true);
     // Another choice made while Chrome asks (a newer read) makes this one land nowhere.
     const no = readNo.current;
     const handle = await loadFileHandle(source.id);
     if (no !== readNo.current) return;
+    setReading(false);
     if (!handle) {
       return setRead({
         error: `This computer has not chosen ${source.config.name}`,
         fix: canPickFiles() ? 'Use Local file… to choose it here.' : 'Open this production in Chrome or Edge on the computer that has it.',
       });
     }
+    setReading(true);
     const allowed = await allowFile(source.id);
     if (no !== readNo.current) return;
+    setReading(false);
     if (!allowed) return setRead({ error: `Chrome did not allow reading ${source.config.name}`, fix: 'Choose it again and press Allow.' });
     void readFile({ name: source.config.name, format: source.config.format, handle });
   };

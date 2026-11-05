@@ -75,10 +75,13 @@ export const FILE_PERMISSION = 'needs your permission to read it again';
 /** What the read says when this browser has no handle for the source (another computer, or the
  *  browser's site data was cleared). The status line offers Choose the file. */
 export const FILE_NOT_HERE = 'this computer has not chosen the file';
+/** What the read says when the chosen file is no longer where it was (moved or deleted): choosing
+ *  it again under the same source keeps every connection. */
+export const FILE_GONE = 'can’t find the file (moved, renamed or deleted)';
 
 /** Whether a failing status needs the operator's click, and which. */
 export function fileAsk(error: string | null | undefined): 'allow' | 'choose' | null {
-  return error === FILE_PERMISSION ? 'allow' : error === FILE_NOT_HERE ? 'choose' : null;
+  return error === FILE_PERMISSION ? 'allow' : error === FILE_NOT_HERE || error === FILE_GONE ? 'choose' : null;
 }
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
@@ -313,7 +316,7 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
     } catch (error) {
       const name = errorName(error);
       if (name === 'TimeoutError') return TIMED_OUT;
-      if (name === 'NotFoundError') return { ok: false, error: 'can’t find the file (moved, renamed or deleted)', fix: 'Put it back, or choose it again.' };
+      if (name === 'NotFoundError') return { ok: false, error: FILE_GONE, fix: 'Put it back, or choose it again.' };
       if (name === 'NotAllowedError' || name === 'SecurityError') return { ok: false, error: FILE_PERMISSION, fix: 'Press Allow to go on reading it.' };
       // Excel holds a file while it saves it: the next read finds it again.
       return { ok: false, error: 'can’t read the file just now', fix: 'Reading carries on by itself.' };
@@ -339,7 +342,14 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
   };
   const canRead = async () => {
     const can = await access();
-    return 'handle' in can ? null : can;
+    if (!('handle' in can)) return can;
+    // A handle whose file is gone cannot read either: another computer's may.
+    try {
+      await can.handle.getFile();
+    } catch (error) {
+      if (errorName(error) === 'NotFoundError') return { error: FILE_GONE, fix: 'Put it back, or choose it again.' };
+    }
+    return null;
   };
   return { read, canRead, parses: () => parses };
 }

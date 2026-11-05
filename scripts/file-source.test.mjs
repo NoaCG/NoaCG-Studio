@@ -314,7 +314,8 @@ test('a computer without the file, or a file gone from its folder, says so and k
   handle.missing = true;
   await r.clock.advance(SHEET_READ_MS);
   assert.match(r.status().error, /can’t find the file/);
-  assert.equal(fileAsk(r.status().error), null);
+  // Choosing it again under the same source keeps every connection.
+  assert.equal(fileAsk(r.status().error), 'choose');
   assert.equal(r.writes.length, 1);
   r.reader.stop();
 });
