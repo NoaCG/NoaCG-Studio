@@ -661,6 +661,13 @@ test('scorebug actions group by section and drive the clock; a plain lower third
   await expect(stop).toBeEnabled();
   await expect(start).toBeDisabled();
 
+  // ⟲ Reset moves the board to its first step and leaves the clock group alone: one stray press
+  // beside Arrange must never stop a running match clock (#2181).
+  await page.getByTestId('cue-actions-reset').click();
+  await page.waitForTimeout(600);
+  await expect(page.getByTestId('machine-state-chip')).toContainText(/running/i);
+  await expect(stop).toBeEnabled();
+
   // Full time is destructive (one way only) and marked as such.
   await expect(page.getByTestId('cue-action-final')).toHaveClass(/destructive/);
 
