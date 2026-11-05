@@ -247,9 +247,9 @@ function stop() {
   // graphic is going down, or its interval outlives the thing it was painting — the same leak
   // the scoreboard type's comment records from a clock group whose element was not there.
   // Defined only by a design that has something to stop, so a plain scorebug emits no call
-  // site's worth of behaviour it does not need. There is deliberately no play() twin: a board
-  // comes up in its machine's initial state, and starting something is what an operator event
-  // is for.
+  // site's worth of behaviour it does not need. There is no play() twin here: a board comes up in
+  // its machine's initial state, and starting something is what an operator event is for. One
+  // with something still running through a Take keeps it itself (debateFloor.ts).
   if (typeof boardOffAir === 'function') boardOffAir();
   buildOutTimeline();
 }

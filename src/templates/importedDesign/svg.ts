@@ -479,7 +479,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
   // The design presets know nothing of clocks, so the lifecycle hooks are added to the DATA
   // (the step-calls model, docs/STATE_MACHINE_SCHEMA.md): startClock as the entrance lands,
   // stopClock the moment the exit begins - exactly what the catalog's countdown presets emit.
-  const withLifecycleCalls = clockField || artworkRoll || styledCredits
+  const withLifecycleCalls = clockField || creditsField || artworkRoll
     ? (data: AnimData): AnimData => {
         const steps = data.steps.map((s) => ({ ...s }));
         const enter = steps[0];
@@ -488,7 +488,7 @@ ${artworkRoll ? creditsArtworkCss(PREFIX) : styledCredits ? creditsStyledCss(PRE
           enter.calls = [...(enter.calls ?? []), { time: enter.duration, call: 'startClock' }];
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopClock' }];
         }
-        if (artworkRoll || styledCredits) {
+        if (creditsField || artworkRoll) {
           out.calls = [...(out.calls ?? []), { time: 0, call: 'stopCreditsRoll' }];
         }
         return { ...data, steps };
