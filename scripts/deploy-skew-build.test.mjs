@@ -11,8 +11,8 @@
 // browser then needs a missing file. Before #758 the page stayed broken ("The designs did not
 // load"); now it reloads, and the reloaded page shows the designs on the same step. A page whose
 // files fail again right after that reload is a network that blocks them, not a deploy: it reloads
-// once and stays, and a wizard holding a draft does not reload at all: the draft lives only in
-// memory. The rules about air are in scripts/deploy-skew.test.mjs.
+// once and stays, and a wizard draft or unsaved brand edits do not reload at all: they live only
+// in memory. The rules about air are in scripts/deploy-skew.test.mjs.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,6 +36,7 @@ const TYPES = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/cs
 function host({ blocked = false } = {}) {
   const asked = new Set();
   const gone = new Set();
+  let misses = 0;
   const server = http.createServer((req, res) => {
     let file = decodeURIComponent((req.url ?? '/').split('?')[0]);
     if (file === '/') file = '/index.html';
@@ -44,6 +45,7 @@ function host({ blocked = false } = {}) {
     if (file.endsWith('.html') && !blocked) gone.clear();
     const full = path.join(dist, file);
     if (gone.has(file) || !full.startsWith(dist) || !fs.existsSync(full)) {
+      if (file.endsWith('.js')) misses += 1;
       res.writeHead(404);
       res.end();
       return;
@@ -53,6 +55,8 @@ function host({ blocked = false } = {}) {
     fs.createReadStream(full).pipe(res);
   });
   return {
+    /** Code files that answered 404: proof a step really asked for a file the deploy took. */
+    misses: () => misses,
     listen: () => new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`))),
     deploy: () => {
       for (const name of fs.readdirSync(path.join(dist, 'assets'))) {
@@ -80,7 +84,7 @@ async function openStudio(t, options = {}, prepare = async () => {}) {
   site.deploy();
   let loads = 0;
   page.on('domcontentloaded', () => (loads += 1));
-  return { page, loads: () => loads };
+  return { page, site, loads: () => loads };
 }
 
 test.after(() => fs.rmSync(dist, { recursive: true, force: true }));
@@ -104,7 +108,7 @@ test('files that fail again after the reload: one reload, then the page stays wi
 });
 
 test('a wizard draft holds the reload: the draft is in memory only', async (t) => {
-  const { page, loads } = await openStudio(t, {}, async (p) => {
+  const { page, site, loads } = await openStudio(t, {}, async (p) => {
     await p.getByRole('button', { name: /Start from a template/ }).click();
     await p.getByTestId('wz-browse-count').waitFor();
     await p.locator('.wz-variant').first().click();
@@ -112,6 +116,22 @@ test('a wizard draft holds the reload: the draft is in memory only', async (t) =
   // The next step's code is one the deploy took away.
   await page.locator('.wz-next').first().click();
   await page.waitForTimeout(8_000);
+  assert.ok(site.misses() > 0, 'the step asked for a missing code file');
   assert.equal(loads(), 0, 'no reload under a draft');
   assert.match(page.url(), /#\/new\//, 'still in the wizard');
+});
+
+test('unsaved brand edits hold the reload: they live only in the editor', async (t) => {
+  const { page, site, loads } = await openStudio(t, {}, async (p) => {
+    await p.evaluate(() => (window.location.hash = '#/home/looks'));
+    await p.getByRole('button', { name: 'New brand' }).click();
+    await p.getByPlaceholder('e.g. Channel A').fill('Channel B');
+  });
+  // The Google font list is loaded on demand: after the deploy its file is gone.
+  await page.getByTestId('font-google').click();
+  await page.getByText('The typeface list could not be loaded.').waitFor({ timeout: 20_000 });
+  await page.waitForTimeout(8_000);
+  assert.ok(site.misses() > 0, 'the list asked for a missing code file');
+  assert.equal(loads(), 0, 'no reload under unsaved brand edits');
+  assert.equal(await page.getByPlaceholder('e.g. Channel A').inputValue(), 'Channel B');
 });
