@@ -52,7 +52,7 @@ globalThis.window = {
 };
 const pagehide = () => (listeners.get('pagehide') ?? []).forEach((fn) => fn());
 
-const { answerPanel } = await import('../src/control/panelRelay.ts');
+const { answerPanel, TAKE_GUARD_MAX_MS } = await import('../src/control/panelRelay.ts');
 const { graphicCapabilities, runCapability } = await import('../src/control/panelActions.ts');
 const { createGraphicVerbs } = await import('../src/control/graphicVerbs.ts');
 const { createPlayoutSession } = await import('../src/control/playoutSession.ts');
@@ -938,7 +938,7 @@ test('a page that stops answering runs nothing it was still holding', async (t) 
   }
 });
 
-for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fails']) {
+for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fails', 'never settles']) {
   test(`a Take key pressed twice while the first Take still saves an edit takes the cue once, and the next Take after the first ${ends} runs (issue #2144)`, async (t) => {
     t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
     const hub = relayHub();
@@ -991,9 +991,14 @@ for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fail
       const [one, two] = await Promise.all([first, second]);
       assert.equal(one.result.outcome, 'ran');
       assert.deepEqual([two.result.outcome, two.result.note], ['stale', 'what Take does changed']);
-      const drawn = ends !== 'fails';
+      const drawn = ends !== 'fails' && ends !== 'never settles';
       if (drawn) saving.resolve();
-      else saving.reject(new Error('the edit did not save'));
+      else if (ends === 'fails') saving.reject(new Error('the edit did not save'));
+      else {
+        // Never settles: the guard lets go by its own bound, not by a reload.
+        t.mock.timers.tick(TAKE_GUARD_MAX_MS);
+        await drain();
+      }
       await drain();
       assert.equal(prod.sends.length, drawn ? 1 : 0, 'the cue is taken once');
       // Drawn: the page shows B2 on air while the Take's send is still unanswered, and then maybe

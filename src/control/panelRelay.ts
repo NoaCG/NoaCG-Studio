@@ -11,6 +11,7 @@ import { oneAtATime } from '../backend/pacing';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { workerInterval } from './workerTicker';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS } from './failedSends';
 import {
   PANEL_PROTOCOL,
   PRESS_DRAW_MS,
@@ -129,6 +130,9 @@ export interface PanelAnswer {
 
 /** One call of `fn`, on a timer a hidden tab cannot starve: an operator page often sits behind OBS,
  *  where setTimeout could wait a second. A press is held rarely, so a worker for each wait is cheap. */
+/** The longest a panel Take holds its cue's later panel Takes when it never settles. */
+export const TAKE_GUARD_MAX_MS = RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS;
+
 function afterUnstarved(ms: number, fn: () => void): () => void {
   const stop = workerInterval(ms, () => {
     stop();
@@ -376,11 +380,14 @@ export function answerPanel(opts: {
         const running = { live: snap.live.includes(press.target) };
         taking.set(press.target, running);
         // Let go a draw gap after it settles, so the page draws what it came to first.
-        const settled = () =>
-          afterUnstarved(PRESS_DRAW_MS, () => {
-            if (taking.get(press.target) === running) taking.delete(press.target);
-          });
+        const release = () => {
+          if (taking.get(press.target) === running) taking.delete(press.target);
+        };
+        const settled = () => afterUnstarved(PRESS_DRAW_MS, release);
         took.then(settled, settled);
+        // A Take that never settles must not lock this cue's panel Takes until a reload: let go
+        // after the longest a press is ever owed an answer (graphicVerbs' own bound).
+        afterUnstarved(TAKE_GUARD_MAX_MS, release);
       }
     }
     answer(press, verdict, now);
