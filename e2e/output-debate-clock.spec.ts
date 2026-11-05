@@ -32,6 +32,8 @@ interface Debate {
   write: (msg: Record<string, unknown>, ago?: number) => void;
   /** The output's last report of the board, handed back to an output that boots. */
   report: () => Report | null;
+  /** The board is on air with this report, before any output has booted. */
+  onAirWith: (report: Report) => void;
 }
 
 /** The real dc01 and its field defaults, and the stand-in backend following one growing log. */
@@ -100,6 +102,10 @@ async function openDebate(page: Page): Promise<Debate> {
       if (msg.t === 'stop') on = false;
     },
     report: () => reported,
+    onAirWith: (report) => {
+      reported = report;
+      on = true;
+    },
   };
 }
 
@@ -139,6 +145,109 @@ async function updateTheRound(page: Page, debate: Debate, title: string, values:
   debate.write({ t: 'update', data: { ...debate.cue, ...values, f0: title } });
   await expect(round(page)).toHaveText(title, { timeout: 20_000 });
 }
+
+/** A Take on air: the cue's whole set, then the entrance, heard as the board's `plays`th. */
+async function takeOnAir(page: Page, debate: Debate, plays: string): Promise<void> {
+  debate.write({ t: 'update', data: debate.cue });
+  debate.write({ t: 'play' });
+  await expect(page.locator('body')).toHaveAttribute('data-plays', plays, { timeout: 20_000 });
+}
+
+/** The floor has passed from `from` to `to`, on the screen: `to` counts and `from` holds still. */
+async function floorPassed(page: Page, from: ReturnType<typeof clockA>, to: ReturnType<typeof clockA>, startedAt: number): Promise<void> {
+  await expect.poll(() => read(to), { timeout: 10_000, message: 'the speaker given the floor counts' }).toBeLessThan(startedAt);
+  const held = await read(from);
+  await page.waitForTimeout(1_200);
+  expect(await read(from), 'the speaker who gave it up holds still').toBe(held);
+}
+
+/** The floor has passed, on the wire and in the report: one stamp, on `to`, and the machine beside it. */
+async function reportNames(debate: Debate, running: 'f5' | 'f6', floor: string): Promise<void> {
+  const held = running === 'f5' ? 'f6' : 'f5';
+  await expect.poll(() => {
+    const report = debate.report();
+    const groups = (report?.state as { groups?: Record<string, string> } | null)?.groups;
+    return report ? [/@[1-9]/.test(report.data[running]), /@[1-9]/.test(report.data[held]), groups?.floor] : null;
+  }, { timeout: 20_000 }).toEqual([true, false, floor]);
+}
+
+test('a Take on air in A\'s first turn: the next Switch hands over to B on the wire and on the screen', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  debate.write({ t: 'event', event: 'switch' }, 60_000);
+  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThanOrEqual(240);
+
+  await takeOnAir(page, debate, '2');
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockA(page), clockB(page), 300);
+  await reportNames(debate, 'f6', 'speakerB');
+});
+
+test('a Take on air in A\'s second turn: the next Switch hands over to B on the wire and on the screen', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+  debate.write({ t: 'event', event: 'switch' }, 10_000);
+  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThanOrEqual(230);
+
+  await takeOnAir(page, debate, '2');
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockA(page), clockB(page), 270);
+  await reportNames(debate, 'f6', 'speakerB');
+});
+
+test('a Take on air with B speaking: the floor stays with B until the next Switch hands it to A', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+
+  await takeOnAir(page, debate, '2');
+  await reportNames(debate, 'f6', 'speakerB');
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockB(page), clockA(page), 240);
+  await reportNames(debate, 'f5', 'speakerA');
+});
+
+test('an output booting with no pose plays the board again: the running clock keeps counting, and the floor passes as the wire says', async ({ page }) => {
+  // src/output/main.ts `onWithoutPose`: data from the report, then play(), and no data after it.
+  const debate = await openDebate(page);
+  debate.onAirWith({
+    data: { ...debate.cue, f5: `04:00@${Date.now() - 20_000}/05:00/05:00`, f6: '04:30@/05:00/05:00' },
+    state: null,
+    seq: 0,
+  });
+  await page.goto('/output?production=debate-probe');
+  await expect.poll(() => read(clockA(page)), { timeout: 30_000 }).toBeLessThanOrEqual(220);
+  await expect(clockB(page)).toHaveText('04:30');
+  const a = await read(clockA(page));
+  await expect.poll(() => read(clockA(page)), { timeout: 5_000, message: 'play() has not stopped it' }).toBeLessThan(a);
+
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockA(page), clockB(page), 270);
+  await reportNames(debate, 'f6', 'speakerB');
+});
+
+test('the production page\'s own Re-take: the next Switch hands over on PROGRAM too', async ({ page }) => {
+  await bootstrapGraphic(page, { name: 'Debate Floor' });
+  await openProductionWithCurrent(page, 'Debate Retake');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  const a = program.locator('#f5');
+  const b = program.locator('#f6');
+  await page.getByTestId('verb-take').click();
+  await expect(a).toHaveText('05:00');
+  const pass = page.getByTestId('cue-action-switch');
+
+  await pass.click();
+  await expect.poll(() => read(a), { timeout: 10_000 }).toBeLessThan(300);
+  await page.getByTestId('verb-retake').click();
+  await expect(page.getByTestId('machine-state-chip')).toContainText('Speaker A speaking');
+  await pass.click();
+  await expect.poll(() => read(b), { timeout: 10_000, message: 'B counts' }).toBeLessThan(300);
+  const held = await read(a);
+  await page.waitForTimeout(1_200);
+  expect(await read(a), 'A holds still').toBe(held);
+  await expect(page.getByTestId('machine-state-chip')).toContainText('Speaker B speaking');
+});
 
 test('an Update mid-debate leaves a waiting speaker\'s banked time where it stands, and the first speech running', async ({ page }) => {
   const debate = await openDebate(page);
