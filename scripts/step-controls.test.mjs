@@ -7,16 +7,10 @@
 // rest. What they look like on air is e2e/production-controls.spec.ts (the League Table walk).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rolldown } from 'rolldown';
-import { rawSuffix } from './rolldown-raw.mjs';
+import { loadWizardModule } from './wizard-load.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const bundle = await rolldown({ input: path.join(root, 'src/control/controlModel.ts'), platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent' });
-const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
-await bundle.close();
-const { backTarget, resetTarget } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
+const { backTarget, resetTarget } = await loadWizardModule(fileURLToPath(new URL('../src/control/controlModel.ts', import.meta.url)));
 
 /** A data block as a template carries it: steps, and the machine over them when there is one. */
 const template = (data) => `var NOACG_ANIM = ${JSON.stringify({ version: 2, root: '#stage', speed: 1, ...data })};`;

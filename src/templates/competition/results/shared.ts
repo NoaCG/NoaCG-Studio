@@ -163,7 +163,7 @@ export const STANDINGS_FIELDS: TypeField[] = [
   },
   { key: 'columns', label: 'Column headers ("W | L | +/- | PTS")', kind: 'text', value: 'W | L | +/- | PTS', role: 'data' },
   // 1, not 0: the Highlight row press lights a row the first time it is pressed (#2181). A
-  // number that names no row lights the first one, so the press never does nothing.
+  // number past either end of the table lights the row at that end (`highlightedRow`).
   { key: 'highlight', label: 'Highlighted row', kind: 'number', value: '1', role: 'data' },
 ];
 
