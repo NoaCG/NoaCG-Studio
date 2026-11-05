@@ -24,7 +24,8 @@
 //   - pendingPull: keys whose pull failed - the cloud's version is still owed, so a local edit since
 //     then is a true conflict, not a plain last-write-wins push over the other device's work.
 //   - pendingLocal: keys whose local version the pass did not get into the cloud - edited on this
-//     device WHILE the pass ran, or not pushed - each with the cloud version the pass left. The
+//     device WHILE the pass ran, or not pushed - each with the cloud version the pass left (or,
+//     for a push that failed, either version, since its answer may be what was lost). The
 //     bookmark is dated at the pass's end, so it postdates both that local version and any save
 //     another device made after the pass listed the cloud: by the bookmark alone neither reads as
 //     changed, and one would silently overwrite the other (#2153). For these keys the next pass
@@ -86,9 +87,9 @@ export interface SyncPending {
    *  says, so a local edit since then is a conflict, and with none it is pulled. */
   pull?: Set<string>;
   /** Record keys whose local version the last pass did not get into the cloud, each with the
-   *  cloud's `updatedAt` that pass left ('' for none): this side changed, and the cloud changed
-   *  only if it now differs. */
-  local?: Map<string, string>;
+   *  cloud `updatedAt`s that pass may have left ('' for none): this side changed, and the cloud
+   *  changed only if it now holds none of them. */
+  local?: Map<string, string[]>;
 }
 
 /** One record the pass could not apply. Surfaced in SyncStatus; retried next pass. */
@@ -174,7 +175,7 @@ export function reconcile(
     const cloudBaseline = pending?.local?.get(key);
     const localChanged = l.updatedAt > since || pending?.push?.has(key) === true || cloudBaseline !== undefined;
     const owedPull = pending?.pull?.has(key) === true;
-    const remoteChanged = (cloudBaseline === undefined ? r.updatedAt > since : r.updatedAt !== cloudBaseline) || owedPull;
+    const remoteChanged = (cloudBaseline === undefined ? r.updatedAt > since : !cloudBaseline.includes(r.updatedAt)) || owedPull;
     // An owed "(conflicted copy)" forces the conflict branch again until the copy materializes.
     const owedCopy = pending?.conflict?.has(key) === true;
     // Nothing happened here since the pull that failed, so the cloud's version is simply still
@@ -302,6 +303,12 @@ export async function runSync(
   // edit made here meanwhile can be told from the pass's own writes (pendingLocal, header).
   const leftHere = new Map(localRecs.map((r) => [recordKey(r), r.updatedAt]));
   const leftInCloud = new Map(remoteRecs.map((r) => [recordKey(r), r.updatedAt]));
+  // A pulled record was fetched after the listing, and may be a later version than it showed.
+  const pulledHere = (r: StoredRecord): void => {
+    leftHere.set(recordKey(r), r.updatedAt);
+    leftInCloud.set(recordKey(r), r.updatedAt);
+  };
+  const pendingLocal: Record<string, string[]> = {};
   const unchanged = async (r: StoredRecord): Promise<boolean> => {
     const current = await local.get(r.kind, r.id);
     sameWorkspace();
@@ -400,7 +407,7 @@ export async function runSync(
     try {
       if (!(await unchanged(r))) continue;
       await local.put(full);
-      leftHere.set(recordKey(full), full.updatedAt);
+      pulledHere(full);
       pulled += 1;
     } catch (e) {
       fail('pull', r, e);
@@ -412,7 +419,7 @@ export async function runSync(
       for (const r of fetched) if (await unchanged(r)) safe.push(r);
       sameWorkspace();
       await local.putMany(safe);
-      for (const r of safe) leftHere.set(recordKey(r), r.updatedAt);
+      safe.forEach(pulledHere);
       pulled += safe.length;
     } catch (e) {
       // Nothing is known to have landed, so every record is owed again, as for any failed pull.
@@ -432,6 +439,8 @@ export async function runSync(
     } catch (e) {
       if (isPutDenied(e) && l.deleted) continue; // a tombstone for a foreign row - nothing of ours to delete
       pendingPush.add(recordKey(l));
+      // A put that failed may still have landed (its answer lost), so either version can be there.
+      pendingLocal[recordKey(l)] = [leftInCloud.get(recordKey(l)) ?? '', l.updatedAt];
       fail(
         'push',
         l,
@@ -448,12 +457,10 @@ export async function runSync(
   // to be set, so it is carried with the cloud version the pass left (pendingLocal, header). That
   // includes an edit made while a failed pull waited: the owed pull then meets a local edit, and
   // it keeps its copy.
-  const pendingLocal: Record<string, string> = {};
-  for (const key of pendingPush) pendingLocal[key] = leftInCloud.get(key) ?? '';
   for (const r of (await Promise.all(SYNC_KINDS.map((k) => local.list(k)))).flat()) {
     const key = recordKey(r);
     const left = leftHere.get(key);
-    if (left !== undefined && left !== r.updatedAt) pendingLocal[key] = leftInCloud.get(key) ?? '';
+    if (left !== undefined && left !== r.updatedAt) pendingLocal[key] ??= [leftInCloud.get(key) ?? ''];
   }
   sameWorkspace();
   saveSyncMeta({
@@ -497,9 +504,9 @@ interface SyncMeta {
   pendingPush: string[];
   pendingConflict: string[];
   pendingPull: string[];
-  /** Record key -> the cloud's `updatedAt` the last pass left, for records whose local version it
-   *  did not get into the cloud (SyncPending.local). */
-  pendingLocal: Record<string, string>;
+  /** Record key -> the cloud `updatedAt`s the last pass may have left, for records whose local
+   *  version it did not get into the cloud (SyncPending.local). */
+  pendingLocal: Record<string, string[]>;
   /** The library's first pass on this browser COMPLETED without landing its pulls (the local
    *  store refused them). The bookmark moved anyway, so this is what still says the library has
    *  not arrived (`libraryHasArrived`) until a later pass lands them. */
@@ -518,7 +525,8 @@ function loadSyncMeta(): SyncMeta {
       pendingPull: strings(m.pendingPull),
       pendingLocal: Object.fromEntries(
         Object.entries(m.pendingLocal && typeof m.pendingLocal === 'object' ? m.pendingLocal : {})
-          .filter((e): e is [string, string] => typeof e[1] === 'string'),
+          .map(([key, versions]) => [key, strings(versions)] as const)
+          .filter(([, versions]) => versions.length > 0),
       ),
       pullsOwed: m.pullsOwed === true,
     };

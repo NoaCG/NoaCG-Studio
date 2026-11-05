@@ -43,28 +43,34 @@ async function now() {
 }
 const graphic = (id, name, updatedAt) => ({ kind: 'graphic', id, updatedAt, deleted: false, body: { id, name, updatedAt, deleted: false } });
 
-/** One side of the sync. `onPut` runs inside a put, before it lands: the moment to act "during the
- *  pass", after it has listed both sides. `onList` runs as the pass lists graphics, before the
- *  listing is taken. */
-function side(records = []) {
+/** One side of the sync; the cloud lists summaries and is fetched whole, as Supabase is. Hooks run
+ *  once: `onList` as the pass lists graphics, before the listing is taken; `onFetch` as it fetches
+ *  what it will pull; `onPut` inside a put, before it lands - the moment to act "during the pass",
+ *  after it has listed both sides. */
+function side(records = [], { cloud = false } = {}) {
   const rows = new Map(records.map((r) => [r.id, r]));
+  const once = async (where, name) => {
+    const hook = where[name];
+    where[name] = null;
+    await hook?.();
+  };
   return {
     rows,
     onPut: null,
     onList: null,
+    onFetch: null,
     async list(kind) {
-      if (kind === 'graphic') {
-        const hook = this.onList;
-        this.onList = null;
-        await hook?.();
-      }
-      return [...rows.values()].filter((r) => r.kind === kind);
+      if (kind === 'graphic') await once(this, 'onList');
+      return [...rows.values()].filter((r) => r.kind === kind)
+        .map((r) => (cloud ? { kind: r.kind, id: r.id, updatedAt: r.updatedAt, deleted: r.deleted, body: { updatedAt: r.updatedAt, deleted: r.deleted }, summary: true } : r));
+    },
+    async getMany(kind, ids) {
+      await once(this, 'onFetch');
+      return ids.map((id) => rows.get(id)).filter(Boolean);
     },
     async get(kind, id) { return rows.get(id) ?? null; },
     async put(record) {
-      const hook = this.onPut;
-      this.onPut = null;
-      await hook?.(record);
+      await once(this, 'onPut');
       rows.set(record.id, record);
     },
     async putMany(records) { for (const r of records) rows.set(r.id, r); },
@@ -78,7 +84,7 @@ const names = (where) => [...where.rows.values()].map((r) => r.body.name).sort()
 async function synced() {
   const engine = loadSync();
   const local = side([graphic('shared', 'Shared', await now()), graphic('trigger', 'Trigger', await now())]);
-  const remote = side();
+  const remote = side([], { cloud: true });
   await engine.runSync(local, remote);
   await edit(local, 'trigger', 'Trigger edited');
   return { ...engine, local, remote };
@@ -172,4 +178,32 @@ test('an edit whose push failed, and a save of it from another device during tha
   const next = await runSync(local, remote);
   assert.equal(next.conflicts, 1, 'neither the retried push nor the pull goes over the other edit');
   assert.deepEqual(names(local), ['Edit on one (conflicted copy)', 'Edit on two', 'Trigger edited']);
+});
+
+test('a push that landed though its answer was lost is no change elsewhere: the next edit is pushed', async () => {
+  const { runSync, local, remote } = await synced();
+  await edit(local, 'shared', 'Edit on one');
+  const put = remote.put.bind(remote);
+  remote.put = async (record) => {
+    await put(record);
+    if (record.id !== 'shared') return;
+    remote.put = put;
+    throw new Error('Cloud put(graphic) failed: AbortError: The cloud did not answer.');
+  };
+  await runSync(local, remote);
+  await edit(local, 'shared', 'Later edit on one');
+  const next = await runSync(local, remote);
+  assert.deepEqual({ pushed: next.pushed, conflicts: next.conflicts }, { pushed: 1, conflicts: 0 });
+  assert.equal(remote.rows.get('shared').body.name, 'Later edit on one');
+});
+
+test('a version saved elsewhere between the listing and the fetch, edited here during the pass, is pushed: no false conflict', async () => {
+  const { runSync, local, remote } = await synced();
+  await edit(remote, 'shared', 'Edit on two');
+  remote.onFetch = () => edit(remote, 'shared', 'Second edit on two');
+  remote.onPut = () => edit(local, 'shared', 'Edit on one');
+  await runSync(local, remote);
+  const next = await runSync(local, remote);
+  assert.deepEqual({ pushed: next.pushed, conflicts: next.conflicts }, { pushed: 1, conflicts: 0 });
+  assert.equal(remote.rows.get('shared').body.name, 'Edit on one');
 });
