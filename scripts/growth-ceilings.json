@@ -166,6 +166,27 @@
       "from": "2026-11-03",
       "expires": "2026-12-03",
       "repayment": "#1503"
+    },
+    {
+      "id": "cf14-catalog-gate-extension",
+      "tier": "graphics",
+      "covers": [
+        "job:ci.yml/Catalog calibration gate"
+      ],
+      "perLanding": 17.3,
+      "owner": "miwco (primary); the weekly owner session (backup coverage)",
+      "reviewed": "https://github.com/NoaCG/NoaCG-Studio/issues/1863#issuecomment-6645898515",
+      "protects": "catalog calibration for every change that can move a design; the one short extension of ci04-catalog-gate (cicd-followup cf14), measured at 29.1 per landing on 2026-11-04 and not renewed automatically",
+      "from": "2026-12-01",
+      "expires": "2026-12-14",
+      "repayment": "#2165",
+      "repaid": {
+        "perLanding": 0.37,
+        "minutes": 105.4,
+        "runs": ["40771239684", "40888647783", "41716995582", "41719670400", "41721685420", "41851987631", "41856260630", "41861459941", "41868667669", "41870484041"],
+        "measuredAt": "2026-11-05",
+        "what": "#1862: gate runs on the 4 landings since 2026-10-24 that no longer reach the gate (phase-cf14-replay.mjs)"
+      }
     }
   ]
 }
