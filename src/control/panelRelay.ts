@@ -126,7 +126,8 @@ export interface PanelAnswer {
 }
 
 /** One call of `fn`, on a timer a hidden tab cannot starve: an operator page often sits behind OBS,
- *  where setTimeout could wait a second. A press is held rarely, so a worker for each wait is cheap. */
+ *  where setTimeout could wait a second. One runs behind each press (its draw gap, 50 ms) and for
+ *  each held press: a worker apiece, at most 20 presses in 2 s per key (the relay's cap). */
 function afterUnstarved(ms: number, fn: () => void): () => void {
   const stop = workerInterval(ms, () => {
     stop();

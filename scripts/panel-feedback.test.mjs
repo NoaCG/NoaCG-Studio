@@ -602,26 +602,44 @@ function pressOrder() {
   return c;
 }
 
-test('a press in its turn runs in the task that heard it, with no timer', () => {
+test('a press in its turn, heard once the page has drawn the one before it, runs in the task that heard it', () => {
   const c = pressOrder();
   for (const id of ['deck01:1', 'deck01:2', 'deck01:3']) {
     c.hear(id);
     assert.equal(c.ran.at(-1), id);
+    assert.equal(c.timers.length, 1, 'only the gap behind it');
+    c.advance(PRESS_DRAW_MS);
     assert.equal(c.timers.length, 0);
   }
+});
+
+test('a press in its turn heard before the page drew the one before it waits out the gap behind that one (issue #2144)', () => {
+  const c = pressOrder();
+  c.hear('deck01:1');
+  c.advance(PRESS_DRAW_MS - 10);
+  c.hear('deck01:2');
+  assert.deepEqual(c.ran, ['deck01:1'], 'arrived in order, but closer than the page draws');
+  c.advance(9);
+  assert.deepEqual(c.ran, ['deck01:1']);
+  c.advance(1);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck01:2'], 'let go as the gap behind the first ends');
+  c.advance(PRESS_DRAW_MS);
+  assert.equal(c.timers.length, 0);
 });
 
 test('the first press heard from a panel sets its count and never waits', () => {
   const c = pressOrder();
   c.hear('deck01:57');
+  assert.deepEqual(c.ran, ['deck01:57']);
+  c.advance(PRESS_DRAW_MS);
   c.hear('deck01:58');
   assert.deepEqual(c.ran, ['deck01:57', 'deck01:58']);
-  assert.equal(c.timers.length, 0);
 });
 
 test('a press ahead of its turn waits for the ones before it, then they run one gap apart', () => {
   const c = pressOrder();
   c.hear('deck01:1');
+  c.advance(PRESS_DRAW_MS);
   c.hear('deck01:4');
   c.hear('deck01:3');
   assert.deepEqual(c.ran, ['deck01:1']);
@@ -633,12 +651,15 @@ test('a press ahead of its turn waits for the ones before it, then they run one 
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3']);
   c.advance(PRESS_DRAW_MS);
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:2', 'deck01:3', 'deck01:4']);
+  assert.equal(c.timers.length, 1, 'only the gap behind the last');
+  c.advance(PRESS_DRAW_MS);
   assert.equal(c.timers.length, 0, 'nothing is held, so nothing is timed');
 });
 
 test('a press in its turn heard during a gap waits for the press held before it', () => {
   const c = pressOrder();
   c.hear('deck01:1');
+  c.advance(PRESS_DRAW_MS);
   c.hear('deck01:3');
   c.hear('deck01:4');
   c.hear('deck01:2');
@@ -661,8 +682,10 @@ test('a press that never arrives is given up on at the bound, and everything hel
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:3'], 'press 3 is older, so it goes first');
   c.advance(PRESS_DRAW_MS);
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:3', 'deck01:5']);
+  c.advance(PRESS_DRAW_MS);
   c.hear('deck01:6');
   assert.equal(c.ran.at(-1), 'deck01:6', 'in its turn again');
+  c.advance(PRESS_DRAW_MS);
   assert.equal(c.timers.length, 0);
 });
 
@@ -680,6 +703,7 @@ test('a press heard after the bound ran out, past another gap, has a bound of it
   assert.equal(c.ran.length, 3, 'press 7 waits for press 6, from the end of the gap behind press 5');
   c.advance(1);
   assert.equal(c.ran.at(-1), 'deck01:7');
+  c.advance(PRESS_DRAW_MS);
   assert.equal(c.timers.length, 0);
 });
 
@@ -696,14 +720,16 @@ test('a repeat of a held press is dropped, and a late or repeated press goes on 
   assert.equal(c.ran.at(-1), 'deck01:2', 'a press past the bound still has its effect');
 });
 
-test('each panel has its own count, and an id with no number is never held', () => {
+test('each panel has its own count and its own gap, and an id with no number is never held', () => {
   const c = pressOrder();
   c.hear('deck01:1');
   c.hear('deck02:1');
   c.hear('deck01:3');
   c.hear('deck02:2');
   c.hear('nonumber');
-  assert.deepEqual(c.ran, ['deck01:1', 'deck02:1', 'deck02:2', 'nonumber']);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck02:1', 'nonumber']);
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deck01:1', 'deck02:1', 'nonumber', 'deck02:2']);
 });
 
 test('a panel with presses held keeps its count when many module starts pass', () => {
@@ -712,13 +738,14 @@ test('a panel with presses held keeps its count when many module starts pass', (
   c.hear('deck01:3');
   for (let i = 0; i < 100; i++) c.hear(`other${i}:1`);
   c.hear('deck01:2');
-  c.advance(PRESS_DRAW_MS);
+  c.advance(PRESS_DRAW_MS * 2);
   assert.deepEqual(c.ran.filter((id) => id.startsWith('deck01')), ['deck01:1', 'deck01:2', 'deck01:3']);
 });
 
 test('stopping drops what is held and every timer', () => {
   const c = pressOrder();
   c.hear('deck01:1');
+  c.advance(PRESS_DRAW_MS);
   c.hear('deck01:3');
   c.hear('deck01:4');
   c.hear('deck01:2');
@@ -732,6 +759,7 @@ test('stopping drops what is held and every timer', () => {
 test('a press that throws does not strand the ones behind it', () => {
   const c = pressOrder();
   c.hear('deck01:1');
+  c.advance(PRESS_DRAW_MS);
   c.hear('deck01:3');
   assert.throws(() =>
     c.order.arrive('deck01:2', () => {

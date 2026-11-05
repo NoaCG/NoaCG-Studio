@@ -271,9 +271,10 @@ export class PressMemory {
  *  for its answer. */
 export const PRESS_HOLD_MS = 500;
 
-/** The gap between presses let go together. The page judges and runs a press from what it last drew
+/** The gap behind every press that runs. The page judges and runs a press from what it last drew
  *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged against
- *  a page that has not drawn the press before it. 50 ms is what an operator's quick pair has anyway. */
+ *  a page that has not drawn the press before it, however the two arrived (issues #2109, #2144).
+ *  50 ms is what an operator's quick pair has anyway. */
 export const PRESS_DRAW_MS = 50;
 
 /** At most this many panels' counts are kept: a module start is a new panel. */
@@ -286,7 +287,7 @@ interface OrderedPanel {
   /** The bound running for what is held, and the number it gave up to when it ran out. */
   giveUp: (() => void) | null;
   givenUpTo: number;
-  /** The gap running behind a press let go, while more are held. */
+  /** The gap running behind the press that ran last. */
   drawing: (() => void) | null;
 }
 
@@ -296,7 +297,8 @@ interface OrderedPanel {
  * always numbered them, `<instance>:<n>` counting up per module start, so no module needs an update.
  *
  * A press in its turn, with nothing held, runs in the task that heard it: a press on its own never
- * waits. One ahead of its turn is held until the presses before it arrive. PRESS_HOLD_MS after a
+ * waits. One heard within PRESS_DRAW_MS of the press before it waits out that gap, so the page has
+ * drawn that press first. One ahead of its turn is held until the presses before it arrive. PRESS_HOLD_MS after a
  * press was first held with none in its turn, everything held goes, in order, and the presses that
  * never came are given up on. A press after its turn, a late one or a repeat, runs at once: its id
  * decides whether it has an effect (PressMemory), so a +1 arriving late still adds its point. The
@@ -344,6 +346,7 @@ export class PressOrder {
     if (this.#panels.size >= ORDERED_PANELS_MAX) {
       for (const [other, known] of this.#panels) {
         if (known.held.size === 0) {
+          known.drawing?.();
           this.#panels.delete(other);
           break;
         }
@@ -355,7 +358,6 @@ export class PressOrder {
   }
 
   #pump(panel: OrderedPanel): void {
-    if (panel.drawing) return;
     const { held } = panel;
     if (held.size === 0) return;
     const lowest = Math.min(...held.keys());
@@ -369,15 +371,17 @@ export class PressOrder {
       });
       return;
     }
+    if (panel.drawing) return;
     held.delete(panel.next);
     panel.next++;
-    // Before the press runs, so one that throws cannot strand the ones behind it.
-    if (held.size > 0) {
-      panel.drawing = this.#after(PRESS_DRAW_MS, () => {
-        panel.drawing = null;
-        this.#pump(panel);
-      });
-    } else {
+    // The gap behind every press that runs, held ones or not (issue #2144): two that arrive in order
+    // closer together than the page draws would have the second judged against the undrawn page.
+    // Armed before the press runs, so one that throws cannot strand the ones behind it.
+    panel.drawing = this.#after(PRESS_DRAW_MS, () => {
+      panel.drawing = null;
+      this.#pump(panel);
+    });
+    if (held.size === 0) {
       panel.giveUp?.();
       panel.giveUp = null;
     }
