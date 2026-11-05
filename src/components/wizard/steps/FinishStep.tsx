@@ -325,6 +325,9 @@ export default function FinishStep({
     (target ? pendingShow?.graphics.find((g) => g.graphicId === target) : undefined) ??
     pendingShow?.graphics.find((g) => g.name === graphicName && (!g.graphicId || g.graphicId === target));
   const replacing = !!replacedCopy;
+  // The name the production keeps for it: a replaced copy keeps its own, which differs from the
+  // field after the walk renamed its record.
+  const pooledAs = replacedCopy?.name ?? graphicName;
   // A record ALREADY UNDER THIS NAME is replaced: the walk's own on a second press, or the one
   // the name means when this walk has made nothing. A rename is neither - it moves the walk's
   // record and leaves every other graphic alone.
@@ -586,7 +589,8 @@ export default function FinishStep({
           testid="wz-finish-production-confirm"
         >
           <p className="wz-confirm-lead">
-            <strong>{graphicName}</strong> {replacing ? 'goes back into' : 'goes into'} this production:
+            <strong>{graphicName}</strong> {replacing ? 'goes back into' : 'goes into'} this production
+            {pooledAs !== graphicName && <> as <strong>{pooledAs}</strong></>}:
           </p>
           {/* THE PART THAT EARNS THE DIALOG. The dropdown above can be walked past without
               being read; this cannot. */}
@@ -596,7 +600,7 @@ export default function FinishStep({
             </span>
             <p className="hint">
               {replacing
-                ? `Already holds a graphic called ${graphicName}. This one takes its place.`
+                ? `Already holds a graphic called ${pooledAs}. This one takes its place.`
                 : pendingShow
                 ? `Already has ${pendingShow.graphics.length} graphic${pendingShow.graphics.length === 1 ? '' : 's'}.`
                 : 'A new production. This is its first graphic.'}
@@ -621,10 +625,11 @@ export default function FinishStep({
                   version and are ignored on air; new fields start from their defaults.
                 </>
               )}
-              {/* The pool matches by NAME, so replacing a copy also moves the production's link
-                  to the library onto this graphic. Worth saying only when another graphic
-                  carries the name, because that is when the link moves OFF something. */}
-              {replacing && sharesNameWith && (
+              {/* A copy with no library link is matched by NAME, so replacing it also moves the
+                  production's link onto this graphic. Worth saying only when another graphic
+                  carries the name, because that is when the link moves OFF something. A copy
+                  already linked to this graphic moves nothing. */}
+              {replacing && !replacedCopy?.graphicId && sharesNameWith && (
                 <>
                   {' '}
                   This production points at this graphic from now on, not at the other one called{' '}
