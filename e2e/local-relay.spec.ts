@@ -1303,13 +1303,21 @@ test('an imported duration never taken: a time typed before a Reset is what the 
   // » Next, pressed after it, is held behind it too, so it reaches the relay after the Update.
   const rowsBefore = ctlRelay.rows.length;
   await fresh.getByRole('button', { name: '» Next' }).click();
-  await fresh.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  // ■ Stop, held too, banks the time at ITS press, not at the moment the read lets it go 2 s later.
+  const stopFrom = Date.now();
+  await fresh.getByRole('button', { name: '■ Stop' }).click();
+  const stopTo = Date.now();
+  await fresh.evaluate(() => new Promise((r) => setTimeout(r, 2200)));
   expect(ctlRelay.rows.length, 'nothing is sent while the boot read is out').toBe(rowsBefore);
   answerBoot();
-  await expect.poll(() => ctlRelay.rows.slice(rowsBefore).map((r) => (r.msg as { t: string }).t)).toEqual(['update', 'next']);
-  expect(clockRows(ctlRelay.rows).length).toBe(before + 1);
+  await expect.poll(() => ctlRelay.rows.slice(rowsBefore).map((r) => (r.msg as { t: string }).t)).toEqual(['update', 'next', 'stop', 'update']);
+  expect(clockRows(ctlRelay.rows).length).toBe(before + 2);
+  const origin = Number(running.split('@')[1].split('/')[0]);
+  const at = (t: number) => { const s = Math.max(0, 50 - Math.floor((t - origin) / 1000)); return `0:${String(s).padStart(2, '0')}`; };
+  const banked = clockRows(ctlRelay.rows)[before + 1];
+  expect([`${at(stopTo)}@out/0:50/0:50`, `${at(stopFrom)}@out/0:50/0:50`], 'the held Stop banks the time at its press').toContain(banked);
   expect(clockRows(ctlRelay.rows)[before], 'the press resends the running clock').toBe(running);
-  const held = ctlRelay.rows.map((r) => r.msg as { t: string; data?: Record<string, string> }).filter((m) => m.t === 'update' && m.data?.[built.field] !== undefined).at(-1)!;
+  const held = ctlRelay.rows[rowsBefore].msg as { t: string; data?: Record<string, string> };
   expect(held.data![built.other!], 'the held press sends the value of its moment').toBe('PRESSED');
   await expect(fresh.locator(`.field[data-key="${built.field}"] input`)).toHaveValue('0:50');
   for (const p of [panel, ctl, fresh]) await p.close();

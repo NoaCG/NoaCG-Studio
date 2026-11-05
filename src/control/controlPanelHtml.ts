@@ -587,7 +587,7 @@ GRAPHICS.forEach(function (g) {
           held.forEach(function (h) {
             var read = h.untouched ? clockSlots(clock.held) : null;
             if (read) h.msg.data[CLOCK.field] = read.sent;
-            sendClocked(h.msg);
+            sendClocked(h.msg, h.at);
           });
         });
       });
@@ -607,12 +607,13 @@ GRAPHICS.forEach(function (g) {
   // matchClockWire.ts): the origin BEFORE a start or a duration's Take, so the runtime adopts it
   // instead of minting one; the banked time AFTER a hold, a reset, an Out or a running correction.
   // Reset banks what the RUNTIME returns to, never what the element happens to read.
-  function sendClocked(msg) {
+  // "at" is the press's own instant; a press held during the boot read keeps the one it was made at.
+  function sendClocked(msg, at) {
     // Held during the boot read. A clock time the operator did not touch is the box's boot value,
     // not a correction: it takes the clock's own last-sent time once the read has found it.
     if (collecting) {
       var untouched = !!(CLOCK && CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined && msg.data[CLOCK.field] === lastSent[CLOCK.field]);
-      collecting.push({ msg: msg, untouched: untouched });
+      collecting.push({ msg: msg, untouched: untouched, at: Date.now() });
       return;
     }
     if (!CLOCK) { post(msg); return; }
@@ -625,7 +626,7 @@ GRAPHICS.forEach(function (g) {
       msg.data[CLOCK.field] = clock.held;
       var failed = noteClockSent(clock.held);
     }
-    var effect = clockRowStep(CLOCK, msg, CLOCK.events ? clock.held : state[CLOCK.field], Date.now());
+    var effect = clockRowStep(CLOCK, msg, CLOCK.events ? clock.held : state[CLOCK.field], at === undefined ? Date.now() : at);
     if (effect && effect.when === 'before') applyClock(effect.value);
     post(msg, failed);
     if (effect && effect.when === 'after') applyClock(effect.value);
