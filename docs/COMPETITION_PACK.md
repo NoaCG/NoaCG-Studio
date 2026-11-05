@@ -150,15 +150,19 @@ Controls: **Spotlight player** (payload `spotlight`) · **Whole line-up**.
 ### Standings / result table (`standings`)
 
 ```
-[entrance] --highlight--> highlighted ⟳ highlight --clear--> plain
-[entrance] / plain / highlighted --final--> final --highlight--> highlighted
-final --next--> [exit]
+[entrance] --final / next--> final --next--> [exit]        (the default path: Next walks it)
+[entrance] --highlight--> highlighted ⟳ highlight --final / next--> final
 ```
 
 `final` is what turns a standings board into a RESULT table: same rows, same columns, a
-different claim about them (`markFinal` / `clearFinal`). Columns come from the operator's own
-header line, so one board serves a league table, a medal table and a race result.
-Controls: **Highlight row** (payload `highlight`) · **Whole table** · **Declare final**.
+different claim about them (`markFinal`, which clears a highlight: the leader's row is the one
+lit). It is the board's one STEP (`STANDINGS_STEPS`), so » Next and « Back walk the whole table
+and the final one, and Continue alone runs the board. `highlight` carries the 1-based row and
+starts at 1; a number naming no row lights the first, so the press always shows. The marks are
+classes, so a snap clears them first and the state it lands on paints its own (#2181). Columns
+come from the operator's own header line, so one board serves a league table, a medal table and
+a race result.
+Controls: **Highlight row** (payload `highlight`) · **Final table**.
 
 ### Bracket (`bracket`)
 

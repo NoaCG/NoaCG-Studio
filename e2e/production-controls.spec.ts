@@ -493,7 +493,7 @@ test('the selected cue is still identifiable once it is on air, and the editor n
   await expect(page.locator('.pd-editor-kicker')).toHaveText(/UP CUE · 1/);
 });
 
-test('quiz actions on the production page: greying, select/lock, live update keeps the lock, snap recovers the verdict', async ({ page }) => {
+test('quiz actions on the production page: greying, select/lock, live update keeps the lock, Back and Reset undo the verdict', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await productionFor(page, 'Quiz Night');
 
@@ -548,25 +548,95 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   await expect(program.locator('.quiz')).toHaveClass(/quiz-locked/);
   await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
 
-  // Fire the reveal, then SNAP back to "Locked in" — recovery, no animation. The snap fires
-  // only the TARGET state's own call (applyLock); the selection belongs to the suppressed
-  // intermediate `selected` state, so the highlighted pick can only come back through the
-  // data half that rides with the snap (reset is two operations). Asserting quiz-sel here is
-  // what proves that update actually went — a snap alone would leave the lock without a pick.
+  // Fire the reveal, then « BACK (#2181): one step back on the walk, Question, instantly - the snap
+  // fires only the target state's own call, and the data half that rides with it repaints the
+  // board from the machine, so the verdict goes and nothing is left lit.
+  await expect(page.getByTestId('verb-back')).toBeEnabled();
   await judge.click();
   await expect(chip).toHaveText('Reveal');
   await expect(program.locator('.quiz-correct')).toHaveCount(1);
-  // The snap is recovery, folded closed at the foot of the block.
-  await page.getByTestId('cue-actions-recovery').locator('summary').click();
-  await page.getByTestId('machine-snap').selectOption({ label: 'Locked in' });
-  await expect(chip).toHaveText('Locked in');
+  await page.getByTestId('verb-back').click();
+  await expect(chip).toHaveText('Question');
   await expect(program.locator('.quiz-correct')).toHaveCount(0);
-  await expect(program.locator('.quiz')).toHaveClass(/quiz-locked/);
-  await expect(program.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
+  await expect(program.locator('.quiz')).not.toHaveClass(/quiz-locked/);
+  // On the first step there is nowhere to go back to.
+  await expect(page.getByTestId('verb-back')).toBeDisabled();
 
-  // And back to start: every group to its initial, the visual half of reset.
-  await page.getByTestId('machine-snap').selectOption({ label: '⟲ Back to start (visual reset)' });
+  // ⟲ RESET, where the recovery list was: from a locked pick straight to the first step, still on
+  // air - never off, which is all the list's "Back to start" ever did.
+  await select.click();
+  await lock.click();
+  await expect(chip).toHaveText('Locked in');
+  await page.getByTestId('cue-actions-reset').click();
+  await expect(chip).toHaveText('Question');
+  await expect(program.locator('.quiz')).not.toHaveClass(/quiz-locked/);
   await expect(program.locator('.quiz-option.quiz-sel')).toHaveCount(0);
+  await expect(page.getByTestId('cue-actions-recovery')).toHaveCount(0);
+});
+
+test('the League Table steps: Next and Back move one step on air, Reset keeps it on air at step 1, each quick action shows (#2181)', async ({ page }) => {
+  // Owner's studio test, 2026-11-05: "Highlight row" and "Whole table" changed nothing on air, and
+  // the recovery list only took the table off or left it as it was. The walk here is the table's
+  // steps (whole table, final table) and its one data beat (a highlighted row), read off PROGRAM,
+  // the renderer /output runs.
+  await bootstrapGraphic(page, { name: 'League Table' });
+  await productionFor(page, 'Matchday');
+
+  const chip = page.getByTestId('machine-state-chip');
+  const back = page.getByTestId('verb-back');
+  const next = page.getByTestId('verb-next');
+  const reset = page.getByTestId('cue-actions-reset');
+  const highlight = page.getByTestId('cue-action-highlight');
+  const final = page.getByTestId('cue-action-final');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  const board = program.locator('.results-board');
+  const lit = program.locator('.results-board-row-on');
+
+  // Two quick actions, named by what they show; "Whole table" is gone, since Back and Reset show it.
+  await expect(page.getByTestId('cue-actions').locator('.pd-actions-groups button')).toHaveText(['Highlight row', 'Final table']);
+
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toHaveText('Enter');
+  await expect(program.locator('.results-board-row')).toHaveCount(5);
+  await expect(back).toBeDisabled();
+  await expect(page.getByTestId('verb-next-target')).toHaveText('Final table');
+
+  // NEXT, then BACK: the final table and back to the provisional one.
+  await next.click();
+  await expect(chip).toHaveText('Final');
+  await expect(board).toHaveClass(/results-board-final/);
+  await back.click();
+  await expect(chip).toHaveText('Enter');
+  await expect(board).not.toHaveClass(/results-board-final/);
+  await expect(back).toBeDisabled();
+
+  // HIGHLIGHT ROW lights a row the first time it is pressed (the field starts at row 1), and Back
+  // puts the whole table back.
+  await highlight.click();
+  await expect(chip).toHaveText('Row highlighted');
+  await expect(lit).toHaveCount(1);
+  await expect(lit).toHaveAttribute('data-row', '1');
+  await back.click();
+  await expect(chip).toHaveText('Enter');
+  await expect(lit).toHaveCount(0);
+  await expect(board).not.toHaveClass(/results-board-spotlit/);
+
+  // FINAL TABLE from a highlighted table: the leader's row is the one lit, the highlight goes.
+  await highlight.click();
+  await expect(lit).toHaveCount(1);
+  await final.click();
+  await expect(chip).toHaveText('Final');
+  await expect(board).toHaveClass(/results-board-final/);
+  await expect(lit).toHaveCount(0);
+
+  // RESET: the first step, ON AIR - the board is still drawn, provisional and level.
+  await reset.click();
+  await expect(chip).toHaveText('Enter');
+  await expect(board).not.toHaveClass(/results-board-final/);
+  await expect(lit).toHaveCount(0);
+  await expect(program.locator('.results-board-row')).toHaveCount(5);
+  await expect(board).toHaveCSS('opacity', '1');
+  await expect(page.getByTestId('verb-out')).toBeEnabled();
 });
 
 test('scorebug actions group by section and drive the clock; a plain lower third shows no actions block', async ({ page }) => {

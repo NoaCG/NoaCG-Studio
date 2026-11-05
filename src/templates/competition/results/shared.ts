@@ -32,6 +32,7 @@ import {
   type CompCategorySpec,
   type CompDesign,
   type CompMeta,
+  type CompStep,
 } from '../shared';
 
 /** The category: a board that hugs its rows, parked wherever the show wants it. */
@@ -161,8 +162,14 @@ export const STANDINGS_FIELDS: TypeField[] = [
     role: 'data',
   },
   { key: 'columns', label: 'Column headers ("W | L | +/- | PTS")', kind: 'text', value: 'W | L | +/- | PTS', role: 'data' },
-  { key: 'highlight', label: 'Highlighted row (1-based, 0 = none)', kind: 'number', value: '0', role: 'data' },
+  // 1, not 0: the Highlight row press lights a row the first time it is pressed (#2181). A
+  // number that names no row lights the first one, so the press never does nothing.
+  { key: 'highlight', label: 'Highlighted row', kind: 'number', value: '1', role: 'data' },
 ];
+
+/** The table's one middle step: Next walks the whole table to the FINAL table, Back walks it
+ *  back, and Continue alone runs the board end to end (the quiz precedent, CompStep). */
+export const STANDINGS_STEPS: CompStep[] = [{ name: 'Final', call: 'markFinal', duration: 0.4 }];
 
 /** The standings board's markup — the header cells and rows are both rebuilt. */
 export function standingsMarkup(o: ResolvedOptions): string {
@@ -184,7 +191,7 @@ export function standingsMarkup(o: ResolvedOptions): string {
     </div>
 ${hiddenSource('f2', STANDINGS_FIELDS[2].value, 'Row source (f2) — one "Team | value | value | …" per line.')}
 ${hiddenSource('f3', STANDINGS_FIELDS[3].value, 'Column headers (f3) — the labels above the value columns.')}
-${hiddenSource('f4', '0', 'The highlighted row (f4) — DATA. One "highlighted" state carries any row.')}`;
+${hiddenSource('f4', STANDINGS_FIELDS[4].value, 'The highlighted row (f4) — DATA. One "highlighted" state carries any row.')}`;
 }
 
 /**
@@ -230,6 +237,11 @@ function compRebuild() {
           + '</div>';
   });
   host.innerHTML = html;
+  // The rebuild replaced the lit row too. An update while a row is highlighted (a live ± on its
+  // number, the data half of a Back or a Reset) lights the row the field names now.
+  var root = document.querySelector('.${P}');
+  var lit = root && root.classList.contains('${P}-spotlit') ? highlightedRow() : null;
+  if (lit) lit.classList.add('${P}-row-on');
 }
 
 // rowAt(fieldId): the row a 1-based number field points at, or null when it names none.
@@ -238,6 +250,12 @@ function rowAt(fieldId) {
   var at = parseInt((document.getElementById(fieldId) || { textContent: '' }).textContent, 10);
   if (!host || isNaN(at) || at < 1) return null;
   return host.querySelector('[data-row="' + at + '"]');
+}
+
+// highlightedRow(): the row the highlight field names, or the first row when it names none, so
+// Highlight row never presses into nothing.
+function highlightedRow() {
+  return rowAt('f4') || document.querySelector('.${P}-row[data-row="1"]');
 }
 
 // clearHighlight(): every row back at one level.
@@ -251,7 +269,7 @@ function clearHighlight() {
 // applyHighlight(): lift the row the payload named — the one the caster is talking about.
 function applyHighlight() {
   clearHighlight();
-  var row = rowAt('f4');
+  var row = highlightedRow();
   if (!row) return;
   var root = document.querySelector('.${P}');
   if (root) root.classList.add('${P}-spotlit');
@@ -260,10 +278,12 @@ function applyHighlight() {
 }
 
 // markFinal(): the table is no longer provisional. This is what turns a standings board into
-// a RESULT table — same rows, same columns, a different claim about them.
+// a RESULT table — same rows, same columns, a different claim about them. The leader's row is the
+// one lit, so a highlight the table had goes.
 function markFinal() {
   var root = document.querySelector('.${P}');
   if (!root) return;
+  clearHighlight();
   root.classList.add('${P}-final');
   gsap.fromTo('.${P}-box', { scale: 1.015 }, { scale: 1, duration: 0.4 / motionSpeed(), ease: 'back.out(1.5)' });
 }
@@ -278,6 +298,18 @@ function clearFinal() {
 function compClearMarks() {
   clearHighlight();
   clearFinal();
+}
+
+// A snap (Back, Reset, a recovery) composes a state's pose and fires only that state's own call,
+// and a mark is a class, which the snap's reset of inline styles never touches. So the marks go
+// first, and the state the snap lands on paints its own: the whole table, its highlighted row or
+// its final table, never a mark left over from the state it came from (#2181).
+if (typeof noacgSnap === 'function') {
+  var standingsSnap = noacgSnap;
+  noacgSnap = function () {
+    compClearMarks();
+    return standingsSnap.apply(this, arguments);
+  };
 }
 
 ${READY_GUARD_JS}`;

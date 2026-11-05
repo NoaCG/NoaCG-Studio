@@ -157,9 +157,10 @@ import {
   fieldDescriptors,
   formatMachineState,
   isEventLegal,
-  machineStateGroups,
+  backTarget,
   machineStateNames,
   movedStateNames,
+  resetTarget,
   adjustedValue,
   movedKeys,
   pressSend,
@@ -509,7 +510,8 @@ function writeSheetLease(key: string, lease: SheetLease): boolean {
  *  names, what Next asks, and what a pinned block draws and greys by. */
 interface PoolMachine extends ControlsMachine {
   js: string;
-  stateGroups: ReturnType<typeof machineStateGroups>;
+  /** Where ⟲ Reset snaps it (controlModel `resetTarget`). */
+  resetTo: Record<string, string> | null;
   stateNames: Record<string, Record<string, string>>;
 }
 
@@ -2118,15 +2120,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
   /* eslint-enable react-hooks/exhaustive-deps */
   // The machine's side of the selected graphic (docs/CONTROL_LAYER.md): its ⚡ buttons, the
-  // structural guard they grey by, and its states for the recovery snap picker. All parsed
+  // structural guard they grey by, and the first step ⟲ Reset snaps it to. All parsed
   // from the same live template the editor's fields come from, so the panel can never describe
   // a different graphic than the fields do. Empty on a template with no explicit machine.
   const events = useMemo(() => (editorTemplate ? graphicButtons(eventButtons(editorTemplate.js), editorTemplate) : []), [editorTemplate]);
   const legality = useMemo(() => (editorTemplate ? eventLegality(editorTemplate.js) : {}), [editorTemplate]);
-  const stateGroups = useMemo(() => (editorTemplate ? machineStateGroups(editorTemplate.js) : []), [editorTemplate]);
-  // The NAMES for the chip come from their own resolver rather than from `stateGroups`: that
-  // list is the snap PICKER's and is empty without an explicit machine by design, while a
-  // machine-less graphic's `enter` still has to read "Enter" (controlModel.ts says why).
+  const resetTo = useMemo(() => (editorTemplate ? resetTarget(editorTemplate.js) : null), [editorTemplate]);
+  // The NAMES for the chip come from their own resolver: a machine-less graphic's `enter` still
+  // has to read "Enter" (controlModel.ts says why).
   const stateNames = useMemo(() => (editorTemplate ? machineStateNames(editorTemplate.js) : {}), [editorTemplate]);
   /** What a cue's live candidate puts on PREVIEW: its resolved values, or its fields blank while
    *  it is not ready, so a preview never shows another candidate's values, or a stale prepared one. */
@@ -2322,7 +2323,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         path: continueEvents(tpl.js),
         legality: eventLegality(tpl.js),
         foreign: declaredForeign(tpl.ograf),
-        stateGroups: machineStateGroups(tpl.js),
+        resetTo: resetTarget(tpl.js),
         stateNames: machineStateNames(tpl.js),
       });
     }
@@ -3352,7 +3353,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
    *  waits for the one before it on its graphic. */
   const fireEvent = (button: ControlButton) => pressMarked(view, button);
-  const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
+  const snap = (assignments: Record<string, string> | null) => verbs.snap(view, assignments);
+  /** Where « Back would take the selected layer (controlModel `backTarget`): the state before the
+   *  one it reports, on the route a snap replays. Null when the press would do nothing. */
+  const backTo =
+    selectedLayerLive && selectedGraphic && !selectedPlayoutLive ? backTarget(poolMachines.get(selectedGraphic)?.js ?? '', machineState) : null;
 
   /** The selected graphic's ⚡ button (home/CueActions.tsx `actionButtonFor`), greyed against
    *  the machine state PROGRAM reports for it and pressed with the page's own selection. */
@@ -3576,8 +3581,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       arranging: arrangingFor === graphic,
       stateLabel: formatMachineState(m.stateNames, state),
       selectedLayerLive: live,
-      stateGroups: m.stateGroups,
-      snapTo: (groupId, stateId) => verbs.snap(sel, groupId, stateId),
+      resetTo: m.resetTo,
+      snap: (assignments) => verbs.snap(sel, assignments),
       selectedGraphic: graphic,
       arranged: g.arranged,
       actionButton: actionButtonFor({
@@ -3605,8 +3610,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             arranging,
             stateLabel,
             selectedLayerLive,
-            stateGroups,
-            snapTo,
+            resetTo,
+            snap,
             selectedGraphic: b.graphic,
             arranged,
             actionButton,
@@ -3994,6 +3999,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             {/* The DOT is the whole point of §3c: nothing here airs by itself, so the only way
                 an operator learns that air is behind their screen is if the surface says so. */}
             {hasUnsent && <span className="pd-unsent-dot" aria-hidden="true" />}
+          </button>
+          {/* « BACK, beside Next (#2181): one step back, instantly, re-sending the on-air cue's
+              values - the previous waypoint, or the step a branch was entered from. */}
+          <button
+            className="pd-verb"
+            disabled={!backTo}
+            onClick={() => backTo && void snap(backTo)}
+            title={backTo ? 'Back one step' : undefined}
+            data-testid="verb-back"
+          >
+            « Back
           </button>
           <button
             className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}

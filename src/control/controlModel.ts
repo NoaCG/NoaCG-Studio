@@ -9,7 +9,7 @@ import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import type { TypedActionCall, TypedValues } from '../model/ografTyped';
 import { parseAnimData } from '../blocks/animData';
-import { deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
+import { canonicalPath, deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
 import { upgradeControls } from './controlUpgrades';
 import { slug } from '../model/slug';
 import { readPublishedProfile } from '../model/profile';
@@ -784,6 +784,36 @@ export function advanceLabel(
   if (control) return control.label;
   const group = machineOf(js)?.groups[0];
   return (group && names[group.id]?.[target.state]) || target.state;
+}
+
+/**
+ * WHERE « Back would take the live graphic: the state before the one it is in, on the route a
+ * snap replays to reach it (`canonicalPath`) - the previous waypoint on the default path, or the
+ * state a branch was entered from. Returned as the snap's assignment for the main group, so the
+ * other groups keep where they are. Null when Back would do nothing: no report yet, off air, or
+ * the first step (#2181: the recovery list only ever took a graphic off air or left it as it was).
+ */
+export function backTarget(
+  js: string,
+  state: { groups?: Record<string, string> } | null | undefined,
+): Record<string, string> | null {
+  const main = machineOf(js)?.groups[0];
+  const cur = main && state?.groups?.[main.id];
+  if (!main || cur === undefined || cur === main.initial) return null;
+  const route = canonicalPath(main, true, cur);
+  return route && route.length >= 2 ? { [main.id]: route[route.length - 2] } : null;
+}
+
+/**
+ * What ⟲ Reset snaps the live graphic to: its FIRST step, still on air, with every other group at
+ * its initial state - the visual half of a reset that does not take the graphic off. Null for a
+ * graphic with no step to stand on.
+ */
+export function resetTarget(js: string): Record<string, string> | null {
+  const machine = machineOf(js);
+  const first = machine?.groups[0]?.defaultPath?.[0];
+  if (!machine || !first) return null;
+  return Object.fromEntries(machine.groups.map((g, i) => [g.id, i === 0 ? first : g.initial]));
 }
 
 /**

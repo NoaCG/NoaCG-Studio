@@ -420,7 +420,23 @@ test('the boards spotlight a row from data, and a decided table survives a repla
 
     win.noacgDispatch('final');
     await settle();
-    out.final = { state: win.noacgMachineState().groups.main, cls: doc.querySelector('.results-board').classList.contains('results-board-final') };
+    out.final = { state: win.noacgMachineState().groups.main, cls: doc.querySelector('.results-board').classList.contains('results-board-final'), row: lit() };
+
+    // A SNAP (Back, Reset) lands on the state's own look, never on a mark the last one left: the
+    // marks are classes, which the snap's reset of inline styles does not touch (#2181).
+    win.noacgSnap({ main: 'enter' });
+    await settle();
+    out.snappedBack = { state: win.noacgMachineState().groups.main, cls: doc.querySelector('.results-board').className, row: lit() };
+    win.noacgSnap({ main: 'highlighted' });
+    await settle();
+    out.snappedLit = { row: lit() };
+    // An update rebuilds the rows; the highlighted one stays lit, on the row the field names now.
+    win.update(JSON.stringify({ f4: '3' }));
+    await settle();
+    out.updatedLit = { row: lit() };
+    win.noacgSnap({ main: 'final' });
+    await settle();
+    out.snappedFinal = { cls: doc.querySelector('.results-board').classList.contains('results-board-final'), row: lit() };
 
     win.play();
     await settle();
@@ -432,7 +448,12 @@ test('the boards spotlight a row from data, and a decided table survives a repla
   expect(run.columns).toBe(4);
   expect(run.highlighted).toMatchObject({ state: 'highlighted', row: '2' });
   expect(run.moved).toMatchObject({ state: 'highlighted', row: '4' });
-  expect(run.final).toMatchObject({ state: 'final', cls: true });
+  expect(run.final).toMatchObject({ state: 'final', cls: true, row: null });
+  expect(run.snappedBack).toMatchObject({ state: 'enter', row: null });
+  expect(String((run.snappedBack as Record<string, unknown>).cls)).not.toContain('results-board-final');
+  expect(run.snappedLit).toMatchObject({ row: '4' });
+  expect(run.updatedLit).toMatchObject({ row: '3' });
+  expect(run.snappedFinal).toMatchObject({ cls: true, row: null });
   expect((run.afterReplay as Record<string, unknown>).row).toBe(null);
   expect(String((run.afterReplay as Record<string, unknown>).cls)).not.toContain('results-board-final');
 });
