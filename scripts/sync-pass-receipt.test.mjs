@@ -33,7 +33,7 @@ function controller(timers = [], browser = { navigator: {} }) {
     './pacing': { focusPassDue: () => true, backoffDelay: (failures, base, max) => Math.min(max, base * 2 ** (failures - 1)) },
     './supabase': { CLOUD_NO_ANSWER: 'no answer', cloudFailureWords: (message) => (/did not answer/.test(message) ? 'no answer' : message) },
     './auth': { getSignedInUserId: async () => user, subscribeAuth: cb => { auth = cb; }, consumeDeliberateSignOut: () => true },
-    './accountLibrary': { followLibraryChangesInOtherTabs: noop },
+    './accountLibrary': { followLibraryChangesInOtherTabs: noop, bindLibraryToAccount: async () => 'ready' },
     '../model/durableStore': { libraryInUse: () => 'owner', canAuthorAccount: () => true,
       commitDurableWrites: async () => null, markOwnWritesSynced: noop, setAccountAuthoringEnabled: noop,
       changeSyncedElsewhere: (event) => event.adopted === true },
@@ -49,6 +49,8 @@ function controller(timers = [], browser = { navigator: {} }) {
   api.startAutoSync();
   return { api, passes, timers, edit: () => window.dispatchEvent(new Event('spx-data-changed')),
     adopt: () => window.dispatchEvent(Object.assign(new Event('spx-data-changed'), { adopted: true })),
+    loseSession() { user = null; },
+    signIn(expiresAt) { auth({ status: 'signed-in', user: { id: user }, expiresAt }); },
     signOut() { user = null; auth({ status: 'signed-out' }); } };
 }
 
@@ -182,6 +184,31 @@ test('an account change ends the retries of the account before it', async () => 
   assert.equal(armed(h).length, 1);
   h.signOut(); await settle();
   assert.deepEqual(armed(h), []);
+});
+
+test('a retrying tab that can no longer sync gives the turn up', async () => {
+  const browser = browserTabs(), a = browser.tab();
+  void a.api.syncNow();
+  await tick(); a.passes[0].resolve(NO_ANSWER); await settle();
+  armed(a)[0](); await settle();
+  a.passes[1].resolve(NO_ANSWER); await settle();
+  assert.equal(browser.held.size, 1);
+  a.loseSession(); armed(a)[0](); await settle();
+  assert.equal(browser.held.size, 0, 'a tab that cannot sync keeps no other tab from retrying');
+  assert.deepEqual(armed(a), []);
+});
+
+test('a session that expires during another pass of the retrying tab gives the turn up', async () => {
+  const browser = browserTabs(), a = browser.tab();
+  a.signIn(Date.now() + 5_000); await settle();
+  a.passes[0].resolve(NO_ANSWER); await settle();
+  armed(a)[0](); await settle();
+  a.passes[1].resolve(NO_ANSWER); await settle();
+  assert.equal(browser.held.size, 1);
+  void a.api.syncNow(); await settle();
+  a.timers.find((fn) => fn.ms > 2_500 && fn.ms <= 5_000)();
+  a.passes[2].resolve(NO_ANSWER); await settle();
+  assert.equal(browser.held.size, 0, 'the lock is not held by a tab whose retries are over');
 });
 
 function lookup() {

@@ -125,35 +125,34 @@ let releaseRetryLock: (() => void) | undefined;
 function retryIfUnanswered(unanswered: boolean): void {
   if (!unanswered) return stopRetrying();
   unansweredPasses++;
+  armRetry();
+}
+function armRetry(): void {
   clearTimeout(retry);
   retry = setTimeout(retryTick, backoffDelay(unansweredPasses, RETRY_MS, MAX_RETRY_MS));
 }
+/** Every way the retries end comes here (an answered pass, another tab's answer, no session, a
+ *  new session), which is what lets the lock go: a pass that is merely re-armed keeps it. */
 function stopRetrying(): void {
   clearTimeout(retry);
   retry = undefined;
   unansweredPasses = 0;
-  releaseRetry();
-}
-function releaseRetry(): void {
   releaseRetryLock?.();
   releaseRetryLock = undefined;
-}
-async function retryPass(): Promise<void> {
-  await syncNow();
-  if (retry === undefined) releaseRetry();
 }
 function retryTick(): void {
   retry = undefined;
   if (releaseRetryLock || !navigator.locks) {
-    void retryPass();
+    void syncNow();
     return;
   }
   void navigator.locks.request(RETRY_LOCK, { ifAvailable: true }, (lock) => {
     if (unansweredPasses === 0) return;
-    if (!lock) return retryIfUnanswered(true);
+    // Another tab is retrying: look again after the same wait, in case it closes.
+    if (!lock) return armRetry();
     return new Promise<void>((resolve) => {
       releaseRetryLock = resolve;
-      void retryPass();
+      void syncNow();
     });
   });
 }
@@ -192,6 +191,7 @@ function answer(list: Array<(receipt: SyncPassReceipt) => void>, receipt: SyncPa
  */
 export async function syncNow(): Promise<SyncPassReceipt> {
   if (!(await canSync())) {
+    stopRetrying();
     if (libraryInUse()) setAccountAuthoringEnabled(false);
     setState({ phase: 'offline', firstPass: !!libraryInUse() && !checkedThisPage, detail: libraryInUse() ? 'Account session unavailable. Editing is paused; pending work is preserved. Sign in again.' : 'Local workspace. Work here is not saved to an account.' });
     // RELEASING THE WAITERS HERE IS ONLY HONEST WHEN NOTHING IS COMING. This branch is reached
@@ -445,6 +445,7 @@ export function startAutoSync(): void {
     if (user && auth.expiresAt) expiry = setTimeout(() => {
       setAccountAuthoringEnabled(false);
       sessionEpoch++;
+      stopRetrying();
       setState({ phase: 'offline', detail: 'Account session expired. Sign in again. Pending work is preserved.' });
       window.dispatchEvent(new CustomEvent('spx-session-expired'));
     }, Math.max(0, auth.expiresAt - Date.now()));
