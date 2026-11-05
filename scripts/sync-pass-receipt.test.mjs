@@ -12,7 +12,7 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 const result = () => ({ failures: [] });
-function load(file, stubs, window = new EventTarget(), timers = []) {
+function load(file, stubs, window = new EventTarget(), timers = [], browser = {}) {
   const exports = {};
   const compiled = ts.transpileModule(readFileSync(new URL(`../src/backend/${file}.ts`, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -20,10 +20,11 @@ function load(file, stubs, window = new EventTarget(), timers = []) {
   vm.runInNewContext(compiled, { exports, require: name => {
     assert.ok(name in stubs, `unexpected dependency: ${name}`);
     return stubs[name];
-  }, window, CustomEvent: Event, setTimeout: (fn, ms) => timers.push(Object.assign(fn, { ms })), clearTimeout: () => {} });
+  }, window, CustomEvent: Event, ...browser,
+  setTimeout: (fn, ms) => { const timer = Object.assign(() => { timer.fired = true; fn(); }, { ms }); return timers.push(timer); }, clearTimeout: (id) => { if (id) timers[id - 1].cleared = true; } });
   return exports;
 }
-function controller(timers = []) {
+function controller(timers = [], browser = { navigator: {} }) {
   const window = new EventTarget(), passes = [];
   let user = 'owner', auth;
   const noop = () => {};
@@ -35,7 +36,7 @@ function controller(timers = []) {
     './accountLibrary': { followLibraryChangesInOtherTabs: noop },
     '../model/durableStore': { libraryInUse: () => 'owner', canAuthorAccount: () => true,
       commitDurableWrites: async () => null, markOwnWritesSynced: noop, setAccountAuthoringEnabled: noop,
-      changeSyncedElsewhere: () => false },
+      changeSyncedElsewhere: (event) => event.adopted === true },
     './storage': { LocalStorageProvider: class {} },
     './supabaseProvider': { SupabaseProvider: class { async purgeTombstones() {} } },
     './sync': { libraryHasArrived: () => true, runSync: () => { const pass = deferred(); passes.push(pass); return pass.promise; } },
@@ -44,9 +45,10 @@ function controller(timers = []) {
     '../model/videoProject': { purgeOldVideoTombstones: noop },
     '../model/library': { purgeOldGraphicTombstones: noop },
   };
-  const api = load('syncController', stubs, window, timers);
+  const api = load('syncController', stubs, window, timers, browser);
   api.startAutoSync();
-  return { api, passes, edit: () => window.dispatchEvent(new Event('spx-data-changed')),
+  return { api, passes, timers, edit: () => window.dispatchEvent(new Event('spx-data-changed')),
+    adopt: () => window.dispatchEvent(Object.assign(new Event('spx-data-changed'), { adopted: true })),
     signOut() { user = null; auth({ status: 'signed-out' }); } };
 }
 
@@ -122,6 +124,64 @@ test('a pass that failed for another reason waits for its usual triggers', async
   await tick(); h.passes[0].reject(new Error('Browser storage is full'));
   await tick(); assert.equal(h.api.getSyncState().phase, 'error');
   assert.deepEqual(timers.filter((fn) => fn.ms >= 15_000), []);
+});
+
+/** Tabs of one browser: what one posts on a channel the others hear, and one Web Lock each name. */
+function browserTabs() {
+  const channels = [], held = new Set();
+  class BroadcastChannel {
+    constructor(name) { this.name = name; this.onmessage = null; channels.push(this); }
+    postMessage(data) { for (const other of channels) if (other !== this && other.name === this.name) other.onmessage?.({ data }); }
+  }
+  const locks = { request(name, _options, callback) {
+    if (held.has(name)) return Promise.resolve().then(() => callback(null));
+    held.add(name);
+    return Promise.resolve().then(() => callback({ name })).finally(() => held.delete(name));
+  } };
+  return { held, tab: () => controller([], { BroadcastChannel, navigator: { locks } }) };
+}
+const NO_ANSWER = { failures: [{ kind: 'look', name: 'A', message: 'Cloud list(look) failed: The cloud did not answer.' }], unanswered: true };
+const armed = (h) => h.timers.filter((fn) => fn.ms >= 15_000 && !fn.cleared && !fn.fired);
+const settle = async () => { for (let i = 0; i < 5; i++) await tick(); };
+
+test('a tab that takes another tab\'s confirmed pass as its own stops its own retry', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); void b.api.syncNow();
+  await tick(); b.passes[0].resolve(result()); await settle(); a.passes[0].resolve(NO_ANSWER);
+  await settle(); assert.equal(armed(a).length, 1);
+  a.adopt(); assert.equal(a.api.getSyncState().phase, 'pending');
+  void b.api.syncNow(); await tick(); b.passes[1].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.deepEqual(armed(a), [], 'no retry left to run a pass the other tab already ran');
+});
+
+test('only one tab of a browser retries against a silent cloud; the others follow its answer', async () => {
+  const browser = browserTabs(), a = browser.tab(), b = browser.tab();
+  void a.api.syncNow(); void b.api.syncNow();
+  await tick(); a.passes[0].resolve(NO_ANSWER); b.passes[0].resolve(NO_ANSWER);
+  await settle(); assert.equal(armed(a).length, 1); assert.equal(armed(b).length, 1);
+  armed(a)[0](); await settle();
+  assert.equal(a.passes.length, 2);
+  armed(b)[0](); await settle();
+  assert.equal(b.passes.length, 1, 'the other tab skips its tick while one retries');
+  a.passes[1].resolve(NO_ANSWER); await settle();
+  armed(b).at(-1)(); await settle();
+  assert.equal(b.passes.length, 1, 'the retrying tab keeps its turn between its tries');
+  armed(a).at(-1)(); await settle();
+  a.passes[2].resolve(result()); await settle();
+  assert.equal(a.api.getSyncState().phase, 'synced');
+  assert.equal(b.api.getSyncState().phase, 'synced', 'the skipping tab takes the answer as its own');
+  assert.deepEqual(armed(b), []);
+  assert.equal(browser.held.size, 0);
+});
+
+test('an account change ends the retries of the account before it', async () => {
+  const h = controller();
+  void h.api.syncNow();
+  await tick(); h.passes[0].resolve(NO_ANSWER); await settle();
+  assert.equal(armed(h).length, 1);
+  h.signOut(); await settle();
+  assert.deepEqual(armed(h), []);
 });
 
 function lookup() {

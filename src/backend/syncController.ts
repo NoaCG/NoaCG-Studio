@@ -108,14 +108,54 @@ let checkedThisPage = false;
 
 /** After a pass the cloud did not answer, the next one goes by itself, from 15 s up to 2 min, so
  *  the chip settles once the cloud is back without anybody pressing Sync now (#2154). Any pass that
- *  starts sooner takes its place. */
+ *  starts sooner takes its place.
+ *
+ *  ONE TAB PER BROWSER RETRIES. A silent cloud is the overloaded one, and a retry in every open
+ *  tab is the per-tab load of 2026-09-29 (see ONE PASS PER CHANGE below). The tab whose tick finds
+ *  `RETRY_LOCK` free holds it through its tries and the waits between them, until a pass is
+ *  answered or the retries end; a tab that finds it held skips that tick and looks again later, so
+ *  one takes over if the retrying tab closes. Each settles on the other's confirmed pass
+ *  (`followOtherTabsConfirmations`). Without Web Locks each tab retries on its own. */
 const RETRY_MS = 15_000;
 const MAX_RETRY_MS = 120_000;
+const RETRY_LOCK = 'noacg-sync-retry';
 let unansweredPasses = 0;
 let retry: ReturnType<typeof setTimeout> | undefined;
+let releaseRetryLock: (() => void) | undefined;
 function retryIfUnanswered(unanswered: boolean): void {
-  unansweredPasses = unanswered ? unansweredPasses + 1 : 0;
-  if (unanswered) retry = setTimeout(() => void syncNow(), backoffDelay(unansweredPasses, RETRY_MS, MAX_RETRY_MS));
+  if (!unanswered) return stopRetrying();
+  unansweredPasses++;
+  clearTimeout(retry);
+  retry = setTimeout(retryTick, backoffDelay(unansweredPasses, RETRY_MS, MAX_RETRY_MS));
+}
+function stopRetrying(): void {
+  clearTimeout(retry);
+  retry = undefined;
+  unansweredPasses = 0;
+  releaseRetry();
+}
+function releaseRetry(): void {
+  releaseRetryLock?.();
+  releaseRetryLock = undefined;
+}
+async function retryPass(): Promise<void> {
+  await syncNow();
+  if (retry === undefined) releaseRetry();
+}
+function retryTick(): void {
+  retry = undefined;
+  if (releaseRetryLock || !navigator.locks) {
+    void retryPass();
+    return;
+  }
+  void navigator.locks.request(RETRY_LOCK, { ifAvailable: true }, (lock) => {
+    if (unansweredPasses === 0) return;
+    if (!lock) return retryIfUnanswered(true);
+    return new Promise<void>((resolve) => {
+      releaseRetryLock = resolve;
+      void retryPass();
+    });
+  });
 }
 
 
@@ -182,6 +222,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
   }
   running = true;
   clearTimeout(retry);
+  retry = undefined;
   if (debounce) clearTimeout(debounce);
   debounce = null;
   const startedRevision = revision;
@@ -261,6 +302,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
     if (epoch === sessionEpoch) {
       const detail = e instanceof Error ? e.message : String(e);
       setState({ phase: 'error', detail, firstPass });
+      // A thrown pass counts Failed to fetch and NetworkError as no answer; a completed one's `unanswered` is timeouts only.
       retryIfUnanswered(cloudFailureWords(detail) === CLOUD_NO_ANSWER);
     }
   } finally {
@@ -332,7 +374,8 @@ function handOverOnClose(): void {
  *  learned it had landed: it read "pending" until its own next pass, which in a tab left open
  *  beside another was never, and after a minute the chip said Not synced about work that was
  *  saved (playout-workflow-simplification D14, reproduced with two tabs on one library). Each
- *  confirmed pass is announced; a tab with nothing unsent of its own takes it as its own. */
+ *  confirmed pass is announced; a tab with nothing unsent of its own takes it as its own,
+ *  in place of any retry a pass the cloud did not answer left it. */
 let ownChangePending = false;
 let confirmedChannel: BroadcastChannel | null = null;
 function followOtherTabsConfirmations(): void {
@@ -340,7 +383,9 @@ function followOtherTabsConfirmations(): void {
   confirmedChannel = new BroadcastChannel('noacg-sync-confirmed');
   confirmedChannel.onmessage = (event: MessageEvent<{ account?: unknown }>) => {
     if (event.data?.account !== libraryInUse() || ownChangePending || running || debounce) return;
-    if (state.phase !== 'pending' && state.phase !== 'syncing') return;
+    const unansweredHere = state.phase === 'error' && unansweredPasses > 0;
+    if (state.phase !== 'pending' && state.phase !== 'syncing' && !unansweredHere) return;
+    stopRetrying();
     confirmedRevision = revision;
     setState({ phase: 'synced', last: state.last, verifiedAt: new Date().toISOString() });
   };
@@ -411,6 +456,7 @@ export function startAutoSync(): void {
       return;
     }
     sessionEpoch++;
+    stopRetrying();
     if (user) checkedThisPage = false;
     setAccountAuthoringEnabled(false);
     const hadSession = !!lastUser;
