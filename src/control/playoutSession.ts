@@ -110,10 +110,10 @@ export interface AirPart {
   /** The same per graphic, so a boot read is older only for the graphics a command moved.
    *  ADDITIVE OPTIONAL: absent is none. */
   commandsBy?: Readonly<Record<string, number>>;
-  /** Of those, the ones that would end an output's hold on an unreadable envelope
-   *  (./outputRecovery.ts `endsHold`): a boot read keeps a held report unless one came meanwhile.
-   *  ADDITIVE OPTIONAL: absent is none. */
-  releasedBy?: Readonly<Record<string, number>>;
+  /** Per graphic, the last command here that decides an output's hold on it (./outputRecovery.ts
+   *  `holdAfter`): its `commandsBy` count and whether it leaves the graphic held. A boot read keeps a
+   *  held report unless one released it meanwhile. ADDITIVE OPTIONAL: absent is none. */
+  holdBy?: Readonly<Record<string, { at: number; held: boolean }>>;
   /** The renderers' last reports from the resolve, null until it answered. */
   reports: LiveReportMap | null;
   /** The rows after each report at the resolve, until a newer report or command; then null. */

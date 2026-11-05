@@ -38,7 +38,7 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
-import { airedAfter, endsHold, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { airedAfter, holdAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
 import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
 import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
@@ -250,12 +250,13 @@ export function claimAndApply(
   // A marker never touches what was aired, so the commands are remembered together, in order.
   if (program.length > 0) {
     const commandsBy = { ...next.commandsBy };
-    const releasedBy = { ...next.releasedBy };
+    let holdBy = next.holdBy;
     for (const { graphic, msg } of program) {
       commandsBy[graphic] = (commandsBy[graphic] ?? 0) + 1;
-      if (endsHold(msg)) releasedBy[graphic] = (releasedBy[graphic] ?? 0) + 1;
+      const held = holdAfter(msg);
+      if (held !== undefined) holdBy = { ...holdBy, [graphic]: { at: commandsBy[graphic], held } };
     }
-    next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length, commandsBy, releasedBy };
+    next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length, commandsBy, ...(holdBy ? { holdBy } : {}) };
   }
   return programItems(next, program, specs, now);
 }
@@ -267,12 +268,11 @@ export interface AirAtRequest {
   moves: number;
   commands: number;
   commandsBy?: AirPart['commandsBy'];
-  releasedBy?: AirPart['releasedBy'];
   carried?: AirPart['carried'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, commandsBy: air.commandsBy, releasedBy: air.releasedBy, carried: air.carried };
+  return { moves: air.moves, commands: air.commands, commandsBy: air.commandsBy, carried: air.carried };
 }
 
 /** Whether a command on this graphic was applied here since the request: its rows and report are
@@ -281,9 +281,13 @@ function commandedSince(air: AirPart, at: AirAtRequest, graphic: string): boolea
   return (air.commandsBy?.[graphic] ?? 0) !== (at.commandsBy?.[graphic] ?? 0);
 }
 
-/** Whether a command applied here since the request would end the output's hold on this graphic. */
-function releasedSince(air: AirPart, at: AirAtRequest, graphic: string): boolean {
-  return (air.releasedBy?.[graphic] ?? 0) !== (at.releasedBy?.[graphic] ?? 0);
+/** Whether the output no longer holds a graphic its report left held: the last command here since
+ *  the request that decides it, else the rows after the report, through the output's gate. */
+function releasedSince(air: AirPart, at: AirAtRequest, graphic: string, rows: readonly ReplayItem[]): boolean {
+  const decided = air.holdBy?.[graphic];
+  if (decided && decided.at > (at.commandsBy?.[graphic] ?? 0)) return !decided.held;
+  const verdicts = rows.filter((item) => item.graphic === graphic).map((item) => holdAfter(item.msg)).filter((held) => held !== undefined);
+  return verdicts[verdicts.length - 1] === false;
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -346,7 +350,9 @@ export function seedFromResolve(
   const liveCue: LiveCueMap = { ...answered, ...Object.fromEntries([...taken].map((graphic) => [graphic, air.liveCue[graphic]])) };
   // The reports and rows this page holds nothing newer than.
   const current = (graphic: string) => !taken.has(graphic) && !commandedSince(air, at, graphic);
-  const released = (graphic: string) => taken.has(graphic) || releasedSince(air, at, graphic);
+  // A graphic replayed from its report replays its hold too (`restoreItems`); one moved meanwhile is
+  // rebuilt from what it aired once its hold, if any, is over.
+  const released = (graphic: string) => taken.has(graphic) || (!current(graphic) && releasedSince(air, at, graphic, sinceReports));
   const reports = Object.entries(resolved.live).filter(([graphic]) => current(graphic));
   const replay = sinceReports.filter((item) => current(item.graphic));
   const seed: AiredMap = {};
@@ -432,10 +438,10 @@ export function seedFromResolve(
     speaking,
     typedAired,
     typedSteps,
-    // A graphic this page took meanwhile, or sent an update the output airs, is rebuilt from what it
-    // aired, never from its older report (an unreadable envelope's would hold it off PROGRAM after the
-    // command that released it). Any other command leaves a held graphic held, so its report stays.
-    reports: !air.reports || Object.keys(air.reports).every((graphic) => !released(graphic)) ? air.reports : Object.fromEntries(Object.entries(air.reports).filter(([graphic]) => !released(graphic))),
+    // A graphic this page took meanwhile, or whose hold ended, is rebuilt from what it aired, never
+    // from its older report (an unreadable envelope's would hold it off PROGRAM after the command that
+    // released it). A step, an event or a play leaves a held graphic held, so its report stays.
+    reports: air.reports && Object.keys(air.reports).some(released) ? Object.fromEntries(Object.entries(air.reports).filter(([graphic]) => !released(graphic))) : air.reports,
     bootReplay: replay,
     bootLive: answered,
   };

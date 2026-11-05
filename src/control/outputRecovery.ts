@@ -241,12 +241,14 @@ export function rowsPastHold<R extends { msg: ControlSendItem['msg'] }>(rows: re
   return rows.filter((row) => typedOutputGate(state, 'g', row.msg).apply);
 }
 
-/** Whether a command ends the output's hold on the graphic it holds, through the same gate: an
- *  update it can air. A step, an event, a play or another unreadable envelope leaves it held. */
-export function endsHold(msg: ControlSendItem['msg']): boolean {
-  const state = heldGate();
-  typedOutputGate(state, 'g', msg);
-  return !state.held.has('g');
+/** What one command leaves of the output's hold on a graphic, through the same gate: true held,
+ *  false released, undefined as it was (a step, an event, a play, a stop). */
+export function holdAfter(msg: ControlSendItem['msg']): boolean | undefined {
+  const held = heldGate();
+  const free: TypedOutputState = { held: new Map(), airing: new Set() };
+  typedOutputGate(held, 'g', msg);
+  typedOutputGate(free, 'g', msg);
+  return held.held.has('g') === free.held.has('g') ? held.held.has('g') : undefined;
 }
 
 function heldGate(): TypedOutputState {
