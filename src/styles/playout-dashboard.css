@@ -2535,6 +2535,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
     margin-top: 10px;
   }
   .pd-verb { flex: 1 1 0; justify-content: center; min-height: 52px; padding: 0 10px; }
+  /* The « Back and » Next pair takes one verb's share, as the other verbs do. */
+  .pd-verb-step { flex: 1 1 0; }
   .pd-verb kbd { display: none; }
   .pd-verb-take { flex: 1.6 1 0; }
   .pd-verbs .pd-verb-update { display: none; }

@@ -476,16 +476,16 @@ export function arrangeControls(
   return { pinned, sections, more };
 }
 
-/** One group's states, for the recovery snap picker: every state is enterable by SNAP by
- *  design (recovery, emergency jumps), so the list is the whole group, worn with the state
- *  NAMES the author gave them. Empty without an explicit machine — same gate as the buttons:
- *  on a plain linear template the picker would only duplicate ▶/»/■. */
+/** One group's states, as the Bridge's API publishes them (bridge/bridgeApi.ts): every state is
+ *  enterable by SNAP by design, so the list is the whole group, worn with the state NAMES the
+ *  author gave them. Empty without an explicit machine. The dashboards no longer offer a list
+ *  to snap from: « Back and ⟲ Reset are their snaps (#2181, `backTarget`, `resetTarget`). */
 export interface MachineStateGroup {
   id: string;
   states: { id: string; name: string }[];
 }
 
-/** The machine's groups and states, for surfaces that offer a snap-to-state control. */
+/** The machine's groups and states. */
 export function machineStateGroups(js: string): MachineStateGroup[] {
   const machine = parseAnimData(js)?.machine;
   if (!machine) return [];
@@ -799,7 +799,8 @@ export function backTarget(
 ): Record<string, string> | null {
   const main = machineOf(js)?.groups[0];
   const cur = main && state?.groups?.[main.id];
-  if (!main || cur === undefined || cur === main.initial) return null;
+  // Off air, or on the exit: Take is how a graphic comes back, never Back.
+  if (!main || cur === undefined || cur === main.initial || cur === main.defaultPath?.[main.defaultPath.length - 1]) return null;
   const route = canonicalPath(main, true, cur);
   return route && route.length >= 2 ? { [main.id]: route[route.length - 2] } : null;
 }

@@ -56,6 +56,7 @@ test('Back is the step before: the previous waypoint, or the step a branch was e
   assert.deepEqual(backTarget(board, at('highlighted')), { main: 'enter' });
   assert.equal(backTarget(board, at('enter')), null, 'the first step has nothing before it');
   assert.equal(backTarget(board, at('off')), null, 'off air, Take is how a graphic enters');
+  assert.equal(backTarget(board, at('out')), null, 'on its exit, Back never puts it back on air');
   assert.equal(backTarget(board, null), null, 'nothing reported yet');
 });
 

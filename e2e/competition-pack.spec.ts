@@ -434,6 +434,10 @@ test('the boards spotlight a row from data, and a decided table survives a repla
     win.update(JSON.stringify({ f4: '3' }));
     await settle();
     out.updatedLit = { row: lit() };
+    // A number past the end of the table lights its last row rather than nothing.
+    win.update(JSON.stringify({ f4: '9' }));
+    await settle();
+    out.clampedLit = { row: lit() };
     win.noacgSnap({ main: 'final' });
     await settle();
     out.snappedFinal = { cls: doc.querySelector('.results-board').classList.contains('results-board-final'), row: lit() };
@@ -453,6 +457,7 @@ test('the boards spotlight a row from data, and a decided table survives a repla
   expect(String((run.snappedBack as Record<string, unknown>).cls)).not.toContain('results-board-final');
   expect(run.snappedLit).toMatchObject({ row: '4' });
   expect(run.updatedLit).toMatchObject({ row: '3' });
+  expect(run.clampedLit).toMatchObject({ row: '5' });
   expect(run.snappedFinal).toMatchObject({ cls: true, row: null });
   expect((run.afterReplay as Record<string, unknown>).row).toBe(null);
   expect(String((run.afterReplay as Record<string, unknown>).cls)).not.toContain('results-board-final');

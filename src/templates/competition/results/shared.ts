@@ -244,18 +244,13 @@ function compRebuild() {
   if (lit) lit.classList.add('${P}-row-on');
 }
 
-// rowAt(fieldId): the row a 1-based number field points at, or null when it names none.
-function rowAt(fieldId) {
-  var host = document.getElementById('${P}-rows');
-  var at = parseInt((document.getElementById(fieldId) || { textContent: '' }).textContent, 10);
-  if (!host || isNaN(at) || at < 1) return null;
-  return host.querySelector('[data-row="' + at + '"]');
-}
-
-// highlightedRow(): the row the highlight field names, or the first row when it names none, so
-// Highlight row never presses into nothing.
+// highlightedRow(): the row the highlight field names, held to the table - the first row below
+// it, the last above it - so Highlight row never presses into nothing.
 function highlightedRow() {
-  return rowAt('f4') || document.querySelector('.${P}-row[data-row="1"]');
+  var rows = document.querySelectorAll('.${P}-row');
+  if (rows.length === 0) return null;
+  var at = parseInt((document.getElementById('f4') || { textContent: '' }).textContent, 10);
+  return rows[Math.min(Math.max(isNaN(at) ? 1 : at, 1), rows.length) - 1];
 }
 
 // clearHighlight(): every row back at one level.
