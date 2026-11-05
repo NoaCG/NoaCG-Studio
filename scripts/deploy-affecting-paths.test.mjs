@@ -135,6 +135,17 @@ test('every script the buildCommand runs is named in the allow list', () => {
   }
 });
 
+test('every script vite.config.ts imports is named in the allow list', () => {
+  // The Vercel build loads vite.config.ts, and with it every script it imports: a page generator,
+  // the catalog index, the Skew Protection pinning. Changing one changes what is deployed.
+  const config = readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8');
+  const imported = [...config.matchAll(/from '\.\/(scripts\/[\w-]+\.mjs)'/g)].map((m) => m[1]);
+  assert.ok(imported.includes('scripts/skewProtectionPlugin.mjs'), 'expected vite.config.ts to import its plugins');
+  for (const script of imported) {
+    assert.equal(DEPLOY_AFFECTING_SCRIPTS.has(script), true, `${script} is loaded by the Vercel build but is missing from DEPLOY_AFFECTING_SCRIPTS`);
+  }
+});
+
 test('anything unrecognised builds - the list is a deny list', () => {
   assert.equal(affectsDeployment('some-new-top-level-dir/thing.ts'), true);
   assert.equal(affectsDeployment('player-host/index.html'), true);

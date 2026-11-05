@@ -52,7 +52,7 @@ export const NEVER_DEPLOYED_FILES = ['LICENSE'];
 
 /**
  * `scripts/` is denied wholesale EXCEPT these, which vercel.json's buildCommand actually runs (or
- * is imported by one that does). Keep this in step with the `build:vercel` line in package.json:
+ * is imported by one that does, vite.config.ts included). Keep this in step with the `build:vercel` line in package.json:
  * a check added there and not named here would stop triggering the build that runs it.
  */
 export const DEPLOY_AFFECTING_SCRIPTS = new Set([
@@ -64,6 +64,21 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
   'scripts/check-vercel-config.mjs',
   'scripts/prerender.mjs',
   'scripts/write-version.mjs',
+  // Loaded by vite.config.ts, which the build runs: page generators, the catalog index, the Skew
+  // Protection pinning, and the dev plugins that load with them (deploy-affecting-paths.test.mjs).
+  'scripts/agent-prompt.mjs',
+  'scripts/aiDevPlugin.mjs',
+  'scripts/catalogIndexPlugin.mjs',
+  'scripts/dataDevPlugin.mjs',
+  'scripts/dev-port.mjs',
+  'scripts/eventsDevPlugin.mjs',
+  'scripts/meDevPlugin.mjs',
+  'scripts/panelBackendPlugin.mjs',
+  'scripts/renderDevPlugin.mjs',
+  'scripts/roadmap.mjs',
+  'scripts/site-nav.mjs',
+  'scripts/skewProtectionPlugin.mjs',
+  'scripts/whats-new.mjs',
 ]);
 
 /**
