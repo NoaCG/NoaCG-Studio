@@ -88,13 +88,24 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap } from '../control/outputRecovery';
+import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from '../control/outputRecovery';
+import { programItems, type ClockSpecs } from '../control/airState';
+import { NO_AIR, type AirPart } from '../control/playoutSession';
 import { IDENTITY, lookAfter, reportedLook, type AppliedAppearance, type AppliedLooks } from '../control/cueAdjust';
 import { styleContextFor } from '../control/cueStyle';
 import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
 import HostedCueAdjust from './control/HostedCueAdjust';
 import { isBackendConfigured } from '../backend/config';
-import { fastEventGraphics as clockFreeGraphics, needsServerInstant, reportAsCueHolds, serverInstantClocks } from '../control/matchClockWire';
+import {
+  clockSpecFromHtml,
+  fastEventGraphics as clockFreeGraphics,
+  needsServerInstant,
+  reportAsCueHolds,
+  serverInstantClocks,
+  speakingClocksFromHtml,
+  type ClockSpec,
+  type SpeakingClockPair,
+} from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -287,6 +298,22 @@ export default function HostedControlPage({ slug }: { slug: string }) {
 
   const previewRef = useRef<PayloadStageHandle>(null);
   const programRef = useRef<PayloadStageHandle>(null);
+  const liveCueRef = useRef(liveCue);
+  liveCueRef.current = liveCue;
+  /**
+   * THE PROGRAM MONITOR'S CLOCKS, as the production page's monitor keeps them (#2176): each clock
+   * as this stage was last sent it, and the clocks the published graphics carry. Every command
+   * reaches the stage through the same fold (control/airState.ts `programItems`), so it is sent
+   * what it holds, as air is, and never the cue's plain resend. Handed raw, a stage rebuilt from a
+   * report held a debate's banked time, and the next Update's plain 05:00 read there as a correction.
+   */
+  const programAir = useRef<AirPart>(NO_AIR);
+  const programClocks = useRef<ClockSpecs>({ clocks: new Map(), pairs: new Map() });
+  const toProgram = useCallback((items: ReplayItem[]) => {
+    const run = programItems({ ...programAir.current, liveCue: liveCueRef.current }, items, programClocks.current, Date.now());
+    programAir.current = run.air;
+    programRef.current?.apply(run.out);
+  }, []);
 
   /**
    * THE LOG ROWS THE PROGRAM MONITOR REPLAYS OVER THE RENDERER'S REPORT when it recovers
@@ -332,7 +359,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
         // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
         // actually reached air rather than only what its own buttons sent.
-        programRef.current?.apply([{ graphic: item.graphic, msg }]);
+        toProgram([{ graphic: item.graphic, msg }]);
         // The monitor has moved past the boot snapshot, so a later rebuild recovers from what
         // this page has seen since, not from the boot's replay.
         bootReplay.current = null;
@@ -341,7 +368,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         looksRef.current = lookAfter(looksRef.current, item.graphic, msg);
       }
     }
-  }, []);
+  }, [toProgram]);
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
@@ -380,6 +407,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         if (!live) return;
         bootReplay.current = replay;
       }
+      programClocks.current = clockSpecsOf(resolved?.output?.graphics ?? []);
       setShow(resolved);
       if (!resolved) return;
       sharedStaged.current = { ...resolved.staged };
@@ -652,8 +680,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // screen came up blank, reporting "Off" a second after the reload.
   //
   // Read through refs: a stage can come up long after the render that passed this callback.
-  const liveCueRef = useRef(liveCue);
-  liveCueRef.current = liveCue;
   const machineStateRef = useRef(machineState);
   machineStateRef.current = machineState;
   /** Sends the cue editor's typing still inside its debounce (`sendVerb` says why). */
@@ -662,6 +688,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   reportsRef.current = resolved?.live ?? {};
   const restoreProgram = useCallback(() => {
     const replay = bootReplay.current;
+    // A fresh stage has been sent nothing yet, so its clocks start from what is replayed into it.
+    programAir.current = NO_AIR;
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
       // At boot the snapshot is the REPORT, which the rows below were read against; later it is
@@ -679,7 +707,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         // Its place and size still go back first, as the output puts them back on the graphic it holds.
         const held = reportedLook(reportsRef.current[graphic]);
         const past = [...(held ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: held } }] : []), ...rowsPastHold(rows)];
-        if (past.length > 0) programRef.current?.apply(past);
+        if (past.length > 0) toProgram(past);
         continue;
       }
       const dataItem = typed
@@ -688,7 +716,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const steps = typed && typedBase ? typedBase.steps.map((msg) => ({ graphic, msg })) : [];
       // Its place and size first (rule 4): the report's at boot, else what this page has seen since.
       const look = replay ? reportedLook(reportsRef.current[graphic]) : looksRef.current[graphic];
-      programRef.current?.apply([
+      toProgram([
         ...(look ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: look } }] : []),
         ...dataItem,
         ...(groups
@@ -701,7 +729,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         ...rows,
       ]);
     }
-  }, []);
+  }, [toProgram]);
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
@@ -2612,6 +2640,19 @@ function HostedCueEditor({
   ) : (
     editor
   );
+}
+
+/** The clocks the published graphics carry, by the name the wire uses (`programItems`). */
+function clockSpecsOf(graphics: readonly { key: string; html: string }[]): ClockSpecs {
+  const clocks = new Map<string, ClockSpec>();
+  const pairs = new Map<string, SpeakingClockPair>();
+  for (const g of graphics) {
+    const clock = clockSpecFromHtml(g.html);
+    if (clock) clocks.set(g.key, clock);
+    const pair = speakingClocksFromHtml(g.html);
+    if (pair) pairs.set(g.key, pair);
+  }
+  return { clocks, pairs };
 }
 
 /** A report's values as the cue holds them, so the unsent baseline takes a clock's plain time, as the
