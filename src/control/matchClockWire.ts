@@ -438,6 +438,17 @@ function slottedRowEffect(
 // `debateActive` set with the timer stopped — so dropping the stamp there would hand the next
 // `switch` to the wrong side. `speakingSecondsAt` floors at zero instead, and a stamped "00:00"
 // reads 00:00 however long it is left there.
+//
+// A RESEND IS WHAT THE CUE LAST SENT, as on a match clock (#1889, #2161). A cue keeps its plain
+// allowance for both clocks, so once a clock's time has moved on, its time cannot tell a resend from
+// a retype. From the first update a speaking clock's value carries what the cue sent, in the slots
+// the match clock's does (`speakingClockAfterUpdate`), and every verb below keeps them. Its length
+// slot is unread: Reset returns to the allowance field. A value written without them (a report from
+// before this, or a clock no update has reached) still reads, and its first resend can still move it.
+//
+// A TAKE STARTS THE BOARD OVER, unlike a match clock's: its entrance re-arms the floor, so both clocks
+// go back to what the cue sent, nobody speaking. A speaker's time is kept through an Update, not
+// through an Out and a Take, where it has never been kept.
 
 /**
  * A published debate board's two clocks, read off its own markup.
@@ -532,6 +543,31 @@ export function speakingClockAt(raw: string | undefined | null, now: number): st
   return formatSpeakingClock(speakingSecondsAt(raw, now));
 }
 
+/** What the debate engine reads as a time (`debateIsTime`, whitespace ignored). Anything else is a
+ *  half-finished edit, which the board leaves on screen as it came, so it carries nothing the board
+ *  would show. */
+const isSpeakingTime = (raw: string): boolean => /^\d+(:\d+)?$/.test(plainClockValue(raw).replace(/\s+/g, ''));
+
+/**
+ * What a speaking clock's held value becomes when an `update` row writes it: `clockValueAfterUpdate`,
+ * and a plain time starts carrying what the cue sent. A running time the cue corrects comes back marked
+ * for the row's own instant (`speakingClockRowEffect`), as a match clock's does.
+ */
+export function speakingClockAfterUpdate(held: string | undefined, incoming: string): string {
+  if (!isSpeakingTime(incoming)) return incoming;
+  const value = clockValueAfterUpdate(held, incoming);
+  if (durationOf(value) || clockOriginOf(value) !== null) return value;
+  const time = plainClockValue(value);
+  return durationValue(time, null, time, time);
+}
+
+/** One speaking clock's next value, keeping what the value it moves from says the cue last sent. */
+function speakingValue(from: string, time: string, origin: number | null): string {
+  const read = durationOf(from);
+  if (read) return durationValue(time, origin, read.length, read.sent);
+  return origin === null ? time : `${time}@${origin}`;
+}
+
 /** Which side holds the floor, according to the wire alone: the stamped one. `a` settles a tie
  *  the invariant forbids, so the answer never depends on which field was read first. */
 export function runningSpeakingSide(
@@ -578,8 +614,22 @@ export function speakingClockRowEffect(
   // its stamp, and a renderer booting an hour later paints a clock that "ran" while off air.
   if (row.msg.t === 'stop') {
     if (!running) return null;
-    return { values: { [fieldOf(running)]: speakingClockAt(valueOf(running), at) }, when: 'after' };
+    return { values: { [fieldOf(running)]: speakingValue(valueOf(running), speakingClockAt(valueOf(running), at), null) }, when: 'after' };
   }
+  // A time typed while it runs counts from the update row's own instant, which on the fast road is this
+  // renderer's arrival, as a native match clock's correction is. AFTER the row, which has already
+  // handed the board the time to count from. An entrance's are BEFORE it, so the board comes up on them.
+  const carrying = (next: (read: Duration) => string | null, when: 'before' | 'after'): SpeakingClockEffect | null => {
+    const values: Record<string, string> = {};
+    for (const field of [clocks.fieldA, clocks.fieldB]) {
+      const read = durationOf(held?.[field]);
+      const value = read && next(read);
+      if (value) values[field] = value;
+    }
+    return Object.keys(values).length > 0 ? { values, when } : null;
+  };
+  if (row.msg.t === 'update') return carrying((r) => (r.slot === CORRECTED_ORIGIN ? durationValue(r.time, at, r.length, r.sent) : null), 'after');
+  if (row.msg.t === 'play') return carrying((r) => (r.slot || r.time !== r.sent ? durationValue(r.sent, null, r.length, r.sent) : null), 'before');
   if (row.msg.t !== 'event') return null;
 
   switch (row.msg.event) {
@@ -590,8 +640,8 @@ export function speakingClockRowEffect(
       // `runSpeakerA`/`runSpeakerB` reads the element, exactly as a match clock's start is.
       const next: 'a' | 'b' = running === 'a' ? 'b' : 'a';
       const values: Record<string, string> = {};
-      if (running) values[fieldOf(running)] = speakingClockAt(valueOf(running), at);
-      values[fieldOf(next)] = `${speakingClockAt(valueOf(next), at)}@${at}`;
+      if (running) values[fieldOf(running)] = speakingValue(valueOf(running), speakingClockAt(valueOf(running), at), null);
+      values[fieldOf(next)] = speakingValue(valueOf(next), speakingClockAt(valueOf(next), at), at);
       return { values, when: 'before' };
     }
     case 'penalty': {
@@ -603,7 +653,7 @@ export function speakingClockRowEffect(
       const cost = Number.parseInt(held?.[clocks.penaltyField ?? ''] ?? clocks.penaltySeed, 10)
         || SPEAKING_PENALTY_FALLBACK;
       const left = Math.max(0, speakingSecondsAt(valueOf(running), at) - cost);
-      return { values: { [fieldOf(running)]: `${formatSpeakingClock(left)}@${at}` }, when: 'after' };
+      return { values: { [fieldOf(running)]: speakingValue(valueOf(running), formatSpeakingClock(left), at) }, when: 'after' };
     }
     case 'reset': {
       // Both back to the allowance, neither running — and the allowance is the one the chair has
@@ -612,7 +662,7 @@ export function speakingClockRowEffect(
       const full = clockSeconds(held?.[clocks.allowanceField ?? ''] ?? clocks.allowanceSeed)
         || SPEAKING_ALLOWANCE_FALLBACK;
       const value = formatSpeakingClock(full);
-      return { values: { [clocks.fieldA]: value, [clocks.fieldB]: value }, when: 'after' };
+      return { values: { [clocks.fieldA]: speakingValue(valueOf('a'), value, null), [clocks.fieldB]: speakingValue(valueOf('b'), value, null) }, when: 'after' };
     }
     default:
       return null;

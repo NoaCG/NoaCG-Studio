@@ -32,6 +32,7 @@ import {
   clockRowEffect,
   clockValueAfterUpdate,
   plainClockValue,
+  speakingClockAfterUpdate,
   speakingClockRowEffect,
   type ClockSpec,
   type SpeakingClockPair,
@@ -160,7 +161,7 @@ export function programItems(air: AirPart, items: readonly ReplayItem[], specs: 
       for (const field of [pair.fieldA, pair.fieldB]) {
         const value = carried?.[field];
         if (value !== undefined) {
-          held[field] = clockValueAfterUpdate(held[field], value);
+          held[field] = speakingClockAfterUpdate(held[field], value);
           moved = true;
         }
       }

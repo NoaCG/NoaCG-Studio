@@ -435,7 +435,11 @@ The page:
   `speakingClockRowEffect` in `control/matchClockWire.ts`; runtime half: `speakingClockUpdate` in
   `templates/scoreboards/debateFloor.ts`. `e2e/productions.spec.ts` walks a whole debate through
   the log and then reads the snapshot mid-speech, and boots the real board against a stamped
-  value; both are mutation-tested.
+  value; both are mutation-tested, on values no update has reached. From the first update each
+  clock's value also carries what the cue last sent (`speakingClockAfterUpdate`, #2161), so an
+  Update that resends the cue's allowance moves neither clock, and a time retyped to anything else
+  still applies; a Take starts the board over from what the cue sent.
+  `e2e/output-debate-clock.spec.ts` walks that on a real `/output`.
 - **THE STAGE IS SENT WHAT THE RENDERER HOLDS FOR A CLOCK FIELD, not what the row carried.** A cue
   stores a plain time forever, so every Take and ✎ Update re-sends it. The template's own resend
   guard can only compare against the value it last RECEIVED, so once a clock has moved away from

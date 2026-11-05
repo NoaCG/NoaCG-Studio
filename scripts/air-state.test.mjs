@@ -421,6 +421,7 @@ function debateMonitor() {
     update: (minute, values = {}) => row({ t: 'update', data: { ...whole, ...values } }, minute),
     event: (name, minute) => row({ t: 'event', event: name }, minute),
     stop: (minute) => row({ t: 'stop' }, minute),
+    play: (minute) => row({ t: 'play' }, minute),
     held: () => air.speaking.debate,
   };
 }
@@ -467,16 +468,36 @@ test('#2161: on the monitor a retyped time applies: held on a waiting clock, run
   assert.equal(clockOriginOf(m.held().fa), T + 5 * MINUTE);
 });
 
-test('#2161: on the monitor an Out and a Reset keep what the cue last sent, so the next resend moves nothing', () => {
+test('#2161: on the monitor a Take starts the board over from what the cue sent, before its entrance, as on a reloaded page', () => {
   const m = debateMonitor();
   m.update(0);
   m.event('switch', 0);
-  m.stop(1);
-  assert.equal(plainClockValue(m.update(2)[0].msg.data.fa), '04:00', 'a Take after an Out resumes from the banked time');
-  m.update(3, { fl: '06:00' });
-  m.event('reset', 3);
-  assert.equal(plainClockValue(m.held().fa), '06:00', 'Reset is to the allowance on screen');
-  assert.equal(plainClockValue(m.update(4, { fl: '06:00' })[0].msg.data.fa), '06:00', 'and the cue\'s older 05:00 does not undo it');
+  m.event('switch', 1);
+  m.stop(2);
+  m.update(3);
+  const take = m.play(3);
+  assert.deepEqual(take.map((i) => i.msg.t), ['update', 'play']);
+  assert.equal(plainClockValue(take[0].msg.data.fa), '05:00');
+  assert.equal(plainClockValue(take[0].msg.data.fb), '05:00');
+  assert.equal(clockOriginOf(m.held().fa), null);
+  assert.equal(clockOriginOf(m.held().fb), null);
+  // A page reloaded while the board was off air holds nothing, and comes to the same.
+  const fresh = debateMonitor();
+  assert.equal(plainClockValue(fresh.update(3)[0].msg.data.fa), '05:00');
+  assert.equal(fresh.play(3).length, 1, 'with nothing moved, the entrance is only the entrance');
+  // An entrance with no value that moved writes nothing either.
+  m.update(4);
+  assert.equal(m.play(4).length, 1);
+});
+
+test('#2161: on the monitor Reset is to the allowance on screen, and the cue\'s older time does not undo it', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  m.update(1, { fl: '06:00' });
+  m.event('reset', 1);
+  assert.equal(plainClockValue(m.held().fa), '06:00');
+  assert.equal(plainClockValue(m.update(2, { fl: '06:00' })[0].msg.data.fa), '06:00');
 });
 
 test('#2161: on the monitor a half-typed clock goes through as it came, on a clock that has moved too', () => {

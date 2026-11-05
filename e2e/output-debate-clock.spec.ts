@@ -219,30 +219,45 @@ test('an output that reboots mid-debate keeps both clocks through the next Updat
   await expect.poll(() => read(clockB(page)), { timeout: 5_000 }).toBeLessThan(b);
 });
 
-test('a re-Take after an Out resumes the debate from the banked times, and Reset is what returns both to the allowance', async ({ page }) => {
+test('a Take after an Out starts the board over from the cue\'s time, nobody speaking', async ({ page }) => {
   const debate = await openDebate(page);
   await takeTheBoard(page, debate);
   await aThenB(page, debate);
 
+  // The Out holds B: two reads apart, the same time.
   debate.write({ t: 'stop' });
-  await expect(page.locator('body')).toHaveAttribute('data-plays', '1');
-  await page.waitForTimeout(1_500);
-  const banked = await read(clockB(page));
-  expect(banked).toBeLessThanOrEqual(260);
+  let last = Number.NaN;
+  await expect.poll(async () => {
+    const was = last;
+    last = await read(clockB(page));
+    return last === was;
+  }, { timeout: 20_000, intervals: [1_200] }).toBe(true);
 
   debate.write({ t: 'update', data: debate.cue });
   debate.write({ t: 'play' });
   await expect(page.locator('body')).toHaveAttribute('data-plays', '2', { timeout: 20_000 });
-  await expect(clockA(page)).toHaveText('04:00');
-  expect(await read(clockB(page))).toBe(banked);
-
-  debate.write({ t: 'event', event: 'reset' });
-  await expect(clockA(page)).toHaveText('05:00', { timeout: 20_000 });
-  await expect(clockB(page)).toHaveText('05:00');
-  // A resend of the cue moves nothing now either: what it sends is what they read.
-  await updateTheRound(page, debate, 'A NEW ROUND');
   await expect(clockA(page)).toHaveText('05:00');
   await expect(clockB(page)).toHaveText('05:00');
+
+  // Nobody has the floor, so the next Switch opens with A, and B waits at its full time.
+  debate.write({ t: 'event', event: 'switch' });
+  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThan(300);
+  await expect(clockB(page)).toHaveText('05:00');
+});
+
+test('Reset returns both clocks to the allowance on screen, and the cue\'s older time does not undo it', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+
+  await updateTheRound(page, debate, 'SIX EACH', { f7: '06:00' });
+  debate.write({ t: 'event', event: 'reset' });
+  await expect(clockA(page)).toHaveText('06:00', { timeout: 20_000 });
+  await expect(clockB(page)).toHaveText('06:00');
+
+  await updateTheRound(page, debate, 'A NEW ROUND', { f7: '06:00' });
+  await expect(clockA(page)).toHaveText('06:00');
+  await expect(clockB(page)).toHaveText('06:00');
 });
 
 test('the production page\'s own ✎ Update resends the clocks, and PROGRAM keeps them where they stand', async ({ page }) => {
