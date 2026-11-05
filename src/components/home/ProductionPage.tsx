@@ -4000,16 +4000,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 an operator learns that air is behind their screen is if the surface says so. */}
             {hasUnsent && <span className="pd-unsent-dot" aria-hidden="true" />}
           </button>
-          {/* « BACK, beside Next (#2181): one step back, instantly, re-sending the on-air cue's
-              values - the previous waypoint, or the step a branch was entered from. */}
+          {/* « BACK AND » NEXT, one cell of the block (#2181): Back moves one step back, instantly,
+              re-sending the on-air cue's values - the previous waypoint, or the step a branch was
+              entered from. Sharing Next's cell keeps the block its ratified three rows. */}
+          <span className="pd-verb-step">
           <button
-            className="pd-verb"
+            className="pd-verb pd-verb-back"
             disabled={!backTo}
             onClick={() => backTo && void snap(backTo)}
-            title={backTo ? 'Back one step' : undefined}
+            title="Back one step"
+            aria-label="Back"
             data-testid="verb-back"
           >
-            « Back
+            «
           </button>
           <button
             className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
@@ -4036,6 +4039,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               </>
             )}
           </button>
+          </span>
           <button
             className="pd-verb"
             disabled={view.disabled.out}

@@ -1751,14 +1751,17 @@ function HostedVerbs({
       >
         ✎ Update <kbd>U</kbd>
       </button>
+      {/* « Back and » Next share one cell, as on the in-app bar. */}
+      <span className="pd-verb-step">
       <button
-        className="pd-verb"
+        className="pd-verb pd-verb-back"
         disabled={!onBack}
         onClick={() => onBack?.()}
-        title={onBack ? 'Back one step' : undefined}
+        title="Back one step"
+        aria-label="Back"
         data-testid="hosted-back-cue"
       >
-        « Back
+        «
       </button>
       <button
         className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
@@ -1786,6 +1789,7 @@ function HostedVerbs({
           </>
         )}
       </button>
+      </span>
       <button
         className="pd-verb"
         disabled={!layerLive}

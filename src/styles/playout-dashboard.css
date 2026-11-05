@@ -992,6 +992,20 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   line-height: 1.2;
   color: var(--text-dim);
 }
+/* « BACK AND » NEXT SHARE ONE PLACE in the bar (#2181): a step either way, side by side, Back the
+   narrow one. One cell rather than a verb of its own, so the stage head's block keeps its three
+   rows under TAKE (the ratified height, below). */
+.pd-verb-step { display: flex; gap: 4px; min-width: 0; }
+.pd-verb-step > .pd-verb:last-child { flex: 1 1 auto; min-width: 0; padding: 0 8px; }
+.pd-verb.pd-verb-back { flex: 0 0 auto; padding: 0 7px; font-size: 16px; }
+/* In the stage head's narrowest block the pair's cell is about 100px, and Next's key chip is
+   what does not fit beside Back: it goes, so Next's word and its target line keep their room. */
+@media (min-width: 1366px) {
+  .pd-stagehead .pd-verb-step { container-type: inline-size; }
+}
+@container (max-width: 130px) {
+  .pd-verb-step kbd { display: none; }
+}
 /* One key chip for everything in the bar - the buttons and the SPACE-mode checkbox alike. */
 .pd-verbs kbd {
   font-family: var(--mono, monospace);

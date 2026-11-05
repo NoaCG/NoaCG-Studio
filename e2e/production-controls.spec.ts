@@ -1519,7 +1519,8 @@ test.describe('the control area is the one scroller', () => {
     await expect(verbs).toBeVisible();
 
     const boxes = await verbs.evaluate((el) =>
-      [...el.querySelectorAll('.pd-verb')].map((b) => {
+      // The block's CELLS: each verb, and the « Back and » Next pair, which shares one (#2181).
+      [...el.querySelectorAll(':scope > .pd-verb, :scope > .pd-verb-step')].map((b) => {
         const r = b.getBoundingClientRect();
         return {
           take: b.classList.contains('pd-verb-take'),
@@ -1530,7 +1531,7 @@ test.describe('the control area is the one scroller', () => {
         };
       }),
     );
-    // TAKE · Re-take · Update · Next · Out. There is no Preview verb here any more.
+    // TAKE · Re-take · Update · Back and Next · Out. There is no Preview verb here any more.
     expect(boxes.length).toBe(5);
 
     // TWO COLUMNS: the verbs under TAKE sit at exactly two distinct left edges. This is the
