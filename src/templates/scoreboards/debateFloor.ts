@@ -95,6 +95,7 @@ var debateDeadline = 0;          // ms timestamp the running count is anchored t
 var debateLastPaint = { a: '', b: '' };   // what WE last wrote (anything else is the operator)
 var debateExpired = { a: false, b: false };
 var debateDocked = null;         // the side wearing a just-taken penalty, or null
+var debateOffAir = false;        // the board has gone down, and no Take or snap has brought it back
 
 function debateClockEl(side) { return document.getElementById(side === 'a' ? '${idOf('clockA')}' : '${idOf('clockB')}'); }
 
@@ -243,6 +244,7 @@ function debateStart(side) {
   // up on a speech that began minutes ago — that lands the clock at zero. The machine never
   // re-enters speakerA from speakerA, so this can mean nothing else.
   if (debateActive === side && debateTimer) { debatePaintClockColors(); return; }
+  if (debateOffAir) return;
   debateHold();
   debateActive = side;
   var left = debateRemaining(side);
@@ -255,30 +257,44 @@ function debateStart(side) {
 function runSpeakerA() { debateStart('a'); }
 function runSpeakerB() { debateStart('b'); }
 
-// The exit's call: nobody holds the floor once the board is off air.
+// The exit's call: nobody holds the floor once the board is off air, and nobody takes it there. A
+// Switch that reaches a board already down starts nothing; the wire ignores it too.
 function holdClocks() {
   debateHold();
   debateActive = null;
+  debateOffAir = true;
   debatePaintClockColors();
 }
 
-// A TAKE ON AIR DOES NOT TAKE THE FLOOR AWAY. play() rests every machine group at its initial state,
-// which for the floor is armed, but a speaker still counting through a Take has not stopped: this
-// engine and the wire's stamp both say who it is. Left armed, the next Switch would start A whoever
-// the wire handed the floor to, and the two would name different speakers from then on. So the floor
-// group goes straight back to that speaker. debateStart then finds that side already running and
-// changes nothing, so this holds in a boot's recovery too, where play() follows the report's data with
-// no data after it. Off air holdClocks has emptied debateActive, and a first Take finds it empty.
+// RESTING THE MACHINE DOES NOT TAKE THE FLOOR AWAY. play() and a snap rest the floor group at armed,
+// but a speaker still counting through them has not stopped: this engine and the wire's stamp both
+// say who it is. Left armed, the next Switch would start A whoever the wire handed the floor to, and
+// the two would name different speakers from then on. So the floor goes straight back to that
+// speaker. debateStart then finds that side already running and changes nothing, so this holds in a
+// boot's recovery too, where play() follows the report's data with no data after it. A board that
+// has been off air holds nobody, and neither does a first Take.
+function debateFloorState() {
+  if (!debateActive) return null;
+  return debateActive === 'a' ? 'speakerA' : 'speakerB';
+}
+
 var debateMachinePlay = noacgMachinePlay;
 noacgMachinePlay = function () {
+  debateOffAir = false;
   var entrance = debateMachinePlay();
-  if (debateActive) {
-    for (var g = 0; g < noacgMachine.groups.length; g++) {
-      var group = noacgMachine.groups[g];
-      if (group.id === 'floor') noacgFire(group, { to: debateActive === 'a' ? 'speakerA' : 'speakerB' });
-    }
+  var state = debateFloorState();
+  for (var g = 0; state && g < noacgMachine.groups.length; g++) {
+    if (noacgMachine.groups[g].id === 'floor') noacgFire(noacgMachine.groups[g], { to: state });
   }
   return entrance;
+};
+
+var debateMachineSnap = noacgSnap;
+noacgSnap = function (assignments, opts) {
+  debateOffAir = false;
+  var pose = debateMachineSnap(assignments, opts);
+  var state = debateFloorState();
+  return state && pose.groups.floor === 'armed' ? debateMachineSnap({ floor: state }, opts) : pose;
 };
 
 // Both clocks back to the set allowance, nothing running — the reset button's whole job.

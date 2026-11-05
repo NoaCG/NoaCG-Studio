@@ -656,6 +656,9 @@ export function speakingClockRowEffect(
       // number — the whole point of two clocks is that an interrupted speaker keeps the time.
       // BEFORE the event, so the stamp is in the document by the time the machine's
       // `runSpeakerA`/`runSpeakerB` reads the element, exactly as a match clock's start is.
+      // Off air it starts nothing, as the engine starts nothing: a Switch that was still on its way
+      // when the Out went by must not leave a clock running into the next Take.
+      if (durationOf(valueOf('a'))?.slot === OFF_AIR || durationOf(valueOf('b'))?.slot === OFF_AIR) return null;
       const next: 'a' | 'b' = running === 'a' ? 'b' : 'a';
       const values: Record<string, string> = {};
       if (running) values[fieldOf(running)] = speakingValue(valueOf(running), speakingClockAt(valueOf(running), at), null);

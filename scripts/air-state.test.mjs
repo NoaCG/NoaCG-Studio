@@ -523,6 +523,21 @@ test('#2161: on the monitor a Reset off air keeps the off-air mark, so the Take 
   assert.equal(clockOriginOf(m.held().fa), null);
 });
 
+test('#2161: on the monitor a Switch that reaches a board already down starts nothing, so the Take after it starts over', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  m.event('switch', 1);
+  m.stop(2);
+  assert.deepEqual(m.event('switch', 2).map((i) => i.msg.t), ['event'], 'no clock is written');
+  assert.equal(clockOriginOf(m.held().fa), null);
+  assert.equal(clockOriginOf(m.held().fb), null);
+  m.update(3);
+  m.play(3);
+  assert.equal(plainClockValue(m.held().fa), '05:00');
+  assert.equal(plainClockValue(m.held().fb), '05:00');
+});
+
 test('#2161: on the monitor a penalty keeps what the cue sent, so the next resend gives no time back', () => {
   const m = debateMonitor();
   m.update(0);

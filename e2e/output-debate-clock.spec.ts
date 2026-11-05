@@ -238,6 +238,61 @@ test('an output booting with no pose plays the board again: the running clock ke
   await reportNames(debate, 'f6', 'speakerB');
 });
 
+test('a Snap to rest with A speaking: the next Switch hands over to B on the wire and on the screen', async ({ page }) => {
+  // What the production page sends for a Snap: the pose, then the cue's values (graphicVerbs.ts).
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+  debate.write({ t: 'event', event: 'switch' }, 10_000);
+  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThanOrEqual(230);
+
+  debate.write({ t: 'snap', snap: null });
+  debate.write({ t: 'update', data: { ...debate.cue, f0: 'SNAPPED' } });
+  await expect(round(page)).toHaveText('SNAPPED', { timeout: 20_000 });
+  await reportNames(debate, 'f5', 'speakerA');
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockA(page), clockB(page), 270);
+  await reportNames(debate, 'f6', 'speakerB');
+});
+
+test('an output booting from a report that rests the floor with a clock stamped comes back with that speaker', async ({ page }) => {
+  // The pose road of a boot: data, snap, data. Such a report comes from an older board.
+  const debate = await openDebate(page);
+  debate.onAirWith({
+    data: { ...debate.cue, f5: `04:00@${Date.now() - 20_000}/05:00/05:00`, f6: '04:30@/05:00/05:00' },
+    state: { groups: { floor: 'armed' } },
+    seq: 0,
+  });
+  await page.goto('/output?production=debate-probe');
+  await expect.poll(() => read(clockA(page)), { timeout: 30_000 }).toBeLessThanOrEqual(220);
+  await expect(clockB(page)).toHaveText('04:30');
+  await expect.poll(() => railsFavour(page), { timeout: 10_000 }).toBe('a');
+
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockA(page), clockB(page), 270);
+  await reportNames(debate, 'f6', 'speakerB');
+});
+
+test('a Switch that reaches a board already down starts nothing, and the Take after it starts over', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+
+  debate.write({ t: 'stop' });
+  debate.write({ t: 'event', event: 'switch' });
+  await page.waitForTimeout(1_500);
+  await takeOnAir(page, debate, '2');
+  await expect(clockA(page)).toHaveText('05:00');
+  await expect(clockB(page)).toHaveText('05:00');
+  await page.waitForTimeout(1_500);
+  await expect(clockA(page), 'nothing is counting').toHaveText('05:00');
+  await expect(clockB(page)).toHaveText('05:00');
+
+  debate.write({ t: 'event', event: 'switch' });
+  await floorPassed(page, clockB(page), clockA(page), 300);
+  await reportNames(debate, 'f5', 'speakerA');
+});
+
 test('the production page\'s own Re-take: the next Switch hands over on PROGRAM too', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Debate Floor' });
   await openProductionWithCurrent(page, 'Debate Retake');
