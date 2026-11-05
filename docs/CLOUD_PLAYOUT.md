@@ -438,9 +438,9 @@ The page:
   value; both are mutation-tested, and that walk folds the plain shape a report from before #2161
   holds. From the first update each clock's value now also carries what the cue last sent
   (`speakingClockAfterUpdate`), so an Update that resends the cue's allowance moves neither clock,
-  and a time retyped to anything else still applies; a Take puts a held clock back to what the cue
-  sent, and one still running keeps counting. `e2e/output-debate-clock.spec.ts` walks that on a real
-  `/output`.
+  and a time retyped to anything else still applies. A Take on air is a resend too; after an Out
+  both clocks are marked off air and come back up on what the cue sends.
+  `e2e/output-debate-clock.spec.ts` walks that on a real `/output`.
 - **THE STAGE IS SENT WHAT THE RENDERER HOLDS FOR A CLOCK FIELD, not what the row carried.** A cue
   stores a plain time forever, so every Take and ✎ Update re-sends it. The template's own resend
   guard can only compare against the value it last RECEIVED, so once a clock has moved away from

@@ -490,17 +490,27 @@ test('#2161: on the monitor a Take starts the board over from what the cue sent,
   assert.equal(m.play(4).length, 1);
 });
 
-test('#2161: on the monitor a Take on air puts the waiting clock back and leaves the running one counting', () => {
+test('#2161: on the monitor a Take on air is a resend: neither clock moves', () => {
   const m = debateMonitor();
   m.update(0);
   m.event('switch', 0);
   m.event('switch', 1);
-  m.update(2);
-  const take = m.play(2);
-  assert.deepEqual(take.map((i) => i.msg.t), ['update', 'play']);
-  assert.deepEqual(Object.keys(take[0].msg.data), ['fa'], 'the running clock is not written');
-  assert.equal(plainClockValue(take[0].msg.data.fa), '05:00');
+  assert.equal(plainClockValue(m.update(2)[0].msg.data.fa), '04:00');
+  assert.equal(m.play(2).length, 1, 'the entrance is only the entrance');
+  assert.equal(plainClockValue(m.held().fa), '04:00');
   assert.equal(clockOriginOf(m.held().fb), T + MINUTE, 'B still says when it started');
+});
+
+test('#2161: on the monitor a Take after an Out is on air again: the next resend moves nothing', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  m.stop(1);
+  m.update(2);
+  m.play(2);
+  m.event('switch', 2);
+  m.event('switch', 3);
+  assert.equal(plainClockValue(m.update(4)[0].msg.data.fa), '04:00', 'off air is over: this is a resend, not a new time');
 });
 
 test('#2161: on the monitor a penalty keeps what the cue sent, so the next resend gives no time back', () => {

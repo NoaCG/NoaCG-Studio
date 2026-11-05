@@ -245,7 +245,7 @@ test('a Take after an Out starts the board over from the cue\'s time, nobody spe
   await expect(clockB(page)).toHaveText('05:00');
 });
 
-test('a Take on air puts the waiting clock back to the cue\'s time, the running one keeps counting, and the report says what is on screen', async ({ page }) => {
+test('a Take on air is a resend: neither clock moves, and the report says what is on screen', async ({ page }) => {
   const debate = await openDebate(page);
   await takeTheBoard(page, debate);
   await aThenB(page, debate);
@@ -254,15 +254,26 @@ test('a Take on air puts the waiting clock back to the cue\'s time, the running 
   debate.write({ t: 'update', data: { ...debate.cue, f0: 'TAKEN AGAIN' } });
   debate.write({ t: 'play' });
   await expect(page.locator('body')).toHaveAttribute('data-plays', '2', { timeout: 20_000 });
-  await expect(clockA(page)).toHaveText('05:00');
+  await expect(clockA(page)).toHaveText('04:00');
   const b = await read(clockB(page));
   expect(b).toBeLessThanOrEqual(before);
   await expect.poll(() => read(clockB(page)), { timeout: 5_000 }).toBeLessThan(b);
 
-  // A's value is held at the cue's time, B's still says when it started: a reboot paints this.
+  // A's value is held where it banked, B's still says when it started: a reboot paints this.
   await expect.poll(() => debate.report()?.data.f0 ?? null, { timeout: 20_000 }).toBe('TAKEN AGAIN');
-  expect(debate.report()!.data.f5).toMatch(/^05:00@\//);
+  expect(debate.report()!.data.f5).toMatch(/^04:00@\//);
   expect(debate.report()!.data.f6).toMatch(/^05:00@[1-9]/);
+});
+
+test('a page opened on air reads a debate clock\'s report as the cue holds it', async ({ page }) => {
+  const debate = await openDebate(page);
+  const asCue = await page.evaluate(async () => {
+    const { reportAsCueHolds } = await import('/src/control/matchClockWire.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return reportAsCueHolds(variantById('dc01')!.create({}).html, { f0: 'ROUND', f5: '05:00@/05:00/05:00', f6: '05:00@1755600000000/05:00/05:00' });
+  });
+  expect(asCue).toEqual({ f0: 'ROUND', f5: '05:00', f6: '05:00' });
+  expect(debate.cue.f5).toBe('05:00');
 });
 
 test('a penalty docks the running clock and keeps it running, and the next Update does not give the time back', async ({ page }) => {

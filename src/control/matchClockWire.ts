@@ -446,9 +446,9 @@ function slottedRowEffect(
 // slot is unread: Reset returns to the allowance field. A value written without them (a report from
 // before this, or a clock no update has reached) still reads, and its first resend can still move it.
 //
-// A TAKE PUTS A HELD CLOCK BACK TO WHAT THE CUE SENT, unlike a match clock's: after an Out the board
-// starts over, as it always has, whichever speaker had banked what. A clock still running through a
-// Take on air keeps counting, because the engine does and the value must say what is on screen.
+// AN OUT ENDS THE DEBATE, unlike a match clock's: the board comes back up on what the cue sends, as it
+// always has, because both clocks are marked off air as an imported duration's is and the Take's
+// resend is then a new time. A Take ON air is only a resend: neither clock moves.
 
 /**
  * A published debate board's two clocks, read off its own markup.
@@ -568,6 +568,19 @@ function speakingValue(from: string, time: string, origin: number | null): strin
   return origin === null ? time : `${time}@${origin}`;
 }
 
+/** A renderer's report as the cue holds it: a clock's report is its wire value (its origin, length
+ *  and what the cue last sent), the cue the plain time it was typed with. What a page opened on air
+ *  judges its unsent changes against. */
+export function reportAsCueHolds(html: string, data: Record<string, string>): Record<string, string> {
+  const clock = clockSpecFromHtml(html);
+  const pair = speakingClocksFromHtml(html);
+  const plain = { ...data };
+  for (const field of [clock?.field, pair?.fieldA, pair?.fieldB]) {
+    if (field && data[field] !== undefined) plain[field] = plainClockValue(data[field]);
+  }
+  return plain;
+}
+
 /** Which side holds the floor, according to the wire alone: the stamped one. `a` settles a tie
  *  the invariant forbids, so the answer never depends on which field was read first. */
 export function runningSpeakingSide(
@@ -612,24 +625,28 @@ export function speakingClockRowEffect(
   // Off air nobody holds the floor: the engine's `holdClocks` freezes the running clock where it
   // stands, so the wire banks the same number. Without this a board taken down mid-speech keeps
   // its stamp, and a renderer booting an hour later paints a clock that "ran" while off air.
-  if (row.msg.t === 'stop') {
-    if (!running) return null;
-    return { values: { [fieldOf(running)]: speakingValue(valueOf(running), speakingClockAt(valueOf(running), at), null) }, when: 'after' };
-  }
-  // A time typed while it runs counts from the update row's own instant, which on the fast road is this
-  // renderer's arrival, as a native match clock's correction is. AFTER the row, which has already
-  // handed the board the time to count from. An entrance's are BEFORE it, so the board comes up on them.
-  const carrying = (next: (read: Duration) => string | null, when: 'before' | 'after'): SpeakingClockEffect | null => {
+  const carrying = (next: (read: Duration, raw: string) => string | null, when: 'before' | 'after'): SpeakingClockEffect | null => {
     const values: Record<string, string> = {};
     for (const field of [clocks.fieldA, clocks.fieldB]) {
-      const read = durationOf(held?.[field]);
-      const value = read && next(read);
+      const raw = held?.[field];
+      const read = durationOf(raw);
+      const value = read && next(read, raw!);
       if (value) values[field] = value;
     }
     return Object.keys(values).length > 0 ? { values, when } : null;
   };
+  if (row.msg.t === 'stop') {
+    // Both are marked off air, so the next Take's resend is the time they come up on.
+    const marked = carrying((r, raw) => (r.slot === OFF_AIR ? null : durationValue(speakingClockAt(raw, at), OFF_AIR, r.length, r.sent)), 'after');
+    if (!running || durationOf(valueOf(running))) return marked;
+    return { values: { ...marked?.values, [fieldOf(running)]: speakingClockAt(valueOf(running), at) }, when: 'after' };
+  }
+  // A time typed while it runs counts from the update row's own instant, which on the fast road is this
+  // renderer's arrival, as a native match clock's correction is. AFTER the row, which has already
+  // handed the board the time to count from.
   if (row.msg.t === 'update') return carrying((r) => (r.slot === CORRECTED_ORIGIN ? durationValue(r.time, at, r.length, r.sent) : null), 'after');
-  if (row.msg.t === 'play') return carrying((r) => (r.slot || r.time === r.sent ? null : durationValue(r.sent, null, r.length, r.sent)), 'before');
+  // The entrance ends the off-air mark. BEFORE it, so the board comes up on the value it keeps.
+  if (row.msg.t === 'play') return carrying((r) => (r.slot === OFF_AIR ? durationValue(r.time, null, r.length, r.sent) : null), 'before');
   if (row.msg.t !== 'event') return null;
 
   switch (row.msg.event) {
