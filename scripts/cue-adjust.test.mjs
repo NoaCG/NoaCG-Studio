@@ -279,15 +279,17 @@ test('a re-resolve takes each report as the renderer\'s word: a report with no a
 
 test('a command applied while the read was out keeps what this page believes is applied', () => {
   const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
-  const seeded = seedFromResolve(
-    { ...NO_AIR, looks: { L3: look }, commands: 1 },
+  const seed = (commandsBy) => seedFromResolve(
+    { ...NO_AIR, looks: { L3: look }, commands: 1, commandsBy },
     { liveCue: { L3: 'c1' }, live: { L3: { data: {}, state: {}, event: 5 } } },
     [],
     { moves: 0, commands: 0 },
     [{ id: 'c1', values: {} }],
     { clocks: new Map(), pairs: new Map() },
   );
-  assert.deepEqual(seeded.looks.L3, look, 'the older report does not clear it');
+  assert.deepEqual(seed({ L3: 1 }).looks.L3, look, 'the older report does not clear it');
+  // A command on another graphic (#2162) leaves this one's report its word.
+  assert.equal(seed({ BUG: 1 }).looks.L3, undefined, 'the report, with no appearance, clears it');
 });
 
 describe('measurements: identified and qualified', () => {
