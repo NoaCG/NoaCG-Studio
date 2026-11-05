@@ -1567,6 +1567,7 @@ ${held('', `
 function creditsOffAir() {
   var out = typeof noacgOutTimeline !== 'undefined' ? noacgOutTimeline : null;
   if (out) {
+    // The shared runtime sets neither callback on its exit; these would replace one it set.
     out.eventCallback('onComplete', creditsLetGo);
     out.eventCallback('onInterrupt', creditsLetGo);
   } else if (!creditsLive()) creditsLetGo();

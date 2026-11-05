@@ -1051,7 +1051,7 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  ends or is cut short (creditsLetGo), lets it go after a snap (noacgCreditsRested), and measures
  *  the take at rest (creditsAtRest); html and css unchanged; the test "#2108, #2104, #2098" below
  *  asserts it. */
-const ROLE_ABOVE_PINS = { one: 'c57d77f2bd935f79', bold: '2702080237a17c88', grouped: 'cf6612e72f16b612', roleGroup: 'a83211c4f4e060c1', idGroup: 'd30f18b315e28e11' };
+const ROLE_ABOVE_PINS = { one: '76177f7526784335', bold: '379a6fc86f3fea82', grouped: '084c7aac84cf1227', roleGroup: '2f367754e44f9543', idGroup: 'aab5ff625e74d805' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1063,7 +1063,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  second measure when the face lands (creditsSettle) on purpose; the test below says so. The
  *  styled one is as main built it before #1965; the editable one gained exactly creditsSettle.
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above. */
-const FACED_PINS = { styled: 'e2114f47ab44484c', editable: 'e6da7b0f09995ca5' };
+const FACED_PINS = { styled: '28c6679d1d9e0a95', editable: 'e6da7b0f09995ca5' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {

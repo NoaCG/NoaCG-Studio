@@ -643,6 +643,25 @@ for (const playback of ['roll', 'cards'] as const) {
     // Taken again: the snap left nothing behind, so the take airs the newest list.
     await call(page, null, 'play');
     await expect.poll(async () => (await state()).held).toBe(THIRD);
+    // A SNAP ONTO AIR (an output's reload recovery, OGraf's skip-animation) is no snap to off: the
+    // pose's own take runs, and the roll moves or the cards turn as after a Take.
+    const TWO = 'Research:\nNia Vale\n\nSound:\nAri Moss';
+    const onAir = await page.evaluate(() => (window as unknown as { noacgMachineState(): { groups: Record<string, string> } }).noacgMachineState().groups);
+    await page.evaluate(({ groups, field, two }) => {
+      const w = window as unknown as { noacgSnap(a: unknown): void; update(d: Record<string, string>): void };
+      w.noacgSnap(null);
+      w.update({ [field]: two });
+      w.noacgSnap(groups);
+    }, { groups: onAir, field, two: TWO });
+    expect(await state(), 'snapped onto air: the take holds its list and runs').toMatchObject({ held: TWO, waiting: false, ...(playback === 'cards' ? { card: 0 } : { tween: true }) });
+    if (playback === 'roll') {
+      const at = () => page.evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
+      const from = await at();
+      await expect.poll(at, 'the roll moves').toBeGreaterThan(from);
+    } else {
+      await page.evaluate(() => (window as unknown as { noacgCreditsNext(): void }).noacgCreditsNext());
+      await expect.poll(async () => (await state()).card, 'Next moves a card').toBe(1);
+    }
   });
 }
 
