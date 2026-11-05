@@ -160,6 +160,19 @@ export const CENTRAL = [
   // results (benchmarks/agent/): read by `claude plugin` and by scripts/agent-round-bench.mjs,
   // never by a spec.
   [/^(\.claude-plugin\/|benchmarks\/agent\/)/, []],
+  // #1862 (cicd-followup cf14): each escalated as unmapped, so it ran the shared-change set and the
+  // catalog gate for a change neither can observe. The catalog reach is asked before this list, so
+  // nothing it reaches is routed around the gate. e2e/fixtures/jev-svg/ is not here: five of its
+  // files are read by the jev-svg scripts alone, and every fixture must plan a spec (ci05).
+  // The Companion module is its own package: `yarn test` in release-companion.yml tests it, and no
+  // spec or app module imports it (e2e/downloads.spec.ts mocks its GitHub Release).
+  [/^companion-module\//, []],
+  // The harness bench's cells and briefs: read by scripts/harness-bench.mjs and its helpers.
+  [/^benchmarks\/harness\//, []],
+  // Suites with their own Playwright configs and workflows (endurance.yml, hosted-latency.yml):
+  // the offline and catalog configs never load them. A `.spec.` or `.test.` file there would be
+  // collected by playwright.config.ts (testDir ./e2e, default testMatch), so one stays unmapped.
+  [/^(e2e\/(endurance|instruments)\/(?!.*\.(spec|test)\.[cm]?[jt]sx?$)|playwright\.(endurance|instrument)\.config\.ts$)/, []],
 ];
 
 /**
@@ -1016,6 +1029,7 @@ export function reachesBackend(file, graph) {
  * dev server loads at startup, which IGNORE never swallows; and `rawImporters`
  * (`checkoutRawImporters`, read only when the change touches src/), which adds each changed `?raw` file's importers to the plan (listed in
  * `rawPlanned`). A caller that loads a planner from elsewhere passes both.
+ * `central` replaces the CENTRAL rules, so a replay can plan with and without a mapping.
  *
  * @param {string[]} changed        repo-relative paths, forward slashes
  * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
@@ -1031,7 +1045,7 @@ export function reachesBackend(file, graph) {
 export function planFor(
   changed,
   { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers,
-    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph, critical = CRITICAL } = {},
+    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph, critical = CRITICAL, central: centralRules = CENTRAL } = {},
 ) {
   // Built on first use: a change of only specs, helpers or CORE files never reads e2e/ for it.
   let readIndex = readers;
@@ -1179,7 +1193,7 @@ export function planFor(
       if (!APP_SHELL.test(file)) addReaders(file);
       continue;
     }
-    const central = CENTRAL.filter(([r]) => r.test(file));
+    const central = centralRules.filter(([r]) => r.test(file));
     // THE TRACED HALF: the specs whose browser executed this file on the last nightly
     // (scripts/e2e-traced.mjs), added to whatever the curated headers name. A map that cannot be
     // trusted escalates the file instead of being skipped. A file most of the suite executes is

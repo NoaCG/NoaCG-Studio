@@ -1,4 +1,4 @@
-// guards: src/control/panelFeedback.ts, src/control/workerTicker.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql
+// guards: src/control/panelFeedback.ts, src/control/workerTicker.ts, src/control/panelActions.ts, src/model/rundownRows.ts, supabase/migrations/0103_panel_graphic_actions.sql, src/templates/importedDesign/behaviour.ts, src/templates/behaviours/score.ts
 //
 // HARDWARE PANELS, THE PAGE'S CHECKS (docs/work-specs/hardware-panel-control/spec.md AC-4, AC-7;
 // protocol.md §6.2 and §8): a relayed press is judged against what the page shows now and what its
@@ -7,6 +7,11 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadWizardModule } from './wizard-load.mjs';
 
 const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, PressOrder, PRESS_HOLD_MS, PRESS_DRAW_MS, SnapshotRing, wireState, wireRows, rundownPanelRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
   await import('../src/control/panelFeedback.ts');
@@ -234,6 +239,64 @@ test('a graphic advertises exactly the controls its live block draws: ids, label
   assert.ok(off.every((c) => !c.allowed && c.note === 'Quiz is off air'));
   // A layer airing a cue this page does not hold: controls follow `legal`, numbers do not step.
   assert.equal(graphicCapabilities(controls({ stepping: false })).find((c) => c.id === 'step:away').allowed, false);
+});
+
+test('a number says which of its steps one event already presses, so a panel needs no second key for them', () => {
+  const caps = (buttons, numbers = ['f1']) => graphicCapabilities(controls({
+    arranged: arrangeControls(buttons, undefined),
+    numbers: numbers.map((key) => ({ key, label: key })),
+  }));
+  const covered = (buttons) => caps(buttons).find((c) => c.id === 'step:f1').covered;
+  // A two-player score (templates/types/duelScore.ts): a point and its undo each move one figure.
+  const duel = [{ event: 'pointA', label: '+1 P1', adjust: { f1: 1 } }, { event: 'undoA', label: '−1 P1', adjust: { f1: -1 } }, { event: 'newGame', label: 'Reset', set: { f1: '0' } }];
+  assert.deepEqual(covered(duel), [1, -1]);
+  // The football strip (templates/types/scoreboard.ts): a goal moves it up, and only the step corrects it down.
+  assert.deepEqual(covered([{ event: 'goalA', label: 'Goal A', adjust: { f1: 1 } }]), [1]);
+  // A press that does more or other than one step of this figure is a control of its own.
+  assert.equal(covered([{ event: 'try', label: 'Try', adjust: { f1: 5 } }]), undefined);
+  assert.equal(covered([{ event: 'swing', label: 'Swing', adjust: { f1: 1, f3: -1 } }]), undefined);
+  assert.equal(covered([{ event: 'bonus', label: 'Bonus', adjust: { f1: 1 }, set: { f5: 'x' } }]), undefined);
+  assert.equal(covered([{ event: 'other', label: 'Other', adjust: { f3: 1 } }]), undefined);
+  // The event names no other figure, and the step stays on offer, pressable, for a key on a deck.
+  const both = caps(duel, ['f1', 'f3']);
+  assert.equal(both.find((c) => c.id === 'step:f3').covered, undefined);
+  assert.deepEqual([both.find((c) => c.id === 'step:f1').allowed, both.find((c) => c.id === 'step:f1').invocable], [true, true]);
+  assert.deepEqual(both.filter((c) => c.covered === undefined && c.kind === 'event').length, 3);
+});
+
+test('an imported score tracker, compiled for real, says its point presses cover its figures, and its row travels with a pinned control', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'panel-recipe-'));
+  const entry = join(dir, 'entry.ts');
+  const src = (file) => fileURLToPath(new URL(`../src/${file}`, import.meta.url)).replaceAll('\\', '/');
+  writeFileSync(entry, [
+    `export { compileBinding } from '${src('templates/importedDesign/behaviour.ts')}';`,
+    `export { compileMachine } from '${src('templates/types/graphicType.ts')}';`,
+  ].join('\n'));
+  let compiler;
+  try {
+    compiler = await loadWizardModule(entry);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // The owner's banner (issue #2087): two players, each a name and a figure called "player N point".
+  const art = [['f0', 'textfield', 'Player 1'], ['f1', 'number', 'Player 1 point'], ['f2', 'textfield', 'Player 2'], ['f3', 'number', 'Player 2 point']].map(([field, ftype, title]) => ({ field, ftype, title, value: '0' }));
+  const type = compiler.compileBinding(art, { recipe: 'score', rows: ['1', '2'], fields: { team: { 1: 0, 2: 2 }, score: { 1: 1, 2: 3 } }, layers: {} }).type();
+  const machine = compiler.compileMachine(type, { steps: [] }, { easeIn: 'power2.in', easeOut: 'power2.out' });
+  const buttons = machine.controls;
+  const caps = graphicCapabilities(controls({
+    arranged: arrangeControls(buttons, { score2: { pinned: true } }),
+    numbers: liveNumberFields(fieldDescriptors(art), buttons),
+  }));
+  assert.deepEqual(caps.filter((c) => c.kind === 'step').map((c) => [c.id, c.label, c.covered]), [
+    ['step:f1', 'Player 1 point', [1, -1]],
+    ['step:f3', 'Player 2 point', [1, -1]],
+  ]);
+  // Lifted above the fold, Player 2's +1 still names its row.
+  const pinned = caps.find((c) => c.id === 'event:score2');
+  assert.deepEqual([pinned.place, pinned.label, pinned.section], ['pinned', '+1', 'Player 2']);
+  // A row the production renamed reads the same pinned as it does on the page.
+  const renamed = graphicCapabilities(controls({ arranged: arrangeControls(buttons, { score2: { pinned: true, section: 'Away' } }), numbers: [] }));
+  assert.equal(renamed.find((c) => c.id === 'event:score2').section, 'Away');
 });
 
 test('a graphic with nothing to press, or a name the relay cannot carry, is not offered', () => {

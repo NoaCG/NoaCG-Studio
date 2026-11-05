@@ -93,7 +93,7 @@ test('reading a state ignores unknown fields and fills safe defaults', () => {
 	assert.equal(readState({ page: 'p' }), null)
 })
 
-test('presets: the transport, the clock, a Take and a Select key per row and a Trigger key per cue, all wired to real ids', () => {
+test('presets: the transport, the clock, a Select key per row, a Take and a Play now key per cue, all wired to real ids', () => {
 	const folder = { id: 'fold_1', label: 'Part two', kind: 'folder' as const, source: null }
 	const { structure, presets } = buildPresets('noacg', [...rows().rows, folder])
 	for (const id of [
@@ -110,10 +110,13 @@ test('presets: the transport, the clock, a Take and a Select key per row and a T
 		'take_cue_a',
 		'select_cue_vt',
 		'trigger_cue_b',
-		'take_fold_1',
+		'select_fold_1',
 	]) {
 		assert.ok(presets[id], `preset ${id}`)
 	}
+	// A folder's take-cue is always refused (src/control/panelFeedback.ts rundownPanelRows).
+	assert.equal(presets['take_fold_1'], undefined)
+	assert.equal(presets['trigger_fold_1'], undefined)
 	const actionIds = new Set<string>([...Object.keys(ACTION_VERBS), 'select_cue', 'take_cue', 'trigger_cue'])
 	const feedbackIds = new Set([
 		'on_air',
