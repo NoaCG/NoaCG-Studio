@@ -45,6 +45,14 @@ async function openDebate(page: Page): Promise<Debate> {
     return { spec: { html, css, js, resolution, fps }, cue: seedValues(template.fields) as Record<string, string> };
   }) as { spec: Spec; cue: Record<string, string> };
 
+  // There is no socket to join here, so rows arrive on the follow's poll floor (CONTROL_POLL_MS, 30 s).
+  // The same poll, run more often in the shell's own document: never in a graphic's.
+  await page.addInitScript(() => {
+    if (window !== window.top) return;
+    const every = window.setInterval.bind(window);
+    window.setInterval = ((run: TimerHandler, ms?: number) => every(run, ms === 30_000 ? 200 : ms)) as typeof window.setInterval;
+  });
+
   const rows: Row[] = [];
   let reported: Report | null = null;
   let on = false;
