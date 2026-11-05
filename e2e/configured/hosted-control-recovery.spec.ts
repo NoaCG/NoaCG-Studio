@@ -351,8 +351,14 @@ test('a debate clock on the hosted PROGRAM keeps the time air keeps through an U
   const banked = (await onAir.locator('#f5').textContent())!.trim();
   await expect(program.locator('#f5')).toHaveText(banked, { timeout: 20_000 });
 
-  // The renderer reports it (800 ms debounce), then the hosted page reloads and rebuilds PROGRAM.
-  await air.waitForTimeout(2_000);
+  // The renderer reports it (800 ms debounce): A held at its banked time, B running. Then the hosted
+  // page reloads and rebuilds PROGRAM from that report.
+  await expect.poll(() => op.evaluate(async (slug) => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    const answer = await controlShowBySlug(slug);
+    const data = answer.ok ? Object.values(answer.value?.live ?? {})[0]?.data : undefined;
+    return [data?.f5?.split('@')[0], /@[1-9]/.test(data?.f6 ?? '')];
+  }, slugs.hosted), { timeout: 20_000 }).toEqual([banked, true]);
   await op.reload();
   await openHosted();
   await expect(program.locator('#f5')).toHaveText(banked, { timeout: 30_000 });

@@ -451,9 +451,10 @@ The page:
   the resend is no longer recognisable as one and pulls a running clock back. `output/main.ts`
   forwards the merged value instead: a stamped value is time-relative, so re-sending it is always
   safe, and a genuine correction has already replaced it in `mergedData` by then. Both PROGRAM
-  monitors do the same through `programItems` in `control/airState.ts`: the production page's, and
-  the hosted page's since #2176, whose stage rebuilt from a report took the next Update's plain
-  time as a correction while air held the banked one.
+  monitors fold every command through `programItems` in `control/airState.ts`, and a stage rebuilt
+  after boot takes the clocks the monitor held: the production page's, and the hosted page's since
+  #2176, whose stage rebuilt from a report took the next Update's plain time as a correction while
+  air held the banked one.
 - **Snap resets the graphic first, and the reset is blunt** (`clearProps: 'all'` over the root's
   subtree). It clears inline styles the DATA layer owns, not just the motion's: an image field
   with no picture hides itself inline, so recovery used to put a broken-image box on air beside

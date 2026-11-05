@@ -353,7 +353,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // A cue row names its own graphic, so it only ever speaks for that ONE layer - and it
       // rides the same road as the picture, or the ON AIR marker and the monitor would disagree
       // for a third of a second.
-      if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
+      if (msg.t === 'cue') {
+        // The ref moves at once, so a command after it in this batch folds against the marker it set.
+        liveCueRef.current = withLiveCue(liveCueRef.current, item.graphic, msg.cue);
+        setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
+      }
       // 'staged' is another operator typing, 'live' is the renderer REPORTING and 'ping' is
       // Prepare for Live's check of the command path - none is a command for the stage.
       else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
@@ -408,6 +412,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         bootReplay.current = replay;
       }
       programClocks.current = clockSpecsOf(resolved?.output?.graphics ?? []);
+      programAir.current = NO_AIR;
       setShow(resolved);
       if (!resolved) return;
       sharedStaged.current = { ...resolved.staged };
@@ -688,13 +693,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   reportsRef.current = resolved?.live ?? {};
   const restoreProgram = useCallback(() => {
     const replay = bootReplay.current;
-    // A fresh stage has been sent nothing yet, so its clocks start from what is replayed into it.
-    programAir.current = NO_AIR;
+    // At boot a fresh stage's clocks start from the reports; later from what this monitor held,
+    // written over the plain times the aired values keep (airState.ts `restoreItems`).
+    const held = programAir.current;
+    if (replay) programAir.current = NO_AIR;
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
       // At boot the snapshot is the REPORT, which the rows below were read against; later it is
       // what this page has seen since.
-      const data = replay ? reportsRef.current[graphic]?.data : (airedRef.current[graphic] ?? reportsRef.current[graphic]?.data);
+      const data = replay ? reportsRef.current[graphic]?.data : withHeldClocks(airedRef.current[graphic] ?? reportsRef.current[graphic]?.data, graphic, held, programClocks.current);
       const groups = machineStateRef.current[graphic]?.groups;
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       // A report of typed data banks its envelope and steps (E1.2b): PROGRAM airs that envelope,
@@ -2653,6 +2660,15 @@ function clockSpecsOf(graphics: readonly { key: string; html: string }[]): Clock
     if (pair) pairs.set(g.key, pair);
   }
   return { clocks, pairs };
+}
+
+/** A graphic's values with each clock as the PROGRAM monitor held it, over the plain time. */
+function withHeldClocks(data: Record<string, string> | undefined, graphic: string, held: AirPart, specs: ClockSpecs): Record<string, string> | undefined {
+  if (!data) return data;
+  const clock = specs.clocks.get(graphic);
+  const stamped = clock ? held.clocks[graphic] : undefined;
+  const pair = specs.pairs.has(graphic) ? held.speaking[graphic] : undefined;
+  return { ...data, ...(stamped !== undefined ? { [clock!.field]: stamped } : {}), ...pair };
 }
 
 /** A report's values as the cue holds them, so the unsent baseline takes a clock's plain time, as the
