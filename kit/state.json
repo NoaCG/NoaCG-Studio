@@ -48,13 +48,11 @@
  "waitingOn": [],
  "inFlight": [
   {
-   "phase": "cf14",
-   "step": "check",
-   "session": "session_017SdbwQkFy6NXW1KDZnmBfC",
-   "nonce": "cf14-c-d0e2",
-   "launchedAt": "2026-11-05T01:10:32Z",
-   "mergeSha": "86749ef1cf95b3a901f104706691b797671c4521",
-   "pr": 2167
+   "phase": "cf13",
+   "step": "build",
+   "session": "session_017SdbwPWmpzLswZbC4Bn9W5",
+   "nonce": "cf13-b-e654",
+   "launchedAt": "2026-11-05T01:30:41Z"
   }
  ],
  "owner": [],
