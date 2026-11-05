@@ -794,13 +794,34 @@ function overflowIssues(
         // layout shrank to nothing (ls07's role lines) is the worst cut of all and still counts.
         if (anc === el || maskCut) continue;
         const ar = anc.getBoundingClientRect();
-        // DOWN AND UP, by the letters (#1259). A mask cuts a line vertically at rest when its edge
-        // crosses the letters' body, cap line to baseline: a numeral edited taller than its mask, a
-        // line-height pulled far below the type, a mask given a fixed height. The mask's box is no
+        if (clips(win.getComputedStyle(anc).overflowX)) {
+          const words = el.ownerDocument.createRange();
+          words.selectNodeContents(el);
+          const ink = words.getBoundingClientRect();
+          const lineLeft = ink.width ? Math.min(rect.left, ink.left) : rect.left;
+          const lineRight = ink.width ? Math.max(rect.right, ink.right) : rect.right;
+          const tracking = Math.max(0, parseFloat(win.getComputedStyle(el).letterSpacing) || 0);
+          const cut = lineLeft < ar.left - 2 || lineRight - tracking > ar.right + 2;
+          const parked = (lineRight <= ar.left || lineLeft >= ar.right) && movedWithin(el, anc, win);
+          if (cut && !parked && !ellipsized(el, anc, win) && clipReaches(anc, el, win)) {
+            maskCut = true;
+            warnings.push(
+              issue(
+                'bench-overflow',
+                `${labelFor(el)} is cut off by its mask ${labelFor(anc)} ${phase} - the line is wider than the mask, ` +
+                  `so its end never shows. Let the line wrap (overflow-wrap: anywhere) or keep the mask from shrinking (flex-shrink: 0).`,
+              ),
+            );
+          }
+        }
+        // DOWN AND UP, by the letters (#1259), for a line not already cut sideways. A mask cuts a
+        // line vertically at rest when its edge crosses the letters' body, cap line to baseline: a
+        // numeral edited taller than its mask, a line-height pulled far below the type, a mask
+        // given a fixed height. The mask's box is no
         // measure of that, and neither is the whole ink (see bodyExtent). A line a transform moves
         // inside its mask is not at rest: parked for an entrance, or mid-way through the pop an
         // Update plays, which the stress pass can catch.
-        if (clips(win.getComputedStyle(anc).overflowY) && clipReaches(anc, el, win) && !movedWithin(el, anc, win)) {
+        if (!maskCut && clips(win.getComputedStyle(anc).overflowY) && clipReaches(anc, el, win) && !movedWithin(el, anc, win)) {
           const body = bodyExtent(el, anc, win);
           const over = body ? Math.max(ar.top - body.top, body.bottom - ar.bottom) : 0;
           if (body && over > 2) {
@@ -813,27 +834,7 @@ function overflowIssues(
                   `so their ${edge} never shows. Give the mask the line's height (no fixed height or max-height on it, a line-height of at least 1).`,
               ),
             );
-            continue;
           }
-        }
-        if (!clips(win.getComputedStyle(anc).overflowX)) continue;
-        const words = el.ownerDocument.createRange();
-        words.selectNodeContents(el);
-        const ink = words.getBoundingClientRect();
-        const lineLeft = ink.width ? Math.min(rect.left, ink.left) : rect.left;
-        const lineRight = ink.width ? Math.max(rect.right, ink.right) : rect.right;
-        const tracking = Math.max(0, parseFloat(win.getComputedStyle(el).letterSpacing) || 0);
-        const cut = lineLeft < ar.left - 2 || lineRight - tracking > ar.right + 2;
-        const parked = (lineRight <= ar.left || lineLeft >= ar.right) && movedWithin(el, anc, win);
-        if (cut && !parked && !ellipsized(el, anc, win) && clipReaches(anc, el, win)) {
-          maskCut = true;
-          warnings.push(
-            issue(
-              'bench-overflow',
-              `${labelFor(el)} is cut off by its mask ${labelFor(anc)} ${phase} - the line is wider than the mask, ` +
-                `so its end never shows. Let the line wrap (overflow-wrap: anywhere) or keep the mask from shrinking (flex-shrink: 0).`,
-            ),
-          );
         }
         continue;
       }

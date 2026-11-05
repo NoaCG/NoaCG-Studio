@@ -343,7 +343,9 @@ test.describe('runtime bench detection fixtures', () => {
         const variant = Object.values(CATALOG).flat().find((v) => v?.id === id);
         if (!variant) { out.push(`${id}: not in the catalog`); continue; }
         const res = await benchTemplateRuntime(variant.create({}), { fieldPaints: true });
-        for (const w of res.warnings) if (w.message.includes('cut off by its mask')) out.push(`${id}: ${w.message}`);
+        // The sideways cut #928 fixed. A cut DOWN is the other check (#1259), and al09 still has
+        // one under this name: its stage fitter holds the kicker to one line's room (#2216).
+        for (const w of res.warnings) if (w.message.includes('cut off by its mask') && w.message.includes('wider than the mask')) out.push(`${id}: ${w.message}`);
       }
       return out;
     });
