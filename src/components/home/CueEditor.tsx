@@ -527,7 +527,7 @@ function CueConnectReview({
         >
           {reading && auto ? 'Connecting…' : 'Connect'}
         </button>
-        <button type="button" className="link-inline" disabled={reading || linkText.trim() === ''} onClick={() => startRead(false)} data-testid="cue-connect-read">
+        <button type="button" className="link-inline" disabled={reading || saving || linkText.trim() === ''} onClick={() => startRead(false)} data-testid="cue-connect-read">
           {reading && !auto ? 'Reading…' : 'Check matches first'}
         </button>
       </div>
@@ -808,7 +808,11 @@ function CueConnectData({ ownReader, fed, onDisconnect, ...props }: Omit<Paramet
     <span className="lib-menu-host pd-connect-host">
       {/* The head's compact button, as the switch beside it: the head keeps its height. */}
       {fed.map((source) => (
-        <CueConnectedLine key={source.id} source={source} store={props.store} onDisconnect={() => onDisconnect(source)} />
+        <CueConnectedLine key={source.id} source={source} store={props.store} onDisconnect={() => {
+            // The review, if open, was made for the bindings this changes.
+            close();
+            onDisconnect(source);
+          }} />
       ))}
       <button type="button" className="pd-editor-switch" onClick={() => setOpen((o) => !o)} aria-expanded={open} data-testid="cue-connect">
         {fed.length > 0 ? 'Change…' : 'Connect data…'}
@@ -1315,7 +1319,7 @@ export default function CueEditor({
           onFill={(values) => editDraft({ values: Object.fromEntries(Object.entries(values).filter(([k]) => !fixed(k))) })}
           ownReader={ownReader}
           fed={fed.filter((source) => source.kind !== 'youtube')}
-          onDisconnect={(source) => disconnect(Object.keys(bound).filter((f) => isSourcePath(source.id, bound[f]) && descriptors.some((d) => d.key === f)))}
+          onDisconnect={(source) => disconnect(Object.keys(bound).filter((f) => isSourcePath(source.id, bound[f])))}
         />
         {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
             line that names it rather than hidden from the operator entirely. */}
