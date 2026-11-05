@@ -89,23 +89,14 @@ import {
   type VerbSent,
 } from '../control/hostedControl';
 import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from '../control/outputRecovery';
-import { programItems, type ClockSpecs } from '../control/airState';
+import { clockSpecsFrom, heldClockData, programItems, type ClockSpecs } from '../control/airState';
 import { NO_AIR, type AirPart } from '../control/playoutSession';
 import { IDENTITY, lookAfter, reportedLook, type AppliedAppearance, type AppliedLooks } from '../control/cueAdjust';
 import { styleContextFor } from '../control/cueStyle';
 import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
 import HostedCueAdjust from './control/HostedCueAdjust';
 import { isBackendConfigured } from '../backend/config';
-import {
-  clockSpecFromHtml,
-  fastEventGraphics as clockFreeGraphics,
-  needsServerInstant,
-  reportAsCueHolds,
-  serverInstantClocks,
-  speakingClocksFromHtml,
-  type ClockSpec,
-  type SpeakingClockPair,
-} from '../control/matchClockWire';
+import { fastEventGraphics as clockFreeGraphics, needsServerInstant, reportAsCueHolds, serverInstantClocks } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -411,7 +402,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         if (!live) return;
         bootReplay.current = replay;
       }
-      programClocks.current = clockSpecsOf(resolved?.output?.graphics ?? []);
+      programClocks.current = clockSpecsFrom(resolved?.output?.graphics ?? []);
       programAir.current = NO_AIR;
       setShow(resolved);
       if (!resolved) return;
@@ -701,7 +692,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       if (!cueId) continue;
       // At boot the snapshot is the REPORT, which the rows below were read against; later it is
       // what this page has seen since.
-      const data = replay ? reportsRef.current[graphic]?.data : withHeldClocks(airedRef.current[graphic] ?? reportsRef.current[graphic]?.data, graphic, held, programClocks.current);
+      const data = replay ? reportsRef.current[graphic]?.data : heldClockData(airedRef.current[graphic] ?? reportsRef.current[graphic]?.data, graphic, held, programClocks.current);
       const groups = machineStateRef.current[graphic]?.groups;
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       // A report of typed data banks its envelope and steps (E1.2b): PROGRAM airs that envelope,
@@ -2647,28 +2638,6 @@ function HostedCueEditor({
   ) : (
     editor
   );
-}
-
-/** The clocks the published graphics carry, by the name the wire uses (`programItems`). */
-function clockSpecsOf(graphics: readonly { key: string; html: string }[]): ClockSpecs {
-  const clocks = new Map<string, ClockSpec>();
-  const pairs = new Map<string, SpeakingClockPair>();
-  for (const g of graphics) {
-    const clock = clockSpecFromHtml(g.html);
-    if (clock) clocks.set(g.key, clock);
-    const pair = speakingClocksFromHtml(g.html);
-    if (pair) pairs.set(g.key, pair);
-  }
-  return { clocks, pairs };
-}
-
-/** A graphic's values with each clock as the PROGRAM monitor held it, over the plain time. */
-function withHeldClocks(data: Record<string, string> | undefined, graphic: string, held: AirPart, specs: ClockSpecs): Record<string, string> | undefined {
-  if (!data) return data;
-  const clock = specs.clocks.get(graphic);
-  const stamped = clock ? held.clocks[graphic] : undefined;
-  const pair = specs.pairs.has(graphic) ? held.speaking[graphic] : undefined;
-  return { ...data, ...(stamped !== undefined ? { [clock!.field]: stamped } : {}), ...pair };
 }
 
 /** A report's values as the cue holds them, so the unsent baseline takes a clock's plain time, as the

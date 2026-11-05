@@ -64,7 +64,7 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
 import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
-import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
+import { claimAndApply, clockSpecsFrom, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
@@ -202,14 +202,7 @@ import {
 import type { ReplayItem } from '../../control/outputRecovery';
 import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
-import {
-  clockSpecFromHtml,
-  fastEventGraphics,
-  needsServerInstant,
-  speakingClocksFromHtml,
-  type ClockSpec,
-  type SpeakingClockPair,
-} from '../../control/matchClockWire';
+import { fastEventGraphics, needsServerInstant } from '../../control/matchClockWire';
 import { type ProgramStageHandle } from './ProgramStage';
 import PlayoutMonitors from './PlayoutMonitors';
 import { composeDocument } from '../../preview/composeDocument';
@@ -1098,33 +1091,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * is the honest ceiling for a monitor. **It is a monitor, not air** — nothing here reaches a
    * production's renderers.
    *
-   * The clock is read out of each graphic's own published markup, keyed by the name the wire
-   * uses (`buildOutputPayload` keys the payload by `g.name`, and so does every command), and
-   * read through a ref so the ONE entry point (`applyProgram`) is stable: the log follower binds
+   * The clock, or a debate board's PAIR of speaking clocks, is read out of each graphic's own
+   * published markup (control/airState.ts `clockSpecsFrom`), keyed by the name the wire uses
+   * (`buildOutputPayload` keys the payload by `g.name`, and so does every command), and read
+   * through a ref so the ONE entry point (`applyProgram`) is stable: the log follower binds
    * it once and must still see a pool the operator has changed since.
    */
-  const clockSpecs = useMemo(() => {
-    const out = new Map<string, ClockSpec>();
-    for (const g of show?.graphics ?? []) {
-      const spec = clockSpecFromHtml(templateForSavedGraphic(g, library).html);
-      if (spec) out.set(g.name, spec);
-    }
-    return out;
-  }, [show, library]);
+  const clockSpecs = useMemo(
+    () => clockSpecsFrom((show?.graphics ?? []).map((g) => ({ key: g.name, html: templateForSavedGraphic(g, library).html }))),
+    [show, library],
+  );
   const clockSpecsRef = useRef(clockSpecs);
   clockSpecsRef.current = clockSpecs;
-  /** …and the debate boards' PAIRS of speaking clocks, read the same way off the same markup.
-   *  A graphic carries one kind or the other, never both. */
-  const speakingClocks = useMemo(() => {
-    const out = new Map<string, SpeakingClockPair>();
-    for (const g of show?.graphics ?? []) {
-      const pair = speakingClocksFromHtml(templateForSavedGraphic(g, library).html);
-      if (pair) out.set(g.name, pair);
-    }
-    return out;
-  }, [show, library]);
-  const speakingClocksRef = useRef(speakingClocks);
-  speakingClocksRef.current = speakingClocks;
   /**
    * The graphics whose machine EVENTS may ride the fast road like a Take: every one that runs no
    * clock, so needs no server instant (matchClockWire `eventsNeedServerTime`, and
@@ -1145,7 +1123,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * `airedData`, which also answers "are the operator's values on air yet", and a stamped clock
    * value differs from the cue's plain one forever.
    */
-  const clockSpecsOf = useCallback((): ClockSpecs => ({ clocks: clockSpecsRef.current, pairs: speakingClocksRef.current }), []);
+  const clockSpecsOf = useCallback((): ClockSpecs => clockSpecsRef.current, []);
   /**
    * The ONE way a command reaches the PROGRAM monitor, so the clock cannot be handled on one
    * route and missed on the other (the wire follower and the offline verbs both come here).
@@ -2466,7 +2444,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     fastEvent: (graphic) => fastEventGraphicsRef.current.has(graphic),
     // An imported duration's Take and a running clock's correction go slow, stamped by their row
     // (#1886): judged against the clock as this page's PROGRAM holds it.
-    serverInstant: (item) => needsServerInstant(clockSpecsRef.current.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
+    serverInstant: (item) => needsServerInstant(clockSpecsRef.current.clocks.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
     outputUsable: () => usableOutputRef.current,
     sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),
