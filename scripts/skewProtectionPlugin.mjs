@@ -14,6 +14,11 @@
 // read dist/ see exactly what they saw before. The in-page reload (src/app/deploySkew.ts) stays the
 // fallback for a deploy older than Skew Protection's maximum age.
 //
+// The cost, accepted: every deploy gives every file a new URL, so a browser fetches the whole app
+// once again after each deploy even where a chunk did not change (the frameworks Vercel wires make
+// the same trade). Hashed files are served `max-age=0, must-revalidate`, so nothing caches a
+// pinned file by path alone.
+//
 // scripts/skew-protection.test.mjs tests the rewrite; scripts/deploy-skew-build.test.mjs drives a
 // pinned build across a simulated deploy.
 
@@ -23,15 +28,33 @@ import path from 'node:path';
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * `code` with every reference to one of `names` (file names under the assets directory) pinned to
- * deployment `id`. A reference is the name after `./`, `assets/` or `/assets/`, between quotes,
- * backticks or a CSS `url(...)`, and without a query of its own.
+ * The two patterns for `names` (file names under the assets directory), built once per build.
+ * `reference`: the name after `./`, `assets/`, `/assets/`, `./assets/` or `../assets/`, opened by a
+ * quote, backtick or CSS `url(` and closed by one or by a `#fragment`, without a query of its own.
+ * `anyUse`: the name anywhere with no `?dpl=` after it - the check that a form the first pattern
+ * does not know (a bare name, a new prefix) cannot pass unseen.
  */
-export function pinReferences(code, names, id) {
-  if (names.length === 0) return code;
+export function referencePatterns(names) {
   const files = names.map(escape).join('|');
-  const reference = new RegExp(`(["'\`(])((?:\\./|/?assets/)(?:${files}))(?=["'\`)])`, 'g');
-  return code.replace(reference, (_, open, file) => `${open}${file}?dpl=${encodeURIComponent(id)}`);
+  return {
+    reference: new RegExp(`(["'\`(])((?:\\./|\\.\\./|/)?(?:assets/)?(?:${files}))(?=[#"'\`)])`, 'g'),
+    anyUse: new RegExp(`(?<![\\w.-])(?:${files})(?!\\?dpl=)(?![\\w.-])`, 'g'),
+  };
+}
+
+/** `code` with every reference matched by `patterns` pinned to deployment `id`, and how many. */
+export function pinCode(code, patterns, id) {
+  let pinned = 0;
+  const next = code.replace(patterns.reference, (_, open, file) => {
+    pinned += 1;
+    return `${open}${file}?dpl=${encodeURIComponent(id)}`;
+  });
+  return { code: next, pinned, unpinned: (next.match(patterns.anyUse) ?? []).length };
+}
+
+/** `code` with every reference to one of `names` pinned to deployment `id`. */
+export function pinReferences(code, names, id) {
+  return names.length === 0 ? code : pinCode(code, referencePatterns(names), id).code;
 }
 
 /** The deployment id to pin to, or null when this build is not one Skew Protection serves. */
@@ -39,42 +62,39 @@ export function skewDeploymentId(env = process.env) {
   return env.VERCEL_SKEW_PROTECTION_ENABLED === '1' && env.VERCEL_DEPLOYMENT_ID ? env.VERCEL_DEPLOYMENT_ID : null;
 }
 
-/** References to `names` in `code` that carry no deployment id. */
-export function unpinnedReferences(code, names) {
-  if (names.length === 0) return 0;
-  const files = names.map(escape).join('|');
-  return (code.match(new RegExp(`["'\`(](?:\\./|/?assets/)(?:${files})(?=["'\`)])`, 'g')) ?? []).length;
-}
-
 /**
  * Pin every `.js`, `.css` and `.html` file among `files` (paths relative to `dir`) to `id`, in
- * place. What it came to, for the build log: files changed, references pinned and left unpinned.
+ * place. What it came to, for the build log: files changed, references pinned, and uses of a built
+ * file's name left without the id.
  */
 export function pinBuild(dir, files, id) {
   const names = files.filter((file) => file.startsWith('assets/')).map((file) => file.slice('assets/'.length));
   const result = { files: 0, pinned: 0, unpinned: 0 };
-  const marker = `?dpl=${encodeURIComponent(id)}`;
+  if (names.length === 0) return result;
+  const patterns = referencePatterns(names);
   for (const file of files) {
     if (!/\.(m?js|css|html)$/.test(file)) continue;
     const full = path.join(dir, file);
-    const code = fs.readFileSync(full, 'utf8');
-    const next = pinReferences(code, names, id);
-    if (next !== code) {
-      fs.writeFileSync(full, next);
+    const before = fs.readFileSync(full, 'utf8');
+    const { code, pinned, unpinned } = pinCode(before, patterns, id);
+    if (pinned > 0) {
+      fs.writeFileSync(full, code);
       result.files += 1;
     }
-    result.pinned += next.split(marker).length - 1;
-    result.unpinned += unpinnedReferences(next, names);
+    result.pinned += pinned;
+    result.unpinned += unpinned;
   }
   return result;
 }
 
 /** The one build-log line: whether pinning ran, and what it came to. */
 export function skewLogLine(env, result) {
-  const enabled = env.VERCEL_SKEW_PROTECTION_ENABLED === '1';
-  const idPresent = Boolean(env.VERCEL_DEPLOYMENT_ID);
-  if (!result) return `[skew-protection] off: VERCEL_SKEW_PROTECTION_ENABLED ${enabled ? 'is 1' : 'is not 1'}, VERCEL_DEPLOYMENT_ID ${idPresent ? 'present' : 'absent'}; built file references are not pinned`;
-  return `[skew-protection] on: ${env.VERCEL_DEPLOYMENT_ID}, ${result.pinned} reference(s) pinned in ${result.files} file(s), ${result.unpinned} unpinned`;
+  if (!result) {
+    const enabled = env.VERCEL_SKEW_PROTECTION_ENABLED === '1' ? 'is 1' : 'is not 1';
+    const idPresent = env.VERCEL_DEPLOYMENT_ID ? 'present' : 'absent';
+    return `[skew-protection] off: VERCEL_SKEW_PROTECTION_ENABLED ${enabled}, VERCEL_DEPLOYMENT_ID ${idPresent}; built file references are not pinned`;
+  }
+  return `[skew-protection] on: ${skewDeploymentId(env)}, ${result.pinned} reference(s) pinned in ${result.files} file(s), ${result.unpinned} unpinned`;
 }
 
 /** The Vite plugin. It reads Vercel's build environment; `env` is for tests. */

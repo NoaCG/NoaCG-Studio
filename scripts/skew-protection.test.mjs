@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pinReferences, skewDeploymentId, skewProtectionPlugin } from './skewProtectionPlugin.mjs';
+import { pinCode, pinReferences, referencePatterns, skewDeploymentId, skewProtectionPlugin } from './skewProtectionPlugin.mjs';
 
 const NAMES = ['app-AbC1.js', 'BrowseStep-x_9.js', 'draft-Q2.css', 'editor.worker-Z.js', 'font-k.woff2'];
 const pin = (code) => pinReferences(code, NAMES, 'dpl_A');
@@ -30,13 +30,28 @@ test('the preload list, worker URLs, HTML tags and CSS url()', () => {
   assert.equal(pin('src:url(./font-k.woff2)format("woff2")'), 'src:url(./font-k.woff2?dpl=dpl_A)format("woff2")');
 });
 
+test('a bare name, ./assets/ and ../assets/ prefixes, and a #fragment', () => {
+  assert.equal(pin('new URL("editor.worker-Z.js",import.meta.url)'), 'new URL("editor.worker-Z.js?dpl=dpl_A",import.meta.url)');
+  assert.equal(pin('<script src="./assets/app-AbC1.js">'), '<script src="./assets/app-AbC1.js?dpl=dpl_A">');
+  assert.equal(pin('url(../assets/font-k.woff2)'), 'url(../assets/font-k.woff2?dpl=dpl_A)');
+  assert.equal(pin('url(/assets/font-k.woff2#x)'), 'url(/assets/font-k.woff2?dpl=dpl_A#x)');
+});
+
+test('a use of a built name the pinner does not know is counted, not passed over', () => {
+  const patterns = referencePatterns(NAMES);
+  assert.deepEqual(pinCode('import("./app-AbC1.js")', patterns, 'dpl_A'), { code: 'import("./app-AbC1.js?dpl=dpl_A")', pinned: 1, unpinned: 0 });
+  // A form outside the quotes the pinner reads: left alone, and reported.
+  const odd = pinCode('const u=base+app-AbC1.js;', patterns, 'dpl_A');
+  assert.equal(odd.pinned, 0);
+  assert.equal(odd.unpinned, 1);
+});
+
 test('leaves alone what is not a reference to a built file', () => {
   for (const code of [
     'fetch("/api/app-AbC1.js")', // another path
     '"./app-AbC1.json"', // another name that merely starts the same
     '"./other-AbC1.js"', // a name the build did not write
     '"./app-AbC1.js?dpl=dpl_B"', // already pinned
-    'const s="app-AbC1.js"', // a bare name, not a path
   ]) {
     assert.equal(pin(code), code, code);
   }

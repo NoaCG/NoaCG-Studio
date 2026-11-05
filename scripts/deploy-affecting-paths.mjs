@@ -64,21 +64,32 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
   'scripts/check-vercel-config.mjs',
   'scripts/prerender.mjs',
   'scripts/write-version.mjs',
-  // Loaded by vite.config.ts, which the build runs: page generators, the catalog index, the Skew
-  // Protection pinning, and the dev plugins that load with them (deploy-affecting-paths.test.mjs).
+  // Loaded by vite.config.ts, which the build runs, and changing what it writes: the page
+  // generators and what they read, the catalog index, /panel.json, the Skew Protection
+  // pinning (deploy-affecting-paths.test.mjs walks the imports).
   'scripts/agent-prompt.mjs',
-  'scripts/aiDevPlugin.mjs',
   'scripts/catalogIndexPlugin.mjs',
-  'scripts/dataDevPlugin.mjs',
-  'scripts/dev-port.mjs',
-  'scripts/eventsDevPlugin.mjs',
-  'scripts/meDevPlugin.mjs',
+  'scripts/measured-receipt.mjs',
+  'scripts/measured.mjs',
   'scripts/panelBackendPlugin.mjs',
-  'scripts/renderDevPlugin.mjs',
   'scripts/roadmap.mjs',
   'scripts/site-nav.mjs',
   'scripts/skewProtectionPlugin.mjs',
   'scripts/whats-new.mjs',
+]);
+
+/**
+ * Scripts vite.config.ts imports that act only on the dev server (`configureServer`, the port
+ * reservation), never on a build. They and what they import stay off the list above, so editing
+ * dev tooling does not buy a production build.
+ */
+export const VITE_SERVE_ONLY_SCRIPTS = new Set([
+  'scripts/aiDevPlugin.mjs',
+  'scripts/dataDevPlugin.mjs',
+  'scripts/dev-port.mjs',
+  'scripts/eventsDevPlugin.mjs',
+  'scripts/meDevPlugin.mjs',
+  'scripts/renderDevPlugin.mjs',
 ]);
 
 /**
