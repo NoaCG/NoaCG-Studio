@@ -410,6 +410,8 @@ function CueConnectReview({
   /** A linked file picked again from Use existing content: this browser's handle, with Chrome's
    *  permission asked on this click when a reload took it away. */
   const reuseFile = async (source: { id: string; config: { name: string; format: FileFormat } }) => {
+    // Any read still in flight lands nowhere: this pick's answer, or its refusal, is the one shown.
+    cancelRead();
     const handle = await loadFileHandle(source.id);
     if (!handle) return setRead({ error: `This computer has not chosen ${source.config.name}`, fix: 'Use Local file… to choose it here.' });
     if (!(await allowFile(source.id))) return setRead({ error: `Chrome did not allow reading ${source.config.name}`, fix: 'Choose it again and press Allow.' });
@@ -417,6 +419,8 @@ function CueConnectReview({
   };
   /** Local file…: Chrome's picker, then the one-button Connect on what it read (#2184). */
   const chooseFile = async () => {
+    cancelRead();
+    setReading(false);
     const picked = await pickFile();
     if (!picked) return;
     if ('error' in picked) return setRead({ error: picked.error, fix: 'Choose a .csv or .xlsx file.' });

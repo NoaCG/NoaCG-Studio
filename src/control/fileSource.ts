@@ -164,9 +164,7 @@ const columnOf = (ref: string): number | null => {
   return n - 1;
 };
 
-export type XlsxRead = { ok: true; rows: string[][] } | { ok: false; error: string; fix: string };
-
-const NOT_A_WORKBOOK: XlsxRead = { ok: false, error: 'can’t read it as an Excel workbook', fix: 'Save it again as .xlsx or CSV.' };
+const NOT_A_WORKBOOK: SheetRead = { ok: false, error: 'can’t read it as an Excel workbook', fix: 'Save it again as .xlsx or CSV.' };
 
 /**
  * A workbook's first sheet as rows of text, as a Sheet's CSV export gives them: each cell as
@@ -174,7 +172,7 @@ const NOT_A_WORKBOOK: XlsxRead = { ok: false, error: 'can’t read it as an Exce
  * dates as 2026-11-06 and times as 19:30), missing rows and cells empty, every row as wide as
  * the widest.
  */
-export async function parseXlsx(bytes: ArrayBuffer | Uint8Array): Promise<XlsxRead> {
+export async function parseXlsx(bytes: ArrayBuffer | Uint8Array): Promise<SheetRead> {
   const JSZip = (await import('jszip')).default;
   let zip: InstanceType<typeof JSZip>;
   try {
