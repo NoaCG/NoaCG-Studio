@@ -824,9 +824,11 @@ test('#2148: a command on another graphic while the off-air clock read was out l
   const graphics = offAirClockGraphics(resolved, CLOCKS);
   assert.deepEqual(graphics, ['score']);
   const asked = airAtRequest(NO_AIR);
-  const rows = { graphics, rows: [{ graphic: 'score', msg: { t: 'event', event: 'clockStop' } }] };
+  // A row after the report that moves the clock, so the rebuild is the rows' and not the report's.
+  const rows = { graphics, rows: [{ graphic: 'score', msg: { t: 'event', event: 'set', payload: { f5: '08:00' } } }] };
   const rebuilt = seedOffAirClocks(NO_AIR, resolved, rows, asked, CLOCKS, T).clocks.score;
   assert.notEqual(rebuilt, undefined);
+  assert.notEqual(rebuilt, seedOffAirClocks(NO_AIR, resolved, { graphics, rows: [] }, asked, CLOCKS, T).clocks.score, 'the row moved it');
   // A +1 on the lower third on air, heard while the read was out.
   const other = claimAndApply(NO_AIR, [update('lt', { f0: 'PLUS ONE' }, 'u1')], createAppliedOnce(), CLOCKS, T).air;
   assert.equal(seedOffAirClocks(other, resolved, rows, asked, CLOCKS, T).clocks.score, rebuilt, 'the scorebug\'s next Take counts what air counts');

@@ -257,17 +257,15 @@ export function claimAndApply(
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
- *  (per graphic too) and the fields they had carried, so its answer can tell it is older than the
- *  screen. */
+ *  per graphic and the fields they had carried, so its answer can tell it is older than the screen. */
 export interface AirAtRequest {
   moves: number;
-  commands: number;
   commandsBy?: AirPart['commandsBy'];
   carried?: AirPart['carried'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, commandsBy: air.commandsBy, carried: air.carried };
+  return { moves: air.moves, commandsBy: air.commandsBy, carried: air.carried };
 }
 
 /** Whether a command on this graphic was applied here since the request: its rows and report are

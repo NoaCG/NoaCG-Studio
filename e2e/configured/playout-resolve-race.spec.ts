@@ -287,7 +287,9 @@ test('an Update on another graphic while the reloaded page reads an off-air cloc
   await sent;
   const read = page.waitForResponse((response) => /\/rest\/v1\/rpc\/control_tail(\?|$)/.test(response.url()) && (response.request().postDataJSON() as { p_graphic?: string | null }).p_graphic === SCOREBUG, { timeout: 30_000 });
   releaseClock();
-  await read;
+  await (await read).finished();
+  // The page folds the answer in a few microtasks after it lands; nothing on screen shows it off air.
+  await page.waitForTimeout(500);
 
   // ── THE SCOREBUG'S NEXT TAKE: PROGRAM shows the time air shows. ──
   await cue(SCOREBUG).click();

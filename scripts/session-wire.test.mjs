@@ -207,8 +207,8 @@ test('an off-air clock is rebuilt from its report and the rows after it, read af
     assert.deepEqual(session.air.get().aired.lt, { f0: 'REPORTED' }, 'the on-air seed did not wait');
     assert.ok(wire.calls.includes('clocks ctl-1 bug') && wire.calls.includes('follow prod-1 1000'));
     assert.equal('bug' in session.air.get().clocks, false);
-    // A command meanwhile, on the graphic it names, counted as `claimAndApply` counts it.
-    if (commandMeanwhile) session.apply((parts) => ({ ...parts, air: { ...parts.air, commands: parts.air.commands + 1, commandsBy: { ...parts.air.commandsBy, [commandMeanwhile]: (parts.air.commandsBy?.[commandMeanwhile] ?? 0) + 1 } } }));
+    // A command meanwhile, on the graphic it names, applied as the page applies one.
+    if (commandMeanwhile) session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, [{ graphic: commandMeanwhile, msg: { t: 'update', data: {}, oid: `c-${commandMeanwhile}` } }], session.applied, { clocks: new Map(), pairs: new Map() }, 0).air }));
     wire.clockReplays[0].resolve({ graphics: ['bug'], rows: [
       { graphic: 'bug', msg: { t: 'stop' }, created_at: new Date(1_800_000_010_000).toISOString() },
       { graphic: 'bug', msg: { t: 'update', data: { f2: '0:20' } }, created_at: new Date(1_800_000_020_000).toISOString() },
