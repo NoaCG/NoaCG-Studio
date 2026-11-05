@@ -239,6 +239,33 @@ test('the old owner\'s report in flight when frozen fails as it wakes: expected 
   r.reads.push({ agent: crash.from, at: crash.woke + 200, line: 'election the sender failed: fetch failed' });
   assert.deepEqual(failed(r), []);
 });
+test('a woken old owner\'s report that timed out while it was frozen: expected, whatever the wording (run 40783138473)', () => {
+  const r = healthy();
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.reads.push({ agent: crash.from, at: crash.woke + 50, line: 'election the sender failed: the production did not answer in 10 seconds' });
+  r.reads.push({ agent: crash.from, at: crash.end - 100, line: 'election the sender failed: stopped' });
+  assert.deepEqual(failed(r), []);
+});
+/** Run 40751563634: the old agent starts a send, and its release 53 ms later aborts it as it stops. */
+const abortedByRelease = (r, at = (f) => f.at + 8, agent = (f) => f.from, line = 'election the sender failed: stopped') => {
+  const release = r.faults.find((f) => f.kind === 'handover' && f.mode === 'release');
+  r.reads.push({ agent: release.from, at: release.at - 53, line: `${new Date(release.at - 53).toISOString()} election changed accepted=220 next=2000ms` });
+  r.reads.push({ agent: agent(release), at: at(release), line });
+  r.reads.sort((a, b) => a.at - b.at);
+};
+test('a send its own release aborts: expected of the released agent, inside that handover (run 40751563634)', () => {
+  const r = healthy();
+  abortedByRelease(r);
+  assert.deepEqual(failed(r), []);
+});
+red('a send aborted with `stopped` before the release began', (r) => abortedByRelease(r, (f) => f.at - 1), /did not cause/);
+red('a send aborted with `stopped` after the release ended', (r) => abortedByRelease(r, (f) => f.end + 1), /did not cause/);
+red('a send aborted with `stopped` in the new owner, during the release', (r) => abortedByRelease(r, (f) => f.at + 8, (f) => `agent-${f.epochAfter}`), /did not cause/);
+red('a production verdict from the released agent, inside its handover', (r) => abortedByRelease(r, (f) => f.at + 8, (f) => f.from, 'election the sender failed: not taken (budget)'), /did not cause/);
+red('a crashed owner\'s failure while frozen, before it woke', (r) => {
+  const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
+  r.reads.push({ agent: crash.from, at: crash.woke - 1, line: 'election the sender failed: stopped' });
+}, /did not cause/);
 red('a failed report from a woken old owner after its end', (r) => {
   const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
   r.reads.push({ agent: crash.from, at: crash.end + 5_000, line: 'election the sender failed: fetch failed' });
