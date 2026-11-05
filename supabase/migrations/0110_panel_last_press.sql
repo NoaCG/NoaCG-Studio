@@ -146,11 +146,22 @@ begin
 end $$;
 
 -- ── 3. Prove it ───────────────────────────────────────────────────────────────────────────────
--- Shape and grants, then CALL what can be called without a production (supabase/AGENTS.md). A press
--- that reaches a key row needs a production, and inserting one would make this file live-path; the
--- configured suite presses through a paired key on a local stack and reopens the page
--- (e2e/configured/panel-production-page.spec.ts).
+-- Shape and grants, then CALL both functions (supabase/AGENTS.md) on a throwaway account,
+-- production and keys, inside a block that always rolls back (as 0105 does): nothing it writes
+-- survives and no real row is read or written. Its presses find no page answering, so they never
+-- broadcast; the claim the lease takes is announced on the throwaway production's own random topic
+-- in a subtransaction that never commits, so that is never sent either. The production is a new row
+-- that never commits, not a change to the live path (0095 inserts one the same way).
 do $$
+declare
+  v_user uuid := gen_random_uuid();
+  v_show uuid := gen_random_uuid();
+  v_live text := 'ncpk_' || left(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 43);
+  v_gone text := 'ncpk_' || left(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 43);
+  v_slug text;
+  v_step text[];
+  v_got jsonb;
+  v_last text;
 begin
   if not exists (select 1 from information_schema.columns c
                   where c.table_schema = 'public' and c.table_name = 'panel_keys' and c.column_name = 'last_press') then
@@ -166,4 +177,50 @@ begin
   if public.panel_press('ncpk_selfcheck', '{"verb":"take","target":"","seen":1,"id":"selfcheck:1"}')->>'refused' is distinct from 'unknown-key' then
     raise exception '0110 self-check failed: an unknown key was not refused';
   end if;
+
+  begin
+    begin
+      insert into auth.users (id, instance_id, aud, role, email)
+      values (v_user, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', '0110-self-check@noacg.invalid');
+    exception when others then
+      raise notice '0110 self-check: no throwaway account could be made (%), skipping the behavioural half', sqlerrm;
+      return;
+    end;
+    insert into public.control_shows (id, owner_id, title) values (v_show, v_user, '0110 self-check')
+      returning slug into v_slug;
+    if public.feature_denied_for(v_user, 'control.hosted') then
+      raise notice '0110 self-check: hosted control is switched off on this instance, skipping the behavioural half';
+      raise exception '0110 self-check passed';
+    end if;
+    insert into public.panel_keys (show_id, label, key_hash) values
+      (v_show, 'live', extensions.digest(v_live, 'sha256')),
+      (v_show, 'revoked', extensions.digest(v_gone, 'sha256'));
+
+    -- Each press, then the last press its key holds: compared as numbers (10 after 9), a lower
+    -- number from the same instance never moves it back, and a new instance replaces it.
+    foreach v_step slice 1 in array array[
+        ['selfchecka:9', 'selfchecka:9'], ['selfchecka:10', 'selfchecka:10'],
+        ['selfchecka:3', 'selfchecka:10'], ['selfcheckb:1', 'selfcheckb:1']] loop
+      v_got := public.panel_press(v_live, jsonb_build_object('verb', 'take', 'target', '', 'seen', 1, 'id', v_step[1]));
+      select k.last_press into v_last from public.panel_keys k where k.show_id = v_show and k.label = 'live';
+      if v_got->>'refused' is distinct from 'no-page' or v_last is distinct from v_step[2] then
+        raise exception '0110 self-check failed: press % answered % and left last_press %, not %', v_step[1], v_got, v_last, v_step[2];
+      end if;
+    end loop;
+    perform public.panel_press(v_gone, '{"verb":"take","target":"","seen":1,"id":"selfcheckc:4"}');
+    select k.last_press into v_last from public.panel_keys k where k.show_id = v_show and k.label = 'revoked';
+    if v_last is distinct from 'selfcheckc:4' then
+      raise exception '0110 self-check failed: the second key holds %', v_last;
+    end if;
+    update public.panel_keys k set revoked_at = now() where k.show_id = v_show and k.label = 'revoked';
+
+    -- The lease answers the live key's last press and leaves out the revoked one.
+    v_got := public.panel_lease(v_slug, 'selfcheck0110pag', 'control', '0110 self-check', false);
+    if (v_got->>'ok')::boolean is not true or v_got->'last_presses' is distinct from '["selfcheckb:1"]'::jsonb then
+      raise exception '0110 self-check failed: the lease answered %', v_got;
+    end if;
+    raise exception '0110 self-check passed';
+  exception when others then
+    if sqlerrm <> '0110 self-check passed' then raise; end if;
+  end;
 end $$;
