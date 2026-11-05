@@ -435,8 +435,9 @@ The page:
   `speakingClockRowEffect` in `control/matchClockWire.ts`; runtime half: `speakingClockUpdate` in
   `templates/scoreboards/debateFloor.ts`. `e2e/productions.spec.ts` walks a whole debate through
   the log and then reads the snapshot mid-speech, and boots the real board against a stamped
-  value; both are mutation-tested, and that walk folds the plain shape a report from before #2161
-  holds. From the first update each clock's value now also carries what the cue last sent
+  value; both are mutation-tested. The walk folds as `output/main.ts` does, so it expects the slotted
+  values, and it checks that a report from before #2161, which holds plain values, still passes the
+  floor. From the first update each clock's value now also carries what the cue last sent
   (`speakingClockAfterUpdate`), so an Update that resends the cue's allowance moves neither clock,
   and a time retyped to anything else still applies. A Take on air is a resend too, and the board
   keeps the floor with the running speaker through its entrance, so machine, wire and screen name
