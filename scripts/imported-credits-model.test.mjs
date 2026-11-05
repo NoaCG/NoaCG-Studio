@@ -636,9 +636,12 @@ const sha = (o) => hash(JSON.stringify(o));
  *  only the `prettier-ignore` comment before the list holder and one sentence in the comment
  *  above it (the #1955 test below reads the holder back after formatting). Re-taken again for
  *  #1977: the imported fit runtime's own text changed (line breaks kept on air), so every one of
- *  these builds' js moved with it; on the previous runtime the previous pins hold. */
+ *  these builds' js moved with it; on the previous runtime the previous pins hold. Re-taken for
+ *  #2098: the editable roll's take measures at the graphic's rest scale (creditsAtRest) and Out
+ *  stops it (stopCreditsRoll, called by the Out step); the test "#2108, #2104, #2098" asserts both.
+ *  The artwork and plain imports are unchanged. */
 const PINS = {
-  editable: 'b6ac84dbe38d168e',
+  editable: '43812b5a2b8e7c33',
   artwork: 'b93e7de7d63bedf0',
   'fixed:credits-1': '45c6d1897600f92e',
   'fixed:credits-2': '363aa7f9c94d107a',
@@ -1044,8 +1047,11 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  Re-taken by #2057: their js gains the hold at the cue (creditsEntrance, the list held there
  *  only while the rows show the list last written, and rows older than the holder built again off
  *  air, creditsOffAir) and nothing else, html and css unchanged; the test "#2057: ..." below
+ *  asserts it. Re-taken for #2108, #2104 and #2098: their js keeps the list taken until the exit
+ *  ends or is cut short (creditsLetGo), lets it go after a snap (noacgCreditsRested), and measures
+ *  the take at rest (creditsAtRest); html and css unchanged; the test "#2108, #2104, #2098" below
  *  asserts it. */
-const ROLE_ABOVE_PINS = { one: '22f3af645dfb976f', bold: '8f62fc7260393803', grouped: '8f2c7c796bf4e786', roleGroup: '842855bb7c8ec637', idGroup: 'e1c996ced7f613db' };
+const ROLE_ABOVE_PINS = { one: '76177f7526784335', bold: '379a6fc86f3fea82', grouped: '084c7aac84cf1227', roleGroup: '2f367754e44f9543', idGroup: 'aab5ff625e74d805' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1055,8 +1061,9 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
 /** #1969 and #1965: the builds of a design that ships its own face, styled (role above, credits-1)
  *  and the editable roll of the saved legacy graphic, byte for byte. Each runtime carries the
  *  second measure when the face lands (creditsSettle) on purpose; the test below says so. The
- *  styled one is as main built it before #1965; the editable one gained exactly creditsSettle. */
-const FACED_PINS = { styled: 'ddc902cafb934285', editable: '2e0819bfe1735c21' };
+ *  styled one is as main built it before #1965; the editable one gained exactly creditsSettle.
+ *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above. */
+const FACED_PINS = { styled: '28c6679d1d9e0a95', editable: 'e6da7b0f09995ca5' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {
@@ -1072,7 +1079,7 @@ test('row 24: a styled roll keeps the list its take took while on air; the edita
   for (const k of ROLE_ABOVE) {
     const { js } = R.styled[k];
     assert.ok(js.includes('var noacgCreditsHeld = null;') && js.includes('function creditsListWaits()'), `${k}: the snapshot rule is emitted`);
-    assert.match(js, /noacgCreditsTween = null;\n {2}creditsHoldList\(\);\n {2}var built = creditsRender\(\);/, `${k}: the take holds the list it builds from`);
+    assert.match(js, /noacgCreditsTween = null;\n {2}creditsHoldList\(\);\n {2}return creditsAtRest\(creditsSample\(\), creditsTake\);\n[^]*?function creditsTake\(\) \{\n {2}var built = creditsRender\(\);/, `${k}: the take holds the list it builds from`);
     assert.ok(js.includes('var text = creditsHeldList();'), `${k}: the rows are built from the held list`);
     assert.ok(js.includes('if (!creditsListWaits()) creditsRender();'), `${k}: an update on air leaves the rows as taken`);
     assert.ok(js.includes('noacgCreditsHeld = null;\n  noacgCreditsWaiting = false;'), `${k}: Out lets go of the held list`);
@@ -1089,8 +1096,25 @@ test('#2057: a styled take cued by play() keeps the list its first frame shows, 
     assert.ok(js.includes('noacgCreditsCued.entrance === creditsLive()') && js.includes('noacgCreditsHeld = cued ? cued.list :'), `${k}: the take keeps the list held at its own cue`);
     assert.ok(js.includes('noacgCreditsHeld === null && noacgCreditsShown === before ? creditsEntrance() : null'), `${k}: a cue holds the rows only when they show the list last written`);
     assert.ok(js.includes('if (noacgCreditsHeld === null) noacgCreditsWritten = text;'), `${k}: rows built from the holder record the list written`);
-    assert.ok(js.includes('function creditsOffAir()') && js.includes('if (!out) rebuild();') && js.includes('holder.textContent === noacgCreditsShown) return;'), `${k}: off air, rows older than the holder are built again`);
+    assert.ok(js.includes('function creditsLetGo()') && js.includes('if (holder && holder.textContent !== noacgCreditsShown) creditsRender();'), `${k}: off air, rows older than the holder are built again`);
   }
+});
+
+test('#2108, #2104, #2098: the exit keeps the list taken, a snap lets it go, the take measures at rest', () => {
+  for (const k of ROLE_ABOVE) {
+    const { js } = R.styled[k];
+    // #2108: Out lets go when its exit ends, or the moment a take or a snap cuts the exit short.
+    assert.ok(js.includes("out.eventCallback('onComplete', creditsLetGo);") && js.includes("out.eventCallback('onInterrupt', creditsLetGo);"), `${k}: the exit holds the list until it ends or is cut short`);
+    assert.ok(js.includes('} else if (!creditsLive()) creditsLetGo();'), `${k}: with no exit running, off air now`);
+    // #2104: a snap to off, which runs no Out step, lets go too.
+    assert.ok(js.includes('function noacgCreditsRested()') && js.includes('var state = noacgCreditsSnapOf(assignments, opts);\n    noacgCreditsRested();'), `${k}: every snap asks whether the take is off air`);
+    assert.ok(js.includes('  }\n  noacgCreditsRested();\n'), `${k}: so does every update`);
+    // #2098: the take measures with the entrance's transforms set aside.
+    assert.ok(js.includes('function creditsAtRest(from, measure)') && js.includes("el.style.transform = 'none';"), `${k}: the take measures at rest`);
+  }
+  // The editable roll measures at rest too, and Out stops it.
+  assert.ok(R.pins.editable.js.includes('return creditsAtRest(creditsSample(), creditsTake);') && R.pins.editable.js.includes('function stopCreditsRoll()'), 'editable: measured at rest, stopped at Out');
+  assert.match(R.pins.editable.js, /"call":\s*"stopCreditsRoll"/, 'editable: Out calls the stop');
 });
 
 test('row 20: a role-beside binding builds the styled engine, one Credits field holding the drawn list', () => {

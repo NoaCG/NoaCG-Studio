@@ -456,9 +456,24 @@ var W = ${payload.width}, H = ${payload.height};
 // ── Relay wire (protocol v1). The controller is relay-only: no relay, no verbs. ──
 var relayOk = false;
 var cursor = 0;
-function send(items) {
+// A PRESS DURING THE BOOT READ WAITS FOR IT (#2074). Booted at the log's head, the page reads the
+// whole log to learn where each imported clock stands (followClock). A press made before that read
+// is done would work from the design's starting clock, so it is held, in order, with its own
+// instant, and sent as soon as the read is done, or after 5 s if a read hangs.
+var bootRead = false;
+var heldPresses = [];
+function finishBootRead() {
+  if (bootRead) return;
+  bootRead = true;
+  var presses = heldPresses;
+  heldPresses = [];
+  presses.forEach(function (p) { send(p.items, p.at); });
+}
+function send(items, at) {
   if (!relayOk) return;
-  var clocked = withClocks(items);
+  if (at === undefined) at = Date.now();
+  if (!bootRead) { heldPresses.push({ items: items, at: at }); return; }
+  var clocked = withClocks(items, at);
   items = clocked.items;
   var noted = noteSent(items);
   // A send that never reached the relay holds nothing: its figures stop being the base, unless a
@@ -497,9 +512,8 @@ function clockOf(key) { return clocks[key] || (clocks[key] = clockFollower(undef
 // head when this page moves the clock itself, so an older row (a late page of the boot read) is
 // never taken for a newer one.
 var clockRowAt = {};
-function withClocks(items) {
+function withClocks(items, at) {
   var out = [];
-  var at = Date.now();
   var fails = [];
   items.forEach(function (it) {
     var g = graphicByName(it.graphic);
@@ -509,6 +523,8 @@ function withClocks(items) {
     var program = key.indexOf('program|') === 0;
     var f = clockOf(key);
     if (program) f.settle(null);
+    // A duration never taken holds its start time off air until its first Take (#2117).
+    f.held = clockHeldBefore(clock, f.held, !!(program ? pgmLive : pvwLive)[it.graphic]);
     var set = function (value) {
       f.held = value;
       if (!program) return;
@@ -1533,7 +1549,8 @@ fetch('/relay/ping')
     cursor = d.head || 0;
     // Booted at the head, the page still learns where each imported clock stands (followClock),
     // from the whole log.
-    relayLogWalk(0, followClock, function () {});
+    relayLogWalk(0, followClock, finishBootRead);
+    setTimeout(finishBootRead, 5000);
     var mode = document.getElementById('mode');
     mode.textContent = '● SHOW';
     mode.className = 'mode on';

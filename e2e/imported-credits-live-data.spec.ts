@@ -482,20 +482,25 @@ for (const playback of ['roll', 'cards'] as const) {
     await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
     expect(await state(), 'the take keeps the list its first frame showed').toMatchObject({ held: LIST, waiting: true });
     expect(await rowTexts(page)).toEqual(again);
-    // Taken again before that exit ends: the rows still show the list taken, older than the
-    // holder, so they are no list to hold; the take airs the newest, as a re-take always did.
+    // Taken again before that exit ends (#2108): the exit keeps the list taken while it is on
+    // screen; the new take cuts it short, which lets that list go and builds the rows from the
+    // holder before the take's first frame paints, so the frame shows the newest list and never
+    // the older one. The take keeps what that frame showed, and a write after it waits.
     const retaken = await page.evaluate(async ({ field, other }) => {
       const w = window as unknown as { play(): void; stop(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
       w.stop();
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const out = w.noacgCreditsHeld;
       w.play();
+      const rows = [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent);
       w.update({ [field]: other });
-      return out;
+      return { out, rows };
     }, { field, other: OTHER });
-    expect(retaken, 'Out let go of the list').toBeNull();
+    expect(retaken.out, 'the exit keeps the list taken while it is on screen').toBe(LIST);
+    expect(retaken.rows[0], 'the re-take\'s first frame shows the newest list').toBe('Editor');
     await expect.poll(async () => (await state()).taken, 'the take ran').toBe(true);
-    expect(await state(), 'the take airs the newest list, never the older one the rows still showed').toMatchObject({ held: OTHER, waiting: false });
+    expect(await state(), 'the take keeps the list its first frame showed; the write after it waits').toMatchObject({ held: THIRD, waiting: true });
+    expect((await rowTexts(page))[0]).toBe('Editor');
     // An entrance killed before its first tick (an Out or a snap) never takes, so it holds nothing,
     // not even a list an update held at its cue: off air again, the rows follow the next write.
     await call(page, null, 'stop');
@@ -554,8 +559,8 @@ for (const playback of ['roll', 'cards'] as const) {
     });
     expect([(await rowTexts(page))[0], (await state()).held], 'off air with no exit, the rows show the list that waited').toEqual(['Camera', null]);
     // OUT BEFORE THE TAKE, THEN A TAKE INTERRUPTING THAT EXIT: the cue held the rows' list and a
-    // newer one waited; the next cue finds rows older than the list last written, holds nothing,
-    // and its take airs the newest list.
+    // newer one waited; the exit keeps it while on screen, and the take that cuts the exit short
+    // builds the rows from the holder first, so it airs the list its first frame shows.
     const interrupted = await page.evaluate(async ({ field, list, third }) => {
       const w = window as unknown as { play(): void; stop(): void; update(d: Record<string, string>): void; noacgCreditsHeld: string | null };
       const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -569,7 +574,7 @@ for (const playback of ['roll', 'cards'] as const) {
       await frames();
       return { out, taken: w.noacgCreditsHeld };
     }, { field, list: LIST, third: THIRD });
-    expect(interrupted, 'Out let go, and the take after it airs the newest list').toEqual({ out: null, taken: THIRD });
+    expect(interrupted, 'the exit kept the list the cue held, and the take after it airs the list its first frame showed').toEqual({ out: OTHER, taken: LIST });
     // NO UPDATE BEFORE THE FIRST play(): the rows built at load are the list its first frame shows.
     await page.setContent(built.html);
     const first2 = await page.evaluate(async ({ field, other }) => {
@@ -583,6 +588,114 @@ for (const playback of ['roll', 'cards'] as const) {
     expect(first2, 'the first take after load keeps the list its rows were built with').toEqual({ same: true, waiting: true });
   });
 }
+
+// #2108: the list on screen never changes during the exit. Out keeps the list taken until its
+// exit has ended; an update during the exit waits, and the rows follow it once the exit is over.
+for (const playback of ['roll', 'cards'] as const) {
+  test(`${playback}: an update during the exit waits for the exit to end (#2108)`, async ({ page }) => {
+    await page.goto('/app');
+    const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), playback, false);
+    await page.goto('/robots.txt');
+    await page.setContent(built.html);
+    const field = await fieldFor(page, 'credits');
+    await call(page, { [field]: LIST }, 'play');
+    await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsHeld: string | null }).noacgCreditsHeld)).toBe(LIST);
+    const during = await page.evaluate(async ({ field, other }) => {
+      const w = window as unknown as { stop(): void; update(d: Record<string, string>): void; noacgOutTimeline: { progress(): number } | null };
+      w.stop();
+      // The exit's first tick has run its calls (Out's stopCreditsRoll), and the exit is on screen.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const progress = w.noacgOutTimeline ? w.noacgOutTimeline.progress() : 1;
+      w.update({ [field]: other });
+      return { progress, rows: [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent) };
+    }, { field, other: OTHER });
+    expect(during.progress, 'the exit is still running').toBeLessThan(1);
+    expect(during.rows[0], 'an update during the exit leaves the list fading out as it was').toBe('Research');
+    await expect.poll(async () => (await rowTexts(page))[0], 'once the exit has ended, the rows follow the update').toBe('Camera');
+    expect(await page.evaluate(() => (window as unknown as { noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean }).noacgCreditsHeld)).toBeNull();
+  });
+}
+
+// #2104: a snap to off rests the graphic without running Out's calls. The take's list is let go
+// all the same: off air the rows follow every write again, and nothing says a newer list waits.
+for (const playback of ['roll', 'cards'] as const) {
+  test(`${playback}: a snap to off after a take lets go of the taken list (#2104)`, async ({ page }) => {
+    await page.goto('/app');
+    const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), playback, false, playback === 'cards' ? 3 : undefined);
+    await page.goto('/robots.txt');
+    await page.setContent(built.html);
+    const field = await fieldFor(page, 'credits');
+    const state = () => page.evaluate(() => {
+      const w = window as unknown as { noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean; noacgCreditsTween: unknown; noacgCreditsCard?: number };
+      return { held: w.noacgCreditsHeld, waiting: w.noacgCreditsWaiting, tween: !!w.noacgCreditsTween, card: w.noacgCreditsCard ?? null };
+    });
+    await call(page, { [field]: 'Research:\nNia Vale\n\nSound:\nAri Moss' }, 'play');
+    await expect.poll(async () => (await state()).held).not.toBeNull();
+    await call(page, { [field]: OTHER });
+    expect((await state()).waiting, 'on air, the newer list waits').toBe(true);
+    // The snap every playout road sends (the editor, a recovery, an exported receiver): the graphic
+    // is off air at once, the rows show the list that waited, and nothing says a list waits.
+    await page.evaluate(() => (window as unknown as { noacgSnap(a: null, o: { timers: boolean }): void }).noacgSnap(null, { timers: false }));
+    expect(await state(), 'off air after the snap: no list held, nothing waits, no hold running').toMatchObject({ held: null, waiting: false, tween: false, ...(playback === 'cards' ? { card: -1 } : {}) });
+    expect((await rowTexts(page))[0], 'the rows show the list that waited').toBe('Camera');
+    await call(page, { [field]: THIRD });
+    expect(await rowTexts(page), 'off air, the rows follow every write').toEqual(['Editor', 'Mia Holt']);
+    // Taken again: the snap left nothing behind, so the take airs the newest list.
+    await call(page, null, 'play');
+    await expect.poll(async () => (await state()).held).toBe(THIRD);
+    // A SNAP ONTO AIR (an output's reload recovery, OGraf's skip-animation) is no snap to off: the
+    // pose's own take runs, and the roll moves or the cards turn as after a Take.
+    const TWO = 'Research:\nNia Vale\n\nSound:\nAri Moss';
+    const onAir = await page.evaluate(() => (window as unknown as { noacgMachineState(): { groups: Record<string, string> } }).noacgMachineState().groups);
+    await page.evaluate(({ groups, field, two }) => {
+      const w = window as unknown as { noacgSnap(a: unknown): void; update(d: Record<string, string>): void };
+      w.noacgSnap(null);
+      w.update({ [field]: two });
+      w.noacgSnap(groups);
+    }, { groups: onAir, field, two: TWO });
+    expect(await state(), 'snapped onto air: the take holds its list and runs').toMatchObject({ held: TWO, waiting: false, ...(playback === 'cards' ? { card: 0 } : { tween: true }) });
+    if (playback === 'roll') {
+      const at = () => page.evaluate(() => (window as unknown as { noacgCreditsTween: { progress(): number } }).noacgCreditsTween.progress());
+      const from = await at();
+      await expect.poll(at, 'the roll moves').toBeGreaterThan(from);
+    } else {
+      await page.evaluate(() => (window as unknown as { noacgCreditsNext(): void }).noacgCreditsNext());
+      await expect.poll(async () => (await state()).card, 'Next moves a card').toBe(1);
+    }
+  });
+}
+
+// #2086 (owner decision 2026-11-05): a Next card pressed while the next card fades in is
+// remembered, one at most, and runs when that change ends. A press while the card on air fades
+// out is that change, so a fast double press still moves one card.
+test('cards: a Next pressed during the fade-in runs when the change ends; a double press moves one card (#2086)', async ({ page }) => {
+  await page.goto('/app');
+  const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), 'cards', false);
+  await page.goto('/robots.txt');
+  await page.setContent(built.html);
+  const field = await fieldFor(page, 'credits');
+  const cards = () => page.evaluate(() => {
+    const w = window as unknown as { noacgCreditsCards: unknown[]; noacgCreditsCard: number; noacgCreditsTurning: boolean };
+    return { cards: w.noacgCreditsCards.length, card: w.noacgCreditsCard, turning: w.noacgCreditsTurning };
+  });
+  const next = () => page.evaluate(() => (window as unknown as { noacgCreditsNext(): void }).noacgCreditsNext());
+  await call(page, { [field]: 'Research:\nNia Vale\n\nSound:\nAri Moss\n\nCamera:\nJonas Berg\n\nEditor:\nMia Holt\n\nDirector:\nAlex Rivera' }, 'play');
+  await expect.poll(cards).toMatchObject({ cards: 5, card: 0 });
+  // A double press: the second comes while the card on air fades out, and is that change.
+  await next();
+  await next();
+  await expect.poll(cards, 'one card per change').toMatchObject({ card: 1, turning: false });
+  // A press while the next card fades in: it waits for the change, then runs; a second press
+  // then is the same remembered press.
+  await next();
+  // The change lays the next card out at 0.4 s and fades it in to 0.9 s.
+  await expect.poll(() => page.evaluate(() => { const w = window as unknown as { noacgCreditsTurning: boolean; noacgCreditsTween: { time(): number } }; return w.noacgCreditsTurning && w.noacgCreditsTween.time() > 0.5; }), 'the next card fades in').toBe(true);
+  expect((await cards()).card).toBe(2);
+  await next();
+  await next();
+  await expect.poll(cards, 'the press during the fade-in ran when the change ended, once').toMatchObject({ card: 3, turning: false });
+  expect(await rowTexts(page)).toEqual(['Editor', 'Mia Holt']);
+});
 
 test('a still page shows an update on air at once, where the drawing put it', async ({ page }) => {
   // The held-still decision (phase 24): nothing on a still page moves, so an update has no
