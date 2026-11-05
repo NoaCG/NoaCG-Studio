@@ -282,7 +282,7 @@ export function buildPresets(
 			name: 'Cues',
 			description: rows.length
 				? 'Select a cue, then press Take in Show control. The other two go straight to air and keep the selection: Take a cue now takes it off on a second press, Play now restarts it. Red on air, green selected.'
-				: 'The cues appear here once an operator page answers the panel.',
+				: 'The cues of your rundown appear here while an operator page answers the panel.',
 			definitions: rows.length
 				? [
 						{ id: 'select_cues', type: 'simple', name: VERB_NAMES['select-cue'], presets: selectIds },
@@ -296,7 +296,7 @@ export function buildPresets(
 			name: 'Pinned graphics',
 			description: graphics.groups.length
 				? "The live controls of each graphic pinned on the production page. They go straight to air, on that graphic's cue on air."
-				: "Pin a graphic's live controls on the production page to get them here.",
+				: "Pin a graphic's live controls on the open production page to get them here.",
 			definitions: graphics.groups.length
 				? graphics.groups.map((g) => ({ id: g.id, type: 'simple' as const, name: g.name, presets: g.ids }))
 				: noKeysYet('graphics'),

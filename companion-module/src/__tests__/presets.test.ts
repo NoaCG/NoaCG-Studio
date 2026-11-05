@@ -17,7 +17,7 @@ import { offer, rows } from './fakes.js'
 
 type Built = ReturnType<typeof buildPresets>
 
-const NOTHING_PINNED = "Pin a graphic's live controls on the production page to get them here."
+const NOTHING_PINNED = "Pin a graphic's live controls on the open production page to get them here."
 
 /**
  * The sections and groups as Companion 5.0.6 draws them (its `Thread/Presets.ts` `convertGroup` and
@@ -107,7 +107,7 @@ test('(1) with something pinned the section holds its controls, and the line to 
 test('with no rundown yet the Cues section shows its line too, with no empty headings', () => {
 	const cues = section(buildPresets('noacg', [], null), 'Cues')
 	assert.ok(cues, 'Companion draws the section')
-	assert.equal(cues.description, 'The cues appear here once an operator page answers the panel.')
+	assert.equal(cues.description, 'The cues of your rundown appear here while an operator page answers the panel.')
 	assert.deepEqual(
 		cues.groups.map((g) => [g.name, g.keys]),
 		[['', []]],
