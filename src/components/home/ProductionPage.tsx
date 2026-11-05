@@ -23,6 +23,7 @@ import {
   type PlayoutItem,
   type SheetShowSource,
   type FeedShowSource,
+  type FileShowSource,
   fillsFields,
   type Show,
   type ShowCue,
@@ -70,6 +71,8 @@ import { createProductionDataSession } from '../../control/productionDataSession
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
+import { createFileReader } from '../../control/fileSource';
+import { loadFileHandle } from '../../control/fileHandles';
 import { useStorePart } from './useStorePart';
 import { applyClearedSlot, clipClock, followedClip } from '../../control/serverState';
 import { segmentSeconds } from '../../control/cuePlayback';
@@ -515,7 +518,7 @@ interface PoolMachine extends ControlsMachine {
 
 /** What a published production's sources write carries (control/hostedControl.ts `writePublishedSources`). */
 type PublishedSources = Pick<Show, 'bindings' | 'sources' | 'collections'>;
-type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'>, boolean];
+type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'> | Pick<FileShowSource, 'kind' | 'config'>, boolean];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -1772,8 +1775,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   messagesRef.current = messages;
   // Its YouTube live chat keeps reading while the page is open, and reconnects on reload.
   useMessageSources(show ?? null, messages);
-  // Sheet tabs and news feeds (data-sources C4) each have one reader; a feed's reads go through
-  // the guarded feed route, every 5 minutes (control/feedSource.ts).
+  // Sheet tabs, news feeds (data-sources C4) and local files (#2184) each have one reader; a feed's
+  // reads go through the guarded feed route, every 5 minutes (control/feedSource.ts); a file is read
+  // through this browser's handle for it, every 5 s like a tab (control/fileSource.ts).
   // Only what a reader is built from, so a rename or a Pause never restarts one.
   const readerPlan = JSON.stringify(
     (show?.sources ?? []).filter(fillsFields).map((s) => [s.id, { kind: s.kind, config: s.config }, Boolean(s.inbox)] as ReaderPlan),
@@ -1832,7 +1836,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const reader =
           source.kind === 'feed'
             ? createFeedReader({ ...common, url: source.config.url })
-            : createSheetReader({
+            : source.kind === 'file'
+              ? createFileReader({ ...common, shape: source.config.shape, format: source.config.format, handle: () => loadFileHandle(sourceId) })
+              : createSheetReader({
                 ...common,
                 link: { sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published },
                 shape: source.config.shape,

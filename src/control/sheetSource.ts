@@ -187,7 +187,7 @@ export function sheetContent(shape: SheetShape, rows: string[][]): SheetContent 
  * field it was made for when the source says so (a list adapter's own field, a Field ID).
  * `graphic` is the graphic under review, so a list leaf names the field it really fills.
  */
-export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed', graphic?: GraphicShape): OfferedValue[] {
+export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed' | 'file', graphic?: GraphicShape): OfferedValue[] {
   const prefix = sourcePrefix(sourceId, kind);
   if (shape !== 'values') {
     return listLeaves(shape, graphic).map((l) => ({ path: `${prefix}.${l.leaf}`, label: l.label, sample: content.leaves[l.leaf] ?? '', ...(l.field ? { key: l.field } : {}) }));

@@ -1,7 +1,9 @@
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
 import { FEED_READ_MS } from '../../control/feedSource';
+import { fileAsk } from '../../control/fileSource';
+import { allowFile, pickFile, saveFileHandle } from '../../control/fileHandles';
 import { useNow } from './ClipClock';
 import { liveDataUrl, ownReaderGate, type OwnReaderGate } from '../../control/liveData';
 import { resolveSavedGraphicDoc, type GraphicDoc } from '../../model/library';
@@ -112,8 +114,45 @@ export function readerWords(paused: boolean | undefined, status: SheetStatus | u
   const every = kind === 'feed' ? `about every ${FEED_READ_MS / 60_000} min` : `about every ${SHEET_READ_MS / 1000} s`;
   if (status.reader === 'server') return 'Read by the server about once a minute, while every page is closed';
   const page = status.reader === 'other' ? `Read by another tab of this production, ${every}` : `Read by this page, ${every}`;
+  // The server cannot reach a file on this computer: it is read only while a page here is open.
+  if (kind === 'file') return `${page}; only while a production page is open on this computer`;
   if (status.closedPage === undefined) return page;
   return status.closedPage ? `${page}; about once a minute by the server once every page is closed` : `${page}; closed-page reading is off`;
+}
+
+/**
+ * A local file's one click (#2184): after a reload Chrome wants permission again (Allow), and a
+ * computer that never chose the file needs it chosen here (Choose the file…). Then it reads at
+ * once. Nothing for any other source, or while the file reads.
+ */
+export function FileAskButton({ source, status, store }: { source: ShowSource; status: SheetStatus | undefined; store: SourceStatusStore }) {
+  const [refused, setRefused] = useState<string | null>(null);
+  const ask = source.kind === 'file' && !source.paused && status?.state === 'failing' ? fileAsk(status.error) : null;
+  if (!ask || source.kind !== 'file') return null;
+  const press = async () => {
+    setRefused(null);
+    if (ask === 'allow') {
+      if (await allowFile(source.id)) store.poke(source.id);
+      else setRefused('Chrome did not allow it');
+      return;
+    }
+    const picked = await pickFile();
+    if (!picked) return;
+    if ('error' in picked || picked.format !== source.config.format) {
+      setRefused(`Choose ${source.config.name}`);
+      return;
+    }
+    await saveFileHandle(source.id, picked.handle);
+    store.poke(source.id);
+  };
+  return (
+    <>
+      <button type="button" className="primary" onClick={() => void press()} data-testid="source-file-ask">
+        {ask === 'allow' ? `Allow reading ${source.config.name}` : 'Choose the file…'}
+      </button>
+      {refused && <span className="status-warn"> {refused}.</span>}
+    </>
+  );
 }
 
 /** Pause or Resume a source, and read at once on Resume so the line does not wait an interval. */
@@ -163,6 +202,7 @@ function SourceLine({ show, setShows, source, store, onAir }: { show: Show; setS
       <button type="button" onClick={() => toggleSourcePause(show, setShows, store, source)} data-testid="source-pause">
         {source.paused ? 'Resume' : 'Pause'}
       </button>
+      <FileAskButton source={source} status={status} store={store} />
       {status?.state === 'failing' && status.fix && <span className="status-warn" data-testid="source-fix"> {status.fix}</span>}
       {status?.problems.map((p) => (
         <span key={p} className="status-warn" data-testid="source-problem"> {p}.</span>

@@ -35,6 +35,8 @@ import {
   type SourceStatusStore,
 } from '../../control/sheetSource';
 import { FEED_ROUTE_TIMEOUT_MS, normalizeFeedAddress, readFeedRoute } from '../../control/feedSource';
+import { fileRead, type FileFormat, type FileHandleLike } from '../../control/fileSource';
+import { canPickFiles, pickFile, saveFileHandle, loadFileHandle, allowFile } from '../../control/fileHandles';
 import { apiOffers, isApiPath } from '../../control/anotherSystem';
 import { columnsFor, connectorPlan, jsonOffers, LIST_CELLS, needsRepair, proposeConnector, readConnectorSample, type ConnectorSource } from '../../control/connectorReview';
 import { projectSource, type CollectionEntity } from '../../control/sourceMapping';
@@ -44,7 +46,7 @@ import { useStorePart } from './useStorePart';
 import type { SourceListAdapter } from '../../control/externalSource';
 import { productionDataKey } from '../../control/productionDataApi';
 import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
-import { ago, statusWords, useSourceStatus } from './SourcesLine';
+import { FileAskButton, ago, statusWords, useSourceStatus } from './SourcesLine';
 
 /** The edited cue's text, as the draft shows it. */
 export type CueEditorView = CueText;
@@ -179,8 +181,9 @@ function CueConnectedLine({ source, store, onDisconnect }: { source: ShowSource;
   return (
     <span className="pd-connected-line hint" data-testid="cue-connected-line" data-stale={status?.stale ? 'true' : undefined}>
       <span className={status?.stale || status?.state === 'failing' ? 'status-warn' : undefined}>
-        Connected to {sourceKindWord(source)}: {source.label} · {when}
+        Connected to {source.kind === 'file' ? source.label : `${sourceKindWord(source)}: ${source.label}`} · {when}
       </span>{' '}
+      {source.kind === 'file' && <FileAskButton source={source} status={status} store={store} />}
       <button type="button" className="link-inline" onClick={onDisconnect} data-testid="cue-connected-disconnect">
         Disconnect
       </button>
@@ -194,6 +197,7 @@ function CueConnectedLine({ source, store, onDisconnect }: { source: ShowSource;
 type ConnectRead =
   | { link: SheetLink; rows: string[][] }
   | { feed: string; rows: string[][] }
+  | { file: { name: string; format: FileFormat; handle: FileHandleLike }; rows: string[][] }
   | { api: true }
   | { json: string; sample: unknown }
   | { error: string; fix: string };
@@ -239,7 +243,7 @@ function CueConnectReview({
   /** A Sheet tab, a connector, and for a ticker a feed, can fill fields; a YouTube source feeds
    *  Messages alone. */
   const fieldSources = (show.sources ?? []).filter(
-    (s): s is FieldShowSource | ConnectorSource => s.kind === 'sheet' || s.kind === 'external' || (takesFeed && s.kind === 'feed'),
+    (s): s is FieldShowSource | ConnectorSource => s.kind === 'sheet' || s.kind === 'file' || s.kind === 'external' || (takesFeed && s.kind === 'feed'),
   );
   /** A list field's columns, by field, as the operator picked them (a connector's list). */
   const [columns, setColumns] = useState<Record<string, string[]>>({});
@@ -261,9 +265,9 @@ function CueConnectReview({
   const previewRef = useRef(onPreview);
   previewRef.current = onPreview;
 
-  const kind = reuse?.kind ?? (read && 'feed' in read ? 'feed' : read && 'json' in read ? 'external' : 'sheet');
+  const kind = reuse?.kind ?? (read && 'feed' in read ? 'feed' : read && 'file' in read ? 'file' : read && 'json' in read ? 'external' : 'sheet');
   // A feed is read only on a ticker, whose shape is `lines`.
-  const shape = reuse?.kind === 'sheet' ? reuse.config.shape : sheetShapeFor(poolGraphic);
+  const shape = reuse?.kind === 'sheet' || reuse?.kind === 'file' ? reuse.config.shape : sheetShapeFor(poolGraphic);
   const id = reuse?.id ?? sourceId;
   const rows = read && 'rows' in read ? read.rows : null;
   const content = rows ? sheetContent(shape, rows) : null;
@@ -282,7 +286,7 @@ function CueConnectReview({
       if (adapter && adapter in LIST_CELLS) adapters[d.key] = adapter as SourceListAdapter;
     }
   }
-  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind === 'feed' ? 'feed' : 'sheet', poolGraphic) : offers ? offers.scalars : [];
+  const offered = api ? apiOffers(show.bindings, poolGraphic.name, fields, values) : content ? offeredValues(id, shape, content, kind === 'feed' || kind === 'file' ? kind : 'sheet', poolGraphic) : offers ? offers.scalars : [];
   const sample = new Map(offered.map((o) => [o.path, o.sample]));
   const mapping: MappingRow[] = offers
     ? proposeConnector(fields, offers, bound, adapters, refuses, holds)
@@ -399,6 +403,30 @@ function CueConnectReview({
     readInto(() => readSheet((url, init) => fetch(url, init), link, AbortSignal.timeout(SHEET_TIMEOUT_MS)), (rows) => ({ link, rows }));
   const readFeed = (url: string) =>
     readInto(() => readFeedRoute((u, init) => fetch(u, init), url, AbortSignal.timeout(FEED_ROUTE_TIMEOUT_MS)), (rows) => ({ feed: url, rows }));
+  /** Read a local file through its handle (control/fileSource.ts), for the review: the reader's own
+   *  read, so the review shows exactly what the reader will write. */
+  const readFile = (file: { name: string; format: FileFormat; handle: FileHandleLike }) =>
+    readInto(() => fileRead({ handle: async () => file.handle, format: file.format }).read(AbortSignal.timeout(SHEET_TIMEOUT_MS)), (rows) => ({ file, rows }));
+  /** A linked file picked again from Use existing content: this browser's handle, with Chrome's
+   *  permission asked on this click when a reload took it away. */
+  const reuseFile = async (source: { id: string; config: { name: string; format: FileFormat } }) => {
+    const handle = await loadFileHandle(source.id);
+    if (!handle) return setRead({ error: `This computer has not chosen ${source.config.name}`, fix: 'Use Local file… to choose it here.' });
+    if (!(await allowFile(source.id))) return setRead({ error: `Chrome did not allow reading ${source.config.name}`, fix: 'Choose it again and press Allow.' });
+    void readFile({ name: source.config.name, format: source.config.format, handle });
+  };
+  /** Local file…: Chrome's picker, then the one-button Connect on what it read (#2184). */
+  const chooseFile = async () => {
+    const picked = await pickFile();
+    if (!picked) return;
+    if ('error' in picked) return setRead({ error: picked.error, fix: 'Choose a .csv or .xlsx file.' });
+    setReuse(null);
+    setLinkText('');
+    setLabel(picked.handle.name);
+    setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
+    void readFile({ name: picked.handle.name, format: picked.format, handle: picked.handle });
+    setAuto(true);
+  };
   /** A connector's sample: through its agent when one holds the registered source of this
    *  published production, else the hosted fetcher for a public address. Never applied. */
   const readJson = async (endpoint: string, registered: string | null) => {
@@ -420,11 +448,15 @@ function CueConnectReview({
       return finish(connectConnectorSource(show.id, plan.source, plan.entries, plan.fence), null);
     }
     if (id === '') return;
+    // A new file's handle is kept in this browser first, so the reader finds it at its first read.
+    if (!reuse && 'file' in read) await saveFileHandle(id, read.file.handle);
     const source: ShowSource =
       reuse ??
       ('feed' in read
         ? { id, kind: 'feed', label: label.trim() || poolGraphic.name, config: { url: read.feed } }
-        : {
+        : 'file' in read
+          ? { id, kind: 'file', label: label.trim() || read.file.name, config: { name: read.file.name, format: read.file.format, shape } }
+          : {
             id,
             kind: 'sheet',
             label: label.trim() || poolGraphic.name,
@@ -548,6 +580,7 @@ function CueConnectReview({
             setLinkText('');
             if (source?.kind === 'external') void readJson(source.config.endpoint, source.id);
             else if (source?.kind === 'feed') void readFeed(source.config.url);
+            else if (source?.kind === 'file') void reuseFile(source);
             else if (source) void readTab({ sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published });
             else {
               cancelRead();
@@ -566,6 +599,24 @@ function CueConnectReview({
             </option>
           ))}
         </select>
+      )}
+      {/* A CSV or Excel file on this computer (#2184): Chrome reads it while the page is open.
+          Firefox and Safari have no way to keep a file linked, so they say what does. */}
+      {!read && !reading && linkText.trim() === '' && (
+        <div className="pd-connect-other" data-testid="cue-connect-file">
+          {canPickFiles() ? (
+            <>
+              <p className="hint">Or link a CSV or Excel file on this computer. It is read again whenever it changes.</p>
+              <button type="button" disabled={saving} onClick={() => void chooseFile()} data-testid="cue-connect-file-pick">
+                Local file…
+              </button>
+            </>
+          ) : (
+            <p className="hint" data-testid="cue-connect-file-unsupported">
+              To link a CSV or Excel file on this computer, open NoaCG in Chrome or Edge.
+            </p>
+          )}
+        </div>
       )}
       {/* Another system writes this graphic's fields through the data key (C5): nothing to
           read, every field offered its own path, reviewed and confirmed once like a Sheet. A
@@ -631,7 +682,7 @@ function CueConnectReview({
           )}
           {content?.empty && (
             <p className="hint" data-testid="cue-connect-empty">
-              {kind === 'feed' ? 'The feed has no headlines' : 'The tab is empty'}: connected, it clears the field.
+              {kind === 'feed' ? 'The feed has no headlines' : kind === 'file' ? 'The file is empty' : 'The tab is empty'}: connected, it clears the field.
             </p>
           )}
           {content?.problems.map((p) => (

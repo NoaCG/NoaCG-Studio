@@ -23,7 +23,7 @@ import { fieldDescriptors } from '../../control/controlModel';
 import { freeName } from '../../model/poolIdentity';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { SourceStatusStore } from '../../control/sheetSource';
-import { OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
+import { FileAskButton, OwnReaderLine, ownSheetReaders, readerWords, statusWords, toggleSourcePause, useSourceStatus } from './SourcesLine';
 import { loadGraphics } from '../../model/library';
 import { ownReaderHolds, subscribeOwnReaderHolds } from '../../model/ownReaderHolds';
 import { stripLiveData } from '../../control/liveData';
@@ -488,6 +488,7 @@ function OverviewSource({ show, setShows, source, store, pool }: { show: Show; s
       <span className="hint" data-testid="data-source-users">
         {graphics.length > 0 ? `Followed by ${graphics.join(', ')}` : 'No graphic follows it'}
       </span>
+      <FileAskButton source={source} status={status} store={store} />
       <button type="button" onClick={() => toggleSourcePause(show, setShows, store, source)} data-testid="data-source-pause">
         {source.paused ? 'Resume' : 'Pause'}
       </button>
