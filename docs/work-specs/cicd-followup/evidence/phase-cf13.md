@@ -35,7 +35,7 @@ cites those workflow lines and changes nothing.
 | --- | --- |
 | Rank 1, 8 configured stacks | skipped for cost, untried: it grows the backend tier, which is in an active cost breach (section 1); does not count toward the three; goes to cf20(c) |
 | Rank 2, Build step in parallel | first of the three tries; this PR; lands on cost grounds, expected unmeasured (section 2.2) |
-| Rank 3, ESLint and tsc caches | second try, only if rank 2 does not improve beyond the spread; then rank 4 as the third |
+| Rank 3, ESLint and tsc caches | second try, in ranked order, expected unmeasured (section 2.2); then rank 4 as the third |
 | Ranks 5 to 8 | untried; they go to cf20(c) |
 | (b) | this PR: preview-trial.yml was the one PR workflow without cancellation (section 3) |
 
@@ -177,17 +177,21 @@ and going to cf20(c).
 
 **The same check on the next candidates.** Rank 3 (ESLint and tsc caches) also shortens only the
 Build step, so it fails the same check: M3 effect about -10 per merge against 290.26, no M1 or
-M2 effect for `cap+cfg`, and `none` too rare. Rank 4 alone moves `cap+cfg` M2 execution by -0.1
-against 0.62 (cf03 section 7). Rank 5 moves `cap+cfg` M1 by -0.9 against 1.04. Rank 6 needs over
+M2 effect for `cap+cfg`, and `none` too rare. Rank 4 alone moves M2 execution by -0.1 at the median over all 66 merges after ci06
+(cf03 section 7); cf03 gives no `cap+cfg` figure for it, and within `cap+cfg`, where the catalog
+gate sets the merge group's time more often, the effect could be larger, so rank 4 is checked
+against `cap+cfg` M2 execution (spread 0.62, minimum 11) before it is built. Rank 5 moves `cap+cfg` M1 by -0.9 against 1.04. Rank 6 needs over
 120 per side for its p95. The one candidate with an effect above a spread on a group that still
 flows is rank 1 (`cap+cfg` M1 -2.6 against 1.04, minimum 10 per side, about 20 hours of merges),
 which is skipped because the backend tier is in breach (section 1).
 
-### If it does not improve beyond the spread
+### What follows
 
-It stays: it lowers runner-minutes and adds no job, so the cost grounds favour keeping it. The
-phase then moves to rank 3 (ESLint and tsc caches, keyed on more than file content), whose own
-before side starts at this PR's landing.
+Rank 2 stays on cost grounds whatever its reading: it lowers runner-minutes and adds no job. The
+phase then tries rank 3 (ESLint and tsc caches, keyed on more than file content) in ranked order,
+although the check above expects it to be unmeasured too, because the acceptance tries candidates
+in ranked order and counts an unmeasured one toward the three; its before side starts at this
+PR's landing. Rank 4 is the third try, after the check named above.
 
 ## 3. (b) Obsolete PR runs
 
@@ -232,7 +236,7 @@ kind of cancelled run on `main`.
 
 | Criterion | Result | How |
 | --- | --- | --- |
-| (a) a candidate from the ranking lands | pending | this PR, when its before side holds 12 `none` merges |
+| (a) a candidate from the ranking lands | pending | this PR, on cost grounds, expected unmeasured (section 2.2) |
 | (a) M1 or M3 lower beyond the spread, no M2 or M4 regression | open, not claimed | read after the after side fills (section 2) |
 | (a) candidates taken in ranked order | recorded | section 1; the capacity gate's verdict reproduced locally (WARN) |
 | The lanes shorten the Build step on Actions | one run: 402 to 268.6 s | section 2.1 |
@@ -255,7 +259,8 @@ kind of cancelled run on `main`.
     never ran, so it does not count toward the three tries (the spec counts candidates that landed).
   - Rank 2 as lanes in one job, not new jobs: the overhead tier is in an open breach too, and lanes
     cost nothing extra.
-  - The landing waits for 12 `none` merges on the before side.
+  - Rank 2 lands without waiting for a before side: no group can reach cf03's minimum within the
+    7-day bound (section 2.2), so waiting would cost time and change nothing.
   - The cf03 scripts take `CF03_FROM` and `CF03_UNTIL` so a later window can be collected; unset,
     they read cf03's own window, unchanged.
   - A cancelled build stops each lane's whole process tree (Codex review on 21a18589), read from
