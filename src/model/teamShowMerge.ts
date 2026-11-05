@@ -197,31 +197,37 @@ function separateNewLayers(merged: Item[], base: unknown, theirs: unknown): Item
  * the same base both keep it, but the output, the live state and the bindings key a production's
  * graphics by name, so one name can stand for only one of them. As with layers, theirs keeps its
  * name and the one WE added takes the next free one ("Lower third 2"), the name its add would have
- * picked had it seen theirs (model/poolIdentity.ts `poolPlacement`).
+ * picked had it seen theirs (model/poolIdentity.ts `poolPlacement`). It is done to our document
+ * BEFORE the merge, so the fields keyed by that name (the bindings) move with it and never land on
+ * theirs.
  */
-function separateNewNames(merged: Item[], base: unknown, theirs: unknown): Item[] {
-  const ids = (list: unknown) => new Set(isItemList(list) ? list.map((item) => item.id) : []);
-  const inBase = ids(base);
-  const inTheirs = ids(theirs);
-  const ourNew = (g: Item) => !inBase.has(g.id) && !inTheirs.has(g.id);
-  const nameOf = (g: Item) => (g as { name?: unknown }).name;
-  const used = new Set(merged.filter((g) => !ourNew(g)).map(nameOf).filter((n): n is string => typeof n === 'string'));
-  return merged.map((g) => {
-    const name = nameOf(g);
-    if (!ourNew(g) || typeof name !== 'string') return g;
-    const free = freeName(used, name);
+function renameOurNewGraphics(base: Show, ours: Show, theirs: Show): Show {
+  const inBase = new Set(base.graphics.map((g) => g.id));
+  const inTheirs = new Set(theirs.graphics.map((g) => g.id));
+  const ourNew = (g: { id: string }) => !inBase.has(g.id) && !inTheirs.has(g.id);
+  const used = new Set([...theirs.graphics, ...ours.graphics.filter((g) => !ourNew(g))].map((g) => g.name));
+  const renamed = new Map<string, string>();
+  const graphics = ours.graphics.map((g) => {
+    if (!ourNew(g)) return g;
+    const free = freeName(used, g.name);
     used.add(free);
-    if (free === name) return g;
-    const template = (g as { template?: Record<string, unknown> }).template;
-    return { ...g, name: free, ...(template ? { template: { ...template, name: free } } : {}) };
+    if (free === g.name) return g;
+    renamed.set(g.name, free);
+    return { ...g, name: free, ...(g.template ? { template: { ...g.template, name: free } } : {}) };
   });
+  if (!renamed.size) return ours;
+  // A name the base already bound belonged to a graphic before ours, so only a new one moves.
+  const bindings = ours.bindings && Object.fromEntries(Object.entries(ours.bindings).map(([name, fields]) =>
+    [renamed.has(name) && !base.bindings?.[name] ? renamed.get(name)! : name, fields]));
+  return { ...ours, graphics, ...(bindings ? { bindings } : {}) };
 }
 
 /**
  * Merge a refused local document onto the one a teammate saved. `at` becomes the result's
  * `updatedAt`, so the merged record reads as the newest edit it is.
  */
-export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string): TeamShowMerge {
+export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string): TeamShowMerge {
+  const ours = renameOurNewGraphics(base, mine, theirs);
   const doc: Record<string, unknown> = { ...theirs };
   const lost: string[] = [];
   const b = base as unknown as Record<string, unknown>;
@@ -245,7 +251,7 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     }
     const items = mergeItems(b[key], o[key], t[key]);
     if (items) {
-      doc[key] = key === 'graphics' ? separateNewNames(separateNewLayers(items.value, b[key], t[key]), b[key], t[key]) : items.value;
+      doc[key] = key === 'graphics' ? separateNewLayers(items.value, b[key], t[key]) : items.value;
       if (items.conflict) lost.push(FIELD_LABEL[key] ?? key);
       continue;
     }

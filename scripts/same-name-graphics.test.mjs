@@ -50,13 +50,20 @@ test('a different library graphic under a taken name is added under a free name,
 test('two members who each add a "Lower third" from the same base both keep it, under two names', () => {
   const base = { id: 'show', name: 'Show', graphics: [], updatedAt: '2026-11-04T00:00:00.000Z' };
   const lt = (id, graphicId) => ({ id, name: 'Lower third', graphicId, layer: 20, template: template('Lower third', `<p>${graphicId}</p>`) });
-  const theirs = { ...base, graphics: [lt('anna-copy', 'anna')] };
-  const ours = { ...base, graphics: [lt('ben-copy', 'ben')] };
+  const theirs = { ...base, graphics: [lt('anna-copy', 'anna')], bindings: { 'Lower third': { f0: 'anna.name' } } };
+  const ours = { ...base, graphics: [lt('ben-copy', 'ben')], bindings: { 'Lower third': { f0: 'ben.name' } } };
   const { doc } = mergeTeamShow(base, ours, theirs, '2026-11-05T00:00:00.000Z');
   assert.deepEqual(doc.graphics.map((g) => [g.id, g.name, g.template.name, g.layer]), [
     ['anna-copy', 'Lower third', 'Lower third', 20],
     ['ben-copy', 'Lower third 2', 'Lower third 2', 21],
   ]);
+  // Ours' binding moves with its graphic and never lands on theirs. Both sides changed the bindings,
+  // so theirs stands, as for any field both changed, and the loss is reported.
+  const { doc: onlyOurs } = mergeTeamShow(base, ours, { ...theirs, bindings: undefined }, '2026-11-05T00:00:00.000Z');
+  assert.deepEqual(onlyOurs.bindings, { 'Lower third 2': { f0: 'ben.name' } });
+  const { doc: both, lost } = mergeTeamShow(base, ours, theirs, '2026-11-05T00:00:00.000Z');
+  assert.deepEqual(both.bindings, { 'Lower third': { f0: 'anna.name' } });
+  assert.ok(lost.includes('the field bindings'));
 });
 
 const dir = mkdtempSync(path.join(tmpdir(), 'same-name-graphics-'));
