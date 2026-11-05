@@ -13,6 +13,7 @@ import { mintOid } from './commandRoads';
 import { workerInterval } from './workerTicker';
 import {
   PANEL_PROTOCOL,
+  PRESS_DRAW_MS,
   PressMemory,
   PressOrder,
   SnapshotRing,
@@ -348,10 +349,12 @@ export function answerPanel(opts: {
     offer.act(judged.run).then(settle, (err: unknown) => settle({ outcome: 'failed', note: (err as Error)?.message ?? 'failed' }));
   };
 
-  /** The cues a panel's Take is still taking (protocol §6.2): it saves an edit and settles the cue's
-   *  box before the page draws it on air, which can outlast the draw gap, so another panel Take of
-   *  that cue is refused until it settles. The page's own Take and Re-take are not held to this. */
-  const taking = new Set<string>();
+  /** The cues a panel's Take is still taking, each with whether it was on air when that Take started
+   *  (protocol §6.2). A Take saves an edit and settles the cue's box before the page draws it, which
+   *  can outlast the draw gap, so until one draw gap after it settles, another panel Take of that cue
+   *  from a key drawn before the page showed it go on or off air is refused. The page's own Take and
+   *  Re-take are not held to this. */
+  const taking = new Map<string, { live: boolean }>();
   const runPress = (payload: unknown) => {
     if ((payload as { verb?: unknown } | null)?.verb === ACTION_VERB) {
       onActionMessage(payload);
@@ -361,12 +364,21 @@ export function answerPanel(opts: {
     const now = Date.now();
     if (!press || !admit(press, now)) return;
     const takes = press.verb === 'take' || press.verb === 'take-cue';
-    const verdict = (takes && taking.has(press.target) ? TAKE_CHANGED : judgePress(press, opts.snapshot(), ring.get(press.seen), opts.runs)) ?? { outcome: 'ran' as const };
+    const snap = opts.snapshot();
+    const then = ring.get(press.seen);
+    const mark = takes ? taking.get(press.target) : undefined;
+    const early = !!mark && then?.live.includes(press.target) === mark.live;
+    const verdict = (early ? TAKE_CHANGED : judgePress(press, snap, then, opts.runs)) ?? { outcome: 'ran' as const };
     if (verdict.outcome === 'ran') {
       const took = opts.run(press.verb, press.target);
       if (takes && took instanceof Promise) {
-        taking.add(press.target);
-        const settled = () => taking.delete(press.target);
+        const running = { live: snap.live.includes(press.target) };
+        taking.set(press.target, running);
+        // Let go a draw gap after it settles, so the page draws what it came to first.
+        const settled = () =>
+          afterUnstarved(PRESS_DRAW_MS, () => {
+            if (taking.get(press.target) === running) taking.delete(press.target);
+          });
         took.then(settled, settled);
       }
     }

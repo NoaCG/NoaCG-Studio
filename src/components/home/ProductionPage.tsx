@@ -3442,7 +3442,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         void stepOff([decision.cue]);
         return;
       case 'take':
-        // A panel's Take is refused again until this settles (control/panelRelay.ts `taking`).
+        // Answered so a panel knows when its Take settles (control/panelRelay.ts `taking`).
         return takeCue(decision.cue);
       case 'folder-step':
         void stepFolder(rundown.folders.get(decision.folderId)!);

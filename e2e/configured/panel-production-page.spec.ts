@@ -241,9 +241,9 @@ test('presses that reach the production page reversed or together run in the ord
   await expect(op.getByTestId('live-cue-chip')).toContainText('Anna');
 
   // THE TAKE KEY PRESSED TWICE, both drawn when it said Take, the two reaching the page in order and
-  // back to back (issue #2144). The second waits for the page to draw the first, and is refused
-  // rather than taking Anna in a second time. No edit is owed and Anna's box is measured, so the
-  // first Take reaches what the page draws inside the gap (protocol §6.2 says what it does not cover).
+  // back to back (issue #2144). The second waits out the draw gap and is refused rather than taking
+  // Anna in a second time: against the drawn page, or because the first Take is still running
+  // (protocol §6.2); both answer the same.
   const anna2 = await deck.state();
   expect((await deck.press('all-out', '', anna2.ver as number, 'orderdeck:7')).outcome).toBe('ran');
   const armed = await deck.state((s) => (s.live as string[]).length === 0 && s.selected === anna && s.space === 'take', 'Take ready for Anna');

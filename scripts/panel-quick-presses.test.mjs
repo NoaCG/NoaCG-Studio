@@ -938,7 +938,7 @@ test('a page that stops answering runs nothing it was still holding', async (t) 
   }
 });
 
-for (const ends of ['lands', 'fails']) {
+for (const ends of ['is drawn', 'fails']) {
   test(`a Take key pressed twice while the first Take still saves an edit takes the cue once, and the next Take after the first ${ends} runs (issue #2144)`, async (t) => {
     t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
     const hub = relayHub();
@@ -949,6 +949,8 @@ for (const ends of ['lands', 'fails']) {
     prod.page.flush = () => saving.promise;
     const cue = { id: 'b2', sourceId: 'g-Score', label: 'B2', graphic: 'Score', values: { home: '0' } };
     const takes = [];
+    // The page draws B2 on air once its Take is sent, as the real page books its marker.
+    const up = () => prod.log.some((item) => item.msg.t === 'cue' && item.msg.cue === 'b2');
     const answer = answerPanel({
       slug: 'slug-3',
       where: 'production',
@@ -957,8 +959,8 @@ for (const ends of ['lands', 'fails']) {
       snapshot: () => ({
         title: 'Match',
         selected: 'b2',
-        space: prod.page.liveCue.Score === 'b2' ? 'take-off' : 'take',
-        live: Object.values(prod.page.liveCue),
+        space: up() ? 'take-off' : 'take',
+        live: up() ? ['b2'] : ['b1'],
         allowed: { take: true },
         blocked: [],
         clip: null,
@@ -987,17 +989,19 @@ for (const ends of ['lands', 'fails']) {
       const [one, two] = await Promise.all([first, second]);
       assert.equal(one.result.outcome, 'ran');
       assert.deepEqual([two.result.outcome, two.result.note], ['stale', 'what Take does changed']);
-      if (ends === 'lands') saving.resolve();
+      if (ends === 'is drawn') saving.resolve();
       else saving.reject(new Error('the edit did not save'));
       await drain();
-      assert.equal(prod.sends.length, ends === 'lands' ? 1 : 0, 'the cue is taken once');
-      if (ends === 'lands') await landNext(prod, 0, true);
+      assert.equal(prod.sends.length, ends === 'is drawn' ? 1 : 0, 'the cue is taken once');
+      // Drawn: the page shows B2 on air while the Take's send is still unanswered. Failed: the
+      // Take settled a draw gap ago, and the page shows what it showed before.
       answer.changed();
       await clock.advance(PRESS_DRAW_MS);
-      // The first Take has settled: the next press of the key is judged as any other, and runs.
+      // The next press of the key is judged as any other, and runs.
       const third = await deck.press('take', 'b2');
       assert.equal(third.result.outcome, 'ran');
       assert.deepEqual(takes, ['b2', 'b2']);
+      if (ends === 'is drawn') await landNext(prod, 0, false);
     } finally {
       pagehide();
       void deck.stop();

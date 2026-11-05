@@ -153,9 +153,10 @@ meant to let the page draw the press before, and it assumes that press's effect 
 drawn state within 50 ms. A graphic's Take can take longer: it first saves an edit still owed and
 settles the cue's box (adjust writes still saving, a measurement not yet made;
 `control/graphicVerbs.ts` `takeOn`). So on the production page, while a cue's Take started by a
-panel's `take` or `take-cue` is still running (until its send is answered), another panel `take` or
-`take-cue` of that cue is refused `stale` ("what Take does changed") without being judged; the
-page's own Take and Re-take are not held to this. The limit that remains is for the other verbs:
+panel's `take` or `take-cue` is still running, and for 50 ms after it settles, another panel `take`
+or `take-cue` of that cue is refused `stale` ("what Take does changed") without being judged, unless
+its key was drawn after the page showed that cue go on or off air. The page's own Take and Re-take
+are not held to this. The limit that remains is for the other verbs:
 one whose effect the page draws later than 50 ms after it ran is not waited for. The first press
 this page hears from a panel sets the count and never waits for the numbers before it, because the
 module may have pressed long before this page opened; a reversed pair at that very moment runs as it
