@@ -782,9 +782,9 @@ function overflowIssues(
         // line's end off at rest - a neutral scoreboard showed "18" of a score of 188 under the
         // stress name, and its corner bug "Konstantopou" - while this loop skipped the mask and
         // (a2) below described the hidden part as text past its panel. So a mask is measured on
-        // the one axis it has no business cutting at rest. Vertically its BOX is still exempt: there
-        // it hugs a line box its glyphs routinely overhang, so the vertical check below measures
-        // the glyphs' ink instead. A tracked line's last letter carries
+        // the one axis it has no business cutting at rest. Vertically its box is not compared with
+        // the line's: there it hugs a line box its glyphs routinely overhang, so the vertical check
+        // below measures the letters' body instead. A tracked line's last letter carries
         // its letter-spacing as empty advance past the ink, and centred tracked caps hang exactly
         // that much past their mask (lt33), so that much is not a cut. A WARNING until the
         // catalog has been calibrated against it, like (a2). The line is measured by its TEXT, so
@@ -810,7 +810,7 @@ function overflowIssues(
               issue(
                 'bench-overflow',
                 `${labelFor(el)} is cut off by its mask ${labelFor(anc)} ${phase} - the mask's ${edge} edge cuts ${Math.round(over)}px into the letters, ` +
-                  `so their ${edge} never shows. Give the line its height back (a line-height of at least 1, no fixed height on the mask).`,
+                  `so their ${edge} never shows. Give the mask the line's height (no fixed height or max-height on it, a line-height of at least 1).`,
               ),
             );
             continue;
