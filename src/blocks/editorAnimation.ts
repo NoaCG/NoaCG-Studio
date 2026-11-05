@@ -3,10 +3,11 @@ import { losslessAnimData, type AnimData } from './animData';
 import { deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
 import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
-import { baseValues, editBase, type BasePatch } from './baseEdits';
+import { baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
+import { allTimelines } from './animMachine';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
-import { behaviourSequenceReason, claimReason, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim, type Relation } from './behaviourKeys';
+import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
 
 /** A transform or opacity control of the inspector and canvas. */
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
@@ -101,19 +102,9 @@ export function keySequenceReason(template: SpxTemplate, data: AnimData | null):
 let claimed: { js: string; html: string; claims: RecipeClaim[] } | null = null;
 function claimsOf(template: SpxTemplate, doc: Document): RecipeClaim[] {
   if (claimed?.js !== template.js || claimed.html !== template.html) {
-    const drawn = (token: string) => { try { return !!doc.querySelector(stamped(token)); } catch { return true; } };
-    claimed = { js: template.js, html: template.html, claims: recipeClaims(parseBehaviourData(template.js)!, drawn) };
+    claimed = { js: template.js, html: template.html, claims: recipeClaims(parseBehaviourData(template.js)!, token => !!doc.querySelector(stamped(token))) };
   }
   return claimed.claims;
-}
-/** How each element a claim selects stands to `layers` (K5's containment stops at the artwork).
- *  A claim that cannot be resolved stands as the layer itself: unknown ownership refuses. */
-function claimRelations(doc: Document, layers: Element[]) {
-  return (selector: string): Relation[] => {
-    let found: Element[];
-    try { found = Array.from(doc.querySelectorAll(selector)); } catch { return ['self']; }
-    return found.flatMap(el => layers.map((layer): Relation => el === layer ? 'self' : layer.contains(el) && !!layer.closest('svg') ? 'inside' : el.contains(layer) ? 'contains' : 'none'));
-  };
 }
 /**
  * K4 to K6: the reason a key on `channel` of the layers `selector` matches is refused on a
@@ -304,6 +295,13 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   if (operation.kind === 'animation.key' && operation.action === 'set') requireTextPivot(template, selector, operation.property);
   const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as NumericProperty] ?? [operation.property];
   const owner = animationTarget(template, source, selector, channels);
+  // The first key on an SVG layer's transform keeps its base offset (#2062). The key's value is
+  // GSAP's reading before the offset moved into the transform it reads, so it moves with it.
+  if (operation.kind === 'animation.key' && operation.action === 'set' && owner === selector && TRANSFORM_CHANNELS.includes(operation.property) && !allTimelines(source).some(step => TRANSFORM_CHANNELS.some(c => step.layers[owner]?.[c]?.length))) {
+    const settled = settleSvgOffset(template, selector);
+    template = settled.template;
+    if (operation.property === 'x' || operation.property === 'y') operation = { ...operation, value: operation.value + settled[operation.property] };
+  }
   const { data, ended } = animateLayer(source, owner, operation, source.speed / template.fps, documentContains(template.html));
   requireUserEdit(template, source, data);
   // The controls whose motion ended (only a key removal ends any) keep the displayed pose as their base.

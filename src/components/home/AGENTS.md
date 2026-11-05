@@ -284,6 +284,6 @@ Phase 1 is built - manual, local, no API.
   can only say what it NAMES, so every dropped key needs an explicit `null`.
 - **THE RULE (plan §2.7): a bound field is not a cue value.** Take, ✎ Update and the PREVIEW all
   overlay the live tree over the cue's own values, so a cue prepared at 1-0 airs 3-2 if that is
-  what the data says. The cue editor therefore renders a bound field READ-ONLY with its path - an
+  what the data says. The cue editor therefore renders a bound field READ-ONLY with its path (a field Another system writes shows "Another system controls this" with the path in its tooltip, #2185) - an
   editable box there would show a number nothing will ever air. **Manual override is Unbind**,
   deliberately, and there is no precedence hierarchy beyond that.

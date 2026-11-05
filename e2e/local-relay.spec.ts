@@ -893,6 +893,8 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   let head = 0;
   let refusing: { page: string; until: Promise<void> } | null = null;
   let refused = 0;
+  /** Every /relay/send request, refused or taken. */
+  let requests = 0;
   /** Hold the named page's sends open until the answer this returns is called, then refuse them. */
   const refuseSends = (page: string) => {
     let release = () => {};
@@ -911,6 +913,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
       return route.fulfill({ json: { rows: rows.filter((r) => r.id > after).slice(0, 500), head } });
     }
     if (url.pathname === '/relay/send') {
+      requests += 1;
       // A relay that holds one page's sends open and then refuses them (`refusing`).
       if (refusing && (route.request().headers().referer ?? '').endsWith(refusing.page)) {
         refused += 1;
@@ -944,19 +947,25 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await panel.goto('http://clock-relay.local/panel.html', { waitUntil: 'load' });
   await expect.poll(() => panel.evaluate(() => (window as unknown as { relayOk?: boolean }).relayOk)).toBe(true);
   let from = rows.length;
+  let asked = requests;
   await panel.getByRole('button', { name: '▶ Play' }).click();
   await expect.poll(() => sent(from).length).toBe(3);
+  // ONE PRESS, ONE REQUEST (#2107): the relay serves requests on threads, so the Take's three rows
+  // sent apart could land in its log in any order; one batch is logged in the order it was sent.
+  expect(requests - asked, 'the Take goes to the relay as one request').toBe(1);
   const take = sent(from);
-  expect(take[0]).toBe('update f2=0:30');
+  expect(take[0], 'never taken, the duration holds its start time off air (#2117)').toBe('update f2=0:30@out/0:30/0:30');
   expect(take[1], 'the Take stamps its origin BEFORE the play').toMatch(new RegExp(`^update f2=0:30@${STAMP}/0:30/0:30$`));
   expect(take[2]).toBe('play');
 
   // Live off, so the correction airs on ✎ Update rather than on the keystroke.
   await panel.locator('#live').uncheck();
   from = rows.length;
+  asked = requests;
   await panel.locator('.field[data-key="f2"] input').fill('0:20');
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
+  expect(requests - asked, 'the correction and its stamp go as one request').toBe(1);
   const correction = sent(from);
   expect(correction[0], 'a running correction is marked for its row').toBe('update f2=0:20@0/0:30/0:20');
   expect(correction[1], '…and stamped after it').toMatch(new RegExp(`^update f2=0:20@${STAMP}/0:30/0:20$`));
@@ -969,8 +978,10 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   expect(sent(from), 'a score Update resends the running clock, and moves nothing').toEqual([`update f2=${stamped}`]);
 
   from = rows.length;
+  asked = requests;
   await panel.getByRole('button', { name: '■ Stop' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
+  expect(requests - asked, 'the Out and its banked clock go as one request').toBe(1);
   expect(sent(from)[0]).toBe('stop');
   expect(sent(from)[1], 'the Out holds it off air').toMatch(/^update f2=0:[12]\d@out\/0:30\/0:20$/);
 
@@ -999,6 +1010,18 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   expect(sent(from)[0]).toBe('update f2=0:30@out/0:30/0:30');
   expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:30@${STAMP}/0:30/0:30$`));
   expect(sent(from)[2]).toBe('play');
+  const ctlTake = sent(from)[1].slice('update f2='.length);
+
+  // THE PANEL'S TIME BOX FOLLOWS THE SHARED CLOCK (#2110): it last sent 0:20, the controller's Take
+  // counts 0:30, and once the panel has read that row its box says 0:30, so its next score Update
+  // resends the running clock and moves nothing, never 0:20 as a correction.
+  const ctlTakeRows = rows.length;
+  await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= ctlTakeRows);
+  await expect(panel.locator('.field[data-key="f2"] input')).toHaveValue('0:30');
+  from = rows.length;
+  await panel.getByRole('button', { name: '✎ Update' }).click();
+  await expect.poll(() => sent(from).length).toBe(1);
+  expect(sent(from), 'a score Update after another page moved the clock resends that clock').toEqual([`update f2=${ctlTake}`]);
 
   // ✎ Update acts on the cue the log says is on air.
   await expect(ctl.locator('#v-update')).toBeEnabled();
@@ -1018,21 +1041,37 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const refuse = refuseSends('/panel.html');
   await panel.locator('.field[data-key="f2"] input').fill('0:10');
   await panel.getByRole('button', { name: '✎ Update' }).click();
-  await expect.poll(() => refused).toBe(2);
+  await expect.poll(() => refused).toBe(1);
 
   // A SECOND CONTROLLER WINDOW (or this one reloaded) boots at the log's head and still learns the
   // running clock from the log, 600 rows back and past the relay's 500-row page: its own cue's
   // 0:30 reaches the running clock as a correction, stamped, never as a plain time that would
   // stop the count.
+  // ITS TAKE IS PRESSED BEFORE THAT READ IS DONE (#2074): the press waits for the read, so it works
+  // from the running clock and not from the design's 0:30.
   filler(600);
+  let answerBoot2 = () => {};
+  const boot2 = new Promise<void>((resolve) => { answerBoot2 = resolve; });
+  let boot2Held = false;
   const ctl2 = await context.newPage();
-  await ctl2.route('http://clock-relay.local/**', serve);
+  await ctl2.route('http://clock-relay.local/**', (route) => {
+    const url = new URL(route.request().url());
+    const after = Number(url.searchParams.get('after') ?? '-1');
+    // The boot read's second page (rows past the relay's 500-row page), held back until answered.
+    if (url.pathname !== '/relay/log' || boot2Held || after <= 0 || after >= head) return serve(route);
+    boot2Held = true;
+    return boot2.then(() => serve(route));
+  });
   await ctl2.goto('http://clock-relay.local/controller.html', { waitUntil: 'load' });
   await expect(ctl2.locator('#mode')).toHaveText('● SHOW');
-  await expect.poll(() => ctl2.evaluate(() => (window as unknown as { clocks: Record<string, { held?: string }> }).clocks['program|Countdown']?.held)).toMatch(/^0:20@1/);
+  await expect.poll(() => boot2Held, 'the boot read is on its second page').toBe(true);
   await ctl2.locator('#cue-c1').click();
   from = rows.length;
   await ctl2.locator('#v-take').click();
+  await ctl2.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+  expect(sent(from), 'nothing is sent while the boot read is out').toEqual([]);
+  answerBoot2();
+  await expect.poll(() => ctl2.evaluate(() => (window as unknown as { clocks: Record<string, { held?: string }> }).clocks['program|Countdown']?.held)).toMatch(/^0:30@1/);
   await expect.poll(() => sent(from).length).toBe(4);
   expect(sent(from)[0]).toBe('update f2=0:30@0/0:30/0:30');
   expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:30@${STAMP}/0:30/0:30$`));
@@ -1046,7 +1085,7 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const heard = rows.length;
   await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= heard);
   refuse();
-  await expect.poll(() => refusedSeen(panel)).toBe(2);
+  await expect.poll(() => refusedSeen(panel)).toBe(1);
   refusing = null;
   from = rows.length;
   await panel.getByRole('button', { name: '■ Stop' }).click();
@@ -1077,10 +1116,13 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await ctl.locator('#v-update').click();
   // Two held open: the preview refresh the typing sends, and the correction.
   await expect.poll(() => refused).toBe(2);
-  // The panel has read the controller's Take, so its 0:10 corrects the running clock.
+  // The panel has read the controller's Take, so its box follows it (#2110) and 0:10 typed there
+  // corrects the running clock.
   const takeRows = rows.length;
   await panel.waitForResponse((r) => r.url().includes('/relay/log') && Number(new URL(r.url()).searchParams.get('after')) >= takeRows);
+  await expect(panel.locator('.field[data-key="f2"] input')).toHaveValue('0:20');
   from = rows.length;
+  await panel.locator('.field[data-key="f2"] input').fill('0:10');
   await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect.poll(() => sent(from).length).toBe(2);
   expect(sent(from)[1]).toMatch(new RegExp(`^update f2=0:10@${STAMP}/0:20/0:10$`));
@@ -1148,9 +1190,9 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   const refusedBefore = refusedSeen(panel);
   await panel.locator('.field[data-key="f2"] input').fill('0:05');
   await panel.getByRole('button', { name: '✎ Update' }).click();
-  await expect.poll(() => refused).toBe(2);
+  await expect.poll(() => refused).toBe(1);
   refuseAgain();
-  await expect.poll(() => refusedSeen(panel)).toBe(refusedBefore + 2);
+  await expect.poll(() => refusedSeen(panel)).toBe(refusedBefore + 1);
   refusing = null;
   from = rows.length;
   await panel.getByRole('button', { name: '■ Stop' }).click();
@@ -1165,4 +1207,118 @@ test('the exported panel and controller stamp an imported duration on Take, a ru
   await expect.poll(() => sent(from).length).toBe(2);
   expect(sent(from)).toEqual(['update f2=45:00', 'play']);
   for (const p of [panel, nativePanel, ctl]) await p.close();
+});
+
+test('an imported duration never taken: a time typed before a Reset is what the first Take counts, on the exported panel and controller (#2117)', async ({ page, context }) => {
+  await page.goto('/');
+  const built = await page.evaluate(async (markup) => {
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const { svgSourceRevision } = await import('/src/ai/svgInterpretation/contract.ts');
+    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+    const { renderControlPanelHtml, emitGraphic } = await import('/src/control/controlPanelHtml.ts');
+    const { renderProductionControllerHtml } = await import('/src/control/productionControllerHtml.ts');
+    const { clockSpecFromHtml } = await import('/src/control/matchClockWire.ts');
+    const draft = D.svgDraftFromImport(importSvgMarkup(markup), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+    const row = draft.svgFields.find((f) => f.on && f.clock)!;
+    const svgClock = { candidateId: row.candidateId, mode: 'duration' as const, revision: svgSourceRevision(draft.designSvg!.markup) };
+    const template = { ...IMPORTED_SVG.create({ designSvg: D.svgDesignOptions({ ...draft, svgClock }) }), name: 'Countdown' };
+    const field = clockSpecFromHtml(template.html)!.field;
+    const values = Object.fromEntries(template.fields.map((f) => [f.field, String(f.value ?? '')]));
+    return {
+      field,
+      other: template.fields.find((f) => f.field !== field && f.ftype === 'textfield')?.field,
+      panel: renderControlPanelHtml(template, null),
+      controller: renderProductionControllerHtml({
+        show: 'Duration show', width: 1920, height: 1080,
+        graphics: [{ ...emitGraphic(template, null), file: 'g0.html', layer: 1 }],
+        cues: [{ id: 'c1', label: 'Countdown', graphic: 'Countdown', values, note: '' }],
+      }),
+    };
+  }, readFileSync(new URL('./fixtures/jev-svg/dev/score-clock-1.svg', import.meta.url), 'utf8'));
+  const STAMP = '1\\d{12}';
+  const clockRows = (rows: { stream: string; msg: unknown }[]) => rows
+    .filter((r) => r.stream === 'program')
+    .map((r) => (r.msg as { t: string; data?: Record<string, string> }))
+    .filter((m) => m.t === 'update' && m.data?.[built.field] !== undefined)
+    .map((m) => m.data![built.field]);
+
+  // THE STANDALONE PANEL: Live off, 0:50 typed and not sent, Reset, then ▶ Play.
+  const panelRelay = relayServe(new Map([['panel.html', built.panel]]));
+  const panel = await context.newPage();
+  await routeOrigin(panel, 'http://never-taken.local', panelRelay.serve);
+  await panel.goto('http://never-taken.local/panel.html', { waitUntil: 'load' });
+  await expect.poll(() => panel.evaluate(() => (window as unknown as { relayOk?: boolean }).relayOk)).toBe(true);
+  await panel.locator('#live').uncheck();
+  await panel.locator(`.field[data-key="${built.field}"] input`).fill('0:50');
+  await panel.getByRole('button', { name: /^(⚡ )?Reset$/ }).click();
+  await expect.poll(() => clockRows(panelRelay.rows).length).toBe(1);
+  expect(clockRows(panelRelay.rows)[0], 'the Reset keeps the drawn time off air').toBe('12:08@out/12:08/12:08');
+  await panel.getByRole('button', { name: '▶ Play' }).click();
+  await expect.poll(() => clockRows(panelRelay.rows).length).toBe(3);
+  expect(clockRows(panelRelay.rows)[1]).toBe('0:50@out/0:50/0:50');
+  expect(clockRows(panelRelay.rows)[2], 'the Take counts the typed 0:50, not the drawn 12:08').toMatch(new RegExp(`^0:50@${STAMP}/0:50/0:50$`));
+
+  // THE PRODUCTION CONTROLLER: the cue's time typed 0:50, Reset, then ⟳ TAKE.
+  const ctlRelay = relayServe(new Map([['controller.html', built.controller], ['g0.html', '<p>g</p>'], ['panel.html', built.panel]]));
+  const ctl = await context.newPage();
+  await routeOrigin(ctl, 'http://never-taken.local', ctlRelay.serve);
+  await ctl.goto('http://never-taken.local/controller.html', { waitUntil: 'load' });
+  await expect(ctl.locator('#mode')).toHaveText('● SHOW');
+  await ctl.locator('#cue-c1').click();
+  await ctl.locator('.field', { hasText: `${built.field.toUpperCase()} · ` }).locator('input').fill('0:50');
+  await ctl.getByRole('button', { name: /^(⚡ )?Reset$/ }).click();
+  await expect.poll(() => clockRows(ctlRelay.rows).length).toBe(1);
+  expect(clockRows(ctlRelay.rows)[0], 'the Reset keeps the drawn time off air').toBe('12:08@out/12:08/12:08');
+  await ctl.locator('#v-take').click();
+  await expect.poll(() => clockRows(ctlRelay.rows).length).toBe(3);
+  expect(clockRows(ctlRelay.rows)[1]).toBe('0:50@out/0:50/0:50');
+  const running = clockRows(ctlRelay.rows)[2];
+  expect(running, 'the Take counts the typed 0:50, not the drawn 12:08').toMatch(new RegExp(`^0:50@${STAMP}/0:50/0:50$`));
+
+  // A FRESH PANEL ON THAT RELAY, PRESSED BEFORE ITS BOOT READ IS DONE: the press waits for the read,
+  // so it resends the running clock instead of reading the unknown clock as never taken and
+  // putting the drawn time off air over it.
+  let answerBoot = () => {};
+  const boot = new Promise<void>((resolve) => { answerBoot = resolve; });
+  let bootHeld = false;
+  const fresh = await context.newPage();
+  await routeOrigin(fresh, 'http://fresh-panel.local', (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname !== '/relay/log' || bootHeld || url.searchParams.get('after') !== '0') return ctlRelay.serve(route);
+    bootHeld = true;
+    return boot.then(() => ctlRelay.serve(route));
+  });
+  await fresh.goto('http://fresh-panel.local/panel.html', { waitUntil: 'load' });
+  await expect.poll(() => bootHeld, 'the boot read is out').toBe(true);
+  await fresh.locator('#live').uncheck();
+  const before = clockRows(ctlRelay.rows).length;
+  // The held press keeps the values of its own moment: a field typed after it and not sent stays
+  // staged, never riding the held press.
+  expect(built.other, 'the design has a text field beside the clock').toBeTruthy();
+  const other = fresh.locator(`.field[data-key="${built.other}"] input`);
+  await other.fill('PRESSED');
+  await fresh.getByRole('button', { name: '✎ Update' }).click();
+  await other.fill('TYPED AFTER');
+  // » Next, pressed after it, is held behind it too, so it reaches the relay after the Update.
+  const rowsBefore = ctlRelay.rows.length;
+  await fresh.getByRole('button', { name: '» Next' }).click();
+  // ■ Stop, held too, banks the time at ITS press, not at the moment the read lets it go 2 s later.
+  const stopFrom = Date.now();
+  await fresh.getByRole('button', { name: '■ Stop' }).click();
+  const stopTo = Date.now();
+  await fresh.evaluate(() => new Promise((r) => setTimeout(r, 2200)));
+  expect(ctlRelay.rows.length, 'nothing is sent while the boot read is out').toBe(rowsBefore);
+  answerBoot();
+  await expect.poll(() => ctlRelay.rows.slice(rowsBefore).map((r) => (r.msg as { t: string }).t)).toEqual(['update', 'next', 'stop', 'update']);
+  expect(clockRows(ctlRelay.rows).length).toBe(before + 2);
+  const origin = Number(running.split('@')[1].split('/')[0]);
+  const at = (t: number) => { const s = Math.max(0, 50 - Math.floor((t - origin) / 1000)); return `0:${String(s).padStart(2, '0')}`; };
+  const banked = clockRows(ctlRelay.rows)[before + 1];
+  expect([`${at(stopTo)}@out/0:50/0:50`, `${at(stopFrom)}@out/0:50/0:50`], 'the held Stop banks the time at its press').toContain(banked);
+  expect(clockRows(ctlRelay.rows)[before], 'the press resends the running clock').toBe(running);
+  const held = ctlRelay.rows[rowsBefore].msg as { t: string; data?: Record<string, string> };
+  expect(held.data![built.other!], 'the held press sends the value of its moment').toBe('PRESSED');
+  await expect(fresh.locator(`.field[data-key="${built.field}"] input`)).toHaveValue('0:50');
+  for (const p of [panel, ctl, fresh]) await p.close();
 });
