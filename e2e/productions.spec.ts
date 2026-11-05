@@ -1573,6 +1573,8 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
       localRow: w.speakingClockRowEffect({ msg: { t: 'event', event: 'switch' } } as never, clocks, {}, T),
       // A report written before #2161 holds plain values, and the floor still passes on them.
       oldReport: w.speakingClockRowEffect({ msg: { t: 'event', event: 'switch' }, created_at: at(240) } as never, clocks, { f5: '01:50', f6: `05:00@${T + 180_000}` }, T),
+      // …and an Out on that plain report banks the running side plain, as before #2161.
+      oldReportStop: w.speakingClockRowEffect({ msg: { t: 'stop' }, created_at: at(240) } as never, clocks, { f5: '01:50', f6: `05:00@${T + 180_000}` }, T),
     };
   });
 
@@ -1624,6 +1626,7 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
   expect(walk.localRow).toEqual({ values: { f5: `05:00@${1_755_600_000_000}` }, when: 'before' });
   // An old report's plain values: B banks plain, A resumes stamped, as before #2161.
   expect(walk.oldReport).toEqual({ values: { f6: '04:00', f5: `01:50@${1_755_600_000_000 + 240_000}` }, when: 'before' });
+  expect(walk.oldReportStop).toEqual({ values: { f6: '04:00' }, when: 'after' });
 });
 
 test('the debate board itself reads a stamped clock: it opens mid-speech and keeps counting', async ({ page }) => {
