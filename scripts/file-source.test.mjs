@@ -360,6 +360,16 @@ test('a workbook that unpacks past the limit is refused before it is inflated', 
   assert.match(read.error, /too large/);
 });
 
+test('a sparse workbook cannot grow into a grid past the cell limit', async () => {
+  // A formatting-only cell far to the right sizes nothing.
+  const styled = await parseXlsx(await workbook('<row r="1"><c r="XFD1" s="1"/></row><row r="3"><c r="A3" t="inlineStr"><is><t>Only</t></is></c></row>'));
+  assert.deepEqual(styled.rows, [[''], [''], ['Only']]);
+  // A value far right and another far down would fill 16,384 × 1,000 cells: refused.
+  const spread = await parseXlsx(await workbook('<row r="1"><c r="XFD1" t="inlineStr"><is><t>x</t></is></c></row><row r="1000"><c r="A1000" t="inlineStr"><is><t>y</t></is></c></row>'));
+  assert.equal(spread.ok, false);
+  assert.match(spread.error, /too large/);
+});
+
 test('the review reads a file once, through the reader’s own read', async () => {
   const handle = fakeHandle('a.csv', 'Name,Value\nHome,2\n');
   const read = await fileRead({ handle: async () => handle, format: 'csv' }).read(signal());

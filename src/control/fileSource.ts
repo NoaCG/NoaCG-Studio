@@ -27,6 +27,9 @@ import { createSheetReader, type SheetRead, type SheetReader, type SheetReaderOp
 
 /** The largest file read, as the server reads at most this much of a Sheet tab (api/_lib/dataTick.ts READ_BYTES). */
 export const FILE_MAX_BYTES = 1_000_000;
+/** The most cells a workbook's first sheet may fill, empty ones between included: as many as a
+ *  1 MB CSV of one-character cells holds. */
+export const XLSX_MAX_CELLS = 500_000;
 /** The most text a workbook may unpack to: a small zip can hold a very large sheet. */
 export const XLSX_MAX_CHARS = 20_000_000;
 
@@ -205,14 +208,16 @@ export async function parseXlsx(bytes: ArrayBuffer | Uint8Array): Promise<SheetR
   const shared = [...((await part('xl/sharedStrings.xml')) ?? '').matchAll(/<(?:\w+:)?si\b[^>]*>([\s\S]*?)<\/(?:\w+:)?si>/g)].map((m) => runs(m[1]));
   const formats = cellFormats(await part('xl/styles.xml'));
 
-  const rows: string[][] = [];
+  // Only cells with text are kept while reading, so a formatting-only cell far to the right or a
+  // value far down cannot make the grid; its size is checked before it is built.
+  const filled = new Map<number, Map<number, string>>();
   let width = 0;
+  let height = 0;
   let nextRow = 0;
   for (const r of sheet.matchAll(/<(?:\w+:)?row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?row>)/g)) {
     const at = Number(attrs(r[1]).r ?? nextRow + 1) - 1;
     if (!Number.isInteger(at) || at < nextRow) continue;
     nextRow = at + 1;
-    const cells: string[] = [];
     let nextCol = 0;
     for (const c of (r[2] ?? '').matchAll(/<(?:\w+:)?c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:\w+:)?c>)/g)) {
       const a = attrs(c[1]);
@@ -231,16 +236,21 @@ export async function parseXlsx(bytes: ArrayBuffer | Uint8Array): Promise<SheetR
         const f = formats[Number(a.s ?? 0)];
         text = !Number.isFinite(n) ? xmlText(v) : f?.percent ? `${plain(n * 100)}%` : f && (f.date || f.time) && n >= 0 ? serialText(n, f, date1904) : plain(n);
       }
-      while (cells.length < col) cells.push('');
-      cells[col] = text;
+      if (text.trim() === '') continue;
+      if (!filled.has(at)) filled.set(at, new Map());
+      filled.get(at)!.set(col, text);
+      width = Math.max(width, col + 1);
+      height = Math.max(height, at + 1);
     }
-    while (rows.length < at) rows.push([]);
-    rows[at] = cells;
-    width = Math.max(width, cells.length);
   }
   // A Sheet's export ends at its last row with anything in it, as wide as its widest row.
-  while (rows.length > 0 && rows[rows.length - 1].every((c) => c.trim() === '')) rows.pop();
-  return { ok: true, rows: rows.map((cells) => [...cells, ...Array<string>(Math.max(0, width - cells.length)).fill('')]) };
+  if (width * height > XLSX_MAX_CELLS) return TOO_LARGE;
+  const rows: string[][] = [];
+  for (let at = 0; at < height; at += 1) {
+    const cells = filled.get(at);
+    rows.push(Array.from({ length: width }, (_, col) => cells?.get(col) ?? ''));
+  }
+  return { ok: true, rows };
 }
 
 // ── One read ──────────────────────────────────────────────────────────────────
