@@ -4001,8 +4001,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             {hasUnsent && <span className="pd-unsent-dot" aria-hidden="true" />}
           </button>
           {/* « BACK AND » NEXT, one cell of the block (#2181): Back moves one step back, instantly,
-              re-sending the on-air cue's values - the previous waypoint, or the step a branch was
-              entered from. Sharing Next's cell keeps the block its ratified three rows. */}
+              re-sending the on-air cue's values - the step before on the route a snap replays
+              (controlModel backTarget). Sharing Next's cell keeps the block its ratified three rows. */}
           <span className="pd-verb-step">
           <button
             className="pd-verb pd-verb-back"

@@ -45,7 +45,7 @@ const board = template({
   },
 });
 
-test('Back is the step before: the previous waypoint, or the step a branch was entered from', () => {
+test('Back is the step before on the route a snap replays: the previous waypoint, or the way into a branch', () => {
   assert.deepEqual(backTarget(board, at('final', { flag: 'up' })), { main: 'enter' }, 'the final table goes back to the whole one, and only the main group moves');
   assert.deepEqual(backTarget(board, at('highlighted')), { main: 'enter' });
   assert.equal(backTarget(board, at('enter')), null, 'the first step has nothing before it');

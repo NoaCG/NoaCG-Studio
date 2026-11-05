@@ -240,15 +240,24 @@ function next() {
 // them, and then every group's canonical route has its calls fired in order: a celebration over a
 // shown result comes back as both, and a Back from the celebration to the result as the result
 // alone. Every call a competition board's machine makes is a painter, so firing them is safe.
+// A painter's own motion (a result rising in, a FINAL's bump) is then finished at once, because
+// a snap lands instantly: only the tweens the snap started settle, never an armed timer (a
+// delayed call, whose target is the function it calls) or anything already running.
 if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
   var compSnap = noacgSnap;
   noacgSnap = function () {
+    var running = gsap.globalTimeline.getChildren(false, true, false);
     compClearMarks();
     var state = compSnap.apply(this, arguments);
     for (var g = 0; g < noacgMachine.groups.length; g++) {
       var group = noacgMachine.groups[g];
       var route = noacgCanonicalPath(group, noacgCurrent[group.id]) || [];
       for (var r = 0; r < route.length; r++) noacgFireCalls(noacgStepFor(group, route[r]));
+    }
+    var started = gsap.globalTimeline.getChildren(false, true, false);
+    for (var t = 0; t < started.length; t++) {
+      var targets = started[t].targets();
+      if (running.indexOf(started[t]) === -1 && typeof targets[0] !== 'function') started[t].progress(1);
     }
     return state;
   };

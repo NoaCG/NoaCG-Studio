@@ -787,8 +787,9 @@ export function advanceLabel(
 
 /**
  * WHERE « Back would take the live graphic: the state before the one it is in, on the route a
- * snap replays to reach it (`canonicalPath`) - the previous waypoint on the default path, or the
- * state a branch was entered from. Returned as the snap's assignment for the main group, so the
+ * snap replays to reach it (`canonicalPath`): the previous waypoint on the default path, or, for a
+ * branch, the state before it on the shortest authored route there - not necessarily the state
+ * the graphic actually came from. Returned as the snap's assignment for the main group, so the
  * other groups keep where they are. Null when Back would do nothing: no report yet, off air, or
  * the first step (#2181: the recovery list only ever took a graphic off air or left it as it was).
  */

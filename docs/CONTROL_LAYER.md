@@ -154,8 +154,8 @@ say the same thing, and rehearsal applies the identical command lists locally:
   batch. Other layers stay up (every pool graphic holds its own on-air cue).
 - **✎ Update** - push the cue's edited values to the LIVE graphic without re-animating it.
 - **» Next** - advance the live graphic to its next step (its reveal).
-- **« Back** - the live graphic one step back, instantly: the previous waypoint, or the step a
-  branch was entered from. The on-air cue's values ride with it.
+- **« Back** - the live graphic one step back, instantly: the step before the current one on the
+  route a snap replays (the previous waypoint on the walk). The on-air cue's values ride with it.
 - **⟲ Reset** - the live graphic back to its first step, instantly and still on air, with the
   on-air cue's values.
 - **■ Out** - play the selected cue's layer off air; the other layers stay up.

@@ -484,6 +484,8 @@ test('a snap lands on the state it names and on nothing the state it left had pa
     await settle();
     out.celebrating = { state: win.noacgMachineState().groups.main, ...marks() };
     win.noacgSnap({ main: 'result' });
+    // A snap lands instantly: the result its route repaints is already up, not rising in again.
+    out.backAtOnce = win.getComputedStyle(doc.querySelector('.reveal-subject')).opacity;
     await settle();
     out.back = { state: win.noacgMachineState().groups.main, ...marks() };
     win.noacgSnap({ main: 'celebrating' });
@@ -497,6 +499,7 @@ test('a snap lands on the state it names and on nothing the state it left had pa
 
   expect(run.celebrating).toEqual({ state: 'celebrating', result: true, celebrating: true });
   expect(run.back, 'Back from the celebration shows the result alone').toEqual({ state: 'result', result: true, celebrating: false });
+  expect(run.backAtOnce, 'the snap replayed the result rising in').toBe('1');
   expect(run.forward, 'a snap to the celebration composes the result under it').toEqual({ result: true, celebrating: true });
   expect(run.reset, 'Reset shows the card before its result').toEqual({ result: false, celebrating: false });
 });

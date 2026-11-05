@@ -884,8 +884,8 @@ is a control that will not be used.
 - **« Back and ⟲ Reset are the snaps** (#2181, replacing the "Snap to state…" recovery list,
   whose "Back to start" only ever took a graphic off air and whose state entries never went back
   a step). « Back sits beside » Next on the verb bar and moves the live graphic one step back:
-  the previous waypoint, or the step a branch was entered from (`controlModel.ts backTarget`, the
-  route a snap replays). ⟲ Reset, in the ⚡ block's head, puts it on its first step, still on air
+  the step before the current one on the route a snap replays (`controlModel.ts backTarget`; the
+  previous waypoint on the walk, the shortest authored way in for a branch). ⟲ Reset, in the ⚡ block's head, puts it on its first step, still on air
   (`resetTarget`). Both move the main group only: a parallel group such as a match clock keeps
   where it is. Both jump with NO animation and ride with a re-send
   of the on-air cue's values, because recovery is two operations (`docs/STATE_MACHINE_SCHEMA.md`:
