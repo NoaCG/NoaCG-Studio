@@ -148,8 +148,10 @@ export function hasStorageSentinel(body: unknown): boolean {
 }
 
 /** Return a deep copy of `body` with every Storage-referenced asset downloaded and restored to its
- *  data-URL. A missing object resolves to '' so the runtime simply hides that image. */
-export async function rehydrateAssets(body: unknown, download: Downloader): Promise<unknown> {
+ *  data-URL. A missing object resolves to '' so the runtime simply hides that image. A sound that
+ *  fails keeps its reference for repair, unless `stopsRead` says its failure ends the read: a cloud
+ *  that did not answer fails it, as an image download does, so a pass stops asking (#2152). */
+export async function rehydrateAssets(body: unknown, download: Downloader, stopsRead: (error: unknown) => boolean = () => false): Promise<unknown> {
   const clone = JSON.parse(JSON.stringify(body ?? null));
   const nodes: AssetNode[] = [];
   collectAssetNodes(clone, nodes);
@@ -157,6 +159,7 @@ export async function rehydrateAssets(body: unknown, download: Downloader): Prom
   const prepared = await Promise.allSettled([...new Map(sounds.map(s=>[s.hash,s])).values()].map(sound => soundBlob(sound,sound.storageKey ? async()=>{
     const data = await download(sound.storageKey!); if (!data) throw new Error(`Sound unavailable: ${sound.name}`); return dataUrlToBlob(data);
   } : undefined)));
+  for (const result of prepared) if (result.status === 'rejected' && stopsRead(result.reason)) throw result.reason;
   for (const result of prepared) if (result.status === 'rejected') console.warn('Production sound is unavailable; its visual and reference are retained for repair.',String(result.reason?.message ?? result.reason));
   for (const node of nodes) {
     const data = node.data;
