@@ -1751,7 +1751,7 @@ test('a first Sheet connection is one button: the template rows connect live, th
 
 test('a Sheet that needs a look stays open on its review, and Another system stays out of it (#2185)', async ({ page }) => {
   test.setTimeout(60_000);
-  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\nName,Bo Chen\n');
+  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\nRole,Editor\nRole,Writer\n');
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await productionFor(page, 'Sheet Check');
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
@@ -1759,7 +1759,7 @@ test('a Sheet that needs a look stays open on its review, and Another system sta
   const review = page.getByTestId('cue-connect-menu');
   await review.getByTestId('cue-connect-link').fill(SHEET_LINK);
   await review.getByTestId('cue-connect-go').click();
-  // A row it cannot use (Name twice) holds the one-button link on the review.
+  // A row it cannot use (Role twice) holds the one-button link on the review.
   await expect(review.getByTestId('cue-connect-held')).toBeVisible();
   await expect(review.getByTestId('cue-connect-api')).toHaveCount(0);
   await expect(review.getByTestId('cue-connect-confirm')).toHaveText('Connect');
@@ -1768,7 +1768,8 @@ test('a Sheet that needs a look stays open on its review, and Another system sta
   await review.getByTestId('cue-connect-confirm').click();
   await expect(review).toBeHidden();
   const { bindings } = await storedBindings(page, showId);
-  expect(Object.values(bindings.Hairline ?? {}).every((p) => p.startsWith('sheet.')), 'nothing wired to Another system').toBe(true);
+  expect(bindings.Hairline?.f0, 'linked to the Sheet, never to Another system').toMatch(/^sheet\./);
+  expect(Object.values(bindings.Hairline).every((p) => p.startsWith('sheet.'))).toBe(true);
 
   // Change… to a Sheet that matches nothing: the fields still follow the first one, so Connect
   // stays on the review rather than closing as if it had linked.
