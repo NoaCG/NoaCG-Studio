@@ -44,7 +44,7 @@ async function now() {
 const graphic = (id, name, updatedAt) => ({ kind: 'graphic', id, updatedAt, deleted: false, body: { id, name, updatedAt, deleted: false } });
 
 /** One side of the sync; the cloud lists summaries and is fetched whole, as Supabase is. Hooks run
- *  once: `onList` as the pass lists graphics, before the listing is taken; `onFetch` as it fetches
+ *  once (`onSecondListRead` is described where it runs): `onList` as the pass lists graphics, before the listing is taken; `onFetch` as it fetches
  *  what it will pull; `onPut` inside a put, before it lands - the moment to act "during the pass",
  *  after it has listed both sides. */
 function side(records = [], { cloud = false } = {}) {
@@ -59,10 +59,16 @@ function side(records = [], { cloud = false } = {}) {
     onPut: null,
     onList: null,
     onFetch: null,
+    onSecondListRead: null,
+    graphicLists: 0,
     async list(kind) {
       if (kind === 'graphic') await once(this, 'onList');
-      return [...rows.values()].filter((r) => r.kind === kind)
+      const listed = [...rows.values()].filter((r) => r.kind === kind)
         .map((r) => (cloud ? { kind: r.kind, id: r.id, updatedAt: r.updatedAt, deleted: r.deleted, body: { updatedAt: r.updatedAt, deleted: r.deleted }, summary: true } : r));
+      // `onSecondListRead` runs once the pass's second read of the graphics has been taken: on this
+      // device, the pass's last look at the library before it sets the bookmark.
+      if (kind === 'graphic' && ++this.graphicLists === 2) await once(this, 'onSecondListRead');
+      return listed;
     },
     async getMany(kind, ids) {
       await once(this, 'onFetch');
@@ -112,6 +118,19 @@ for (const order of ['the other device saves last', 'this device edits last']) {
     assert.deepEqual(names(remote), names(local));
   });
 }
+
+test('an edit made just after the pass last read the library, against a save elsewhere, both survive', async () => {
+  const { runSync, local, remote } = await synced();
+  local.graphicLists = 0;
+  local.onSecondListRead = async () => {
+    await edit(remote, 'shared', 'Edit on two');
+    await edit(local, 'shared', 'Edit on one');
+  };
+  await runSync(local, remote);
+  const next = await runSync(local, remote);
+  assert.equal(next.conflicts, 1, 'an edit after the last read is newer than the bookmark, so both sides read as changed');
+  assert.deepEqual(names(local), ['Edit on one (conflicted copy)', 'Edit on two', 'Trigger edited']);
+});
 
 test('an edit during a pass, with no save elsewhere, is pushed and is no conflict', async () => {
   const { runSync, local, remote } = await synced();
