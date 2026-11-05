@@ -342,9 +342,10 @@ test('skipAnimation lands the action instantly, in real time', async ({ page }) 
 });
 
 test('a skipped quiz action lands with every mark the board had: the pick survives the lock, the verdict the audience result', async ({ page }) => {
-  // skipAnimation settles by re-snapping to where the machine is, with no data write after it. A
-  // snap fires only the target state's own call, so the quiz repaints itself whole on a snap
-  // (#2181): without that, a skipped lock showed the lock with the contestant's pick gone.
+  // skipAnimation settles by re-snapping to where the machine is, with no data write after it, and a
+  // snap fires only the target state's own call. The quiz's snap must therefore leave the marks it
+  // finds (#2181): clearing them there lost the pick under a lock and the verdict under the
+  // audience result.
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
   const zip = await ografPackage(page);
   await serve(page, zip, 'http://ograf-quiz-skip.local', Object.keys(zip.files)[0].split('/')[0]);

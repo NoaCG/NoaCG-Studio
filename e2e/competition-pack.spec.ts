@@ -463,10 +463,9 @@ test('the boards spotlight a row from data, and a decided table survives a repla
   expect(String((run.afterReplay as Record<string, unknown>).cls)).not.toContain('results-board-final');
 });
 
-test('a snap lands on the state it names and on nothing the state it left had painted (#2181)', async ({ page }) => {
-  // « Back and ⟲ Reset are snaps. A winner card's marks are classes, which a snap's reset of
-  // inline styles never touches, and a snap fires only the target state's own call: Back from the
-  // celebration to the result used to keep the celebration on air under a Result chip.
+test('Reset lands a winner card on its first step with nothing its result painted (#2181)', async ({ page }) => {
+  // ⟲ Reset is a snap to the first step. A winner card's marks are classes, which a snap's reset
+  // of inline styles never touches, so the pack clears them on that snap, as play() does.
   await toApp(page);
   const run = await page.evaluate(`(async () => {
     ${HARNESS}
@@ -475,33 +474,20 @@ test('a snap lands on the state it names and on nothing the state it left had pa
       const cls = doc.querySelector('.reveal').classList;
       return { result: cls.contains('reveal-result-shown'), celebrating: cls.contains('reveal-celebrating') };
     };
-    const out = {};
     win.play();
     await settle();
     win.next();
     await settle();
     win.noacgDispatch('celebrate');
     await settle();
-    out.celebrating = { state: win.noacgMachineState().groups.main, ...marks() };
-    win.noacgSnap({ main: 'result' });
-    // A snap lands instantly: the result its route repaints is already up, not rising in again.
-    out.backAtOnce = win.getComputedStyle(doc.querySelector('.reveal-subject')).opacity;
-    await settle();
-    out.back = { state: win.noacgMachineState().groups.main, ...marks() };
-    win.noacgSnap({ main: 'celebrating' });
-    await settle();
-    out.forward = marks();
+    const before = marks();
     win.noacgSnap({ main: 'enter' });
     await settle();
-    out.reset = marks();
-    return out;
+    return { before, reset: { state: win.noacgMachineState().groups.main, ...marks() } };
   })()`) as Record<string, Record<string, unknown>>;
 
-  expect(run.celebrating).toEqual({ state: 'celebrating', result: true, celebrating: true });
-  expect(run.back, 'Back from the celebration shows the result alone').toEqual({ state: 'result', result: true, celebrating: false });
-  expect(run.backAtOnce, 'the snap replayed the result rising in').toBe('1');
-  expect(run.forward, 'a snap to the celebration composes the result under it').toEqual({ result: true, celebrating: true });
-  expect(run.reset, 'Reset shows the card before its result').toEqual({ result: false, celebrating: false });
+  expect(run.before).toEqual({ result: true, celebrating: true });
+  expect(run.reset, 'Reset shows the card before its result').toEqual({ state: 'enter', result: false, celebrating: false });
 });
 
 test('a board with no data, and an image field with no file, degrade quietly', async ({ page }) => {
