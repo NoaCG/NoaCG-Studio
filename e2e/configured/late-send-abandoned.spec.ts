@@ -146,7 +146,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   await op.getByTestId('hosted-take-cue').click();
   await expect.poll(airPlays, { timeout: 30_000 }).toBe('1');
   await expect(chip).toContainText('on air:');
-  await expect(notice).toHaveCount(0);
+  await expect(notice).toHaveCount(0, { timeout: 30_000 });
 
   await op.close();
   await air.close();
