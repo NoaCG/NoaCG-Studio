@@ -42,17 +42,19 @@
   "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed. Also: JEV reported e2e/import-svg-credits.spec.ts:1183 (timed credits cards, row 23) fail-then-pass on PR #1985 head 811624b8, CI run 41542753257 attempt 1 E2E 11/15; tracked in #1988 (P3). PR-branch event, no quarantine record.",
   "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15.",
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985).",
-  "cf20": "cf12: fix #2138 (measure script double-counts a reused branch's runs) before cf20 re-reads phase-cf12-measure.mjs; corrected cf12 mean 6.36. Quarantine run red on posting commit status after passing specs: #2137.",
-  "cf18": "cf18 earliest 2026-11-18T20:50Z (latestReset = cf11 merge 3ed797a6); any later selection change restarts it."
+  "cf20": "cf12: fix #2138 (measure script double-counts a reused branch's runs) before cf20 re-reads phase-cf12-measure.mjs; corrected cf12 mean 6.36. Quarantine run red on posting commit status after passing specs: #2137. cf14: graphics extension cf14-catalog-gate-extension 2026-12-01 to 2026-12-14 (owner miwco), reduction plan #2165; report whether repaid; growth report counts copied re-run jobs (#2168).",
+  "cf18": "cf18 earliest 2026-11-19T01:09Z (latest selection reset = cf14 merge 86749ef1 at 2026-11-05T01:09:30Z); any later selection change restarts it."
  },
  "waitingOn": [],
  "inFlight": [
   {
    "phase": "cf14",
-   "step": "build",
-   "session": "session_017SdbwREVLoWMiAgKS7bvRu",
-   "nonce": "cf14-b-413a",
-   "launchedAt": "2026-11-04T23:48:16Z"
+   "step": "check",
+   "session": "session_017SdbwQkFy6NXW1KDZnmBfC",
+   "nonce": "cf14-c-d0e2",
+   "launchedAt": "2026-11-05T01:10:32Z",
+   "mergeSha": "86749ef1cf95b3a901f104706691b797671c4521",
+   "pr": 2167
   }
  ],
  "owner": [],
@@ -254,6 +256,12 @@
    "mergeSha": "314862e635ee0ceaa2fae3b2560eac94a137b1be",
    "mergedAt": "2026-11-04T23:15:33Z",
    "what": "cf10: protection check moved to the build job (Playwright --list, fetch-depth 0)"
+  },
+  {
+   "pr": 2167,
+   "mergeSha": "86749ef1cf95b3a901f104706691b797671c4521",
+   "mergedAt": "2026-11-05T01:09:30Z",
+   "what": "cf14: #1862 mapping (selection change, audit reset) and graphics extension"
   }
  ]
 }
