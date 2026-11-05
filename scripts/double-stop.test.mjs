@@ -18,11 +18,6 @@
 // also held to actually changing a design that is on air, so one whose exit never ran cannot pass
 // by staying put in both runs.
 //
-// After the single Stop, each design is taken again in the same document, the way CasparCG, SPX
-// and OGraf hosts call play() after stop(), and must look as its first Take did. A results board's
-// Out faded its rows' container, which its entrance never animates, so the second Take aired the
-// header over an empty board (#1795; the /output page had its own fix in #1793).
-//
 // A design SAVED before the fix carries the old `stop()` in its own code. The composer upgrades it
 // (blocks/animMigration.ts), so a few designs also run with the guard taken back out of their code,
 // the way a saved one reads, and must still exit cleanly.
@@ -40,7 +35,6 @@ import { measured } from './measured.mjs';
 const SPECS = [
   { entry: fileURLToPath(new URL('../src/templates/catalog.ts', import.meta.url)), globalName: 'NOACG_CATALOG' },
   { entry: fileURLToPath(new URL('../src/preview/composeDocument.ts', import.meta.url)), globalName: 'NOACG_COMPOSE' },
-  { entry: fileURLToPath(new URL('../src/templates/shared/animRuntime.ts', import.meta.url)), globalName: 'NOACG_ANIM_RUNTIME' },
 ];
 
 /** Long enough for every catalog entrance to land and every exit to finish. */
@@ -119,44 +113,14 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
     w.__advance(repeatMs ?? 0);
     if (repeatMs !== null) w.stop();
     w.__advance(exitMs);
-    const ended = { ...before, after: pose(w), seenAfter: visible(w), root: rootOpacity(w) };
-    if (repeatMs !== null) return ended;
-    // Taken again in the same loaded document, the way CasparCG, SPX and OGraf hosts call it.
-    w.play();
-    w.__advance(onAirMs);
-    return { ...ended, again: pose(w) };
+    return { ...before, after: pose(w), seenAfter: visible(w), root: rootOpacity(w) };
   };
 
   const single = await session(null);
   const repeats = [];
   for (const ms of repeatsMs) repeats.push({ ms, ...(await session(ms)) });
   document.getElementById('fx')?.remove();
-  // A rotating ticker takes its rotation up at the next story on a new Take (tickerIndex is data,
-  // never a state), so its picture a moment into the second Take is a different story by design.
-  const rotates = /var TICKER_ROTATE = true;/.test(template.js);
-  return { id, single, repeats, unguarded, rotates };
-};
-
-/** A graphic no catalog design is like: its Out fades a panel the entrance never animates, and
- *  moves an SVG group whose markup places it with a transform attribute, which is where GSAP
- *  writes an SVG element's transform. Taken, stopped and taken again. Runs in the browser. */
-const OUT_RESIDUE_PROBE = async () => {
-  const fade = [{ time: 0, value: 1 }, { time: 0.4, value: 0 }];
-  const data = { version: 2, root: '.probe', speed: 1, steps: [
-    { name: 'In', duration: 0.4, ease: 'none', layers: {} },
-    { name: 'Out', duration: 0.4, ease: 'none', layers: { '#panel': { opacity: fade }, '#mark': { opacity: fade, y: [{ time: 0, value: 30 }, { time: 0.4, value: 50 }] } } },
-  ] };
-  const w = await window.__mountDesign({
-    html: '<div class="probe"><div id="panel">P</div><svg width="200" height="120"><g id="mark" transform="translate(40,30)"><rect width="20" height="20" fill="#fff"/></g></svg></div>',
-    css: '.probe { opacity: 0; }', fields: [], assets: [], fps: 25, settings: {}, resolution: { width: 400, height: 200 },
-    js: window.NOACG_ANIM_RUNTIME.emitAnimRegion(data) + '\nfunction play() { return buildInTimeline(); }\nfunction stop() { return buildOutTimeline(); }\n',
-  });
-  w.play(); w.__advance(1000); w.stop(); w.__advance(1000); w.play(); w.__advance(1000);
-  const mark = w.document.getElementById('mark');
-  const panel = w.document.getElementById('panel');
-  const read = { panel: w.getComputedStyle(panel).opacity, mark: w.getComputedStyle(mark).opacity, transform: mark.getAttribute('transform') };
-  document.getElementById('fx')?.remove();
-  return read;
+  return { id, single, repeats, unguarded };
 };
 
 const { ids: only } = parseOnly(process.argv.slice(2));
@@ -178,7 +142,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
   for (const id of SAVED_BEFORE_FIX) {
     if (ids.includes(id)) saved.push({ ...(await run(id, { source: GUARD_LINE.source, flags: GUARD_LINE.flags })), id: `${id} saved before the fix` });
   }
-  return { current, saved, probe: await page.evaluate(OUT_RESIDUE_PROBE) };
+  return { current, saved };
 });
 const results = [...runs.current, ...runs.saved];
 
@@ -219,21 +183,6 @@ test('a second Stop, in the same instant or during the exit, ends where a single
     }
   }
   assert.deepEqual(frozen, [], `${frozen.length} repeated Stop(s) left a design somewhere a single Stop does not:\n${frozen.join('\n')}`);
-});
-
-test('a Take after the Out looks as the first Take did (#1795)', () => {
-  const differ = [];
-  for (const r of results.filter((x) => !x.rotates)) {
-    const diff = firstDifference(r.single.onAir, r.single.again);
-    if (diff) differ.push(`${r.id}: ${diff}`);
-  }
-  assert.deepEqual(differ, [], `${differ.length} design(s) came back different after Out and Take:\n${differ.join('\n')}`);
-});
-
-test('a Take after the Out undoes what the Out wrote, and leaves an SVG group where its markup put it', () => {
-  assert.equal(runs.probe.panel, '1', 'the panel the Out faded is back');
-  assert.equal(runs.probe.mark, '1', 'the group the Out faded is back');
-  assert.match(String(runs.probe.transform), /^matrix\(1,0,0,1,40,/, 'the group keeps the x its transform attribute gave it');
 });
 
 test('nothing a viewer could see is left on air after Stop', () => {

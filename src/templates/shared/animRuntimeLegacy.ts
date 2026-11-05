@@ -18,9 +18,6 @@ export const ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH = '4b800a49b6b28';
 // The interpreter emitted from R1.2a.4 (PR #572) until Out pressed at an earlier step learned to skip
 // the motion Set Out carried into Out (R1.2a.5). e2e/fixtures/interpreter-one-key-hold-v1.js holds its text.
 export const ANIM_INTERPRETER_BEFORE_CARRIED_HASH = '63a306f0d1487';
-// The interpreter emitted until the next entrance learned to undo what an exit wrote where nothing
-// inline was before (#1795). e2e/fixtures/interpreter-before-exit-rest.js holds its text.
-export const ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH = '9e47ef1d643e8';
 
 // Frozen PR #469 interpreter for exact, source-preserving upgrades. Do not edit.
 export const ANIM_INTERPRETER_PRE_OUT_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
