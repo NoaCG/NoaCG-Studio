@@ -10,7 +10,7 @@ Write a section the way you would tell an operator what they get by importing ag
 
 ## 0.3.0 - 2026-11-05
 
-What to do: import the new file, then drag the **Take** preset from **Show control** onto your Take key again, and the **Take a cue now** preset onto any key of that kind. A key placed as a copy holds its own words, so it keeps working but keeps its old words; that is every key before Companion 5.1. A Linked key, the default in Companion 5.1, takes the new words by itself. Your other keys keep working as they are.
+What to do: import the new file, then drag the **Take** preset from **Show control** onto your Take key again, and the **Take a cue now** preset onto any key of that kind, so they show the new words. Your other keys keep working as they are.
 
 - The Take key now says what its next press does: OUT on red when it takes the selected cue or folder off air, TAKE and the selected name when it takes a cue, also with another cue on air (on a One-by-one folder that name is the folder's, and the press takes its next cue), PREVIEW in the page's preview-first mode, and FROM THE TOP when a One-by-one folder has reached its end with no graphic up.
 - The **Pinned graphics** section always shows. Before, it stayed hidden until you pinned something; with nothing pinned it now says to pin a graphic's live controls on the production page to get them here. **Cues** does the same before a page answers.
