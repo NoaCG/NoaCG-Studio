@@ -424,10 +424,10 @@ The page:
   alternate — and the hard part is not the arithmetic but "who has the floor", which is the
   machine's floor-group pointer. The wire does not learn to read machine graphs to find it. The
   invariant is a property of the wire's own values: **at most one of the two clock fields carries
-  an origin stamp, and that one is running.** `switch` banks the stamped clock plain and stamps
+  an origin stamp, and that one is running.** `switch` banks the stamped clock held and stamps
   the other (neither stamped → the first, because somebody has to open); `penalty` docks whichever
   is stamped; `reset` returns both to the allowance on screen; going off air banks the stamped
-  one. No state id is named and no edge is read, and it agrees with the machine because the
+  one. No edge is read, no state id is named but where a snap names one, and it agrees with the machine because the
   design's own engine already alternates the same way (`scoreboards/debateFloor.ts`
   `debateStart`). The design DECLARES its clocks with one attribute vocabulary —
   `data-speaking="a" | "b" | "allowance" | "penalty"` — because unlike the match clock there is
@@ -435,7 +435,15 @@ The page:
   `speakingClockRowEffect` in `control/matchClockWire.ts`; runtime half: `speakingClockUpdate` in
   `templates/scoreboards/debateFloor.ts`. `e2e/productions.spec.ts` walks a whole debate through
   the log and then reads the snapshot mid-speech, and boots the real board against a stamped
-  value; both are mutation-tested.
+  value; both are mutation-tested, and that walk folds the plain shape a report from before #2161
+  holds. From the first update each clock's value now also carries what the cue last sent
+  (`speakingClockAfterUpdate`), so an Update that resends the cue's allowance moves neither clock,
+  and a time retyped to anything else still applies. A Take on air is a resend too, and the board
+  keeps the floor with the running speaker through its entrance, so machine, wire and screen name
+  the same one (a board saved before this keeps its own engine, #2182); a snap that names the floor
+  moves the stamp with it, and one to armed holds both clocks; after an Out both clocks are marked
+  off air and come back up on what the cue sends.
+  `e2e/output-debate-clock.spec.ts` walks that on a real `/output`.
 - **THE STAGE IS SENT WHAT THE RENDERER HOLDS FOR A CLOCK FIELD, not what the row carried.** A cue
   stores a plain time forever, so every Take and ✎ Update re-sends it. The template's own resend
   guard can only compare against the value it last RECEIVED, so once a clock has moved away from

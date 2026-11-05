@@ -95,6 +95,7 @@ var debateDeadline = 0;          // ms timestamp the running count is anchored t
 var debateLastPaint = { a: '', b: '' };   // what WE last wrote (anything else is the operator)
 var debateExpired = { a: false, b: false };
 var debateDocked = null;         // the side wearing a just-taken penalty, or null
+var debateOffAir = false;        // the board has gone down, and no Take or snap has brought it back
 
 function debateClockEl(side) { return document.getElementById(side === 'a' ? '${idOf('clockA')}' : '${idOf('clockB')}'); }
 
@@ -240,9 +241,11 @@ function debateStart(side) {
   // clock values are written BEFORE the event that consumes them, so speakingClockUpdate has
   // already adopted the stamp and anchored the count to the row's own instant. Re-anchoring here
   // would subtract the elapsed time a second time, and on a REPLAYED row — a renderer catching
-  // up on a speech that began minutes ago — that lands the clock at zero. The machine never
-  // re-enters speakerA from speakerA, so this can mean nothing else.
+  // up on a speech that began minutes ago — that lands the clock at zero. The other way here is a
+  // Take on air putting the floor back on the speaker still counting (below), which changes nothing
+  // either.
   if (debateActive === side && debateTimer) { debatePaintClockColors(); return; }
+  if (debateOffAir) return;
   debateHold();
   debateActive = side;
   var left = debateRemaining(side);
@@ -255,11 +258,50 @@ function debateStart(side) {
 function runSpeakerA() { debateStart('a'); }
 function runSpeakerB() { debateStart('b'); }
 
-// The exit's call: nobody holds the floor once the board is off air.
+// The exit's call: nobody holds the floor once the board is off air, and nobody takes it there. A
+// Switch that reaches a board already down starts nothing; the wire ignores it too. Only a machine
+// runtime can end that, below: a hand-written region has no such Take to bring the board back.
 function holdClocks() {
   debateHold();
   debateActive = null;
+  debateOffAir = typeof noacgMachinePlay === 'function';
   debatePaintClockColors();
+}
+
+// A TAKE ON AIR DOES NOT TAKE THE FLOOR AWAY. play() rests every machine group at its initial state,
+// which for the floor is armed, but a speaker still counting through a Take has not stopped: this
+// engine and the wire's stamp both say who it is. Left armed, the next Switch would start A whoever
+// the wire handed the floor to, and the two would name different speakers from then on. So the floor
+// goes straight back to that speaker. debateStart then finds that side already running and changes
+// nothing, so this holds in a boot's recovery too, where play() follows the report's data with no
+// data after it. A board that has been off air holds nobody, and neither does a first Take.
+if (typeof noacgMachinePlay === 'function') {
+  var debateMachinePlay = noacgMachinePlay;
+  noacgMachinePlay = function () {
+    debateOffAir = false;
+    var entrance = debateMachinePlay();
+    for (var g = 0; debateActive && g < noacgMachine.groups.length; g++) {
+      if (noacgMachine.groups[g].id === 'floor') noacgFire(noacgMachine.groups[g], { to: debateActive === 'a' ? 'speakerA' : 'speakerB' });
+    }
+    return entrance;
+  };
+}
+
+// A SNAP TO ARMED MEANS IT: nobody speaks, and each clock holds what it reads. A snap skips a group
+// bound for its initial state, so armed's own call never runs and the count would outlive the pose.
+// The wire banks the same row (control/matchClockWire.ts). The numbers are not reset: that is Reset.
+if (typeof noacgSnap === 'function') {
+  var debateMachineSnap = noacgSnap;
+  noacgSnap = function (assignments, opts) {
+    debateOffAir = false;
+    var pose = debateMachineSnap(assignments, opts);
+    if (debateActive && pose.groups.floor === 'armed') {
+      debateStopTimer();
+      debateActive = null;
+      debatePaintClockColors();
+    }
+    return pose;
+  };
 }
 
 // Both clocks back to the set allowance, nothing running — the reset button's whole job.
@@ -310,6 +352,9 @@ function clearPenaltyMark() {
 //                          mid-speech instead of at the allowance.
 //   "03:12"                a HELD time: the wire banking a stopped clock, or the chair typing a
 //                          correction into a running one.
+//   "04:00@/05:00/05:00"   the same held time on /output, after the time it also carries what the
+//                          cue last sent, which is the wire's to read. A stamped value carries it
+//                          too. Every parser here stops at the "@" or the "/", so it reads as above.
 //   a plain value equal to the last one delivered — a RESEND, not an edit. Every Take, ✎ Update
 //                          and Snap sends the cue's WHOLE value set, and a cue stores the plain
 //                          allowance forever, so a penalty in the fourth minute re-sends
