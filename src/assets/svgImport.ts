@@ -1148,7 +1148,8 @@ function textFields(text: Element, fontSize: (el: Element) => number): TextField
       const size = fontSize(el);
       const x = numAttr(el, 'x');
       const y = numAttr(el, 'y');
-      const dy = numAttr(el, 'dy');
+      // `dy` in ems (`1.2em`, the usual hand-written and D3 step) is a multiple of the run's size.
+      const dy = /em\s*$/.test(el.getAttribute('dy') ?? '') ? (numAttr(el, 'dy') ?? 0) * size : numAttr(el, 'dy');
       const stepped = y === null && x !== null && dy !== null && dy >= size * 0.8;
       return { el, x, y, text: el.textContent ?? '', size, ...(stepped ? { stepped } : {}) };
     }),

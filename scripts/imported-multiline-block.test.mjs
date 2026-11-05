@@ -58,12 +58,17 @@ const RESULT = await withBundledPage(SPECS, async (page) => {
     const stamped = art.querySelectorAll('text > tspan[data-noacg-line]').length;
     w.update(JSON.stringify({ f1: 'Doors open at 19:00\nEntry from the main gate\nTickets at the door' }));
     const lines = [...body.querySelectorAll(':scope > tspan')].map((t) => t.textContent.trim());
-    return { stamped, room: w.svgFitRoom.f1, lines, fields: template.fields };
+    // The same block with its steps written in ems, the usual hand-written and D3 form.
+    const inEms = R.importSvgMarkup(markup.replace(/dy="70"/g, 'dy="2.06em"'));
+    const emArt = new DOMParser().parseFromString(inEms.markup, 'image/svg+xml');
+    const stampedInEms = emArt.querySelectorAll('text > tspan[data-noacg-line]').length;
+    return { stamped, stampedInEms, room: w.svgFitRoom.f1, lines, fields: template.fields };
   }, NOTICE);
 });
 
 test('stamp: the body drawn as three dy-stacked lines is one wrapping block of three stamped lines', () => {
   assert.equal(RESULT.stamped, 3);
+  assert.equal(RESULT.stampedInEms, 3, 'the same steps written in ems');
 });
 
 test('room: the body measures a room inside its plate, with height to wrap into', () => {
