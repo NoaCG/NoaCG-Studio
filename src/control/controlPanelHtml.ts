@@ -389,6 +389,8 @@ if (location.protocol === 'http:' || location.protocol === 'https:') {
 // { items: [...] } batch, which the relay logs in order, as the production controller does.
 // failed(), when given, is told of a send the relay did not take (an imported clock's follow).
 var relayBatch = null;
+// The longest a press waits for a page's boot read of the relay log (#2074) before it goes anyway.
+var RELAY_BOOT_READ_CAP_MS = 5000;
 function relayPress(run) {
   if (relayBatch) { run(); return; }
   relayBatch = { items: [], fails: [] };
@@ -574,8 +576,9 @@ GRAPHICS.forEach(function (g) {
     var walking = true;
     var walked = function (at) { cursor = at; walking = false; followClockBox(); };
     booting = true;
-    relayLogWalk(0, followRelayClock, function (at) {
-      walked(at);
+    // Held presses go once the read is done, or after RELAY_BOOT_READ_CAP_MS if a read hangs.
+    var sendHeld = function () {
+      if (!booting) return;
       booting = false;
       var presses = waitingPresses;
       waitingPresses = [];
@@ -588,7 +591,9 @@ GRAPHICS.forEach(function (g) {
           });
         });
       });
-    });
+    };
+    relayLogWalk(0, followRelayClock, function (at) { walked(at); sendHeld(); });
+    setTimeout(sendHeld, RELAY_BOOT_READ_CAP_MS);
     setInterval(function () {
       clock.settle(null);
       followClockBox();
@@ -1002,7 +1007,7 @@ GRAPHICS.forEach(function (g) {
   play.onclick = function () { press(function () { sendUpdate(); sendClocked({ t: 'play' }); }); };
   stop.onclick = function () { press(function () { sendClocked({ t: 'stop' }); }); };
   upd.onclick = function () { press(sendUpdate); };
-  next.onclick = function () { post({ t: 'next' }); };
+  next.onclick = function () { press(function () { sendClocked({ t: 'next' }); }); };
   card.appendChild(el('div', { class: 'actions' }, [play, stop, upd, next]));
 
   document.getElementById('cards').appendChild(card);

@@ -1300,10 +1300,14 @@ test('an imported duration never taken: a time typed before a Reset is what the 
   await other.fill('PRESSED');
   await fresh.getByRole('button', { name: '✎ Update' }).click();
   await other.fill('TYPED AFTER');
+  // » Next, pressed after it, is held behind it too, so it reaches the relay after the Update.
+  const rowsBefore = ctlRelay.rows.length;
+  await fresh.getByRole('button', { name: '» Next' }).click();
   await fresh.evaluate(() => new Promise((r) => setTimeout(r, 300)));
-  expect(clockRows(ctlRelay.rows).length, 'nothing is sent while the boot read is out').toBe(before);
+  expect(ctlRelay.rows.length, 'nothing is sent while the boot read is out').toBe(rowsBefore);
   answerBoot();
-  await expect.poll(() => clockRows(ctlRelay.rows).length).toBe(before + 1);
+  await expect.poll(() => ctlRelay.rows.slice(rowsBefore).map((r) => (r.msg as { t: string }).t)).toEqual(['update', 'next']);
+  expect(clockRows(ctlRelay.rows).length).toBe(before + 1);
   expect(clockRows(ctlRelay.rows)[before], 'the press resends the running clock').toBe(running);
   const held = ctlRelay.rows.map((r) => r.msg as { t: string; data?: Record<string, string> }).filter((m) => m.t === 'update' && m.data?.[built.field] !== undefined).at(-1)!;
   expect(held.data![built.other!], 'the held press sends the value of its moment').toBe('PRESSED');

@@ -459,10 +459,11 @@ var cursor = 0;
 // A PRESS DURING THE BOOT READ WAITS FOR IT (#2074). Booted at the log's head, the page reads the
 // whole log to learn where each imported clock stands (followClock). A press made before that read
 // is done would work from the design's starting clock, so it is held, in order, with its own
-// instant, and sent as soon as the read is done.
+// instant, and sent as soon as the read is done, or after 5 s if a read hangs.
 var bootRead = false;
 var heldPresses = [];
 function finishBootRead() {
+  if (bootRead) return;
   bootRead = true;
   var presses = heldPresses;
   heldPresses = [];
@@ -1549,6 +1550,7 @@ fetch('/relay/ping')
     // Booted at the head, the page still learns where each imported clock stands (followClock),
     // from the whole log.
     relayLogWalk(0, followClock, finishBootRead);
+    setTimeout(finishBootRead, 5000);
     var mode = document.getElementById('mode');
     mode.textContent = '● SHOW';
     mode.className = 'mode on';
