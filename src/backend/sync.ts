@@ -32,6 +32,10 @@
 //     reads this device's side as changed, and the cloud's only if it differs from the version
 //     the pass left. Dating the bookmark from the pass's start instead would make every version
 //     pulled during the pass read as changed, and the next edit of it a false conflict.
+//     One window stays open, a few milliseconds wide: an edit here between the pass's last read
+//     of the library and its bookmark, against a save elsewhere made before that bookmark. The
+//     edit reads as changed and the cloud does not, so the edit wins with no copy, as every
+//     edit did before #2153. Closing it needs a per-record cloud baseline for every record.
 // Conflict copies are applied BEFORE the pulls that overwrite their originals, so a crash or
 // failure mid-pass can never lose the only copy of a user's work.
 //
