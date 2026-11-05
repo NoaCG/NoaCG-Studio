@@ -92,8 +92,10 @@ export function decideVerb(key: VerbKey, press: Press | undefined, view: Dispatc
     if (!original) return NONE;
     const cue = directCue(original);
     const blocked = view.directBlocked(cue) ?? (cue.source === 'playout' && view.bridgeDown ? 'NoaCG Bridge is not connected.' : null);
-    // The deck's own words (panelFeedback.ts VERB_WORDS): the note then reads `✓ Play now: <cue>`, as a Take's does.
-    return { do: 'trigger', cue, label: 'Play now', refused: blocked ? `Play now was not sent for ${cue.label}: ${blocked}` : null };
+    // Named as the deck names the key (panelFeedback.ts VERB_WORDS), with the cue, so every note
+    // the press writes says which cue it was.
+    const label = `Play now ${cue.label}`;
+    return { do: 'trigger', cue, label, refused: blocked ? `${label} was not sent: ${blocked}` : null };
   }
   // H holds or resumes the chip's countdown, whatever is selected (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8).
   if (key === 'hold') return press?.repeat ? NONE : { do: 'hold' };
