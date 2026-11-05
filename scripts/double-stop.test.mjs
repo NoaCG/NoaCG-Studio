@@ -154,8 +154,9 @@ const OUT_RESIDUE_PROBE = async () => {
   w.play(); w.__advance(1000); w.stop(); w.__advance(1000); w.play(); w.__advance(1000);
   const mark = w.document.getElementById('mark');
   const panel = w.document.getElementById('panel');
+  const read = { panel: w.getComputedStyle(panel).opacity, mark: w.getComputedStyle(mark).opacity, transform: mark.getAttribute('transform') };
   document.getElementById('fx')?.remove();
-  return { panel: w.getComputedStyle(panel).opacity, mark: w.getComputedStyle(mark).opacity, transform: mark.getAttribute('transform') };
+  return read;
 };
 
 const { ids: only } = parseOnly(process.argv.slice(2));
