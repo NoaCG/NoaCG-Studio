@@ -513,6 +513,16 @@ test('#2161: on the monitor a Take after an Out is on air again: the next resend
   assert.equal(plainClockValue(m.update(4)[0].msg.data.fa), '04:00', 'off air is over: this is a resend, not a new time');
 });
 
+test('#2161: on the monitor a Reset off air keeps the off-air mark, so the Take still comes up on what the cue sends', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  m.stop(1);
+  m.event('reset', 1);
+  assert.equal(plainClockValue(m.update(2, { fa: '03:00' })[0].msg.data.fa), '03:00');
+  assert.equal(clockOriginOf(m.held().fa), null);
+});
+
 test('#2161: on the monitor a penalty keeps what the cue sent, so the next resend gives no time back', () => {
   const m = debateMonitor();
   m.update(0);

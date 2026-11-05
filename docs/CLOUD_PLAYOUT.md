@@ -424,7 +424,7 @@ The page:
   alternate — and the hard part is not the arithmetic but "who has the floor", which is the
   machine's floor-group pointer. The wire does not learn to read machine graphs to find it. The
   invariant is a property of the wire's own values: **at most one of the two clock fields carries
-  an origin stamp, and that one is running.** `switch` banks the stamped clock plain and stamps
+  an origin stamp, and that one is running.** `switch` banks the stamped clock held and stamps
   the other (neither stamped → the first, because somebody has to open); `penalty` docks whichever
   is stamped; `reset` returns both to the allowance on screen; going off air banks the stamped
   one. No state id is named and no edge is read, and it agrees with the machine because the

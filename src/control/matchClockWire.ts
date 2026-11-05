@@ -421,10 +421,10 @@ function slottedRowEffect(
 //
 //     at most one of the two clock fields carries an origin stamp, and that one is running.
 //
-// From there every verb is arithmetic over a PAIR: `switch` banks the stamped clock as a plain
+// From there every verb is arithmetic over a PAIR: `switch` banks the stamped clock as a held
 // time and stamps the other one; with neither stamped it stamps the first, because somebody has
 // to open. `penalty` docks whichever clock is stamped. `reset` returns both to the allowance,
-// plain. Going off air banks the stamped one. No state id is named here and no edge is read: the
+// held. Going off air banks the stamped one. No state id is named here and no edge is read: the
 // alternation lives in the two values themselves.
 //
 // It agrees with the machine because both describe the same two-sided board — the floor group's
@@ -564,7 +564,7 @@ export function speakingClockAfterUpdate(held: string | undefined, incoming: str
 /** One speaking clock's next value, keeping what the value it moves from says the cue last sent. */
 function speakingValue(from: string, time: string, origin: number | null): string {
   const read = durationOf(from);
-  if (read) return durationValue(time, origin, read.length, read.sent);
+  if (read) return durationValue(time, origin ?? (read.slot === OFF_AIR ? OFF_AIR : null), read.length, read.sent);
   return origin === null ? time : `${time}@${origin}`;
 }
 
@@ -622,9 +622,6 @@ export function speakingClockRowEffect(
     held?.[fieldOf(side)] ?? (side === 'a' ? clocks.seedA : clocks.seedB);
   const running = runningSpeakingSide(clocks, held);
 
-  // Off air nobody holds the floor: the engine's `holdClocks` freezes the running clock where it
-  // stands, so the wire banks the same number. Without this a board taken down mid-speech keeps
-  // its stamp, and a renderer booting an hour later paints a clock that "ran" while off air.
   const carrying = (next: (read: Duration, raw: string) => string | null, when: 'before' | 'after'): SpeakingClockEffect | null => {
     const values: Record<string, string> = {};
     for (const field of [clocks.fieldA, clocks.fieldB]) {
@@ -635,6 +632,9 @@ export function speakingClockRowEffect(
     }
     return Object.keys(values).length > 0 ? { values, when } : null;
   };
+  // Off air nobody holds the floor: the engine's `holdClocks` freezes the running clock where it
+  // stands, so the wire banks the same number. Without this a board taken down mid-speech keeps
+  // its stamp, and a renderer booting an hour later paints a clock that "ran" while off air.
   if (row.msg.t === 'stop') {
     // Both are marked off air, so the next Take's resend is the time they come up on.
     const marked = carrying((r, raw) => (r.slot === OFF_AIR ? null : durationValue(speakingClockAt(raw, at), OFF_AIR, r.length, r.sent)), 'after');
