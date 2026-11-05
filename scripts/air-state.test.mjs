@@ -24,7 +24,7 @@ import {
   withReports,
 } from '../src/control/airState.ts';
 import { createAppliedOnce } from '../src/control/commandRoads.ts';
-import { clockHeldBeforeRow, clockRowEffect, clockValueAfterUpdate } from '../src/control/matchClockWire.ts';
+import { clockHeldBeforeRow, clockOriginOf, clockRowEffect, clockValueAfterUpdate, plainClockValue, speakingClockAt } from '../src/control/matchClockWire.ts';
 import { monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, NO_LOG, createPlayoutSession } from '../src/control/playoutSession.ts';
@@ -406,6 +406,85 @@ test('a debate board: switch stamps the incoming clock before the event; an upda
   run = programItems(run.air, [{ graphic: 'debate', msg: { t: 'stop' }, created_at: at(2) }], DEBATE, T);
   assert.deepEqual(run.out.map((i) => i.msg.t), ['stop', 'update'], 'off air banks the running clock after the stop');
   assert.equal(run.out[1].msg.data.fa, '03:00');
+});
+
+/** A debate on the monitor: the Take's plain times, then rows through `programItems`, one at a time. */
+function debateMonitor() {
+  const whole = { fa: '05:00', fb: '05:00', fl: '05:00' };
+  let air = NO_AIR;
+  const row = (msg, minute) => {
+    const run = programItems(air, [{ graphic: 'debate', msg, created_at: at(minute) }], DEBATE, T);
+    air = run.air;
+    return run.out;
+  };
+  return {
+    update: (minute, values = {}) => row({ t: 'update', data: { ...whole, ...values } }, minute),
+    event: (name, minute) => row({ t: 'event', event: name }, minute),
+    stop: (minute) => row({ t: 'stop' }, minute),
+    held: () => air.speaking.debate,
+  };
+}
+const MINUTE = 60_000;
+
+test('#2161: on the monitor a resend leaves a waiting speaker\'s banked time and a running clock where they stand', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  m.event('switch', 1);
+  assert.equal(speakingClockAt(m.held().fa, T + MINUTE), '04:00', 'A banked its minute');
+  const resend = m.update(2)[0].msg.data;
+  assert.equal(plainClockValue(resend.fa), '04:00', 'the stage is not sent the allowance for the waiting speaker');
+  assert.equal(clockOriginOf(resend.fa), null);
+  assert.equal(clockOriginOf(resend.fb), T + MINUTE, 'nor for the one on the floor');
+  // A's second turn, and a resend inside it: its value no longer equals what the cue sends.
+  m.event('switch', 3);
+  const second = m.update(4)[0].msg.data;
+  assert.equal(clockOriginOf(second.fa), T + 3 * MINUTE);
+  assert.equal(speakingClockAt(second.fa, T + 4 * MINUTE), '03:00');
+  assert.equal(speakingClockAt(second.fb, T + 4 * MINUTE), '03:00', 'B banked at its own two minutes');
+  assert.equal(clockOriginOf(second.fb), null);
+});
+
+test('#2161: on the monitor a retyped time applies: held on a waiting clock, running on from the row\'s instant on the speaker\'s', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  m.event('switch', 1);
+  const waiting = m.update(2, { fa: '02:30' });
+  assert.equal(waiting.length, 1, 'a retype of a waiting clock moves nothing else');
+  assert.equal(plainClockValue(waiting[0].msg.data.fa), '02:30');
+  assert.equal(clockOriginOf(waiting[0].msg.data.fa), null);
+  const running = m.update(3, { fa: '02:30', fb: '03:00' });
+  assert.deepEqual(running.map((i) => i.msg.t), ['update', 'update'], 'the time, then its origin, as a match clock\'s correction');
+  assert.equal(plainClockValue(running[1].msg.data.fb), '03:00');
+  assert.equal(clockOriginOf(running[1].msg.data.fb), T + 3 * MINUTE);
+  assert.equal(clockOriginOf(m.held().fb), T + 3 * MINUTE, 'the stamp still says who has the floor');
+  // What the cue now sends is a resend, and the floor passes from the corrected clock.
+  assert.equal(speakingClockAt(m.update(4, { fa: '02:30', fb: '03:00' })[0].msg.data.fb, T + 4 * MINUTE), '02:00');
+  m.event('switch', 5);
+  assert.equal(speakingClockAt(m.held().fb, T + 5 * MINUTE), '01:00');
+  assert.equal(clockOriginOf(m.held().fb), null);
+  assert.equal(clockOriginOf(m.held().fa), T + 5 * MINUTE);
+});
+
+test('#2161: on the monitor an Out and a Reset keep what the cue last sent, so the next resend moves nothing', () => {
+  const m = debateMonitor();
+  m.update(0);
+  m.event('switch', 0);
+  m.stop(1);
+  assert.equal(plainClockValue(m.update(2)[0].msg.data.fa), '04:00', 'a Take after an Out resumes from the banked time');
+  m.update(3, { fl: '06:00' });
+  m.event('reset', 3);
+  assert.equal(plainClockValue(m.held().fa), '06:00', 'Reset is to the allowance on screen');
+  assert.equal(plainClockValue(m.update(4, { fl: '06:00' })[0].msg.data.fa), '06:00', 'and the cue\'s older 05:00 does not undo it');
+});
+
+test('#2161: on the monitor a half-typed clock goes through as it came, on a clock that has moved too', () => {
+  const m = debateMonitor();
+  assert.equal(m.update(0, { fa: '3:' })[0].msg.data.fa, '3:');
+  m.update(1);
+  m.event('switch', 1);
+  assert.equal(m.update(2, { fa: '3:' })[0].msg.data.fa, '3:', 'nothing but the operator\'s own text reaches the board');
 });
 
 test('claimAndApply runs the clock fold over what it applies, once', () => {

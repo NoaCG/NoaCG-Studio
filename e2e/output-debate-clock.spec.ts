@@ -1,0 +1,262 @@
+// A DEBATE BOARD'S TWO CLOCKS THROUGH A RESEND, ON A REAL OUTPUT (#2161). The real /output shell with
+// its real boot, stage and machine, and the real dc01 document; only the backend is stood in for, as
+// in output-typed-recovery.spec.ts, and it serves the rows a production page writes. Every Take and
+// ✎ Update resends the cue's whole value set, and the cue keeps its plain allowance for both clocks.
+// Each row's time is set back from now, so a minute of debate takes no minute of test.
+// covers: src/output/main.ts, src/control/matchClockWire.ts, src/templates/scoreboards/debateFloor.ts
+
+import { test, expect, type Page, type Route } from '@playwright/test';
+import { bootstrapGraphic, openProductionWithCurrent } from './_create';
+
+const BACKEND = 'https://debate.supabase.test';
+const CONFIG_MODULE = `
+export function loadBackendConfig() { return { url: ${JSON.stringify(BACKEND)}, anonKey: 'anon-test-key' }; }
+export function isBackendConfigured(cfg = loadBackendConfig()) { return Boolean(cfg.url && cfg.anonKey); }
+`;
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS',
+};
+const EPOCH = '00000000-0000-4000-8000-0000000000d1';
+const GRAPHIC = 'Debate';
+
+type Spec = { html: string; css: string; js: string; resolution: { width: number; height: number; label: string }; fps: number };
+type Row = { id: number; seq: number; graphic: string; msg: Record<string, unknown>; created_at: string };
+type Report = { data: Record<string, string>; state: unknown; seq: number };
+
+interface Debate {
+  /** The cue's whole value set: what every Take and ✎ Update sends. */
+  cue: Record<string, string>;
+  /** Write a row to the log, `ago` milliseconds in the past. */
+  write: (msg: Record<string, unknown>, ago?: number) => void;
+  /** The output's last report of the board, handed back to an output that boots. */
+  report: () => Report | null;
+}
+
+/** The real dc01 and its field defaults, and the stand-in backend following one growing log. */
+async function openDebate(page: Page): Promise<Debate> {
+  await page.goto('/app#/home');
+  const { spec, cue } = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { seedValues } = await import('/src/model/shows.ts');
+    const template = variantById('dc01')!.create({});
+    const { html, css, js, resolution, fps } = template;
+    return { spec: { html, css, js, resolution, fps }, cue: seedValues(template.fields) as Record<string, string> };
+  }) as { spec: Spec; cue: Record<string, string> };
+
+  const rows: Row[] = [];
+  let reported: Report | null = null;
+  let on = false;
+  await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: CONFIG_MODULE }));
+  await page.route(`${BACKEND}/**`, async (route: Route) => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    const path = new URL(req.url()).pathname;
+    const json = (body: unknown) => route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (path.endsWith('/rpc/control_output_resolve')) {
+      return json({
+        id: '00000000-0000-4000-8000-0000000000d2',
+        title: 'Debate Probe',
+        output: {
+          v: 1,
+          resolution: spec.resolution,
+          graphics: [{ key: GRAPHIC, ...spec, assets: [], layer: 20 }],
+          cues: [],
+          ver: { n: 1, at: new Date().toISOString(), h: 'abcdef0123456789', g: {} },
+        },
+        live: reported ? { [GRAPHIC]: { ...reported, event: 1000 + reported.seq } } : {},
+        last_event_id: 0,
+        epoch: EPOCH,
+        legacy: false,
+      });
+    }
+    if (path.endsWith('/rpc/control_output_tail_seq')) {
+      const after = Number((req.postDataJSON() as { p_after?: number }).p_after ?? 0);
+      const head = { seq: rows.length, graphics: on ? { [GRAPHIC]: { on: true } } : {} };
+      return json({ epoch: EPOCH, rows: rows.filter((r) => r.seq > after).slice(0, 500), head });
+    }
+    if (path.endsWith('/rpc/control_output_report_seq')) {
+      const b = req.postDataJSON() as { p_data: Record<string, string>; p_state: unknown; p_seq: number };
+      reported = { data: b.p_data, state: b.p_state, seq: b.p_seq };
+      return json(null);
+    }
+    return json([]);
+  });
+  return {
+    cue,
+    write: (msg, ago = 0) => {
+      const seq = rows.length + 1;
+      rows.push({ id: 1000 + seq, seq, graphic: GRAPHIC, msg, created_at: new Date(Date.now() - ago).toISOString() });
+      if (msg.t === 'play') on = true;
+      if (msg.t === 'stop') on = false;
+    },
+    report: () => reported,
+  };
+}
+
+const board = (page: Page) => page.frameLocator(`iframe[title="${GRAPHIC}"]`);
+const clockA = (page: Page) => board(page).locator('#f5');
+const clockB = (page: Page) => board(page).locator('#f6');
+const round = (page: Page) => board(page).locator('#f0');
+
+/** "04:20" -> 260. What is not a clock's time reads as NaN, so no bound passes on it. */
+const seconds = (text: string | null): number => {
+  const hit = /^(\d\d):(\d\d)$/.exec((text ?? '').trim());
+  return hit ? Number(hit[1]) * 60 + Number(hit[2]) : Number.NaN;
+};
+const read = async (clock: ReturnType<typeof clockA>): Promise<number> => seconds(await clock.textContent());
+
+/** On air at full time, and heard: the Take is the cue's whole set, then the entrance. */
+async function takeTheBoard(page: Page, debate: Debate): Promise<void> {
+  await page.goto('/output?production=debate-probe');
+  await expect(page.locator(`iframe[title="${GRAPHIC}"]`)).toBeAttached({ timeout: 30_000 });
+  debate.write({ t: 'update', data: debate.cue });
+  debate.write({ t: 'play' });
+  await expect(page.locator('body')).toHaveAttribute('data-plays', '1', { timeout: 30_000 });
+  await expect(clockA(page)).toHaveText('05:00');
+  await expect(clockB(page)).toHaveText('05:00');
+}
+
+/** A has spoken for a minute and banked 04:00; B took the floor 40 s ago and reads about 04:20. */
+async function aThenB(page: Page, debate: Debate): Promise<void> {
+  debate.write({ t: 'event', event: 'switch' }, 100_000);
+  debate.write({ t: 'event', event: 'switch' }, 40_000);
+  await expect(clockA(page)).toHaveText('04:00', { timeout: 20_000 });
+  await expect.poll(() => read(clockB(page)), { timeout: 20_000 }).toBeLessThanOrEqual(260);
+}
+
+/** ✎ Update with a new round title: the title moves, and the cue's two plain times ride with it. */
+async function updateTheRound(page: Page, debate: Debate, title: string, values: Record<string, string> = {}): Promise<void> {
+  debate.write({ t: 'update', data: { ...debate.cue, ...values, f0: title } });
+  await expect(round(page)).toHaveText(title, { timeout: 20_000 });
+}
+
+test('an Update mid-debate leaves a waiting speaker\'s banked time and a running clock where they stand', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+
+  await updateTheRound(page, debate, 'REBUTTAL');
+  await expect(clockA(page), 'the waiting speaker keeps the time they banked').toHaveText('04:00');
+  const b = await read(clockB(page));
+  expect(b, 'the speaker on the floor keeps counting from their own time').toBeLessThanOrEqual(260);
+  await expect.poll(() => read(clockB(page)), { timeout: 5_000, message: 'and the clock still runs' }).toBeLessThan(b);
+
+  // A's second turn: its clock no longer starts from what the cue sends.
+  debate.write({ t: 'event', event: 'switch' });
+  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThan(240);
+  const banked = await read(clockB(page));
+  expect(banked).toBeLessThanOrEqual(260);
+  await updateTheRound(page, debate, 'CLOSING');
+  const a = await read(clockA(page));
+  expect(a, 'a running clock is not put back to the cue\'s time').toBeLessThan(240);
+  await expect.poll(() => read(clockA(page)), { timeout: 5_000, message: 'and it does not stop' }).toBeLessThan(a);
+  expect(await read(clockB(page))).toBe(banked);
+});
+
+test('a time retyped mid-debate still applies, on the running clock and the waiting one, and the floor passes as before', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+
+  // The chair corrects the waiting speaker: held at the new time.
+  await updateTheRound(page, debate, 'CORRECTED', { f5: '02:30' });
+  await expect(clockA(page)).toHaveText('02:30');
+  // …and the speaker on the floor: on from the new time, still running.
+  await updateTheRound(page, debate, 'CORRECTED TWICE', { f5: '02:30', f6: '03:00' });
+  await expect.poll(() => read(clockB(page)), { timeout: 5_000 }).toBeLessThanOrEqual(180);
+  const b = await read(clockB(page));
+  expect(b).toBeGreaterThan(170);
+  await expect.poll(() => read(clockB(page)), { timeout: 5_000 }).toBeLessThan(b);
+
+  // The next resend carries the corrected times: nothing moves, and A has not gone back to 05:00.
+  await updateTheRound(page, debate, 'RESENT', { f5: '02:30', f6: '03:00' });
+  await expect(clockA(page)).toHaveText('02:30');
+  expect(await read(clockB(page))).toBeLessThanOrEqual(180);
+
+  // The floor passes to A: the corrected clock was still the running one, and it banks.
+  debate.write({ t: 'event', event: 'switch' });
+  await expect.poll(() => read(clockA(page)), { timeout: 20_000 }).toBeLessThan(150);
+  const banked = await read(clockB(page));
+  expect(banked).toBeLessThanOrEqual(180);
+  await page.waitForTimeout(1_500);
+  expect(await read(clockB(page)), 'B is held once the floor has passed').toBe(banked);
+});
+
+test('an output that reboots mid-debate keeps both clocks through the next Update', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+  await updateTheRound(page, debate, 'BEFORE THE REBOOT');
+  // The report that banks it has reached the backend, holding this Update.
+  await expect.poll(() => debate.report()?.data.f0 ?? null, { timeout: 20_000 }).toBe('BEFORE THE REBOOT');
+
+  await page.reload();
+  await expect(round(page)).toHaveText('BEFORE THE REBOOT', { timeout: 30_000 });
+  await expect(clockA(page)).toHaveText('04:00');
+  await expect.poll(() => read(clockB(page)), { timeout: 20_000 }).toBeLessThanOrEqual(260);
+
+  await updateTheRound(page, debate, 'AFTER THE REBOOT');
+  await expect(clockA(page)).toHaveText('04:00');
+  const b = await read(clockB(page));
+  expect(b).toBeLessThanOrEqual(260);
+  await expect.poll(() => read(clockB(page)), { timeout: 5_000 }).toBeLessThan(b);
+});
+
+test('a re-Take after an Out resumes the debate from the banked times, and Reset is what returns both to the allowance', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+
+  debate.write({ t: 'stop' });
+  await expect(page.locator('body')).toHaveAttribute('data-plays', '1');
+  await page.waitForTimeout(1_500);
+  const banked = await read(clockB(page));
+  expect(banked).toBeLessThanOrEqual(260);
+
+  debate.write({ t: 'update', data: debate.cue });
+  debate.write({ t: 'play' });
+  await expect(page.locator('body')).toHaveAttribute('data-plays', '2', { timeout: 20_000 });
+  await expect(clockA(page)).toHaveText('04:00');
+  expect(await read(clockB(page))).toBe(banked);
+
+  debate.write({ t: 'event', event: 'reset' });
+  await expect(clockA(page)).toHaveText('05:00', { timeout: 20_000 });
+  await expect(clockB(page)).toHaveText('05:00');
+  // A resend of the cue moves nothing now either: what it sends is what they read.
+  await updateTheRound(page, debate, 'A NEW ROUND');
+  await expect(clockA(page)).toHaveText('05:00');
+  await expect(clockB(page)).toHaveText('05:00');
+});
+
+test('the production page\'s own ✎ Update resends the clocks, and PROGRAM keeps them where they stand', async ({ page }) => {
+  // The sender, not a row written here: the operator's real Take, Switch and ✎ Update.
+  await bootstrapGraphic(page, { name: 'Debate Floor' });
+  await openProductionWithCurrent(page, 'Debate Night');
+  const program = page.frameLocator('[data-testid="program-stage"] iframe');
+  const a = program.locator('#f5');
+  const b = program.locator('#f6');
+  await page.getByTestId('verb-take').click();
+  await expect(a).toHaveText('05:00');
+  const pass = page.getByTestId('cue-action-switch');
+
+  await pass.click();
+  await expect.poll(() => read(a), { timeout: 10_000 }).toBeLessThan(300);
+  await pass.click();
+  await expect.poll(() => read(b), { timeout: 10_000 }).toBeLessThan(300);
+  const banked = await a.textContent();
+  expect(seconds(banked)).toBeLessThan(300);
+
+  await page.getByTestId('cue-field-f0').fill('REBUTTAL');
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('#f0')).toHaveText('REBUTTAL');
+  await expect(a, 'the waiting speaker keeps the time they banked').toHaveText(banked!);
+  const running = await read(b);
+  await expect.poll(() => read(b), { timeout: 5_000, message: 'and the other clock still runs' }).toBeLessThan(running);
+
+  // A retype still applies.
+  await page.getByTestId('cue-field-f5').fill('02:30');
+  await page.getByTestId('verb-update').click();
+  await expect(a).toHaveText('02:30');
+});
