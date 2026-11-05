@@ -1498,6 +1498,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               }}
               bound={boundFields(selectedCue.graphic)}
               boundOf={(field) => boundValues[selectedCue.graphic]?.[field]}
+              boundNow={(field) => boundNow(selectedCue.graphic)[field]}
               onPatchBound={patchBound}
               figures={figures}
               stack={liveStack}
@@ -2110,6 +2111,7 @@ function HostedCueEditor({
   onFlushReady,
   bound,
   boundOf,
+  boundNow,
   onPatchBound,
   figures,
   stack,
@@ -2162,6 +2164,10 @@ function HostedCueEditor({
   /** What the tree currently says a bound field reads - the figure a ± or an `adjust` counts
    *  from, and the value a bound box shows however the cue was prepared (plan §2.7). */
   boundOf: (field: string) => string | undefined;
+  /** The same figure read off the NEWEST tree, at the moment a queued press runs rather than when
+   *  this render drew it: the press before it on this graphic may have moved the value since
+   *  (#1567). What a press counts a bound field from. */
+  boundNow: (field: string) => string | undefined;
   /** Move the SHARED value. The rows come back for every graphic bound to the path, so this is
    *  the one write the editor makes that is not about this cue at all. */
   onPatchBound: (writes: TreeWrite[]) => Promise<void>;
@@ -2325,8 +2331,11 @@ function HostedCueEditor({
     const typed = Object.fromEntries((e.payload ?? []).map((key) => [key, read(key)]));
     figures.press(pressed.graphic, async () => {
       const moving = new Set(movedKeys(e));
+      // A BOUND figure is read off the newest tree NOW, when this press runs: a Goal pressed while
+      // the one before it was still on its way counted from the figure both saw, and two goals
+      // moved the shared score by one (#1567). The pinned block's press has always done this.
       const { payload, fields: moved, tree } = pressSend(e, bound, (key) =>
-        moving.has(key) && !bound[key] ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : key in typed ? typed[key] : read(key),
+        bound[key] ? boundNow(key) : moving.has(key) ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : key in typed ? typed[key] : read(key),
       );
       const settle = figures.hold(pressed.graphic, moved, (sibling?.cue ?? pressed).id);
       const sent = await onSend([
@@ -2349,7 +2358,8 @@ function HostedCueEditor({
           onPreview({ ...currentValues(), ...staged });
         }
       }
-      void onPatchBound(tree);
+      // The next press on this graphic waits for the shared value this one moved.
+      await onPatchBound(tree);
     });
   };
 
@@ -2365,7 +2375,9 @@ function HostedCueEditor({
     // it follows through the ordinary diff. Nothing is staged and nothing is echoed.
     const path = bound[key];
     if (path) {
-      void onPatchBound([{ path, text: adjustedValue(boundOf(key), delta), verb: 'adjust' }]);
+      // In line behind a Goal still on its way on this graphic, counting from the tree as it
+      // stands when its turn comes, so a Goal and a + inside one round trip both count.
+      figures.press(cue.graphic, () => onPatchBound([{ path, text: adjustedValue(boundNow(key), delta), verb: 'adjust' }]));
       return;
     }
     const pressed = cue;
