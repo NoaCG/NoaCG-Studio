@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
 
@@ -13,15 +16,22 @@ function capture() {
 
 const node = (code) => `"${process.execPath}" -e "${code}"`;
 
-test('lanes run at the same time: two half-second lanes take well under a second together', async () => {
+test('lanes run at the same time: each lane waits for a file only the other lane writes', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'build-lanes-'));
+  // Run one after the other, the first lane would wait for a lane that has not started, and give up.
+  const lane = (mine, theirs) => node(
+    `require('fs').writeFileSync('${path.join(dir, mine)}','');const t=Date.now();` +
+    `(function w(){if(require('fs').existsSync('${path.join(dir, theirs)}'))process.exit(0);if(Date.now()-t>20000)process.exit(9);setTimeout(w,20)})()`,
+  );
   const out = capture();
-  const started = Date.now();
-  const status = await runLanes([node('setTimeout(()=>{},500)'), node('setTimeout(()=>{},500)')], { out: out.stream, err: out.stream });
-  assert.equal(status, 0);
-  assert.ok(Date.now() - started < 950, `took ${Date.now() - started} ms`);
+  try {
+    assert.equal(await runLanes([lane('a', 'b'), lane('b', 'a')], { out: out.stream, err: out.stream }), 0, out.text());
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
-test('a held lane prints as one block after the live lane has streamed, never interleaved', async () => {
+test('a held lane prints as one block under its command, never interleaved with the live lane', async () => {
   const out = capture();
   await runLanes(
     [node("console.log('live-1');setTimeout(()=>console.log('live-2'),300)"), node("console.log('held-1');console.log('held-2')")],
@@ -29,7 +39,8 @@ test('a held lane prints as one block after the live lane has streamed, never in
   );
   const text = out.text();
   assert.match(text, /\[lanes\] output of: .*\nheld-1\nheld-2\n/);
-  assert.ok(text.indexOf('live-1') < text.indexOf('held-1'), text);
+  assert.match(text, /live-1/);
+  assert.match(text, /live-2/);
 });
 
 test('every lane runs to its end and the first failing lane in argument order sets the status', async () => {

@@ -31,11 +31,14 @@ export async function runLanes(commands, { out = process.stdout, err = process.s
     const started = Date.now();
     const live = index === 0;
     const held = [];
-    const child = spawn(command, { shell: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(command, { shell: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     children.push(child);
     child.stdout.on('data', (chunk) => (live ? out.write(chunk) : held.push(chunk)));
     child.stderr.on('data', (chunk) => (live ? err.write(chunk) : held.push(chunk)));
+    let done = false;
     const finish = (status) => {
+      if (done) return; // a spawn error can be followed by close
+      done = true;
       const seconds = ((Date.now() - started) / 1000).toFixed(1);
       if (!live) {
         out.write(`\n[lanes] output of: ${command}\n`);
