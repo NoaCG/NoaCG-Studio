@@ -166,20 +166,26 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
 // here relies on the wire doing either by chance.
 test('presses that reach the production page reversed or together run in the order they were pressed, each judged against what the one before it drew', async ({ page }) => {
   test.setTimeout(180_000);
-  let swap: { earlier: string; later: string; held: (() => void) | null; laterSent: boolean; together?: boolean } | null = null;
+  let swap: { earlier: string; later: string; held: (() => void) | null; laterSent: boolean; together?: { later: (() => void) | null } } | null = null;
   await page.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
     const server = ws.connectToServer();
     server.onMessage((frame) => {
       const text = typeof frame === 'string' ? frame : frame.toString();
       const forward = () => ws.send(frame);
-      if (swap && text.includes(`"${swap.earlier}"`) && !swap.laterSent) {
-        swap.held = forward;
+      // Together: each is held until both came, whichever the wire brought first, then both go in
+      // press order, back to back.
+      if (swap?.together && !swap.laterSent && (text.includes(`"${swap.earlier}"`) || text.includes(`"${swap.later}"`))) {
+        if (text.includes(`"${swap.earlier}"`)) swap.held = forward;
+        else swap.together.later = forward;
+        if (swap.held && swap.together.later) {
+          swap.laterSent = true;
+          swap.held();
+          swap.together.later();
+        }
         return;
       }
-      if (swap?.together && swap.held && text.includes(`"${swap.later}"`)) {
-        swap.laterSent = true;
-        swap.held();
-        forward();
+      if (swap && text.includes(`"${swap.earlier}"`) && !swap.laterSent) {
+        swap.held = forward;
         return;
       }
       forward();
@@ -239,7 +245,7 @@ test('presses that reach the production page reversed or together run in the ord
   const armed = await deck.state((s) => (s.live as string[]).length === 0 && s.selected === anna && s.space === 'take', 'Take ready for Anna');
   const plays = async () => Number(await op.getByTestId('program-stage').getAttribute('data-plays'));
   const playsBefore = await plays();
-  swap = { earlier: 'orderdeck:8', later: 'orderdeck:9', held: null, laterSent: false, together: true };
+  swap = { earlier: 'orderdeck:8', later: 'orderdeck:9', held: null, laterSent: false, together: { later: null } };
   const takeOnce = deck.press('take', anna, armed.ver as number, 'orderdeck:8');
   const takeAgain = deck.press('take', anna, armed.ver as number, 'orderdeck:9');
   expect((await takeOnce).outcome).toBe('ran');

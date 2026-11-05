@@ -287,8 +287,6 @@ interface OrderedPanel {
   /** The bound running for what is held, and the number it gave up to when it ran out. */
   giveUp: (() => void) | null;
   givenUpTo: number;
-  /** The gap running behind the press that ran last. */
-  drawing: (() => void) | null;
 }
 
 /**
@@ -296,34 +294,40 @@ interface OrderedPanel {
  * relay call and broadcast, so two quick ones can arrive reversed (issue #2109). The press id has
  * always numbered them, `<instance>:<n>` counting up per module start, so no module needs an update.
  *
- * A press in its turn, with nothing held, runs in the task that heard it: a press on its own never
- * waits. One heard within PRESS_DRAW_MS of the press before it waits out that gap, so the page has
- * drawn that press first. One ahead of its turn is held until the presses before it arrive. PRESS_HOLD_MS after a
- * press was first held with none in its turn, everything held goes, in order, and the presses that
- * never came are given up on. A press after its turn, a late one or a repeat, runs at once: its id
- * decides whether it has an effect (PressMemory), so a +1 arriving late still adds its point. The
- * first press this page hears from a panel sets the count and never waits, since a module may have
+ * A press in its turn runs in the task that heard it, unless another press, from any panel, ran in
+ * the PRESS_DRAW_MS before it: then it waits out the rest of that gap, so the page has drawn that
+ * press first (issue #2144). A press on its own never waits, and needs no timer. One ahead of its
+ * turn is held until the presses before it arrive. PRESS_HOLD_MS after a press was first held with
+ * none in its turn, everything held goes, in order, and the presses that never came are given up
+ * on. A press after its turn, a late one or a repeat, runs at once: its id decides whether it has
+ * an effect (PressMemory), so a +1 arriving late still adds its point. The first press this page
+ * hears from a panel sets the count and never waits for the ones before it, since a module may have
  * pressed long before this page opened.
  */
 export class PressOrder {
   /** Call `fn` once after `ms`; returns the cancel. */
   readonly #after: (ms: number, fn: () => void) => () => void;
+  readonly #now: () => number;
   readonly #panels = new Map<string, OrderedPanel>();
-  constructor(after: (ms: number, fn: () => void) => () => void) {
+  /** When a press last ran, and the timer that lets go what waits for the page to draw it. */
+  #ranAt = -Infinity;
+  #drawing: (() => void) | null = null;
+  constructor(after: (ms: number, fn: () => void) => () => void, now: () => number = () => Date.now()) {
     this.#after = after;
+    this.#now = now;
   }
 
   /** A press was heard: `run` is called exactly once, in its turn, unless this order stops first. */
   arrive(pressId: string, run: () => void): void {
     const id = /^(.+):(\d+)$/.exec(pressId);
     if (!id) {
-      run();
+      this.#run(run);
       return;
     }
     const n = Number(id[2]);
     const panel = this.#panels.get(id[1]) ?? this.#met(id[1], n);
     if (n < panel.next) {
-      run();
+      this.#run(run);
       return;
     }
     // A second copy of a held press: the first answers for both.
@@ -336,25 +340,30 @@ export class PressOrder {
   stop(): void {
     for (const panel of this.#panels.values()) {
       panel.giveUp?.();
-      panel.drawing?.();
       panel.held.clear();
     }
     this.#panels.clear();
+    this.#drawing?.();
+    this.#drawing = null;
   }
 
   #met(instance: string, n: number): OrderedPanel {
     if (this.#panels.size >= ORDERED_PANELS_MAX) {
       for (const [other, known] of this.#panels) {
         if (known.held.size === 0) {
-          known.drawing?.();
           this.#panels.delete(other);
           break;
         }
       }
     }
-    const panel: OrderedPanel = { next: n, held: new Map(), giveUp: null, givenUpTo: 0, drawing: null };
+    const panel: OrderedPanel = { next: n, held: new Map(), giveUp: null, givenUpTo: 0 };
     this.#panels.set(instance, panel);
     return panel;
+  }
+
+  #run(run: () => void): void {
+    this.#ranAt = this.#now();
+    run();
   }
 
   #pump(panel: OrderedPanel): void {
@@ -371,20 +380,28 @@ export class PressOrder {
       });
       return;
     }
-    if (panel.drawing) return;
+    if (this.#drawing) return;
+    // The page may not have drawn the press that ran last: wait out the rest of its gap. A clock
+    // that went back says nothing, so it does not hold a press.
+    const since = this.#now() - this.#ranAt;
+    if (since >= 0 && since < PRESS_DRAW_MS) {
+      this.#drawing = this.#after(PRESS_DRAW_MS - since, () => {
+        this.#drawing = null;
+        // The gap is over, whatever the clock says now.
+        this.#ranAt = -Infinity;
+        for (const waiting of [...this.#panels.values()]) this.#pump(waiting);
+      });
+      return;
+    }
     held.delete(panel.next);
     panel.next++;
-    // The gap behind every press that runs, held ones or not (issue #2144): two that arrive in order
-    // closer together than the page draws would have the second judged against the undrawn page.
-    // Armed before the press runs, so one that throws cannot strand the ones behind it.
-    panel.drawing = this.#after(PRESS_DRAW_MS, () => {
-      panel.drawing = null;
-      this.#pump(panel);
-    });
     if (held.size === 0) {
       panel.giveUp?.();
       panel.giveUp = null;
     }
+    this.#ranAt = this.#now();
+    // The gap for the presses behind it, armed before it runs, so one that throws cannot strand them.
+    this.#pump(panel);
     run();
   }
 }

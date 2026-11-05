@@ -74,8 +74,8 @@ function held() {
   return { promise, resolve, reject };
 }
 
-/** The module's clock, moved by hand. The page's timers (its draw gap and its bound) are the test's
- *  mocked `setInterval`, moved with it: `page` ticks them in gap-sized steps, each drained, so a
+/** The module's clock, moved by hand. The page's clock and timers (its draw gap and its bound) are
+ *  the test's mocked `Date` and `setInterval`, moved with it: `page` ticks them in gap-sized steps, each drained, so a
  *  press let go by a gap meets a page that has drawn the press before it. */
 class HandClock {
   t = 1_000_000;
@@ -338,7 +338,7 @@ function productionPage() {
 
 /** A deck connected to an answering production page, both through the relay, on one clock. */
 async function studio(t) {
-  t.mock.timers.enable({ apis: ['setInterval'] });
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
   const hub = relayHub();
   globalThis.__panelBackend = hub.backend;
   const prod = productionPage();
@@ -661,7 +661,7 @@ async function drawGap(t) {
 /** A deck and an answering page whose keys are three cues of one graphic. The page is as a real one:
  *  a press changes what it shows only when it next draws, a task after the press ran. */
 async function cueStudio(t) {
-  t.mock.timers.enable({ apis: ['setInterval'] });
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
   const hub = relayHub();
   globalThis.__panelBackend = hub.backend;
   const ran = [];
