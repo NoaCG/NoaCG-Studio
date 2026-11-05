@@ -260,6 +260,12 @@ export function answerPanel(opts: {
   let shownRows: PanelSnapshot['rows'] | null = null;
   /** Stops the beat and the renewal, which run on a timer a hidden tab cannot starve. */
   let beat: (() => void) | null = null;
+  /** The cues a panel's Take is still taking (protocol §6.2): whether each was on air when that Take
+   *  started, and the first state published with it otherwise. A Take saves an edit and settles the
+   *  cue's box before the page draws it, which can outlast the draw gap, so until one draw gap after
+   *  it settles, another panel Take of that cue from a key drawn before that state is refused. The
+   *  page's own Take and Re-take are not held to this. */
+  const taking = new Map<string, { live: boolean; drawnAt?: number }>();
 
   const send = (event: string, payload: object) => {
     if (feedChannel && feedJoined) void feedChannel.send({ type: 'broadcast', event, payload });
@@ -292,6 +298,7 @@ export function answerPanel(opts: {
       ver++;
       shown = snap;
       ring.put(ver, snap);
+      for (const [cue, mark] of taking) if (mark.drawnAt === undefined && snap.live.includes(cue) !== mark.live) mark.drawnAt = ver;
     } else if (!force) return;
     send('state', wireState(shown ?? snap, meta()));
   };
@@ -349,12 +356,6 @@ export function answerPanel(opts: {
     offer.act(judged.run).then(settle, (err: unknown) => settle({ outcome: 'failed', note: (err as Error)?.message ?? 'failed' }));
   };
 
-  /** The cues a panel's Take is still taking, each with whether it was on air when that Take started
-   *  (protocol §6.2). A Take saves an edit and settles the cue's box before the page draws it, which
-   *  can outlast the draw gap, so until one draw gap after it settles, another panel Take of that cue
-   *  from a key drawn before the page showed it go on or off air is refused. The page's own Take and
-   *  Re-take are not held to this. */
-  const taking = new Map<string, { live: boolean }>();
   const runPress = (payload: unknown) => {
     if ((payload as { verb?: unknown } | null)?.verb === ACTION_VERB) {
       onActionMessage(payload);
@@ -367,7 +368,7 @@ export function answerPanel(opts: {
     const snap = opts.snapshot();
     const then = ring.get(press.seen);
     const mark = takes ? taking.get(press.target) : undefined;
-    const early = !!mark && then?.live.includes(press.target) === mark.live;
+    const early = !!mark && press.seen < (mark.drawnAt ?? Infinity);
     const verdict = (early ? TAKE_CHANGED : judgePress(press, snap, then, opts.runs)) ?? { outcome: 'ran' as const };
     if (verdict.outcome === 'ran') {
       const took = opts.run(press.verb, press.target);
