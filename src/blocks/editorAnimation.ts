@@ -3,7 +3,7 @@ import { losslessAnimData, type AnimData } from './animData';
 import { deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
 import { resolveValue } from './animEval';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
-import { baseValues, editBase, settleSvgOffset, type BasePatch } from './baseEdits';
+import { baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 import { locateBehaviourData, parseBehaviourData } from './behaviourData';
 import { behaviourSequenceReason, claimReason, claimRelations, recipeClaims, requireUserTracksOnly, sequenceOwned, stamped, SEQUENCE_REFUSAL, type RecipeClaim } from './behaviourKeys';
@@ -37,8 +37,6 @@ export const controlsOf = (channel: string) => CONTROLS.filter(control => CONTRO
  *  `autoAlpha` as opacity. */
 export const poseKey = (channel: Channel, control: NumericProperty): keyof NumericPose => channel === 'scale' || channel === 'autoAlpha' ? control : channel as keyof NumericPose;
 const NAMES: Record<NumericProperty, string> = { x: 'Position X', y: 'Position Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity' };
-/** The channels through which GSAP animates a layer's transform. */
-const TRANSFORM_CHANNELS: readonly string[] = ['x', 'y', 'xPercent', 'yPercent', 'scale', 'scaleX', 'scaleY', 'rotation', 'skewX', 'skewY', 'transform'];
 const animates = (data: AnimData | null, owner: string, channel: string) => !!data?.steps.some(step => step.layers[owner]?.[channel]?.length);
 
 export function animationSource(template: SpxTemplate): AnimData {

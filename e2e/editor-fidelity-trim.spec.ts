@@ -704,7 +704,7 @@ test('a quiz takes keys on its answers and its cues, its drawn moments refuse th
 // #2062: an imported SVG layer with a transform of its own holds a base offset as a CSS translate,
 // which GSAP clears once it animates that transform. Turning on Position X or Rotation keeps the
 // layer where it was placed, in the editor and on air, and the keys go on from there.
-test('turning on Position X or Rotation keeps an SVG layer\'s base offset', async ({ page }) => {
+test('turning on Position X or Rotation keeps an SVG layer\'s base offset, and a base move under Rotation still moves it', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 }); await imported(page); await seek(page, 0);
   const base = await page.evaluate(async template => (await import('/src/blocks/baseEdits.ts')).baseValues(template, '#sibling'), await source(page));
   const drawn = await standsAt(page, '#sibling');
@@ -719,6 +719,13 @@ test('turning on Position X or Rotation keeps an SVG layer\'s base offset', asyn
     await expect(page.getByRole('alert')).toHaveCount(0);
     (await standsAt(page, '#sibling')).forEach((v, i) => expect(v, button).toBeCloseTo(placed[i], 3));
     expect(Number(await page.locator('.ef-animation-properties').getByRole('textbox', { name: 'Position X', exact: true }).inputValue()), button).toBeCloseTo(base.x + 12, 3);
+    if (button === 'Enable Rotation animation') {
+      // A base move while the transform is animated moves the layer too.
+      await execute(page, [{ kind: 'base.set', selector: '#sibling', values: { x: base.x + 17 } }]);
+      expect((await standsAt(page, '#sibling'))[0]).toBeCloseTo(placed[0] + 5, 3);
+      expect((await source(page)).html).toContain('transform="translate(777 427) rotate(-12)"');
+      await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+    }
     await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
     expect(await source(page)).toEqual(settled);
   }

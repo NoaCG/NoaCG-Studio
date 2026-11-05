@@ -212,6 +212,8 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1),
     rotation: Number(declaration(template.css, target, '--base-rotation') ?? 0) };
 }
+/** The channels through which GSAP animates a layer's transform. */
+export const TRANSFORM_CHANNELS: readonly string[] = ['x', 'y', 'xPercent', 'yPercent', 'scale', 'scaleX', 'scaleY', 'rotation', 'skewX', 'skewY', 'transform'];
 /**
  * An SVG layer's base offset is a CSS translate, which adds to the layer's own transform attribute
  * only while nothing animates its transform. Once GSAP animates it, GSAP takes that attribute as the
@@ -231,8 +233,12 @@ export function settleSvgOffset(template: SpxTemplate, selector: string): { temp
   const range = artworkRange(template.html, node), opening = template.html.slice(range.start, range.content);
   const attr = /(\stransform\s*=\s*)(["'])(.*?)\2/;
   if (!attr.test(opening)) throw new Error('This SVG uses an unsupported transform attribute. Its source is preserved.');
-  const offset = 'translate(' + transformPrecision(dx) + ' ' + transformPrecision(dy) + ')';
-  const changed = opening.replace(attr, (_, lead: string, quote: string, own: string) => lead + quote + offset + ' ' + own + quote);
+  // A leading translate takes the offset into its own numbers, so repeated moves stay one translate.
+  const changed = opening.replace(attr, (_, lead: string, quote: string, own: string) => {
+    const first = own.match(/^\s*translate\(\s*(-?[\d.]+(?:e-?\d+)?)(?:[\s,]+(-?[\d.]+(?:e-?\d+)?))?\s*\)\s*/);
+    const offset = (x: number, y: number) => 'translate(' + transformPrecision(x) + ' ' + transformPrecision(y) + ')';
+    return lead + quote + (first ? offset(Number(first[1]) + dx, Number(first[2] ?? 0) + dy) + (own.length > first[0].length ? ' ' + own.slice(first[0].length) : '') : offset(dx, dy) + ' ' + own) + quote;
+  });
   let css = setCssDeclaration(template.css, base.target, '--base-x', '0px');
   css = setCssDeclaration(css, base.target, '--base-y', '0px');
   const next = { ...template, html: template.html.slice(0, range.start) + changed + template.html.slice(range.content), css };
@@ -336,7 +342,10 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     for (const step of allTimelines(data)) if (step.layers[selector]?.transformOrigin) step.layers[selector].transformOrigin = [{time:0,value:transformPrecision(patch.anchorX!)+'px '+transformPrecision(patch.anchorY!)+'px'}];
     const changed = writeAnimData(js, data); if (!changed) throw new Error('The group pivot initializer cannot be written.'); js = changed;
   }
-  return { ...template, html, css, js };
+  // With its transform already animated (Rotation, Scale), GSAP would clear a CSS translate here too.
+  const transformed = base.mode === 'svg' && !svgMotion && (patch.x !== undefined || patch.y !== undefined) &&
+    !!parseAnimData(template.js)?.steps.some(step => TRANSFORM_CHANNELS.some(channel => step.layers[selector]?.[channel]?.length));
+  return transformed ? settleSvgOffset({ ...template, html, css, js }, selector).template : { ...template, html, css, js };
 }
 
 export type CreationKind = 'text' | 'rectangle' | 'ellipse';
