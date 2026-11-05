@@ -119,7 +119,7 @@ for (const order of ['the other device saves last', 'this device edits last']) {
   });
 }
 
-test('an edit made just after the pass last read the library, against a save elsewhere, both survive', async () => {
+test('an edit made just after the pass last read the library, against a save elsewhere dated after the bookmark, both survive', async () => {
   const { runSync, local, remote } = await synced();
   local.graphicLists = 0;
   local.onSecondListRead = async () => {
