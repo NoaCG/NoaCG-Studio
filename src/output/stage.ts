@@ -38,7 +38,6 @@ import { readTypedWire, typedValuesOf } from '../model/ografTyped';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafOptions, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
 import { ografLoadData, type OgrafOutcome } from '../control/ografOutcome';
 import { UNKNOWN_REMOUNTED } from '../control/ografRecovery';
-import { heldList } from '../control/outputRecovery';
 import { ografCallFor } from '../control/ografContract';
 import type { SpxTemplate, SoundAssetRef } from '../model/types';
 import { soundBlob, soundBytes } from '../assets/soundAssets';
@@ -860,9 +859,7 @@ export function createOutputStage(
     const frame = senderOf(ev);
     if (frame === null || !frame.current) return;
     const key = frame.key;
-    // A held credits list rides the state the stage keeps, so the output's report banks it (#2075).
-    const list = heldList(data.held);
-    const next = list ? { ...(data.state ?? {}), held: list } : (data.state ?? null);
+    const next = data.state ?? null;
     const nextOver = Array.isArray(data.overflow) ? data.overflow.map(String) : [];
     // Kept OUT of the `moved` test below: an animation playhead changes many times a second
     // and says nothing about applied truth, so it must never schedule a report. It is

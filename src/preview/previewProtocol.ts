@@ -176,10 +176,6 @@ export interface PreviewMachineState {
   groups?: Record<string, string>;
   /** A score board's latched scoring rows (figure group -> field), beside `groups` (#1908). */
   awards?: Record<string, string>;
-  /** The list a credits take on air holds while a newer one waits (field id -> list): never the
-   *  template's own answer, but the stage's fold of `PreviewStateMessage.held`, so the output's
-   *  report banks it and a rebuild takes it again before restating the newest (#2075). */
-  held?: Record<string, string>;
 }
 
 export interface PreviewBoxMessage {
@@ -211,12 +207,6 @@ export interface PreviewStateMessage {
    * rendered rather than guessing from when a source changed. Absent or false otherwise.
    */
   waits?: boolean;
-  /**
-   * THE LIST HELD ON AIR while a newer one waits, as the field id and the list the take took
-   * (`noacgCreditsHeld`). Sent only while `waits` is true: otherwise the field holds that list
-   * already. A rebuild that writes the field's newest value alone would take the newest (#2075).
-   */
-  held?: Record<string, string> | null;
   /**
    * HOW FAR THE DOCUMENT'S ANIMATIONS HAVE RUN — the summed playhead of every animation GSAP
    * holds plus every web animation the document is running, in milliseconds. It is a reading, not a verdict: two consecutive replies with the

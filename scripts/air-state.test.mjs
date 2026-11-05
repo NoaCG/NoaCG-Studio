@@ -25,7 +25,7 @@ import {
 } from '../src/control/airState.ts';
 import { createAppliedOnce } from '../src/control/commandRoads.ts';
 import { clockHeldBeforeRow, clockOriginOf, clockRowEffect, clockValueAfterUpdate, plainClockValue, speakingClockAt } from '../src/control/matchClockWire.ts';
-import { heldFirst, heldList, monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
+import { monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, NO_LOG, createPlayoutSession } from '../src/control/playoutSession.ts';
 
@@ -658,37 +658,6 @@ test('a boot replay that carries the entrance needs no play of its own; off-air 
   const air = { ...NO_AIR, liveCue: { lt: 'c1' }, reports: { lt: { data: { f0: 'A' } } }, bootReplay: [play('lt')] };
   assert.deepEqual(restoreItems(air, {}, NO_CLOCKS).items.map((i) => i.msg.t), ['update', 'update', 'play']);
   assert.deepEqual(restoreItems({ ...NO_AIR, aired: { lt: { f0: 'A' } } }, {}, NO_CLOCKS).items, []);
-});
-
-// #2075: a credits roll or cards on air keep the list their Take took while a newer one waits, and
-// their state says so (`held`). A rebuilt stage writes that list first, so the take it replays
-// takes it, then the newest, which waits for the next Take as it does on air.
-test('a held credits list is written before the take a rebuild replays, then the newest (#2075)', () => {
-  const held = { f0: 'Research:\nNia Vale' };
-  const newest = { f0: 'Camera:\nJonas Berg', f1: '100' };
-  // At boot, from the report and the rows after it.
-  const boot = {
-    ...NO_AIR,
-    liveCue: { credits: 'c1' },
-    reports: { credits: { data: newest, state: { groups: { main: 'on' }, held } } },
-    bootReplay: [{ graphic: 'credits', msg: { t: 'update', data: { f1: '120' } } }],
-  };
-  const fromReport = restoreItems(boot, {}, NO_CLOCKS).items;
-  assert.deepEqual(fromReport.map((i) => i.msg.t), ['update', 'snap', 'update', 'update']);
-  assert.deepEqual(fromReport[0].msg.data, { ...newest, ...held }, 'the held list goes in before the take');
-  assert.deepEqual(fromReport[2].msg.data, newest, 'then the newest, which waits for the next Take');
-  // At boot with no rows after the report: what was aired is the report's, and the pose unknown.
-  const quiet = restoreItems({ ...boot, bootReplay: [], aired: { credits: newest } }, {}, NO_CLOCKS).items;
-  assert.deepEqual(quiet.map((i) => [i.msg.t, i.msg.data ?? null]), [['update', { ...newest, ...held }], ['play', null], ['update', newest]]);
-  // After this page applied a command: the monitor's last answer, never an older report.
-  const later = { ...boot, bootReplay: null, aired: { credits: newest } };
-  const fromMonitor = restoreItems(later, { credits: { groups: { main: 'on' }, held: { f0: 'Sound:\nAri Moss' } } }, NO_CLOCKS).items;
-  assert.deepEqual(fromMonitor[0].msg.data, { ...newest, f0: 'Sound:\nAri Moss' });
-  const nothingHeld = restoreItems(later, { credits: { groups: { main: 'on' } } }, NO_CLOCKS).items;
-  assert.deepEqual(nothingHeld.map((i) => i.msg.data ?? null), [newest, null, newest], 'a monitor that holds nothing rebuilds the data as aired');
-  // A held value that is not a list is ignored.
-  assert.deepEqual(heldFirst(newest, { held: { f0: 3 } }), newest);
-  assert.deepEqual(heldList(['x']), null);
 });
 
 test('a newer report forgets the boot replay; forgetting twice is the same part', () => {
