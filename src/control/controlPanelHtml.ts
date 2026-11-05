@@ -555,13 +555,19 @@ GRAPHICS.forEach(function (g) {
   }
   // A PRESS DURING THE BOOT READ WAITS FOR IT, as on the production controller (#2074): until the
   // card has read the whole relay log it does not know where the clock stands, and a press would
-  // work from the design's start time over a clock another page is running. Held in order, sent
-  // as soon as the read is done.
+  // work from the design's start time over a clock another page is running. The press runs at
+  // once, so its messages carry the values of that moment, but they are held (collecting) and
+  // sent through the clock, in order, as soon as the read is done.
   var booting = false;
+  var collecting = null;
   var waitingPresses = [];
   function press(run) {
-    if (booting) waitingPresses.push(run);
-    else relayPress(run);
+    if (!booting) { relayPress(run); return; }
+    collecting = [];
+    try { run(); } finally {
+      waitingPresses.push(collecting);
+      collecting = null;
+    }
   }
   if (CLOCK && CLOCK.events) relayReady.push(function () {
     var cursor = 0;
@@ -573,7 +579,7 @@ GRAPHICS.forEach(function (g) {
       booting = false;
       var presses = waitingPresses;
       waitingPresses = [];
-      presses.forEach(relayPress);
+      presses.forEach(function (msgs) { relayPress(function () { msgs.forEach(sendClocked); }); });
     });
     setInterval(function () {
       clock.settle(null);
@@ -589,6 +595,7 @@ GRAPHICS.forEach(function (g) {
   // instead of minting one; the banked time AFTER a hold, a reset, an Out or a running correction.
   // Reset banks what the RUNTIME returns to, never what the element happens to read.
   function sendClocked(msg) {
+    if (collecting) { collecting.push(msg); return; }
     if (!CLOCK) { post(msg); return; }
     // A send of this card's that never came back stops counting before the clock is read.
     if (CLOCK.events) clock.settle(null);

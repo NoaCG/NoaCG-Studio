@@ -1227,6 +1227,7 @@ test('an imported duration never taken: a time typed before a Reset is what the 
     const values = Object.fromEntries(template.fields.map((f) => [f.field, String(f.value ?? '')]));
     return {
       field,
+      other: template.fields.find((f) => f.field !== field && f.ftype === 'textfield')?.field,
       panel: renderControlPanelHtml(template, null),
       controller: renderProductionControllerHtml({
         show: 'Duration show', width: 1920, height: 1080,
@@ -1292,12 +1293,20 @@ test('an imported duration never taken: a time typed before a Reset is what the 
   await expect.poll(() => bootHeld, 'the boot read is out').toBe(true);
   await fresh.locator('#live').uncheck();
   const before = clockRows(ctlRelay.rows).length;
+  // The held press keeps the values of its own moment: a field typed after it and not sent stays
+  // staged, never riding the held press.
+  expect(built.other, 'the design has a text field beside the clock').toBeTruthy();
+  const other = fresh.locator(`.field[data-key="${built.other}"] input`);
+  await other.fill('PRESSED');
   await fresh.getByRole('button', { name: '✎ Update' }).click();
+  await other.fill('TYPED AFTER');
   await fresh.evaluate(() => new Promise((r) => setTimeout(r, 300)));
   expect(clockRows(ctlRelay.rows).length, 'nothing is sent while the boot read is out').toBe(before);
   answerBoot();
   await expect.poll(() => clockRows(ctlRelay.rows).length).toBe(before + 1);
   expect(clockRows(ctlRelay.rows)[before], 'the press resends the running clock').toBe(running);
+  const held = ctlRelay.rows.map((r) => r.msg as { t: string; data?: Record<string, string> }).filter((m) => m.t === 'update' && m.data?.[built.field] !== undefined).at(-1)!;
+  expect(held.data![built.other!], 'the held press sends the value of its moment').toBe('PRESSED');
   await expect(fresh.locator(`.field[data-key="${built.field}"] input`)).toHaveValue('0:50');
   for (const p of [panel, ctl, fresh]) await p.close();
 });
