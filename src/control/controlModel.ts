@@ -9,7 +9,7 @@ import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import type { TypedActionCall, TypedValues } from '../model/ografTyped';
 import { parseAnimData } from '../blocks/animData';
-import { deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
+import { canonicalPath, deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
 import { upgradeControls } from './controlUpgrades';
 import { slug } from '../model/slug';
 import { readPublishedProfile } from '../model/profile';
@@ -476,16 +476,16 @@ export function arrangeControls(
   return { pinned, sections, more };
 }
 
-/** One group's states, for the recovery snap picker: every state is enterable by SNAP by
- *  design (recovery, emergency jumps), so the list is the whole group, worn with the state
- *  NAMES the author gave them. Empty without an explicit machine — same gate as the buttons:
- *  on a plain linear template the picker would only duplicate ▶/»/■. */
+/** One group's states, as the Bridge's API publishes them (bridge/bridgeApi.ts): every state is
+ *  enterable by SNAP by design, so the list is the whole group, worn with the state NAMES the
+ *  author gave them. Empty without an explicit machine. The dashboards no longer offer a list
+ *  to snap from: « Back and ⟲ Reset are their snaps (#2181, `backTarget`, `resetTarget`). */
 export interface MachineStateGroup {
   id: string;
   states: { id: string; name: string }[];
 }
 
-/** The machine's groups and states, for surfaces that offer a snap-to-state control. */
+/** The machine's groups and states. */
 export function machineStateGroups(js: string): MachineStateGroup[] {
   const machine = parseAnimData(js)?.machine;
   if (!machine) return [];
@@ -499,9 +499,8 @@ export function machineStateGroups(js: string): MachineStateGroup[] {
  * Every state's NAME, by group then by state id — what a surface needs to say where the
  * graphic is in words.
  *
- * Deliberately not `machineStateGroups` above: that one is the SNAP PICKER's list and is
- * empty without an explicit machine on purpose (a plain linear template's picker would only
- * duplicate ▶/»/■). Naming is the opposite question — a lower third's `enter` should read
+ * Deliberately not `machineStateGroups` above: that one is the Bridge's list of states and is
+ * empty without an explicit machine on purpose. Naming is the opposite question — a lower third's `enter` should read
  * "Enter" exactly as a quiz's `sealed` should read "Locked, choice hidden" — so this falls
  * back to the DERIVED machine, which names its states after the steps. Nothing is fetched:
  * the names travel inside the template's own data block.
@@ -784,6 +783,38 @@ export function advanceLabel(
   if (control) return control.label;
   const group = machineOf(js)?.groups[0];
   return (group && names[group.id]?.[target.state]) || target.state;
+}
+
+/**
+ * WHERE « Back would take the live graphic: the state before the one it is in, on the route a
+ * snap replays to reach it (`canonicalPath`): the previous waypoint on the default path, or, for a
+ * branch, the state before it on the shortest authored route there - not necessarily the state
+ * the graphic actually came from. Returned as the snap's assignment for the main group, so the
+ * other groups keep where they are. Null when Back would do nothing: no report yet, off air, or
+ * the first step (#2181: the recovery list only ever took a graphic off air or left it as it was).
+ */
+export function backTarget(
+  js: string,
+  state: { groups?: Record<string, string> } | null | undefined,
+): Record<string, string> | null {
+  const main = machineOf(js)?.groups[0];
+  const cur = main && state?.groups?.[main.id];
+  // Off air, or on the exit: Take is how a graphic comes back, never Back.
+  if (!main || cur === undefined || cur === main.initial || cur === main.defaultPath?.[main.defaultPath.length - 1]) return null;
+  const route = canonicalPath(main, true, cur);
+  return route && route.length >= 2 ? { [main.id]: route[route.length - 2] } : null;
+}
+
+/**
+ * What ⟲ Reset snaps the live graphic to: its FIRST step, still on air - the visual half of a
+ * reset that does not take the graphic off. Like Back it moves the main group only: a parallel
+ * group (a match clock, a power play) keeps where it is, so one stray press beside Arrange cannot
+ * stop a running clock. Null for a graphic with no step to stand on.
+ */
+export function resetTarget(js: string): Record<string, string> | null {
+  const main = machineOf(js)?.groups[0];
+  const first = main?.defaultPath?.[0];
+  return main && first ? { [main.id]: first } : null;
 }
 
 /**

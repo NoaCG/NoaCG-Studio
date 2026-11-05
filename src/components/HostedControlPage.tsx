@@ -18,12 +18,13 @@ import {
   formatMachineState,
   illegalEventTitle,
   isEventLegal,
-  machineStateGroups,
+  backTarget,
   machineStateNames,
   movedKeys,
   movedStateNames,
   overflowNote,
   pressSend,
+  resetTarget,
   OVERFLOW_FIELD_HINT,
   OVERFLOW_FIELD_MARK,
   type ArrangedControl,
@@ -884,6 +885,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  asks (`controlModel canAdvance`), so a quiz on its Reveal greys Next here too instead of
    *  logging "Next step" while the board stays put (g2 handoff, "For row G" item 3). */
   const nextMoves = !!selectedGraphic && canAdvance(spec?.js ?? '', machineState[selectedGraphic] ?? null);
+  /** Where « Back would take the selected layer (`controlModel backTarget`), as on the in-app bar. */
+  const backTo = selectedLayerCueId && selectedGraphic && spec ? backTarget(spec.js, machineState[selectedGraphic] ?? null) : null;
   /** What » Next will do, in words on the button: the in-app page's `advanceLabel`, read the same way. */
   // Read only while a layer is live and Next would move it; this component returns early above,
   // so it cannot memoise (rules of hooks).
@@ -1044,11 +1047,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * being operated from a phone, away from the machine running the renderer, when air and the
    * dashboard get out of step.
    */
-  const snapOn = (graphic: string, groupId: string | null, stateId: string) => {
+  const snapOn = (graphic: string, assignments: Record<string, string> | null) => {
     const layerCueId = liveCue[graphic] ?? null;
     if (!layerCueId) return;
     const layerCue = cues.find((c) => c.id === layerCueId) ?? null;
-    const snap = { graphic, msg: { t: 'snap' as const, snap: groupId === null ? null : { [groupId]: stateId } } };
+    const snap = { graphic, msg: { t: 'snap' as const, snap: assignments } };
     // The layer airs a cue this page was not given (a live candidate, E7.1): it has no values here
     // to send, so the snap goes alone and the layer keeps what it shows.
     // A live press like the others: after the one before it on its graphic, on the same cue.
@@ -1061,8 +1064,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       await sendVerb(layerCue ? [snap, { graphic, msg: { t: 'update', data: { ...cueValues(layerCue), ...moved } } }] : [snap]);
     });
   };
-  const snapTo = (groupId: string | null, stateId: string) => {
-    if (selectedGraphic && selectedCue) snapOn(selectedGraphic, groupId, stateId);
+  const snapTo = (assignments: Record<string, string> | null) => {
+    if (selectedGraphic && selectedCue) snapOn(selectedGraphic, assignments);
   };
 
   /** What a moved figure counts from (`SentFigures`), shared by every live press on this page. */
@@ -1193,7 +1196,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         }
         onEvent={(e) => pinnedEvent(graphic, e)}
         onBump={(key, delta) => pinnedBump(graphic, key, delta)}
-        onSnap={(groupId, stateId) => snapOn(graphic, groupId, stateId)}
+        onSnap={(assignments) => snapOn(graphic, assignments)}
       />
     );
   };
@@ -1448,6 +1451,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             selectedGraphic={selectedGraphic}
             nextMoves={nextMoves}
             nextLabel={nextLabel}
+            onBack={backTo ? () => snapTo(backTo) : null}
             keptStates={keptStates}
             onKey={runVerb}
             cues={cues}
@@ -1689,6 +1693,7 @@ function HostedVerbs({
   selectedGraphic,
   nextMoves,
   nextLabel,
+  onBack,
   keptStates,
   onKey,
   unordered,
@@ -1708,6 +1713,8 @@ function HostedVerbs({
   nextMoves: boolean;
   /** » Next's target in words (`controlModel advanceLabel`), or 'last step', or null when unknown. */
   nextLabel: string | null;
+  /** « Back, one step back on the selected layer (`controlModel backTarget`), or null when it would do nothing. */
+  onBack: (() => void) | null;
   /** The states ✎ Update will keep on air, in the author's words (`controlModel movedStateNames`) —
    *  empty once nothing is up for Update to keep. */
   keptStates: string;
@@ -1757,6 +1764,18 @@ function HostedVerbs({
       >
         ✎ Update <kbd>U</kbd>
       </button>
+      {/* « Back and » Next share one cell, as on the in-app bar. */}
+      <span className="pd-verb-step">
+      <button
+        className="pd-verb pd-verb-back"
+        disabled={!onBack}
+        onClick={() => onBack?.()}
+        title="Back one step"
+        aria-label="Back one step"
+        data-testid="hosted-back-cue"
+      >
+        «
+      </button>
       <button
         className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
         disabled={!layerLive || !nextMoves}
@@ -1783,6 +1802,7 @@ function HostedVerbs({
           </>
         )}
       </button>
+      </span>
       <button
         className="pd-verb"
         disabled={!layerLive}
@@ -1851,7 +1871,7 @@ function HostedLiveBlock({
   blocked: (e: ControlButton) => string | null;
   onEvent: (e: ControlButton) => void;
   onBump: (key: string, delta: number) => void;
-  onSnap: (groupId: string | null, stateId: string) => void;
+  onSnap: (assignments: Record<string, string> | null) => void;
 }) {
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const descriptorByKey = useMemo(() => new Map(descriptors.map((d) => [d.key, d])), [descriptors]);
@@ -1867,7 +1887,7 @@ function HostedLiveBlock({
     [events, arrange, airedValues, descriptors, path],
   );
   const legality = useMemo(() => eventLegality(spec.js), [spec.js]);
-  const stateGroups = useMemo(() => machineStateGroups(spec.js), [spec.js]);
+  const resetTo = useMemo(() => resetTarget(spec.js), [spec.js]);
   const stateNames = useMemo(() => machineStateNames(spec.js), [spec.js]);
   const stacked = !!heading;
   // In the stack a pinned graphic off air has nothing to act on, and says so on its chip.
@@ -1968,40 +1988,19 @@ function HostedLiveBlock({
         </span>
         {name}
         {chip}
-        {/* RECOVERY, folded closed in the head: the snap is not how a graphic is driven. */}
-        {stateGroups.length > 0 && (
+        {/* RESET, where the recovery list was (#2181): the in-app block's press. */}
+        {resetTo && (
           <span className="pd-actions-tools">
-            <details className="pd-actions-recovery" data-testid="hosted-actions-recovery">
-              <summary title="Jumps the live graphic straight to a state with no animation and re-sends this cue’s values. For when air and this page are out of step (a renderer restart, a missed press).">
-                Recovery
-              </summary>
-              <select
-                className="pd-snap"
-                value=""
-                disabled={!layerLive}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  if (v === '::reset') onSnap(null, '');
-                  else {
-                    const i = v.indexOf(':');
-                    onSnap(v.slice(0, i), v.slice(i + 1));
-                  }
-                }}
-                title="RECOVERY. Jumps the live graphic straight to a state with no animation."
-                data-testid="hosted-snap"
-              >
-                <option value="">Snap to state…</option>
-                <option value="::reset">⟲ Back to start (visual reset)</option>
-                {stateGroups.map((g) =>
-                  g.states.map((s) => (
-                    <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
-                      {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
-                    </option>
-                  )),
-                )}
-              </select>
-            </details>
+            <button
+              type="button"
+              className="pd-actions-reset"
+              disabled={!layerLive}
+              onClick={() => onSnap(resetTo)}
+              title="Back to the first step, still on air"
+              data-testid="hosted-actions-reset"
+            >
+              ⟲ Reset
+            </button>
           </span>
         )}
       </div>
@@ -2145,7 +2144,7 @@ function HostedCueEditor({
    *  layer is off. A ⚡ press acts on it. */
   onAir: { cue: OutputCue; values: Record<string, string> } | null;
   onPreview: (values: Record<string, string>) => void;
-  onSnap: (groupId: string | null, stateId: string) => void;
+  onSnap: (assignments: Record<string, string> | null) => void;
   /** The page's one door for a verb - both roads, its own monitor, and the log. It answers
    *  whether the rows went, because a press that moves a SHARED value must not move it for an
    *  event the log refused: the other bound graphics would follow a figure this one never took. */

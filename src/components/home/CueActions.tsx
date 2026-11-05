@@ -1,5 +1,5 @@
 import { useSyncExternalStore, type ComponentProps, type Dispatch, type ReactNode, type SetStateAction } from 'react';
-import { adjustWords, controlName, illegalEventTitle, labelCarriesDelta, type ArrangedControl, type ArrangedControls, type ControlButton, type MachineStateGroup } from '../../control/controlModel';
+import { adjustWords, controlName, illegalEventTitle, labelCarriesDelta, type ArrangedControl, type ArrangedControls, type ControlButton } from '../../control/controlModel';
 import { pickButton } from '../../control/liveControls';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import type { ArrangeEntry, ShowProfile } from '../../model/profile';
@@ -144,8 +144,8 @@ export default function CueActions({
   arranging,
   stateLabel,
   selectedLayerLive,
-  stateGroups,
-  snapTo,
+  resetTo,
+  snap,
   readOnlyProfile,
   setArrangingFor,
   selectedGraphic,
@@ -164,8 +164,9 @@ export default function CueActions({
   arranging: boolean;
   stateLabel: string | null;
   selectedLayerLive: boolean;
-  stateGroups: MachineStateGroup[];
-  snapTo: (groupId: string | null, stateId: string) => Promise<void>;
+  /** Where ⟲ Reset snaps the live graphic (controlModel `resetTarget`): its first step, on air. */
+  resetTo: Record<string, string> | null;
+  snap: (assignments: Record<string, string> | null) => Promise<void>;
   readOnlyProfile: boolean;
   setArrangingFor: Dispatch<SetStateAction<string | null>>;
   selectedGraphic: string;
@@ -235,40 +236,19 @@ export default function CueActions({
               {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
             </span>
             <span className="pd-actions-tools">
-              {/* RECOVERY, folded closed in the head: the snap is not how a graphic is driven,
-                  and a list of every internal state does not belong among the presses of the
-                  show (docs/research/control-surfaces-review-2026-10-02 slice 4). */}
-              {stateGroups.length > 0 && !arranging && (
-                <details className="pd-actions-recovery" data-testid="cue-actions-recovery">
-                  <summary title="Jumps the live graphic straight to a state with no animation and re-sends the on-air cue’s values. For when air and this page are out of step (a renderer restart, a missed press).">
-                    Recovery
-                  </summary>
-                  <select
-                    className="pd-snap"
-                    value=""
-                    disabled={!selectedLayerLive}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (!v) return;
-                      if (v === '::reset') void snapTo(null, '');
-                      else {
-                        const i = v.indexOf(':');
-                        void snapTo(v.slice(0, i), v.slice(i + 1));
-                      }
-                    }}
-                    data-testid="machine-snap"
-                  >
-                    <option value="">Snap to state…</option>
-                    <option value="::reset">⟲ Back to start (visual reset)</option>
-                    {stateGroups.map((g) =>
-                      g.states.map((s) => (
-                        <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
-                          {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
-                        </option>
-                      )),
-                    )}
-                  </select>
-                </details>
+              {/* RESET, where the recovery list was (#2181): one press back to the first step, still
+                  on air, re-sending the on-air cue's values. « Back and » Next are on the verb bar. */}
+              {resetTo && !arranging && (
+                <button
+                  type="button"
+                  className="pd-actions-reset"
+                  disabled={!selectedLayerLive}
+                  onClick={() => void snap(resetTo)}
+                  title="Back to the first step, still on air"
+                  data-testid="cue-actions-reset"
+                >
+                  ⟲ Reset
+                </button>
               )}
               {/* ARRANGE, on the buttons themselves (home/ActionArranger). The separate Controls
                   panel it replaced was a second block about this one, under it. */}

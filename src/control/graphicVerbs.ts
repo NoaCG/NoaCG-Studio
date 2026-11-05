@@ -20,7 +20,7 @@
 //   nextLive, outLive
 //   takeOffAir, outAll           `takeOff(graphic)`, `allOut()`
 //   fireEvent, pressEvent        `event(sel, button)`
-//   snapTo                       `snap(sel, group, state)`
+//   snapTo                       `snap(sel, {group: state})`
 //   afterBoundPress, boundPresses this module's per-graphic queue of live presses (`afterPress`)
 //
 // EVERY LIVE PRESS (an event, a pick, a ± bump, a snap) is safe to make from any block, the
@@ -253,7 +253,7 @@ export interface GraphicVerbs {
   /** `named`: the cue a panel key was drawn for (control/panelActions.ts), held to as the selection's
    *  own cue is, for a layer whose cue the selection could not draw. */
   event: (sel: VerbSelection, button: ControlButton, named?: string, args?: Record<string, unknown>) => Promise<PressDone>;
-  snap: (sel: VerbSelection, groupId: string | null, stateId: string) => Promise<void>;
+  snap: (sel: VerbSelection, assignments: Record<string, string> | null) => Promise<void>;
   /** "SEND TO ON-AIR GRAPHICS" (phase 3): the production look to every graphic on air, as one
    *  appearance-only update each (empty `data`), so nothing typed airs with it. */
   sendLook: () => Promise<LookSent>;
@@ -1114,9 +1114,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     return afterPress(graphic, () => pressEvent(s, p, sel, button, graphic, bound, moved, still));
   };
 
-  /** Snap the live graphic straight to a state, with an update of the ON-AIR cue's values (a reset
-   *  is two operations, docs/STATE_MACHINE_SCHEMA.md). A null group resets every group. */
-  const snap = async (sel: VerbSelection, groupId: string | null, stateId: string) => {
+  /** Snap the live graphic straight to states (`{group: state}`; « Back and ⟲ Reset), with an
+   *  update of the ON-AIR cue's values (a reset is two operations, docs/STATE_MACHINE_SCHEMA.md).
+   *  A group not named keeps its state; null sends every group to its initial. */
+  const snap = async (sel: VerbSelection, assignments: Record<string, string> | null) => {
     const s = sender();
     const p = page();
     const graphic = sel.selectedGraphic;
@@ -1127,11 +1128,10 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     await afterPress(graphic, async () => {
       await p.flush();
       if (!still()) return;
-      const snapTo = groupId === null ? null : { [groupId]: stateId };
       await runWith(s,
         [
           [
-            { graphic, msg: { t: 'snap' as const, snap: snapTo } },
+            { graphic, msg: { t: 'snap' as const, snap: assignments } },
             { graphic, msg: { t: 'update' as const, data: airValues(p, sel) } },
           ],
         ],
