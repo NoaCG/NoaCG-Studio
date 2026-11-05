@@ -253,7 +253,7 @@ test('the old owner\'s report in flight when frozen fails as it wakes: expected 
   r.reads.push({ agent: crash.from, at: crash.woke + 200, line: 'election the sender failed: fetch failed' });
   assert.deepEqual(failed(r), []);
 });
-test('a woken old owner\'s report that timed out while it was frozen: expected, whatever the wording (run 40783138473)', () => {
+test('a woken old owner\'s report that timed out while it was frozen: expected (run 40783138473)', () => {
   const r = healthy();
   const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
   r.reads.push({ agent: crash.from, at: crash.woke + 50, line: 'election the sender failed: the production did not answer in 10 seconds' });
@@ -277,6 +277,8 @@ red('a send aborted with `stopped` after the release ended', (r) => abortedByRel
 red('a send aborted with `stopped` in the new owner, during the release', (r) => abortedByRelease(r, (f) => f.at + 8, (f) => `agent-${f.epochAfter}`), /did not cause/);
 red('a production verdict from the released agent, inside its handover', (r) => abortedByRelease(r, (f) => f.at + 8, (f) => f.from, 'election the sender failed: not taken (budget)'), /did not cause/);
 red('a bug\'s error from the released agent, inside its handover', (r) => abortedByRelease(r, (f) => f.at + 8, (f) => f.from, "election the sender failed: Cannot read properties of null (reading 'ownerEpoch')"), /did not cause/);
+red('a released agent\'s send that timed out, inside its handover: the production stalled before the release', (r) => abortedByRelease(r, (f) => f.at + 8, (f) => f.from, 'election the sender failed: the production did not answer in 10 seconds'), /did not cause/);
+red('a released agent\'s send cut off by the network, inside its handover', (r) => abortedByRelease(r, (f) => f.at + 8, (f) => f.from, 'election the sender failed: fetch failed (ECONNRESET)'), /did not cause/);
 red('a bug\'s error from a woken old owner, inside its handover', (r) => {
   const crash = r.faults.find((f) => f.kind === 'handover' && f.mode === 'crash');
   r.reads.push({ agent: crash.from, at: crash.woke + 50, line: 'election renewal failed: stoppedness is not a function' });

@@ -26,11 +26,18 @@ const EXPECTED_REFUSALS = /not taken \((?:\d{3} )?(?:too_soon|paused|moved|epoch
 const OLD_OWNER_REFUSED = /not taken \((?:409 )?(?:moved|epoch)\)|not claimed \(409 held by another agent\)/;
 /** Lines that say something was not taken or failed to reach the production. */
 const REFUSAL = / not taken \(| not claimed \(| renewal failed| claim failed| the sender failed| waiting as the production asked/;
-/** A request to the production that a handover ended before its answer, in each wording the agent
- *  gives one (scripts/external-data-connector.mjs): aborted as it stops, timed out, or cut off by
- *  the network (`fetch failed`, with or without its cause). Anything else, a verdict or a bug's
- *  error, is not the handover's doing. */
-const HANDOVER_FAILURE = / (?:renewal|claim|the sender) failed: (?:stopped|fetch failed|the production did not answer in \d+ seconds)(?: \(|$)/;
+/**
+ * A request to the production that a handover ended before its answer, in the wordings the agent
+ * gives (scripts/external-data-connector.mjs), by the kind of handover. A released agent aborts what
+ * it has in flight as it stops (`stopped`); a frozen one also finds a request timed out or cut off
+ * by the network (`fetch failed`, with or without its cause) as it wakes, and is then stopped.
+ * Anything else, a verdict, a bug's error or a released agent's timeout, is not the handover's doing.
+ */
+const endedBy = (reasons) => new RegExp(` (?:renewal|claim|the sender) failed: (?:${reasons})(?: \\(|$)`);
+const HANDOVER_FAILURE = {
+  release: endedBy('stopped'),
+  crash: endedBy('stopped|fetch failed|the production did not answer in [\\d.]+ seconds'),
+};
 const MIB = 1024 * 1024;
 /** What this run does not measure, said in every verdict so a green run is not read as more. */
 export const UNMEASURED = [
@@ -165,7 +172,7 @@ export function judge(record) {
   // Expected of that agent only, inside its own handover: from the release, or from the waking (a
   // frozen agent writes nothing), to the handover's end. An old owner that lived on would show its
   // failures. The production's verdicts (`not taken (...)`) are never excused here.
-  const ownHandover = (r) => kinds('handover').some((f) => r.agent === f.from && r.at >= (f.woke ?? f.at) && r.at <= (f.end ?? f.woke ?? f.at) && HANDOVER_FAILURE.test(r.line));
+  const ownHandover = (r) => kinds('handover').some((f) => r.agent === f.from && r.at >= (f.woke ?? f.at) && r.at <= (f.end ?? f.woke ?? f.at) && HANDOVER_FAILURE[f.mode]?.test(r.line));
   const unexpected = reads.filter((r) => REFUSAL.test(r.line) && !EXPECTED_REFUSALS.test(r.line) && !ownHandover(r));
   check('no revision was refused for size, budget or anything the run did not cause', unexpected.length === 0, unexpected.slice(0, 3).map((r) => r.line).join(' | '));
   // Served, then held: only an older step makes `stale` and only a malformed one `invalid`; a
