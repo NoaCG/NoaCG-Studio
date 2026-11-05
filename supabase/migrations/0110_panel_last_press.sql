@@ -207,6 +207,18 @@ begin
         raise exception '0110 self-check failed: press % answered % and left last_press %, not %', v_step[1], v_got, v_last, v_step[2];
       end if;
     end loop;
+    -- A press refused before the write is not recorded; one refused by the burst cap is.
+    v_got := public.panel_press(v_live, '{"verb":"take","target":"","seen":-1,"id":"selfcheckb:7"}');
+    select k.last_press into v_last from public.panel_keys k where k.show_id = v_show and k.label = 'live';
+    if v_got->>'refused' is distinct from 'bad-press' or v_last is distinct from 'selfcheckb:1' then
+      raise exception '0110 self-check failed: a bad press answered % and left last_press %', v_got, v_last;
+    end if;
+    update public.panel_keys k set window_start = now(), window_count = 20 where k.show_id = v_show and k.label = 'live';
+    v_got := public.panel_press(v_live, '{"verb":"take","target":"","seen":1,"id":"selfcheckb:2"}');
+    select k.last_press into v_last from public.panel_keys k where k.show_id = v_show and k.label = 'live';
+    if v_got->>'refused' is distinct from 'slow-down' or v_last is distinct from 'selfcheckb:2' then
+      raise exception '0110 self-check failed: a press over the burst cap answered % and left last_press %', v_got, v_last;
+    end if;
     perform public.panel_press(v_gone, '{"verb":"take","target":"","seen":1,"id":"selfcheckc:4"}');
     select k.last_press into v_last from public.panel_keys k where k.show_id = v_show and k.label = 'revoked';
     if v_last is distinct from 'selfcheckc:4' then
@@ -216,7 +228,7 @@ begin
 
     -- The lease answers the live key's last press and leaves out the revoked one.
     v_got := public.panel_lease(v_slug, 'selfcheck0110pag', 'control', '0110 self-check', false);
-    if (v_got->>'ok')::boolean is not true or v_got->'last_presses' is distinct from '["selfcheckb:1"]'::jsonb then
+    if (v_got->>'ok')::boolean is not true or v_got->'last_presses' is distinct from '["selfcheckb:2"]'::jsonb then
       raise exception '0110 self-check failed: the lease answered %', v_got;
     end if;
     raise exception '0110 self-check passed';
