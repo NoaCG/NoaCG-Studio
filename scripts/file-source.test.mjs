@@ -378,6 +378,27 @@ test('a sparse workbook cannot grow into a grid past the cell limit', async () =
   assert.match(spread.error, /too large/);
 });
 
+test('a file read that stalls past the timeout is a missed read, and reading carries on', async () => {
+  const handle = fakeHandle('ticker.csv', 'One\n');
+  const r = reader(handle);
+  await r.clock.advance(0);
+  assert.equal(r.writes.length, 1);
+  // The next save's text never arrives (a disk or a sync client that hangs).
+  handle.save('Two\n');
+  const getFile = handle.getFile;
+  handle.getFile = async () => ({ ...(await getFile()), text: () => new Promise(() => {}) });
+  await r.clock.advance(SHEET_READ_MS + 10_000);
+  assert.equal(r.status().state, 'failing');
+  assert.match(r.status().error, /did not open in 10 seconds/);
+  assert.equal(r.writes.length, 1);
+  // The reader is not stuck on the stalled read: once the file answers, reading goes on.
+  handle.getFile = getFile;
+  await r.clock.advance(SHEET_READ_MS + 10_000);
+  assert.deepEqual(r.writes.at(-1), { file: { f1: { lines: 'Two' } } });
+  assert.equal(r.status().state, 'ok');
+  r.reader.stop();
+});
+
 test('the review reads a file once, through the reader’s own read', async () => {
   const handle = fakeHandle('a.csv', 'Name,Value\nHome,2\n');
   const read = await fileRead({ handle: async () => handle, format: 'csv' }).read(signal());

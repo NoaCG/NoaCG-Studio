@@ -1312,7 +1312,9 @@ export default function CueEditor({
             {format
               ? source.kind === 'feed' || source.kind === 'external'
                 ? `Connected to ${sourceKindWord(source)}: ${source.label}. `
-                : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
+                : source.kind === 'file'
+                  ? `Connected to ${source.label}. Edit the file, or `
+                  : `Connected to Sheet: ${source.label}. Edit in the Sheet, or `
               : ''}
             <button type="button" className="link-inline" onClick={() => disconnect([d.key])} data-testid="cue-disconnect">
               {format ? 'Disconnect to edit here' : 'Disconnect'}

@@ -255,6 +255,28 @@ export async function parseXlsx(bytes: ArrayBuffer | Uint8Array): Promise<SheetR
 
 // ── One read ──────────────────────────────────────────────────────────────────
 
+/** A promise that gives up when the read's 10-second signal fires: file reads do not watch it
+ *  themselves, and a stalled one would otherwise keep the reader busy for good. */
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new DOMException('timed out', 'TimeoutError'));
+  return new Promise<T>((resolve, reject) => {
+    const stop = () => reject(new DOMException('timed out', 'TimeoutError'));
+    signal.addEventListener('abort', stop, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener('abort', stop);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', stop);
+        reject(error);
+      },
+    );
+  });
+}
+
+const TIMED_OUT: SheetRead = { ok: false, error: 'the file did not open in 10 seconds', fix: 'Reading carries on by itself.' };
+
 const errorName = (error: unknown): string => (error && typeof error === 'object' && 'name' in error ? String((error as { name: unknown }).name) : '');
 
 /**
@@ -287,28 +309,29 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
     const { handle } = can;
     let file: FileLike;
     try {
-      file = await handle.getFile();
+      file = await untilAborted(handle.getFile(), signal);
     } catch (error) {
       const name = errorName(error);
+      if (name === 'TimeoutError') return TIMED_OUT;
       if (name === 'NotFoundError') return { ok: false, error: 'can’t find the file (moved, renamed or deleted)', fix: 'Put it back, or choose it again.' };
       if (name === 'NotAllowedError' || name === 'SecurityError') return { ok: false, error: FILE_PERMISSION, fix: 'Press Allow to go on reading it.' };
       // Excel holds a file while it saves it: the next read finds it again.
       return { ok: false, error: 'can’t read the file just now', fix: 'Reading carries on by itself.' };
     }
-    if (signal.aborted) return { ok: false, error: 'the file did not open in 10 seconds', fix: 'Reading carries on by itself.' };
     if (file.size > FILE_MAX_BYTES) return { ok: false, error: 'the file is larger than 1 MB', fix: 'Keep it under 1 MB, or move older rows to another file.' };
     if (last && last.lastModified === file.lastModified && last.size === file.size) return { ok: true, rows: last.rows };
     parses += 1;
     let rows: string[][];
     try {
       if (o.format === 'xlsx') {
-        const parsed = await parseXlsx(await file.arrayBuffer());
+        const parsed = await untilAborted(file.arrayBuffer().then(parseXlsx), signal);
         if (!parsed.ok) return parsed;
         rows = parsed.rows;
       } else {
-        rows = parseCsvFile(await file.text());
+        rows = parseCsvFile(await untilAborted(file.text(), signal));
       }
-    } catch {
+    } catch (error) {
+      if (errorName(error) === 'TimeoutError') return TIMED_OUT;
       return { ok: false, error: 'can’t read the file just now', fix: 'Reading carries on by itself.' };
     }
     last = { lastModified: file.lastModified, size: file.size, rows };
