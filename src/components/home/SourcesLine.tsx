@@ -72,7 +72,7 @@ export function OwnReaderLine({ reader }: { reader: OwnSheetReader }) {
 }
 
 /** "3 s ago", "2 min ago", from a time in ms. */
-function ago(at: number, now: number): string {
+export function ago(at: number, now: number): string {
   const s = Math.max(0, Math.round((now - at) / 1000));
   return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`;
 }

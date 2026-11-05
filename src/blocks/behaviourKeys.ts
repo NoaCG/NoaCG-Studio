@@ -105,6 +105,8 @@ function roleLayers(table: BehaviourData, role: string, key: string | null): str
  */
 export function recipeClaims(table: BehaviourData, drawn: (token: string) => boolean): RecipeClaim[] {
   const claims: RecipeClaim[] = [];
+  // A look whose drawing cannot be read counts as not drawn, so its geometry claim stands.
+  const isDrawn = (token: string) => { try { return drawn(token); } catch { return false; } };
   for (const rule of table.paint) {
     if ('look' in rule) {
       for (const key of keysOf(table, rule)) {
@@ -114,7 +116,7 @@ export function recipeClaims(table: BehaviourData, drawn: (token: string) => boo
         // anywhere in the artwork at runtime and measures once, so every artwork layer's
         // geometry is claimed (the box around the artwork carries the drawn look with it).
         const anchor = rule.default && rule.anchor ? fieldOf(table, rule.anchor, key) : null;
-        if (anchor && !drawn(token)) claims.push({ selector: ARTWORK, kind: 'geometry' });
+        if (anchor && !isDrawn(token)) claims.push({ selector: ARTWORK, kind: 'geometry' });
       }
     } else if ('gauge' in rule) {
       for (const key of keysOf(table, rule)) claims.push({ selector: stamped(roleToken(rule.gauge, key)), kind: 'geometry' });
@@ -129,6 +131,18 @@ export function recipeClaims(table: BehaviourData, drawn: (token: string) => boo
 
 /** How one claimed element stands to the layer a key would write. */
 export type Relation = 'self' | 'inside' | 'contains' | 'none';
+/** The parts of a DOM element containment reads, so the rule runs without a document. */
+export interface ClaimNode { contains(other: this): boolean; closest(selector: string): unknown }
+/** How each element a claim selects stands to `layers` (K5's containment stops at the artwork:
+ *  a layer outside the SVG contains nothing a claim names). A claim that cannot be resolved
+ *  stands as the layer itself: unknown ownership refuses. */
+export function claimRelations<T extends ClaimNode>(doc: { querySelectorAll(selector: string): ArrayLike<T> }, layers: T[]) {
+  return (selector: string): Relation[] => {
+    let found: T[];
+    try { found = Array.from(doc.querySelectorAll(selector)); } catch { return ['self']; }
+    return found.flatMap(el => layers.map((layer): Relation => el === layer ? 'self' : layer.contains(el) && !!layer.closest('svg') ? 'inside' : el.contains(layer) ? 'contains' : 'none'));
+  };
+}
 
 /**
  * K4, K5, K6: the reason a key on `channel` of a layer is refused, or null where the layer is the

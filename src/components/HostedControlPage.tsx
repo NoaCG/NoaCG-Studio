@@ -94,7 +94,7 @@ import { styleContextFor } from '../control/cueStyle';
 import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
 import HostedCueAdjust from './control/HostedCueAdjust';
 import { isBackendConfigured } from '../backend/config';
-import { clockSpecFromHtml, fastEventGraphics as clockFreeGraphics, needsServerInstant, plainClockValue, serverInstantClocks } from '../control/matchClockWire';
+import { fastEventGraphics as clockFreeGraphics, needsServerInstant, reportAsCueHolds, serverInstantClocks } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
@@ -2614,11 +2614,9 @@ function HostedCueEditor({
   );
 }
 
-/** A report's values as the cue holds them: a match clock's report is its wire value (its origin,
- *  length and what the cue last sent; #1889), the cue the plain time it was typed with, so the
- *  unsent baseline takes the plain time, as the production page's seed does (airState.ts). */
+/** A report's values as the cue holds them, so the unsent baseline takes a clock's plain time, as the
+ *  production page's seed does (airState.ts). */
 function plainClockOf(graphics: readonly { key: string; html: string }[], graphic: string, data: Record<string, string>): Record<string, string> {
   const html = graphics.find((g) => g.key === graphic)?.html;
-  const clock = html ? clockSpecFromHtml(html) : null;
-  return clock && data[clock.field] !== undefined ? { ...data, [clock.field]: plainClockValue(data[clock.field]) } : data;
+  return html ? reportAsCueHolds(html, data) : data;
 }

@@ -436,6 +436,13 @@ function creditsRender() {
 
 ${creditsTakeJs(faces)}
 
+// stopCreditsRoll(): Out ends the roll, so nothing keeps moving the list off air, and a face that
+// lands after Out measures no hidden roll.
+function stopCreditsRoll() {
+  if (noacgCreditsTween) noacgCreditsTween.kill();
+  noacgCreditsTween = null;
+}
+
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the sample's line widths decide how the rows line up.
 if (document.readyState === 'loading') {
@@ -531,6 +538,31 @@ function ${CREDITS_ROLL_CALL}() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
   noacgCreditsTween = null;${held ? `
   creditsHoldList();` : ''}
+  return creditsAtRest(creditsSample(), creditsTake);
+}
+
+// creditsAtRest(from, measure): run MEASURE with the graphic at its rest scale. The take runs on
+// the entrance's first tick, and an entrance that scales the box (Pop starts at 0.86) lays text
+// out at another screen size, whose metrics differ by a pixel or so: the travel would depend on
+// when in the entrance it was measured (#2098). The entrance's own transforms on the layers
+// around FROM are set aside for the measure and put back before anything paints.
+function creditsAtRest(from, measure) {
+  var undone = [];
+  for (var el = from; el && el.style; el = el.parentNode) {
+    if (el.style.transform) {
+      undone.push({ el: el, transform: el.style.transform });
+      el.style.transform = 'none';
+    }
+  }
+  try {
+    return measure();
+  } finally {
+    for (var i = 0; i < undone.length; i++) undone[i].el.style.transform = undone[i].transform;
+  }
+}
+
+// creditsTake(): the rows built from the list taken, the window sized, and the roll started.
+function creditsTake() {
   var built = creditsRender();
   var sample = creditsSample();
   if (!built || !sample || typeof gsap === 'undefined') return null;
@@ -673,6 +705,7 @@ function creditsListWaits() {
     noacgCreditsHeld = null;
     noacgCreditsWaiting = false;
   }
+  noacgCreditsRested();
   // The cue holds the rows only when they show the list last written before this update. Rows
   // older than that (a list that waited behind a take, and they were not built again) are no list
   // to hold: the rows follow, and the take airs the newest, as a take always did.
@@ -745,6 +778,10 @@ var noacgCreditsTween = null;
 var noacgCreditsCards = [];
 var noacgCreditsCard = -1;
 var noacgCreditsTurning = false;
+// Whether the change under way has laid out its card and is fading it in, and whether a Next card
+// pressed then waits for the change to end.
+var noacgCreditsFadingIn = false;
+var noacgCreditsQueued = false;
 var noacgCreditsHold = null;
 var noacgCreditsSince = 0;
 // A deal waiting for the faces to land: one per landing.
@@ -896,11 +933,18 @@ function creditsShow(i) {
   }
 }
 
-// creditsTurn(): change to the next card - the one on air fades out, the next is laid out unseen
-// and fades in, and its hold starts. A press while a change is under way is that change: one
-// press, one card.
-function creditsTurn() {
-  if (noacgCreditsTurning || noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || !noacgCreditsRows || typeof gsap === 'undefined') return;
+// creditsTurn(press): change to the next card - the one on air fades out, the next is laid out
+// unseen and fades in, and its hold starts. True when a change started. A press while the card on
+// air fades out is that change: one press, one card. A press while the next card fades in is
+// already readable on screen, so it is remembered, one at most, and runs when the change ends
+// (#2086, owner 2026-11-05): a press is never lost, and a double press still moves one card.
+function creditsTurn(press) {
+  if (noacgCreditsRested()) return false;
+  if (noacgCreditsTurning) {
+    if (press === true && noacgCreditsFadingIn) noacgCreditsQueued = true;
+    return false;
+  }
+  if (noacgCreditsCard < 0 || noacgCreditsCard >= noacgCreditsCards.length - 1 || !noacgCreditsRows || typeof gsap === 'undefined') return false;
   if (noacgCreditsTween) noacgCreditsTween.kill();
   var face = noacgCreditsRows.parentNode;
   var pace = typeof motionSpeed === 'function' ? motionSpeed() : 1;
@@ -911,13 +955,18 @@ function creditsTurn() {
     // The list may have changed during the fade: the next card is one of the cards dealt now.
     noacgCreditsCard = Math.max(0, Math.min(noacgCreditsCard + 1, noacgCreditsCards.length - 1));
     creditsShow(noacgCreditsCard);
+    noacgCreditsFadingIn = true;
   }, null, 0.4 / pace);
   tl.to(face, { opacity: 1, duration: 0.5 / pace, ease: 'power2.out' }, 0.4 / pace);
   tl.call(function () {
     noacgCreditsTurning = false;
-    creditsArm();
+    noacgCreditsFadingIn = false;
+    var again = noacgCreditsQueued;
+    noacgCreditsQueued = false;
+    if (!(again && creditsTurn(true))) creditsArm();
   }, null, 0.9 / pace);
   noacgCreditsTween = tl;
+  return true;
 }
 
 // ${CREDITS_ROLL_CALL}(): THE TAKE. Deal the list and show the first card, where the drawing put
@@ -932,10 +981,11 @@ function ${CREDITS_ROLL_CALL}() {
   return null;
 }
 
-// ${CREDITS_NEXT_CALL}(): the operator's Next card. On air, the next card comes up now; on the last
-// card, during a change, or off air, it does nothing.
+// ${CREDITS_NEXT_CALL}(): the operator's Next card. On air, the next card comes up now, or when the
+// change under way ends if its card is already fading in; on the last card, while the card on air
+// fades out, or off air, it does nothing.
 function ${CREDITS_NEXT_CALL}() {
-  creditsTurn();
+  creditsTurn(true);
 }
 
 // creditsDataUpdated(): update() wrote the fields. Off air, deal the cards again. On air the
@@ -1498,32 +1548,61 @@ ${still(`      var width = box.width * scale;
 // stopCreditsRoll(): Out ends the roll, so nothing keeps moving the list off air.
 function stopCreditsRoll() {
   if (noacgCreditsTween) noacgCreditsTween.kill();
-  noacgCreditsTween = null;${held('', `
-  noacgCreditsHeld = null;
-  noacgCreditsWaiting = false;
-  creditsOffAir();`)}${cards('', `
+  noacgCreditsTween = null;${cards('', `
   noacgCreditsCard = -1;
   noacgCreditsTurning = false;
-  if (noacgCreditsLast) noacgCreditsLast.card = -1;`)}
+  noacgCreditsFadingIn = false;
+  noacgCreditsQueued = false;
+  if (noacgCreditsLast) noacgCreditsLast.card = -1;`)}${held('', `
+  creditsOffAir();`)}
 }
 
 ${held('', `
-// creditsOffAir(): Out let go of the list taken. If the rows show an older list than the holder
-// (one waited behind the take), they are built again from the holder once the exit has ended,
-// off air, so the next take's first frame shows the newest list. Not while the exit is on
-// screen, and not after a new take. With no exit running (a styled stop, which rests the graphic
-// first) it is off air already: now.
+// creditsOffAir(): Out ends the take. The list taken stays held while the exit is on screen, so an
+// update during it never changes what is fading out (#2108); it is let go when the exit ends, or
+// the moment something cuts the exit short - a new take or a snap kills it - which is before that
+// take paints its first frame, so the frame shows the newest list rather than the one taken. With
+// no exit running (a styled stop, which rests the graphic first, or a snap) it is off air already:
+// now. A take that stops the last one first is on air, and holds a list of its own at once.
 function creditsOffAir() {
   var out = typeof noacgOutTimeline !== 'undefined' ? noacgOutTimeline : null;
-  var rebuild = function () {
-    // Off air: this Out's exit is still the last, or the graphic was rested (a snap) since.
-    var offAir = out ? noacgOutTimeline === out || (!noacgOutTimeline && !creditsLive()) : !creditsLive();
-    var holder = creditsField('${CREDITS_FIELD_ROLE}');
-    if (!offAir || noacgCreditsHeld !== null || !holder || holder.textContent === noacgCreditsShown) return;
-    ${cards('creditsRender();', 'creditsDeal();')}
+  if (out) {
+    // The shared runtime sets neither callback on its exit; these would replace one it set.
+    out.eventCallback('onComplete', creditsLetGo);
+    out.eventCallback('onInterrupt', creditsLetGo);
+  } else if (!creditsLive()) creditsLetGo();
+}
+
+// creditsLetGo(): off air, the list taken is let go and the rows follow the holder again: built
+// from it now if they show an older list (one waited behind the take), so the next take's first
+// frame shows the newest list.
+function creditsLetGo() {
+  noacgCreditsHeld = null;
+  noacgCreditsWaiting = false;
+  noacgCreditsCued = null;
+  var holder = creditsField('${CREDITS_FIELD_ROLE}');
+  if (holder && holder.textContent !== noacgCreditsShown) ${cards('creditsRender();', 'creditsDeal();')}
+}
+
+// noacgCreditsRested(): a take on air held a list, but neither its entrance nor an Out is current:
+// the graphic was rested by a snap to off, which runs no Out step and so never stopped the take
+// (#2104). Off air, so it is let go as Out would. Asked after every snap (below), and by every
+// update and every card change.
+function noacgCreditsRested() {
+  if (noacgCreditsHeld === null || creditsLive() || (typeof noacgOutActive === 'function' && noacgOutActive())) return false;
+  stopCreditsRoll();
+  return true;
+}
+
+// Every playout road rests a graphic through noacgSnap(), so the credits ask right after it, before
+// anything paints: off air at once, the rows follow the holder and nothing says a list waits.
+if (typeof noacgSnap === 'function') {
+  var noacgCreditsSnapOf = noacgSnap;
+  noacgSnap = function (assignments, opts) {
+    var state = noacgCreditsSnapOf(assignments, opts);
+    noacgCreditsRested();
+    return state;
   };
-  if (!out) rebuild();
-  else if (typeof gsap !== 'undefined') gsap.delayedCall(Math.max(0, out.duration() - out.time()) + 0.05, rebuild);
 }
 `)}
 ${still(creditsTakeJs(faces === true, true), cards(creditsHoldJs(), creditsCardsJs()))}

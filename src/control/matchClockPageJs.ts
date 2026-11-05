@@ -18,8 +18,8 @@
 /**
  * The pure clock functions every generated operator page needs: read a value's plain half, read
  * its origin stamp, parse, format, and derive what it reads at a given instant; then the wire's
- * decision itself, `clockAfterUpdate` and `clockRowStep` (`clockValueAfterUpdate` and
- * `clockRowEffect`), pinned equal to the TS by scripts/clock-page-wire.test.mjs. Where a page keeps
+ * decision itself, `clockAfterUpdate`, `clockRowStep` and `clockHeldBefore` (`clockValueAfterUpdate`,
+ * `clockRowEffect` and `clockHeldBeforeRow`), pinned equal to the TS by scripts/clock-page-wire.test.mjs. Where a page keeps
  * the clock's held value, and when it sends, is each page's own.
  */
 export const MATCH_CLOCK_PAGE_JS = `// ---- Match clock: the time origin (control/matchClockPageJs.ts) ----
@@ -149,6 +149,17 @@ function clockSlottedStep(clock, msg, from, at) {
   if (msg.event === events.stop) return { value: clockSlotValue(clockValueAt(from, clock.countsDown, at), offAir ? 'out' : '', length, sent), when: 'after' };
   if (msg.event === events.reset) return { value: clockSlotValue(length, offAir ? 'out' : '', length, sent), when: 'after' };
   return null;
+}
+
+// clockHeldBefore(): an imported duration this page holds nothing for, and which is not on air, has
+// never been taken (#2117, matchClockWire.ts clockHeldBeforeRow): it holds the design's start time
+// off air, so a time typed before the first Take is the length that Take counts, through a Reset or
+// Pause pressed before it. Anything else is "held" as it was. Called before each fold, with the
+// page's own record of whether the graphic is on air.
+function clockHeldBefore(clock, held, onAir) {
+  if (held !== undefined || onAir || !clock.startsOnTake) return held;
+  var time = clockPlain(clock.seed) || clock.resetTo;
+  return clockSlotValue(time, 'out', time, time);
 }
 
 // relayLogWalk(): read a local relay's log from "after" to its head, in the relay's pages of up to

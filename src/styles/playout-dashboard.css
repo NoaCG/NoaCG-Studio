@@ -1164,6 +1164,17 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   box-shadow: 0 0 8px rgba(246, 166, 35, 0.55);
 }
 .pd-editor-switch { font-size: 12px; padding: 4px 9px; }
+/* Connect data… (#2185): room to read the options, the link on its own line with Connect under
+   it, so a pasted Sheet address is visible and its one button is never squeezed beside it. */
+.pd-connect-host > .lib-menu { width: min(440px, calc(100vw - 32px)); padding: 10px; gap: 8px; }
+.pd-connect-link { flex-wrap: wrap; gap: 8px; align-items: center; }
+.pd-connect-link input { flex: 1 1 100%; }
+.pd-connect-other { border-top: 1px solid var(--border); padding-top: 8px; }
+/* The menu's verbs are flat (.lib-menu button); its one primary keeps the app's primary fill. */
+.pd-connect-host .lib-menu button.primary { background: var(--accent); border-color: var(--accent); color: var(--void); }
+.pd-connect-host .lib-menu button.primary:disabled { opacity: 0.45; }
+/* The graphic's connected state, read beside Change…: what it follows, when, and Disconnect. */
+.pd-connected-line { margin-right: 8px; font-size: 12px; }
 /* Update, where the line naming it already is. It exists for the PHONE, whose bottom bar
    carries only TAKE/Next/Out; on desktop the verb bar owns it and this stands down. */
 .pd-editor-update { display: none; font-size: 12px; padding: 4px 10px; }

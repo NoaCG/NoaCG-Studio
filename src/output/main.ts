@@ -32,6 +32,7 @@ import {
   clockSpecFromHtml,
   clockValueAfterUpdate,
   rowInstant,
+  speakingClockAfterUpdate,
   speakingClockRowEffect,
   speakingClocksFromHtml,
   type ClockSpec,
@@ -869,16 +870,16 @@ async function boot(): Promise<void> {
       const prior = mergedData.get(row.graphic);
       const data = msg.data;
       const clockFields: string[] = [];
-      const keepOrigin = (field: string) => {
+      const keepOrigin = (field: string, after = clockValueAfterUpdate) => {
         clockFields.push(field);
         if (data[field] === undefined) return;
-        merged[field] = clockValueAfterUpdate(prior?.[field], data[field]);
+        merged[field] = after(prior?.[field], data[field]);
       };
       if (clock) keepOrigin(clock.field);
-      // Both speaking clocks, for the same reason and by the same rule: the cue stores the plain
-      // allowance forever, so every Take mid-debate re-sends "05:00" over a running speech.
+      // Both speaking clocks, for the same reason: the cue stores the plain allowance forever, so
+      // every Take mid-debate re-sends "05:00" over a speech that has moved on (#2161).
       const pair = speakingClocks.get(row.graphic);
-      if (pair) { keepOrigin(pair.fieldA); keepOrigin(pair.fieldB); }
+      if (pair) { keepOrigin(pair.fieldA, speakingClockAfterUpdate); keepOrigin(pair.fieldB, speakingClockAfterUpdate); }
       mergedData.set(row.graphic, merged);
       // AND THE STAGE IS SENT WHAT WE NOW HOLD, not what the row carried. The template runs its
       // own guard against a resend, but it can only compare the value it last RECEIVED — and

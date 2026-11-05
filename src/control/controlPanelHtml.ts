@@ -382,17 +382,38 @@ if (location.protocol === 'http:' || location.protocol === 'https:') {
     })
     .catch(function () { /* not relay-hosted */ });
 }
+// ONE PRESS IS ONE REQUEST (#2107). A press can put several rows on the relay (an imported
+// duration's Take is the Update, the clock row with its origin, and the play), and the relay
+// serves requests on threads, so rows sent as separate requests can land in its log in any order.
+// While a press runs (relayPress), sendRelay gathers its rows and the press sends them as one
+// { items: [...] } batch, which the relay logs in order, as the production controller does.
 // failed(), when given, is told of a send the relay did not take (an imported clock's follow).
+var relayBatch = null;
+// The longest a press waits for a page's boot read of the relay log (#2074) before it goes anyway.
+var RELAY_BOOT_READ_CAP_MS = 5000;
+function relayPress(run) {
+  if (relayBatch) { run(); return; }
+  relayBatch = { items: [], fails: [] };
+  try { run(); } finally {
+    var batch = relayBatch;
+    relayBatch = null;
+    relayPost(batch.items, batch.fails);
+  }
+}
 function sendRelay(graphic, msg, failed) {
   if (!relayOk) return;
+  if (!relayBatch) { relayPost([{ graphic: graphic, msg: msg }], failed ? [failed] : []); return; }
+  relayBatch.items.push({ graphic: graphic, msg: msg });
+  if (failed) relayBatch.fails.push(failed);
+}
+function relayPost(items, fails) {
+  if (items.length === 0) return;
+  var refused = function () { fails.forEach(function (fail) { fail(); }); };
   fetch('/relay/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ graphic: graphic, msg: msg }),
-  }).then(function (r) { if (!r.ok && failed) failed(); }, function () {
-    /* the BroadcastChannel path still works */
-    if (failed) failed();
-  });
+    body: JSON.stringify({ items: items }),
+  }).then(function (r) { if (!r.ok) refused(); }, refused); // the BroadcastChannel path still works
 }
 
 ${MATCH_CLOCK_PAGE_JS}
@@ -487,7 +508,7 @@ GRAPHICS.forEach(function (g) {
     for (var uk in state) lastSent[uk] = state[uk];
     paintStaged();
   }
-  function onChange(field, value) { state[field] = value; if (live()) sendUpdate(); else paintStaged(); }
+  function onChange(field, value) { state[field] = value; if (live()) press(sendUpdate); else paintStaged(); }
   // Per-field repainters for a value the PANEL moved itself (an event's adjust) - registered by
   // the controls that can show one; a field with none simply keeps its box.
   var repaint = {};
@@ -517,16 +538,68 @@ GRAPHICS.forEach(function (g) {
     if (row.graphic !== g.name || (row.stream && row.stream !== 'program')) return;
     if (m.t !== 'update' || !m.data || m.data[CLOCK.field] === undefined || !clockSlots(m.data[CLOCK.field])) return;
     clock.row(m.data[CLOCK.field]);
+    followClockBox();
+  }
+  // THE TIME BOX FOLLOWS THE SHARED CLOCK (#2110). What the clock last sent becomes what this card
+  // last sent, so a later ✎ Update (a score's, say) resends that time and moves nothing, instead of
+  // reading the box's older time as a correction and putting it back on air. A time the operator
+  // has typed and not yet sent stays in the box, staged.
+  function followClockBox() {
+    var read = clockSlots(clock.held);
+    if (!read || read.sent === lastSent[CLOCK.field]) return;
+    var staged = state[CLOCK.field] !== lastSent[CLOCK.field];
+    lastSent[CLOCK.field] = read.sent;
+    if (!staged) {
+      state[CLOCK.field] = read.sent;
+      if (clockInput) clockInput.value = read.sent;
+    }
+    paintStaged();
+  }
+  // A PRESS DURING THE BOOT READ WAITS FOR IT, as on the production controller (#2074): until the
+  // card has read the whole relay log it does not know where the clock stands, and a press would
+  // work from the design's start time over a clock another page is running. The press runs at
+  // once, so its messages carry the values of that moment, but they are held (collecting) and
+  // sent through the clock, in order, as soon as the read is done (sendClocked).
+  var booting = false;
+  var collecting = null;
+  var waitingPresses = [];
+  function press(run) {
+    if (!booting) { relayPress(run); return; }
+    collecting = [];
+    try { run(); } finally {
+      waitingPresses.push(collecting);
+      collecting = null;
+    }
   }
   if (CLOCK && CLOCK.events) relayReady.push(function () {
     var cursor = 0;
     var walking = true;
-    relayLogWalk(0, followRelayClock, function (at) { cursor = at; walking = false; });
+    var walked = function (at) { cursor = at; walking = false; followClockBox(); };
+    booting = true;
+    // Held presses go once the read is done, or after RELAY_BOOT_READ_CAP_MS if a read hangs.
+    var sendHeld = function () {
+      if (!booting) return;
+      booting = false;
+      var presses = waitingPresses;
+      waitingPresses = [];
+      presses.forEach(function (held) {
+        relayPress(function () {
+          held.forEach(function (h) {
+            var read = h.untouched ? clockSlots(clock.held) : null;
+            if (read) h.msg.data[CLOCK.field] = read.sent;
+            sendClocked(h.msg, h.at);
+          });
+        });
+      });
+    };
+    relayLogWalk(0, followRelayClock, function (at) { walked(at); sendHeld(); });
+    setTimeout(sendHeld, RELAY_BOOT_READ_CAP_MS);
     setInterval(function () {
       clock.settle(null);
+      followClockBox();
       if (walking) return;
       walking = true;
-      relayLogWalk(cursor, followRelayClock, function (at) { cursor = at; walking = false; });
+      relayLogWalk(cursor, followRelayClock, walked);
     }, 1000);
   });
   // Send one command with the clock's value written around it, in the order and by the decision
@@ -534,16 +607,26 @@ GRAPHICS.forEach(function (g) {
   // matchClockWire.ts): the origin BEFORE a start or a duration's Take, so the runtime adopts it
   // instead of minting one; the banked time AFTER a hold, a reset, an Out or a running correction.
   // Reset banks what the RUNTIME returns to, never what the element happens to read.
-  function sendClocked(msg) {
+  // "at" is the press's own instant; a press held during the boot read keeps the one it was made at.
+  function sendClocked(msg, at) {
+    // Held during the boot read. A clock time the operator did not touch is the box's boot value,
+    // not a correction: it takes the clock's own last-sent time once the read has found it.
+    if (collecting) {
+      var untouched = !!(CLOCK && CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined && msg.data[CLOCK.field] === lastSent[CLOCK.field]);
+      collecting.push({ msg: msg, untouched: untouched, at: Date.now() });
+      return;
+    }
     if (!CLOCK) { post(msg); return; }
     // A send of this card's that never came back stops counting before the clock is read.
     if (CLOCK.events) clock.settle(null);
+    // A duration never taken holds its start time off air until its first Take (#2117).
+    if (CLOCK.events) clock.held = clockHeldBefore(CLOCK, clock.held, onAirHere());
     if (CLOCK.events && msg.t === 'update' && msg.data && msg.data[CLOCK.field] !== undefined) {
       clock.held = clockAfterUpdate(clock.held, msg.data[CLOCK.field]);
       msg.data[CLOCK.field] = clock.held;
       var failed = noteClockSent(clock.held);
     }
-    var effect = clockRowStep(CLOCK, msg, CLOCK.events ? clock.held : state[CLOCK.field], Date.now());
+    var effect = clockRowStep(CLOCK, msg, CLOCK.events ? clock.held : state[CLOCK.field], at === undefined ? Date.now() : at);
     if (effect && effect.when === 'before') applyClock(effect.value);
     post(msg, failed);
     if (effect && effect.when === 'after') applyClock(effect.value);
@@ -724,12 +807,25 @@ GRAPHICS.forEach(function (g) {
       chip.style.display = 'inline-block';
       // The red tally: 'main' is the lifecycle group on every template (a parallel group's
       // own state — an alert level, a language — says nothing about being on air).
-      var onAir;
-      if (machineState.groups.main !== undefined) onAir = machineState.groups.main !== 'off';
-      else { onAir = false; for (var og in machineState.groups) { if (machineState.groups[og] !== 'off') { onAir = true; break; } } }
-      card.className = onAir ? 'card on-air' : 'card';
+      card.className = groupsOnAir(machineState.groups) ? 'card on-air' : 'card';
     }
     eventBtns.forEach(function (entry) { entry.btn.disabled = !legalNow(entry.event); });
+  }
+  function groupsOnAir(groups) {
+    if (groups.main !== undefined) return groups.main !== 'off';
+    for (var og in groups) { if (groups[og] !== 'off') return true; }
+    return false;
+  }
+  // Whether the graphic is on air, as this card knows it: the state the graphic last reported,
+  // else this card's own last ▶ Play or ■ Stop (a relay-driven graphic cannot answer).
+  function onAirHere() {
+    if (machineState && machineState.groups) return groupsOnAir(machineState.groups);
+    for (var i = log.sent.length - 1; i >= 0; i--) {
+      var t = log.sent[i].msg && log.sent[i].msg.t;
+      if (t === 'play') return true;
+      if (t === 'stop') return false;
+    }
+    return false;
   }
   function sendEvent(e) {
     // The SAME rule as controlModel.ts eventPayload (this page ships without it): payload
@@ -789,7 +885,7 @@ GRAPHICS.forEach(function (g) {
       stage(rk, kept.join('\\n'));
     }
     // A clock verb writes the clock's own value around the event (sendClocked).
-    sendClocked(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event });
+    press(function () { sendClocked(payload ? { t: 'event', event: e.event, payload: payload } : { t: 'event', event: e.event }); });
     // The payload just aired those fields — they are no longer merely staged.
     if (payload) { for (var pk in payload) lastSent[pk] = payload[pk]; paintStaged(); }
   }
@@ -859,10 +955,10 @@ GRAPHICS.forEach(function (g) {
       if (send || live()) sendUpdate(); else paintStaged();
     }
     var entryPlay = el('button', { class: 'primary', title: 'Play the graphic with this entry' }, ['▶ Play entry']);
-    entryPlay.onclick = function () { applyEntry(true); sendClocked({ t: 'play' }); };
+    entryPlay.onclick = function () { press(function () { applyEntry(true); sendClocked({ t: 'play' }); }); };
     var entryLoad = el('button', { title: 'Load this entry into the fields (airs on ✎ Update or ▶ Play unless live)' }, ['Load']);
-    entryLoad.onclick = function () { applyEntry(false); };
-    entrySel.onchange = function () { applyEntry(false); };
+    entryLoad.onclick = function () { press(function () { applyEntry(false); }); };
+    entrySel.onchange = entryLoad.onclick;
     var entriesWrap = el('div', { class: 'events' }, [el('h3', {}, ['Entries'])]);
     entriesWrap.appendChild(el('div', { class: 'row' }, [entrySel, entryLoad, entryPlay]));
     card.appendChild(entriesWrap);
@@ -909,10 +1005,10 @@ GRAPHICS.forEach(function (g) {
   // glossary's word for values PLUS the entrance, which is ▶ Play on this panel.
   var upd = el('button', { title: 'Push the edited values to the live graphic without re-animating it' }, ['✎ Update']);
   var next = el('button', {}, ['» Next']);
-  play.onclick = function () { sendUpdate(); sendClocked({ t: 'play' }); };
-  stop.onclick = function () { sendClocked({ t: 'stop' }); };
-  upd.onclick = sendUpdate;
-  next.onclick = function () { post({ t: 'next' }); };
+  play.onclick = function () { press(function () { sendUpdate(); sendClocked({ t: 'play' }); }); };
+  stop.onclick = function () { press(function () { sendClocked({ t: 'stop' }); }); };
+  upd.onclick = function () { press(sendUpdate); };
+  next.onclick = function () { press(function () { sendClocked({ t: 'next' }); }); };
   card.appendChild(el('div', { class: 'actions' }, [play, stop, upd, next]));
 
   document.getElementById('cards').appendChild(card);
@@ -933,13 +1029,13 @@ GRAPHICS.forEach(function (g) {
     // the log — the latest data first (the data half of reset), then snap to the last known
     // state (the visual half; timers arm, recovery semantics). First boot has nothing
     // logged and replays nothing.
-    else if (m.t === 'graphic-online') {
+    else if (m.t === 'graphic-online') relayPress(function () {
       if (log.data) post({ t: 'update', data: log.data });
       if (log.state && log.state.groups) post({ t: 'snap', snap: log.state.groups });
       // Snap resets the graphic before composing the pose, clearing every inline style —
       // including the data layer's own (an image field with no picture hides itself inline).
       if (log.state && log.data) post({ t: 'update', data: log.data });
-    }
+    });
   };
   if (ch) post({ t: 'hello' });
 });
