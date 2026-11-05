@@ -319,7 +319,7 @@ export function createProductionDataSession(session: PlayoutSession, io: Product
 
     holdServerTree: (from, tree) => {
       // Numbered as it arrives: a read still in flight left before it, so it is older.
-      if (session.alive() && slug !== null && from === slug) hold(mode, ++asked, { liveData: tree });
+      if (session.alive() && slug !== null && from === slug) hold(mode, ++asked, { liveData: tree, treeRead: true });
     },
 
     refresh,

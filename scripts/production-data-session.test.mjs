@@ -543,6 +543,17 @@ test('published: a read that left before a lease write\'s tree arrived cannot pu
   assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: 'b' });
 });
 
+test('published: a lease write\'s tree before the first read answers is the server\'s tree, so presses are not refused (#1572)', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.data.holdServerTree('slug-1', { home: 1, sheet: 'b' });
+  t.answers.fetches[0].resolve({ data: { home: 1, sheet: 'a' } });
+  await flush();
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 1, sheet: 'b' }, dataKey: 'key-1', treeRead: true });
+});
+
 test('published, a poll reads the tree on its cadence until stopped; unpublished it reads nothing (E7.1)', async () => {
   const t = setup();
   const timers = [];
