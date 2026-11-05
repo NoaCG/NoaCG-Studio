@@ -1626,13 +1626,13 @@ export async function sendControlVerb(opts: {
       held.push(key);
       slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
-    if (rides && !overtaken(item.graphic)) fast.push(stamped);
+    if (rides && !overtaken(item.graphic) && !waitRanOut) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
   }
   // THIS PAGE'S OWN MONITOR, before the round trip. It is applying commands it has not sent yet,
   // which is safe for the same reason the two roads are: the minted id means the echo it gets
   // back - broadcast or durable row, whichever arrives - is recognised and dropped.
-  if (fast.length > 0 && !waitRanOut) opts.applyHere?.(fast);
+  if (fast.length > 0) opts.applyHere?.(fast);
   const send = {};
   const keys = [...new Set(opts.items.map((item) => `${opts.slug}:${item.graphic}`))];
   for (const key of keys) newestSend.set(key, send);
@@ -1670,7 +1670,7 @@ export async function sendControlVerb(opts: {
     // The items go with it as they were sent, minted ids and all, so the page can recognise the
     // row if this send commits after all.
     const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[] };
-    failed.aired = fast.length > 0 && !waitRanOut;
+    failed.aired = fast.length > 0;
     failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
     throw failed;
   } finally {

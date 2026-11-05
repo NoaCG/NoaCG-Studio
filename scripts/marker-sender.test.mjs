@@ -40,8 +40,7 @@ test('a Take whose send fails gives the marker back to what stood before it (#17
 test('a Take with no answer whose row is heard later is marked on air after all', () => {
   const { state, sender, take } = page({});
   const { batches, pressed } = take('Bug', 'c1');
-  sender.answer(pressed, () => false);
-  sender.unanswered(pressed, 0);
+  sender.failed(pressed, 0, [], true);
   assert.equal(state.live.Bug, undefined);
   sender.heardLate(batches[0]);
   assert.equal(state.live.Bug, 'c1');

@@ -175,11 +175,10 @@ export function answerMarker(book: MarkerBook, live: LiveCueMap, graphic: string
 }
 
 /** Press `n`, which got no answer, was heard landing after all: an older press still out no longer
- *  marks over it when it lands, and a newer one that fails puts it back. On protocol 1 (`ordered`
- *  false) it is the last commit heard, whatever landed before it. */
-export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null, ordered = true): MarkerBook {
+ *  marks over it when it lands, and a newer one that fails puts it back. */
+export function landedLate(book: MarkerBook, graphic: string, n: number, cue: string | null): MarkerBook {
   const t = book[graphic];
-  if (!t || (ordered && t.landed !== null && t.landed.n > n)) return book;
+  if (!t || (t.landed !== null && t.landed.n > n)) return book;
   return { ...book, [graphic]: { ...t, landed: { n, cue }, named: [...t.named, cue] } };
 }
 

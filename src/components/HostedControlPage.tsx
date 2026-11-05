@@ -56,9 +56,9 @@ import {
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts, isUnanswered } from '../control/failedSends';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts, isUncertain } from '../control/failedSends';
 import { reachedOutput } from '../control/liveCue';
-import { createMarkerSender, type MarkerSender, type MarkerSent } from '../control/markerSender';
+import { createMarkerSender, type MarkerSent } from '../control/markerSender';
 import { appendLogEntries, describeLogRow, eventLogLabel, logTime, noteEntry, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
@@ -326,6 +326,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const sendDebts = useRef(createSendDebts());
   const liveCueRef = useRef(liveCue);
   liveCueRef.current = liveCue;
+  /** Move the marker, the ref at once: the marker sender reads it before the next render. */
+  const moveLive = useCallback((graphic: string, cue: string | null) => {
+    liveCueRef.current = withLiveCue(liveCueRef.current, graphic, cue);
+    setLiveCue((m) => withLiveCue(m, graphic, cue));
+  }, []);
   /**
    * THIS PAGE'S TAKES AND OUTS, numbered at the press, and the live marker written from what each
    * came to (control/markerSender.ts, the production page's sender's own): a Take whose send fails
@@ -333,15 +338,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * protocol 1 the last answer stands (#1721). A second operator reads this marker to know what is
    * on air.
    */
-  const markers = useRef<MarkerSender | null>(null);
-  markers.current ??= createMarkerSender({
-    live: () => liveCueRef.current,
-    mark: (graphic, cue) => {
-      liveCueRef.current = withLiveCue(liveCueRef.current, graphic, cue);
-      setLiveCue((m) => withLiveCue(m, graphic, cue));
-    },
-    ordered: () => sendsInOrder(slug),
-  });
+  const [markers] = useState(() =>
+    createMarkerSender({
+      live: () => liveCueRef.current,
+      mark: moveLive,
+      ordered: () => sendsInOrder(slug),
+    }),
+  );
   const applyCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
     for (const item of items) {
       if (!applied.current.claim(item.msg)) continue;
@@ -349,7 +352,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // A cue row names its own graphic, so it only ever speaks for that ONE layer - and it
       // rides the same road as the picture, or the ON AIR marker and the monitor would disagree
       // for a third of a second.
-      if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
+      if (msg.t === 'cue') moveLive(item.graphic, msg.cue);
       // 'staged' is another operator typing, 'live' is the renderer REPORTING and 'ping' is
       // Prepare for Live's check of the command path - none is a command for the stage.
       else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
@@ -364,7 +367,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         looksRef.current = lookAfter(looksRef.current, item.graphic, msg);
       }
     }
-  }, []);
+  }, [moveLive]);
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
@@ -372,9 +375,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     if (settle) setError(settle);
     // A Take that got no answer may have landed after all; this page's own markers are the
     // answers' to write, and a row of an older press applied now would mark over a newer one.
-    markers.current!.heardLate(items);
-    applyCommand(markers.current!.withoutOwn(items, (msg) => applied.current.has(msg)));
-  }, [applyCommand]);
+    markers.heardLate(items);
+    applyCommand(markers.withoutOwn(items, (msg) => applied.current.has(msg)));
+  }, [applyCommand, markers]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -818,12 +821,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /** A send that failed: its markers in batches before the failed one landed (unless one of those
    *  skipped their graphic), the rest go back. With no answer, the failed batch's may still commit,
    *  and its row heard later lands it. */
-  const markerFailed = (pressed: MarkerSent[], e: Error) => {
-    const landed = verbsLanded(e);
-    const skipped = verbsSkipped(e);
-    markers.current!.answer(pressed, (m) => m.batch < landed && !skipped.includes(m.graphic));
-    if ((isUnanswered(e) || (e as { unread?: unknown }).unread === true) && !verbStale(e)) markers.current!.unanswered(pressed, landed);
-  };
+  const markerFailed = (pressed: MarkerSent[], e: Error) =>
+    markers.failed(pressed, verbsLanded(e), verbsSkipped(e), isUncertain(e) && !verbStale(e));
 
   /**
    * ONE DOOR for every verb this page presses, on BOTH ROADS (src/control/commandRoads.ts): this
@@ -841,9 +840,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const sendVerb = (items: ControlSendItem[], allOut = false): Promise<boolean> => {
     flushTyping.current();
     sendsOut.current += 1;
-    const marker = markers.current!;
-    const { batches: [stamped], pressed } = marker.stamp([items]);
-    marker.press(pressed);
+    const { batches: [stamped], pressed } = markers.stamp([items]);
+    markers.press(pressed);
     return sendControlVerb({
       slug,
       showId: resolved?.id ?? null,
@@ -854,7 +852,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       allOut,
     }).then(
       (sent) => {
-        marker.answer(pressed, (m) => reachedOutput(sent, m.graphic));
+        markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
         setError(sendDebts.current.landed(stamped));
         return true;
       },
@@ -874,9 +872,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const sendVerbs = (unstamped: ControlSendItem[][], allOut = false): Promise<VerbSent | null> => {
     flushTyping.current();
     sendsOut.current += 1;
-    const marker = markers.current!;
-    const { batches, pressed } = marker.stamp(unstamped);
-    marker.press(pressed);
+    const { batches, pressed } = markers.stamp(unstamped);
+    markers.press(pressed);
     return sendControlVerbs({
       slug,
       showId: resolved?.id ?? null,
@@ -887,7 +884,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       allOut,
     }).then(
       (sent) => {
-        marker.answer(pressed, (m) => reachedOutput(sent, m.graphic));
+        markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
         setError(sendDebts.current.landed(batches.flat()));
         return sent;
       },

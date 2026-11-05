@@ -41,6 +41,18 @@ export function createMarkerSender(deps: MarkerSenderDeps) {
   const own = new Set<string>();
   const landedOn = (graphic: string, n: number) => newestLanded.set(graphic, Math.max(newestLanded.get(graphic) ?? 0, n));
 
+  /** Settle them with what the send came to, and move the marker where the answers leave it. */
+  const answer = (sent: readonly MarkerSent[], landed: (m: MarkerSent) => boolean): void => {
+    const ordered = deps.ordered();
+    for (const m of sent) {
+      const reached = landed(m);
+      if (reached) landedOn(m.graphic, m.n);
+      const step = answerMarker(markers, deps.live(), m.graphic, m.n, reached, ordered);
+      markers = step.book;
+      if (step.write !== undefined) deps.mark(m.graphic, step.write);
+    }
+  };
+
   return {
     /** Number a send's markers at its press, batch by batch (each lands or fails on its own), and
      *  give each its id, which the send keeps (hostedControl.ts `sendControlVerb`). */
@@ -66,39 +78,32 @@ export function createMarkerSender(deps: MarkerSenderDeps) {
       }
       for (const old of own) if (own.size > 1024) own.delete(old);
     },
-    /** Settle them with what the send came to, and move the marker where the answers leave it. */
-    answer(sent: readonly MarkerSent[], landed: (m: MarkerSent) => boolean): void {
-      const ordered = deps.ordered();
-      for (const m of sent) {
-        const reached = landed(m);
-        if (reached) landedOn(m.graphic, m.n);
-        const step = answerMarker(markers, deps.live(), m.graphic, m.n, reached, ordered);
-        markers = step.book;
-        if (step.write !== undefined) deps.mark(m.graphic, step.write);
-      }
-    },
-    /** A send with no answer: its batch `batch`'s markers may still commit, and their rows heard
-     *  later land them (`heardLate`). */
-    unanswered(sent: readonly MarkerSent[], batch: number): void {
-      for (const m of sent) if (m.batch === batch) unanswered.set(m.oid, m);
+    answer,
+    /** A send that failed after `landed` batches: their markers landed, unless one of them skipped
+     *  the graphic, and the rest go back. `uncertain` (no answer): the failed batch's may still
+     *  commit, and its row heard later lands it (`heardLate`). */
+    failed(sent: readonly MarkerSent[], landed: number, skipped: readonly string[], uncertain: boolean): void {
+      answer(sent, (m) => m.batch < landed && !skipped.includes(m.graphic));
+      if (!uncertain) return;
+      for (const m of sent) if (m.batch === landed) unanswered.set(m.oid, m);
       // Bounded: the oldest go first, as with every remembered id (commandRoads.ts).
       for (const oid of unanswered.keys()) if (unanswered.size > 256) unanswered.delete(oid);
     },
     /** Rows heard back: one of a press that got no answer landed after all. */
     heardLate(items: readonly { graphic: string; msg: { t: string } }[]): void {
-      const ordered = deps.ordered();
       for (const item of items) {
         const oid = oidOf(item.msg);
         const u = oid ? unanswered.get(oid) : undefined;
         if (!oid || !u || u.graphic !== item.graphic) continue;
         unanswered.delete(oid);
-        // A newer press of this page landed: it stands over this one, on air and on the marker.
-        // Not on protocol 1, where the late commit is the last.
-        if (ordered && (newestLanded.get(u.graphic) ?? 0) > u.n) continue;
+        // A newer press of this page landed: it stands over this one, on air and on the marker. On
+        // protocol 1 too: a row heard after a newer press's answer says nothing of which committed
+        // last, and the one that got no answer is the likelier first.
+        if ((newestLanded.get(u.graphic) ?? 0) > u.n) continue;
         landedOn(u.graphic, u.n);
-        markers = landedLate(markers, u.graphic, u.n, u.cue, ordered);
+        markers = landedLate(markers, u.graphic, u.n, u.cue);
         // A newer press still out decides with its own answer, and puts this one back if it fails.
-        if (!ordered || !markers[u.graphic]?.out.some((p) => p.n > u.n)) deps.mark(u.graphic, u.cue);
+        if (!markers[u.graphic]?.out.some((p) => p.n > u.n)) deps.mark(u.graphic, u.cue);
       }
     },
     /**

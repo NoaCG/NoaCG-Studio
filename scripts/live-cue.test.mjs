@@ -104,12 +104,6 @@ test('on protocol 1 the marker follows the last answer, which is the last commit
   // c2 lands, then c1 fails: c2, the last that landed.
   step = answerMarker(book, { Bug: 'c2' }, 'Bug', 2, true, false);
   assert.deepEqual(answerMarker(step.book, { Bug: 'c2' }, 'Bug', 1, false, false), { book: {} });
-  // A press heard landing late is the last commit heard, over a newer one that landed.
-  book = pressMarker(pressMarker(pressMarker({}, {}, 'Bug', 5, 'c1'), {}, 'Bug', 6, 'c2'), {}, 'Bug', 7, 'c3');
-  book = answerMarker(book, {}, 'Bug', 5, false, false).book;
-  book = answerMarker(book, {}, 'Bug', 6, true, false).book;
-  assert.equal(landedLate(book, 'Bug', 5, 'c1').Bug.landed.cue, 'c2', 'protocol 2: the newer landing stands');
-  assert.equal(landedLate(book, 'Bug', 5, 'c1', false).Bug.landed.cue, 'c1', 'protocol 1: the late commit is the last');
 });
 
 test('withoutOwnMarkers drops only the cue markers it is told are owned (#1696)', () => {

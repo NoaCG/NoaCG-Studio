@@ -58,7 +58,7 @@ import { mintOid, oidOf } from './commandRoads.ts';
 import { clearAllCueBatches, clearCueItems, takeCueItems } from './cueItems.ts';
 import { withPeersOff } from './ografOutcome.ts';
 import { markerAuto } from './cueAuto.ts';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUncertain } from './failedSends.ts';
 import { leftAlone, pressOuts, reachedOutput, withLiveCue } from './liveCue.ts';
 import { createMarkerSender, type MarkerSent } from './markerSender.ts';
 import { staleSentence } from './seqSend.ts';
@@ -444,7 +444,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
   // ── THE INSTANCE A LIVE PRESS ACTS ON (pinned-live-controls F1). ──
   /** The cue the layer holds once this page's presses out there land: the newest marker press of
    *  this page still out on it, else the live marker as the session holds it now. */
-  const onLayer = (graphic: string): string | null => markers.onLayer(graphic);
+  const onLayer = markers.onLayer;
   /** The cue a live press may act on now: the one the live marker names, while no press of this
    *  page still out names another; false while they disagree. */
   const holding = (graphic: string): string | null | false => {
@@ -594,12 +594,11 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
       const landed = io.verbsLanded(e);
       const failedItems = io.verbSentItems(e) ?? marked[landed] ?? [];
       p.debts().failed([...failedItems, ...marked.slice(landed + 1).flat()], note);
-      const uncertain = isUnanswered(e) || (e as { unread?: unknown }).unread === true;
+      const uncertain = isUncertain(e);
       const skipped = io.verbsSkipped(e);
-      markers.answer(pressed, (m) => m.batch < landed && !skipped.includes(m.graphic));
-      settle((graphic, batch) => batch < landed && !skipped.includes(graphic));
       // With no answer, the failed batch's marker may still commit: its row heard later lands it.
-      if (uncertain && !stale) markers.unanswered(pressed, landed);
+      markers.failed(pressed, landed, skipped, uncertain && !stale);
+      settle((graphic, batch) => batch < landed && !skipped.includes(graphic));
       p.owed(true);
       // Refused as stale on any road, this page learned the head: a live candidate there must not
       // then follow on its own over the other screen's change.
