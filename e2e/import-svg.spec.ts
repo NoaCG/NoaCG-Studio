@@ -949,11 +949,20 @@ const GRADIENT_LOWER_THIRD = readFileSync(
 );
 
 /** Everything one value settles on, read off the live graphic: the plate, the name's block and
- *  the role drawn under it. */
+ *  the role drawn under it.
+ *
+ *  AFTER THE PREVIEW'S FONTS HAVE LOADED (#1915). The editor can open before its faces arrive,
+ *  and a box read in the fallback face is not the design: on a CI runner the drawn reading was
+ *  taken that early and the role sat 2 px lower in the fallback (gap 13), then the wrapped
+ *  reading came after the faces loaded (gap 11) and the test reported a margin lost that the
+ *  graphic never lost. Delaying the font responses reproduces exactly that pair. The runtime
+ *  refits on `document.fonts.ready` itself (svgFitBoot.js), registered before this wait, so the
+ *  reading below is the settled one. */
 async function ladderState(page: Page, value: string) {
   return editorPreview(page)
     .locator('#f0')
-    .evaluate((el, v) => {
+    .evaluate(async (el, v) => {
+      await document.fonts.ready;
       const w = window as unknown as {
         update: (json: string) => void;
         refitSvgText: () => void;
