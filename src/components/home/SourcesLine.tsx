@@ -127,7 +127,8 @@ export function readerWords(paused: boolean | undefined, status: SheetStatus | u
  */
 export function FileAskButton({ source, status, store }: { source: ShowSource; status: SheetStatus | undefined; store: SourceStatusStore }) {
   const [refused, setRefused] = useState<string | null>(null);
-  const ask = source.kind === 'file' && !source.paused && status?.state === 'failing' ? fileAsk(status.error) : null;
+  // Only this page's own reason: another page's line is that page's to fix.
+  const ask = source.kind === 'file' && !source.paused && status?.state === 'failing' && status.reader === 'this' ? fileAsk(status.error) : null;
   if (!ask || source.kind !== 'file') return null;
   const press = async () => {
     setRefused(null);
@@ -138,7 +139,8 @@ export function FileAskButton({ source, status, store }: { source: ShowSource; s
     }
     const picked = await pickFile();
     if (!picked) return;
-    if ('error' in picked || picked.format !== source.config.format) {
+    // The same file, so the line never names a file it is not reading.
+    if ('error' in picked || picked.handle.name !== source.config.name) {
       setRefused(`Choose ${source.config.name}`);
       return;
     }

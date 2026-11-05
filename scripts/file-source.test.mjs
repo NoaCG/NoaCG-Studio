@@ -185,14 +185,12 @@ test('a file’s rows match fields as a Sheet’s do, under its own `file.<id>.`
 
 // ── The reader ────────────────────────────────────────────────────────────────
 
-function reader(handle, { format = 'csv', shape = 'lines', paths = ['file.f1.lines'], have = () => handle } = {}) {
-  const clock = fakeClock();
-  const leases = new Map();
+function reader(handle, { format = 'csv', shape = 'lines', paths = ['file.f1.lines'], have = () => handle, clock = fakeClock(), leases = new Map(), tab = 'tab-1' } = {}) {
   const r = { clock, writes: [], statuses: [] };
   r.reader = createFileReader({
     key: 'prod:f1',
     sourceId: 'f1',
-    tab: 'tab-1',
+    tab,
     world: 'local',
     shape,
     format,
@@ -319,6 +317,47 @@ test('a computer without the file, or a file gone from its folder, says so and k
   assert.equal(fileAsk(r.status().error), null);
   assert.equal(r.writes.length, 1);
   r.reader.stop();
+});
+
+test('a page that cannot read the file never holds the lease, so the page that can reads it', async () => {
+  // Two pages sharing one lease, as two computers share a published production's row: the one
+  // without the file opens first and must not keep the other from reading.
+  const clock = fakeClock();
+  const leases = new Map();
+  const handle = fakeHandle('ticker.csv', 'One\n');
+  const without = reader(null, { have: () => null, clock, leases, tab: 'laptop' });
+  await clock.advance(0);
+  assert.equal(without.status().error, FILE_NOT_HERE);
+  assert.equal(without.status().reader, 'this');
+  assert.equal(without.status().stale, false);
+  assert.equal(leases.size, 0, 'it took no lease');
+  const withFile = reader(handle, { clock, leases, tab: 'studio' });
+  await clock.advance(SHEET_READ_MS);
+  assert.deepEqual(withFile.writes, [{ file: { f1: { lines: 'One' } } }]);
+  assert.equal(withFile.status().state, 'ok');
+  handle.save('Two\n');
+  await clock.advance(3 * SHEET_READ_MS);
+  assert.deepEqual(withFile.writes.at(-1), { file: { f1: { lines: 'Two' } } });
+  assert.equal(without.writes.length, 0);
+  // A page that held the lease and then lost the file's permission lets it go.
+  handle.permission = 'prompt';
+  await clock.advance(SHEET_READ_MS);
+  assert.equal(withFile.status().error, FILE_PERMISSION);
+  assert.equal([...leases.values()][0].until <= clock.now(), true, 'the lease was let go');
+  without.reader.stop();
+  withFile.reader.stop();
+});
+
+test('a workbook that unpacks past the limit is refused before it is inflated', async () => {
+  const zip = new JSZip();
+  zip.file('xl/workbook.xml', '<workbook><sheets><sheet r:id="rId1"/></sheets></workbook>');
+  zip.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData/></worksheet>');
+  zip.file('xl/sharedStrings.xml', `<sst><si><t>${'a'.repeat(21_000_000)}</t></si></sst>`);
+  const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+  assert.ok(bytes.byteLength < FILE_MAX_BYTES, 'small on disk');
+  const read = await parseXlsx(bytes);
+  assert.equal(read.ok, false);
+  assert.match(read.error, /too large/);
 });
 
 test('the review reads a file once, through the reader’s own read', async () => {

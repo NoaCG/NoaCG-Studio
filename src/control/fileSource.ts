@@ -27,7 +27,7 @@ import { createSheetReader, type SheetRead, type SheetReader, type SheetReaderOp
 
 /** The largest file read, as the server reads at most this much of a Sheet tab (api/_lib/dataTick.ts READ_BYTES). */
 export const FILE_MAX_BYTES = 1_000_000;
-/** The most text a workbook's sheet may unpack to: a small zip can hold a very large sheet. */
+/** The most text a workbook may unpack to: a small zip can hold a very large sheet. */
 export const XLSX_MAX_CHARS = 20_000_000;
 
 export type FileFormat = 'csv' | 'xlsx';
@@ -164,6 +164,7 @@ const columnOf = (ref: string): number | null => {
   return n - 1;
 };
 
+const TOO_LARGE: SheetRead = { ok: false, error: 'the workbook is too large to read', fix: 'Keep the file under 1 MB, or move older rows to another file.' };
 const NOT_A_WORKBOOK: SheetRead = { ok: false, error: 'can’t read it as an Excel workbook', fix: 'Save it again as .xlsx or CSV.' };
 
 /**
@@ -180,6 +181,10 @@ export async function parseXlsx(bytes: ArrayBuffer | Uint8Array): Promise<SheetR
   } catch {
     return NOT_A_WORKBOOK;
   }
+  // What the parts unpack to, from the zip's own directory, before anything is inflated: a small
+  // zip can hold a very large sheet. JSZip keeps the size on each entry's (untyped) `_data`.
+  const unpacked = Object.values(zip.files).reduce((sum, f) => sum + Number((f as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0), 0);
+  if (unpacked > XLSX_MAX_CHARS) return TOO_LARGE;
   const part = async (path: string) => (await zip.file(path)?.async('string')) ?? null;
   const workbook = await part('xl/workbook.xml');
   if (!workbook) return NOT_A_WORKBOOK;
@@ -196,7 +201,7 @@ export async function parseXlsx(bytes: ArrayBuffer | Uint8Array): Promise<SheetR
   const sheetFile = zip.file(sheetPath) ?? zip.file('xl/worksheets/sheet1.xml');
   if (!sheetFile) return NOT_A_WORKBOOK;
   const sheet = await sheetFile.async('string');
-  if (sheet.length > XLSX_MAX_CHARS) return { ok: false, error: 'the sheet is too large to read', fix: 'Keep the file under 1 MB, or move older rows to another file.' };
+  if (sheet.length > XLSX_MAX_CHARS) return TOO_LARGE;
   const shared = [...((await part('xl/sharedStrings.xml')) ?? '').matchAll(/<(?:\w+:)?si\b[^>]*>([\s\S]*?)<\/(?:\w+:)?si>/g)].map((m) => runs(m[1]));
   const formats = cellFormats(await part('xl/styles.xml'));
 
@@ -252,15 +257,24 @@ const errorName = (error: unknown): string => (error && typeof error === 'object
  */
 export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; format: FileFormat }): {
   read: (signal: AbortSignal) => Promise<SheetRead>;
+  /** Why this page cannot read the file at all (no handle here, no permission yet), or null. */
+  canRead: () => Promise<{ error: string; fix: string } | null>;
   parses: () => number;
 } {
   let last: { lastModified: number; size: number; rows: string[][] } | null = null;
   let parses = 0;
-  const read = async (signal: AbortSignal): Promise<SheetRead> => {
+  /** Why this page cannot read the file at all: no handle here, or no permission yet. */
+  const access = async (): Promise<{ handle: FileHandleLike } | { error: string; fix: string }> => {
     const handle = await o.handle().catch(() => null);
-    if (!handle) return { ok: false, error: FILE_NOT_HERE, fix: 'Choose the file on this computer to keep reading it.' };
+    if (!handle) return { error: FILE_NOT_HERE, fix: 'Choose the file on this computer to keep reading it.' };
     const state = handle.queryPermission ? await handle.queryPermission({ mode: 'read' }).catch(() => 'prompt' as const) : 'granted';
-    if (state !== 'granted') return { ok: false, error: FILE_PERMISSION, fix: 'Press Allow to go on reading it.' };
+    if (state !== 'granted') return { error: FILE_PERMISSION, fix: 'Press Allow to go on reading it.' };
+    return { handle };
+  };
+  const read = async (signal: AbortSignal): Promise<SheetRead> => {
+    const can = await access();
+    if (!('handle' in can)) return { ok: false, ...can };
+    const { handle } = can;
     let file: FileLike;
     try {
       file = await handle.getFile();
@@ -290,14 +304,20 @@ export function fileRead(o: { handle: () => Promise<FileHandleLike | null>; form
     last = { lastModified: file.lastModified, size: file.size, rows };
     return { ok: true, rows };
   };
-  return { read, parses: () => parses };
+  const canRead = async () => {
+    const can = await access();
+    return 'handle' in can ? null : can;
+  };
+  return { read, canRead, parses: () => parses };
 }
 
-/** A file source's reader: the Sheet reader, at the Sheet's cadence, with the file's read. */
+/** A file source's reader: the Sheet reader, at the Sheet's cadence, with the file's read. A page
+ *  that cannot read the file (another computer, or no permission yet) never holds the lease, so on
+ *  a published production it cannot keep the computer that has the file from reading it. */
 export function createFileReader(
   o: Omit<SheetReaderOptions, 'link' | 'read'> & { handle: () => Promise<FileHandleLike | null>; format: FileFormat },
 ): SheetReader & { parses: () => number } {
   const { handle, format, ...rest } = o;
   const file = fileRead({ handle, format });
-  return { ...createSheetReader({ ...rest, read: file.read }), parses: file.parses };
+  return { ...createSheetReader({ ...rest, read: file.read, canRead: file.canRead }), parses: file.parses };
 }

@@ -381,6 +381,10 @@ export interface SheetReaderOptions {
   sourceId: string;
   /** The tab a Sheet reader reads (absent when `read` is given). */
   link?: SheetLink;
+  /** Why this page cannot read the source at all, asked before each claim, or null when it can.
+   *  A page that cannot read never takes or keeps the lease, so it cannot starve a page that can:
+   *  a local file is readable only on the computer that picked it (control/fileSource.ts). */
+  canRead?: () => Promise<{ error: string; fix: string } | null>;
   /** One read of another kind of source, in a Sheet read's form (control/feedSource.ts). */
   read?: (signal: AbortSignal) => Promise<SheetRead>;
   /** How often it reads (SHEET_READ_MS), and how long one read may take (SHEET_TIMEOUT_MS). */
@@ -623,6 +627,22 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
 
   const read = async () => {
     const started = io.now();
+    const cannot = o.canRead ? await o.canRead().catch(() => null) : null;
+    if (stopped) return;
+    if (cannot) {
+      // Let go of a lease held from before, and say why here without counting it as the source's
+      // miss: another page may be reading it well.
+      if (claimId !== null) door.release();
+      claimId = null;
+      const before = shown?.reader === 'this' && shown.error === cannot.error ? shown : null;
+      report(
+        o.paused()
+          ? { ...initialStatus('this'), state: 'paused' }
+          : { ...initialStatus('this'), state: 'failing', error: cannot.error, fix: cannot.fix, failingSince: before?.failingSince ?? io.now() },
+      );
+      schedule(renew);
+      return;
+    }
     const answer = await door.claim(claimId).catch((error: Error) => error);
     if (stopped) return;
     if (answer instanceof Error && (answer as { code?: string }).code === 'no_lease') {
