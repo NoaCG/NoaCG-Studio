@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
 
@@ -19,9 +21,10 @@ const node = (code) => `"${process.execPath}" -e "${code}"`;
 test('lanes run at the same time: each lane waits for a file only the other lane writes', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'build-lanes-'));
   // Run one after the other, the first lane would wait for a lane that has not started, and give up.
+  const at = (name) => path.join(dir, name).replaceAll('\\', '/'); // a backslash would be an escape inside the code
   const lane = (mine, theirs) => node(
-    `require('fs').writeFileSync('${path.join(dir, mine)}','');const t=Date.now();` +
-    `(function w(){if(require('fs').existsSync('${path.join(dir, theirs)}'))process.exit(0);if(Date.now()-t>20000)process.exit(9);setTimeout(w,20)})()`,
+    `require('fs').writeFileSync('${at(mine)}','');const t=Date.now();` +
+    `(function w(){if(require('fs').existsSync('${at(theirs)}'))process.exit(0);if(Date.now()-t>20000)process.exit(9);setTimeout(w,20)})()`,
   );
   const out = capture();
   try {
@@ -62,4 +65,28 @@ test('a later lane failing alone fails the run', async () => {
 
 test('no command is refused', async () => {
   await assert.rejects(runLanes([]), /at least one command/);
+});
+
+test('SIGTERM to the runner stops the tool a lane\'s && chain is running, not only its shell', { skip: process.platform === 'win32' && 'process groups are POSIX; Windows uses taskkill /T' }, async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'build-lanes-'));
+  const started = path.join(dir, 'started');
+  const finished = path.join(dir, 'finished');
+  // The tool writes `started`, then would write `finished` five seconds later unless it is stopped.
+  const tool = node(`require('fs').writeFileSync('${started}','');setTimeout(()=>require('fs').writeFileSync('${finished}',''),5000)`);
+  const runner = spawn(process.execPath, [fileURLToPath(new URL('./build-lanes.mjs', import.meta.url)), node(''), `${tool} && true`], { stdio: 'ignore', windowsHide: true });
+  try {
+    const deadline = Date.now() + 10000;
+    while (!existsSync(started)) {
+      assert.ok(Date.now() < deadline, 'the lane never started');
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    const exited = new Promise((resolve) => runner.on('exit', (code) => resolve(code)));
+    runner.kill('SIGTERM');
+    assert.notEqual(await exited, 0, 'a cancelled build does not pass');
+    await new Promise((r) => setTimeout(r, 5500));
+    assert.equal(existsSync(finished), false, 'the tool under the lane\'s shell kept running after the runner was stopped');
+  } finally {
+    runner.kill('SIGKILL');
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

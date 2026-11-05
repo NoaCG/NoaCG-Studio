@@ -33,10 +33,10 @@ cites those workflow lines and changes nothing.
 
 | Item | State |
 | --- | --- |
-| Rank 1, 8 configured stacks | tried, not landed: it grows the backend tier, which is in an active cost breach (section 1) |
-| Rank 2, Build step in parallel | this PR; lands when its before side holds cf03's minimum n (section 2) |
-| Rank 3, ESLint and tsc caches | next, only if rank 2 does not improve beyond the spread |
-| Ranks 4 to 8 | untried; they go to cf20(c) |
+| Rank 1, 8 configured stacks | skipped for cost, untried: it grows the backend tier, which is in an active cost breach (section 1); does not count toward the three; goes to cf20(c) |
+| Rank 2, Build step in parallel | first of the three tries; this PR; lands when its before side holds cf03's minimum n (section 2) |
+| Rank 3, ESLint and tsc caches | second try, only if rank 2 does not improve beyond the spread; then rank 4 as the third |
+| Ranks 5 to 8 | untried; they go to cf20(c) |
 | (b) | this PR: preview-trial.yml was the one PR workflow without cancellation (section 3) |
 
 ## 1. Rank 1: give the PR's configured selection 8 stacks
@@ -51,8 +51,8 @@ forbids a budget exception for it.
 The E2E capacity gate itself does not refuse it: with `SELECTED_SHARD_MINUTES` set to 5 it
 returns WARN, as it does on main, because it prices added spec files and added jobs, not a change
 to a stack-count constant. The gate passing is a gap in what it can see, not permission, so rank 1
-is recorded as tried and not landed for cost, and counts toward the three. It stays a measured
-next step for cf20(c) once the backend tier has room. The gap is filed as #2172.
+is skipped for cost. It never ran, so it is an untried candidate: it does not count toward the
+three, and it goes to cf20(c) as a measured next step for when the backend tier has room. The gap is filed as #2172.
 
 ## 2. Rank 2: the Build step's parts in parallel, in the one Build job
 
@@ -147,8 +147,10 @@ Group `none`, metrics M1, M2 waiting, M2 execution, M3, with cf03's values uncha
   `phase-cf03-collect.mjs` until it prints `complete`, then `phase-cf03-baseline.mjs derive`, then
   `phase-cf13-sides.mjs --group none --before-from <ISO> --land <ISO> --after-until <ISO>`.
   It prints n, median and p95 per side and metric, the verdicts of cf03 section 5.2 and the M4
-  Fisher test (every group, as cf03 defines it). Checked on cf03's own records: sides B and A of
-  `none` give B M1 median 5.2 against A 6.13 and M4 7 of 122 against 15 of 79, as cf03 reports.
+  Fisher test (every group, as cf03 defines it). Checked on cf03's own records, with side B as the before side
+  and everything after ci01 (cf03's sides D, A and A2 together) as the after side: `none` M1
+  median 5.2 on B, as cf03 reports, and M4 7 of 122 against 15 of 79, which is cf03's B (7 of 122)
+  against its D, A and A2 added up (10 of 44, 5 of 34, 0 of 1).
 
 ### If it does not improve beyond the spread
 
@@ -201,9 +203,9 @@ kind of cancelled run on `main`.
 | --- | --- | --- |
 | (a) a candidate from the ranking lands | pending | this PR, when its before side holds 12 `none` merges |
 | (a) M1 or M3 lower beyond the spread, no M2 or M4 regression | open, not claimed | read after the after side fills (section 2) |
-| (a) rank 1 tried in order | recorded | section 1; the capacity gate's verdict reproduced locally (WARN) |
+| (a) candidates taken in ranked order | recorded | section 1; the capacity gate's verdict reproduced locally (WARN) |
 | The lanes shorten the Build step on Actions | one run: 402 to 268.6 s | section 2.1 |
-| The lanes run concurrently, keep every failure and the first failing status | pass | `scripts/build-lanes.test.mjs` (5 tests; concurrency shown by each lane waiting for the other's file, not by timing) |
+| The lanes run concurrently, keep every failure and the first failing status, and a cancel stops every lane's tools | pass | `scripts/build-lanes.test.mjs` (6 tests; concurrency shown by each lane waiting for the other's file, not by timing; the cancel test fails on the earlier shell-only kill) |
 | The build line still starts the build tier and ends with the after-build tier | pass | `node scripts/gates.mjs audit`; `scripts/gates.test.mjs` with the new exact prefix |
 | Targeted gates | pass | `npm run gates -- run --changed origin/main`: 49 pass, 0 fail |
 | Full build on CI | pass | PR run 41950548989: CI gate green, configured selection the whole set (70 specs, 4 stacks) |
@@ -218,13 +220,19 @@ kind of cancelled run on `main`.
 - **Revert:** `git revert -m 1 <this merge's SHA>` restores the sequential build line and removes
   preview-trial.yml's concurrency; the evidence files can stay.
 - **Decisions.**
-  - Rank 1 not landed although the capacity gate passes it: the backend tier is in an open breach.
+  - Rank 1 skipped although the capacity gate passes it: the backend tier is in an open breach. It
+    never ran, so it does not count toward the three tries (the spec counts candidates that landed).
   - Rank 2 as lanes in one job, not new jobs: the overhead tier is in an open breach too, and lanes
     cost nothing extra.
   - The landing waits for 12 `none` merges on the before side.
   - The cf03 scripts take `CF03_FROM` and `CF03_UNTIL` so a later window can be collected; unset,
     they read cf03's own window, unchanged.
+  - A cancelled build stops each lane's whole process tree (Codex review on 21a18589), read from
+    `ps`, and the lanes stay in the caller's process group: a lane leading its own group would
+    escape the job queue's group kill (`killTree` in `scripts/jobs.mjs`).
 - **Traps met.**
+  - Killing a lane's shell does not stop the tool its `&&` chain is running; that tool keeps the
+    pipes open, so the runner waits for it.
   - A production build on a cloud machine must go through `node scripts/jobs.mjs add`: a direct
     `npm run build` is refused by the build admission guard.
   - `phase-cf03-baseline.mjs` runs its command line when imported, so another script cannot import
