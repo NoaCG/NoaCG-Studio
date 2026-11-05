@@ -2,8 +2,8 @@
 //
 // THE EXPORTED PAGES' CLOCK IS THE WIRE'S CLOCK (#1887). The standalone control panel and the
 // production controller cannot import the wire, so they carry a vanilla copy of its decision
-// (`clockAfterUpdate`, `clockRowStep` in MATCH_CLOCK_PAGE_JS). This runs that copy against the TS
-// (`clockValueAfterUpdate`, `clockRowEffect`) over every clock kind, every row kind and every held
+// (`clockAfterUpdate`, `clockRowStep`, `clockHeldBefore` in MATCH_CLOCK_PAGE_JS). This runs that copy
+// against the TS (`clockValueAfterUpdate`, `clockRowEffect`, `clockHeldBeforeRow`) over every clock kind, every row kind and every held
 // shape, so the two cannot drift: an operator switching between the hosted dashboard and an
 // exported page must get the same clock.
 //
@@ -11,9 +11,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MATCH_CLOCK_PAGE_JS } from '../src/control/matchClockPageJs.ts';
-import { clockRowEffect, clockValueAfterUpdate } from '../src/control/matchClockWire.ts';
+import { clockHeldBeforeRow, clockRowEffect, clockValueAfterUpdate } from '../src/control/matchClockWire.ts';
 
-const page = new Function(`${MATCH_CLOCK_PAGE_JS}\nreturn { clockAfterUpdate, clockRowStep };`)();
+const page = new Function(`${MATCH_CLOCK_PAGE_JS}\nreturn { clockAfterUpdate, clockRowStep, clockHeldBefore };`)();
 
 const IMPORTED = { start: 'clock_start', stop: 'clock_pause', reset: 'clock_reset' };
 const CLOCKS = {
@@ -80,6 +80,23 @@ test('the exported pages read every row as the same clock move as the wire', () 
   }
   // The table reaches the moves, not only the nulls: every clock kind moves somewhere.
   assert.ok(moved > 100, `only ${moved} rows moved a clock`);
+});
+
+test('the exported pages read a duration never taken as the wire does (#2117)', () => {
+  for (const [name, clock] of Object.entries(CLOCKS)) {
+    for (const held of HELD) {
+      for (const onAir of [false, true]) {
+        assert.equal(page.clockHeldBefore(clock, held, onAir), clockHeldBeforeRow(clock, held, onAir), `${name}: ${held} on air ${onAir}`);
+      }
+    }
+  }
+  // The issue's sequence on a page: 0:50 typed and not sent, Reset, then the Take with the field.
+  const clock = CLOCKS.duration;
+  let held = page.clockHeldBefore(clock, undefined, false);
+  assert.equal(held, '0:30@out/0:30/0:30', 'never sent, off air: the start time, off air');
+  held = page.clockRowStep(clock, { t: 'event', event: 'clock_reset' }, held, T).value;
+  held = page.clockAfterUpdate(page.clockHeldBefore(clock, held, false), '0:50');
+  assert.equal(page.clockRowStep(clock, { t: 'play' }, held, T).value, `0:50@${T}/0:50/0:50`, 'the Take counts the typed length');
 });
 
 // THE EXPORTED PAGES' CLOCK ON A SHARED RELAY (clockFollower, #1887). Both pages follow the relay

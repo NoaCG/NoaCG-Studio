@@ -188,8 +188,10 @@ page stages into the shared buffer - in both, nothing reaches air because it was
 channel (`spx-control-<slug>`), packet-store conventions (localStorage, `updatedAt` LWW,
 tombstones), sync kind `'show'`. The single-graphic case is a show of one — the standalone
 panel is built by the same `renderPanelPage`. `export/showExport.ts buildShowZip` packages a
-Starter folder per graphic + one `show_controlpanel.html`; a PUBLISHED show also bakes the
-hosted receiver into each graphic at export (the saved snapshot stays clean).
+Starter folder per graphic + one `show_controlpanel.html`. Since 2026-08-05 no exported graphic
+carries the hosted receiver (`stripHostedReceiver`); only packages exported 2026-07-21 to
+2026-08-05 still carry their own copy, which since migration 0066 rebuilds from the log tail on
+reconnect and no longer receives commands live (CLOUD_PLAYOUT.md, known limits).
 
 `Show.profile` (`model/profile.ts`, docs/CONTROL_PANEL_ANY_GRAPHIC.md §6) is the production's
 CONTROL PROFILE - how this production presents the controls its graphics already declare, additive
