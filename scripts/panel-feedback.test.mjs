@@ -753,8 +753,23 @@ test('a panel with presses held keeps its count when many module starts pass', (
   c.hear('deck01:3');
   for (let i = 0; i < 100; i++) c.hear(`other${i}:1`);
   c.hear('deck01:2');
-  c.advance(PRESS_DRAW_MS * 2);
+  // One press a gap, page-wide, in the order they started waiting: the hundred, then deck01's two.
+  c.advance(PRESS_DRAW_MS * 103);
   assert.deepEqual(c.ran.filter((id) => id.startsWith('deck01')), ['deck01:1', 'deck01:2', 'deck01:3']);
+  assert.equal(c.ran.length, 103);
+});
+
+test('panels waiting for the draw gap take it in turn, so a busy one cannot keep another waiting', () => {
+  const c = pressOrder();
+  c.hear('deckaa:1');
+  c.hear('deckbb:1');
+  for (let i = 2; i <= 40; i++) c.hear(`deckaa:${i}`);
+  assert.deepEqual(c.ran, ['deckaa:1']);
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deckaa:1', 'deckbb:1'], 'deckbb waited first, so it goes first');
+  c.advance(PRESS_DRAW_MS * 39);
+  assert.equal(c.ran.length, 41);
+  assert.deepEqual(c.ran.filter((id) => id.startsWith('deckaa')), Array.from({ length: 40 }, (_, i) => `deckaa:${i + 1}`));
 });
 
 test('stopping drops what is held and every timer', () => {

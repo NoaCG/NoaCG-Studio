@@ -312,6 +312,9 @@ export class PressOrder {
   /** When a press last ran, and the timer that lets go what waits for the page to draw it. */
   #ranAt = -Infinity;
   #drawing: (() => void) | null = null;
+  /** The panels with a press in its turn waiting for the gap, in the order they started waiting: each
+   *  gap lets go the first, so one busy panel cannot keep another waiting. */
+  readonly #waiting = new Set<OrderedPanel>();
   constructor(after: (ms: number, fn: () => void) => () => void, now: () => number = () => Date.now()) {
     this.#after = after;
     this.#now = now;
@@ -343,6 +346,7 @@ export class PressOrder {
       panel.held.clear();
     }
     this.#panels.clear();
+    this.#waiting.clear();
     this.#drawing?.();
     this.#drawing = null;
   }
@@ -380,17 +384,12 @@ export class PressOrder {
       });
       return;
     }
-    if (this.#drawing) return;
     // The page may not have drawn the press that ran last: wait out the rest of its gap. A clock
     // that went back says nothing, so it does not hold a press.
     const since = this.#now() - this.#ranAt;
-    if (since >= 0 && since < PRESS_DRAW_MS) {
-      this.#drawing = this.#after(PRESS_DRAW_MS - since, () => {
-        this.#drawing = null;
-        // The gap is over, whatever the clock says now.
-        this.#ranAt = -Infinity;
-        for (const waiting of [...this.#panels.values()]) this.#pump(waiting);
-      });
+    if (this.#drawing || (since >= 0 && since < PRESS_DRAW_MS)) {
+      this.#waiting.add(panel);
+      this.#drawing ??= this.#after(PRESS_DRAW_MS - since, () => this.#drawn());
       return;
     }
     held.delete(panel.next);
@@ -403,6 +402,18 @@ export class PressOrder {
     // The gap for the presses behind it, armed before it runs, so one that throws cannot strand them.
     this.#pump(panel);
     run();
+  }
+
+  /** The gap is over, whatever the clock says now: the panel that has waited longest goes first,
+   *  and one with more to run waits again behind the others. */
+  #drawn(): void {
+    this.#drawing = null;
+    this.#ranAt = -Infinity;
+    for (const panel of [...this.#waiting]) {
+      this.#waiting.delete(panel);
+      this.#pump(panel);
+      if (this.#drawing) return;
+    }
   }
 }
 
