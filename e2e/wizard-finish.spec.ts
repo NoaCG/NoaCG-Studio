@@ -170,14 +170,19 @@ test('back after creating returns to the wizard, warns, and replaces rather than
   await page.locator('.wz-dot', { hasText: 'Animation' }).click();
   await page.locator('.wz-anim', { hasText: 'Fade' }).first().click();
   await page.locator('.wz-dot', { hasText: 'Finish' }).click();
+  // And renames it. The production's copy is linked to this walk's record, so it is still the one
+  // replaced, under the name the production gave it (#779): the dialog names that one.
+  await page.getByTestId('wz-finish-name').fill('Guest Strap Two');
   await page.getByTestId('wz-finish-production-go').click();
   // The confirmation tells the truth about a second pass: this REPLACES, it does not add.
   const again = page.getByTestId('wz-finish-production-confirm');
-  await expect(again).toContainText('takes its place');
+  await expect(again).toContainText('Already holds a graphic called Guest Strap. This one takes its place.');
+  await expect(again).toContainText('Guest Strap Two goes back into this production as Guest Strap');
   await again.getByTestId('wz-finish-production-confirm-go').click();
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
 
-  // ONE library record and ONE pool entry, with the seeded cue still pointing at it. A walk
+  // ONE library record (renamed) and ONE pool entry under the name the production gave it, with
+  // the seeded cue still pointing at it. A walk
   // back that minted a second "Guest Strap" every time would make re-entry worse than no
   // re-entry at all.
   const state = await page.evaluate(async () => {
@@ -194,7 +199,7 @@ test('back after creating returns to the wizard, warns, and replaces rather than
       otherPool: shows.find((s) => s.name === 'Old Show')?.graphics.length ?? -1,
     };
   });
-  expect(state.names).toEqual(['Guest Strap']);
+  expect(state.names).toEqual(['Guest Strap Two']);
   expect(state.pool).toEqual([{ name: 'Guest Strap', linked: true }]);
   expect(state.cues).toBe(1);
   expect(state.otherPool).toBe(0);
