@@ -72,7 +72,7 @@ A graphic's key also shows what its last press came to:
 - **Pause the server clip**, **Resume the server clip** and **Pause or resume the clip on air**: the clip clock's keys.
 - **All out**: takes everything off air.
 - **Select a cue**: moves the selection to that cue. Nothing airs: the **Take** key airs it.
-- **Take a cue now**: airs that cue at once, whatever the SPACE mode; pressed again while it is on air, takes it off. Its key reads OUT then. The selection stays where it was.
+- **Take a cue now**: airs that cue at once, whatever the SPACE mode; pressed again while it is on air, takes it off. Its key reads OUT then, unless it is a copy placed from an older module: drag the preset onto it again. The selection stays where it was.
 - **Play now, keep selection**: airs that cue at once, or restarts it if it is on air. The selection and PREVIEW stay where they were.
 
 - **Graphic action**: one live control of one graphic, as its block on the production page draws it. It acts on the cue on air on that graphic, never on the selected cue. Choose the **Graphic** and the **Action**; a pick also takes its **Option**, a number its **Step** (+1 or -1). An OGraf action sends the on-air cue's arguments, as the button on the page does, unless you type your own into **Arguments** as JSON, like `{"team": 2}`. Empty, or `{}`, means the cue's.

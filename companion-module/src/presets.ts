@@ -3,7 +3,7 @@ import type {
 	CompanionPresetSection,
 	CompanionPresetFeedback,
 } from '@companion-module/base'
-import { VERB_NAMES, type PanelActions, type PanelRow, type PanelVerb } from './protocol.js'
+import { VERB_NAMES, rowOf, type PanelActions, type PanelRow, type PanelVerb } from './protocol.js'
 import { ACTION_VERBS, type GraphicKeyOptions } from './actions.js'
 import { AMBER, BLACK, DARK_AMBER, DIM, GREEN, GREY, RED, WHITE, type FeedbacksSchema } from './feedbacks.js'
 import type { ModuleSchema } from './main.js'
@@ -100,9 +100,7 @@ export function graphicPresets(
 						},
 					])
 			} else {
-				// The imported score tracker's rows all read +1 and -1: the row's name tells two keys apart.
-				const row =
-					c.section && g.caps.filter((x) => x.kind !== 'step' && x.label === c.label).length > 1 ? c.section : ''
+				const row = rowOf(g, c)
 				key(row ? `${c.label}\\n${row}` : c.label, row ? `${c.label} ${row}` : c.label, { ...base, cap: c.id })
 			}
 		}

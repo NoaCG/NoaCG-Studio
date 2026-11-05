@@ -4,7 +4,7 @@ import type {
 	CompanionInputFieldTextInput,
 	DropdownChoice,
 } from '@companion-module/base'
-import { VERB_NAMES, keyArgs, type PanelActions, type PanelVerb } from './protocol.js'
+import { VERB_NAMES, keyArgs, rowOf, type PanelActions, type PanelVerb } from './protocol.js'
 import type { PanelClient, PressOutcome } from './panel.js'
 import type ModuleInstance from './main.js'
 
@@ -71,7 +71,10 @@ export function graphicChoices(actions: PanelActions | null): DropdownChoice<str
 export function capChoices(actions: PanelActions | null): DropdownChoice<string>[] {
 	const named = new Map<string, string[]>()
 	for (const g of actions?.graphics ?? [])
-		for (const c of g.caps) named.set(c.id, [...(named.get(c.id) ?? []), `${c.label} (${g.graphic})`])
+		for (const c of g.caps) {
+			const row = rowOf(g, c)
+			named.set(c.id, [...(named.get(c.id) ?? []), `${c.label}${row ? ` ${row}` : ''} (${g.graphic})`])
+		}
 	return [...named].map(([id, labels]) => ({ id, label: labels.join(', ') }))
 }
 

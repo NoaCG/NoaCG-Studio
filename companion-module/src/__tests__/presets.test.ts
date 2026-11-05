@@ -9,7 +9,7 @@ import type {
 	CompanionPresetSection,
 	CompanionSimplePresetDefinition,
 } from '@companion-module/base'
-import { UpdateActions } from '../actions.js'
+import { UpdateActions, capChoices } from '../actions.js'
 import { buildPresets } from '../presets.js'
 import { capabilityState, offerShape, readActions, type PanelActions } from '../protocol.js'
 import type ModuleInstance from '../main.js'
@@ -238,6 +238,19 @@ test('(3) the imported score tracker: its rows read +1 and -1, so the key says w
 		['+1 Player 1', '-1 Player 1', '+1 Player 2', '-1 Player 2', 'New game'],
 	)
 	assert.equal((built.presets[ids[0]] as CompanionSimplePresetDefinition<never>).style.text, '+1\\nPlayer 1')
+	// The Graphic action's list, where a silent correction is chosen, tells them apart the same way.
+	assert.deepEqual(
+		capChoices(
+			offered([
+				banner([
+					cap('event:score1', '+1', { section: 'Player 1' }),
+					cap('event:score2', '+1', { section: 'Player 2' }),
+					cap('step:f1', 'Player 1 point', { covered: [1, -1] }),
+				]),
+			]),
+		).map((c) => c.label),
+		['+1 Player 1 (Score banner)', '+1 Player 2 (Score banner)', 'Player 1 point (Score banner)'],
+	)
 	assert.equal((built.presets[ids[4]] as CompanionSimplePresetDefinition<never>).style.text, 'New game')
 	// A figure of that label is not a second control of that name: "Home" stays "Home".
 	assert.deepEqual(

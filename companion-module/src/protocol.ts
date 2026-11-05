@@ -543,6 +543,12 @@ export function keyArgs(
 	return fault ? { refused: fault } : { args: parsed }
 }
 
+/** The row that tells a control from another of the same words: an imported score tracker's rows all
+ *  read +1 and -1. Empty when its label says enough. */
+export function rowOf(g: ActionGraphic, c: Capability): string {
+	return c.section && g.caps.filter((x) => x.kind !== 'step' && x.label === c.label).length > 1 ? c.section : ''
+}
+
 /** What a graphic key shows of its capability's offer, for redefining presets and choices: the
  *  graphics, their pins and their capabilities' ids, labels, options, sections and covered steps, never what
  *  moves live. */
