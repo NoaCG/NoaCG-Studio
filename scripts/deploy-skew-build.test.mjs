@@ -33,9 +33,17 @@ const pinnedDist = fs.mkdtempSync(path.join(os.tmpdir(), 'noacg-deploy-skew-pinn
 const PINNED_ENV = { VERCEL_SKEW_PROTECTION_ENABLED: '1', VERCEL_DEPLOYMENT_ID: 'dpl_A' };
 const saved = Object.fromEntries(Object.keys(PINNED_ENV).map((key) => [key, process.env[key]]));
 Object.assign(process.env, PINNED_ENV);
+// The plugin's own count of uses it could not pin: a reference form it does not know fails here.
+const buildLog = [];
+const consoleLog = console.log;
+console.log = (...line) => {
+  buildLog.push(line.join(' '));
+  consoleLog(...line);
+};
 try {
   await build({ root, configFile: path.join(root, 'vite.config.ts'), logLevel: 'error', build: { outDir: pinnedDist, emptyOutDir: true } });
 } finally {
+  console.log = consoleLog;
   for (const [key, value] of Object.entries(saved)) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -164,6 +172,11 @@ test('unsaved brand edits hold the reload: they live only in the editor', async 
   assert.ok(site.misses() > 0, 'the list asked for a missing code file');
   assert.equal(loads(), 0, 'no reload under unsaved brand edits');
   assert.equal(await page.getByPlaceholder('e.g. Channel A').inputValue(), 'Channel B');
+});
+
+test('the pinned build leaves no use of a built file without its deploy', () => {
+  const line = buildLog.find((entry) => entry.startsWith('[skew-protection]'));
+  assert.match(line ?? '', /^\[skew-protection\] on: dpl_A, [1-9]\d* reference\(s\) pinned in \d+ file\(s\), 0 unpinned$/);
 });
 
 test('with Skew Protection, the open page loads its own deploy: no 404, no reload', async (t) => {
