@@ -300,18 +300,6 @@ function compClearMarks() {
   clearFinal();
 }
 
-// A snap (Back, Reset, a recovery) composes a state's pose and fires only that state's own call,
-// and a mark is a class, which the snap's reset of inline styles never touches. So the marks go
-// first, and the state the snap lands on paints its own: the whole table, its highlighted row or
-// its final table, never a mark left over from the state it came from (#2181).
-if (typeof noacgSnap === 'function') {
-  var standingsSnap = noacgSnap;
-  noacgSnap = function () {
-    compClearMarks();
-    return standingsSnap.apply(this, arguments);
-  };
-}
-
 ${READY_GUARD_JS}`;
 
 // ── The bracket ──────────────────────────────────────────────────────────────
