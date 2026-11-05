@@ -75,17 +75,17 @@ function held() {
 }
 
 /** The module's clock, moved by hand. The page's clock and timers (its draw gap and its bound) are
- *  the test's mocked `Date` and `setInterval`, moved with it: `page` ticks them in gap-sized steps, each drained, so a
- *  press let go by a gap meets a page that has drawn the press before it. */
+ *  the test's mocked `Date` and `setInterval`, moved with it: `page` ticks them in gap-sized steps,
+ *  each drained, so a press let go by a gap meets a page that has drawn the press before it. */
 class HandClock {
   t = 1_000_000;
   timers = [];
   next = 1;
-  constructor(t) {
+  constructor(test) {
     this.page = async (ms) => {
       while (ms > 0) {
         const step = Math.min(ms, PRESS_DRAW_MS);
-        t.mock.timers.tick(step);
+        test.mock.timers.tick(step);
         ms -= step;
         await drain();
       }
