@@ -90,6 +90,12 @@ export interface AirPart {
   /** How many times the marker was written here, moved or not: the resolve's seed is skipped when
    *  this moved while its round trip was in flight. */
   moves: number;
+  /** Per graphic, the `moves` count of the last Take's write on its layer: a seed in flight then
+   *  skips only those layers. ADDITIVE OPTIONAL: absent is none. */
+  tookAt?: Readonly<Record<string, number>>;
+  /** The `moves` count of the last write that was not a Take's (an Out, an All out, a whole map):
+   *  a seed in flight then skips whole. ADDITIVE OPTIONAL: absent is none. */
+  clearedAt?: number;
   /** What each graphic was last sent, by field: what rebuilds PROGRAM and what "not on air yet"
    *  is judged against. */
   aired: AiredMap;

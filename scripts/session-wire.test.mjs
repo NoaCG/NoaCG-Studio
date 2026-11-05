@@ -268,6 +268,21 @@ test('THE MOVES GUARD through the lifetime: a Take while the resolve or its repl
   }
 });
 
+test('#2162 through the lifetime: a Take of one graphic while the replay is out leaves the other on PROGRAM', async () => {
+  const wire = scriptedWire();
+  const page = fakePage();
+  const { session, stop } = start(wire, page);
+  await flush();
+  wire.resolves[0].resolve({ ok: true, value: RESOLVED });
+  await flush();
+  session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m) => withLiveCue(m, 'score', 'c9'), ['score']) }));
+  wire.replays[0].resolve([]);
+  await flush();
+  assert.deepEqual(session.air.get().liveCue, { lt: 'c1', score: 'c9' });
+  assert.deepEqual(session.air.get().bootLive, { lt: 'c1' }, 'the boot recovery puts the one on air on PROGRAM');
+  stop();
+});
+
 test('A +1 HEARD WHILE THE RESOLVE OR ITS REPLAY IS OUT (#2088): the older report does not put it back', async () => {
   for (const when of ['resolve', 'replay']) {
     const wire = scriptedWire();

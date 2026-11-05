@@ -2049,9 +2049,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Rebuild a fresh PROGRAM stage from what air holds (control/airState.ts `restoreItems`): at
    *  boot the reports and the rows after them, later what this page aired. */
   const restoreProgram = useCallback(
-    () =>
+    (only?: LiveCueMap) =>
       foldProgram((air, specs, now) => {
-        const restore = restoreItems(air, machineStatesRef.current, specs);
+        const restore = restoreItems(air, machineStatesRef.current, specs, only);
         return programItems(restore.air, restore.items, specs, now);
       }),
     [foldProgram],
@@ -2079,7 +2079,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (recoveredRef.current || !bootLive) return;
     recoveredRef.current = true;
     if (!Object.values(bootLive).some(Boolean)) return;
-    restoreProgram();
+    restoreProgram(bootLive);
   }, [bootLive, restoreProgram]);
 
   // The header clock ticks on its own — the heartbeat poll above is every 30 s, far too slow

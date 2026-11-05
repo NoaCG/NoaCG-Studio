@@ -389,7 +389,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
 
   /** Move the live marker for these graphics (a no-op once the session ended). */
   const mark = (graphics: readonly string[], cueId: string | null) =>
-    applyOwn(graphics, () => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m: LiveCueMap) => graphics.reduce((acc, g) => withLiveCue(acc, g, cueId), m)) })));
+    applyOwn(graphics, () => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m: LiveCueMap) => graphics.reduce((acc, g) => withLiveCue(acc, g, cueId), m), cueId ? graphics : undefined) })));
 
   // ── THE MARKER'S PRESSES (#1696). Every Take and Out leaves through the one sender with a cue
   // marker, so the sender numbers them at the press and writes the marker from their answers:
