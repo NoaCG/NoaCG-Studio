@@ -233,18 +233,24 @@ function next() {
   return (typeof revealNextStep === 'function') ? revealNextStep() : null;
 }
 
-// A SNAP to the board's first step (« Back to it, ⟲ Reset) or off it is play()'s visual reset
-// without the entrance. A design's marks (a lit row, a shown result, a FINAL) are classes, which
-// the snap's reset of inline styles never touches, so they are cleared first, as play() clears
-// them (#2181). A snap to a later state keeps them: the state it lands on fires only its own call,
-// so a board with two middle steps would need its own paint-from-state on snap (#2201).
+// A SNAP (« Back, ⟲ Reset, a recovery, an OGraf skipAnimation) lands on a state's own look and
+// on nothing the state it left had painted (#2181). A design's marks (a lit row, a shown result,
+// a celebration, a FINAL) are classes, which the snap's reset of inline styles never touches, and
+// the snap fires only the target state's call. So the marks are cleared first, as play() clears
+// them, and then every group's canonical route has its calls fired in order: a celebration over a
+// shown result comes back as both, and a Back from the celebration to the result as the result
+// alone. Every call a competition board's machine makes is a painter, so firing them is safe.
 if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
   var compSnap = noacgSnap;
-  noacgSnap = function (assignments) {
-    var main = noacgMachine.groups[0];
-    var to = assignments ? assignments[main.id] : main.initial;
-    if (to === main.initial || to === (main.defaultPath || [])[0]) compClearMarks();
-    return compSnap.apply(this, arguments);
+  noacgSnap = function () {
+    compClearMarks();
+    var state = compSnap.apply(this, arguments);
+    for (var g = 0; g < noacgMachine.groups.length; g++) {
+      var group = noacgMachine.groups[g];
+      var route = noacgCanonicalPath(group, noacgCurrent[group.id]) || [];
+      for (var r = 0; r < route.length; r++) noacgFireCalls(noacgStepFor(group, route[r]));
+    }
+    return state;
   };
 }
 
