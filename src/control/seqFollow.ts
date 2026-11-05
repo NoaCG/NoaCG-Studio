@@ -34,6 +34,11 @@
  * - While rows are held or a read is out the follower is BUSY, and says so: a page's own presses
  *   then take the durable road instead of its monitor, as on the id road, so they cannot land on
  *   the monitor ahead of older rows still on their way.
+ * - A HEAD ANNOUNCEMENT (`announce`, migration 0109) is the one thing besides a gap that sends the
+ *   follower to the tail: the server saying where the log's head stands, a few seconds after a
+ *   write. A lost frame with no later row leaves no gap to see, so without it the follower learned
+ *   of the loss only at the 30 s poll (#1802). It gets the same reorder window as a gap, so the
+ *   frame it names may still arrive first, and costs no read when the follower is level.
  */
 
 // The reorder window and the rejoin spread are the id follower's, measured and argued there
@@ -105,6 +110,8 @@ export interface SeqFollower<R extends SeqRowLike> {
   offer(frame: SeqFrame<R>): void;
   /** The channel reported SUBSCRIBED: refill at once on the first join, after a spread on a rejoin. */
   joined(): void;
+  /** The server says the log's head stands at `seq`: past the cursor, it is a hole like a gap. */
+  announce(epoch: string | null, seq: number): void;
   /** Read the log from the cursor (the poll, a hole). Single-flight: a call during a walk runs
    *  once more after it. */
   refill(): Promise<void>;
@@ -145,6 +152,8 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
   let joinedBefore = false;
   let walk: Promise<void> | null = null;
   let again = false;
+  /** The highest head an announcement named in this epoch: rows up to it exist, framed or not. */
+  let announced = 0;
 
   const noteBusy = () => {
     const now = !stopped && (walk !== null || held.size > 0);
@@ -160,6 +169,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
   const restart = (next: string | null) => {
     epoch = next;
     cursor = 0;
+    announced = 0;
     held.clear();
     heads = [];
     clearHole();
@@ -197,7 +207,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     for (const seq of held.keys()) if (seq <= cursor) held.delete(seq);
     if (ready.length > 0) opts.onRows(ready, false);
     flushHeads();
-    if (held.size === 0) clearHole();
+    if (held.size === 0 && announced <= cursor) clearHole();
   };
   /** Once `ms` has passed, apply what has arrived since, and read the tail for what still has not.
    *  `hole`: a gap is being given its reorder window (a retry after a failed read is not a new one). */
@@ -205,7 +215,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     holeTimer ??= setTimeout(() => {
       holeTimer = null;
       drain();
-      if (held.size > 0) {
+      if (held.size > 0 || announced > cursor) {
         if (hole) opts.onHole?.();
         void refill();
       }
@@ -267,6 +277,13 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
       drain();
       if (held.size > 0) armHole(REORDER_WINDOW_MS, true);
       noteBusy();
+    },
+    announce(next, seq) {
+      if (stopped) return;
+      meet(next);
+      if (seq <= cursor) return;
+      announced = Math.max(announced, seq);
+      armHole(REORDER_WINDOW_MS, true);
     },
     joined() {
       if (stopped) return;
