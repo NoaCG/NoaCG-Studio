@@ -446,9 +446,9 @@ function slottedRowEffect(
 // slot is unread: Reset returns to the allowance field. A value written without them (a report from
 // before this, or a clock no update has reached) still reads, and its first resend can still move it.
 //
-// A TAKE STARTS THE BOARD OVER, unlike a match clock's: its entrance re-arms the floor, so both clocks
-// go back to what the cue sent, nobody speaking. A speaker's time is kept through an Update, not
-// through an Out and a Take, where it has never been kept.
+// A TAKE PUTS A HELD CLOCK BACK TO WHAT THE CUE SENT, unlike a match clock's: after an Out the board
+// starts over, as it always has, whichever speaker had banked what. A clock still running through a
+// Take on air keeps counting, because the engine does and the value must say what is on screen.
 
 /**
  * A published debate board's two clocks, read off its own markup.
@@ -629,7 +629,7 @@ export function speakingClockRowEffect(
     return Object.keys(values).length > 0 ? { values, when } : null;
   };
   if (row.msg.t === 'update') return carrying((r) => (r.slot === CORRECTED_ORIGIN ? durationValue(r.time, at, r.length, r.sent) : null), 'after');
-  if (row.msg.t === 'play') return carrying((r) => (r.slot || r.time !== r.sent ? durationValue(r.sent, null, r.length, r.sent) : null), 'before');
+  if (row.msg.t === 'play') return carrying((r) => (r.slot || r.time === r.sent ? null : durationValue(r.sent, null, r.length, r.sent)), 'before');
   if (row.msg.t !== 'event') return null;
 
   switch (row.msg.event) {

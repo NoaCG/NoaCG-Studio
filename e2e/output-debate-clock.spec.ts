@@ -245,6 +245,41 @@ test('a Take after an Out starts the board over from the cue\'s time, nobody spe
   await expect(clockB(page)).toHaveText('05:00');
 });
 
+test('a Take on air puts the waiting clock back to the cue\'s time, the running one keeps counting, and the report says what is on screen', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+  const before = await read(clockB(page));
+
+  debate.write({ t: 'update', data: { ...debate.cue, f0: 'TAKEN AGAIN' } });
+  debate.write({ t: 'play' });
+  await expect(page.locator('body')).toHaveAttribute('data-plays', '2', { timeout: 20_000 });
+  await expect(clockA(page)).toHaveText('05:00');
+  const b = await read(clockB(page));
+  expect(b).toBeLessThanOrEqual(before);
+  await expect.poll(() => read(clockB(page)), { timeout: 5_000 }).toBeLessThan(b);
+
+  // A's value is held at the cue's time, B's still says when it started: a reboot paints this.
+  await expect.poll(() => debate.report()?.data.f0 ?? null, { timeout: 20_000 }).toBe('TAKEN AGAIN');
+  expect(debate.report()!.data.f5).toMatch(/^05:00@\//);
+  expect(debate.report()!.data.f6).toMatch(/^05:00@[1-9]/);
+});
+
+test('a penalty docks the running clock and keeps it running, and the next Update does not give the time back', async ({ page }) => {
+  const debate = await openDebate(page);
+  await takeTheBoard(page, debate);
+  await aThenB(page, debate);
+  const before = await read(clockB(page));
+
+  debate.write({ t: 'event', event: 'penalty' });
+  await expect.poll(() => read(clockB(page)), { timeout: 20_000 }).toBeLessThanOrEqual(before - 10);
+  await updateTheRound(page, debate, 'DOCKED');
+  const b = await read(clockB(page));
+  expect(b).toBeLessThanOrEqual(before - 10);
+  await expect.poll(() => read(clockB(page)), { timeout: 5_000 }).toBeLessThan(b);
+  await expect(clockA(page)).toHaveText('04:00');
+});
+
 test('Reset returns both clocks to the allowance on screen, and the cue\'s older time does not undo it', async ({ page }) => {
   const debate = await openDebate(page);
   await takeTheBoard(page, debate);
