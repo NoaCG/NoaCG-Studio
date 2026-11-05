@@ -351,16 +351,48 @@ test('a frame that drains inside the window does not cancel a hole the announcem
   assert.deepEqual(r.applied, [3, 4]);
 });
 
-test('an announcement in another epoch (a republish) starts the log again and reads it', async (t) => {
+test('an announcement in another epoch (a republish) is one read, and the read starts the log again', async (t) => {
   const r = rig(t, { from: 900 });
   r.log.epoch = 'E2';
   r.log.rows.clear();
   r.commit(1, 2);
   r.follower.announce('E2', 2);
+  await r.settle();
+  assert.deepEqual(r.reads, [[900, 'E1'], [0, 'E2']], 'asked under its own epoch, answered reset, read again');
   assert.deepEqual(r.epochs, [['E2', true]]);
-  await r.wait(REORDER_WINDOW_MS);
-  assert.deepEqual(r.reads, [[0, 'E2']]);
   assert.deepEqual(r.applied, [1, 2]);
+});
+
+test('a late announcement of a log the follower has left never takes it back there', async (t) => {
+  const r = rig(t, { from: 900 });
+  r.log.epoch = 'E2';
+  r.log.rows.clear();
+  r.commit(1);
+  r.frame([1], 'E2');
+  assert.deepEqual(r.epochs, [['E2', true]]);
+  // The job read E1's head just before the unpublish; its broadcast arrives now.
+  r.follower.announce('E1', 957);
+  await r.settle();
+  await r.wait(REORDER_WINDOW_MS * 4);
+  assert.equal(r.follower.epoch, 'E2');
+  assert.deepEqual(r.epochs, [['E2', true]], 'no restart into the dead log');
+  assert.deepEqual(r.reads, [[1, 'E2']], 'one read under the live epoch, which finds nothing new');
+  assert.deepEqual(r.applied, [1]);
+});
+
+test('a read an announcement started that fails is tried again a second later', async (t) => {
+  const r = rig(t, { from: 2 });
+  r.commit(3);
+  r.failNext(1);
+  r.follower.announce('E1', 3);
+  await r.wait(REORDER_WINDOW_MS);
+  assert.equal(r.reads.length, 1);
+  assert.deepEqual(r.applied, []);
+  await r.wait(HELD_RETRY_MS);
+  assert.equal(r.reads.length, 2);
+  assert.deepEqual(r.applied, [3]);
+  await r.wait(HELD_RETRY_MS * 5);
+  assert.equal(r.reads.length, 2, 'level again: no further reads');
 });
 
 test('an announcement after stop() starts nothing', async (t) => {

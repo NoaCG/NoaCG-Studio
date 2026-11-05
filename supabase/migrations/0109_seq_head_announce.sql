@@ -57,6 +57,7 @@ begin
       from public.control_heads h
      where h.updated_at > now() - interval '10 seconds'
        and h.seq > 0
+     order by h.updated_at desc -- under a stall the newest writes go first
   loop
     exit when clock_timestamp() - v_started > interval '2 seconds';
     begin

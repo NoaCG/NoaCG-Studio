@@ -1342,10 +1342,10 @@ function readSeqFrame(payload: unknown): SeqFrame<SeqLogRow> | null {
 }
 
 /** A `head` announcement off `seq-<show>` (0109): where the head stands, or null. */
-function readSeqAnnouncement(payload: unknown): { epoch: string | null; seq: number } | null {
+function readSeqAnnouncement(payload: unknown): { epoch: string; seq: number } | null {
   const p = payload as { epoch?: unknown; seq?: unknown } | null;
-  if (!p || typeof p !== 'object' || typeof p.seq !== 'number' || !Number.isSafeInteger(p.seq)) return null;
-  return { epoch: typeof p.epoch === 'string' ? p.epoch : null, seq: p.seq };
+  if (!p || typeof p !== 'object' || typeof p.epoch !== 'string' || typeof p.seq !== 'number' || !Number.isSafeInteger(p.seq)) return null;
+  return { epoch: p.epoch, seq: p.seq };
 }
 
 /** A `control_*tail_seq` answer (a frame's shape, plus `reset`), or null when it is not one. */
