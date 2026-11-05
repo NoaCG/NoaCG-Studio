@@ -40,6 +40,7 @@ import { measured } from './measured.mjs';
 const SPECS = [
   { entry: fileURLToPath(new URL('../src/templates/catalog.ts', import.meta.url)), globalName: 'NOACG_CATALOG' },
   { entry: fileURLToPath(new URL('../src/preview/composeDocument.ts', import.meta.url)), globalName: 'NOACG_COMPOSE' },
+  { entry: fileURLToPath(new URL('../src/templates/shared/animRuntime.ts', import.meta.url)), globalName: 'NOACG_ANIM_RUNTIME' },
 ];
 
 /** Long enough for every catalog entrance to land and every exit to finish. */
@@ -136,6 +137,27 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
   return { id, single, repeats, unguarded, rotates };
 };
 
+/** A graphic no catalog design is like: its Out fades a panel the entrance never animates, and
+ *  moves an SVG group whose markup places it with a transform attribute, which is where GSAP
+ *  writes an SVG element's transform. Taken, stopped and taken again. Runs in the browser. */
+const OUT_RESIDUE_PROBE = async () => {
+  const fade = [{ time: 0, value: 1 }, { time: 0.4, value: 0 }];
+  const data = { version: 2, root: '.probe', speed: 1, steps: [
+    { name: 'In', duration: 0.4, ease: 'none', layers: {} },
+    { name: 'Out', duration: 0.4, ease: 'none', layers: { '#panel': { opacity: fade }, '#mark': { opacity: fade, y: [{ time: 0, value: 30 }, { time: 0.4, value: 50 }] } } },
+  ] };
+  const w = await window.__mountDesign({
+    html: '<div class="probe"><div id="panel">P</div><svg width="200" height="120"><g id="mark" transform="translate(40,30)"><rect width="20" height="20" fill="#fff"/></g></svg></div>',
+    css: '.probe { opacity: 0; }', fields: [], assets: [], fps: 25, settings: {}, resolution: { width: 400, height: 200 },
+    js: window.NOACG_ANIM_RUNTIME.emitAnimRegion(data) + '\nfunction play() { return buildInTimeline(); }\nfunction stop() { return buildOutTimeline(); }\n',
+  });
+  w.play(); w.__advance(1000); w.stop(); w.__advance(1000); w.play(); w.__advance(1000);
+  const mark = w.document.getElementById('mark');
+  const panel = w.document.getElementById('panel');
+  document.getElementById('fx')?.remove();
+  return { panel: w.getComputedStyle(panel).opacity, mark: w.getComputedStyle(mark).opacity, transform: mark.getAttribute('transform') };
+};
+
 const { ids: only } = parseOnly(process.argv.slice(2));
 
 const started = Date.now();
@@ -155,7 +177,7 @@ const runs = await withBundledPage(SPECS, async (page) => {
   for (const id of SAVED_BEFORE_FIX) {
     if (ids.includes(id)) saved.push({ ...(await run(id, { source: GUARD_LINE.source, flags: GUARD_LINE.flags })), id: `${id} saved before the fix` });
   }
-  return { current, saved };
+  return { current, saved, probe: await page.evaluate(OUT_RESIDUE_PROBE) };
 });
 const results = [...runs.current, ...runs.saved];
 
@@ -205,6 +227,12 @@ test('a Take after the Out looks as the first Take did (#1795)', () => {
     if (diff) differ.push(`${r.id}: ${diff}`);
   }
   assert.deepEqual(differ, [], `${differ.length} design(s) came back different after Out and Take:\n${differ.join('\n')}`);
+});
+
+test('a Take after the Out undoes what the Out wrote, and leaves an SVG group where its markup put it', () => {
+  assert.equal(runs.probe.panel, '1', 'the panel the Out faded is back');
+  assert.equal(runs.probe.mark, '1', 'the group the Out faded is back');
+  assert.match(String(runs.probe.transform), /^matrix\(1,0,0,1,40,/, 'the group keeps the x its transform attribute gave it');
 });
 
 test('nothing a viewer could see is left on air after Stop', () => {
