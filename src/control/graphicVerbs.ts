@@ -760,7 +760,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
     p.clearMisses([cue.id]);
     // A label that already names the cue ("Play now C1", "Take of C1") does not name it twice.
-    const named = label.endsWith(cue.label) ? label : `${label}: ${cue.label}`;
+    const named = cue.label && label.endsWith(` ${cue.label}`) ? label : `${label}: ${cue.label}`;
     if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${named} sent to the outputs` };
     return { ok: true, note: `✓ ${named}` };
   };
