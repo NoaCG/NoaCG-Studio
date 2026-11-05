@@ -160,6 +160,18 @@ export const CENTRAL = [
   // results (benchmarks/agent/): read by `claude plugin` and by scripts/agent-round-bench.mjs,
   // never by a spec.
   [/^(\.claude-plugin\/|benchmarks\/agent\/)/, []],
+  // #1862 (cicd-followup cf14): each escalated as unmapped, so it ran the shared-change set and the
+  // catalog gate for a change neither can observe. The catalog reach is asked before this list, so
+  // nothing it reaches is routed around the gate. e2e/fixtures/jev-svg/ is not here: five of its
+  // files are read by the jev-svg scripts alone, and every fixture must plan a spec (ci05).
+  // The Companion module is its own package: `yarn test` in release-companion.yml tests it, and no
+  // spec or app module imports it (e2e/downloads.spec.ts mocks its GitHub Release).
+  [/^companion-module\//, []],
+  // The harness bench's cells and briefs: read by scripts/harness-bench.mjs and its helpers.
+  [/^benchmarks\/harness\//, []],
+  // Suites with their own Playwright configs and workflows (endurance.yml, hosted-latency.yml):
+  // the offline and catalog configs never load them.
+  [/^(e2e\/endurance\/|playwright\.endurance\.config\.ts$|e2e\/instruments\/|playwright\.instrument\.config\.ts$)/, []],
 ];
 
 /**
