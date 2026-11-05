@@ -24,7 +24,7 @@ async function load(entry) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
 const keys = await load('src/blocks/behaviourKeys.ts');
-const { behaviourSequenceReason, recipeClaims, claimReason, requireUserTracksOnly, sequenceOwned, KNOWN_CALLS, CREDITS_CALLS,
+const { behaviourSequenceReason, recipeClaims, claimReason, claimRelations, requireUserTracksOnly, sequenceOwned, KNOWN_CALLS, CREDITS_CALLS,
   SEQUENCE_REFUSAL, CREDITS_REFUSAL, LOOK_REFUSAL, GEOMETRY_REFUSAL } = keys;
 const source = (rel) => readFileSync(path.join(root, rel), 'utf8');
 
@@ -106,6 +106,8 @@ test('K4, K5: the paint table\'s claims', () => {
   assert.deepEqual(recipeClaims(quizTable, () => true).map(c => c.kind), ['look', 'look', 'look']);
   const undrawn = recipeClaims(quizTable, token => token !== 'answer.selected/B');
   assert.deepEqual(undrawn.filter(c => c.kind === 'geometry').map(c => c.selector), [keys.ARTWORK]);
+  // A look whose drawing cannot be read is not drawn: its claim fails closed (#2069).
+  assert.deepEqual(recipeClaims(quizTable, token => { if (token === 'answer.selected/B') throw new SyntaxError(token); return true; }).filter(c => c.kind === 'geometry').map(c => c.selector), [keys.ARTWORK]);
   // The artwork the runtime measures in is the one the claim names.
   assert.match(source('src/templates/importedDesign/shared.ts'), /export const PREFIX = 'imported-design';/);
   assert.match(source('src/templates/importedDesign/reimport.ts'), /svg\.\$\{PREFIX\}-art/);
@@ -163,4 +165,27 @@ test('K7: an edit may change only the user\'s tracks', () => {
     const after = structuredClone(keyed); mutate(after);
     assert.throws(() => requireUserTracksOnly(before, after, free), String(mutate));
   }
+});
+
+test('K5: containment, and where the artwork stops it (#2069)', () => {
+  // A small tree: a page wrapper holding the artwork, a row group, its score and a sibling.
+  const node = (name, parent, inSvg) => ({ name, parent, inSvg,
+    contains(other) { for (let n = other; n; n = n.parent) if (n === this) return true; return false; },
+    closest(selector) { assert.equal(selector, 'svg'); return this.inSvg ? {} : null; } });
+  const page = node('page', null, false), art = node('art', page, true), row = node('row', art, true), score = node('score', row, true), other = node('other', art, true);
+  const all = { page, art, row, score, other };
+  const doc = { querySelectorAll(selector) { if (selector === '!') throw new SyntaxError(selector); return selector.split(',').map(name => all[name]); } };
+  const of = (layers, selector) => claimRelations(doc, layers)(selector);
+  assert.deepEqual(of([score], 'score'), ['self']);
+  assert.deepEqual(of([row], 'score'), ['inside']);
+  assert.deepEqual(of([score], 'row'), ['contains']);
+  assert.deepEqual(of([score], 'other'), ['none']);
+  // The page wrapper is outside the SVG: what it holds is not inside it, and it contains no claim.
+  assert.deepEqual(of([page], 'score'), ['none']);
+  assert.deepEqual(of([score], 'page'), ['contains']);
+  // One relation per (element, layer) pair, in that order.
+  assert.deepEqual(of([row, other], 'score,row'), ['inside', 'none', 'self', 'none']);
+  // A selector that cannot be read stands as the layer itself: unknown ownership refuses.
+  assert.deepEqual(of([score], '!'), ['self']);
+  assert.equal(claimReason([{ claim: { selector: '!', kind: 'geometry' }, relations: of([score], '!') }], 'x'), GEOMETRY_REFUSAL);
 });
