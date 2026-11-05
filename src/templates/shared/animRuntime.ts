@@ -52,7 +52,9 @@ function noacgRememberEntrance(tl) {
 var noacgExitResidue = [];
 function noacgNoteExitWrite(element, prop) {
   var css = /^(x|y|z|xPercent|yPercent|scale|scaleX|scaleY|rotation|rotate|rotationX|rotationY|skewX|skewY)$/.test(prop) ? 'transform' : prop;
-  if (!element.style || element.style[css] !== '') return;
+  // GSAP writes an SVG element's transform into its attribute, and clearing it would also take
+  // the position its markup gave it: only an element with no transform there either is noted.
+  if (!element.style || element.style[css] !== '' || (css === 'transform' && element.getAttribute && element.getAttribute('transform'))) return;
   for (var i = 0; i < noacgExitResidue.length; i++) {
     if (noacgExitResidue[i].element === element && noacgExitResidue[i].css === css) return;
   }
