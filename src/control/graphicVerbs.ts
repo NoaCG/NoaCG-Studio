@@ -61,7 +61,7 @@ import { markerAuto } from './cueAuto.ts';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, isUnanswered } from './failedSends.ts';
 import { answerMarker, foreignMarker, landedLate, leftAlone, pressMarker, pressOuts, reachedOutput, withLiveCue, withoutOwnMarkers, type MarkerBook } from './liveCue.ts';
 import { staleSentence } from './seqSend.ts';
-import { SHARED_NOT_MOVED, changedNote, offAirNote, unheldNote } from './liveControls.ts';
+import { SHARED_NOT_MOVED, changedNote, namedOnce, offAirNote, unheldNote } from './liveControls.ts';
 import { typedReadOnly, typedSendRefusal, type TypedActionSend, type TypedSend, type TypedValues } from '../model/ografTyped.ts';
 import type { PressDone } from './panelActions';
 
@@ -759,8 +759,7 @@ export function createGraphicVerbs(session: PlayoutSession, io: GraphicVerbIo, s
     // A capture lands only with its press on the output; a later press that overtook it stands.
     for (const { g, c } of captured) if (reachedOutput(sent, g)) c.landed(); else c.undo();
     p.clearMisses([cue.id]);
-    // A label that already names the cue ("Play now C1", "Take of C1") does not name it twice.
-    const named = cue.label && label.endsWith(` ${cue.label}`) ? label : `${label}: ${cue.label}`;
+    const named = namedOnce(label, cue.label);
     if (p.answersOnOutput?.(graphic)) return { ok: true, unconfirmed: true, note: `${named} sent to the outputs` };
     return { ok: true, note: `✓ ${named}` };
   };

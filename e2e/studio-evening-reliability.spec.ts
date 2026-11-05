@@ -182,6 +182,15 @@ test('a refused cue draft write stays on screen and can be flushed after storage
   await expect(field).toHaveValue('RECOVER THIS QUESTION');
 });
 
+test('a graphic cue on its own key names itself once in the note', async ({ page }) => {
+  const { id, question } = await rehearsal(page);
+  const label = await page.evaluate(async ({ id, question }) => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues!.find(c => c.id === question)!.label, { id, question });
+  await assign(page, label, 'q');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('q');
+  await expect(page.getByTestId('production-note')).toHaveText(`✓ Play now ${label}`);
+});
+
 test('V and F directly restart independent effects while selection and video stay parked; typing and repeats are quiet', async ({ page, request }) => {
   if (process.env.STUDIO_MUTATE_REPEAT) {
     const response = await request.get('/src/components/playoutKeys.ts');
@@ -210,7 +219,7 @@ test('V and F directly restart independent effects while selection and video sta
   await page.keyboard.up('v');
   await expect.poll(() => bridge.actions.filter(a => a.verb === 'take' && a.slot.layer === 5).length).toBe(1);
   // The deck's words for this key (Companion's "Play now, keep selection"), on the page too.
-  await expect(page.getByTestId('production-note')).toHaveText('✓ Play now VICTORY: VICTORY on 2-5');
+  await expect(page.getByTestId('production-note')).toHaveText('✓ Play now VICTORY on 2-5');
   await expect(page.locator('.pd-cue', { hasText: 'VICTORY' }).locator('.pd-cue-hotkey')).toHaveAttribute('title', 'Play now, keep selection');
   await page.keyboard.press('f');
   await expect.poll(() => bridge.actions.filter(a => a.verb === 'take' && a.slot.layer === 5).length).toBe(2);
