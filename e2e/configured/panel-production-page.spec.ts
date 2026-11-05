@@ -343,11 +343,10 @@ test('the clip clock a panel counts follows the server clip the production page 
   await deck.close();
 });
 
-// protocol §6.2, issue #2140 (0110). The first pair a page hears from a deck, reversed on the way, by
-// the same routing as the test above: from a page reopened after the deck pressed (it starts from
-// the deck's last press, which the lease answers), and from a deck started after the page opened
-// (counting from 1). Run as they arrived, Anna would replace Ben both times.
-test('the first pair a page hears runs in the order it was pressed, on a page reopened after the deck pressed and from a deck started since', async ({ page }) => {
+// protocol §6.2, issue #2140 (0110). The first pair a page reopened after the deck pressed hears from
+// it, reversed on the way by the same routing as the test above: the page starts from the deck's
+// last press, which the lease answers. Run as they arrived, Anna would replace Ben.
+test('the first pair a page reopened after the deck pressed hears from it runs in the order it was pressed', async ({ page }) => {
   test.setTimeout(180_000);
   let swap: { earlier: string; later: string; held: (() => void) | null; laterSent: boolean } | null = null;
   await page.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
@@ -401,12 +400,7 @@ test('the first pair a page hears runs in the order it was pressed, on a page re
   const reopened = await deck.state((s) => (s.at as number) >= reopenedAt && Array.isArray(s.live) && (s.live as string[]).length === 0, 'the reopened page');
 
   // The reopened page's first pair from the deck.
-  const up = await revealStands(reopened.ver as number, ['firstdeck:2', 'firstdeck:3']);
-  expect((await deck.press('all-out', '', up.ver as number, 'firstdeck:4')).outcome).toBe('ran');
-
-  // The module restarts (a new instance in its press ids): its first pair.
-  const clear = await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
-  await revealStands(clear.ver as number, ['startdeck:1', 'startdeck:2']);
+  await revealStands(reopened.ver as number, ['firstdeck:2', 'firstdeck:3']);
 
   await deck.close();
 });

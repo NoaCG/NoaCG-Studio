@@ -149,10 +149,10 @@ given up on. Presses let go together run 50 ms apart, so each is judged against 
 drawn the one before it; two that arrive in order have no such gap, however close together, and the
 second may be judged against a page that has not drawn the first. A press after its turn runs at once, so one arriving past the bound still
 has its one effect. Each panel's count starts after the last press the relay took from it before
-this page answered (`last_presses` from `panel_lease`, 0110), and a panel the page meets after that
-is a module started since, counting from 1, so the first pair this page hears runs in press order
-too (issue #2140). Against a database without 0110 the first press this page hears from a panel
-sets the count and never waits, and a reversed pair at that very moment runs as it arrived. A press
+this page answered (`last_presses` from `panel_lease`, 0110), so the first pair this page hears from
+it runs in press order too (issue #2140). For a panel the lease named nothing for (a database
+without 0110, a key paired or a module started after the page answered) the first press this page
+hears sets the count and never waits, and a reversed pair at that very moment runs as it arrived. A press
 refused by the relay or lost on the way leaves a gap, so the next press of that panel waits out the
 500 ms once.
 

@@ -621,7 +621,8 @@ test('the first press heard from a panel sets its count and never waits', () => 
 
 test("the relay's last press of a panel starts its count, so the first pair this page hears runs in press order (issue #2140)", () => {
   const c = pressOrder();
-  c.order.counted(['deck01:57', null, 'nonumber']);
+  // Two keys naming one module start: the higher count holds.
+  c.order.counted(['deck01:12', 'deck01:57', null, 'nonumber']);
   c.hear('deck01:59');
   assert.deepEqual(c.ran, [], 'the later press of the pair waits for the earlier');
   c.hear('deck01:58');
@@ -630,14 +631,13 @@ test("the relay's last press of a panel starts its count, so the first pair this
   assert.deepEqual(c.ran, ['deck01:58', 'deck01:59']);
 });
 
-test('once the counts are known, a panel the page has not met is a module started since, counting from 1', () => {
+test('a panel the relay named no count for sets its own with its first press, which never waits', () => {
   const c = pressOrder();
-  c.order.counted([]);
-  c.hear('deck02:2');
-  assert.deepEqual(c.ran, []);
-  c.hear('deck02:1');
-  c.advance(PRESS_DRAW_MS);
-  assert.deepEqual(c.ran, ['deck02:1', 'deck02:2']);
+  // A key paired after this page answered, on a module that has pressed elsewhere before.
+  c.order.counted(['deck01:57']);
+  c.hear('deck02:42');
+  assert.deepEqual(c.ran, ['deck02:42']);
+  assert.equal(c.timers.length, 0);
 });
 
 test('a press ahead of its turn waits for the ones before it, then they run one gap apart', () => {

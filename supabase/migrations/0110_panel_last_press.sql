@@ -9,8 +9,11 @@
 --   (`panel_keys.last_press`), in the same write as its burst cap and last use;
 -- - `panel_lease` answers those ids (`last_presses`), so the page starts each panel's count after
 --   the last press it will never hear, and holds a later press that arrives first.
--- A press refused after its id was checked (slow-down, no-page) is recorded too: its number is
--- spent, so the page must not wait for it.
+-- A press refused by the burst cap or for want of a page (slow-down, no-page) is recorded too: its
+-- number is spent, so the page must not wait for it. One refused before that (bad-press,
+-- not-a-panel-verb) is not; like a press lost on the way, it costs the next press one 500 ms wait.
+-- A key with no press since this applied names nothing, and its first press sets the count as
+-- before.
 --
 -- WHAT DOES NOT. Every press is checked, refused, rate-limited and broadcast exactly as 0103 does it,
 -- and `panel_lease` decides exactly as 0081 does; it only answers one more field, which a page built

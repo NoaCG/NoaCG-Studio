@@ -290,6 +290,12 @@ interface OrderedPanel {
   drawing: (() => void) | null;
 }
 
+/** A press id's module start and number (`<instance>:<n>`), or null for an id with no number. */
+function pressNumber(pressId: string): { instance: string; n: number } | null {
+  const id = /^(.+):(\d+)$/.exec(pressId);
+  return id ? { instance: id[1], n: Number(id[2]) } : null;
+}
+
 /**
  * ONE PANEL'S PRESSES RUN IN THE ORDER THEY WERE PRESSED (protocol §6.2). Each press is its own
  * relay call and broadcast, so two quick ones can arrive reversed (issue #2109). The press id has
@@ -302,39 +308,39 @@ interface OrderedPanel {
  * decides whether it has an effect (PressMemory), so a +1 arriving late still adds its point.
  *
  * WHERE A PANEL'S COUNT STARTS (issue #2140). The relay answers the page each panel's last press it
- * took (`counted`, from `panel_lease`), so the first pair this page hears runs in press order too;
- * and a panel the page meets after that is a module that started since, counting from 1. A database
- * without it (before 0110) answers nothing, and the first press heard sets the count and never
- * waits, since a module may have pressed long before this page opened.
+ * took (`counted`, from `panel_lease`), so the first pair this page hears from such a panel runs in
+ * press order too. For a panel it named nothing for (a database before 0110, a key paired or a
+ * module started since), the first press heard sets the count and never waits, since a module may
+ * have pressed long before this page opened.
  */
 export class PressOrder {
   /** Call `fn` once after `ms`; returns the cancel. */
   readonly #after: (ms: number, fn: () => void) => () => void;
   readonly #panels = new Map<string, OrderedPanel>();
-  /** Whether the relay said where every panel's count stands. */
-  #counted = false;
   constructor(after: (ms: number, fn: () => void) => () => void) {
     this.#after = after;
   }
 
   /** Each panel's last press the relay took before this page answered: its count starts after it. */
   counted(lastPresses: readonly unknown[]): void {
-    this.#counted = true;
     for (const pressId of lastPresses) {
-      const id = typeof pressId === 'string' ? /^(.+):(\d+)$/.exec(pressId) : null;
-      if (id && !this.#panels.has(id[1])) this.#met(id[1], Number(id[2]) + 1);
+      const id = typeof pressId === 'string' ? pressNumber(pressId) : null;
+      if (!id) continue;
+      // Two keys can name one module start (re-paired without a restart): the higher count holds.
+      const panel = this.#panels.get(id.instance) ?? this.#met(id.instance, id.n + 1);
+      panel.next = Math.max(panel.next, id.n + 1);
     }
   }
 
   /** A press was heard: `run` is called exactly once, in its turn, unless this order stops first. */
   arrive(pressId: string, run: () => void): void {
-    const id = /^(.+):(\d+)$/.exec(pressId);
+    const id = pressNumber(pressId);
     if (!id) {
       run();
       return;
     }
-    const n = Number(id[2]);
-    const panel = this.#panels.get(id[1]) ?? this.#met(id[1], this.#counted ? 1 : n);
+    const { n } = id;
+    const panel = this.#panels.get(id.instance) ?? this.#met(id.instance, n);
     if (n < panel.next) {
       run();
       return;
