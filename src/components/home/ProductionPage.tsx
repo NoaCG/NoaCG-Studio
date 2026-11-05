@@ -4024,7 +4024,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             disabled={!backTo}
             onClick={() => backTo && void snap(backTo)}
             title="Back one step"
-            aria-label="Back"
+            aria-label="Back one step"
             data-testid="verb-back"
           >
             «

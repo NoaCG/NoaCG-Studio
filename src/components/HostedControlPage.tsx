@@ -1770,7 +1770,7 @@ function HostedVerbs({
         disabled={!onBack}
         onClick={() => onBack?.()}
         title="Back one step"
-        aria-label="Back"
+        aria-label="Back one step"
         data-testid="hosted-back-cue"
       >
         «
