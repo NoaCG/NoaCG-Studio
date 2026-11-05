@@ -292,11 +292,15 @@ test.describe('runtime bench detection fixtures', () => {
         shipped: await cuts(''),
         edited: await cuts('.scoreboard-time { font-size: calc(130px * var(--scale)); } ' +
           '.scoreboard-side .scoreboard-mask:has(.scoreboard-time) { height: calc(100px * var(--scale)); }'),
+        // A transform the design keeps at rest does not exempt the line.
+        moved: await cuts('.scoreboard-time { font-size: calc(130px * var(--scale)); transform: translateY(0.5px); } ' +
+          '.scoreboard-side .scoreboard-mask:has(.scoreboard-time) { height: calc(100px * var(--scale)); }'),
         tight: await cuts('.scoreboard-name { line-height: 0.9; }'),
       };
     });
     expect(told.shipped).toEqual([]);
     expect(told.edited.some((m) => m.startsWith('#f6 ') && m.includes("bottom edge cuts"))).toBe(true);
+    expect(told.moved.some((m) => m.startsWith('#f6 ') && m.includes('bottom edge cuts'))).toBe(true);
     expect(told.tight).toEqual([]);
   });
 

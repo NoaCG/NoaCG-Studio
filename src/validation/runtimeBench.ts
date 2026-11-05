@@ -658,6 +658,14 @@ function movedWithin(el: Element, anc: Element, win: Window): boolean {
   return false;
 }
 
+/** Whether a CSS animation or transition is running on `el` or a box between it and `anc`. */
+function animating(el: Element, anc: Element): boolean {
+  for (let node: Element | null = el; node && node !== anc; node = node.parentElement) {
+    if (node.getAnimations().some((a) => a.playState === 'running')) return true;
+  }
+  return false;
+}
+
 /** Whether the line is truncated with an ellipsis between it and `anc`, inclusive. */
 function ellipsized(el: Element, anc: Element, win: Window): boolean {
   for (let node: Element | null = el; node; node = node.parentElement) {
@@ -700,7 +708,10 @@ function bodyExtent(el: Element, mask: Element, win: Window): { top: number; bot
     if (cs.visibility === 'hidden') continue;
     ctx.font = cs.font || `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
     const m = ctx.measureText(transformed(text, cs.textTransform));
-    if (!m.fontBoundingBoxAscent) continue;
+    // A font string the canvas rejects leaves its 10px default in place, which would put the
+    // baseline near the top of the run; such a run is not measured.
+    const size = parseFloat(cs.fontSize);
+    if (!(m.fontBoundingBoxAscent > size * 0.4 && m.fontBoundingBoxAscent < size * 3)) continue;
     const cap = Math.min(m.actualBoundingBoxAscent, ctx.measureText('H').actualBoundingBoxAscent);
     let clipTop = -Infinity;
     let clipBottom = Infinity;
@@ -818,13 +829,15 @@ function overflowIssues(
         // line vertically at rest when its edge crosses the letters' body, cap line to baseline: a
         // numeral edited taller than its mask, a line-height pulled far below the type, a mask
         // given a fixed height. The mask's box is no
-        // measure of that, and neither is the whole ink (see bodyExtent). A line a transform moves
-        // inside its mask is not at rest: parked for an entrance, or mid-way through the pop an
-        // Update plays, which the stress pass can catch.
-        if (!maskCut && clips(win.getComputedStyle(anc).overflowY) && clipReaches(anc, el, win) && !movedWithin(el, anc, win)) {
+        // measure of that, and neither is the whole ink (see bodyExtent). A line is not at rest
+        // when it is parked wholly above or below its mask for an entrance, or while an animation
+        // runs on it or on a box between it and the mask; a transform a design keeps at rest (a
+        // centring translate, a scale) does not exempt it.
+        if (!maskCut && clips(win.getComputedStyle(anc).overflowY) && clipReaches(anc, el, win) && !animating(el, anc)) {
           const body = bodyExtent(el, anc, win);
           const over = body ? Math.max(ar.top - body.top, body.bottom - ar.bottom) : 0;
-          if (body && over > 2) {
+          const parked = !!body && (body.bottom <= ar.top || body.top >= ar.bottom) && movedWithin(el, anc, win);
+          if (body && over > 2 && !parked) {
             maskCut = true;
             const edge = body.bottom - ar.bottom >= ar.top - body.top ? 'bottom' : 'top';
             warnings.push(
