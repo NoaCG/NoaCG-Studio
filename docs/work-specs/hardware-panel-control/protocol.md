@@ -154,7 +154,9 @@ it runs in press order too (issue #2140). For a panel the lease named nothing fo
 without 0110, a key paired or a module started after the page answered) the first press this page
 hears sets the count and never waits, and a reversed pair at that very moment runs as it arrived. A press
 refused by the relay or lost on the way leaves a gap, so the next press of that panel waits out the
-500 ms once.
+500 ms once. That includes a press the relay takes after `panel_lease` answers and before the page's
+press channel joins, during a reload or "Use here": it was lost before 0110 too, and now its count
+is known, so the panel's next press waits once instead of running at once.
 
 Then, in this order, on each `press`:
 
