@@ -105,7 +105,9 @@ spec observes (a spec that reads one by path is still planned for it, `readerInd
   helpers.
 - `e2e/endurance/`, `playwright.endurance.config.ts`, `e2e/instruments/`,
   `playwright.instrument.config.ts`: suites with their own Playwright configs and workflows
-  (`endurance.yml`, `hosted-latency.yml`). The offline and catalog configs never load them. The
+  (`endurance.yml`, `hosted-latency.yml`). The offline and catalog configs never load them. A
+  `.spec.` file in those folders would be collected by `playwright.config.ts` (testDir `./e2e`), so
+  the rule leaves one unmapped and it escalates. The
   instrument pair is the same case as #1862's endurance pair and met the replay (#2100).
 
 The catalog reach is asked before `CENTRAL` (`inCatalogReach`, before `IGNORE`), so a file the gate
@@ -118,12 +120,14 @@ measures through cannot be routed around it by a mapping.
   every change that can move a design still raises the catalog gate": templates, blocks, assets,
   bundled fonts, the font registry, the bench, the OGraf target, control code in the reach,
   `composeDocument`, the svg-corpus fixture, a catalog spec, the catalog config and `package.json`,
-  each alone and beside a mapped path. The existing ci04 and ci05 tests (the corpus stays in the
+  each alone and beside a mapped path. A new spec file under `e2e/instruments/` or `e2e/endurance/`
+  still escalates. The existing ci04 and ci05 tests (the corpus stays in the
   reach; every fixture plans a spec) pass unchanged.
 - **Before and after** (`phase-cf14-replay.mjs`): today's planner over the 285 first-parent
   landings since 2026-10-24, with and without the three entries. Gate: 112 before, 108 after.
   Dropped: #2100 (instrument suite), #2043 (Companion lockfile), #1815 (harness cells), #1800
-  (Companion module). Added: none (the script exits non-zero if any landing gains the gate). The shared-change set: 117 before, 113 after, the same four.
+  (Companion module). Added: none (the script exits non-zero if any landing gains the gate). The
+  planned specs change on the same four landings and no other. The shared-change set: 117 before, 113 after, the same four.
 
 ### 3.3 Not mapped: `e2e/fixtures/jev-svg/`
 
@@ -199,14 +203,14 @@ ci04's fix, which put the gate on about 40% of landings), or the refusal stands.
 
 - `node --test scripts/e2e-affected.test.mjs scripts/catalog-affected.test.mjs
   scripts/configured-selection.test.mjs scripts/keyed-selection.test.mjs
-  scripts/e2e-selection-misses.test.mjs scripts/e2e-traced.test.mjs`: 306 tests, all pass.
+  scripts/e2e-selection-misses.test.mjs scripts/e2e-traced.test.mjs scripts/growth-controls.test.mjs
+  scripts/e2e-capacity.test.mjs`: 427 tests, all pass.
 - Mutation: the new "mapped paths" test fails on `main`'s planner and passes on this one.
 - `node docs/work-specs/cicd-followup/evidence/phase-cf14-replay.mjs`: 112 to 108, none added.
 - `node scripts/growth-report.mjs fetch` then `node scripts/e2e-capacity.mjs --changed origin/main
   --growth <file>`: WARN (graphics OK at 79%); it names the new exception as needing its recorded
   review, which is the #1863 comment.
-- `node --test scripts/growth-controls.test.mjs scripts/e2e-capacity.test.mjs`: 121 tests, all
-  pass. One test pinned the real ledger's refusal on 2026-12-01; it now pins the same refusal on
+- One ledger test pinned the real ledger's refusal on 2026-12-01; it now pins the same refusal on
   2026-12-15, and that the extension, not ci04's entry, holds 2026-12-01 to 2026-12-14.
 
 ## 8. Phase notes
@@ -231,4 +235,6 @@ ci04's fix, which put the gate on about 40% of landings), or the refusal stands.
     run per stratum: it reads 0 for the catalog gate. Read the jobs of every run instead, cached.
   - The jobs API returns only the latest attempt unless `filter=all`.
   - The runs API sometimes answers 502: check each cached file parses before using it.
-  - `planFor` takes no `central` option; the replay swaps the exported `CENTRAL` array in place.
+  - `planFor` gained a `central` option so the replay can plan without the new entries.
+    `scripts/e2e-plan-compare.mjs` (the old-against-new planner comparison) fails on today's planner:
+    its temporary copy of the old planner has no `e2e/` folder, which the reader index reads.

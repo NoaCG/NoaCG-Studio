@@ -170,8 +170,9 @@ export const CENTRAL = [
   // The harness bench's cells and briefs: read by scripts/harness-bench.mjs and its helpers.
   [/^benchmarks\/harness\//, []],
   // Suites with their own Playwright configs and workflows (endurance.yml, hosted-latency.yml):
-  // the offline and catalog configs never load them.
-  [/^(e2e\/endurance\/|playwright\.endurance\.config\.ts$|e2e\/instruments\/|playwright\.instrument\.config\.ts$)/, []],
+  // the offline and catalog configs never load them. A `.spec.` file there would be collected by
+  // playwright.config.ts (testDir ./e2e), so one stays unmapped and escalates.
+  [/^(e2e\/(endurance|instruments)\/(?!.*\.spec\.[cm]?[jt]sx?$)|playwright\.(endurance|instrument)\.config\.ts$)/, []],
 ];
 
 /**
@@ -1028,6 +1029,7 @@ export function reachesBackend(file, graph) {
  * dev server loads at startup, which IGNORE never swallows; and `rawImporters`
  * (`checkoutRawImporters`, read only when the change touches src/), which adds each changed `?raw` file's importers to the plan (listed in
  * `rawPlanned`). A caller that loads a planner from elsewhere passes both.
+ * `central` replaces the CENTRAL rules, so a replay can plan with and without a mapping.
  *
  * @param {string[]} changed        repo-relative paths, forward slashes
  * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
@@ -1043,7 +1045,7 @@ export function reachesBackend(file, graph) {
 export function planFor(
   changed,
   { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null, catalogReach, readers,
-    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph, critical = CRITICAL } = {},
+    configuredCoverage = CONFIGURED_COVERAGE, configuredOnDisk = CONFIGURED_SPECS, configuredShared = configuredFullFor, appGraph, critical = CRITICAL, central: centralRules = CENTRAL } = {},
 ) {
   // Built on first use: a change of only specs, helpers or CORE files never reads e2e/ for it.
   let readIndex = readers;
@@ -1191,7 +1193,7 @@ export function planFor(
       if (!APP_SHELL.test(file)) addReaders(file);
       continue;
     }
-    const central = CENTRAL.filter(([r]) => r.test(file));
+    const central = centralRules.filter(([r]) => r.test(file));
     // THE TRACED HALF: the specs whose browser executed this file on the last nightly
     // (scripts/e2e-traced.mjs), added to whatever the curated headers name. A map that cannot be
     // trusted escalates the file instead of being skipped. A file most of the suite executes is
