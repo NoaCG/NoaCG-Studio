@@ -158,11 +158,11 @@ function SaveDialog() {
               data-testid="save-name"
             />
           </label>
+          {lands !== typed && <p className="hint" data-testid="save-name-taken">That name is taken. This saves as <strong>{lands}</strong>.</p>}
           <p className="hint" data-testid="save-where">
             Saved graphics live in your library on Home{where}. To run several together on air,
             add them to a <strong>production</strong>. Its page holds the rundown and the links.
           </p>
-          {lands !== typed && <p className="hint" data-testid="save-name-taken">That name is taken. This saves as <strong>{lands}</strong>.</p>}
           {error && <p className="status-bad">{error}</p>}
           <div className="dlg-foot dlg-foot--inline">
             <button onClick={close} disabled={busy}>Cancel</button>
