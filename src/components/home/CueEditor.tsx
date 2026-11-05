@@ -499,7 +499,7 @@ function CueConnectReview({
           ? 'Paste a Google Sheet tab’s link (Share, then “Anyone with the link”) or a news feed’s address.'
           : 'Paste a Google Sheet tab’s link (Share, then “Anyone with the link”) or an address that answers JSON.'}
       </p>
-      <div className="row">
+      <div className="row pd-connect-link">
         <input
           className="grow"
           value={linkText}
