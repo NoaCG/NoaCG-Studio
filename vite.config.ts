@@ -190,7 +190,9 @@ export default defineConfig(({ command, mode }) => {
     // the same number), so failing loudly beats silently drifting onto a neighbour's port. The
     // number itself is reserved by devPortReservation() above, at the moment a server starts.
     // open: skipped on CI runners — there is no browser to open, only Playwright's.
-    // watch: off for the e2e suite's own server (playwright.config.ts sets NOACG_E2E_SERVER), so a
+    // watch: off for a server a Playwright config starts (playwright.config.ts,
+    // playwright.catalog.config.ts, playwright.live.config.ts and playwright.endurance.config.ts
+    // each set NOACG_E2E_SERVER; a new config that starts its own server needs it too), so a
     // source edit mid-run causes no reloads and no second module copies. With watching on, Vite
     // stamps the app's imports with ?t=, while a spec's `import('/src/...')` asks for the bare URL
     // and gets a second copy whose store nothing renders (#1897). A file first requested after
