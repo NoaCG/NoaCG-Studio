@@ -369,6 +369,8 @@ function CueConnectReview({
   const jsonRead = useRef<AbortController | null>(null);
   const cancelRead = () => {
     readNo.current += 1;
+    // A pending one-button Connect belongs to the read it started, never to the next one.
+    setAuto(false);
     jsonRead.current?.abort();
   };
   useEffect(() => cancelRead, []);
@@ -465,7 +467,9 @@ function CueConnectReview({
   // as in the review (a link naming no tab reads its first tab). Anything else stays open on the
   // review, as Check matches first leaves it.
   const torn = mapping.filter((r) => (r.status === 'ambiguous' && chosen(r) === null) || (r.current !== null && r.current !== r.path && r.path !== null)).length;
-  const clean = Boolean(content) && matched > 0 && torn === 0 && content!.problems.length === 0;
+  // A field already following something else counts as matched; the link needs a match to THIS read.
+  const matchesRead = id !== '' && mapping.some((r) => r.status !== 'refused' && isSourcePath(id, chosen(r) ?? ''));
+  const clean = Boolean(content) && matchesRead && torn === 0 && content!.problems.length === 0;
   useEffect(() => {
     if (!auto || reading || !read) return;
     setAuto(false);
@@ -479,8 +483,9 @@ function CueConnectReview({
     const start = (go: () => Promise<void>) => {
       setLabel((l) => l || poolGraphic.name);
       setSourceId(`s${uuid().replace(/-/g, '').slice(0, 10)}`);
-      setAuto(link);
+      // After go(): its read cancels the last one, which clears any earlier intent first.
       void go();
+      setAuto(link);
     };
     const sheet = parseSheetLink(linkText);
     if (!('error' in sheet)) return start(() => readTab(sheet.link));

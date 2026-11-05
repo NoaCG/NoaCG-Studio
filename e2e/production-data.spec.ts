@@ -1751,7 +1751,7 @@ test('a first Sheet connection is one button: the template rows connect live, th
 
 test('a Sheet that needs a look stays open on its review, and Another system stays out of it (#2185)', async ({ page }) => {
   test.setTimeout(60_000);
-  await stubSheet(page, 'Name,Value\nName,Ann Lee\nName,Bo Chen\n');
+  const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\nName,Bo Chen\n');
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const showId = await productionFor(page, 'Sheet Check');
   await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
@@ -1769,6 +1769,15 @@ test('a Sheet that needs a look stays open on its review, and Another system sta
   await expect(review).toBeHidden();
   const { bindings } = await storedBindings(page, showId);
   expect(Object.values(bindings.Hairline ?? {}).every((p) => p.startsWith('sheet.')), 'nothing wired to Another system').toBe(true);
+
+  // Change… to a Sheet that matches nothing: the fields still follow the first one, so Connect
+  // stays on the review rather than closing as if it had linked.
+  tab.csv = 'Colour,Shade\nSky,Blue\n';
+  await page.getByTestId('cue-connect').click();
+  await review.getByTestId('cue-connect-link').fill(SHEET_LINK.replace('gid=0', 'gid=7'));
+  await review.getByTestId('cue-connect-go').click();
+  await expect(review.getByTestId('cue-connect-held')).toBeVisible();
+  expect((await storedBindings(page, showId)).bindings).toEqual(bindings);
 });
 
 test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
