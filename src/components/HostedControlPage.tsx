@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { packageLayerPeers, withPeersOff } from '../control/ografOutcome';
+import { holdReload } from '../app/deploySkew';
 import {
   adjustWords,
   controlName,
@@ -654,6 +655,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // Read through refs: a stage can come up long after the render that passed this callback.
   const liveCueRef = useRef(liveCue);
   liveCueRef.current = liveCue;
+  // Left open across a deploy, the page reloads for a code file it can no longer fetch, but never
+  // while a graphic is up here: a Take echoes locally before it sends (app/deploySkew.ts, #758).
+  useEffect(() => holdReload(() => Object.values(liveCueRef.current).some(Boolean)), []);
   const machineStateRef = useRef(machineState);
   machineStateRef.current = machineState;
   /** Sends the cue editor's typing still inside its debounce (`sendVerb` says why). */

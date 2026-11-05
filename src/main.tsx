@@ -2,7 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/index.css';
 import { trackPageVisit } from './backend/events';
-import { hydrateDurableStore } from './model/durableStore';
+import { flushDurableStore, hydrateDurableStore } from './model/durableStore';
+import { installDeploySkewRecovery } from './app/deploySkew';
 
 // Boot stages for app.html's watchdog (its inline script owns the values): 'html' is set
 // inline before this module loads, 'js' proves the entry chunk executed, 'mounted' proves
@@ -23,6 +24,10 @@ const diagMode = new URLSearchParams(window.location.search).has('diag');
 // One report per page load, before React mounts so a slow first render cannot cost the
 // datapoint. Inert without a backend and inert for a visitor who opted out or sends DNT.
 if (!diagMode) trackPageVisit();
+
+// A page left open across a deploy asks for code files the new deploy no longer has: reload it at
+// a safe moment (app/deploySkew.ts, issue #758).
+if (!diagMode) installDeploySkewRecovery(flushDurableStore);
 
 // The saved documents live in IndexedDB behind a synchronous mirror (model/durableStore.ts).
 // Loading that mirror is the one asynchronous step in the boot, and it MUST finish before the
