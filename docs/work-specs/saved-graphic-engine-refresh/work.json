@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "81ec1dbff610df88e1ae33539a8feb1d2ee987ef1a3db253807625385c002973",
+  "authority": {
+    "status": "draft",
+    "source": "Owner task of 2026-11-05: settle #2182 by a publish probe, write a spec with options and a recommendation, and stop for the owner's decision"
+  },
+  "review": null
+}
