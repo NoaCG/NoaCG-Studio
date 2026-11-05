@@ -399,8 +399,10 @@ export class PressOrder {
       panel.giveUp = null;
     }
     this.#ranAt = this.#now();
-    // The gap for the presses behind it, armed before it runs, so one that throws cannot strand them.
+    // The gap for the presses behind it, this panel's and any other's, armed before it runs, so one
+    // that throws cannot strand them.
     this.#pump(panel);
+    if (this.#waiting.size > 0) this.#drawing ??= this.#after(PRESS_DRAW_MS, () => this.#drawn());
     run();
   }
 

@@ -786,6 +786,19 @@ test('stopping drops what is held and every timer', () => {
   assert.deepEqual(c.ran, ['deck01:1', 'deck01:2']);
 });
 
+test("a press that throws does not strand another panel's press waiting behind it", () => {
+  const c = pressOrder();
+  c.hear('deckaa:1');
+  c.order.arrive('deckbb:1', () => {
+    throw new Error('the dispatcher threw');
+  });
+  c.hear('deckcc:1');
+  assert.deepEqual(c.ran, ['deckaa:1']);
+  assert.throws(() => c.advance(PRESS_DRAW_MS));
+  c.advance(PRESS_DRAW_MS);
+  assert.deepEqual(c.ran, ['deckaa:1', 'deckcc:1']);
+});
+
 test('a press that throws does not strand the ones behind it', () => {
   const c = pressOrder();
   c.hear('deck01:1');
