@@ -327,8 +327,12 @@ afterwards follows the command log, as for any output loaded fresh. The decision
 - **Only this browser's output, on its own slot.** Each Load is kept per production in this
   browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load still
   brings it back, once it has seen the output on the slot again. An Unload in any tab of the
-  browser counts for all of them. Of the tabs open on the production, one holds a browser lock and
-  alone reloads and counts the three tries; if it closes, another takes over. Not an output only another browser loaded, not a
+  browser counts for all of them, and so does an outage any of its tabs saw, so a background tab
+  that missed the restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs
+  that have seen the output on the slot, one holds a browser lock and alone reloads and counts the
+  three tries; a tab going into the background hands it to one in view, and one closing hands it
+  to the next. If the browser's storage refuses the write (a full or blocked storage), the page
+  still brings back its own Load while it stays open, as before. Not an output only another browser loaded, not a
   slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
   emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left
   alone, and gives the output up, so a later outage does not bring it back.
@@ -339,7 +343,8 @@ afterwards follows the command log, as for any output loaded fresh. The decision
   once the server answers. A Load this browser made is forgotten only when a page of it sees the
   slot given up, so if another browser later loads the same production there, this one may reload
   it too after a restart, as when both pressed Load. On a plain `http://` address the browser has
-  no lock, and every tab reloads as before. A restart so quick that no poll saw the server gone (the status
+  no lock, and every tab reloads as before. An Unload pressed in one tab while another tab's reload
+  is already on its way can lose to it; look at the slot row and press Unload again. A restart so quick that no poll saw the server gone (the status
   is asked every few seconds, less often in a background tab, which the browser slows) reads as a
   `CLEAR`, and Load is needed as before. Two browsers that each pressed Load both reload, which
   loads the same URL twice, at most a flicker.

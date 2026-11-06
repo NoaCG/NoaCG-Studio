@@ -299,7 +299,8 @@ const BRIDGE_IO: BridgeWatchIo = {
   loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
   keepLoaded: (showId, next) => {
     const memory = loadReadyMemory(showId);
-    if (memory.casparLoaded?.at !== next?.at) saveReadyMemory(showId, { ...memory, casparLoaded: next ?? undefined });
+    const same = memory.casparLoaded?.at === next?.at && memory.casparLoaded?.outageAt === next?.outageAt;
+    return same || saveReadyMemory(showId, { ...memory, casparLoaded: next ?? undefined });
   },
   // Held by one tab of this browser at a time (Web Locks). Without them (an insecure origin), every
   // tab holds it, as before #2245.
@@ -335,6 +336,14 @@ const BRIDGE_IO: BridgeWatchIo = {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
+  },
+  now: () => Date.now(),
+  onHidden: (run) => {
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') run();
+    };
+    document.addEventListener('visibilitychange', onHidden);
+    return () => document.removeEventListener('visibilitychange', onHidden);
   },
 };
 

@@ -36,7 +36,7 @@ export interface ReadyMemory {
    *  its server/slot and a stamp of its own. The slot a CasparCG restart puts it back on, also after
    *  the page was reloaded (control/bridgeWatch.ts, #2245). Unlike `casparOutput`, never set by
    *  only seeing it there. */
-  casparLoaded?: { target: string; at: number };
+  casparLoaded?: { target: string; at: number; outageAt?: number };
 }
 
 const EMPTY: ReadyMemory = { outputs: [], stamp: null };
@@ -67,9 +67,10 @@ function readStamp(value: unknown): RememberedStamp | null {
   return { at: s.at, v: { n: s.v.n, h: s.v.h }, outputs: count(s.outputs), ready: count(s.ready), warnings: count(s.warnings), problems: count(s.problems) };
 }
 
-function readLoaded(value: unknown): { casparLoaded?: { target: string; at: number } } {
-  const l = value as { target?: unknown; at?: unknown } | null;
-  return l && typeof l === 'object' && typeof l.target === 'string' && typeof l.at === 'number' ? { casparLoaded: { target: l.target.slice(0, 300), at: l.at } } : {};
+function readLoaded(value: unknown): { casparLoaded?: { target: string; at: number; outageAt?: number } } {
+  const l = value as { target?: unknown; at?: unknown; outageAt?: unknown } | null;
+  if (!l || typeof l !== 'object' || typeof l.target !== 'string' || typeof l.at !== 'number') return {};
+  return { casparLoaded: { target: l.target.slice(0, 300), at: l.at, ...(typeof l.outageAt === 'number' ? { outageAt: l.outageAt } : {}) } };
 }
 
 export function loadReadyMemory(productionId: string): ReadyMemory {
@@ -89,20 +90,23 @@ export function loadReadyMemory(productionId: string): ReadyMemory {
   }
 }
 
-export function saveReadyMemory(productionId: string, memory: ReadyMemory): void {
+/** Keep `memory` for `productionId`: whether it was written. */
+export function saveReadyMemory(productionId: string, memory: ReadyMemory): boolean {
   try {
     const raw = localStorage.getItem(keyFor(productionId));
     if (raw) {
       const held = JSON.parse(raw) as { v?: unknown } | null;
       // A newer build's record is left as it is.
-      if (held && typeof held.v === 'number' && held.v > READY_MEMORY_VERSION) return;
+      if (held && typeof held.v === 'number' && held.v > READY_MEMORY_VERSION) return false;
     }
     localStorage.setItem(
       keyFor(productionId),
       // The newest are kept: the list grows at its end (control/readiness.ts rememberOutputs).
       JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp, casparOutput: memory.casparOutput, casparLoaded: memory.casparLoaded }),
     );
+    return true;
   } catch {
     // Nowhere to keep it: remembered for as long as the page is open.
+    return false;
   }
 }

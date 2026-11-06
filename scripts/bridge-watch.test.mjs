@@ -9,7 +9,7 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { startBridgeWatch, SLOT_READ_MS } = await import('../src/control/bridgeWatch.ts');
+const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS } = await import('../src/control/bridgeWatch.ts');
 const { createPlayoutSession, NO_BRIDGE } = await import('../src/control/playoutSession.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
 
@@ -27,7 +27,7 @@ const ourPage = { layer: 20, producer: 'html', file: 'https://noacg.studio/outpu
 
 /** One browser's storage (model/readyMemory.ts `casparLoaded`) and its Web Locks, which its tabs share. */
 function newBrowser() {
-  return { loaded: new Map(), locks: new Map() };
+  return { loaded: new Map(), locks: new Map(), refuses: false, clock: Date.now() };
 }
 
 /** Every watch a test started, stopped after it so no real timer keeps Node running. */
@@ -42,6 +42,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
   const subs = [];
   const everys = [];
   const visibles = [];
+  const hiddens = [];
   /** Readings held by the test: `hold` makes the next `/state` wait until the test answers it. */
   const held = [];
   let hold = false;
@@ -78,8 +79,11 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     rememberOutput: (showId, target) => calls.push(`remember ${showId} ${target}`),
     loadedOutput: (showId) => browser.loaded.get(showId) ?? null,
     keepLoaded: (showId, next) => {
+      // A full or private-window storage refuses every write.
+      if (browser.refuses) return false;
       if (next === null) browser.loaded.delete(showId);
       else browser.loaded.set(showId, next);
+      return true;
     },
     lead: (key) => {
       // Web Locks: one holder per key, the next asker's when it lets go.
@@ -100,6 +104,15 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       everys.push(e);
       return () => {
         e.live = false;
+      };
+    },
+    // One clock for the whole browser, a millisecond on at every look, so "after" is never a tie.
+    now: () => (browser.clock += 1),
+    onHidden: (run) => {
+      const h = { run, live: true };
+      hiddens.push(h);
+      return () => {
+        h.live = false;
       };
     },
     onVisible: (run) => {
@@ -165,6 +178,10 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     readSlot: async () => {
       everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
       await settle();
+    },
+    /** The tab goes out of view. */
+    hide: () => {
+      for (const h of hiddens.filter((x) => x.live)) h.run();
     },
     /** The live status subscription answers. */
     answer: (result) => subs.filter((s) => s.live).at(-1).onStatus(result),
@@ -849,4 +866,108 @@ test('a tab that read the slot empty before a newer Load in another tab does not
   const kept = browser.loaded.get('show-1');
   await settle();
   assert.deepEqual(browser.loaded.get('show-1'), kept, 'the newer Load is still kept');
+});
+
+test('a reopened page forgets a kept Load it finds taken off while everything answers, unless it is fresh', async () => {
+  const target = '["caspar",5250,1,20]';
+  // Cleared while no page of this browser was open: the page opens onto a healthy empty slot.
+  const browser = newBrowser();
+  const server = { layer: EMPTY };
+  browser.loaded.set('show-1', { target, at: Date.now() - FRESH_LOAD_MS - 1000 });
+  const t = await reopened(browser, server);
+  await t.readSlot();
+  assert.equal(browser.loaded.get('show-1'), undefined, 'forgotten');
+  // Another browser loads the production there later: this browser does not take it for its own.
+  server.layer = ourPage;
+  await t.readSlot();
+  await restartServer(t);
+  assert.ok(!t.calls.includes('reload'), 'another browser\'s Load is not brought back from here');
+
+  // A Load still fresh (another tab just loaded it, and the slot does not show it yet) is kept.
+  const fresh = newBrowser();
+  const at = Date.now();
+  fresh.loaded.set('show-1', { target, at });
+  const u = await reopened(fresh, { layer: EMPTY });
+  await u.readSlot();
+  assert.equal(fresh.loaded.get('show-1')?.at, at, 'a fresh Load is kept');
+
+  // A page opened while CasparCG is down does not forget it on the first empty reading after.
+  const down = newBrowser();
+  down.loaded.set('show-1', { target, at: Date.now() - FRESH_LOAD_MS - 1000 });
+  const v = rig({ items: [], browser: down, server: { layer: EMPTY } });
+  v.update();
+  v.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  v.answer(OK);
+  await settle();
+  assert.ok(down.loaded.get('show-1'), 'kept through an outage');
+});
+
+test('a browser whose storage refuses writes still brings the output back while the page stays open', async () => {
+  const browser = newBrowser();
+  browser.refuses = true;
+  const t = await loadedRig({ browser });
+  assert.equal(browser.loaded.get('show-1'), undefined, 'nothing was kept');
+  await restartServer(t);
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again once, from the page\'s own word');
+  // ...and an Unload is still never undone.
+  const u = await loadedRig({ browser });
+  u.watch.slotOwned(false, u.inputs.casparTarget);
+  await restartServer(u);
+  assert.ok(!u.calls.includes('reload'));
+});
+
+test('two tabs that saw the outage differently: one that missed it never cancels the reload', async () => {
+  // A: the lead, saw the outage. B: a background tab whose slowed poll missed it, and reads the
+  // empty slot first. B must not take it for a CLEAR and forget the Load for the whole browser.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  await b.readSlot();
+  assert.ok(browser.loaded.get('show-1'), 'B keeps the Load: A noted the outage');
+  a.answer(OK);
+  await settle();
+  assert.equal([...a.calls, ...b.calls].filter((c) => c === 'reload').length, 1, 'A reloads, once');
+
+  // The other way round: the lead missed the outage, a background tab saw it. The lead still reloads.
+  const browser2 = newBrowser();
+  const server2 = { layer: ourPage };
+  (await loadedRig({ browser: browser2, server: server2 })).watch.stop();
+  const lead = await reopened(browser2, server2);
+  const other = await reopened(browser2, server2);
+  other.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server2.layer = EMPTY;
+  await lead.readSlot();
+  assert.equal(lead.calls.filter((c) => c === 'reload').length, 1, 'the lead reloads on the outage another tab noted');
+  assert.equal(other.calls.filter((c) => c === 'reload').length, 0);
+});
+
+test('a lead tab going out of view hands the reload to a tab in view', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  a.hide();
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  b.answer(OK);
+  await settle();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 1, 'the tab in view reloads');
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 0);
+  // Alone and out of view, a tab keeps the lead: a background tab still brings it back.
+  const solo = newBrowser();
+  const s2 = { layer: ourPage };
+  (await loadedRig({ browser: solo, server: s2 })).watch.stop();
+  const c = await reopened(solo, s2);
+  c.hide();
+  await restartServer(c);
+  assert.equal(c.calls.filter((x) => x === 'reload').length, 1);
 });
