@@ -222,8 +222,8 @@ function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (
 }
 
 /** One source's tone in the header indicator, worst last: a source still on its first read, a
- *  healthy one, one paused by the operator, one with a problem (failing, empty, rows it could not
- *  use, or a graphic's own reader Pause cannot stop), and one stale after three missed reads. */
+ *  healthy one, one paused by the operator, one with a problem (failing, empty, or rows it could
+ *  not use), and one stale after three missed reads. */
 export type DataTone = 'ok' | 'waiting' | 'paused' | 'warn' | 'bad';
 const TONE_RANK: Record<DataTone, number> = { ok: 0, waiting: 1, paused: 2, warn: 3, bad: 4 };
 const TONE_GLYPH: Record<DataTone, string> = { ok: '✓', waiting: '…', paused: '❚❚', warn: '⚠', bad: '⚠' };
@@ -272,7 +272,10 @@ export function DataIndicator({
   const sources = (show.sources ?? []).filter(fillsFields);
   // One string per reading, so a status that moves without changing a tone renders nothing here.
   const tones = useSyncExternalStore(store.subscribe, () => sources.map((s) => sourceTone(s.paused, store.get(s.id))).join(' '));
-  const summary = dataSummary([...(tones ? (tones.split(' ') as DataTone[]) : []), ...ownReaders.map(() => 'warn' as const)]);
+  // A graphic's own reader reads by itself and nothing here sees its reads: it counts as reading,
+  // and its line in the panel says Pause does not stop it. A permanent amber would teach the
+  // operator to ignore amber.
+  const summary = dataSummary([...(tones ? (tones.split(' ') as DataTone[]) : []), ...ownReaders.map(() => 'ok' as const)]);
   if (!summary) return null;
   const total = sources.length + ownReaders.length;
   const title =

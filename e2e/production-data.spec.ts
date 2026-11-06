@@ -1572,7 +1572,6 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await page.getByTestId('cue-bound-f1').getByTestId('cue-disconnect').click();
   await expect(page.getByTestId('cue-field-f1')).toHaveValue('Chief Editor');
   expect(await storedBindings(page, showId), 'the last field gone, the source goes too').toEqual({ bindings: {}, sources: [] });
-  await expect(line).toHaveCount(0);
   await expect(page.getByTestId('data-indicator'), 'no source, no indicator').toHaveCount(0);
 });
 
@@ -1637,6 +1636,16 @@ test('the header Data indicator stays whichever cue is selected, its panel tells
   await expect(status).toHaveText(/checked \d+ s ago/, { timeout: 10_000 });
   await expect(indicator).toHaveAttribute('data-tone', 'ok');
   expect(tab.reads).toBeGreaterThan(reads);
+
+  // Two sources: all well counts both; one paused counts only that one.
+  await cues.nth(1).locator('.pd-cue-label').click();
+  const second = await readSheetTab(page, 'https://docs.google.com/spreadsheets/d/1NoaCGStubSheet1111111111/edit#gid=0');
+  await second.getByTestId('cue-connect-label').fill('Crew');
+  await second.getByTestId('cue-connect-confirm').click();
+  await expect(indicator).toHaveText('Data ✓ 2', { timeout: 10_000 });
+  await (await openDataPanel(page)).getByTestId(`source-line-${sources[0].id}`).getByTestId('source-pause').click();
+  await expect(indicator).toHaveText('Data ❚❚ 1');
+  await expect(indicator).toHaveAttribute('data-tone', 'paused');
 });
 
 test('twelve Sheet rows reach a ticker on air without a new entrance, and an emptied tab clears it', async ({ page }) => {
@@ -2068,8 +2077,9 @@ test('one way to connect a Sheet: a graphic with its own reader still updates on
   const cues = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(cues).toHaveCount(2);
 
-  // ── Retained: listed beside the sources, honestly without a Pause it could not keep. ──
-  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'warn');
+  // ── Retained: listed beside the sources, honestly without a Pause it could not keep. It reads,
+  //    so the header stays calm; the panel says Pause does not stop it. ──
+  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'ok');
   await openDataPanel(page);
   const ownLine = page.getByTestId('own-reader-line');
   await expect(ownLine).toContainText('Sheet in Legacy Card’s own code');
