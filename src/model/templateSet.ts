@@ -7,7 +7,7 @@
 // forget the durable-write claim (`components/never-report-save-storage-layer-has`).
 
 import { commitDurableWrites } from './durableStore';
-import { createGraphic, type GraphicDoc } from './library';
+import { createGraphic, freeGraphicName, type GraphicDoc } from './library';
 import type { GraphicOrigin } from './graphicDoc';
 import { captureLookFromTemplate } from './packets';
 import {
@@ -59,10 +59,13 @@ export async function saveTemplateSetToProduction(
       docs.push({ id: kept.id, template: { ...kept.template, name: template.name } });
       continue;
     }
-    const { doc, error } = createGraphic(template, { name: template.name, packageId: null, fromPack: fromPacks?.[i], origin: opts.origins?.[i] });
+    // A free name in the library, so saving the same kit or pack twice never makes same-named
+    // twins (issue #779). Pooled under the name this set gives it, as a reused record is.
+    const name = freeGraphicName(template.name) || template.name;
+    const { doc, error } = createGraphic({ ...template, name }, { name, packageId: null, fromPack: fromPacks?.[i], origin: opts.origins?.[i] });
     const failure = error ?? (await commitDurableWrites());
     if (failure || !doc) throw new Error(failure ?? 'The graphic could not be saved.');
-    docs.push(doc);
+    docs.push({ id: doc.id, template: { ...doc.template, name: template.name } });
   }
 
   // A set usually IS a new production, and that stays the default — but the caller can aim it

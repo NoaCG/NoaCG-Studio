@@ -300,8 +300,8 @@ test('a failing Sheet keeps the prepared credits as last read and says why; the 
 
 type Built = { js: string; html: string; layout: string };
 /** `first` is the sample of the layer picked as Credits: the first role, as the wizard offers it. */
-function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 'cards', face: boolean, advance?: number, first = 'Research'): Promise<Built> {
-  return page.evaluate(async ({ source, playback, face, advance, first }) => {
+function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 'cards', face: boolean, advance?: number, first = 'Research', liveControl = false): Promise<Built> {
+  return page.evaluate(async ({ source, playback, face, advance, first, liveControl }) => {
     const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
     const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
     const C = await import('/src/templates/importedDesign/creditsRoll.ts');
@@ -325,8 +325,8 @@ function buildCredits(page: Page, source: string, playback: 'roll' | 'static' | 
       behaviour: { kind: 'recipe' as const, recipe: 'credits', layers: {}, fields: { credits }, credits: { v: 1 as const, layout: preview.layout, playback, ...(advance === undefined ? {} : { advance }), anchors: preview.anchors } },
     };
     const template = IMPORTED_SVG.create({ designSvg: svg });
-    return { js: template.js, layout: preview.layout, html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: 'rise', motionOut: 'fade' } }), IMPORTED_SVG)) };
-  }, { source, playback, face, advance, first });
+    return { js: template.js, layout: preview.layout, html: composeDocument(withUniversalMotion(template, mergeDraft(initialDraft(), { animation: { motionIn: 'rise', motionOut: 'fade' } }), IMPORTED_SVG), liveControl ? { liveControl: true } : {}) };
+  }, { source, playback, face, advance, first, liveControl });
 }
 
 const rowTexts = (page: Page) => page.evaluate(() => [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent));
@@ -586,6 +586,51 @@ for (const playback of ['roll', 'cards'] as const) {
       return { same: w.noacgCreditsHeld === loaded, waiting: w.noacgCreditsWaiting };
     }, { field, other: OTHER });
     expect(first2, 'the first take after load keeps the list its rows were built with').toEqual({ same: true, waiting: true });
+  });
+}
+
+// #2075: a graphic holding a list while a newer one waits says which, in its state answer; a
+// rebuilt stage (an output's boot, the dashboard's PROGRAM after a reload) writes that list before
+// the take it replays and the newest after, so it shows the list on air and says a newer one waits,
+// rather than taking the newest.
+for (const playback of ['roll', 'cards'] as const) {
+  test(`${playback}: the state answer carries the held list, and a rebuild from it airs the list held (#2075)`, async ({ page }) => {
+    await page.goto('/app');
+    const built = await buildCredits(page, readFileSync(ABOVE_CREDITS_SVG, 'utf8'), playback, false, undefined, 'Research', true);
+    await page.goto('/robots.txt');
+    await page.setContent(built.html);
+    const field = await fieldFor(page, 'credits');
+    // The state ask every stage sends once a second, answered to this page.
+    const ask = () => page.evaluate(() => new Promise<{ state: Record<string, unknown> | null; waits: boolean; held: Record<string, string> | null }>((resolve) => {
+      const on = (ev: MessageEvent) => {
+        if (ev.data?.type !== 'spx-preview-state') return;
+        window.removeEventListener('message', on);
+        resolve({ state: ev.data.state, waits: ev.data.waits, held: ev.data.held ?? null });
+      };
+      window.addEventListener('message', on);
+      window.postMessage({ type: 'spx-preview-cmd', cmd: 'state' }, '*');
+    }));
+    await call(page, { [field]: LIST }, 'play');
+    await expect.poll(() => page.evaluate(() => (window as unknown as { noacgCreditsHeld: string | null }).noacgCreditsHeld)).toBe(LIST);
+    expect((await ask()).held, 'nothing waits: nothing to say').toBeNull();
+    await call(page, { [field]: OTHER });
+    const answer = await ask();
+    expect([answer.waits, answer.held], 'a newer list waits: the answer names the list held').toEqual([true, { [field]: LIST }]);
+    // A fresh document, rebuilt as a stage rebuilds it: the data with the held list first, the
+    // pose, then the newest data.
+    await page.setContent(built.html);
+    const rebuilt = await page.evaluate(async ({ newest, state }) => {
+      const { heldFirst } = await import('/src/control/outputRecovery.ts');
+      const w = window as unknown as { update(d: Record<string, string>): void; noacgSnap(s: unknown): void; noacgCreditsHeld: string | null; noacgCreditsWaiting: boolean };
+      w.update(heldFirst(newest, state));
+      w.noacgSnap((state as { groups: unknown }).groups);
+      w.update(newest);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return { held: w.noacgCreditsHeld, waiting: w.noacgCreditsWaiting, rows: [...document.querySelectorAll('.imported-design-credits-row')].map((el) => el.textContent) };
+    }, { newest: { [field]: OTHER }, state: { ...(answer.state ?? {}), held: answer.held } });
+    expect(rebuilt, 'the rebuilt take airs the list held, and the newest waits').toMatchObject({ held: LIST, waiting: true });
+    expect(rebuilt.rows[0]).toBe('Research');
+    expect((await ask()).held, 'and says so again').toEqual({ [field]: LIST });
   });
 }
 

@@ -2,7 +2,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/useProductionPublish.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
-// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts, src/control/markerSender.ts
 // covers: src/control/cueDraft.ts
 //
 // A TAKE PRESSED WHILE THE PAGE'S FIRST RESOLVE IS STILL OUT STAYS ON THIS PAGE (production-page
@@ -104,10 +104,13 @@ test('a Take whose wait for the first resolve runs out is never sent, and nothin
   await page.waitForTimeout(6_000);
   expect(fulfilled(), 'the resolve is still out when the Take gives up').toBe(0);
   await expect(chip).toContainText('nothing on air');
+  // Nor does this page's own monitor play what was never sent (#1719): it agrees with the marker.
+  await expect(stage).toHaveAttribute('data-plays', '0');
   // The answer, when it comes, agrees: nothing went.
   const answered = page.waitForResponse(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/);
   release();
   await answered;
   await page.waitForTimeout(1_500);
   await expect(chip).toContainText('nothing on air');
+  await expect(stage).toHaveAttribute('data-plays', '0');
 });
