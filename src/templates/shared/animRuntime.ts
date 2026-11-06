@@ -10,7 +10,7 @@ import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPr
 import { ANIM_DECLARATION, animSounds, locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
 import { SOUND_RUNTIME_V1_JS } from '../../assets/graphicSoundRuntimeV1';
 import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
-import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_EXIT_REST_V1_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
+import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
 import { contentHash } from '../../model/contentHash';
 
@@ -44,9 +44,29 @@ function noacgRememberEntrance(tl) {
   return tl;
 }
 
+// Capability: exit-rest-v1. What an exit writes where nothing inline was before is undone by the
+// next entrance: a host that keeps the document loaded (CasparCG, SPX, OGraf) calls play() again
+// after stop(), and a layer the Out faded that the entrance never animates (a results board's rows
+// container) stayed faded on air (#1795). Only those properties go back; everything else inline
+// (the entrance's own poses, a design's own layout) is left alone.
+var noacgExitResidue = [];
+function noacgNoteExitWrite(element, prop) {
+  var css = /^(x|y|z|xPercent|yPercent|scale|scaleX|scaleY|rotation|rotate|rotationX|rotationY|skewX|skewY)$/.test(prop) ? 'transform' : prop;
+  // GSAP writes an SVG element's transform into its attribute, and clearing it would also take
+  // the position its markup gave it: only an element with no transform there either is noted.
+  if (!element.style || element.style[css] !== '' || (css === 'transform' && element.getAttribute && element.getAttribute('transform'))) return;
+  noacgExitResidue.push({ element: element, css: css });
+}
+function noacgClearExitResidue() {
+  var residue = noacgExitResidue;
+  noacgExitResidue = [];
+  for (var i = 0; i < residue.length; i++) gsap.set(residue[i].element, { clearProps: residue[i].css });
+}
+
 // Exit motion uses object targets so an older stop() scaffold's killTweensOf('*')
 // cannot destroy a repeated Out. The property setter also runs during silent seek.
 function noacgExitProxy(element, prop, value) {
+  noacgNoteExitWrite(element, prop);
   var proxy = {};
   Object.defineProperty(proxy, 'value', {
     get: function () { return value; },
@@ -321,6 +341,7 @@ function noacgPaintFirstFrame(tl) {
 // The entrance recipe: step 0, the root reveal, and the reveal pre-arm — shared by play(),
 // the machine's entrance, and snap's pose composition, so they can never drift apart.
 function noacgEntranceTimeline() {
+  noacgClearExitResidue();
   var tl = buildStepTimeline(0);
   tl.set(NOACG_ANIM.root, { opacity: 1 }, 0); // reveal the (CSS-hidden) graphic
   noacgApplyReveals(tl);
@@ -1150,7 +1171,7 @@ export function writeOutData(js: string, data: AnimData): string | null {
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
     .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
   if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_EXIT_REST_V1_HASH].includes(contentHash(body))) return null;
+      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH].includes(contentHash(body))) return null;
   return replaceRegionWithAnimData(js, data);
 }
 

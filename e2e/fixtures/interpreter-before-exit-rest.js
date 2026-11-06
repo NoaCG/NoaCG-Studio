@@ -401,29 +401,9 @@ function noacgRememberEntrance(tl) {
   return tl;
 }
 
-// Capability: exit-rest-v1. What an exit writes where nothing inline was before is undone by the
-// next entrance: a host that keeps the document loaded (CasparCG, SPX, OGraf) calls play() again
-// after stop(), and a layer the Out faded that the entrance never animates (a results board's rows
-// container) stayed faded on air (#1795). Only those properties go back; everything else inline
-// (the entrance's own poses, a design's own layout) is left alone.
-var noacgExitResidue = [];
-function noacgNoteExitWrite(element, prop) {
-  var css = /^(x|y|z|xPercent|yPercent|scale|scaleX|scaleY|rotation|rotate|rotationX|rotationY|skewX|skewY)$/.test(prop) ? 'transform' : prop;
-  // GSAP writes an SVG element's transform into its attribute, and clearing it would also take
-  // the position its markup gave it: only an element with no transform there either is noted.
-  if (!element.style || element.style[css] !== '' || (css === 'transform' && element.getAttribute && element.getAttribute('transform'))) return;
-  noacgExitResidue.push({ element: element, css: css });
-}
-function noacgClearExitResidue() {
-  var residue = noacgExitResidue;
-  noacgExitResidue = [];
-  for (var i = 0; i < residue.length; i++) gsap.set(residue[i].element, { clearProps: residue[i].css });
-}
-
 // Exit motion uses object targets so an older stop() scaffold's killTweensOf('*')
 // cannot destroy a repeated Out. The property setter also runs during silent seek.
 function noacgExitProxy(element, prop, value) {
-  noacgNoteExitWrite(element, prop);
   var proxy = {};
   Object.defineProperty(proxy, 'value', {
     get: function () { return value; },
@@ -698,7 +678,6 @@ function noacgPaintFirstFrame(tl) {
 // The entrance recipe: step 0, the root reveal, and the reveal pre-arm — shared by play(),
 // the machine's entrance, and snap's pose composition, so they can never drift apart.
 function noacgEntranceTimeline() {
-  noacgClearExitResidue();
   var tl = buildStepTimeline(0);
   tl.set(NOACG_ANIM.root, { opacity: 1 }, 0); // reveal the (CSS-hidden) graphic
   noacgApplyReveals(tl);
