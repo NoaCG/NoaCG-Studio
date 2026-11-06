@@ -820,7 +820,7 @@ export default function CueRundown({
                     className="pd-cue-mark status-warn"
                     role="img"
                     aria-label={`Data problem: ${dataProblems.get(cueGraphic)!.join(', ')}`}
-                    title={`Data problem: ${dataProblems.get(cueGraphic)!.join(', ')}. The last good values stay on air.`}
+                    title={`Data problem: ${dataProblems.get(cueGraphic)!.join(', ')}`}
                     data-testid="cue-data-mark"
                   >
                     ⚠
