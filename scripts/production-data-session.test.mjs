@@ -455,6 +455,105 @@ test('published: a read that started earlier and answers later never puts the ol
   assert.deepEqual(t.session.data.get().liveData, { revision: 3 }, 'a later read still lands');
 });
 
+/** Published with a key and a first tree held, the way a press or an owner edit finds the page. */
+async function publishedWith(tree) {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.answers.fetches[0].resolve({ data: tree });
+  await flush();
+  return t;
+}
+
+test('published: a press answer older than a read already held is passed over, and a later press still lands (#1572)', async () => {
+  const t = await publishedWith({ home: 1 });
+  const press = t.data.patchBoundValues([{ path: 'home', text: '2', verb: 'adjust' }]);
+  void t.data.refresh(); // a feed row arrived after the press left
+  t.answers.fetches[1].resolve({ data: { home: 2, away: 3 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { home: 2, away: 3 });
+  t.answers.slugPatches[0].resolve({ home: 2, away: 0 });
+  assert.equal(await press, true, 'the press itself landed');
+  assert.deepEqual(t.session.data.get().liveData, { home: 2, away: 3 }, 'the press answer is older than the read held');
+  assert.equal(t.calls.fetched.length, 3, 'a write answer passed over is followed by a fresh read');
+  const next = t.data.patchBoundValues([{ path: 'home', text: '3', verb: 'adjust' }]);
+  t.answers.slugPatches[1].resolve({ home: 3, away: 3 });
+  await next;
+  assert.deepEqual(t.session.data.get().liveData, { home: 3, away: 3 });
+});
+
+test('published: an owner edit answer older than a read already held is passed over (#1572)', async () => {
+  const t = await publishedWith({ home: 1 });
+  t.data.setLiveData({ home: 5 });
+  void t.data.refresh();
+  t.answers.fetches[1].resolve({ data: { home: 5, clock: '10:01' } });
+  await flush();
+  t.answers.patches[0].resolve({ home: 5, clock: '10:00' });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { home: 5, clock: '10:01' });
+});
+
+test('published: a write answer passed over reads again, since an unbound edit appends no row to start one (#1572)', async () => {
+  const t = await publishedWith({ note: 'a' });
+  void t.data.refresh(); // left before the edit landed: it answers the old value
+  t.data.setLiveData({ note: 'b' });
+  void t.data.refresh();
+  t.answers.fetches[2].resolve({ data: { note: 'a' } });
+  await flush();
+  t.answers.patches[0].resolve({ note: 'b' });
+  await flush();
+  assert.equal(t.calls.fetched.length, 4, 'the passed-over answer asks again');
+  t.answers.fetches[3].resolve({ data: { note: 'b' } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { note: 'b' });
+  assert.equal(t.calls.fetched.length, 4, 'a read answer passed over asks nothing more');
+});
+
+test('published: an edit that changes nothing sends nothing and never passes over the first read (#1572)', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.data.setLiveData({}); // Clear before the first read answered
+  assert.equal(t.calls.patched.length, 0);
+  t.answers.fetches[0].resolve({ data: { home: 1 } });
+  await flush();
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 1 }, dataKey: 'key-1', treeRead: true });
+});
+
+test('published: a read that left before a press cannot undo the press on screen (#1572)', async () => {
+  const t = await publishedWith({ home: 1 });
+  void t.data.refresh();
+  const press = t.data.patchBoundValues([{ path: 'home', text: '2', verb: 'adjust' }]);
+  t.answers.fetches[1].resolve({ data: { home: 1 } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { home: 2 }, 'the next press counts from 2, not 1');
+  t.answers.slugPatches[0].resolve({ home: 2 });
+  await press;
+  assert.deepEqual(t.session.data.get().liveData, { home: 2 });
+});
+
+test('published: a read that left before a lease write\'s tree arrived cannot put the older tree back (#1572)', async () => {
+  const t = await publishedWith({ home: 1, sheet: 'a' });
+  void t.data.refresh();
+  t.data.holdServerTree('slug-1', { home: 1, sheet: 'b' });
+  t.answers.fetches[1].resolve({ data: { home: 1, sheet: 'a' } });
+  await flush();
+  assert.deepEqual(t.session.data.get().liveData, { home: 1, sheet: 'b' });
+});
+
+test('published: a lease write\'s tree before the first read answers is the server\'s tree, so presses are not refused (#1572)', async () => {
+  const t = setup();
+  t.data.published('slug-1');
+  t.answers.keys[0].resolve('key-1');
+  await flush();
+  t.data.holdServerTree('slug-1', { home: 1, sheet: 'b' });
+  t.answers.fetches[0].resolve({ data: { home: 1, sheet: 'a' } });
+  await flush();
+  assert.deepEqual(t.session.data.get(), { liveData: { home: 1, sheet: 'b' }, dataKey: 'key-1', treeRead: true });
+});
+
 test('published, a poll reads the tree on its cadence until stopped; unpublished it reads nothing (E7.1)', async () => {
   const t = setup();
   const timers = [];

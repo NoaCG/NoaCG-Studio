@@ -10,6 +10,7 @@ import {
   P,
   STANDINGS_FIELDS,
   STANDINGS_RUNTIME_JS,
+  STANDINGS_STEPS,
   boardStructureCss,
   defineResultsVariant,
   standingsMarkup,
@@ -49,6 +50,7 @@ export const st02: TemplateVariant = defineResultsVariant(
     // stops re-sizing itself between one piece of content and the next.
     stageWidth: 1000,
     runtimeExtraJs: STANDINGS_RUNTIME_JS,
+    revealSteps: STANDINGS_STEPS,
     css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
 
 ${boardStructureCss()}

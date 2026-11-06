@@ -19,7 +19,7 @@ import type { ProjectLegibility } from './designRules';
 import { firstIndexById, loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
 import { durable } from './durableStore';
 import { uuid } from './id';
-import { isOwnPictureGraphic } from './poolIdentity.ts';
+import { freeName, isOwnPictureGraphic } from './poolIdentity.ts';
 import { designLocked, newGraphicDoc, type GraphicDocBase, type PackStamp } from './graphicDoc';
 
 // The record SHAPE and its pure builder live in model/graphicDoc.ts (DOM-free, storage-free,
@@ -153,6 +153,17 @@ export function graphicHoldingName(name: string): GraphicDoc | undefined {
 }
 
 /**
+ * `name`, or the first free `name 2`, `name 3`... in the library: the name a door that MINTS a
+ * graphic gives it (Save As, Duplicate, a kit or pack save), so no door silently makes a second
+ * graphic under a name the library already holds (issue #779). A taken name is ambiguous for
+ * every lookup that still goes by name (`resolveSavedGraphicDoc`, a production's pool).
+ */
+export function freeGraphicName(name: string): string {
+  const wanted = name.trim();
+  return wanted ? freeName(loadGraphics().map((g) => g.name), wanted) : wanted;
+}
+
+/**
  * WHAT PRESSING A FINISH DOOR DOES TO THE LIBRARY, under the name now in the field.
  *
  * ONE answer, for both the save and the sentence the reader gets before pressing. The two used
@@ -278,11 +289,11 @@ export function updateGraphic(
   return { doc, error: saveAll(all) };
 }
 
-/** Duplicate a graphic (same package), returning the fresh copy. */
+/** Duplicate a graphic (same package), returning the fresh copy under a free name. */
 export function duplicateGraphic(id: string): { doc: GraphicDoc | null; error: string | null } {
   const src = graphicById(id);
   if (!src) return { doc: null, error: 'That graphic no longer exists.' };
-  const name = `${src.name} copy`;
+  const name = freeGraphicName(`${src.name} copy`);
   return createGraphic({ ...src.template, name }, {
     name,
     packageId: src.packageId,

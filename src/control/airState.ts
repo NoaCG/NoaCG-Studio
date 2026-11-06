@@ -38,7 +38,7 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
-import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { airedAfter, heldFirst, holdAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
 import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
 import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
@@ -250,8 +250,13 @@ export function claimAndApply(
   // A marker never touches what was aired, so the commands are remembered together, in order.
   if (program.length > 0) {
     const commandsBy = { ...next.commandsBy };
-    for (const { graphic } of program) commandsBy[graphic] = (commandsBy[graphic] ?? 0) + 1;
-    next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length, commandsBy };
+    let holdBy = next.holdBy;
+    for (const { graphic, msg } of program) {
+      commandsBy[graphic] = (commandsBy[graphic] ?? 0) + 1;
+      const held = holdAfter(msg);
+      if (held !== undefined) holdBy = { ...holdBy, [graphic]: { at: commandsBy[graphic], held } };
+    }
+    next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length, commandsBy, ...(holdBy ? { holdBy } : {}) };
   }
   return programItems(next, program, specs, now);
 }
@@ -272,6 +277,15 @@ export function airAtRequest(air: AirPart): AirAtRequest {
  *  older than the screen. */
 function commandedSince(air: AirPart, at: AirAtRequest, graphic: string): boolean {
   return (air.commandsBy?.[graphic] ?? 0) !== (at.commandsBy?.[graphic] ?? 0);
+}
+
+/** Whether the output no longer holds a graphic its report left held: the last command here since
+ *  the request that decides it, else the rows after the report, through the output's gate. */
+function releasedSince(air: AirPart, at: AirAtRequest, graphic: string, rows: readonly ReplayItem[]): boolean {
+  const decided = air.holdBy?.[graphic];
+  if (decided && decided.at > (at.commandsBy?.[graphic] ?? 0)) return !decided.held;
+  const verdicts = rows.filter((item) => item.graphic === graphic).map((item) => holdAfter(item.msg)).filter((held) => held !== undefined);
+  return verdicts[verdicts.length - 1] === false;
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -334,6 +348,9 @@ export function seedFromResolve(
   const liveCue: LiveCueMap = { ...answered, ...Object.fromEntries([...taken].map((graphic) => [graphic, air.liveCue[graphic]])) };
   // The reports and rows this page holds nothing newer than.
   const current = (graphic: string) => !taken.has(graphic) && !commandedSince(air, at, graphic);
+  // A graphic replayed from its report replays its hold too (`restoreItems`); one moved meanwhile is
+  // rebuilt from what it aired once its hold, if any, is over.
+  const released = (graphic: string) => taken.has(graphic) || (!current(graphic) && releasedSince(air, at, graphic, sinceReports));
   const reports = Object.entries(resolved.live).filter(([graphic]) => current(graphic));
   const replay = sinceReports.filter((item) => current(item.graphic));
   const seed: AiredMap = {};
@@ -419,9 +436,10 @@ export function seedFromResolve(
     speaking,
     typedAired,
     typedSteps,
-    // A graphic this page moved meanwhile is rebuilt from what it aired, never from its older report
-    // (an unreadable envelope's would hold it off PROGRAM after the Take that released it).
-    reports: !air.reports || Object.keys(air.reports).every(current) ? air.reports : Object.fromEntries(Object.entries(air.reports).filter(([graphic]) => current(graphic))),
+    // A graphic this page took meanwhile, or whose hold ended, is rebuilt from what it aired, never
+    // from its older report (an unreadable envelope's would hold it off PROGRAM after the command that
+    // released it). A step, an event or a play leaves a held graphic held, so its report stays.
+    reports: air.reports && Object.keys(air.reports).some(released) ? Object.fromEntries(Object.entries(air.reports).filter(([graphic]) => !released(graphic))) : air.reports,
     bootReplay: replay,
     bootLive: answered,
   };
@@ -471,12 +489,12 @@ export function seedOffAirClocks(
  * rebuilds itself (the clocks move on from the reported values, so their memory is dropped first);
  * a layer nothing reported, or a stage after this page applied a command, is rebuilt from what was
  * aired, with the clocks' wire values over the plain ones. The items go through `programItems`.
- * `only` names the layers to rebuild when the stage is not fresh: the boot recovery's, since a
- * layer this page took during the read is already on it (`seedFromResolve`).
+ * `only`, when given, names the layers to rebuild: the boot recovery passes the ones it seeded,
+ * since a layer this page took during the read is already on the stage (`seedFromResolve`).
  */
 export function restoreItems(
   air: AirPart,
-  machineStates: Readonly<Record<string, { groups?: Record<string, string> } | null | undefined>>,
+  machineStates: Readonly<Record<string, { groups?: Record<string, string>; held?: Record<string, string> } | null | undefined>>,
   specs: ClockSpecs,
   only?: LiveCueMap,
 ): { air: AirPart; items: ReplayItem[] } {
@@ -538,7 +556,12 @@ export function restoreItems(
       all.push(...items, ...(replaying ? rows : []));
       continue;
     }
-    if (data || look) items.push({ graphic, msg: { t: 'update', data: data ?? {}, ...(look ? { appearance: look } : {}) } });
+    // A credits list held on air goes in first, so the take replayed below takes it and the newest
+    // waits for the next Take, as on air (#2075): the report's word while its rows replay, else the
+    // monitor's last answer, else at boot the report's.
+    const heldState = replaying || (!(graphic in machineStates) && air.bootReplay !== null) ? report?.state : machineStates[graphic];
+    const first = data ? heldFirst(data, heldState) : data;
+    if (data || look) items.push({ graphic, msg: { t: 'update', data: first ?? {}, ...(look ? { appearance: look } : {}) } });
     if (groups) items.push({ graphic, msg: { t: 'snap', snap: groups } });
     // Without a state the graphic plays in, unless the replayed rows carry its entrance.
     else if (!rows.some((item) => item.msg.t === 'play')) items.push({ graphic, msg: { t: 'play' } });

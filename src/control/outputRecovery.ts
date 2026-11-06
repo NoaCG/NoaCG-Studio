@@ -41,7 +41,7 @@
 // re-animation is recoverable, a lost take is not.
 
 import type { ControlEventRow, ControlSendItem, LiveReportMap } from './hostedControl';
-import { typedOutputGate, typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
+import { typedOutputGate, typedValuesOf, type TypedOutputState, type TypedValues } from '../model/ografTyped.ts';
 
 export interface OutputRecoveryPlan {
   /** The row to follow the log FROM — rows after it are fetched and replayed at boot. */
@@ -225,6 +225,23 @@ export function reportedSnap(report: { state?: unknown } | null | undefined): { 
   return Object.keys(awards).length > 0 ? { t: 'snap', snap, awards } : { t: 'snap', snap };
 }
 
+/** A held list as a graphic answered it or a report banked it (field id -> list, #2075): the plain
+ *  object's string entries, or null when there are none. */
+export function heldList(value: unknown): Record<string, string> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const list = Object.fromEntries(Object.entries(value).filter(([, text]) => typeof text === 'string')) as Record<string, string>;
+  return Object.keys(list).length > 0 ? list : null;
+}
+
+/** THE LIST A REBUILT TAKE TAKES (#2075). A credits roll or cards on air keep the list their Take
+ *  took while a newer one waits, and say so in their state (`held`). A rebuild writes that list
+ *  first, so the take it replays (by snap or play) takes it, then restates the newest, which waits
+ *  for the next Take as it does on air. Without a held list, the data as it is. */
+export function heldFirst(data: Record<string, string>, state: unknown): Record<string, string> {
+  const held = heldList((state as { held?: unknown } | null | undefined)?.held);
+  return held ? { ...data, ...held } : data;
+}
+
 /** A report's typed baseline as a PROGRAM monitor rebuilds it: the envelope read (null when this
  *  build cannot read it, so the output holds that graphic) and its steps as the `next`s that replay
  *  them. Null for a native report. */
@@ -237,8 +254,22 @@ export function reportedTypedAir(report: { state?: unknown } | null | undefined)
  *  it holds (model/ografTyped.ts `typedOutputGate`, the same gate): nothing but a stop until an
  *  update it can air releases it, then everything. What a PROGRAM monitor replays for it. */
 export function rowsPastHold<R extends { msg: ControlSendItem['msg'] }>(rows: readonly R[]): R[] {
-  const state = { held: new Map([['g', 'held']]), airing: new Set<string>() };
+  const state = heldGate();
   return rows.filter((row) => typedOutputGate(state, 'g', row.msg).apply);
+}
+
+/** What one command leaves of the output's hold on a graphic, through the same gate: true held,
+ *  false released, undefined as it was (a step, an event, a play, a stop). */
+export function holdAfter(msg: ControlSendItem['msg']): boolean | undefined {
+  const held = heldGate();
+  const free: TypedOutputState = { held: new Map(), airing: new Set() };
+  typedOutputGate(held, 'g', msg);
+  typedOutputGate(free, 'g', msg);
+  return held.held.has('g') === free.held.has('g') ? held.held.has('g') : undefined;
+}
+
+function heldGate(): TypedOutputState {
+  return { held: new Map([['g', 'held']]), airing: new Set<string>() };
 }
 
 /** The steps a graphic has taken since its entrance, after one command: an entrance (or a pose)

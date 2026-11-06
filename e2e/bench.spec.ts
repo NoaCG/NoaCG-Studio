@@ -270,6 +270,40 @@ test.describe('runtime bench detection fixtures', () => {
     expect(warnings.filter((w) => w.message.includes('cut off by its mask') && w.message.includes('default field values'))).toEqual([]);
   });
 
+  test('a numeral its mask cuts at rest is reported; the shipped debate clock and glyph overhang are not (#1259)', async ({ page }) => {
+    // The H7 debate clock: built from dc01, then edited until the opposition clock's numeral lost
+    // its bottom to its .scoreboard-mask in every settled frame, while validate said nothing,
+    // because a mask was measured sideways only. A taller numeral in a mask held to a fixed height
+    // stands for that edit. The shipped scaffold hides ~3px of descent no digit uses, and a mask
+    // sized to a tight line box trims descender tails; neither cuts the letters' body.
+    test.setTimeout(120_000);
+    await toApp(page);
+    const told = await page.evaluate(async () => {
+      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+      const dc01 = Object.values(CATALOG).flat().find((v) => v?.id === 'dc01')!;
+      const cuts = async (css: string) => {
+        const tpl = dc01.create({});
+        tpl.css += css;
+        const res = await benchTemplateRuntime(tpl, { fieldPaints: true });
+        return res.warnings.filter((w) => w.message.includes('cut off by its mask') && w.message.includes('default field values')).map((w) => w.message);
+      };
+      return {
+        shipped: await cuts(''),
+        edited: await cuts('.scoreboard-time { font-size: calc(130px * var(--scale)); } ' +
+          '.scoreboard-side .scoreboard-mask:has(.scoreboard-time) { height: calc(100px * var(--scale)); }'),
+        // A transform the design keeps at rest does not exempt the line.
+        moved: await cuts('.scoreboard-time { font-size: calc(130px * var(--scale)); transform: translateY(0.5px); } ' +
+          '.scoreboard-side .scoreboard-mask:has(.scoreboard-time) { height: calc(100px * var(--scale)); }'),
+        tight: await cuts('.scoreboard-name { line-height: 0.9; }'),
+      };
+    });
+    expect(told.shipped).toEqual([]);
+    expect(told.edited.some((m) => m.startsWith('#f6 ') && m.includes("bottom edge cuts"))).toBe(true);
+    expect(told.moved.some((m) => m.startsWith('#f6 ') && m.includes('bottom edge cuts'))).toBe(true);
+    expect(told.tight).toEqual([]);
+  });
+
   test('no untouched neutral scaffold cuts its text at a mask or runs it past its panel (#770, #928)', async ({ page }) => {
     // Six scaffolds said "extends past ... the nearest thing painted behind it" under the stress
     // values about text their own mask had cut off - text nowhere in the picture. Then the cut
@@ -313,7 +347,9 @@ test.describe('runtime bench detection fixtures', () => {
         const variant = Object.values(CATALOG).flat().find((v) => v?.id === id);
         if (!variant) { out.push(`${id}: not in the catalog`); continue; }
         const res = await benchTemplateRuntime(variant.create({}), { fieldPaints: true });
-        for (const w of res.warnings) if (w.message.includes('cut off by its mask')) out.push(`${id}: ${w.message}`);
+        // The sideways cut #928 fixed. A cut DOWN is the other check (#1259), and al09 still has
+        // one under this name: its stage fitter holds the kicker to one line's room (#2216).
+        for (const w of res.warnings) if (w.message.includes('cut off by its mask') && w.message.includes('wider than the mask')) out.push(`${id}: ${w.message}`);
       }
       return out;
     });

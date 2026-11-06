@@ -172,6 +172,30 @@ test('PROGRAM is rebuilt from a typed report: its envelope and look, its pose or
   const heldLook = { Board: { data: {}, state: { typed: envelope({}, 9), appearance: look }, event: 10 } };
   const withLook = seedFromResolve({ ...NO_AIR, reports: heldLook }, { liveCue: { Board: 'c1' }, live: heldLook }, nativeTake, airAtRequest(NO_AIR), [], specs);
   assert.deepEqual(restoreItems(withLook, {}, specs).items, [{ graphic: 'Board', msg: { t: 'update', data: {}, appearance: look } }, ...nativeTake]);
+  // A command the output ignores while it holds, applied here while the read was out, keeps the
+  // hold: the seed keeps the report, and the boot recovery rebuilds its look and nothing else.
+  const atHeld = { ...NO_AIR, reports: heldLook };
+  for (const during of [[{ t: 'next' }], [{ t: 'event', event: 'go', payload: { f0: 'y' } }], [{ t: 'play' }], [{ t: 'update', data: {}, typed: envelope({}, 9) }]]) {
+    const commanded = claimAndApply(atHeld, during.map((msg, i) => ({ graphic: 'Board', msg: { ...msg, oid: `h${i}` } })), createAppliedOnce(), specs, 0).air;
+    const kept = seedFromResolve(commanded, { liveCue: { Board: 'c1' }, live: heldLook }, [], airAtRequest(atHeld), [{ id: 'c1', values: { f0: 'x' } }], specs);
+    assert.deepEqual(kept.reports, heldLook, `${during[0].t}: the report stays`);
+    assert.deepEqual(restoreItems(kept, {}, specs, kept.bootLive).items, [{ graphic: 'Board', msg: { t: 'update', data: {}, appearance: look } }], `${during[0].t}: held`);
+  }
+  // A native update there ends the hold, as on the output: PROGRAM rebuilds what this page aired.
+  const update = claimAndApply(atHeld, [{ graphic: 'Board', msg: { t: 'update', data: { f0: 'NEW' }, oid: 'u1' } }], createAppliedOnce(), specs, 0).air;
+  const freed = seedFromResolve(update, { liveCue: { Board: 'c1' }, live: heldLook }, [], airAtRequest(atHeld), [{ id: 'c1', values: { f0: 'x' } }], specs);
+  assert.equal(freed.reports.Board, undefined);
+  assert.deepEqual(restoreItems(freed, {}, specs, freed.bootLive).items.map((item) => item.msg.t), ['update', 'play', 'update']);
+  // The last command that decides it counts: an unreadable envelope after that update holds it again.
+  const reheld = claimAndApply(update, [{ graphic: 'Board', msg: { t: 'update', data: {}, typed: envelope({}, 9), oid: 'u2' } }], createAppliedOnce(), specs, 0).air;
+  const heldAgain = seedFromResolve(reheld, { liveCue: { Board: 'c1' }, live: heldLook }, [], airAtRequest(atHeld), [{ id: 'c1', values: { f0: 'x' } }], specs);
+  assert.deepEqual(heldAgain.reports, heldLook);
+  // With no such command here, the rows after the report decide: one that ended the hold on air still
+  // releases a graphic stepped here meanwhile, whose rows the seed no longer replays.
+  const next = claimAndApply(atHeld, [{ graphic: 'Board', msg: { t: 'next', oid: 'n1' } }], createAppliedOnce(), specs, 0).air;
+  const airedAfterReport = seedFromResolve(next, { liveCue: { Board: 'c1' }, live: heldLook }, nativeTake, airAtRequest(atHeld), [{ id: 'c1', values: { f0: 'x' } }], specs);
+  assert.equal(airedAfterReport.reports.Board, undefined);
+  assert.deepEqual(restoreItems(airedAfterReport, {}, specs, airedAfterReport.bootLive).items.map((item) => item.msg.t), ['update', 'play', 'update']);
   assert.match(source('src/components/HostedControlPage.tsx'), /const held = reportedLook\(reportsRef\.current\[graphic\]\);/);
   // A report whose envelope does not read rebuilds nothing typed from it.
   const later = { Board: { data: {}, state: { typed: envelope({}, 9), steps: 1 }, event: 10 } };

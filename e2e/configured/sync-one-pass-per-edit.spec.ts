@@ -1,4 +1,4 @@
-// covers: src/backend/syncController.ts
+// covers: src/backend/syncController.ts, src/backend/sync.ts
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { haveCreds, settleSync, signIn } from './_helpers';
 
@@ -15,6 +15,9 @@ import { haveCreds, settleSync, signIn } from './_helpers';
 // change closes before its pass runs. It hands the pass on, and with two tabs still open only
 // one of them takes it. That a write from a tab WITHOUT sync is still pushed by a tab that
 // adopts it is pinned offline, in e2e/cross-tab.spec.ts.
+//
+// The third test is two DEVICES (two browser contexts on one account) editing one record while
+// the first device's pass is still running: both edits survive (#2153).
 
 const LIST_KIND = 'look';
 
@@ -131,5 +134,93 @@ test('a tab that closes before its pass hands the pass to ONE of the tabs still 
   } finally {
     await removeLook(b, id);
     await context.close();
+  }
+});
+
+/** Rename a look the way an edit does: a new name and a new `updatedAt`, written to IndexedDB. */
+async function renameLook(page: Page, id: string, name: string): Promise<void> {
+  await page.evaluate(async ({ lookId, lookName }) => {
+    const { loadAllLooks, upsertLook } = await import('/src/model/packets.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const look = loadAllLooks().find((l) => l.id === lookId);
+    if (!look) throw new Error(`no look ${lookId} on this device`);
+    upsertLook({ ...look, name: lookName, updatedAt: new Date().toISOString() });
+    await commitDurableWrites();
+  }, { lookId: id, lookName: name });
+}
+
+/** The live looks on this device whose name carries `mark`. */
+const looksNamed = (page: Page, mark: string): Promise<{ id: string; name: string }[]> =>
+  page.evaluate(async (m) => {
+    const { loadLooks } = await import('/src/model/packets.ts');
+    return loadLooks().filter((l) => l.name.includes(m)).map((l) => ({ id: l.id, name: l.name }));
+  }, mark);
+
+/** One pass that starts after this call (syncController's `waiting`); true when it read the cloud. */
+const syncOnce = (page: Page): Promise<boolean> =>
+  page.evaluate(async () => {
+    const { syncNow } = await import('/src/backend/syncController.ts');
+    return (await syncNow()).completed;
+  });
+
+test('an edit made during a pass survives a save of the same record from another device', async ({ browser }) => {
+  test.skip(!haveCreds, 'needs E2E_EMAIL / E2E_PASSWORD');
+  test.setTimeout(180_000);
+  const one = await browser.newContext();
+  const two = await browser.newContext();
+  const a = await one.newPage();
+  const b = await two.newPage();
+  await signIn(a);
+  await settleSync(a);
+  await signIn(b);
+  await settleSync(b);
+
+  const mark = `#2153 ${Date.now()}`;
+  const shared = await addLook(a, `Shared ${mark}`);
+  const trigger = await addLook(a, `Trigger ${mark}`);
+  try {
+    expect(await syncOnce(a)).toBe(true);
+    await expect.poll(async () => (await syncOnce(b)) && (await looksNamed(b, `Shared ${mark}`)).length, { timeout: 30_000 }).toBe(1);
+
+    // Hold the first cloud write of device one's next pass. That pass has listed the cloud by
+    // then, so what follows happens inside it, after it looked.
+    let release = () => {};
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let held = false;
+    await a.route('**/rest/v1/documents**', async (route) => {
+      if (route.request().method() !== 'POST' || held) return route.continue();
+      held = true;
+      await released;
+      await route.continue();
+    });
+    await renameLook(a, trigger, `Trigger edited ${mark}`);
+    const pass = syncOnce(a);
+    await expect.poll(() => held, { timeout: 30_000 }).toBe(true);
+
+    await renameLook(a, shared, `Edit on one ${mark}`);
+    await renameLook(b, shared, `Edit on two ${mark}`);
+    expect(await syncOnce(b), 'device two saved its edit to the cloud').toBe(true);
+
+    release();
+    expect(await pass).toBe(true);
+    await a.unrouteAll({ behavior: 'ignoreErrors' });
+    expect(await syncOnce(a)).toBe(true);
+
+    const names = (await looksNamed(a, mark)).map((l) => l.name);
+    expect(names, 'device two\'s edit arrived on device one').toContain(`Edit on two ${mark}`);
+    // Before #2153 this was gone: both edits predated the bookmark, so the later one won silently.
+    expect(names, 'device one\'s edit survives as a conflicted copy').toContain(`Edit on one ${mark} (conflicted copy)`);
+
+    // Settled: the next edit on device one is an ordinary one, pushed with no second copy.
+    await renameLook(a, shared, `Later edit ${mark}`);
+    expect(await syncOnce(a)).toBe(true);
+    expect((await looksNamed(a, mark)).map((l) => l.name).sort()).toEqual(
+      [`Edit on one ${mark} (conflicted copy)`, `Later edit ${mark}`, `Trigger edited ${mark}`],
+    );
+  } finally {
+    await a.unrouteAll({ behavior: 'ignoreErrors' });
+    for (const { id } of await looksNamed(a, mark)) await removeLook(a, id);
+    await one.close();
+    await two.close();
   }
 });

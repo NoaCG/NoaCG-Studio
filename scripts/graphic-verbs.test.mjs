@@ -551,14 +551,26 @@ test('Re-take sends a live cue whole again and keeps its marker', async () => {
   assert.equal(r.moves(), 2);
 });
 
+test('a success note names the cue once: after a label that already ends in its name, and after one that only ends in its letters', async () => {
+  const r = rig();
+  const named = r.verbs.takeGraphic(graphicCue('c1', 'Strap', {}, { label: 'Anna' }), 'Take of Anna');
+  await settle();
+  r.sends[0].answer.resolve({ ...noneLeft });
+  assert.equal((await named).note, '✓ Take of Anna');
+  const letters = r.verbs.takeGraphic(graphicCue('c2', 'Strap', {}, { label: 'e' }), 'Take');
+  await settle();
+  r.sends[1].answer.resolve({ ...noneLeft });
+  assert.equal((await letters).note, '✓ Take: e');
+});
+
 test('a direct trigger carries `direct` and arms only its own timed end; a cue whose graphic is gone sends nothing', async () => {
   const r = rig();
   const cue = graphicCue('c1', 'Strap', {}, { auto: { then: 'out', after: 3 } });
-  const taking = r.verbs.takeGraphic(cue, 'Trigger C1', true);
+  const taking = r.verbs.takeGraphic(cue, 'Play now C1', true);
   await settle();
   assert.deepEqual(r.sends[0].batches[0][2].msg, { t: 'cue', cue: 'c1', direct: true, auto: { then: 'out', ms: 3000 }, oid: 'oid-1' });
   r.sends[0].answer.resolve({ ...noneLeft });
-  assert.deepEqual(await taking, { ok: true, note: '✓ Trigger C1: C1' });
+  assert.deepEqual(await taking, { ok: true, note: '✓ Play now C1' });
   assert.equal(await r.verbs.takeGraphic({ id: 'x', label: 'X', values: {} }, 'Take'), null);
   assert.equal(r.sends.length, 1);
 });
@@ -1136,7 +1148,7 @@ test('Snap waits for the save, then sends the snap and the ON-AIR values in one 
   const airCue = graphicCue('a1', 'Quiz', { q: 'stored' });
   const r = rig({ flushHeld: true });
   const view = sel({ selectedGraphic: 'Quiz', selectedLayerLive: true, airCue });
-  const snapping = r.verbs.snap(view, 'reveal', 'shown');
+  const snapping = r.verbs.snap(view, { reveal: 'shown' });
   await settle();
   assert.equal(r.sends.length, 0);
   r.draft.a1 = { q: 'typed' };
@@ -1151,7 +1163,7 @@ test('Snap waits for the save, then sends the snap and the ON-AIR values in one 
   r.sends[0].answer.resolve({ ...noneLeft });
   await snapping;
   // A null group resets every group; with no cue on air the update carries nothing.
-  const reset = r.verbs.snap(sel({ selectedGraphic: 'Quiz', selectedLayerLive: true }), null, 'x');
+  const reset = r.verbs.snap(sel({ selectedGraphic: 'Quiz', selectedLayerLive: true }), null);
   await settle();
   r.flushes[1].resolve();
   await settle();
@@ -1161,7 +1173,7 @@ test('Snap waits for the save, then sends the snap and the ON-AIR values in one 
   ]);
   r.sends[1].answer.resolve({ ...noneLeft });
   await reset;
-  await r.verbs.snap(sel({ selectedGraphic: 'Quiz', selectedLayerLive: false }), null, 'x');
+  await r.verbs.snap(sel({ selectedGraphic: 'Quiz', selectedLayerLive: false }), null);
   assert.equal(r.sends.length, 2);
 });
 
@@ -1174,7 +1186,7 @@ test('no live press sends from a layer airing a cue with typed data, a pinned bl
   assert.equal(pinned.airCue, cue);
   await r.verbs.event(pinned, { event: 'goal', adjust: { score: 1 }, payload: ['score'] });
   await r.verbs.bump(pinned, 'score', 1);
-  await r.verbs.snap(pinned, 'reveal', 'shown');
+  await r.verbs.snap(pinned, { reveal: 'shown' });
   await settle();
   assert.equal(r.sends.length, 0);
   assert.deepEqual(r.notes, Array(3).fill('T1: Live controls do not reach typed data yet.'));
@@ -1184,7 +1196,7 @@ test('no live press sends from a layer airing a cue with typed data, a pinned bl
   const stillTyped = liveSelection('Score', [off], { Score: 't1' });
   await airing.verbs.event(stillTyped, { event: 'goal', adjust: { score: 1 }, payload: ['score'] });
   await airing.verbs.bump(stillTyped, 'score', 1);
-  await airing.verbs.snap(stillTyped, 'reveal', 'shown');
+  await airing.verbs.snap(stillTyped, { reveal: 'shown' });
   await settle();
   assert.equal(airing.sends.length, 0);
   assert.deepEqual(airing.notes, Array(3).fill('T1: Live controls do not reach typed data yet.'));
@@ -1520,14 +1532,14 @@ test('Snap and an event on an aired candidate send what its instance shows, neve
   const airCue = graphicCue('a', 'Strap', { f0: 'prepared', f1: 'prepared', f2: 'own' });
   const view = sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue });
   const r = rig({ liveCue: { Strap: 'a' }, candidates: { a: ['f0', 'f1'] }, airedCandidates: { 'Strap:a': { f0: 'Aino Aalto', f1: '1200' } } });
-  const snapping = r.verbs.snap(view, null, 'enter');
+  const snapping = r.verbs.snap(view, null);
   await settle();
   assert.deepEqual(r.sends[0].batches[0][1].msg.data, { f0: 'Aino Aalto', f1: '1200', f2: 'own' });
   r.sends[0].answer.resolve({ ...noneLeft });
   await snapping;
 
   const bare = rig({ liveCue: { Strap: 'a' }, candidates: { a: ['f0', 'f1'] } });
-  const again = bare.verbs.snap(view, null, 'enter');
+  const again = bare.verbs.snap(view, null);
   await settle();
   assert.deepEqual(bare.sends[0].batches[0][1].msg.data, { f2: 'own' });
   bare.sends[0].answer.resolve({ ...noneLeft });
@@ -1538,7 +1550,7 @@ test('Snap and an event on an ordinary cue leave alone the fields of a candidate
   const airCue = graphicCue('plain', 'Strap', { f0: 'prepared', f1: 'prepared', f2: 'own' });
   const view = sel({ selectedGraphic: 'Strap', selectedLayerLive: true, airCue });
   const r = rig({ liveCue: { Strap: 'plain' }, airedFields: { Strap: ['f0', 'f1'] } });
-  const snapping = r.verbs.snap(view, null, 'enter');
+  const snapping = r.verbs.snap(view, null);
   await settle();
   assert.deepEqual(r.sends[0].batches[0][1].msg.data, { f2: 'own' }, 'the candidate that may have aired keeps its fields');
   r.sends[0].answer.resolve({ ...noneLeft });
@@ -2175,7 +2187,7 @@ test('a pinned graphic that is off air sends nothing, whatever is pressed', asyn
   assert.equal(off.selectedLayerLive, false);
   await r.verbs.bump(off, 'home', 1);
   await r.verbs.event(off, goal);
-  await r.verbs.snap(off, null, 'x');
+  await r.verbs.snap(off, null);
   assert.equal(r.sends.length, 0);
   assert.deepEqual(r.log, []);
 });
@@ -2185,7 +2197,7 @@ test('a Take of another cue of the graphic during a held save refuses the press,
     const banner = graphicCue('b1', 'Score', { home: '7' });
     const r = rig({ seed: false, flushHeld: true, liveCue: { Score: 'b1' }, aired: { Score: { home: '7' } } });
     const view = liveSelection('Score', [banner], r.liveCue());
-    const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : press === 'event' ? r.verbs.event(view, goal) : r.verbs.snap(view, null, 'x');
+    const pressing = press === 'bump' ? r.verbs.bump(view, 'home', 1) : press === 'event' ? r.verbs.event(view, goal) : r.verbs.snap(view, null);
     await settle();
     // Another cue of the banner is taken while the save is held.
     r.session.apply((parts) => ({ ...parts, air: { ...parts.air, liveCue: { Score: 'b2' } } }));

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
+import { loadGraphics } from '../../model/library';
+import { freeName } from '../../model/poolIdentity';
 import {
   saveCurrentGraphic,
   saveGraphicAs,
@@ -74,7 +76,18 @@ function SaveDialog() {
         ? ' and follow you to any computer you sign in on'
         : '';
 
-  const [name, setName] = useState(dialog.mode === 'save-as' ? `${template.name} copy` : template.name);
+  // The record a refused attempt already minted: only its link write failed, so the retry
+  // writes into it rather than minting a second (#1367).
+  const minted = useRef<string | null>(null);
+  // The library's names, read once: a mint never takes one of them (#779). A retry writes into
+  // the record a refused attempt minted, so that record's own name is not taken for it.
+  const [library] = useState(() => loadGraphics().map((g) => ({ id: g.id, name: g.name })));
+  const free = (wanted: string) => freeName(library.filter((g) => g.id !== minted.current).map((g) => g.name), wanted);
+  const [name, setName] = useState(() => free((dialog.mode === 'save-as' ? `${template.name} copy` : template.name).trim()));
+  // A taken name saves under the next free one (store/saveActions.ts `mintGraphic`): said before
+  // Save is pressed, and the save asks for that name.
+  const typed = name.trim() || template.name;
+  const lands = free(typed);
   const [error, setError] = useState<string | null>(null);
   // Backdrop click-to-close must only fire on a genuine outside click — not when a text
   // selection drag STARTED in the name field and released over the backdrop (which routes the
@@ -89,9 +102,6 @@ function SaveDialog() {
     return () => window.removeEventListener('keydown', onKey);
   }, [closeDialog]);
 
-  // The record a refused attempt already minted: only its link write failed, so the retry
-  // writes into it rather than minting a second (#1367).
-  const minted = useRef<string | null>(null);
   const attempt = async (chosen: string) => {
     const { saved, template: now } = useTemplateStore.getState();
     if (minted.current && saved.graphicId === minted.current) {
@@ -109,7 +119,7 @@ function SaveDialog() {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
-    void attempt(name.trim() || template.name).then((res) => {
+    void attempt(lands).then((res) => {
       if (!res.ok) {
         setError(res.error);
         return;
@@ -148,6 +158,7 @@ function SaveDialog() {
               data-testid="save-name"
             />
           </label>
+          {lands !== typed && <p className="hint" data-testid="save-name-taken">That name is taken. This saves as <strong>{lands}</strong>.</p>}
           <p className="hint" data-testid="save-where">
             Saved graphics live in your library on Home{where}. To run several together on air,
             add them to a <strong>production</strong>. Its page holds the rundown and the links.

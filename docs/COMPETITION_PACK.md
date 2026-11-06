@@ -150,15 +150,20 @@ Controls: **Spotlight player** (payload `spotlight`) · **Whole line-up**.
 ### Standings / result table (`standings`)
 
 ```
-[entrance] --highlight--> highlighted ⟳ highlight --clear--> plain
-[entrance] / plain / highlighted --final--> final --highlight--> highlighted
-final --next--> [exit]
+[entrance] --final / next--> final --next--> [exit]        (the default path: Next walks it)
+[entrance] --highlight--> highlighted ⟳ highlight --final / next--> final
 ```
 
 `final` is what turns a standings board into a RESULT table: same rows, same columns, a
-different claim about them (`markFinal` / `clearFinal`). Columns come from the operator's own
-header line, so one board serves a league table, a medal table and a race result.
-Controls: **Highlight row** (payload `highlight`) · **Whole table** · **Declare final**.
+different claim about them (`markFinal`, which clears a highlight: the leader's row is the one
+lit). It is the board's one STEP (`STANDINGS_STEPS`), so » Next and « Back walk the whole table
+and the final one, and Continue alone runs the board. `highlight` carries the 1-based row and
+starts at 1; a number past either end of the table lights the row at that end, so the press
+always shows. Every board in the pack clears its marks (classes, which a snap's reset of inline
+styles never touches) on a snap to its first step or off, as play() does, so « Back to it and
+⟲ Reset land clean (#2181). Any other snap is unchanged. Columns come from the operator's own header line, so one board serves
+a league table, a medal table and a race result.
+Controls: **Highlight row** (payload `highlight`) · **Final table**.
 
 ### Bracket (`bracket`)
 
