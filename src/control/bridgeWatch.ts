@@ -85,6 +85,10 @@ export const RELOAD_AFTER_READS = [0, 2, 6] as const;
  *  the slot may not show a fresh load at once. Two slot readings. */
 export const FRESH_LOAD_MS = 2 * SLOT_READ_MS;
 
+/** A recovery whose last try is no older than this is still under way (#2253): the longest gap
+ *  between two tries, and two readings to spare. A page opened later goes by the slot alone. */
+export const RECOVERY_WINDOW_MS = (RELOAD_AFTER_READS[RELOAD_AFTER_READS.length - 1] + 2) * SLOT_READ_MS;
+
 export interface BridgeWatchIo {
   /** The studio's settings as they stand now. */
   loadSettings: () => PlayoutSettings;
@@ -131,6 +135,9 @@ export interface LoadedOutput {
   tries?: number;
   /** Why the last try did not bring it back, for the failed state in any tab. */
   reason?: string;
+  /** When the last try was made, so a page opened later can tell a recovery under way from an old
+   *  record (#2253). */
+  triedAt?: number;
   /** The Bridge's link to the server (#2252) when a tab last found the output on its slot. A
    *  reading under another link comes after the connection was lost, which a CasparCG restart
    *  does, so an empty slot then is a restart even if no poll of any tab saw the server gone. */
@@ -343,13 +350,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   /** A page opened during an outage a tab that saw the output noted (an F5 while the header says
    *  CasparCG is not answering) arms for that Load as if it had seen it, from the note on (#2249):
    *  no looser than what the tab that wrote it follows. Before the server first answered this page,
-   *  or, once it has, only while a recovery is under way (a try made since that outage, #2253): a
-   *  page opened while everything answers may otherwise find the slot cleared since the note, and a
-   *  recovery that ended clears its tries. Armed with the tries spent, it says the recovery failed. */
+   *  or, once it has, only while a recovery is under way (a try made since that outage, the last one
+   *  within RECOVERY_WINDOW_MS, #2253): a page opened while everything answers may otherwise find the
+   *  slot cleared since the note, and an old record of tries says nothing about the slot now. Armed
+   *  with the tries spent, it says the recovery failed. */
   const armFromNote = () => {
     const m = memory();
     if (seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget) return;
-    if (answered && !m.tries) return;
+    if (answered && !(m.tries && m.triedAt !== undefined && io.now() - m.triedAt <= RECOVERY_WINDOW_MS)) return;
     seenAt = m.at;
     oursAt = Math.min(oursAt, m.outageAt);
     // Asked now, while the server is still down: the browser grants a lock a moment later, and the
@@ -588,7 +596,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       const m = memory();
       // Why it did not bring it back, for the failed state in any tab: the Bridge's sentence, or a
       // load that went through and still left the slot empty.
-      if (m && m.at === sentFor.at && m.outageAt === sentFor.outageAt) keep({ ...m, tries: (m.tries ?? 0) + 1, reason: result.state === 'ok' ? '' : result.detail });
+      if (m && m.at === sentFor.at && m.outageAt === sentFor.outageAt) keep({ ...m, tries: (m.tries ?? 0) + 1, reason: result.state === 'ok' ? '' : result.detail, triedAt: io.now() });
     }
     if (!alive) return;
     if (handOver) handLeadOver();

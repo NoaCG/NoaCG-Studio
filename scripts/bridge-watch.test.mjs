@@ -9,7 +9,7 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS } = await import('../src/control/bridgeWatch.ts');
+const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS, RECOVERY_WINDOW_MS } = await import('../src/control/bridgeWatch.ts');
 const { createPlayoutSession, NO_BRIDGE } = await import('../src/control/playoutSession.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
 const { loadReadyMemory, saveReadyMemory } = await import('../src/model/readyMemory.ts');
@@ -890,6 +890,45 @@ test('a page reloaded during a failing recovery goes on with the tries, then say
   await b.readSlot();
   assert.ok(!b.calls.includes('reload'));
   assert.equal(b.session.bridge.get().slotReload?.state, 'failed');
+});
+
+test('an old record of tries acts on nothing: a CLEAR made since stays, and nothing says failed', async () => {
+  // A try went through, and the page closed before any tab saw the output back: the record keeps
+  // its try. A client clears the slot; the page is opened again later.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  a.reloading.refill = false;
+  await restartServer(a);
+  assert.equal(browser.loaded.get('show-1')?.tries, 1);
+  a.watch.stop();
+  server.layer = EMPTY;
+  browser.clock += RECOVERY_WINDOW_MS + 1000;
+  const t = rig({ items: [], browser, server });
+  t.update();
+  t.answer(OK);
+  await settle();
+  for (let n = 0; n < 10; n += 1) await t.readSlot();
+  assert.ok(!t.calls.includes('reload'), 'the CLEAR stays');
+  assert.equal(t.session.bridge.get().slotReload, null, 'and nothing says it failed');
+
+  // Refused tries, the browser closed, opened again days later onto an empty slot.
+  const days = newBrowser();
+  const s2 = { layer: ourPage };
+  const b = await loadedRig({ browser: days, server: s2 });
+  b.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  await restartServer(b);
+  for (let n = 0; n < 30; n += 1) await b.readSlot();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 3);
+  b.watch.stop();
+  days.clock += 3 * 24 * 60 * 60 * 1000;
+  const u = rig({ items: [], browser: days, server: s2 });
+  u.update();
+  u.answer(OK);
+  await settle();
+  await u.readSlot();
+  assert.ok(!u.calls.includes('reload'));
+  assert.equal(u.session.bridge.get().slotReload, null, 'an old failure is not shown as a new one');
 });
 
 test('a recovery that ended, then a CLEAR, then a reload of the page: nothing comes back', async () => {
