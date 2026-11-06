@@ -77,8 +77,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     },
     rememberOutput: (showId, target) => calls.push(`remember ${showId} ${target}`),
     loadedOutput: (showId) => browser.loaded.get(showId) ?? null,
-    keepLoaded: (showId, next, ifAt) => {
-      if (ifAt !== undefined && browser.loaded.get(showId)?.at !== ifAt) return;
+    keepLoaded: (showId, next) => {
       if (next === null) browser.loaded.delete(showId);
       else browser.loaded.set(showId, next);
     },

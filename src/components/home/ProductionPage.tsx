@@ -297,9 +297,8 @@ const BRIDGE_IO: BridgeWatchIo = {
   syncStudio,
   rememberOutput: (showId, target) => saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: target }),
   loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
-  keepLoaded: (showId, next, ifAt) => {
+  keepLoaded: (showId, next) => {
     const memory = loadReadyMemory(showId);
-    if (ifAt !== undefined && memory.casparLoaded?.at !== ifAt) return;
     if (memory.casparLoaded?.at !== next?.at) saveReadyMemory(showId, { ...memory, casparLoaded: next ?? undefined });
   },
   // Held by one tab of this browser at a time (Web Locks). Without them (an insecure origin), every
@@ -307,19 +306,20 @@ const BRIDGE_IO: BridgeWatchIo = {
   lead: (key) => {
     if (!navigator.locks) return { held: () => true, release: () => {} };
     let held = false;
-    let gone = false;
     let free = () => {};
-    void navigator.locks.request(key, () => {
-      if (gone) return undefined;
-      held = true;
-      return new Promise<void>((resolve) => {
-        free = resolve;
-      });
-    });
+    const asked = new AbortController();
+    navigator.locks
+      .request(key, { signal: asked.signal }, () => {
+        held = true;
+        return new Promise<void>((resolve) => {
+          free = resolve;
+        });
+      })
+      .catch(() => {}); // released before it was granted
     return {
       held: () => held,
       release: () => {
-        gone = true;
+        asked.abort();
         held = false;
         free();
       },

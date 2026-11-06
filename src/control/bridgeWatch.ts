@@ -84,10 +84,9 @@ export interface BridgeWatchIo {
   /** This production was seen on its CasparCG slot at `target` (model/readyMemory.ts). */
   rememberOutput: (showId: string, target: string) => void;
   /** The Load of this production's output this browser keeps, or null (model/readyMemory.ts
-   *  `casparLoaded`, #2245); and keeping or forgetting one, with `ifAt` only while the kept Load is
-   *  still the one stamped `ifAt`. */
+   *  `casparLoaded`, #2245); and keeping or forgetting one. */
   loadedOutput: (showId: string) => LoadedOutput | null;
-  keepLoaded: (showId: string, next: LoadedOutput | null, ifAt?: number) => void;
+  keepLoaded: (showId: string, next: LoadedOutput | null) => void;
   /** Ask for `key` among this browser's tabs: held by one at a time, the next asker's once released. */
   lead: (key: string) => Lead;
   /** Run `run` every `ms`; answers the stop. */
@@ -212,9 +211,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   let early: LoadedOutput | null | undefined;
   /** The Load this browser keeps (#1657, #2245), read fresh: another tab may have changed it. */
   const memory = (): LoadedOutput | null => (showId ? io.loadedOutput(showId) : (early ?? null));
-  const keep = (next: LoadedOutput | null, ifAt?: number) => {
-    if (showId) io.keepLoaded(showId, next, ifAt);
-    else if (ifAt === undefined || early?.at === ifAt) early = next;
+  const keep = (next: LoadedOutput | null) => {
+    if (showId) io.keepLoaded(showId, next);
+    else early = next;
   };
   /** The stamp of the Load this page has seen on its slot: armed for that Load only. */
   let seenAt: number | null = null;
@@ -224,12 +223,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   };
   /** Of this browser's armed tabs, the one that reloads. */
   let lead: Lead | null = null;
+  const dropLead = () => {
+    lead?.release();
+    lead = null;
+  };
   const followLead = (target: string) => {
     if (armedFor(target) && showId) lead ??= io.lead(`noacg-caspar-reload ${showId}`);
-    else if (lead) {
-      lead.release();
-      lead = null;
-    }
+    else dropLead();
   };
   /** The server or the Bridge stopped answering, or the slot could not be read, since the slot last
    *  held ours: only then is an empty slot a restart, not another browser's Unload or a client's
@@ -292,19 +292,19 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     let live = true;
     let reading = false;
     const actionRev = slotActions;
-    const settle = (next: SlotReading | undefined, vacant: boolean, before: LoadedOutput | null) => {
+    const settle = (next: SlotReading | undefined, vacant: boolean, beforeAt: number | undefined) => {
       if (next?.holds === 'ours' && i.showId) {
         io.rememberOutput(i.showId, i.casparTarget);
         writeBridge(session, { slotSeenOurs: true });
       }
       const prev = session.bridge.get().outputSlot;
       writeBridge(session, { outputSlot: prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next });
-      if (next) bringBack(next, i.casparTarget, vacant, before);
+      if (next) bringBack(next, i.casparTarget, vacant, beforeAt);
     };
     const read = () => {
       if (reading) return; // a slow Bridge: never stack reads
       reading = true;
-      const before = memory();
+      const beforeAt = memory()?.at;
       io.readState(settings, settings.channel)
         .then(
           (r) => {
@@ -316,13 +316,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
                 ? { holds: slotHolds(layer, i.outputSlug) }
                 : { holds: 'failed', detail: r.result.detail },
               !!r.reply && isVacant(layer),
-              before,
+              beforeAt,
             );
           },
           () => {
             if (!live) return;
             outageSinceOurs = true;
-            settle(undefined, false, before);
+            settle(undefined, false, beforeAt);
           },
         )
         .finally(() => {
@@ -341,7 +341,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   // tries; another production's ends them too, and the slot is no longer this page's to take back.
   /** What any reading of the slot says about owning it, the watch's own and the one right before a
    *  reload alike: true when the layer is vacant and a reload may be weighed. */
-  const observe = (reading: SlotReading, vacant: boolean, before: LoadedOutput | null): boolean => {
+  const observe = (reading: SlotReading, vacant: boolean, beforeAt: number | undefined): boolean => {
     if (reading.holds === 'failed') outageSinceOurs = true;
     if (reading.holds === 'ours') {
       outageSinceOurs = false;
@@ -353,14 +353,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // not NoaCG's, all of which `slotHolds` calls empty): the slot is theirs now.
     if (reading.holds === 'other' || (reading.holds === 'empty' && !vacant)) {
       // Only the Load kept when the read went out: a newer one landed after it is not given up.
-      if (before) keep(null, before.at);
+      if (beforeAt !== undefined && memory()?.at === beforeAt) keep(null);
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return false;
     }
     return reading.holds === 'empty';
   };
-  const bringBack = (reading: SlotReading, target: string, vacant: boolean, before: LoadedOutput | null) => {
-    const lost = observe(reading, vacant, before);
+  const bringBack = (reading: SlotReading, target: string, vacant: boolean, beforeAt: number | undefined) => {
+    const lost = observe(reading, vacant, beforeAt);
     followLead(target);
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
@@ -398,13 +398,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const actionRev = slotActions;
     const wanted = () => alive && run === reloads && armedFor(target) && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
     if (!wanted()) return null;
-    const before = memory();
+    const beforeAt = memory()?.at;
     // A read that fails sends nothing and is not a try: the next reading decides again.
     const read = await io.readState(settings, settings.channel).catch(() => null);
     if (!wanted() || !read?.reply) return null;
     const layer = read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null;
     // Back already (another browser's reload) or somebody else's now: this reading counts as any.
-    if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), before)) return null;
+    if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), beforeAt)) return null;
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
@@ -536,8 +536,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       // WHAT THIS BROWSER LOADED (#2245) is read for the production the page names. A Load or
       // Unload that landed before it named one is the newer word, and is kept for it.
       if (next.showId !== showId) {
-        lead?.release();
-        lead = null;
+        dropLead();
         seenAt = null;
         showId = next.showId;
         if (showId && early !== undefined) {
@@ -576,8 +575,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     stop: () => {
       if (!alive) return;
       alive = false;
-      lead?.release();
-      lead = null;
+      dropLead();
       for (const poll of [status, slot, files, pending, state]) poll.end();
     },
   };
