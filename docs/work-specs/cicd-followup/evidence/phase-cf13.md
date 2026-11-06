@@ -33,7 +33,7 @@ cites those workflow lines and changes nothing.
 
 | Item | State |
 | --- | --- |
-| Rank 1, 8 configured stacks | owner-approved 14-day trial (2026-11-06, section 7); second try; lands when its before side holds 10 `cap+cfg` merges |
+| Rank 1, 8 configured stacks | second try unmeasured (before 12, after 3; section 7.7), reverted; the owner chose a re-run as the third and last try (section 7.8) |
 | Rank 2, Build step in parallel | first of the three tries; landed in #2171 (a235a93d) on cost grounds, expected unmeasured (section 2.2) |
 | Rank 3, ESLint and tsc caches | untried, superseded by rank 2 (section 7.5); goes to cf20(c) |
 | Rank 4 | not built: no M1 or M3 effect alone, so building it would be filler (section 7.5) |
@@ -365,6 +365,12 @@ each side; it says nothing about when other landings happen. So:
    `node --input-type=module -e "const m = await import('./docs/work-specs/cicd-followup/evidence/phase-cf03-baseline.mjs'); console.log(m.sideEnds('HEAD', process.argv.slice(1)).ends)" <files>`;
    it holds when `m1` lists `cap+cfg`. Docs, product code outside
    the rule, specs, `covers:` edits and quarantine entries do not end a side and need no hold.
+   **Name these explicitly, because one slipped through on the first try:** a version or
+   dependency change in any package CI installs or builds ends every side, not only the root
+   `package.json` and `package-lock.json`: `cli/package.json`, `cli/package-lock.json` and
+   `cli/tsconfig*.json` (the CLI package, built and tested in the Build job), and any other
+   package a workflow installs with `npm --prefix <dir>`. A release that bumps the CLI or the
+   Bridge version is such a change, whatever else it does. When in doubt, run `sideEnds`.
 3. **If a side-ending landing cannot wait** (an incident fix), it lands, the after side ends
    there, and the trial is read with the n it reached. Unmeasured counts toward the three.
 4. **The bounds:** cf13's 7-day bound from the candidate's start (this PR, opened 2026-11-06)
@@ -406,4 +412,35 @@ Running them side by side is the measured next step for the Build job.
   (section 7.3). The after side is protected by a scheduling hold, not by any change to cf03's rule.
 - **Trap.** A second exception in a tier is invalid while the first is active, whatever the owner
   approved: the ledger enforces one active exception per tier.
+
+### 7.7 First try: unmeasured, reverted
+
+#2237 landed at 2026-11-06T14:33:58Z (09077bc2) with 12 `cap+cfg` merges on its before side
+(M1 median 16.03). Its after side ended at 3 merges (M1 median 11.1, M2 waiting 0.68, M2
+execution 11.67) when #2258 landed at 2026-11-06T18:50:12Z (cac69406). #2258 changed
+`cli/package.json`, which `rule` counts as a package ci.yml installs and builds, so it ended every
+group's side; the hold did not name that kind of change, and it entered the queue. The first try
+is recorded unmeasured with before 12 and after 3; it counts as cf13's second try (rank 2 was the
+first) and goes to cf20(c) with these numbers. Three after-side merges are not a result: they say
+nothing either way within cf03's minimum of 10.
+
+The code change is reverted (this PR): `scripts/configured-shards.mjs` and its test go back to one
+stack per 10 test-minutes and at most four. The evidence above stays. The revert ends the `+cfg`
+M1 sides and every M3 side.
+
+### 7.8 Re-run: cf13's third and last try
+
+The owner chose to measure rank 1 again properly. The re-run lands the same change as #2237 from
+`main` after this revert lands, inside the owner's 14-day window, which still runs from the first
+landing: 2026-11-06T14:33:58Z to 2026-11-20T14:33Z.
+
+- **Landing condition:** 10 `cap+cfg` merges on the before side after this revert's merge, with no
+  side-ending landing in between (if one lands, the count restarts after it).
+- **After the landing:** the hold in section 7.4, with the version-bump rule above, until the after
+  side holds 10 `cap+cfg` merges.
+- **Bounds:** cf13's 7-day bound from the re-run's start, and the owner's window, whichever ends
+  first; the reading happens when both sides hold 10.
+- **Decision:** as section 7.4: keep only if `cap+cfg` M1 median is lower by more than 1.04 with no
+  regression in M2 waiting, M2 execution or M4; otherwise revert before 2026-11-20T14:33Z. This is
+  the last try: whatever it shows, the phase then records its result.
 
