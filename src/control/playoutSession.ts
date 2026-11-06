@@ -105,10 +105,10 @@ export interface AirPart {
   clocks: Readonly<Record<string, string>>;
   /** The same per field for a debate board's two clocks. */
   speaking: Readonly<Record<string, Record<string, string>>>;
-  /** Commands applied to PROGRAM here, so a boot read can tell it is older. */
+  /** Commands applied to PROGRAM here, in all. A boot read reads `commandsBy`. */
   commands: number;
-  /** The same per graphic, so a boot read is older only for the graphics a command moved.
-   *  ADDITIVE OPTIONAL: absent is none. */
+  /** The same per graphic: a boot read is older than the screen only for the graphics a command
+   *  moved since it was asked (`airAtRequest`). ADDITIVE OPTIONAL: absent is none. */
   commandsBy?: Readonly<Record<string, number>>;
   /** Per graphic, the last command here that decides an output's hold on it (./outputRecovery.ts
    *  `holdAfter`): its `commandsBy` count and whether it leaves the graphic held. A boot read keeps a

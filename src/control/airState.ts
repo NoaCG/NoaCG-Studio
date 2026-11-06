@@ -262,17 +262,15 @@ export function claimAndApply(
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
- *  (per graphic too) and the fields they had carried, so its answer can tell it is older than the
- *  screen. */
+ *  per graphic and the fields they had carried, so its answer can tell it is older than the screen. */
 export interface AirAtRequest {
   moves: number;
-  commands: number;
   commandsBy?: AirPart['commandsBy'];
   carried?: AirPart['carried'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, commandsBy: air.commandsBy, carried: air.carried };
+  return { moves: air.moves, commandsBy: air.commandsBy, carried: air.carried };
 }
 
 /** Whether a command on this graphic was applied here since the request: its rows and report are
@@ -459,9 +457,10 @@ export function offAirClockGraphics(resolved: { liveCue: LiveCueMap; live: LiveR
  * through an Out, as every output does, so its next Take counts what air counts. Each is its
  * renderer's report folded through the rows after it, as the renderer folds them (`clockAfterRows`).
  * Applied apart from `seedFromResolve`, once its own read is back, so the on-air seed never waits
- * for it. None when a command was applied since the request (newer than these rows); a graphic the
- * read did not answer for (no baseline, not read to the head) stays as it is. `now` stands in for
- * a row's server time when it has none.
+ * for it. Not a clock a command was applied to since the request (newer than its rows); a command
+ * on another graphic leaves the rest rebuilt (#2148). A graphic the read did not answer for (no
+ * baseline, not read to the head) stays as it is. `now` stands in for a row's server time when it
+ * has none.
  */
 export function seedOffAirClocks(
   air: AirPart,
@@ -471,9 +470,9 @@ export function seedOffAirClocks(
   specs: ClockSpecs,
   now: number,
 ): AirPart {
-  if (air.commands !== at.commands) return air;
   let clocks = air.clocks;
   for (const graphic of replay.graphics) {
+    if (commandedSince(air, at, graphic)) continue;
     const clock = specs.clocks.get(graphic);
     const reported = clock ? resolved.live[graphic]?.data?.[clock.field] : undefined;
     if (!clock || reported === undefined) continue;

@@ -839,8 +839,8 @@ test('an off-air clock is not rebuilt over a command applied while the resolve w
   const specs = { clocks: new Map([['bug', DURATION]]), pairs: new Map() };
   const graphics = offAirClockGraphics(resolved, specs);
   const asked = airAtRequest(NO_AIR);
-  // A command applied meanwhile is newer than the rows: the page keeps its own memory.
-  const moved = programItems({ ...NO_AIR, commands: 1 }, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:50' } } }], specs, T).air;
+  // A command applied to it meanwhile is newer than the rows: the page keeps its own memory.
+  const moved = programItems({ ...NO_AIR, commands: 1, commandsBy: { bug: 1 } }, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:50' } } }], specs, T).air;
   assert.equal(seedOffAirClocks(moved, resolved, { graphics, rows: [] }, asked, specs, T).clocks.bug, moved.clocks.bug);
   // No report: nothing to rebuild from.
   assert.deepEqual(offAirClockGraphics({ liveCue: {}, live: {} }, specs), []);
@@ -848,6 +848,24 @@ test('an off-air clock is not rebuilt over a command applied while the resolve w
   assert.equal('bug' in seedOffAirClocks(NO_AIR, resolved, { graphics: [], rows: [] }, asked, specs, T).clocks, false);
   // A clock on air is the on-air seed's, not this one's.
   assert.deepEqual(offAirClockGraphics({ liveCue: { bug: 'c1' }, live: resolved.live }, specs), []);
+});
+
+test('#2148: a command on another graphic while the off-air clock read was out leaves the clock rebuilt; one on the clock does not', () => {
+  const resolved = { liveCue: { lt: 'c1' }, live: { score: { event: 3, data: { f5: `09:30@${T}` } } } };
+  const graphics = offAirClockGraphics(resolved, CLOCKS);
+  assert.deepEqual(graphics, ['score']);
+  const asked = airAtRequest(NO_AIR);
+  // A row after the report that moves the clock, so the rebuild is the rows' and not the report's.
+  const rows = { graphics, rows: [{ graphic: 'score', msg: { t: 'event', event: 'set', payload: { f5: '08:00' } } }] };
+  const rebuilt = seedOffAirClocks(NO_AIR, resolved, rows, asked, CLOCKS, T).clocks.score;
+  assert.notEqual(rebuilt, undefined);
+  assert.notEqual(rebuilt, seedOffAirClocks(NO_AIR, resolved, { graphics, rows: [] }, asked, CLOCKS, T).clocks.score, 'the row moved it');
+  // A +1 on the lower third on air, heard while the read was out.
+  const other = claimAndApply(NO_AIR, [update('lt', { f0: 'PLUS ONE' }, 'u1')], createAppliedOnce(), CLOCKS, T).air;
+  assert.equal(seedOffAirClocks(other, resolved, rows, asked, CLOCKS, T).clocks.score, rebuilt, 'the scorebug\'s next Take counts what air counts');
+  // A command on the scorebug itself is newer than its rows: the page keeps its own memory.
+  const own = claimAndApply(NO_AIR, [update('score', { f5: '05:00' }, 'u2')], createAppliedOnce(), CLOCKS, T).air;
+  assert.equal(seedOffAirClocks(own, resolved, rows, asked, CLOCKS, T).clocks.score, own.clocks.score);
 });
 
 test('only a duration held nowhere and off air there is never taken; on air or reported, it reads as before (#1903 N1, N2)', () => {
