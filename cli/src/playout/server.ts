@@ -45,6 +45,7 @@ import {
   type Target,
 } from './protocol.js';
 import { SequenceRunner } from './runner.js';
+import { ServerLinks } from './links.js';
 import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
 import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
@@ -122,6 +123,9 @@ export interface BridgeOptions {
   runner?: SequenceRunner;
   /** The servers the page connected to. A test hands in one over a file of its own. */
   servers?: ServerMemory;
+  /** The Bridge's watch on each CasparCG server's connection (./links.ts). A test hands in its own
+   *  to set how soon a lost link is tried again. */
+  links?: ServerLinks;
 }
 
 // --- Request reading -------------------------------------------------------------------------
@@ -426,6 +430,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
       return servers.list();
     }
   };
+  const links = options.links ?? new ServerLinks(memory.session);
   let runner = options.runner;
   if (!runner) {
     runner = new SequenceRunner({ memory, adapters: options.adapters, log });
@@ -627,7 +632,16 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           }
           send(
             200,
-            { ok: true, v: PLAYOUT_V, channel, session: memory.session, observedAt: Math.round(performance.now()), slots: memory.annotate(target, channel, r.value) },
+            {
+              ok: true,
+              v: PLAYOUT_V,
+              channel,
+              session: memory.session,
+              // Read after the reading came back: a restart before it has already closed the link.
+              ...(target.adapter === 'casparcg' ? { link: links.id(target.host, target.port) } : {}),
+              observedAt: Math.round(performance.now()),
+              slots: memory.annotate(target, channel, r.value),
+            },
             true,
           );
           return;
@@ -748,5 +762,6 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   });
   // The runner this server made stops with it; one handed in belongs to whoever made it.
   if (!options.runner) server.on('close', () => runner.stop());
+  if (!options.links) server.on('close', () => links.stop());
   return server;
 }

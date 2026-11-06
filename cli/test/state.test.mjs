@@ -13,6 +13,7 @@ import { parseInfo } from '../dist/playout/info.js';
 import { amcpSend } from '../dist/playout/amcp.js';
 import { createBridgeServer } from '../dist/playout/server.js';
 import { LOADING_GRACE_MS, playsItem, SlotMemoryBank } from '../dist/playout/slots.js';
+import { ServerLinks } from '../dist/playout/links.js';
 import { fakeCasparServer } from './_fakeCasparServer.mjs';
 
 const FIXTURES = new URL('./fixtures/info/', import.meta.url);
@@ -363,7 +364,7 @@ test('another file, an empty layer or a cleared one ends the instance; a loop ma
 
 const TOKEN = 'a'.repeat(64);
 
-async function bridge(t, caspar) {
+async function bridge(t, caspar, extra = {}) {
   // The Bridge's clock is the fake server's, so a test that moves the server's time moves the
   // Bridge's with it: a reading four seconds into a clip comes four seconds after its take.
   const server = createBridgeServer(
@@ -373,6 +374,7 @@ async function bridge(t, caspar) {
       adapters: [casparcgAdapter],
       version: '0.4.2',
       memory: new SlotMemoryBank('b1', () => caspar.clock.now()),
+      ...extra,
     },
     () => {},
   );
@@ -438,6 +440,33 @@ test('/channels from a server that cannot say is an error, so the page keeps the
   await caspar.close();
   const gone = await call('/channels', { target: casparTarget });
   assert.deepEqual([gone.body.ok, gone.body.error.code], [false, 'unreachable']);
+});
+
+test('/state names the Bridge\'s link to the server, which a restart changes and a CLEAR does not (#2252)', async (t) => {
+  const caspar = await fakeCasparServer({ channels: { 1: { fps: 50 } } });
+  t.after(() => caspar.close());
+  const links = new ServerLinks('b1', { retryMs: 20 });
+  t.after(() => links.stop());
+  const { call, casparTarget } = await bridge(t, caspar, { links });
+  const link = async () => (await call('/state', { target: casparTarget, channel: 1 })).body.link;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const first = await link();
+  assert.match(first, /^b1\./);
+  await wait(50); // the watch's own connection comes up
+  assert.equal(await link(), first, 'unchanged while the server stays up');
+  const clear = await call('/act', { target: casparTarget, action: { verb: 'clear', slot: { adapter: 'casparcg', channel: 1, layer: 20 } } });
+  assert.equal(clear.body.ok, true);
+  assert.equal(await link(), first, 'a CLEAR is not a restart');
+  // CasparCG restarts: every connection drops. The first reading after it already names another
+  // link, before the watch is connected again.
+  caspar.dropConnections();
+  await wait(5);
+  const second = await link();
+  assert.notEqual(second, first, 'a restart changes it');
+  await wait(100);
+  assert.equal(await link(), second, 'and it holds once the link is back');
+  // Nothing is ever sent on the watch's connection: every line the server got is a request's.
+  assert.ok(caspar.seen.every((l) => /^(INFO|CLEAR|VERSION)\b/.test(l)), caspar.seen.join(' | '));
 });
 
 test('/state reads a channel, and every action\'s reply carries the slot\'s generation', async (t) => {

@@ -412,7 +412,12 @@ export async function fakeCasparServer(options = {}) {
     };
   }
 
+  /** Every connection open now: a held one (the Bridge's link watch, cli/src/playout/links.ts) would
+   *  otherwise keep `close()` waiting, and `dropConnections()` drops them as a restart does. */
+  const sockets = new Set();
   const server = createServer((socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
     let buffer = '';
     let queue = Promise.resolve();
     // A name like `Jääkiekko` can split across two chunks; the decoder holds the half character.
@@ -470,6 +475,15 @@ export async function fakeCasparServer(options = {}) {
       clock.advance(ms);
       settle();
     },
-    close: () => new Promise((resolve) => server.close(resolve)),
+    /** Every open connection drops, as when the server process dies; the server keeps listening,
+     *  as one started again would. */
+    dropConnections() {
+      for (const s of sockets) s.destroy();
+    },
+    close: () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        for (const s of sockets) s.destroy();
+      }),
   };
 }

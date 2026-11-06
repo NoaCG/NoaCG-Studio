@@ -15,6 +15,18 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.10.2 - 2026-11-06
+
+After a CasparCG restart, the production page puts its output back by itself, but only if it
+noticed the server was gone. A background tab, which the browser checks only about once a minute,
+could miss a quick restart and take the empty slot for one somebody cleared on purpose, so the
+output stayed off until someone pressed Load. The Bridge now keeps watch on its connection to each
+CasparCG server and tells the page when that connection was lost, so the page knows a restart from
+a clear even when it missed the outage itself.
+
+Download the new Bridge from Downloads, replace the old file and restart it between broadcasts.
+No setup or server changes are needed. An older Bridge keeps working as before.
+
 ## 0.10.1 - 2026-10-30
 
 A malformed request from another program on the same computer could briefly pause the Bridge
