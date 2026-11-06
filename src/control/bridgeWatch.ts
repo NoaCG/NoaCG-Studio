@@ -38,7 +38,8 @@
 // browser's storage with its own stamp (`io.loadedOutput` / `io.keepLoaded`), and read fresh at every
 // decision, so a page reloaded, or left and opened again, after the Load still brings it back, and an
 // Unload in any tab disarms them all. A page arms for a Load only once it has seen the output on
-// that slot itself (`seenAt`). A reading that gives the slot up (another production, another
+// that slot itself (`seenAt`), or, opened during an outage, from the note a tab that had seen it
+// wrote (`seen`, #2249). A reading that gives the slot up (another production, another
 // client's clip or CLEAR) forgets that Load only while it is still the one kept, so a stale tab never
 // erases a newer Load; Unload, unpublish and CasparCG off forget it outright. Of the tabs armed for a
 // production, one holds its lock (`io.lead`) and alone reloads and counts the tries; the others
@@ -119,6 +120,9 @@ export interface LoadedOutput {
   target: string;
   at: number;
   outageAt?: number;
+  /** That outage was noted by a tab that had seen this Load on its slot, so the output was there
+   *  when the server went: a page opened during the outage arms on it (#2249). */
+  seen?: true;
   /** Reloads tried since that outage, by whichever tab led: three in all, not three per tab. */
   tries?: number;
   /** Why the last try did not bring it back, for the failed state in any tab. */
@@ -294,8 +298,29 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const noted = (m: LoadedOutput | null) => m?.outageAt !== undefined && m.outageAt >= oursAt;
   const sawOutage = () => {
     outageSinceOurs = true;
+    // A page opened during an outage another tab saw goes on from that tab's note, never a newer one.
+    armFromNote();
     const m = memory();
-    if (m && !noted(m)) keep({ ...m, outageAt: io.now() });
+    if (!m) return;
+    const seen = m.at === seenAt;
+    if (!noted(m)) keep({ ...m, outageAt: io.now(), ...(seen ? { seen: true } : { seen: undefined }) });
+    // Another tab noted it first without having seen the output: the note keeps its time, which
+    // the readings out compare against.
+    else if (seen && !m.seen) keep({ ...m, seen: true });
+  };
+  /** A page opened during an outage a tab that saw the output noted (an F5 while the header says
+   *  CasparCG is not answering) arms for that Load as if it had seen it, from the note on (#2249):
+   *  no looser than what the tab that wrote it follows. Only before the server first answered this
+   *  page: a page opened while everything answers may find the slot cleared since that note. Not
+   *  once the tries are spent. */
+  const armFromNote = () => {
+    const m = memory();
+    if (answered || seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget || (m.tries ?? 0) >= RELOAD_AFTER_READS.length) return;
+    seenAt = m.at;
+    oursAt = Math.min(oursAt, m.outageAt);
+    // Asked now, while the server is still down: the browser grants a lock a moment later, and the
+    // first empty reading must find it held.
+    followLead(m.target);
   };
   /** A reading sent while an outage was noted: what it found may be from before the recovery, so an
    *  empty one never reads as a CLEAR. Decided by what the reading carried, not by clock order. */
@@ -307,6 +332,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const outage = (m: LoadedOutput | null) => (local !== undefined ? outageSinceOurs : noted(m));
   /** The last slot start was published with CasparCG on, so a start without either is a change. */
   let watched = false;
+  /** The status has answered `ok` since the page opened. */
+  let answered = false;
   /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
   let reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
   const resetReloads = () => {
@@ -328,6 +355,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const off = io.subscribeTargetStatus(io.loadSettings(), (result) => {
       if (!live) return;
       if (result.state !== 'ok') sawOutage();
+      else answered = true;
       writeBridge(session, { status: result });
       follow();
     });
