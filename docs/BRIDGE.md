@@ -324,10 +324,11 @@ afterwards follows the command log, as for any output loaded fresh. The decision
   replaces it, and a clip, still or other page another client played there is never covered. The
   slot is read once more right before the load, which goes only if the layer is still vacant, the
   settings still name that slot, and no Load or Unload landed meanwhile.
-- **Only this browser's output, on its own slot.** Where it was loaded is kept per production in
-  this browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load
-  still brings it back, once it has seen the output on the slot again. Tabs of one browser take
-  turns under one lock: one loads, the others find it loaded. Not an output only another browser loaded, not a
+- **Only this browser's output, on its own slot.** Each Load is kept per production in this
+  browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load still
+  brings it back, once it has seen the output on the slot again. An Unload in any tab of the
+  browser counts for all of them. Of the tabs open on the production, one holds a browser lock and
+  alone reloads and counts the three tries; if it closes, another takes over. Not an output only another browser loaded, not a
   slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
   emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left
   alone, and gives the output up, so a later outage does not bring it back.
@@ -335,7 +336,10 @@ afterwards follows the command log, as for any output loaded fresh. The decision
   60 s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason
   under it, the status says "Not on 1-20", and Load is the operator's.
 - **Limits.** A page opened while CasparCG is down, onto a slot it has not seen loaded, needs Load
-  once the server answers. A restart so quick that no poll saw the server gone (the status
+  once the server answers. A Load this browser made is forgotten only when a page of it sees the
+  slot given up, so if another browser later loads the same production there, this one may reload
+  it too after a restart, as when both pressed Load. On a plain `http://` address the browser has
+  no lock, and every tab reloads as before. A restart so quick that no poll saw the server gone (the status
   is asked every few seconds, less often in a background tab, which the browser slows) reads as a
   `CLEAR`, and Load is needed as before. Two browsers that each pressed Load both reload, which
   loads the same URL twice, at most a flicker.

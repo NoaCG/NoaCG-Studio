@@ -32,11 +32,11 @@ export interface ReadyMemory {
   stamp: RememberedStamp | null;
   /** Successful Put on air, per server/slot. Take off clears it; a disconnect never does. */
   casparOutput?: string;
-  /** Where this browser loaded the output (Put on air) and has not seen it unloaded, cleared or
-   *  taken since, per server/slot: the slot a CasparCG restart puts it back on, also after the page
-   *  was reloaded (control/bridgeWatch.ts, #2245). Unlike `casparOutput`, never set by only seeing
-   *  it there. */
-  casparLoaded?: string;
+  /** The last Load (Put on air) of the output from this browser that nothing has given up since:
+   *  its server/slot and a stamp of its own. The slot a CasparCG restart puts it back on, also after
+   *  the page was reloaded (control/bridgeWatch.ts, #2245). Unlike `casparOutput`, never set by
+   *  only seeing it there. */
+  casparLoaded?: { target: string; at: number };
 }
 
 const EMPTY: ReadyMemory = { outputs: [], stamp: null };
@@ -67,6 +67,11 @@ function readStamp(value: unknown): RememberedStamp | null {
   return { at: s.at, v: { n: s.v.n, h: s.v.h }, outputs: count(s.outputs), ready: count(s.ready), warnings: count(s.warnings), problems: count(s.problems) };
 }
 
+function readLoaded(value: unknown): { casparLoaded?: { target: string; at: number } } {
+  const l = value as { target?: unknown; at?: unknown } | null;
+  return l && typeof l === 'object' && typeof l.target === 'string' && typeof l.at === 'number' ? { casparLoaded: { target: l.target.slice(0, 300), at: l.at } } : {};
+}
+
 export function loadReadyMemory(productionId: string): ReadyMemory {
   try {
     const raw = localStorage.getItem(keyFor(productionId));
@@ -77,7 +82,7 @@ export function loadReadyMemory(productionId: string): ReadyMemory {
       outputs: readOutputs(parsed.outputs),
       stamp: readStamp(parsed.stamp),
       ...(typeof parsed.casparOutput === 'string' ? { casparOutput: parsed.casparOutput.slice(0, 300) } : {}),
-      ...(typeof parsed.casparLoaded === 'string' ? { casparLoaded: parsed.casparLoaded.slice(0, 300) } : {}),
+      ...readLoaded(parsed.casparLoaded),
     };
   } catch {
     return EMPTY;

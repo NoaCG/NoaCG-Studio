@@ -27,7 +27,7 @@ const ourPage = { layer: 20, producer: 'html', file: 'https://noacg.studio/outpu
 
 /** One browser's storage (model/readyMemory.ts `casparLoaded`) and its Web Locks, which its tabs share. */
 function newBrowser() {
-  return { loaded: new Map(), locks: new Set() };
+  return { loaded: new Map(), locks: new Map() };
 }
 
 /** Every watch a test started, stopped after it so no real timer keeps Node running. */
@@ -77,18 +77,24 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     },
     rememberOutput: (showId, target) => calls.push(`remember ${showId} ${target}`),
     loadedOutput: (showId) => browser.loaded.get(showId) ?? null,
-    keepLoaded: (showId, target) => {
-      if (target === null) browser.loaded.delete(showId);
-      else browser.loaded.set(showId, target);
+    keepLoaded: (showId, next, ifAt) => {
+      if (ifAt !== undefined && browser.loaded.get(showId)?.at !== ifAt) return;
+      if (next === null) browser.loaded.delete(showId);
+      else browser.loaded.set(showId, next);
     },
-    exclusive: async (key, run) => {
-      if (browser.locks.has(key)) return null;
-      browser.locks.add(key);
-      try {
-        return await run();
-      } finally {
-        browser.locks.delete(key);
-      }
+    lead: (key) => {
+      // Web Locks: one holder per key, the next asker's when it lets go.
+      const queue = browser.locks.get(key) ?? [];
+      browser.locks.set(key, queue);
+      const lead = { on: false, held: () => lead.on, release: () => {
+        const at = queue.indexOf(lead);
+        if (at >= 0) queue.splice(at, 1);
+        lead.on = false;
+        if (queue[0]) queue[0].on = true;
+      } };
+      queue.push(lead);
+      if (queue[0] === lead) lead.on = true;
+      return lead;
     },
     every: (ms, run) => {
       const e = { ms, run, live: true };
@@ -713,7 +719,7 @@ test('a page reloaded after the Load still puts the output back after a server r
   const browser = newBrowser();
   const server = { layer: ourPage };
   const first = await loadedRig({ browser, server });
-  assert.equal(browser.loaded.get('show-1'), first.inputs.casparTarget, 'the Load is kept in this browser');
+  assert.equal(browser.loaded.get('show-1')?.target, first.inputs.casparTarget, 'the Load is kept in this browser');
   first.watch.stop();
   const t = await reopened(browser, server);
   await restartServer(t);
@@ -778,31 +784,70 @@ test('a reloaded page that has not seen the output on its slot yet loads nothing
   assert.ok(!t.calls.includes('reload'));
 });
 
-test('two tabs of one browser: only one reloads the slot, one load in all', async () => {
+test('two tabs of one browser: only one reloads the slot and counts the tries; the other takes over when it closes', async () => {
   const browser = newBrowser();
   const server = { layer: ourPage };
   (await loadedRig({ browser, server })).watch.stop();
   const a = await reopened(browser, server);
   const b = await reopened(browser, server);
-  let release;
-  a.reloading.answer = () => new Promise((resolve) => {
-    release = () => resolve({ state: 'ok', detail: '' });
-  });
-  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
-  b.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  const refused = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  a.reloading.answer = refused;
+  b.reloading.answer = refused;
+  const loads = () => [...a.calls, ...b.calls].filter((c) => c === 'reload').length;
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
   await settle();
   server.layer = EMPTY;
-  a.answer(OK);
+  for (const t of [a, b]) t.answer(OK);
   await settle();
-  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'tab A loads');
-  // Tab B comes back while A's load is out: it sends nothing and is not a try.
+  assert.equal(loads(), 1, 'one PLAY at once, from one tab');
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'tab B waits');
+  for (let n = 0; n < 30; n += 1) {
+    await a.readSlot();
+    await b.readSlot();
+  }
+  assert.equal(loads(), 3, 'three tries in all, never three per tab');
+  assert.equal(a.session.bridge.get().slotReload?.state, 'failed');
+  // The reloading tab closes: the other one takes over, once the slot holds the output again.
+  a.watch.stop();
+  b.reloading.answer = () => ({ state: 'ok', detail: '' });
+  server.layer = ourPage;
+  await b.readSlot();
+  b.answer({ state: 'server', detail: 'gone' });
+  await settle();
+  server.layer = EMPTY;
   b.answer(OK);
   await settle();
-  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'tab B waits');
-  assert.equal(b.session.bridge.get().slotReload, null);
-  release();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 1, 'tab B reloads now');
+});
+
+test('an Unload in one tab disarms every tab of the browser, even one that saw an outage', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  const b = await reopened(browser, server);
+  a.watch.slotOwned(false, a.inputs.casparTarget);
+  server.layer = EMPTY;
+  await restartServer(b);
+  await restartServer(a);
+  assert.ok(![...a.calls, ...b.calls].includes('reload'));
+});
+
+test('a tab that read the slot empty before a newer Load in another tab does not erase that Load', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  const b = await reopened(browser, server);
+  // B's reading goes out while the slot is empty after A's Unload, and lands after A loaded again.
+  a.watch.slotOwned(false, a.inputs.casparTarget);
+  server.layer = EMPTY;
+  b.setHold(true);
+  b.everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
   await settle();
-  await b.readSlot();
-  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'tab B finds it loaded');
-  assert.deepEqual(b.session.bridge.get().outputSlot, { holds: 'ours' });
+  server.layer = { layer: 20, producer: 'video', file: 'AMB', paused: false, loop: true };
+  b.held.shift()();
+  server.layer = ourPage;
+  a.watch.slotOwned(true, a.inputs.casparTarget);
+  const kept = browser.loaded.get('show-1');
+  await settle();
+  assert.deepEqual(browser.loaded.get('show-1'), kept, 'the newer Load is still kept');
 });
