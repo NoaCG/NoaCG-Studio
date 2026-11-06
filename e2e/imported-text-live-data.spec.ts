@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
 import { startSheetServer, csvOf, MODEL_REQUEST, PAGE_FAILURES } from './fixtures/jev-sheet-server.mjs';
+import { openDataPanel } from './_workspace';
 
 const NOTICE_SVG = fileURLToPath(new URL('./fixtures/jev-svg/qualification/multiline.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGNoticeSheet000000000/edit#gid=0';
@@ -65,7 +66,7 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   await review.getByTestId('cue-connect-read').click();
   await review.getByTestId('cue-connect-label').fill('Notices');
   await review.getByTestId('cue-connect-confirm').click();
-  await expect(page.getByTestId('sources-line')).toContainText('checked');
+  await expect(await openDataPanel(page)).toContainText('checked');
 
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
@@ -117,12 +118,12 @@ test('a Sheet refresh changes a multiline SVG field on air in its drawn styling,
   expect(await look()).toEqual(drawn);
 
   // PAUSE holds what is on air; RESUME reconnects and the newest value arrives.
-  await page.getByTestId('source-pause').click();
-  await expect(page.getByTestId('sources-line')).toContainText('paused');
+  await (await openDataPanel(page)).getByTestId('source-pause').click();
+  await expect(await openDataPanel(page)).toContainText('paused');
   sheet.set(tabOf('Closed today'));
   await page.waitForTimeout(6000);
   expect(await lines(), 'paused: nothing read').toEqual(['Doors open at 18:00', 'Entry from the courtyard']);
-  await page.getByTestId('source-pause').click();
+  await (await openDataPanel(page)).getByTestId('source-pause').click();
   await expect.poll(lines, { timeout: 20_000, message: 'reconnected' }).toEqual(['Closed today']);
   expect(await look()).toEqual(drawn);
   const end = await motion();
@@ -152,7 +153,7 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
     await review.getByTestId('cue-connect-read').click();
     await review.getByTestId('cue-connect-label').fill('Notices');
     await review.getByTestId('cue-connect-confirm').click();
-    const status = page.getByTestId('sources-line').getByTestId('source-status');
+    const status = (await openDataPanel(page)).getByTestId('source-status');
     await expect(status).toContainText('checked');
 
     await page.getByTestId('verb-take').click();
@@ -169,6 +170,7 @@ test('a failing Sheet keeps the multiline field\'s last good lines on air, says 
     const spin = () => air.locator('body').evaluate(() => (window as unknown as { __spin: { totalTime(): number } }).__spin.totalTime());
 
     // Each failure is said on the line, and the field keeps its last good lines on air.
+    await openDataPanel(page);
     let turned = await spin();
     for (const [mode, said] of PAGE_FAILURES) {
       fake.mode(SHEET, mode);

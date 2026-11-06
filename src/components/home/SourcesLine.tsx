@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from 'react';
+import LibMenu from './LibMenu';
 import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
 import { FEED_READ_MS } from '../../control/feedSource';
@@ -192,11 +193,9 @@ function listsWaiting(show: Show, source: ShowSource, onAir: OnAir): string[] {
   return heldListsWaiting(sourcePaths(show.bindings, source.id), heldMain, onAir.live, onAir.waits);
 }
 
-/** One source's line: name, status, stale, the fix when it fails, Pause, and a list on air that
- *  waits for the next Take. */
-function SourceLine({ show, setShows, source, store, onAir }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore; onAir?: OnAir }) {
+/** One source's line in the data panel: name, status, stale, the fix when it fails, and Pause. */
+function SourceLine({ show, setShows, source, store }: { show: Show; setShows: (shows: Show[]) => void; source: ShowSource; store: SourceStatusStore }) {
   const { status, now } = useSourceStatus(store, source.id);
-  const waiting = onAir ? listsWaiting(show, source, onAir) : [];
   return (
     <div
       className="pd-source-line hint"
@@ -218,45 +217,116 @@ function SourceLine({ show, setShows, source, store, onAir }: { show: Show; setS
       {status?.problems.map((p) => (
         <span key={p} className="status-warn" data-testid="source-problem"> {p}.</span>
       ))}
-      {waiting.length > 0 && (
-        <span data-testid="source-waiting" title={`On air: ${waiting.join(', ')}`}>
-          {' '}· <strong>Newer data shows on the next Take</strong>
-        </span>
-      )}
     </div>
   );
 }
 
+/** One source's tone in the header indicator, worst last: a source still on its first read, a
+ *  healthy one, one paused by the operator, one with a problem (failing, empty, rows it could not
+ *  use, or a graphic's own reader Pause cannot stop), and one stale after three missed reads. */
+export type DataTone = 'ok' | 'waiting' | 'paused' | 'warn' | 'bad';
+const TONE_RANK: Record<DataTone, number> = { ok: 0, waiting: 1, paused: 2, warn: 3, bad: 4 };
+const TONE_GLYPH: Record<DataTone, string> = { ok: '✓', waiting: '…', paused: '❚❚', warn: '⚠', bad: '⚠' };
+
+export function sourceTone(paused: boolean | undefined, status: SheetStatus | undefined): DataTone {
+  if (paused || status?.state === 'paused') return 'paused';
+  if (status?.stale) return 'bad';
+  if (!status || status.state === 'waiting') return 'waiting';
+  if (status.state === 'failing' || status.state === 'empty' || status.problems.length > 0) return 'warn';
+  return 'ok';
+}
+
+/** The indicator's reading: the worst tone, and how many sources share it (every source while
+ *  all is well, so "Data ✓ 3" says how many are read). */
+export function dataSummary(tones: readonly DataTone[]): { tone: DataTone; count: number } | null {
+  if (tones.length === 0) return null;
+  const tone = tones.reduce((w, t) => (TONE_RANK[t] > TONE_RANK[w] ? t : w), 'ok' as DataTone);
+  // A source still on its first read is not a problem: it counts with the healthy ones.
+  const count = tone === 'ok' || tone === 'waiting' ? tones.length : tones.filter((t) => t === tone).length;
+  return { tone, count };
+}
+
 /**
- * THE PLAYOUT SOURCES LINE (sheet spec, "Status and Pause on the Playout tab"): one line per
- * source of the production, whichever cue is selected, so a failing or stale Sheet is in sight
- * while the show runs and Pause is one press. Nothing at all without sources.
+ * THE DATA INDICATOR in the production page's header (#2244): one compact button for every source
+ * of the production, "Data ✓ 3" while all read fine, amber or red with a count when one has a
+ * problem or is stale. A press opens the panel of source lines, each with its state and Pause or
+ * Resume. Healthy sources take no room under the monitors. Nothing at all without sources.
  */
-export default function SourcesLine({
+export function DataIndicator({
   show,
   setShows,
   store,
   ownReaders = [],
-  onAir,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   store: SourceStatusStore;
   /** Graphics reading a Sheet in their own code: listed, without a Pause that would not work. */
   ownReaders?: readonly OwnSheetReader[];
-  /** What is on air, so a held credits list can say newer data waits for its next Take. */
-  onAir?: OnAir;
 }) {
+  const [open, setOpen] = useState(false);
   // A Sheet's or a feed's line; a YouTube source is read and shown in Messages only.
   const sources = (show.sources ?? []).filter(fillsFields);
-  if (sources.length === 0 && ownReaders.length === 0) return null;
+  // One string per reading, so a status that moves without changing a tone renders nothing here.
+  const tones = useSyncExternalStore(store.subscribe, () => sources.map((s) => sourceTone(s.paused, store.get(s.id))).join(' '));
+  const summary = dataSummary([...(tones ? (tones.split(' ') as DataTone[]) : []), ...ownReaders.map(() => 'warn' as const)]);
+  if (!summary) return null;
+  const total = sources.length + ownReaders.length;
+  const title =
+    summary.tone === 'ok' ? `${total} data source${total === 1 ? '' : 's'}, all reading`
+    : summary.tone === 'waiting' ? 'Reading the data sources…'
+    : summary.tone === 'paused' ? `${summary.count} paused: values on air are frozen until Resume`
+    : summary.tone === 'bad' ? `${summary.count} stale: the last good values stay on air`
+    : `${summary.count} with a problem`;
   return (
-    <div className="pd-sources" data-testid="sources-line">
+    <span className="pd-ready-host pd-data-host" data-tone={summary.tone}>
+      <button
+        type="button"
+        className={`pd-data-status pd-data-status--${summary.tone}`}
+        aria-expanded={open}
+        aria-label={`Data: ${title}`}
+        title={title}
+        onClick={() => setOpen((o) => !o)}
+        data-testid="data-indicator"
+        data-tone={summary.tone}
+        data-count={summary.count}
+      >
+        Data <span aria-hidden="true">{TONE_GLYPH[summary.tone]}</span> {summary.count}
+      </button>
+      <LibMenu open={open} onClose={() => setOpen(false)} surface="pd-ready-panel" role="none" className="pd-data-panel" testid="sources-line">
+        {sources.map((source) => (
+          <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} />
+        ))}
+        {ownReaders.map((reader) => (
+          <OwnReaderLine key={reader.graphic} reader={reader} />
+        ))}
+      </LibMenu>
+    </span>
+  );
+}
+
+/** One source's held lists waiting, said in place: nothing while none waits. */
+function SourceWaiting({ show, source, onAir }: { show: Show; source: ShowSource; onAir: OnAir }) {
+  const waiting = listsWaiting(show, source, onAir);
+  if (waiting.length === 0) return null;
+  return (
+    <span data-testid="source-waiting" title={`On air: ${waiting.join(', ')}`}>
+      · <strong>Newer data shows on the next Take</strong>
+    </span>
+  );
+}
+
+/**
+ * A held credits list on air with newer data waiting for the next Take: the one data fact that
+ * asks the operator for a press, so it shows under the monitors, and only while it is true.
+ */
+export function DataWaitingNote({ show, onAir }: { show: Show; onAir: OnAir }) {
+  const sources = (show.sources ?? []).filter(fillsFields);
+  if (!sources.some((s) => listsWaiting(show, s, onAir).length > 0)) return null;
+  return (
+    <div className="pd-data-waiting hint" data-testid="data-waiting">
       {sources.map((source) => (
-        <SourceLine key={source.id} show={show} setShows={setShows} source={source} store={store} onAir={onAir} />
-      ))}
-      {ownReaders.map((reader) => (
-        <OwnReaderLine key={reader.graphic} reader={reader} />
+        <SourceWaiting key={source.id} show={show} source={source} onAir={onAir} />
       ))}
     </div>
   );

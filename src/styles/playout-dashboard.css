@@ -170,6 +170,20 @@
 .pd-panel-status--ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.45); }
 .pd-panel-status--idle { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
 .pd-panel-status--held { color: var(--text-dim); font-weight: 600; }
+/* THE DATA INDICATOR (#2244): every source of the production in one chip, its panel listing each
+   source's line with Pause. Green all reading, dim on a first read, amber paused or a problem, red
+   stale. Its count is tabular so a number changing never moves Setup and ■ All out. */
+.pd-data-status { font-size: 12px; font-weight: 700; padding: 4px 9px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pd-data-status--ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.45); }
+.pd-data-status--waiting { color: var(--text-dim); }
+.pd-data-status--paused,
+.pd-data-status--warn { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
+.pd-data-status--bad { color: #f87171; border-color: rgba(248, 113, 113, 0.55); }
+.pd-data-panel { width: min(520px, 94vw); }
+.pd-data-panel .pd-source-line { display: block; padding: 6px 0; font-size: 12.5px; line-height: 1.5; }
+.pd-data-panel .pd-source-line + .pd-source-line { border-top: 1px solid var(--border); }
+.pd-data-panel .pd-source-line button { height: 26px; padding: 0 10px; font-size: 12px; margin-left: 4px; }
+.pd-data-waiting { margin: 0 0 6px; font-size: 12px; }
 /* THE LAPTOP TIERS: the production's NAME must fit a two-word name ("Quiz Night") at 1366x768
    and 1280x720, the school laptops a class runs productions on. Measured 2026-09-27 on "Quiz
    Night" before these tiers: 49 of its 67px at 1366 and 0px at 1280 offline; published with
@@ -2474,6 +2488,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .playout-dashboard:not(.hosted-dashboard) .pd-header .pd-target,
   .pd-header .pd-setup-host,
   .pd-header .pd-panel-status,
+  /* A phone keeps the data chip only while it asks for attention. */
+  .pd-header .pd-data-host[data-tone='ok'],
+  .pd-header .pd-data-host[data-tone='waiting'],
   .pd-header .brand-home,
   .pd-header [data-testid='new-graphic'],
   /* The workspace tabs stand down with them. Data and Audience are authoring surfaces that open

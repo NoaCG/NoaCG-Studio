@@ -42,3 +42,15 @@ export async function openWorkspace(page: Page, tab: 'data' | 'audience'): Promi
 export async function expectPlayoutStillOpen(page: Page): Promise<void> {
   await expect(page.getByTestId('production-verbs')).toBeVisible();
 }
+
+/**
+ * Open the production page's Data panel (the header's Data indicator, #2244) and return it. The
+ * source lines with their Pause live there; a press elsewhere closes it, so a spec opens it again
+ * before each look.
+ */
+export async function openDataPanel(page: Page) {
+  const panel = page.getByTestId('sources-line');
+  if (!(await panel.isVisible())) await page.getByTestId('data-indicator').click();
+  await expect(panel).toBeVisible();
+  return panel;
+}
