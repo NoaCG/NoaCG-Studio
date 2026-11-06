@@ -4,8 +4,9 @@
 //
 // THE LIBRARY ARRIVING ON A NEW BROWSER (docs/SAVED_CONTENT_MODEL.md §3): Home's first-pass state,
 // the plan the sync engine hands it, and the state the controller publishes.
-// covers: src/components/home/HomePage.tsx, src/backend/{sync,syncController}.ts
+// covers: src/components/home/HomePage.tsx, src/backend/{sync,syncController,assets,supabaseProvider}.ts
 
+import { createHash } from 'node:crypto';
 import { test, expect, devices } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { haveCreds, mintAccount, settleSync, shot, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
@@ -168,12 +169,13 @@ test.describe('library arriving on a new browser (configured)', () => {
   });
 });
 
+// Past the shared client's limit on a request nobody answers (backend/supabase.ts).
+const PAST_THE_LIMIT = 76_000;
+
 // A LIBRARY SYNC THE CLOUD STOPPED ANSWERING (#2154). After a pass that got no answer, the next one
 // goes by itself on a backed-off timer, so with the cloud back and nobody touching the page the
 // chip settles without a press. The account is minted as above.
 const RETRY_EMAIL = 'e2e-library-retry@noacg.local';
-// Past the shared client's limit on a request nobody answers (backend/supabase.ts).
-const PAST_THE_LIMIT = 76_000;
 // Past the first retry's wait (backend/syncController.ts: 15 s, spread by a quarter either way).
 const PAST_THE_FIRST_RETRY = 20_000;
 
@@ -224,5 +226,73 @@ test.describe('a library sync the cloud stopped answering (configured)', () => {
     await page.clock.fastForward(PAST_THE_FIRST_RETRY);
     await settleSync(page);
     await expect.poll(() => cloudCount(admin, userId, 'show')).toBe(1);
+  });
+});
+
+// SOUNDS ARRIVING WHILE STORAGE IS SILENT (#2152). The database answers and Storage does not. A
+// sound that gets no answer ends the pass, as an image does, so the next record is not asked and
+// the chip says why after one limit, not one limit per record. The account is minted as above.
+const SOUND_EMAIL = 'e2e-library-sounds@noacg.local';
+
+test.describe('sounds the cloud does not answer for (configured)', () => {
+  test.skip(!canRun, 'needs E2E_EMAIL/E2E_PASSWORD + SUPABASE_SERVICE_ROLE_KEY');
+
+  let admin: SupabaseClient;
+  let userId = '';
+
+  test.beforeAll(async () => {
+    admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    userId = await mintAccount(admin, SOUND_EMAIL, PASSWORD);
+  });
+
+  test.afterAll(async () => {
+    if (!admin || !userId) return;
+    const { data } = await admin.storage.from('user-assets').list(userId);
+    if (data?.length) await admin.storage.from('user-assets').remove(data.map((o) => `${userId}/${o.name}`));
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) console.warn(`library-arrival: the sound account was not deleted: ${error.message}`);
+  });
+
+  test('a sound with no answer stops the pass at the first record, and the retry brings them all', async ({ page }) => {
+    await page.clock.install();
+    await signInOnHome(page, SOUND_EMAIL, PASSWORD);
+    // Another device saved three looks, each with a sound this browser has never cached.
+    for (let i = 0; i < 3; i++) {
+      const bytes = Buffer.from(`sound ${i}`);
+      const hash = createHash('sha256').update(bytes).digest('hex');
+      const storageKey = `${userId}/audio-${hash}`;
+      const upload = await admin.storage.from('user-assets').upload(storageKey, bytes, { contentType: 'audio/wav', upsert: true });
+      if (upload.error) throw new Error(upload.error.message);
+      const id = crypto.randomUUID();
+      const body = { id, name: `Sting ${i}`, updatedAt: new Date().toISOString(), deleted: false, sting: { hash, name: 'sting.wav', bytes: bytes.length, mime: 'audio/wav', storageKey } };
+      const { error } = await admin.from('documents').insert({ id, user_id: userId, kind: 'look', name: body.name, body, deleted: false });
+      if (error) throw new Error(error.message);
+    }
+    let silent = true;
+    const asked: string[] = [];
+    await page.route(/\/storage\/v1\/object\/.*\/audio-/, (route) => {
+      asked.push(route.request().url());
+      return silent ? new Promise<void>(() => {}) : route.continue();
+    });
+    await page.evaluate(async () => { void (await import('/src/backend/syncController.ts')).syncNow(); });
+    await expect.poll(() => asked.length).toBe(1);
+    await page.clock.fastForward(PAST_THE_LIMIT);
+    // The pass that got no answer arms the automatic retry (backend/syncController.ts: 15 s, spread
+    // by a quarter), which would ask for a sound again and break the exact counts here. Hold the
+    // page clock a second on until Sync now is pressed, whose pass takes the retry's place.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    const chip = page.getByTestId('sync-status');
+    await expect(chip).toHaveText('Not synced');
+    await chip.click();
+    await expect(page.getByTestId('sync-detail')).toHaveText(/^The cloud did not answer/);
+    expect(asked, 'the records after the first were not asked about').toHaveLength(1);
+
+    silent = false;
+    await page.clock.resume();
+    await page.getByTestId('sync-action').click();
+    await settleSync(page);
+    expect(asked).toHaveLength(4);
+    const looks = await page.evaluate(async () => (await import('/src/model/packets.ts')).loadAllLooks().filter((l) => l.name.startsWith('Sting ')).length);
+    expect(looks).toBe(3);
   });
 });

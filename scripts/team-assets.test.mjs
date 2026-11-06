@@ -6,7 +6,7 @@ import { rolldown } from 'rolldown';
 const bundle = await rolldown({ input: 'src/backend/assets.ts', platform: 'neutral', logLevel: 'silent' });
 const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
 await bundle.close();
-const { externalizeSharedAssets, rehydrateSharedAssets, sharedAssetKey, STORAGE_SENTINEL } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
+const { externalizeSharedAssets, rehydrateAssets, rehydrateSharedAssets, sharedAssetKey, STORAGE_SENTINEL } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
 
 const dataUrl = (bytes, fill = 'A') => `data:image/png;base64,${fill.repeat(bytes)}`;
 const FOLDER = 'team/00000000-0000-0000-0000-000000000001';
@@ -76,4 +76,46 @@ test('inline SVG stays inline, and two files of equal hash input length differ b
   const stored = await externalizeSharedAssets({ assets: [svg] }, FOLDER, async () => { throw new Error('not uploaded'); });
   assert.equal(stored.assets[0].data, svg.data);
   assert.notEqual(sharedAssetKey(FOLDER, dataUrl(10)), sharedAssetKey(FOLDER, dataUrl(11)));
+});
+
+/** A personal record with a sound and an image in Storage, as a sync pass pulls it. */
+const withSound = () => ({
+  sting: { hash: 'a'.repeat(64), name: 'sting.wav', bytes: 4, mime: 'audio/wav', storageKey: 'u/audio-a' },
+  template: { assets: [{ path: 'a.png', data: `${STORAGE_SENTINEL}u/img` }] },
+});
+const NO_ANSWER = 'Cloud get(asset) failed: The cloud did not answer.';
+const stopsRead = (error) => error instanceof Error && error.message.includes('The cloud did not answer.');
+
+test('a sound the cloud does not answer for fails the read, and nothing more is asked (#2152)', async () => {
+  const asked = [];
+  const read = rehydrateAssets(withSound(), async (key) => { asked.push(key); if (key === 'u/audio-a') throw new Error(NO_ANSWER); return dataUrl(4); }, stopsRead);
+  await assert.rejects(read, (error) => error.message === NO_ANSWER);
+  assert.deepEqual(asked, ['u/audio-a']);
+});
+
+test('a record with several sounds fails once, after asking them together, when one gets no answer', async () => {
+  const body = { ...withSound(), bed: { hash: 'b'.repeat(64), name: 'bed.wav', bytes: 4, mime: 'audio/wav', storageKey: 'u/audio-b' } };
+  const asked = [];
+  let inFlight = 0;
+  let most = 0;
+  const read = rehydrateAssets(body, async (key) => {
+    asked.push(key);
+    inFlight += 1;
+    most = Math.max(most, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    inFlight -= 1;
+    if (key === 'u/audio-a') throw new Error(NO_ANSWER);
+    return dataUrl(4);
+  }, stopsRead);
+  await assert.rejects(read, (error) => error.message === NO_ANSWER);
+  assert.deepEqual(asked.sort(), ['u/audio-a', 'u/audio-b'], 'both sounds asked, no image');
+  assert.equal(most, 2, 'asked together, so the wait is one limit, not one per sound');
+});
+
+test('a sound that is gone or refused keeps its reference, and the rest of the record still reads', async () => {
+  for (const failure of [async () => null, async () => { throw new Error('Cloud get(asset) failed: 503'); }]) {
+    const read = await rehydrateAssets(withSound(), async (key) => (key === 'u/audio-a' ? failure() : dataUrl(4)), stopsRead);
+    assert.equal(read.sting.storageKey, 'u/audio-a');
+    assert.equal(read.template.assets[0].data, dataUrl(4));
+  }
 });

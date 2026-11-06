@@ -118,7 +118,7 @@ export class SupabaseProvider implements StorageProvider {
     if (error) throw new Error(`Cloud get(${kind}) failed: ${error.message}`);
     const row = data as DocumentRow | null;
     if (!row) return null;
-    const body = await rehydrateAssets(row.body, (key) => this.download(sb, key));
+    const body = await rehydrateAssets(row.body, (key) => this.download(sb, key), isNotAnswered);
     return toStoredRecord(kind, row.id, body);
   }
 
