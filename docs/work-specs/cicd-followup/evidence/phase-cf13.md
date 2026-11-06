@@ -372,13 +372,18 @@ each side; it says nothing about when other landings happen. So:
    to `cli/package.json`, `cli/package-lock.json` or `cli/tsconfig*.json` ends every side, a
    version bump or a script edit alike: `cli` is the package ci.yml installs and builds with
    `npm --prefix` (today the only one among the rule's five runners). The root `package.json`
-   ends sides only for a dependency change, the `build` script or a script entry CI runs; the
-   root `package-lock.json` always. A release ends sides only when it touches those files.
+   ends every side for any changed line whose value looks like a version (dependencies, but
+   also `version` and `engines`), for the `build` script, and for a script entry CI runs; the
+   root `package-lock.json` always. So a release that bumps the root version ends every side too.
+   Product PRs end sides when they touch the build toolchain or CI configuration: root
+   `tsconfig*.json`, `eslint.config.js`, `vite.config.ts`, `.dependency-cruiser.cjs`, any
+   `playwright*.config.ts`, `scripts/e2e-durations.json`, `supabase/config.toml` or anything
+   under `.github/`. In recent days 7 of 16 side-ending landings were product PRs of this kind.
    When in doubt, run `sideEnds`.
 3. **If a side-ending landing cannot wait** (an incident fix), it lands, the after side ends
    there, and the trial is read with the n it reached. Unmeasured counts toward the three.
 4. **The bounds:** cf13's 7-day bound from the candidate's start (this PR, opened 2026-11-06)
-   is 2026-11-13; the owner's 14 days run from the landing date. The reading happens as soon as
+   is 2026-11-13; the owner's 14 days run from the landing date (for the re-run, see 7.8). The reading happens as soon as
    both sides hold 10, and at the latest at 2026-11-13.
 5. **The decision:** keep only if `cap+cfg` M1 median is lower beyond 1.04 with no regression in
    M2 waiting, M2 execution or M4. Otherwise revert through the queue before the 14 days end.
@@ -451,8 +456,10 @@ caps it either way.
   M3 side), with no side-ending landing in between (if one lands, the count restarts after it).
 - **After the landing:** the hold in section 7.4, with the version-bump rule above, until the after
   side holds 10 `cap+cfg` merges.
-- **Bounds:** cf13's 7-day bound from the re-run's start, and the owner's window, whichever ends
-  first; the reading happens when both sides hold 10.
+- **Bounds:** cf13's 7-day bound from the re-run's start (its PR, #2261, opened
+  2026-11-06T20:18:16Z, so 2026-11-13T20:18Z) and the owner's window (2026-11-20T14:33Z),
+  whichever ends first: 2026-11-13T20:18Z. The reading happens when both sides hold 10, at the
+  latest then.
 - **Decision:** as section 7.4: keep only if `cap+cfg` M1 median is lower by more than 1.04 with no
   regression in M2 waiting, M2 execution or M4; otherwise revert before 2026-11-20T14:33Z. This is
   the last try: whatever it shows, the phase then records its result.
