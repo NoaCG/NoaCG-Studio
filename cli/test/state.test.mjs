@@ -477,7 +477,7 @@ test('/state names the Bridge\'s link to the server, which a restart changes and
   assert.ok(caspar.seen.every((l) => /^(INFO|CLEAR|VERSION)\b/.test(l)), caspar.seen.join(' | '));
 });
 
-test('a reading the server restarted during carries the link from before it', async (t) => {
+test('a reading the server restarted during is read again, and carries the link after it', async (t) => {
   let restartDuring = false;
   const caspar = await fakeCasparServer({
     channels: { 1: { fps: 50 } },
@@ -496,12 +496,38 @@ test('a reading the server restarted during carries the link from before it', as
   t.after(() => links.stop());
   const { call, casparTarget } = await bridge(t, caspar, { links });
   const link = async () => (await call('/state', { target: casparTarget, channel: 1 })).body.link;
-  await link();
-  for (let i = 0; i < 200 && caspar.open === 0; i += 1) await new Promise((r) => setTimeout(r, 5));
   const before = await link();
   restartDuring = true;
-  assert.equal(await link(), before, 'the slots it read are from before the restart');
-  assert.notEqual(await link(), before, 'the next reading is after it');
+  const reads = caspar.seen.length;
+  const during = await link();
+  assert.notEqual(during, before, 'not the link the slots could be from before');
+  assert.equal(caspar.seen.slice(reads).filter((l) => l === 'INFO 1').length, 2, 'read once more under the link that lasts');
+  assert.equal(await link(), during, 'which the next reading carries too');
+});
+
+test('a reading that gave up waiting leaves the watch at its own pace', async (t) => {
+  const { createServer, Socket } = await import('node:net');
+  // A port nobody listens on: every try is refused.
+  const probe = createServer();
+  await new Promise((r) => probe.listen(0, '127.0.0.1', r));
+  const port = probe.address().port;
+  await new Promise((r) => probe.close(r));
+  let tries = 0;
+  const connect = Socket.prototype.connect;
+  Socket.prototype.connect = function (...args) {
+    tries += 1;
+    return connect.apply(this, args);
+  };
+  t.after(() => {
+    Socket.prototype.connect = connect;
+  });
+  const links = new ServerLinks('b1', { retryMs: 400 });
+  t.after(() => links.stop());
+  links.id('127.0.0.1', port);
+  await links.ready('127.0.0.1', port, 100);
+  const after = tries;
+  await new Promise((r) => setTimeout(r, 1000));
+  assert.ok(tries - after <= 4, `${tries - after} tries in a second at a 400 ms pace`);
 });
 
 test('a lost watch nobody reads stops trying; a connected one is kept however idle', async (t) => {

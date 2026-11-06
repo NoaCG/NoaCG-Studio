@@ -46,9 +46,6 @@ import {
 } from './protocol.js';
 import { SequenceRunner } from './runner.js';
 import { ServerLinks } from './links.js';
-
-/** How long a state reading waits for the Bridge's watch on the server to connect (./links.ts). */
-const LINK_WAIT_MS = 500;
 import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
 import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
@@ -106,6 +103,10 @@ export function originAllowed(origin: string | undefined, allowed: string[]): bo
     return false;
   }
 }
+
+/** How long a state reading that succeeded waits for the Bridge's watch on the server to connect
+ *  (./links.ts): short, so a reading stays well inside the page's own timeout. */
+const LINK_WAIT_MS = 300;
 
 export interface BridgeOptions {
   token: string;
@@ -628,20 +629,33 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             send(200, { ok: false, v: PLAYOUT_V, error }, true);
             return;
           }
-          // The link as the read goes out: a restart during it moves the link after, and the slots
-          // read are from before it, so they belong with this one (./links.ts). A watch that is
-          // reconnecting is given a moment first, so the reading carries the link that lasts. A
-          // server is watched from its first reading that succeeds, so a mistyped host starts none.
-          const linkBefore = target.adapter === 'casparcg' && links.peek(target.host, target.port) !== undefined ? await links.ready(target.host, target.port, LINK_WAIT_MS) : undefined;
-          const r = await adapter.state(target, channel);
+          // THE LINK THE READING BELONGS TO (./links.ts, #2252). A reading carries a link only when
+          // the watch was connected under that same id from before the read to after it, so the
+          // slots read cannot be from either side of a restart. Otherwise (a first reading, the
+          // watch reconnecting, or the link moving during the read) the server is read once more
+          // after the watch has had a moment to connect. Nothing waits while the server is down:
+          // only a reading that succeeded waits.
+          const caspar = target.adapter === 'casparcg' ? target : null;
+          const linkBefore = caspar && links.connected(caspar.host, caspar.port) ? links.peek(caspar.host, caspar.port) : undefined;
+          let r = await adapter.state(target, channel);
           if (!r.ok) {
             send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
             return;
           }
-          // `ready` also marks the server as read, which keeps a lost watch trying; a first reading
-          // waits for the new watch to connect.
-          const linkNow = target.adapter === 'casparcg' ? await links.ready(target.host, target.port, LINK_WAIT_MS) : undefined;
-          const link = linkBefore ?? linkNow;
+          let link: string | undefined;
+          if (caspar) {
+            const settled = await links.ready(caspar.host, caspar.port, LINK_WAIT_MS);
+            if (linkBefore !== undefined && settled === linkBefore) link = linkBefore;
+            else if (links.connected(caspar.host, caspar.port)) {
+              r = await adapter.state(target, channel);
+              if (!r.ok) {
+                send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
+                return;
+              }
+              // Moved again during the second read: no link, as from a Bridge that has none.
+              if (links.connected(caspar.host, caspar.port) && links.peek(caspar.host, caspar.port) === settled) link = settled;
+            }
+          }
           send(
             200,
             {

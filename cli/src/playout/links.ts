@@ -87,6 +87,9 @@ export class ServerLinks {
       timer.unref?.();
       function done() {
         clearTimeout(timer);
+        // Waiting no more: the watch goes back to its own pace.
+        const at = w!.waiting.indexOf(done);
+        if (at >= 0) w!.waiting.splice(at, 1);
         resolve();
       }
       w.waiting.push(done);
@@ -97,6 +100,11 @@ export class ServerLinks {
   /** The link id for this server now if it is watched already, without starting a watch. */
   peek(host: string, port: number): string | undefined {
     return this.#watches.get(`${host}:${port}`)?.id;
+  }
+
+  /** Whether this server's watch is connected now: an id taken while it is not may change. */
+  connected(host: string, port: number): boolean {
+    return this.#watches.get(`${host}:${port}`)?.up === true;
   }
 
   /** How many servers are watched now. */

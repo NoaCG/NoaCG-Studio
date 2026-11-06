@@ -446,9 +446,11 @@ and for CasparCG its `link` to the server (issue #2252, Bridge 0.10.2): the Brid
 connection to each server it reads and sends nothing on it. The link id changes the moment that
 connection is lost and again when it is made, so a reading after a restart names a new link even
 before the Bridge has connected again, and no id spans a time the Bridge did not watch; a `CLEAR`
-leaves the link as it was. A reading carries the link from before it was read, so slots read just
-before a restart never pair with the link after it, and a reading taken while the watch reconnects
-waits up to half a second for it, so it carries the link that lasts. A connected watch is kept however idle; a lost
+leaves the link as it was. A reading carries a link only when the watch was connected under that
+same id from before the read to after it, so slots read on either side of a restart never pair with
+the wrong link; otherwise (a first reading, the watch reconnecting, the link moving during the read)
+the Bridge waits up to 300 ms for the watch and reads the server once more. Nothing waits while the
+server is down. A connected watch is kept however idle; a lost
 one nobody reads stops trying after ten minutes.
 
 An error names its hop: `{ hop: 'agent' | 'target', code, detail, raw? }` with `code` one of
