@@ -376,6 +376,7 @@ test('the header shows a two-word production name in full on a school laptop, an
           allOutRight: box('[data-testid="verb-out-all"]').right,
           takeRight: box('[data-testid="verb-take"]').right,
           outRight: box('[data-testid="verb-out"]').right,
+          dataRight: document.querySelector('[data-testid="data-indicator"]')?.getBoundingClientRect().right ?? 0,
         };
       });
       const at = `${state} at ${width}x${height}`;
@@ -386,6 +387,7 @@ test('the header shows a two-word production name in full on a school laptop, an
         ['All out', m.allOutRight],
         ['Take', m.takeRight],
         ['Out', m.outRight],
+        ['Data', m.dataRight],
       ] as const) {
         expect(right, `${at}: ${what} is past the right edge`).toBeLessThanOrEqual(width);
       }
@@ -402,15 +404,23 @@ test('the header shows a two-word production name in full on a school laptop, an
   // Published, with the output URL taken: the playout status takes the place of the old state
   // chip, Output links and READY line together (docs/work-specs/studio-day-playout AC-7). Before
   // the laptop tiers that header was 1360px wide at 1280, with ■ All out off the screen.
-  await page.evaluate(async (showId: string) => {
-    const { setShowHostedSlug, noteShowOutputOpened } = await import('/src/model/shows.ts');
+  // With a connected data source too, so the header's Data indicator (#2244) is in the measurement
+  // beside Share (#2248). Its Sheet is answered here; the tone does not change its width.
+  await page.route('https://docs.google.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/csv', body: 'Name,Value\nName,Ann Lee\n' }));
+  const refused = await page.evaluate(async (showId: string) => {
+    const { setShowHostedSlug, noteShowOutputOpened, connectShowSource } = await import('/src/model/shows.ts');
     setShowHostedSlug(showId, 'demo-slug');
     noteShowOutputOpened(showId);
+    const source = { id: 's1', kind: 'sheet' as const, label: 'Studio guests', config: { sheetId: 'sheet-1', gid: null, shape: 'values' as const } };
+    const r = connectShowSource(showId, source, [{ graphic: 'Arena Quiz', fieldId: 'f0', path: 'sheet.s1.values.Name' }]);
+    return r.error ?? (r.refused.length ? 'refused' : null);
   }, id);
+  expect(refused).toBeNull();
   await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
-  await check('published');
+  await expect(page.getByTestId('data-indicator')).toBeVisible();
+  await check('published, with a data source');
 });
 
 test('a production taller than the window never scrolls the page out from under its background', async ({ page }) => {

@@ -51,6 +51,8 @@ import CueShortcutDialog from './CueShortcutDialog';
 import { cueShortcutLabel } from '../../model/cueShortcuts';
 import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
 import { useAccountAuthoring } from '../AccountAuthoringGate';
+import { useDataProblems } from './SourcesLine';
+import type { SourceStatusStore } from '../../control/sheetSource';
 import { commitDurableWrites } from '../../model/durableStore';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
@@ -130,6 +132,7 @@ export default function CueRundown({
   accentPreview,
   onAccentPreview,
   show,
+  sourceStatus,
   cues,
   rundown,
   graphicByPoolId,
@@ -190,6 +193,9 @@ export default function CueRundown({
   accentPreview?: { cueId: string; color: string } | null;
   onAccentPreview: (cueId: string, color: string | null) => void;
   show: Show;
+  /** What the production's data sources last said: a row whose graphic one with a problem feeds
+   *  wears a mark (#2248). */
+  sourceStatus: SourceStatusStore;
   cues: ShowCue[];
   /** The rows as drawn (model/rundownRows.ts). */
   rundown: RundownView;
@@ -285,6 +291,7 @@ export default function CueRundown({
   refreshing: boolean;
 }) {
   const typed = useStorePart(draft.part);
+  const dataProblems = useDataProblems(show, sourceStatus);
   const [addPick, setAddPick] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const libraryPick = useRef<HTMLSelectElement>(null);
@@ -803,6 +810,20 @@ export default function CueRundown({
                 {view.note && (
                   <span className="pd-cue-mark" role="img" aria-label={`Note: ${view.note}`} title={view.note} data-testid="cue-note-mark">
                     ✎
+                  </span>
+                )}
+                {/* A DATA PROBLEM (#2248): a source this cue's graphic follows is failing, empty,
+                    has rows it could not use, or is stale. Which cue it touches, at a glance; what
+                    is wrong is in the header's Data panel. */}
+                {cueGraphic && dataProblems.has(cueGraphic) && (
+                  <span
+                    className="pd-cue-mark status-warn"
+                    role="img"
+                    aria-label={`Data problem: ${dataProblems.get(cueGraphic)!.join(', ')}`}
+                    title={`Data problem: ${dataProblems.get(cueGraphic)!.join(', ')}. The last good values stay on air.`}
+                    data-testid="cue-data-mark"
+                  >
+                    ⚠
                   </span>
                 )}
                 {/* NEXT ON SERVER, after the name (plan §6.2): this clip waits behind whatever
