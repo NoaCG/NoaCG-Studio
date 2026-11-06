@@ -434,7 +434,7 @@ M1 sides and every M3 side.
 
 ### 7.8 Re-run: cf13's third and last try
 
-The owner chose to measure rank 1 again properly (OWNER_DECISION_LINK). The re-run lands the same
+The owner chose to measure rank 1 again properly (https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6694324634). The re-run lands the same
 change as #2237 from `main` after the revert (#2260) lands, inside the owner's 14-day window, which
 still runs from the first landing: 2026-11-06T14:33:58Z to 2026-11-20T14:33Z.
 
