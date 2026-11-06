@@ -335,18 +335,25 @@ test('the election data path holds for the minutes asked', async ({ page, browse
       p.on('requestfailed', done);
     };
     watchReads(page);
-    // The agent's resident memory, from Linux's own account of its process (null elsewhere).
-    const rss = (pid: number | undefined) => {
+    // The agent's resident memory, from Linux's own account of its process (null elsewhere): the
+    // whole, its anonymous part (heaps, native and JS) and its mapped files, and its threads.
+    const proc = (pid: number | undefined) => {
       try {
-        const kb = /VmRSS:\s+(\d+) kB/.exec(readFileSync(`/proc/${pid}/status`, 'utf8'))?.[1];
-        return kb ? Number(kb) * 1024 : null;
+        const status = readFileSync(`/proc/${pid}/status`, 'utf8');
+        const field = (name: string, scale: number) => {
+          const v = new RegExp(`^${name}:\\s+(\\d+)`, 'm').exec(status)?.[1];
+          return v ? Number(v) * scale : null;
+        };
+        return { rss: field('VmRSS', 1024), anon: field('RssAnon', 1024), file: field('RssFile', 1024), threads: field('Threads', 1) };
       } catch {
-        return null;
+        return { rss: null, anon: null, file: null, threads: null };
       }
     };
     const sample = async (at: number, gc: boolean) => {
-      const waiting = await backlog(current);
-      const agent = waiting ? { ...waiting, rss: rss(current.child.pid) } : null;
+      // One agent for the whole sample: a handover can replace `current` while the ask waits.
+      const asked = current;
+      const waiting = await backlog(asked);
+      const agent = waiting ? { ...waiting, ...proc(asked.child.pid) } : null;
       const snap = await snapshot();
       record.samples.push({
         at,

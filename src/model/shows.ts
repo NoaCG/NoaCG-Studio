@@ -322,6 +322,27 @@ export interface FeedShowSource {
 }
 
 /**
+ * A LOCAL FILE source (issue #2184): a CSV or .xlsx file on the operator's computer, linked in
+ * Chrome's file picker and re-read while the production page is open (control/fileSource.ts). The
+ * record holds only the file's name, format and shape; the handle that reads it is this browser's,
+ * kept in its IndexedDB under the source's id (control/fileHandles.ts), so another computer asks
+ * for the file again. Its paths are `file.<id>.…`. The server tick never reads it.
+ */
+export interface FileShowSource {
+  id: string;
+  kind: 'file';
+  label: string;
+  config: {
+    name: string;
+    format: 'csv' | 'xlsx';
+    shape: SheetShowSource['config']['shape'];
+  };
+  paused?: boolean;
+  /** A file never feeds Messages. */
+  inbox?: undefined;
+}
+
+/**
  * A CONNECTOR source (docs/work-specs/playout-external-connectors/spec.md, E4.2): typed JSON a
  * trusted agent outside the browser reads from a provider and hands to `/api/data/source` with the
  * production's data key. This record is its REGISTRATION: non-secret, read by the route through
@@ -352,17 +373,18 @@ export interface ExternalShowSource {
   inbox?: undefined;
 }
 
-export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | ExternalShowSource;
+export type ShowSource = SheetShowSource | YouTubeShowSource | FeedShowSource | FileShowSource | ExternalShowSource;
 
 
 
-/** A source that fills fields (a Sheet tab or a feed); a YouTube source feeds Messages alone. */
-export type FieldShowSource = SheetShowSource | FeedShowSource;
-export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed';
+/** A source a browser reader fills fields from (a Sheet tab, a feed or a local file); a YouTube
+ *  source feeds Messages alone. */
+export type FieldShowSource = SheetShowSource | FeedShowSource | FileShowSource;
+export const fillsFields = (s: ShowSource): s is FieldShowSource => s.kind === 'sheet' || s.kind === 'feed' || s.kind === 'file';
 
 /** What a source is called on the surface. */
 export const sourceKindWord = (s: ShowSource): string =>
-  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'external' ? 'Connector' : 'YouTube';
+  s.kind === 'feed' ? 'News feed' : s.kind === 'sheet' ? 'Sheet' : s.kind === 'file' ? 'File' : s.kind === 'external' ? 'Connector' : 'YouTube';
 
 /**
  * A production-owned DATA TABLE (docs/INTERACTIVE_PLAYOUT_PLAN.md, D3): a quiz's question

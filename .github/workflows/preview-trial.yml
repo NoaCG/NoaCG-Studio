@@ -13,6 +13,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same pull request makes this run obsolete; a dispatch is never cancelled.
+# Not a required check and never run by the merge queue (cicd-followup cf13(b)).
+concurrency:
+  group: preview-trial-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   preview-trial:
     runs-on: ubuntu-latest

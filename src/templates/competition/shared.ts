@@ -233,6 +233,20 @@ function next() {
   return (typeof revealNextStep === 'function') ? revealNextStep() : null;
 }
 
+// A SNAP to the board's first step (« Back to it, ⟲ Reset) or off it is play()'s visual reset
+// without the entrance. A design's marks (a lit row, a shown result, a FINAL) are classes, which
+// the snap's reset of inline styles never touches, so they are cleared first, as play() clears
+// them (#2181). Any other snap is left exactly as it was: it paints nothing and starts no motion.
+if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
+  var compSnap = noacgSnap;
+  noacgSnap = function (assignments) {
+    var main = noacgMachine.groups[0];
+    var to = assignments ? assignments[main.id] : main.initial;
+    if (to === main.initial || to === (main.defaultPath || [])[0]) compClearMarks();
+    return compSnap.apply(this, arguments);
+  };
+}
+
 ${animationBlock}
 `;
 }
