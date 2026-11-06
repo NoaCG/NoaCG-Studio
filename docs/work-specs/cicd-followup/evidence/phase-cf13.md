@@ -446,8 +446,9 @@ can is the owner's choice for the third and last try. The 7-day bound counts fro
 start, because the first try's sides were cut and nothing of them carries over; the owner's window
 caps it either way.
 
-- **Landing condition:** 10 `cap+cfg` merges on the before side after this revert's merge, with no
-  side-ending landing in between (if one lands, the count restarts after it).
+- **Landing condition:** 10 `cap+cfg` merges on the before side after the revert's merge (#2260,
+  62eb1e4a, merged 2026-11-06T20:17:01Z; `rule` confirms it ends the `+cfg` M1 sides and every
+  M3 side), with no side-ending landing in between (if one lands, the count restarts after it).
 - **After the landing:** the hold in section 7.4, with the version-bump rule above, until the after
   side holds 10 `cap+cfg` merges.
 - **Bounds:** cf13's 7-day bound from the re-run's start, and the owner's window, whichever ends
