@@ -6,6 +6,7 @@
 // covers: src/control/airState.ts, src/control/sessionWire.ts
 // covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
 // covers: src/control/cueDraft.ts
+// covers: src/components/HostedControlPage.tsx
 //
 // TWO ⚡ ADJUST PRESSES INSIDE ONE ROUND TRIP MOVE A SHARED VALUE TWICE (production-page refactor,
 // phase 1, S1; docs/work-specs/production-page-refactor/spec.md §1.3).
@@ -22,6 +23,10 @@
 // event's request waits a moment before it goes, as a slow venue link would make it, and the second
 // press lands inside that wait. The hold stays under the page's 1.5 s attempt deadline
 // (failedSends.ts), so nothing is abandoned and both events are ordinary late answers.
+//
+// The HOSTED control page (`?control=<slug>`) had the same defect after the production page was
+// fixed (#1567): its selected cue's Goal read the bound figure as the page drew it at the press,
+// so the second Goal counted from the first one's starting score. Its walk is the last test here.
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
@@ -91,6 +96,15 @@ async function scoreOnAir(page: Page, name: string) {
   const program = page.frameLocator('[data-testid="program-stage"] iframe').first();
   await expect(program.locator('#f1')).toHaveText('2', { timeout: 20_000 });
 
+  const slug = await page.evaluate(async (showId) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === showId)?.hostedSlug ?? null;
+  }, showId);
+  return { serverScore, program, events: await holdFirstEvent(page), slug };
+}
+
+/** THE HOLD on one page's event sends. */
+async function holdFirstEvent(page: Page) {
   // THE HOLD: the first event request waits until the walk lets it go (`events.release`), or
   // HOLD_MS at most; the ones after it go straight through. Counted, so a walk can say the next
   // press really landed while the first was out.
@@ -107,7 +121,7 @@ async function scoreOnAir(page: Page, name: string) {
     events.inFlight -= 1;
     await route.continue().catch(() => {});
   });
-  return { serverScore, program, events };
+  return events;
 }
 
 test('two Goal presses inside one round trip move the bound score by two', async ({ page }) => {
@@ -143,4 +157,45 @@ test('a Goal and a + on the same bound score inside one round trip both count', 
 
   await expect.poll(serverScore, { timeout: 20_000, message: 'the server tree after a Goal and a +' }).toBe(4);
   await expect(program.locator('#f1')).toHaveText('4', { timeout: 20_000 });
+});
+
+test('on the hosted control page, one Goal moves the bound score by one and two inside one round trip by two', async ({ page, browser }) => {
+  test.setTimeout(240_000);
+  const { serverScore, slug } = await scoreOnAir(page, 'Hosted adjust race');
+  expect(slug, 'publishing must mint a hosted control slug').toBeTruthy();
+
+  // A separate, signed-out context: the operator holds nothing but the link.
+  const opContext = await browser.newContext();
+  try {
+    const op = await opContext.newPage();
+    await op.goto(`/app?control=${encodeURIComponent(slug as string)}`);
+    await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+    await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+    await expect(op.getByTestId('hosted-bound-f1').locator('input')).toHaveValue('2', { timeout: 20_000 });
+    const goal = op.getByTestId('hosted-cue-editor').getByRole('button', { name: /^⚡ Goal/ }).first();
+    await expect(goal).toBeEnabled({ timeout: 20_000 });
+
+    // ONE GOAL, nothing held: the score moves by exactly one.
+    await goal.click();
+    await expect.poll(serverScore, { timeout: 20_000, message: 'the server tree after one Goal' }).toBe(3);
+    await expect(op.getByTestId('hosted-bound-f1').locator('input')).toHaveValue('3', { timeout: 20_000 });
+
+    // TWO GOALS, the second pressed while the first event is held on its way.
+    const events = await holdFirstEvent(op);
+    await goal.click();
+    await expect.poll(() => events.seen, { message: 'the first Goal reached the wire', intervals: [20] }).toBe(1);
+    expect(events.inFlight, 'the first event is still on its way').toBe(1);
+    await goal.click();
+    expect(events.inFlight, 'the second Goal was pressed inside the first one round trip').toBe(1);
+    events.release();
+
+    await expect.poll(() => events.seen, { timeout: 10_000 }).toBe(2);
+    await expect.poll(serverScore, { timeout: 20_000, message: 'the server tree after two more Goals' }).toBe(5);
+    // And no point is doubled once everything has settled (a late answer, a re-read of the tree).
+    await expect(op.getByTestId('hosted-bound-f1').locator('input')).toHaveValue('5', { timeout: 20_000 });
+    expect(await serverScore()).toBe(5);
+    await op.unrouteAll({ behavior: 'ignoreErrors' });
+  } finally {
+    await opContext.close();
+  }
 });

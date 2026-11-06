@@ -169,12 +169,70 @@ test.describe('library arriving on a new browser (configured)', () => {
   });
 });
 
+// Past the shared client's limit on a request nobody answers (backend/supabase.ts).
+const PAST_THE_LIMIT = 76_000;
+
+// A LIBRARY SYNC THE CLOUD STOPPED ANSWERING (#2154). After a pass that got no answer, the next one
+// goes by itself on a backed-off timer, so with the cloud back and nobody touching the page the
+// chip settles without a press. The account is minted as above.
+const RETRY_EMAIL = 'e2e-library-retry@noacg.local';
+// Past the first retry's wait (backend/syncController.ts: 15 s, spread by a quarter either way).
+const PAST_THE_FIRST_RETRY = 20_000;
+
+test.describe('a library sync the cloud stopped answering (configured)', () => {
+  test.skip(!canRun, 'needs E2E_EMAIL/E2E_PASSWORD + SUPABASE_SERVICE_ROLE_KEY');
+
+  let admin: SupabaseClient;
+  let userId = '';
+
+  test.beforeAll(async () => {
+    admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    userId = await mintAccount(admin, RETRY_EMAIL, PASSWORD);
+  });
+
+  test.afterAll(async () => {
+    if (!admin || !userId) return;
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) console.warn(`library-arrival: the retry account was not deleted: ${error.message}`);
+  });
+
+  test('the chip settles by itself once the cloud answers again', async ({ page }) => {
+    let silent = false;
+    let held = 0;
+    await page.route(/\/rest\/v1\/documents/, (route) => {
+      if (!silent) return route.continue();
+      held += 1;
+      return new Promise<void>(() => {});
+    });
+    await page.clock.install();
+    await signInOnHome(page, RETRY_EMAIL, PASSWORD);
+    silent = true;
+    await page.evaluate(async () => {
+      const { error } = (await import('/src/model/shows.ts')).createShowNamedChecked('Saved by the retry');
+      if (error) throw new Error(error);
+      await new Promise((resolve) => setTimeout(resolve));
+    });
+    await page.clock.fastForward(3_000);
+    await expect.poll(() => held).toBeGreaterThan(0);
+    await page.clock.fastForward(PAST_THE_LIMIT);
+    const chip = page.getByTestId('sync-status');
+    await expect(chip).toHaveText('Not synced');
+    await chip.click();
+    await expect(page.getByTestId('sync-detail')).toHaveText(/^The cloud did not answer/);
+    await page.keyboard.press('Escape');
+
+    // The cloud is back. Nobody presses, edits or focuses the window.
+    silent = false;
+    await page.clock.fastForward(PAST_THE_FIRST_RETRY);
+    await settleSync(page);
+    await expect.poll(() => cloudCount(admin, userId, 'show')).toBe(1);
+  });
+});
+
 // SOUNDS ARRIVING WHILE STORAGE IS SILENT (#2152). The database answers and Storage does not. A
 // sound that gets no answer ends the pass, as an image does, so the next record is not asked and
 // the chip says why after one limit, not one limit per record. The account is minted as above.
 const SOUND_EMAIL = 'e2e-library-sounds@noacg.local';
-// Past the shared client's limit on a request nobody answers (backend/supabase.ts).
-const PAST_THE_LIMIT = 76_000;
 
 test.describe('sounds the cloud does not answer for (configured)', () => {
   test.skip(!canRun, 'needs E2E_EMAIL/E2E_PASSWORD + SUPABASE_SERVICE_ROLE_KEY');
@@ -219,6 +277,10 @@ test.describe('sounds the cloud does not answer for (configured)', () => {
     await page.evaluate(async () => { void (await import('/src/backend/syncController.ts')).syncNow(); });
     await expect.poll(() => asked.length).toBe(1);
     await page.clock.fastForward(PAST_THE_LIMIT);
+    // The pass that got no answer arms the automatic retry (backend/syncController.ts: 15 s, spread
+    // by a quarter), which would ask for a sound again and break the exact counts here. Hold the
+    // page clock a second on until Sync now is pressed, whose pass takes the retry's place.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
     const chip = page.getByTestId('sync-status');
     await expect(chip).toHaveText('Not synced');
     await chip.click();
@@ -226,6 +288,7 @@ test.describe('sounds the cloud does not answer for (configured)', () => {
     expect(asked, 'the records after the first were not asked about').toHaveLength(1);
 
     silent = false;
+    await page.clock.resume();
     await page.getByTestId('sync-action').click();
     await settleSync(page);
     expect(asked).toHaveLength(4);

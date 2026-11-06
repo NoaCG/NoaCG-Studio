@@ -11,11 +11,14 @@ import { oneAtATime } from '../backend/pacing';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { workerInterval } from './workerTicker';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS } from './failedSends';
 import {
   PANEL_PROTOCOL,
+  PRESS_DRAW_MS,
   PressMemory,
   PressOrder,
   SnapshotRing,
+  TAKE_CHANGED,
   judgePress,
   readPress,
   rowsChanged,
@@ -125,6 +128,9 @@ export interface PanelAnswer {
   stop(): void;
 }
 
+/** The longest a panel Take holds its cue's later panel Takes when it never settles. */
+export const TAKE_GUARD_MAX_MS = RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS;
+
 /** One call of `fn`, on a timer a hidden tab cannot starve: an operator page often sits behind OBS,
  *  where setTimeout could wait a second. A press is held rarely, so a worker for each wait is cheap. */
 function afterUnstarved(ms: number, fn: () => void): () => void {
@@ -225,8 +231,8 @@ export function answerPanel(opts: {
   snapshot: () => PanelSnapshot;
   /** The verbs this surface runs at all; the rest are refused `not-here`. */
   runs: ReadonlySet<PanelVerb>;
-  /** The page's dispatcher, as a key press reaches it. */
-  run: (verb: PanelVerb, target: string) => void;
+  /** The page's dispatcher, as a key press reaches it: a Take it starts answers that Take's promise. */
+  run: (verb: PanelVerb, target: string) => void | Promise<unknown>;
   /** The graphic actions this page offers and runs (control/panelActions.ts), read at publish and
    *  at every press; null on a page that runs none, which publishes an empty list so a panel drops
    *  what an earlier page offered, and refuses a press `not-here`. */
@@ -258,6 +264,12 @@ export function answerPanel(opts: {
   let shownRows: PanelSnapshot['rows'] | null = null;
   /** Stops the beat and the renewal, which run on a timer a hidden tab cannot starve. */
   let beat: (() => void) | null = null;
+  /** The cues a panel's Take is still taking (protocol §6.2): whether each was on air when that Take
+   *  started, and the first state published with it otherwise. A Take saves an edit and settles the
+   *  cue's box before the page draws it, which can outlast the draw gap, so until one draw gap after
+   *  it settles, another panel Take of that cue from a key drawn before that state is refused. The
+   *  page's own Take and Re-take are not held to this. */
+  const taking = new Map<string, { live: boolean; drawnAt?: number }>();
 
   const send = (event: string, payload: object) => {
     if (feedChannel && feedJoined) void feedChannel.send({ type: 'broadcast', event, payload });
@@ -290,6 +302,7 @@ export function answerPanel(opts: {
       ver++;
       shown = snap;
       ring.put(ver, snap);
+      for (const [cue, mark] of taking) if (mark.drawnAt === undefined && snap.live.includes(cue) !== mark.live) mark.drawnAt = ver;
     } else if (!force) return;
     send('state', wireState(shown ?? snap, meta()));
   };
@@ -355,8 +368,32 @@ export function answerPanel(opts: {
     const press = readPress(payload);
     const now = Date.now();
     if (!press || !admit(press, now)) return;
-    const verdict = judgePress(press, opts.snapshot(), ring.get(press.seen), opts.runs) ?? { outcome: 'ran' as const };
-    if (verdict.outcome === 'ran') opts.run(press.verb, press.target);
+    const takes = press.verb === 'take' || press.verb === 'take-cue';
+    const snap = opts.snapshot();
+    const then = ring.get(press.seen);
+    const mark = takes ? taking.get(press.target) : undefined;
+    const early = !!mark && press.seen < (mark.drawnAt ?? Infinity);
+    // A press refused for its own reason keeps that reason; the guard refuses only what would run.
+    const verdict = judgePress(press, snap, then, opts.runs) ?? (early ? TAKE_CHANGED : { outcome: 'ran' as const });
+    if (verdict.outcome === 'ran') {
+      const took = opts.run(press.verb, press.target);
+      if (takes && took instanceof Promise) {
+        const running = { live: snap.live.includes(press.target) };
+        taking.set(press.target, running);
+        // Let go a draw gap after it settles, so the page draws what it came to first.
+        const release = () => {
+          if (taking.get(press.target) === running) taking.delete(press.target);
+        };
+        // A Take that never settles must not lock this cue's panel Takes until a reload: let go
+        // after the longest a press is ever owed an answer (graphicVerbs' own bound).
+        const bound = afterUnstarved(TAKE_GUARD_MAX_MS, release);
+        const settled = () => {
+          bound();
+          afterUnstarved(PRESS_DRAW_MS, release);
+        };
+        took.then(settled, settled);
+      }
+    }
     answer(press, verdict, now);
     opts.onPress({ panel: press.panel.label, verb: press.verb, verdict, at: now });
     // The press moved what the keys show; publish as soon as the page has drawn it.

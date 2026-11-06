@@ -17,8 +17,8 @@ import { join } from 'node:path';
 import { tierOfJob } from '../../../../scripts/growth-controls.mjs';
 
 // The window: the same two values as phase-cf03-collect.mjs (that file runs on import, so it is not imported).
-const FROM = '2026-10-24T10:00:45Z';
-const UNTIL = '2026-11-03T12:00:00Z';
+const FROM = process.env.CF03_FROM || '2026-10-24T10:00:45Z';
+const UNTIL = process.env.CF03_UNTIL || '2026-11-03T12:00:00Z';
 const CI = '.github/workflows/ci.yml';
 const CONFIGURED = '.github/workflows/configured-suite.yml';
 // Manual-only workflows (drills and trials) are not a per-landing cost (#2011, PR #2012): their

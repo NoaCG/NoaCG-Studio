@@ -75,6 +75,12 @@ export function isUnanswered(e: unknown): boolean {
   return (e as { unanswered?: unknown } | null)?.unanswered === true;
 }
 
+/** Whether a failed send may still commit: nobody answered it, or its answer was never read
+ *  (seqSend.ts `unread`). Its row heard later is then a landing. */
+export function isUncertain(e: unknown): boolean {
+  return isUnanswered(e) || (e as { unread?: unknown } | null)?.unread === true;
+}
+
 /** Whether an RPC's answer means the server did not answer it: status 0 is no response at all. */
 export function unansweredStatus(status: number, code?: string): boolean {
   return status === 0 || status >= 502 || code === '57014';

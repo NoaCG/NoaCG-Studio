@@ -195,6 +195,11 @@ export const standingsType: GraphicType = {
   fields: STANDINGS_FIELDS,
   machine: {
     main: {
+      // whole table -> final table -> out: Next walks the board end to end and Back walks it back.
+      // The FINAL is the claim that turns a standings board into a RESULT table, so it is the
+      // board's one step; which row is being talked about is data, and stays a branch.
+      pathEvents: ['final'],
+      exitOnNext: true,
       branches: [
         {
           id: 'highlighted',
@@ -209,39 +214,9 @@ export const standingsType: GraphicType = {
           edges: [
             { from: { waypoint: 0 }, to: 'highlighted', trigger: 'operator', event: 'highlight' },
             { from: 'highlighted', to: 'highlighted', trigger: 'operator', event: 'highlight' },
-            { from: 'plain', to: 'highlighted', trigger: 'operator', event: 'highlight' },
-            { from: 'final', to: 'highlighted', trigger: 'operator', event: 'highlight' },
-          ],
-        },
-        {
-          id: 'plain',
-          name: 'Whole table',
-          timeline: {
-            name: 'Clear highlight',
-            duration: 0.3,
-            ease: 'out',
-            calls: [{ time: 0, call: 'clearHighlight' }],
-            layers: {},
-          },
-          edges: [{ from: 'highlighted', to: 'plain', trigger: 'operator', event: 'clear' }],
-        },
-        {
-          // The claim that turns a standings board into a RESULT table. Reachable from the
-          // plain board and from a highlighted one, because either is where a show declares it.
-          id: 'final',
-          name: 'Final table',
-          timeline: {
-            name: 'Declare final',
-            duration: 0.4,
-            ease: 'in',
-            calls: [{ time: 0, call: 'markFinal' }],
-            layers: {},
-          },
-          edges: [
-            { from: { waypoint: 0 }, to: 'final', trigger: 'operator', event: 'final' },
-            { from: 'highlighted', to: 'final', trigger: 'operator', event: 'final' },
-            { from: 'plain', to: 'final', trigger: 'operator', event: 'final' },
-            { from: 'final', to: { waypoint: -1 }, trigger: 'operator', event: 'next' },
+            // Either press declares the result from a highlighted table, as from the whole one.
+            { from: 'highlighted', to: { waypoint: 1 }, trigger: 'operator', event: 'final' },
+            { from: 'highlighted', to: { waypoint: 1 }, trigger: 'operator', event: 'next' },
           ],
         },
       ],
@@ -249,8 +224,7 @@ export const standingsType: GraphicType = {
   },
   controls: [
     { event: 'highlight', label: 'Highlight row', section: 'Table', order: 1, payload: ['highlight'] },
-    { event: 'clear', label: 'Whole table', section: 'Table', order: 2 },
-    { event: 'final', label: 'Declare final', section: 'Table', order: 3 },
+    { event: 'final', label: 'Final table', section: 'Table', order: 2 },
   ],
   capabilities: {
     maxLines: 2,

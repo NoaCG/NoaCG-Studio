@@ -59,7 +59,7 @@ The bindings are saved with the production, so another computer opens the same a
 
 Triggering a hotkey plays/restarts that cue and keeps the current selection and preview. It does
 not start its folder or follow-on cue. Repeated keydown, text editing, composition, menus and
-dialogs do not trigger effects. Companion's **Trigger cue** sends the same stable cue-ID command.
+dialogs do not trigger effects. Companion's **Play now, keep selection** sends the same stable cue-ID command.
 Its existing Take cue action retains its toggle behavior. The additive relay migration must be
 applied during rollout before Companion can use the new verb against that backend.
 

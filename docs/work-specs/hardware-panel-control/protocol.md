@@ -145,13 +145,23 @@ own claim's presses run in press order, per panel, by the `n` of their press id
 (`control/panelFeedback.ts` `PressOrder`): a press in its turn, with nothing held, runs in the task
 that heard it; one ahead of its turn is held until the presses before it arrive. 500 ms after a
 press was first held with none in its turn, everything held goes, and the ones that never came are
-given up on. Presses let go together run 50 ms apart, so each is judged against a page that has
-drawn the one before it; two that arrive in order have no such gap, however close together, and the
-second may be judged against a page that has not drawn the first. A press after its turn runs at once, so one arriving past the bound still
-has its one effect. The first press this page hears from a panel sets the count and never waits,
-because the module may have pressed long before this page opened; a reversed pair at that very
-moment runs as it arrived. A press refused by the relay or lost on the way leaves a gap, so the
-next press of that panel waits out the 500 ms once.
+given up on. A press in its turn runs no sooner than 50 ms after the last press this page ran, from
+any panel, however close together they arrived (issue #2144); a press with none in the 50 ms before
+it does not wait. A press after its turn, or one with no number, runs at once, so one arriving past
+the bound still has its one effect, and the next press waits out 50 ms behind it too. The gap is
+meant to let the page draw the press before, and it assumes that press's effect reaches the page's
+drawn state within 50 ms. A graphic's Take can take longer: it first saves an edit still owed and
+settles the cue's box (adjust writes still saving, a measurement not yet made;
+`control/graphicVerbs.ts` `takeOn`). So on the production page, while a cue's Take started by a
+panel's `take` or `take-cue` is still running, and for 50 ms after it settles, another panel `take`
+or `take-cue` of that cue that would otherwise run is refused `stale` ("what Take does changed"), unless
+its key was drawn after the page showed that cue go on or off air. The page's own Take and Re-take
+are not held to this. The limit that remains is for the other verbs:
+one whose effect the page draws later than 50 ms after it ran is not waited for. The first press
+this page hears from a panel sets the count and never waits for the numbers before it, because the
+module may have pressed long before this page opened; a reversed pair at that very moment runs as it
+arrived. A press refused by the relay or lost
+on the way leaves a gap, so the next press of that panel waits out the 500 ms once.
 
 Then, in this order, on each `press`:
 

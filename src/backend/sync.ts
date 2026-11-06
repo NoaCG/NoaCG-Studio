@@ -7,9 +7,9 @@
 // Conflict policy: a record changed on BOTH sides since this device last synced is a true conflict
 // (concurrent edits). Remote wins as canonical and the local edit is preserved as a
 // "(conflicted copy)" — never a silent overwrite, because a user's graphics are irreplaceable.
-// Otherwise it's plain last-write-wins by updatedAt. Deletes travel as tombstones (records with
-// deleted=true) and win/lose by the same timestamp rule, so a delete propagates instead of the row
-// resurrecting.
+// Otherwise the side that changed wins, and when both or neither did it's plain last-write-wins by
+// updatedAt. Deletes travel as tombstones (records with deleted=true) and win/lose by the same
+// rule, so a delete propagates instead of the row resurrecting.
 //
 // Fault isolation: every record in the plan is applied independently — one failing put can never
 // sink the pass, and the lastSyncedAt bookmark advances whenever the pass RAN TO COMPLETION. A
@@ -23,6 +23,20 @@
 //     is skipped and the conflict branch is forced again next pass, until the copy materializes.
 //   - pendingPull: keys whose pull failed - the cloud's version is still owed, so a local edit since
 //     then is a true conflict, not a plain last-write-wins push over the other device's work.
+//   - pendingLocal: keys whose local version the pass did not get into the cloud - edited on this
+//     device WHILE the pass ran, or not pushed - each with the cloud version the pass left (or,
+//     for a push that failed, either version, since its answer may be what was lost). The
+//     bookmark is dated at the pass's end, so it postdates both that local version and any save
+//     another device made after the pass listed the cloud: by the bookmark alone neither reads as
+//     changed, and one would silently overwrite the other (#2153). For these keys the next pass
+//     reads this device's side as changed, and the cloud's only if it differs from the version
+//     the pass left. Dating the bookmark from the pass's start instead would make every version
+//     pulled during the pass read as changed, and the next edit of it a false conflict.
+//     STILL OPEN, as before #2153: a save on another device after this pass read the cloud, dated
+//     before the bookmark, is invisible here when this device did not touch that record during the
+//     pass. A later local edit of it reads as changed and the cloud does not, so the edit
+//     overwrites that save with no copy. Closing it needs the cloud version the pass left for
+//     every record, not only the ones carried in pendingLocal.
 // Conflict copies are applied BEFORE the pulls that overwrite their originals, so a crash or
 // failure mid-pass can never lose the only copy of a user's work.
 //
@@ -77,6 +91,10 @@ export interface SyncPending {
   /** Record keys whose last pull FAILED: the cloud's version is still owed whatever the bookmark
    *  says, so a local edit since then is a conflict, and with none it is pulled. */
   pull?: Set<string>;
+  /** Record keys whose local version the last pass did not get into the cloud, each with the
+   *  cloud `updatedAt`s that pass may have left ('' for none): this side changed, and the cloud
+   *  changed only if it now holds none of them. */
+  local?: Map<string, string[]>;
 }
 
 /** One record the pass could not apply. Surfaced in SyncStatus; retried next pass. */
@@ -157,9 +175,12 @@ export function reconcile(
 
     // A record whose last push FAILED is locally-changed no matter what the bookmark says — its
     // edit never reached the cloud, so the bookmark can't vouch for it.
-    const localChanged = l.updatedAt > since || pending?.push?.has(key) === true;
+    // A local version the last pass did not get into the cloud may predate the bookmark, and so
+    // may the cloud's change: the version that pass left in the cloud is the baseline instead.
+    const cloudBaseline = pending?.local?.get(key);
+    const localChanged = l.updatedAt > since || pending?.push?.has(key) === true || cloudBaseline !== undefined;
     const owedPull = pending?.pull?.has(key) === true;
-    const remoteChanged = r.updatedAt > since || owedPull;
+    const remoteChanged = (cloudBaseline === undefined ? r.updatedAt > since : !cloudBaseline.includes(r.updatedAt)) || owedPull;
     // An owed "(conflicted copy)" forces the conflict branch again until the copy materializes.
     const owedCopy = pending?.conflict?.has(key) === true;
     // Nothing happened here since the pull that failed, so the cloud's version is simply still
@@ -178,7 +199,9 @@ export function reconcile(
       // tombstone — a "conflicted copy" of a delete is meaningless, so the remote edit just wins).
       plan.toLocal.push(r);
       if (!l.deleted) plan.conflicts.push(l);
-    } else if (l.updatedAt > r.updatedAt) {
+    } else if (localChanged === remoteChanged ? l.updatedAt > r.updatedAt : localChanged) {
+      // When only one side changed, that side wins whatever the two clocks say: an edit of a
+      // version pulled from a device whose clock runs ahead is still dated before that version.
       plan.toRemote.push(l);
     } else {
       plan.toLocal.push(r);
@@ -247,6 +270,7 @@ export async function runSync(
     push: new Set(meta.pendingPush),
     conflict: new Set(meta.pendingConflict),
     pull: new Set(meta.pendingPull),
+    local: new Map(Object.entries(meta.pendingLocal)),
   }, tombstoneCutoff());
   onPlan?.(plan);
   // Before anything is applied: a summary is never written, and a fetch that fails must fail
@@ -280,6 +304,16 @@ export async function runSync(
     });
   };
   const original = new Map(localRecs.map(r => [recordKey(r), JSON.stringify(r)]));
+  // The version of each record this pass leaves on each side (`updatedAt`), so that at its end an
+  // edit made here meanwhile can be told from the pass's own writes (pendingLocal, header).
+  const leftHere = new Map(localRecs.map((r) => [recordKey(r), r.updatedAt]));
+  const leftInCloud = new Map(remoteRecs.map((r) => [recordKey(r), r.updatedAt]));
+  // A pulled record was fetched after the listing, and may be a later version than it showed.
+  const pulledHere = (r: StoredRecord): void => {
+    leftHere.set(recordKey(r), r.updatedAt);
+    leftInCloud.set(recordKey(r), r.updatedAt);
+  };
+  const pendingLocal: Record<string, string[]> = {};
   const unchanged = async (r: StoredRecord): Promise<boolean> => {
     const current = await local.get(r.kind, r.id);
     sameWorkspace();
@@ -328,6 +362,7 @@ export async function runSync(
     try {
       sameWorkspace();
       await local.put(copy);
+      leftHere.set(recordKey(copy), copy.updatedAt);
       conflicts += 1;
     } catch (e) {
       // The copy never materialized — keep the original safe: skip the overwriting pull and
@@ -345,6 +380,7 @@ export async function runSync(
       for (const rewritten of local.lostConflict?.(loser, copy) ?? []) {
         const key = recordKey(rewritten);
         original.set(key, JSON.stringify(rewritten));
+        leftHere.set(key, rewritten.updatedAt);
         const listed = plan.toRemote.findIndex((r) => recordKey(r) === key);
         if (listed >= 0) plan.toRemote[listed] = rewritten;
       }
@@ -355,6 +391,7 @@ export async function runSync(
     try {
       sameWorkspace();
       await askCloud(() => remote.put(copy));
+      leftInCloud.set(recordKey(copy), copy.updatedAt);
     } catch (e) {
       fail('push', copy, e);
     }
@@ -375,6 +412,7 @@ export async function runSync(
     try {
       if (!(await unchanged(r))) continue;
       await local.put(full);
+      pulledHere(full);
       pulled += 1;
     } catch (e) {
       fail('pull', r, e);
@@ -386,6 +424,7 @@ export async function runSync(
       for (const r of fetched) if (await unchanged(r)) safe.push(r);
       sameWorkspace();
       await local.putMany(safe);
+      safe.forEach(pulledHere);
       pulled += safe.length;
     } catch (e) {
       // Nothing is known to have landed, so every record is owed again, as for any failed pull.
@@ -400,10 +439,13 @@ export async function runSync(
     try {
       sameWorkspace();
       await askCloud(() => remote.put(l));
+      leftInCloud.set(recordKey(l), l.updatedAt);
       pushed += 1;
     } catch (e) {
       if (isPutDenied(e) && l.deleted) continue; // a tombstone for a foreign row - nothing of ours to delete
       pendingPush.add(recordKey(l));
+      // A put that failed may still have landed (its answer lost), so either version can be there.
+      pendingLocal[recordKey(l)] = [leftInCloud.get(recordKey(l)) ?? '', l.updatedAt];
       fail(
         'push',
         l,
@@ -416,18 +458,24 @@ export async function runSync(
 
   // The pass ran to completion, so the bookmark advances — per-record failures are carried in the
   // pending sets (rebuilt each pass from what actually failed), never by freezing the bookmark.
-  // An edit made while a failed pull waited is older than the bookmark about to be set, and would
-  // read as no edit at all when the owed pull arrives. It is a conflict, so it keeps its copy.
-  for (const r of plan.toLocal) {
+  // A record not pushed, or edited here while the pass ran, can be older than the bookmark about
+  // to be set, so it is carried with the cloud version the pass left (pendingLocal, header). That
+  // includes an edit made while a failed pull waited: the owed pull then meets a local edit, and
+  // it keeps its copy. The bookmark is dated BEFORE that last read: an edit landing after the read
+  // is then newer than the bookmark, and the next pass sees it as changed.
+  const bookmark = new Date().toISOString();
+  for (const r of (await Promise.all(SYNC_KINDS.map((k) => local.list(k)))).flat()) {
     const key = recordKey(r);
-    if (pendingPull.has(key) && JSON.stringify((await local.get(r.kind, r.id)) ?? undefined) !== original.get(key)) pendingConflict.add(key);
+    const left = leftHere.get(key);
+    if (left !== undefined && left !== r.updatedAt) pendingLocal[key] ??= [leftInCloud.get(key) ?? ''];
   }
   sameWorkspace();
   saveSyncMeta({
-    lastSyncedAt: new Date().toISOString(),
+    lastSyncedAt: bookmark,
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
     pendingPull: [...pendingPull],
+    pendingLocal,
     pullsOwed: arriving && failures.some((f) => f.op === 'pull'),
   });
   return { pushed, pulled, conflicts, failures, unanswered: silent !== null };
@@ -463,6 +511,9 @@ interface SyncMeta {
   pendingPush: string[];
   pendingConflict: string[];
   pendingPull: string[];
+  /** Record key -> the cloud `updatedAt`s the last pass may have left, for records whose local
+   *  version it did not get into the cloud (SyncPending.local). */
+  pendingLocal: Record<string, string[]>;
   /** The library's first pass on this browser COMPLETED without landing its pulls (the local
    *  store refused them). The bookmark moved anyway, so this is what still says the library has
    *  not arrived (`libraryHasArrived`) until a later pass lands them. */
@@ -479,10 +530,15 @@ function loadSyncMeta(): SyncMeta {
       pendingPush: strings(m.pendingPush),
       pendingConflict: strings(m.pendingConflict),
       pendingPull: strings(m.pendingPull),
+      pendingLocal: Object.fromEntries(
+        Object.entries(m.pendingLocal && typeof m.pendingLocal === 'object' ? m.pendingLocal : {})
+          .map(([key, versions]) => [key, strings(versions)] as const)
+          .filter(([, versions]) => versions.length > 0),
+      ),
       pullsOwed: m.pullsOwed === true,
     };
   } catch {
-    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [], pendingPull: [], pullsOwed: false };
+    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [], pendingPull: [], pendingLocal: {}, pullsOwed: false };
   }
 }
 

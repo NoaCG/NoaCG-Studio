@@ -639,6 +639,15 @@ window.addEventListener('unhandledrejection', function (ev) {
       /* …whether a NEWER LIST WAITS for the next take (PreviewStateMessage.waits)… */
       var waits = false;
       try { waits = window.noacgCreditsWaiting === true; } catch (e6) {}
+      /* …and, while it waits, the list held on air under its field (PreviewStateMessage.held). */
+      var held = null;
+      try {
+        if (waits && typeof window.noacgCreditsHeld === 'string' && window.noacgFieldFor) {
+          /* The list's role, CREDITS_FIELD_ROLE (templates/behaviours/credits.ts). */
+          var heldField = window.noacgFieldFor('credits', null);
+          if (heldField) { held = {}; held[heldField] = window.noacgCreditsHeld; }
+        }
+      } catch (e8) {}
       /* …and HOW FAR ITS ANIMATIONS HAVE RUN (PreviewStateMessage.motion): the summed playhead
          of everything on GSAP's global timeline, which every house template animates on, plus
          the document's own web animations, which an imported design may use instead. Two equal
@@ -656,7 +665,7 @@ window.addEventListener('unhandledrejection', function (ev) {
         for (var ci = 0; ci < css.length; ci++) motion += Math.round(Number(css[ci].currentTime) || 0);
       } catch (e4) {}
       try {
-        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over, waits: waits, motion: motion }, '*');
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_STATE_TYPE)}, state: s, overflow: over, waits: waits, held: held, motion: motion }, '*');
       } catch (e5) {}
     }
   }

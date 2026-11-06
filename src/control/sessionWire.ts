@@ -10,8 +10,8 @@
 //             answers (./airState.ts `airAtRequest`)
 //   seed      the reports, then the rows after them (`bootMonitorReplay`, and `bootClockReplay` for
 //             the clocks off air), then one
-//             `seedFromResolve`, which the moves guard skips when this page moved the marker
-//             meanwhile
+//             `seedFromResolve`, which the moves guard skips on a layer this page took meanwhile,
+//             and whole after any other marker write
 //   follow    the timed cues' arm wire (numbered log only), the log's history into the `log`
 //             part, then `followControlLog` on both roads: commands to the page's `hear`, rows to
 //             the log, the arm wire, the machine states and the data tree
