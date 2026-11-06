@@ -245,8 +245,9 @@ function next() {
 // holds the result hidden). No call in the pack starts a timer.
 //
 // A snap that moves no group (a host settling the state it is already in, OGraf's skipAnimation)
-// repaints nothing: the board already wears that state's look, including what only the route it
-// really took painted (a bracket crowned after its final round keeps the round's cursor).
+// adds nothing beyond the target's own call, as before: the board already wears that state's
+// look, including what only the route it really took painted (a bracket crowned after its final
+// round keeps the round's cursor).
 if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
   var compSnap = noacgSnap;
   noacgSnap = function (assignments) {
