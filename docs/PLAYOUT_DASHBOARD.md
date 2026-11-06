@@ -881,14 +881,18 @@ is a control that will not be used.
   **Show audience result** legible: it airs the "Audience results" field you typed above (a
   hidden holder like "34 | 52 | 9 | 5"), painted as a chip on each answer row. The percentages
   are DATA the whole time; the state is only what shows them.
-- **"Snap to state…" is the RECOVERY picker**, not a way to drive a graphic. It jumps the live
-  graphic straight to a state with NO animation, and it rides with a re-send of the cue's values
-  because recovery is two operations (`docs/STATE_MACHINE_SCHEMA.md`: reset the visual state and
-  reset the data are never conflated, and a lone snap replays intermediate states with
-  suppressed callbacks, so call-painted looks need the trailing data write). Use it when air and
-  the dashboard have got out of step — a renderer restart, a missed press. Normal operation is
-  the ⚡ actions and » Next.
-- **Both React surfaces carry the whole block** — header (its help in the heading's hover), snap, section grouping.
+- **« Back and ⟲ Reset are the snaps** (#2181, replacing the "Snap to state…" recovery list,
+  whose "Back to start" only ever took a graphic off air and whose state entries never went back
+  a step). « Back sits beside » Next on the verb bar and moves the live graphic one step back:
+  the step before the current one on the route a snap replays (`controlModel.ts backTarget`; the
+  previous waypoint on the walk, the shortest authored way in for a branch). ⟲ Reset, in the ⚡ block's head, puts it on its first step, still on air
+  (`resetTarget`). Both move the main group only: a parallel group such as a match clock keeps
+  where it is. Both jump with NO animation and ride with a re-send
+  of the on-air cue's values, because recovery is two operations (`docs/STATE_MACHINE_SCHEMA.md`:
+  reset the visual state and reset the data are never conflated, and a lone snap replays
+  intermediate states with suppressed callbacks, so call-painted looks need the trailing data
+  write). They are also what to press when air and the dashboard have got out of step.
+- **Both React surfaces carry the whole block** — header (its help in the heading's hover), Reset, section grouping.
   The hosted page used to render the ⚡ buttons as one flat row with no snap at all, which put
   the recovery control on every surface EXCEPT the one being operated from a phone, away from
   the machine running the renderer. Sections come from `controlModel.ts arrangeControls`, the

@@ -52,7 +52,7 @@ export const NEVER_DEPLOYED_FILES = ['LICENSE'];
 
 /**
  * `scripts/` is denied wholesale EXCEPT these, which vercel.json's buildCommand actually runs (or
- * is imported by one that does). Keep this in step with the `build:vercel` line in package.json:
+ * is imported by one that does, vite.config.ts included). Keep this in step with the `build:vercel` line in package.json:
  * a check added there and not named here would stop triggering the build that runs it.
  */
 export const DEPLOY_AFFECTING_SCRIPTS = new Set([
@@ -64,6 +64,32 @@ export const DEPLOY_AFFECTING_SCRIPTS = new Set([
   'scripts/check-vercel-config.mjs',
   'scripts/prerender.mjs',
   'scripts/write-version.mjs',
+  // Loaded by vite.config.ts, which the build runs, and changing what it writes: the page
+  // generators and what they read, the catalog index, /panel.json, the Skew Protection
+  // pinning (deploy-affecting-paths.test.mjs walks the imports).
+  'scripts/agent-prompt.mjs',
+  'scripts/catalogIndexPlugin.mjs',
+  'scripts/measured-receipt.mjs',
+  'scripts/measured.mjs',
+  'scripts/panelBackendPlugin.mjs',
+  'scripts/roadmap.mjs',
+  'scripts/site-nav.mjs',
+  'scripts/skewProtectionPlugin.mjs',
+  'scripts/whats-new.mjs',
+]);
+
+/**
+ * Scripts vite.config.ts imports that act only on the dev server (`configureServer`, the port
+ * reservation), never on a build. They and what they import stay off the list above, so editing
+ * dev tooling does not buy a production build.
+ */
+export const VITE_SERVE_ONLY_SCRIPTS = new Set([
+  'scripts/aiDevPlugin.mjs',
+  'scripts/dataDevPlugin.mjs',
+  'scripts/dev-port.mjs',
+  'scripts/eventsDevPlugin.mjs',
+  'scripts/meDevPlugin.mjs',
+  'scripts/renderDevPlugin.mjs',
 ]);
 
 /**

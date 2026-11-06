@@ -129,9 +129,7 @@ on hosted staging and passed on retry).
 | [#1758](https://github.com/NoaCG/NoaCG-Studio/issues/1758) | The Companion module's own tests run in no GitHub workflow, so a module change is not checked by CI. |
 
 Not affecting any criterion: [#1771](https://github.com/NoaCG/NoaCG-Studio/issues/1771) and
-[#1778](https://github.com/NoaCG/NoaCG-Studio/issues/1778) are test gaps or test hygiene;
-[#1803](https://github.com/NoaCG/NoaCG-Studio/issues/1803) is the endurance judge counting an
-agent's send that its own scheduled handover cut off as a refusal.
+[#1778](https://github.com/NoaCG/NoaCG-Studio/issues/1778) are test gaps or test hygiene.
 [#1784](https://github.com/NoaCG/NoaCG-Studio/issues/1784)'s item 2 is in the on-air list above.
 
 ## Fixed in software, physical check owed to S

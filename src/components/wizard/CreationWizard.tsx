@@ -99,6 +99,7 @@ import {
   type FinishedWalk,
   type WalkMemory,
 } from './shell/walkState';
+import { useDraftHoldsReload } from './shell/useDraftHoldsReload';
 import { useWalkLifecycle } from './shell/useWalkLifecycle';
 import { useKit } from './template/useKit';
 import KitConfirms from './template/KitConfirms';
@@ -166,6 +167,7 @@ export default function CreationWizard() {
   const { contextProductionId, brandChoices, brandId, buildMode } = walk;
   const kit = activeKit(walk);
   const brand = brandOf(walk);
+  useDraftHoldsReload(walk);
   // Stable, as the steps hold them in effects and as functional updates (BrowseStep's chips).
   const onFilters = useCallback((update: SetStateAction<BrowseFilters>) => dispatch({ type: 'filters', update }), []);
   const onThread = useCallback((thread: AiThread | null) => dispatch({ type: 'ai', thread }), []);

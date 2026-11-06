@@ -522,12 +522,12 @@ export function parseDataTree(text: string): { data: JsonObject | null; error: s
 // mapping for every field of one graphic, the operator reviews it, and one confirmation writes
 // it. Nothing here applies anything by itself: a source's arrival never binds a field.
 
-/** A data source's paths: everything under `sheet.<id>`, `feed.<id>` for a news feed, or
- *  `external.<id>` for a connector (control/sheetSource.ts, control/feedSource.ts and the
+/** A data source's paths: everything under `sheet.<id>`, `feed.<id>` for a news feed,
+ *  `file.<id>` for a local file (control/fileSource.ts), or `external.<id>` for a connector (control/sheetSource.ts, control/feedSource.ts and the
  *  `/api/data/source` route through control/sourceMapping.ts write them). */
-export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed' | 'external'): string => `${kind}.${sourceId}`;
+export const sourcePrefix = (sourceId: string, kind: 'sheet' | 'feed' | 'file' | 'external'): string => `${kind}.${sourceId}`;
 
-const SOURCE_KINDS = ['sheet', 'feed', 'external'] as const;
+const SOURCE_KINDS = ['sheet', 'feed', 'file', 'external'] as const;
 
 /** Whether a connected path is one this source writes. Source ids are unique, so the id decides. */
 export const isSourcePath = (sourceId: string, path: string): boolean => SOURCE_KINDS.some((kind) => path.startsWith(`${sourcePrefix(sourceId, kind)}.`));

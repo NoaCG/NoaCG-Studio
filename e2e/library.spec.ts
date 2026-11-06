@@ -69,6 +69,25 @@ test('save names the graphic; the status stays honest through edits and reopen',
   await expect(editorPreview(page).locator('#f0')).toHaveText('Saved artwork edit');
 });
 
+test('Save As never makes a second graphic under a taken name: it offers a free one and says so (#779)', async ({ page }) => {
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
+  await saveAs(page, 'Presenter lower third');
+  await page.getByTestId('save-menu').click();
+  await page.getByTestId('save-as').click();
+  await expect(page.getByTestId('save-name')).toHaveValue('Presenter lower third copy');
+  await expect(page.getByTestId('save-name-taken')).toBeHidden();
+  await page.getByTestId('save-name').fill('Presenter lower third');
+  await expect(page.getByTestId('save-name-taken')).toContainText('Presenter lower third 2');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog')).toBeHidden();
+  await expect(page.locator('.ef-document-name')).toHaveText('Presenter lower third 2');
+  await settleDurableWrites(page);
+  const names = await page.evaluate(async () =>
+    (await import('/src/model/library.ts')).loadGraphics().map((g) => g.name).sort());
+  expect(names).toEqual(['Presenter lower third', 'Presenter lower third 2']);
+});
+
 test('save dialog: a text-selection drag that ends on the backdrop never closes it', async ({ page }) => {
   // The backdrop closes on an OUTSIDE click — but a drag that STARTS in the name field and
   // releases over the backdrop (selecting text, overshooting the input) routes its `click` to

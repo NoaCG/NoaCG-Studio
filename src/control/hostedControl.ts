@@ -349,8 +349,14 @@ export interface ControlEventRow {
 
 /** The stored operator spec for a show — one entry per graphic, no template payload. The
  *  entries come from the library via the shared resolver (model/library.ts), by `graphicId`
- *  with a unique-name fallback, so hosted publish and show export agree on the lookup. */
-export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics()): PanelGraphicSpec[] {
+ *  with a unique-name fallback, so hosted publish and show export agree on the lookup.
+ *
+ *  A graphic whose record this publisher does not hold - a teammate's, in a team production -
+ *  keeps the entries `published` carries for it (issue #779): entries live only in their author's
+ *  library, so reading them from this one would drop the author's saved entries on every
+ *  teammate's republish. */
+export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(), published: readonly PanelGraphicSpec[] = []): PanelGraphicSpec[] {
+  const publishedEntries = new Map(published.map((g) => [g.name, g.entries] as const));
   return show.graphics.map((g) => {
     // The LIVE template (templateForSavedGraphic), not the snapshot embedded when the graphic
     // was added — publishing a show that carried the stale fields/js would drive the hosted
@@ -363,7 +369,9 @@ export function buildPanelSpec(show: Show, library: GraphicDoc[] = loadGraphics(
       images: template.assets
         .filter((a) => isImageAsset(a.path))
         .map((a) => ({ value: a.path, label: a.path })),
-      entries: entriesForSavedGraphic(g, library).map((e) => ({ id: e.id, label: e.label, values: e.values })),
+      entries: resolveSavedGraphicDoc(g, library)
+        ? entriesForSavedGraphic(g, library).map((e) => ({ id: e.id, label: e.label, values: e.values }))
+        : publishedEntries.get(g.name) ?? [],
       dataRows: cueDataRows(
         fieldDescriptors(template.fields).map((d) => ({ key: d.key, label: d.label })),
         show.datasets ?? [],
@@ -606,9 +614,12 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // time, or last published before stamps existed, starts at 1. The write below lands only on this
   // same version (the publish guard, docs/work-specs/publish-guard/spec.md G4), so a read that
   // fails stops the publish.
-  const previous = await sb.from('control_shows').select('ver:output->ver').eq('id', show.id).maybeSingle();
+  // The panel rides along (no template payload in it): the entries of a graphic whose record this
+  // publisher does not hold stay as published (`buildPanelSpec`).
+  const previous = await sb.from('control_shows').select('ver:output->ver, panel').eq('id', show.id).maybeSingle();
   if (previous.error) throw new Error(previous.error.message);
   const held = readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver);
+  const heldPanel = readPanel((previous.data as { panel?: unknown } | null)?.panel);
   const edited = Object.fromEntries(show.graphics.map((g) => [g.name, designEditedAt(g, library)]));
   const version = await stampPayload(built, held, undefined, edited);
   // NEVER AN OLDER DESIGN (G3): this page's copy of a graphic is older than the one on air - a
@@ -627,7 +638,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   const published = {
     id: show.id,
     title: show.name,
-    panel: buildPanelSpec(show, library),
+    panel: buildPanelSpec(show, library, heldPanel),
     output,
     // The production-data BINDINGS travel with the publish because they are authored state,
     // like the panel and the payload (docs/PRODUCTION_DATA_PLAN.md §5). The server-side patch
@@ -1587,6 +1598,11 @@ export async function sendControlVerb(opts: {
   // the operator had seen, read NOW, at the press (or as its road is decided) - not when the send
   // leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
+  // A press whose wait for the road ran out without either answer counts as unanswered, like the
+  // resolve, and never turns into a send by row id (#1697). Decided before this page's own monitor
+  // moves: it plays nothing that will not be sent (#1719). By row id only when decided so before
+  // the send: the server has no sequence road, or no such production.
+  const waitRanOut = !session && !missing && !givenUp() && !!(await getSupabase().catch(() => null));
   const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
   // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
   // has pressed again since: that later press is what stands, on air and here (the server leaves
@@ -1621,7 +1637,7 @@ export async function sendControlVerb(opts: {
       held.push(key);
       slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
-    if (rides && !overtaken(item.graphic)) fast.push(stamped);
+    if (rides && !overtaken(item.graphic) && !waitRanOut) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
   }
   // THIS PAGE'S OWN MONITOR, before the round trip. It is applying commands it has not sent yet,
@@ -1644,10 +1660,8 @@ export async function sendControlVerb(opts: {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
-      // commit after a later press. By row id only when decided so before the send: the server has
-      // no sequence road, or no such production. A press whose wait ran out without either counts as
-      // unanswered, like the resolve, and never turns into a send by row id on a retry (#1697).
-      if (!missing && !givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
+      // commit after a later press.
+      if (waitRanOut) throw unansweredError();
       await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
     noteSend(true);

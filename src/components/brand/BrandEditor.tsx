@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectBrand } from '../../model/brand';
 import { createLook, loadLooks, upsertLook, type SavedLook } from '../../model/packets';
 import { commitDurableWrites } from '../../model/durableStore';
+import { holdReload } from '../../app/deploySkew';
 import { fileToDataUrl } from '../../assets/assetUtils';
 import { importSvgMarkup } from '../../assets/svgImport';
 import { slug } from '../../model/slug';
@@ -34,6 +35,14 @@ export default function BrandEditor({ initial, onSaved, onCancel }: {
     const timer = window.setTimeout(() => setPreviewBrand(brand), 150);
     return () => window.clearTimeout(timer);
   }, [brand]);
+  // Unsaved edits live only here: a page left open across a deploy waits while there are any
+  // (app/deploySkew.ts, #758) - opening the Google font list is the lazy load that would reload it.
+  const draftRef = useRef({ name, brand });
+  draftRef.current = { name, brand };
+  useEffect(() => {
+    const opened = JSON.stringify(draftRef.current);
+    return holdReload(() => JSON.stringify(draftRef.current) !== opened);
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
