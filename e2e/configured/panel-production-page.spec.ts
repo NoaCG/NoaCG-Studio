@@ -377,3 +377,65 @@ test('the clip clock a panel counts follows the server clip the production page 
   expect((await deck.press('select-next', '', off.ver as number)).outcome).toBe('refused revoked');
   await deck.close();
 });
+
+// protocol §6.2, issue #2140 (0110). The first pair a page reopened after the deck pressed hears from
+// it, reversed on the way by the same routing as the test above: the page starts from the deck's
+// last press, which the lease answers. Run as they arrived, Anna would replace Ben.
+test('the first pair a page reopened after the deck pressed hears from it runs in the order it was pressed', async ({ page }) => {
+  test.setTimeout(180_000);
+  let swap: { earlier: string; later: string; held: (() => void) | null; laterSent: boolean } | null = null;
+  await page.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
+    const server = ws.connectToServer();
+    server.onMessage((frame) => {
+      const text = typeof frame === 'string' ? frame : frame.toString();
+      const forward = () => ws.send(frame);
+      if (swap && text.includes(`"${swap.earlier}"`) && !swap.laterSent) {
+        swap.held = forward;
+        return;
+      }
+      forward();
+      if (swap && text.includes(`"${swap.later}"`)) {
+        swap.laterSent = true;
+        if (swap.held) setTimeout(swap.held, 100);
+      }
+    });
+  });
+  await publishTwoCues(page, `Panel First ${Date.now()}`);
+  const op = page;
+  await shutStatusPanel(op);
+  const deck = await pairPanel(op);
+  await answerPanel(op);
+  await op.getByTestId('panel-close').click();
+  await deck.hello();
+  const [anna, ben] = (await deck.rows()).map((r) => r.id);
+  /** A pick (Anna) and then a reveal (Ben), drawn from one state, reaching the page reversed: Ben,
+   *  pressed last, stands. */
+  const revealStands = async (ver: number, ids: [string, string]) => {
+    swap = { earlier: ids[0], later: ids[1], held: null, laterSent: false };
+    const pick = deck.press('take-cue', anna, ver, ids[0]);
+    const reveal = deck.press('take-cue', ben, ver, ids[1]);
+    expect([(await pick).outcome, (await reveal).outcome]).toEqual(['ran', 'ran']);
+    await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
+    await op.waitForTimeout(500);
+    await expect(op.getByTestId('live-cue-chip')).toContainText('Ben');
+    const up = await deck.state();
+    expect(up.live).toEqual([ben]);
+    return up;
+  };
+
+  // The deck presses on this page, which is then reopened (a reload keeps the panel, lease L4).
+  const start = await deck.state((s) => Array.isArray(s.live));
+  expect((await deck.press('select-cue', anna, start.ver as number, 'firstdeck:1')).outcome).toBe('ran');
+  await deck.state((s) => s.selected === anna, 'Anna selected');
+  const reopenedAt = Date.now();
+  await op.reload();
+  await expect(op.getByTestId('production-page')).toBeVisible();
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  await deck.hello();
+  const reopened = await deck.state((s) => (s.at as number) >= reopenedAt && Array.isArray(s.live) && (s.live as string[]).length === 0, 'the reopened page');
+
+  // The reopened page's first pair from the deck.
+  await revealStands(reopened.ver as number, ['firstdeck:2', 'firstdeck:3']);
+
+  await deck.close();
+});
