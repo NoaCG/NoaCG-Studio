@@ -77,6 +77,11 @@ export class ServerLinks {
     this.id(host, port);
     const w = this.#watches.get(`${host}:${port}`);
     if (!w || w.up || this.#stopped) return w?.id ?? this.id(host, port);
+    // Between tries: try now. A reading that succeeded says the server answers again.
+    if (w.timer && !w.socket) {
+      clearTimeout(w.timer);
+      this.#open(`${host}:${port}`, w, host, port);
+    }
     await new Promise<void>((resolve) => {
       const timer = setTimeout(done, ms);
       timer.unref?.();
@@ -154,7 +159,8 @@ export class ServerLinks {
       w.id = this.#next();
       w.up = false;
       if (this.#stopped || this.#watches.get(key) !== w) return;
-      w.timer = setTimeout(() => this.#open(key, w, host, port), this.#retryMs);
+      // A reading waiting on the watch (`ready`) has just found the server answering: try again soon.
+      w.timer = setTimeout(() => this.#open(key, w, host, port), w.waiting.length ? Math.min(50, this.#retryMs) : this.#retryMs);
       w.timer.unref?.();
     });
     // The watch never keeps the Bridge running by itself.
