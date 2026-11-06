@@ -293,7 +293,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   /** A lead out of view with nothing out lets a waiting tab lead (#2251): the lock goes to the tab
    *  that asked first, and one that went into the background before another tab opened would keep
    *  it, so the reload would wait for its slowed polls. Asked at each of its readings that needs
-   *  nothing done. */
+   *  nothing done. The browser cannot say whether the waiting tab is in view, so two background
+   *  tabs may pass the lock back and forth; harmless, as one tab holds it at a time and a reload in
+   *  flight is never handed over. */
   let offering = false;
   const offerLead = () => {
     const held = lead;
