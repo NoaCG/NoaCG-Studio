@@ -46,8 +46,8 @@
 //
 // WHAT IS KEPT WHERE. In the browser's record (`LoadedOutput`, shared by its tabs): the Load and its
 // stamp (`at`), the last outage any tab saw (`outageAt`), the tries made for it and why the last
-// failed (`tries`, `reason`), and when a reading that found it back went out (`backAt`). In the
-// page: the Load it has seen on the slot (`seenAt`), when its last reading of ours went out
+// failed (`tries`, `reason`). Each slot reading carries the outage noted when it went out: one
+// sent during an outage never reads as a CLEAR, whenever it lands. In the page: the Load it has seen on the slot (`seenAt`), when its last reading of ours went out
 // (`oursAt`), its own outage flag (used only while storage refuses writes, with `local`), the
 // lock (`lead`), and a reload it has out (`reloads`, `sending`, `handOver`).
 //
@@ -119,16 +119,15 @@ export interface LoadedOutput {
   outageAt?: number;
   /** Reloads tried since that outage, by whichever tab led: three in all, not three per tab. */
   tries?: number;
-  /** When the reading that found the output back after the outage was sent: an empty reading sent
-   *  before it is from before the recovery, and never reads as a CLEAR. */
-  backAt?: number;
   /** Why the last try did not bring it back, for the failed state in any tab. */
   reason?: string;
 }
 
-/** What the page kept when a slot read went out, and when it went out. */
+/** What the page kept when a slot read went out (the Load's stamp, and the outage noted then),
+ *  and when it went out. */
 interface Before {
   at: number | undefined;
+  outageAt: number | undefined;
   issued: number;
 }
 
@@ -285,20 +284,25 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   /** When the last read that found ours on the slot went out, or the page opened: an outage another
    *  tab noted after it counts here too. */
   let oursAt = io.now();
-  const snapshot = (): Before => ({ at: memory()?.at, issued: io.now() });
+  const snapshot = (): Before => {
+    const m = memory();
+    return { at: m?.at, outageAt: m?.outageAt, issued: io.now() };
+  };
+  /** Since the slot last held ours; a note in the same millisecond counts (wall clocks tie). */
+  const noted = (m: LoadedOutput | null) => m?.outageAt !== undefined && m.outageAt >= oursAt;
   const sawOutage = () => {
     outageSinceOurs = true;
     const m = memory();
-    // After this tab's own last reading of ours even within the same millisecond: it saw that
-    // reading go out first.
-    if (m && !((m.outageAt ?? 0) > oursAt)) keep({ ...m, outageAt: Math.max(io.now(), oursAt + 1) });
+    if (m && !noted(m)) keep({ ...m, outageAt: io.now() });
   };
-  const sentBeforeRecovery = (m: LoadedOutput | null, before: Before) => m?.backAt !== undefined && before.issued < m.backAt;
+  /** A reading sent while an outage was noted: what it found may be from before the recovery, so an
+   *  empty one never reads as a CLEAR. Decided by what the reading carried, not by clock order. */
+  const sentDuringOutage = (before: Before) => before.outageAt !== undefined;
   /** An outage since the slot last held ours. The browser's note decides while storage holds the
    *  Load: a tab that saw the outage but not the recovery another tab saw must not keep its own
    *  word on it, or a later CLEAR would read as a restart. This tab's own word only while storage
    *  refuses the write. */
-  const outage = (m: LoadedOutput | null) => (local !== undefined ? outageSinceOurs : (m?.outageAt ?? 0) > oursAt);
+  const outage = (m: LoadedOutput | null) => (local !== undefined ? outageSinceOurs : noted(m));
   /** The last slot start was published with CasparCG on, so a start without either is a change. */
   let watched = false;
   /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
@@ -414,7 +418,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       seenAt = m?.at ?? null;
       // Back on its slot after the outage noted for it: the browser's recovery is over. Only a read
       // sent after that outage says so; one sent before it is from before the restart.
-      if (m && (m.outageAt !== undefined ? m.outageAt < before.issued : m.tries)) keep({ target: m.target, at: m.at, backAt: before.issued });
+      if (m && (m.outageAt !== undefined ? m.outageAt < before.issued : m.tries)) keep({ target: m.target, at: m.at });
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return false;
     }
@@ -435,7 +439,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // or another browser's later Load would arm it. Not a Load still fresh, one in a recovery another
     // tab is making, nor a newer one than the read knew.
     const kept = memory();
-    if (lost && kept && !outage(kept) && !sentBeforeRecovery(kept, before) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
+    if (lost && kept && !outage(kept) && !sentDuringOutage(before) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
     followLead(target);
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
@@ -445,7 +449,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const now = memory();
     if (!outage(now)) {
       // A reading sent before another tab saw the output back says nothing about the slot now.
-      if (sentBeforeRecovery(now, before)) return;
+      if (sentDuringOutage(before)) return;
       keep(null);
       followLead(target);
       return;
@@ -468,10 +472,11 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     run.inFlight = true;
     writeBridge(session, { slotReload: { state: 'reloading' } });
     // The Load this try is for: a try that lands after a newer Load is not counted against it.
-    const loadAt = memory()?.at;
+    // and for its outage: a try that lands after the recovery is not counted against the next one.
+    const sentFor = snapshot();
     sending = reloadOnce(run, target).then(
-      (result) => done(run, result, loadAt),
-      (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }, loadAt),
+      (result) => done(run, result, sentFor),
+      (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }, sentFor),
     );
   };
   /** One reload, decided here and sent by the page: only while this run is still the one, the
@@ -492,7 +497,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), before)) return null;
     return adapters.reload();
   };
-  const done = (run: typeof reloads, result: PlayoutResult | null, loadAt: number | undefined) => {
+  const done = (run: typeof reloads, result: PlayoutResult | null, sentFor: Before) => {
     if (run !== reloads) return;
     run.inFlight = false;
     // A sent load is one of the browser's three tries, also when this page has gone meanwhile: the
@@ -502,7 +507,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       const m = memory();
       // Why it did not bring it back, for the failed state in any tab: the Bridge's sentence, or a
       // load that went through and still left the slot empty.
-      if (m && m.at === loadAt) keep({ ...m, tries: (m.tries ?? 0) + 1, reason: result.state === 'ok' ? '' : result.detail });
+      if (m && m.at === sentFor.at && m.outageAt === sentFor.outageAt) keep({ ...m, tries: (m.tries ?? 0) + 1, reason: result.state === 'ok' ? '' : result.detail });
     }
     if (!alive) return;
     if (handOver) handLeadOver();

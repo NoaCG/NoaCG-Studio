@@ -1273,3 +1273,75 @@ test('a try that lands after a newer Load is not counted against it', async () =
   assert.equal(browser.loaded.get('show-1')?.at, fresh.at);
   assert.equal(browser.loaded.get('show-1')?.tries, undefined, 'the newer Load keeps all three tries');
 });
+
+test('a slow empty reading never forgets the Load, even when the clocks tie with the recovery', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  browser.step = 0; // every look at the clock from here gives the same millisecond
+  b.setHold(true, { asSent: true });
+  b.answer(OK);
+  await settle();
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1);
+  for (const answer of b.held.splice(0)) answer();
+  await settle();
+  assert.ok(browser.loaded.get('show-1'), 'the Load is kept');
+});
+
+test('a try that lands after another tab saw the output back is not counted against the next outage', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  let release;
+  a.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  });
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'A\'s try is out');
+  // The load got through after all; B sees the output back, which ends the recovery.
+  server.layer = ourPage;
+  b.answer(OK);
+  await settle();
+  assert.equal(browser.loaded.get('show-1')?.outageAt, undefined);
+  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  const noted = browser.loaded.get('show-1')?.outageAt;
+  release();
+  await settle();
+  assert.equal(browser.loaded.get('show-1')?.tries, undefined, 'the next outage keeps all three tries');
+  assert.equal(browser.loaded.get('show-1')?.outageAt, noted);
+});
+
+test('an Unload in another tab while the reloading tab reads the slot once more sends nothing', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.setHold(true);
+  a.answer(OK);
+  await settle();
+  a.held.shift()(); // the watch's reading: empty; the reload reads once more
+  await settle();
+  assert.equal(a.held.length, 1, 'the reload\'s own read is out');
+  b.watch.slotOwned(false, b.inputs.casparTarget);
+  a.held.shift()();
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 0, 'the Unload is never undone');
+});
