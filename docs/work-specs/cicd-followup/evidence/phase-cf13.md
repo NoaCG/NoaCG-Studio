@@ -33,11 +33,12 @@ cites those workflow lines and changes nothing.
 
 | Item | State |
 | --- | --- |
-| Rank 1, 8 configured stacks | skipped for cost, untried: it grows the backend tier, which is in an active cost breach (section 1); does not count toward the three; goes to cf20(c) |
-| Rank 2, Build step in parallel | first of the three tries; this PR; lands on cost grounds, expected unmeasured (section 2.2) |
-| Rank 3, ESLint and tsc caches | second try, in ranked order, expected unmeasured (section 2.2); then rank 4 as the third |
+| Rank 1, 8 configured stacks | owner-approved 14-day trial (2026-11-06, section 7); second try; lands when its before side holds 10 `cap+cfg` merges |
+| Rank 2, Build step in parallel | first of the three tries; landed in #2171 (a235a93d) on cost grounds, expected unmeasured (section 2.2) |
+| Rank 3, ESLint and tsc caches | untried, superseded by rank 2 (section 7.5); goes to cf20(c) |
+| Rank 4 | not built: no M1 or M3 effect alone, so building it would be filler (section 7.5) |
 | Ranks 5 to 8 | untried; they go to cf20(c) |
-| (b) | this PR: preview-trial.yml was the one PR workflow without cancellation (section 3) |
+| (b) | landed in #2171: preview-trial.yml was the one PR workflow without cancellation (section 3) |
 
 ## 1. Rank 1: give the PR's configured selection 8 stacks
 
@@ -277,3 +278,119 @@ kind of cancelled run on `main`.
 ## 6. Issues
 
 - #2172: the E2E capacity gate does not price a change to the configured stack count (section 1).
+
+## 7. Rank 1 trial: 8 stacks for the PR's configured selection (2026-11-06)
+
+The owner approved rank 1 as a 14-day trial on #2172
+(https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6679576372): "not 30 days but 2
+weeks (14 days). Then we'll see if the merges got faster. We have a lot going on and more code
+lands on main every day, so this needs to be taking in to account."
+
+### 7.1 What changes
+
+`scripts/configured-shards.mjs`: a pull request's selection gets one stack per 5 measured
+test-minutes (was 10), at most `SELECTED_SHARDS` = 8 (was `CONFIGURED_SHARDS` = 4). The landing's
+full configured run keeps `CONFIGURED_SHARDS` = 4: separating the two keeps the per-landing full
+run, its verdict and its cost exactly as they are, so the trial changes only what it measures.
+ci.yml reads the count from this script and needs no edit. Which specs are selected does not
+change, so this does not restart cf18's audit.
+
+Packing checked before the change, on main's three newest configured-suite reports (runs
+42108102501, 42106944552, 42106560712): the whole set is 70 specs and 44.8 test-minutes, the
+longest spec 2.9 minutes; on 4 stacks each gets 11.2, on 8 each gets 5.6. cf03's caveat (a spec
+over about 5 minutes would stop an even split) does not apply today.
+
+### 7.2 Expected effect and cost
+
+`cap+cfg` M1 median 14.6 to about 12.0 (cf03 section 7): the configured jobs end at about
+0.4 + 2.0 + 5.6 = 8.0 minutes instead of 14.4, so the gate waits for the next input, the catalog
+gate (11.2) or the offline shards (9.7). That is 2.6 against cf03's spread of 1.04. Cost: four more
+stack starts of about 2.3 minutes on each large pull request run, about +29 backend runner-minutes
+per merge (cf03), 18% of the tier's 164.7 per landing measured on 2026-11-03. No per-day cost:
+scheduled runs use the full suite's count, which is unchanged.
+
+### 7.3 The exception, and why it is not in the ledger
+
+The owner's approval is the exception: 14 days from the landing date, owner `miwco` (primary) with
+the weekly owner session as backup, repayment by revert unless section 7.4 shows M1 faster beyond
+the spread (and #2172). It cannot be written to `scripts/growth-ceilings.json` as a valid entry:
+the backend tier already holds `jev-svg-import-journey` (2026-11-03 to 2026-12-03), and the ledger
+allows one active exception per tier and needs a measured repayment receipt for any later one
+(`exceptionProblems` in `scripts/growth-controls.mjs`, rules X3 and X4). An entry written now would
+be invalid and cover nothing. The capacity gate does not price this change (#2172), so nothing
+refuses it; the approval, its dates and the revert are recorded here and on #2172.
+
+### 7.4 Measurement within cf03's rule
+
+Group `cap+cfg`, M1 median (spread 1.04, minimum 10 per side), with the no-regression metrics M2
+waiting (0.04, 9), M2 execution (0.62, 11) and M4. cf03's values and side rule are unchanged.
+
+**How often a side ends.** `phase-cf03-baseline.mjs rule` on all 111 merges from
+2026-11-03T07:24Z to 2026-11-06T07:24Z: 16 ended the `cap+cfg` M1 side, about one every 4.5
+hours. They were CI phases (#2012, #2014, #2037, #2142, #2151, #2167, #2171), a dependency bump
+(#2025), the durations refresh (#1503), and product changes that touched `vite.config.ts`,
+`eslint.config.js`, Playwright configs or the selector (#2085, #2097, #2112, #2124, #2134, #2188,
+#2224). The 111 merges were 71 `cap+cfg`, 22 `none`, 10 `small+cfg`, 4 `small` and 4 `none+cfg`
+(group read from each merge's final head's first ci.yml PR run), so `cap+cfg` arrives at about 24
+a day. Of the 17 stretches between side-ending landings, 2 held 10 or more `cap+cfg` merges (18 in
+2.9 hours on 2026-11-04, 12 in 4.1 hours on 2026-11-05); the rest held 0 to 8.
+
+**What that means.** At about 24 a day, 10 `cap+cfg` merges take about 10 hours. A before side
+can be waited for, because the landing waits. The after side is only the stretch between this
+landing and the next side-ending one, which in recent days lasted about 4.5 hours on average,
+long enough for 10 only about one time in eight. Left alone, the after side is likely to end
+unmeasured, as the owner warned.
+
+**Keeping the comparison valid without changing the rule.** The rule fixes which merges are on
+each side; it says nothing about when other landings happen. So:
+
+1. **Landing condition:** the before side holds at least 10 `cap+cfg` merges (and 11 for M2
+   execution if possible) after the last landing whose `rule` ends `cap+cfg` M1.
+2. **After the landing, a short hold:** until the after side holds 10 `cap+cfg` merges (about 10
+   hours at the recent rate), PRs whose changes end the `cap+cfg` M1 side wait before entering
+   the queue. To check a PR, run `sideEnds` on its changed files, for example
+   `node --input-type=module -e "const m = await import('./docs/work-specs/cicd-followup/evidence/phase-cf03-baseline.mjs'); console.log(m.sideEnds('HEAD', process.argv.slice(1)).ends)" <files>`;
+   it holds when `m1` lists `cap+cfg`. Docs, product code outside
+   the rule, specs, `covers:` edits and quarantine entries do not end a side and need no hold.
+3. **If a side-ending landing cannot wait** (an incident fix), it lands, the after side ends
+   there, and the trial is read with the n it reached. Unmeasured counts toward the three.
+4. **The bounds:** cf13's 7-day bound from the candidate's start (this PR, opened 2026-11-06)
+   is 2026-11-13; the owner's 14 days run from the landing date. The reading happens as soon as
+   both sides hold 10, and at the latest at 2026-11-13.
+5. **The decision:** keep only if `cap+cfg` M1 median is lower beyond 1.04 with no regression in
+   M2 waiting, M2 execution or M4. Otherwise revert through the queue before the 14 days end.
+
+**Reading.** Collect with `CF03_FROM=<last side-ending landing before this one>
+CF03_UNTIL=<read time>` in a fresh `--cache` folder, `phase-cf03-collect.mjs` until it prints
+`complete`, `phase-cf03-baseline.mjs derive`, then `phase-cf13-sides.mjs --group cap+cfg
+--before-from <ISO> --land <this merge's merged_at> --after-until <ISO>`.
+
+### 7.5 Ranks 3 and 4
+
+**Rank 3** (ESLint and tsc caches) is untried, superseded by rank 2. ESLint and tsc now run in the
+second lane beside the gates, and on #2171's three full CI runs that lane ended well before the
+gates lane: 97.9 against 255.8 seconds (run 41950548989), 77.1 against 222.2 (41954031541) and
+116.4 against 301.6 (42047430886). The Build job's end and its runner-minutes are set by the gates
+lane, so caching ESLint and tsc changes neither M1 nor M3. It goes to cf20(c) with this reason.
+
+**Rank 4** (split the catalog gate) is not built: alone it has no M1 effect (cf03 section 7, "0
+alone"), and its M2 execution effect (-0.1 at the median over all 66 merges after ci06) is a
+no-regression metric, so it cannot pass. Building it only to fill the three would be filler.
+
+**A new next step outside cf03's ranking, for cf20(c).** Inside the gates lane, `test:ai-gateway`
+(about 80 seconds) runs before the `node --test` pass (about 150 seconds), one after the other.
+Running them side by side is the measured next step for the Build job.
+
+### 7.6 Phase notes for this PR
+
+- **Previous verified main SHA:** 800a45ab (#2234), the branch base; #2171 landed as a235a93d.
+- **Revert:** `git revert -m 1 <this merge's SHA>` restores 10 test-minutes per stack and a cap of
+  four for the selection; the evidence can stay.
+- **What this landing ends** (`sideEnds` on its files): M1 of the `+cfg` groups and M3 of every
+  group. It does not end M2 sides, so the M2 before sides may reach further back; reading them
+  from the M1 boundary only shortens them.
+- **Decisions.** The selection cap is separate from the landing's full-run count. No ledger entry
+  (section 7.3). The after side is protected by a scheduling hold, not by any change to cf03's rule.
+- **Trap.** A second exception in a tier is invalid while the first is active, whatever the owner
+  approved: the ledger enforces one active exception per tier.
+
