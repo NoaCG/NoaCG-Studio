@@ -11,6 +11,11 @@
       "since": "2026-11-06",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42180079592"
+    },
+    "e2e/output-debate-clock.spec.ts": {
+      "since": "2026-11-06",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/42201897413"
     }
   },
   "released": {
