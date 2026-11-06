@@ -109,6 +109,15 @@
       "Bash(npm run queue:merge -- --unreviewed *)",
       "Bash(npm run queue:merge 2>&1)",
       "PowerShell(npm run queue:merge)",
+      "Bash(npm run queue:merge -- *)",
+      "PowerShell(npm run queue:merge -- *)",
+      "Bash(gh workflow run cloud-queue-merge.yml *)",
+      "PowerShell(gh workflow run cloud-queue-merge.yml *)",
+      "Bash(gh pr merge * --auto --match-head-commit *)",
+      "Bash(gh pr merge * --auto --merge --match-head-commit *)",
+      "PowerShell(gh pr merge * --auto --match-head-commit *)",
+      "PowerShell(gh pr merge * --auto --merge --match-head-commit *)",
+      "mcp__ccd_pr__set_auto_merge",
       "Bash(node scripts/jobs.mjs requeue)",
       "Bash(node scripts/jobs.mjs requeue *)",
       "PowerShell(node scripts/jobs.mjs requeue)",
@@ -160,6 +169,10 @@
       "mcp__ccd_session_mgmt__send_message",
       "mcp__scheduled-tasks__list_task_runs",
       "mcp__scheduled-tasks__update_scheduled_task"
+    ],
+    "deny": [
+      "Bash(gh pr merge *--admin*)",
+      "PowerShell(gh pr merge *--admin*)"
     ]
   },
   "pluginConfigs": {
