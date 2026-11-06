@@ -1598,6 +1598,11 @@ export async function sendControlVerb(opts: {
   // the operator had seen, read NOW, at the press (or as its road is decided) - not when the send
   // leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
+  // A press whose wait for the road ran out without either answer counts as unanswered, like the
+  // resolve, and never turns into a send by row id (#1697). Decided before this page's own monitor
+  // moves: it plays nothing that will not be sent (#1719). By row id only when decided so before
+  // the send: the server has no sequence road, or no such production.
+  const waitRanOut = !session && !missing && !givenUp() && !!(await getSupabase().catch(() => null));
   const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
   // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
   // has pressed again since: that later press is what stands, on air and here (the server leaves
@@ -1632,7 +1637,7 @@ export async function sendControlVerb(opts: {
       held.push(key);
       slowUntil.set(key, sentAt + SLOW_AFTER_EVENT_MS);
     }
-    if (rides && !overtaken(item.graphic)) fast.push(stamped);
+    if (rides && !overtaken(item.graphic) && !waitRanOut) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
   }
   // THIS PAGE'S OWN MONITOR, before the round trip. It is applying commands it has not sent yet,
@@ -1655,10 +1660,8 @@ export async function sendControlVerb(opts: {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
-      // commit after a later press. By row id only when decided so before the send: the server has
-      // no sequence road, or no such production. A press whose wait ran out without either counts as
-      // unanswered, like the resolve, and never turns into a send by row id on a retry (#1697).
-      if (!missing && !givenUp() && (await getSupabase().catch(() => null))) throw unansweredError();
+      // commit after a later press.
+      if (waitRanOut) throw unansweredError();
       await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
     noteSend(true);
