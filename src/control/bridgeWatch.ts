@@ -563,7 +563,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const last = memory()?.triedAt;
     if (tries > 0 && last !== undefined && last !== reloads.since) {
       reloads.since = last;
-      // Readings since that try, this one counted just below, as the tab that made it counts them.
+      // Readings since that try, this one counted just below: never sooner than the tab that made it.
       reloads.emptyReads = Math.max(0, Math.floor((io.now() - last) / SLOT_READ_MS) - 1);
     }
     if (tries > 0) reloads.emptyReads += 1;
