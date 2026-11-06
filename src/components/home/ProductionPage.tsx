@@ -785,6 +785,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * on a disabled Out button, and the page snapshot at that moment read "PROGRAM - ON AIR
    * nothing on air" while the server's `live_cue` held the take the spec had just asserted.
    * Only the hosted tier ever saw it, which is what that tier is for.
+   *
+   * A Take's write (control/graphicVerbs.ts `mark`) names its layers, so the seed skips only those
+   * (#2162). A write through this setter names none (an Out, a timed cue's Out and Take in one
+   * fold, the first publish's whole map) and skips the whole seed.
    */
   const setLiveCue = useCallback(
     (next: LiveCueMap | ((map: LiveCueMap) => LiveCueMap)) => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, next) })),
@@ -2064,9 +2068,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Rebuild a fresh PROGRAM stage from what air holds (control/airState.ts `restoreItems`): at
    *  boot the reports and the rows after them, later what this page aired. */
   const restoreProgram = useCallback(
-    () =>
+    (only?: LiveCueMap) =>
       foldProgram((air, specs, now) => {
-        const restore = restoreItems(air, machineStatesRef.current, specs);
+        const restore = restoreItems(air, machineStatesRef.current, specs, only);
         return programItems(restore.air, restore.items, specs, now);
       }),
     [foldProgram],
@@ -2094,7 +2098,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (recoveredRef.current || !bootLive) return;
     recoveredRef.current = true;
     if (!Object.values(bootLive).some(Boolean)) return;
-    restoreProgram();
+    restoreProgram(bootLive);
   }, [bootLive, restoreProgram]);
 
   // The header clock ticks on its own — the heartbeat poll above is every 30 s, far too slow

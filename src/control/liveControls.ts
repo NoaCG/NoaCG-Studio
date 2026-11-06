@@ -116,3 +116,9 @@ export function liveNumberFields(descriptors: readonly FieldDescriptor[], button
 export function pickFields(buttons: readonly ControlButton[], descriptors: readonly FieldDescriptor[], pathEvents: ReadonlySet<string>): Set<string> {
   return new Set(buttons.flatMap((b) => pickOptions(b, descriptors, pathEvents, buttons)?.field ?? []));
 }
+
+/** A press's label and what it put up, naming it once: a label that already ends in the name
+ *  ("Play now C1", "Take of C1") is not followed by it again. */
+export function namedOnce(label: string, name: string): string {
+  return name && label.endsWith(` ${name}`) ? label : `${label}: ${name}`;
+}

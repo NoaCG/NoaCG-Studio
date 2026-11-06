@@ -9,11 +9,12 @@
 // after a reconnect or a replayed command on reload, which is why they live here and run in Node:
 //
 // - `moveLiveCue`: the one marker write. Every call counts as a move, moved or not, because the
-//   boot resolve's seed is skipped when anything wrote the marker while it was in flight.
+//   boot resolve's seed skips what was written while it was in flight.
 // - `claimAndApply`: a command from any road (this page's own send, the broadcast, the durable
 //   row) applies once, on the id its press minted (./commandRoads.ts `createAppliedOnce`).
-// - `seedFromResolve`: the resolve's picture replaces the marker only if no move happened since
-//   the request (THE MOVES GUARD), and the rows after the reports replay only if no command did.
+// - `seedFromResolve`: the resolve's picture replaces the marker on every layer no Take since the
+//   request touched, and not at all after any other marker write (THE MOVES GUARD); a graphic's
+//   rows after its report replay only if no command on it was applied.
 // - `programItems`: the match and speaking clocks' decisions around a command, against the
 //   monitor's own receive instant (./matchClockWire.ts).
 // - `restoreItems`: what rebuilds a fresh PROGRAM stage from the marker, the reports and the rows.
@@ -37,7 +38,7 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
-import { airedAfter, heldFirst, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
+import { airedAfter, heldFirst, holdAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from './outputRecovery.ts';
 import { lookAfter, reportedLook, type AppliedLooks } from './cueAdjust.ts';
 import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 
@@ -49,10 +50,15 @@ export interface ClockSpecs {
 }
 
 /** Write the ON AIR marker: a new map, or a fold over the one standing. Counted even when nothing
- *  moved, as the page's own setter always counted it (`seedFromResolve` reads the count). */
-export function moveLiveCue(air: AirPart, next: LiveCueMap | ((map: LiveCueMap) => LiveCueMap)): AirPart {
+ *  moved, as the page's own setter always counted it (`seedFromResolve` reads the count). A Take's
+ *  write names the layers it only puts a cue on (`took`) and is counted against them alone; any
+ *  other write may have taken a layer off, maybe one this page did not know was on, and counts
+ *  against every layer. */
+export function moveLiveCue(air: AirPart, next: LiveCueMap | ((map: LiveCueMap) => LiveCueMap), took?: readonly string[]): AirPart {
   const liveCue = typeof next === 'function' ? next(air.liveCue) : next;
-  return { ...air, liveCue, moves: air.moves + 1 };
+  const moves = air.moves + 1;
+  if (!took) return { ...air, liveCue, moves, clearedAt: moves };
+  return { ...air, liveCue, moves, tookAt: { ...air.tookAt, ...Object.fromEntries(took.map((graphic) => [graphic, moves])) } };
 }
 
 /** What these commands leave on air, MERGED into what was (`airedAfter`): an update may be partial
@@ -238,24 +244,50 @@ export function claimAndApply(
   for (const item of items) {
     if (!applied.claim(item.msg)) continue;
     const msg = item.msg;
-    if (msg.t === 'cue') next = moveLiveCue(next, (m) => withLiveCue(m, item.graphic, msg.cue));
+    if (msg.t === 'cue') next = moveLiveCue(next, (m) => withLiveCue(m, item.graphic, msg.cue), msg.cue ? [item.graphic] : undefined);
     else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') program.push({ graphic: item.graphic, msg });
   }
   // A marker never touches what was aired, so the commands are remembered together, in order.
-  if (program.length > 0) next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length };
+  if (program.length > 0) {
+    const commandsBy = { ...next.commandsBy };
+    let holdBy = next.holdBy;
+    for (const { graphic, msg } of program) {
+      commandsBy[graphic] = (commandsBy[graphic] ?? 0) + 1;
+      const held = holdAfter(msg);
+      if (held !== undefined) holdBy = { ...holdBy, [graphic]: { at: commandsBy[graphic], held } };
+    }
+    next = { ...rememberAired(next, program), bootReplay: null, commands: next.commands + program.length, commandsBy, ...(holdBy ? { holdBy } : {}) };
+  }
   return programItems(next, program, specs, now);
 }
 
 /** What the resolve's round trip read when it was asked: the marker's moves, the commands applied
- *  and the fields they had carried, so its answer can tell it is older than the screen. */
+ *  (per graphic too) and the fields they had carried, so its answer can tell it is older than the
+ *  screen. */
 export interface AirAtRequest {
   moves: number;
   commands: number;
+  commandsBy?: AirPart['commandsBy'];
   carried?: AirPart['carried'];
 }
 
 export function airAtRequest(air: AirPart): AirAtRequest {
-  return { moves: air.moves, commands: air.commands, carried: air.carried };
+  return { moves: air.moves, commands: air.commands, commandsBy: air.commandsBy, carried: air.carried };
+}
+
+/** Whether a command on this graphic was applied here since the request: its rows and report are
+ *  older than the screen. */
+function commandedSince(air: AirPart, at: AirAtRequest, graphic: string): boolean {
+  return (air.commandsBy?.[graphic] ?? 0) !== (at.commandsBy?.[graphic] ?? 0);
+}
+
+/** Whether the output no longer holds a graphic its report left held: the last command here since
+ *  the request that decides it, else the rows after the report, through the output's gate. */
+function releasedSince(air: AirPart, at: AirAtRequest, graphic: string, rows: readonly ReplayItem[]): boolean {
+  const decided = air.holdBy?.[graphic];
+  if (decided && decided.at > (at.commandsBy?.[graphic] ?? 0)) return !decided.held;
+  const verdicts = rows.filter((item) => item.graphic === graphic).map((item) => holdAfter(item.msg)).filter((held) => held !== undefined);
+  return verdicts[verdicts.length - 1] === false;
 }
 
 /** The renderers' last reports from the resolve, which a fresh stage is rebuilt from. */
@@ -287,17 +319,22 @@ function movedSince(air: AirPart, at: AirAtRequest, graphic: string): Record<str
 }
 
 /**
- * THE RESOLVE'S SEED, guarded (§4.1 R3). The seed is a wholesale replace, so it is skipped
- * outright when the marker moved while the read was in flight (THE MOVES GUARD): the wire's map is
- * a snapshot, and a layer this operator took off meanwhile would come back on air, or a Take made
- * meanwhile would read as nothing on air with Out greyed. The rows after the reports replay only
- * if no command was applied since the request; a newer command is newer than they are, so a field
- * one moved meanwhile also keeps its figure over the report's.
+ * THE RESOLVE'S SEED, guarded (§4.1 R3). The wire's map is a snapshot older than every marker
+ * write since the request (THE MOVES GUARD). Any write but a Take's skips the seed outright: a
+ * layer this operator took off meanwhile, maybe one this page did not know was on, would come back
+ * on air. A layer a Take wrote meanwhile keeps this page's cue and record, or it would read as
+ * nothing on air with Out greyed, and every other layer still seeds (#2162: a Take of one graphic
+ * during the read kept the one already on air off this page's PROGRAM monitor). A graphic's rows
+ * after its report, and its report's place, size and typed data, count only if no command on it
+ * was applied since the request; a newer command is newer than they are, so a field one moved
+ * meanwhile also keeps its figure over the report's. A command on another graphic (the Take
+ * itself) leaves them standing.
  *
  * Seeded, `aired` takes what air shows for each live layer: the renderer's report, else the live
  * cue's values in the rundown, then the rows after the report. A clock's reported value carries its
  * origin stamp, which goes to the monitor's clock memory while the baseline keeps the plain time.
- * `bootLive` is the wire's own answer, the one thing the boot recovery is keyed on.
+ * `bootLive` is the wire's own answer for the layers it seeded, the one thing the boot recovery is
+ * keyed on: a layer taken here meanwhile is already on the monitor.
  */
 export function seedFromResolve(
   air: AirPart,
@@ -307,12 +344,21 @@ export function seedFromResolve(
   cues: readonly { id: string; values: Record<string, string> }[],
   specs: ClockSpecs,
 ): AirPart {
-  if (air.moves !== at.moves) return air;
-  const replay = air.commands === at.commands ? [...sinceReports] : [];
+  if ((air.clearedAt ?? 0) > at.moves) return air;
+  const taken = new Set(Object.keys(air.tookAt ?? {}).filter((graphic) => air.tookAt![graphic] > at.moves));
+  const answered: LiveCueMap = Object.fromEntries(Object.entries(resolved.liveCue).filter(([graphic]) => !taken.has(graphic)));
+  const liveCue: LiveCueMap = { ...answered, ...Object.fromEntries([...taken].map((graphic) => [graphic, air.liveCue[graphic]])) };
+  // The reports and rows this page holds nothing newer than.
+  const current = (graphic: string) => !taken.has(graphic) && !commandedSince(air, at, graphic);
+  // A graphic replayed from its report replays its hold too (`restoreItems`); one moved meanwhile is
+  // rebuilt from what it aired once its hold, if any, is over.
+  const released = (graphic: string) => taken.has(graphic) || (!current(graphic) && releasedSince(air, at, graphic, sinceReports));
+  const reports = Object.entries(resolved.live).filter(([graphic]) => current(graphic));
+  const replay = sinceReports.filter((item) => current(item.graphic));
   const seed: AiredMap = {};
   let clocks = air.clocks;
   let speaking = air.speaking;
-  for (const [graphic, cueId] of Object.entries(resolved.liveCue)) {
+  for (const [graphic, cueId] of Object.entries(answered)) {
     if (!cueId) continue;
     const reported = resolved.live[graphic]?.data;
     const base = reported && Object.keys(reported).length > 0 ? reported : cues.find((c) => c.id === cueId)?.values;
@@ -324,7 +370,7 @@ export function seedFromResolve(
     // A field a command moved while the read was out holds that command's figure, and its clock
     // memory stays this page's: the report is older (issue #2088: a +1 heard meanwhile was put
     // back, and the next +1 counted from it).
-    const moved = air.commands !== at.commands ? movedSince(air, at, graphic) : {};
+    const moved = commandedSince(air, at, graphic) ? movedSince(air, at, graphic) : {};
     // The wire values come from the report (stamped), not from a replayed plain resend.
     const wire = (field: string) => base?.[field] ?? values[field];
     if (clock && values[clock.field] !== undefined && !(clock.field in moved)) {
@@ -349,10 +395,10 @@ export function seedFromResolve(
     if (Object.keys(values).length > 0) seed[graphic] = { ...values, ...moved };
   }
   // What each renderer reports it holds applied of place and size, then the rows after the reports.
-  // A command applied here while the read was out is newer than every report: the looks stay.
+  // A command applied here while the read was out is newer than its graphic's report: its look stays.
   let looks: AppliedLooks = { ...(air.looks ?? {}) };
   // A report is the renderer's word for its graphic: no appearance in it clears an older entry.
-  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
+  for (const [graphic, report] of reports) {
     const look = reportedLook(report);
     if (look) looks = { ...looks, [graphic]: look };
     else if (graphic in looks) {
@@ -366,7 +412,7 @@ export function seedFromResolve(
   // rows as its only word. Only a live layer keeps one.
   const fromReports: TypedAir = { typedAired: { ...(air.typedAired ?? {}) }, typedSteps: { ...(air.typedSteps ?? {}) } };
   // A report is the renderer's word for its graphic: one without typed data ends an older entry.
-  if (air.commands === at.commands) for (const [graphic, report] of Object.entries(resolved.live)) {
+  for (const [graphic, report] of reports) {
     const base = reportedTypedAir(report);
     if (!base?.envelope) {
       delete fromReports.typedAired[graphic];
@@ -377,18 +423,27 @@ export function seedFromResolve(
     fromReports.typedSteps[graphic] = base.steps;
   }
   const folded = replay.reduce((next, item) => typedStepAfter(next, item.graphic, item.msg), fromReports);
-  const typedAired = Object.fromEntries(Object.entries(folded.typedAired).filter(([graphic]) => resolved.liveCue[graphic]));
+  const typedAired = Object.fromEntries(Object.entries(folded.typedAired).filter(([graphic]) => liveCue[graphic]));
   const typedSteps = Object.fromEntries(Object.entries(folded.typedSteps).filter(([graphic]) => graphic in typedAired));
+  // The seed is a wholesale write: a late answer of an older read never lands over it.
+  const moves = air.moves + 1;
   return {
-    ...moveLiveCue(air, resolved.liveCue),
+    ...air,
+    liveCue,
+    moves,
+    clearedAt: moves,
     aired: { ...air.aired, ...seed },
     looks,
     clocks,
     speaking,
     typedAired,
     typedSteps,
+    // A graphic this page took meanwhile, or whose hold ended, is rebuilt from what it aired, never
+    // from its older report (an unreadable envelope's would hold it off PROGRAM after the command that
+    // released it). A step, an event or a play leaves a held graphic held, so its report stays.
+    reports: air.reports && Object.keys(air.reports).some(released) ? Object.fromEntries(Object.entries(air.reports).filter(([graphic]) => !released(graphic))) : air.reports,
     bootReplay: replay,
-    bootLive: resolved.liveCue,
+    bootLive: answered,
   };
 }
 
@@ -435,17 +490,20 @@ export function seedOffAirClocks(
  * rebuilds itself (the clocks move on from the reported values, so their memory is dropped first);
  * a layer nothing reported, or a stage after this page applied a command, is rebuilt from what was
  * aired, with the clocks' wire values over the plain ones. The items go through `programItems`.
+ * `only`, when given, names the layers to rebuild: the boot recovery passes the ones it seeded,
+ * since a layer this page took during the read is already on the stage (`seedFromResolve`).
  */
 export function restoreItems(
   air: AirPart,
   machineStates: Readonly<Record<string, { groups?: Record<string, string>; held?: Record<string, string> } | null | undefined>>,
   specs: ClockSpecs,
+  only?: LiveCueMap,
 ): { air: AirPart; items: ReplayItem[] } {
   let clocks = air.clocks;
   let speaking = air.speaking;
   const all: ReplayItem[] = [];
   for (const [graphic, cueId] of Object.entries(air.liveCue)) {
-    if (!cueId) continue;
+    if (!cueId || (only && !only[graphic])) continue;
     const report = air.reports?.[graphic] ?? null;
     const rows = report ? (air.bootReplay ?? []).filter((item) => item.graphic === graphic) : [];
     const replaying = rows.length > 0;
