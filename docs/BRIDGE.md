@@ -326,7 +326,9 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
   settings still name that slot, and no Load or Unload landed meanwhile.
 - **Only this browser's output, on its own slot.** Each Load is kept per production in this
   browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load still
-  brings it back, once it has seen the output on the slot again. An Unload in any tab of the browser
+  brings it back, once it has seen the output on the slot again. A page reloaded while CasparCG is
+  down brings it back too (issue #2249), when a tab of the browser that had seen the output noted
+  the outage and fewer than three tries were made. An Unload in any tab of the browser
   counts for all of them, and so does an outage any of its tabs saw, so a background tab that missed
   the restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs that have seen
   the output on the slot, one holds a browser lock and alone reloads; the three tries are the
@@ -344,8 +346,8 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
 - **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and 60
   s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason under
   it, the status says "Not on 1-20", and Load is the operator's.
-- **Limits.** A page opened while CasparCG is down, onto a slot it has not seen loaded, needs Load
-  once the server answers. A Load this browser made is forgotten only when a page of it sees the
+- **Limits.** A page opened while CasparCG is down, when no tab of the browser that had seen the
+  output was open as the server went, needs Load once the server answers. A Load this browser made is forgotten only when a page of it sees the
   slot given up, so if another browser later loads the same production there, this one may reload it
   too after a restart, as when both pressed Load. On a plain `http://` address the browser has no
   lock, and every tab reloads as before. An Unload pressed in one tab while another tab's reload is

@@ -790,6 +790,62 @@ test('what gives the slot up is forgotten in this browser too, so a reloaded pag
   });
 });
 
+test('a page reloaded during the outage still puts the output back, once (#2249)', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const first = await loadedRig({ browser, server });
+  first.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  assert.ok(browser.loaded.get('show-1')?.outageAt, 'the tab that saw the output noted the outage');
+  // The operator presses F5 while the header says CasparCG is not answering.
+  first.watch.stop();
+  server.layer = EMPTY;
+  const t = rig({ items: [], browser, server });
+  t.update();
+  t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  t.answer(OK);
+  await settle();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again once');
+  assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
+  await t.readSlot();
+  await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'ours again: no more loads');
+
+  // Out of tries before the reload: the page says so and leaves Load to the operator.
+  const spent = newBrowser();
+  const s2 = { layer: ourPage };
+  const a = await loadedRig({ browser: spent, server: s2 });
+  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  a.watch.stop();
+  spent.loaded.set('show-1', { ...spent.loaded.get('show-1'), tries: 3, reason: 'refused' });
+  s2.layer = EMPTY;
+  const u = rig({ items: [], browser: spent, server: s2 });
+  u.update();
+  u.answer(OK);
+  await settle();
+  await u.readSlot();
+  assert.ok(!u.calls.includes('reload'), 'three tries already made');
+});
+
+test('a page opened during an outage no tab that saw the output noted loads nothing', async () => {
+  // The Load is kept, but the page that made it closed before the outage: a CLEAR may have
+  // happened since, so the note a fresh page writes itself arms nothing.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  server.layer = EMPTY;
+  const t = rig({ items: [], browser, server });
+  t.update();
+  t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  t.answer(OK);
+  await settle();
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'));
+});
+
 test('a reloaded page that has not seen the output on its slot yet loads nothing', async () => {
   // Cleared by another client while this browser had no page open, then the page opens onto an
   // empty slot: it arms only once it has seen the output there, as after a Load, so a later outage
