@@ -892,6 +892,41 @@ test('a page reloaded during a failing recovery goes on with the tries, then say
   assert.equal(b.session.bridge.get().slotReload?.state, 'failed');
 });
 
+test('two quick reloads of the page during the wait before the last try still make it, then say failed', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const refused = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  const a = await loadedRig({ browser, server });
+  a.reloading.answer = refused;
+  await restartServer(a);
+  await a.readSlot();
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 2, 'two tries made');
+  a.watch.stop();
+  /** A page opened `afterMs` after the last try, reading once on opening and then every 10 s. */
+  const open = async (afterMs, reads) => {
+    browser.clock = browser.loaded.get('show-1').triedAt + afterMs;
+    const t = rig({ items: [], browser, server });
+    t.reloading.answer = refused;
+    t.update();
+    t.answer(OK);
+    await settle();
+    for (let n = 0; n < reads; n += 1) {
+      browser.clock += SLOT_READ_MS;
+      await t.readSlot();
+    }
+    return t;
+  };
+  // F5 40 s after try 2: the page makes try 3 when the last gap is up, 60 s after try 2.
+  const first = await open(40_000, 2);
+  assert.equal(first.calls.filter((c) => c === 'reload').length, 1, 'try 3, on time');
+  first.watch.stop();
+  // F5 again: the tries are spent, and the page says so.
+  const second = await open(35_000, 1);
+  assert.ok(!second.calls.includes('reload'), 'three in all');
+  assert.deepEqual(second.session.bridge.get().slotReload, { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+});
+
 test('an old record of tries acts on nothing: a CLEAR made since stays, and nothing says failed', async () => {
   // A try went through, and the page closed before any tab saw the output back: the record keeps
   // its try. A client clears the slot; the page is opened again later.

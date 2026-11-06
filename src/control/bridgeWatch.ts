@@ -357,9 +357,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const armFromNote = () => {
     const m = memory();
     if (seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget) return;
-    if (answered && !(m.tries && m.triedAt !== undefined && io.now() - m.triedAt <= RECOVERY_WINDOW_MS)) return;
+    const sinceTry = m.triedAt !== undefined ? io.now() - m.triedAt : undefined;
+    if (answered && !(m.tries && sinceTry !== undefined && sinceTry >= 0 && sinceTry <= RECOVERY_WINDOW_MS)) return;
     seenAt = m.at;
     oursAt = Math.min(oursAt, m.outageAt);
+    // The wait before the next try counts from the browser's last try, not from this page's opening,
+    // so pages opened one after another never push the next try past the window.
+    if (m.tries && sinceTry !== undefined && sinceTry >= 0) reloads.emptyReads = Math.floor(sinceTry / SLOT_READ_MS);
     // Asked now, while the server is still down: the browser grants a lock a moment later, and the
     // first empty reading must find it held.
     followLead(m.target);
