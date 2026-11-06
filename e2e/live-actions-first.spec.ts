@@ -138,10 +138,9 @@ test('the answer board quiz: every answer action shows without scrolling', async
   const actionsTop = (await page.getByTestId('cue-actions').boundingBox())!.y;
   const editorTop = (await page.getByTestId('cue-editor').boundingBox())!.y;
   expect(actionsTop).toBeLessThan(editorTop);
-  // Snap is recovery, folded closed at the foot of the block rather than beside its title.
-  await expect(page.getByTestId('machine-snap')).toBeHidden();
-  await page.getByTestId('cue-actions-recovery').locator('summary').click();
-  await expect(page.getByTestId('machine-snap')).toBeVisible();
+  // Reset sits in the block's head, beside Arrange: one press, no list to open (#2181).
+  await expect(page.getByTestId('cue-actions-reset')).toBeVisible();
+  await expect(page.getByTestId('cue-actions-recovery')).toHaveCount(0);
 });
 
 test('a graphic with no actions keeps today\'s panel: the editor first, no fold, no actions block', async ({ page }) => {

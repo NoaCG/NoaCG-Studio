@@ -225,6 +225,23 @@ export function reportedSnap(report: { state?: unknown } | null | undefined): { 
   return Object.keys(awards).length > 0 ? { t: 'snap', snap, awards } : { t: 'snap', snap };
 }
 
+/** A held list as a graphic answered it or a report banked it (field id -> list, #2075): the plain
+ *  object's string entries, or null when there are none. */
+export function heldList(value: unknown): Record<string, string> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const list = Object.fromEntries(Object.entries(value).filter(([, text]) => typeof text === 'string')) as Record<string, string>;
+  return Object.keys(list).length > 0 ? list : null;
+}
+
+/** THE LIST A REBUILT TAKE TAKES (#2075). A credits roll or cards on air keep the list their Take
+ *  took while a newer one waits, and say so in their state (`held`). A rebuild writes that list
+ *  first, so the take it replays (by snap or play) takes it, then restates the newest, which waits
+ *  for the next Take as it does on air. Without a held list, the data as it is. */
+export function heldFirst(data: Record<string, string>, state: unknown): Record<string, string> {
+  const held = heldList((state as { held?: unknown } | null | undefined)?.held);
+  return held ? { ...data, ...held } : data;
+}
+
 /** A report's typed baseline as a PROGRAM monitor rebuilds it: the envelope read (null when this
  *  build cannot read it, so the output holds that graphic) and its steps as the `next`s that replay
  *  them. Null for a native report. */

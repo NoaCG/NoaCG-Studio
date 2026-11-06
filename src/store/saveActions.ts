@@ -11,6 +11,7 @@ import { create } from 'zustand';
 import { flushPendingProject, useTemplateStore } from './templateStore';
 import {
   createGraphic,
+  freeGraphicName,
   graphicById,
   updateGraphic,
   type GraphicDoc,
@@ -292,8 +293,11 @@ export function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ o
   return transaction(() => mintGraphic(name).finally(endMint));
 }
 
-async function mintGraphic(name: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
+async function mintGraphic(asked: string): Promise<{ ok: boolean; error: string | null; graphicId?: string }> {
   prepareEmptyOut();
+  // A name another graphic already holds takes the next free one ("Lower third 2"): a mint never
+  // makes a same-named twin (issue #779). The draft adopts the record's name below.
+  const name = freeGraphicName(asked) || asked;
   const s = useTemplateStore.getState();
   const inFlight = claimInFlight();
   // Step 2: the id is in the slot BEFORE its record exists. A refused link write after a landed

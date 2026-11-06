@@ -34,6 +34,7 @@
 
 import type { Show } from './shows';
 import { settleFolders } from './showFolders.ts';
+import { freeName } from './poolIdentity.ts';
 
 /** A top-level field's readable name, for the "your change to … was replaced" line. */
 const FIELD_LABEL: Record<string, string> = {
@@ -192,10 +193,41 @@ function separateNewLayers(merged: Item[], base: unknown, theirs: unknown): Item
 }
 
 /**
+ * TWO NEW GRAPHICS, ONE NAME (issue #779). Two members who each add their own "Lower third" from
+ * the same base both keep it, but the output, the live state and the bindings key a production's
+ * graphics by name, so one name can stand for only one of them. As with layers, theirs keeps its
+ * name and the one WE added takes the next free one ("Lower third 2"), the name its add would have
+ * picked had it seen theirs (model/poolIdentity.ts `poolPlacement`). It is done to our document
+ * BEFORE the merge, so the fields keyed by that name (the bindings) move with it and never land on
+ * theirs.
+ */
+function renameOurNewGraphics(base: Show, ours: Show, theirs: Show): Show {
+  const inBase = new Set(base.graphics.map((g) => g.id));
+  const inTheirs = new Set(theirs.graphics.map((g) => g.id));
+  const ourNew = (g: { id: string }) => !inBase.has(g.id) && !inTheirs.has(g.id);
+  const used = new Set([...theirs.graphics, ...ours.graphics.filter((g) => !ourNew(g))].map((g) => g.name));
+  const renamed = new Map<string, string>();
+  const graphics = ours.graphics.map((g) => {
+    if (!ourNew(g)) return g;
+    const free = freeName(used, g.name);
+    used.add(free);
+    if (free === g.name) return g;
+    renamed.set(g.name, free);
+    return { ...g, name: free, ...(g.template ? { template: { ...g.template, name: free } } : {}) };
+  });
+  if (!renamed.size) return ours;
+  // A name the base already bound belonged to a graphic before ours, so only a new one moves.
+  const bindings = ours.bindings && Object.fromEntries(Object.entries(ours.bindings).map(([name, fields]) =>
+    [renamed.has(name) && !base.bindings?.[name] ? renamed.get(name)! : name, fields]));
+  return { ...ours, graphics, ...(bindings ? { bindings } : {}) };
+}
+
+/**
  * Merge a refused local document onto the one a teammate saved. `at` becomes the result's
  * `updatedAt`, so the merged record reads as the newest edit it is.
  */
-export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string): TeamShowMerge {
+export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string): TeamShowMerge {
+  const ours = renameOurNewGraphics(base, mine, theirs);
   const doc: Record<string, unknown> = { ...theirs };
   const lost: string[] = [];
   const b = base as unknown as Record<string, unknown>;

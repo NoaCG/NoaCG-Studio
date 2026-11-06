@@ -305,6 +305,105 @@ test('stop() ends everything: no timer fires and no read starts afterwards', asy
   assert.deepEqual(r.applied, []);
 });
 
+// THE HEAD ANNOUNCEMENT (#1802, migration 0109): the database says where the head stands a few
+// seconds after a write, so a lost frame with no later row is found then, not at the 30 s poll.
+test('a lost last frame with no later row is read at the head announcement, not at the poll (#1802)', async (t) => {
+  const r = rig(t);
+  r.commit(1, 2, 3);
+  r.frame([1, 2]);
+  // Frame 3 is lost, and the production goes quiet: no later frame shows a gap.
+  await r.wait(10_000);
+  assert.deepEqual(r.reads, [], 'nothing on the socket says the follower is behind');
+  r.follower.announce('E1', 3);
+  assert.deepEqual(r.reads, [], 'the frame it names gets the reorder window first');
+  await r.wait(REORDER_WINDOW_MS);
+  assert.deepEqual(r.reads, [[2, 'E1']], 'one tail read from the cursor');
+  assert.deepEqual(r.applied, [1, 2, 3]);
+  assert.equal(r.holes(), 1, 'counted as the hole it is');
+  r.follower.announce('E1', 3);
+  await r.wait(REORDER_WINDOW_MS);
+  assert.equal(r.reads.length, 1, 'the same head announced again costs nothing once level');
+});
+
+test('an announcement whose frame arrives inside the window costs no read; level costs nothing', async (t) => {
+  const r = rig(t, { from: 2 });
+  r.follower.announce('E1', 2);
+  r.follower.announce('E1', 1);
+  await r.wait(REORDER_WINDOW_MS * 4);
+  assert.deepEqual(r.reads, []);
+  r.follower.announce('E1', 3);
+  await r.wait(REORDER_WINDOW_MS - 5);
+  r.frame([3]);
+  await r.wait(REORDER_WINDOW_MS * 4);
+  assert.deepEqual(r.reads, [], 'the frame was late, not lost');
+  assert.deepEqual(r.applied, [3]);
+  assert.equal(r.holes(), 0);
+});
+
+test('a frame that drains inside the window does not cancel a hole the announcement still names', async (t) => {
+  const r = rig(t, { from: 2 });
+  r.commit(3, 4);
+  r.follower.announce('E1', 4);
+  r.frame([3]);
+  assert.deepEqual(r.applied, [3]);
+  await r.wait(REORDER_WINDOW_MS);
+  assert.deepEqual(r.reads, [[3, 'E1']], 'row 4 is still missing, so the tail is read');
+  assert.deepEqual(r.applied, [3, 4]);
+});
+
+test('an announcement in another epoch (a republish) is one read, and the read starts the log again', async (t) => {
+  const r = rig(t, { from: 900 });
+  r.log.epoch = 'E2';
+  r.log.rows.clear();
+  r.commit(1, 2);
+  r.follower.announce('E2', 2);
+  await r.settle();
+  assert.deepEqual(r.reads, [[900, 'E1'], [0, 'E2']], 'asked under its own epoch, answered reset, read again');
+  assert.deepEqual(r.epochs, [['E2', true]]);
+  assert.deepEqual(r.applied, [1, 2]);
+});
+
+test('a late announcement of a log the follower has left never takes it back there', async (t) => {
+  const r = rig(t, { from: 900 });
+  r.log.epoch = 'E2';
+  r.log.rows.clear();
+  r.commit(1);
+  r.frame([1], 'E2');
+  assert.deepEqual(r.epochs, [['E2', true]]);
+  // The job read E1's head just before the unpublish; its broadcast arrives now.
+  r.follower.announce('E1', 957);
+  await r.settle();
+  await r.wait(REORDER_WINDOW_MS * 4);
+  assert.equal(r.follower.epoch, 'E2');
+  assert.deepEqual(r.epochs, [['E2', true]], 'no restart into the dead log');
+  assert.deepEqual(r.reads, [[1, 'E2']], 'one read under the live epoch, which finds nothing new');
+  assert.deepEqual(r.applied, [1]);
+});
+
+test('a read an announcement started that fails is tried again a second later', async (t) => {
+  const r = rig(t, { from: 2 });
+  r.commit(3);
+  r.failNext(1);
+  r.follower.announce('E1', 3);
+  await r.wait(REORDER_WINDOW_MS);
+  assert.equal(r.reads.length, 1);
+  assert.deepEqual(r.applied, []);
+  await r.wait(HELD_RETRY_MS);
+  assert.equal(r.reads.length, 2);
+  assert.deepEqual(r.applied, [3]);
+  await r.wait(HELD_RETRY_MS * 5);
+  assert.equal(r.reads.length, 2, 'level again: no further reads');
+});
+
+test('an announcement after stop() starts nothing', async (t) => {
+  const r = rig(t);
+  r.commit(1);
+  r.follower.stop();
+  r.follower.announce('E1', 1);
+  await r.wait(REORDER_WINDOW_MS * 10);
+  assert.deepEqual(r.reads, []);
+});
+
 test('a refill elides only ENTRANCES a later play or stop of the same graphic replaces', () => {
   const rows = [
     row(1, 'A', 'play'),
