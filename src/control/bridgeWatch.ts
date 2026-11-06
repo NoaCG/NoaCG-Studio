@@ -342,12 +342,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   };
   /** A page opened during an outage a tab that saw the output noted (an F5 while the header says
    *  CasparCG is not answering) arms for that Load as if it had seen it, from the note on (#2249):
-   *  no looser than what the tab that wrote it follows. Only before the server first answered this
-   *  page: a page opened while everything answers may find the slot cleared since that note. Not
-   *  once the tries are spent. */
+   *  no looser than what the tab that wrote it follows. Before the server first answered this page,
+   *  or, once it has, only while a recovery is under way (a try made since that outage, #2253): a
+   *  page opened while everything answers may otherwise find the slot cleared since the note, and a
+   *  recovery that ended clears its tries. Armed with the tries spent, it says the recovery failed. */
   const armFromNote = () => {
     const m = memory();
-    if (answered || seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget || (m.tries ?? 0) >= RELOAD_AFTER_READS.length) return;
+    if (seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget) return;
+    if (answered && !m.tries) return;
     seenAt = m.at;
     oursAt = Math.min(oursAt, m.outageAt);
     // Asked now, while the server is still down: the browser grants a lock a moment later, and the
@@ -515,6 +517,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // tab is making, nor a newer one than the read knew.
     const kept = memory();
     if (lost && kept && !outage(kept) && !sentDuringOutage(before, link) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
+    // A recovery under way when this page opened goes on from here (#2253).
+    if (lost) armFromNote();
     followLead(target);
     // Nothing to bring back: a lead out of view may hand over now, before it is needed.
     if (!lost) offerLead();

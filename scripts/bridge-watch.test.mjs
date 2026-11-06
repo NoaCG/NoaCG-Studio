@@ -858,6 +858,56 @@ test('a page reloaded during the outage still puts the output back, once (#2249)
   await settle();
   await u.readSlot();
   assert.ok(!u.calls.includes('reload'), 'three tries already made');
+  assert.deepEqual(u.session.bridge.get().slotReload, { state: 'failed', detail: 'refused' }, 'and says why, as the tab that tried would');
+});
+
+test('a page reloaded during a failing recovery goes on with the tries, then says it failed (#2253)', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  a.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  await restartServer(a);
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'one try failed');
+  assert.equal(a.session.bridge.get().slotReload?.state, 'reloading');
+  // The operator presses F5 now, with the server answering.
+  a.watch.stop();
+  const t = rig({ items: [], browser, server });
+  t.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  t.update();
+  t.answer(OK);
+  await settle();
+  for (let n = 0; n < 30; n += 1) await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 2, 'the two tries left, never three more');
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  assert.ok(browser.loaded.get('show-1'), 'the Load is still kept, for the operator to load again');
+
+  // Reloaded once the tries are spent: the failed state, no try.
+  t.watch.stop();
+  const b = rig({ items: [], browser, server });
+  b.update();
+  b.answer(OK);
+  await settle();
+  await b.readSlot();
+  assert.ok(!b.calls.includes('reload'));
+  assert.equal(b.session.bridge.get().slotReload?.state, 'failed');
+});
+
+test('a recovery that ended, then a CLEAR, then a reload of the page: nothing comes back', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  await restartServer(a);
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1);
+  assert.equal(browser.loaded.get('show-1')?.tries, undefined, 'back on the slot: the recovery is over');
+  a.watch.stop();
+  server.layer = EMPTY; // a client clears it while no page is open
+  const t = rig({ items: [], browser, server });
+  t.update();
+  t.answer(OK);
+  await settle();
+  await t.readSlot();
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'));
 });
 
 test('a page opened while everything answers never arms from an old outage note, so a CLEAR stays', async () => {
