@@ -993,7 +993,7 @@ test('the three tries are the browser\'s: a tab taking the lead over goes on fro
   a.hide();
   for (let n = 0; n < 20; n += 1) await b.readSlot();
   assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'no fresh three from the next tab');
-  assert.equal(b.session.bridge.get().slotReload?.state, 'failed');
+  assert.deepEqual(b.session.bridge.get().slotReload, { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' }, 'with the reason A got');
 });
 
 test('a tab going out of view with its reload under way finishes it, then hands over: one PLAY', async () => {
@@ -1241,4 +1241,35 @@ test('a tab that missed another tab\'s recovery starts the next outage with thre
   assert.equal(a.calls.filter((c) => c === 'reload').length, 3, 'the first try at once');
   for (let n = 0; n < 10; n += 1) await a.readSlot();
   assert.equal(a.calls.filter((c) => c === 'reload').length, 5, 'three for this outage in all');
+});
+
+test('a try that lands after a newer Load is not counted against it', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  let release;
+  a.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  });
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'A\'s try is out');
+  // The operator presses Load in B, which lands, and B sees the output.
+  server.layer = ourPage;
+  b.watch.slotOwned(true, b.inputs.casparTarget);
+  b.answer(OK);
+  await settle();
+  const fresh = browser.loaded.get('show-1');
+  // A's status is down when its try lands, so A reads nothing that would clean up after it.
+  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  release();
+  await settle();
+  assert.equal(browser.loaded.get('show-1')?.at, fresh.at);
+  assert.equal(browser.loaded.get('show-1')?.tries, undefined, 'the newer Load keeps all three tries');
 });

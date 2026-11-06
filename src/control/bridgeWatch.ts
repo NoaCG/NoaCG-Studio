@@ -44,6 +44,13 @@
 // production, one holds its lock (`io.lead`) and alone reloads and counts the tries; the others
 // watch, and one takes over if it closes.
 //
+// WHAT IS KEPT WHERE. In the browser's record (`LoadedOutput`, shared by its tabs): the Load and its
+// stamp (`at`), the last outage any tab saw (`outageAt`), the tries made for it and why the last
+// failed (`tries`, `reason`), and when a reading that found it back went out (`backAt`). In the
+// page: the Load it has seen on the slot (`seenAt`), when its last reading of ours went out
+// (`oursAt`), its own outage flag (used only while storage refuses writes, with `local`), the
+// lock (`lead`), and a reload it has out (`reloads`, `sending`, `handOver`).
+//
 // The Bridge, the studio's settings, the page's storage and the browser's timers and visibility come
 // in through `io`, the page's rundown and stores through `adapters`. Runtime imports carry `.ts` so
 // Node resolves them (scripts/bridge-watch.test.mjs); everything else is a type.
@@ -115,6 +122,8 @@ export interface LoadedOutput {
   /** When the reading that found the output back after the outage was sent: an empty reading sent
    *  before it is from before the recovery, and never reads as a CLEAR. */
   backAt?: number;
+  /** Why the last try did not bring it back, for the failed state in any tab. */
+  reason?: string;
 }
 
 /** What the page kept when a slot read went out, and when it went out. */
@@ -448,7 +457,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const tries = memory()?.tries ?? 0;
     if (tries >= RELOAD_AFTER_READS.length) {
       // Out of tries: said once, and Load is the operator's.
-      if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail: reloads.detail } });
+      // The last try's reason, whichever tab of the browser made it.
+      const detail = memory()?.reason ?? reloads.detail;
+      if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail } });
       return;
     }
     if (tries > 0) reloads.emptyReads += 1;
@@ -456,9 +467,11 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const run = reloads;
     run.inFlight = true;
     writeBridge(session, { slotReload: { state: 'reloading' } });
+    // The Load this try is for: a try that lands after a newer Load is not counted against it.
+    const loadAt = memory()?.at;
     sending = reloadOnce(run, target).then(
-      (result) => done(run, result),
-      (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }),
+      (result) => done(run, result, loadAt),
+      (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }, loadAt),
     );
   };
   /** One reload, decided here and sent by the page: only while this run is still the one, the
@@ -479,7 +492,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), before)) return null;
     return adapters.reload();
   };
-  const done = (run: typeof reloads, result: PlayoutResult | null) => {
+  const done = (run: typeof reloads, result: PlayoutResult | null, loadAt: number | undefined) => {
     if (run !== reloads) return;
     run.inFlight = false;
     // A sent load is one of the browser's three tries, also when this page has gone meanwhile: the
@@ -487,7 +500,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (result) {
       run.tries += 1;
       const m = memory();
-      if (m) keep({ ...m, tries: (m.tries ?? 0) + 1 });
+      // Why it did not bring it back, for the failed state in any tab: the Bridge's sentence, or a
+      // load that went through and still left the slot empty.
+      if (m && m.at === loadAt) keep({ ...m, tries: (m.tries ?? 0) + 1, reason: result.state === 'ok' ? '' : result.detail });
     }
     if (!alive) return;
     if (handOver) handLeadOver();
