@@ -23,8 +23,8 @@
 // marker goes back (#1696): so the answer is released while the Take waits.
 
 import { publishProduction } from '../_publish';
-import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
@@ -113,4 +113,98 @@ test('a Take whose wait for the first resolve runs out is never sent, and nothin
   await page.waitForTimeout(1_500);
   await expect(chip).toContainText('nothing on air');
   await expect(stage).toHaveAttribute('data-plays', '0');
+});
+
+//
+// A TAKE OF ANOTHER GRAPHIC WHILE A RELOADED PAGE READS THE ROWS AFTER THE REPORTS (#2162), on a
+// real backend and a real output. The resolve has answered, so the road is decided and Take goes,
+// moving the ON AIR marker here; the read of the rows after the reports is held in the browser,
+// with no product hook. The graphic already on air must still reach this page's PROGRAM monitor,
+// with what air did after its report (its clock started, the report held back so it stays older).
+
+const SCOREBUG = 'House Scorebug';
+const STRAP = 'Hairline';
+
+/** Whether the scorebug shows in a stage (the output's, or this page's PROGRAM monitor). */
+const scorebugShows = (stage: FrameLocator) =>
+  stage.locator('.scoreboard').evaluate((el) => Number(getComputedStyle(el).opacity) > 0.9);
+/** Whether the scorebug's clock runs in a stage. */
+const clockRuns = (stage: FrameLocator) =>
+  stage.locator('.scoreboard-clock').evaluate((el) => (el.ownerDocument.defaultView as unknown as { matchClockAt: number | null }).matchClockAt !== null);
+
+test('a Take of another graphic while the reloaded page reads the rows keeps the one on air on PROGRAM', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  await bootstrapGraphic(page, { name: SCOREBUG });
+  const showId = await openProductionWithCurrent(page, `Take during read ${Date.now()}`);
+  await addCatalogGraphic(page, showId, STRAP);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  if (await page.getByTestId('production-status-panel').isVisible()) await page.getByTestId('production-status').click();
+  const outputSlug = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
+  }, showId);
+  expect(outputSlug).toBeTruthy();
+
+  // ── THE SCOREBUG ON AIR on a real output, reported; a lower third has come and gone since, and
+  // the scorebug's clock started after its last report. ──
+  const output = await context.newPage();
+  await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}&debug=1`);
+  const air = output.frameLocator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
+  const plays = () => output.evaluate(() => Number(document.body.getAttribute('data-plays')));
+  const cue = (name: string) => page.getByTestId('select-cue').filter({ hasText: name }).first();
+  await cue(SCOREBUG).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => scorebugShows(air), { timeout: 30_000 }).toBe(true);
+  await cue(STRAP).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(plays, { timeout: 30_000 }).toBe(2);
+  await page.getByTestId('verb-out').click();
+  await output.waitForTimeout(2_500); // past the reports' debounce
+  await output.route(/\/rest\/v1\/rpc\/control_output_report/, (route) => route.abort());
+  await cue(SCOREBUG).click();
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect.poll(() => clockRuns(air), { timeout: 20_000 }).toBe(true);
+
+  // ── THE HOLD: the reloaded page's read of the rows after the reports waits to be released. A
+  // read the old document makes before the new one resolves passes (e2e/AGENTS.md, on reloads). ──
+  let resolved = false;
+  let rowsAsked = 0;
+  let releaseRows!: () => void;
+  const rowsReleased = new Promise<void>((resolve) => (releaseRows = resolve));
+  await page.route(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/, async (route) => {
+    resolved = true;
+    await route.continue().catch(() => {});
+  });
+  await page.route(/\/rest\/v1\/rpc\/control_tail(\?|$)/, async (route) => {
+    if (resolved) {
+      rowsAsked += 1;
+      await rowsReleased;
+    }
+    await route.continue().catch(() => {});
+  });
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => rowsAsked, { timeout: 30_000, message: 'the page read the rows after the reports' }).toBeGreaterThan(0);
+  if (await page.getByTestId('production-status-panel').isVisible()) await page.keyboard.press('Escape');
+
+  // ── THE LOWER THIRD TAKEN during the read: it reaches air, and the scorebug stays there. ──
+  await cue(STRAP).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(plays, { timeout: 30_000 }).toBe(3);
+  expect(await scorebugShows(air), 'the scorebug is still on air').toBe(true);
+
+  // ── THE MONITOR, against air: the scorebug on both, its clock running. ──
+  releaseRows();
+  const monitor = page.frameLocator(`[data-testid="program-stage"] iframe[title="${SCOREBUG}"]`);
+  await expect.poll(() => scorebugShows(monitor), { timeout: 20_000, message: 'the scorebug on air shows on PROGRAM' }).toBe(true);
+  await expect.poll(() => clockRuns(monitor), { timeout: 10_000, message: 'its clock runs on PROGRAM, as on air' }).toBe(true);
+  // This page marks it on air as well: its Out is there to press.
+  await cue(SCOREBUG).click();
+  await expect(page.getByTestId('verb-out')).toBeEnabled();
+  await output.close();
 });

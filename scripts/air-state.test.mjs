@@ -55,6 +55,19 @@ test('every marker write counts as a move, even one that moves nothing', () => {
   assert.equal(moveLiveCue(same, {}).moves, 3);
 });
 
+test('a Take\'s write is counted against the layers it names; any other write against every layer', () => {
+  const take = (air, graphic, cue) => moveLiveCue(air, (m) => withLiveCue(m, graphic, cue), [graphic]);
+  const took = take(take(NO_AIR, 'lt', 'c1'), 'score', 'c2');
+  assert.deepEqual(took.tookAt, { lt: 1, score: 2 });
+  assert.equal(took.clearedAt, undefined);
+  assert.deepEqual(take(took, 'lt', 'c1').tookAt, { lt: 3, score: 2 }, 'a Take again of the cue it holds counts too');
+  assert.equal(moveLiveCue(took, (m) => withLiveCue(m, 'other', null)).clearedAt, 3, 'an Out, even of a layer this page did not mark');
+  assert.equal(moveLiveCue(took, {}).clearedAt, 3, 'a whole map');
+  // A marker row heard: a cue counts against its layer, an Out against every layer.
+  assert.deepEqual(claimAndApply(took, [marker('lt', 'c4', 'm1')], createAppliedOnce(), NO_CLOCKS, T).air.tookAt, { lt: 3, score: 2 });
+  assert.equal(claimAndApply(took, [marker('lt', null, 'm2')], createAppliedOnce(), NO_CLOCKS, T).air.clearedAt, 3);
+});
+
 test('what was aired merges: a partial update keeps the other fields, an event payload counts, a stop forgets', () => {
   let air = rememberAired(NO_AIR, [update('lt', { f0: 'ANNA', f1: 'Host' })]);
   air = rememberAired(air, [update('lt', { f1: 'Guest' })]);
@@ -169,6 +182,41 @@ test('THE MOVES GUARD: a Take made while the resolve was in flight stands, and n
   assert.equal(air.bootLive, null, 'and no boot recovery replays the old picture over it');
 });
 
+test('#2162: a Take of one graphic while the read was out stands on its layer, and every other layer seeds from the answer', () => {
+  const asked = airAtRequest(NO_AIR);
+  // The operator takes c9 on the lower third while the read is out, as the sender writes it.
+  const marked = moveLiveCue(NO_AIR, (m) => withLiveCue(m, 'lt', 'c9'), ['lt']);
+  const taken = claimAndApply(marked, [update('lt', { f0: 'TAKEN' }, 't9'), play('lt', 't9')], createAppliedOnce(), NO_CLOCKS, T).air;
+  // The answer had an older cue on that layer, and the scorebug on air, placed, with a row after
+  // its report.
+  const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const answer = { ...RESOLVED, live: { ...RESOLVED.live, score: { data: { f1: '0' }, state: { appearance: look } } } };
+  const rows = [update('lt', { f0: 'OLDER ROW' }), update('score', { f1: '1' })];
+  const air = seedFromResolve(taken, answer, rows, asked, CUES, NO_CLOCKS);
+  assert.deepEqual(air.liveCue, { lt: 'c9', score: 'c2' }, 'the taken cue stands, and the scorebug is on air here');
+  assert.deepEqual(air.aired.lt, { f0: 'TAKEN' }, 'what the Take aired, not the report');
+  assert.deepEqual(air.aired.score, { f1: '1' }, 'the scorebug seeds as it would have: its report, then its row');
+  assert.deepEqual(air.bootReplay, [rows[1]], 'its rows replay, the Take\'s commands are on another graphic');
+  assert.notEqual(air.looks?.score, undefined, 'and its place from the report');
+  assert.deepEqual(air.bootLive, { score: 'c2' }, 'the boot recovery is keyed on the layer it seeded');
+  // The recovery rebuilds that layer alone: the taken one is on the monitor already.
+  assert.deepEqual([...new Set(restoreItems(air, {}, NO_CLOCKS, air.bootLive).items.map((item) => item.graphic))], ['score']);
+  assert.deepEqual([...new Set(restoreItems(air, {}, NO_CLOCKS).items.map((item) => item.graphic))].sort(), ['lt', 'score'], 'a fresh stage later gets both');
+  // An answer with nothing on air leaves the Take alone, and no recovery.
+  const empty = seedFromResolve(taken, { liveCue: {}, live: {} }, [], asked, CUES, NO_CLOCKS);
+  assert.deepEqual(empty.liveCue, { lt: 'c9' });
+  assert.deepEqual(empty.bootLive, {});
+});
+
+test('an Out while the read was out skips the whole seed, a Take beside it or not', () => {
+  const asked = airAtRequest(NO_AIR);
+  // All out from a page that knows nothing on air yet moves nothing here, and may have on air.
+  const out = moveLiveCue(NO_AIR, (m) => withLiveCue(m, 'score', null));
+  assert.equal(seedFromResolve(out, RESOLVED, [], asked, CUES, NO_CLOCKS), out);
+  const then = moveLiveCue(out, (m) => withLiveCue(m, 'lt', 'c9'), ['lt']);
+  assert.equal(seedFromResolve(then, RESOLVED, [], asked, CUES, NO_CLOCKS), then);
+});
+
 test('a layer taken OFF while the resolve was in flight does not come back on air', () => {
   const start = moveLiveCue(NO_AIR, { lt: 'c1' });
   const asked = airAtRequest(start);
@@ -177,10 +225,10 @@ test('a layer taken OFF while the resolve was in flight does not come back on ai
   assert.deepEqual(air.liveCue, {});
 });
 
-test('a marker from the wire meanwhile (another operator) also skips the seed: the row carries it in', () => {
+test('a marker from the wire meanwhile (another operator) stands on its layer: the row carries it in, the rest seeds', () => {
   const asked = airAtRequest(NO_AIR);
   const run = claimAndApply(NO_AIR, [marker('score', 'c7', 'm7')], createAppliedOnce(), NO_CLOCKS, T);
-  assert.deepEqual(seedFromResolve(run.air, RESOLVED, [], asked, CUES, NO_CLOCKS).liveCue, { score: 'c7' });
+  assert.deepEqual(seedFromResolve(run.air, RESOLVED, [], asked, CUES, NO_CLOCKS).liveCue, { lt: 'c1', score: 'c7' });
 });
 
 test('a late resolve over a newer one changes nothing', () => {
