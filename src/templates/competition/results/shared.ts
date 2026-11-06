@@ -460,7 +460,9 @@ export const TIMING_FIELDS: TypeField[] = [
     value: 'VER | +0.000\nNOR | +1.284\nLEC | +3.902\nHAM | +5.117\nRUS | +8.640 | PIT',
     role: 'data',
   },
-  { key: 'focus', label: 'Competitor in focus (1-based, 0 = none)', kind: 'number', value: '0', role: 'data' },
+  // 1, not 0: the Focus competitor press lights a row the first time it is pressed (#2268). A
+  // number past either end of the order lights the row at that end (`focusedRow`).
+  { key: 'focus', label: 'Competitor in focus', kind: 'number', value: '1', role: 'data' },
 ];
 
 /**
@@ -494,7 +496,7 @@ export function timingMarkup(o: ResolvedOptions, order: string): string {
       <div class="${P}-body" id="${P}-rows"></div>
     </div>
 ${hiddenSource('f2', order, 'Running order (f2) — one competitor per line, in position order.')}
-${hiddenSource('f3', '0', 'The competitor in focus (f3) — DATA. One "focused" state carries any row.')}`;
+${hiddenSource('f3', TIMING_FIELDS[3].value, 'The competitor in focus (f3) — DATA. One "focused" state carries any row.')}`;
 }
 
 /**
@@ -578,12 +580,13 @@ function compRebuild() {
   else root.classList.remove('${P}-has-tags');
 }
 
-// rowAt(fieldId): the row a 1-based number field points at, or null when it names none.
-function rowAt(fieldId) {
-  var host = document.getElementById('${P}-rows');
-  var at = parseInt((document.getElementById(fieldId) || { textContent: '' }).textContent, 10);
-  if (!host || isNaN(at) || at < 1) return null;
-  return host.querySelector('[data-row="' + at + '"]');
+// focusedRow(): the row the focus field names, held to the order - the first row below it, the
+// last above it - so Focus competitor never presses into nothing. Null only with no rows.
+function focusedRow() {
+  var rows = document.querySelectorAll('.${P}-row');
+  if (rows.length === 0) return null;
+  var at = parseInt((document.getElementById('f3') || { textContent: '' }).textContent, 10);
+  return rows[Math.min(Math.max(isNaN(at) ? 1 : at, 1), rows.length) - 1];
 }
 
 // clearFocus(): the whole field back at one level.
@@ -598,8 +601,8 @@ function clearFocus() {
 // One state carries any row, so a twenty-car field needs no twenty states.
 function applyFocus() {
   clearFocus();
-  var row = rowAt('f3');
-  if (!row) return;                // 0, blank or out of range: the field stays level
+  var row = focusedRow();
+  if (!row) return;                // no rows: the field stays level, nothing dimmed
   var root = document.querySelector('.${P}');
   if (root) root.classList.add('${P}-spotlit');
   row.classList.add('${P}-row-on');
@@ -627,7 +630,7 @@ function clearFinal() {
 function compRepaint() {
   var root = document.querySelector('.${P}');
   if (!root || !root.classList.contains('${P}-spotlit')) return;
-  var row = rowAt('f3');
+  var row = focusedRow();
   if (row) row.classList.add('${P}-row-on');
 }
 

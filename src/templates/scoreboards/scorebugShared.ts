@@ -299,7 +299,8 @@ export function podiumFields(s: PodiumSamples = {}): SpxField[] {
     out.push({ field: `f${i * 2 + 1}`, ftype: 'textfield', title: `Player ${i + 1}`, value: names[i] });
     out.push({ field: `f${i * 2 + 2}`, ftype: 'number', title: `Score ${i + 1}`, value: scores[i] });
   }
-  out.push({ field: 'f9', ftype: 'number', title: 'Spotlit podium (1-4, 0 = none)', value: '0' });
+  // 1, not 0: the Spotlight press lights a podium the first time it is pressed (#2268).
+  out.push({ field: 'f9', ftype: 'number', title: 'Spotlit podium', value: '1' });
   return out;
 }
 
@@ -316,7 +317,7 @@ export function podiumColumnsHtml(names: readonly string[], scores: readonly str
 }
 
 /** The hidden spotlight holder — the `spotlight` event's payload field. */
-export function spotlightHolderHtml(id: string, value = '0'): string {
+export function spotlightHolderHtml(id: string, value = '1'): string {
   return `      <!-- Spotlight index — a hidden holder; the machine's spotlight payload writes it. -->
       <div id="${id}" class="scoreboard-spotlight-src ${DATA_SOURCE_CLASS}">${esc(value)}</div>`;
 }
@@ -346,17 +347,33 @@ function rebuildScoreboard() {
   paintSpotlight();
 }
 
+// spotlitPodium(): the podium the index field names, held to the podiums that have a name - the
+// first one below them, the nearest one before it otherwise (the last above them, a collapsed
+// podium's neighbour) - so Spotlight never presses into nothing. 0 only with no podium showing.
+function spotlitPodium() {
+  var at = parseInt((document.getElementById('f9') || { textContent: '' }).textContent, 10);
+  if (isNaN(at)) at = 1;
+  var first = 0;
+  var pick = 0;
+  for (var i = 1; i <= 4; i += 1) {
+    var podium = document.querySelector('.scoreboard-podium-' + i);
+    if (!podium || podium.classList.contains('scoreboard-podium-empty')) continue;
+    if (first === 0) first = i;
+    if (i <= at) pick = i;
+  }
+  return pick || first;
+}
+
 // paintSpotlight(): make the columns agree with the MACHINE + the index field. Repainted
-// rather than toggled so recovery (snap suppresses state callbacks) still lands right.
+// rather than toggled so recovery (snap suppresses state callbacks) still lands right, and so
+// an update while a podium is lit keeps the podium the field names lit.
 function paintSpotlight() {
-  var idx = 0;
   var inSpotlight = false;
   if (typeof noacgMachineState === 'function') {
     var groups = (noacgMachineState() || {}).groups || {};
     for (var id in groups) if (groups[id] === 'spotlight') inSpotlight = true;
   }
-  var src = document.getElementById('f9');
-  if (inSpotlight && src) idx = parseInt(src.textContent || '0', 10) || 0;
+  var idx = inSpotlight ? spotlitPodium() : 0;
   for (var i = 1; i <= 4; i += 1) {
     var podium = document.querySelector('.scoreboard-podium-' + i);
     if (!podium) continue;

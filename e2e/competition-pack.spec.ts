@@ -535,6 +535,104 @@ test('Focus row lights a row on its first press, and Back levels the line-up (#2
   }
 });
 
+test('Focus competitor and Spotlight light a row on their first press on every tower and podium board (#2268)', async ({ page }) => {
+  // The timing tower's Focus competitor and the podium board's Spotlight did nothing on air until
+  // a number was typed: their fields started at 0, which names no row. They now start at 1, and a
+  // number naming no row lights the row at that end, as the roster's Focus row does (#2200).
+  test.setTimeout(120_000);
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const controls = (tpl) => (parseAnimData(tpl.js).machine.controls || []).map((c) => c.event);
+    const out = { towers: {}, podiums: {} };
+
+    for (const id of ['tt01', 'tt02', 'tt03', 'tt04']) {
+      const { win, doc, tpl } = await boot(id);
+      const lit = () => {
+        const on = doc.querySelectorAll('.results-board-row-on');
+        return on.length === 1 ? on[0].getAttribute('data-row') : on.length === 0 ? null : 'many';
+      };
+      const spotlit = () => doc.querySelector('.results-board').classList.contains('results-board-spotlit');
+      win.play();
+      await settle();
+      const rows = String(doc.querySelectorAll('.results-board-row').length);
+      // The first press, with the field as the design ships it.
+      win.noacgDispatch('focus');
+      await settle();
+      const first = { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() };
+      // A number naming no row lights the row at that end.
+      win.noacgDispatch('focus', { f3: '99' });
+      await settle();
+      const past = lit() === rows;
+      win.noacgDispatch('focus', { f3: '0' });
+      await settle();
+      const below = lit();
+      // A timing update while a row is in focus keeps the named row lit, held to the new order.
+      win.update(JSON.stringify({ f2: 'AAA +0.000\\nBBB +1.000\\nCCC +2.000', f3: '2' }));
+      await settle();
+      const updated = lit();
+      win.update(JSON.stringify({ f2: 'AAA +0.000' }));
+      await settle();
+      const shrunk = lit();
+      // Whole field levels it, and an update to a level tower lights nothing.
+      win.noacgDispatch('clear');
+      await settle();
+      win.update(JSON.stringify({ f2: 'AAA +0.000\\nBBB +1.000', f3: '2' }));
+      await settle();
+      const level = { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() };
+      out.towers[id] = { first, past, below, updated, shrunk, level, controls: controls(tpl) };
+    }
+
+    for (const id of ['sb21', 'sb22']) {
+      const { win, doc, tpl } = await boot(id);
+      const lit = () => {
+        const spot = [1, 2, 3, 4].filter((i) => doc.querySelector('.scoreboard-podium-' + i).classList.contains('scoreboard-podium-spot'));
+        const dim = [1, 2, 3, 4].filter((i) => doc.querySelector('.scoreboard-podium-' + i).classList.contains('scoreboard-podium-dim'));
+        return spot.join(',') + '/' + dim.join(',');
+      };
+      win.play();
+      await settle();
+      win.noacgDispatch('spotlight');
+      await settle();
+      const first = { state: win.noacgMachineState().groups.main, podiums: lit() };
+      win.noacgDispatch('spotlight', { f9: '9' });
+      await settle();
+      const past = lit();
+      win.noacgDispatch('spotlight', { f9: '0' });
+      await settle();
+      const below = lit();
+      // A spotlit podium whose contestant is cleared hands the light to the nearest one before it.
+      win.noacgDispatch('spotlight', { f9: '4' });
+      await settle();
+      win.update(JSON.stringify({ f7: '' }));
+      await settle();
+      const collapsed = lit();
+      win.noacgDispatch('clear');
+      await settle();
+      const level = { state: win.noacgMachineState().groups.main, podiums: lit() };
+      out.podiums[id] = { first, past, below, collapsed, level, controls: controls(tpl) };
+    }
+    return out;
+  })()`) as { towers: Record<string, Record<string, unknown>>; podiums: Record<string, Record<string, unknown>> };
+
+  expect(Object.keys(run.towers)).toEqual(['tt01', 'tt02', 'tt03', 'tt04']);
+  for (const [id, tower] of Object.entries(run.towers)) {
+    expect(tower.first, `${id}: the first Focus competitor press lights row 1`).toEqual({ state: 'focused', row: '1', spotlit: true });
+    expect(tower, id).toMatchObject({ past: true, below: '1', updated: '2', shrunk: '1' });
+    expect(tower.level, `${id}: an update never starts a focus`).toEqual({ state: 'level', row: null, spotlit: false });
+    // Whole field stays for the playout environments that have no Back or Reset.
+    expect(tower.controls, id).toEqual(['focus', 'clear', 'final', 'provisional']);
+  }
+  expect(Object.keys(run.podiums)).toEqual(['sb21', 'sb22']);
+  for (const [id, podium] of Object.entries(run.podiums)) {
+    expect(podium.first, `${id}: the first Spotlight press lights podium 1`).toEqual({ state: 'spotlight', podiums: '1/2,3,4' });
+    expect(podium, id).toMatchObject({ past: '4/1,2,3', below: '1/2,3,4', collapsed: '3/1,2,4' });
+    expect(podium.level, id).toEqual({ state: 'level', podiums: '/' });
+    expect(podium.controls, id).toEqual(['spotlight', 'clear', 'final']);
+  }
+});
+
 test('Reset lands a winner card on its first step with nothing its result painted (#2181)', async ({ page }) => {
   // ⟲ Reset is a snap to the first step. A winner card's marks are classes, which a snap's reset
   // of inline styles never touches, so the pack clears them on that snap, as play() does.
