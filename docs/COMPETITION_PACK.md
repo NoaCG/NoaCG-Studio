@@ -209,10 +209,14 @@ naming a row (1), so the first press lights a row; a number past either end of t
 the row at that end, and only an empty order stays level. An update while a row is in focus keeps
 the row the field names lit (#2268). **Whole field** stays for the roster's reason: the
 per-graphic control page, an exported control panel, OGraf hosts and Companion have no Back or
-Reset. The podium scoreboards (sb21, sb22) do the same with their **Spotlight** and **All level**:
-the spotlit podium ships as 1, and a number naming no podium with a name lights the nearest one.
+Reset.
 Controls: **Focus competitor** (payload `focus`) · **Whole field** · **Session final** ·
 **Back to running**.
+
+The podium scoreboards (sb21, sb22, `podium-score`, outside this pack) follow the same rule for
+their **Spotlight** (payload `spotlight`) and keep **All level** for the same reason. The spotlit
+podium ships as 1; a number naming no podium with a contestant lights the nearest named podium
+before it, or the first named one (#2268).
 
 ### Nominee reveal (`nominee-reveal`) — nominees → winner
 
