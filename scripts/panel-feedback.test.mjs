@@ -652,6 +652,20 @@ test("the relay's last press of a panel starts its count, so the first pair this
   assert.deepEqual(c.ran, ['deck01:58', 'deck01:59']);
 });
 
+test('a press the relay took while the page joined leaves a gap the next press of that panel waits out once (issue #2140)', () => {
+  const c = pressOrder();
+  // The lease named deck01:57; deck01:58 went to the relay before the page's channel joined.
+  c.order.counted(['deck01:57']);
+  c.hear('deck01:59');
+  c.advance(PRESS_HOLD_MS - 1);
+  assert.deepEqual(c.ran, [], 'held for the press it never heard');
+  c.advance(1);
+  assert.deepEqual(c.ran, ['deck01:59'], 'given up on 58 at the bound');
+  c.advance(PRESS_DRAW_MS);
+  c.hear('deck01:60');
+  assert.deepEqual(c.ran, ['deck01:59', 'deck01:60'], 'the next press runs at once');
+});
+
 test('a panel the relay named no count for sets its own with its first press, which never waits', () => {
   const c = pressOrder();
   // A key paired after this page answered, on a module that has pressed elsewhere before.
