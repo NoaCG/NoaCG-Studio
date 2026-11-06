@@ -825,14 +825,12 @@ function quizBoard(page: Page) {
   const chip = page.getByTestId('machine-state-chip');
   const lit = air.locator('.imported-design-look.imported-design-on');
   const ON = /imported-design-on/;
-  /** THE RESET: Recovery's "Back to start", the visual reset, takes the board back before its
-   *  entrance with nothing lit (the data stays as the cue holds it); Re-take then plays the
-   *  question again, clean. */
+  /** THE RESET (#2181): the visual reset takes the board back to its first step, the question,
+   *  still on air and with nothing lit (the data stays as the cue holds it); Re-take then plays
+   *  the question again, clean. */
   const reset = async () => {
-    const recovery = page.getByTestId('cue-actions-recovery');
-    if ((await recovery.getAttribute('open')) === null) await recovery.locator('summary').click();
-    await page.getByTestId('machine-snap').selectOption('::reset');
-    await expect(chip).toHaveText('Off');
+    await page.getByTestId('cue-actions-reset').click();
+    await expect(chip).toHaveText('Question');
     await expect(lit).toHaveCount(0);
     await page.getByTestId('verb-retake').click();
     await expect(chip).toHaveText('Question');
@@ -1054,8 +1052,11 @@ test('a second author reopens a saved quiz in a fresh browser, makes it a true n
   const revealCorrect = p2.getByRole('button', { name: '⚡ Reveal correct', exact: true });
   await p2.getByTestId('verb-take').click();
   await expect(chip).toHaveText('Question', { timeout: 20_000 });
-  // Recovery offers no lock state to snap to.
-  await expect(p2.getByTestId('machine-snap')).not.toContainText('Locked');
+  // The board on air has no lock state at all, not merely no button for one.
+  const states = await p2.frameLocator('[data-testid="program-stage"] iframe').locator('body').evaluate(() =>
+    (window as unknown as { NOACG_ANIM: { machine: { groups: { states: { id: string; name?: string }[] }[] } } }).NOACG_ANIM.machine.groups.flatMap((g) => g.states.map((st) => st.name ?? st.id)),
+  );
+  expect(states.join(' / ')).not.toContain('Locked');
   await reset();
   await p2.getByTestId('cue-pick-select-B').click();
   await expect(chip).toHaveText('Answer selected');

@@ -164,7 +164,8 @@ test('entryPointsOf finds dotted test filenames and cli scripts, which a naive p
 
 test('the real repository passes the real audit, discovers every test file on disk, and the build line names the runner and no test', () => {
   const scripts = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts;
-  assert.match(scripts.build, /^node scripts\/gates\.mjs run && /, 'the build line starts with discovery');
+  // The build tier runs first, in the first lane of build-lanes.mjs, beside typecheck and lint (cf13).
+  assert.match(scripts.build, /^node scripts\/build-lanes\.mjs "node scripts\/gates\.mjs run" "[^"]+" && /, 'the build line starts with discovery');
   assert.ok(!/\.test\.mjs/.test(scripts.build), 'no test file is named on the build line any more');
   const files = testFilesOnDisk();
   assert.ok(files.includes('scripts/gates.test.mjs'));

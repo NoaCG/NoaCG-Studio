@@ -2,7 +2,8 @@
 //
 // A production's pool matches graphics by NAME in two places: a publish resolves a copy with no
 // library link to the library record of that name (library.ts `resolveSavedGraphicDoc`), and adding
-// a graphic replaces the pool graphic of that name (shows.ts `addGraphicToShow`). Both exist for
+// a graphic replaces the pool graphic of that name unless the two link to different library records
+// (shows.ts `addGraphicToShow`, issue #779). Both exist for
 // copies of LIBRARY graphics. The production's own picture graphic, the one Upload image adds to,
 // was never a library copy: it has no link and its pictures live only in the pool. Picture graphics
 // arrived after the library link did, so every library picture graphic in a pool carries its link,
@@ -34,19 +35,36 @@ export function freeName(taken: Iterable<string>, base: string): string {
   return name;
 }
 
+/** Two copies of DIFFERENT library graphics: both carry a link, and the links differ. */
+function otherRecord(a: PoolGraphicIdentity, b: PoolGraphicIdentity): boolean {
+  return !!a.graphicId && !!b.graphicId && a.graphicId !== b.graphicId;
+}
+
 /**
  * Where adding `incoming` lands in the pool: the index it replaces (-1 adds it as a new graphic),
- * the name it takes, and a pool graphic to move to a free name first. A name match replaces only
+ * the name it takes, and a pool graphic to move to a free name first.
+ *
+ * The LIBRARY LINK decides before the name (issue #779): re-adding a library graphic replaces its
+ * own copy under whatever name that copy has in the pool, and a DIFFERENT library graphic that
+ * happens to share a name (two team members' "Lower third") is a second graphic under a free name,
+ * never a replacement. A name match replaces only copies with no link to tell them apart, and only
  * when both are the production's own picture graphic or neither is.
  */
 export function poolPlacement(
   pool: readonly PoolGraphicIdentity[],
   incoming: PoolGraphicIdentity,
 ): { replace: number; name: string; rename: { index: number; name: string } | null } {
+  if (incoming.graphicId) {
+    const linked = pool.findIndex((g) => g.graphicId === incoming.graphicId);
+    if (linked >= 0) return { replace: linked, name: pool[linked].name, rename: null };
+  }
   const own = isOwnPictureGraphic(incoming);
-  const replace = pool.findIndex((g) => g.name === incoming.name && isOwnPictureGraphic(g) === own);
+  const replace = pool.findIndex((g) => g.name === incoming.name && isOwnPictureGraphic(g) === own && !otherRecord(g, incoming));
   const holder = replace >= 0 ? -1 : pool.findIndex((g) => g.name === incoming.name);
   if (holder < 0) return { replace, name: incoming.name, rename: null };
   const free = freeName(pool.map((g) => g.name), incoming.name);
-  return own ? { replace, name: free, rename: null } : { replace, name: incoming.name, rename: { index: holder, name: free } };
+  // Only the production's own picture graphic moves aside, because nothing finds it by its name.
+  return own || !isOwnPictureGraphic(pool[holder])
+    ? { replace, name: free, rename: null }
+    : { replace, name: incoming.name, rename: { index: holder, name: free } };
 }

@@ -12,11 +12,12 @@ import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
   DEPLOY_AFFECTING_SCRIPTS,
+  VITE_SERVE_ONLY_SCRIPTS,
   NEVER_DEPLOYED_DIRS,
   affectsDeployment,
   anyAffectsDeployment,
@@ -133,6 +134,26 @@ test('every script the buildCommand runs is named in the allow list', () => {
       `${script} runs during the Vercel build but is missing from DEPLOY_AFFECTING_SCRIPTS`,
     );
   }
+});
+
+test('every script vite.config.ts loads is named in the allow list', () => {
+  // The Vercel build loads vite.config.ts, and with it every script it imports and every script
+  // those import: a page generator, the catalog index, the Skew Protection pinning. Changing one
+  // changes what is deployed. The dev-server-only plugins are the named exception.
+  const loaded = new Set();
+  const walk = (file) => {
+    const code = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    for (const m of code.matchAll(/(?:from|import\()\s*'(\.{1,2}\/[\w./-]+\.mjs)'/g)) {
+      const next = join(dirname(file), m[1]).replace(/\\/g, '/');
+      if (!next.startsWith('scripts/') || loaded.has(next) || VITE_SERVE_ONLY_SCRIPTS.has(next)) continue;
+      loaded.add(next);
+      walk(next);
+    }
+  };
+  walk('vite.config.ts');
+  assert.ok(loaded.has('scripts/skewProtectionPlugin.mjs'), 'expected vite.config.ts to import its plugins');
+  const missing = [...loaded].filter((script) => !DEPLOY_AFFECTING_SCRIPTS.has(script));
+  assert.deepEqual(missing, [], 'loaded by the Vercel build but missing from DEPLOY_AFFECTING_SCRIPTS');
 });
 
 test('anything unrecognised builds - the list is a deny list', () => {

@@ -9,6 +9,7 @@ import {
   P,
   STANDINGS_FIELDS,
   STANDINGS_RUNTIME_JS,
+  STANDINGS_STEPS,
   boardStructureCss,
   defineResultsVariant,
   standingsMarkup,
@@ -48,6 +49,7 @@ export const st04: TemplateVariant = defineResultsVariant(
     // stops re-sizing itself between one piece of content and the next.
     stageWidth: 1000,
     runtimeExtraJs: STANDINGS_RUNTIME_JS,
+    revealSteps: STANDINGS_STEPS,
     css: `${boardStructureCss()}
 
 /* No panel — a table of type over a soft scrim. */

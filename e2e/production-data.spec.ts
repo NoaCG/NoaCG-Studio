@@ -9,6 +9,7 @@
 // covers: src/control/contentFormats.ts
 // covers: src/control/sheetSource.ts
 // covers: src/control/feedSource.ts
+// covers: src/control/{fileSource,fileHandles}.ts
 // covers: src/control/{graphicVerbs,verbView,verbDispatch,airState,takeBlockers,cueDraft}.ts
 
 import { test, expect, type Page } from '@playwright/test';
@@ -1807,6 +1808,118 @@ test('a Sheet that needs a look stays open on its review, and Another system sta
   await page.waitForTimeout(1_000);
   await expect(review).toBeVisible();
   expect((await storedBindings(page, showId)).bindings).toEqual(bindings);
+});
+
+/** Chrome's file picker, answering a handle over a file the test saves (its text and time in
+ *  localStorage, so it outlives a reload as a file on disk does). Permission is what
+ *  `e2e-file-permission` says, granted when absent, as Chrome may ask again. A real handle cannot
+ *  be used: Playwright's off-the-record context closes the page when one is read back from
+ *  IndexedDB (a persistent Chrome profile reads it fine), and this one cannot be stored there at
+ *  all, so a reload finds no handle, as another computer would. */
+async function stubFilePicker(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const handle = {
+      name: 'results.csv',
+      kind: 'file',
+      queryPermission: async () => localStorage.getItem('e2e-file-permission') ?? 'granted',
+      requestPermission: async () => {
+        // Chrome's prompt stays open while `e2e-file-hold` is set, until the test answers it.
+        if (localStorage.getItem('e2e-file-hold')) await new Promise<void>((resolve) => ((window as unknown as Record<string, unknown>).__answerPrompt = resolve));
+        localStorage.removeItem('e2e-file-permission');
+        return 'granted';
+      },
+      getFile: async () =>
+        new File([localStorage.getItem('e2e-file') ?? ''], 'results.csv', { lastModified: Number(localStorage.getItem('e2e-file-at') ?? 1) }),
+    };
+    (window as unknown as Record<string, unknown>).showOpenFilePicker = async () => [handle];
+  });
+}
+
+/** Save the picked file with new text, as an operator saving it in Excel would. */
+async function saveLocalFile(page: Page, text: string): Promise<void> {
+  await page.evaluate((body) => {
+    localStorage.setItem('e2e-file', body);
+    localStorage.setItem('e2e-file-at', String(Date.now()));
+  }, text);
+}
+
+test('a local file connects with one pick, a saved change reaches PROGRAM with no press, and Allow or Choose is one click (#2184)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await stubFilePicker(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const showId = await productionFor(page, 'File Show');
+  // European Excel's CSV: a BOM and semicolons.
+  await saveLocalFile(page, '\uFEFFName;Value\nName;Ann Lee\nRole;Editor\n');
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+
+  // One pick: read, matched and linked, as the Sheet's one button does.
+  await page.getByTestId('cue-connect').click();
+  const review = page.getByTestId('cue-connect-menu');
+  await review.getByTestId('cue-connect-file-pick').click();
+  await expect(review).toBeHidden();
+  const stored = await storedBindings(page, showId);
+  expect(stored.sources).toEqual([expect.objectContaining({ kind: 'file', label: 'results.csv', config: expect.objectContaining({ name: 'results.csv', format: 'csv' }) })]);
+  const sourceId = stored.sources[0].id;
+  expect(stored.bindings.Hairline?.f0).toBe(`file.${sourceId}.values.Name`);
+  const line = page.getByTestId('cue-connected-line');
+  await expect(line).toContainText(/Connected to results\.csv · read \d+ s ago/);
+
+  // On air, a saved change reaches PROGRAM by itself, without a new entrance.
+  await page.getByTestId('verb-take').click();
+  const card = page.frameLocator('[data-testid="program-stage"] iframe[title="Hairline"]');
+  await expect(card.locator('body')).toContainText('Ann Lee', { timeout: 12_000 });
+  const stage = page.locator('[data-testid="program-stage"] [data-plays], [data-testid="program-stage"][data-plays]').first();
+  const plays = await stage.getAttribute('data-plays');
+  await saveLocalFile(page, 'Name;Value\nName;Cy Dale\nRole;Editor\n');
+  await expect(card.locator('body')).toContainText('Cy Dale', { timeout: 12_000 });
+  expect(await stage.getAttribute('data-plays')).toBe(plays);
+
+  // Chrome asks again: the line says so with one click, the value holds, and Allow reads on.
+  await page.evaluate(() => localStorage.setItem('e2e-file-permission', 'prompt'));
+  const ask = line.getByTestId('source-file-ask');
+  await expect(ask).toHaveText('Allow reading results.csv', { timeout: 12_000 });
+  await saveLocalFile(page, 'Name;Value\nName;Di Fox\nRole;Editor\n');
+  await expect(card.locator('body')).toContainText('Cy Dale');
+  await ask.click();
+  await expect(card.locator('body')).toContainText('Di Fox', { timeout: 12_000 });
+  await expect(line.getByTestId('source-file-ask')).toHaveCount(0);
+
+  // A reload with no handle kept (another computer): the link stays, and Choose the file… is one click.
+  await settleDurableWrites(page);
+  await page.reload();
+  await page.getByTestId('cue-list').locator('.pd-cue').first().locator('.pd-cue-label').click();
+  const choose = page.getByTestId('cue-connected-line').getByTestId('source-file-ask');
+  await expect(choose).toHaveText('Choose the file…', { timeout: 12_000 });
+  expect((await storedBindings(page, showId)).sources).toHaveLength(1);
+  await choose.click();
+  await expect(page.getByTestId('cue-connected-line')).toContainText(/read \d+ s ago/, { timeout: 12_000 });
+
+  // Picking the file from existing content, then something else while Chrome still asks: the
+  // late answer lands nowhere, so the review never shows the file under another choice.
+  await page.evaluate(() => localStorage.setItem('e2e-file-hold', '1'));
+  await page.getByTestId('cue-connect').click();
+  await review.getByTestId('cue-connect-reuse').selectOption({ index: 1 });
+  await review.getByTestId('cue-connect-reuse').selectOption({ index: 0 });
+  await page.evaluate(() => {
+    localStorage.removeItem('e2e-file-hold');
+    ((window as unknown as Record<string, unknown>).__answerPrompt as () => void)();
+  });
+  await page.waitForTimeout(1_000);
+  await expect(review.getByTestId('cue-connect-map')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(review).toBeHidden();
+
+  // Without the browser's file access (Firefox, Safari), Connect data says what to use instead.
+  await page.evaluate(() => delete (window as unknown as Record<string, unknown>).showOpenFilePicker);
+  await page.getByTestId('cue-connect').click();
+  await expect(review.getByTestId('cue-connect-file-unsupported')).toHaveText('To link a CSV or Excel file on this computer, open NoaCG in Chrome or Edge.');
+  await expect(review.getByTestId('cue-connect-file-pick')).toHaveCount(0);
+  // Its connected line offers no button it cannot honour, only where the file can be read.
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => localStorage.setItem('e2e-file-permission', 'prompt'));
+  const unsupported = page.getByTestId('cue-connected-line').getByTestId('source-file-unsupported');
+  await expect(unsupported).toHaveText(/Open this production in Chrome or Edge on the computer that has results\.csv\./, { timeout: 12_000 });
+  await expect(page.getByTestId('cue-connected-line').getByTestId('source-file-ask')).toHaveCount(0);
 });
 
 test('one Sheet score on two boards updates both; a ± press moves the shared value until its cell changes', async ({ page }) => {
