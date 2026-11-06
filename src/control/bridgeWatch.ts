@@ -85,6 +85,10 @@ export const RELOAD_AFTER_READS = [0, 2, 6] as const;
  *  the slot may not show a fresh load at once. Two slot readings. */
 export const FRESH_LOAD_MS = 2 * SLOT_READ_MS;
 
+/** A recovery whose last try is no older than this is still under way (#2253): the longest gap
+ *  between two tries, and two readings to spare. A page opened later goes by the slot alone. */
+export const RECOVERY_WINDOW_MS = (RELOAD_AFTER_READS[RELOAD_AFTER_READS.length - 1] + 2) * SLOT_READ_MS;
+
 export interface BridgeWatchIo {
   /** The studio's settings as they stand now. */
   loadSettings: () => PlayoutSettings;
@@ -131,6 +135,9 @@ export interface LoadedOutput {
   tries?: number;
   /** Why the last try did not bring it back, for the failed state in any tab. */
   reason?: string;
+  /** When the last try was made, so a page opened later can tell a recovery under way from an old
+   *  record (#2253). */
+  triedAt?: number;
   /** The Bridge's link to the server (#2252) when a tab last found the output on its slot. A
    *  reading under another link comes after the connection was lost, which a CasparCG restart
    *  does, so an empty slot then is a restart even if no poll of any tab saw the server gone. */
@@ -342,12 +349,16 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   };
   /** A page opened during an outage a tab that saw the output noted (an F5 while the header says
    *  CasparCG is not answering) arms for that Load as if it had seen it, from the note on (#2249):
-   *  no looser than what the tab that wrote it follows. Only before the server first answered this
-   *  page: a page opened while everything answers may find the slot cleared since that note. Not
-   *  once the tries are spent. */
+   *  no looser than what the tab that wrote it follows. Before the server first answered this page,
+   *  or, once it has, only while a recovery is under way (a try made since that outage, the last one
+   *  within RECOVERY_WINDOW_MS, #2253): a page opened while everything answers may otherwise find the
+   *  slot cleared since the note, and an old record of tries says nothing about the slot now. Armed
+   *  with the tries spent, it says the recovery failed. */
   const armFromNote = () => {
     const m = memory();
-    if (answered || seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget || (m.tries ?? 0) >= RELOAD_AFTER_READS.length) return;
+    if (seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget) return;
+    const sinceTry = m.triedAt !== undefined ? io.now() - m.triedAt : undefined;
+    if (answered && !(m.tries && sinceTry !== undefined && sinceTry >= 0 && sinceTry <= RECOVERY_WINDOW_MS)) return;
     seenAt = m.at;
     oursAt = Math.min(oursAt, m.outageAt);
     // Asked now, while the server is still down: the browser grants a lock a moment later, and the
@@ -372,7 +383,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   /** The status has answered `ok` since the page opened. */
   let answered = false;
   /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
-  let reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
+  /** `since`: the browser's last try the empty readings are counted from (`triedAt`). */
+  let reloads: { tries: number; emptyReads: number; inFlight: boolean; detail: string; since?: number; sent?: number } = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
   const resetReloads = () => {
     reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
     writeBridge(session, { slotReload: null });
@@ -515,6 +527,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // tab is making, nor a newer one than the read knew.
     const kept = memory();
     if (lost && kept && !outage(kept) && !sentDuringOutage(before, link) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
+    // A recovery under way when this page opened goes on from here (#2253).
+    if (lost) armFromNote();
     followLead(target);
     // Nothing to bring back: a lead out of view may hand over now, before it is needed.
     if (!lost) offerLead();
@@ -543,6 +557,15 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail } });
       return;
     }
+    // The wait before the next try counts from the browser's last try, whichever tab made it: a page
+    // opened during a recovery, or one taking the lead over, never starts it again from zero, and
+    // never goes on from a try older than the last (#2253).
+    const last = memory()?.triedAt;
+    if (tries > 0 && last !== undefined && last !== reloads.since) {
+      reloads.since = last;
+      // Readings since that try, this one counted just below: never sooner than the tab that made it.
+      reloads.emptyReads = Math.max(0, Math.floor((io.now() - last) / SLOT_READ_MS) - 1);
+    }
     if (tries > 0) reloads.emptyReads += 1;
     if (reloads.emptyReads < RELOAD_AFTER_READS[tries]) return;
     const run = reloads;
@@ -551,7 +574,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // The Load and the outage this try is for: a try that lands after a newer Load, or after the
     // recovery, is not counted against them.
     const sentFor = snapshot();
-    sending = reloadOnce(run, target).then(
+    sending = reloadOnce(run, target, sentFor).then(
       (result) => done(run, result, sentFor),
       (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }, sentFor),
     );
@@ -560,7 +583,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
    *  settings still name the slot it was loaded on, no output action landed meanwhile, and the slot,
    *  read once more, still reads empty. A page gone, a slot moved or an operator's own Load in the
    *  read's time sends nothing. */
-  const reloadOnce = async (run: typeof reloads, target: string): Promise<PlayoutResult | null> => {
+  const reloadOnce = async (run: typeof reloads, target: string, sentFor: Before): Promise<PlayoutResult | null> => {
     const settings = io.loadSettings();
     const actionRev = slotActions;
     const wanted = () => alive && run === reloads && armedFor(target) && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
@@ -572,6 +595,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const layer = read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null;
     // Back already (another browser's reload) or somebody else's now: this reading counts as any.
     if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), before, read.reply.link)) return null;
+    // Counted as it goes out, not when the Bridge answers: a page reloaded meanwhile goes on from
+    // it, and never makes a fourth (#2253). Taken back below if nothing was sent after all.
+    const m = memory();
+    if (m && m.at === sentFor.at && m.outageAt === sentFor.outageAt) {
+      run.sent = io.now();
+      keep({ ...m, tries: (m.tries ?? 0) + 1, triedAt: run.sent });
+      run.since = run.sent;
+    }
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null, sentFor: Before) => {
@@ -579,12 +610,19 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     run.inFlight = false;
     // A sent load is one of the browser's three tries, also when this page has gone meanwhile: the
     // tab taking the lock over goes on from it.
+    const sent = run.sent;
+    run.sent = undefined;
+    const m = memory();
+    // The try counted as it went out, still the browser's latest (no recovery ended, no newer Load).
+    const counted = sent !== undefined && !!m && m.at === sentFor.at && m.outageAt === sentFor.outageAt && m.triedAt === sent;
     if (result) {
       run.tries += 1;
-      const m = memory();
       // Why it did not bring it back, for the failed state in any tab: the Bridge's sentence, or a
       // load that went through and still left the slot empty.
-      if (m && m.at === sentFor.at && m.outageAt === sentFor.outageAt) keep({ ...m, tries: (m.tries ?? 0) + 1, reason: result.state === 'ok' ? '' : result.detail });
+      if (counted) keep({ ...m, reason: result.state === 'ok' ? '' : result.detail });
+    } else if (counted) {
+      // Nothing was sent after all (the operator's own Load was out): not a try.
+      keep({ ...m, tries: Math.max(0, (m.tries ?? 1) - 1) });
     }
     if (!alive) return;
     if (handOver) handLeadOver();
