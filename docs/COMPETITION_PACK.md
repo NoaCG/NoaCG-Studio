@@ -162,7 +162,10 @@ starts at 1; a number past either end of the table lights the row at that end, s
 always shows. Every board in the pack paints a snap from the state it lands on: it clears its
 marks (classes, which a snap's reset of inline styles never touches) as play() does, then runs
 the calls of the states on the way to the target, so « Back and ⟲ Reset land on that state's
-look whatever state they left (#2181, #2201). Columns come from the operator's own header line, so one board serves
+look whatever state they left (#2181, #2201). A snap that moves no group (a host settling the
+state it is already in) repaints nothing, so a look only the route really taken painted stays: a
+bracket crowned after its final round keeps that round's cursor, while a recovery into `crowned`
+shows the shortest route's look, without one. Columns come from the operator's own header line, so one board serves
 a league table, a medal table and a race result.
 Controls: **Highlight row** (payload `highlight`) · **Final table**.
 

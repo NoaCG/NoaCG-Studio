@@ -540,7 +540,8 @@ test('Back to a later step lands on its own look, not the look of the step it le
       out[id] = { stepState, branchState, back, recovered, unmarked, backToBranch: look() };
     }
     {
-      // The nominee card: Back from the revealed winner to the suspense hold.
+      // The nominee card: a snap (a recovery, a host's state write) from the revealed winner
+      // into the suspense hold.
       const { win, doc } = await boot('nm01');
       const look = () => {
         const cls = doc.querySelector('.reveal').classList;
@@ -561,6 +562,47 @@ test('Back to a later step lands on its own look, not the look of the step it le
       await settle();
       out.nm01 = look();
     }
+    {
+      // A board of three groups: Back on the phase keeps what the pause group shows.
+      const { win, doc } = await boot('es01');
+      win.play();
+      await settle();
+      win.noacgDispatch('goLive');
+      await settle();
+      win.noacgDispatch('final');
+      await settle();
+      win.noacgDispatch('pause');
+      await settle();
+      win.noacgSnap({ phase: 'live' });
+      await settle();
+      const cls = doc.querySelector('.esports-score').classList;
+      out.es01 = {
+        groups: win.noacgMachineState().groups,
+        live: cls.contains('esports-score-live'),
+        final: cls.contains('esports-score-final'),
+        paused: cls.contains('esports-score-paused'),
+        chipIsPause: doc.querySelector('.esports-score-status').textContent === doc.getElementById('f11').textContent,
+      };
+    }
+    {
+      // A snap that moves nothing (a host settling the state it is in) keeps what the route the
+      // board really took painted: a bracket crowned after its final round keeps that cursor.
+      const { win, doc } = await boot('br01');
+      win.play();
+      await settle();
+      win.noacgDispatch('advance', { f2: 'FINAL' });
+      await settle();
+      win.noacgDispatch('crown', { f3: 'TEAM LIQUID' });
+      await settle();
+      win.noacgSnap(win.noacgMachineState().groups);
+      await settle();
+      const on = doc.querySelector('.results-board-round-on');
+      out.br01 = {
+        state: win.noacgMachineState().groups.main,
+        crowned: doc.querySelector('.results-board').classList.contains('results-board-crowned'),
+        round: on ? on.getAttribute('data-round') : null,
+      };
+    }
     return out;
   })()`) as Record<string, Record<string, unknown>>;
 
@@ -571,7 +613,10 @@ test('Back to a later step lands on its own look, not the look of the step it le
     expect((run[id].unmarked as Record<string, unknown>).branch, `${id}: the branch's way back clears it`).toBe(false);
     expect(run[id].backToBranch, `${id}: Back to the branch paints it again`).toEqual({ state: branchState, step: true, branch: true });
   }
-  expect(run.nm01, 'Back from the winner to the hold shows the hold').toEqual({ state: 'suspense', suspense: true, revealed: false, won: 0 });
+  expect(run.nm01, 'a snap from the winner into the hold shows the hold').toEqual({ state: 'suspense', suspense: true, revealed: false, won: 0 });
+  expect(run.es01, 'Back on the phase keeps the pause and its chip').toMatchObject({ live: true, final: false, paused: true, chipIsPause: true });
+  expect((run.es01 as { groups: Record<string, string> }).groups).toMatchObject({ phase: 'live', pause: 'paused' });
+  expect(run.br01, 'a settle in place keeps the round under the crowned bracket').toEqual({ state: 'crowned', crowned: true, round: 'FINAL' });
 });
 
 test('a board with no data, and an image field with no file, degrade quietly', async ({ page }) => {
