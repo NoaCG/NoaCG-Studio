@@ -409,7 +409,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // or another browser's later Load would arm it. Not a Load still fresh, one in a recovery another
     // tab is making, nor a newer one than the read knew.
     const kept = memory();
-    if (lost && !outage(kept) && kept && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
+    if (lost && !outageSinceOurs && kept && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
     followLead(target);
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
