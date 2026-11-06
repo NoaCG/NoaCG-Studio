@@ -160,17 +160,31 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await deck.close();
 });
 
-// protocol §6.2, issue #2109. The deck presses in order; the page's own Realtime socket is routed, so
-// the earlier press reaches the page 100 ms after the later one, inside the page's 500 ms bound.
-// Nothing here relies on the wire flipping them by chance.
-test('presses that reach the production page reversed run in the order they were pressed, each judged against what the one before it drew', async ({ page }) => {
+// protocol §6.2, issues #2109 and #2144. The deck presses in order; the page's own Realtime socket is
+// routed, so the earlier press reaches the page 100 ms after the later one, inside the page's 500 ms
+// bound, or (`together`) the two reach it in order in one burst, closer than the page draws. Nothing
+// here relies on the wire doing either by chance.
+test('presses that reach the production page reversed or together run in the order they were pressed, each judged against what the one before it drew', async ({ page }) => {
   test.setTimeout(180_000);
-  let swap: { earlier: string; later: string; held: (() => void) | null; laterSent: boolean } | null = null;
+  let swap: { earlier: string; later: string; held: (() => void) | null; laterSent: boolean; together?: { later: (() => void) | null } } | null = null;
   await page.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
     const server = ws.connectToServer();
     server.onMessage((frame) => {
       const text = typeof frame === 'string' ? frame : frame.toString();
       const forward = () => ws.send(frame);
+      // Together: each is held until both came, whichever the wire brought first, then both go in
+      // press order, back to back.
+      if (swap?.together && !swap.laterSent && (text.includes(`"${swap.earlier}"`) || text.includes(`"${swap.later}"`))) {
+        if (text.includes(`"${swap.earlier}"`)) swap.held = forward;
+        else swap.together.later = forward;
+        if (swap.held && swap.together.later) {
+          swap.laterSent = true;
+          swap.held();
+          swap.held = null;
+          swap.together.later();
+        }
+        return;
+      }
       if (swap && text.includes(`"${swap.earlier}"`) && !swap.laterSent) {
         swap.held = forward;
         return;
@@ -178,7 +192,9 @@ test('presses that reach the production page reversed run in the order they were
       forward();
       if (swap && text.includes(`"${swap.later}"`)) {
         swap.laterSent = true;
+        // Once: another frame naming the later press must not deliver the earlier one again.
         if (swap.held) setTimeout(swap.held, 100);
+        swap.held = null;
       }
     });
   });
@@ -223,6 +239,25 @@ test('presses that reach the production page reversed run in the order they were
   expect(twice.second.outcome).toBe('stale');
   await op.waitForTimeout(500);
   await expect(op.getByTestId('live-cue-chip')).toContainText('Anna');
+
+  // THE TAKE KEY PRESSED TWICE, both drawn when it said Take, the two reaching the page in order and
+  // back to back (issue #2144). The second waits out the draw gap and is refused rather than taking
+  // Anna in a second time: against the drawn page, or because the first Take is still running
+  // (protocol §6.2); both answer the same.
+  const anna2 = await deck.state();
+  expect((await deck.press('all-out', '', anna2.ver as number, 'orderdeck:7')).outcome).toBe('ran');
+  const armed = await deck.state((s) => (s.live as string[]).length === 0 && s.selected === anna && s.space === 'take', 'Take ready for Anna');
+  const plays = async () => Number(await op.getByTestId('program-stage').getAttribute('data-plays'));
+  const playsBefore = await plays();
+  swap = { earlier: 'orderdeck:8', later: 'orderdeck:9', held: null, laterSent: false, together: { later: null } };
+  const takeOnce = deck.press('take', anna, armed.ver as number, 'orderdeck:8');
+  const takeAgain = deck.press('take', anna, armed.ver as number, 'orderdeck:9');
+  expect((await takeOnce).outcome).toBe('ran');
+  const again = await takeAgain;
+  expect([again.outcome, again.note]).toEqual(['stale', 'what Take does changed']);
+  await op.waitForTimeout(500);
+  await expect(op.getByTestId('live-cue-chip')).toContainText('Anna');
+  expect(await plays(), 'Anna came in once').toBe(playsBefore + 1);
 
   await deck.close();
 });

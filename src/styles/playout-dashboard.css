@@ -992,6 +992,20 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   line-height: 1.2;
   color: var(--text-dim);
 }
+/* « BACK AND » NEXT SHARE ONE PLACE in the bar (#2181): a step either way, side by side, Back the
+   narrow one. One cell rather than a verb of its own, so the stage head's block keeps its three
+   rows under TAKE (the ratified height, below). */
+.pd-verb-step { display: flex; gap: 4px; min-width: 0; }
+.pd-verb-step > .pd-verb:last-child { flex: 1 1 auto; min-width: 0; padding: 0 8px; }
+.pd-verb.pd-verb-back { flex: 0 0 auto; padding: 0 7px; font-size: 16px; }
+/* In the stage head's narrowest block the pair's cell is about 100px, and Next's key chip is
+   what does not fit beside Back: it goes, so Next's word and its target line keep their room. */
+@media (min-width: 1366px) {
+  .pd-stagehead .pd-verb-step { container-type: inline-size; }
+}
+@container (max-width: 130px) {
+  .pd-verb-step kbd { display: none; }
+}
 /* One key chip for everything in the bar - the buttons and the SPACE-mode checkbox alike. */
 .pd-verbs kbd {
   font-family: var(--mono, monospace);
@@ -1408,7 +1422,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.pd-snap { font-size: 12px; max-width: 220px; }
 /* COMPACT (owner, 2026-10-03: "use more horizontal space ... all graphics should try to be
    compact"). The sections sit SIDE BY SIDE and wrap, each a caption on the left of its buttons, so
    a scorebug's four groups take two rows of a 1600-wide page rather than eight stacked ones. A
@@ -1454,11 +1467,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    the same as deleting it, and the machine still accepts every one of these. */
 /* A drawer stays one line where it sits: the summary, then what it holds once open, beside it.
    A browser that cannot lay a `details` out as flex opens it underneath instead, which still works. */
-.pd-actions-more,
-.pd-actions-recovery { display: flex; align-items: center; gap: 8px; }
+.pd-actions-more { display: flex; align-items: center; gap: 8px; }
 .pd-actions-more .pd-actions-row { margin-top: 0; }
-.pd-actions-more > summary,
-.pd-actions-recovery > summary {
+.pd-actions-more > summary {
   cursor: pointer;
   white-space: nowrap;
   font-size: 11.5px;
@@ -1502,11 +1513,11 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-live-stack button { min-height: 40px; }
 }
 
-/* RECOVERY - the snap picker, folded closed in the ⚡ block's head beside Arrange: the summary
-   alone at rest, the picker inline once open. It wears the drawer look of "More" because it is
-   one: not how a graphic is driven, there for the moment air and the page are out of step. */
+/* RESET - the ⚡ block's head, beside Arrange (#2181): the graphic back to its first step, still
+   on air. Quiet like Arrange, because it is not a beat of the show. */
 .pd-actions-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .pd-actions-tools .pd-arrange-toggle { margin-left: 0; }
+.pd-actions-reset { font-size: 11.5px; padding: 3px 10px; }
 
 
 /* ARRANGING (components/home/ActionArranger.tsx) - the ⚡ block's own authoring posture. The
@@ -2524,6 +2535,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
     margin-top: 10px;
   }
   .pd-verb { flex: 1 1 0; justify-content: center; min-height: 52px; padding: 0 10px; }
+  /* The « Back and » Next pair holds two buttons, so it takes TAKE's wider share. */
+  .pd-verb-step { flex: 1.6 1 0; }
   .pd-verb kbd { display: none; }
   .pd-verb-take { flex: 1.6 1 0; }
   .pd-verbs .pd-verb-update { display: none; }

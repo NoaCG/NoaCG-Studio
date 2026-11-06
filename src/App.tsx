@@ -339,7 +339,7 @@ export default function App() {
   // Hosted control page: <app-url>?control=<slug> — the show's operator page, no login,
   // the unguessable slug is the capability (same pattern as ?chat=).
   const controlSlug = params.get('control');
-  if (controlSlug) return <HostedControlPage slug={controlSlug} />;
+  if (controlSlug) return <HostedControlPage key={controlSlug} slug={controlSlug} />;
 
   // Agent access consent: <app-url>?agent=<state>&port=&name=&challenge= — a coding agent's CLI
   // (`noacg login`) opened this; the page asks once and hands a one-time code to the CLI's

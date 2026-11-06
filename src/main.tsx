@@ -2,7 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/index.css';
 import { trackPageVisit } from './backend/events';
-import { hydrateDurableStore } from './model/durableStore';
+import { commitDurableWrites, hydrateDurableStore } from './model/durableStore';
+import { installDeploySkewRecovery } from './app/deploySkew';
+import { LIVE_BUILD } from './control/livePath';
 
 // Boot stages for app.html's watchdog (its inline script owns the values): 'html' is set
 // inline before this module loads, 'js' proves the entry chunk executed, 'mounted' proves
@@ -23,6 +25,23 @@ const diagMode = new URLSearchParams(window.location.search).has('diag');
 // One report per page load, before React mounts so a slow first render cannot cost the
 // datapoint. Inert without a backend and inert for a visitor who opted out or sends DNT.
 if (!diagMode) trackPageVisit();
+
+// A page left open across a deploy asks for code files the new deploy no longer has: reload it at
+// a safe moment (app/deploySkew.ts, issue #758).
+if (!diagMode) {
+  installDeploySkewRecovery(LIVE_BUILD, async () => {
+    // The debounced autosaves write on this event (store/templateStore.ts, store/videoProjectStore.ts,
+    // components/home/useDeferredEdits.ts), as before an account reload (backend/accountLibrary.ts).
+    window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+    const failed = await commitDurableWrites();
+    // Claimed here, so announce it as an unclaimed one would be: the work stays open, unsaved.
+    if (failed) window.dispatchEvent(new CustomEvent('spx-storage-error', { detail: { message: failed } }));
+    // An earlier autosave that failed left the open graphic unsaved too (App.tsx marks it). The
+    // store is already loaded by the time anything can fail, so this import fetches nothing.
+    const { useTemplateStore } = await import('./store/templateStore');
+    return !failed && useTemplateStore.getState().saved.status !== 'failed';
+  });
+}
 
 // The saved documents live in IndexedDB behind a synchronous mirror (model/durableStore.ts).
 // Loading that mirror is the one asynchronous step in the boot, and it MUST finish before the

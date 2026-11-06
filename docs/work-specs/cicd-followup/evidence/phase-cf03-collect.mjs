@@ -17,9 +17,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO = 'NoaCG/NoaCG-Studio';
-export const FROM = '2026-10-24T10:00:45Z'; // seven days before ci01 (139a9724); phase-cf03-baseline.mjs repeats FROM and UNTIL
-export const UNTIL = '2026-11-03T12:00:00Z';
-const RUN_DAYS_FROM = '2026-10-17'; // PR runs of PRs opened up to a week before the window
+// cf13 and cf20 read later windows with CF03_FROM and CF03_UNTIL (both scripts read the same two);
+// unset, the window is cf03's own.
+export const FROM = process.env.CF03_FROM || '2026-10-24T10:00:45Z'; // seven days before ci01 (139a9724); phase-cf03-baseline.mjs repeats FROM and UNTIL
+export const UNTIL = process.env.CF03_UNTIL || '2026-11-03T12:00:00Z';
+// PR runs of PRs opened up to a week before the window
+const RUN_DAYS_FROM = new Date(Date.parse(FROM) - 7 * 86400000).toISOString().slice(0, 10);
 // Workflows whose jobs are read (every attempt): the multi-job ones a change runs. Others have one job,
 // and their run duration stands for it.
 const JOB_WORKFLOWS = new Set(['ci.yml', 'configured-suite.yml', 'quarantine.yml', 'post-land.yml', 'deploy-verify.yml'].map((w) => `.github/workflows/${w}`));

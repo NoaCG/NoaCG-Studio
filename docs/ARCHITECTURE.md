@@ -337,7 +337,8 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
   styles/ *    the app's stylesheet in 30 PARTS, one per surface. styles/index.css IS the
                cascade order - append a new part where its rules already sat, never re-sort;
                the DIALOG ANATOMY every dialog shares is binding and lives there
-  app/         router.ts - HASH ROUTING for /app (docs/SAVED_CONTENT_MODEL.md §3)
+  app/         router.ts - HASH ROUTING for /app (docs/SAVED_CONTENT_MODEL.md §3); deploySkew.ts -
+               reloads a page left open across a deploy, never with anything on air (#758)
   preview/     composeDocument.ts - inlines CSS + GSAP + JS + assets into the iframe srcdoc
   editor/      Monaco VIEW-only helpers (comment visibility as decorations, never edits)
   video/       the video pipeline: compile, validate, fonts (SINGLE source, so preview == render)

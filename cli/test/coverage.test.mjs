@@ -26,7 +26,7 @@ import { promisify } from 'node:util';
 import { test } from 'node:test';
 
 import { canonicalJson, sourceDigest } from '../dist/digest.js';
-import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, settlesOwnState, sidesOf, STRIP_MS } from '../dist/coverage.js';
+import { coveragePlan, fixtureLogo, frameFile, fullest, LATER_MS, LONG_LABEL_MIN, longer, MOST_ITEMS, mapStress, settlesOwnState, sidesOf, STRIP_MS } from '../dist/coverage.js';
 import { zipPathFor } from '../dist/commands/record.js';
 import { earlierFrames, REVIEW_FORMAT, reviewFor, reviewProblems, reviewSummary, verdictState } from '../dist/review.js';
 
@@ -149,6 +149,31 @@ test('the brief logo goes into the first image field it gave no picture of, or i
   const text = [fields[0]];
   const none = coveragePlan({ fields: text, defaults: defaultsOf(text), buttons: [], stepCount: 1, stress: { logo: 'dark: a crest' } });
   assert.match(none.notes.join(' '), /not drawn: this package has no image field/);
+});
+
+test('a list is shot at its most items too, a decimal leader first (#1251)', () => {
+  // A poll authored with three options; its brief allows five, and five with a decimal leader
+  // cut the delivered vote's LEADING chip while every frame of three looked clean.
+  const fields = [
+    { field: 'f0', ftype: 'textfield', title: 'Question', value: 'How do you watch?' },
+    { field: 'f1', ftype: 'textarea', title: 'Options', value: 'Live on TV | 41\nStreaming | 35\nOn demand | 24' },
+  ];
+  const plan = coveragePlan({ fields, defaults: defaultsOf(fields), buttons: [], stepCount: 1 });
+  assert.deepEqual(Object.keys(plan.valueSets), ['sample', 'long', 'empty', 'most']);
+  const options = plan.valueSets.most.f1.split('\n');
+  assert.equal(options.length, MOST_ITEMS);
+  assert.deepEqual(options, ['Live on TV | 33.33', 'Streaming | 25.5', 'On demand | 20.17', 'Live on TV | 12', 'Streaming | 9']);
+  assert.equal(plan.valueSets.most.f0, 'How do you watch?', 'only the list changes');
+  assert.deepEqual(plan.renders.find((r) => r.name === 'most-video').crops, ['f1']);
+  assert.ok(plan.renders.some((r) => r.name === 'most-light'));
+  // A percent sign stays; a standings row keeps its own cells; one line is no list; a full list
+  // needs no frame of its own.
+  assert.equal(fullest('Yes | 52%\nNo | 48%').split('\n')[0], 'Yes | 33.33%');
+  assert.equal(fullest('Lions | 3 | 1\nTigers | 2 | 2').split('\n')[2], 'Lions | 3 | 1');
+  assert.equal(fullest('One line only'), null);
+  assert.equal(fullest('a\nb\nc\nd\ne'), null);
+  const single = [{ field: 'f0', ftype: 'textarea', title: 'Body', value: 'A paragraph of body text' }];
+  assert.ok(!('most' in coveragePlan({ fields: single, defaults: defaultsOf(single), buttons: [], stepCount: 1 }).valueSets));
 });
 
 test('a graphic with no events, no steps and no busy brief still gets both grounds and every lifecycle strip', () => {
