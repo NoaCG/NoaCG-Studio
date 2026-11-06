@@ -207,9 +207,11 @@ graphic — so a twenty-car grid is not twenty fields and nothing here ever disa
 timing feed over who is third. `focus` carries the competitor's 1-based row number and ships
 naming a row (1), so the first press lights a row; a number past either end of the order lights
 the row at that end. An empty order lights nothing until its rows arrive, and then the named row
-lights. An update while a row is in focus keeps the row the field names lit (#2268). **Whole field** stays for the roster's reason: the
-per-graphic control page, an exported control panel, OGraf hosts and Companion have no Back or
-Reset.
+lights. An update while a row is in focus keeps the row the field names lit; an update to a level
+tower lights nothing (#2268). On the production and hosted pages « Back from a focused row and
+⟲ Reset also level the tower, by snapping it to its first step. **Whole field** stays for the
+roster's reason: the per-graphic control page, an exported control panel, OGraf hosts and
+Companion have no Back or Reset.
 Controls: **Focus competitor** (payload `focus`) · **Whole field** · **Session final** ·
 **Back to running**.
 
