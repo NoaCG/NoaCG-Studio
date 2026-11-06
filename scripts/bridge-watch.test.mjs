@@ -1345,3 +1345,21 @@ test('an Unload in another tab while the reloading tab reads the slot once more 
   await settle();
   assert.equal(a.calls.filter((c) => c === 'reload').length, 0, 'the Unload is never undone');
 });
+
+test('a recovery read in the same millisecond as the outage note still ends the recovery', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const t = await loadedRig({ browser, server });
+  browser.step = 0; // the outage note and the reading that finds the output back tie
+  t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  t.answer(OK);
+  await settle();
+  assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' }, 'a short outage: the output is still there');
+  assert.equal(browser.loaded.get('show-1')?.outageAt, undefined, 'recovery over');
+  browser.step = 1;
+  // A client clears the slot while everything answers: left alone.
+  server.layer = EMPTY;
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'), 'the CLEAR is never undone');
+});

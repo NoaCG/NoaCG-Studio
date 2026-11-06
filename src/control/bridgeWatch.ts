@@ -46,10 +46,12 @@
 //
 // WHAT IS KEPT WHERE. In the browser's record (`LoadedOutput`, shared by its tabs): the Load and its
 // stamp (`at`), the last outage any tab saw (`outageAt`), the tries made for it and why the last
-// failed (`tries`, `reason`). Each slot reading carries the outage noted when it went out: one
-// sent during an outage never reads as a CLEAR, whenever it lands. In the page: the Load it has seen on the slot (`seenAt`), when its last reading of ours went out
-// (`oursAt`), its own outage flag (used only while storage refuses writes, with `local`), the
-// lock (`lead`), and a reload it has out (`reloads`, `sending`, `handOver`).
+// failed (`tries`, `reason`). Each slot reading carries the outage noted when it went out, which
+// decides what it may conclude without comparing clocks between tabs: an empty one sent during an
+// outage never reads as a CLEAR, and one finding ours ends the recovery only for the outage it was
+// sent during. In the page: the Load it has seen on the slot (`seenAt`), when its last reading of
+// ours went out (`oursAt`), its own outage flag (used only while storage refuses writes, with
+// `local`), the lock (`lead`), and a reload it has out (`reloads`, `sending`, `handOver`).
 //
 // The Bridge, the studio's settings, the page's storage and the browser's timers and visibility come
 // in through `io`, the page's rundown and stores through `adapters`. Runtime imports carry `.ts` so
@@ -417,8 +419,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       const m = memory();
       seenAt = m?.at ?? null;
       // Back on its slot after the outage noted for it: the browser's recovery is over. Only a read
-      // sent after that outage says so; one sent before it is from before the restart.
-      if (m && (m.outageAt !== undefined ? m.outageAt < before.issued : m.tries)) keep({ target: m.target, at: m.at });
+      // sent while that outage was noted says so; one sent before it is from before the restart.
+      if (m && (m.outageAt !== undefined ? m.outageAt === before.outageAt : m.tries)) keep({ target: m.target, at: m.at });
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return false;
     }
@@ -471,8 +473,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const run = reloads;
     run.inFlight = true;
     writeBridge(session, { slotReload: { state: 'reloading' } });
-    // The Load this try is for: a try that lands after a newer Load is not counted against it.
-    // and for its outage: a try that lands after the recovery is not counted against the next one.
+    // The Load and the outage this try is for: a try that lands after a newer Load, or after the
+    // recovery, is not counted against them.
     const sentFor = snapshot();
     sending = reloadOnce(run, target).then(
       (result) => done(run, result, sentFor),
