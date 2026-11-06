@@ -1,4 +1,4 @@
-// covers: src/components/control/HostedCueAdjust.tsx, src/control/hostedAdjust.ts
+// covers: src/components/control/HostedCueAdjust.tsx, src/control/hostedAdjust.ts, src/components/HostedControlPage.tsx
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -294,6 +294,87 @@ test('the hosted page adjusts a cue nobody adjusted, on a phone: staged, shown o
   expect(await program.getAttribute('data-appearance')).toBe(aired);
 
   await second.close();
+  await op.close();
+  await clearPublishedShows(page);
+});
+
+// A DEBATE CLOCK ON THE HOSTED PROGRAM, THROUGH A RELOAD AND AN UPDATE (#2176). The real /output and
+// the real hosted page: A speaks and banks its time, B takes the floor, the hosted page reloads (its
+// PROGRAM rebuilt from the renderer's report), and ✎ Update resends the cue's plain allowance. Air
+// keeps A's banked time (#2161), and PROGRAM must show the same.
+test('a debate clock on the hosted PROGRAM keeps the time air keeps through an Update after a reload', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await bootstrapGraphic(page, { name: 'Debate Floor' });
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible().catch(() => false)) await consent.getByRole('button', { name: 'No thanks' }).click();
+  const showName = `Debate Reload ${Date.now()}`;
+  await openProductionWithCurrent(page, showName);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  const slugs = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const s = loadShows().find((x) => x.name === name);
+    return { hosted: s?.hostedSlug ?? '', output: s?.outputSlug ?? '' };
+  }, showName);
+  expect(slugs.hosted && slugs.output).toBeTruthy();
+
+  const air = await context.newPage();
+  await air.goto(`/output?production=${encodeURIComponent(slugs.output)}&debug=1`);
+  await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
+  const op = await context.newPage();
+  const openHosted = async () => {
+    await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+    await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  };
+  await op.goto(`/app?control=${encodeURIComponent(slugs.hosted)}`);
+  await openHosted();
+  await op.getByTestId('hosted-take-cue').click();
+
+  const onAir = air.frameLocator('iframe[data-layer]');
+  const program = op.getByTestId('hosted-program-stage').frameLocator('iframe');
+  const seconds = async (clock: ReturnType<typeof onAir.locator>): Promise<number> => {
+    const hit = /^(\d\d):(\d\d)$/.exec(((await clock.textContent()) ?? '').trim());
+    return hit ? Number(hit[1]) * 60 + Number(hit[2]) : Number.NaN;
+  };
+  await expect(onAir.locator('#f5')).toHaveText('05:00', { timeout: 30_000 });
+
+  // A speaks for a few seconds, then B takes the floor: A banks a time under its allowance.
+  const pass = op.getByTestId('hosted-actions').getByRole('button', { name: /Switch speaker/ });
+  await pass.click();
+  await expect.poll(() => seconds(onAir.locator('#f5')), { timeout: 20_000 }).toBeLessThanOrEqual(296);
+  await pass.click();
+  await expect.poll(() => seconds(onAir.locator('#f6')), { timeout: 20_000 }).toBeLessThan(300);
+  const banked = (await onAir.locator('#f5').textContent())!.trim();
+  // Before the reload PROGRAM banks on this page's receive instants and air on the rows' server
+  // times, so the two agree within delivery skew: a second either side of a boundary.
+  const airSeconds = await seconds(onAir.locator('#f5'));
+  await expect.poll(async () => Math.abs((await seconds(program.locator('#f5'))) - airSeconds), { timeout: 20_000 }).toBeLessThanOrEqual(1);
+
+  // The renderer reports it (800 ms debounce): A held at its banked time, B running. Then the hosted
+  // page reloads and rebuilds PROGRAM from that report.
+  await expect.poll(() => op.evaluate(async (slug) => {
+    const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+    const answer = await controlShowBySlug(slug);
+    const data = answer.ok ? Object.values(answer.value?.live ?? {})[0]?.data : undefined;
+    return [data?.f5?.split('@')[0], /@[1-9]/.test(data?.f6 ?? '')];
+  }, slugs.hosted), { timeout: 20_000 }).toEqual([banked, true]);
+  await op.reload();
+  await openHosted();
+  await expect(program.locator('#f5')).toHaveText(banked, { timeout: 30_000 });
+
+  // ✎ Update with a new round title: the cue's plain 05:00 for both clocks rides with it.
+  await op.getByTestId('hosted-field-f0').fill('REBUTTAL');
+  await op.getByTestId('hosted-update-cue').click();
+  await expect(onAir.locator('#f0')).toHaveText('REBUTTAL', { timeout: 30_000 });
+  await expect(program.locator('#f0')).toHaveText('REBUTTAL', { timeout: 30_000 });
+  await expect(onAir.locator('#f5'), 'air keeps the time A banked').toHaveText(banked);
+  await expect(program.locator('#f5'), 'and so does the hosted PROGRAM').toHaveText(banked);
+
+  await air.close();
   await op.close();
   await clearPublishedShows(page);
 });
