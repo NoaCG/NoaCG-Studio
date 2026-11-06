@@ -63,8 +63,24 @@ test('with real Web Locks: asked, let go at once, asked again: the second is gra
   second.release();
 });
 
-test('without Web Locks every tab holds it, as before #2245', () => {
+test('with real Web Locks: the holder knows when another tab waits for the same lock, and only that one (#2251)', async () => {
+  const a = webLockLead(navigator.locks, 'reload-wait');
+  for (let i = 0; i < 20 && !a.held(); i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(await a.waiting(), false, 'alone');
+  const other = webLockLead(navigator.locks, 'another production');
+  assert.equal(await a.waiting(), false, 'the lock of another production is not this one');
+  const b = webLockLead(navigator.locks, 'reload-wait');
+  assert.equal(await a.waiting(), true, 'B waits');
+  a.release();
+  for (let i = 0; i < 20 && !b.held(); i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(b.held(), true, 'and leads once A lets go');
+  b.release();
+  other.release();
+});
+
+test('without Web Locks every tab holds it, as before #2245', async () => {
   const lead = webLockLead(undefined, 'k');
   assert.equal(lead.held(), true);
+  assert.equal(await lead.waiting(), false);
   lead.release();
 });

@@ -59,6 +59,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
   const everys = [];
   const visibles = [];
   const hiddens = [];
+  let outOfView = false;
   /** Readings held by the test: `hold` makes the next `/state` wait until the test answers it. */
   const held = [];
   let hold = false;
@@ -108,7 +109,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       // Web Locks: one holder per key, the next asker's when it lets go.
       const queue = browser.locks.get(key) ?? [];
       browser.locks.set(key, queue);
-      const lead = { on: false, held: () => lead.on, release: () => {
+      const lead = { on: false, held: () => lead.on, waiting: async () => queue.length > 1 && queue[0] === lead, release: () => {
         const at = queue.indexOf(lead);
         if (at >= 0) queue.splice(at, 1);
         lead.on = false;
@@ -132,6 +133,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     },
     // One clock for the whole browser, a millisecond on at every look, so "after" is never a tie.
     now: () => (browser.clock += browser.step),
+    hidden: () => outOfView,
     onHidden: (run) => {
       const h = { run, live: true };
       hiddens.push(h);
@@ -205,7 +207,12 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     },
     /** The tab goes out of view. */
     hide: () => {
+      outOfView = true;
       for (const h of hiddens.filter((x) => x.live)) h.run();
+    },
+    /** The tab comes back into view. */
+    show: () => {
+      outOfView = false;
     },
     /** The live status subscription answers. */
     answer: (result) => subs.filter((s) => s.live).at(-1).onStatus(result),
@@ -1179,6 +1186,37 @@ test('a lead tab going out of view hands the reload to a tab in view', async () 
   c.hide();
   await restartServer(c);
   assert.equal(c.calls.filter((x) => x === 'reload').length, 1);
+});
+
+test('a lead that went out of view before another tab opened hands the reload to it (#2251)', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  // A leads, then goes into the background while no other tab is open: it keeps the lock.
+  const a = await reopened(browser, server);
+  a.hide();
+  // B opens later, in view, sees the output and waits for the lock.
+  const b = await reopened(browser, server);
+  // A's next (slowed) reading finds nothing to do and lets B lead.
+  await a.readSlot();
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  b.answer(OK);
+  await settle();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 1, 'the tab in view reloads');
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 0);
+  // In view, a lead keeps the lock whoever waits.
+  const browser2 = newBrowser();
+  const s2 = { layer: ourPage };
+  (await loadedRig({ browser: browser2, server: s2 })).watch.stop();
+  const c = await reopened(browser2, s2);
+  const d = await reopened(browser2, s2);
+  await c.readSlot();
+  await restartServer(c);
+  await d.readSlot();
+  assert.equal(c.calls.filter((x) => x === 'reload').length, 1, 'the lead in view still reloads');
+  assert.equal(d.calls.filter((x) => x === 'reload').length, 0);
 });
 
 test('the three tries are the browser\'s: a tab taking the lead over goes on from them', async () => {
