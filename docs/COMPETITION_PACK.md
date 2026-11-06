@@ -56,7 +56,7 @@ Adding an eleventh team, a fifth nominee or a third ruling adds **no states**. T
 in as the event's **payload**, so the change is atomic: the graphic never animates to a value
 that has not landed yet (`STATE_MACHINE_SCHEMA.md` §3).
 
-Two corollaries the runtimes are written around:
+Three corollaries the runtimes are written around:
 
 1. **`update()` never transitions.** Typing "B" into a match-up's winner field changes what the
    card *would* show if the operator selected; it does not select. Only a machine state calls
@@ -64,17 +64,18 @@ Two corollaries the runtimes are written around:
 2. **Reset is two operations.** `play()` calls the design's `compClearMarks()` (the VISUAL half
    — a replay never inherits the last match's FINAL flag, and the inline styles a reveal tween
    left are cleared with it); the DATA half stays `update()`'s. `noacgSnap(null)` resets every
-   group's pointer and leaves the fields alone. A snap (« Back, ⟲ Reset, a recovery) is
-   painted from the state it lands on: when it moves any group, the pack clears the marks
-   (classes, which a snap's reset of inline styles never touches) as play() does, runs the
-   calls of the states on the route the snap replays (`noacgCanonicalPath`) with their
-   motion killed, and the snap then fires each group's own target call. So « Back from a
-   celebration lands on a plain result, whatever state it left (#2181, #2201). A snap that moves no group (a host
-   settling the state it is already in) adds nothing to those target calls, so a look only the
-   route really taken painted stays: a bracket crowned after its final round keeps that
-   round's cursor, while a recovery into `crowned` shows that replayed route's look, without
-   one. The exception is a snap to the first step or off, which always clears: ⟲ Reset in place
-   still removes a mark a late call left.
+   group's pointer and leaves the fields alone.
+3. **A snap is painted from the state it lands on.** When a snap (« Back, ⟲ Reset, a
+   recovery) moves any group, the pack clears the marks (classes, which a snap's reset of
+   inline styles never touches) as play() does and runs the calls of the states on the route
+   the snap replays (`noacgCanonicalPath`) with their motion killed; the snap then fires the
+   target call of each group not left at its initial state. So « Back from a celebration
+   lands on the result with no celebration left on it (#2181, #2201). A snap that moves no
+   group (a host settling the state it is already in) adds nothing to those target calls, so
+   a look only the route really taken painted stays: a bracket crowned after its final round
+   keeps that round's cursor, while a recovery into `crowned` shows the replayed route's look,
+   without one. A snap to the first step or off always clears, so ⟲ Reset in place still
+   removes a mark a late call left.
 
 ---
 
@@ -153,9 +154,15 @@ Controls: **Reveal stats** · **Call MVP** · **Clear MVP**.
 spotlight --next--> [exit]
 ```
 
-`spotlight` carries the 1-based player number; `0` or an out-of-range number leaves the line-up
-level rather than dimming it with nothing lit.
-Controls: **Spotlight player** (payload `spotlight`) · **Whole line-up**.
+`spotlight` carries the 1-based player number and ships naming a row (1; Initiative Order starts
+on its current turn, 2), so the first press lights a row; a number past either end of the line-up
+lights the row at that end. Only a line-up with no rows stays level, rather than dimming with
+nothing lit. An update while a row is lit keeps the row the field names lit; an update to a level
+line-up lights nothing (#2200). On the production and hosted pages « Back from a lit row and
+⟲ Reset also level the line-up, by snapping it to its first step. **Show all rows** stays because
+the per-graphic control page, an exported control panel, OGraf hosts and Companion have no Back or
+Reset.
+Controls: **Focus row** (payload `spotlight`) · **Show all rows**.
 
 ### Standings / result table (`standings`)
 

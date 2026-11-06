@@ -463,6 +463,78 @@ test('the boards spotlight a row from data, and a decided table survives a repla
   expect(String((run.afterReplay as Record<string, unknown>).cls)).not.toContain('results-board-final');
 });
 
+test('Focus row lights a row on its first press, and Back levels the line-up (#2200)', async ({ page }) => {
+  // The roster's Focus row press used to do nothing on air until a row number was typed: its
+  // field started at 0, which names no row. It now starts at 1, and a number naming no row
+  // lights the row at that end of the line-up, so the press always shows.
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { win, doc, tpl } = await boot('rs01');
+    const lit = () => {
+      const el = doc.querySelector('.results-board-row-on');
+      return el ? el.getAttribute('data-row') : null;
+    };
+    const spotlit = () => doc.querySelector('.results-board').classList.contains('results-board-spotlit');
+    const out = {};
+    win.play();
+    await settle();
+    // The first press, with the field as the design ships it.
+    win.noacgDispatch('spotlight');
+    await settle();
+    out.firstPress = { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() };
+    // A number naming no row lights the row at that end.
+    win.noacgDispatch('spotlight', { f3: '9' });
+    await settle();
+    out.past = { row: lit() };
+    win.noacgDispatch('spotlight', { f3: '0' });
+    await settle();
+    out.below = { row: lit() };
+    // An update while a row is lit (a new note, a new number) keeps a row lit.
+    win.update(JSON.stringify({ f2: 'A | ONE\\nB | TWO\\nC | THREE', f3: '2' }));
+    await settle();
+    out.updated = { row: lit(), spotlit: spotlit() };
+    // « Back from the spotlight snaps to the first step, which levels the line-up, as the
+    // Show all rows press does where there is no Back.
+    const { backTarget } = await import('/src/control/controlModel.ts');
+    out.backTarget = backTarget(tpl.js, { groups: { main: 'spotlight' } });
+    win.noacgSnap(out.backTarget);
+    await settle();
+    out.back = { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() };
+    // An update to a level line-up lights nothing: only a spotlight lights a row.
+    win.update(JSON.stringify({ f3: '3' }));
+    await settle();
+    out.levelUpdate = { row: lit(), spotlit: spotlit() };
+    // Every roster design: the shipped field names a row, and Show all rows stays for the
+    // playout environments that have no Back or Reset.
+    out.designs = {};
+    for (const v of CATALOG['results-board'].filter((d) => /^rs\\d/.test(d.id))) {
+      const tpl = v.create({});
+      const holder = new DOMParser().parseFromString(tpl.html, 'text/html').getElementById('f3');
+      const machine = parseAnimData(tpl.js).machine;
+      out.designs[v.id] = {
+        field: Number(holder && holder.textContent) >= 1,
+        controls: (machine.controls || []).map((c) => c.event),
+      };
+    }
+    return out;
+  })()`) as Record<string, Record<string, unknown>>;
+
+  expect(run.firstPress, 'the first Focus row press lights row 1').toEqual({ state: 'spotlight', row: '1', spotlit: true });
+  expect(run.past).toEqual({ row: '5' });
+  expect(run.below).toEqual({ row: '1' });
+  expect(run.updated, 'an update keeps the spotlit row lit').toEqual({ row: '2', spotlit: true });
+  expect(run.backTarget, 'Back from a lit row goes to the first step').toEqual({ main: 'enter' });
+  expect(run.back).toEqual({ state: 'enter', row: null, spotlit: false });
+  expect(run.levelUpdate, 'an update never starts a spotlight').toEqual({ row: null, spotlit: false });
+  expect(Object.keys(run.designs).sort()).toEqual(['rs01', 'rs02', 'rs03', 'rs04', 'rs05']);
+  for (const [id, design] of Object.entries(run.designs)) {
+    expect(design, id).toEqual({ field: true, controls: ['spotlight', 'clear'] });
+  }
+});
+
 test('Reset lands a winner card on its first step with nothing its result painted (#2181)', async ({ page }) => {
   // ⟲ Reset is a snap to the first step. A winner card's marks are classes, which a snap's reset
   // of inline styles never touches, so the pack clears them on that snap, as play() does.
@@ -512,8 +584,9 @@ test('Back to a later step lands on its own look, not the look of the step it le
       ['pc01', 'matchup', 'matchup-stats-shown', '.matchup-stat', 'mvp', 'matchup-mvp', 'mvp', 'clearMvp'],
     ];
     const out = {};
+    const { backTarget } = await import('/src/control/controlModel.ts');
     for (const [id, root, step, payload, branchState, branch, mark, unmark] of CASES) {
-      const { win, doc } = await boot(id);
+      const { tpl, win, doc } = await boot(id);
       // The step's mark, and what the frame shows: a class alone would pass with the result held
       // back by a tween still playing it in.
       const look = () => {
@@ -528,8 +601,9 @@ test('Back to a later step lands on its own look, not the look of the step it le
       await settle();
       win.noacgDispatch(mark);
       await settle();
-      // Back from the branch to the step.
-      win.noacgSnap({ main: stepState });
+      // « Back from the branch: the dashboard's own target, which is the step.
+      const backTo = backTarget(tpl.js, win.noacgMachineState());
+      win.noacgSnap(backTo);
       await settle();
       const back = look();
       // A recovery straight into the branch, from a card that has not run its step.
@@ -544,7 +618,7 @@ test('Back to a later step lands on its own look, not the look of the step it le
       const unmarked = look();
       win.noacgSnap({ main: branchState });
       await settle();
-      out[id] = { stepState, branchState, back, recovered, unmarked, backToBranch: look() };
+      out[id] = { stepState, backTo, branchState, back, recovered, unmarked, backToBranch: look() };
     }
     {
       // The nominee card: a snap (a recovery, a host's state write) from the revealed winner
@@ -570,7 +644,8 @@ test('Back to a later step lands on its own look, not the look of the step it le
       out.nm01 = look();
     }
     {
-      // A board of three groups: Back on the phase keeps what the pause group shows.
+      // A board of three groups: a snap of the phase (a recovery, a host's state write) keeps
+      // what the pause group shows.
       const { win, doc } = await boot('es01');
       win.play();
       await settle();
@@ -646,13 +721,14 @@ test('Back to a later step lands on its own look, not the look of the step it le
 
   for (const id of ['wn01', 'aw01', 'pc01']) {
     const { stepState, branchState } = run[id] as { stepState: string; branchState: string };
+    expect(run[id].backTo, `${id}: Back from the branch goes to the step`).toEqual({ main: stepState });
     expect(run[id].back, `${id}: Back to the step leaves no branch mark`).toEqual({ state: stepState, step: true, branch: false });
     expect(run[id].recovered, `${id}: a snap into the branch shows the step under it`).toEqual({ state: branchState, step: true, branch: true });
     expect((run[id].unmarked as Record<string, unknown>).branch, `${id}: the branch's way back clears it`).toBe(false);
     expect(run[id].backToBranch, `${id}: Back to the branch paints it again`).toEqual({ state: branchState, step: true, branch: true });
   }
   expect(run.nm01, 'a snap from the winner into the hold shows the hold').toEqual({ state: 'suspense', suspense: true, revealed: false, won: 0 });
-  expect(run.es01, 'Back on the phase keeps the pause and its chip').toMatchObject({ live: true, final: false, paused: true, chipIsPause: true });
+  expect(run.es01, 'a snap of the phase keeps the pause and its chip').toMatchObject({ live: true, final: false, paused: true, chipIsPause: true });
   expect((run.es01 as { groups: Record<string, string> }).groups).toMatchObject({ phase: 'live', pause: 'paused' });
   expect(run.es01Resumed, 'a snap of the pause alone brings back the live chip').toEqual({ live: true, paused: false, chipIsLive: true });
   expect(run.mu01, 'a recovery into the lock shows the pick under it').toEqual({ state: 'locked', locked: true, winners: 1 });

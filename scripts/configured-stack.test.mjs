@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { holding, isStackProcess, readClaims, parseRanges, projectIdOf, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
+import { holding, isStackProcess, pinImages, readClaims, parseRanges, projectIdOf, REALTIME_VERSION, realtimeImageProblem, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
 
 test('slot 0 is the CLI default block and every slot block is disjoint', () => {
   const p = slotPorts(0);
@@ -109,4 +109,19 @@ test('a claim released while the slots are listed is skipped, not fatal to anoth
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the stack runs a Realtime that does not lock the partition a broadcast writes to (#2204)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'stack-pin-'));
+  try {
+    pinImages(dir);
+    assert.equal(readFileSync(join(dir, '.temp', 'realtime-version'), 'utf8'), REALTIME_VERSION);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // The readiness check refuses a stack whose Realtime is not that image.
+  const row = (image) => `supabase_realtime_noacg-s1|running||${image}`;
+  assert.equal(realtimeImageProblem([row(`public.ecr.aws/supabase/realtime:${REALTIME_VERSION}`), 'supabase_db_noacg-s1|running||x']), null);
+  assert.match(realtimeImageProblem([row('public.ecr.aws/supabase/realtime:v2.120.3')]), /runs .*v2\.120\.3, not Realtime/);
+  assert.match(realtimeImageProblem(['supabase_db_noacg-s1|running||x']), /no Realtime container/);
 });

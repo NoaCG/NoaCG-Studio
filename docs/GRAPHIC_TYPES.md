@@ -388,7 +388,7 @@ gap list had already named as the next two type families (PACK_TAXONOMY §gaps).
 | Head-to-head | h202 House Compare | branches `highlighted` ⟳ / `level` |
 | Player card | pc02 House Player | walk press `stats` + branches `mvp` / `plain` |
 | Roster | rs02 House Roster | branches `spotlight` ⟳ / `level` |
-| Standings / result table | st02 House Standings | branches `highlighted` ⟳ / `plain` / `final` |
+| Standings / result table | st02 House Standings | walk press `final` + branch `highlighted` ⟳ |
 | Bracket | br02 House Bracket | branches `advanced` ⟳ / `crowned` |
 | Nominee reveal | nm01 House Nominees | walk press `reveal` + branch `suspense` |
 | Verdict card | vd02 House Verdict | branches `judged` ⟳ / `unjudged` |
