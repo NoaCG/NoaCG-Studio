@@ -273,6 +273,23 @@ async function ready(state) {
   return { containers: rows.length, published: [...published].sort() };
 }
 
+/**
+ * THE REALTIME IMAGE, pinned on its own (issue #2204). The pinned CLI (2.111.0) starts Realtime
+ * v2.120.3, whose partition upkeep runs `ALTER TABLE realtime.messages_<day> OWNER TO ...` on every
+ * partition, today's included, each time a tenant connects and on every janitor run. That takes an
+ * ACCESS EXCLUSIVE lock on the partition a broadcast writes to, so `realtime.send` in
+ * control_events_frame (0071), which waits 250 ms, drops the frame. Realtime v2.145.1 alters only
+ * partitions it creates (supabase/realtime#2374). The CLI reads `.temp/realtime-version` to replace
+ * that one image, so the rest of the stack stays on the version the project is developed against.
+ */
+export const REALTIME_VERSION = 'v2.147.1';
+
+/** Write the image overrides the CLI reads from `<supabase dir>/.temp`. */
+export function pinImages(supabaseDir) {
+  mkdirSync(join(supabaseDir, '.temp'), { recursive: true });
+  writeFileSync(join(supabaseDir, '.temp', 'realtime-version'), REALTIME_VERSION);
+}
+
 async function up(args) {
   const owner = args.owner ?? defaultOwner();
   const exclude = args.exclude ?? 'studio,edge-runtime';
@@ -281,6 +298,7 @@ async function up(args) {
   const { slot, projectId, ports: p, workdir } = state;
   cpSync(source, join(workdir, 'supabase'), { recursive: true });
   writeFileSync(join(workdir, 'supabase', 'config.toml'), slotConfig(readFileSync(join(source, 'config.toml'), 'utf8'), slot));
+  pinImages(join(workdir, 'supabase'));
   // Before the start, so a later step (and `down`) reaches this stack even if the start fails.
   exportEnv({ SUPABASE_WORKDIR: workdir, NOACG_STACK_PROJECT: projectId, NOACG_STACK_SLOT: String(slot) });
   console.log(`::notice title=Local stack slot ${slot}::project ${projectId}, ports ${p.first}-${p.last} reserved and free, owner ${owner}`);

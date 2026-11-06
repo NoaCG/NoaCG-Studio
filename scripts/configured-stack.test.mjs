@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { holding, isStackProcess, readClaims, parseRanges, projectIdOf, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
+import { holding, isStackProcess, pinImages, readClaims, parseRanges, projectIdOf, REALTIME_VERSION, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
 
 test('slot 0 is the CLI default block and every slot block is disjoint', () => {
   const p = slotPorts(0);
@@ -109,4 +109,21 @@ test('a claim released while the slots are listed is skipped, not fatal to anoth
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the stack runs a Realtime that does not lock the partition a broadcast writes to (#2204)', () => {
+  // supabase/realtime#2374, first released in v2.145.1: partition upkeep alters only new partitions.
+  const [major, minor, patch] = REALTIME_VERSION.replace(/^v/, '').split('.').map(Number);
+  assert.ok(major > 2 || (major === 2 && (minor > 145 || (minor === 145 && patch >= 1))), REALTIME_VERSION);
+  const dir = mkdtempSync(join(tmpdir(), 'stack-pin-'));
+  try {
+    pinImages(dir);
+    assert.equal(readFileSync(join(dir, '.temp', 'realtime-version'), 'utf8'), REALTIME_VERSION);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // The start uses it: the overrides are written into the stack's own copy before `supabase start`.
+  const src = readFileSync(new URL('./configured-stack.mjs', import.meta.url), 'utf8');
+  const up = src.slice(src.indexOf('async function up('));
+  assert.ok(up.indexOf('pinImages(') > 0 && up.indexOf('pinImages(') < up.indexOf("'start'"), 'pinned before the start');
 });
