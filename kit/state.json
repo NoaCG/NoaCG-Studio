@@ -64,7 +64,19 @@
     "status": "landed on cost grounds; record unmeasured with side counts (before from 2026-11-05T01:09:30Z to merge, after to 2026-11-12)"
    },
    "rank3": "untried: superseded by rank 2 (lane timings), to cf20(c)",
-   "rank1": "waiting on owner: 30-day backend exception (option 1) or not (option 2), asked 2026-11-05T15:08Z"
+   "rank1": {
+    "pr": 2237,
+    "head": "b276291ec21f5a99b7d4a1d1ada8a4d49a1aeaa5",
+    "stamped": "2026-11-06T08:09Z",
+    "autoMerge": "enqueued 2026-11-06T14:27Z after before side reached 10 (cap+cfg M1 median 16.03, M2 wait 0.58, M2 exec 11.62; no side-ending landing since #2224)",
+    "exception": "not in growth-ceilings (one active backend exception rule X3/X4); approval on #2172; coordinator must schedule read by 2026-11-13 and day-14 revert",
+    "holds": "owner chose option 1; notice https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6680448566",
+    "mergeSha": "09077bc202e0f95e4c0003f45cbe6570c944666c",
+    "mergedAt": "2026-11-06T14:33:58Z",
+    "trialEnds": "2026-11-20T14:34Z",
+    "readBy": "2026-11-13",
+    "afterHold": "active until cap+cfg after side holds 10"
+   }
   }
  ],
  "owner": [],
@@ -191,6 +203,12 @@
    "at": "2026-11-03T19:55Z",
    "by": "owner (coordinator session)",
    "what": "cf12: judge the cost measurement once 12 product changes opened after enabling are measured, dropping the builder's 7-day minimum; plan order kept (option 1 of 2; option 2 was changing the ledger tool to allow parallel phases)"
+  },
+  {
+   "at": "2026-11-06T07:3xZ",
+   "by": "owner (coordinator session)",
+   "what": "cf13 rank 1: 14-day backend-tier exception (not 30); keep only if merges measurably faster; account for daily landings on main",
+   "record": "https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6679576372"
   }
  ],
  "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
@@ -283,6 +301,12 @@
    "mergeSha": "a235a93d35c70813abff0c4fb8f4a1b740af2c86",
    "mergedAt": "2026-11-05T15:21:19Z",
    "what": "cf13 rank 2 Build lanes; preview-trial concurrency"
+  },
+  {
+   "pr": 2237,
+   "mergeSha": "09077bc202e0f95e4c0003f45cbe6570c944666c",
+   "mergedAt": "2026-11-06T14:33:58Z",
+   "what": "cf13 rank 1 trial: 8 configured stacks for PR selections (14 days)"
   }
  ]
 }
