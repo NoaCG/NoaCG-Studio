@@ -405,7 +405,8 @@ test('the header shows a two-word production name in full on a school laptop, an
   // chip, Output links and READY line together (docs/work-specs/studio-day-playout AC-7). Before
   // the laptop tiers that header was 1360px wide at 1280, with ■ All out off the screen.
   // With a connected data source too, so the header's Data indicator (#2244) is in the measurement
-  // beside Share (#2248). Its Sheet is answered here; the tone does not change its width.
+  // beside Setup (#2248). Its Sheet is answered here, but the chip may still be on its first read:
+  // the glyph is one character whichever the tone, so its width does not depend on it.
   await page.route('https://docs.google.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/csv', body: 'Name,Value\nName,Ann Lee\n' }));
   const refused = await page.evaluate(async (showId: string) => {
     const { setShowHostedSlug, noteShowOutputOpened, connectShowSource } = await import('/src/model/shows.ts');
