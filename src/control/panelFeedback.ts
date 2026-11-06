@@ -370,6 +370,13 @@ export class PressOrder {
     return panel;
   }
 
+  /** What is left of the gap behind the press that ran last; none when a clock went back, which
+   *  says nothing, so it does not hold a press. */
+  #gapLeft(): number {
+    const since = this.#now() - this.#ranAt;
+    return since >= 0 && since < PRESS_DRAW_MS ? PRESS_DRAW_MS - since : 0;
+  }
+
   #run(run: () => void): void {
     this.#ranAt = this.#now();
     run();
@@ -389,12 +396,11 @@ export class PressOrder {
       });
       return;
     }
-    // The page may not have drawn the press that ran last: wait out the rest of its gap. A clock
-    // that went back says nothing, so it does not hold a press.
-    const since = this.#now() - this.#ranAt;
-    if (this.#drawing || (since >= 0 && since < PRESS_DRAW_MS)) {
+    // The page may not have drawn the press that ran last: wait out the rest of its gap.
+    const left = this.#gapLeft();
+    if (this.#drawing || left > 0) {
       this.#waiting.add(panel);
-      this.#drawing ??= this.#after(PRESS_DRAW_MS - since, () => this.#drawn());
+      this.#drawing ??= this.#after(left, () => this.#drawn());
       return;
     }
     held.delete(panel.next);
@@ -415,13 +421,12 @@ export class PressOrder {
    *  again behind the others. A late or unnumbered press that ran during the gap has a gap of its
    *  own, so the wait goes on for the rest of that. */
   #drawn(): void {
-    const since = this.#now() - this.#ranAt;
-    if (since >= 0 && since < PRESS_DRAW_MS) {
-      this.#drawing = this.#after(PRESS_DRAW_MS - since, () => this.#drawn());
+    const left = this.#gapLeft();
+    if (left > 0) {
+      this.#drawing = this.#after(left, () => this.#drawn());
       return;
     }
     this.#drawing = null;
-    this.#ranAt = -Infinity;
     for (const panel of [...this.#waiting]) {
       this.#waiting.delete(panel);
       this.#pump(panel);

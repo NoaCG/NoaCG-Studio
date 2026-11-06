@@ -373,7 +373,8 @@ export function answerPanel(opts: {
     const then = ring.get(press.seen);
     const mark = takes ? taking.get(press.target) : undefined;
     const early = !!mark && press.seen < (mark.drawnAt ?? Infinity);
-    const verdict = (early ? TAKE_CHANGED : judgePress(press, snap, then, opts.runs)) ?? { outcome: 'ran' as const };
+    // A press refused for its own reason keeps that reason; the guard refuses only what would run.
+    const verdict = judgePress(press, snap, then, opts.runs) ?? (early ? TAKE_CHANGED : { outcome: 'ran' as const });
     if (verdict.outcome === 'ran') {
       const took = opts.run(press.verb, press.target);
       if (takes && took instanceof Promise) {
@@ -383,11 +384,14 @@ export function answerPanel(opts: {
         const release = () => {
           if (taking.get(press.target) === running) taking.delete(press.target);
         };
-        const settled = () => afterUnstarved(PRESS_DRAW_MS, release);
-        took.then(settled, settled);
         // A Take that never settles must not lock this cue's panel Takes until a reload: let go
         // after the longest a press is ever owed an answer (graphicVerbs' own bound).
-        afterUnstarved(TAKE_GUARD_MAX_MS, release);
+        const bound = afterUnstarved(TAKE_GUARD_MAX_MS, release);
+        const settled = () => {
+          bound();
+          afterUnstarved(PRESS_DRAW_MS, release);
+        };
+        took.then(settled, settled);
       }
     }
     answer(press, verdict, now);

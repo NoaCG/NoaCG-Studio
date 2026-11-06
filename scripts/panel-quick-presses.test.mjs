@@ -991,7 +991,12 @@ for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fail
       const [one, two] = await Promise.all([first, second]);
       assert.equal(one.result.outcome, 'ran');
       assert.deepEqual([two.result.outcome, two.result.note], ['stale', 'what Take does changed']);
-      const drawn = ends !== 'fails' && ends !== 'never settles';
+      // A press refused for its own reason keeps that reason while the guard holds the cue.
+      const elsewhere = deck.press('take-cue', 'b2');
+      await drain();
+      await drawGap(t);
+      assert.equal((await elsewhere).result.outcome, 'not-here');
+      const drawn =ends !== 'fails' && ends !== 'never settles';
       if (drawn) saving.resolve();
       else if (ends === 'fails') saving.reject(new Error('the edit did not save'));
       else {
