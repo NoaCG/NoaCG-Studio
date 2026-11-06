@@ -314,7 +314,7 @@ server's own rule.
 
 A restarted CasparCG server keeps nothing: every layer is empty when it answers again. The
 production page puts its own output back by itself (issue #1657, owner 2026-10-24). When an output
-this page loaded, and saw on its slot, reads empty after the server or the Bridge stopped answering,
+this browser loaded, and the page saw on its slot, reads empty after the server or the Bridge stopped answering,
 the page loads the output URL again onto the same channel and layer with no press, as a Bridge
 restart already recovers. While it reloads, the slot row reads "Reloading…" (amber). What is on air
 afterwards follows the command log, as for any output loaded fresh. The decision is
@@ -324,15 +324,18 @@ afterwards follows the command log, as for any output loaded fresh. The decision
   replaces it, and a clip, still or other page another client played there is never covered. The
   slot is read once more right before the load, which goes only if the layer is still vacant, the
   settings still name that slot, and no Load or Unload landed meanwhile.
-- **Only this page's output, on its own slot.** Not an output only another browser loaded, not a
+- **Only this browser's output, on its own slot.** Where it was loaded is kept per production in
+  this browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load
+  still brings it back, once it has seen the output on the slot again. Tabs of one browser take
+  turns under one lock: one loads, the others find it loaded. Not an output only another browser loaded, not a
   slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
   emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left
   alone, and gives the output up, so a later outage does not bring it back.
 - **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and
   60 s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason
   under it, the status says "Not on 1-20", and Load is the operator's.
-- **Limits.** "Loaded here" is page memory: after the browser page itself is reloaded, a server
-  restart needs Load from it again. A restart so quick that no poll saw the server gone (the status
+- **Limits.** A page opened while CasparCG is down, onto a slot it has not seen loaded, needs Load
+  once the server answers. A restart so quick that no poll saw the server gone (the status
   is asked every few seconds, less often in a background tab, which the browser slows) reads as a
   `CLEAR`, and Load is needed as before. Two browsers that each pressed Load both reload, which
   loads the same URL twice, at most a flicker.
