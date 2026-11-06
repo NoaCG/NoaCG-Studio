@@ -248,7 +248,11 @@ function next() {
 // adds nothing beyond the target's own call, as before: the board already wears that state's
 // look, including what only the route it really took painted (a bracket crowned after its final
 // round keeps the round's cursor).
-if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
+//
+// It reads the interpreter's own route helpers; an interpreter without them gets the plain snap.
+if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function'
+    && typeof noacgCanonicalPath === 'function' && typeof noacgStateOf === 'function'
+    && typeof noacgStepFor === 'function' && typeof noacgFireCalls === 'function') {
   var compSnap = noacgSnap;
   noacgSnap = function (assignments) {
     var routes = [];

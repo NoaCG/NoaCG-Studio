@@ -605,6 +605,15 @@ test('Back to a later step lands on its own look, not the look of the step it le
         locked: doc.querySelector('.matchup').classList.contains('matchup-locked'),
         winners: doc.querySelectorAll('.matchup-win').length,
       };
+      // Back from the lock to the pick, followed by the data write a dashboard's Back sends.
+      win.noacgSnap({ main: 'selected' });
+      win.update(JSON.stringify({ f5: 'A' }));
+      await settle();
+      out.mu01Back = {
+        state: win.noacgMachineState().groups.main,
+        locked: doc.querySelector('.matchup').classList.contains('matchup-locked'),
+        winners: doc.querySelectorAll('.matchup-win').length,
+      };
     }
     {
       // A snap that moves nothing (a host settling the state it is in) keeps what the route the
@@ -640,6 +649,7 @@ test('Back to a later step lands on its own look, not the look of the step it le
   expect((run.es01 as { groups: Record<string, string> }).groups).toMatchObject({ phase: 'live', pause: 'paused' });
   expect(run.es01Resumed, 'a snap of the pause alone brings back the live chip').toEqual({ live: true, paused: false, chipIsLive: true });
   expect(run.mu01, 'a recovery into the lock shows the pick under it').toEqual({ state: 'locked', locked: true, winners: 1 });
+  expect(run.mu01Back, 'Back from the lock keeps the pick and drops the lock').toEqual({ state: 'selected', locked: false, winners: 1 });
   expect(run.br01, 'a settle in place keeps the round under the crowned bracket').toEqual({ state: 'crowned', crowned: true, round: 'FINAL' });
 });
 
