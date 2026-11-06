@@ -27,7 +27,7 @@ const INITIATIVE_FIELDS: TypeField[] = [
       'THANE IRONHEART | DODGING',
     role: 'data',
   },
-  { key: 'spotlight', label: 'Current turn (1-based, 0 = none)', kind: 'number', value: '2', role: 'data' },
+  { key: 'spotlight', label: 'Current turn', kind: 'number', value: '2', role: 'data' },
   { key: 'crest', label: 'Encounter emblem', kind: 'image', value: '', role: 'data' },
 ];
 

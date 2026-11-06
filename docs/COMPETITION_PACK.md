@@ -143,9 +143,15 @@ Controls: **Reveal stats** · **Call MVP** · **Clear MVP**.
 spotlight --next--> [exit]
 ```
 
-`spotlight` carries the 1-based player number; `0` or an out-of-range number leaves the line-up
-level rather than dimming it with nothing lit.
-Controls: **Spotlight player** (payload `spotlight`) · **Whole line-up**.
+`spotlight` carries the 1-based player number and ships naming a row (1; Initiative Order starts
+on its current turn, 2), so the first press lights a row; a number past either end of the line-up
+lights the row at that end. Only a line-up with no rows stays level, rather than dimming with
+nothing lit. An update while a row is lit keeps the row the field names lit; an update to a level
+line-up lights nothing (#2200). On the production and hosted pages « Back from a lit row and
+⟲ Reset also level the line-up, by snapping it to its first step. **Show all rows** stays because
+the per-graphic control page, an exported control panel, OGraf hosts and Companion have no Back or
+Reset.
+Controls: **Focus row** (payload `spotlight`) · **Show all rows**.
 
 ### Standings / result table (`standings`)
 

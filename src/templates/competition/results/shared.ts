@@ -57,7 +57,9 @@ export const ROSTER_FIELDS: TypeField[] = [
     value: 'NAF | RIFLER\nELIGE | ENTRY\nTWISTX | SUPPORT\nSKULLZ | AWP\nJKS | IGL',
     role: 'data',
   },
-  { key: 'spotlight', label: 'Spotlit player (1-based, 0 = none)', kind: 'number', value: '0', role: 'data' },
+  // 1, not 0: the Focus row press lights a row the first time it is pressed (#2200). A number
+  // past either end of the line-up lights the row at that end (`spotlitRow`).
+  { key: 'spotlight', label: 'Spotlit player', kind: 'number', value: '1', role: 'data' },
   { key: 'crest', label: 'Team logo', kind: 'image', value: '', role: 'data' },
 ];
 
@@ -84,8 +86,8 @@ ${hiddenSource('f3', fields[3].value, 'The focused row (f3) — DATA. One "spotl
 
 /**
  * The roster runtime. compRebuild is DATA; applySpotlight / clearSpotlight are STATE EFFECTS
- * the machine names, so a spotlight is something the operator DID, not something a data write
- * did behind their back.
+ * the machine names, so a spotlight is something the operator DID: a data write never starts
+ * one. While a row is lit, the lit row follows the field.
  */
 export const ROSTER_RUNTIME_JS = `${ESCAPE_HTML_JS}
 
@@ -112,14 +114,20 @@ function compRebuild() {
           + '</div>';
   });
   host.innerHTML = html;
+  // The rebuild replaced the lit row too. An update while a row is spotlit (a new note, a new
+  // number) lights the row the field names now, without moving it again.
+  var root = document.querySelector('.${P}');
+  var lit = root && root.classList.contains('${P}-spotlit') ? spotlitRow() : null;
+  if (lit) lit.classList.add('${P}-row-on');
 }
 
-// rowAt(fieldId): the row a 1-based number field points at, or null when it names none.
-function rowAt(fieldId) {
-  var host = document.getElementById('${P}-rows');
-  var at = parseInt((document.getElementById(fieldId) || { textContent: '' }).textContent, 10);
-  if (!host || isNaN(at) || at < 1) return null;
-  return host.querySelector('[data-row="' + at + '"]');
+// spotlitRow(): the row the spotlight field names, held to the line-up - the first row below
+// it, the last above it - so Focus row never presses into nothing. Null only with no rows.
+function spotlitRow() {
+  var rows = document.querySelectorAll('.${P}-row');
+  if (rows.length === 0) return null;
+  var at = parseInt((document.getElementById('f3') || { textContent: '' }).textContent, 10);
+  return rows[Math.min(Math.max(isNaN(at) ? 1 : at, 1), rows.length) - 1];
 }
 
 // clearSpotlight(): the whole line-up back at one level.
@@ -134,8 +142,8 @@ function clearSpotlight() {
 // re-entering it moves the spotlight, which is why a ten-player roster needs no ten states.
 function applySpotlight() {
   clearSpotlight();
-  var row = rowAt('f3');
-  if (!row) return;                // 0, blank or out of range: the line-up stays level
+  var row = spotlitRow();
+  if (!row) return;                // no rows: the line-up stays level, nothing dimmed
   var root = document.querySelector('.${P}');
   if (root) root.classList.add('${P}-spotlit');
   row.classList.add('${P}-row-on');
