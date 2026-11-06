@@ -107,7 +107,7 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   const during = await roll();
   expect(during.mark, 'the roll taken is the roll running').toBe(1);
   expect(during.progress!, 'the roll was not restarted').toBeGreaterThan(before.progress!);
-  await expect(waitingLine).toHaveText('· Newer data shows on the next Take');
+  await expect(waitingLine).toHaveText('Newer data shows on the next Take');
   await expect(waitingLine).toHaveAttribute('title', 'On air: Live roll');
   // The on-air cue's editor says it too, beside Update (#1979), from the same answer.
   await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
@@ -241,7 +241,7 @@ test('cards on air keep the cards they took: a refresh waits for the next Take, 
   sheet.set([['Role', 'Name'], ['Camera', 'Jonas Berg'], ['', ''], ['Director', 'Alex Rivera'], ['', ''], ['Editor', 'Mia Holt']]);
   await expect.poll(waiting, { timeout: 20_000, message: 'the refresh reached the graphic' }).toBe(true);
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
-  await expect(page.getByTestId('source-waiting')).toHaveText('· Newer data shows on the next Take');
+  await expect(page.getByTestId('source-waiting')).toHaveText('Newer data shows on the next Take');
   await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
   // The prepared cue follows the refresh: PREVIEW shows the newer first card meanwhile.
   await expect(page.frameLocator('[data-testid="production-preview"] iframe').locator('.imported-design-credits-row')).toHaveText(['Camera', 'Jonas Berg']);

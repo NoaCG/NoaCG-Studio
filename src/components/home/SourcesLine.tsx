@@ -236,13 +236,16 @@ export function sourceTone(paused: boolean | undefined, status: SheetStatus | un
   return 'ok';
 }
 
-/** The indicator's reading: the worst tone, and how many sources share it (every source while
- *  all is well, so "Data ✓ 3" says how many are read). */
+/** The indicator's reading: the worst tone and its count. All well, every source ("Data ✓ 3");
+ *  paused, the paused ones; a problem, every source with a problem or stale. */
 export function dataSummary(tones: readonly DataTone[]): { tone: DataTone; count: number } | null {
   if (tones.length === 0) return null;
   const tone = tones.reduce((w, t) => (TONE_RANK[t] > TONE_RANK[w] ? t : w), 'ok' as DataTone);
   // A source still on its first read is not a problem: it counts with the healthy ones.
-  const count = tone === 'ok' || tone === 'waiting' ? tones.length : tones.filter((t) => t === tone).length;
+  const count =
+    tone === 'ok' || tone === 'waiting' ? tones.length
+    : tone === 'paused' ? tones.filter((t) => t === 'paused').length
+    : tones.filter((t) => TONE_RANK[t] >= TONE_RANK.warn).length;
   return { tone, count };
 }
 
@@ -276,7 +279,7 @@ export function DataIndicator({
     summary.tone === 'ok' ? `${total} data source${total === 1 ? '' : 's'}, all reading`
     : summary.tone === 'waiting' ? 'Reading the data sources…'
     : summary.tone === 'paused' ? `${summary.count} paused: values on air are frozen until Resume`
-    : summary.tone === 'bad' ? `${summary.count} stale: the last good values stay on air`
+    : summary.tone === 'bad' ? `${summary.count} with a problem or stale: the last good values stay on air`
     : `${summary.count} with a problem`;
   return (
     <span className="pd-ready-host pd-data-host" data-tone={summary.tone}>
@@ -305,29 +308,16 @@ export function DataIndicator({
   );
 }
 
-/** One source's held lists waiting, said in place: nothing while none waits. */
-function SourceWaiting({ show, source, onAir }: { show: Show; source: ShowSource; onAir: OnAir }) {
-  const waiting = listsWaiting(show, source, onAir);
-  if (waiting.length === 0) return null;
-  return (
-    <span data-testid="source-waiting" title={`On air: ${waiting.join(', ')}`}>
-      · <strong>Newer data shows on the next Take</strong>
-    </span>
-  );
-}
-
 /**
  * A held credits list on air with newer data waiting for the next Take: the one data fact that
  * asks the operator for a press, so it shows under the monitors, and only while it is true.
  */
 export function DataWaitingNote({ show, onAir }: { show: Show; onAir: OnAir }) {
-  const sources = (show.sources ?? []).filter(fillsFields);
-  if (!sources.some((s) => listsWaiting(show, s, onAir).length > 0)) return null;
+  const waiting = [...new Set((show.sources ?? []).filter(fillsFields).flatMap((s) => listsWaiting(show, s, onAir)))];
+  if (waiting.length === 0) return null;
   return (
-    <div className="pd-data-waiting hint" data-testid="data-waiting">
-      {sources.map((source) => (
-        <SourceWaiting key={source.id} show={show} source={source} onAir={onAir} />
-      ))}
+    <div className="pd-data-waiting hint" data-testid="source-waiting" title={`On air: ${waiting.join(', ')}`}>
+      <strong>Newer data shows on the next Take</strong>
     </div>
   );
 }
