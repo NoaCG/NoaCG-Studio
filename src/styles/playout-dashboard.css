@@ -180,9 +180,13 @@
 .pd-data-status--warn { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
 .pd-data-status--bad { color: #f87171; border-color: rgba(248, 113, 113, 0.55); }
 .pd-data-panel { width: min(520px, 94vw); }
-.pd-data-panel .pd-source-line { display: block; padding: 6px 0; font-size: 12.5px; line-height: 1.5; }
+/* A row: the source's words, Pause at its right edge, and a fix or a problem under them. */
+.pd-data-panel .pd-source-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; padding: 7px 0; font-size: 12.5px; line-height: 1.45; }
+.pd-data-panel .pd-source-line > * { grid-column: 1 / -1; }
+.pd-data-panel .pd-source-line > [data-testid='source-status'] { grid-column: 1; grid-row: 1; }
+.pd-data-panel .pd-source-line > [data-testid='source-pause'] { grid-column: 2; grid-row: 1; }
 .pd-data-panel .pd-source-line + .pd-source-line { border-top: 1px solid var(--border); }
-.pd-data-panel .pd-source-line button { height: 26px; padding: 0 10px; font-size: 12px; margin-left: 4px; }
+.pd-data-panel .pd-source-line button { justify-self: start; height: 26px; padding: 0 10px; font-size: 12px; }
 .pd-data-waiting { margin: 0 0 6px; font-size: 12px; }
 /* THE LAPTOP TIERS: the production's NAME must fit a two-word name ("Quiz Night") at 1366x768
    and 1280x720, the school laptops a class runs productions on. Measured 2026-09-27 on "Quiz
