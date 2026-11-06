@@ -233,16 +233,52 @@ function next() {
   return (typeof revealNextStep === 'function') ? revealNextStep() : null;
 }
 
-// A SNAP to the board's first step (« Back to it, ⟲ Reset) or off it is play()'s visual reset
-// without the entrance. A design's marks (a lit row, a shown result, a FINAL) are classes, which
-// the snap's reset of inline styles never touches, so they are cleared first, as play() clears
-// them (#2181). Any other snap is left exactly as it was: it paints nothing and starts no motion.
-if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
+// A SNAP (« Back, ⟲ Reset, a recovery) lands on the LOOK of the state it lands on, whatever state
+// it left. A design's marks (a lit row, a shown result, a celebration) are classes, which the
+// snap's reset of inline styles never touches, and the snap fires only the target state's own
+// call. So a snap that moves the board is painted from the state: its marks are cleared as play()
+// clears them, then the calls of the states on the way to the target run in order, and the snap
+// then fires the target's own (#2181, #2201). Back from a celebration lands on a result with no
+// celebration left on it, and a recovery straight into the celebration shows the result under it.
+// Only the marks of the calls on the way are kept: their motion is killed as it starts (left
+// running, a staggered tween writes its start values after the snap's reset of inline styles and
+// holds the result hidden). No call in the pack starts a timer.
+//
+// A snap that moves no group (a host settling the state it is already in, OGraf's skipAnimation)
+// adds nothing beyond the target's own call, as before: the board already wears that state's
+// look, including what only the route it really took painted (a bracket crowned after its final
+// round keeps the round's cursor). Except at the first step or off: ⟲ Reset there still clears
+// what a late call left, which is what an operator presses it for.
+//
+// It reads the interpreter's own route helpers; an interpreter without them gets the plain snap.
+if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function'
+    && typeof noacgCanonicalPath === 'function' && typeof noacgStateOf === 'function'
+    && typeof noacgStepFor === 'function' && typeof noacgFireCalls === 'function') {
   var compSnap = noacgSnap;
   noacgSnap = function (assignments) {
+    var routes = [];
     var main = noacgMachine.groups[0];
-    var to = assignments ? assignments[main.id] : main.initial;
-    if (to === main.initial || to === (main.defaultPath || [])[0]) compClearMarks();
+    var moves = false;
+    var mainTo = main.initial;
+    for (var g = 0; g < noacgMachine.groups.length; g++) {
+      var group = noacgMachine.groups[g];
+      // The state the snap will land this group on, chosen as noacgSnap chooses it.
+      var to = assignments === null || assignments === undefined
+        ? group.initial
+        : (assignments[group.id] !== undefined ? assignments[group.id] : noacgCurrent[group.id]);
+      if (!noacgStateOf(group, to)) to = group.initial;
+      if (to !== noacgCurrent[group.id]) moves = true;
+      if (group === main) mainTo = to;
+      routes.push({ group: group, route: noacgCanonicalPath(group, to) || [] });
+    }
+    if (moves || mainTo === main.initial || mainTo === (main.defaultPath || [])[0]) {
+      compClearMarks();
+      gsap.context(function () {
+        for (var r = 0; r < routes.length; r++) {
+          for (var s = 0; s + 1 < routes[r].route.length; s++) noacgFireCalls(noacgStepFor(routes[r].group, routes[r].route[s]));
+        }
+      }).kill();
+    }
     return compSnap.apply(this, arguments);
   };
 }
