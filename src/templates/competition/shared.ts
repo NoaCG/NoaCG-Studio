@@ -233,16 +233,32 @@ function next() {
   return (typeof revealNextStep === 'function') ? revealNextStep() : null;
 }
 
-// A SNAP to the board's first step (« Back to it, ⟲ Reset) or off it is play()'s visual reset
-// without the entrance. A design's marks (a lit row, a shown result, a FINAL) are classes, which
-// the snap's reset of inline styles never touches, so they are cleared first, as play() clears
-// them (#2181). Any other snap is left exactly as it was: it paints nothing and starts no motion.
+// A SNAP (« Back, ⟲ Reset, a recovery) lands on the LOOK of the state it lands on, whatever state
+// it left. A design's marks (a lit row, a shown result, a celebration) are classes, which the
+// snap's reset of inline styles never touches, and the snap fires only the target state's own
+// call. So the board is painted from the state: its marks are cleared as play() clears them,
+// then the calls of the states on the way to the target run in order, and the snap then fires
+// the target's own (#2181, #2201). Back from a celebration lands on a result with no celebration
+// left on it, and a recovery straight into the celebration shows the result under it. Only the
+// marks of the calls on the way are kept: their motion is killed as it starts, and the snap
+// clears the inline styles it left. (The snap's own killTweensOf does not reach a staggered
+// tween, which would otherwise play the result in again after the snap.) No call in the pack
+// starts a timer.
 if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function') {
   var compSnap = noacgSnap;
   noacgSnap = function (assignments) {
-    var main = noacgMachine.groups[0];
-    var to = assignments ? assignments[main.id] : main.initial;
-    if (to === main.initial || to === (main.defaultPath || [])[0]) compClearMarks();
+    compClearMarks();
+    gsap.context(function () {
+      for (var g = 0; g < noacgMachine.groups.length; g++) {
+        var group = noacgMachine.groups[g];
+        // The state the snap will land this group on, chosen as noacgSnap chooses it.
+        var to = assignments === null || assignments === undefined
+          ? group.initial
+          : (assignments[group.id] !== undefined ? assignments[group.id] : noacgCurrent[group.id]);
+        var route = noacgStateOf(group, to) ? noacgCanonicalPath(group, to) || [] : [];
+        for (var s = 0; s + 1 < route.length; s++) noacgFireCalls(noacgStepFor(group, route[s]));
+      }
+    }).kill();
     return compSnap.apply(this, arguments);
   };
 }

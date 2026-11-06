@@ -490,6 +490,90 @@ test('Reset lands a winner card on its first step with nothing its result painte
   expect(run.reset, 'Reset shows the card before its result').toEqual({ state: 'enter', result: false, celebrating: false });
 });
 
+test('Back to a later step lands on its own look, not the look of the step it left (#2201)', async ({ page }) => {
+  // « Back snaps to the state before the current one, and a snap fires only the target's own call.
+  // The reveal cards' moments are classes, so the board is painted from the state it lands on:
+  // nothing the left state added stays, and what the states before the target painted is there.
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const CASES = [
+      // design, root, the step's mark and what it shows, the branch state and its mark, its
+      // event and its way back
+      ['wn01', 'reveal', 'reveal-result-shown', '.reveal-subject', 'celebrating', 'reveal-celebrating', 'celebrate', 'settle'],
+      ['aw01', 'reveal', 'reveal-open', '.reveal-subject', 'celebrating', 'reveal-celebrating', 'celebrate', 'settle'],
+      ['pc01', 'matchup', 'matchup-stats-shown', '.matchup-stat', 'mvp', 'matchup-mvp', 'mvp', 'clearMvp'],
+    ];
+    const out = {};
+    for (const [id, root, step, payload, branchState, branch, mark, unmark] of CASES) {
+      const { win, doc } = await boot(id);
+      // The step's mark, and what the frame shows: a class alone would pass with the result held
+      // back by a tween still playing it in.
+      const look = () => {
+        const cls = doc.querySelector('.' + root).classList;
+        const shown = getComputedStyle(doc.querySelector(payload)).opacity === '1';
+        return { state: win.noacgMachineState().groups.main, step: cls.contains(step) && shown, branch: cls.contains(branch) };
+      };
+      const stepState = win.noacgMachine.groups[0].defaultPath[1];
+      win.play();
+      await settle();
+      win.next();
+      await settle();
+      win.noacgDispatch(mark);
+      await settle();
+      // Back from the branch to the step.
+      win.noacgSnap({ main: stepState });
+      await settle();
+      const back = look();
+      // A recovery straight into the branch, from a card that has not run its step.
+      win.play();
+      await settle();
+      win.noacgSnap({ main: branchState });
+      await settle();
+      const recovered = look();
+      // Back from the branch's way out to the branch.
+      win.noacgDispatch(unmark);
+      await settle();
+      const unmarked = look();
+      win.noacgSnap({ main: branchState });
+      await settle();
+      out[id] = { stepState, branchState, back, recovered, unmarked, backToBranch: look() };
+    }
+    {
+      // The nominee card: Back from the revealed winner to the suspense hold.
+      const { win, doc } = await boot('nm01');
+      const look = () => {
+        const cls = doc.querySelector('.reveal').classList;
+        return {
+          state: win.noacgMachineState().groups.main,
+          suspense: cls.contains('reveal-suspense'),
+          revealed: cls.contains('reveal-revealed'),
+          won: doc.querySelectorAll('.reveal-won').length,
+        };
+      };
+      win.play();
+      await settle();
+      win.noacgDispatch('suspense');
+      await settle();
+      win.noacgDispatch('reveal');
+      await settle();
+      win.noacgSnap({ main: 'suspense' });
+      await settle();
+      out.nm01 = look();
+    }
+    return out;
+  })()`) as Record<string, Record<string, unknown>>;
+
+  for (const id of ['wn01', 'aw01', 'pc01']) {
+    const { stepState, branchState } = run[id] as { stepState: string; branchState: string };
+    expect(run[id].back, `${id}: Back to the step leaves no branch mark`).toEqual({ state: stepState, step: true, branch: false });
+    expect(run[id].recovered, `${id}: a snap into the branch shows the step under it`).toEqual({ state: branchState, step: true, branch: true });
+    expect((run[id].unmarked as Record<string, unknown>).branch, `${id}: the branch's way back clears it`).toBe(false);
+    expect(run[id].backToBranch, `${id}: Back to the branch paints it again`).toEqual({ state: branchState, step: true, branch: true });
+  }
+  expect(run.nm01, 'Back from the winner to the hold shows the hold').toEqual({ state: 'suspense', suspense: true, revealed: false, won: 0 });
+});
+
 test('a board with no data, and an image field with no file, degrade quietly', async ({ page }) => {
   await toApp(page);
   const errors: string[] = [];
