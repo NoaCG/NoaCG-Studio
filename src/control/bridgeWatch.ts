@@ -112,6 +112,9 @@ export interface LoadedOutput {
   outageAt?: number;
   /** Reloads tried since that outage, by whichever tab led: three in all, not three per tab. */
   tries?: number;
+  /** When the reading that found the output back after the outage was sent: an empty reading sent
+   *  before it is from before the recovery, and never reads as a CLEAR. */
+  backAt?: number;
 }
 
 /** What the page kept when a slot read went out, and when it went out. */
@@ -281,6 +284,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // reading go out first.
     if (m && !((m.outageAt ?? 0) > oursAt)) keep({ ...m, outageAt: Math.max(io.now(), oursAt + 1) });
   };
+  const sentBeforeRecovery = (m: LoadedOutput | null, before: Before) => m?.backAt !== undefined && before.issued < m.backAt;
   /** An outage since the slot last held ours. The browser's note decides while storage holds the
    *  Load: a tab that saw the outage but not the recovery another tab saw must not keep its own
    *  word on it, or a later CLEAR would read as a restart. This tab's own word only while storage
@@ -401,7 +405,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       seenAt = m?.at ?? null;
       // Back on its slot after the outage noted for it: the browser's recovery is over. Only a read
       // sent after that outage says so; one sent before it is from before the restart.
-      if (m && (m.outageAt !== undefined ? m.outageAt < before.issued : m.tries)) keep({ target: m.target, at: m.at });
+      if (m && (m.outageAt !== undefined ? m.outageAt < before.issued : m.tries)) keep({ target: m.target, at: m.at, backAt: before.issued });
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return false;
     }
@@ -422,14 +426,17 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // or another browser's later Load would arm it. Not a Load still fresh, one in a recovery another
     // tab is making, nor a newer one than the read knew.
     const kept = memory();
-    if (lost && kept && !outage(kept) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
+    if (lost && kept && !outage(kept) && !sentBeforeRecovery(kept, before) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
     followLead(target);
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
     if (!lost || !armedFor(target) || reloads.inFlight) return;
     // Emptied while everything answered: someone took it off on purpose, and a later outage must
     // not bring it back.
-    if (!outage(memory())) {
+    const now = memory();
+    if (!outage(now)) {
+      // A reading sent before another tab saw the output back says nothing about the slot now.
+      if (sentBeforeRecovery(now, before)) return;
       keep(null);
       followLead(target);
       return;
@@ -438,7 +445,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (!lead?.held()) return;
     // The tries any tab of the browser made since the outage: a tab taking the lead over goes on
     // from there.
-    const tries = Math.max(reloads.tries, memory()?.tries ?? 0);
+    const tries = memory()?.tries ?? 0;
     if (tries >= RELOAD_AFTER_READS.length) {
       // Out of tries: said once, and Load is the operator's.
       if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail: reloads.detail } });
@@ -480,7 +487,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (result) {
       run.tries += 1;
       const m = memory();
-      if (m) keep({ ...m, tries: Math.max(run.tries, (m.tries ?? 0) + 1) });
+      if (m) keep({ ...m, tries: (m.tries ?? 0) + 1 });
     }
     if (!alive) return;
     if (handOver) handLeadOver();

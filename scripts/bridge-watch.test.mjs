@@ -46,6 +46,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
   /** Readings held by the test: `hold` makes the next `/state` wait until the test answers it. */
   const held = [];
   let hold = false;
+  let asSent = false;
   const state = { settings: { ...settings } };
   const lists = library ?? { media: [{ name: 'CLIP', kind: 'movie', frames: 250, fps: 25 }, { name: 'OLD', kind: 'movie', frames: 100, fps: 25 }] };
   const io = {
@@ -63,10 +64,12 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     },
     readState: (s, channel) => {
       calls.push(`state ${channel}`);
-      // A held reading answers with the slot as it is when the test lets it go.
+      // A held reading answers with the slot as it is when the test lets it go, or, held with
+      // `asSent`, as it was when it went out (a slow Bridge).
       const reply = () => ({ result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [server.layer] : [] } });
       if (!hold) return Promise.resolve(reply());
-      return new Promise((resolve) => held.push(() => resolve(reply())));
+      const sent = reply();
+      return new Promise((resolve) => held.push(() => resolve(asSent ? sent : reply())));
     },
     listLibrary: (s, kind) => {
       calls.push(`list ${kind}`);
@@ -189,8 +192,9 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       Object.assign(inputs, change);
       watch.update({ ...inputs });
     },
-    setHold: (on) => {
+    setHold: (on, { asSent: sentAnswers = false } = {}) => {
       hold = on;
+      asSent = on && sentAnswers;
     },
     setSlot: (s) => {
       server.layer = s;
@@ -1176,4 +1180,65 @@ test('an outage seen in the same millisecond as the last reading of ours still c
   await t.readSlot();
   await restartServer(t);
   assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again, not taken for a CLEAR');
+});
+
+test('a slow empty reading sent before another tab saw the output back never forgets the Load', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  // B's reading goes out while the slot is still empty and comes back late, as it was when sent.
+  b.setHold(true, { asSent: true });
+  b.answer(OK);
+  await settle();
+  // Meanwhile A reloads and sees the output back.
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1);
+  assert.deepEqual(a.session.bridge.get().outputSlot, { holds: 'ours' });
+  for (const answer of b.held.splice(0)) answer();
+  await settle();
+  assert.ok(browser.loaded.get('show-1'), 'the Load is kept');
+  // So the next restart is recovered too.
+  b.setHold(false);
+  await restartServer(a);
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 2);
+});
+
+test('a tab that missed another tab\'s recovery starts the next outage with three tries', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  const refused = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  a.reloading.answer = refused;
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  for (const t of [a, b]) t.answer(OK);
+  await settle();
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 2, 'A: two refused tries');
+  // A goes to the background; B leads and brings the output back. A reads nothing meanwhile.
+  a.hide();
+  for (let n = 0; n < 6 && !b.calls.includes('reload'); n += 1) await b.readSlot();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 1);
+  await b.readSlot();
+  assert.equal(browser.loaded.get('show-1')?.tries, undefined, 'recovery over');
+  // B goes to the background, A leads again; the next outage gets its own three tries, the first at once.
+  b.hide();
+  a.reloading.answer = refused;
+  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 3, 'the first try at once');
+  for (let n = 0; n < 10; n += 1) await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 5, 'three for this outage in all');
 });

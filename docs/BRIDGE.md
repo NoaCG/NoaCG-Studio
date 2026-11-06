@@ -314,11 +314,11 @@ server's own rule.
 
 A restarted CasparCG server keeps nothing: every layer is empty when it answers again. The
 production page puts its own output back by itself (issue #1657, owner 2026-10-24). When an output
-this browser loaded, and the page saw on its slot, reads empty after the server or the Bridge stopped answering,
-the page loads the output URL again onto the same channel and layer with no press, as a Bridge
-restart already recovers. While it reloads, the slot row reads "Reloading…" (amber). What is on air
-afterwards follows the command log, as for any output loaded fresh. The decision is
-`src/control/bridgeWatch.ts`; the page only sends the load.
+this browser loaded, and the page saw on its slot, reads empty after the server or the Bridge
+stopped answering, the page loads the output URL again onto the same channel and layer with no
+press, as a Bridge restart already recovers. While it reloads, the slot row reads "Reloading…"
+(amber). What is on air afterwards follows the command log, as for any output loaded fresh. The
+decision is `src/control/bridgeWatch.ts`; the page only sends the load.
 
 - **It never replaces anything.** A slot another production or client took still asks before Load
   replaces it, and a clip, still or other page another client played there is never covered. The
@@ -326,32 +326,33 @@ afterwards follows the command log, as for any output loaded fresh. The decision
   settings still name that slot, and no Load or Unload landed meanwhile.
 - **Only this browser's output, on its own slot.** Each Load is kept per production in this
   browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load still
-  brings it back, once it has seen the output on the slot again. An Unload in any tab of the
-  browser counts for all of them, and so does an outage any of its tabs saw, so a background tab
-  that missed the restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs
-  that have seen the output on the slot, one holds a browser lock and alone reloads; the three
-  tries are the browser's, not each tab's. A tab going into the background or closing hands the
-  lock to the next tab waiting for it; a tab with a reload already sent, or a page left while one
-  is out, finishes it first. The lock goes to the tab that asked first, so a tab that went into the
-  background before another tab opened can keep it, and the reload then waits for that tab's
-  slowed polls. Once a tab of the browser has seen the output back, a tab that saw the
-  outage but not the recovery no longer counts it, so a later `CLEAR` stays cleared. If the browser's storage refuses the write (a full or blocked storage), the page
-  still brings back its own Load while it stays open, as before. Not an output only another browser loaded, not a
-  slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
-  emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left
-  alone, and gives the output up, so a later outage does not bring it back.
-- **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and
-  60 s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason
-  under it, the status says "Not on 1-20", and Load is the operator's.
+  brings it back, once it has seen the output on the slot again. An Unload in any tab of the browser
+  counts for all of them, and so does an outage any of its tabs saw, so a background tab that missed
+  the restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs that have seen
+  the output on the slot, one holds a browser lock and alone reloads; the three tries are the
+  browser's, not each tab's. A tab going into the background or closing hands the lock to the next
+  tab waiting for it; a tab with a reload already sent, or a page left while one is out, finishes it
+  first. The lock goes to the tab that asked first, so a tab that went into the background before
+  another tab opened can keep it, and the reload then waits for that tab's slowed polls. Once a tab
+  of the browser has seen the output back, a tab that saw the outage but not the recovery no longer
+  counts it, so a later `CLEAR` stays cleared. If the browser's storage refuses the write (a full or
+  blocked storage), the page still brings back its own Load while it stays open, as before. Not an
+  output only another browser loaded, not a slot the settings moved to, and not after Unload,
+  unpublishing or switching CasparCG off. A slot emptied while everything kept answering (Unload in
+  another browser, a client's `CLEAR`) is left alone, and gives the output up, so a later outage
+  does not bring it back.
+- **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and 60
+  s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason under
+  it, the status says "Not on 1-20", and Load is the operator's.
 - **Limits.** A page opened while CasparCG is down, onto a slot it has not seen loaded, needs Load
   once the server answers. A Load this browser made is forgotten only when a page of it sees the
-  slot given up, so if another browser later loads the same production there, this one may reload
-  it too after a restart, as when both pressed Load. On a plain `http://` address the browser has
-  no lock, and every tab reloads as before. An Unload pressed in one tab while another tab's reload
-  is already on its way can lose to it; look at the slot row and press Unload again. A restart so quick that no poll saw the server gone (the status
-  is asked every few seconds, less often in a background tab, which the browser slows) reads as a
-  `CLEAR`, and Load is needed as before. Two browsers that each pressed Load both reload, which
-  loads the same URL twice, at most a flicker.
+  slot given up, so if another browser later loads the same production there, this one may reload it
+  too after a restart, as when both pressed Load. On a plain `http://` address the browser has no
+  lock, and every tab reloads as before. An Unload pressed in one tab while another tab's reload is
+  already on its way can lose to it; look at the slot row and press Unload again. A restart so quick
+  that no poll saw the server gone (the status is asked every few seconds, less often in a
+  background tab, which the browser slows) reads as a `CLEAR`, and Load is needed as before. Two
+  browsers that each pressed Load both reload, which loads the same URL twice, at most a flicker.
 
 ### 3a. The playout protocol (v2)
 
