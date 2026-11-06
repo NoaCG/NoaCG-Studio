@@ -1320,7 +1320,11 @@ test('two tabs of one browser on the production: after a CasparCG restart one of
   for (const panel of tabs) await panel.getByTestId('playout-check-now').click();
   await expect.poll(() => bridge.actions.length).toBe(2);
   expect(bridge.actions[1]).toMatchObject(LOAD_2_30);
-  for (const panel of tabs) await expect(panel.getByTestId('caspar-slot')).toContainText('Loading…');
+  // The tab that did not reload reads the slot at its next 10 s reading; Check again reads it now.
+  for (const panel of tabs) {
+    await panel.getByTestId('playout-check-now').click();
+    await expect(panel.getByTestId('caspar-slot')).toContainText('Loading…');
+  }
   expect(bridge.actions).toHaveLength(2);
   await second.close();
 });
