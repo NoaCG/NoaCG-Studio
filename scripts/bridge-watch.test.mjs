@@ -25,6 +25,11 @@ const vt = (id, extra = {}) => ({ id, adapter: 'casparcg', kind: 'media', name: 
 const cue = (id, sourceId) => ({ id, sourceId, source: 'playout', label: id, values: {} });
 const ourPage = { layer: 20, producer: 'html', file: 'https://noacg.studio/output?production=abc', paused: false, loop: false };
 
+/** One browser's storage (model/readyMemory.ts `casparLoaded`) and its Web Locks, which its tabs share. */
+function newBrowser() {
+  return { loaded: new Map(), locks: new Set() };
+}
+
 /** Every watch a test started, stopped after it so no real timer keeps Node running. */
 const started = [];
 afterEach(() => {
@@ -32,7 +37,7 @@ afterEach(() => {
 });
 
 /** A watch on a fresh session, with every request recorded in order. */
-function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library } = {}) {
+function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage } } = {}) {
   const calls = [];
   const subs = [];
   const everys = [];
@@ -40,7 +45,6 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
   /** Readings held by the test: `hold` makes the next `/state` wait until the test answers it. */
   const held = [];
   let hold = false;
-  let slotLayer = ourPage;
   const state = { settings: { ...settings } };
   const lists = library ?? { media: [{ name: 'CLIP', kind: 'movie', frames: 250, fps: 25 }, { name: 'OLD', kind: 'movie', frames: 100, fps: 25 }] };
   const io = {
@@ -59,7 +63,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
     readState: (s, channel) => {
       calls.push(`state ${channel}`);
       // A held reading answers with the slot as it is when the test lets it go.
-      const reply = () => ({ result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [slotLayer] : [] } });
+      const reply = () => ({ result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [server.layer] : [] } });
       if (!hold) return Promise.resolve(reply());
       return new Promise((resolve) => held.push(() => resolve(reply())));
     },
@@ -72,6 +76,20 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       return Promise.resolve({ keeper: 'bridge', changed: false });
     },
     rememberOutput: (showId, target) => calls.push(`remember ${showId} ${target}`),
+    loadedOutput: (showId) => browser.loaded.get(showId) ?? null,
+    keepLoaded: (showId, target) => {
+      if (target === null) browser.loaded.delete(showId);
+      else browser.loaded.set(showId, target);
+    },
+    exclusive: async (key, run) => {
+      if (browser.locks.has(key)) return null;
+      browser.locks.add(key);
+      try {
+        return await run();
+      } finally {
+        browser.locks.delete(key);
+      }
+    },
     every: (ms, run) => {
       const e = { ms, run, live: true };
       everys.push(e);
@@ -111,7 +129,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       if (!result) return null;
       watch.slotActed();
       if (result.state === 'ok') {
-        if (reloading.refill) slotLayer = ourPage;
+        if (reloading.refill) server.layer = ourPage;
         watch.slotOwned(true, inputs.casparTarget);
       }
       // setSlotRev: the page reads the slot again at its next render, after the load returned.
@@ -153,7 +171,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       hold = on;
     },
     setSlot: (s) => {
-      slotLayer = s;
+      server.layer = s;
     },
     live: () => ({
       subs: subs.filter((s) => s.live).length,
@@ -464,8 +482,8 @@ test('a disposed session takes no write from a watch still running', async () =>
 // ── A LOST OUTPUT COMES BACK BY ITSELF (issue #1657) ────────────────────────────────────────────
 
 /** A published page that loaded its output and saw it on the slot. */
-async function loadedRig() {
-  const t = rig({ items: [] });
+async function loadedRig(opts = {}) {
+  const t = rig({ items: [], ...opts });
   t.watch.slotOwned(true, t.inputs.casparTarget);
   t.update();
   t.answer(OK);
@@ -674,4 +692,117 @@ test('a reload is for the slot it was loaded on, and for a page still open', asy
       assert.ok(!t.take().includes('reload'), `${cut}: cleared on purpose afterwards`);
     }
   }
+});
+
+// ── WHAT THIS BROWSER LOADED OUTLIVES THE PAGE (issue #2245) ────────────────────────────────────
+
+const EMPTY = { layer: 20, producer: 'empty', paused: false, loop: false };
+
+/** The same browser opens the production page again (a reload, or back from Home): a new watch on
+ *  the same storage, which has seen the slot once. */
+async function reopened(browser, server, opts = {}) {
+  const t = rig({ items: [], browser, server, ...opts });
+  t.update();
+  t.answer(OK);
+  await settle();
+  t.take();
+  return t;
+}
+
+test('a page reloaded after the Load still puts the output back after a server restart, once', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const first = await loadedRig({ browser, server });
+  assert.equal(browser.loaded.get('show-1'), first.inputs.casparTarget, 'the Load is kept in this browser');
+  first.watch.stop();
+  const t = await reopened(browser, server);
+  await restartServer(t);
+  assert.deepEqual(t.take().filter((c) => c === 'reload' || c.startsWith('state')), ['state 1', 'state 1', 'reload', 'state 1'], 'read empty, read once more, loaded once, read again');
+  assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
+  await t.readSlot();
+  assert.ok(!t.take().includes('reload'), 'ours again: no more loads');
+});
+
+test('after a page reload, a server that keeps failing still gets exactly three tries, then red', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const t = await reopened(browser, server);
+  t.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  await restartServer(t);
+  for (let n = 0; n < 30; n += 1) await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 3);
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+});
+
+test('what gives the slot up is forgotten in this browser too, so a reloaded page never undoes it', async () => {
+  const gaveUp = async (name, act) => {
+    const browser = newBrowser();
+    const server = { layer: ourPage };
+    const t = await loadedRig({ browser, server });
+    await act(t, server);
+    assert.equal(browser.loaded.get('show-1'), undefined, `${name}: forgotten`);
+    t.watch.stop();
+    const again = await reopened(browser, server);
+    server.layer = ourPage;
+    await again.readSlot();
+    await restartServer(again);
+    assert.ok(!again.calls.includes('reload'), `${name}: a reloaded page does not bring it back`);
+  };
+  await gaveUp('Unload here', async (t) => t.watch.slotOwned(false, t.inputs.casparTarget));
+  await gaveUp('another client\'s CLEAR while the server answers', async (t, server) => {
+    server.layer = EMPTY;
+    await t.readSlot();
+  });
+  await gaveUp('another production', async (t, server) => {
+    server.layer = { ...ourPage, file: 'https://noacg.studio/output?production=xyz' };
+    await t.readSlot();
+  });
+  await gaveUp('unpublished', async (t) => {
+    t.update({ hostedSlug: null });
+    await settle();
+  });
+});
+
+test('a reloaded page that has not seen the output on its slot yet loads nothing', async () => {
+  // Cleared by another client while this browser had no page open, then the page opens onto an
+  // empty slot: it arms only once it has seen the output there, as after a Load, so a later outage
+  // brings nothing back.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  server.layer = EMPTY;
+  const t = await reopened(browser, server);
+  await t.readSlot();
+  await restartServer(t);
+  assert.ok(!t.calls.includes('reload'));
+});
+
+test('two tabs of one browser: only one reloads the slot, one load in all', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  let release;
+  a.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve({ state: 'ok', detail: '' });
+  });
+  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  b.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'tab A loads');
+  // Tab B comes back while A's load is out: it sends nothing and is not a try.
+  b.answer(OK);
+  await settle();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'tab B waits');
+  assert.equal(b.session.bridge.get().slotReload, null);
+  release();
+  await settle();
+  await b.readSlot();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'tab B finds it loaded');
+  assert.deepEqual(b.session.bridge.get().outputSlot, { holds: 'ours' });
 });

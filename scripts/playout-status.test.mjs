@@ -25,6 +25,14 @@ test('CasparCG activity survives readiness-memory writes and only applies to its
     assert.equal(loadReadyMemory('b').casparOutput, undefined);
     saveReadyMemory('a', { ...loadReadyMemory('a'), casparOutput: undefined });
     assert.equal(loadReadyMemory('a').casparOutput, undefined);
+    // Where this browser loaded the output (#2245) is its own fact, kept beside the rest and per slot.
+    saveReadyMemory('a', { ...loadReadyMemory('a'), casparLoaded: target });
+    saveReadyMemory('a', { ...loadReadyMemory('a'), outputs: [{ id: 'obs', name: 'OBS', seen: 2 }] });
+    assert.equal(loadReadyMemory('a').casparLoaded, target);
+    assert.equal(loadReadyMemory('a').casparOutput, undefined, 'loaded here is not seen here');
+    assert.equal(loadReadyMemory('b').casparLoaded, undefined);
+    saveReadyMemory('a', { ...loadReadyMemory('a'), casparLoaded: undefined });
+    assert.equal(loadReadyMemory('a').casparLoaded, undefined);
     stored.set('noacg-ready-v1-a', JSON.stringify({ v: 2, casparOutput: target }));
     saveReadyMemory('a', { outputs: [], stamp: null });
     assert.equal(JSON.parse(stored.get('noacg-ready-v1-a')).v, 2, 'future memory remains read-only');

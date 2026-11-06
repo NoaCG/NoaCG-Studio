@@ -1234,7 +1234,7 @@ test('with a Bridge that reads the slot, Load and Unload each show in the slot r
   expect(bridge.actions[1]).toMatchObject({ verb: 'out', slot: { channel: 2, layer: 30 } });
 });
 
-test('after a CasparCG restart the output this page loaded goes back on its slot by itself (#1657)', async ({ page }) => {
+test('after a CasparCG restart the output this browser loaded goes back on its slot by itself, also after a page reload (#1657, #2245)', async ({ page }) => {
   await seedSettings(page, { channel: 2, layer: 30 });
   const bridge = await slotBridge(page);
   await publishedProduction(page);
@@ -1267,8 +1267,25 @@ test('after a CasparCG restart the output this page loaded goes back on its slot
   expect(bridge.actions[2]).toMatchObject(LOAD_2_30);
   await expect(slot).toContainText('Loading…');
   await expect(page.getByTestId('production-note').filter({ hasText: 'failed' })).toHaveCount(0);
-  // Unloaded on purpose, a slot emptied by a restart stays empty.
+  // THE PAGE RELOADED SINCE THE LOAD (#2245): this browser still knows it loaded the output, so the
+  // next restart brings it back with no press too.
+  await page.reload();
+  await page.getByTestId('production-status').click();
+  await expect(slot).toContainText('Loading…');
+  bridge.missing = true;
+  await panel.getByTestId('playout-check-now').click();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'bad');
+  bridge.showPage('2-30', null);
+  bridge.missing = false;
+  await panel.getByTestId('playout-check-now').click();
+  await expect.poll(() => bridge.actions.length).toBe(4);
+  expect(bridge.actions[3]).toMatchObject(LOAD_2_30);
+  await expect(slot).toContainText('Loading…');
+  // Unloaded on purpose, a slot emptied by a restart stays empty, also after a page reload.
   await slot.getByTestId('caspar-take-off-air').click();
+  await expect(slot).toContainText('Empty');
+  await page.reload();
+  await page.getByTestId('production-status').click();
   await expect(slot).toContainText('Empty');
   bridge.missing = true;
   await panel.getByTestId('playout-check-now').click();
@@ -1278,7 +1295,7 @@ test('after a CasparCG restart the output this page loaded goes back on its slot
   await panel.getByTestId('playout-check-now').click();
   await expect.poll(() => bridge.stateCalls).toBeGreaterThan(after);
   await expect(slot).toContainText('Empty');
-  expect(bridge.actions.map((a) => a.verb)).toEqual(['take', 'take', 'take', 'out']);
+  expect(bridge.actions.map((a) => a.verb)).toEqual(['take', 'take', 'take', 'take', 'out']);
 });
 
 test('Load asks before replacing another production on the slot, and Cancel sends nothing', async ({ page }) => {

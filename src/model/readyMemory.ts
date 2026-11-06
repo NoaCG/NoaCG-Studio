@@ -32,6 +32,11 @@ export interface ReadyMemory {
   stamp: RememberedStamp | null;
   /** Successful Put on air, per server/slot. Take off clears it; a disconnect never does. */
   casparOutput?: string;
+  /** Where this browser loaded the output (Put on air) and has not seen it unloaded, cleared or
+   *  taken since, per server/slot: the slot a CasparCG restart puts it back on, also after the page
+   *  was reloaded (control/bridgeWatch.ts, #2245). Unlike `casparOutput`, never set by only seeing
+   *  it there. */
+  casparLoaded?: string;
 }
 
 const EMPTY: ReadyMemory = { outputs: [], stamp: null };
@@ -66,9 +71,14 @@ export function loadReadyMemory(productionId: string): ReadyMemory {
   try {
     const raw = localStorage.getItem(keyFor(productionId));
     if (!raw) return EMPTY;
-    const parsed = JSON.parse(raw) as { v?: unknown; outputs?: unknown; stamp?: unknown; casparOutput?: unknown } | null;
+    const parsed = JSON.parse(raw) as { v?: unknown; outputs?: unknown; stamp?: unknown; casparOutput?: unknown; casparLoaded?: unknown } | null;
     if (!parsed || parsed.v !== READY_MEMORY_VERSION) return EMPTY;
-    return { outputs: readOutputs(parsed.outputs), stamp: readStamp(parsed.stamp), ...(typeof parsed.casparOutput === 'string' ? { casparOutput: parsed.casparOutput.slice(0, 300) } : {}) };
+    return {
+      outputs: readOutputs(parsed.outputs),
+      stamp: readStamp(parsed.stamp),
+      ...(typeof parsed.casparOutput === 'string' ? { casparOutput: parsed.casparOutput.slice(0, 300) } : {}),
+      ...(typeof parsed.casparLoaded === 'string' ? { casparLoaded: parsed.casparLoaded.slice(0, 300) } : {}),
+    };
   } catch {
     return EMPTY;
   }
@@ -85,7 +95,7 @@ export function saveReadyMemory(productionId: string, memory: ReadyMemory): void
     localStorage.setItem(
       keyFor(productionId),
       // The newest are kept: the list grows at its end (control/readiness.ts rememberOutputs).
-      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp, casparOutput: memory.casparOutput }),
+      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp, casparOutput: memory.casparOutput, casparLoaded: memory.casparLoaded }),
     );
   } catch {
     // Nowhere to keep it: remembered for as long as the page is open.

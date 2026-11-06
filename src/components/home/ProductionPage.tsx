@@ -296,6 +296,12 @@ const BRIDGE_IO: BridgeWatchIo = {
   listLibrary,
   syncStudio,
   rememberOutput: (showId, target) => saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: target }),
+  loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
+  keepLoaded: (showId, target) => {
+    if ((loadReadyMemory(showId).casparLoaded ?? null) !== target) saveReadyMemory(showId, { ...loadReadyMemory(showId), casparLoaded: target ?? undefined });
+  },
+  // One tab of this browser at a time; a browser without Web Locks runs it (as before #2245).
+  exclusive: async (key, run) => (navigator.locks ? await navigator.locks.request(key, { ifAvailable: true }, (lock) => (lock ? run() : null)) : run()),
   every: (ms, run) => {
     const timer = setInterval(run, ms);
     return () => clearInterval(timer);
