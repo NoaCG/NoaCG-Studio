@@ -27,8 +27,8 @@ test('CasparCG activity survives readiness-memory writes and only applies to its
     assert.equal(loadReadyMemory('a').casparOutput, undefined);
     // Where this browser loaded the output (#2245) is its own fact, kept beside the rest and per slot.
     // The outage note and who wrote it are kept too (#2249).
-    saveReadyMemory('a', { ...loadReadyMemory('a'), casparLoaded: { target, at: 7.5, outageAt: 9, seen: true, tries: 1, reason: 'x' } });
-    assert.deepEqual(loadReadyMemory('a').casparLoaded, { target, at: 7.5, outageAt: 9, seen: true, tries: 1, reason: 'x' });
+    saveReadyMemory('a', { ...loadReadyMemory('a'), casparLoaded: { target, at: 7.5, outageAt: 9, seen: true, tries: 1, reason: 'x', link: 'b1.2' } });
+    assert.deepEqual(loadReadyMemory('a').casparLoaded, { target, at: 7.5, outageAt: 9, seen: true, tries: 1, reason: 'x', link: 'b1.2' });
     saveReadyMemory('a', { ...loadReadyMemory('a'), casparLoaded: { target, at: 7.5 } });
     saveReadyMemory('a', { ...loadReadyMemory('a'), outputs: [{ id: 'obs', name: 'OBS', seen: 2 }] });
     assert.deepEqual(loadReadyMemory('a').casparLoaded, { target, at: 7.5 });

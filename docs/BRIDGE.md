@@ -358,9 +358,10 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
   address the browser has no lock, and every tab reloads as before. An Unload pressed in one tab
   while another tab's reload is already on its way can lose to it; look at the slot row and press
   Unload again. A restart so quick that no poll saw the server gone (the status is asked every few
-  seconds, less often in a background tab, which the browser slows) reads as a `CLEAR`, and Load is
-  needed as before. Two browsers that each pressed Load both reload, which loads the same URL twice,
-  at most a flicker.
+  seconds, less often in a background tab, which the browser slows) still brings the output back
+  with NoaCG Bridge 0.10.2 or later, which says its connection to the server was lost (§3a, `link`);
+  with an older Bridge it reads as a `CLEAR`, and Load is needed. Two browsers that each pressed
+  Load both reload, which loads the same URL twice, at most a flicker.
 
 ### 3a. The playout protocol (v2)
 
@@ -437,7 +438,11 @@ the slot's `generation`, and, while this Bridge's take still plays there, its `i
 `cueId`, and, while a sequence runs, the entries still to play (`sequence.next`; for a looping run,
 every other entry in the order they come round, and `sequence.loop`). `arriving` says the server has accepted this Bridge's Take but the layer still shows what
 it held before: CasparCG answers a `PLAY` before the clip is on the layer (measured, below). The
-reply also carries the Bridge's `session` and `observedAt`, its own monotonic clock at the reading.
+reply also carries the Bridge's `session` and `observedAt`, its own monotonic clock at the reading,
+and for CasparCG its `link` to the server (issue #2252, Bridge 0.10.2): the Bridge holds one idle
+connection to each server it reads, sends nothing on it, and changes the link id the moment that
+connection is lost. A CasparCG restart closes it at once, so a reading after a restart names a new
+link even before the Bridge has connected again; a `CLEAR` leaves the link as it was.
 
 An error names its hop: `{ hop: 'agent' | 'target', code, detail, raw? }` with `code` one of
 `no-media-scanner`, `refused`, `unreachable`, `not-found`, `unsupported`, `usage`, `uncertain`.
