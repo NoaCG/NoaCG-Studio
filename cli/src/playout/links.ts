@@ -24,6 +24,8 @@ interface Watch {
   id: string;
   socket: Socket | null;
   up: boolean;
+  /** Readings waiting for the watch to connect (`ready`). */
+  waiting: (() => void)[];
   timer: ReturnType<typeof setTimeout> | null;
   asked: number;
 }
@@ -57,7 +59,7 @@ export class ServerLinks {
     const key = `${host}:${port}`;
     let w = this.#watches.get(key);
     if (!w) {
-      w = { id: this.#next(), socket: null, up: false, timer: null, asked: 0 };
+      w = { id: this.#next(), socket: null, up: false, waiting: [], timer: null, asked: 0 };
       this.#watches.set(key, w);
       if (!this.#stopped) {
         this.#open(key, w, host, port);
@@ -65,6 +67,25 @@ export class ServerLinks {
       }
     }
     w.asked = this.#now();
+    return w.id;
+  }
+
+  /** The link id for this server once its watch is connected, waiting at most `ms` for it: a reading
+   *  taken while the watch reconnects would otherwise carry an id the reconnect changes, and the
+   *  next reading would look like a restart. Without a connection by then, the id as it stands. */
+  async ready(host: string, port: number, ms: number): Promise<string> {
+    this.id(host, port);
+    const w = this.#watches.get(`${host}:${port}`);
+    if (!w || w.up || this.#stopped) return w?.id ?? this.id(host, port);
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(done, ms);
+      timer.unref?.();
+      function done() {
+        clearTimeout(timer);
+        resolve();
+      }
+      w.waiting.push(done);
+    });
     return w.id;
   }
 
@@ -120,6 +141,7 @@ export class ServerLinks {
     socket.on('connect', () => {
       w.up = true;
       w.id = this.#next();
+      for (const go of w.waiting.splice(0)) go();
     });
     // CasparCG says nothing unasked; anything that comes is dropped.
     socket.on('data', () => {});

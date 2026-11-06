@@ -362,9 +362,9 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
   with NoaCG Bridge 0.10.2 or later, which says its connection to the server was lost (§3a, `link`);
   with an older Bridge it reads as a `CLEAR`, and Load is needed. The Bridge's link also changes
   when the Bridge itself restarts or its connection to the server drops for a moment, and a client's
-  `CLEAR` in the same few seconds then reads as a restart, so the output comes back once; press
-  Unload, or clear it again. Two browsers that each pressed Load both reload, which loads the same
-  URL twice, at most a flicker.
+  `CLEAR` before the page's next reading (10 seconds, about a minute in a background tab) then reads
+  as a restart, so the output comes back once; press Unload, or clear it again. Two browsers that
+  each pressed Load both reload, which loads the same URL twice, at most a flicker.
 
 ### 3a. The playout protocol (v2)
 
@@ -447,7 +447,8 @@ connection to each server it reads and sends nothing on it. The link id changes 
 connection is lost and again when it is made, so a reading after a restart names a new link even
 before the Bridge has connected again, and no id spans a time the Bridge did not watch; a `CLEAR`
 leaves the link as it was. A reading carries the link from before it was read, so slots read just
-before a restart never pair with the link after it. A connected watch is kept however idle; a lost
+before a restart never pair with the link after it, and a reading taken while the watch reconnects
+waits up to half a second for it, so it carries the link that lasts. A connected watch is kept however idle; a lost
 one nobody reads stops trying after ten minutes.
 
 An error names its hop: `{ hop: 'agent' | 'target', code, detail, raw? }` with `code` one of

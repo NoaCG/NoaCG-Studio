@@ -46,6 +46,9 @@ import {
 } from './protocol.js';
 import { SequenceRunner } from './runner.js';
 import { ServerLinks } from './links.js';
+
+/** How long a state reading waits for the Bridge's watch on the server to connect (./links.ts). */
+const LINK_WAIT_MS = 500;
 import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
 import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
@@ -626,16 +629,18 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             return;
           }
           // The link as the read goes out: a restart during it moves the link after, and the slots
-          // read are from before it, so they belong with this one (./links.ts). A server is watched
-          // from its first reading that succeeds, so a mistyped host starts no watch.
-          const linkBefore = target.adapter === 'casparcg' ? links.peek(target.host, target.port) : undefined;
+          // read are from before it, so they belong with this one (./links.ts). A watch that is
+          // reconnecting is given a moment first, so the reading carries the link that lasts. A
+          // server is watched from its first reading that succeeds, so a mistyped host starts none.
+          const linkBefore = target.adapter === 'casparcg' && links.peek(target.host, target.port) !== undefined ? await links.ready(target.host, target.port, LINK_WAIT_MS) : undefined;
           const r = await adapter.state(target, channel);
           if (!r.ok) {
             send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
             return;
           }
-          // `id` also marks the server as read, which keeps a lost watch trying.
-          const linkNow = target.adapter === 'casparcg' ? links.id(target.host, target.port) : undefined;
+          // `ready` also marks the server as read, which keeps a lost watch trying; a first reading
+          // waits for the new watch to connect.
+          const linkNow = target.adapter === 'casparcg' ? await links.ready(target.host, target.port, LINK_WAIT_MS) : undefined;
           const link = linkBefore ?? linkNow;
           send(
             200,

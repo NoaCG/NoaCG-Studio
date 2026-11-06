@@ -445,8 +445,8 @@ test('/channels from a server that cannot say is an error, so the page keeps the
 test('/state names the Bridge\'s link to the server, which a restart changes and a CLEAR does not (#2252)', async (t) => {
   const caspar = await fakeCasparServer({ channels: { 1: { fps: 50 } } });
   t.after(() => caspar.close());
-  // A retry slow enough that the reading after the drop comes before the watch is back.
-  const links = new ServerLinks('b1', { retryMs: 300 });
+  // Reconnecting within the wait a reading gives it (server.ts LINK_WAIT_MS).
+  const links = new ServerLinks('b1', { retryMs: 100 });
   t.after(() => links.stop());
   const { call, casparTarget } = await bridge(t, caspar, { links });
   const link = async () => (await call('/state', { target: casparTarget, channel: 1 })).body.link;
@@ -463,17 +463,16 @@ test('/state names the Bridge\'s link to the server, which a restart changes and
   const clear = await call('/act', { target: casparTarget, action: { verb: 'clear', slot: { adapter: 'casparcg', channel: 1, layer: 20 } } });
   assert.equal(clear.body.ok, true);
   assert.equal(await link(), first, 'a CLEAR is not a restart');
-  // CasparCG restarts: every connection drops. The first reading after it already names another
-  // link, before the watch is connected again, and the reconnect names another again: no id spans
-  // a time the Bridge did not watch.
+  // CasparCG restarts: every connection drops, and the id changes at once. A reading taken right
+  // after waits a moment for the watch to connect again, so it carries the link that lasts, not one
+  // the reconnect would change.
   caspar.dropConnections();
-  let gap = first;
-  await until(async () => (gap = await link()) !== first);
-  assert.notEqual(gap, first, 'a restart changes it');
-  await until(() => links.peek('127.0.0.1', caspar.port) !== gap);
+  // The fake is back the same instant; a real server answers only after the drop has arrived.
+  await until(() => links.peek('127.0.0.1', caspar.port) !== first);
   const back = await link();
-  assert.notEqual(back, gap, 'connected again: a new stretch');
-  assert.equal(await link(), back, 'which holds');
+  assert.notEqual(back, first, 'a restart changes it');
+  await wait(250); // the watch is surely connected again by now
+  assert.equal(await link(), back, 'and a reading after the reconnect carries the same');
   // Nothing is ever sent on the watch's connection: every line the server got is a request's.
   assert.ok(caspar.seen.every((l) => /^(INFO|CLEAR|VERSION)\b/.test(l)), caspar.seen.join(' | '));
 });
