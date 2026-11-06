@@ -1298,6 +1298,33 @@ test('after a CasparCG restart the output this browser loaded goes back on its s
   expect(bridge.actions.map((a) => a.verb)).toEqual(['take', 'take', 'take', 'take', 'out']);
 });
 
+test('two tabs of one browser on the production: after a CasparCG restart one of them reloads the slot, once (#2245)', async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await slotBridge(page.context());
+  await publishedProduction(page);
+  const slot = page.getByTestId('production-status-panel').getByTestId('caspar-slot');
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(slot).toContainText('Loading…');
+  const second = await page.context().newPage();
+  await second.goto(page.url());
+  await second.getByTestId('production-status').click();
+  const tabs = [page, second].map((p) => p.getByTestId('production-status-panel'));
+  await expect(tabs[1].getByTestId('caspar-slot')).toContainText('Loading…');
+  bridge.missing = true;
+  for (const panel of tabs) {
+    await panel.getByTestId('playout-check-now').click();
+    await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'bad');
+  }
+  bridge.showPage('2-30', null);
+  bridge.missing = false;
+  for (const panel of tabs) await panel.getByTestId('playout-check-now').click();
+  await expect.poll(() => bridge.actions.length).toBe(2);
+  expect(bridge.actions[1]).toMatchObject(LOAD_2_30);
+  for (const panel of tabs) await expect(panel.getByTestId('caspar-slot')).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(2);
+  await second.close();
+});
+
 test('Load asks before replacing another production on the slot, and Cancel sends nothing', async ({ page }) => {
   await seedSettings(page, { channel: 2, layer: 30 });
   const bridge = await slotBridge(page);

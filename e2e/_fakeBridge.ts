@@ -103,7 +103,8 @@ export interface Fake {
   restart: () => void;
 }
 
-export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart' | 'showPage'>> = {}): Promise<Fake> {
+/** On one page, or on a whole browser context so its tabs share one Bridge and one server. */
+export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<Fake, 'restart' | 'showPage'>> = {}): Promise<Fake> {
   let count = 0;
   const now = () => Date.now() + fake.skew;
   const fake: Fake = {
