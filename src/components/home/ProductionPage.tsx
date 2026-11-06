@@ -4422,6 +4422,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         accentPreview={accentPreview?.productionId === show.id ? accentPreview : null}
         onAccentPreview={(cueId, color) => setAccentPreview(color ? { productionId: show.id, cueId, color } : null)}
         show={show}
+        sourceStatus={sourceStatus}
         cues={cues}
         rundown={rundown}
         graphicByPoolId={graphicByPoolId}
