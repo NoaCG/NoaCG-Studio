@@ -1514,9 +1514,10 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
     const T = 1_755_600_000_000;
     const at = (secs: number) => new Date(T + secs * 1000).toISOString();
 
-    // src/output/main.ts apply(), mirrored: an update merges into the graphic's value set —
-    // through clockValueAfterUpdate for BOTH clock fields — and the row effect is then asked
-    // against it, its values written before or after the row itself.
+    // src/output/main.ts apply(), mirrored: an update merges into the graphic's value set,
+    // through speakingClockAfterUpdate for BOTH clock fields (#2161), and the row effect is then
+    // asked against it, its values written before or after the row itself. From the first update
+    // each clock's value carries what the cue last sent (`time@origin/length/sent`).
     let merged: Record<string, string> = {};
     const trace: { row: string; values: Record<string, string> | null; when: string | null }[] = [];
     const step = (label: string, msg: unknown, createdAt: string) => {
@@ -1525,7 +1526,7 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
         const prior = merged;
         merged = { ...merged, ...m.data };
         for (const field of [clocks.fieldA, clocks.fieldB]) {
-          if (m.data[field] !== undefined) merged[field] = w.clockValueAfterUpdate(prior[field], m.data[field]);
+          if (m.data[field] !== undefined) merged[field] = w.speakingClockAfterUpdate(prior[field], m.data[field]);
         }
       }
       const effect = w.speakingClockRowEffect({ msg, created_at: createdAt } as never, clocks, merged, T);
@@ -1569,6 +1570,13 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
       // A locally-authored row (an offline rehearsal's own command) has no server time and falls
       // back to the caller's instant — correct, because that log has exactly one renderer.
       localRow: w.speakingClockRowEffect({ msg: { t: 'event', event: 'switch' } } as never, clocks, {}, T),
+      // A report written before #2161 holds plain values, and the floor still passes on them.
+      oldReport: w.speakingClockRowEffect({ msg: { t: 'event', event: 'switch' }, created_at: at(240) } as never, clocks, { f5: '01:50', f6: `05:00@${T + 180_000}` }, T),
+      // …and an Update over an old plain value: a bare value cannot tell a resend from a correction,
+      // so the Update's time is taken, slotted from then on.
+      oldReportUpdate: w.speakingClockAfterUpdate('01:50', '05:00'),
+      // …and an Out on that plain report banks the running side plain, as before #2161.
+      oldReportStop: w.speakingClockRowEffect({ msg: { t: 'stop' }, created_at: at(240) } as never, clocks, { f5: '01:50', f6: `05:00@${T + 180_000}` }, T),
     };
   });
 
@@ -1591,12 +1599,12 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
     ['reset', 'after'],
   ]);
   // The chair's first press stamps A at the allowance and leaves B alone.
-  expect(walk.trace[1].values).toEqual({ f5: `05:00@${1_755_600_000_000}` });
+  expect(walk.trace[1].values).toEqual({ f5: `05:00@${1_755_600_000_000}/05:00/05:00` });
   // The penalty docks ten seconds off the DERIVED 03:30 and re-stamps, so A keeps running.
-  expect(walk.trace[3].values).toEqual({ f5: `03:20@${1_755_600_000_000 + 90_000}` });
+  expect(walk.trace[3].values).toEqual({ f5: `03:20@${1_755_600_000_000 + 90_000}/05:00/05:00` });
   // The floor passes: A banks the 01:50 it had actually run down to — not the 05:00 the cue
   // re-sent at 1:00, which is the resend the origin has to survive — and B takes the stamp.
-  expect(walk.trace[4].values).toEqual({ f5: '01:50', f6: `05:00@${1_755_600_000_000 + 180_000}` });
+  expect(walk.trace[4].values).toEqual({ f5: '01:50@/05:00/05:00', f6: `05:00@${1_755_600_000_000 + 180_000}/05:00/05:00` });
 
   // THE RECOVERY. A renderer rebuilding at 4:00 from that snapshot: A held where it stopped, B
   // still speaking with a minute gone. Before the fix both read 05:00.
@@ -1607,16 +1615,21 @@ test('a debate’s two clocks survive a renderer reboot: the stamp says which on
 
   // Back to A: B banks the 04:00 it had run to, and A resumes from its OWN number — an
   // interrupted speaker does not lose the time.
-  expect(walk.trace[5].values).toEqual({ f6: '04:00', f5: `01:50@${1_755_600_000_000 + 240_000}` });
+  expect(walk.trace[5].values).toEqual({ f6: '04:00@/05:00/05:00', f5: `01:50@${1_755_600_000_000 + 240_000}/05:00/05:00` });
   // Off air nobody holds the floor, so the running clock is banked where it stood: 01:50 less
-  // the minute it ran. Without this a board taken down keeps its stamp and "runs" off air.
-  expect(walk.trace[6].values).toEqual({ f5: '00:50' });
-  // Re-arming returns both to the allowance ON SCREEN, plain — and with no stamp anywhere, the
-  // next Switch hands to A again.
-  expect(walk.trace[7].values).toEqual({ f5: '05:00', f6: '05:00' });
+  // the minute it ran. Without this a board taken down keeps its stamp and "runs" off air. Both
+  // are marked off air, so the next Take's resend is the time they come up on.
+  expect(walk.trace[6].values).toEqual({ f5: '00:50@out/05:00/05:00', f6: '04:00@out/05:00/05:00' });
+  // Re-arming returns both to the allowance ON SCREEN, still marked off air, so the next Take
+  // brings them up there; with no stamp anywhere, its first Switch hands to A again.
+  expect(walk.trace[7].values).toEqual({ f5: '05:00@out/05:00/05:00', f6: '05:00@out/05:00/05:00' });
   expect(walk.runningAfterReset).toBeNull();
   // A row with no server time still opens the debate, against the caller's instant.
   expect(walk.localRow).toEqual({ values: { f5: `05:00@${1_755_600_000_000}` }, when: 'before' });
+  // An old report's plain values: B banks plain, A resumes stamped, as before #2161.
+  expect(walk.oldReport).toEqual({ values: { f6: '04:00', f5: `01:50@${1_755_600_000_000 + 240_000}` }, when: 'before' });
+  expect(walk.oldReportUpdate).toBe('05:00@/05:00/05:00');
+  expect(walk.oldReportStop).toEqual({ values: { f6: '04:00' }, when: 'after' });
 });
 
 test('the debate board itself reads a stamped clock: it opens mid-speech and keeps counting', async ({ page }) => {
