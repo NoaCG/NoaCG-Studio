@@ -5,7 +5,8 @@
 //
 //   values   the sample values; every text at the brief's long value or 1.7x its sample; every
 //            field but the first text empty; on a two-sided board the long values on one side
-//            at a time
+//            at a time; a list (a `lines` field) at the most items a brief allows, a decimal
+//            leader first
 //   grounds  the video plate and a light plate (and a busy plate when the brief's background is
 //            `busy:`), so dark and bright backgrounds are both seen
 //   states   off; the Take as a strip (0, 120, 300, 600 ms, settled, and 10 s later for a clock);
@@ -28,6 +29,12 @@ export const LATER_MS = 10_000;
 export const LONG_FACTOR = 1.7;
 /** The shortest long label of a `Label | value` line (a poll option, a standings row). */
 export const LONG_LABEL_MIN = 32;
+/** The most items a list is shot with: a poll brief allows three to five options, and a list
+ *  graphic that breaks at its largest count passes every smaller frame (#1251). */
+export const MOST_ITEMS = 5;
+/** The shares a full list's `Label | number` lines take, largest first: a decimal leader is the
+ *  widest figure a vote shows (`33.33%` cut its LEADING chip to "LEADINC"). */
+const MOST_SHARES = ['33.33', '25.5', '20.17', '12', '9'];
 /** Next is walked at most this far: a 40-step quiz says nothing new at step 7. */
 export const MAX_NEXT_STEPS = 5;
 
@@ -95,6 +102,21 @@ export function longer(value: string, factor = LONG_FACTOR, min = 0): string {
   let out = text;
   for (let i = 0; out.length < target; i++) out += ` ${words[i % words.length]}`;
   return out;
+}
+
+/** A list `value` filled to `items` lines, or null when it is no list (one line) or already
+ *  has that many. The sample's own lines repeat in order; a `Label | number` line takes the
+ *  next of the descending shares, so the first line leads with a decimal. Lines with more cells
+ *  (a standings row) keep theirs. */
+export function fullest(value: string, items = MOST_ITEMS): string | null {
+  const lines = value.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length < 2 || lines.length >= items) return null;
+  return Array.from({ length: items }, (_, i) => {
+    const line = lines[i % lines.length];
+    const cells = line.split('|').map((c) => c.trim());
+    const share = /^-?\d+(?:[.,]\d+)?(%?)$/.exec(cells[1] ?? '');
+    return cells.length === 2 && cells[0] && share && MOST_SHARES[i] ? `${cells[0]} | ${MOST_SHARES[i]}${share[1]}` : line;
+  }).join('\n');
 }
 
 /** The two sides of a two-sided board: text fields whose titles differ only by a side word
@@ -181,6 +203,16 @@ export function coveragePlan(input: CoverageInput): CoveragePlan {
   const empty = { ...sample };
   for (const key of [...textKeys.slice(1), ...imageKeys]) empty[key] = '';
   const valueSets: Record<string, Record<string, string>> = { sample, long, empty };
+  // A list at its most items: the sample's own lines, so this frame shows the count and nothing
+  // else the long frame already shows.
+  const most = { ...sample };
+  const listKeys: string[] = [];
+  for (const key of dataKeys) {
+    if (byKey.get(key)?.ftype !== 'textarea') continue;
+    const full = fullest(sample[key] ?? '');
+    if (full) { most[key] = full; listKeys.push(key); }
+  }
+  if (listKeys.length) valueSets.most = most;
   const sides = sidesOf(input.fields.filter((f) => dataKeys.includes(f.field)));
   if (sides) {
     sides.forEach((side, i) => {
@@ -206,6 +238,7 @@ export function coveragePlan(input: CoverageInput): CoveragePlan {
         ops: [],
         offsets: settled,
         ...(values === 'long' && ground === 'video' ? { crops: [...textKeys, ...imageKeys] } : {}),
+        ...(values === 'most' && ground === 'video' ? { crops: listKeys } : {}),
       });
     }
   }

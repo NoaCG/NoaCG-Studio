@@ -452,7 +452,11 @@ The page:
   what the cue stores — a debate's second speech, a match clock restarted after the interval —
   the resend is no longer recognisable as one and pulls a running clock back. `output/main.ts`
   forwards the merged value instead: a stamped value is time-relative, so re-sending it is always
-  safe, and a genuine correction has already replaced it in `mergedData` by then.
+  safe, and a genuine correction has already replaced it in `mergedData` by then. Both PROGRAM
+  monitors fold every command through `programItems` in `control/airState.ts`, and a stage rebuilt
+  after boot takes the clocks the monitor held: the production page's, and the hosted page's since
+  #2176, whose stage rebuilt from a report took the next Update's plain time as a correction while
+  air held the banked one.
 - **Snap resets the graphic first, and the reset is blunt** (`clearProps: 'all'` over the root's
   subtree). It clears inline styles the DATA layer owns, not just the motion's: an image field
   with no picture hides itself inline, so recovery used to put a broken-image box on air beside
@@ -483,6 +487,18 @@ The page:
   for good after a deploy, so after three failures in a row the page reloads itself, but only
   when its own URL answers: a reload during an outage would put the browser's error page on air
   (`e2e/output-boot-resilience.spec.ts`).
+- A studio or control page (`/app`) left open across a deploy asks for the old deploy's code
+  files when it opens something new, and they answer 404. It reloads itself
+  (`src/app/deploySkew.ts`, issue #758), but only with nothing on air or on its way from that page
+  and no unfinished wizard draft or brand edit, once its own URL answers and saved work is on disk (a failed save
+  refuses it), and at most once in two minutes from the same build, so a
+  network that blocks the files leaves the page's own error rather than a reload loop. A
+  production with a graphic up waits for air to clear; until then the feature that needed the
+  file says it did not load. The output page has no such files beyond supabase-js (above).
+- On Vercel, with Skew Protection on for the project, every built file reference carries
+  `?dpl=<deployment id>` (`scripts/skewProtectionPlugin.mjs`), so an open page keeps loading its own
+  deploy and the reload above is the fallback for a deploy older than Skew Protection's maximum
+  age (one day by default).
 
 The URL is persistent by construction, and that now includes unpublishing. IDENTITY (which URLs
 address a production) and PUBLICATION (whether they resolve) are separate: publication is the

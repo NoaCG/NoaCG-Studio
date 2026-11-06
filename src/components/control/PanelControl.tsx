@@ -49,7 +49,8 @@ export interface PanelAnswerState {
    */
   feed: (
     snapshot: () => PanelSnapshot,
-    run: (verb: PanelVerb, target: string) => void,
+    /** The page's dispatcher: a Take it starts answers that Take's promise (control/panelRelay.ts). */
+    run: (verb: PanelVerb, target: string) => void | Promise<unknown>,
     /** Where the page writes a refused press, naming the panel and why: its activity feed. */
     note?: (text: string) => void,
     /** The graphic actions the page offers a panel and how it runs one (control/panelActions.ts). */
@@ -103,7 +104,7 @@ export function usePanelAnswer(opts: {
   const [last, setLast] = useState<PanelPressReport | null>(null);
   const [list, setList] = useState<PanelList | null>(null);
   const snapshot = useRef<() => PanelSnapshot>(() => EMPTY);
-  const run = useRef<(verb: PanelVerb, target: string) => void>(() => {});
+  const run = useRef<(verb: PanelVerb, target: string) => void | Promise<unknown>>(() => {});
   const note = useRef<((text: string) => void) | undefined>(undefined);
   const actions = useRef<PanelOffer | undefined>(undefined);
   const [oldRelay, setOldRelay] = useState(false);
@@ -203,7 +204,7 @@ export function usePanelAnswer(opts: {
       setWant('move');
     }, []),
     refresh: useCallback(() => lookNow.current(), []),
-    feed: useCallback((snap: () => PanelSnapshot, dispatch: (verb: PanelVerb, target: string) => void, write?: (text: string) => void, offered?: PanelOffer) => {
+    feed: useCallback((snap: () => PanelSnapshot, dispatch: (verb: PanelVerb, target: string) => void | Promise<unknown>, write?: (text: string) => void, offered?: PanelOffer) => {
       note.current = write;
       actions.current = offered;
       snapshot.current = snap;

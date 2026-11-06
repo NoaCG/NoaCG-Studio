@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter, type ProductionSub } from '../../app/router';
+import { holdReload } from '../../app/deploySkew';
 import { useTemplateStore } from '../../store/templateStore';
 import {
   deleteShowProfile,
@@ -23,6 +24,7 @@ import {
   type PlayoutItem,
   type SheetShowSource,
   type FeedShowSource,
+  type FileShowSource,
   fillsFields,
   type Show,
   type ShowCue,
@@ -64,12 +66,14 @@ import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control
 import { createPlayoutSession, type AirPart, type DraftPart, type LogPart, type PlayoutSession } from '../../control/playoutSession';
 import { createCueDraft, unsentNow, type CueDraft, type CueDraftAdapters, type CueEdit, type CueText } from '../../control/cueDraft';
 import type { StorePart } from '../../control/storePart';
-import { claimAndApply, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
+import { claimAndApply, clockSpecsFrom, loggedHere, moveLiveCue, programItems, rememberAired, restoreItems, withoutTypedAir, type ClockSpecs } from '../../control/airState';
 import { startSessionWire, type SessionWireIo, type SessionWirePage } from '../../control/sessionWire';
 import { createProductionDataSession } from '../../control/productionDataSession';
 import type { FieldDescriptor } from '../../model/fieldModel';
 import { createSheetReader, connectedFields, createSourceStatusStore, latestWriter, pathValue, type SheetLease, type SheetReader, type SheetReaderOptions } from '../../control/sheetSource';
 import { FEED_LEASE_MS, createFeedReader } from '../../control/feedSource';
+import { createFileReader } from '../../control/fileSource';
+import { loadFileHandle } from '../../control/fileHandles';
 import { useStorePart } from './useStorePart';
 import { applyClearedSlot, clipClock, followedClip } from '../../control/serverState';
 import { segmentSeconds } from '../../control/cuePlayback';
@@ -157,9 +161,10 @@ import {
   fieldDescriptors,
   formatMachineState,
   isEventLegal,
-  machineStateGroups,
+  backTarget,
   machineStateNames,
   movedStateNames,
+  resetTarget,
   adjustedValue,
   movedKeys,
   pressSend,
@@ -202,14 +207,7 @@ import {
 import type { ReplayItem } from '../../control/outputRecovery';
 import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
-import {
-  clockSpecFromHtml,
-  fastEventGraphics,
-  needsServerInstant,
-  speakingClocksFromHtml,
-  type ClockSpec,
-  type SpeakingClockPair,
-} from '../../control/matchClockWire';
+import { fastEventGraphics, needsServerInstant } from '../../control/matchClockWire';
 import { type ProgramStageHandle } from './ProgramStage';
 import PlayoutMonitors from './PlayoutMonitors';
 import { composeDocument } from '../../preview/composeDocument';
@@ -367,6 +365,7 @@ const GRAPHIC_VERB_IO: GraphicVerbIo = {
   pressSend,
   nameList,
   now: wallClock,
+  sendsInOrder,
   setTimeout: (run, ms) => setTimeout(run, ms),
   clearTimeout: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
 };
@@ -509,13 +508,14 @@ function writeSheetLease(key: string, lease: SheetLease): boolean {
  *  names, what Next asks, and what a pinned block draws and greys by. */
 interface PoolMachine extends ControlsMachine {
   js: string;
-  stateGroups: ReturnType<typeof machineStateGroups>;
+  /** Where ⟲ Reset snaps it (controlModel `resetTarget`). */
+  resetTo: Record<string, string> | null;
   stateNames: Record<string, Record<string, string>>;
 }
 
 /** What a published production's sources write carries (control/hostedControl.ts `writePublishedSources`). */
 type PublishedSources = Pick<Show, 'bindings' | 'sources' | 'collections'>;
-type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'>, boolean];
+type ReaderPlan = [string, Pick<SheetShowSource, 'kind' | 'config'> | Pick<FeedShowSource, 'kind' | 'config'> | Pick<FileShowSource, 'kind' | 'config'>, boolean];
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -778,6 +778,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * on a disabled Out button, and the page snapshot at that moment read "PROGRAM - ON AIR
    * nothing on air" while the server's `live_cue` held the take the spec had just asserted.
    * Only the hosted tier ever saw it, which is what that tier is for.
+   *
+   * A Take's write (control/graphicVerbs.ts `mark`) names its layers, so the seed skips only those
+   * (#2162). A write through this setter names none (an Out, a timed cue's Out and Take in one
+   * fold, the first publish's whole map) and skips the whole seed.
    */
   const setLiveCue = useCallback(
     (next: LiveCueMap | ((map: LiveCueMap) => LiveCueMap)) => session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, next) })),
@@ -807,6 +811,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  unpublished Take never leaves this page. */
   const [sendingNow, setSendingNow] = useState(0);
   const [sendOwed, setSendOwed] = useState(false);
+  // A page left open across a deploy reloads for a code file it can no longer fetch, but never
+  // while this production has anything up or a press on its way (app/deploySkew.ts, issue #758).
+  // Set where the layers on air are derived, below.
+  const airHeldRef = useRef(false);
+  useEffect(() => holdReload(() => airHeldRef.current), []);
   const [loggedAt, setLoggedAt] = useState<number | null>(null);
   /** The browser has no network: nothing from the server reaches this page. */
   const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
@@ -1098,33 +1107,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * is the honest ceiling for a monitor. **It is a monitor, not air** — nothing here reaches a
    * production's renderers.
    *
-   * The clock is read out of each graphic's own published markup, keyed by the name the wire
-   * uses (`buildOutputPayload` keys the payload by `g.name`, and so does every command), and
-   * read through a ref so the ONE entry point (`applyProgram`) is stable: the log follower binds
+   * The clock, or a debate board's PAIR of speaking clocks, is read out of each graphic's own
+   * published markup (control/airState.ts `clockSpecsFrom`), keyed by the name the wire uses
+   * (`buildOutputPayload` keys the payload by `g.name`, and so does every command), and read
+   * through a ref so the ONE entry point (`applyProgram`) is stable: the log follower binds
    * it once and must still see a pool the operator has changed since.
    */
-  const clockSpecs = useMemo(() => {
-    const out = new Map<string, ClockSpec>();
-    for (const g of show?.graphics ?? []) {
-      const spec = clockSpecFromHtml(templateForSavedGraphic(g, library).html);
-      if (spec) out.set(g.name, spec);
-    }
-    return out;
-  }, [show, library]);
+  const clockSpecs = useMemo(
+    () => clockSpecsFrom((show?.graphics ?? []).map((g) => ({ key: g.name, html: templateForSavedGraphic(g, library).html }))),
+    [show, library],
+  );
   const clockSpecsRef = useRef(clockSpecs);
   clockSpecsRef.current = clockSpecs;
-  /** …and the debate boards' PAIRS of speaking clocks, read the same way off the same markup.
-   *  A graphic carries one kind or the other, never both. */
-  const speakingClocks = useMemo(() => {
-    const out = new Map<string, SpeakingClockPair>();
-    for (const g of show?.graphics ?? []) {
-      const pair = speakingClocksFromHtml(templateForSavedGraphic(g, library).html);
-      if (pair) out.set(g.name, pair);
-    }
-    return out;
-  }, [show, library]);
-  const speakingClocksRef = useRef(speakingClocks);
-  speakingClocksRef.current = speakingClocks;
   /**
    * The graphics whose machine EVENTS may ride the fast road like a Take: every one that runs no
    * clock, so needs no server instant (matchClockWire `eventsNeedServerTime`, and
@@ -1145,7 +1139,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * `airedData`, which also answers "are the operator's values on air yet", and a stamped clock
    * value differs from the cue's plain one forever.
    */
-  const clockSpecsOf = useCallback((): ClockSpecs => ({ clocks: clockSpecsRef.current, pairs: speakingClocksRef.current }), []);
+  const clockSpecsOf = useCallback((): ClockSpecs => clockSpecsRef.current, []);
   /**
    * The ONE way a command reaches the PROGRAM monitor, so the clock cannot be handled on one
    * route and missed on the other (the wire follower and the offline verbs both come here).
@@ -1772,8 +1766,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   messagesRef.current = messages;
   // Its YouTube live chat keeps reading while the page is open, and reconnects on reload.
   useMessageSources(show ?? null, messages);
-  // Sheet tabs and news feeds (data-sources C4) each have one reader; a feed's reads go through
-  // the guarded feed route, every 5 minutes (control/feedSource.ts).
+  // Sheet tabs, news feeds (data-sources C4) and local files (#2184) each have one reader; a feed's
+  // reads go through the guarded feed route, every 5 minutes (control/feedSource.ts); a file is read
+  // through this browser's handle for it, every 5 s like a tab (control/fileSource.ts).
   // Only what a reader is built from, so a rename or a Pause never restarts one.
   const readerPlan = JSON.stringify(
     (show?.sources ?? []).filter(fillsFields).map((s) => [s.id, { kind: s.kind, config: s.config }, Boolean(s.inbox)] as ReaderPlan),
@@ -1832,7 +1827,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const reader =
           source.kind === 'feed'
             ? createFeedReader({ ...common, url: source.config.url })
-            : createSheetReader({
+            : source.kind === 'file'
+              ? createFileReader({ ...common, shape: source.config.shape, format: source.config.format, handle: () => loadFileHandle(sourceId) })
+              : createSheetReader({
                 ...common,
                 link: { sheetId: source.config.sheetId, gid: source.config.gid, published: source.config.published },
                 shape: source.config.shape,
@@ -2049,9 +2046,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Rebuild a fresh PROGRAM stage from what air holds (control/airState.ts `restoreItems`): at
    *  boot the reports and the rows after them, later what this page aired. */
   const restoreProgram = useCallback(
-    () =>
+    (only?: LiveCueMap) =>
       foldProgram((air, specs, now) => {
-        const restore = restoreItems(air, machineStatesRef.current, specs);
+        const restore = restoreItems(air, machineStatesRef.current, specs, only);
         return programItems(restore.air, restore.items, specs, now);
       }),
     [foldProgram],
@@ -2079,7 +2076,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (recoveredRef.current || !bootLive) return;
     recoveredRef.current = true;
     if (!Object.values(bootLive).some(Boolean)) return;
-    restoreProgram();
+    restoreProgram(bootLive);
   }, [bootLive, restoreProgram]);
 
   // The header clock ticks on its own — the heartbeat poll above is every 30 s, far too slow
@@ -2118,15 +2115,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
   /* eslint-enable react-hooks/exhaustive-deps */
   // The machine's side of the selected graphic (docs/CONTROL_LAYER.md): its ⚡ buttons, the
-  // structural guard they grey by, and its states for the recovery snap picker. All parsed
+  // structural guard they grey by, and the first step ⟲ Reset snaps it to. All parsed
   // from the same live template the editor's fields come from, so the panel can never describe
   // a different graphic than the fields do. Empty on a template with no explicit machine.
   const events = useMemo(() => (editorTemplate ? graphicButtons(eventButtons(editorTemplate.js), editorTemplate) : []), [editorTemplate]);
   const legality = useMemo(() => (editorTemplate ? eventLegality(editorTemplate.js) : {}), [editorTemplate]);
-  const stateGroups = useMemo(() => (editorTemplate ? machineStateGroups(editorTemplate.js) : []), [editorTemplate]);
-  // The NAMES for the chip come from their own resolver rather than from `stateGroups`: that
-  // list is the snap PICKER's and is empty without an explicit machine by design, while a
-  // machine-less graphic's `enter` still has to read "Enter" (controlModel.ts says why).
+  const resetTo = useMemo(() => (editorTemplate ? resetTarget(editorTemplate.js) : null), [editorTemplate]);
+  // The NAMES for the chip come from their own resolver: a machine-less graphic's `enter` still
+  // has to read "Enter" (controlModel.ts says why).
   const stateNames = useMemo(() => (editorTemplate ? machineStateNames(editorTemplate.js) : {}), [editorTemplate]);
   /** What a cue's live candidate puts on PREVIEW: its resolved values, or its fields blank while
    *  it is not ready, so a preview never shows another candidate's values, or a stale prepared one. */
@@ -2322,7 +2318,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         path: continueEvents(tpl.js),
         legality: eventLegality(tpl.js),
         foreign: declaredForeign(tpl.ograf),
-        stateGroups: machineStateGroups(tpl.js),
+        resetTo: resetTarget(tpl.js),
         stateNames: machineStateNames(tpl.js),
       });
     }
@@ -2466,7 +2462,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     fastEvent: (graphic) => fastEventGraphicsRef.current.has(graphic),
     // An imported duration's Take and a running clock's correction go slow, stamped by their row
     // (#1886): judged against the clock as this page's PROGRAM holds it.
-    serverInstant: (item) => needsServerInstant(clockSpecsRef.current.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
+    serverInstant: (item) => needsServerInstant(clockSpecsRef.current.clocks.get(item.graphic), item.msg, session.air.get().clocks[item.graphic]),
     debts: () => sendDebts.current,
     outputUsable: () => usableOutputRef.current,
     sending: (delta) => setSendingNow((n) => Math.max(0, n + delta)),
@@ -2656,6 +2652,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const playoutSettings = loadPlayoutSettings();
   /** The server cues this page has put up, by channel and then front to back. */
   const livePlayoutLayers = serverLayers(serverOnAir, playoutItems, cues);
+  airHeldRef.current =
+    liveLayers.length > 0 ||
+    livePlayoutLayers.length > 0 ||
+    sendingFolders.size > 0 ||
+    sendingNow > 0 ||
+    sendOwed ||
+    clearing ||
+    Object.values(folderStates).some((f) => (f?.onAir.length ?? 0) > 0) ||
+    folders.some((f) => folderPlayout.running(f.id));
 
   const selectedGraphic = selectedCue ? cueGraphicName(selectedCue) : null;
   /** A cue over the playout server's library, and whether THIS cue is what this page last put
@@ -3352,7 +3357,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  `event`, `snap`): payload values ride from the ON-AIR cue, and a press moving a bound field
    *  waits for the one before it on its graphic. */
   const fireEvent = (button: ControlButton) => pressMarked(view, button);
-  const snapTo = (groupId: string | null, stateId: string) => verbs.snap(view, groupId, stateId);
+  const snap = (assignments: Record<string, string> | null) => verbs.snap(view, assignments);
+  /** Where « Back would take the selected layer (controlModel `backTarget`): the state before the
+   *  one it reports, on the route a snap replays. Null when the press would do nothing. */
+  const backTo =
+    selectedLayerLive && selectedGraphic && !selectedPlayoutLive ? backTarget(poolMachines.get(selectedGraphic)?.js ?? '', machineState) : null;
 
   /** The selected graphic's ⚡ button (home/CueActions.tsx `actionButtonFor`), greyed against
    *  the machine state PROGRAM reports for it and pressed with the page's own selection. */
@@ -3427,8 +3436,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         void stepOff([decision.cue]);
         return;
       case 'take':
-        void takeCue(decision.cue);
-        return;
+        // Answered so a panel knows when its Take settles (control/panelRelay.ts `taking`).
+        return takeCue(decision.cue);
       case 'folder-step':
         void stepFolder(rundown.folders.get(decision.folderId)!);
         return;
@@ -3576,8 +3585,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       arranging: arrangingFor === graphic,
       stateLabel: formatMachineState(m.stateNames, state),
       selectedLayerLive: live,
-      stateGroups: m.stateGroups,
-      snapTo: (groupId, stateId) => verbs.snap(sel, groupId, stateId),
+      resetTo: m.resetTo,
+      snap: (assignments) => verbs.snap(sel, assignments),
       selectedGraphic: graphic,
       arranged: g.arranged,
       actionButton: actionButtonFor({
@@ -3605,8 +3614,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             arranging,
             stateLabel,
             selectedLayerLive,
-            stateGroups,
-            snapTo,
+            resetTo,
+            snap,
             selectedGraphic: b.graphic,
             arranged,
             actionButton,
@@ -3995,6 +4004,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 an operator learns that air is behind their screen is if the surface says so. */}
             {hasUnsent && <span className="pd-unsent-dot" aria-hidden="true" />}
           </button>
+          {/* « BACK AND » NEXT, one cell of the block (#2181): Back moves one step back, instantly,
+              re-sending the on-air cue's values - the step before on the route a snap replays
+              (controlModel backTarget). Sharing Next's cell keeps the block its ratified three rows. */}
+          <span className="pd-verb-step">
+          <button
+            className="pd-verb pd-verb-back"
+            disabled={!backTo}
+            onClick={() => backTo && void snap(backTo)}
+            title="Back one step"
+            aria-label="Back one step"
+            data-testid="verb-back"
+          >
+            «
+          </button>
           <button
             className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
             disabled={view.disabled.next}
@@ -4020,6 +4043,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               </>
             )}
           </button>
+          </span>
           <button
             className="pd-verb"
             disabled={view.disabled.out}

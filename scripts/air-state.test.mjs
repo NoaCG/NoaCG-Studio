@@ -12,6 +12,7 @@ import {
   airAtRequest,
   claimAndApply,
   forgetBootReplay,
+  heldClockData,
   logged,
   loggedHere,
   moveLiveCue,
@@ -25,7 +26,7 @@ import {
 } from '../src/control/airState.ts';
 import { createAppliedOnce } from '../src/control/commandRoads.ts';
 import { clockHeldBeforeRow, clockOriginOf, clockRowEffect, clockValueAfterUpdate, plainClockValue, speakingClockAt } from '../src/control/matchClockWire.ts';
-import { monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
+import { heldFirst, heldList, monitorReplay, planOutputRecovery } from '../src/control/outputRecovery.ts';
 import { withLiveCue } from '../src/control/liveCue.ts';
 import { NO_AIR, NO_LOG, createPlayoutSession } from '../src/control/playoutSession.ts';
 
@@ -53,6 +54,19 @@ test('every marker write counts as a move, even one that moves nothing', () => {
   assert.equal(same.moves, 2, 'but the write counts: a resolve in flight must not overwrite it');
   assert.deepEqual(moveLiveCue(same, {}).liveCue, {}, 'a whole map replaces (the first publish)');
   assert.equal(moveLiveCue(same, {}).moves, 3);
+});
+
+test('a Take\'s write is counted against the layers it names; any other write against every layer', () => {
+  const take = (air, graphic, cue) => moveLiveCue(air, (m) => withLiveCue(m, graphic, cue), [graphic]);
+  const took = take(take(NO_AIR, 'lt', 'c1'), 'score', 'c2');
+  assert.deepEqual(took.tookAt, { lt: 1, score: 2 });
+  assert.equal(took.clearedAt, undefined);
+  assert.deepEqual(take(took, 'lt', 'c1').tookAt, { lt: 3, score: 2 }, 'a Take again of the cue it holds counts too');
+  assert.equal(moveLiveCue(took, (m) => withLiveCue(m, 'other', null)).clearedAt, 3, 'an Out, even of a layer this page did not mark');
+  assert.equal(moveLiveCue(took, {}).clearedAt, 3, 'a whole map');
+  // A marker row heard: a cue counts against its layer, an Out against every layer.
+  assert.deepEqual(claimAndApply(took, [marker('lt', 'c4', 'm1')], createAppliedOnce(), NO_CLOCKS, T).air.tookAt, { lt: 3, score: 2 });
+  assert.equal(claimAndApply(took, [marker('lt', null, 'm2')], createAppliedOnce(), NO_CLOCKS, T).air.clearedAt, 3);
 });
 
 test('what was aired merges: a partial update keeps the other fields, an event payload counts, a stop forgets', () => {
@@ -169,6 +183,41 @@ test('THE MOVES GUARD: a Take made while the resolve was in flight stands, and n
   assert.equal(air.bootLive, null, 'and no boot recovery replays the old picture over it');
 });
 
+test('#2162: a Take of one graphic while the read was out stands on its layer, and every other layer seeds from the answer', () => {
+  const asked = airAtRequest(NO_AIR);
+  // The operator takes c9 on the lower third while the read is out, as the sender writes it.
+  const marked = moveLiveCue(NO_AIR, (m) => withLiveCue(m, 'lt', 'c9'), ['lt']);
+  const taken = claimAndApply(marked, [update('lt', { f0: 'TAKEN' }, 't9'), play('lt', 't9')], createAppliedOnce(), NO_CLOCKS, T).air;
+  // The answer had an older cue on that layer, and the scorebug on air, placed, with a row after
+  // its report.
+  const look = { v: 1, frame: { dx: 10, dy: 0, s: 1, ox: 0, oy: 0 } };
+  const answer = { ...RESOLVED, live: { ...RESOLVED.live, score: { data: { f1: '0' }, state: { appearance: look } } } };
+  const rows = [update('lt', { f0: 'OLDER ROW' }), update('score', { f1: '1' })];
+  const air = seedFromResolve(taken, answer, rows, asked, CUES, NO_CLOCKS);
+  assert.deepEqual(air.liveCue, { lt: 'c9', score: 'c2' }, 'the taken cue stands, and the scorebug is on air here');
+  assert.deepEqual(air.aired.lt, { f0: 'TAKEN' }, 'what the Take aired, not the report');
+  assert.deepEqual(air.aired.score, { f1: '1' }, 'the scorebug seeds as it would have: its report, then its row');
+  assert.deepEqual(air.bootReplay, [rows[1]], 'its rows replay, the Take\'s commands are on another graphic');
+  assert.notEqual(air.looks?.score, undefined, 'and its place from the report');
+  assert.deepEqual(air.bootLive, { score: 'c2' }, 'the boot recovery is keyed on the layer it seeded');
+  // The recovery rebuilds that layer alone: the taken one is on the monitor already.
+  assert.deepEqual([...new Set(restoreItems(air, {}, NO_CLOCKS, air.bootLive).items.map((item) => item.graphic))], ['score']);
+  assert.deepEqual([...new Set(restoreItems(air, {}, NO_CLOCKS).items.map((item) => item.graphic))].sort(), ['lt', 'score'], 'a fresh stage later gets both');
+  // An answer with nothing on air leaves the Take alone, and no recovery.
+  const empty = seedFromResolve(taken, { liveCue: {}, live: {} }, [], asked, CUES, NO_CLOCKS);
+  assert.deepEqual(empty.liveCue, { lt: 'c9' });
+  assert.deepEqual(empty.bootLive, {});
+});
+
+test('an Out while the read was out skips the whole seed, a Take beside it or not', () => {
+  const asked = airAtRequest(NO_AIR);
+  // All out from a page that knows nothing on air yet moves nothing here, and may have on air.
+  const out = moveLiveCue(NO_AIR, (m) => withLiveCue(m, 'score', null));
+  assert.equal(seedFromResolve(out, RESOLVED, [], asked, CUES, NO_CLOCKS), out);
+  const then = moveLiveCue(out, (m) => withLiveCue(m, 'lt', 'c9'), ['lt']);
+  assert.equal(seedFromResolve(then, RESOLVED, [], asked, CUES, NO_CLOCKS), then);
+});
+
 test('a layer taken OFF while the resolve was in flight does not come back on air', () => {
   const start = moveLiveCue(NO_AIR, { lt: 'c1' });
   const asked = airAtRequest(start);
@@ -177,10 +226,10 @@ test('a layer taken OFF while the resolve was in flight does not come back on ai
   assert.deepEqual(air.liveCue, {});
 });
 
-test('a marker from the wire meanwhile (another operator) also skips the seed: the row carries it in', () => {
+test('a marker from the wire meanwhile (another operator) stands on its layer: the row carries it in, the rest seeds', () => {
   const asked = airAtRequest(NO_AIR);
   const run = claimAndApply(NO_AIR, [marker('score', 'c7', 'm7')], createAppliedOnce(), NO_CLOCKS, T);
-  assert.deepEqual(seedFromResolve(run.air, RESOLVED, [], asked, CUES, NO_CLOCKS).liveCue, { score: 'c7' });
+  assert.deepEqual(seedFromResolve(run.air, RESOLVED, [], asked, CUES, NO_CLOCKS).liveCue, { lt: 'c1', score: 'c7' });
 });
 
 test('a late resolve over a newer one changes nothing', () => {
@@ -660,6 +709,84 @@ test('a boot replay that carries the entrance needs no play of its own; off-air 
   assert.deepEqual(restoreItems({ ...NO_AIR, aired: { lt: { f0: 'A' } } }, {}, NO_CLOCKS).items, []);
 });
 
+/** A debate on the monitor with A's banked minute: A spoke from 0 to 1, B holds the floor. */
+function bankedDebate() {
+  let air = NO_AIR;
+  for (const [msg, minute] of [[{ t: 'update', data: { fa: '05:00', fb: '05:00', fl: '05:00' } }, 0], [{ t: 'event', event: 'switch' }, 0], [{ t: 'event', event: 'switch' }, 1]]) {
+    air = programItems(air, [{ graphic: 'debate', msg, created_at: at(minute) }], DEBATE, T).air;
+  }
+  return air;
+}
+
+test('#2176: a held speaking pair laid over the plain aired data, then a plain Update, keeps the banked time', () => {
+  const air = bankedDebate();
+  const plain = { f0: 'OPENING', fa: '05:00', fb: '05:00', fl: '05:00' };
+  const data = heldClockData(plain, 'debate', air, DEBATE);
+  assert.equal(data.fa, air.speaking.debate.fa, 'the stage is rebuilt with the time A banked');
+  assert.equal(data.fb, air.speaking.debate.fb, 'and B running from its stamp');
+  assert.equal(data.f0, 'OPENING', 'the other fields stay as aired');
+  // The rebuild and the next Update reach the stage through the fold, as both monitors send them.
+  const rebuilt = programItems(air, [update('debate', data)], DEBATE, T + 2 * MINUTE);
+  const next = programItems(rebuilt.air, [{ ...update('debate', { ...plain, f0: 'REBUTTAL' }), created_at: at(2) }], DEBATE, T + 2 * MINUTE);
+  const sent = next.out[0].msg.data;
+  assert.equal(speakingClockAt(sent.fa, T + 2 * MINUTE), '04:00', 'the plain 05:00 does not undo A\'s banked time');
+  assert.equal(clockOriginOf(sent.fa), null, 'A still waits');
+  assert.equal(clockOriginOf(sent.fb), T + MINUTE, 'B still runs from its own start');
+  assert.equal(sent.f0, 'REBUTTAL');
+});
+
+test('#2176: a rebuild after boot takes the held clocks; a boot replay takes the report\'s', () => {
+  const held = bankedDebate();
+  const report = { data: { fa: `05:00@${T}`, fb: '05:00', fl: '05:00' } };
+  const after = {
+    ...held,
+    liveCue: { debate: 'c1', score: 'c2' },
+    reports: { debate: report, score: { data: { f5: '10:00' } } },
+    bootReplay: null,
+    aired: { debate: { fa: '05:00', fb: '05:00', fl: '05:00' }, score: { f5: '10:00', f1: '2' } },
+    clocks: { score: `09:00@${T}` },
+  };
+  const rebuilt = restoreItems(after, {}, { clocks: CLOCKS.clocks, pairs: DEBATE.pairs }).items;
+  const debate = rebuilt.find((i) => i.graphic === 'debate' && i.msg.t === 'update').msg.data;
+  assert.deepEqual([debate.fa, debate.fb], [held.speaking.debate.fa, held.speaking.debate.fb], 'the pair the monitor held, not the plain aired times');
+  assert.equal(rebuilt.find((i) => i.graphic === 'score' && i.msg.t === 'update').msg.data.f5, `09:00@${T}`, 'the match clock the monitor held');
+  // At boot the rows after the report replay, so the report is the base and the memory is dropped.
+  const boot = restoreItems({ ...after, liveCue: { debate: 'c1' }, bootReplay: [{ graphic: 'debate', msg: { t: 'event', event: 'switch' }, created_at: at(3) }] }, {}, DEBATE);
+  assert.deepEqual(boot.items[0].msg.data, report.data);
+  assert.equal('debate' in boot.air.speaking, false);
+});
+
+// #2075: a credits roll or cards on air keep the list their Take took while a newer one waits, and
+// their state says so (`held`). A rebuilt stage writes that list first, so the take it replays
+// takes it, then the newest, which waits for the next Take as it does on air.
+test('a held credits list is written before the take a rebuild replays, then the newest (#2075)', () => {
+  const held = { f0: 'Research:\nNia Vale' };
+  const newest = { f0: 'Camera:\nJonas Berg', f1: '100' };
+  // At boot, from the report and the rows after it.
+  const boot = {
+    ...NO_AIR,
+    liveCue: { credits: 'c1' },
+    reports: { credits: { data: newest, state: { groups: { main: 'on' }, held } } },
+    bootReplay: [{ graphic: 'credits', msg: { t: 'update', data: { f1: '120' } } }],
+  };
+  const fromReport = restoreItems(boot, {}, NO_CLOCKS).items;
+  assert.deepEqual(fromReport.map((i) => i.msg.t), ['update', 'snap', 'update', 'update']);
+  assert.deepEqual(fromReport[0].msg.data, { ...newest, ...held }, 'the held list goes in before the take');
+  assert.deepEqual(fromReport[2].msg.data, newest, 'then the newest, which waits for the next Take');
+  // At boot with no rows after the report: what was aired is the report's, and the pose unknown.
+  const quiet = restoreItems({ ...boot, bootReplay: [], aired: { credits: newest } }, {}, NO_CLOCKS).items;
+  assert.deepEqual(quiet.map((i) => [i.msg.t, i.msg.data ?? null]), [['update', { ...newest, ...held }], ['play', null], ['update', newest]]);
+  // After this page applied a command: the monitor's last answer, never an older report.
+  const later = { ...boot, bootReplay: null, aired: { credits: newest } };
+  const fromMonitor = restoreItems(later, { credits: { groups: { main: 'on' }, held: { f0: 'Sound:\nAri Moss' } } }, NO_CLOCKS).items;
+  assert.deepEqual(fromMonitor[0].msg.data, { ...newest, f0: 'Sound:\nAri Moss' });
+  const nothingHeld = restoreItems(later, { credits: { groups: { main: 'on' } } }, NO_CLOCKS).items;
+  assert.deepEqual(nothingHeld.map((i) => i.msg.data ?? null), [newest, null, newest], 'a monitor that holds nothing rebuilds the data as aired');
+  // A held value that is not a list is ignored.
+  assert.deepEqual(heldFirst(newest, { held: { f0: 3 } }), newest);
+  assert.deepEqual(heldList(['x']), null);
+});
+
 test('a newer report forgets the boot replay; forgetting twice is the same part', () => {
   const air = forgetBootReplay({ ...NO_AIR, bootReplay: [] });
   assert.equal(air.bootReplay, null);
@@ -760,8 +887,8 @@ test('an off-air clock is not rebuilt over a command applied while the resolve w
   const specs = { clocks: new Map([['bug', DURATION]]), pairs: new Map() };
   const graphics = offAirClockGraphics(resolved, specs);
   const asked = airAtRequest(NO_AIR);
-  // A command applied meanwhile is newer than the rows: the page keeps its own memory.
-  const moved = programItems({ ...NO_AIR, commands: 1 }, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:50' } } }], specs, T).air;
+  // A command applied to it meanwhile is newer than the rows: the page keeps its own memory.
+  const moved = programItems({ ...NO_AIR, commands: 1, commandsBy: { bug: 1 } }, [{ graphic: 'bug', msg: { t: 'update', data: { f2: '0:50' } } }], specs, T).air;
   assert.equal(seedOffAirClocks(moved, resolved, { graphics, rows: [] }, asked, specs, T).clocks.bug, moved.clocks.bug);
   // No report: nothing to rebuild from.
   assert.deepEqual(offAirClockGraphics({ liveCue: {}, live: {} }, specs), []);
@@ -769,6 +896,24 @@ test('an off-air clock is not rebuilt over a command applied while the resolve w
   assert.equal('bug' in seedOffAirClocks(NO_AIR, resolved, { graphics: [], rows: [] }, asked, specs, T).clocks, false);
   // A clock on air is the on-air seed's, not this one's.
   assert.deepEqual(offAirClockGraphics({ liveCue: { bug: 'c1' }, live: resolved.live }, specs), []);
+});
+
+test('#2148: a command on another graphic while the off-air clock read was out leaves the clock rebuilt; one on the clock does not', () => {
+  const resolved = { liveCue: { lt: 'c1' }, live: { score: { event: 3, data: { f5: `09:30@${T}` } } } };
+  const graphics = offAirClockGraphics(resolved, CLOCKS);
+  assert.deepEqual(graphics, ['score']);
+  const asked = airAtRequest(NO_AIR);
+  // A row after the report that moves the clock, so the rebuild is the rows' and not the report's.
+  const rows = { graphics, rows: [{ graphic: 'score', msg: { t: 'event', event: 'set', payload: { f5: '08:00' } } }] };
+  const rebuilt = seedOffAirClocks(NO_AIR, resolved, rows, asked, CLOCKS, T).clocks.score;
+  assert.notEqual(rebuilt, undefined);
+  assert.notEqual(rebuilt, seedOffAirClocks(NO_AIR, resolved, { graphics, rows: [] }, asked, CLOCKS, T).clocks.score, 'the row moved it');
+  // A +1 on the lower third on air, heard while the read was out.
+  const other = claimAndApply(NO_AIR, [update('lt', { f0: 'PLUS ONE' }, 'u1')], createAppliedOnce(), CLOCKS, T).air;
+  assert.equal(seedOffAirClocks(other, resolved, rows, asked, CLOCKS, T).clocks.score, rebuilt, 'the scorebug\'s next Take counts what air counts');
+  // A command on the scorebug itself is newer than its rows: the page keeps its own memory.
+  const own = claimAndApply(NO_AIR, [update('score', { f5: '05:00' }, 'u2')], createAppliedOnce(), CLOCKS, T).air;
+  assert.equal(seedOffAirClocks(own, resolved, rows, asked, CLOCKS, T).clocks.score, own.clocks.score);
 });
 
 test('only a duration held nowhere and off air there is never taken; on air or reported, it reads as before (#1903 N1, N2)', () => {

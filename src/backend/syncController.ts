@@ -5,7 +5,8 @@
 // untouched.
 
 import { isBackendConfigured } from './config';
-import { focusPassDue } from './pacing';
+import { backoffDelay, focusPassDue } from './pacing';
+import { CLOUD_NO_ANSWER, cloudFailureWords } from './supabase';
 import { consumeDeliberateSignOut, getSignedInUserId, subscribeAuth } from './auth';
 import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './accountLibrary';
 import { canAuthorAccount, changeSyncedElsewhere, commitDurableWrites, libraryInUse, markOwnWritesSynced, setAccountAuthoringEnabled } from '../model/durableStore';
@@ -105,6 +106,57 @@ let confirmedRevision = -1;
 let sessionEpoch = 0;
 let checkedThisPage = false;
 
+/** After a pass the cloud did not answer, the next one goes by itself, from 15 s up to 2 min, so
+ *  the chip settles once the cloud is back without anybody pressing Sync now (#2154). Any pass that
+ *  starts sooner takes its place.
+ *
+ *  ONE TAB PER BROWSER RETRIES. A silent cloud is the overloaded one, and a retry in every open
+ *  tab is the per-tab load of 2026-09-29 (see ONE PASS PER CHANGE below). The tab whose tick finds
+ *  `RETRY_LOCK` free holds it through its tries and the waits between them, until a pass is
+ *  answered or the retries end; a tab that finds it held skips that tick and looks again later, so
+ *  one takes over if the retrying tab closes. Each settles on the other's confirmed pass
+ *  (`followOtherTabsConfirmations`). Without Web Locks each tab retries on its own. */
+const RETRY_MS = 15_000;
+const MAX_RETRY_MS = 120_000;
+const RETRY_LOCK = 'noacg-sync-retry';
+let unansweredPasses = 0;
+let retry: ReturnType<typeof setTimeout> | undefined;
+let releaseRetryLock: (() => void) | undefined;
+function retryIfUnanswered(unanswered: boolean): void {
+  if (!unanswered) return stopRetrying();
+  unansweredPasses++;
+  armRetry();
+}
+function armRetry(): void {
+  clearTimeout(retry);
+  retry = setTimeout(retryTick, backoffDelay(unansweredPasses, RETRY_MS, MAX_RETRY_MS));
+}
+/** Every way the retries end comes here (an answered pass, another tab's answer, no session, a
+ *  new session), which is what lets the lock go: a pass that is merely re-armed keeps it. */
+function stopRetrying(): void {
+  clearTimeout(retry);
+  retry = undefined;
+  unansweredPasses = 0;
+  releaseRetryLock?.();
+  releaseRetryLock = undefined;
+}
+function retryTick(): void {
+  retry = undefined;
+  if (releaseRetryLock || !navigator.locks) {
+    void syncNow();
+    return;
+  }
+  void navigator.locks.request(RETRY_LOCK, { ifAvailable: true }, (lock) => {
+    if (unansweredPasses === 0) return;
+    // Another tab is retrying: look again after the same wait, in case it closes.
+    if (!lock) return armRetry();
+    return new Promise<void>((resolve) => {
+      releaseRetryLock = resolve;
+      void syncNow();
+    });
+  });
+}
+
 
 /**
  * Callers who asked for a sync WHILE ONE WAS ALREADY RUNNING, waiting to be told that a pass
@@ -139,6 +191,7 @@ function answer(list: Array<(receipt: SyncPassReceipt) => void>, receipt: SyncPa
  */
 export async function syncNow(): Promise<SyncPassReceipt> {
   if (!(await canSync())) {
+    stopRetrying();
     if (libraryInUse()) setAccountAuthoringEnabled(false);
     setState({ phase: 'offline', firstPass: !!libraryInUse() && !checkedThisPage, detail: libraryInUse() ? 'Account session unavailable. Editing is paused; pending work is preserved. Sign in again.' : 'Local workspace. Work here is not saved to an account.' });
     // RELEASING THE WAITERS HERE IS ONLY HONEST WHEN NOTHING IS COMING. This branch is reached
@@ -168,6 +221,8 @@ export async function syncNow(): Promise<SyncPassReceipt> {
     });
   }
   running = true;
+  clearTimeout(retry);
+  retry = undefined;
   if (debounce) clearTimeout(debounce);
   debounce = null;
   const startedRevision = revision;
@@ -215,6 +270,7 @@ export async function syncNow(): Promise<SyncPassReceipt> {
       }
     }
     if (epoch !== sessionEpoch) return unavailable;
+    retryIfUnanswered(result.unanswered === true);
     // Completed reads answer this caller even when a newer revision queues another pass.
     receipt = { completed: true };
     if (result.failures.length > 0) {
@@ -243,7 +299,12 @@ export async function syncNow(): Promise<SyncPassReceipt> {
     }
   } catch (e) {
     // A pass that throws never moved the bookmark, so a first pass is still owed.
-    if (epoch === sessionEpoch) setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e), firstPass });
+    if (epoch === sessionEpoch) {
+      const detail = e instanceof Error ? e.message : String(e);
+      setState({ phase: 'error', detail, firstPass });
+      // A thrown pass counts Failed to fetch and NetworkError as no answer; a completed one's `unanswered` is timeouts only.
+      retryIfUnanswered(cloudFailureWords(detail) === CLOUD_NO_ANSWER);
+    }
   } finally {
     running = false;
     answer(answered, receipt);
@@ -313,7 +374,8 @@ function handOverOnClose(): void {
  *  learned it had landed: it read "pending" until its own next pass, which in a tab left open
  *  beside another was never, and after a minute the chip said Not synced about work that was
  *  saved (playout-workflow-simplification D14, reproduced with two tabs on one library). Each
- *  confirmed pass is announced; a tab with nothing unsent of its own takes it as its own. */
+ *  confirmed pass is announced; a tab with nothing unsent of its own takes it as its own,
+ *  in place of any retry a pass the cloud did not answer left it. */
 let ownChangePending = false;
 let confirmedChannel: BroadcastChannel | null = null;
 function followOtherTabsConfirmations(): void {
@@ -321,7 +383,9 @@ function followOtherTabsConfirmations(): void {
   confirmedChannel = new BroadcastChannel('noacg-sync-confirmed');
   confirmedChannel.onmessage = (event: MessageEvent<{ account?: unknown }>) => {
     if (event.data?.account !== libraryInUse() || ownChangePending || running || debounce) return;
-    if (state.phase !== 'pending' && state.phase !== 'syncing') return;
+    const unansweredHere = state.phase === 'error' && unansweredPasses > 0;
+    if (state.phase !== 'pending' && state.phase !== 'syncing' && !unansweredHere) return;
+    stopRetrying();
     confirmedRevision = revision;
     setState({ phase: 'synced', last: state.last, verifiedAt: new Date().toISOString() });
   };
@@ -381,6 +445,7 @@ export function startAutoSync(): void {
     if (user && auth.expiresAt) expiry = setTimeout(() => {
       setAccountAuthoringEnabled(false);
       sessionEpoch++;
+      stopRetrying();
       setState({ phase: 'offline', detail: 'Account session expired. Sign in again. Pending work is preserved.' });
       window.dispatchEvent(new CustomEvent('spx-session-expired'));
     }, Math.max(0, auth.expiresAt - Date.now()));
@@ -392,6 +457,7 @@ export function startAutoSync(): void {
       return;
     }
     sessionEpoch++;
+    stopRetrying();
     if (user) checkedThisPage = false;
     setAccountAuthoringEnabled(false);
     const hadSession = !!lastUser;

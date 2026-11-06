@@ -905,6 +905,19 @@ test('HostedControlPage wires » Next and ✎ Update to canAdvance and movedStat
   expect(src).toContain('movedStateNames(');
 });
 
+test('HostedControlPage carries « Back and ⟲ Reset off the same answers as the dashboard (#2181)', async () => {
+  // The page cannot be mounted offline (above), so its wiring is pinned from its source, as the
+  // Next and Update wiring is; what the two presses do on air is e2e/production-controls.spec.ts.
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/components/HostedControlPage.tsx', import.meta.url), 'utf8');
+  expect(src).toContain('backTarget(spec.js, machineState[selectedGraphic] ?? null)');
+  expect(src).toContain('onBack={backTo ? () => snapTo(backTo) : null}');
+  expect(src).toContain('data-testid="hosted-back-cue"');
+  expect(src).toContain('resetTarget(spec.js)');
+  expect(src).toContain('onClick={() => onSnap(resetTo)}');
+  expect(src).not.toContain('hosted-snap');
+});
+
 test('canAdvance greys past the last waypoint, and movedStateNames names only a state Update would actually keep', async ({
   page,
 }) => {

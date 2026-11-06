@@ -594,7 +594,7 @@ async function walk(seed, road, steps) {
       else if (roll < 0.55) press('bump', graphic, `+1 away on ${tag}`, () => verbs.bump(view, 'away', 1), { captured, moves: [['away', 1]] });
       else if (roll < 0.78) press('event', graphic, `⚡ goal on ${tag}`, () => verbs.event(view, GOAL), { captured, moves: [['home', 1]] });
       else if (roll < 0.88) press('event', graphic, `⚡ away goal on ${tag}`, () => verbs.event(view, AWAY_GOAL), { captured, moves: [['away', 1]] });
-      else press('snap', graphic, `snap on ${tag}`, () => verbs.snap(view, chance(0.5) ? 'reveal' : null, 'shown'), { captured });
+      else press('snap', graphic, `snap on ${tag}`, () => verbs.snap(view, chance(0.5) ? { reveal: 'shown' } : null), { captured });
     } else {
       const roll = random();
       if (roll < 0.35) {
@@ -602,7 +602,7 @@ async function walk(seed, road, steps) {
         press('pick', graphic, `pick ${value} on ${tag}`, () => verbs.event(view, pickButton(SELECT, PICK, value)), { captured });
       } else if (roll < 0.5) press('event', graphic, `⚡ lock on ${tag}`, () => verbs.event(view, LOCK), { captured });
       else if (roll < 0.88) press('bump', graphic, `+1 qscore on ${tag}`, () => verbs.bump(view, 'qscore', 1), { captured, moves: [['qscore', 1]] });
-      else press('snap', graphic, `snap on ${tag}`, () => verbs.snap(view, 'reveal', 'shown'), { captured });
+      else press('snap', graphic, `snap on ${tag}`, () => verbs.snap(view, { reveal: 'shown' }), { captured });
     }
   };
   const own = (graphic) => {

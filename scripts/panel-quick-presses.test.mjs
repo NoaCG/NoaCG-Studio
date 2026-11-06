@@ -52,7 +52,7 @@ globalThis.window = {
 };
 const pagehide = () => (listeners.get('pagehide') ?? []).forEach((fn) => fn());
 
-const { answerPanel } = await import('../src/control/panelRelay.ts');
+const { answerPanel, TAKE_GUARD_MAX_MS } = await import('../src/control/panelRelay.ts');
 const { graphicCapabilities, runCapability } = await import('../src/control/panelActions.ts');
 const { createGraphicVerbs } = await import('../src/control/graphicVerbs.ts');
 const { createPlayoutSession } = await import('../src/control/playoutSession.ts');
@@ -60,6 +60,7 @@ const { liveSelection } = await import('../src/control/liveControls.ts');
 const { airedAfter } = await import('../src/control/outputRecovery.ts');
 const { airAtRequest, claimAndApply, seedFromResolve } = await import('../src/control/airState.ts');
 const { withLiveCue } = await import('../src/control/liveCue.ts');
+const { PRESS_HOLD_MS, PRESS_DRAW_MS } = await import('../src/control/panelFeedback.ts');
 const { PanelClient, RESULT_MS } = await import('../companion-module/src/panel.ts');
 const { pressGraphicKey } = await import('../companion-module/src/actions.ts');
 
@@ -73,11 +74,23 @@ function held() {
   return { promise, resolve, reject };
 }
 
-/** The module's clock, moved by hand. */
+/** The module's clock, moved by hand. The page's clock and timers (its draw gap and its bound) are
+ *  the test's mocked `Date` and `setInterval`, moved with it: `page` ticks them in gap-sized steps,
+ *  each drained, so a press let go by a gap meets a page that has drawn the press before it. */
 class HandClock {
   t = 1_000_000;
   timers = [];
   next = 1;
+  constructor(test) {
+    this.page = async (ms) => {
+      while (ms > 0) {
+        const step = Math.min(ms, PRESS_DRAW_MS);
+        test.mock.timers.tick(step);
+        ms -= step;
+        await drain();
+      }
+    };
+  }
   now = () => this.t;
   setTimeout = (fn, ms) => {
     const id = this.next++;
@@ -92,10 +105,12 @@ class HandClock {
       const due = this.timers[0];
       if (!due || due.at > end) break;
       this.timers.shift();
+      await this.page(due.at - this.t);
       this.t = due.at;
       due.fn();
       await drain();
     }
+    await this.page(end - this.t);
     this.t = end;
     await drain();
   }
@@ -318,11 +333,12 @@ function productionPage() {
     return (report) =>
       session.apply((parts) => ({ ...parts, air: seedFromResolve(parts.air, { liveCue: { Score: 'b1' }, live: { Score: { data: report } } }, [], at, cues, NO_CLOCKS) }));
   };
-  return { verbs, offer, hear, output, log, sends, fallbacks, resolve, cues: () => cues, toggleOther: () => (other = !other) };
+  return { verbs, page, offer, hear, output, log, sends, fallbacks, resolve, cues: () => cues, toggleOther: () => (other = !other) };
 }
 
-/** A deck connected to an answering production page, both through the relay. */
-async function studio() {
+/** A deck connected to an answering production page, both through the relay, on one clock. */
+async function studio(t) {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
   const hub = relayHub();
   globalThis.__panelBackend = hub.backend;
   const prod = productionPage();
@@ -339,7 +355,7 @@ async function studio() {
     onStatus: () => {},
     onPress: (r) => reports.push(r),
   });
-  const clock = new HandClock();
+  const clock = new HandClock(t);
   const deck = new PanelClient({ relay: hub.relay, clock, instance: 'deck' });
   await deck.start({ key: 'ncpk_test', code: '', label: 'Deck' });
   await drain();
@@ -370,6 +386,15 @@ async function landNext(prod, landed, hearNow) {
   return send.items;
 }
 
+/** Land the sends of `n` quick presses, and hear their rows, as each goes out: the page lets each
+ *  press go one draw gap after the one before it (issue #2144). */
+async function landEach(s, n) {
+  for (let i = 0; i < n; i++) {
+    await s.clock.advance(PRESS_DRAW_MS);
+    await landNext(s.prod, i, true);
+  }
+}
+
 /** The ways the slow road can hear its rows back against the next press. */
 const ROWS = {
   'each row heard at its answer': 0,
@@ -379,8 +404,8 @@ const ROWS = {
 
 for (const n of [3, 5]) {
   for (const [how, lag] of Object.entries(ROWS)) {
-    test(`${n} quick +1 presses from the deck add exactly ${n} points (${how})`, async () => {
-      const s = await studio();
+    test(`${n} quick +1 presses from the deck add exactly ${n} points (${how})`, async (t) => {
+      const s = await studio(t);
       try {
         // Pressed back to back: none waits for the one before it to be answered.
         const outcomes = Array.from({ length: n }, () => s.press());
@@ -389,7 +414,9 @@ for (const n of [3, 5]) {
         assert.equal(s.prod.sends.length, 1, 'the page sends one at a time per graphic');
         const unheard = [];
         for (let i = 0; i < n; i++) {
-          // The send for press i is out; land it.
+          // The send for press i is out (the page lets each press go one draw gap after the one
+          // before it, issue #2144); land it.
+          await s.clock.advance(PRESS_DRAW_MS);
           assert.equal(s.prod.sends.length, i + 1, `press ${i + 1} is the one out`);
           unheard.push(await landNext(s.prod, i, false));
           while (unheard.length > lag) s.prod.hear(unheard.shift());
@@ -413,15 +440,19 @@ for (const n of [3, 5]) {
 }
 
 for (const superseded of [false, true]) {
-  test(`5 quick +1 presses add exactly 5 when the wire is slow enough that the wait behind each press runs out${superseded ? ', and the server refuses the first send\'s late commit as superseded' : ''}`, async () => {
-    const s = await studio();
+  test(`5 quick +1 presses add exactly 5 when the wire is slow enough that the wait behind each press runs out${superseded ? ', and the server refuses the first send\'s late commit as superseded' : ''}`, async (t) => {
+    const s = await studio(t);
     try {
       const outcomes = Array.from({ length: 5 }, () => s.press());
       await drain();
-      // The first send hangs: every later press is let go by its fallback and counts from what was sent.
-      while (s.prod.fallbacks.length > 0) {
-        s.prod.fallbacks.shift()();
-        await drain();
+      // The first send hangs: every later press, let go one draw gap after the one before it, is let
+      // go by its fallback and counts from what was sent.
+      for (let i = 1; i < 5; i++) {
+        await s.clock.advance(PRESS_DRAW_MS);
+        while (s.prod.fallbacks.length > 0) {
+          s.prod.fallbacks.shift()();
+          await drain();
+        }
       }
       assert.equal(s.prod.sends.length, 5);
       for (let i = 1; i < 5; i++) await landNext(s.prod, i, false);
@@ -447,8 +478,8 @@ for (const superseded of [false, true]) {
   });
 }
 
-test('5 +1 presses spaced between landings, with the offer republished between them and one press drawn from an older offer, add exactly 6', async () => {
-  const s = await studio();
+test('5 +1 presses spaced between landings, with the offer republished between them and one press drawn from an older offer, add exactly 6', async (t) => {
+  const s = await studio(t);
   try {
     const drawnAt = s.deck.actions.actionsVer;
     for (let i = 0; i < 5; i++) {
@@ -476,8 +507,8 @@ test('5 +1 presses spaced between landings, with the offer republished between t
   }
 });
 
-test('a press whose acknowledgement is lost is retried with its id and never adds a second point', async () => {
-  const s = await studio();
+test('a press whose acknowledgement is lost is retried with its id and never adds a second point', async (t) => {
+  const s = await studio(t);
   try {
     // The first and third presses reach the page and lose the answer to their call; the module
     // retries each once with its id (calls 4 and 5, after the three first calls).
@@ -485,7 +516,7 @@ test('a press whose acknowledgement is lost is retried with its id and never add
     const outcomes = Array.from({ length: 3 }, () => s.press());
     await drain();
     assert.equal(s.hub.pressCalls(), 5, 'three presses, two of them sent again');
-    for (let i = 0; s.prod.sends[i]; i++) await landNext(s.prod, i, true);
+    await landEach(s, 3);
     await s.clock.advance(RESULT_MS);
     const said = await Promise.all(outcomes);
     assert.deepEqual(figures(s.prod), ['8', '9', '10']);
@@ -497,14 +528,14 @@ test('a press whose acknowledgement is lost is retried with its id and never add
   }
 });
 
-test('a press delivered twice, or whose result is lost, runs once and is never sent again', async () => {
-  const s = await studio();
+test('a press delivered twice, or whose result is lost, runs once and is never sent again', async (t) => {
+  const s = await studio(t);
   try {
     s.hub.faults.doubled.add(1).add(3);
     s.hub.faults.lostResult.add('deck:2');
     const outcomes = Array.from({ length: 3 }, () => s.press());
     await drain();
-    for (let i = 0; s.prod.sends[i]; i++) await landNext(s.prod, i, true);
+    await landEach(s, 3);
     // Long past every wait: the module never sends a press again on its own.
     await s.clock.advance(60_000);
     const said = await Promise.all(outcomes);
@@ -518,8 +549,8 @@ test('a press delivered twice, or whose result is lost, runs once and is never s
   }
 });
 
-test('a press sent again after it was answered, however late, is answered duplicate and adds nothing', async () => {
-  const s = await studio();
+test('a press sent again after it was answered, however late, is answered duplicate and adds nothing', async (t) => {
+  const s = await studio(t);
   try {
     const first = s.press();
     await drain();
@@ -540,15 +571,15 @@ test('a press sent again after it was answered, however late, is answered duplic
   }
 });
 
-test('a press the deck hears nothing back for says so and is never sent again', async () => {
-  const s = await studio();
+test('a press the deck hears nothing back for says so and is never sent again', async (t) => {
+  const s = await studio(t);
   try {
     // Both of the page's answers to the second press are lost: it ran, and the deck cannot know.
     s.hub.faults.lostResult.add('deck:2');
     s.hub.faults.lostSettled.add('deck:2');
     const outcomes = Array.from({ length: 3 }, () => s.press());
     await drain();
-    for (let i = 0; s.prod.sends[i]; i++) await landNext(s.prod, i, true);
+    await landEach(s, 3);
     await s.clock.advance(60_000);
     const said = await Promise.all(outcomes);
     assert.equal(s.hub.pressCalls(), 3, 'nothing was sent again');
@@ -561,8 +592,8 @@ test('a press the deck hears nothing back for says so and is never sent again', 
   }
 });
 
-test('3 quick +1 presses add exactly 3 when the page\'s resolve, asked before the first landed, answers after it with the older report', async () => {
-  const s = await studio();
+test('3 quick +1 presses add exactly 3 when the page\'s resolve, asked before the first landed, answers after it with the older report', async (t) => {
+  const s = await studio(t);
   try {
     // The page (re)opens its wire: the read of the output's report is out.
     const answer = s.prod.resolve();
@@ -572,7 +603,10 @@ test('3 quick +1 presses add exactly 3 when the page\'s resolve, asked before th
     // The read comes back with the report as it was asked: 7, before the first +1.
     answer({ home: '7' });
     await drain();
-    for (let i = 1; i < 3; i++) await landNext(s.prod, i, true);
+    for (let i = 1; i < 3; i++) {
+      await s.clock.advance(PRESS_DRAW_MS);
+      await landNext(s.prod, i, true);
+    }
     await s.clock.advance(RESULT_MS);
     await Promise.all(outcomes);
     assert.deepEqual(figures(s.prod), ['8', '9', '10']);
@@ -591,8 +625,6 @@ test('3 quick +1 presses add exactly 3 when the page\'s resolve, asked before th
 // sends, and the page numbers presses by the press id that has always carried a counter. Each case
 // presses once first, because the first press a page hears from a panel sets the count. The page's
 // timers are moved by hand, as the module's clock is.
-
-const { PRESS_HOLD_MS, PRESS_DRAW_MS } = await import('../src/control/panelFeedback.ts');
 
 /** The relay calls of these press ids wait until `release(id)`: later presses overtake them. */
 function holdBack(s, ...ids) {
@@ -628,7 +660,8 @@ async function drawGap(t) {
 
 /** A deck and an answering page whose keys are three cues of one graphic. The page is as a real one:
  *  a press changes what it shows only when it next draws, a task after the press ran. */
-async function cueStudio() {
+async function cueStudio(t) {
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
   const hub = relayHub();
   globalThis.__panelBackend = hub.backend;
   const ran = [];
@@ -661,7 +694,8 @@ async function cueStudio() {
     onStatus: () => {},
     onPress: () => {},
   });
-  const deck = new PanelClient({ relay: hub.relay, clock: new HandClock(), instance: 'deck' });
+  const clock = new HandClock(t);
+  const deck = new PanelClient({ relay: hub.relay, clock, instance: 'deck' });
   const real = hub.relay.press;
   hub.relay.press = (key, press) => (sent.push(press), real(key, press));
   await deck.start({ key: 'ncpk_test', code: '', label: 'Deck' });
@@ -678,13 +712,14 @@ async function cueStudio() {
     await deck.press('take-cue', 'cara');
     await drain();
     assert.deepEqual(ran, ['cara']);
+    // The page has drawn it before the next press.
+    await clock.advance(PRESS_DRAW_MS);
   };
   return { hub, deck, ran, sent, done, warmed };
 }
 
 test('a pick and then a reveal that reach the page reversed run in the order they were pressed', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await cueStudio();
+  const s = await cueStudio(t);
   try {
     await s.warmed();
     const release = holdBack(s, 'deck:2');
@@ -706,8 +741,7 @@ test('a pick and then a reveal that reach the page reversed run in the order the
 });
 
 test('a press let go after the one before it is judged against what that one drew', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await cueStudio();
+  const s = await cueStudio(t);
   try {
     await s.warmed();
     const release = holdBack(s, 'deck:2');
@@ -727,9 +761,28 @@ test('a press let go after the one before it is judged against what that one dre
   }
 });
 
+test('a press heard straight after the one before it, in order, is judged against what that one drew (issue #2144)', async (t) => {
+  const s = await cueStudio(t);
+  try {
+    await s.warmed();
+    // One key, pressed twice, both drawn with Anna off air, reaching the page in order and back to
+    // back, before it draws the first.
+    const first = s.deck.press('take-cue', 'anna');
+    const second = s.deck.press('take-cue', 'anna');
+    await drain();
+    assert.deepEqual(s.ran, ['cara', 'anna'], 'the second waits for the page to draw the first');
+    await drawGap(t);
+    assert.deepEqual(s.ran, ['cara', 'anna'], 'then it is refused, not run on a page that has not drawn the first');
+    const [one, two] = await Promise.all([first, second]);
+    assert.equal(one.result.outcome, 'ran');
+    assert.equal(two.result.outcome, 'stale');
+  } finally {
+    s.done();
+  }
+});
+
 test('a reversed +1 and -1 each have their one effect, in the order they were pressed', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await studio();
+  const s = await studio(t);
   try {
     await firstPress(s);
     const release = holdBack(s, 'deck:2');
@@ -752,8 +805,7 @@ test('a reversed +1 and -1 each have their one effect, in the order they were pr
 });
 
 test('five +1 presses arriving in any order add exactly five, each once, whatever is delivered twice', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await studio();
+  const s = await studio(t);
   try {
     await firstPress(s);
     const release = holdBack(s, 'deck:2', 'deck:3', 'deck:5');
@@ -782,8 +834,7 @@ test('five +1 presses arriving in any order add exactly five, each once, whateve
 });
 
 test('a press that never arrives holds the next one for the bound only, and the presses after it not at all', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await studio();
+  const s = await studio(t);
   try {
     await firstPress(s);
     lose(s, 'deck:2');
@@ -798,7 +849,9 @@ test('a press that never arrives holds the next one for the bound only, and the 
     await drain();
     assert.equal(s.prod.sends.length, 2, 'the bound ran out: the third runs');
     await landNext(s.prod, 1, true);
-    // The count moved past the lost press: the next press is in its turn again.
+    // The count moved past the lost press: the next press, once the page has drawn the third, is in
+    // its turn again.
+    await drawGap(t);
     const fourth = s.press();
     await drain();
     assert.equal(s.prod.sends.length, 3, 'the fourth runs as it is heard');
@@ -813,8 +866,7 @@ test('a press that never arrives holds the next one for the bound only, and the 
 });
 
 test('a press arriving after the bound ran out still adds its one point', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await studio();
+  const s = await studio(t);
   try {
     await firstPress(s);
     const release = holdBack(s, 'deck:2');
@@ -838,8 +890,7 @@ test('a press arriving after the bound ran out still adds its one point', async 
 });
 
 test('a press on its own runs as it is heard: nothing has to tick for it', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await studio();
+  const s = await studio(t);
   try {
     for (let i = 0; i < 3; i++) {
       const out = s.press();
@@ -855,8 +906,8 @@ test('a press on its own runs as it is heard: nothing has to tick for it', async
   }
 });
 
-test('the first press a page hears from a deck that has pressed before never waits for the numbers it missed', async () => {
-  const s = await cueStudio();
+test('the first press a page hears from a deck that has pressed before never waits for the numbers it missed', async (t) => {
+  const s = await cueStudio(t);
   try {
     // The module has been up for a while: this page has never heard its earlier presses.
     await s.hub.relay.press('ncpk_test', { verb: 'take-cue', target: 'anna', seen: s.deck.state.ver, id: 'deck:57' });
@@ -868,8 +919,7 @@ test('the first press a page hears from a deck that has pressed before never wai
 });
 
 test('a page that stops answering runs nothing it was still holding', async (t) => {
-  t.mock.timers.enable({ apis: ['setInterval'] });
-  const s = await cueStudio();
+  const s = await cueStudio(t);
   try {
     await s.warmed();
     const release = holdBack(s, 'deck:2');
@@ -887,3 +937,93 @@ test('a page that stops answering runs nothing it was still holding', async (t) 
     s.done();
   }
 });
+
+for (const ends of ['is drawn', 'is drawn and then taken off by the page', 'fails', 'never settles']) {
+  test(`a Take key pressed twice while the first Take still saves an edit takes the cue once, and the next Take after the first ${ends} runs (issue #2144)`, async (t) => {
+    t.mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
+    const hub = relayHub();
+    globalThis.__panelBackend = hub.backend;
+    // The real verbs, with the cue's edit still saving (`flush`) well past the draw gap.
+    const prod = productionPage();
+    const saving = held();
+    prod.page.flush = () => saving.promise;
+    const cue = { id: 'b2', sourceId: 'g-Score', label: 'B2', graphic: 'Score', values: { home: '0' } };
+    const takes = [];
+    // The page draws B2 on air once its Take is sent, as the real page books its marker, until the
+    // page's own Out takes it off.
+    let off = false;
+    const up = () => !off && prod.log.some((item) => item.msg.t === 'cue' && item.msg.cue === 'b2');
+    const answer = answerPanel({
+      slug: 'slug-3',
+      where: 'production',
+      move: false,
+      label: 'Production',
+      snapshot: () => ({
+        title: 'Match',
+        selected: 'b2',
+        space: up() ? 'take-off' : 'take',
+        live: up() ? ['b2'] : ['b1'],
+        allowed: { take: true },
+        blocked: [],
+        clip: null,
+        bridge: 'ok',
+        rows: [{ id: 'b2', label: 'B2', kind: 'cue', source: 'graphic' }],
+      }),
+      runs: new Set(['take']),
+      // As ProductionPage's dispatcher: a Take answers its promise.
+      run: () => (takes.push(cue.id), prod.verbs.take(cue)),
+      onStatus: () => {},
+      onPress: () => {},
+    });
+    const clock = new HandClock(t);
+    const deck = new PanelClient({ relay: hub.relay, clock, instance: 'deck' });
+    try {
+      await deck.start({ key: 'ncpk_test', code: '', label: 'Deck' });
+      await drain();
+      answer.changed();
+      await drain();
+      assert.equal(deck.status, 'ok', deck.note);
+      const first = deck.press('take', 'b2');
+      const second = deck.press('take', 'b2');
+      await drain();
+      await drawGap(t);
+      assert.deepEqual(takes, ['b2'], 'the second Take is not run while the first is still saving');
+      const [one, two] = await Promise.all([first, second]);
+      assert.equal(one.result.outcome, 'ran');
+      assert.deepEqual([two.result.outcome, two.result.note], ['stale', 'what Take does changed']);
+      // A press refused for its own reason keeps that reason while the guard holds the cue.
+      const elsewhere = deck.press('take-cue', 'b2');
+      await drain();
+      await drawGap(t);
+      assert.equal((await elsewhere).result.outcome, 'not-here');
+      const drawn =ends !== 'fails' && ends !== 'never settles';
+      if (drawn) saving.resolve();
+      else if (ends === 'fails') saving.reject(new Error('the edit did not save'));
+      else {
+        // Never settles: the guard lets go by its own bound, not by a reload.
+        t.mock.timers.tick(TAKE_GUARD_MAX_MS);
+        await drain();
+      }
+      await drain();
+      assert.equal(prod.sends.length, drawn ? 1 : 0, 'the cue is taken once');
+      // Drawn: the page shows B2 on air while the Take's send is still unanswered, and then maybe
+      // off again. Failed: the Take settled a draw gap ago, and the page shows what it showed before.
+      answer.changed();
+      await drain();
+      if (ends === 'is drawn and then taken off by the page') {
+        off = true;
+        answer.changed();
+      }
+      await clock.advance(PRESS_DRAW_MS);
+      // The next press of the key is judged as any other, and runs.
+      const third = await deck.press('take', 'b2');
+      assert.equal(third.result.outcome, 'ran');
+      assert.deepEqual(takes, ['b2', 'b2']);
+      if (drawn) await landNext(prod, 0, false);
+    } finally {
+      pagehide();
+      void deck.stop();
+      delete globalThis.__panelBackend;
+    }
+  });
+}

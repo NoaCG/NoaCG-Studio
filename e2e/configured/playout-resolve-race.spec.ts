@@ -2,7 +2,7 @@
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/useProductionPublish.ts
 // covers: src/control/airState.ts, src/control/sessionWire.ts
-// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts
+// covers: src/control/graphicVerbs.ts, src/control/verbDispatch.ts, src/control/verbView.ts, src/control/markerSender.ts
 // covers: src/control/cueDraft.ts
 //
 // A TAKE PRESSED WHILE THE PAGE'S FIRST RESOLVE IS STILL OUT STAYS ON THIS PAGE (production-page
@@ -23,8 +23,8 @@
 // marker goes back (#1696): so the answer is released while the Take waits.
 
 import { publishProduction } from '../_publish';
-import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { test, expect, type FrameLocator, type Page } from '@playwright/test';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
@@ -104,10 +104,203 @@ test('a Take whose wait for the first resolve runs out is never sent, and nothin
   await page.waitForTimeout(6_000);
   expect(fulfilled(), 'the resolve is still out when the Take gives up').toBe(0);
   await expect(chip).toContainText('nothing on air');
+  // Nor does this page's own monitor play what was never sent (#1719): it agrees with the marker.
+  await expect(stage).toHaveAttribute('data-plays', '0');
   // The answer, when it comes, agrees: nothing went.
   const answered = page.waitForResponse(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/);
   release();
   await answered;
   await page.waitForTimeout(1_500);
   await expect(chip).toContainText('nothing on air');
+  await expect(stage).toHaveAttribute('data-plays', '0');
+});
+
+//
+// A TAKE OF ANOTHER GRAPHIC WHILE A RELOADED PAGE READS THE ROWS AFTER THE REPORTS (#2162), on a
+// real backend and a real output. The resolve has answered, so the road is decided and Take goes,
+// moving the ON AIR marker here; the read of the rows after the reports is held in the browser,
+// with no product hook. The graphic already on air must still reach this page's PROGRAM monitor,
+// with what air did after its report (its clock started, the report held back so it stays older).
+
+const SCOREBUG = 'House Scorebug';
+const STRAP = 'Hairline';
+
+/** Whether the scorebug shows in a stage (the output's, or this page's PROGRAM monitor). */
+const scorebugShows = (stage: FrameLocator) =>
+  stage.locator('.scoreboard').evaluate((el) => Number(getComputedStyle(el).opacity) > 0.9);
+/** Whether the scorebug's clock runs in a stage. */
+const clockRuns = (stage: FrameLocator) =>
+  stage.locator('.scoreboard-clock').evaluate((el) => (el.ownerDocument.defaultView as unknown as { matchClockAt: number | null }).matchClockAt !== null);
+
+test('a Take of another graphic while the reloaded page reads the rows keeps the one on air on PROGRAM', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  await bootstrapGraphic(page, { name: SCOREBUG });
+  const showId = await openProductionWithCurrent(page, `Take during read ${Date.now()}`);
+  await addCatalogGraphic(page, showId, STRAP);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  if (await page.getByTestId('production-status-panel').isVisible()) await page.getByTestId('production-status').click();
+  const outputSlug = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
+  }, showId);
+  expect(outputSlug).toBeTruthy();
+
+  // ── THE SCOREBUG ON AIR on a real output, reported; a lower third has come and gone since, and
+  // the scorebug's clock started after its last report. ──
+  const output = await context.newPage();
+  await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}&debug=1`);
+  const air = output.frameLocator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
+  const plays = () => output.evaluate(() => Number(document.body.getAttribute('data-plays')));
+  const cue = (name: string) => page.getByTestId('select-cue').filter({ hasText: name }).first();
+  await cue(SCOREBUG).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => scorebugShows(air), { timeout: 30_000 }).toBe(true);
+  await cue(STRAP).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(plays, { timeout: 30_000 }).toBe(2);
+  await page.getByTestId('verb-out').click();
+  await output.waitForTimeout(2_500); // past the reports' debounce
+  await output.route(/\/rest\/v1\/rpc\/control_output_report/, (route) => route.abort());
+  await cue(SCOREBUG).click();
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect.poll(() => clockRuns(air), { timeout: 20_000 }).toBe(true);
+
+  // ── THE HOLD: the reloaded page's read of the rows after the reports waits to be released. A
+  // read the old document makes before the new one resolves passes (e2e/AGENTS.md, on reloads). ──
+  let resolved = false;
+  let rowsAsked = 0;
+  let releaseRows!: () => void;
+  const rowsReleased = new Promise<void>((resolve) => (releaseRows = resolve));
+  await page.route(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/, async (route) => {
+    resolved = true;
+    await route.continue().catch(() => {});
+  });
+  await page.route(/\/rest\/v1\/rpc\/control_tail(\?|$)/, async (route) => {
+    if (resolved) {
+      rowsAsked += 1;
+      await rowsReleased;
+    }
+    await route.continue().catch(() => {});
+  });
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => rowsAsked, { timeout: 30_000, message: 'the page read the rows after the reports' }).toBeGreaterThan(0);
+  if (await page.getByTestId('production-status-panel').isVisible()) await page.keyboard.press('Escape');
+
+  // ── THE LOWER THIRD TAKEN during the read: it reaches air, and the scorebug stays there. ──
+  await cue(STRAP).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(plays, { timeout: 30_000 }).toBe(3);
+  expect(await scorebugShows(air), 'the scorebug is still on air').toBe(true);
+
+  // ── THE MONITOR, against air: the scorebug on both, its clock running. ──
+  releaseRows();
+  const monitor = page.frameLocator(`[data-testid="program-stage"] iframe[title="${SCOREBUG}"]`);
+  await expect.poll(() => scorebugShows(monitor), { timeout: 20_000, message: 'the scorebug on air shows on PROGRAM' }).toBe(true);
+  await expect.poll(() => clockRuns(monitor), { timeout: 10_000, message: 'its clock runs on PROGRAM, as on air' }).toBe(true);
+  // This page marks it on air as well: its Out is there to press.
+  await cue(SCOREBUG).click();
+  await expect(page.getByTestId('verb-out')).toBeEnabled();
+  await output.close();
+});
+
+//
+// A PRESS ON ANOTHER GRAPHIC WHILE A RELOADED PAGE READS AN OFF-AIR CLOCK (#2148), on a real
+// backend and a real output. The monitor keeps a clock through an Out, as every output does, so a
+// reload rebuilds it from its report and the rows after it (#1906). That read runs after the seed,
+// when presses are on; it is held in the browser while the operator updates the lower third on air,
+// and the scorebug's next Take must show on PROGRAM the time air shows.
+
+/** The time the scorebug's clock shows in a stage. */
+const clockText = (stage: FrameLocator) => stage.locator('.scoreboard-clock').evaluate((el) => (el.textContent ?? '').trim());
+
+test('an Update on another graphic while the reloaded page reads an off-air clock leaves PROGRAM counting what air counts', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+  await bootstrapGraphic(page, { name: SCOREBUG });
+  const showId = await openProductionWithCurrent(page, `Clock read ${Date.now()}`);
+  await addCatalogGraphic(page, showId, STRAP);
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  if (await page.getByTestId('production-status-panel').isVisible()) await page.getByTestId('production-status').click();
+  const outputSlug = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === id)?.outputSlug ?? null;
+  }, showId);
+  expect(outputSlug).toBeTruthy();
+
+  // ── THE SCOREBUG'S CLOCK run, stopped and taken Out on a real output; the lower third on air. ──
+  const output = await context.newPage();
+  await output.goto(`/output?production=${encodeURIComponent(outputSlug!)}&debug=1`);
+  const air = output.frameLocator(`iframe[title="${SCOREBUG}"]:not([data-prepared])`);
+  const plays = () => output.evaluate(() => Number(document.body.getAttribute('data-plays')));
+  const cue = (name: string) => page.getByTestId('select-cue').filter({ hasText: name }).first();
+  await cue(SCOREBUG).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => scorebugShows(air), { timeout: 30_000 }).toBe(true);
+  const fresh = await clockText(air);
+  await page.getByTestId('cue-action-clockStart').click();
+  await expect.poll(() => clockRuns(air), { timeout: 20_000 }).toBe(true);
+  await expect.poll(() => clockText(air), { timeout: 20_000 }).not.toBe(fresh);
+  await output.waitForTimeout(2_000);
+  await page.getByTestId('cue-action-clockStop').click();
+  await expect.poll(() => clockRuns(air), { timeout: 20_000 }).toBe(false);
+  const held = await clockText(air);
+  await page.getByTestId('verb-out').click();
+  await expect.poll(() => scorebugShows(air), { timeout: 20_000 }).toBe(false);
+  await cue(STRAP).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(plays, { timeout: 30_000 }).toBe(2);
+  await output.waitForTimeout(2_500); // past the reports' debounce
+
+  // ── THE HOLD: the reloaded page's read of the scorebug's own rows waits to be released. ──
+  let resolved = false;
+  let clockAsked = 0;
+  let releaseClock!: () => void;
+  const clockReleased = new Promise<void>((resolve) => (releaseClock = resolve));
+  await page.route(/\/rest\/v1\/rpc\/control_show_(resolve|by_slug)(\?|$)/, async (route) => {
+    resolved = true;
+    await route.continue().catch(() => {});
+  });
+  await page.route(/\/rest\/v1\/rpc\/control_tail(\?|$)/, async (route) => {
+    if (resolved && (route.request().postDataJSON() as { p_graphic?: string | null }).p_graphic === SCOREBUG) {
+      clockAsked += 1;
+      await clockReleased;
+    }
+    await route.continue().catch(() => {});
+  });
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => clockAsked, { timeout: 30_000, message: 'the page read the off-air clock\'s rows' }).toBeGreaterThan(0);
+  if (await page.getByTestId('production-status-panel').isVisible()) await page.keyboard.press('Escape');
+
+  // ── THE UPDATE on the lower third, on air, during the read: it is sent. ──
+  await cue(STRAP).click();
+  await expect(page.getByTestId('verb-update')).toBeEnabled({ timeout: 30_000 });
+  const sent = page.waitForResponse(/\/rest\/v1\/rpc\/control_send_(many|seq)(\?|$)/, { timeout: 15_000 });
+  await page.getByTestId('verb-update').click();
+  await sent;
+  const read = page.waitForResponse((response) => /\/rest\/v1\/rpc\/control_tail(\?|$)/.test(response.url()) && (response.request().postDataJSON() as { p_graphic?: string | null }).p_graphic === SCOREBUG, { timeout: 30_000 });
+  releaseClock();
+  await (await read).finished();
+  // The page folds the answer in a few microtasks after it lands; nothing on screen shows it off air.
+  await page.waitForTimeout(500);
+
+  // ── THE SCOREBUG'S NEXT TAKE: PROGRAM shows the time air shows. ──
+  await cue(SCOREBUG).click();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => scorebugShows(air), { timeout: 30_000 }).toBe(true);
+  await expect.poll(() => clockText(air), { timeout: 10_000, message: 'air keeps its clock through the Out' }).toBe(held);
+  const monitor = page.frameLocator(`[data-testid="program-stage"] iframe[title="${SCOREBUG}"]`);
+  await expect.poll(() => scorebugShows(monitor), { timeout: 20_000 }).toBe(true);
+  await expect.poll(() => clockText(monitor), { timeout: 10_000, message: 'PROGRAM counts what air counts' }).toBe(held);
+  await output.close();
 });

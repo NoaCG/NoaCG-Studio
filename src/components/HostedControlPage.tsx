@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { packageLayerPeers, withPeersOff } from '../control/ografOutcome';
+import { holdReload } from '../app/deploySkew';
 import {
   adjustWords,
   controlName,
@@ -17,12 +18,13 @@ import {
   formatMachineState,
   illegalEventTitle,
   isEventLegal,
-  machineStateGroups,
+  backTarget,
   machineStateNames,
   movedKeys,
   movedStateNames,
   overflowNote,
   pressSend,
+  resetTarget,
   OVERFLOW_FIELD_HINT,
   OVERFLOW_FIELD_MARK,
   type ArrangedControl,
@@ -55,7 +57,9 @@ import {
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts } from '../control/failedSends';
+import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, createSendDebts, isUncertain } from '../control/failedSends';
+import { reachedOutput } from '../control/liveCue';
+import { createMarkerSender, type MarkerSent } from '../control/markerSender';
 import { appendLogEntries, describeLogRow, eventLogLabel, logTime, noteEntry, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
@@ -71,6 +75,7 @@ import {
   leftAlone,
   sendControlVerb,
   sendControlVerbs,
+  sendsInOrder,
   staleSentence,
   stageHostedData,
   takeCueItems,
@@ -78,6 +83,7 @@ import {
   verbAired,
   verbStale,
   verbsLanded,
+  verbsSkipped,
   verbSentItems,
   withLiveCue,
   type ControlEventRow,
@@ -88,7 +94,9 @@ import {
   type ResolvedControlShow,
   type VerbSent,
 } from '../control/hostedControl';
-import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap } from '../control/outputRecovery';
+import { airedAfter, reportedTypedAir, rowsPastHold, type AiredMap, type ReplayItem } from '../control/outputRecovery';
+import { clockSpecsFrom, heldClockData, programItems, type ClockSpecs } from '../control/airState';
+import { NO_AIR, type AirPart } from '../control/playoutSession';
 import { IDENTITY, lookAfter, reportedLook, type AppliedAppearance, type AppliedLooks } from '../control/cueAdjust';
 import { styleContextFor } from '../control/cueStyle';
 import { hostedAdjustState, hostedAppearance, hostedPlaceWaiting, hostedRecords } from '../control/hostedAdjust';
@@ -319,6 +327,42 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /** The graphics a failed send left on this monitor alone, so its notice comes down once they
    *  have all been sent again (failedSends.ts `createSendDebts`). */
   const sendDebts = useRef(createSendDebts());
+  const liveCueRef = useRef(liveCue);
+  liveCueRef.current = liveCue;
+  /** Move the marker, the ref at once: the marker sender reads it before the next render. */
+  const moveLive = useCallback((graphic: string, cue: string | null) => {
+    liveCueRef.current = withLiveCue(liveCueRef.current, graphic, cue);
+    setLiveCue((m) => withLiveCue(m, graphic, cue));
+  }, []);
+  /**
+   * THE PROGRAM MONITOR'S CLOCKS, as the production page's monitor keeps them (#2176): each clock
+   * as this stage was last sent it, and the clocks the published graphics carry. Every command
+   * reaches the stage through the same fold (control/airState.ts `programItems`), so it is sent
+   * what it holds, as air is, and never the cue's plain resend. Handed raw, a stage rebuilt from a
+   * report held a debate's banked time, and the next Update's plain 05:00 read there as a correction.
+   * A cue row in a batch moves the marker at once (`moveLive`), so a command after it folds against it.
+   */
+  const programAir = useRef<AirPart>(NO_AIR);
+  const programClocks = useRef<ClockSpecs>({ clocks: new Map(), pairs: new Map() });
+  const toProgram = useCallback((items: ReplayItem[]) => {
+    const run = programItems({ ...programAir.current, liveCue: liveCueRef.current }, items, programClocks.current, Date.now());
+    programAir.current = run.air;
+    programRef.current?.apply(run.out);
+  }, []);
+  /**
+   * THIS PAGE'S TAKES AND OUTS, numbered at the press, and the live marker written from what each
+   * came to (control/markerSender.ts, the production page's sender's own): a Take whose send fails
+   * moves the marker back (#1713), a late older answer never marks over a newer press, and on
+   * protocol 1 the last answer stands (#1721). A second operator reads this marker to know what is
+   * on air.
+   */
+  const [markers] = useState(() =>
+    createMarkerSender({
+      live: () => liveCueRef.current,
+      mark: moveLive,
+      ordered: () => sendsInOrder(slug),
+    }),
+  );
   const applyCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
     for (const item of items) {
       if (!applied.current.claim(item.msg)) continue;
@@ -326,13 +370,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // A cue row names its own graphic, so it only ever speaks for that ONE layer - and it
       // rides the same road as the picture, or the ON AIR marker and the monitor would disagree
       // for a third of a second.
-      if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
+      if (msg.t === 'cue') moveLive(item.graphic, msg.cue);
       // 'staged' is another operator typing, 'live' is the renderer REPORTING and 'ping' is
       // Prepare for Live's check of the command path - none is a command for the stage.
       else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
         // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
         // actually reached air rather than only what its own buttons sent.
-        programRef.current?.apply([{ graphic: item.graphic, msg }]);
+        toProgram([{ graphic: item.graphic, msg }]);
         // The monitor has moved past the boot snapshot, so a later rebuild recovers from what
         // this page has seen since, not from the boot's replay.
         bootReplay.current = null;
@@ -341,14 +385,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         looksRef.current = lookAfter(looksRef.current, item.graphic, msg);
       }
     }
-  }, []);
+  }, [moveLive, toProgram]);
   /** Commands the server sent back, on either road. One of a send that failed here landed after
    *  all, so the notice about it comes down (failedSends.ts `heard`). */
   const hearCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
     const settle = sendDebts.current.heard(items);
     if (settle) setError(settle);
-    applyCommand(items);
-  }, [applyCommand]);
+    // A Take that got no answer may have landed after all; this page's own markers are the
+    // answers' to write, and a row of an older press applied now would mark over a newer one.
+    markers.heardLate(items);
+    applyCommand(markers.withoutOwn(items, (msg) => applied.current.has(msg)));
+  }, [applyCommand, markers]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -380,6 +427,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         if (!live) return;
         bootReplay.current = replay;
       }
+      programClocks.current = clockSpecsFrom(resolved?.output?.graphics ?? []);
+      programAir.current = NO_AIR;
       setShow(resolved);
       if (!resolved) return;
       sharedStaged.current = { ...resolved.staged };
@@ -562,7 +611,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const fastEventGraphics = useMemo(() => clockFreeGraphics(payload?.graphics ?? []), [payload]);
   /** The imported clocks whose Take or running correction its row's server time stamps, so they go
-   *  slow (#1886). This page keeps no clock of its own: what it last saw sent stands in for it. */
+   *  slow (#1886). Judged against what this page last saw sent; the PROGRAM monitor's clock memory
+   *  (`programAir`) is the monitor's alone and decides no road. */
   const importedClocks = useMemo(() => serverInstantClocks(payload?.graphics ?? []), [payload]);
   const serverInstant = (item: ControlSendItem): boolean => {
     const clock = importedClocks.get(item.graphic);
@@ -652,8 +702,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // screen came up blank, reporting "Off" a second after the reload.
   //
   // Read through refs: a stage can come up long after the render that passed this callback.
-  const liveCueRef = useRef(liveCue);
-  liveCueRef.current = liveCue;
+  // Left open across a deploy, the page reloads for a code file it can no longer fetch, but never
+  // while a graphic is up here or a press is still being sent: an Out clears the marker before
+  // its request lands (app/deploySkew.ts, #758).
+  const sendsOut = useRef(0);
+  useEffect(() => holdReload(() => sendsOut.current > 0 || Object.values(liveCueRef.current).some(Boolean)), []);
   const machineStateRef = useRef(machineState);
   machineStateRef.current = machineState;
   /** Sends the cue editor's typing still inside its debounce (`sendVerb` says why). */
@@ -662,11 +715,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   reportsRef.current = resolved?.live ?? {};
   const restoreProgram = useCallback(() => {
     const replay = bootReplay.current;
+    // At boot a fresh stage's clocks start from the reports; later from what this monitor held,
+    // written over the plain times the aired values keep (airState.ts `restoreItems`).
+    const heldClocks = programAir.current;
+    if (replay) programAir.current = NO_AIR;
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
       // At boot the snapshot is the REPORT, which the rows below were read against; later it is
       // what this page has seen since.
-      const data = replay ? reportsRef.current[graphic]?.data : (airedRef.current[graphic] ?? reportsRef.current[graphic]?.data);
+      const data = replay ? reportsRef.current[graphic]?.data : heldClockData(airedRef.current[graphic] ?? reportsRef.current[graphic]?.data, graphic, heldClocks, programClocks.current);
       const groups = machineStateRef.current[graphic]?.groups;
       const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       // A report of typed data banks its envelope and steps (E1.2b): PROGRAM airs that envelope,
@@ -679,7 +736,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         // Its place and size still go back first, as the output puts them back on the graphic it holds.
         const held = reportedLook(reportsRef.current[graphic]);
         const past = [...(held ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: held } }] : []), ...rowsPastHold(rows)];
-        if (past.length > 0) programRef.current?.apply(past);
+        if (past.length > 0) toProgram(past);
         continue;
       }
       const dataItem = typed
@@ -688,7 +745,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       const steps = typed && typedBase ? typedBase.steps.map((msg) => ({ graphic, msg })) : [];
       // Its place and size first (rule 4): the report's at boot, else what this page has seen since.
       const look = replay ? reportedLook(reportsRef.current[graphic]) : looksRef.current[graphic];
-      programRef.current?.apply([
+      toProgram([
         ...(look ? [{ graphic, msg: { t: 'update' as const, data: {}, appearance: look } }] : []),
         ...dataItem,
         ...(groups
@@ -701,7 +758,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         ...rows,
       ]);
     }
-  }, []);
+  }, [toProgram]);
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
@@ -786,6 +843,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     setError(notice);
   };
 
+  /** A send that failed: its markers in batches before the failed one landed (unless one of those
+   *  skipped their graphic), the rest go back. With no answer, the failed batch's may still commit,
+   *  and its row heard later lands it. */
+  const markerFailed = (pressed: MarkerSent[], e: Error) =>
+    markers.failed(pressed, verbsLanded(e), verbsSkipped(e), isUncertain(e) && !verbStale(e));
+
   /**
    * ONE DOOR for every verb this page presses, on BOTH ROADS (src/control/commandRoads.ts): this
    * page's own monitor with no hop at all, and one send that both writes the durable row and has
@@ -801,31 +864,41 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const sendVerb = (items: ControlSendItem[], allOut = false): Promise<boolean> => {
     flushTyping.current();
+    sendsOut.current += 1;
+    const { batches: [stamped], pressed } = markers.stamp([items]);
+    markers.press(pressed);
     return sendControlVerb({
       slug,
       showId: resolved?.id ?? null,
-      items,
+      items: stamped,
       applyHere: applyCommand,
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
       serverInstant,
       allOut,
     }).then(
-      () => {
-        setError(sendDebts.current.landed(items));
+      (sent) => {
+        markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
+        setError(sendDebts.current.landed(stamped));
         return true;
       },
       (e: Error) => {
-        surfaceSendError(verbSentItems(e) ?? items, e);
+        markerFailed(pressed, e);
+        surfaceSendError(verbSentItems(e) ?? stamped, e);
         return false;
       },
-    );
+    ).finally(() => {
+      sendsOut.current -= 1;
+    });
   };
 
   /** A press that leaves as several batches (All out over more than four layers): numbered and based together at the press, sent in order, stopping at the first that
    *  fails (hostedControl.ts `sendControlVerbs`). Owed, on a failure: the batch that failed. What
    *  the send came to when it landed, or null when it did not. */
-  const sendVerbs = (batches: ControlSendItem[][], allOut = false): Promise<VerbSent | null> => {
+  const sendVerbs = (unstamped: ControlSendItem[][], allOut = false): Promise<VerbSent | null> => {
     flushTyping.current();
+    sendsOut.current += 1;
+    const { batches, pressed } = markers.stamp(unstamped);
+    markers.press(pressed);
     return sendControlVerbs({
       slug,
       showId: resolved?.id ?? null,
@@ -836,16 +909,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       allOut,
     }).then(
       (sent) => {
+        markers.answer(pressed, (m) => reachedOutput(sent, m.graphic));
         setError(sendDebts.current.landed(batches.flat()));
         return sent;
       },
       (e: Error) => {
+        markerFailed(pressed, e);
         const landed = verbsLanded(e);
         if (landed > 0) sendDebts.current.landed(batches.slice(0, landed).flat());
         surfaceSendError(verbSentItems(e) ?? batches[landed] ?? [], e);
         return null;
       },
-    );
+    ).finally(() => {
+      sendsOut.current -= 1;
+    });
   };
 
   /** The layers that are up, front to back. */
@@ -872,6 +949,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  asks (`controlModel canAdvance`), so a quiz on its Reveal greys Next here too instead of
    *  logging "Next step" while the board stays put (g2 handoff, "For row G" item 3). */
   const nextMoves = !!selectedGraphic && canAdvance(spec?.js ?? '', machineState[selectedGraphic] ?? null);
+  /** Where « Back would take the selected layer (`controlModel backTarget`), as on the in-app bar. */
+  const backTo = selectedLayerCueId && selectedGraphic && spec ? backTarget(spec.js, machineState[selectedGraphic] ?? null) : null;
   /** What » Next will do, in words on the button: the in-app page's `advanceLabel`, read the same way. */
   // Read only while a layer is live and Next would move it; this component returns early above,
   // so it cannot memoise (rules of hooks).
@@ -1032,11 +1111,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * being operated from a phone, away from the machine running the renderer, when air and the
    * dashboard get out of step.
    */
-  const snapOn = (graphic: string, groupId: string | null, stateId: string) => {
+  const snapOn = (graphic: string, assignments: Record<string, string> | null) => {
     const layerCueId = liveCue[graphic] ?? null;
     if (!layerCueId) return;
     const layerCue = cues.find((c) => c.id === layerCueId) ?? null;
-    const snap = { graphic, msg: { t: 'snap' as const, snap: groupId === null ? null : { [groupId]: stateId } } };
+    const snap = { graphic, msg: { t: 'snap' as const, snap: assignments } };
     // The layer airs a cue this page was not given (a live candidate, E7.1): it has no values here
     // to send, so the snap goes alone and the layer keeps what it shows.
     // A live press like the others: after the one before it on its graphic, on the same cue.
@@ -1049,8 +1128,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       await sendVerb(layerCue ? [snap, { graphic, msg: { t: 'update', data: { ...cueValues(layerCue), ...moved } } }] : [snap]);
     });
   };
-  const snapTo = (groupId: string | null, stateId: string) => {
-    if (selectedGraphic && selectedCue) snapOn(selectedGraphic, groupId, stateId);
+  const snapTo = (assignments: Record<string, string> | null) => {
+    if (selectedGraphic && selectedCue) snapOn(selectedGraphic, assignments);
   };
 
   /** What a moved figure counts from (`SentFigures`), shared by every live press on this page. */
@@ -1181,7 +1260,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         }
         onEvent={(e) => pinnedEvent(graphic, e)}
         onBump={(key, delta) => pinnedBump(graphic, key, delta)}
-        onSnap={(groupId, stateId) => snapOn(graphic, groupId, stateId)}
+        onSnap={(assignments) => snapOn(graphic, assignments)}
       />
     );
   };
@@ -1436,6 +1515,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             selectedGraphic={selectedGraphic}
             nextMoves={nextMoves}
             nextLabel={nextLabel}
+            onBack={backTo ? () => snapTo(backTo) : null}
             keptStates={keptStates}
             onKey={runVerb}
             cues={cues}
@@ -1486,6 +1566,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               }}
               bound={boundFields(selectedCue.graphic)}
               boundOf={(field) => boundValues[selectedCue.graphic]?.[field]}
+              boundNow={(field) => boundNow(selectedCue.graphic)[field]}
               onPatchBound={patchBound}
               figures={figures}
               stack={liveStack}
@@ -1676,6 +1757,7 @@ function HostedVerbs({
   selectedGraphic,
   nextMoves,
   nextLabel,
+  onBack,
   keptStates,
   onKey,
   unordered,
@@ -1695,6 +1777,8 @@ function HostedVerbs({
   nextMoves: boolean;
   /** » Next's target in words (`controlModel advanceLabel`), or 'last step', or null when unknown. */
   nextLabel: string | null;
+  /** « Back, one step back on the selected layer (`controlModel backTarget`), or null when it would do nothing. */
+  onBack: (() => void) | null;
   /** The states ✎ Update will keep on air, in the author's words (`controlModel movedStateNames`) —
    *  empty once nothing is up for Update to keep. */
   keptStates: string;
@@ -1744,6 +1828,18 @@ function HostedVerbs({
       >
         ✎ Update <kbd>U</kbd>
       </button>
+      {/* « Back and » Next share one cell, as on the in-app bar. */}
+      <span className="pd-verb-step">
+      <button
+        className="pd-verb pd-verb-back"
+        disabled={!onBack}
+        onClick={() => onBack?.()}
+        title="Back one step"
+        aria-label="Back one step"
+        data-testid="hosted-back-cue"
+      >
+        «
+      </button>
       <button
         className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
         disabled={!layerLive || !nextMoves}
@@ -1770,6 +1866,7 @@ function HostedVerbs({
           </>
         )}
       </button>
+      </span>
       <button
         className="pd-verb"
         disabled={!layerLive}
@@ -1838,7 +1935,7 @@ function HostedLiveBlock({
   blocked: (e: ControlButton) => string | null;
   onEvent: (e: ControlButton) => void;
   onBump: (key: string, delta: number) => void;
-  onSnap: (groupId: string | null, stateId: string) => void;
+  onSnap: (assignments: Record<string, string> | null) => void;
 }) {
   const descriptors = useMemo(() => fieldDescriptors(spec.fields), [spec.fields]);
   const descriptorByKey = useMemo(() => new Map(descriptors.map((d) => [d.key, d])), [descriptors]);
@@ -1854,7 +1951,7 @@ function HostedLiveBlock({
     [events, arrange, airedValues, descriptors, path],
   );
   const legality = useMemo(() => eventLegality(spec.js), [spec.js]);
-  const stateGroups = useMemo(() => machineStateGroups(spec.js), [spec.js]);
+  const resetTo = useMemo(() => resetTarget(spec.js), [spec.js]);
   const stateNames = useMemo(() => machineStateNames(spec.js), [spec.js]);
   const stacked = !!heading;
   // In the stack a pinned graphic off air has nothing to act on, and says so on its chip.
@@ -1955,40 +2052,19 @@ function HostedLiveBlock({
         </span>
         {name}
         {chip}
-        {/* RECOVERY, folded closed in the head: the snap is not how a graphic is driven. */}
-        {stateGroups.length > 0 && (
+        {/* RESET, where the recovery list was (#2181): the in-app block's press. */}
+        {resetTo && (
           <span className="pd-actions-tools">
-            <details className="pd-actions-recovery" data-testid="hosted-actions-recovery">
-              <summary title="Jumps the live graphic straight to a state with no animation and re-sends this cue’s values. For when air and this page are out of step (a renderer restart, a missed press).">
-                Recovery
-              </summary>
-              <select
-                className="pd-snap"
-                value=""
-                disabled={!layerLive}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  if (v === '::reset') onSnap(null, '');
-                  else {
-                    const i = v.indexOf(':');
-                    onSnap(v.slice(0, i), v.slice(i + 1));
-                  }
-                }}
-                title="RECOVERY. Jumps the live graphic straight to a state with no animation."
-                data-testid="hosted-snap"
-              >
-                <option value="">Snap to state…</option>
-                <option value="::reset">⟲ Back to start (visual reset)</option>
-                {stateGroups.map((g) =>
-                  g.states.map((s) => (
-                    <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
-                      {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
-                    </option>
-                  )),
-                )}
-              </select>
-            </details>
+            <button
+              type="button"
+              className="pd-actions-reset"
+              disabled={!layerLive}
+              onClick={() => onSnap(resetTo)}
+              title="Back to the first step, still on air"
+              data-testid="hosted-actions-reset"
+            >
+              ⟲ Reset
+            </button>
           </span>
         )}
       </div>
@@ -2098,6 +2174,7 @@ function HostedCueEditor({
   onFlushReady,
   bound,
   boundOf,
+  boundNow,
   onPatchBound,
   figures,
   stack,
@@ -2131,7 +2208,7 @@ function HostedCueEditor({
    *  layer is off. A ⚡ press acts on it. */
   onAir: { cue: OutputCue; values: Record<string, string> } | null;
   onPreview: (values: Record<string, string>) => void;
-  onSnap: (groupId: string | null, stateId: string) => void;
+  onSnap: (assignments: Record<string, string> | null) => void;
   /** The page's one door for a verb - both roads, its own monitor, and the log. It answers
    *  whether the rows went, because a press that moves a SHARED value must not move it for an
    *  event the log refused: the other bound graphics would follow a figure this one never took. */
@@ -2150,6 +2227,10 @@ function HostedCueEditor({
   /** What the tree currently says a bound field reads - the figure a ± or an `adjust` counts
    *  from, and the value a bound box shows however the cue was prepared (plan §2.7). */
   boundOf: (field: string) => string | undefined;
+  /** The same figure read off the NEWEST tree, at the moment a queued press runs rather than when
+   *  this render drew it: the press before it on this graphic may have moved the value since
+   *  (#1567). What a press counts a bound field from. */
+  boundNow: (field: string) => string | undefined;
   /** Move the SHARED value. The rows come back for every graphic bound to the path, so this is
    *  the one write the editor makes that is not about this cue at all. */
   onPatchBound: (writes: TreeWrite[]) => Promise<void>;
@@ -2313,8 +2394,11 @@ function HostedCueEditor({
     const typed = Object.fromEntries((e.payload ?? []).map((key) => [key, read(key)]));
     figures.press(pressed.graphic, async () => {
       const moving = new Set(movedKeys(e));
+      // A BOUND figure is read off the newest tree NOW, when this press runs: a Goal pressed while
+      // the one before it was still on its way counted from the figure both saw, and two goals
+      // moved the shared score by one (#1567). The pinned block's press has always done this.
       const { payload, fields: moved, tree } = pressSend(e, bound, (key) =>
-        moving.has(key) && !bound[key] ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : key in typed ? typed[key] : read(key),
+        bound[key] ? boundNow(key) : moving.has(key) ? figures.base(pressed.graphic, key, (sibling?.cue ?? pressed).values[key]) : key in typed ? typed[key] : read(key),
       );
       const settle = figures.hold(pressed.graphic, moved, (sibling?.cue ?? pressed).id);
       const sent = await onSend([
@@ -2337,7 +2421,8 @@ function HostedCueEditor({
           onPreview({ ...currentValues(), ...staged });
         }
       }
-      void onPatchBound(tree);
+      // The next press on this graphic waits for the shared value this one moved.
+      await onPatchBound(tree);
     });
   };
 
@@ -2353,7 +2438,9 @@ function HostedCueEditor({
     // it follows through the ordinary diff. Nothing is staged and nothing is echoed.
     const path = bound[key];
     if (path) {
-      void onPatchBound([{ path, text: adjustedValue(boundOf(key), delta), verb: 'adjust' }]);
+      // In line behind a Goal still on its way on this graphic, counting from the tree as it
+      // stands when its turn comes, so a Goal and a + inside one round trip both count.
+      figures.press(cue.graphic, () => onPatchBound([{ path, text: adjustedValue(boundNow(key), delta), verb: 'adjust' }]));
       return;
     }
     const pressed = cue;

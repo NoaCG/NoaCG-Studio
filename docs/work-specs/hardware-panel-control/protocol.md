@@ -70,10 +70,10 @@ read or write them.
 | `panel_pair_start(p_slug)` | page | mints a code for 5 minutes; at most 5 unused codes per production | `{ok, code, expires_at}` |
 | `panel_pair_finish(p_code, p_label)` | module | spends the code once; mints a key | `{ok, key, key_id, label, title, feedback_topic}`; refusals `unknown-code`, `used-code`, `expired-code`, `slow-down` |
 | `panel_hello(p_key)` | module, on every (re)connect | updates last use; sends `want` on `pnp-` when a page answers | `{ok, key_id, label, title, feedback_topic, answering}`; refusals `unknown-key`, `revoked`, `no-page` (hosted control switched off for the account) |
-| `panel_press(p_key, p_press)` | module | validates the press, stamps the claim, sends `press` on `pnp-` | `{ok, claim}`; refusals `unknown-key`, `revoked`, `bad-press`, `not-a-panel-verb`, `no-page`, `slow-down` |
+| `panel_press(p_key, p_press)` | module | validates the press, records its id as the key's last press (never a lower number of the same instance), stamps the claim, sends `press` on `pnp-` | `{ok, claim}`; refusals `unknown-key`, `revoked`, `bad-press`, `not-a-panel-verb`, `no-page`, `slow-down` |
 | `panel_list(p_slug)` | page | | `{ok, press_topic, feedback_topic, claim, answering: {page, where, label, at} or null, panels: [{id, label, created_at, last_used_at}]}` |
 | `panel_revoke(p_slug, p_key_id)` | page | marks the key revoked; replaces `f`; sends `rotated` on `pnp-` | `{ok, feedback_topic}` |
-| `panel_lease(p_slug, p_page, p_where, p_label, p_move)` | page, taking the panel (by itself, or "Use here" with `p_move`) | free or lapsed, or `p_move`: claim + 1, records who, a lease of 15 s, sends `claim` on `pnp-`; already this page's: a fresh lease, the same claim | `{ok, claim, press_topic, feedback_topic}`; refusal `held` with `answering` |
+| `panel_lease(p_slug, p_page, p_where, p_label, p_move)` | page, taking the panel (by itself, or "Use here" with `p_move`) | free or lapsed, or `p_move`: claim + 1, records who, a lease of 15 s, sends `claim` on `pnp-`; already this page's: a fresh lease, the same claim | `{ok, claim, press_topic, feedback_topic, last_presses}`, `last_presses` each live key's last press id (0110); refusal `held` with `answering` |
 | `panel_renew(p_slug, p_page, p_claim)` | the answering page, on every beat | a fresh 15 s lease while `p_claim` is still current | `{ok, claim}`; refusal `lost` with `answering` |
 | `panel_claim(p_slug, p_page, p_where, p_label)` | pages built before the lease | takes a free panel for 12 hours; raises while another live page holds it | `{ok, claim, press_topic, feedback_topic}` |
 | `panel_release(p_slug, p_claim)` | page, on leaving the production | clears the answering page if `p_claim` is still current; sends `released` | `{ok, released}` |
@@ -145,13 +145,29 @@ own claim's presses run in press order, per panel, by the `n` of their press id
 (`control/panelFeedback.ts` `PressOrder`): a press in its turn, with nothing held, runs in the task
 that heard it; one ahead of its turn is held until the presses before it arrive. 500 ms after a
 press was first held with none in its turn, everything held goes, and the ones that never came are
-given up on. Presses let go together run 50 ms apart, so each is judged against a page that has
-drawn the one before it; two that arrive in order have no such gap, however close together, and the
-second may be judged against a page that has not drawn the first. A press after its turn runs at once, so one arriving past the bound still
-has its one effect. The first press this page hears from a panel sets the count and never waits,
-because the module may have pressed long before this page opened; a reversed pair at that very
-moment runs as it arrived. A press refused by the relay or lost on the way leaves a gap, so the
-next press of that panel waits out the 500 ms once.
+given up on. A press in its turn runs no sooner than 50 ms after the last press this page ran, from
+any panel, however close together they arrived (issue #2144); a press with none in the 50 ms before
+it does not wait. A press after its turn, or one with no number, runs at once, so one arriving past
+the bound still has its one effect, and the next press waits out 50 ms behind it too. The gap is
+meant to let the page draw the press before, and it assumes that press's effect reaches the page's
+drawn state within 50 ms. A graphic's Take can take longer: it first saves an edit still owed and
+settles the cue's box (adjust writes still saving, a measurement not yet made;
+`control/graphicVerbs.ts` `takeOn`). So on the production page, while a cue's Take started by a
+panel's `take` or `take-cue` is still running, and for 50 ms after it settles, another panel `take`
+or `take-cue` of that cue that would otherwise run is refused `stale` ("what Take does changed"), unless
+its key was drawn after the page showed that cue go on or off air. The page's own Take and Re-take
+are not held to this. The limit that remains is for the other verbs:
+one whose effect the page draws later than 50 ms after it ran is not waited for. Each panel's count
+starts after the last press the relay took from it before this page answered (`last_presses` from
+`panel_lease`, 0110), so the first pair this page hears from it runs in press order too (issue
+#2140). For a panel the lease named nothing for (a database without 0110, a key paired or a module
+started after the page answered) the first press this page hears sets the count and never waits for
+the numbers before it, because the module may have pressed long before this page opened; a reversed
+pair at that very moment runs as it arrived. A press refused by the relay or lost on the way leaves a
+gap, so the next press of that panel waits out the 500 ms once. That includes a press the relay
+takes after `panel_lease` answers and before the page's press channel joins, during a reload or "Use
+here": it was lost before 0110 too, and now its count is known, so the panel's next press waits once
+instead of running at once.
 
 Then, in this order, on each `press`:
 

@@ -95,10 +95,14 @@ test('an agent-authored machine brings its own button, greyed until the cue is o
   );
   expect(await reveal.getAttribute('title')).not.toMatch(/\bf\d+\b/);
 
-  // The authored states reach the recovery picker too - proof the whole group came across, not
-  // just the one arrow that has a button.
-  await expect(page.getByTestId('cue-actions')).toContainText('Votes');
-  await expect(page.getByTestId('cue-actions')).toContainText('Revealed');
+  // The authored states came across, named as the author named them: the chip reads them, and
+  // « Back (which replaced the recovery picker that used to list them, #2181) walks the press back.
+  const chip = page.getByTestId('machine-state-chip');
+  await expect(chip).toContainText('Votes');
+  await reveal.click();
+  await expect(chip).toContainText('Revealed');
+  await page.getByTestId('verb-back').click();
+  await expect(chip).toContainText('Votes');
 });
 
 test('the totals board declares eleven controls and every one of them renders in its own section', async ({ page }) => {

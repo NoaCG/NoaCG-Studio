@@ -341,6 +341,56 @@ test('skipAnimation lands the action instantly, in real time', async ({ page }) 
   expect(result.control, 'the control case was already settled — the assertion proves nothing').not.toBe('1');
 });
 
+test('a skipped quiz action lands with every mark the board had: the pick survives the lock, the verdict the audience result', async ({ page }) => {
+  // skipAnimation settles by re-snapping to where the machine is, with no data write after it, and a
+  // snap fires only the target state's own call. The quiz's snap must therefore leave the marks it
+  // finds (#2181): clearing them there lost the pick under a lock and the verdict under the
+  // audience result.
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  const zip = await ografPackage(page);
+  await serve(page, zip, 'http://ograf-quiz-skip.local', Object.keys(zip.files)[0].split('/')[0]);
+
+  const result = await page.evaluate(async () => {
+    const mod = await import('http://ograf-quiz-skip.local/graphic.mjs');
+    customElements.define('ograf-quiz-skip-under-test', mod.default);
+    type Driver = HTMLElement & {
+      load(p: unknown): Promise<{ statusCode: number }>;
+      playAction(p: unknown): Promise<{ statusCode: number }>;
+      customAction(p: unknown): Promise<{ statusCode: number }>;
+      dispose(p?: unknown): Promise<unknown>;
+    };
+    const el = document.createElement('ograf-quiz-skip-under-test') as Driver;
+    document.body.appendChild(el);
+    await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
+    const body = graphicBody(el);
+    const read = () => ({
+      sel: body.querySelectorAll('.quiz-option.quiz-sel').length,
+      locked: body.querySelector('.quiz')!.classList.contains('quiz-locked'),
+      correct: body.querySelectorAll('.quiz-option.quiz-correct').length,
+    });
+    await el.playAction({ skipAnimation: true });
+    await el.customAction({ id: 'select', payload: { f6: 'B' }, skipAnimation: true });
+    const selected = read();
+    await el.customAction({ id: 'lock', skipAnimation: true });
+    const locked = read();
+    await el.customAction({ id: 'judge', skipAnimation: true });
+    const judged = read();
+    // The audience result is a branch off the reveal: its own call paints the percentages, and
+    // the verdict under them belongs to the reveal step the snap passes through silently.
+    await el.customAction({ id: 'audience', payload: { f7: '34 | 52 | 9 | 5' }, skipAnimation: true });
+    const audience = { ...read(), chips: body.querySelectorAll('.quiz-aud').length };
+    await el.dispose({});
+    el.remove();
+    return { selected, locked, judged, audience };
+  });
+
+  expect(result.selected, 'a skipped select').toEqual({ sel: 1, locked: false, correct: 0 });
+  expect(result.locked, 'a skipped lock keeps the pick it locks').toEqual({ sel: 1, locked: true, correct: 0 });
+  expect(result.judged.correct, 'a skipped reveal shows the verdict').toBe(1);
+  expect(result.audience.chips, 'a skipped audience result shows the percentages').toBe(4);
+  expect(result.audience.correct, 'a skipped audience result keeps the verdict under them').toBe(1);
+});
+
 test('the loaded Graphic resolves its own fonts and images against the PACKAGE, not the host page', async ({ page }) => {
   // A Graphic is a component inside somebody else's document. A relative `fonts/inter.woff2`
   // in the injected CSS therefore resolves against the RENDERER's directory, not the package —

@@ -90,6 +90,12 @@ export interface AirPart {
   /** How many times the marker was written here, moved or not: the resolve's seed is skipped when
    *  this moved while its round trip was in flight. */
   moves: number;
+  /** Per graphic, the `moves` count of the last Take's write on its layer: a seed in flight then
+   *  skips only those layers. ADDITIVE OPTIONAL: absent is none. */
+  tookAt?: Readonly<Record<string, number>>;
+  /** The `moves` count of the last write that was not a Take's (an Out, an All out, a whole map):
+   *  a seed in flight then skips whole. ADDITIVE OPTIONAL: absent is none. */
+  clearedAt?: number;
   /** What each graphic was last sent, by field: what rebuilds PROGRAM and what "not on air yet"
    *  is judged against. */
   aired: AiredMap;
@@ -99,8 +105,15 @@ export interface AirPart {
   clocks: Readonly<Record<string, string>>;
   /** The same per field for a debate board's two clocks. */
   speaking: Readonly<Record<string, Record<string, string>>>;
-  /** Commands applied to PROGRAM here, so a boot read can tell it is older. */
+  /** Commands applied to PROGRAM here, in all. A boot read reads `commandsBy`. */
   commands: number;
+  /** The same per graphic: a boot read is older than the screen only for the graphics a command
+   *  moved since it was asked (`airAtRequest`). ADDITIVE OPTIONAL: absent is none. */
+  commandsBy?: Readonly<Record<string, number>>;
+  /** Per graphic, the last command here that decides an output's hold on it (./outputRecovery.ts
+   *  `holdAfter`): its `commandsBy` count and whether it leaves the graphic held. A boot read keeps a
+   *  held report unless one released it meanwhile. ADDITIVE OPTIONAL: absent is none. */
+  holdBy?: Readonly<Record<string, { at: number; held: boolean }>>;
   /** The renderers' last reports from the resolve, null until it answered. */
   reports: LiveReportMap | null;
   /** The rows after each report at the resolve, until a newer report or command; then null. */

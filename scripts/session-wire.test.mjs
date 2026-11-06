@@ -207,7 +207,8 @@ test('an off-air clock is rebuilt from its report and the rows after it, read af
     assert.deepEqual(session.air.get().aired.lt, { f0: 'REPORTED' }, 'the on-air seed did not wait');
     assert.ok(wire.calls.includes('clocks ctl-1 bug') && wire.calls.includes('follow prod-1 1000'));
     assert.equal('bug' in session.air.get().clocks, false);
-    if (commandMeanwhile) session.apply((parts) => ({ ...parts, air: { ...parts.air, commands: parts.air.commands + 1 } }));
+    // A command meanwhile, on the graphic it names, applied as the page applies one.
+    if (commandMeanwhile) session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, [{ graphic: commandMeanwhile, msg: { t: 'update', data: {}, oid: `c-${commandMeanwhile}` } }], session.applied, { clocks: new Map(), pairs: new Map() }, 0).air }));
     wire.clockReplays[0].resolve({ graphics: ['bug'], rows: [
       { graphic: 'bug', msg: { t: 'stop' }, created_at: new Date(1_800_000_010_000).toISOString() },
       { graphic: 'bug', msg: { t: 'update', data: { f2: '0:20' } }, created_at: new Date(1_800_000_020_000).toISOString() },
@@ -217,8 +218,9 @@ test('an off-air clock is rebuilt from its report and the rows after it, read af
     stop();
     return held;
   };
-  assert.equal(await run(false), '0:20@out/0:20/0:20', 'the report, then its Out and the off-air edit after it');
-  assert.equal(await run(true), undefined, 'a command applied meanwhile is newer than those rows');
+  assert.equal(await run(null), '0:20@out/0:20/0:20', 'the report, then its Out and the off-air edit after it');
+  assert.equal(await run('bug'), undefined, 'a command applied to it meanwhile is newer than those rows');
+  assert.equal(await run('lt'), '0:20@out/0:20/0:20', 'a command on the graphic on air leaves it rebuilt (#2148)');
 });
 
 test('a resolve that fails is asked again, and the header says so until it answers', async () => {
@@ -266,6 +268,27 @@ test('THE MOVES GUARD through the lifetime: a Take while the resolve or its repl
     assert.ok(page.said.includes('recovered lt'), 'what air holds is still known: the follow carries the rest');
     stop();
   }
+});
+
+test('#2162 through the lifetime: a Take of one graphic while the replay is out leaves the other on PROGRAM', async () => {
+  const wire = scriptedWire();
+  const page = fakePage();
+  const { session, stop } = start(wire, page);
+  await flush();
+  wire.resolves[0].resolve({ ok: true, value: RESOLVED });
+  await flush();
+  // The Take as this page applies it: its marker, then its commands.
+  session.apply((parts) => ({ ...parts, air: moveLiveCue(parts.air, (m) => withLiveCue(m, 'score', 'c9'), ['score']) }));
+  const clocks = { clocks: new Map(), pairs: new Map() };
+  session.apply((parts) => ({ ...parts, air: claimAndApply(parts.air, [{ graphic: 'score', msg: { t: 'update', data: { f1: '2' }, oid: 't1' } }, { graphic: 'score', msg: { t: 'play', oid: 't1' } }], session.applied, clocks, 0).air }));
+  const row = { graphic: 'lt', msg: { t: 'update', data: { f1: 'after the report' } } };
+  wire.replays[0].resolve([row]);
+  await flush();
+  assert.deepEqual(session.air.get().liveCue, { lt: 'c1', score: 'c9' });
+  assert.deepEqual(session.air.get().bootLive, { lt: 'c1' }, 'the boot recovery puts the one on air on PROGRAM');
+  assert.deepEqual(session.air.get().bootReplay, [row], 'with the rows after its report');
+  assert.deepEqual(session.air.get().aired.lt, { f0: 'REPORTED', f1: 'after the report' });
+  stop();
 });
 
 test('A +1 HEARD WHILE THE RESOLVE OR ITS REPLAY IS OUT (#2088): the older report does not put it back', async () => {

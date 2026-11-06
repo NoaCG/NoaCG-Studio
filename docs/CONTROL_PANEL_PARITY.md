@@ -153,7 +153,7 @@ the other way round:
 | Structural greying | yes | yes | yes | yes |
 | Buttons grouped by section | yes | yes | yes | yes |
 | State shown as | state NAME | state NAME | state NAME | state NAME |
-| Snap to a state (recovery) | **no** | via the graph | recovery replay on reboot | **yes on both** since 2026-08-19 (`.pd-snap`, with a reset-visual-state option) - the hosted page had none, which is the wrong page to lack it: it is the one being operated away from the renderer |
+| Snap to a state (recovery) | **no** | via the graph | recovery replay on reboot | **yes on both**: « Back and ⟲ Reset since #2181 (2026-11-05), replacing the 2026-08-19 `.pd-snap` list - the hosted page had none before that, which is the wrong page to lack it: it is the one being operated away from the renderer |
 | Buttons grouped by SECTION | yes | yes | yes | **yes on both** since 2026-08-19 - one grouper, `controlModel.ts arrangeControls`; the hosted page rendered a flat wall |
 | Operator ACTIVITY log | – | – | its own feed | **yes on both** since 2026-08-19 - the hosted page already read every row to drive PROGRAM and discarded them |
 | "Not on air yet" on an edited live cue | – | – | – | **yes on both** since 2026-08-19; the hosted baseline follows the WIRE, so somebody else's update clears it |
@@ -209,14 +209,14 @@ exported panel) while two printed names, from two hand-rolled copies of the same
 
 There is one formatter now - `controlModel.ts` `formatMachineState` over `machineStateNames` - and
 all five surfaces call it. `machineStateNames` is deliberately not `machineStateGroups`: that one
-is the snap PICKER's list and is empty without an explicit machine on purpose, while NAMING has to
+is the Bridge's list of states and is empty without an explicit machine on purpose, while NAMING has to
 work for a machine-less graphic too, so it falls back to the derived machine (whose states are
 named after the steps - a lower third now reads "Enter"). The exported panel ships without React,
 so it carries the map baked in at export.
 
-**5.3 There is no snap / recovery control at all.** The production page builds one out of
-`machineStateGroups` (`.pd-snap`, a per-group state picker plus a `::reset` entry that snaps every
-group to its initial - the VISUAL half of reset); the per-graphic page never calls that function.
+**5.3 There is no snap / recovery control at all.** The production page has two (« Back beside
+» Next and ⟲ Reset in the ⚡ block, `controlModel.ts backTarget` / `resetTarget`, which replaced the
+`.pd-snap` state picker in #2181); the per-graphic page has neither.
 "Every state is enterable two ways - by transition or by SNAP" (`docs/STATE_MACHINE_SCHEMA.md` §3)
 is therefore false on this surface: an operator who lands in the wrong state has ■ Stop and a
 replay, and there is no reset-visual-state separate from resetting data.
@@ -228,7 +228,7 @@ blueprints' PLACEMENT with §7b's SEMANTICS. So this surface grows **two** thing
   quiz frames draw their `QUIZ STATE` control - the operator should read where the graphic is
   without hunting for a chip;
 - a **recovery** jump, labelled as recovery, riding with a re-send of the values (recovery is two
-  operations). The production page's `.pd-snap` is the working example.
+  operations). The production page's « Back and ⟲ Reset are the working example.
 
 Jumping stays recovery on purpose: driving by picking from a list skips the arrows, and after
 `lock` there is no `select` arrow at all - a late pick is impossible rather than refused. A free

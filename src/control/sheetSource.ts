@@ -187,7 +187,7 @@ export function sheetContent(shape: SheetShape, rows: string[][]): SheetContent 
  * field it was made for when the source says so (a list adapter's own field, a Field ID).
  * `graphic` is the graphic under review, so a list leaf names the field it really fills.
  */
-export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed', graphic?: GraphicShape): OfferedValue[] {
+export function offeredValues(sourceId: string, shape: SheetShape, content: SheetContent, kind: 'sheet' | 'feed' | 'file', graphic?: GraphicShape): OfferedValue[] {
   const prefix = sourcePrefix(sourceId, kind);
   if (shape !== 'values') {
     return listLeaves(shape, graphic).map((l) => ({ path: `${prefix}.${l.leaf}`, label: l.label, sample: content.leaves[l.leaf] ?? '', ...(l.field ? { key: l.field } : {}) }));
@@ -381,6 +381,10 @@ export interface SheetReaderOptions {
   sourceId: string;
   /** The tab a Sheet reader reads (absent when `read` is given). */
   link?: SheetLink;
+  /** Why this page cannot read the source at all, asked before each claim, or null when it can.
+   *  A page that cannot read never takes or keeps the lease, so it cannot starve a page that can:
+   *  a local file is readable only on the computer that picked it (control/fileSource.ts). */
+  canRead?: (signal: AbortSignal) => Promise<{ error: string; fix: string } | null>;
   /** One read of another kind of source, in a Sheet read's form (control/feedSource.ts). */
   read?: (signal: AbortSignal) => Promise<SheetRead>;
   /** How often it reads (SHEET_READ_MS), and how long one read may take (SHEET_TIMEOUT_MS). */
@@ -593,6 +597,9 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
   let claimId: string | null = null;
   /** What the line last said, for a lease the door could not reach. */
   let shown: SheetStatus | null = null;
+  /** This page's own last reason it could not read (`canRead`), so its missed reads keep counting
+   *  while it briefly shows another page's status. */
+  let unable: SheetStatus | null = null;
 
   const report = (status: SheetStatus) => {
     const text = JSON.stringify(status);
@@ -623,6 +630,39 @@ export function createSheetReader(o: SheetReaderOptions): SheetReader {
 
   const read = async () => {
     const started = io.now();
+    // Asked under the read's own timeout, so a check that hangs never keeps the reader busy.
+    let cannot: { error: string; fix: string } | null = null;
+    if (o.canRead) {
+      const ask = new AbortController();
+      const cut = io.setTimer(() => ask.abort(), o.timeoutMs ?? SHEET_TIMEOUT_MS);
+      try {
+        cannot = await o.canRead(ask.signal).catch(() => null);
+      } finally {
+        io.clearTimer(cut);
+      }
+    }
+    if (stopped) return;
+    if (cannot) {
+      // This page cannot read: it never keeps the lease. When another page holds it, its status is
+      // the source's; otherwise nothing reads, so this page's reason counts as a missed read and
+      // the data goes stale after three, as for a failed read.
+      const peek = await door.claim(claimId).catch(() => null);
+      if (stopped) return;
+      claimId = null;
+      if (peek && !peek.held) {
+        report({ ...(peek.status ?? initialStatus(peek.reader)), reader: peek.reader });
+      } else {
+        door.release();
+        const before = unable ?? initialStatus('this');
+        if (o.paused() || peek?.paused) report({ ...before, state: 'paused' });
+        else report((unable = missedStatus(before, cannot, io.now(), 'this')));
+      }
+      // As after a read: a check that hung for its timeout tries again at once, so it goes stale on
+      // a Sheet's clock; one that failed fast keeps the cadence.
+      schedule(Math.max(0, started + renew - io.now()));
+      return;
+    }
+    unable = null;
     const answer = await door.claim(claimId).catch((error: Error) => error);
     if (stopped) return;
     if (answer instanceof Error && (answer as { code?: string }).code === 'no_lease') {
