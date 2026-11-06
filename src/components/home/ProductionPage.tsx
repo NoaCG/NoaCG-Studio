@@ -79,6 +79,7 @@ import { applyClearedSlot, clipClock, followedClip } from '../../control/serverS
 import { segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, type FolderStep, type StepMember } from '../../control/folderStep';
+import { webLockLead } from '../../control/webLockLead';
 import { startBridgeWatch, writeBridge, type BridgeWatch, type BridgeWatchIo } from '../../control/bridgeWatch';
 import { casparOffRefusal as casparOff, directBlocker as directBlockerOf, stepBlocker as stepBlockerOf, takeBlockerFor as takeBlockerOf, type SlotRules, type TakeContext } from '../../control/takeBlockers';
 import { runAndRecord } from '../../control/serverVerbs';
@@ -301,30 +302,8 @@ const BRIDGE_IO: BridgeWatchIo = {
     const memory = loadReadyMemory(showId);
     return JSON.stringify(memory.casparLoaded ?? null) === JSON.stringify(next ?? null) || saveReadyMemory(showId, { ...memory, casparLoaded: next ?? undefined });
   },
-  // Held by one tab of this browser at a time (Web Locks). Without them (an insecure origin), every
-  // tab holds it, as before #2245.
-  lead: (key) => {
-    if (!navigator.locks) return { held: () => true, release: () => {} };
-    let held = false;
-    let free = () => {};
-    const asked = new AbortController();
-    navigator.locks
-      .request(key, { signal: asked.signal }, () => {
-        held = true;
-        return new Promise<void>((resolve) => {
-          free = resolve;
-        });
-      })
-      .catch(() => {}); // released before it was granted
-    return {
-      held: () => held,
-      release: () => {
-        asked.abort();
-        held = false;
-        free();
-      },
-    };
-  },
+  // Held by one tab of this browser at a time (Web Locks), control/webLockLead.ts.
+  lead: (key) => webLockLead(navigator.locks, key),
   every: (ms, run) => {
     const timer = setInterval(run, ms);
     return () => clearInterval(timer);
