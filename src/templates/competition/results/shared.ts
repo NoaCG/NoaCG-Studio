@@ -496,7 +496,7 @@ export function timingMarkup(o: ResolvedOptions, order: string): string {
       <div class="${P}-body" id="${P}-rows"></div>
     </div>
 ${hiddenSource('f2', order, 'Running order (f2) — one competitor per line, in position order.')}
-${hiddenSource('f3', TIMING_FIELDS[3].value, 'The competitor in focus (f3) — DATA. One "focused" state carries any row.')}`;
+${hiddenSource('f3', TIMING_FIELDS.find((field) => field.key === 'focus')!.value, 'The competitor in focus (f3) — DATA. One "focused" state carries any row.')}`;
 }
 
 /**
@@ -601,10 +601,12 @@ function clearFocus() {
 // One state carries any row, so a twenty-car field needs no twenty states.
 function applyFocus() {
   clearFocus();
-  var row = focusedRow();
-  if (!row) return;                // no rows: the field stays level, nothing dimmed
+  // The tower is in focus even with no rows yet (the CSS dims rows only), so the rows a timing
+  // update brings in next light the named one through compRepaint.
   var root = document.querySelector('.${P}');
   if (root) root.classList.add('${P}-spotlit');
+  var row = focusedRow();
+  if (!row) return;                // no rows: nothing to lift yet
   row.classList.add('${P}-row-on');
   gsap.fromTo(row, { x: -10 }, { x: 0, duration: 0.34 / motionSpeed(), ease: 'back.out(1.6)' });
 }

@@ -59,7 +59,8 @@ export const podiumScoreType: GraphicType = {
     { key: 'name4', label: 'Player 4', kind: 'text', value: 'SAM', role: 'line' },
     { key: 'score4', label: 'Score 4', kind: 'number', value: '0', role: 'line' },
     // 1, not 0: the Spotlight press lights a podium the first time it is pressed (#2268). A
-    // number past either end lights the podium at that end (`spotlitPodium`).
+    // number naming no podium with a contestant lights the nearest named one before it, or the
+    // first named one (`spotlitPodium`).
     { key: 'spotlight', label: 'Spotlit podium', kind: 'number', value: '1', role: 'data' },
   ],
   machine: {
