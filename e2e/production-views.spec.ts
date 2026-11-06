@@ -18,7 +18,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
-import { expectPlayoutStillOpen, openWorkspace } from './_workspace';
+import { openDataPanel, expectPlayoutStillOpen, openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
 
 test('a plain production shows Playout alone, and Setup holds every other door one press away', async ({ page }) => {
@@ -132,7 +132,7 @@ test('Data opens on an overview of sources and values in the one vocabulary, and
   await review.getByTestId('cue-connect-read').click();
   await review.getByTestId('cue-connect-label').fill('Guests');
   await review.getByTestId('cue-connect-confirm').click();
-  await expect(page.getByTestId('sources-line')).toContainText('checked');
+  await expect(await openDataPanel(page)).toContainText('checked');
 
   const data = await openWorkspace(page, 'data');
   const overview = data.getByTestId('data-overview');
@@ -176,7 +176,7 @@ test('Data opens on an overview of sources and values in the one vocabulary, and
   // Pause from the overview reaches the Playout line; Resume reads again.
   await source.getByTestId('data-source-pause').click();
   await expect(source.getByTestId('data-source-reader')).toHaveText('Paused: not read until Resume');
-  await expect(page.getByTestId('sources-line')).toContainText('Sheet: Guests · paused');
+  await expect(await openDataPanel(page)).toContainText('Sheet: Guests · paused');
   await source.getByTestId('data-source-pause').click();
-  await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 10_000 });
+  await expect(await openDataPanel(page)).toContainText('checked', { timeout: 10_000 });
 });

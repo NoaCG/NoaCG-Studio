@@ -32,6 +32,7 @@ const NO_CUES: readonly ShowCue[] = [];
 export default function ProductionShell({
   show,
   status,
+  data,
   liveLayers,
   follow,
   resolveWaiting,
@@ -58,6 +59,8 @@ export default function ProductionShell({
   show: Show;
   /** The one playout status and its panel (home/PlayoutStatusControl.tsx), with its action slot. */
   status: React.ReactNode;
+  /** The production's data sources at a glance, with their panel (home/SourcesLine DataIndicator). */
+  data?: React.ReactNode;
   liveLayers: { layer: number }[];
   follow: ControlFollowStatus | null;
   /** The follow's resolve is failing and being retried - the server is not answering. */
@@ -245,6 +248,7 @@ export default function ProductionShell({
             The cloud chip stays visible: an operator must not miss a save that is late or failed. */}
         {/* One chip for both kinds of production (playout-workflow-simplification AC-12): a team
             production reads its own save, in the same words. */}
+        {data}
         <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote, readError: teamState.loadError } : undefined} />
         {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering: "Panel ✓"
             here and "Panel …" taking it, which open its dialog as the Setup menu's item does; on

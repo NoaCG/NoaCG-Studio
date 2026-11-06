@@ -14,7 +14,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from './_create';
-import { openWorkspace } from './_workspace';
+import { openDataPanel, openWorkspace } from './_workspace';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
 import { PRODUCTION_DATA_KEY } from '../src/model/productionState';
@@ -1510,6 +1510,7 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await expect(page.getByTestId('cue-bound-f0')).toContainText('Sheet: News desk');
   await expect(page.getByTestId('cue-bound-f0').locator('input')).toHaveValue('Ann Lee');
   await expect(page.getByTestId('cue-bound-f1').locator('input')).toHaveValue('Chief Editor');
+  await openDataPanel(page);
   await expect(page.getByTestId(`source-line-${sourceId}`)).toContainText(/Sheet: News desk · checked \d+ s ago/);
 
   // ── The equal title on the other graphic stays the cue's own. ──
@@ -1533,6 +1534,7 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   expect((await storedBindings(page, showId)).bindings.Hairline.f0).toBe(`sheet.${sourceId}.values.Name`);
 
   // ── Pause holds the values; Resume brings the change. ──
+  await openDataPanel(page);
   const line = page.getByTestId(`source-line-${sourceId}`);
   await line.getByTestId('source-pause').click();
   await expect(line).toContainText('paused');
@@ -1549,8 +1551,18 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await expect(line).toContainText('can’t read it (not shared)', { timeout: 10_000 });
   await expect(line.getByTestId('source-fix')).toContainText('Anyone with the link');
   await expect(program.locator('#f0')).toHaveText('Cy Dale');
+  // The header says it without the panel, and the cue it feeds turns its line amber (#2244).
+  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', /warn|bad/);
+  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-count', '1');
+  await expect(page.getByTestId('cue-connected-line').locator('.status-warn')).toContainText('Connected to Sheet: Studio guests');
+  // Three missed reads make it stale: red, the last good values still on air.
+  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'bad', { timeout: 20_000 });
+  await expect(line.getByTestId('source-status')).toContainText('stale');
+  await expect(program.locator('#f0')).toHaveText('Cy Dale');
   tab.status = 200;
   await expect(line).toContainText('checked', { timeout: 10_000 });
+  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'ok');
+  await expect(page.getByTestId('cue-connected-line').locator('.status-warn')).toHaveCount(0);
 
   // ── Disconnect returns the field to the cue holding its last value. ──
   await page.getByTestId('cue-bound-f0').getByTestId('cue-disconnect').click();
@@ -1560,10 +1572,10 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await page.getByTestId('cue-bound-f1').getByTestId('cue-disconnect').click();
   await expect(page.getByTestId('cue-field-f1')).toHaveValue('Chief Editor');
   expect(await storedBindings(page, showId), 'the last field gone, the source goes too').toEqual({ bindings: {}, sources: [] });
-  await expect(line).toHaveCount(0);
+  await expect(page.getByTestId('data-indicator'), 'no source, no indicator').toHaveCount(0);
 });
 
-test('the Playout sources line stays whichever cue is selected, tells checked from changed, and pauses there', async ({ page }) => {
+test('the header Data indicator stays whichever cue is selected, its panel tells checked from changed, and pauses there', async ({ page }) => {
   test.setTimeout(120_000);
   const tab = await stubSheet(page, 'Name,Value\nName,Ann Lee\n');
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
@@ -1576,14 +1588,20 @@ test('the Playout sources line stays whichever cue is selected, tells checked fr
   await review.getByTestId('cue-connect-label').fill('Guests');
   await review.getByTestId('cue-connect-confirm').click();
   const { sources } = await storedBindings(page, showId);
+  const indicator = page.getByTestId('data-indicator');
+  await expect(indicator).toHaveAttribute('data-tone', 'ok', { timeout: 10_000 });
+  await expect(indicator).toHaveText('Data ✓ 1');
+  // Nothing about a healthy source sits under the monitors (#2244).
+  await expect(page.getByTestId('control-area').locator('[data-testid^="source-line-"]')).toHaveCount(0);
   const line = page.getByTestId(`source-line-${sources[0].id}`);
   const status = line.getByTestId('source-status');
-  await expect(status).toHaveText(/^Sheet: Guests · checked \d+ s ago · changed \d+ s ago$/);
 
-  // The line is the production's: a graphic that follows no source still shows it.
+  // The indicator is the production's: a graphic that follows no source still shows it.
   await cues.nth(1).locator('.pd-cue-label').click();
   await expect(page.getByTestId('cue-connect')).toBeVisible();
-  await expect(line).toBeVisible();
+  await expect(indicator).toBeVisible();
+  await openDataPanel(page);
+  await expect(status).toHaveText(/^Sheet: Guests · checked \d+ s ago · changed \d+ s ago$/);
 
   // Unchanged reads move "checked" and leave "changed" behind, and that is healthy, not stale.
   const ages = async () => {
@@ -1596,22 +1614,38 @@ test('the Playout sources line stays whichever cue is selected, tells checked fr
   tab.csv = 'Name,Value\nName,Bo Chen\n';
   await expect.poll(ages, { timeout: 12_000 }).toBeLessThanOrEqual(1);
 
-  // Pause and Resume on the line itself.
+  // Pause and Resume in the panel; the indicator says paused without it.
   await line.getByTestId('source-pause').click();
   await expect(status).toHaveText('Sheet: Guests · paused');
   await expect(line).toHaveAttribute('data-state', 'paused');
+  await expect(indicator).toHaveAttribute('data-tone', 'paused');
+  await expect(indicator).toHaveAttribute('data-count', '1');
   const reads = tab.reads;
   await page.waitForTimeout(6_000);
   expect(tab.reads, 'paused: nothing is read').toBe(reads);
   // A reload keeps the source, its name and its Pause (data-sources C2: the record holds them).
   await settleDurableWrites(page);
   await page.reload();
-  await expect(status).toHaveText('Sheet: Guests · paused', { timeout: 20_000 });
+  await expect(indicator).toHaveAttribute('data-tone', 'paused', { timeout: 20_000 });
+  await openDataPanel(page);
+  await expect(status).toHaveText('Sheet: Guests · paused');
   await page.waitForTimeout(6_000);
   expect(tab.reads, 'still paused after the reload: nothing is read').toBe(reads);
   await line.getByTestId('source-pause').click();
+  await expect(line.getByTestId('source-pause')).toHaveText('Pause');
   await expect(status).toHaveText(/checked \d+ s ago/, { timeout: 10_000 });
+  await expect(indicator).toHaveAttribute('data-tone', 'ok');
   expect(tab.reads).toBeGreaterThan(reads);
+
+  // Two sources: all well counts both; one paused counts only that one.
+  await cues.nth(1).locator('.pd-cue-label').click();
+  const second = await readSheetTab(page, 'https://docs.google.com/spreadsheets/d/1NoaCGStubSheet1111111111/edit#gid=0');
+  await second.getByTestId('cue-connect-label').fill('Crew');
+  await second.getByTestId('cue-connect-confirm').click();
+  await expect(indicator).toHaveText('Data ✓ 2', { timeout: 10_000 });
+  await (await openDataPanel(page)).getByTestId(`source-line-${sources[0].id}`).getByTestId('source-pause').click();
+  await expect(indicator).toHaveText('Data ❚❚ 1');
+  await expect(indicator).toHaveAttribute('data-tone', 'paused');
 });
 
 test('twelve Sheet rows reach a ticker on air without a new entrance, and an emptied tab clears it', async ({ page }) => {
@@ -1644,7 +1678,8 @@ test('twelve Sheet rows reach a ticker on air without a new entrance, and an emp
 
   tab.csv = '';
   await expect(program.locator('#f0')).toHaveText('', { timeout: 12_000 });
-  await expect(page.getByTestId('sources-line')).toContainText('empty');
+  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'warn');
+  await expect(await openDataPanel(page)).toContainText('empty');
   expect(await stage.getAttribute('data-plays')).toBe(plays);
 });
 
@@ -2042,7 +2077,10 @@ test('one way to connect a Sheet: a graphic with its own reader still updates on
   const cues = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(cues).toHaveCount(2);
 
-  // ── Retained: listed beside the sources, honestly without a Pause it could not keep. ──
+  // ── Retained: listed beside the sources, honestly without a Pause it could not keep. It reads,
+  //    so the header stays calm; the panel says Pause does not stop it. ──
+  await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'ok');
+  await openDataPanel(page);
   const ownLine = page.getByTestId('own-reader-line');
   await expect(ownLine).toContainText('Sheet in Legacy Card’s own code');
   await expect(ownLine).toContainText('Pause does not stop it');
@@ -2267,6 +2305,7 @@ test('a library graphic with its own reader on a published production: Stop remo
   // Published: the output runs the copy, which keeps the reader until Publish.
   await expect(menu.getByTestId('cue-connect-publish-first')).toContainText('Publish changes, then connect here');
   await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
+  await page.getByTestId('data-indicator').click();
   await expect(page.getByTestId('own-reader-line')).toContainText('Sheet in Library Card’s own code');
   const design = await page.evaluate(async (docId) => (await import('/src/model/library.ts')).loadGraphics().find((d) => d.id === docId)!.template.js.includes('== LIVE DATA'), ids.docId);
   expect(design).toBe(false);
@@ -2283,6 +2322,7 @@ test('a library graphic with its own reader on a published production: Stop remo
   await expect(menu.getByTestId('cue-connect-clear-first')).toContainText('take it out, then connect here');
   await expect(menu.getByTestId('cue-connect-link')).toHaveCount(0);
   await expect(page.getByTestId('own-reader-line')).toHaveCount(0);
+  await expect(page.getByTestId('data-indicator')).toHaveCount(0);
   expect(await bindAnyway(page, ids.showId)).toBeNull();
   await expect.poll(() => ownReaderState(page, ids.showId)).toEqual({ stops: ['Library Card'], copy: false, former: ['Library Card'], holds: ['Library Card'] });
 
@@ -2465,7 +2505,7 @@ test('a pasted news feed fills a ticker with its headlines, and a failed fetch k
   const stored = await storedBindings(page, showId);
   expect(stored.sources).toEqual([{ id: expect.any(String), kind: 'feed', label: 'News Strip', config: { url: FEED_ADDRESS } }]);
   expect(stored.bindings['News Strip']).toEqual({ f0: `feed.${stored.sources[0].id}.lines` });
-  const line = page.getByTestId('sources-line');
+  const line = await openDataPanel(page);
   await expect(line).toContainText('News feed: News Strip');
   await expect(line.locator('[data-testid^="source-line-"]')).toHaveAttribute('title', /about every 5 min/);
 

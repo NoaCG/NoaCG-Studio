@@ -34,6 +34,7 @@ import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, SERVICE_ROLE_KEY, signIn, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 import dataRoute from '../../api/data/[...path]';
 import { startSheetServer, csvOf } from '../fixtures/jev-sheet-server.mjs';
+import { openDataPanel } from '../_workspace';
 
 test.skip(!haveCreds || !SERVICE_ROLE_KEY, 'E2E_EMAIL / E2E_PASSWORD / SUPABASE_SERVICE_ROLE_KEY unset - configured-mode spec');
 
@@ -174,11 +175,11 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
     if (error) throw new Error(error.message);
     await page.reload();
     await expect.poll(async () => (await row(showId)).sources?.map((s) => s.id) ?? [], { timeout: 15_000 }).toEqual([sourceId]);
-    await expect(page.getByTestId(`source-line-${sourceId}`).getByTestId('source-status')).toHaveText(/checked \d+ s ago/, { timeout: 15_000 });
+    await expect((await openDataPanel(page)).getByTestId(`source-line-${sourceId}`).getByTestId('source-status')).toHaveText(/checked \d+ s ago/, { timeout: 15_000 });
   }
 
   // The switch is off: the line says nothing reads once the page closes. On, it stops saying so.
-  const status = page.getByTestId(`source-line-${sourceId}`).getByTestId('source-status');
+  const status = (await openDataPanel(page)).getByTestId(`source-line-${sourceId}`).getByTestId('source-status');
   await expect(status).toContainText('closed-page reading off', { timeout: 10_000 });
   await switchTick(new Date(Date.now() + 3600_000));
   await expect(status).not.toContainText('closed-page reading off', { timeout: 12_000 });
@@ -205,8 +206,9 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
 
   // The page is back and shows the tick's read; Pause there reaches the row at once.
   await page.goto(productionUrl);
+  await openDataPanel(page);
   await expect(status).toHaveText(/checked \d+ s ago/, { timeout: 20_000 });
-  await page.getByTestId(`source-line-${sourceId}`).getByTestId('source-pause').click();
+  await (await openDataPanel(page)).getByTestId(`source-line-${sourceId}`).getByTestId('source-pause').click();
   await expect.poll(async () => (await row(showId)).sources[0].paused, { timeout: 10_000 }).toBe(true);
 
   // With the page gone again, the paused source is not read, whatever the tab says.
@@ -219,10 +221,11 @@ test('a Sheet connected after publishing moves the output at once; the tick skip
 
   // A reload shows the Pause the row holds.
   await page.goto(productionUrl);
+  await openDataPanel(page);
   await expect(status).toHaveText(/paused$/, { timeout: 20_000 });
 
   // Resume reaches the row, and so does a Pause that returns to what the page opened with.
-  const pause = page.getByTestId(`source-line-${sourceId}`).getByTestId('source-pause');
+  const pause = (await openDataPanel(page)).getByTestId(`source-line-${sourceId}`).getByTestId('source-pause');
   await pause.click();
   await expect.poll(async () => (await row(showId)).sources[0].paused ?? false, { timeout: 10_000 }).toBe(false);
   await pause.click();

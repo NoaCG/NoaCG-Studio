@@ -140,7 +140,7 @@ function sourceOf(show: Pick<Show, 'sources'>, path: string | undefined): ShowSo
 
 /**
  * A connected field this graphic no longer has (its template changed under it), flagged where the
- * graphic is edited, never redirected. The source's own health is the Playout sources line's
+ * graphic is edited, never redirected. The source's own health is the header's Data indicator's
  * (home/SourcesLine): it is the production's, whichever graphic is selected.
  */
 function CueSourceMissing({ source, missing, onDisconnect }: { source: ShowSource; missing: string[]; onDisconnect: (fieldIds: string[]) => void }) {

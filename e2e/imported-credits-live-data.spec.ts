@@ -30,6 +30,7 @@ import { readFileSync } from 'node:fs';
 import { settleDurableWrites } from './_durable';
 import { dropSvg, intoProduction } from './_svg-import';
 import { startSheetServer, csvOf, MODEL_REQUEST, PAGE_FAILURES } from './fixtures/jev-sheet-server.mjs';
+import { openDataPanel } from './_workspace';
 
 const ABOVE_CREDITS_SVG = fileURLToPath(new URL('./fixtures/jev-svg/dev/credits-1.svg', import.meta.url));
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1NoaCGCreditsSheet00000000/edit#gid=0';
@@ -66,7 +67,7 @@ async function connectSheet(page: Page, label: string, link = SHEET_URL) {
   await review.getByTestId('cue-connect-read').click();
   await review.getByTestId('cue-connect-label').fill(label);
   await review.getByTestId('cue-connect-confirm').click();
-  await expect(page.getByTestId('sources-line')).toContainText('checked');
+  await expect(await openDataPanel(page)).toContainText('checked');
 }
 
 const TAB = [['Role', 'Name'], ['Research', 'Nia Vale'], ['', 'Tomas Fen'], ['Sound', 'Ari Moss']];
@@ -106,7 +107,7 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   const during = await roll();
   expect(during.mark, 'the roll taken is the roll running').toBe(1);
   expect(during.progress!, 'the roll was not restarted').toBeGreaterThan(before.progress!);
-  await expect(waitingLine).toHaveText('· Newer data shows on the next Take');
+  await expect(waitingLine).toHaveText('Newer data shows on the next Take');
   await expect(waitingLine).toHaveAttribute('title', 'On air: Live roll');
   // The on-air cue's editor says it too, beside Update (#1979), from the same answer.
   await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
@@ -143,18 +144,18 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
   ]);
 
   // PAUSE holds what is prepared; RESUME reads again, and on air the change waits for a Take.
-  await page.getByTestId('source-pause').click();
-  await expect(page.getByTestId('sources-line')).toContainText('paused');
+  await (await openDataPanel(page)).getByTestId('source-pause').click();
+  await expect(await openDataPanel(page)).toContainText('paused');
   sheet.set(NEWER);
   await page.waitForTimeout(6000);
   expect((await roll()).waiting, 'paused: nothing read').toBe(false);
-  await page.getByTestId('source-pause').click();
+  await (await openDataPanel(page)).getByTestId('source-pause').click();
   await expect.poll(() => roll().then((r) => r.waiting), { timeout: 20_000 }).toBe(true);
   await expect(waitingLine).toBeVisible();
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   // Paused again, the list read before the pause still waits, and the line still says so (#1980).
-  await page.getByTestId('source-pause').click();
-  await expect(page.getByTestId('sources-line')).toContainText('paused');
+  await (await openDataPanel(page)).getByTestId('source-pause').click();
+  await expect(await openDataPanel(page)).toContainText('paused');
   await expect(waitingLine).toBeVisible();
 });
 
@@ -240,7 +241,7 @@ test('cards on air keep the cards they took: a refresh waits for the next Take, 
   sheet.set([['Role', 'Name'], ['Camera', 'Jonas Berg'], ['', ''], ['Director', 'Alex Rivera'], ['', ''], ['Editor', 'Mia Holt']]);
   await expect.poll(waiting, { timeout: 20_000, message: 'the refresh reached the graphic' }).toBe(true);
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
-  await expect(page.getByTestId('source-waiting')).toHaveText('· Newer data shows on the next Take');
+  await expect(page.getByTestId('source-waiting')).toHaveText('Newer data shows on the next Take');
   await expect(page.getByTestId('cue-unsent')).toHaveText('New list shows on the next ⟳ Re-take');
   // The prepared cue follows the refresh: PREVIEW shows the newer first card meanwhile.
   await expect(page.frameLocator('[data-testid="production-preview"] iframe').locator('.imported-design-credits-row')).toHaveText(['Camera', 'Jonas Berg']);
@@ -266,13 +267,14 @@ test('a failing Sheet keeps the prepared credits as last read and says why; the 
   try {
     await styledCreditsProduction(page, 'roll', 'Failing roll');
     await connectSheet(page, 'Crew', `https://docs.google.com/spreadsheets/d/${SHEET}/edit#gid=0`);
-    const status = page.getByTestId('sources-line').getByTestId('source-status');
+    const status = (await openDataPanel(page)).getByTestId('source-status');
     const air = page.frameLocator('[data-testid="program-stage"] iframe');
     const rows = air.locator('.imported-design-credits-row');
     await page.getByTestId('verb-take').click();
     await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
     // Off air the prepared rows follow every write, so a write that should not happen would show.
     await page.getByTestId('verb-out').click();
+    await openDataPanel(page);
 
     for (const [mode, said] of PAGE_FAILURES) {
       fake.mode(SHEET, mode);

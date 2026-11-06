@@ -124,7 +124,7 @@ import { cueDataRows, hasSideFields, rowsForSide } from '../../control/cueData';
 import { groupCueFields } from '../../control/cueFieldGroups';
 import { PROFILE_VERSION, pinnedGraphicsOf, profileIsEmpty, readPublishedProfile, readShowProfile, serializeShowProfile, withGraphicArrange, withPinnedGraphic, type ArrangeEntry, type ShowProfile } from '../../model/profile';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
-import SourcesLine, { ownSheetReader, ownSheetReaders } from './SourcesLine';
+import { DataIndicator, DataWaitingNote, ownSheetReader, ownSheetReaders } from './SourcesLine';
 import ProductionAudienceWorkspace, { pollFieldMap, useMessageSources } from './ProductionAudienceWorkspace';
 import { useAudienceInbox, useMessagesBackend } from './useAudienceInbox';
 import { createSheetInbox } from '../../audience/sheetMessages';
@@ -3713,6 +3713,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   return (
     <ProductionShell
       show={show}
+      data={<DataIndicator show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} />}
       status={
         <>
           <PlayoutStatusControl
@@ -4130,8 +4131,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClose={() => setLookOpen(false)}
           />
         )}
-        {/* Every data source's health and Pause, whichever cue is selected (home/SourcesLine). */}
-        <SourcesLine show={show} setShows={setShows} store={sourceStatus} ownReaders={ownReaders} onAir={{ live: liveCue, waits: programWaits }} />
+        {/* Sources' health and Pause live in the header's Data indicator (#2244); here only a held
+            list with newer data waiting for the next Take, while it waits (home/SourcesLine). */}
+        <DataWaitingNote show={show} onAir={{ live: liveCue, waits: programWaits }} />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&

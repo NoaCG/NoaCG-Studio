@@ -32,6 +32,7 @@ import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
 import { startSheetServer } from './fixtures/jev-sheet-server.mjs';
+import { openDataPanel } from './_workspace';
 
 type Server = Awaited<ReturnType<typeof startSheetServer>>;
 interface Sample { t: number; x: number; width: number; n: number; texts: string[]; showing: string[]; mark: boolean }
@@ -50,7 +51,7 @@ async function linkedTicker(page: Page, server: Server, sheet: string, design: s
   await review.getByTestId('cue-connect-read').click();
   await expect(review.getByTestId('cue-connect-row-f0')).toHaveAttribute('data-status', 'key');
   await review.getByTestId('cue-connect-confirm').click();
-  await expect(page.getByTestId('sources-line')).toContainText('checked');
+  await expect(await openDataPanel(page)).toContainText('checked');
   await settleDurableWrites(page);
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
@@ -219,13 +220,13 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   await travelling(air);
 
   // PAUSE: a change waits; RESUME (the reader reconnecting) reaches the running strip.
-  await page.getByTestId('source-pause').click();
-  await expect(page.getByTestId('sources-line')).toContainText('paused');
+  await (await openDataPanel(page)).getByTestId('source-pause').click();
+  await expect(await openDataPanel(page)).toContainText('paused');
   server.set(SHEET, lines('Turnout 63%', 'Polls close at 20:00'));
   await page.waitForTimeout(6000);
   await itemsBecome(air, ['Polls close at 20:00', 'Turnout 61%'], 'paused: nothing read');
   const resumed = await record(air);
-  await page.getByTestId('source-pause').click();
+  await (await openDataPanel(page)).getByTestId('source-pause').click();
   await itemsBecome(air, ['Turnout 63%', 'Polls close at 20:00'], 'resumed');
   await page.waitForTimeout(1500);
   judgeMarquee(await samples(air, resumed), PACE, 'resume');
@@ -239,7 +240,7 @@ test('a linked marquee holds through Pause, takes the newest lines on Resume, an
   await page.goto('about:blank');
   server.set(SHEET, lines('Results from 22:00', 'Turnout 63%'));
   await page.goto(url);
-  await expect(page.getByTestId('sources-line')).toContainText('checked', { timeout: 20_000 });
+  await expect(await openDataPanel(page)).toContainText('checked', { timeout: 20_000 });
   await expect(page.getByTestId('program-stage')).toContainText('Nothing on air');
   await itemsBecome(page.frameLocator('[data-testid="production-preview"] iframe'), ['Results from 22:00', 'Turnout 63%'], 'the reopened page caught up');
   await page.getByTestId('verb-take').click();
