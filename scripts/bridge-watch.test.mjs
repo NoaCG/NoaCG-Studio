@@ -970,6 +970,31 @@ test('a reading of ours from before another tab\'s recovery never puts the old l
   assert.equal([...a.calls, ...b.calls].filter((c) => c === 'reload').length, 1, 'no second load');
 });
 
+test('a slow reading sent under the old link, landing empty after a recovery and a CLEAR, reloads nothing', async () => {
+  // B's reading goes out under the old link and lands after A brought the output back under the
+  // new one and a client then cleared it. The kept link moved while it was out: no restart.
+  const browser = newBrowser();
+  const server = { layer: ourPage, link: 'b1.1' };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  await a.readSlot();
+  b.setHold(true);
+  b.everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
+  await settle();
+  server.layer = EMPTY;
+  server.link = 'b1.2';
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'A brings it back');
+  server.layer = EMPTY; // the CLEAR, on the current connection
+  b.held.shift()();
+  await settle();
+  b.setHold(false);
+  await a.readSlot();
+  await b.readSlot();
+  assert.equal([...a.calls, ...b.calls].filter((c) => c === 'reload').length, 1, 'the CLEAR stays');
+});
+
 test('a reloaded page that has not seen the output on its slot yet loads nothing', async () => {
   // Cleared by another client while this browser had no page open, then the page opens onto an
   // empty slot: it arms only once it has seen the output there, as after a Load, so a later outage

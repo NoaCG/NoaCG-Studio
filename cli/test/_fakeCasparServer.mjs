@@ -440,7 +440,11 @@ export async function fakeCasparServer(options = {}) {
             settle();
             return apply(line, tokens);
           };
-          const injected = options.intercept ? await options.intercept(line, { tokens, answer: applyNow }) : undefined;
+          // `dropOthers` drops every other connection, as a restart would, while this one answers.
+          const dropOthers = () => {
+            for (const s of sockets) if (s !== socket) s.destroy();
+          };
+          const injected = options.intercept ? await options.intercept(line, { tokens, answer: applyNow, dropOthers }) : undefined;
           const sent = injected === undefined ? applyNow() : injected;
           if (!socket.destroyed) socket.write(sent, 'utf8');
         }).catch((error) => {

@@ -625,11 +625,18 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             send(200, { ok: false, v: PLAYOUT_V, error }, true);
             return;
           }
+          // The link as the read goes out: a restart during it moves the link after, and the slots
+          // read are from before it, so they belong with this one (./links.ts). A server is watched
+          // from its first reading that succeeds, so a mistyped host starts no watch.
+          const linkBefore = target.adapter === 'casparcg' ? links.peek(target.host, target.port) : undefined;
           const r = await adapter.state(target, channel);
           if (!r.ok) {
             send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
             return;
           }
+          // `id` also marks the server as read, which keeps a lost watch trying.
+          const linkNow = target.adapter === 'casparcg' ? links.id(target.host, target.port) : undefined;
+          const link = linkBefore ?? linkNow;
           send(
             200,
             {
@@ -637,8 +644,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
               v: PLAYOUT_V,
               channel,
               session: memory.session,
-              // Read after the reading came back: a restart before it has already closed the link.
-              ...(target.adapter === 'casparcg' ? { link: links.id(target.host, target.port) } : {}),
+              ...(link !== undefined ? { link } : {}),
               observedAt: Math.round(performance.now()),
               slots: memory.annotate(target, channel, r.value),
             },

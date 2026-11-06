@@ -360,8 +360,11 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
   Unload again. A restart so quick that no poll saw the server gone (the status is asked every few
   seconds, less often in a background tab, which the browser slows) still brings the output back
   with NoaCG Bridge 0.10.2 or later, which says its connection to the server was lost (§3a, `link`);
-  with an older Bridge it reads as a `CLEAR`, and Load is needed. Two browsers that each pressed
-  Load both reload, which loads the same URL twice, at most a flicker.
+  with an older Bridge it reads as a `CLEAR`, and Load is needed. The Bridge's link also changes
+  when the Bridge itself restarts or its connection to the server drops for a moment, and a client's
+  `CLEAR` in the same few seconds then reads as a restart, so the output comes back once; press
+  Unload, or clear it again. Two browsers that each pressed Load both reload, which loads the same
+  URL twice, at most a flicker.
 
 ### 3a. The playout protocol (v2)
 
@@ -440,9 +443,12 @@ every other entry in the order they come round, and `sequence.loop`). `arriving`
 it held before: CasparCG answers a `PLAY` before the clip is on the layer (measured, below). The
 reply also carries the Bridge's `session` and `observedAt`, its own monotonic clock at the reading,
 and for CasparCG its `link` to the server (issue #2252, Bridge 0.10.2): the Bridge holds one idle
-connection to each server it reads, sends nothing on it, and changes the link id the moment that
-connection is lost. A CasparCG restart closes it at once, so a reading after a restart names a new
-link even before the Bridge has connected again; a `CLEAR` leaves the link as it was.
+connection to each server it reads and sends nothing on it. The link id changes the moment that
+connection is lost and again when it is made, so a reading after a restart names a new link even
+before the Bridge has connected again, and no id spans a time the Bridge did not watch; a `CLEAR`
+leaves the link as it was. A reading carries the link from before it was read, so slots read just
+before a restart never pair with the link after it. A connected watch is kept however idle; a lost
+one nobody reads stops trying after ten minutes.
 
 An error names its hop: `{ hop: 'agent' | 'target', code, detail, raw? }` with `code` one of
 `no-media-scanner`, `refused`, `unreachable`, `not-found`, `unsupported`, `usage`, `uncertain`.

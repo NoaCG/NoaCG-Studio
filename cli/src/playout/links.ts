@@ -3,16 +3,21 @@
 // command goes over a connection of its own (./amcp.ts), so this is how the Bridge knows the server
 // went away between two requests: a restart closes the connection at once.
 //
-// A link id names one unbroken stretch of that connection. It changes the moment the connection is
-// lost, not when it comes back, so a reading taken right after a restart, before the link is up
-// again, already carries a new id. A page that saw its output on the slot under one id and reads it
-// empty under another knows the server restarted, even if no poll of its own saw it down; under the
-// same id an empty slot was emptied on purpose (a CLEAR). Nothing is ever sent on the connection.
+// A link id names one unbroken stretch of that connection, and each gap between stretches has an id
+// of its own: it changes the moment the connection is lost and again when it is made. So a reading
+// taken right after a restart, before the watch is connected again, already carries a new id, and no
+// id spans a time nobody watched. A page that saw its output on the slot under one id and reads it
+// empty under another treats it as a restart, even if no poll of its own saw the server down; under
+// the same id an empty slot was emptied on purpose (a CLEAR). Nothing is ever sent on the connection.
 
 import { connect, type Socket } from 'node:net';
 
-/** How long a lost link waits before it tries again, and how long one nobody reads is kept. */
+/** How long a lost link waits before it tries again. */
 export const LINK_RETRY_MS = 1000;
+/** How long a lost watch nobody reads keeps trying to connect again (a server switched off, or one
+ *  the page no longer uses). A connected watch is never let go for being idle: a new watch has a
+ *  new id, which a page that then finds its slot cleared would take for a restart, and one idle
+ *  connection per server costs nothing. */
 export const LINK_IDLE_MS = 10 * 60_000;
 
 interface Watch {
@@ -63,6 +68,16 @@ export class ServerLinks {
     return w.id;
   }
 
+  /** The link id for this server now if it is watched already, without starting a watch. */
+  peek(host: string, port: number): string | undefined {
+    return this.#watches.get(`${host}:${port}`)?.id;
+  }
+
+  /** How many servers are watched now. */
+  get size(): number {
+    return this.#watches.size;
+  }
+
   stop(): void {
     this.#stopped = true;
     if (this.#sweep) clearInterval(this.#sweep);
@@ -74,13 +89,12 @@ export class ServerLinks {
     this.#watches.clear();
   }
 
-  /** A watch nobody has read for a while is let go, connected or not, so a server the page no
-   *  longer uses does not keep a connection. A later read starts a new watch with a new id. */
+  /** A lost watch nobody has read for a while stops trying. A later read starts a new watch. */
   #startSweep(): void {
     if (this.#sweep) return;
     this.#sweep = setInterval(() => {
       for (const [key, w] of this.#watches) {
-        if (this.#now() - w.asked <= this.#idleMs) continue;
+        if (w.up || this.#now() - w.asked <= this.#idleMs) continue;
         this.#watches.delete(key);
         if (w.timer) clearTimeout(w.timer);
         w.socket?.destroy();
@@ -105,6 +119,7 @@ export class ServerLinks {
     socket.setKeepAlive(true, 5000);
     socket.on('connect', () => {
       w.up = true;
+      w.id = this.#next();
     });
     // CasparCG says nothing unasked; anything that comes is dropped.
     socket.on('data', () => {});
@@ -112,7 +127,9 @@ export class ServerLinks {
     socket.on('close', () => {
       if (w.socket !== socket) return;
       w.socket = null;
-      if (w.up) w.id = this.#next();
+      // Any close is a new stretch, also a first connect that failed: a restart in that moment
+      // must not keep the id a reading already carried.
+      w.id = this.#next();
       w.up = false;
       if (this.#stopped || this.#watches.get(key) !== w) return;
       w.timer = setTimeout(() => this.#open(key, w, host, port), this.#retryMs);
