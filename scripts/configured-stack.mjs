@@ -248,7 +248,7 @@ export function readClaims(root = CLAIMS_ROOT) {
 /** One readiness check after `supabase start` returned. Throws with what is not ready. */
 async function ready(state) {
   const { ports: p, projectId } = state;
-  const rows = run('docker', ['ps', '-a', '--filter', `label=${PROJECT_LABEL}=${projectId}`, '--format', '{{.Names}}|{{.State}}|{{.Ports}}']).out.trim().split('\n').filter(Boolean);
+  const rows = run('docker', ['ps', '-a', '--filter', `label=${PROJECT_LABEL}=${projectId}`, '--format', '{{.Names}}|{{.State}}|{{.Ports}}|{{.Image}}']).out.trim().split('\n').filter(Boolean);
   if (rows.length === 0) throw new Error(`no container carries ${PROJECT_LABEL}=${projectId}`);
   const problems = [];
   const published = new Set();
@@ -259,6 +259,8 @@ async function ready(state) {
   }
   for (const port of published) if (port < p.first || port > p.last) problems.push(`a container of ${projectId} publishes ${port}, outside its block ${p.first}-${p.last}`);
   for (const port of [p.api, p.db]) if (!published.has(port)) problems.push(`nothing publishes ${port}`);
+  const pinned = realtimeImageProblem(rows);
+  if (pinned) problems.push(pinned);
   const status = stackStatus(state.workdir);
   if (!String(status.API_URL ?? '').endsWith(`:${p.api}`)) problems.push(`supabase status reports API_URL ${status.API_URL}, not port ${p.api}`);
   try {
@@ -276,13 +278,24 @@ async function ready(state) {
 /**
  * THE REALTIME IMAGE, pinned on its own (issue #2204). The pinned CLI (2.111.0) starts Realtime
  * v2.120.3, whose partition upkeep runs `ALTER TABLE realtime.messages_<day> OWNER TO ...` on every
- * partition, today's included, each time a tenant connects and on every janitor run. That takes an
- * ACCESS EXCLUSIVE lock on the partition a broadcast writes to, so `realtime.send` in
- * control_events_frame (0071), which waits 250 ms, drops the frame. Realtime v2.145.1 alters only
- * partitions it creates (supabase/realtime#2374). The CLI reads `.temp/realtime-version` to replace
- * that one image, so the rest of the stack stays on the version the project is developed against.
+ * partition, today's included, whenever a tenant connects. That takes an ACCESS EXCLUSIVE lock on
+ * the partition a broadcast writes to, which would make `realtime.send` in control_events_frame
+ * (0071, 250 ms) drop a frame: one known source of the lost frames #2204 is about, not a proven
+ * one. Realtime v2.145.1 alters only partitions it creates (supabase/realtime#2374). The CLI reads
+ * `.temp/realtime-version` to replace that one image, so the rest of the stack stays on the CLI's
+ * versions. CI only: a developer's own `supabase start` keeps the CLI's Realtime. Remove this when
+ * the CLI pin reaches 2.122.1, which ships Realtime v2.147.1 itself (docs/STACK_FRESHNESS.md).
  */
 export const REALTIME_VERSION = 'v2.147.1';
+
+/** Why the stack's Realtime container is not the pinned image, or null when it is. `rows` are
+ *  `docker ps` lines, `name|state|ports|image`. */
+export function realtimeImageProblem(rows) {
+  const realtime = rows.map((r) => r.split('|')).filter(([name]) => /realtime/.test(name));
+  if (realtime.length === 0) return 'no Realtime container is running';
+  const wrong = realtime.find(([, , , image]) => !String(image ?? '').endsWith(`:${REALTIME_VERSION}`));
+  return wrong ? `${wrong[0]} runs ${wrong[3]}, not Realtime ${REALTIME_VERSION}` : null;
+}
 
 /** Write the image overrides the CLI reads from `<supabase dir>/.temp`. */
 export function pinImages(supabaseDir) {

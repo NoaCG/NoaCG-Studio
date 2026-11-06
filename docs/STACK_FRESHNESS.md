@@ -557,3 +557,9 @@ Two deliberate exceptions, both waiting on the same upgrade, and one pin that mu
   Windows-written lockfile passes `npm ci`: npm omits the wasm binding's dependencies when the
   native binding installs, a known optional-deps bug. **Do not "clean up" those pins.** Verify
   `npm ci` locally after any lockfile regeneration.
+- **Realtime is pinned on its own in the CI stacks** (`REALTIME_VERSION` in
+  `scripts/configured-stack.mjs`, issue #2204). The pinned Supabase CLI (2.111.0) starts Realtime
+  v2.120.3, whose partition upkeep locks the partition a broadcast writes to; Realtime v2.145.1
+  fixed that. The stack's readiness check refuses any other Realtime image. **Remove the pin when
+  the CLI pin reaches 2.122.1 or later**, which ships Realtime v2.147.1 itself; left behind, it
+  would hold Realtime back. A developer's own `supabase start` is not pinned.

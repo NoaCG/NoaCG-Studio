@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { holding, isStackProcess, pinImages, readClaims, parseRanges, projectIdOf, REALTIME_VERSION, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
+import { holding, isStackProcess, pinImages, readClaims, parseRanges, projectIdOf, REALTIME_VERSION, realtimeImageProblem, reservedValue, setTomlKey, slotConfig, slotPorts, socketsOn, SLOTS } from './configured-stack.mjs';
 
 test('slot 0 is the CLI default block and every slot block is disjoint', () => {
   const p = slotPorts(0);
@@ -112,9 +112,6 @@ test('a claim released while the slots are listed is skipped, not fatal to anoth
 });
 
 test('the stack runs a Realtime that does not lock the partition a broadcast writes to (#2204)', () => {
-  // supabase/realtime#2374, first released in v2.145.1: partition upkeep alters only new partitions.
-  const [major, minor, patch] = REALTIME_VERSION.replace(/^v/, '').split('.').map(Number);
-  assert.ok(major > 2 || (major === 2 && (minor > 145 || (minor === 145 && patch >= 1))), REALTIME_VERSION);
   const dir = mkdtempSync(join(tmpdir(), 'stack-pin-'));
   try {
     pinImages(dir);
@@ -122,8 +119,9 @@ test('the stack runs a Realtime that does not lock the partition a broadcast wri
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-  // The start uses it: the overrides are written into the stack's own copy before `supabase start`.
-  const src = readFileSync(new URL('./configured-stack.mjs', import.meta.url), 'utf8');
-  const up = src.slice(src.indexOf('async function up('));
-  assert.ok(up.indexOf('pinImages(') > 0 && up.indexOf('pinImages(') < up.indexOf("'start'"), 'pinned before the start');
+  // The readiness check refuses a stack whose Realtime is not that image.
+  const row = (image) => `supabase_realtime_noacg-s1|running||${image}`;
+  assert.equal(realtimeImageProblem([row(`public.ecr.aws/supabase/realtime:${REALTIME_VERSION}`), 'supabase_db_noacg-s1|running||x']), null);
+  assert.match(realtimeImageProblem([row('public.ecr.aws/supabase/realtime:v2.120.3')]), /runs .*v2\.120\.3, not Realtime/);
+  assert.match(realtimeImageProblem(['supabase_db_noacg-s1|running||x']), /no Realtime container/);
 });
