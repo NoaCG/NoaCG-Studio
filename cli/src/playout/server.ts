@@ -104,9 +104,15 @@ export function originAllowed(origin: string | undefined, allowed: string[]): bo
   }
 }
 
-/** How long a state reading that succeeded waits for the Bridge's watch on the server to connect
- *  (./links.ts): short, so a reading stays well inside the page's own timeout. */
-const LINK_WAIT_MS = 300;
+/** A state reading that has to settle its link (./links.ts) reads the server a second time only if
+ *  it can still start by this many ms into the request: the second read may take the adapter's whole
+ *  STATE_TIMEOUT_MS (1200), and the page gives up on the request at 1500 (src/control/playoutLink.ts),
+ *  so the Bridge still answers first. The wait for the watch to connect ends by then too. */
+const RE_READ_BY_MS = 250;
+
+/** Let the I/O already arrived run its handlers: a socket's `close` is emitted a tick or two after
+ *  the data that came with it. */
+const settleIo = () => new Promise<void>((resolve) => setImmediate(() => setImmediate(resolve)));
 
 export interface BridgeOptions {
   token: string;
@@ -636,6 +642,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           // after the watch has had a moment to connect. Nothing waits while the server is down:
           // only a reading that succeeded waits.
           const caspar = target.adapter === 'casparcg' ? target : null;
+          const started = Date.now();
           const linkBefore = caspar && links.connected(caspar.host, caspar.port) ? links.peek(caspar.host, caspar.port) : undefined;
           let r = await adapter.state(target, channel);
           if (!r.ok) {
@@ -644,15 +651,19 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           }
           let link: string | undefined;
           if (caspar) {
-            const settled = await links.ready(caspar.host, caspar.port, LINK_WAIT_MS);
+            // A connection that dropped as the reply came in is counted before the link is trusted.
+            await settleIo();
+            const settled = await links.ready(caspar.host, caspar.port, Math.max(0, RE_READ_BY_MS - (Date.now() - started)));
             if (linkBefore !== undefined && settled === linkBefore) link = linkBefore;
-            else if (links.connected(caspar.host, caspar.port)) {
+            // Too late for a second read inside the page's timeout: no link, as from a Bridge that has none.
+            else if (links.connected(caspar.host, caspar.port) && Date.now() - started <= RE_READ_BY_MS) {
               r = await adapter.state(target, channel);
               if (!r.ok) {
                 send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
                 return;
               }
               // Moved again during the second read: no link, as from a Bridge that has none.
+              await settleIo();
               if (links.connected(caspar.host, caspar.port) && links.peek(caspar.host, caspar.port) === settled) link = settled;
             }
           }

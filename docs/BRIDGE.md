@@ -449,8 +449,9 @@ before the Bridge has connected again, and no id spans a time the Bridge did not
 leaves the link as it was. A reading carries a link only when the watch was connected under that
 same id from before the read to after it, so slots read on either side of a restart never pair with
 the wrong link; otherwise (a first reading, the watch reconnecting, the link moving during the read)
-the Bridge waits up to 300 ms for the watch and reads the server once more. Nothing waits while the
-server is down. A connected watch is kept however idle; a lost
+the Bridge waits briefly for the watch and reads the server once more, if it can still do so inside
+the page's timeout; if not, the reading carries no link, as from an older Bridge. Nothing waits
+while the server is down. A connected watch is kept however idle; a lost
 one nobody reads stops trying after ten minutes.
 
 An error names its hop: `{ hop: 'agent' | 'target', code, detail, raw? }` with `code` one of

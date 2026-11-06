@@ -445,7 +445,7 @@ test('/channels from a server that cannot say is an error, so the page keeps the
 test('/state names the Bridge\'s link to the server, which a restart changes and a CLEAR does not (#2252)', async (t) => {
   const caspar = await fakeCasparServer({ channels: { 1: { fps: 50 } } });
   t.after(() => caspar.close());
-  // Reconnecting within the wait a reading gives it (server.ts LINK_WAIT_MS).
+  // Reconnecting within the wait a reading gives it (server.ts RE_READ_BY_MS).
   const links = new ServerLinks('b1', { retryMs: 100 });
   t.after(() => links.stop());
   const { call, casparTarget } = await bridge(t, caspar, { links });
@@ -485,9 +485,9 @@ test('a reading the server restarted during is read again, and carries the link 
       if (!restartDuring || line !== 'INFO 1') return undefined;
       restartDuring = false;
       // The slots are read; then every other connection, the watch's among them, drops.
+      // The reply goes out at once, with the drop: the Bridge must count the drop first.
       const reply = answer();
       dropOthers();
-      await new Promise((r) => setTimeout(r, 20));
       return reply;
     },
   });
@@ -503,6 +503,33 @@ test('a reading the server restarted during is read again, and carries the link 
   assert.notEqual(during, before, 'not the link the slots could be from before');
   assert.equal(caspar.seen.slice(reads).filter((l) => l === 'INFO 1').length, 2, 'read once more under the link that lasts');
   assert.equal(await link(), during, 'which the next reading carries too');
+});
+
+test('a slow server never keeps a reading past the page timeout: no second read, no link', async (t) => {
+  let slow = false;
+  const caspar = await fakeCasparServer({
+    channels: { 1: { fps: 50 } },
+    intercept: async (line, { answer, dropOthers }) => {
+      if (!slow || line !== 'INFO 1') return undefined;
+      // The watch drops, and the server takes a second to answer.
+      dropOthers();
+      await new Promise((r) => setTimeout(r, 1000));
+      return answer();
+    },
+  });
+  t.after(() => caspar.close());
+  const links = new ServerLinks('b1', { retryMs: 50 });
+  t.after(() => links.stop());
+  const { call, casparTarget } = await bridge(t, caspar, { links });
+  await call('/state', { target: casparTarget, channel: 1 });
+  for (let i = 0; i < 100 && !links.connected('127.0.0.1', caspar.port); i += 1) await new Promise((r) => setTimeout(r, 10));
+  slow = true;
+  const t0 = Date.now();
+  const r = await call('/state', { target: casparTarget, channel: 1 });
+  const took = Date.now() - t0;
+  assert.equal(r.body.ok, true);
+  assert.ok(took < 1400, `answered in ${took} ms, inside the page's 1500`);
+  assert.equal(r.body.link, undefined, 'unsettled and too late to read again: no link');
 });
 
 test('a reading that gave up waiting leaves the watch at its own pace', async (t) => {
