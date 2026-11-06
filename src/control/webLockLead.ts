@@ -8,7 +8,7 @@ import type { Lead } from './bridgeWatch';
  *  granted it, then the watch let go before the grant ran) lets go at once: otherwise this tab
  *  would keep the lock until it closes, and no other tab could lead. */
 export function webLockLead(locks: LockManager | undefined, key: string): Lead {
-  if (!locks) return { held: () => true, release: () => {} };
+  if (!locks) return { held: () => true, release: () => {}, waiting: async () => false };
   let held = false;
   let released = false;
   let free = () => {};
@@ -30,5 +30,7 @@ export function webLockLead(locks: LockManager | undefined, key: string): Lead {
       held = false;
       free();
     },
+    // Another tab of this browser asked for it and waits (#2251).
+    waiting: async () => ((await locks.query()).pending ?? []).some((l) => l.name === key),
   };
 }

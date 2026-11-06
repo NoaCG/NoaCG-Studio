@@ -328,16 +328,16 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
   browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load still
   brings it back, once it has seen the output on the slot again. A page reloaded while CasparCG is
   down brings it back too (issue #2249), when a tab of the browser that had seen the output noted
-  the outage and fewer than three tries were made. An Unload in any tab of the browser
-  counts for all of them, and so does an outage any of its tabs saw, so a background tab that missed
-  the restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs that have seen
-  the output on the slot, one holds a browser lock and alone reloads; the three tries are the
-  browser's, not each tab's. A tab going into the background or closing hands the lock to the next
-  tab waiting for it; a tab with a reload already sent, or a page left while one is out, finishes it
-  first. The lock goes to the tab that asked first, so a tab that went into the background before
-  another tab opened can keep it, and the reload then waits for that tab's slowed polls. Once a tab
-  of the browser has seen the output back, a tab that saw the outage but not the recovery no longer
-  counts it, so a later `CLEAR` stays cleared. If the browser's storage refuses the write (a full or
+  the outage and fewer than three tries were made. An Unload in any tab of the browser counts for
+  all of them, and so does an outage any of its tabs saw, so a background tab that missed the
+  restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs that have seen the
+  output on the slot, one holds a browser lock and alone reloads; the three tries are the browser's,
+  not each tab's. A tab going into the background or closing hands the lock to the next tab waiting
+  for it; a tab with a reload already sent, or a page left while one is out, finishes it first. A
+  tab already in the background when another tab opens lets that tab lead at its next quiet reading
+  (issue #2251), so the reload does not wait for a background tab's slowed polls. Once a tab of the
+  browser has seen the output back, a tab that saw the outage but not the recovery no longer counts
+  it, so a later `CLEAR` stays cleared. If the browser's storage refuses the write (a full or
   blocked storage), the page still brings back its own Load while it stays open, as before. Not an
   output only another browser loaded, not a slot the settings moved to, and not after Unload,
   unpublishing or switching CasparCG off. A slot emptied while everything kept answering (Unload in

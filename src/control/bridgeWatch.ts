@@ -113,6 +113,8 @@ export interface BridgeWatchIo {
   now: () => number;
   /** Run `run` whenever the tab goes out of view; answers the stop. */
   onHidden: (run: () => void) => () => void;
+  /** The tab is out of view now. */
+  hidden: () => boolean;
 }
 
 /** A Load this browser made: the slot (control/playoutStatus.ts `casparOutputTarget`), its stamp,
@@ -147,6 +149,8 @@ interface Before {
 export interface Lead {
   held: () => boolean;
   release: () => void;
+  /** Another tab of the browser is waiting for it (#2251). */
+  waiting: () => Promise<boolean>;
 }
 
 export interface BridgeWatchAdapters {
@@ -285,6 +289,25 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (!lead || !inputs) return;
     dropLead();
     followLead(inputs.casparTarget);
+  };
+  /** A lead out of view with nothing out lets a waiting tab lead (#2251): the lock goes to the tab
+   *  that asked first, and one that went into the background before another tab opened would keep
+   *  it, so the reload would wait for its slowed polls. Asked at each of its readings that needs
+   *  nothing done. */
+  let offering = false;
+  const offerLead = () => {
+    const held = lead;
+    if (!held?.held() || !io.hidden() || reloads.inFlight || offering) return;
+    offering = true;
+    void held.waiting().then(
+      (others) => {
+        offering = false;
+        if (others && alive && lead === held && io.hidden() && !reloads.inFlight) handLeadOver();
+      },
+      () => {
+        offering = false;
+      },
+    );
   };
   const stopHidden = io.onHidden(() => {
     if (reloads.inFlight) handOver = true;
@@ -491,6 +514,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const kept = memory();
     if (lost && kept && !outage(kept) && !sentDuringOutage(before, link) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
     followLead(target);
+    // Nothing to bring back: a lead out of view may hand over now, before it is needed.
+    if (!lost) offerLead();
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
     if (!lost || !armedFor(target) || reloads.inFlight) return;

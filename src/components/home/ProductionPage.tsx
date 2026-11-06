@@ -316,6 +316,7 @@ const BRIDGE_IO: BridgeWatchIo = {
     return () => document.removeEventListener('visibilitychange', onVisible);
   },
   now: () => Date.now(),
+  hidden: () => document.visibilityState === 'hidden',
   onHidden: (run) => {
     const onHidden = () => {
       if (document.visibilityState === 'hidden') run();
