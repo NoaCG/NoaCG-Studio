@@ -128,11 +128,11 @@ export interface PanelAnswer {
   stop(): void;
 }
 
-/** One call of `fn`, on a timer a hidden tab cannot starve: an operator page often sits behind OBS,
- *  where setTimeout could wait a second. A press is held rarely, so a worker for each wait is cheap. */
 /** The longest a panel Take holds its cue's later panel Takes when it never settles. */
 export const TAKE_GUARD_MAX_MS = RESEND_WINDOW_MS + 2 * ATTEMPT_TIMEOUT_MS;
 
+/** One call of `fn`, on a timer a hidden tab cannot starve: an operator page often sits behind OBS,
+ *  where setTimeout could wait a second. A press is held rarely, so a worker for each wait is cheap. */
 function afterUnstarved(ms: number, fn: () => void): () => void {
   const stop = workerInterval(ms, () => {
     stop();
