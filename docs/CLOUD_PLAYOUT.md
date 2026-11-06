@@ -493,6 +493,10 @@ The page:
   network that blocks the files leaves the page's own error rather than a reload loop. A
   production with a graphic up waits for air to clear; until then the feature that needed the
   file says it did not load. The output page has no such files beyond supabase-js (above).
+- On Vercel, with Skew Protection on for the project, every built file reference carries
+  `?dpl=<deployment id>` (`scripts/skewProtectionPlugin.mjs`), so an open page keeps loading its own
+  deploy and the reload above is the fallback for a deploy older than Skew Protection's maximum
+  age (one day by default).
 
 The URL is persistent by construction, and that now includes unpublishing. IDENTITY (which URLs
 address a production) and PUBLICATION (whether they resolve) are separate: publication is the

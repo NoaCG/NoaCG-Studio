@@ -26,6 +26,18 @@ const EXPECTED_REFUSALS = /not taken \((?:\d{3} )?(?:too_soon|paused|moved|epoch
 const OLD_OWNER_REFUSED = /not taken \((?:409 )?(?:moved|epoch)\)|not claimed \(409 held by another agent\)/;
 /** Lines that say something was not taken or failed to reach the production. */
 const REFUSAL = / not taken \(| not claimed \(| renewal failed| claim failed| the sender failed| waiting as the production asked/;
+/**
+ * A request to the production that a handover ended before its answer, in the wordings the agent
+ * gives (scripts/external-data-connector.mjs), by the kind of handover. A released agent aborts what
+ * it has in flight as it stops (`stopped`); a frozen one also finds a request timed out or cut off
+ * by the network (`fetch failed`, with or without its cause) as it wakes, and is then stopped.
+ * Anything else, a verdict, a bug's error or a released agent's timeout, is not the handover's doing.
+ */
+const endedBy = (reasons) => new RegExp(` (?:renewal|claim|the sender) failed: (?:${reasons})(?: \\(|$)`);
+const HANDOVER_FAILURE = {
+  release: endedBy('stopped'),
+  crash: endedBy('stopped|fetch failed|the production did not answer in [\\d.]+ seconds'),
+};
 const MIB = 1024 * 1024;
 /** What this run does not measure, said in every verdict so a green run is not read as more. */
 export const UNMEASURED = [
@@ -37,6 +49,22 @@ export const UNMEASURED = [
   'parent §7\'s laptop timing comparison, which needs the owner\'s laptop baselines (O-1)',
 ];
 
+/** The parts of the agent's memory at a lifetime's two ends, as [first, last], each part only when
+ *  both samples carry it (a record from before the agent reported them has none). */
+function agentParts(a, b) {
+  const pick = (s) => ({
+    heapUsed: s.memory?.heapUsed,
+    external: s.memory?.external,
+    arrayBuffers: s.memory?.arrayBuffers,
+    anon: s.anon,
+    file: s.file,
+    threads: s.threads,
+    handles: s.resources ? Object.values(s.resources).reduce((n, x) => n + x, 0) : undefined,
+  });
+  const [x, y] = [pick(a), pick(b)];
+  const parts = Object.fromEntries(Object.keys(x).filter((k) => Number.isFinite(x[k]) && Number.isFinite(y[k])).map((k) => [k, [x[k], y[k]]]));
+  return Object.keys(parts).length ? parts : undefined;
+}
 /** The largest of `xs`, or `floor` when empty (no spread: an hour's frames are many). */
 const most = (xs, floor = 0) => xs.reduce((a, b) => (b > a ? b : a), floor);
 /** The least-squares slope of [x, y] points, or 0 with fewer than two. */
@@ -139,12 +167,13 @@ export function judge(record) {
   // A tripwire: the route refuses a larger revision before storing it, so the stored size cannot
   // exceed the cap; a refusal shows in the check below. Kept to report the largest size stored.
   check('every accepted revision stayed inside the ingress limit (holds by construction: the route refuses a larger one before storing it)', bytes > 0 && bytes <= (fx.capBytes ?? 262144), `largest ${bytes} bytes`);
-  // A frozen agent's request in flight fails when it wakes: expected of that agent, after that moment.
-  const woken = faults.filter((f) => f.kind === 'handover' && f.mode === 'crash');
-  // A request it had in flight when frozen (a renewal, a claim or a report) fails as it wakes.
-  // Only between its waking and its end: an old owner that lived on would show its failures.
-  const wokeLate = (r) => woken.some((f) => r.agent === f.from && r.at >= f.woke && r.at <= (f.end ?? f.woke) && /renewal failed|claim failed|the sender failed: fetch failed/.test(r.line));
-  const unexpected = reads.filter((r) => REFUSAL.test(r.line) && !EXPECTED_REFUSALS.test(r.line) && !wokeLate(r));
+  // A handover ends the old owner's requests in flight: a released agent aborts them as it stops
+  // (`stopped`), a frozen one finds them timed out or cut off as it wakes (HANDOVER_FAILURE).
+  // Expected of that agent only, inside its own handover: from the release, or from the waking (a
+  // frozen agent writes nothing), to the handover's end. An old owner that lived on would show its
+  // failures. The production's verdicts (`not taken (...)`) are never excused here.
+  const ownHandover = (r) => kinds('handover').some((f) => r.agent === f.from && r.at >= (f.woke ?? f.at) && r.at <= (f.end ?? f.woke ?? f.at) && HANDOVER_FAILURE[f.mode]?.test(r.line));
+  const unexpected = reads.filter((r) => REFUSAL.test(r.line) && !EXPECTED_REFUSALS.test(r.line) && !ownHandover(r));
   check('no revision was refused for size, budget or anything the run did not cause', unexpected.length === 0, unexpected.slice(0, 3).map((r) => r.line).join(' | '));
   // Served, then held: only an older step makes `stale` and only a malformed one `invalid`; a
   // duplicate is a repeat, which the agent reads as `unchanged` like any second read of a step.
@@ -364,10 +393,14 @@ export function judge(record) {
   ]) {
     const bounds = [t0, ...cuts, record.end ?? Infinity];
     for (let i = 0; i < bounds.length - 1; i++) {
-      const xs = samples.filter((s) => s.at > bounds[i] + 60_000 && s.at < bounds[i + 1] && Number.isFinite(value(s))).map(value);
+      const held = samples.filter((s) => s.at > bounds[i] + 60_000 && s.at < bounds[i + 1] && Number.isFinite(value(s)));
+      const xs = held.map(value);
       if (xs.length < 3) continue;
       const allowance = series === 'agent.rss' ? xs[0] * 0.25 + 10 * MIB : xs[0] * 0.2 + 2 * MIB;
-      lifetimes.push({ series, from: bounds[i] - t0, first: xs[0], last: xs.at(-1) });
+      // Reported, not judged: what the agent's resident memory is made of at either end, so a
+      // lifetime that grows names its kind (native or JS heap, mapped files, threads, handles).
+      const parts = series === 'agent.rss' ? agentParts(held[0].agent, held.at(-1).agent) : undefined;
+      lifetimes.push({ series, from: bounds[i] - t0, first: xs[0], last: xs.at(-1), ...(parts ? { parts } : {}) });
       if (xs.at(-1) > xs[0] + allowance) growth.push({ series, lifetime: bounds[i] - t0, first: xs[0], last: xs.at(-1) });
     }
   }

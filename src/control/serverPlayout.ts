@@ -16,6 +16,7 @@ import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';
 import type { PlayoutResult } from './playoutLink';
 import { MAX_SEQUENCE_ENTRIES, MIN_SEQUENCE_MEMBER_S, type PlayoutAction, type SequenceEntry, type Slot } from './playoutProtocol.ts';
 import { compareSlots, slotAddress } from './playoutSlots.ts';
+import { namedOnce } from './liveControls.ts';
 import { folderIdOf, folderMembers, folderMode, liveFolderIds, membersByFolder, throughRefusal } from '../model/showFolders.ts';
 import {
   asFolderMember,
@@ -768,6 +769,6 @@ export async function runServerVerb({
   took(verb, slot, result);
   // On air, and part of it did not go through (a Clear at the end the server refused): said as the
   // one untrue thing a tick would otherwise hide.
-  if (result.warning) return { ok: true, note: `${label}: ${item.name} is on ${slotAddress(slot)}, but ${result.warning}`, accepted };
-  return { ok: true, note: `✓ ${label}: ${item.name} on ${slotAddress(slot)}`, accepted };
+  if (result.warning) return { ok: true, note: `${namedOnce(label, item.name)} is on ${slotAddress(slot)}, but ${result.warning}`, accepted };
+  return { ok: true, note: `✓ ${namedOnce(label, item.name)} on ${slotAddress(slot)}`, accepted };
 }

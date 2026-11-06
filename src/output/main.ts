@@ -56,6 +56,7 @@ import {
 import { outputReadiness, outputStateWords, type ChangePrep, type GraphicCheck, type HeldVersion } from '../control/readiness';
 import {
   alreadyInSnapshot,
+  heldFirst,
   mayAirTyped,
   planOutputRecovery,
   reportedSnap,
@@ -1136,6 +1137,8 @@ async function boot(): Promise<void> {
   }
 
   // ── Boot recovery, per graphic: the data half, then the visual half (snap arms timers). ──
+  /** The newest data of a graphic rebuilt with a held credits list, restated after its entrance. */
+  const heldRestates = new Map<string, ControlMessage>();
   for (const key of recoverable) {
     const mine = resolved.live[key];
     if (!mine) continue;
@@ -1167,8 +1170,12 @@ async function boot(): Promise<void> {
       if (look) stage.apply(key, { t: 'update', data: {}, appearance: look });
       if (mine.data) {
         mergedData.set(key, { ...mine.data });
-        stage.apply(key, { t: 'update', data: mine.data });
+        // A held credits list goes in first, so the take the pose replays takes it; the newest
+        // follows (restate) and waits for the next Take, as it did before the reboot (#2075).
+        const first = heldFirst(mine.data, mine.state);
+        stage.apply(key, { t: 'update', data: first });
         restate = { t: 'update', data: mine.data };
+        if (first !== mine.data) heldRestates.set(key, restate);
       }
     }
     // A held graphic's pose is not put back: nothing but a stop reaches it until its data does.
@@ -1189,6 +1196,9 @@ async function boot(): Promise<void> {
     // A held graphic is not played again: its entrance would air the previous cue's values.
     if (typedRefused.has(key)) continue;
     stage.apply(key, { t: 'play' });
+    // Played with a held credits list, the newest follows the entrance and waits (#2075).
+    const newest = heldRestates.get(key);
+    if (newest) stage.apply(key, newest);
     // A typed graphic with no pose steps back to where its report says it stood (E1.2b).
     const steps = stepsSince.get(key) ?? 0;
     for (let step = 0; step < steps; step += 1) stage.apply(key, { t: 'next' });

@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/app/deploySkew.ts, src/main.tsx, vite.config.ts, app.html
+// guards: src/app/deploySkew.ts, src/main.tsx, vite.config.ts, app.html, scripts/skewProtectionPlugin.mjs
 //
 // A STUDIO PAGE LEFT OPEN ACROSS A DEPLOY RECOVERS (issue #758).
 //
@@ -27,24 +27,54 @@ import { build } from 'vite';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'noacg-deploy-skew-'));
 await build({ root, configFile: path.join(root, 'vite.config.ts'), logLevel: 'error', build: { outDir: dist, emptyOutDir: true } });
+// The same app as a Vercel build with Skew Protection on: every file reference carries the id
+// (scripts/skewProtectionPlugin.mjs), and the host answers `?dpl=dpl_A` from this deploy.
+const pinnedDist = fs.mkdtempSync(path.join(os.tmpdir(), 'noacg-deploy-skew-pinned-'));
+const PINNED_ENV = { VERCEL_SKEW_PROTECTION_ENABLED: '1', VERCEL_DEPLOYMENT_ID: 'dpl_A' };
+const saved = Object.fromEntries(Object.keys(PINNED_ENV).map((key) => [key, process.env[key]]));
+Object.assign(process.env, PINNED_ENV);
+// The plugin's own count of uses it could not pin: a reference form it does not know fails here.
+const buildLog = [];
+const consoleLog = console.log;
+console.log = (...line) => {
+  buildLog.push(line.join(' '));
+  consoleLog(...line);
+};
+try {
+  await build({ root, configFile: path.join(root, 'vite.config.ts'), logLevel: 'error', build: { outDir: pinnedDist, emptyOutDir: true } });
+} finally {
+  console.log = consoleLog;
+  for (const [key, value] of Object.entries(saved)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
 
 const TYPES = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png' };
 
 /** A static host for the build, with `cleanUrls` as vercel.json has. `deploy()` makes every code
  *  file not yet asked for answer 404; a later request for a page brings the new deploy back unless
- *  `blocked` keeps the files gone. */
-function host({ blocked = false } = {}) {
+ *  `blocked` keeps the files gone. With `pinned`, it serves that build and answers a request naming
+ *  `?dpl=dpl_A` from the old deploy, as Vercel's Skew Protection does. */
+function host({ blocked = false, pinned = false } = {}) {
+  const dir = pinned ? pinnedDist : dist;
+  let pinnedAsks = 0;
+  const unpinnedAssets = [];
   const asked = new Set();
   const gone = new Set();
   let misses = 0;
   const server = http.createServer((req, res) => {
-    let file = decodeURIComponent((req.url ?? '/').split('?')[0]);
+    const [rawPath, query = ''] = (req.url ?? '/').split('?');
+    let file = decodeURIComponent(rawPath);
+    const toOldDeploy = pinned && new URLSearchParams(query).get('dpl') === 'dpl_A';
+    if (toOldDeploy) pinnedAsks += 1;
+    if (pinned && rawPath.startsWith('/assets/') && !toOldDeploy) unpinnedAssets.push(rawPath);
     if (file === '/') file = '/index.html';
     else if (!path.extname(file)) file += '.html';
     // The page itself, or its own URL probed before a reload: the new deploy answers.
     if (file.endsWith('.html') && !blocked) gone.clear();
-    const full = path.join(dist, file);
-    if (gone.has(file) || !full.startsWith(dist) || !fs.existsSync(full)) {
+    const full = path.join(dir, file);
+    if ((gone.has(file) && !toOldDeploy) || !full.startsWith(dir) || !fs.existsSync(full)) {
       if (file.endsWith('.js')) misses += 1;
       res.writeHead(404);
       res.end();
@@ -57,11 +87,16 @@ function host({ blocked = false } = {}) {
   return {
     /** Code files that answered 404: proof a step really asked for a file the deploy took. */
     misses: () => misses,
+    /** Requests that named the old deploy. */
+    pinnedAsks: () => pinnedAsks,
+    /** Requests for a built file, from page load on, that did not name the deploy. */
+    unpinnedAssets: () => unpinnedAssets,
     listen: () => new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`))),
     deploy: () => {
-      for (const name of fs.readdirSync(path.join(dist, 'assets'))) {
+      for (const name of fs.readdirSync(path.join(dir, 'assets'))) {
         const file = `/assets/${name}`;
-        if (name.endsWith('.js') && !asked.has(file)) gone.add(file);
+        // The pinned case takes stylesheets too, so a stylesheet left unpinned would show.
+        if ((name.endsWith('.js') || (pinned && name.endsWith('.css'))) && !asked.has(file)) gone.add(file);
       }
     },
     close: () => new Promise((resolve) => server.close(resolve)),
@@ -87,7 +122,10 @@ async function openStudio(t, options = {}, prepare = async () => {}) {
   return { page, site, loads: () => loads };
 }
 
-test.after(() => fs.rmSync(dist, { recursive: true, force: true }));
+test.after(() => {
+  fs.rmSync(dist, { recursive: true, force: true });
+  fs.rmSync(pinnedDist, { recursive: true, force: true });
+});
 
 test('a deploy while the studio is open: loading more code reloads the page, which then works', async (t) => {
   const { page, loads } = await openStudio(t);
@@ -134,4 +172,19 @@ test('unsaved brand edits hold the reload: they live only in the editor', async 
   assert.ok(site.misses() > 0, 'the list asked for a missing code file');
   assert.equal(loads(), 0, 'no reload under unsaved brand edits');
   assert.equal(await page.getByPlaceholder('e.g. Channel A').inputValue(), 'Channel B');
+});
+
+test('the pinned build leaves no use of a built file without its deploy', () => {
+  const line = buildLog.find((entry) => entry.startsWith('[skew-protection]'));
+  assert.match(line ?? '', /^\[skew-protection\] on: dpl_A, [1-9]\d* reference\(s\) pinned in \d+ file\(s\), 0 unpinned$/);
+});
+
+test('with Skew Protection, the open page loads its own deploy: no 404, no reload', async (t) => {
+  const { page, site, loads } = await openStudio(t, { pinned: true });
+  await page.getByRole('button', { name: /Start from a template/ }).click();
+  await page.getByTestId('wz-browse-count').waitFor({ timeout: 20_000 });
+  assert.ok(site.pinnedAsks() > 0, 'the code it loaded named its deploy');
+  assert.deepEqual(site.unpinnedAssets(), [], 'every built file it asked for, from the first load on, named its deploy');
+  assert.equal(site.misses(), 0, 'no code file answered 404');
+  assert.equal(loads(), 0, 'no reload was needed');
 });

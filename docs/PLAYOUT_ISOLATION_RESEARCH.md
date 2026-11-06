@@ -1046,8 +1046,9 @@ version is being deployed", is mostly true today for the *running page* and fals
 5. **Behaviour self-checks for any redefined live-path function**, which the repo already requires
    (`supabase/AGENTS.md`), plus a contract test in the configured suite that runs the *previous*
    release's client calls against the new schema.
-6. **Wire Vercel Skew Protection for Vite.** It is on for the project (§5: an old deployment's
-   assets answer with `?dpl=`), but Vite never sends the id. Adding it to built asset URLs lets an
+6. **Wire Vercel Skew Protection for Vite.** Done 2026-11-05 (`scripts/skewProtectionPlugin.mjs`,
+   issue #758). It is on for the project (§5: an old deployment's
+   assets answer with `?dpl=`), but Vite never sent the id. Adding it to built asset URLs lets an
    open page keep loading its own build. For the renderer, simpler still: bundle supabase-js into
    the output entry so it has no lazy chunk at all, and never cache a failed import.
 7. **Pin the renderer build to the prepared version (later).** The output page loads the renderer

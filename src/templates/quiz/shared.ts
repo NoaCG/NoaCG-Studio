@@ -560,6 +560,19 @@ ${lock ? `  if (state === 'selected' || state === 'locked') applySelection();
   markQuizPaint();                 // this WAS a full repaint (clear + state's marks) — certify it
 }
 
+// A SNAP (« Back, ⟲ Reset, a recovery) forgets the paint signature, and changes nothing else.
+// The picks made since the last full paint were partial painters, so the signature stamped before
+// them could match the state the snap returns to, and the data write that follows the snap then
+// skipped its repaint: Reset left a lock on a board back at its question (#2181).
+if (typeof noacgSnap === 'function') {
+  var quizSnap = noacgSnap;
+  noacgSnap = function () {
+    var root = document.querySelector('.quiz');
+    if (root) root.removeAttribute('data-noacg-paint');
+    return quizSnap.apply(this, arguments);
+  };
+}
+
 // update(data): SPX sends field values as JSON, e.g. {"f0":"…","f1":"${content.answers[0]}","${id.correct}":"${content.correct}"}.
 // Each value is written into the element whose id matches the field name (f0 -> id="f0");
 // the correct letter (${id.correct}) lands in a hidden element that next() reads later.
