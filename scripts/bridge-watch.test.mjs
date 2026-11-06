@@ -27,7 +27,7 @@ const ourPage = { layer: 20, producer: 'html', file: 'https://noacg.studio/outpu
 
 /** One browser's storage (model/readyMemory.ts `casparLoaded`) and its Web Locks, which its tabs share. */
 function newBrowser() {
-  return { loaded: new Map(), locks: new Map(), refuses: false, clock: Date.now() };
+  return { loaded: new Map(), locks: new Map(), refuses: false, clock: Date.now(), step: 1 };
 }
 
 /** Every watch a test started, stopped after it so no real timer keeps Node running. */
@@ -107,7 +107,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       };
     },
     // One clock for the whole browser, a millisecond on at every look, so "after" is never a tie.
-    now: () => (browser.clock += 1),
+    now: () => (browser.clock += browser.step),
     onHidden: (run) => {
       const h = { run, live: true };
       hiddens.push(h);
@@ -1099,6 +1099,11 @@ test('a reading of ours sent before the outage does not end the recovery', async
   b.held.shift()(); // it answers ours: the server as it was before it went
   await settle();
   assert.ok(browser.loaded.get('show-1')?.outageAt, 'the outage note stays');
+  // B's next reading finds the slot wiped by the restart: still an outage to B, never a CLEAR.
+  b.setHold(false);
+  server.layer = EMPTY;
+  await b.readSlot();
+  assert.ok(browser.loaded.get('show-1'), 'the Load is kept');
 });
 
 test('a page left with its reload under way keeps the lock until the load lands: one PLAY', async () => {
@@ -1128,4 +1133,47 @@ test('a page left with its reload under way keeps the lock until the load lands:
   await b.readSlot();
   await restartServer(b);
   assert.equal(b.calls.filter((c) => c === 'reload').length, 1, 'B has the lock once A\'s load landed');
+});
+
+test('a try sent from a page left before it landed still counts: three in all', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  const refused = { state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' };
+  let release;
+  a.reloading.answer = () => refused;
+  b.reloading.answer = () => refused;
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.answer(OK);
+  await settle();
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 2, 'two refused tries');
+  a.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve(refused);
+  });
+  for (let n = 0; n < 6; n += 1) await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 3, 'the third is out');
+  a.watch.stop();
+  release();
+  await settle();
+  assert.equal(browser.loaded.get('show-1')?.tries, 3, 'counted for the browser');
+  b.answer(OK);
+  await settle();
+  for (let n = 0; n < 20; n += 1) await b.readSlot();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'no fourth from the next tab');
+  assert.equal(b.session.bridge.get().slotReload?.state, 'failed');
+});
+
+test('an outage seen in the same millisecond as the last reading of ours still counts', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const t = await loadedRig({ browser, server });
+  browser.step = 0; // the wall clock does not move between the reading and the outage
+  await t.readSlot();
+  await restartServer(t);
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again, not taken for a CLEAR');
 });

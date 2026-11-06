@@ -277,7 +277,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const sawOutage = () => {
     outageSinceOurs = true;
     const m = memory();
-    if (m && !((m.outageAt ?? 0) > oursAt)) keep({ ...m, outageAt: io.now() });
+    // After this tab's own last reading of ours even within the same millisecond: it saw that
+    // reading go out first.
+    if (m && !((m.outageAt ?? 0) > oursAt)) keep({ ...m, outageAt: Math.max(io.now(), oursAt + 1) });
   };
   /** An outage since the slot last held ours. The browser's note decides while storage holds the
    *  Load: a tab that saw the outage but not the recovery another tab saw must not keep its own
@@ -471,8 +473,16 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
-    if (!alive || run !== reloads) return;
+    if (run !== reloads) return;
     run.inFlight = false;
+    // A sent load is one of the browser's three tries, also when this page has gone meanwhile: the
+    // tab taking the lock over goes on from it.
+    if (result) {
+      run.tries += 1;
+      const m = memory();
+      if (m) keep({ ...m, tries: Math.max(run.tries, (m.tries ?? 0) + 1) });
+    }
+    if (!alive) return;
     if (handOver) handLeadOver();
     // Nothing sent (the slot changed under it, or the operator's own Load is out): not a try, and
     // before the first nothing is reloading.
@@ -480,10 +490,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (!run.tries) writeBridge(session, { slotReload: null });
       return;
     }
-    run.tries += 1;
     run.emptyReads = 0;
-    const m = memory();
-    if (m) keep({ ...m, tries: Math.max(run.tries, (m.tries ?? 0) + 1) });
     // Why the last try did not bring it back, for the failed state: the Bridge's sentence, or a
     // load that went through and still left the slot empty.
     run.detail = result.state === 'ok' ? '' : result.detail;
