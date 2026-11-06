@@ -12,6 +12,7 @@ import {
   airAtRequest,
   claimAndApply,
   forgetBootReplay,
+  heldClockData,
   logged,
   loggedHere,
   moveLiveCue,
@@ -706,6 +707,53 @@ test('a boot replay that carries the entrance needs no play of its own; off-air 
   const air = { ...NO_AIR, liveCue: { lt: 'c1' }, reports: { lt: { data: { f0: 'A' } } }, bootReplay: [play('lt')] };
   assert.deepEqual(restoreItems(air, {}, NO_CLOCKS).items.map((i) => i.msg.t), ['update', 'update', 'play']);
   assert.deepEqual(restoreItems({ ...NO_AIR, aired: { lt: { f0: 'A' } } }, {}, NO_CLOCKS).items, []);
+});
+
+/** A debate on the monitor with A's banked minute: A spoke from 0 to 1, B holds the floor. */
+function bankedDebate() {
+  let air = NO_AIR;
+  for (const [msg, minute] of [[{ t: 'update', data: { fa: '05:00', fb: '05:00', fl: '05:00' } }, 0], [{ t: 'event', event: 'switch' }, 0], [{ t: 'event', event: 'switch' }, 1]]) {
+    air = programItems(air, [{ graphic: 'debate', msg, created_at: at(minute) }], DEBATE, T).air;
+  }
+  return air;
+}
+
+test('#2176: a held speaking pair laid over the plain aired data, then a plain Update, keeps the banked time', () => {
+  const air = bankedDebate();
+  const plain = { f0: 'OPENING', fa: '05:00', fb: '05:00', fl: '05:00' };
+  const data = heldClockData(plain, 'debate', air, DEBATE);
+  assert.equal(data.fa, air.speaking.debate.fa, 'the stage is rebuilt with the time A banked');
+  assert.equal(data.fb, air.speaking.debate.fb, 'and B running from its stamp');
+  assert.equal(data.f0, 'OPENING', 'the other fields stay as aired');
+  // The rebuild and the next Update reach the stage through the fold, as both monitors send them.
+  const rebuilt = programItems(air, [update('debate', data)], DEBATE, T + 2 * MINUTE);
+  const next = programItems(rebuilt.air, [{ ...update('debate', { ...plain, f0: 'REBUTTAL' }), created_at: at(2) }], DEBATE, T + 2 * MINUTE);
+  const sent = next.out[0].msg.data;
+  assert.equal(speakingClockAt(sent.fa, T + 2 * MINUTE), '04:00', 'the plain 05:00 does not undo A\'s banked time');
+  assert.equal(clockOriginOf(sent.fa), null, 'A still waits');
+  assert.equal(clockOriginOf(sent.fb), T + MINUTE, 'B still runs from its own start');
+  assert.equal(sent.f0, 'REBUTTAL');
+});
+
+test('#2176: a rebuild after boot takes the held clocks; a boot replay takes the report\'s', () => {
+  const held = bankedDebate();
+  const report = { data: { fa: `05:00@${T}`, fb: '05:00', fl: '05:00' } };
+  const after = {
+    ...held,
+    liveCue: { debate: 'c1', score: 'c2' },
+    reports: { debate: report, score: { data: { f5: '10:00' } } },
+    bootReplay: null,
+    aired: { debate: { fa: '05:00', fb: '05:00', fl: '05:00' }, score: { f5: '10:00', f1: '2' } },
+    clocks: { score: `09:00@${T}` },
+  };
+  const rebuilt = restoreItems(after, {}, { clocks: CLOCKS.clocks, pairs: DEBATE.pairs }).items;
+  const debate = rebuilt.find((i) => i.graphic === 'debate' && i.msg.t === 'update').msg.data;
+  assert.deepEqual([debate.fa, debate.fb], [held.speaking.debate.fa, held.speaking.debate.fb], 'the pair the monitor held, not the plain aired times');
+  assert.equal(rebuilt.find((i) => i.graphic === 'score' && i.msg.t === 'update').msg.data.f5, `09:00@${T}`, 'the match clock the monitor held');
+  // At boot the rows after the report replay, so the report is the base and the memory is dropped.
+  const boot = restoreItems({ ...after, liveCue: { debate: 'c1' }, bootReplay: [{ graphic: 'debate', msg: { t: 'event', event: 'switch' }, created_at: at(3) }] }, {}, DEBATE);
+  assert.deepEqual(boot.items[0].msg.data, report.data);
+  assert.equal('debate' in boot.air.speaking, false);
 });
 
 // #2075: a credits roll or cards on air keep the list their Take took while a newer one waits, and

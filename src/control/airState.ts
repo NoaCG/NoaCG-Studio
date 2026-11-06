@@ -31,10 +31,12 @@ import {
   clockAfterRows,
   clockHeldBeforeRow,
   clockRowEffect,
+  clockSpecFromHtml,
   clockValueAfterUpdate,
   plainClockValue,
   speakingClockAfterUpdate,
   speakingClockRowEffect,
+  speakingClocksFromHtml,
   type ClockSpec,
   type SpeakingClockPair,
 } from './matchClockWire.ts';
@@ -47,6 +49,37 @@ import { typedValuesOf, type TypedValues } from '../model/ografTyped.ts';
 export interface ClockSpecs {
   clocks: ReadonlyMap<string, ClockSpec>;
   pairs: ReadonlyMap<string, SpeakingClockPair>;
+}
+
+/** Read the clocks off each graphic's markup, keyed by the name the wire uses. Both PROGRAM
+ *  monitors build their specs here, so they read the same clocks off the same markup. */
+export function clockSpecsFrom(graphics: Iterable<{ key: string; html: string }>): ClockSpecs {
+  const clocks = new Map<string, ClockSpec>();
+  const pairs = new Map<string, SpeakingClockPair>();
+  for (const g of graphics) {
+    const clock = clockSpecFromHtml(g.html);
+    if (clock) clocks.set(g.key, clock);
+    const pair = speakingClocksFromHtml(g.html);
+    if (pair) pairs.set(g.key, pair);
+  }
+  return { clocks, pairs };
+}
+
+/** A graphic's values with each clock as the PROGRAM monitor holds it (the stamped match clock, or
+ *  a debate's speaking pair) over the plain times `base` keeps. What a stage rebuilt after boot
+ *  airs, so the next plain Update reads as the cue's resend and not a correction. */
+export function heldClockData(
+  base: Record<string, string> | undefined,
+  graphic: string,
+  air: Pick<AirPart, 'clocks' | 'speaking'>,
+  specs: ClockSpecs,
+): Record<string, string> | undefined {
+  if (!base) return base;
+  const held = specs.pairs.has(graphic) ? air.speaking[graphic] : undefined;
+  if (held) return { ...base, ...held };
+  const clock = specs.clocks.get(graphic);
+  const stamped = clock ? air.clocks[graphic] : undefined;
+  return stamped !== undefined ? { ...base, [clock!.field]: stamped } : base;
 }
 
 /** Write the ON AIR marker: a new map, or a fold over the one standing. Counted even when nothing
@@ -510,13 +543,7 @@ export function restoreItems(
       if (graphic in clocks) clocks = without(clocks, graphic);
       if (graphic in speaking) speaking = without(speaking, graphic);
     }
-    const base = replaying ? report?.data : (air.aired[graphic] ?? report?.data);
-    const clock = specs.clocks.get(graphic);
-    const stamped = clock ? clocks[graphic] : undefined;
-    let data = base && stamped !== undefined ? { ...base, [clock!.field]: stamped } : base;
-    const pair = specs.pairs.get(graphic);
-    const held = pair ? speaking[graphic] : undefined;
-    if (base && pair && held) data = { ...base, ...held };
+    const data = heldClockData(replaying ? report?.data : (air.aired[graphic] ?? report?.data), graphic, { clocks, speaking }, specs);
     const groups = replaying ? report?.state?.groups : machineStates[graphic]?.groups;
     // Its place and size go with the first data write (rule 4: what was applied, never what is
     // prepared): the report's while its rows replay, else what this page aired.
