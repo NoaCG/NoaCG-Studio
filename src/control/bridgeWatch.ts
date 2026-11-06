@@ -361,9 +361,6 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (answered && !(m.tries && sinceTry !== undefined && sinceTry >= 0 && sinceTry <= RECOVERY_WINDOW_MS)) return;
     seenAt = m.at;
     oursAt = Math.min(oursAt, m.outageAt);
-    // The wait before the next try counts from the browser's last try, not from this page's opening,
-    // so pages opened one after another never push the next try past the window.
-    if (m.tries && sinceTry !== undefined && sinceTry >= 0) reloads.emptyReads = Math.floor(sinceTry / SLOT_READ_MS);
     // Asked now, while the server is still down: the browser grants a lock a moment later, and the
     // first empty reading must find it held.
     followLead(m.target);
@@ -386,7 +383,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   /** The status has answered `ok` since the page opened. */
   let answered = false;
   /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
-  let reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
+  /** `since`: the browser's last try the empty readings are counted from (`triedAt`). */
+  let reloads: { tries: number; emptyReads: number; inFlight: boolean; detail: string; since?: number; sent?: number } = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
   const resetReloads = () => {
     reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
     writeBridge(session, { slotReload: null });
@@ -559,6 +557,15 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail } });
       return;
     }
+    // The wait before the next try counts from the browser's last try, whichever tab made it: a page
+    // opened during a recovery, or one taking the lead over, never starts it again from zero, and
+    // never goes on from a try older than the last (#2253).
+    const last = memory()?.triedAt;
+    if (tries > 0 && last !== undefined && last !== reloads.since) {
+      reloads.since = last;
+      // Readings since that try, this one counted just below, as the tab that made it counts them.
+      reloads.emptyReads = Math.max(0, Math.floor((io.now() - last) / SLOT_READ_MS) - 1);
+    }
     if (tries > 0) reloads.emptyReads += 1;
     if (reloads.emptyReads < RELOAD_AFTER_READS[tries]) return;
     const run = reloads;
@@ -567,7 +574,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // The Load and the outage this try is for: a try that lands after a newer Load, or after the
     // recovery, is not counted against them.
     const sentFor = snapshot();
-    sending = reloadOnce(run, target).then(
+    sending = reloadOnce(run, target, sentFor).then(
       (result) => done(run, result, sentFor),
       (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }, sentFor),
     );
@@ -576,7 +583,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
    *  settings still name the slot it was loaded on, no output action landed meanwhile, and the slot,
    *  read once more, still reads empty. A page gone, a slot moved or an operator's own Load in the
    *  read's time sends nothing. */
-  const reloadOnce = async (run: typeof reloads, target: string): Promise<PlayoutResult | null> => {
+  const reloadOnce = async (run: typeof reloads, target: string, sentFor: Before): Promise<PlayoutResult | null> => {
     const settings = io.loadSettings();
     const actionRev = slotActions;
     const wanted = () => alive && run === reloads && armedFor(target) && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
@@ -588,6 +595,14 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const layer = read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null;
     // Back already (another browser's reload) or somebody else's now: this reading counts as any.
     if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), before, read.reply.link)) return null;
+    // Counted as it goes out, not when the Bridge answers: a page reloaded meanwhile goes on from
+    // it, and never makes a fourth (#2253). Taken back below if nothing was sent after all.
+    const m = memory();
+    if (m && m.at === sentFor.at && m.outageAt === sentFor.outageAt) {
+      run.sent = io.now();
+      keep({ ...m, tries: (m.tries ?? 0) + 1, triedAt: run.sent });
+      run.since = run.sent;
+    }
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null, sentFor: Before) => {
@@ -595,12 +610,19 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     run.inFlight = false;
     // A sent load is one of the browser's three tries, also when this page has gone meanwhile: the
     // tab taking the lock over goes on from it.
+    const sent = run.sent;
+    run.sent = undefined;
+    const m = memory();
+    // The try counted as it went out, still the browser's latest (no recovery ended, no newer Load).
+    const counted = sent !== undefined && !!m && m.at === sentFor.at && m.outageAt === sentFor.outageAt && m.triedAt === sent;
     if (result) {
       run.tries += 1;
-      const m = memory();
       // Why it did not bring it back, for the failed state in any tab: the Bridge's sentence, or a
       // load that went through and still left the slot empty.
-      if (m && m.at === sentFor.at && m.outageAt === sentFor.outageAt) keep({ ...m, tries: (m.tries ?? 0) + 1, reason: result.state === 'ok' ? '' : result.detail, triedAt: io.now() });
+      if (counted) keep({ ...m, reason: result.state === 'ok' ? '' : result.detail });
+    } else if (counted) {
+      // Nothing was sent after all (the operator's own Load was out): not a try.
+      keep({ ...m, tries: Math.max(0, (m.tries ?? 1) - 1) });
     }
     if (!alive) return;
     if (handOver) handLeadOver();
