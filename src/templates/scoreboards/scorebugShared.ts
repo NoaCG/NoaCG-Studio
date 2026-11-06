@@ -351,8 +351,8 @@ function rebuildScoreboard() {
 // first one below them, the nearest one before it otherwise (the last above them, a collapsed
 // podium's neighbour) - so Spotlight never presses into nothing. 0 only with no podium showing.
 function spotlitPodium() {
+  // Blank or not a number names no podium, so the first named one lights.
   var at = parseInt((document.getElementById('f9') || { textContent: '' }).textContent, 10);
-  if (isNaN(at)) at = 1;
   var first = 0;
   var pick = 0;
   for (var i = 1; i <= 4; i += 1) {

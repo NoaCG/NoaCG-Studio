@@ -206,8 +206,8 @@ one competitor per line, position taken from the line's place in the field, neve
 graphic — so a twenty-car grid is not twenty fields and nothing here ever disagrees with the
 timing feed over who is third. `focus` carries the competitor's 1-based row number and ships
 naming a row (1), so the first press lights a row; a number past either end of the order lights
-the row at that end, and only an empty order stays level. An update while a row is in focus keeps
-the row the field names lit (#2268). **Whole field** stays for the roster's reason: the
+the row at that end. An empty order lights nothing until its rows arrive, and then the named row
+lights. An update while a row is in focus keeps the row the field names lit (#2268). **Whole field** stays for the roster's reason: the
 per-graphic control page, an exported control panel, OGraf hosts and Companion have no Back or
 Reset.
 Controls: **Focus competitor** (payload `focus`) · **Whole field** · **Session final** ·
