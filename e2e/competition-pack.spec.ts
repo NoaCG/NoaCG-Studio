@@ -483,11 +483,18 @@ test('Reset lands a winner card on its first step with nothing its result painte
     const before = marks();
     win.noacgSnap({ main: 'enter' });
     await settle();
-    return { before, reset: { state: win.noacgMachineState().groups.main, ...marks() } };
+    const reset = { state: win.noacgMachineState().groups.main, ...marks() };
+    // A late call that lands after the Reset (the same frame as a press) leaves a mark at the
+    // first step; Reset pressed again, in place, clears it.
+    win.markCelebration();
+    win.noacgSnap({ main: 'enter' });
+    await settle();
+    return { before, reset, again: marks() };
   })()`) as Record<string, Record<string, unknown>>;
 
   expect(run.before).toEqual({ result: true, celebrating: true });
   expect(run.reset, 'Reset shows the card before its result').toEqual({ state: 'enter', result: false, celebrating: false });
+  expect(run.again, 'Reset in place clears a mark a late call left').toEqual({ result: false, celebrating: false });
 });
 
 test('Back to a later step lands on its own look, not the look of the step it left (#2201)', async ({ page }) => {

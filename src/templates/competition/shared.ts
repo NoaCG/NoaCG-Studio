@@ -247,7 +247,8 @@ function next() {
 // A snap that moves no group (a host settling the state it is already in, OGraf's skipAnimation)
 // adds nothing beyond the target's own call, as before: the board already wears that state's
 // look, including what only the route it really took painted (a bracket crowned after its final
-// round keeps the round's cursor).
+// round keeps the round's cursor). Except at the first step or off: ⟲ Reset there still clears
+// what a late call left, which is what an operator presses it for.
 //
 // It reads the interpreter's own route helpers; an interpreter without them gets the plain snap.
 if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function'
@@ -256,7 +257,9 @@ if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function'
   var compSnap = noacgSnap;
   noacgSnap = function (assignments) {
     var routes = [];
+    var main = noacgMachine.groups[0];
     var moves = false;
+    var mainTo = main.initial;
     for (var g = 0; g < noacgMachine.groups.length; g++) {
       var group = noacgMachine.groups[g];
       // The state the snap will land this group on, chosen as noacgSnap chooses it.
@@ -265,9 +268,10 @@ if (typeof noacgSnap === 'function' && typeof compClearMarks === 'function'
         : (assignments[group.id] !== undefined ? assignments[group.id] : noacgCurrent[group.id]);
       if (!noacgStateOf(group, to)) to = group.initial;
       if (to !== noacgCurrent[group.id]) moves = true;
+      if (group === main) mainTo = to;
       routes.push({ group: group, route: noacgCanonicalPath(group, to) || [] });
     }
-    if (moves) {
+    if (moves || mainTo === main.initial || mainTo === (main.defaultPath || [])[0]) {
       compClearMarks();
       gsap.context(function () {
         for (var r = 0; r < routes.length; r++) {

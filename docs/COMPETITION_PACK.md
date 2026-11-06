@@ -67,12 +67,14 @@ Two corollaries the runtimes are written around:
    group's pointer and leaves the fields alone. A snap (« Back, ⟲ Reset, a recovery) is
    painted from the state it lands on: when it moves any group, the pack clears the marks
    (classes, which a snap's reset of inline styles never touches) as play() does, runs the
-   calls of the states on the route the snap replays (`noacgCanonicalPath`) with their motion killed,
-   and the snap then fires the target's own call. So « Back from a celebration lands on a plain
-   result, whatever state it left (#2181, #2201). A snap that moves no group (a host settling
-   the state it is already in) adds nothing beyond the target's own call, so a look only the
+   calls of the states on the route the snap replays (`noacgCanonicalPath`) with their
+   motion killed, and the snap then fires each group's own target call. So « Back from a
+   celebration lands on a plain result, whatever state it left (#2181, #2201). A snap that moves no group (a host
+   settling the state it is already in) adds nothing to those target calls, so a look only the
    route really taken painted stays: a bracket crowned after its final round keeps that
-   round's cursor, while a recovery into `crowned` shows that replayed route's look, without one.
+   round's cursor, while a recovery into `crowned` shows that replayed route's look, without
+   one. The exception is a snap to the first step or off, which always clears: ⟲ Reset in place
+   still removes a mark a late call left.
 
 ---
 
