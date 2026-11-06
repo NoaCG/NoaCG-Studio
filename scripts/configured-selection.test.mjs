@@ -120,6 +120,7 @@ test('ci06: helpers, live config, setup, workflows and the toolchain select the 
     'package-lock.json',
     'vite.config.ts',
     'scripts/configured-verdict.mjs',
+    'scripts/configured-stack.mjs',
     'scripts/configured-shards.mjs',
     'scripts/e2e-affected.mjs',
     'scripts/e2e-lists.mjs',

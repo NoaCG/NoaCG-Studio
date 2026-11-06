@@ -878,6 +878,8 @@ export const CONFIGURED_TOOLCHAIN_ENTRIES = [
   'scripts/configured-shards.mjs',
   'scripts/configured-verdict.mjs',
   'scripts/e2e-run-integrity.mjs',
+  // The local stack every configured job runs against (its images, its readiness check).
+  'scripts/configured-stack.mjs',
   'playwright.live.config.ts',
 ];
 let toolchainCache = null;
