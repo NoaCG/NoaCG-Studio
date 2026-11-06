@@ -296,6 +296,35 @@ const BRIDGE_IO: BridgeWatchIo = {
   listLibrary,
   syncStudio,
   rememberOutput: (showId, target) => saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: target }),
+  loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
+  keepLoaded: (showId, next) => {
+    const memory = loadReadyMemory(showId);
+    return JSON.stringify(memory.casparLoaded ?? null) === JSON.stringify(next ?? null) || saveReadyMemory(showId, { ...memory, casparLoaded: next ?? undefined });
+  },
+  // Held by one tab of this browser at a time (Web Locks). Without them (an insecure origin), every
+  // tab holds it, as before #2245.
+  lead: (key) => {
+    if (!navigator.locks) return { held: () => true, release: () => {} };
+    let held = false;
+    let free = () => {};
+    const asked = new AbortController();
+    navigator.locks
+      .request(key, { signal: asked.signal }, () => {
+        held = true;
+        return new Promise<void>((resolve) => {
+          free = resolve;
+        });
+      })
+      .catch(() => {}); // released before it was granted
+    return {
+      held: () => held,
+      release: () => {
+        asked.abort();
+        held = false;
+        free();
+      },
+    };
+  },
   every: (ms, run) => {
     const timer = setInterval(run, ms);
     return () => clearInterval(timer);
@@ -306,6 +335,14 @@ const BRIDGE_IO: BridgeWatchIo = {
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
+  },
+  now: () => Date.now(),
+  onHidden: (run) => {
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') run();
+    };
+    document.addEventListener('visibilitychange', onHidden);
+    return () => document.removeEventListener('visibilitychange', onHidden);
   },
 };
 

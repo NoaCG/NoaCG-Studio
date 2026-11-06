@@ -32,6 +32,11 @@ export interface ReadyMemory {
   stamp: RememberedStamp | null;
   /** Successful Put on air, per server/slot. Take off clears it; a disconnect never does. */
   casparOutput?: string;
+  /** The last Load (Put on air) of the output from this browser that nothing has given up since:
+   *  its server/slot and a stamp of its own. The slot a CasparCG restart puts it back on, also after
+   *  the page was reloaded (control/bridgeWatch.ts, #2245). Unlike `casparOutput`, never set by
+   *  only seeing it there. */
+  casparLoaded?: { target: string; at: number; outageAt?: number; tries?: number; reason?: string };
 }
 
 const EMPTY: ReadyMemory = { outputs: [], stamp: null };
@@ -62,32 +67,54 @@ function readStamp(value: unknown): RememberedStamp | null {
   return { at: s.at, v: { n: s.v.n, h: s.v.h }, outputs: count(s.outputs), ready: count(s.ready), warnings: count(s.warnings), problems: count(s.problems) };
 }
 
+function readLoaded(value: unknown): { casparLoaded?: NonNullable<ReadyMemory['casparLoaded']> } {
+  const l = value as { target?: unknown; at?: unknown; outageAt?: unknown; tries?: unknown; reason?: unknown } | null;
+  if (!l || typeof l !== 'object' || typeof l.target !== 'string' || typeof l.at !== 'number') return {};
+  return {
+    casparLoaded: {
+      target: l.target.slice(0, 300),
+      at: l.at,
+      ...(typeof l.outageAt === 'number' ? { outageAt: l.outageAt } : {}),
+      ...(typeof l.tries === 'number' ? { tries: l.tries } : {}),
+      ...(typeof l.reason === 'string' ? { reason: l.reason.slice(0, 500) } : {}),
+    },
+  };
+}
+
 export function loadReadyMemory(productionId: string): ReadyMemory {
   try {
     const raw = localStorage.getItem(keyFor(productionId));
     if (!raw) return EMPTY;
-    const parsed = JSON.parse(raw) as { v?: unknown; outputs?: unknown; stamp?: unknown; casparOutput?: unknown } | null;
+    const parsed = JSON.parse(raw) as { v?: unknown; outputs?: unknown; stamp?: unknown; casparOutput?: unknown; casparLoaded?: unknown } | null;
     if (!parsed || parsed.v !== READY_MEMORY_VERSION) return EMPTY;
-    return { outputs: readOutputs(parsed.outputs), stamp: readStamp(parsed.stamp), ...(typeof parsed.casparOutput === 'string' ? { casparOutput: parsed.casparOutput.slice(0, 300) } : {}) };
+    return {
+      outputs: readOutputs(parsed.outputs),
+      stamp: readStamp(parsed.stamp),
+      ...(typeof parsed.casparOutput === 'string' ? { casparOutput: parsed.casparOutput.slice(0, 300) } : {}),
+      ...readLoaded(parsed.casparLoaded),
+    };
   } catch {
     return EMPTY;
   }
 }
 
-export function saveReadyMemory(productionId: string, memory: ReadyMemory): void {
+/** Keep `memory` for `productionId`: whether it was written. */
+export function saveReadyMemory(productionId: string, memory: ReadyMemory): boolean {
   try {
     const raw = localStorage.getItem(keyFor(productionId));
     if (raw) {
       const held = JSON.parse(raw) as { v?: unknown } | null;
       // A newer build's record is left as it is.
-      if (held && typeof held.v === 'number' && held.v > READY_MEMORY_VERSION) return;
+      if (held && typeof held.v === 'number' && held.v > READY_MEMORY_VERSION) return false;
     }
     localStorage.setItem(
       keyFor(productionId),
       // The newest are kept: the list grows at its end (control/readiness.ts rememberOutputs).
-      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp, casparOutput: memory.casparOutput }),
+      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp, casparOutput: memory.casparOutput, casparLoaded: memory.casparLoaded }),
     );
+    return true;
   } catch {
     // Nowhere to keep it: remembered for as long as the page is open.
+    return false;
   }
 }
