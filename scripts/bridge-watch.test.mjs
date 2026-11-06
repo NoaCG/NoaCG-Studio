@@ -992,28 +992,62 @@ test('the three tries are the browser\'s: a tab taking the lead over goes on fro
   assert.equal(b.session.bridge.get().slotReload?.state, 'failed');
 });
 
-test('a tab that hands the lead over while its reload reads the slot sends nothing', async () => {
+test('a tab going out of view with its reload under way finishes it, then hands over: one PLAY', async () => {
   const browser = newBrowser();
   const server = { layer: ourPage };
   (await loadedRig({ browser, server })).watch.stop();
   const a = await reopened(browser, server);
   const b = await reopened(browser, server);
+  let release;
+  a.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve({ state: 'ok', detail: '' });
+  });
   for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
   await settle();
   server.layer = EMPTY;
-  a.setHold(true);
   a.answer(OK);
   await settle();
-  a.held.shift()(); // the watch's reading: empty, a reload starts and reads once more
-  await settle();
-  assert.equal(a.held.length, 1, 'the reload\'s own read is out');
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'A\'s load is out');
   a.hide();
-  a.held.shift()();
-  await settle();
-  assert.equal(a.calls.filter((c) => c === 'reload').length, 0, 'A no longer leads: nothing sent');
+  // Every state B's slot row goes through, however briefly.
+  const bSaid = [];
+  b.session.bridge.subscribe(() => bSaid.push(b.session.bridge.get().slotReload?.state ?? null));
+  // B comes back while A's load is still out, and reads the slot empty twice.
   b.answer(OK);
   await settle();
-  assert.equal(b.calls.filter((c) => c === 'reload').length, 1, 'B, now leading, reloads once');
+  await b.readSlot();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'B sends no second load beside it');
+  assert.ok(!bSaid.includes('reloading'), 'and never says it reloads, not even for a moment');
+  release();
+  await settle();
+  // Back on the slot; the lead is B's now, for the next restart.
+  await b.readSlot();
+  await restartServer(b);
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 1, 'B leads the next one');
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1);
+});
+
+test('a tab that saw the outage but not the recovery never undoes a later CLEAR', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  // Both see the outage; A, leading, brings the output back and sees it; B reads nothing meanwhile.
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1);
+  assert.deepEqual(a.session.bridge.get().outputSlot, { holds: 'ours' });
+  // A client clears the slot while everything answers. A goes to the background; B leads now.
+  server.layer = EMPTY;
+  a.hide();
+  b.answer(OK);
+  await settle();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'B leaves the CLEAR alone');
+  assert.equal(browser.loaded.get('show-1'), undefined, 'and forgets the Load');
 });
 
 test('a page opened during another tab\'s recovery does not forget the Load', async () => {

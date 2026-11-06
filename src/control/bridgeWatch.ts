@@ -252,10 +252,17 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   };
   // A tab going out of view hands the lead to a tab in view, if one is waiting: the browser slows a
   // background tab's polls, so it would see a restart late.
-  const stopHidden = io.onHidden(() => {
+  // A reload already sent finishes first, so the next lead never sends a second one beside it.
+  let handOver = false;
+  const handLeadOver = () => {
+    handOver = false;
     if (!lead || !inputs) return;
     dropLead();
     followLead(inputs.casparTarget);
+  };
+  const stopHidden = io.onHidden(() => {
+    if (reloads.inFlight) handOver = true;
+    else handLeadOver();
   });
   /** The server or the Bridge stopped answering, or the slot could not be read, since the slot last
    *  held ours: only then is an empty slot a restart, not another browser's Unload or a client's
@@ -266,13 +273,15 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   let oursAt = io.now();
   const snapshot = (): Before => ({ at: memory()?.at, issued: io.now() });
   const sawOutage = () => {
-    if (outageSinceOurs) return;
     outageSinceOurs = true;
     const m = memory();
-    if (m) keep({ ...m, outageAt: io.now() });
+    if (m && !((m.outageAt ?? 0) > oursAt)) keep({ ...m, outageAt: io.now() });
   };
-  /** An outage since the slot last held ours, seen by this tab or noted by another. */
-  const outage = (m: LoadedOutput | null) => outageSinceOurs || (m?.outageAt ?? 0) > oursAt;
+  /** An outage since the slot last held ours. The browser's note decides while storage holds the
+   *  Load: a tab that saw the outage but not the recovery another tab saw must not keep its own
+   *  word on it, or a later CLEAR would read as a restart. This tab's own word only while storage
+   *  refuses the write. */
+  const outage = (m: LoadedOutput | null) => (local !== undefined ? outageSinceOurs : (m?.outageAt ?? 0) > oursAt);
   /** The last slot start was published with CasparCG on, so a start without either is a change. */
   let watched = false;
   /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
@@ -409,7 +418,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // or another browser's later Load would arm it. Not a Load still fresh, one in a recovery another
     // tab is making, nor a newer one than the read knew.
     const kept = memory();
-    if (lost && !outageSinceOurs && kept && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
+    if (lost && kept && !outage(kept) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
     followLead(target);
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
@@ -464,6 +473,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
     if (!alive || run !== reloads) return;
     run.inFlight = false;
+    if (handOver) handLeadOver();
     // Nothing sent (the slot changed under it, or the operator's own Load is out): not a try, and
     // before the first nothing is reloading.
     if (!result) {
