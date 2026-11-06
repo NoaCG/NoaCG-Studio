@@ -3458,8 +3458,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         void stepOff([decision.cue]);
         return;
       case 'take':
-        void takeCue(decision.cue);
-        return;
+        // Answered so a panel knows when its Take settles (control/panelRelay.ts `taking`).
+        return takeCue(decision.cue);
       case 'folder-step':
         void stepFolder(rundown.folders.get(decision.folderId)!);
         return;

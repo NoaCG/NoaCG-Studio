@@ -271,9 +271,14 @@ export class PressMemory {
  *  for its answer. */
 export const PRESS_HOLD_MS = 500;
 
-/** The gap between presses let go together. The page judges and runs a press from what it last drew
- *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged against
- *  a page that has not drawn the press before it. 50 ms is what an operator's quick pair has anyway. */
+/** The gap behind every press that runs. The page judges and runs a press from what it last drew
+ *  (`usePanelAnswer` reads its closures through refs), so a press run sooner would be judged
+ *  against a page that has not drawn the press before it, however the two arrived (issues #2109,
+ *  #2144). 50 ms is what an operator's quick pair has anyway. It covers a press whose effect the
+ *  page draws within it. A press whose effect takes longer is not waited for. A graphic's Take
+ *  reaches the drawn state only once the page has saved an edit still owed (`flush`) and settled
+ *  the cue's box (`appearanceOf`; `graphicVerbs.ts` `takeOn`), so a panel's second Take of a cue
+ *  is refused while the first is still running instead (`answerPanel`). */
 export const PRESS_DRAW_MS = 50;
 
 /** At most this many panels' counts are kept: a module start is a new panel. */
@@ -286,8 +291,6 @@ interface OrderedPanel {
   /** The bound running for what is held, and the number it gave up to when it ran out. */
   giveUp: (() => void) | null;
   givenUpTo: number;
-  /** The gap running behind a press let go, while more are held. */
-  drawing: (() => void) | null;
 }
 
 /**
@@ -295,33 +298,44 @@ interface OrderedPanel {
  * relay call and broadcast, so two quick ones can arrive reversed (issue #2109). The press id has
  * always numbered them, `<instance>:<n>` counting up per module start, so no module needs an update.
  *
- * A press in its turn, with nothing held, runs in the task that heard it: a press on its own never
- * waits. One ahead of its turn is held until the presses before it arrive. PRESS_HOLD_MS after a
- * press was first held with none in its turn, everything held goes, in order, and the presses that
- * never came are given up on. A press after its turn, a late one or a repeat, runs at once: its id
- * decides whether it has an effect (PressMemory), so a +1 arriving late still adds its point. The
- * first press this page hears from a panel sets the count and never waits, since a module may have
+ * A press in its turn runs in the task that heard it, unless another press, from any panel, ran in
+ * the PRESS_DRAW_MS before it: then it waits out the rest of that gap, so the page can draw that
+ * press first (issue #2144; PRESS_DRAW_MS says what it does not cover). A press on its own never
+ * waits, and needs no timer. One ahead of its turn is held until the presses before it arrive.
+ * PRESS_HOLD_MS after a press was first held with none in its turn, everything held goes, in order,
+ * and the presses that never came are given up on. A press after its turn, a late one or a repeat,
+ * runs at once, and the gap starts again behind it: its id decides whether it has an effect
+ * (PressMemory), so a +1 arriving late still adds its point. The first press this page
+ * hears from a panel sets the count and never waits for the ones before it, since a module may have
  * pressed long before this page opened.
  */
 export class PressOrder {
   /** Call `fn` once after `ms`; returns the cancel. */
   readonly #after: (ms: number, fn: () => void) => () => void;
+  readonly #now: () => number;
   readonly #panels = new Map<string, OrderedPanel>();
-  constructor(after: (ms: number, fn: () => void) => () => void) {
+  /** When a press last ran, and the timer that lets go what waits for the page to draw it. */
+  #ranAt = -Infinity;
+  #drawing: (() => void) | null = null;
+  /** The panels with a press in its turn waiting for the gap, in the order they started waiting: each
+   *  gap lets go the first, so one busy panel cannot keep another waiting. */
+  readonly #waiting = new Set<OrderedPanel>();
+  constructor(after: (ms: number, fn: () => void) => () => void, now: () => number = () => Date.now()) {
     this.#after = after;
+    this.#now = now;
   }
 
   /** A press was heard: `run` is called exactly once, in its turn, unless this order stops first. */
   arrive(pressId: string, run: () => void): void {
     const id = /^(.+):(\d+)$/.exec(pressId);
     if (!id) {
-      run();
+      this.#run(run);
       return;
     }
     const n = Number(id[2]);
     const panel = this.#panels.get(id[1]) ?? this.#met(id[1], n);
     if (n < panel.next) {
-      run();
+      this.#run(run);
       return;
     }
     // A second copy of a held press: the first answers for both.
@@ -334,10 +348,12 @@ export class PressOrder {
   stop(): void {
     for (const panel of this.#panels.values()) {
       panel.giveUp?.();
-      panel.drawing?.();
       panel.held.clear();
     }
     this.#panels.clear();
+    this.#waiting.clear();
+    this.#drawing?.();
+    this.#drawing = null;
   }
 
   #met(instance: string, n: number): OrderedPanel {
@@ -349,13 +365,24 @@ export class PressOrder {
         }
       }
     }
-    const panel: OrderedPanel = { next: n, held: new Map(), giveUp: null, givenUpTo: 0, drawing: null };
+    const panel: OrderedPanel = { next: n, held: new Map(), giveUp: null, givenUpTo: 0 };
     this.#panels.set(instance, panel);
     return panel;
   }
 
+  /** What is left of the gap behind the press that ran last; none when a clock went back, which
+   *  says nothing, so it does not hold a press. */
+  #gapLeft(): number {
+    const since = this.#now() - this.#ranAt;
+    return since >= 0 && since < PRESS_DRAW_MS ? PRESS_DRAW_MS - since : 0;
+  }
+
+  #run(run: () => void): void {
+    this.#ranAt = this.#now();
+    run();
+  }
+
   #pump(panel: OrderedPanel): void {
-    if (panel.drawing) return;
     const { held } = panel;
     if (held.size === 0) return;
     const lowest = Math.min(...held.keys());
@@ -369,21 +396,48 @@ export class PressOrder {
       });
       return;
     }
+    // The page may not have drawn the press that ran last: wait out the rest of its gap.
+    const left = this.#gapLeft();
+    if (this.#drawing || left > 0) {
+      this.#waiting.add(panel);
+      this.#drawing ??= this.#after(left, () => this.#drawn());
+      return;
+    }
     held.delete(panel.next);
     panel.next++;
-    // Before the press runs, so one that throws cannot strand the ones behind it.
-    if (held.size > 0) {
-      panel.drawing = this.#after(PRESS_DRAW_MS, () => {
-        panel.drawing = null;
-        this.#pump(panel);
-      });
-    } else {
+    if (held.size === 0) {
       panel.giveUp?.();
       panel.giveUp = null;
     }
+    this.#ranAt = this.#now();
+    // The gap for the presses behind it, this panel's and any other's, armed before it runs, so one
+    // that throws cannot strand them.
+    this.#pump(panel);
+    if (this.#waiting.size > 0) this.#drawing ??= this.#after(PRESS_DRAW_MS, () => this.#drawn());
     run();
   }
+
+  /** The gap is over: the panel that has waited longest goes first, and one with more to run waits
+   *  again behind the others. A late or unnumbered press that ran during the gap has a gap of its
+   *  own, so the wait goes on for the rest of that. */
+  #drawn(): void {
+    const left = this.#gapLeft();
+    if (left > 0) {
+      this.#drawing = this.#after(left, () => this.#drawn());
+      return;
+    }
+    this.#drawing = null;
+    for (const panel of [...this.#waiting]) {
+      this.#waiting.delete(panel);
+      this.#pump(panel);
+      if (this.#drawing) return;
+    }
+  }
 }
+
+/** A Take refused because what it would do is not what its key showed: the page drew something else
+ *  since, or a panel's Take of that cue is still running (`answerPanel`). */
+export const TAKE_CHANGED: PressVerdict = { outcome: 'stale', note: 'what Take does changed' };
 
 const SELECTED_ROW_VERBS: readonly PanelVerb[] = ['take', 'retake', 'update', 'next', 'out', 'pause', 'resume'];
 
@@ -426,7 +480,7 @@ export function judgePress(
     return { outcome: 'stale', note: 'the selection moved' };
   }
   if (verb === 'take' && (!then || then.space !== now.space)) {
-    return { outcome: 'stale', note: then ? 'what Take does changed' : 'the key was drawn too long ago' };
+    return then ? TAKE_CHANGED : { outcome: 'stale', note: 'the key was drawn too long ago' };
   }
   if ((verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') && !isRow(target)) {
     return { outcome: 'stale', note: 'that cue is no longer in the rundown' };
