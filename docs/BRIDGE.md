@@ -329,9 +329,9 @@ afterwards follows the command log, as for any output loaded fresh. The decision
   brings it back, once it has seen the output on the slot again. An Unload in any tab of the
   browser counts for all of them, and so does an outage any of its tabs saw, so a background tab
   that missed the restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs
-  that have seen the output on the slot, one holds a browser lock and alone reloads and counts the
-  three tries; a tab going into the background hands it to one in view, and one closing hands it
-  to the next. If the browser's storage refuses the write (a full or blocked storage), the page
+  that have seen the output on the slot, one holds a browser lock and alone reloads; the three
+  tries are the browser's, not each tab's. A tab going into the background or closing hands the
+  lock to the next tab waiting for it, which is usually one in view. If the browser's storage refuses the write (a full or blocked storage), the page
   still brings back its own Load while it stays open, as before. Not an output only another browser loaded, not a
   slot the settings moved to, and not after Unload, unpublishing or switching CasparCG off. A slot
   emptied while everything kept answering (Unload in another browser, a client's `CLEAR`) is left

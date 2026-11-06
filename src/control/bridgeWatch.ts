@@ -110,6 +110,14 @@ export interface LoadedOutput {
   target: string;
   at: number;
   outageAt?: number;
+  /** Reloads tried since that outage, by whichever tab led: three in all, not three per tab. */
+  tries?: number;
+}
+
+/** What the page kept when a slot read went out, and when it went out. */
+interface Before {
+  at: number | undefined;
+  issued: number;
 }
 
 export interface Lead {
@@ -253,8 +261,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
    *  held ours: only then is an empty slot a restart, not another browser's Unload or a client's
    *  CLEAR (#1657). */
   let outageSinceOurs = false;
-  /** When this page last saw ours on the slot, or opened: an outage another tab noted after it counts here too. */
+  /** When the last read that found ours on the slot went out, or the page opened: an outage another
+   *  tab noted after it counts here too. */
   let oursAt = io.now();
+  const snapshot = (): Before => ({ at: memory()?.at, issued: io.now() });
   const sawOutage = () => {
     if (outageSinceOurs) return;
     outageSinceOurs = true;
@@ -320,19 +330,19 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     let live = true;
     let reading = false;
     const actionRev = slotActions;
-    const settle = (next: SlotReading | undefined, vacant: boolean, beforeAt: number | undefined) => {
+    const settle = (next: SlotReading | undefined, vacant: boolean, before: Before) => {
       if (next?.holds === 'ours' && i.showId) {
         io.rememberOutput(i.showId, i.casparTarget);
         writeBridge(session, { slotSeenOurs: true });
       }
       const prev = session.bridge.get().outputSlot;
       writeBridge(session, { outputSlot: prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next });
-      if (next) bringBack(next, i.casparTarget, vacant, beforeAt);
+      if (next) bringBack(next, i.casparTarget, vacant, before);
     };
     const read = () => {
       if (reading) return; // a slow Bridge: never stack reads
       reading = true;
-      const beforeAt = memory()?.at;
+      const before = snapshot();
       io.readState(settings, settings.channel)
         .then(
           (r) => {
@@ -344,13 +354,13 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
                 ? { holds: slotHolds(layer, i.outputSlug) }
                 : { holds: 'failed', detail: r.result.detail },
               !!r.reply && isVacant(layer),
-              beforeAt,
+              before,
             );
           },
           () => {
             if (!live) return;
             sawOutage();
-            settle(undefined, false, beforeAt);
+            settle(undefined, false, before);
           },
         )
         .finally(() => {
@@ -369,12 +379,16 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   // tries; another production's ends them too, and the slot is no longer this page's to take back.
   /** What any reading of the slot says about owning it, the watch's own and the one right before a
    *  reload alike: true when the layer is vacant and a reload may be weighed. */
-  const observe = (reading: SlotReading, vacant: boolean, beforeAt: number | undefined): boolean => {
+  const observe = (reading: SlotReading, vacant: boolean, before: Before): boolean => {
     if (reading.holds === 'failed') sawOutage();
     if (reading.holds === 'ours') {
       outageSinceOurs = false;
-      oursAt = io.now();
-      seenAt = memory()?.at ?? null;
+      oursAt = Math.max(oursAt, before.issued);
+      const m = memory();
+      seenAt = m?.at ?? null;
+      // Back on its slot after the outage noted for it: the browser's recovery is over. Only a read
+      // sent after that outage says so; one sent before it is from before the restart.
+      if (m && (m.outageAt !== undefined ? m.outageAt < before.issued : m.tries)) keep({ target: m.target, at: m.at });
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return false;
     }
@@ -382,20 +396,20 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // not NoaCG's, all of which `slotHolds` calls empty): the slot is theirs now.
     if (reading.holds === 'other' || (reading.holds === 'empty' && !vacant)) {
       // Only the Load kept when the read went out: a newer one landed after it is not given up.
-      if (beforeAt !== undefined && memory()?.at === beforeAt) keep(null);
+      if (before.at !== undefined && memory()?.at === before.at) keep(null);
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return false;
     }
     return reading.holds === 'empty';
   };
-  const bringBack = (reading: SlotReading, target: string, vacant: boolean, beforeAt: number | undefined) => {
-    const lost = observe(reading, vacant, beforeAt);
+  const bringBack = (reading: SlotReading, target: string, vacant: boolean, before: Before) => {
+    const lost = observe(reading, vacant, before);
     // A kept Load this page never saw, on a slot read empty while everything answers: it was taken
     // off while no page of this browser watched (a CLEAR, another browser's Unload), so forget it,
-    // or another browser's later Load would arm it. Not a Load still fresh, nor a newer one than
-    // the read knew.
+    // or another browser's later Load would arm it. Not a Load still fresh, one in a recovery another
+    // tab is making, nor a newer one than the read knew.
     const kept = memory();
-    if (lost && !outage(kept) && kept && kept.at !== seenAt && kept.at === beforeAt && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
+    if (lost && !outage(kept) && kept && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
     followLead(target);
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
@@ -409,13 +423,16 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     }
     // Another tab of this browser reloads it.
     if (!lead?.held()) return;
-    if (reloads.tries >= RELOAD_AFTER_READS.length) {
+    // The tries any tab of the browser made since the outage: a tab taking the lead over goes on
+    // from there.
+    const tries = Math.max(reloads.tries, memory()?.tries ?? 0);
+    if (tries >= RELOAD_AFTER_READS.length) {
       // Out of tries: said once, and Load is the operator's.
       if (session.bridge.get().slotReload?.state !== 'failed') writeBridge(session, { slotReload: { state: 'failed', detail: reloads.detail } });
       return;
     }
-    if (reloads.tries > 0) reloads.emptyReads += 1;
-    if (reloads.emptyReads < RELOAD_AFTER_READS[reloads.tries]) return;
+    if (tries > 0) reloads.emptyReads += 1;
+    if (reloads.emptyReads < RELOAD_AFTER_READS[tries]) return;
     const run = reloads;
     run.inFlight = true;
     writeBridge(session, { slotReload: { state: 'reloading' } });
@@ -431,15 +448,17 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const reloadOnce = async (run: typeof reloads, target: string): Promise<PlayoutResult | null> => {
     const settings = io.loadSettings();
     const actionRev = slotActions;
-    const wanted = () => alive && run === reloads && armedFor(target) && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
+    // Still this tab's to do: it may have handed the lead over while the read was out.
+    const wanted = () =>
+      alive && run === reloads && armedFor(target) && !!lead?.held() && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
     if (!wanted()) return null;
-    const beforeAt = memory()?.at;
+    const before = snapshot();
     // A read that fails sends nothing and is not a try: the next reading decides again.
     const read = await io.readState(settings, settings.channel).catch(() => null);
     if (!wanted() || !read?.reply) return null;
     const layer = read.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null;
     // Back already (another browser's reload) or somebody else's now: this reading counts as any.
-    if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), beforeAt)) return null;
+    if (!observe({ holds: slotHolds(layer, inputs?.outputSlug ?? null) }, isVacant(layer), before)) return null;
     return adapters.reload();
   };
   const done = (run: typeof reloads, result: PlayoutResult | null) => {
@@ -453,6 +472,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     }
     run.tries += 1;
     run.emptyReads = 0;
+    const m = memory();
+    if (m) keep({ ...m, tries: Math.max(run.tries, (m.tries ?? 0) + 1) });
     // Why the last try did not bring it back, for the failed state: the Bridge's sentence, or a
     // load that went through and still left the slot empty.
     run.detail = result.state === 'ok' ? '' : result.detail;
@@ -573,8 +594,11 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       if (next.showId !== showId) {
         dropLead();
         seenAt = null;
+        const was = showId;
         showId = next.showId;
-        if (showId && local !== undefined) keep(local);
+        // Only a Load that landed before the page named any production is carried to it.
+        if (was !== null) local = undefined;
+        else if (showId && local !== undefined) keep(local);
       }
       status.run(JSON.stringify([next.target, next.checkAgain]), () => startStatus(next.target));
       // THE STUDIO SETUP THE BRIDGE KEEPS, read once as the page opens, so a channel, output slot

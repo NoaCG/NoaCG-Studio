@@ -36,7 +36,7 @@ export interface ReadyMemory {
    *  its server/slot and a stamp of its own. The slot a CasparCG restart puts it back on, also after
    *  the page was reloaded (control/bridgeWatch.ts, #2245). Unlike `casparOutput`, never set by
    *  only seeing it there. */
-  casparLoaded?: { target: string; at: number; outageAt?: number };
+  casparLoaded?: { target: string; at: number; outageAt?: number; tries?: number };
 }
 
 const EMPTY: ReadyMemory = { outputs: [], stamp: null };
@@ -67,10 +67,17 @@ function readStamp(value: unknown): RememberedStamp | null {
   return { at: s.at, v: { n: s.v.n, h: s.v.h }, outputs: count(s.outputs), ready: count(s.ready), warnings: count(s.warnings), problems: count(s.problems) };
 }
 
-function readLoaded(value: unknown): { casparLoaded?: { target: string; at: number; outageAt?: number } } {
-  const l = value as { target?: unknown; at?: unknown; outageAt?: unknown } | null;
+function readLoaded(value: unknown): { casparLoaded?: NonNullable<ReadyMemory['casparLoaded']> } {
+  const l = value as { target?: unknown; at?: unknown; outageAt?: unknown; tries?: unknown } | null;
   if (!l || typeof l !== 'object' || typeof l.target !== 'string' || typeof l.at !== 'number') return {};
-  return { casparLoaded: { target: l.target.slice(0, 300), at: l.at, ...(typeof l.outageAt === 'number' ? { outageAt: l.outageAt } : {}) } };
+  return {
+    casparLoaded: {
+      target: l.target.slice(0, 300),
+      at: l.at,
+      ...(typeof l.outageAt === 'number' ? { outageAt: l.outageAt } : {}),
+      ...(typeof l.tries === 'number' ? { tries: l.tries } : {}),
+    },
+  };
 }
 
 export function loadReadyMemory(productionId: string): ReadyMemory {

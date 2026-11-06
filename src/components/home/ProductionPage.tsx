@@ -299,8 +299,7 @@ const BRIDGE_IO: BridgeWatchIo = {
   loadedOutput: (showId) => loadReadyMemory(showId).casparLoaded ?? null,
   keepLoaded: (showId, next) => {
     const memory = loadReadyMemory(showId);
-    const same = memory.casparLoaded?.at === next?.at && memory.casparLoaded?.outageAt === next?.outageAt;
-    return same || saveReadyMemory(showId, { ...memory, casparLoaded: next ?? undefined });
+    return JSON.stringify(memory.casparLoaded ?? null) === JSON.stringify(next ?? null) || saveReadyMemory(showId, { ...memory, casparLoaded: next ?? undefined });
   },
   // Held by one tab of this browser at a time (Web Locks). Without them (an insecure origin), every
   // tab holds it, as before #2245.
