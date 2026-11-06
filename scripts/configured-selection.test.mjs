@@ -15,7 +15,7 @@ import test from 'node:test';
 import { checkoutSourceGraph, configuredByImports, configuredFullFor, configuredManifest, configuredToolchain, planFor, sourceGraph } from './e2e-affected.mjs';
 import { CONFIGURED_HEADERS, CONFIGURED_SPECS } from './e2e-lists.mjs';
 import { manifestProblems, verdict } from './configured-verdict.mjs';
-import { CONFIGURED_SHARDS, SELECTED_SHARD_MINUTES, SELECTED_SHARDS, selectedShardCount } from './configured-shards.mjs';
+import { CONFIGURED_SHARDS, selectedShardCount } from './configured-shards.mjs';
 
 const CI_YML = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 const plan = (files, opts = {}) => planFor(files, { traced: null, helpers: null, readers: null, ...opts });
@@ -257,15 +257,11 @@ test('ci06: the verdict CLI refuses an unreadable manifest rather than judging w
   }
 });
 
-test('cf13: a selection gets one stack per five measured minutes, at most eight, while a landing keeps its own count', () => {
-  assert.equal(SELECTED_SHARD_MINUTES, 5);
-  assert.equal(SELECTED_SHARDS, 8);
-  assert.equal(CONFIGURED_SHARDS, 4, 'the landing full run is not changed by the selection cap');
+test('ci06: a selection gets one stack per ten measured minutes, never more than a landing gets', () => {
   assert.equal(selectedShardCount(['a.spec.ts']), 1);
-  assert.equal(selectedShardCount(CONFIGURED_SPECS), Math.min(SELECTED_SHARDS, Math.ceil(CONFIGURED_SPECS.length / 5)));
-  const report = (minutes) => ({ suites: [{ file: 'a.spec.ts', specs: [{ file: 'a.spec.ts', title: 'x', tests: [{ status: 'expected', results: [{ duration: minutes * 60_000 }] }] }] }] });
-  assert.equal(selectedShardCount(['a.spec.ts'], [report(12)]), 3);
-  assert.equal(selectedShardCount(['a.spec.ts'], [report(60)]), 8, 'never more than SELECTED_SHARDS');
+  assert.equal(selectedShardCount(CONFIGURED_SPECS), Math.min(CONFIGURED_SHARDS, Math.ceil(CONFIGURED_SPECS.length / 10)));
+  const report = { suites: [{ file: 'a.spec.ts', specs: [{ file: 'a.spec.ts', title: 'x', tests: [{ status: 'expected', results: [{ duration: 25 * 60_000 }] }] }] }] };
+  assert.equal(selectedShardCount(['a.spec.ts'], [report]), 3);
 });
 
 // ── the two ci.yml steps, run as written ───────────────────────────────────────────────────────

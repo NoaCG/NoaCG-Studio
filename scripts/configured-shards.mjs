@@ -60,18 +60,8 @@ export function configuredMinutes(reports) {
   return { ...finished, ...nightlyMinutes(reports) };
 }
 
-/**
- * Test-minutes one runner is aimed at when a pull request runs a selection (ci.yml, ci06), and the
- * most runners a selection gets. 10 and four until cicd-followup cf13: four stacks of about 11
- * test-minutes each made the selected configured jobs the critical path of every large change
- * (cf03 rank 1: 34 of 38 selections hit the cap, and the gate waited 14.4 minutes for them against
- * 9.7 for the offline shards). Five minutes on at most eight stacks halves that wait for about
- * four more stack starts per large pull request run. Only the pull request's selection: a
- * landing's full run keeps `CONFIGURED_SHARDS`. Approved by the owner for 14 days as a measured
- * trial (#2172); reverted unless cf13 measures M1 faster beyond cf03's spread.
- */
-export const SELECTED_SHARD_MINUTES = 5;
-export const SELECTED_SHARDS = 8;
+/** Test-minutes one runner is aimed at when a pull request runs a selection (ci.yml, ci06). */
+export const SELECTED_SHARD_MINUTES = 10;
 
 /**
  * The weights both the runner count and the packing read: the suite's measured files, or, with
@@ -84,11 +74,12 @@ function weightTable(suite, reports) {
 
 /**
  * How many runners a SELECTION gets: one per `SELECTED_SHARD_MINUTES` of its weight, at least one
- * and at most `SELECTED_SHARDS`, so a two-spec selection pays for one stack, not eight.
+ * and at most `CONFIGURED_SHARDS`, so the whole set still gets the four a landing gets and a
+ * two-spec selection pays for one stack, not four.
  */
 export function selectedShardCount(suite, reports = []) {
   const { table } = weightTable(suite, reports);
-  return Math.min(SELECTED_SHARDS, Math.max(1, Math.ceil(minutesFor(suite, table) / SELECTED_SHARD_MINUTES)));
+  return Math.min(CONFIGURED_SHARDS, Math.max(1, Math.ceil(minutesFor(suite, table) / SELECTED_SHARD_MINUTES)));
 }
 
 /**
