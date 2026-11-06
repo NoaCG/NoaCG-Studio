@@ -1100,3 +1100,32 @@ test('a reading of ours sent before the outage does not end the recovery', async
   await settle();
   assert.ok(browser.loaded.get('show-1')?.outageAt, 'the outage note stays');
 });
+
+test('a page left with its reload under way keeps the lock until the load lands: one PLAY', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  let release;
+  a.reloading.answer = () => new Promise((resolve) => {
+    release = () => resolve({ state: 'ok', detail: '' });
+  });
+  for (const t of [a, b]) t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  server.layer = EMPTY;
+  a.answer(OK);
+  await settle();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'A\'s load is out');
+  // The operator goes Home from A while its load is out.
+  a.watch.stop();
+  b.answer(OK);
+  await settle();
+  await b.readSlot();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0, 'B sends no second load beside it');
+  release();
+  await settle();
+  await b.readSlot();
+  await restartServer(b);
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 1, 'B has the lock once A\'s load landed');
+});

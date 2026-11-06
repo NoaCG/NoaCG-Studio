@@ -252,8 +252,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   };
   // A tab going out of view hands the lead to a tab in view, if one is waiting: the browser slows a
   // background tab's polls, so it would see a restart late.
-  // A reload already sent finishes first, so the next lead never sends a second one beside it.
+  // A reload already sent finishes first, so the next lead never sends a second one beside it: on
+  // going out of view, and on the page going away (`stop`) alike.
   let handOver = false;
+  let sending: Promise<void> | null = null;
   const handLeadOver = () => {
     handOver = false;
     if (!lead || !inputs) return;
@@ -445,7 +447,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const run = reloads;
     run.inFlight = true;
     writeBridge(session, { slotReload: { state: 'reloading' } });
-    void reloadOnce(run, target).then(
+    sending = reloadOnce(run, target).then(
       (result) => done(run, result),
       (e: unknown) => done(run, { state: 'bridge', detail: e instanceof Error ? e.message : String(e) }),
     );
@@ -457,9 +459,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const reloadOnce = async (run: typeof reloads, target: string): Promise<PlayoutResult | null> => {
     const settings = io.loadSettings();
     const actionRev = slotActions;
-    // Still this tab's to do: it may have handed the lead over while the read was out.
-    const wanted = () =>
-      alive && run === reloads && armedFor(target) && !!lead?.held() && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
+    const wanted = () => alive && run === reloads && armedFor(target) && actionRev === slotActions && casparOutputTarget(io.loadSettings()) === target;
     if (!wanted()) return null;
     const before = snapshot();
     // A read that fails sends nothing and is not a try: the next reading decides again.
@@ -641,7 +641,10 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     stop: () => {
       if (!alive) return;
       alive = false;
-      dropLead();
+      const held = lead;
+      lead = null;
+      if (reloads.inFlight && sending) void sending.finally(() => held?.release());
+      else held?.release();
       stopHidden();
       for (const poll of [status, slot, files, pending, state]) poll.end();
     },
