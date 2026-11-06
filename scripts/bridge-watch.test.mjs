@@ -12,6 +12,22 @@ import assert from 'node:assert/strict';
 const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS } = await import('../src/control/bridgeWatch.ts');
 const { createPlayoutSession, NO_BRIDGE } = await import('../src/control/playoutSession.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
+const { loadReadyMemory, saveReadyMemory } = await import('../src/model/readyMemory.ts');
+
+/** A kept Load as the page reads it back: through the real record (model/readyMemory.ts), so a field
+ *  the record would drop is dropped here too. */
+function throughStorage(loaded) {
+  if (!loaded) return null;
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, v) };
+  try {
+    saveReadyMemory('show', { outputs: [], stamp: null, casparLoaded: loaded });
+    return loadReadyMemory('show').casparLoaded ?? null;
+  } finally {
+    globalThis.localStorage = previous;
+  }
+}
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const settle = async () => {
@@ -37,7 +53,7 @@ afterEach(() => {
 });
 
 /** A watch on a fresh session, with every request recorded in order. */
-function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage } } = {}) {
+function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage }, asyncLocks = false } = {}) {
   const calls = [];
   const subs = [];
   const everys = [];
@@ -80,7 +96,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       return Promise.resolve({ keeper: 'bridge', changed: false });
     },
     rememberOutput: (showId, target) => calls.push(`remember ${showId} ${target}`),
-    loadedOutput: (showId) => browser.loaded.get(showId) ?? null,
+    loadedOutput: (showId) => throughStorage(browser.loaded.get(showId)),
     keepLoaded: (showId, next) => {
       // A full or private-window storage refuses every write.
       if (browser.refuses) return false;
@@ -99,7 +115,12 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
         if (queue[0]) queue[0].on = true;
       } };
       queue.push(lead);
-      if (queue[0] === lead) lead.on = true;
+      // A real browser grants a lock on a later task, never inside the request.
+      const grant = () => {
+        if (queue[0] === lead) lead.on = true;
+      };
+      if (asyncLocks) setImmediate(grant);
+      else grant();
       return lead;
     },
     every: (ms, run) => {
@@ -788,6 +809,84 @@ test('what gives the slot up is forgotten in this browser too, so a reloaded pag
     t.update({ hostedSlug: null });
     await settle();
   });
+});
+
+test('a page reloaded during the outage still puts the output back, once (#2249)', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const first = await loadedRig({ browser, server });
+  first.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  assert.ok(browser.loaded.get('show-1')?.outageAt, 'the tab that saw the output noted the outage');
+  // The operator presses F5 while the header says CasparCG is not answering. The browser grants
+  // the lock a moment after it is asked, as a real one does.
+  first.watch.stop();
+  server.layer = EMPTY;
+  const t = rig({ items: [], browser, server, asyncLocks: true });
+  t.update();
+  t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  t.answer(OK);
+  await settle();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again once, on the first empty reading');
+  assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
+  await t.readSlot();
+  await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'ours again: no more loads');
+
+  // Out of tries before the reload: the page says so and leaves Load to the operator.
+  const spent = newBrowser();
+  const s2 = { layer: ourPage };
+  const a = await loadedRig({ browser: spent, server: s2 });
+  a.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  a.watch.stop();
+  spent.loaded.set('show-1', { ...spent.loaded.get('show-1'), tries: 3, reason: 'refused' });
+  s2.layer = EMPTY;
+  const u = rig({ items: [], browser: spent, server: s2 });
+  u.update();
+  u.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  u.answer(OK);
+  await settle();
+  await u.readSlot();
+  assert.ok(!u.calls.includes('reload'), 'three tries already made');
+});
+
+test('a page opened while everything answers never arms from an old outage note, so a CLEAR stays', async () => {
+  // The Bridge went down with the output on air, the tab that noted it closed, and with no page open
+  // a client cleared the slot. A page opened later must not take the old note for its own outage,
+  // then, nor after a later outage it sees itself.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const first = await loadedRig({ browser, server });
+  first.answer({ state: 'agent', detail: 'Start NoaCG Bridge on this machine' });
+  await settle();
+  first.watch.stop();
+  assert.equal(browser.loaded.get('show-1')?.seen, true, 'the note says the output was seen');
+  server.layer = EMPTY;
+  const t = await reopened(browser, server);
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'), 'the CLEAR is left alone');
+  await restartServer(t);
+  assert.ok(!t.calls.includes('reload'), 'and a later outage does not bring it back');
+});
+
+test('a page opened during an outage no tab that saw the output noted loads nothing', async () => {
+  // The Load is kept, but the page that made it closed before the outage: a CLEAR may have
+  // happened since, so the note a fresh page writes itself arms nothing.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  (await loadedRig({ browser, server })).watch.stop();
+  server.layer = EMPTY;
+  const t = rig({ items: [], browser, server });
+  t.update();
+  t.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
+  t.answer(OK);
+  await settle();
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'));
 });
 
 test('a reloaded page that has not seen the output on its slot yet loads nothing', async () => {
