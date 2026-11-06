@@ -309,6 +309,12 @@ stack starts of about 2.3 minutes on each large pull request run, about +29 back
 per merge (cf03), 18% of the tier's 164.7 per landing measured on 2026-11-03. No per-day cost:
 scheduled runs use the full suite's count, which is unchanged.
 
+**First run, on this PR** (run 42182470024, head bec6d3d8): "all: 70 configured spec(s) on 8
+local stack(s)"; the eight configured jobs took 7.0 to 8.7 minutes each and the verdict passed
+8.9 minutes after the run started, against the 14.4 cf03 measured for four stacks. This change has
+no offline shard (`none+cfg`), so its gate went green at 9.6 minutes; a `cap+cfg` change still
+waits for its offline shards or catalog gate. One run, not a measurement.
+
 ### 7.3 The exception, and why it is not in the ledger
 
 The owner's approval is the exception: 14 days from the landing date, owner `miwco` (primary) with
@@ -319,6 +325,13 @@ allows one active exception per tier and needs a measured repayment receipt for 
 (`exceptionProblems` in `scripts/growth-controls.mjs`, rules X3 and X4). An entry written now would
 be invalid and cover nothing. The capacity gate does not price this change (#2172), so nothing
 refuses it; the approval, its dates and the revert are recorded here and on #2172.
+
+While the trial runs, the frozen pricing estimate `backendStackQuantumMinutes` (10, in
+`scripts/growth-ceilings.json` `estimates`) prices a new configured spec's share of stack setup at
+half what a pull request now pays for it. Changing it needs a new ceilings version with the
+owner's authority, so it is left as it is and belongs with #2172. `docs/plan-runs/known-traps.md`
+("The configured suite") also says the PR selection packs one stack per ten measured minutes; that
+file is the coordinator's to change.
 
 ### 7.4 Measurement within cf03's rule
 
