@@ -346,10 +346,13 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
 - **No loop.** A server that keeps failing is tried three times, at once and then about 10 s and 60
   s later (`RELOAD_AFTER_READS`). Then the slot row reads "Empty" in red with the last reason under
   it, the status says "Not on 1-20", and Load is the operator's.
-- **Limits.** A page opened while CasparCG is down, when no tab of the browser that had seen the
-  output was open as the server went, needs Load once the server answers. A Load this browser made is forgotten only when a page of it sees the
-  slot given up, so if another browser later loads the same production there, this one may reload it
-  too after a restart, as when both pressed Load. On a plain `http://` address the browser has no
+- **Limits.** A page opened while CasparCG is down needs Load once the server answers, when no
+  tab of the browser that had seen the output was open as the server went. A page opened during an
+  outage goes by the last outage a tab noted with the output on its slot; if that tab closed before
+  the output came back and a client cleared the slot meanwhile, the page can bring it back once. A
+  Load this browser made is forgotten only when a page of it sees the slot given up, so if another
+  browser later loads the same production there, this one may reload it too after a restart, as
+  when both pressed Load. On a plain `http://` address the browser has no
   lock, and every tab reloads as before. An Unload pressed in one tab while another tab's reload is
   already on its way can lose to it; look at the slot row and press Unload again. A restart so quick
   that no poll saw the server gone (the status is asked every few seconds, less often in a

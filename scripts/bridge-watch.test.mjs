@@ -12,6 +12,22 @@ import assert from 'node:assert/strict';
 const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS } = await import('../src/control/bridgeWatch.ts');
 const { createPlayoutSession, NO_BRIDGE } = await import('../src/control/playoutSession.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
+const { loadReadyMemory, saveReadyMemory } = await import('../src/model/readyMemory.ts');
+
+/** A kept Load as the page reads it back: through the real record (model/readyMemory.ts), so a field
+ *  the record would drop is dropped here too. */
+function throughStorage(loaded) {
+  if (!loaded) return null;
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, v) };
+  try {
+    saveReadyMemory('show', { outputs: [], stamp: null, casparLoaded: loaded });
+    return loadReadyMemory('show').casparLoaded ?? null;
+  } finally {
+    globalThis.localStorage = previous;
+  }
+}
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 const settle = async () => {
@@ -80,7 +96,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       return Promise.resolve({ keeper: 'bridge', changed: false });
     },
     rememberOutput: (showId, target) => calls.push(`remember ${showId} ${target}`),
-    loadedOutput: (showId) => browser.loaded.get(showId) ?? null,
+    loadedOutput: (showId) => throughStorage(browser.loaded.get(showId)),
     keepLoaded: (showId, next) => {
       // A full or private-window storage refuses every write.
       if (browser.refuses) return false;
@@ -823,10 +839,31 @@ test('a page reloaded during the outage still puts the output back, once (#2249)
   s2.layer = EMPTY;
   const u = rig({ items: [], browser: spent, server: s2 });
   u.update();
+  u.answer({ state: 'server', detail: 'CasparCG did not answer' });
+  await settle();
   u.answer(OK);
   await settle();
   await u.readSlot();
   assert.ok(!u.calls.includes('reload'), 'three tries already made');
+});
+
+test('a page opened while everything answers never arms from an old outage note, so a CLEAR stays', async () => {
+  // The Bridge went down with the output on air, the tab that noted it closed, and with no page open
+  // a client cleared the slot. A page opened later must not take the old note for its own outage,
+  // then, nor after a later outage it sees itself.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const first = await loadedRig({ browser, server });
+  first.answer({ state: 'agent', detail: 'Start NoaCG Bridge on this machine' });
+  await settle();
+  first.watch.stop();
+  assert.equal(browser.loaded.get('show-1')?.seen, true, 'the note says the output was seen');
+  server.layer = EMPTY;
+  const t = await reopened(browser, server);
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'), 'the CLEAR is left alone');
+  await restartServer(t);
+  assert.ok(!t.calls.includes('reload'), 'and a later outage does not bring it back');
 });
 
 test('a page opened during an outage no tab that saw the output noted loads nothing', async () => {

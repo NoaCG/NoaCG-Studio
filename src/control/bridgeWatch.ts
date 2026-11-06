@@ -310,10 +310,12 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   };
   /** A page opened during an outage a tab that saw the output noted (an F5 while the header says
    *  CasparCG is not answering) arms for that Load as if it had seen it, from the note on (#2249):
-   *  no looser than what the tab that wrote it follows. Not once the tries are spent. */
+   *  no looser than what the tab that wrote it follows. Only before the server first answered this
+   *  page: a page opened while everything answers may find the slot cleared since that note. Not
+   *  once the tries are spent. */
   const armFromNote = () => {
     const m = memory();
-    if (seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget || (m.tries ?? 0) >= RELOAD_AFTER_READS.length) return;
+    if (answered || seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget || (m.tries ?? 0) >= RELOAD_AFTER_READS.length) return;
     seenAt = m.at;
     oursAt = Math.min(oursAt, m.outageAt);
   };
@@ -327,6 +329,8 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
   const outage = (m: LoadedOutput | null) => (local !== undefined ? outageSinceOurs : noted(m));
   /** The last slot start was published with CasparCG on, so a start without either is a change. */
   let watched = false;
+  /** The status has answered `ok` since the page opened. */
+  let answered = false;
   /** The reloads of a lost output: tries made, empty readings since the last, one in flight. */
   let reloads = { tries: 0, emptyReads: 0, inFlight: false, detail: '' };
   const resetReloads = () => {
@@ -348,6 +352,7 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     const off = io.subscribeTargetStatus(io.loadSettings(), (result) => {
       if (!live) return;
       if (result.state !== 'ok') sawOutage();
+      else answered = true;
       writeBridge(session, { status: result });
       follow();
     });
@@ -462,7 +467,6 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     // tab is making, nor a newer one than the read knew.
     const kept = memory();
     if (lost && kept && !outage(kept) && !sentDuringOutage(before) && kept.outageAt === undefined && kept.at !== seenAt && kept.at === before.at && io.now() - kept.at > FRESH_LOAD_MS) keep(null);
-    if (lost) armFromNote();
     followLead(target);
     // Only the slot it was loaded on, and a Load this page saw there: a slot the settings moved to,
     // or a newer Load not seen yet, is not this page's to fill.
