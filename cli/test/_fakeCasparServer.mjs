@@ -412,7 +412,12 @@ export async function fakeCasparServer(options = {}) {
     };
   }
 
+  /** Every connection open now: a held one (the Bridge's link watch, cli/src/playout/links.ts) would
+   *  otherwise keep `close()` waiting, and `dropConnections()` drops them as a restart does. */
+  const sockets = new Set();
   const server = createServer((socket) => {
+    sockets.add(socket);
+    socket.on('close', () => sockets.delete(socket));
     let buffer = '';
     let queue = Promise.resolve();
     // A name like `Jääkiekko` can split across two chunks; the decoder holds the half character.
@@ -435,7 +440,11 @@ export async function fakeCasparServer(options = {}) {
             settle();
             return apply(line, tokens);
           };
-          const injected = options.intercept ? await options.intercept(line, { tokens, answer: applyNow }) : undefined;
+          // `dropOthers` drops every other connection, as a restart would, while this one answers.
+          const dropOthers = () => {
+            for (const s of sockets) if (s !== socket) s.destroy();
+          };
+          const injected = options.intercept ? await options.intercept(line, { tokens, answer: applyNow, dropOthers }) : undefined;
           const sent = injected === undefined ? applyNow() : injected;
           if (!socket.destroyed) socket.write(sent, 'utf8');
         }).catch((error) => {
@@ -470,6 +479,19 @@ export async function fakeCasparServer(options = {}) {
       clock.advance(ms);
       settle();
     },
-    close: () => new Promise((resolve) => server.close(resolve)),
+    /** Every open connection drops, as when the server process dies; the server keeps listening,
+     *  as one started again would. */
+    /** How many connections are open now. */
+    get open() {
+      return sockets.size;
+    },
+    dropConnections() {
+      for (const s of sockets) s.destroy();
+    },
+    close: () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        for (const s of sockets) s.destroy();
+      }),
   };
 }

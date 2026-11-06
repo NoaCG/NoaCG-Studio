@@ -45,6 +45,7 @@ import {
   type Target,
 } from './protocol.js';
 import { SequenceRunner } from './runner.js';
+import { ServerLinks } from './links.js';
 import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
 import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
@@ -103,6 +104,16 @@ export function originAllowed(origin: string | undefined, allowed: string[]): bo
   }
 }
 
+/** A state reading that has to settle its link (./links.ts) reads the server a second time only if
+ *  it can still start by this many ms into the request: the second read may take the adapter's whole
+ *  STATE_TIMEOUT_MS (1200), and the page gives up on the request at 1500 (src/control/playoutLink.ts),
+ *  so the Bridge still answers first. The wait for the watch to connect ends by then too. */
+const RE_READ_BY_MS = 250;
+
+/** Let the I/O already arrived run its handlers: a socket's `close` is emitted a tick or two after
+ *  the data that came with it. */
+const settleIo = () => new Promise<void>((resolve) => setImmediate(() => setImmediate(resolve)));
+
 export interface BridgeOptions {
   token: string;
   origins: string[];
@@ -122,6 +133,9 @@ export interface BridgeOptions {
   runner?: SequenceRunner;
   /** The servers the page connected to. A test hands in one over a file of its own. */
   servers?: ServerMemory;
+  /** The Bridge's watch on each CasparCG server's connection (./links.ts). A test hands in its own
+   *  to set how soon a lost link is tried again. */
+  links?: ServerLinks;
 }
 
 // --- Request reading -------------------------------------------------------------------------
@@ -426,6 +440,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
       return servers.list();
     }
   };
+  const links = options.links ?? new ServerLinks(memory.session);
   let runner = options.runner;
   if (!runner) {
     runner = new SequenceRunner({ memory, adapters: options.adapters, log });
@@ -620,14 +635,49 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             send(200, { ok: false, v: PLAYOUT_V, error }, true);
             return;
           }
-          const r = await adapter.state(target, channel);
+          // THE LINK THE READING BELONGS TO (./links.ts, #2252). A reading carries a link only when
+          // the watch was connected under that same id from before the read to after it, so the
+          // slots read cannot be from either side of a restart. Otherwise (a first reading, the
+          // watch reconnecting, or the link moving during the read) the server is read once more
+          // after the watch has had a moment to connect. Nothing waits while the server is down:
+          // only a reading that succeeded waits.
+          const caspar = target.adapter === 'casparcg' ? target : null;
+          const started = Date.now();
+          const linkBefore = caspar && links.connected(caspar.host, caspar.port) ? links.peek(caspar.host, caspar.port) : undefined;
+          let r = await adapter.state(target, channel);
           if (!r.ok) {
             send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
             return;
           }
+          let link: string | undefined;
+          if (caspar) {
+            // A connection that dropped as the reply came in is counted before the link is trusted.
+            await settleIo();
+            const settled = await links.ready(caspar.host, caspar.port, Math.max(0, RE_READ_BY_MS - (Date.now() - started)));
+            if (linkBefore !== undefined && settled === linkBefore) link = linkBefore;
+            // Too late for a second read inside the page's timeout: no link, as from a Bridge that has none.
+            else if (links.connected(caspar.host, caspar.port) && Date.now() - started <= RE_READ_BY_MS) {
+              r = await adapter.state(target, channel);
+              if (!r.ok) {
+                send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
+                return;
+              }
+              // Moved again during the second read: no link, as from a Bridge that has none.
+              await settleIo();
+              if (links.connected(caspar.host, caspar.port) && links.peek(caspar.host, caspar.port) === settled) link = settled;
+            }
+          }
           send(
             200,
-            { ok: true, v: PLAYOUT_V, channel, session: memory.session, observedAt: Math.round(performance.now()), slots: memory.annotate(target, channel, r.value) },
+            {
+              ok: true,
+              v: PLAYOUT_V,
+              channel,
+              session: memory.session,
+              ...(link !== undefined ? { link } : {}),
+              observedAt: Math.round(performance.now()),
+              slots: memory.annotate(target, channel, r.value),
+            },
             true,
           );
           return;
@@ -748,5 +798,6 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   });
   // The runner this server made stops with it; one handed in belongs to whoever made it.
   if (!options.runner) server.on('close', () => runner.stop());
+  if (!options.links) server.on('close', () => links.stop());
   return server;
 }

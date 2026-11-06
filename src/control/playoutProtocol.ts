@@ -392,6 +392,10 @@ export interface StateReply {
   /** This Bridge process. Every instance id starts with it, so an instance from before a restart
    *  can be told from one somebody else started. */
   session: string;
+  /** CasparCG: the Bridge's connection to the server (issue #2252), which changes whenever that
+   *  connection is lost. The same link as a reading that found the output there means nothing
+   *  restarted between them; a Bridge from before it says nothing. */
+  link?: string;
   /** The Bridge's own monotonic clock at the reading, ms. */
   observedAt: number;
   slots: SlotState[];

@@ -82,7 +82,7 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
       calls.push(`state ${channel}`);
       // A held reading answers with the slot as it is when the test lets it go, or, held with
       // `asSent`, as it was when it went out (a slow Bridge).
-      const reply = () => ({ result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', observedAt: 0, slots: channel === s.channel ? [server.layer] : [] } });
+      const reply = () => ({ result: { state: 'ok', detail: '' }, reply: { ok: true, channel, session: 'b1', ...(server.link ? { link: server.link } : {}), observedAt: 0, slots: channel === s.channel ? [server.layer] : [] } });
       if (!hold) return Promise.resolve(reply());
       const sent = reply();
       return new Promise((resolve) => held.push(() => resolve(asSent ? sent : reply())));
@@ -887,6 +887,112 @@ test('a page opened during an outage no tab that saw the output noted loads noth
   await settle();
   await t.readSlot();
   assert.ok(!t.calls.includes('reload'));
+});
+
+// ── A RESTART NO POLL SAW (issue #2252) ─────────────────────────────────────────────────────────
+
+test('a restart no poll saw: emptied on another link, the output is loaded again, once', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage, link: 'b1.1' };
+  const t = await loadedRig({ browser, server });
+  await t.readSlot();
+  assert.equal(browser.loaded.get('show-1')?.link, 'b1.1', 'the link ours was found under is kept');
+  // CasparCG restarts between two readings: the status kept answering, the Bridge's link changed.
+  server.layer = EMPTY;
+  server.link = 'b1.2';
+  await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again once');
+  assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
+  assert.equal(browser.loaded.get('show-1')?.link, 'b1.2');
+  await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'ours again: no more loads');
+});
+
+test('a CLEAR on the same link is still a CLEAR: left alone and forgotten', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage, link: 'b1.1' };
+  const t = await loadedRig({ browser, server });
+  await t.readSlot();
+  server.layer = EMPTY;
+  await t.readSlot();
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'));
+  assert.equal(browser.loaded.get('show-1'), undefined);
+});
+
+test('a reading on the new link that lands after another tab brought the output back forgets nothing', async () => {
+  // B's reading goes out under the old link, finds the slot wiped after the restart, and lands after
+  // A has reloaded and kept the new link. It is from before the recovery, never a CLEAR.
+  const browser = newBrowser();
+  const server = { layer: ourPage, link: 'b1.1' };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  await a.readSlot();
+  server.layer = EMPTY;
+  server.link = 'b1.2';
+  b.setHold(true, { asSent: true });
+  b.everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
+  await settle();
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'A brings it back');
+  b.held.shift()();
+  await settle();
+  assert.ok(browser.loaded.get('show-1'), 'B does not forget the Load');
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 0);
+});
+
+test('a reading of ours from before another tab\'s recovery never puts the old link back', async () => {
+  // B's reading finds ours before the restart and lands after A brought the output back under the
+  // new link. Kept as the old link, a later CLEAR on the new one would read as a restart.
+  const browser = newBrowser();
+  const server = { layer: ourPage, link: 'b1.1' };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  await a.readSlot();
+  b.setHold(true, { asSent: true });
+  b.everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
+  await settle();
+  server.layer = EMPTY;
+  server.link = 'b1.2';
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1);
+  assert.equal(browser.loaded.get('show-1')?.link, 'b1.2');
+  b.held.shift()();
+  await settle();
+  b.setHold(false);
+  assert.equal(browser.loaded.get('show-1')?.link, 'b1.2', 'the new link stays');
+  // A client clears the slot on the current connection: left alone.
+  server.layer = EMPTY;
+  await a.readSlot();
+  await b.readSlot();
+  assert.equal([...a.calls, ...b.calls].filter((c) => c === 'reload').length, 1, 'no second load');
+});
+
+test('a slow reading sent under the old link, landing empty after a recovery and a CLEAR, reloads nothing', async () => {
+  // B's reading goes out under the old link and lands after A brought the output back under the
+  // new one and a client then cleared it. The kept link moved while it was out: no restart.
+  const browser = newBrowser();
+  const server = { layer: ourPage, link: 'b1.1' };
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  const b = await reopened(browser, server);
+  await a.readSlot();
+  b.setHold(true);
+  b.everys.filter((e) => e.live && e.ms === SLOT_READ_MS).at(-1).run();
+  await settle();
+  server.layer = EMPTY;
+  server.link = 'b1.2';
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'A brings it back');
+  server.layer = EMPTY; // the CLEAR, on the current connection
+  b.held.shift()();
+  await settle();
+  b.setHold(false);
+  await a.readSlot();
+  await b.readSlot();
+  assert.equal([...a.calls, ...b.calls].filter((c) => c === 'reload').length, 1, 'the CLEAR stays');
 });
 
 test('a reloaded page that has not seen the output on its slot yet loads nothing', async () => {

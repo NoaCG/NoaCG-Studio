@@ -374,6 +374,7 @@ interface BridgeReply {
   warning?: string;
   channel?: number;
   session?: string;
+  link?: string;
   observedAt?: number;
   slots?: SlotState[];
   channels?: ServerChannel[];
@@ -583,7 +584,7 @@ export async function readState(settings: PlayoutSettings, channel: number): Pro
   if (result.state !== 'ok' || !body || !Array.isArray(body.slots) || typeof body.session !== 'string') return { result };
   return {
     result,
-    reply: { ok: true, channel: body.channel ?? channel, session: body.session, observedAt: body.observedAt ?? 0, slots: body.slots },
+    reply: { ok: true, channel: body.channel ?? channel, session: body.session, ...(typeof body.link === 'string' ? { link: body.link } : {}), observedAt: body.observedAt ?? 0, slots: body.slots },
   };
 }
 
