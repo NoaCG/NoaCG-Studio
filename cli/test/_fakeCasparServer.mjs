@@ -477,6 +477,10 @@ export async function fakeCasparServer(options = {}) {
     },
     /** Every open connection drops, as when the server process dies; the server keeps listening,
      *  as one started again would. */
+    /** How many connections are open now. */
+    get open() {
+      return sockets.size;
+    },
     dropConnections() {
       for (const s of sockets) s.destroy();
     },

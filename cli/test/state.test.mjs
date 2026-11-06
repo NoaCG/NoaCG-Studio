@@ -469,6 +469,22 @@ test('/state names the Bridge\'s link to the server, which a restart changes and
   assert.ok(caspar.seen.every((l) => /^(INFO|CLEAR|VERSION)\b/.test(l)), caspar.seen.join(' | '));
 });
 
+test('a server nobody reads any more is let go, connected or not, and a later read watches it afresh', async (t) => {
+  const caspar = await fakeCasparServer({ channels: { 1: { fps: 50 } } });
+  t.after(() => caspar.close());
+  let now = 0;
+  const links = new ServerLinks('b1', { retryMs: 20, idleMs: 50, now: () => now });
+  t.after(() => links.stop());
+  const first = links.id('127.0.0.1', caspar.port);
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let i = 0; i < 50 && caspar.open === 0; i += 1) await wait(10);
+  assert.equal(caspar.open, 1, 'the watch is connected');
+  now = 1000;
+  for (let i = 0; i < 50 && caspar.open > 0; i += 1) await wait(10);
+  assert.equal(caspar.open, 0, 'let go while the server stayed up');
+  assert.notEqual(links.id('127.0.0.1', caspar.port), first, 'a new watch, a new link');
+});
+
 test('/state reads a channel, and every action\'s reply carries the slot\'s generation', async (t) => {
   const caspar = await fakeCasparServer({ media: { GIORNO: { kind: 'movie', seconds: 60, fps: 25 } }, channels: { 2: { fps: 50 } } });
   t.after(() => caspar.close());

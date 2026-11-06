@@ -463,9 +463,12 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
       seenAt = m?.at ?? null;
       // Back on its slot after the outage noted for it: the browser's recovery is over. Only a read
       // sent while that outage was noted says so; one sent before it is from before the restart.
-      if (m && (m.outageAt !== undefined ? m.outageAt === before.outageAt : m.tries)) keep({ target: m.target, at: m.at, ...((link ?? m.link) !== undefined ? { link: link ?? m.link } : {}) });
-      // The link it was found under, for every tab of the browser (#2252).
-      else if (m && link !== undefined && m.link !== link) keep({ ...m, link });
+      // The link it was found under, for every tab of the browser (#2252): only from a reading sent
+      // while the kept one was what it is now, so one from before another tab's recovery never
+      // puts an older link back.
+      const nextLink = m && link !== undefined && m.link === before.link ? link : m?.link;
+      if (m && (m.outageAt !== undefined ? m.outageAt === before.outageAt : m.tries)) keep({ target: m.target, at: m.at, ...(nextLink !== undefined ? { link: nextLink } : {}) });
+      else if (m && nextLink !== m.link) keep({ ...m, link: nextLink });
       if (reloads.tries || session.bridge.get().slotReload) resetReloads();
       return false;
     }
