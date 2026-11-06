@@ -318,6 +318,9 @@ export function startBridgeWatch(session: PlayoutSession, io: BridgeWatchIo, ada
     if (answered || seenAt !== null || !m?.seen || m.outageAt === undefined || m.target !== inputs?.casparTarget || (m.tries ?? 0) >= RELOAD_AFTER_READS.length) return;
     seenAt = m.at;
     oursAt = Math.min(oursAt, m.outageAt);
+    // Asked now, while the server is still down: the browser grants a lock a moment later, and the
+    // first empty reading must find it held.
+    followLead(m.target);
   };
   /** A reading sent while an outage was noted: what it found may be from before the recovery, so an
    *  empty one never reads as a CLEAR. Decided by what the reading carried, not by clock order. */

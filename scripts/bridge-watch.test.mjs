@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 /** A watch on a fresh session, with every request recorded in order. */
-function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage } } = {}) {
+function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, mediaKind: 'movie' })], library, browser = newBrowser(), server = { layer: ourPage }, asyncLocks = false } = {}) {
   const calls = [];
   const subs = [];
   const everys = [];
@@ -115,7 +115,12 @@ function rig({ settings = SETTINGS, items = [vt('clip', { frames: 250, fps: 25, 
         if (queue[0]) queue[0].on = true;
       } };
       queue.push(lead);
-      if (queue[0] === lead) lead.on = true;
+      // A real browser grants a lock on a later task, never inside the request.
+      const grant = () => {
+        if (queue[0] === lead) lead.on = true;
+      };
+      if (asyncLocks) setImmediate(grant);
+      else grant();
       return lead;
     },
     every: (ms, run) => {
@@ -813,16 +818,17 @@ test('a page reloaded during the outage still puts the output back, once (#2249)
   first.answer({ state: 'server', detail: 'CasparCG did not answer' });
   await settle();
   assert.ok(browser.loaded.get('show-1')?.outageAt, 'the tab that saw the output noted the outage');
-  // The operator presses F5 while the header says CasparCG is not answering.
+  // The operator presses F5 while the header says CasparCG is not answering. The browser grants
+  // the lock a moment after it is asked, as a real one does.
   first.watch.stop();
   server.layer = EMPTY;
-  const t = rig({ items: [], browser, server });
+  const t = rig({ items: [], browser, server, asyncLocks: true });
   t.update();
   t.answer({ state: 'server', detail: 'CasparCG did not answer' });
   await settle();
   t.answer(OK);
   await settle();
-  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again once');
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 1, 'loaded again once, on the first empty reading');
   assert.deepEqual(t.session.bridge.get().outputSlot, { holds: 'ours' });
   await t.readSlot();
   await t.readSlot();
