@@ -55,6 +55,9 @@ to a stack-count constant. The gate passing is a gap in what it can see, not per
 is skipped for cost. It never ran, so it is an untried candidate: it does not count toward the
 three, and it goes to cf20(c) as a measured next step for when the backend tier has room. The gap is filed as #2172.
 
+**Superseded on 2026-11-06:** the owner approved rank 1 as a 14-day trial (section 7), so it was
+tried after all and counts toward the three (sections 7.7 and 7.8).
+
 ## 2. Rank 2: the Build step's parts in parallel, in the one Build job
 
 ### What changes
@@ -365,12 +368,13 @@ each side; it says nothing about when other landings happen. So:
    `node --input-type=module -e "const m = await import('./docs/work-specs/cicd-followup/evidence/phase-cf03-baseline.mjs'); console.log(m.sideEnds('HEAD', process.argv.slice(1)).ends)" <files>`;
    it holds when `m1` lists `cap+cfg`. Docs, product code outside
    the rule, specs, `covers:` edits and quarantine entries do not end a side and need no hold.
-   **Name these explicitly, because one slipped through on the first try:** a version or
-   dependency change in any package CI installs or builds ends every side, not only the root
-   `package.json` and `package-lock.json`: `cli/package.json`, `cli/package-lock.json` and
-   `cli/tsconfig*.json` (the CLI package, built and tested in the Build job), and any other
-   package a workflow installs with `npm --prefix <dir>`. A release that bumps the CLI or the
-   Bridge version is such a change, whatever else it does. When in doubt, run `sideEnds`.
+   **Name these explicitly, because one slipped through on the first try:** any change at all
+   to `cli/package.json`, `cli/package-lock.json` or `cli/tsconfig*.json` ends every side, a
+   version bump or a script edit alike: `cli` is the package ci.yml installs and builds with
+   `npm --prefix` (today the only one among the rule's five runners). The root `package.json`
+   ends sides only for a dependency change, the `build` script or a script entry CI runs; the
+   root `package-lock.json` always. A release ends sides only when it touches those files.
+   When in doubt, run `sideEnds`.
 3. **If a side-ending landing cannot wait** (an incident fix), it lands, the after side ends
    there, and the trial is read with the n it reached. Unmeasured counts toward the three.
 4. **The bounds:** cf13's 7-day bound from the candidate's start (this PR, opened 2026-11-06)
@@ -413,7 +417,7 @@ Running them side by side is the measured next step for the Build job.
 - **Trap.** A second exception in a tier is invalid while the first is active, whatever the owner
   approved: the ledger enforces one active exception per tier.
 
-### 7.7 First try: unmeasured, reverted
+### 7.7 Rank 1's first try (cf13's second): unmeasured, reverted
 
 #2237 landed at 2026-11-06T14:33:58Z (09077bc2) with 12 `cap+cfg` merges on its before side
 (M1 median 16.03). Its after side ended at 3 merges (M1 median 11.1, M2 waiting 0.68, M2
@@ -430,9 +434,17 @@ M1 sides and every M3 side.
 
 ### 7.8 Re-run: cf13's third and last try
 
-The owner chose to measure rank 1 again properly. The re-run lands the same change as #2237 from
-`main` after this revert lands, inside the owner's 14-day window, which still runs from the first
-landing: 2026-11-06T14:33:58Z to 2026-11-20T14:33Z.
+The owner chose to measure rank 1 again properly (OWNER_DECISION_LINK). The re-run lands the same
+change as #2237 from `main` after the revert (#2260) lands, inside the owner's 14-day window, which
+still runs from the first landing: 2026-11-06T14:33:58Z to 2026-11-20T14:33Z.
+
+**A departure from the acceptance's wording, explained.** The acceptance moves to the next ranked
+candidate when one fails to improve. Rank 1's first try did not fail: it was never measured, cut
+at three merges by a landing the hold should have stopped. The other remaining candidates cannot
+show an effect beyond a spread (section 2.2), so a properly held re-run of the one candidate that
+can is the owner's choice for the third and last try. The 7-day bound counts from the re-run's
+start, because the first try's sides were cut and nothing of them carries over; the owner's window
+caps it either way.
 
 - **Landing condition:** 10 `cap+cfg` merges on the before side after this revert's merge, with no
   side-ending landing in between (if one lands, the count restarts after it).
