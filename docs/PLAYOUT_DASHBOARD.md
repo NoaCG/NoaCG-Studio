@@ -754,7 +754,8 @@ air), the **kind icon** (`T` a graphic, `▶` a server clip, `♪` a server audi
 name and tooltip say the kind and the graphic in words, "Lower third · Hairline", "Server clip ·
 2-10"), the **bold label**, its marks (what a clip does at its end: `⟲` loops, `→` plays the next,
 `⌀` clears, nothing for Hold; `✎` a cue with an operator note, the note in its tooltip and
-accessible name), and a dim summary (a graphic's first words, "Alexandra Riva"; a server
+accessible name; an amber `⚠` when a data source its graphic follows has a problem, the source
+named in its tooltip, by the rule the header's Data chip uses), and a dim summary (a graphic's first words, "Alexandra Riva"; a server
 item's own name). Then, in the same place on every row so they read down the list: the ON AIR /
 UP / PVW tag, the clip's length (a column only when the rundown has a server clip), the **slot**
 (`L20`, or `2-10` for a server cue) and the `⋯`. What the old second line carried is moved, never

@@ -2176,6 +2176,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   color: var(--text-dim);
 }
 .pd-cue-mark { flex: none; font-size: 12px; color: var(--text-dim); }
+/* A data problem's mark (#2248): amber, at the marks' size rather than the warning text's. */
+.pd-cue-mark.status-warn { font-size: 12px; color: var(--amber); }
 /* NEXT ON SERVER after the name (plan §6.2): the clip waits on its slot behind the one playing. The
    clip blue of the kind icon, so it reads as the server's word rather than a tally. On a narrow
    rundown it gives way BEFORE the name does - a far larger shrink factor, down to `NEXT…`, its

@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import LibMenu from './LibMenu';
 import { fillsFields, setShowSourcePaused, sourceKindWord, type Show, type ShowSource } from '../../model/shows';
 import { SHEET_READ_MS, type SheetStatus, type SourceStatusStore } from '../../control/sheetSource';
@@ -234,6 +234,29 @@ export function sourceTone(paused: boolean | undefined, status: SheetStatus | un
   if (!status || status.state === 'waiting') return 'waiting';
   if (status.state === 'failing' || status.state === 'empty' || status.problems.length > 0) return 'warn';
   return 'ok';
+}
+
+/** A source with a problem (#2248): failing, empty, rows it could not use, or stale, and not paused.
+ *  The header's amber or red, the cue line's warning and the rundown's mark all go by it. */
+export function sourceHasProblem(paused: boolean | undefined, status: SheetStatus | undefined): boolean {
+  const tone = sourceTone(paused, status);
+  return tone === 'warn' || tone === 'bad';
+}
+
+/** Each graphic fed by a source with a problem, with those sources' names (#2248). Read as one
+ *  string, so a status that moves without changing the answer renders nothing. */
+export function useDataProblems(show: Pick<Show, 'sources' | 'bindings'>, store: SourceStatusStore): ReadonlyMap<string, string[]> {
+  const key = useSyncExternalStore(store.subscribe, () => {
+    const byGraphic = new Map<string, string[]>();
+    for (const source of (show.sources ?? []).filter(fillsFields)) {
+      if (!sourceHasProblem(source.paused, store.get(source.id))) continue;
+      for (const graphic of new Set(sourcePaths(show.bindings, source.id).map((p) => p.graphic))) {
+        byGraphic.set(graphic, [...(byGraphic.get(graphic) ?? []), source.label]);
+      }
+    }
+    return JSON.stringify([...byGraphic]);
+  });
+  return useMemo(() => new Map(JSON.parse(key) as [string, string[]][]), [key]);
 }
 
 /** The indicator's reading: the worst tone and its count. All well, every source ("Data ✓ 3");

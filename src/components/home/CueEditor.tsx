@@ -46,7 +46,7 @@ import { useStorePart } from './useStorePart';
 import type { SourceListAdapter } from '../../control/externalSource';
 import { productionDataKey } from '../../control/productionDataApi';
 import { viewOf, type CueDraft, type CueText } from '../../control/cueDraft';
-import { FileAskButton, ago, statusWords, useSourceStatus } from './SourcesLine';
+import { FileAskButton, ago, sourceHasProblem, statusWords, useSourceStatus } from './SourcesLine';
 
 /** The edited cue's text, as the draft shows it. */
 export type CueEditorView = CueText;
@@ -180,7 +180,7 @@ function CueConnectedLine({ source, store, onDisconnect }: { source: ShowSource;
   const when = fresh ? `read ${ago(status.checkedAt!, now)}` : statusWords(source.paused, status, now, false);
   return (
     <span className="pd-connected-line hint" data-testid="cue-connected-line" data-stale={status?.stale ? 'true' : undefined}>
-      <span className={status?.stale || status?.state === 'failing' ? 'status-warn' : undefined}>
+      <span className={sourceHasProblem(source.paused, status) ? 'status-warn' : undefined}>
         Connected to {source.kind === 'file' ? source.label : `${sourceKindWord(source)}: ${source.label}`} · {when}
       </span>{' '}
       {source.kind === 'file' && <FileAskButton source={source} status={status} store={store} />}{' '}

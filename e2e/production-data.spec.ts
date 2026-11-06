@@ -1555,6 +1555,9 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', /warn|bad/);
   await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-count', '1');
   await expect(page.getByTestId('cue-connected-line').locator('.status-warn')).toContainText('Connected to Sheet: Studio guests');
+  // The rundown marks the cue it touches, Hairline's, and not Underline's (#2248).
+  await expect(cues.nth(0).getByTestId('cue-data-mark')).toHaveAttribute('aria-label', 'Data problem: Studio guests');
+  await expect(cues.nth(1).getByTestId('cue-data-mark')).toHaveCount(0);
   // Three missed reads make it stale: red, the last good values still on air.
   await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'bad', { timeout: 20_000 });
   await expect(line.getByTestId('source-status')).toContainText('stale');
@@ -1563,6 +1566,7 @@ test('Connect data previews the whole graphic, connects it in one confirmation a
   await expect(line).toContainText('checked', { timeout: 10_000 });
   await expect(page.getByTestId('data-indicator')).toHaveAttribute('data-tone', 'ok');
   await expect(page.getByTestId('cue-connected-line').locator('.status-warn')).toHaveCount(0);
+  await expect(page.getByTestId('cue-data-mark')).toHaveCount(0);
 
   // ── Disconnect returns the field to the cue holding its last value. ──
   await page.getByTestId('cue-bound-f0').getByTestId('cue-disconnect').click();
