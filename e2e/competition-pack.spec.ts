@@ -682,6 +682,69 @@ test('Focus competitor and Spotlight light a row on their first press on every t
   }
 });
 
+test('Focus row and Highlight row pressed on an empty list light the named row when the rows arrive (#2271)', async ({ page }) => {
+  // The roster's and standings board's press with no rows typed yet left the board level, so
+  // the rows a later update brought in were never lit while the machine said one was. The board
+  // is now in focus even with no rows (its CSS dims rows only), as the timing tower is (#2268).
+  test.setTimeout(120_000);
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const roster = 'ANNA | ONE\\nBEN | TWO\\nCARA | THREE';
+    const table = 'ANNA | 3 | 0 | +9 | 9\\nBEN | 2 | 1 | +2 | 6\\nCARA | 0 | 3 | -11 | 0';
+    const cases = [
+      ...['rs01', 'rs02', 'rs03', 'rs04', 'rs05'].map((id) => ({ id, event: 'spotlight', field: 'f3', rows: roster })),
+      ...['st01', 'st02', 'st03', 'st04'].map((id) => ({ id, event: 'highlight', field: 'f4', rows: table })),
+    ];
+    const out = {};
+    for (const c of cases) {
+      let { win, doc } = await boot(c.id);
+      const look = () => {
+        const on = doc.querySelectorAll('.results-board-row-on');
+        return {
+          state: win.noacgMachineState().groups.main,
+          rows: doc.querySelectorAll('.results-board-row').length,
+          row: on.length === 1 ? on[0].getAttribute('data-row') : on.length === 0 ? null : 'many',
+          spotlit: doc.querySelector('.results-board').classList.contains('results-board-spotlit'),
+        };
+      };
+      // What an empty board in focus shows: only rows are dimmed, so the panel looks level.
+      const frame = () => ['.results-board-box', '.results-board-head'].map((s) => win.getComputedStyle(doc.querySelector(s)).opacity).join(',');
+      win.play();
+      await settle();
+      win.update(JSON.stringify({ f2: '' }));
+      await settle();
+      const levelFrame = frame();
+      win.noacgDispatch(c.event, { [c.field]: '2' });
+      await settle();
+      const empty = Object.assign(look(), { frameUnchanged: frame() === levelFrame });
+      win.update(JSON.stringify({ f2: c.rows }));
+      await settle();
+      const arrived = look();
+      // The rows out of focus fall back as on any focused board.
+      const dim = Array.from(doc.querySelectorAll('.results-board-row:not(.results-board-row-on)')).map((el) => Number(win.getComputedStyle(el).opacity));
+      // A recovery into focus on a freshly loaded board whose list is empty, then the rows arrive.
+      ({ win, doc } = await boot(c.id));
+      win.update(JSON.stringify({ f2: '', [c.field]: '2' }));
+      win.noacgSnap({ main: empty.state });
+      await settle();
+      win.update(JSON.stringify({ f2: c.rows }));
+      await settle();
+      out[c.id] = { event: c.event, empty, arrived, dimmed: dim.length > 0 && dim.every((o) => o < 1), recovered: look() };
+    }
+    return out;
+  })()`) as Record<string, { event: string; empty: Record<string, unknown>; arrived: Record<string, unknown>; dimmed: boolean; recovered: Record<string, unknown> }>;
+
+  expect(Object.keys(run)).toEqual(['rs01', 'rs02', 'rs03', 'rs04', 'rs05', 'st01', 'st02', 'st03', 'st04']);
+  for (const [id, board] of Object.entries(run)) {
+    const state = board.event === 'spotlight' ? 'spotlight' : 'highlighted';
+    expect(board.empty, `${id}: a press on an empty list puts the board in focus, and the panel stays level`).toEqual({ state, rows: 0, row: null, spotlit: true, frameUnchanged: true });
+    expect(board.arrived, `${id}: the rows that arrive light the named one`).toEqual({ state, rows: 3, row: '2', spotlit: true });
+    expect(board.dimmed, `${id}: the rest fall back`).toBe(true);
+    expect(board.recovered, `${id}: a recovery into focus on an empty list lights the rows that arrive`).toEqual({ state, rows: 3, row: '2', spotlit: true });
+  }
+});
+
 test('the rows a board dims look dimmed once the entrance has landed, and after a snap (#2272)', async ({ page }) => {
   // The row cascade tweened every row to opacity 1 and left that inline, which beats a design's
   // dim rule (`.results-board-spotlit .results-board-row { opacity: 0.45 }`), so the rows out of
@@ -1052,7 +1115,7 @@ test('a board with no data, and an image field with no file, degrade quietly', a
     // A spotlight that names a row which no longer exists must not throw or lie.
     win.noacgDispatch('spotlight', { f3: '3' });
     await settle();
-    const afterGhost = { spotlit: doc.querySelector('.results-board').classList.contains('results-board-spotlit') };
+    const afterGhost = { spotlit: doc.querySelector('.results-board').classList.contains('results-board-spotlit'), lit: doc.querySelectorAll('.results-board-row-on').length };
     // The crest slot with no file: hidden image, no broken icon, placeholder styling intact.
     const img = doc.getElementById('f4');
     const slot = { display: img.style.display, hasSrc: img.hasAttribute('src'), parentHasImage: img.parentNode.classList.contains('has-image') };
@@ -1063,15 +1126,16 @@ test('a board with no data, and an image field with no file, degrade quietly', a
     return { emptied, afterGhost, slot, withFile };
   })()`) as {
     emptied: { rows: number; html: string };
-    afterGhost: { spotlit: boolean };
+    afterGhost: { spotlit: boolean; lit: number };
     slot: { display: string; hasSrc: boolean; parentHasImage: boolean };
     withFile: { hasSrc: boolean; parentHasImage: boolean };
   };
 
   expect(run.emptied.rows).toBe(0);
   expect(run.emptied.html).toBe('');
-  // No row to spotlight = no spotlight, rather than a board dimmed with nothing lit.
-  expect(run.afterGhost.spotlit).toBe(false);
+  // With no rows the press lights nothing and dims nothing (the CSS dims rows only); the board
+  // is in focus so the rows that arrive light the named one (#2271).
+  expect(run.afterGhost).toEqual({ spotlit: true, lit: 0 });
   expect(run.slot).toMatchObject({ display: 'none', hasSrc: false, parentHasImage: false });
   expect(run.withFile).toMatchObject({ hasSrc: true, parentHasImage: true });
   expect(errors).toEqual([]);
