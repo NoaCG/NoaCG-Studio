@@ -152,3 +152,45 @@ test('completion authority schedules after the target but keeps worker briefs bo
   assert.match(body, /planning target .*continue until complete/);
   assert.doesNotMatch(body, /the run ends/);
 });
+
+test('explicit Codex kits use owned absolute worktrees and Codex briefs; legacy defaults stay Claude', (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'codex-kit-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const p = project();
+  const { file } = openWave({ date: '2026-10-29', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
+  initKit(file, { ...state(), execution: { harness: 'codex', mode: 'active' } });
+  const worktree = path.join(dir, 'worker');
+  for (const kind of ['build', 'check', 'repair', 'fix']) {
+    const values = { SOURCE, MERGE, PARENT, PR: '1', CARRY: 'one failed criterion', TITLE: 'Fix the thing', WORKTREE: worktree };
+    const brief = renderBrief(file, kind, kind === 'fix' ? '123' : 'E1', values);
+    assert.match(brief.branch, /^codex\//);
+    assert.doesNotMatch(brief.text, /\.claude\/|claude\/check-|@[A-Z_]+@/);
+    assert.ok(brief.text.includes(worktree));
+    assert.match(brief.text, /Execution mode active/);
+  }
+  assert.throws(() => renderBrief(file, 'build', 'E1', { SOURCE, WORKTREE: 'relative' }), /absolute WORKTREE/);
+  assert.throws(() => initKit(path.join(dir, 'bad.md'), { ...state(), execution: { mode: 'active' } }), /execution needs/);
+  const legacy = fixture(t);
+  assert.match(renderBrief(legacy.file, 'check', 'E1', { MERGE, PARENT, PR: '1' }).text, /claude\/check-/);
+});
+
+test('Codex active mode has no scheduled recovery; unattended check-in precedes block expiry', async () => {
+  const { rearmNative } = await import('./native-recovery-contract.mjs');
+  const p = { ...project(), status: 'active', block: { id: 'b', owner: 'o', epoch: 1, startedAt: iso(NOW), deadline: iso(NOW + HOUR) } };
+  const s = { ...state(), execution: { harness: 'codex', mode: 'active' } };
+  assert.equal(checkin({ action: 'wait' }, s, p, NOW).at, null);
+  s.execution.mode = 'unattended';
+  const due = checkin({ action: 'wait' }, { ...s, waitingOn: { what: 'CI', eta: iso(NOW + 2 * HOUR) } }, p, NOW);
+  assert.equal(due.at, iso(NOW + HOUR - MINUTE));
+  assert.equal(checkin({ action: 'wait' }, s, p, NOW + HOUR).at, null);
+  const target = { provider: 'codex', sessionId: 'session', environmentId: 'env', policySha256: 'a'.repeat(64) };
+  const auth = { ...p.authorization, policySha256: target.policySha256, standing: { untilComplete: 'until complete', blockRenewal: 'renew blocks' } };
+  const request = { authorization: auth, target, kind: 'plan', block: p.block,
+    previous: { ...target, state: 'fired', actionId: 'wake-1', nativeId: 'wake-1', firedAt: iso(NOW), evidence: 'executing native wake' },
+    next: { ...target, actionId: 'wake-2', previousNativeId: 'wake-1', deadline: p.block.deadline, dueAt: due.at } };
+  assert.equal(rearmNative(request, NOW).state, 'eligible');
+  assert.equal(rearmNative({ ...request, paused: true }, NOW).state, 'stop');
+  // Legacy callers keep their boundary timing; the native guard still refuses equality.
+  assert.equal(checkin({ action: 'stopped' }, state(), p, NOW).at, p.block.deadline);
+  assert.equal(rearmNative({ ...request, next: { ...request.next, dueAt: p.block.deadline } }, NOW).state, 'stop');
+});

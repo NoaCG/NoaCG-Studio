@@ -28,6 +28,8 @@ import { kitDir } from './run-recovery.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const TRAPS = 'docs/plan-runs/known-traps.md';
 const TEMPLATES = path.join(ROOT, 'docs', 'plan-runs', 'templates');
+const CODEX_PROCEDURE = '.agents/skills/plan-run/references/codex.md';
+const CODEX_TEMPLATES = path.join(ROOT, '.agents/skills/plan-run/references/templates');
 export const KINDS = Object.freeze(['build', 'repair', 'check', 'fix']);
 const MINUTE = 60_000;
 const nonempty = (s) => typeof s === 'string' && s.trim().length > 0;
@@ -38,6 +40,10 @@ const EMPTY = '';
 
 /** state.json, the run's one small state file. Unknown fields are the coordinator's to use. */
 export function checkState(state) {
+  if (state?.execution !== undefined && (state.execution?.harness !== 'codex'
+      || !['active', 'unattended'].includes(state.execution?.mode))) {
+    throw Error('execution needs harness codex and mode active or unattended');
+  }
   const missing = [
     ['version 1', state?.version === 1],
     ['project (plan-<plan>-<date>)', /^plan-[a-z0-9-]+$/.test(state?.project ?? '')],
@@ -64,7 +70,7 @@ export function initKit(wave, state) {
   mkdirSync(path.join(kit, 'briefs'), { recursive: true });
   for (const kind of KINDS) {
     const target = path.join(kit, 'templates', `${kind}.tmpl`);
-    if (!existsSync(target)) copyFileSync(path.join(TEMPLATES, `${kind}.tmpl`), target);
+    if (!existsSync(target)) copyFileSync(path.join(state.execution?.harness === 'codex' ? CODEX_TEMPLATES : TEMPLATES, `${kind}.tmpl`), target);
   }
   writeFileSync(path.join(kit, 'state.json'), `${JSON.stringify(state, null, 2)}\n`, { flag: 'wx' });
   return { kit, templates: KINDS.map((kind) => path.join(kit, 'templates', `${kind}.tmpl`)) };
@@ -95,10 +101,12 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
   const fields = {
     PLAN: state.plan, PROJECT: state.project, ISSUE: String(state.issue), COORDINATOR: state.coordinator.session,
     RETURN: state.coordinator.return, ENVIRONMENT: state.coordinator.environment, DEADLINE: end,
-    TRAPS, PLAN_READ: state.brief?.read || EMPTY, PLAN_RULES: state.brief?.rules || 'none beyond the traps file',
+    TRAPS: state.execution?.harness === 'codex' ? CODEX_PROCEDURE : TRAPS,
+    MODE: state.execution?.mode ?? 'unattended',
+    PLAN_READ: state.brief?.read || EMPTY, PLAN_RULES: state.brief?.rules || 'none beyond the traps file',
     GOAL: EMPTY, READ: EMPTY, NOTES: 'none', CARRY: 'none',
   };
-  const prefix = `${state.branchPrefix || 'claude'}/plan-${state.plan}`;
+  const prefix = `${state.branchPrefix || (state.execution?.harness === 'codex' ? 'codex' : 'claude')}/plan-${state.plan}`;
   if (kind === 'fix') {
     if (!/^\d+$/.test(target)) throw Error('A fix brief names its issue number');
     Object.assign(fields, { N: target, SLUG: `fix-${target}`, BRANCH: `${prefix}-fix-${target}` });
@@ -126,6 +134,7 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
   const required = { build: ['SOURCE'], repair: ['SOURCE', 'CARRY'], fix: ['SOURCE', 'TITLE'], check: ['MERGE', 'PARENT', 'PR'] }[kind];
   const wrong = required.filter((key) => !nonempty(fields[key]) || fields[key] === 'none' || (['SOURCE', 'MERGE', 'PARENT'].includes(key) && !sha(fields[key])));
   if (wrong.length) throw Error(`A ${kind} brief needs ${wrong.join(', ')} (KEY=value; SOURCE, MERGE and PARENT are full 40-hex SHAs)`);
+  if (state.execution?.harness === 'codex' && !path.isAbsolute(fields.WORKTREE ?? '')) throw Error('A Codex brief needs an absolute WORKTREE');
   const template = readFileSync(path.join(kitDir(wave), 'templates', `${kind}.tmpl`), 'utf8');
   const out = template.replace(/@([A-Z_]+)@/g, (match, key) => fields[key] ?? match).replace(/ ?/g, '');
   const left = [...new Set(out.match(/@[A-Z_]+@/g) ?? [])];
@@ -144,10 +153,16 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
  */
 export function checkin(next, state, project, now = Date.now()) {
   const none = (why) => ({ at: null, why });
+  if (state.execution?.mode === 'active') return none('active session retains ownership through acceptance and post-landing; no scheduled recovery claimed');
   const due = (ms, why) => {
     let at = now + Math.max(0, ms), reason = why;
     const block = project?.block && project.status === 'active' ? instant(project.block.deadline) : NaN;
     if (Number.isFinite(block) && at > block) { at = block; reason = `the block ends then: renew it (${why})`; }
+    if (state.execution?.harness === 'codex' && Number.isFinite(block) && at >= block - MINUTE) {
+      if (now >= block) return none('block ended: reconcile and renew before scheduling');
+      at = Math.max(now, block - MINUTE);
+      reason = 'wake before block end; checkpoint and retain the active coordinator until authorized renewal';
+    }
     const end = project ? authorizationEnd(project.authorization) : instant(state?.authorization?.deadline);
     if (Number.isFinite(end) && at > end) at = end;
     return { at: new Date(at).toISOString(), minutes: Math.round((at - now) / MINUTE), why: reason };

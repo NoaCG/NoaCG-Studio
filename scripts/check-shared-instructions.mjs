@@ -28,6 +28,11 @@ import * as rules from './rules.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_WRAPPER_LINES = 25;
+// Only these execution procedures differ by harness; shared contracts and Claude stay put.
+const CODEX_WORKFLOWS = new Map([
+  ['plan-create', '.agents/skills/plan-create/references/codex.md'],
+  ['plan-run', '.agents/skills/plan-run/references/codex.md'],
+]);
 const DEFAULT_PROJECT_DOC_MAX_BYTES = 32 * 1024;
 // Membership means DESTRUCTIVE, not merely important - it is what earns the
 // disable-model-invocation requirement below. `handoff` briefly joined while it removed its own
@@ -187,6 +192,9 @@ const SKIP_DIR_NAMES = new Set([
 ]);
 
 const failures = [];
+for (const name of ['plan-create', 'plan-run']) {
+  if (!CODEX_WORKFLOWS.has(name)) failures.push(`CODEX_WORKFLOWS: missing execution mapping for ${name}`);
+}
 
 function rel(file) {
   return path.relative(ROOT, file).replace(/\\/g, '/');
@@ -605,6 +613,7 @@ measured(workflowNames.length, 'workflow definitions');
 // glob that matches no file.
 const declaredWorkflows = new Set(workflowNames);
 for (const [table, keys] of [
+  ['CODEX_WORKFLOWS', CODEX_WORKFLOWS.keys()],
   ['CRITICAL_WORKFLOW_MARKERS', CRITICAL_WORKFLOW_MARKERS.keys()],
   ['WORKFLOW_LINE_LIMITS', WORKFLOW_LINE_LIMITS.keys()],
   ['EXPLICIT_ONLY_WORKFLOWS', EXPLICIT_ONLY_WORKFLOWS.values()],
@@ -646,7 +655,21 @@ for (const name of workflowNames) {
   }
 
   checkRepositoryFile(codexSkill, 'Codex skill adapter');
-  checkThinWrapper(codexSkill, canonical, 'Codex skill adapter');
+  const codexWorkflow = CODEX_WORKFLOWS.get(name) ?? canonical;
+  checkThinWrapper(codexSkill, codexWorkflow, 'Codex skill adapter');
+  if (codexWorkflow !== canonical) {
+    if (!['plan-create', 'plan-run'].includes(name)
+        || codexWorkflow !== `.agents/skills/${name}/references/codex.md`) {
+      failures.push(`CODEX_WORKFLOWS: unsupported execution mapping for ${name}`);
+    }
+    const file = absolute(codexWorkflow);
+    checkRepositoryFile(file, 'Codex execution procedure');
+    if (existsSync(file)) {
+      checkWorkflowScriptReferences(file);
+      checkCriticalWorkflowContract(name, file);
+      checkWorkflowShape(name, file);
+    }
+  }
   if (existsSync(codexSkill)) checkSkillMetadata(codexSkill, name, 'Codex skill adapter');
   checkWorkflowScriptReferences(canonicalFile);
   checkNamedAgents(canonicalFile);

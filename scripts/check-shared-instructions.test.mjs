@@ -117,6 +117,19 @@ test('shared-instructions gate accepts the repository and refuses instruction dr
 
   await t.test('clean repository exits zero', checkClean);
 
+  await refuses('Codex plan wrapper must name its declared execution procedure', '.agents/skills/plan-run/SKILL.md',
+    (file, content) => writeFileSync(file, content.replaceAll('.agents/skills/plan-run/references/codex.md', '.agent-workflows/plan-run.md')),
+    ['must reference ".agents/skills/plan-run/references/codex.md"']);
+  await refuses('Codex mapped execution retains shared critical contracts', '.agents/skills/plan-run/references/codex.md',
+    (file, content) => writeFileSync(file, content.replace('Only the merge queue writes `main`.', 'Land using the normal route.')),
+    ['missing critical contract marker "Only the merge queue writes `main`."']);
+  await refuses('a missing Codex procedure is not silently shared', '.agents/skills/plan-create/references/codex.md',
+    (file) => { const moved = file + '.away'; renameSync(file, moved); return () => renameSync(moved, file); },
+    ['Codex execution procedure']);
+  await refuses('a removed Codex mapping cannot silently fall back', GATE,
+    (file, content) => writeFileSync(file, content.replace("  ['plan-run', '.agents/skills/plan-run/references/codex.md'],", '')),
+    ['CODEX_WORKFLOWS: missing execution mapping for plan-run']);
+
   const gateSource = readFileSync(path.join(fixture, GATE), 'utf8');
   const reserveMatch = gateSource.match(/^const CHAIN_MIN_FREE_BYTES = (\d+);/m);
   assert.ok(reserveMatch, 'gate must declare CHAIN_MIN_FREE_BYTES');
