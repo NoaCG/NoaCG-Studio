@@ -158,10 +158,10 @@ spotlight --next--> [exit]
 on its current turn, 2), so the first press lights a row; a number past either end of the line-up
 lights the row at that end. An empty line-up lights nothing until its rows arrive, and then the
 named row lights (#2271). An update while a row is lit keeps the row the field names lit; an
-update to a level line-up lights nothing (#2200). On the production and hosted pages « Back from a lit row and
-⟲ Reset also level the line-up, by snapping it to its first step. **Show all rows** stays because
-the per-graphic control page, an exported control panel, OGraf hosts and Companion have no Back or
-Reset.
+update to a level line-up lights nothing (#2200). On the production and hosted pages « Back from
+a lit row and ⟲ Reset also level the line-up, by snapping it to its first step. **Show all rows**
+stays because the per-graphic control page, an exported control panel, OGraf hosts and Companion
+have no Back or Reset.
 Controls: **Focus row** (payload `spotlight`) · **Show all rows**.
 
 ### Standings / result table (`standings`)

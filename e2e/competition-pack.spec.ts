@@ -698,7 +698,7 @@ test('Focus row and Highlight row pressed on an empty list light the named row w
     ];
     const out = {};
     for (const c of cases) {
-      const { win, doc } = await boot(c.id);
+      let { win, doc } = await boot(c.id);
       const look = () => {
         const on = doc.querySelectorAll('.results-board-row-on');
         return {
@@ -708,29 +708,40 @@ test('Focus row and Highlight row pressed on an empty list light the named row w
           spotlit: doc.querySelector('.results-board').classList.contains('results-board-spotlit'),
         };
       };
+      // What an empty board in focus shows: only rows are dimmed, so the panel looks level.
+      const frame = () => ['.results-board-box', '.results-board-head'].map((s) => win.getComputedStyle(doc.querySelector(s)).opacity).join(',');
       win.play();
       await settle();
       win.update(JSON.stringify({ f2: '' }));
       await settle();
+      const levelFrame = frame();
       win.noacgDispatch(c.event, { [c.field]: '2' });
       await settle();
-      const empty = look();
+      const empty = Object.assign(look(), { frameUnchanged: frame() === levelFrame });
       win.update(JSON.stringify({ f2: c.rows }));
       await settle();
       const arrived = look();
-      // The rows out of focus fall back as on any focused board (the initiative order dims none).
+      // The rows out of focus fall back as on any focused board.
       const dim = Array.from(doc.querySelectorAll('.results-board-row:not(.results-board-row-on)')).map((el) => Number(win.getComputedStyle(el).opacity));
-      out[c.id] = { event: c.event, empty, arrived, dimmed: dim.every((o) => o < 1) };
+      // A recovery into focus on a freshly loaded board whose list is empty, then the rows arrive.
+      ({ win, doc } = await boot(c.id));
+      win.update(JSON.stringify({ f2: '', [c.field]: '2' }));
+      win.noacgSnap({ main: empty.state });
+      await settle();
+      win.update(JSON.stringify({ f2: c.rows }));
+      await settle();
+      out[c.id] = { event: c.event, empty, arrived, dimmed: dim.length > 0 && dim.every((o) => o < 1), recovered: look() };
     }
     return out;
-  })()`) as Record<string, { event: string; empty: Record<string, unknown>; arrived: Record<string, unknown>; dimmed: boolean }>;
+  })()`) as Record<string, { event: string; empty: Record<string, unknown>; arrived: Record<string, unknown>; dimmed: boolean; recovered: Record<string, unknown> }>;
 
   expect(Object.keys(run)).toEqual(['rs01', 'rs02', 'rs03', 'rs04', 'rs05', 'st01', 'st02', 'st03', 'st04']);
   for (const [id, board] of Object.entries(run)) {
     const state = board.event === 'spotlight' ? 'spotlight' : 'highlighted';
-    expect(board.empty, `${id}: a press on an empty list puts the board in focus`).toEqual({ state, rows: 0, row: null, spotlit: true });
+    expect(board.empty, `${id}: a press on an empty list puts the board in focus, and the panel stays level`).toEqual({ state, rows: 0, row: null, spotlit: true, frameUnchanged: true });
     expect(board.arrived, `${id}: the rows that arrive light the named one`).toEqual({ state, rows: 3, row: '2', spotlit: true });
-    if (id !== 'rs04') expect(board.dimmed, `${id}: the rest fall back`).toBe(true);
+    expect(board.dimmed, `${id}: the rest fall back`).toBe(true);
+    expect(board.recovered, `${id}: a recovery into focus on an empty list lights the rows that arrive`).toEqual({ state, rows: 3, row: '2', spotlit: true });
   }
 });
 
