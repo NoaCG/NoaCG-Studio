@@ -5,5 +5,66 @@
     "status": "agreed",
     "source": "Owner: \"Okay, let's implement the plan.\" following the revised autonomous Codex runs proposal in this chat. Preserve Claude workflows and shared checks; no independent product-plan start is granted."
   },
-  "review": null
+  "review": {
+    "revision": "6fa6a685124452a9899fb617e8f16212fbb3ebdc",
+    "specSha256": "5df86a1147db34f6bcf9a5393bdd05695e612018b41759e7e3404dc68b32ce18",
+    "evidence": [
+      {
+        "path": "docs/work-specs/codex-plan-runs/evidence/implementation.md",
+        "sha256": "44c344b824a29ca365c323b138f52ac8e773959649a41602c9883a3e96183870"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/codex-plan-runs/evidence/implementation.md",
+            "sha256": "44c344b824a29ca365c323b138f52ac8e773959649a41602c9883a3e96183870"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/codex-plan-runs/evidence/implementation.md",
+            "sha256": "44c344b824a29ca365c323b138f52ac8e773959649a41602c9883a3e96183870"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/codex-plan-runs/evidence/implementation.md",
+            "sha256": "44c344b824a29ca365c323b138f52ac8e773959649a41602c9883a3e96183870"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/codex-plan-runs/evidence/implementation.md",
+            "sha256": "44c344b824a29ca365c323b138f52ac8e773959649a41602c9883a3e96183870"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/codex-plan-runs/evidence/implementation.md",
+            "sha256": "44c344b824a29ca365c323b138f52ac8e773959649a41602c9883a3e96183870"
+          }
+        ]
+      }
+    ]
+  }
 }
