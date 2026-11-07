@@ -156,9 +156,9 @@ spotlight --next--> [exit]
 
 `spotlight` carries the 1-based player number and ships naming a row (1; Initiative Order starts
 on its current turn, 2), so the first press lights a row; a number past either end of the line-up
-lights the row at that end. Only a line-up with no rows stays level, rather than dimming with
-nothing lit. An update while a row is lit keeps the row the field names lit; an update to a level
-line-up lights nothing (#2200). On the production and hosted pages « Back from a lit row and
+lights the row at that end. An empty line-up lights nothing until its rows arrive, and then the
+named row lights (#2271). An update while a row is lit keeps the row the field names lit; an
+update to a level line-up lights nothing (#2200). On the production and hosted pages « Back from a lit row and
 ⟲ Reset also level the line-up, by snapping it to its first step. **Show all rows** stays because
 the per-graphic control page, an exported control panel, OGraf hosts and Companion have no Back or
 Reset.
@@ -176,7 +176,8 @@ different claim about them (`markFinal`, which clears a highlight: the leader's 
 lit). It is the board's one STEP (`STANDINGS_STEPS`), so » Next and « Back walk the whole table
 and the final one, and Continue alone runs the board. `highlight` carries the 1-based row and
 starts at 1; a number past either end of the table lights the row at that end, so the press
-always shows. Columns come from the operator's own header line, so one board serves
+always shows. An empty table lights nothing until its rows arrive, and then the named row lights
+(#2271). Columns come from the operator's own header line, so one board serves
 a league table, a medal table and a race result.
 Controls: **Highlight row** (payload `highlight`) · **Final table**.
 

@@ -142,10 +142,12 @@ function clearSpotlight() {
 // re-entering it moves the spotlight, which is why a ten-player roster needs no ten states.
 function applySpotlight() {
   clearSpotlight();
-  var row = spotlitRow();
-  if (!row) return;                // no rows: the line-up stays level, nothing dimmed
+  // The line-up is in focus even with no rows yet (the CSS dims rows only), so the rows an
+  // update brings in next light the named one through compRebuild (#2271).
   var root = document.querySelector('.${P}');
   if (root) root.classList.add('${P}-spotlit');
+  var row = spotlitRow();
+  if (!row) return;                // no rows: nothing to lift yet
   row.classList.add('${P}-row-on');
   gsap.fromTo(row, { x: -12 }, { x: 0, duration: 0.38 / motionSpeed(), ease: 'back.out(1.7)' });
 }
@@ -272,10 +274,12 @@ function clearHighlight() {
 // applyHighlight(): lift the row the payload named — the one the caster is talking about.
 function applyHighlight() {
   clearHighlight();
-  var row = highlightedRow();
-  if (!row) return;
+  // The table is in focus even with no rows yet (the CSS dims rows only), so the rows an update
+  // brings in next light the named one through compRebuild (#2271).
   var root = document.querySelector('.${P}');
   if (root) root.classList.add('${P}-spotlit');
+  var row = highlightedRow();
+  if (!row) return;                // no rows: nothing to lift yet
   row.classList.add('${P}-row-on');
   gsap.fromTo(row, { x: -10 }, { x: 0, duration: 0.36 / motionSpeed(), ease: 'back.out(1.6)' });
 }
