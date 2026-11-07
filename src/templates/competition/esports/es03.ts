@@ -179,7 +179,7 @@ export const es03: TemplateVariant = defineEsportsVariant(
   background: var(--text-dim);
 }
 .${P}-paused .${P}-body {
-  opacity: 0.55;
+  filter: opacity(0.55);           /* the match is on hold; a filter, since the entrance writes the body's opacity inline (#2275) */
 }`,
   }),
 );

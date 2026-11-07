@@ -194,6 +194,77 @@ test('the scorebug runs pre-match -> live -> final, and the pause group is indep
   expect(String(run.afterReplay.cls)).not.toContain('esports-score-final');
 });
 
+test('Pause dims a scorebug body under every entrance it offers, mid-entrance and after a snap (#2275)', async ({ page }) => {
+  // Every entrance tweens `.esports-score-body` to opacity 1 and leaves that inline, which beat
+  // the design's pause rule when it dimmed the body's opacity, so a technical pause never dimmed
+  // the match. The strength read here is what the viewer sees: the body's opacity times any
+  // opacity filter on it, so it holds whichever property a design dims with.
+  test.setTimeout(120_000);
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const cases = [];
+    for (const id of ['es01', 'es02', 'es03', 'es04']) {
+      for (const presetId of ['comp-impact', 'comp-rise', 'comp-bloom']) cases.push({ id, presetId });
+    }
+    document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
+    const frames = await Promise.all(cases.map(async (c) => {
+      const f = document.createElement('iframe');
+      f.className = 'pack-frame';
+      f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1280px;height:720px;';
+      document.body.appendChild(f);
+      const tpl = variantById(c.id).create({ animation: { presetId: c.presetId } });
+      await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(tpl); });
+      const win = f.contentWindow;
+      const body = f.contentDocument.querySelector('.esports-score-body');
+      const strength = () => {
+        const style = win.getComputedStyle(body);
+        const filter = /opacity\\(([\\d.]+)(%?)\\)/.exec(style.filter);
+        return Number(style.opacity) * (filter ? Number(filter[1]) / (filter[2] ? 100 : 1) : 1);
+      };
+      return { key: c.id + ' ' + c.presetId, win, strength };
+    }));
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const pauseOf = (win) => win.noacgMachineState().groups.pause;
+    await wait(80);
+    for (const { win } of frames) win.play();
+    await wait(1600);                // the slowest entrance (bloom) lands its body at 1.2 s
+    const out = {};
+    for (const { key, strength } of frames) out[key] = { played: strength() };
+    for (const { win } of frames) win.noacgDispatch('goLive');
+    await wait(700);
+    for (const { win } of frames) win.noacgDispatch('pause');
+    await wait(700);
+    for (const { key, win, strength } of frames) out[key].paused = { state: pauseOf(win), strength: strength() };
+    for (const { win } of frames) win.noacgDispatch('resume');
+    await wait(700);
+    for (const { key, strength } of frames) out[key].resumed = strength();
+    // Recovery and Back land a state by snap, which runs the entrance to its end at once.
+    for (const { win } of frames) win.noacgSnap({ phase: 'live', pause: 'paused' });
+    await wait(700);
+    for (const { key, strength } of frames) out[key].snapped = strength();
+    // A pause pressed while the entrance is still bringing the body in.
+    for (const { win } of frames) win.play();
+    await wait(150);
+    for (const { win } of frames) win.noacgDispatch('pause');
+    await wait(1600);
+    for (const { key, win, strength } of frames) out[key].early = { state: pauseOf(win), strength: strength() };
+    return out;
+  })()`) as Record<string, Record<'played' | 'resumed' | 'snapped', number> & Record<'paused' | 'early', { state: string; strength: number }>>;
+
+  expect(Object.keys(run)).toHaveLength(12);
+  for (const [key, look] of Object.entries(run)) {
+    expect(look.played, `${key}: the body arrives at full strength`).toBe(1);
+    expect(look.paused.state, key).toBe('paused');
+    expect(look.paused.strength, `${key}: Pause dims the body`).toBeLessThan(0.6);
+    expect(look.resumed, `${key}: Resume brings it back`).toBe(1);
+    expect(look.snapped, `${key}: a snap to paused dims it too`).toBeLessThan(0.6);
+    expect(look.early.state, key).toBe('paused');
+    expect(look.early.strength, `${key}: a pause during the entrance holds once it lands`).toBeLessThan(0.6);
+  }
+});
+
 test('map veto and tabletop initiative reuse parameterized machines with snap recovery', async ({ page }) => {
   await toApp(page);
   const run = await page.evaluate(`(async () => {
