@@ -535,6 +535,153 @@ test('Focus row lights a row on its first press, and Back levels the line-up (#2
   }
 });
 
+test('Focus competitor and Spotlight light a row on their first press on every tower and podium board (#2268)', async ({ page }) => {
+  // The timing tower's Focus competitor and the podium board's Spotlight did nothing on air until
+  // a number was typed: their fields started at 0, which names no row. They now start at 1, and a
+  // number naming no row lights the row at that end, as the roster's Focus row does (#2200).
+  test.setTimeout(120_000);
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { backTarget } = await import('/src/control/controlModel.ts');
+    const controls = (tpl) => (parseAnimData(tpl.js).machine.controls || []).map((c) => c.event);
+    const out = { towers: {}, podiums: {} };
+
+    for (const id of ['tt01', 'tt02', 'tt03', 'tt04']) {
+      const { win, doc, tpl } = await boot(id);
+      const lit = () => {
+        const on = doc.querySelectorAll('.results-board-row-on');
+        return on.length === 1 ? on[0].getAttribute('data-row') : on.length === 0 ? null : 'many';
+      };
+      const spotlit = () => doc.querySelector('.results-board').classList.contains('results-board-spotlit');
+      win.play();
+      await settle();
+      const rows = String(doc.querySelectorAll('.results-board-row').length);
+      // The first press, with the field as the design ships it.
+      win.noacgDispatch('focus');
+      await settle();
+      const first = { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() };
+      // A number naming no row lights the row at that end.
+      win.noacgDispatch('focus', { f3: '99' });
+      await settle();
+      const past = lit() === rows;
+      win.noacgDispatch('focus', { f3: '0' });
+      await settle();
+      const below = lit();
+      win.noacgDispatch('focus', { f3: '' });
+      await settle();
+      const blank = lit();
+      // A timing update while a row is in focus keeps the named row lit, held to the new order.
+      win.update(JSON.stringify({ f2: 'AAA +0.000\\nBBB +1.000\\nCCC +2.000', f3: '2' }));
+      await settle();
+      const updated = lit();
+      win.update(JSON.stringify({ f2: 'AAA +0.000' }));
+      await settle();
+      const shrunk = lit();
+      // Back from a focused row snaps to the first step, which levels the tower, as Whole field
+      // does where there is no Back; then Back re-sends the cue's values.
+      const back = { target: backTarget(tpl.js, win.noacgMachineState()) };
+      win.noacgSnap(back.target);
+      await settle();
+      win.update(JSON.stringify({ f2: 'AAA +0.000\\nBBB +1.000', f3: '2' }));
+      await settle();
+      Object.assign(back, { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() });
+      // Focus pressed before the order is typed lights the named row when the order arrives.
+      win.update(JSON.stringify({ f2: '' }));
+      await settle();
+      win.noacgDispatch('focus', { f3: '2' });
+      await settle();
+      win.update(JSON.stringify({ f2: 'AAA +0.000\\nBBB +1.000\\nCCC +2.000' }));
+      await settle();
+      const arrived = lit();
+      // Whole field levels it, and an update to a level tower lights nothing.
+      win.noacgDispatch('focus');
+      await settle();
+      win.noacgDispatch('clear');
+      await settle();
+      win.update(JSON.stringify({ f2: 'AAA +0.000\\nBBB +1.000', f3: '2' }));
+      await settle();
+      const level = { state: win.noacgMachineState().groups.main, row: lit(), spotlit: spotlit() };
+      out.towers[id] = { first, past, below, blank, updated, shrunk, back, arrived, level, controls: controls(tpl) };
+    }
+
+    for (const id of ['sb21', 'sb22']) {
+      const { win, doc, tpl } = await boot(id);
+      const lit = () => {
+        const spot = [1, 2, 3, 4].filter((i) => doc.querySelector('.scoreboard-podium-' + i).classList.contains('scoreboard-podium-spot'));
+        const dim = [1, 2, 3, 4].filter((i) => doc.querySelector('.scoreboard-podium-' + i).classList.contains('scoreboard-podium-dim'));
+        return spot.join(',') + '/' + dim.join(',');
+      };
+      win.play();
+      await settle();
+      win.noacgDispatch('spotlight');
+      await settle();
+      const first = { state: win.noacgMachineState().groups.main, podiums: lit() };
+      win.noacgDispatch('spotlight', { f9: '9' });
+      await settle();
+      const past = lit();
+      win.noacgDispatch('spotlight', { f9: '0' });
+      await settle();
+      const below = lit();
+      win.noacgDispatch('spotlight', { f9: '' });
+      await settle();
+      const blank = lit();
+      // A spotlit podium whose contestant is cleared hands the light to the nearest one before it,
+      // and the first podium's to the first podium that still has a contestant.
+      win.noacgDispatch('spotlight', { f9: '4' });
+      await settle();
+      win.update(JSON.stringify({ f7: '' }));
+      await settle();
+      const collapsed = lit();
+      win.update(JSON.stringify({ f7: 'SAM', f1: '', f9: '1' }));
+      await settle();
+      const firstCollapsed = lit();
+      // With no contestant at all nothing lights and nothing dims.
+      win.update(JSON.stringify({ f1: '', f3: '', f5: '', f7: '' }));
+      await settle();
+      const empty = lit();
+      win.update(JSON.stringify({ f1: 'MAYA', f3: 'JONAS', f5: 'PRIYA', f7: 'SAM' }));
+      await settle();
+      // Back from a lit podium snaps to the first step and re-sends the cue's values: level.
+      const back = { target: backTarget(tpl.js, win.noacgMachineState()) };
+      win.noacgSnap(back.target);
+      await settle();
+      win.update(JSON.stringify({ f9: '2' }));
+      await settle();
+      Object.assign(back, { state: win.noacgMachineState().groups.main, podiums: lit() });
+      // All level levels it, and an update to a level board lights nothing.
+      win.noacgDispatch('spotlight');
+      await settle();
+      win.noacgDispatch('clear');
+      await settle();
+      win.update(JSON.stringify({ f9: '3' }));
+      await settle();
+      const level = { state: win.noacgMachineState().groups.main, podiums: lit() };
+      out.podiums[id] = { first, past, below, blank, collapsed, firstCollapsed, empty, back, level, controls: controls(tpl) };
+    }
+    return out;
+  })()`) as { towers: Record<string, Record<string, unknown>>; podiums: Record<string, Record<string, unknown>> };
+
+  expect(Object.keys(run.towers)).toEqual(['tt01', 'tt02', 'tt03', 'tt04']);
+  for (const [id, tower] of Object.entries(run.towers)) {
+    expect(tower.first, `${id}: the first Focus competitor press lights row 1`).toEqual({ state: 'focused', row: '1', spotlit: true });
+    expect(tower, id).toMatchObject({ past: true, below: '1', blank: '1', updated: '2', shrunk: '1', arrived: '2' });
+    expect(tower.back, `${id}: Back from a focused row levels the tower`).toEqual({ target: { main: 'enter' }, state: 'enter', row: null, spotlit: false });
+    expect(tower.level, `${id}: an update never starts a focus`).toEqual({ state: 'level', row: null, spotlit: false });
+    // Whole field stays for the playout environments that have no Back or Reset.
+    expect(tower.controls, id).toEqual(['focus', 'clear', 'final', 'provisional']);
+  }
+  expect(Object.keys(run.podiums)).toEqual(['sb21', 'sb22']);
+  for (const [id, podium] of Object.entries(run.podiums)) {
+    expect(podium.first, `${id}: the first Spotlight press lights podium 1`).toEqual({ state: 'spotlight', podiums: '1/2,3,4' });
+    expect(podium, id).toMatchObject({ past: '4/1,2,3', below: '1/2,3,4', blank: '1/2,3,4', collapsed: '3/1,2,4', firstCollapsed: '2/1,3,4', empty: '/' });
+    expect(podium.back, `${id}: Back from a lit podium levels the board`).toEqual({ target: { main: 'enter' }, state: 'enter', podiums: '/' });
+    expect(podium.level, id).toEqual({ state: 'level', podiums: '/' });
+    expect(podium.controls, id).toEqual(['spotlight', 'clear', 'final']);
+  }
+});
+
 test('Reset lands a winner card on its first step with nothing its result painted (#2181)', async ({ page }) => {
   // ⟲ Reset is a snap to the first step. A winner card's marks are classes, which a snap's reset
   // of inline styles never touches, so the pack clears them on that snap, as play() does.

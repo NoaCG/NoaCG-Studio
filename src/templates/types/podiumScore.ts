@@ -58,7 +58,10 @@ export const podiumScoreType: GraphicType = {
     { key: 'score3', label: 'Score 3', kind: 'number', value: '0', role: 'line' },
     { key: 'name4', label: 'Player 4', kind: 'text', value: 'SAM', role: 'line' },
     { key: 'score4', label: 'Score 4', kind: 'number', value: '0', role: 'line' },
-    { key: 'spotlight', label: 'Spotlit podium (1-4, 0 = none)', kind: 'number', value: '0', role: 'data' },
+    // 1, not 0: the Spotlight press lights a podium the first time it is pressed (#2268). A
+    // number naming no podium with a contestant lights the nearest named one before it, or the
+    // first named one (`spotlitPodium`).
+    { key: 'spotlight', label: 'Spotlit podium', kind: 'number', value: '1', role: 'data' },
   ],
   machine: {
     main: {
@@ -81,6 +84,10 @@ export const podiumScoreType: GraphicType = {
           ],
         },
         {
+          // Kept although « Back from a lit podium and ⟲ Reset also level the board (#2268, as
+          // the roster's in #2200): they exist only on the production and hosted pages. On the
+          // per-graphic control page, an exported control panel, an OGraf host or Companion this
+          // press is the one way to level a lit board without Out and Take.
           id: 'level',
           name: 'All podiums level',
           timeline: {

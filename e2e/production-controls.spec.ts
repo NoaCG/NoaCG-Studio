@@ -1040,9 +1040,10 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
   await spotRow.locator('button.step', { hasText: '+' }).click();
   await ctl.waitForTimeout(400);
   expect(programUpdates().length).toBe(beforeSpot);
-  // The ⚡ action is how that number reaches air, carrying the state that explains it.
+  // The ⚡ action is how that number reaches air, carrying the state that explains it: the
+  // staged 2 (the field ships as 1, #2268).
   await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Spotlight' }).click();
-  await expect(air.locator('.scoreboard-podium-1')).toHaveClass(/scoreboard-podium-spot/, { timeout: 10_000 });
+  await expect(air.locator('.scoreboard-podium-2')).toHaveClass(/scoreboard-podium-spot/, { timeout: 10_000 });
 
   // ✎ Update stays the deliberate other half: the WHOLE value set, staged name included.
   await ctl.locator('#v-update').click();
