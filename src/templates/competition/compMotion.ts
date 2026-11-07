@@ -30,20 +30,29 @@ function compChildren(target) {
 // small overlap, so a three-row lineup and a twelve-row table both read as one movement
 // instead of a list that takes twelve times as long: the per-row gap shrinks as rows are
 // added, and the whole cascade is capped at ~1.1s.
+//
+// Each row lands on the opacity its design's CSS gives it (a map still to play rests dimmed) and
+// is then handed back to the stylesheet: an inline opacity would outrank the rule that dims the
+// rows out of focus when a row is spotlit later (#2272).
 function compCascade(target, opts) {
   var rows = compChildren(target);
   var speed = motionSpeed();
   var tl = gsap.timeline();
   if (rows.length === 0) return tl;               // nothing typed yet — a valid, empty cascade
   var gap = Math.min(0.09, 1.1 / rows.length);    // tighten the stagger as the board grows
+  var rest = rows.map(function (row) {
+    row.style.removeProperty('opacity');          // a replay may interrupt the last cascade
+    return parseFloat(getComputedStyle(row).opacity);
+  });
   tl.fromTo(rows,
     { y: 26, opacity: 0 },
     {
       y: 0,
-      opacity: 1,
+      opacity: function (i) { return rest[i]; },
       duration: 0.42 / speed,
       ease: (opts && opts.ease) || 'power3.out',
-      stagger: gap / speed
+      stagger: gap / speed,
+      clearProps: 'opacity'
     },
     0
   );
