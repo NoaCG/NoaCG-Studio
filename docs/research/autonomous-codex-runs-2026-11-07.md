@@ -1,188 +1,181 @@
 # Autonomous planned runs in Codex
 
-Assessed 7 November 2026 against repository `fee8818c9fb20317548c1213538b07bab41b4c7b`, confirmed as remote main during this review, and current GitHub run discussions. This is a proposed implementation and qualification plan. It does not start, reopen or transfer any product run.
+Revised 7 November 2026 using the owner's independent second opinion and the full original proposal. Source inspection remains pinned to repository `fee8818c9fb20317548c1213538b07bab41b4c7b`; cited follow-up comments were read again for this revision. This is planning only. The proposed implementation files and workflows are unchanged.
 
-The existing planned-run system is worth keeping. Claude Code demonstrated useful unattended delivery over many days, with independent checks finding real defects. Codex already has most of the repository machinery it needs. The remaining work is to connect that machinery to a proven Codex execution and recovery route, make recovery use current decisions, and distinguish completing phases from achieving the intended outcome.
+## Verdict
 
-The operating goal should be **days or weeks of authorized progress without routine human restarts**, across many bounded sessions. Individual agents and machines can stop. The run must retain its work, resume safely, wait through temporary outages, land verified changes and stop at the owner's actual boundaries. One enormous uninterrupted conversation is neither necessary nor sufficient.
+Keep the working runner and give Codex its own small execution procedures and briefs. Share authorization, phase admission, the ledger, recovery storage, verification and merge-queue contracts. Preserve Claude's procedures, templates, defaults and current run ownership.
 
-## What the previous runs demonstrate
+Deliver useful work through an explicitly bounded **active-session route** first. Qualify **unattended continuation** separately through one meaningful recovery drill, then accumulate longer-running evidence during useful delivery. There is no mandatory 72-hour, seven-day or fourteen-day qualification programme before the first useful change.
 
-| Run | Observed delivery | Qualification and lesson |
+The original proposal correctly retained the existing infrastructure and identified portability and recovery gaps. It put too much work behind native recovery qualification, left the active-session fallback implicit, and proposed wider shared-template changes than necessary. This revision replaces its P0–P8 sequence with six smaller steps.
+
+## Two operational promises
+
+| Promise | What Codex can claim after qualification | Boundary |
 | --- | --- | --- |
-| Production page, [#1553](https://github.com/NoaCG/NoaCG-Studio/issues/1553) | The coordinator's [retrospective](https://github.com/NoaCG/NoaCG-Studio/issues/1553#issuecomment-6496870487) reports 50 cloud phases in about eight days, 58 phase/repair merges, eight product FAILs and five additional owner-requested fixes. | Fresh independent checkers found duplicate-revision and lost-score defects after builders' reviews had passed. Preserve this separation. Software completion was followed by real studio feedback and more fixes; software PASS did not imply production acceptance. |
-| Jev SVG import, [#1850](https://github.com/NoaCG/NoaCG-Studio/issues/1850) | Started 31 October; all 40 phases finished by 3 November, through the merge queue and independent exact-merge checks. The [closing receipt](https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6618120601) and [release kit](../work-specs/jev-svg-import/evidence/phase-40.md) describe the delivered scope. | The model lost its preregistered holdout comparison and correctly shipped disabled. Deterministic SVG import remained useful. Paid inference was $0.045931275 of the $5 ceiling, 284 of 500 attempts; this is not the cost of the coding agents. Autonomous decision-making must be able to conclude no-go without inventing a new goal. |
-| CI/CD improvement, [#1842](https://github.com/NoaCG/NoaCG-Studio/issues/1842) | Started 31 October; [finished 2 November](https://github.com/NoaCG/NoaCG-Studio/issues/1842#issuecomment-6567582441). All 18 phases landed and passed their phase checks. | The [final criterion review](../work-specs/cicd-improvement/evidence/phase-ci17.md) marked one of eight initial criteria met, one not met and six pending. Phase delivery succeeded; the overall improvement targets were not achieved. Some goals required observation windows, matched samples or separately authorized work. |
-| Editor | Many engineering slices, native/local checks and repeated independent save/leave checks already exist. The plan remains unfinished. | Repeated repair cycles exposed missing state rules across Save, autosave, navigation, conflicts and reload. Later owner decisions deliberately narrowed the acceptance scope. Continuing requires reconciliation, not replaying the oldest failed check or treating every historical gap as fresh authorization. |
+| Active-session execution | Fresh builders and independent checkers deliver authorized work while the coordinator remains active through merge, acceptance and required post-landing results. | The session retains repair responsibility. Ending a turn, registering a timer or keeping a process alive does not establish recovery after interruption. |
+| Unattended continuation | A supported wake resumes the coding session, or a supported replacement reconstructs and reconciles the same run, without an owner restart. | Qualify each supported interruption class. An idle wake does not establish machine-loss recovery, and restored files do not establish native worker reconciliation. |
 
-Production page was [closed by the owner on 6 November](https://github.com/NoaCG/NoaCG-Studio/issues/1553#issuecomment-6686105172) after three studio sessions. Its receipt reports 50 cloud phases passed, useful hardware/rehearsal successes and a failed CasparCG restart. Formal ledger entries for the two owner phases and the final E8 reconciliation were not written. Owner closure should be representable without falsely turning these into full technical PASSes.
+Fresh same-machine contexts can satisfy review independence when they have separate conversations, owned worktrees and enough resources. Start serially; allocate separate ports, service instances and test accounts where needed. Separate cloud machines are required only when the selected run's actual authorization or environment contract requires them. Preserve that requirement for existing runs rather than silently changing their topology.
 
-The production-page retrospective is a coordinator report, not an independently reconstructed timing dataset. Its cost estimates of roughly $5 to $95 per session are self-reported and do not establish subscription billing or a Codex budget. The CI/CD final report provides more structured timing: the two-plan co-run had queue-to-landing p50 9.9 and p90 12.4 minutes, but lacked a matched comparison cohort. It cannot establish faster throughput from parallel runs.
+The current [queue-merge procedure](../../.agent-workflows/queue-merge.md) expressly permits the current cloud session to remain the repair owner through merge and post-land results when no durable wake is proven. Current plan-create/plan-run instructions, however, require wake qualification before creating runtime state. A future Codex-specific procedure must explicitly define the bounded active-session mode for newly authorized Codex runs. It must not quietly reinterpret the shared procedure or mark [#1301](https://github.com/NoaCG/NoaCG-Studio/issues/1301)'s stricter recovery criteria passed.
 
-An apparent order violation, [#1934](https://github.com/NoaCG/NoaCG-Studio/issues/1934), was [withdrawn after timestamp reconciliation](https://github.com/NoaCG/NoaCG-Studio/issues/1934#issuecomment-6564847774). The corrected evidence shows all 26 judged successors started after their predecessor's check. It is not evidence of a broken admission gate. Preserve raw event times and provider anomalies when measuring runs.
+Record the selected mode and finite work window in the existing kit and launch receipt. Reuse still-applicable owner decisions. Neither selecting active mode nor restarting grants new scope, attempts, provider permission or an extension. If a session is interrupted, treat outstanding work as unresolved until reconciled. An explicit owner pause still requires explicit resume.
 
-## What worked and should remain
+## Lessons from the completed runs
 
-Keep one thin coordinator, fresh phase builders, fresh independent acceptance checkers, exact source and merge identities, the GitHub merge queue, explicit retry limits, and one acknowledged repair owner per PR. Checkers should receive the contract and evidence, without the builder's conversation. Their independence does not require buying a different model; it requires a fresh context and their own probes.
+| Run | Evidence | Consequence for this proposal |
+| --- | --- | --- |
+| Production page, [#1553](https://github.com/NoaCG/NoaCG-Studio/issues/1553) | The [retrospective](https://github.com/NoaCG/NoaCG-Studio/issues/1553#issuecomment-6496870487) reports 50 cloud phases in about eight days and eight product FAILs found by independent checkers. The [6 November owner closure](https://github.com/NoaCG/NoaCG-Studio/issues/1553#issuecomment-6686105172) retains hardware limitations and unrecorded formal completion/reconciliation. | Keep fresh independent acceptance. Honor owner closure without reopening the run to fill historical paperwork or calling it a full technical PASS. |
+| Jev SVG import, [#1850](https://github.com/NoaCG/NoaCG-Studio/issues/1850) | All 40 phases completed. The [release kit](../work-specs/jev-svg-import/evidence/phase-40.md) records a rejected model route, useful deterministic import and $0.045931275 paid inference against a $5 ceiling. | A valid autonomous decision can be no-go. Do not activate the rejected route, reuse the exhausted holdout for qualification or equate inference spend with coding-agent cost. |
+| CI/CD improvement, [#1842](https://github.com/NoaCG/NoaCG-Studio/issues/1842) | All 18 phases passed, but [CI17](../work-specs/cicd-improvement/evidence/phase-ci17.md) reports only one of eight initial criteria met, one not met and six pending. | The accurate final report is a legitimate terminal outcome. Missing goals do not authorize indefinite follow-up. Preserve separately required observation periods, including the CI selection audit. |
+| Editor | Repeated independent Save/leave checks found missing state rules. A later [scoped closure](../work-specs/editor-leave-reliability/scoped-closure/README.md) deliberately accepted bounded single-device behavior and deferred historical diagnosis. | Resolve current decisions before resuming. Continue one useful authorized journey rather than reopening a closed conflict campaign. |
 
-Keep the existing wave ledger and `run-supervisor.mjs` as execution authority. Keep `work.json` as acceptance evidence, the kit as operational context and the issue heartbeat as a rendered view. None should become a competing task scheduler. Preserve owner permissions once, then reuse them through bounded work blocks. Machine-verifiable work should not routinely go back to the owner.
+An apparent ordering violation in [#1934](https://github.com/NoaCG/NoaCG-Studio/issues/1934) was [withdrawn](https://github.com/NoaCG/NoaCG-Studio/issues/1934#issuecomment-6564847774) after daylight-saving timestamp reconciliation. All 26 judged successors started after predecessor acceptance. There is no demonstrated admission-order failure in that sample.
 
-The successful Claude route had native `create_session`, status/events, follow-up, results and `send_later`. The [CI launch receipt](https://github.com/NoaCG/NoaCG-Studio/issues/1842#issuecomment-6541029560) records a wake into a freshly booted container with the worktree intact. It expressly leaves archived revival, wake during a usage-limit stop and remote ownership fencing unqualified. Claude's success is practical evidence, not proof that every possible outage already recovers autonomously.
+Two CI17 follow-ups are already resolved and must not become repeated owner questions:
 
-## Audit of the current skills and runner
+- [#1951's delivery receipt](https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6589066068) records the acknowledged owner-alarm route. GitHub assignment did not notify the owner, and a scheduled-task email attempt was dropped. A Claude “Owner alarms (daily)” session surfaced the alarm and the owner confirmed seeing it. Assignment remains bookkeeping, not delivery proof. Reuse the acknowledged route after checking its current status; its recorded daily cadence is not an immediate-notification guarantee.
+- [#1895's completion receipt](https://github.com/NoaCG/NoaCG-Studio/issues/1895#issuecomment-6640597131) records critical journeys on every product change, implemented by cf12/#2037. The set became 12 specs. Do not repeat the original critical-test decision from CI17.
 
-Read together: [plan-create skill](../../.agents/skills/plan-create/SKILL.md), [creation procedure](../../.agent-workflows/plan-create.md), [plan-run skill](../../.agents/skills/plan-run/SKILL.md), [execution procedure](../../.agent-workflows/plan-run.md), [cloud routing](../../.agent-workflows/cloud-delegate.md), [known traps](../plan-runs/known-traps.md) and all four brief templates.
+The production retrospective's cost ranges are self-reported; the CI co-run lacked a matched throughput comparison. These records support the workflow design without establishing Codex cost savings or a parallel-throughput target.
 
-### Improvements already implemented
+## Keep the infrastructure already implemented
 
-Most of the production-page retrospective's operational recommendations now exist. Implementing them again would add complexity without solving Codex continuity.
+The current [plan-create](../../.agents/skills/plan-create/SKILL.md) and [plan-run](../../.agents/skills/plan-run/SKILL.md) skills point to shared procedures. Their runner already provides durable kits and briefs, rendered heartbeats, adaptive check-ins, owner phases, bounded block renewal, stable phase IDs and consolidated traps. Retain those mechanisms.
 
-| Concern from the retrospective | Current implementation |
+The existing wave ledger is execution authority, `work.json` is acceptance evidence and the issue heartbeat is a view. Show three distinct facts using these records: **execution status**, **overall acceptance verdict** and **owner disposition**. A separate acceptance ledger or lifecycle service is unnecessary.
+
+Keep normal targeted worker checks and authoritative Actions checks, source and merge pinning, fresh independent reviews, exactly one acknowledged PR repair owner, the existing retry/diagnosis limits and the merge queue. Neither a green workflow summary with flaky tests nor a later same-commit pass erases the first failure.
+
+Preserve `claude/noacg-recovery/` if Codex can use it. Its name reflects an actual Claude push restriction, not a naming mistake. Qualify Codex access rather than cosmetically renaming refs or migrating checkpoints. A branch in this public repository is not private storage.
+
+## Separate the harness procedures narrowly
+
+Add Codex-only instructions for worker launch/status/follow-up/result collection, fresh checker contexts, absolute worktree paths, landing authority and the two execution modes. Keep the same user-facing `$plan-create` and `$plan-run` entry points. Claude's commands continue to use their current canonical files unchanged.
+
+Use references beneath the two existing Codex skill directories. This avoids adding more top-level workflows that the current discovery guard would expect to have both Claude and Codex adapters. Keep wrappers thin and point them at the explicit Codex references.
+
+`check-shared-instructions.mjs` currently requires both harnesses to name the same canonical procedure. Add an explicit mapping for **only plan-create and plan-run** to permit their Codex references. Continue validating the mapped files, wrapper size, script references and shared critical contracts. Reject missing or stale mappings and arbitrary alternate targets. Keep the default shared mapping for every other workflow.
+
+Use the existing kit's tailored-template mechanism. Store four Codex brief templates in the Codex plan-run references and copy them into a newly created Codex kit's `templates/` directory. Leave `docs/plan-runs/templates/` and Claude defaults byte-identical. Generalize template fields or template loading only if the first implementation demonstrates a real need.
+
+The checker template currently hardcodes `claude/check-*` and `.claude/worktrees/*`; `state.branchPrefix = codex` cannot replace those literals. Codex briefs should provide their actual owned branch/path and selected runtime's browser instructions. Link shared invariant and verification rules instead of duplicating them. Do not copy dated Claude browser-image assumptions into Codex instructions.
+
+## The missing launch and re-entry handling
+
+This is the main implementation gap to close before automatic recovery can safely re-dispatch plan work:
+
+- In `run-supervisor.mjs`, `tickRun` returns before its delivery handling for a continuing project; phases use `record`/`next`.
+- `continueProject` restores with an adapter that returns `unknown`.
+- Therefore the durable pending-request machinery in the other delivery path does not automatically protect worker launches issued directly by a plan coordinator.
+
+Extend the **existing continuing-plan path**, without routing projects into the unrelated tick loop or inventing a universal provider API. Before a launch, persist the exact brief/request bytes or their existing saved-file reference and hash, full source SHA, stable action identity, phase/step and current authority. Use the existing ledger event and kit's `state.json`/`inFlight` data, published through the existing checkpoint mechanism. Define an opt-in Codex record shape; existing Claude records remain valid.
+
+The intent must be durably published before dispatch. If publication acknowledgement is uncertain, reconcile the existing checkpoint; do not dispatch speculatively. After native acceptance, publish the returned worker identity. Retain the original intent on timeout, missing response or missing status. Before any replacement, inspect the original worker, branch, PR, queue and Actions state. Unknown remains unresolved; safe stopping is acceptable, duplicate execution is not. Do not clear the intent merely because a local process or partial inventory is absent.
+
+Preserve the distinction between intent and launched work. A recorded build intent cannot prove a worker started. Store acceptance and replacement receipts without resetting phase or repair counters. The first implementation needs one narrow way to persist and reconcile these plan-launch facts, with focused tests, not a general command/event abstraction.
+
+On re-entry, explicitly reconcile and update the kit's current coordinator session and return destination. Preserve the original authorization and unresolved intents. Transfer a PR's acknowledged repair ownership through its existing owner comment when needed, and disable any old wake as the queue procedure requires.
+
+Git checkpoint compare-and-swap prevents stale publication. It cannot stop an old native worker or an external stamp. Require native stop acknowledgement or authoritative reconciliation before replacement, and verify current authority before external actions. When that cannot be established, stop the replacement rather than claim distributed fencing.
+
+## Landing and renewal need actual role evidence
+
+A worker/coordinator split is useful but does not guarantee permission to approve. The later [Jev follow-up report](https://github.com/NoaCG/NoaCG-Studio/issues/1850#issuecomment-6665906088) records self-approval refusals for both workers and coordinator. Some changes landed; four required the owner to queue them. This is a demonstrated limitation of that wave, not proof that every Codex landing will fail.
+
+Prove the first Codex landing with the actual intended roles. Required reviews/tests must be complete on the exact head, the coordinator must be permitted to use the normal stamp/auto-merge route, and the queue must land the change. A moved head needs fresh evidence. Different actor labels alone do not establish independent approval. On a policy refusal, preserve it and report the specific permission boundary; do not bypass it by changing actor names or trying another stamping route. The plan is not qualified for autonomous landing until this succeeds.
+
+There is also a static renewal mismatch: `plan-kit.checkin` can return the exact block deadline, while `rearmNative` rejects a next wake at or beyond it. It is not a demonstrated outage of the completed runs. Define one Codex transition: a check-in admitted inside the current block checkpoints at its end, then renews only under existing standing permission and current pause/cancel checks; replacement work receives the new block's authority. If the native route cannot retain control across that boundary, it needs a supported renewal wake before unattended mode can qualify. No worker receives authority beyond its own block. Change shared code only where the focused test shows it is necessary, preserving fixed-deadline and Claude behavior.
+
+Honor the scheduler's actual frequency. The inspected automation interface supports at most hourly scheduling; a kit ETA or desired 30-minute idle check does not override it. Use supported completion events and bounded live waits during active execution. Record the recovery bound actually observed, without creating another scheduler or requiring perfect timing.
+
+## Minimal ordered implementation plan
+
+These steps are proposed work, not execution authorization. They do not transfer completed Claude runs or require clearing the existing backlog.
+
+| Step | Smallest deliverable | Exit condition |
+| --- | --- | --- |
+| 1. Reconcile one selected scope | Read current main, the selected spec, launch receipt, latest owner decisions, run state and ownership. Select active or unattended mode and the actual worker topology. | One current, bounded scope and a precise next action. Completed or owner-closed runs stay closed. Reuse existing answers; ask only a genuinely missing outcome decision. |
+| 2. Add Codex instructions and tailored briefs | Add the two Codex references, four briefs and narrow instruction-guard mapping. Reuse shared runner contracts. | Fresh root/nested Codex contexts load the intended guidance; Codex briefs use correct paths and roles. Claude adapters/templates/defaults are unchanged and still pass their checks. No wake is required merely to prepare or explicitly authorize active mode. |
+| 3. Close the plan-launch gap | Add the opt-in intent/acceptance/reconciliation record on the current plan path and explicit re-entry steps. | Intent precedes dispatch; accepted native IDs survive restoration; uncertain launches cannot duplicate; pause, authority and consumed attempts survive; kit return destination and repair ownership reconcile. Preserve legacy checkpoint compatibility. |
+| 4. Deliver one useful change | Fresh builder, required tests/reviews, actual coordinator approval, merge queue, fresh checker and terminal exact-merge/post-land evidence. | One useful accepted change, with the active coordinator retaining ownership throughout. This tests the real landing roles early. Recovery qualification is not a prerequisite for this bounded active route. |
+| 5. Qualify unattended continuation | One bounded live drill at a meaningful boundary in authorized work; focused tests for other failure cases. Resolve the block-renewal boundary as part of this step. | Observe real coding wake/re-entry, reconcile the same run without duplicate work, complete acceptance, perform one authorized bounded renewal and stop all run wakes at terminal state. Record which interruption class was actually proved. |
+| 6. Run one bounded editor pilot | A newly authorized import → edit → save → reopen → export journey addressing one agreed defect or missing capability. Start serially and retain single-device restrictions. | Independent browser/software acceptance and exact-merge results for that journey. Use active mode if recovery is still unqualified; use unattended mode only to the level step 5 proved. Accumulate longer-running evidence during useful authorized delivery. |
+
+If the first useful change reveals a landing refusal, resolve that precise permission dependency before claiming autonomous landing. Do not expand step 4 into a general approval redesign. Likewise, failure of step 5 leaves active delivery available; it does not justify building a new control plane.
+
+Days and weeks remain the intended service duration, with evidence collected as useful work proceeds. There is no obligation to keep a completed run alive, generate dummy PRs or invent more scope to fill a trial window. Required existing CI observation periods and audit-reset rules remain binding.
+
+### Exact proposed file changes
+
+Only the research proposal is edited by this planning revision. The following is the future implementation allocation:
+
+| Files | Proposed change and protection |
 | --- | --- |
-| Run creation mixed with execution | Separate plan-create and plan-run, with shared Claude/Codex procedures. |
-| Large mutable trigger prompts, duplicated briefs | `plan-kit.mjs`, small `state.json`, stored briefs, shared templates and known traps. |
-| Local-only operational context | `run-recovery.mjs` publishes ledger, kit and authorization to a recovery ref; restoration tests cover missing local state. |
-| Daily block ceremony | Separate standing `untilComplete` and `blockRenewal`, immutable planning target, blocks of at most 24 hours and supervisor renewal. |
-| Fixed empty check-ins and owner-phase launches | Adaptive `plan-kit checkin`; owner phases produce a handover and no check-in. |
-| Inconsistent stamp/auto-merge ownership | Coordinator owns the stamp and auto-merge after worker gates; one repair owner stays responsible. |
-| Shared configured-suite pending slot | Current procedure uses candidate identity and per-branch dispatch/concurrency; selected configured checks feed the PR CI gate. Verify current workflows when implementing the adapter. |
-| Drift, duplicate numbering and new admitted phases | Stable IDs, current-state rereads before docs land, and owner-receipted supervisor admission. |
+| `.agents/skills/plan-create/SKILL.md`, `.agents/skills/plan-run/SKILL.md` | Point the thin Codex wrappers to their mapped references. Describe active and unattended modes without claiming that wake qualification has passed. Preserve skill names. |
+| New `.agents/skills/plan-create/references/codex.md` | Current-scope/owner-decision lookup, explicit mode, authorization and kit creation using existing commands; install tailored Codex briefs. No new phase or acceptance store. |
+| New `.agents/skills/plan-run/references/codex.md` | Serial native worker lifecycle, active-session retention, plan intent handling, actual landing authority, re-entry/return-address reconciliation, decision routing and stopping. Reference shared verification and merge contracts. |
+| New `.agents/skills/plan-run/references/templates/{build,check,repair,fix}.tmpl` | Tailored Codex paths, branches and result transport. Keep fresh checkers, exact criteria, review requirements and all attempt limits. These are skill sources; kits retain their existing flat template layout. |
+| `scripts/check-shared-instructions.mjs`, `scripts/check-shared-instructions.test.mjs`, `docs/AGENT_WORKFLOWS.md` | Explicit two-workflow Codex mapping and documentation. Mutation tests reject missing mappings/files, wrong wrapper targets and missing shared critical contracts; other harness mappings remain unchanged. |
+| `scripts/run-supervisor.mjs`, `scripts/continuing-project.test.mjs`, `scripts/run-supervisor.test.mjs` | Small opt-in continuing-plan launch-intent/acceptance/reconciliation extension, using the ledger and kit. Prove authority/pause/attempt preservation and refusal to replay unresolved delivery. Keep existing project and non-project paths compatible. |
+| `scripts/plan-kit.test.mjs`, `scripts/run-recovery.test.mjs` | Test that tailored briefs, unresolved intent, native identity and coordinator/return fields round-trip through the existing kit/checkpoint. Change `plan-kit.mjs` or `run-recovery.mjs` only if this reveals missing support; both already carry the needed kit data. |
+| `scripts/native-recovery-contract.test.mjs` and existing plan-kit/continuing-project tests | A joined expiry/renewal case, owner pause, fixed deadline and uncertain delivery. Change `native-recovery-contract.mjs` or `plan-kit.mjs` only for the demonstrated boundary contract, retaining existing callers. |
+| Existing cloud-execution evidence location and selected run kit/issue | Append short qualification receipts with actual native IDs, action identity, source/head, policy, landing/wake results and cleanup. Record execution, acceptance and owner disposition from existing authorities. No extra monitoring service or metrics ledger. |
 
-### Remaining gaps
+Leave `.claude/**`, `.agent-workflows/plan-create.md`, `.agent-workflows/plan-run.md` and `docs/plan-runs/templates/**` unchanged in the first implementation. Preserve the shared queue, verification and authorization contracts. Any later shared behavior change needs a demonstrated requirement and its own compatibility checks; it is not implied by this proposal.
 
-1. **The shared procedure is more portable than its templates.** `check.tmpl` still creates `.claude/worktrees/check-…` and dispatch branches named `claude/check-…`, even when the kit's `branchPrefix` is Codex. `plan-kit.test.mjs` currently asserts the Claude dispatch branch. The cloud browser-image workaround in known traps is also a dated Claude-image observation. A Codex run must use its qualified paths and image, not mechanically replay those instructions.
+The instruction guard is a shared implementation file, so its narrow mapping is a real compatibility risk even without editing Claude files. Keep the existing guard active, test the original Claude targets and existing adapters, and add the mapped Codex checks. Do not use a broad exception or make unrecognized workflows silently pass.
 
-2. **Recovery state is not an execution backend.** `continueProject` restores the project with an adapter that answers native requests `unknown`; the procedure explicitly forbids using `tick` for these continued projects. The coordinator must perform the actual next action. `native-recovery-contract.mjs` validates receipts but calls no provider. Passing these tests does not provide a hosted Codex launcher or a durable wake.
+## Smallest qualification and first useful pilot
 
-3. **The short preflight does not prove unattended readiness.** `plan-run-preflight.mjs` checks the current subprocess, workspace and Git/API reads. Its `qualificationGaps` still lists native Codex child mapping and wake/bootstrap after host loss. Replace unconditional gap text with separately recorded capability observations; never promote ordinary read access into write, wake or recovery permission.
+**First useful change:** use the small Codex procedure/brief compatibility change itself if its reviewed scope and ownership permit, or select one contained tooling defect. One fresh builder and one independent checker are enough to exercise the roles. The active coordinator stays through every required gate, merge and post-land result. No arbitrary three-phase minimum is needed.
 
-4. **Current decisions are distributed across records.** The runnable list still calls Jev preparation-only although #1850 is finished. Editor phase notes retain a blocked October 19 handoff although a later closure supersedes it. Plan-create must inspect current run and owner decisions before interpreting an old registration as something new to open.
+**Live continuation drill:** interrupt after a legitimate landing but before independent acceptance has been recorded. Before interruption, checkpoint the merge, worker identities, unresolved action and repair owner. A supported coding-session wake must restore or locate the same run, read actual GitHub/native state, avoid rebuilding the already-landed phase, launch or resume only the legitimate checker, and record its result. Perform one bounded renewal under standing permission, then demonstrate terminal wake shutdown.
 
-5. **The final phase can legitimately pass while the goal stays open.** CI17 accurately reported unmet goals, so its phase PASS was correct. The heartbeat's “finished: every required phase … passed” does not communicate the same thing. Display execution disposition, acceptance result and remaining observation separately, using existing authorities.
+The native drill must use a supported interruption mechanism. If only idle re-entry is available, call it idle-wake qualification and retain machine-loss recovery as unqualified. A manual owner restart is not an autonomous wake. A local process kill or deleted scratch directory is fixture evidence, not native recovery.
 
-6. **Not every unresolved measurement is a reason to end the improvement programme.** If authorized scope includes an observation period, retain a durable wait and wake to collect it. If more product work or a new cohort is outside scope, report the gap and obtain that specific decision. Do not quietly invent work or call a report-only phase success of the whole plan.
+Use focused tests for uncertain delivery, stale authority, pause/cancel, missing local state and duplicate callbacks. Preserve unknown outcomes and stop safely. Do not force genuinely ambiguous provider sends if the platform cannot reconcile them; the safe refusal is the correct result. Account usage stops remain unqualified until observed or supported by an authoritative route.
 
-7. **Long-run decision handling needs explicit operational categories.** Existing verify guidance already delegates reversible engineering choices. The runner should preserve whether an item is a product failure, infrastructure wait, ambiguous delivery, exhausted repair, owner-only action or accepted deferral. Context loss must not turn any of them into a fresh attempt.
+**Editor pilot:** read [EDITOR_PLAN](../EDITOR_PLAN.md), the [acceptance register](editor-acceptance-register-2026-09-17.md) and the current [leave-editor disposition](../work-specs/editor-leave-reliability/README.md) before selecting one actual remaining gap. Phase 2 was accepted at `12eccdd8533ba710f0917cb3bcc78101070ecca8` under single-device scope; Step 6 is complete and historical diagnosis is deferred. This does not authorize Phase 3, qualify current main or accept concurrent authoring/physical receivers.
 
-8. **Block renewal needs a joined scheduling test.** `plan-kit.checkin` can choose the exact block deadline, while `rearmNative` refuses a next wake at or beyond that deadline. Their behavior must be reconciled in the selected integration, so the last block's wake can safely hand over to authorized renewal without silently breaking the chain. This is a source-level contract gap to test, not an observed failure of the completed Claude runs.
+Choose an existing import/edit/save/reopen/export task, then name the exact missing capability or defect to address. Do not presume that the old save/cloud-status handoff is the next authorized phase. Retain one active authoring tab/device per account and serial ownership of shared editor/save files. Prepare native/hardware and usability trial items separately. Human-only evidence is not replaced by a browser receipt, and useful engineering slices need not wait for every broader editor milestone.
 
-## Codex capability assessment
+## Essential work and work to defer
 
-This review used the Cloud runtime qualification guidance and read the current tool schemas rather than assuming the October interface remained unchanged. Observations on 7 November:
+**Essential for useful active execution:** current scope/decision reconciliation, the narrow Codex procedure/brief split, independently qualified conversations and worktrees, launch-intent handling, the actual landing-role proof, and one owner retained through terminal results.
 
-| Capability | Current evidence | What remains to prove |
+**Essential only before claiming unattended continuation:** a supported coding wake/re-entry path, reconciliation of the original workers and PR ownership, one bounded renewal, observed terminal stop and an honest statement of the interruption classes proved.
+
+**Conditional:** small shared kit/recovery changes if existing storage cannot carry the opt-in record; a broader failure drill only for a promise that is being made; an owner decision if a selected existing run requires separate hosting or a different provider.
+
+**Deferred:** universal provider adapters, a new scheduler or ledger, Temporal or other hosted infrastructure, cosmetic recovery-ref changes, mandatory multi-day trials, a three-plan concurrency study, broad benchmark collection, unrelated CI cleanups, old campaign reconstruction and whole-editor acceptance. Reconsider one only when useful delivery demonstrates that the existing system cannot meet a concrete requirement.
+
+## Demonstrated facts and unresolved hypotheses
+
+| Finding | Evidence class | Implication |
 | --- | --- | --- |
-| Managed cloud workspace | Current environment is connected, observations current and network policy enforced. Repository source and remote main agree. | Lifetime and replacement behavior are not established by readiness metadata. |
-| Git/API read access | `cloud-network-preflight.mjs` passed Git origin/main and Actions API reads with supported network permission. Connected GitHub tools read run issues and comments. | Write, workflow-file push, review stamping, auto-merge and whole-log return are separate operations. |
-| Same-machine workers | Collaboration tools are exposed. Earlier [Codex qualification](../work-specs/renewable-plan-runs/evidence.md) proved a fresh worker and follow-up; the Jev qualification chat reported workers, independent checking, browser execution and active-session wake/landing. | No new worker was launched for this analysis. Independent contexts on one VM share its failure and resource limits. They do not prove separate hosted children. |
-| Hosted child launch | Installed CLI is 0.159.2; `cloud exec/status/list/diff` are advertised. `exec` advertises managed worktrees, JSON events, structured output and resume; `queue` targets existing sessions. | Help is not authenticated execution. October 30/31 cloud inventory returned 401. No new denied probe was repeated, credentials changed or task submitted. Mapping to the intended saved configuration remains unqualified. |
-| Scheduled continuation | The exposed automation API can report inherited cloud configurations, coding thread IDs and run history. A read-only inspection of the prior “Qualify Codex recovery” task returned its thread/environment metadata. | That task's latest run/result were null and delivery status unknown. `last_run_time` and inherited configuration do not prove coding execution or interruption recovery. The create input has no explicit coding-thread/environment selector; inherited targeting must be observed. |
-| Persistent state | Git-backed checkpoints and local restoration/fencing tests exist. | Native resumption after the supported interruption, workspace reconstruction, uncertain launch reconciliation and rejection of stale external actions need real receipts. |
+| Codex wrappers point to shared procedures; checker template retains Claude literals; instruction guard requires a shared target. | Direct source inspection. | Tailor Codex instructions/templates and narrowly extend the guard. No universal abstraction is needed. |
+| Continuing projects bypass tick delivery; restored adapter answers unknown. | Direct source inspection. | Persist/reconcile actual coordinator-issued launches on the plan path. Existing fixture success does not close this integration gap. |
+| Kits, brief persistence, heartbeat rendering, adaptive check-ins, stable IDs and block renewal exist. | Source and original targeted tests. | Reuse them. |
+| Check-in at block expiry conflicts with native next-wake admission. | Static contract mismatch. | Write a joined test and define the transition; a completed-run outage is not established. |
+| Later Jev wave reported worker and coordinator self-approval refusals. | Read-back of #1850 comment 6665906088. | Actual intended Codex roles need a real landing receipt. Their refusal is possible, not yet demonstrated for the new route. |
+| Issue assignment did not notify the owner; an existing session route was acknowledged. | Read-back of #1951 comment 6589066068. | Reuse the current acknowledged route, without treating a posted issue or daily schedule as immediate delivery. |
+| Codex active-session work/landing and some wakes have historical receipts; cloud inventory returned 401 on October 30/31. | Historical qualification records and #1301. | Do not repeat known denials or generalize them into a permanent platform ban. Fresh authenticated capability and exact mapping need supported evidence. |
+| Current tools can report coding-thread and inherited cloud-environment metadata for automations. | Original 7 November schema/metadata inspection; the old recovery task's run/result were null and delivery unknown. | Candidate route to qualify. Scheduling acknowledgement and metadata do not prove executor delivery or machine-loss recovery. |
+| Longer Codex runs will recover every interruption, use less money or achieve better throughput. | Unproved hypothesis. | Accumulate measurements during useful work and state actual gaps. |
 
-The October 30 chat **Qualify Jev SVG launch prerequisites** (`01a18e77-c25c-706d-b3e9-53afee5ed07d`) reported an active-session wake and merged qualification PR #1825, but explicitly left unattended recovery unproven. [#1301's October 31 follow-up](https://github.com/NoaCG/NoaCG-Studio/issues/1301#issuecomment-6540584271) preserves the worker-authentication and coding-wake gaps. Read those together: neither “no scheduler exists anywhere” nor “Codex unattended recovery is ready” is justified.
+Repository code cannot manufacture provider authentication, the intended hosted-environment mapping, native wake/restore semantics, stop acknowledgement, approval permission or notification delivery. Resolve the exact missing capability if encountered. Continue the bounded active route where supported rather than creating new infrastructure by default.
 
-Do not change the canonical owner binding to the current runtime ID. Saved configurations, executor instances, native sessions and CLI environment selectors are different identities. Record their actual relationship when the supported route proves it. Environment names and matching repositories are insufficient.
+Keep the canonical owner environment binding intact; runtime instance IDs and saved configuration selectors are not interchangeable. Preserve configured models, effort, billing and permissions. Neither a denial nor a recovery gap authorizes credential substitution, provider switching or a weaker landing route.
 
-## Recommended operating design
+Measure a few useful facts from existing records: accepted work, build-to-PASS/queue delay, failed/repeated work, required owner restarts, observed recovery and unresolved evidence. Record available usage without treating missing values as zero. Extend service duration only while useful authorized work remains; do not impose statistical or operational claims on a small sample.
 
-Use the existing supervisor to drive many short, replaceable Codex sessions. Persist intent before dispatch, reconcile before replay, and checkpoint after every accepted event. Preserve the same run ID, scope, consumed attempts, source identities and owner decisions across replacements.
+## Revision evidence
 
-```mermaid
-flowchart TD
-    W[Qualified wake or worker event] --> R[Restore and reconcile run]
-    R --> S[Existing supervisor admits next action]
-    S --> B[Fresh Codex builder in owned worktree]
-    B --> G[Targeted checks and independent PR reviews]
-    G --> Q[Coordinator validates head and uses merge queue]
-    Q --> C[Fresh checker on exact merge SHA]
-    C -->|PASS and complete evidence| S
-    C -->|Product failure| D[Existing bounded repair and diagnosis]
-    D --> S
-    C -->|Infrastructure or observation wait| W
-    S -->|Owner-only action| O[Specific handover and retained checkpoint]
-    S -->|Scope ended| F[Execution and acceptance report then stop wakes]
-```
+The second reviewer inspected source `fee8818c9` and GitHub evidence but did not have the full original proposal. This revision reconciles its recommendations against that full text. Material changes are the explicit active-session route, separate Codex procedures/briefs, narrowly scoped instruction guard, continuing-plan launch handling, actual landing/notification evidence and removal of elapsed-time gates.
 
-Prefer the supported managed Codex Cloud route once qualified. Fresh same-VM workers are a useful execution option for a serial run, if that topology is explicitly selected and the environment has capacity; they are not equivalent to separately hosted children. The current run authorization may require the latter, so topology changes must be recorded rather than disguised.
+This revision reread the relevant runner/kit/recovery and instruction-guard source, queue ownership fallback, and comments 6589066068 (#1951), 6640597131 (#1895) and 6665906088 (#1850). Historical run findings and accepted editor scope retain their dated qualifications.
 
-If managed Cloud cannot supply native recovery, the alternative is the same Codex CLI and supervisor on a persistent user-controlled cloud machine, supervised outside the agent process. This can remove dependence on a coding chat's wake, but needs a hosting, credential, subscription and operational-ownership decision. Do not provision it or silently switch an existing run. The earlier [durability research](durable-orchestration.md) proposes Temporal for a future hosted control plane; defer that deployment until a demonstrated platform gap requires it. A new orchestration framework does not solve missing worker authorization.
-
-### Tests and landing
-
-Continue the existing targeted worker checks and authoritative Actions checks. Collect evidence once per exact revision and reuse only results whose scope and identity match. Read configured selection and its verdict; do not automatically dispatch a second full configured suite for each review head. Preserve test budgets, limits and same-commit failure history.
-
-The builder ends with its reviewed SHA, CI/selection, independent review result and PR. The coordinator rechecks the live head, posts the normal stamp and enables auto-merge through the repository queue procedure. A moved head invalidates the old approval. A fresh checker independently judges the merge SHA and its required post-land results. Required combined-tree checks must be read from current configuration, not assumed from the historical CI/CD run.
-
-Reconcile the existing worker, PR, queue and Actions runs before replacing anything. Unknown delivery stays unknown; a lost reply is not permission to launch another worker. Repair ownership survives coordinator replacement and remains exactly one acknowledged owner, including base conflicts that produce no webhook.
-
-### Decisions without routine interruptions
-
-| Situation | Autonomous behavior |
-| --- | --- |
-| Reversible implementation choice within acceptance | Decide, record the reason and verify it. |
-| Objective go/no-go rule, such as Jev holdout acceptance | Apply the preregistered rule, preserve the rejected route and continue the authorized fallback. |
-| Product failure | Carry all findings into the existing repair/diagnose sequence; preserve spent attempts. |
-| Temporary CI, provider capacity or review-service outage | Persist a wait, back off and reconcile; consume no product repair attempt. |
-| Usage stop | Resume at a known reset if authorized and supported; unknown reset remains a wait. Never substitute credentials, billing pool, model or provider. |
-| Unrelated failing test | Establish the permitted control evidence and record the coordinator's scoped decision; never weaken a judge to clear the run. |
-| Changed product scope, unusual expenditure, important external/privacy boundary or owner-only action | Ask the specific question with the proposed choice; checkpoint the dependent item and continue only already-authorized independent work. |
-| Owner pause, cancellation or exhausted attempt allowance | Stop launches and automatic continuations as the existing procedure requires; preserve recoverable work. |
-
-Where repair findings repeat the same state-rule family, use the existing risky-change and repeated-family reassessment before another patch. The editor's long Save campaign is the reason to do this early. The reassessment does not grant another attempt.
-
-## Implementation sequence
-
-These are proposed engineering work packages, not newly authorized product phases. Preserve existing Claude runs and receipts. Estimate engineering effort separately from platform lead time and elapsed soak/observation time.
-
-| Package | Change and intended files | Acceptance and dependency |
-| --- | --- | --- |
-| P0 Resolve launch capabilities | Reconcile #1301 and current launch decisions. Produce a dated, content-minimal capability receipt using existing cloud-execution evidence conventions. | Identify the actual native launch/status/follow-up/result/wake route and environment mapping, or name the unsupported operation. Prove a fresh independent context, delayed coding execution, one bounded re-arm and terminal stop before an unattended product start. A scheduled acknowledgement is insufficient. |
-| P1 Make briefs portable | `plan-kit.mjs`, four templates, known traps, plan-create/run wrappers and shared procedures. | Codex briefs contain owned Codex worktree/check branches and the selected runtime's browser instructions; Claude briefs still work. Exact source/merge pinning and receipt independence survive. Test both renderings and fresh root/nested instruction loading. This can proceed while P0 is blocked. |
-| P2 Connect execution to existing authority | Extend the existing supervisor/native adapter seam and recovery contract; do not add another task ledger. For continued projects, choose one supported coordinator/adapter route explicitly. | Every external launch/follow-up has a recorded intent and receipt; ambiguous acceptance cannot duplicate delivery. Re-entry restores the kit and reconciles worker/PR state before admission. Owner pause, stale owner, block end and exhausted attempts are enforced. Depends on P0 for live qualification; fixture development can proceed independently. |
-| P3 Resolve current decisions and outcomes | Plan-create preflight, plan-kit heartbeat, recovery brief and relevant registration/launch metadata. | Detect completed/owner-closed runs before opening one. Prefer explicit later owner decisions over superseded handoffs, retain historical failures and link decisions. Report phase progress separately from unmet/pending overall ACs. Authorized observation waits continue without inventing scope. |
-| P4 Automate the landing evidence handoff | Existing candidate-dispatch, landing records and queue-merge seam; structured worker/checker receipts. | One legitimate pilot change goes builder → PR reviews → current-head stamp → queue → exact-merge checker → terminal repair-owner receipt without owner clicks. Read full required logs and selected checks. Demonstrate moved-head refusal, duplicate-event tolerance and base-conflict detection. No test weakening or direct main write. Depends on P0–P2. |
-| P5 Qualify failure and recovery | Existing supervisor/recovery/authorization/native-contract tests, plus a bounded live qualification run. | Exercise coordinator termination, supported environment replacement, missing local state, lost acknowledgement, delayed CI, service/usage wait, expired block, owner pause/cancel and stale ownership. Restore the same run and attempts; no duplicate phase or unreviewed merge. A local process-kill fixture alone cannot close the native cases. |
-| P6 Run a bounded Codex pilot | One explicitly authorized, low-risk three-phase engineering slice, with distinct builder/checker contexts and the existing ledger/kit. | Complete and independently check all three exact merges, including a controlled interruption/re-entry and block renewal. Measure build-to-PASS, review/queue wait, runner-minutes, repairs, unplanned owner interventions and missing evidence. Then demonstrate at least 72 hours of unattended service with useful authorized work, not dummy PRs. |
-| P7 Continue a bounded editor journey | Reconcile the current editor acceptance register and dated closure; prepare only the next authorized, useful outcome. | Start from current main while retaining historical acceptance pins. Run the complete browser task, save/reopen, source/history preservation and applicable output checks; review rendered results. Do not reopen the closed conflict campaign, grant new attempts, claim physical-device acceptance or switch the default editor. Depends on P3 and a passing P6. |
-| P8 Establish sustained operation | Extend the same measured pilot to seven days, then fourteen when sufficient authorized work exists. | No routine owner restart; every merge retains exact-head and exact-merge evidence; every interrupted action reconciles; all daily blocks preserve authority; no stale owner can stamp or launch; stop leaves no active wake or ownerless PR. Report service downtime and human interventions, not just a green final run. |
-
-P0 and a live landing cycle should settle feasibility before weeks of adapter work. If P0 fails on a platform capability, finish P1/P3 and the fixture work that remain useful, then present the precise managed-Cloud blocker and the persistent-host alternative. A blocked product project is not needed to investigate readiness.
-
-The current automation interface permits no more than hourly scheduling. The existing kit often wants a 30-minute idle check or an immediate action. The implementation must use proven completion events/live bounded waits for faster responses, and explicitly accommodate the scheduler's actual frequency and block-end behavior. Never claim a 30-minute recovery bound from an hourly-only route. Avoid a new exact-cadence experiment unless a product requirement needs it; useful recovery needs reliable eventual execution with a stated bound, not perfect timing.
-
-### Qualification results to retain
-
-For each live drill record the run/action IDs, native session and configuration mapping, policy fingerprint, branch and full SHA, intended/delivered wake times, before/after boot identity, persisted/restored checkpoint, observed external state, and terminal cleanup. Keep credential values, user artwork, private context and raw transcripts out of public recovery artifacts. A recovery branch in this public repository is not private storage.
-
-Local SQLite transactions and Git compare-and-swap protect local admission and checkpoint publication. They do not establish an atomic lock where a provider accepts an external launch or GitHub accepts a stamp. Test those boundaries or retain a conservative single-owner constraint; do not claim exactly-once execution across hosts.
-
-## Continuing the editor in Codex
-
-The editor is a good eventual pilot because much of its functional acceptance can be automated, but it is a poor first test of an unqualified recovery backend. Its persistence, state transitions and shared source make simultaneous implementation especially costly.
-
-Read [EDITOR_PLAN](../EDITOR_PLAN.md), the [acceptance register](editor-acceptance-register-2026-09-17.md), [rebuild notes](../EDITOR_REBUILD_PLAN.md), and the **current disposition at the top** of [leave-editor reliability](../work-specs/editor-leave-reliability/README.md). The [21 October scoped closure](../work-specs/editor-leave-reliability/scoped-closure/README.md) supersedes the older blocked handoff:
-
-- Phase 2 was owner-accepted only under a bounded single-device scope, at `12eccdd8533ba710f0917cb3bcc78101070ecca8`.
-- One active authoring tab/device per account and sequential handoff remain operating restrictions. Physical receiving devices and concurrent authoring are not accepted by that receipt.
-- Step 6 is complete. #1466 is closed; this review read its current GitHub state. Do not revive the earlier reservation merely because an older PR handoff says it remains held.
-- No Phase 3, newer-main qualification, fresh diagnostic allowance or default-editor switch follows from that closure.
-
-The first editor preparation action is to map each remaining criterion to current implemented behavior, retained evidence, an automated gap, a human-only judgment or an explicit deferral. Propose one complete next journey, likely the pending save/cloud-status work **if** the reconciled order and owner authorization select it. Do not assume that every R1 item remains unbuilt: base editing, keys, Out, animation, groups, folders and command integration already have engineering receipts.
-
-For stateful work, write the observable rules before coding: accepted edits, local durable Save, cloud synchronization, clean/dirty identity, navigation, reload and multiple writers. Challenge that model independently, then implement in small reviewable changes. Carry failed examples forward; classify superseded expectations with the actual owner decision instead of deleting them. Use an independent oracle for transitions rather than repeating the production algorithm in tests.
-
-Codex can carry the browser/software work: realistic import/edit/animate/save/reopen/export, failure/refusal cases, rendered comparison and targeted CI evidence. Actual Windows picker behavior, physical display scaling, controller hardware and first-time-user judgments remain separately labeled. Agents should prepare usable builds and precise trial kits; human acceptance should occur at useful workflow milestones, not after every small control change.
-
-## Success measures and next action
-
-Use measurements from the existing event, review, Actions and landing records. Track phase build-to-PASS p50/p90, ready-to-merge and queue delay, runner-minutes per accepted phase, failed/repeated work, coding-agent usage when the provider reports it, recovered interruptions and unplanned owner interventions. Unknown usage is unknown, not zero. Keep planned hardware decisions apart from routine restarts so the reliability measure stays meaningful.
-
-A seven- or fourteen-day result passes only with useful delivered work, preserved acceptance and observed continuation through the relevant failure drills. Zero recorded incidents without testing recovery is not qualification. Unavoidable quota or service outages are compatible with durable autonomy when the run waits and resumes without losing work; they are not continuous computation.
-
-**Recommended first implementation:** P1 and P3 as a small compatibility change, alongside P0's bounded native capability qualification. Prove a real Codex build/check/landing/re-entry cycle next. Then run the 72-hour pilot before selecting the remaining editor scope. This directly addresses the gaps without replacing the successful planned-run design or prematurely migrating the Claude-owned runs.
-
-## Review evidence
-
-This assessment read the three run issues and their comments, production retrospective and owner closure, Jev final release/closing records, CI17 criterion review, #1301 capability follow-ups, the corrected #1934 discussion, the Codex Jev qualification chat, current automation metadata, editor scoped closure and the shared skills/runner sources.
-
-On this source, the targeted baseline command `node --test scripts/plan-run.test.mjs scripts/plan-kit.test.mjs scripts/run-supervisor.test.mjs scripts/native-recovery-contract.test.mjs` passed **52 tests**, with zero failures, cancellations or skips. It checks existing behavior; it does not qualify a native Cloud recovery route. Git/API network preflight passed. The five affected documentation gates passed, all 15 relative Markdown links resolve, and `git diff --cached --check` passed. No new worker, scheduler, production operation, paid inference or product run was started for this assessment.
+The original assessment's 52 targeted runner tests passed; they are baseline fixture evidence, not a newly qualified native route, and were not repeated for this documentation revision. The revised document passed all five affected documentation gates, its nine relative links resolve, and the diff whitespace check passed. No implementation, worker launch, run, automation, permission change or Claude workflow modification is part of this revision.
