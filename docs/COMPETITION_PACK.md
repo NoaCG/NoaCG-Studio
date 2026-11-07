@@ -230,6 +230,9 @@ branch:   [nominees] --suspense--> suspense --reveal--> [winner]
 `reveal` is the walk's own arrow AND the way out of the suspense hold, so the control page has
 one "Reveal winner" button whichever route the operator took. The winner is the `winner` field
 (1-based), applied by `revealWinner`; SPX's `steps` is `'2'` — DERIVED from In + Reveal + Out.
+An update after the reveal (an edit to the list, a recovery's trailing update) lights the
+nominee the field names again, with no motion (a number naming no nominee leaves them all out,
+as the reveal does); before the reveal an update lights nothing (#2266).
 Controls: **Suspense** · **Reveal winner** (payload `winner`).
 
 ### Verdict (`verdict-card`) — correct / incorrect

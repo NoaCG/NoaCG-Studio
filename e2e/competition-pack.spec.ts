@@ -774,6 +774,67 @@ test('the rows a board dims look dimmed once the entrance has landed, and after 
   }
 });
 
+test('a data write after the reveal keeps the winner lit on every nominee card (#2266)', async ({ page }) => {
+  // The nominee rows carry the reveal's marks, and every update() rebuilds those rows. Nothing
+  // marked them again, so an edit to the list after the reveal, or the trailing update of a
+  // recovery (update, snap, update), left the card revealed with no nominee lit.
+  test.setTimeout(120_000);
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const out = {};
+    for (const id of ['nm01', 'nm02', 'nm03', 'nm04']) {
+      let { win, doc } = await boot(id);
+      const look = () => {
+        const won = Array.from(doc.querySelectorAll('.reveal-won .reveal-nominee-name')).map((el) => el.textContent);
+        return { won: won.join(','), out: doc.querySelectorAll('.reveal-out').length, revealed: doc.querySelector('.reveal').classList.contains('reveal-revealed') };
+      };
+      win.play();
+      await settle();
+      const third = doc.querySelectorAll('.reveal-nominee-name')[2].textContent;
+      win.noacgDispatch('reveal', { f3: '3' });
+      await settle();
+      const revealed = Object.assign(look(), { third });
+      const state = win.noacgMachineState().groups;
+      // An edit to the nominee list after the reveal.
+      win.update(JSON.stringify({ f2: 'ANNA | ONE\\nBEN | TWO\\nCARA | THREE\\nDEV | FOUR\\nEVE | FIVE' }));
+      await settle();
+      const edited = look();
+      // The winner field changed on air: the nominee it names now is lit.
+      win.update(JSON.stringify({ f3: '5' }));
+      await settle();
+      const moved = look();
+      // A recovery, as the hosted receiver's boot runs it on a freshly loaded graphic: the data,
+      // the pose, then the data again.
+      const data = { f2: 'ANNA | ONE\\nBEN | TWO\\nCARA | THREE', f3: '2' };
+      ({ win, doc } = await boot(id));
+      win.update(JSON.stringify(data));
+      win.noacgSnap(state);
+      win.update(JSON.stringify(data));
+      await settle();
+      const recovered = look();
+      // Back to the nominees levels the card, and an update there lights nothing.
+      win.noacgSnap({ main: 'enter' });
+      await settle();
+      win.update(JSON.stringify(data));
+      await settle();
+      const back = Object.assign(look(), { state: win.noacgMachineState().groups.main });
+      out[id] = { revealed, edited, moved, recovered, back };
+    }
+    return out;
+  })()`) as Record<string, Record<string, { won: string; out: number; revealed: boolean; state?: string; third?: string }>>;
+
+  expect(Object.keys(run)).toEqual(['nm01', 'nm02', 'nm03', 'nm04']);
+  for (const [id, card] of Object.entries(run)) {
+    expect(card.revealed.third, id).toBeTruthy();
+    expect(card.revealed, `${id}: the reveal lights the third nominee`).toEqual({ won: card.revealed.third, out: 3, revealed: true, third: card.revealed.third });
+    expect(card.edited, `${id}: an edit to the list keeps the named nominee lit`).toEqual({ won: 'CARA', out: 4, revealed: true });
+    expect(card.moved, `${id}: a new winner number lights that nominee`).toEqual({ won: 'EVE', out: 4, revealed: true });
+    expect(card.recovered, `${id}: a recovery into the reveal shows the winner`).toEqual({ won: 'BEN', out: 2, revealed: true });
+    expect(card.back, `${id}: an update to the nominees lights nothing`).toEqual({ won: '', out: 0, revealed: false, state: 'enter' });
+  }
+});
+
 test('Reset lands a winner card on its first step with nothing its result painted (#2181)', async ({ page }) => {
   // ⟲ Reset is a snap to the first step. A winner card's marks are classes, which a snap's reset
   // of inline styles never touches, so the pack clears them on that snap, as play() does.
