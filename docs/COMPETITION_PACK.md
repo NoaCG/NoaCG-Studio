@@ -286,7 +286,8 @@ measured row arrival — STRUCTURAL, because it names a builder that must ship i
 **Measured motion** (`compMotion.ts`): `compCascade` staggers one row per line the operator
 typed and composes `compBarsGrow`, which grows each `[data-value]` fill to its own percentage.
 Neither number exists until the data does, which is exactly why they are builders and not
-keyframes.
+keyframes. Each row lands on the opacity its design's CSS gives it and keeps no inline opacity
+afterwards, so a rule that dims rows (a focus, a crowned bracket, an unplayed map) shows (#2272).
 
 **Middle steps.** A design declares `revealSteps: [{ name, call }]` and the assembler authors
 them as real steps before Out (the quiz precedent). That is what keeps SPX's `steps` count

@@ -682,6 +682,98 @@ test('Focus competitor and Spotlight light a row on their first press on every t
   }
 });
 
+test('the rows a board dims look dimmed once the entrance has landed, and after a snap (#2272)', async ({ page }) => {
+  // The row cascade tweened every row to opacity 1 and left that inline, which beats a design's
+  // dim rule (`.results-board-spotlit .results-board-row { opacity: 0.45 }`), so the rows out of
+  // focus stayed at full strength. It now lands each row on its own CSS opacity and hands the
+  // row back to the stylesheet. The brackets and map ladders dim their rows the same way.
+  test.setTimeout(120_000);
+  await toApp(page);
+  const run = await page.evaluate(`(async () => {
+    ${HARNESS}
+    const B = 'results-board';
+    const E = 'esports-score';
+    const board = (ids, event, state, payload) => ids.map((id) => ({
+      id, event, state, payload, dim: '.' + B + '-row:not(.' + B + '-row-on)', lit: '.' + B + '-row-on',
+    }));
+    const cases = [
+      ...board(['rs01', 'rs02', 'rs03', 'rs05'], 'spotlight', 'spotlight', { f3: '2' }),
+      ...board(['st01', 'st02', 'st03', 'st04'], 'highlight', 'highlighted', { f4: '2' }),
+      ...board(['tt01', 'tt02', 'tt03', 'tt04'], 'focus', 'focused', { f3: '2' }),
+      ...['br01', 'br02', 'br03', 'br04'].map((id) => ({
+        id, event: 'crown', state: 'crowned', dim: '.' + B + '-round:not(:last-child)', lit: '.' + B + '-round:last-child',
+      })),
+      // A map still to play rests dimmed under the cursor's full-strength row; Complete drops
+      // every unplayed map further back, and the won ones hold.
+      ...['mr01', 'mr02', 'mr03', 'mr05'].map((id) => ({
+        id, event: 'seriesFinal', state: 'decided', rest: '.' + E + '-open:not(.' + E + '-current)',
+        dim: '.' + E + '-open', lit: '.' + E + '-won-a, .' + E + '-won-b',
+      })),
+    ];
+    // Every design in its own frame at once, so the waits below are paid once, not twenty times.
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    document.querySelectorAll('.pack-frame').forEach((f) => f.remove());
+    const frames = await Promise.all(cases.map(async (c) => {
+      const f = document.createElement('iframe');
+      f.className = 'pack-frame';
+      f.style.cssText = 'position:fixed;left:-4000px;top:0;width:1280px;height:720px;';
+      document.body.appendChild(f);
+      await new Promise((res) => { f.onload = res; f.srcdoc = composeDocument(variantById(c.id).create({})); });
+      const win = f.contentWindow;
+      const doc = f.contentDocument;
+      const read = (sel) => Array.from(doc.querySelectorAll(sel)).map((el) => Number(win.getComputedStyle(el).opacity));
+      const inline = () => Array.from(doc.querySelectorAll('.' + B + '-body > *, .' + E + '-body > *')).filter((el) => el.style.opacity !== '').length;
+      return { c, win, read, inline };
+    }));
+    await new Promise((r) => setTimeout(r, 80));
+    for (const { win } of frames) win.play();
+    // The whole entrance, cascade included, before anything is pressed. A row that rests dimmed
+    // arrives dimmed: its peak on the way in is sampled, so a rise to 1 and a drop back fails.
+    const peak = {};
+    for (const started = Date.now(); Date.now() - started < 2500;) {
+      for (const { c, read } of frames) if (c.rest) peak[c.id] = Math.max(peak[c.id] || 0, ...read(c.rest));
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    const out = {};
+    for (const { c, read, inline } of frames) {
+      out[c.id] = { rest: { dim: c.rest ? read(c.rest) : null, peak: c.rest ? peak[c.id] : null, inline: inline() } };
+    }
+    for (const { c, win } of frames) win.noacgDispatch(c.event, c.payload);
+    await settle();
+    for (const { c, win, read, inline } of frames) {
+      out[c.id].pressed = { state: win.noacgMachineState().groups.main, dim: read(c.dim), lit: read(c.lit), inline: inline() };
+    }
+    // Recovery and Back land a state by snap, which runs the entrance to its end at once.
+    for (const { c, win } of frames) win.noacgSnap({ main: c.state });
+    await settle();
+    for (const { c, read, inline } of frames) out[c.id].snapped = { dim: read(c.dim), lit: read(c.lit), inline: inline() };
+    return out;
+  })()`) as Record<string, {
+    rest: { dim: number[] | null; peak: number | null; inline: number };
+    pressed: { state: string; dim: number[]; lit: number[]; inline: number };
+    snapped: { dim: number[]; lit: number[]; inline: number };
+  }>;
+
+  expect(Object.keys(run)).toHaveLength(20);
+  for (const [id, design] of Object.entries(run)) {
+    expect(design.rest.inline, `${id}: the entrance leaves no inline opacity on a row`).toBe(0);
+    if (design.rest.dim) {
+      expect(design.rest.dim.length, id).toBeGreaterThan(0);
+      for (const o of design.rest.dim) expect(o, `${id}: a map still to play rests dimmed`).toBeLessThan(0.6);
+      expect(design.rest.peak, `${id}: and arrives dimmed, never lit first`).toBeLessThanOrEqual(Math.max(...design.rest.dim) + 0.01);
+    }
+    for (const phase of ['pressed', 'snapped'] as const) {
+      const look = design[phase];
+      expect(look.inline, `${id} ${phase}: no inline opacity on a row`).toBe(0);
+      expect(look.dim.length, `${id} ${phase}: rows to dim`).toBeGreaterThan(0);
+      for (const o of look.dim) expect(o, `${id} ${phase}: a row out of focus looks dimmed`).toBeLessThan(0.6);
+      expect(look.lit.length, `${id} ${phase}: a row in focus`).toBeGreaterThan(0);
+      for (const o of look.lit) expect(o, `${id} ${phase}: the row in focus stays at full strength`).toBe(1);
+    }
+  }
+});
+
 test('Reset lands a winner card on its first step with nothing its result painted (#2181)', async ({ page }) => {
   // ⟲ Reset is a snap to the first step. A winner card's marks are classes, which a snap's reset
   // of inline styles never touches, so the pack clears them on that snap, as play() does.
