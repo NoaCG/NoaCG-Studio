@@ -155,7 +155,7 @@ export const es04: TemplateVariant = defineEsportsVariant(
   font-style: italic;              /* a pause is an aside, not an announcement */
 }
 .${P}-paused .${P}-body {
-  opacity: 0.55;
+  filter: opacity(0.55);           /* the match is on hold; a filter, since the entrance writes the body's opacity inline (#2275) */
 }`,
   }),
 );

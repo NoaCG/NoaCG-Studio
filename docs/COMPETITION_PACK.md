@@ -292,6 +292,8 @@ typed and composes `compBarsGrow`, which grows each `[data-value]` fill to its o
 Neither number exists until the data does, which is exactly why they are builders and not
 keyframes. Each row lands on the opacity its design's CSS gives it and keeps no inline opacity
 afterwards, so a rule that dims rows (a focus, a crowned bracket, an unplayed map) shows (#2272).
+The other presets are keyframe data, which ends every block at opacity 1 inline, so a state that
+dims a whole block (the scorebug's pause) uses `filter: opacity()`, which no preset writes (#2275).
 
 **Middle steps.** A design declares `revealSteps: [{ name, call }]` and the assembler authors
 them as real steps before Out (the quiz precedent). That is what keeps SPX's `steps` count
