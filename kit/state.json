@@ -43,7 +43,8 @@
   "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15.",
   "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985).",
   "cf20": "cf12: fix #2138 (measure script double-counts a reused branch's runs) before cf20 re-reads phase-cf12-measure.mjs; corrected cf12 mean 6.36. Quarantine run red on posting commit status after passing specs: #2137. cf14: graphics extension cf14-catalog-gate-extension 2026-12-01 to 2026-12-14 (owner miwco), reduction plan #2165; report whether repaid; growth report counts copied re-run jobs (#2168).",
-  "cf18": "cf18 earliest 2026-11-19T01:09Z (latest selection reset = cf14 merge 86749ef1 at 2026-11-05T01:09:30Z); any later selection change restarts it."
+  "cf18": "cf18 earliest 2026-11-19T01:09Z (latest selection reset = cf14 merge 86749ef1 at 2026-11-05T01:09:30Z); any later selection change restarts it.",
+  "cf21": "Brief: change 4 (no /so for Ordinary rows) is owner-authorized (receipt owner-decision-2026-11-07-cf21.md), not a gate weakened under (d); (b),(c): cf21 lands the rules, records the before-side rows (review rounds per PR, share passing after one round, cf03 M1 from ready, reverts and post-landing failures) and the method; cf20 reads the after side. /so on #2282 noted placement after cf13 was a choice (ledger allows after cf13..cf19) justified by more after-rows."
  },
  "waitingOn": [],
  "inFlight": [
@@ -75,7 +76,24 @@
     "mergedAt": "2026-11-06T14:33:58Z",
     "trialEnds": "2026-11-20T14:34Z",
     "readBy": "2026-11-13",
-    "afterHold": "active until cap+cfg after side holds 10"
+    "afterHold": "active until cap+cfg after side holds 10",
+    "afterSide": "ended at 2026-11-06T18:50:12Z by #2258 (Bridge release, cli/package.json ends all sides); n before 12 (M1 16.03), after 3 (M1 11.1, M2 wait 0.68, M2 exec 11.67): unmeasured unless re-run; asked owner 2026-11-06T19:3xZ",
+    "rerun": "owner chose option 1 (2026-11-06): revert #2237, collect 10 cap+cfg before, re-land as third try with hold incl. package version bumps; hold notice https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6693962369; builder preparing revert",
+    "revert": {
+     "pr": 2260,
+     "mergeSha": "62eb1e4a3dec84163a27bf6b952b38a2f84d996d",
+     "mergedAt": "2026-11-06T20:17:01Z",
+     "note": "before side of the re-run starts here; builder opens re-land PR"
+    },
+    "rerunPR": {
+     "pr": 2261,
+     "head": "6ea388934b72c082ba7a481e502e549d76309cca",
+     "stamped": "2026-11-06T20:40Z",
+     "autoMerge": "held until cap+cfg before side >= 10 after 2026-11-06T20:17:01Z with no side-ending landing (count.sh / sideEnds rule)",
+     "readBy": "2026-11-13T20:18Z",
+     "revertBy": "2026-11-20T14:33Z",
+     "beforeRestart": "#2264 (Supabase Realtime pin, touches scripts/e2e-affected.mjs) landed 2026-11-06T22:13:57Z and ended every side; before side now counts from it: 6 cap+cfg at 2026-11-07T07:25Z (M1 median 15.4)"
+    }
    }
   }
  ],
@@ -209,6 +227,16 @@
    "by": "owner (coordinator session)",
    "what": "cf13 rank 1: 14-day backend-tier exception (not 30); keep only if merges measurably faster; account for daily landings on main",
    "record": "https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6679576372"
+  },
+  {
+   "at": "2026-11-06T19:4xZ",
+   "by": "owner (coordinator session)",
+   "what": "cf13 rank 1 re-run: revert, re-collect before side, re-land as the third try with a stricter hold (option 1 of 3)"
+  },
+  {
+   "at": "2026-11-07T19:1xZ",
+   "by": "owner (coordinator session)",
+   "what": "add phase cf21 Review stopping rules before cf20; receipt docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md (PR #2282); insert after cf13 (ledger admits only after the last phase with an event)"
   }
  ],
  "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
@@ -307,6 +335,19 @@
    "mergeSha": "09077bc202e0f95e4c0003f45cbe6570c944666c",
    "mergedAt": "2026-11-06T14:33:58Z",
    "what": "cf13 rank 1 trial: 8 configured stacks for PR selections (14 days)"
+  },
+  {
+   "pr": 2260,
+   "mergeSha": "62eb1e4a3dec84163a27bf6b952b38a2f84d996d",
+   "mergedAt": "2026-11-06T20:17:01Z",
+   "what": "cf13 rank 1 revert for re-run"
   }
- ]
+ ],
+ "pendingAdmission": {
+  "pr": 2282,
+  "receipt": "docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md",
+  "insertAfter": "cf13",
+  "review": "session_017SdbwNEZy1brgUyHTYuoyC",
+  "then": "run-supervisor admit with {receipts:[path], commit:<merge sha>, insert:[{after:'cf13', phases:[cf21 entry]}]} --authority block.json"
+ }
 }
