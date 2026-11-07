@@ -187,7 +187,8 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
     }
     let receipt;
     try { receipt = JSON.parse(detail); } catch { /* Legacy plain-text records retain their own validation. */ }
-    const pending = receipt?.launch ? planLaunchIntent(doc, project, phase, event, receipt, kitDir(doc.manifest.wave), now) : null;
+    const pending = receipt?.launch?.native?.provider === 'codex'
+      ? planLaunchIntent(doc, project, phase, event, receipt, kitDir(doc.manifest.wave), now) : null;
     const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
     if (result.refusal) throw Error(result.refusal);
     wrote();

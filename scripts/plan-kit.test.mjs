@@ -1,5 +1,5 @@
 // gate: build
-// guards: scripts/plan-kit.mjs, docs/plan-runs/templates/**, docs/plan-runs/known-traps.md
+// guards: scripts/plan-kit.mjs, docs/plan-runs/templates/**, docs/plan-runs/known-traps.md, .agents/skills/plan-run/references/templates/**
 // The run kit: briefs are rendered from state.json and the project, never hand-edited, and a value
 // left out is refused before a worker sees it; the heartbeat and the next check-in follow what the
 // run actually waits on.
@@ -159,16 +159,24 @@ test('explicit Codex kits use owned absolute worktrees and Codex briefs; legacy 
   const p = project();
   const { file } = openWave({ date: '2026-10-29', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
   initKit(file, { ...state(), execution: { harness: 'codex', mode: 'active' } });
+  p.status = 'active';
+  p.block = { id: 'codex-block', owner: 'coordinator', epoch: 1, startedAt: iso(NOW), deadline: iso(NOW + HOUR) };
+  writeFileSync(file, writeProject(readFileSync(file, 'utf8'), p));
   const worktree = path.join(dir, 'worker');
   for (const kind of ['build', 'check', 'repair', 'fix']) {
     const values = { SOURCE, MERGE, PARENT, PR: '1', CARRY: 'one failed criterion', TITLE: 'Fix the thing', WORKTREE: worktree };
-    const brief = renderBrief(file, kind, kind === 'fix' ? '123' : 'E1', values);
+    const brief = renderBrief(file, kind, kind === 'fix' ? '123' : 'E1', values, { now: NOW });
     assert.match(brief.branch, /^codex\//);
     assert.doesNotMatch(brief.text, /\.claude\/|claude\/check-|@[A-Z_]+@/);
     assert.ok(brief.text.includes(worktree));
     assert.match(brief.text, /Execution mode active/);
+    assert.ok(brief.text.includes(`Authorized window ends ${p.block.deadline}`));
+    assert.ok(!brief.text.includes(`Authorized window ends ${p.authorization.deadline}`));
+    assert.ok(brief.text.includes(TRAPS));
+    assert.ok(brief.text.includes('.agents/skills/plan-run/references/codex.md'));
   }
-  assert.throws(() => renderBrief(file, 'build', 'E1', { SOURCE, WORKTREE: 'relative' }), /absolute WORKTREE/);
+  assert.throws(() => renderBrief(file, 'build', 'E1', { SOURCE, WORKTREE: 'relative' }, { now: NOW }), /absolute WORKTREE/);
+  assert.throws(() => renderBrief(file, 'build', 'E1', { SOURCE, WORKTREE: worktree }, { now: NOW + HOUR }), /active bounded/);
   assert.throws(() => initKit(path.join(dir, 'bad.md'), { ...state(), execution: { mode: 'active' } }), /execution needs/);
   const legacy = fixture(t);
   assert.match(renderBrief(legacy.file, 'check', 'E1', { MERGE, PARENT, PR: '1' }).text, /claude\/check-/);

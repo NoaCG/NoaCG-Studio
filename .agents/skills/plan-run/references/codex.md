@@ -14,6 +14,9 @@ Claude's commands and default templates continue to use `.agent-workflows/plan-r
   `.agent-workflows/verify.md` with their current checks, budgets, retry rules and one PR repair owner.
 - The wave ledger is execution authority; work.json is acceptance evidence; kit/heartbeat are context/views.
   Never rewrite an old failure as green, weaken tests to pass a gate, or create another ledger.
+- Read `docs/plan-runs/known-traps.md` for shared worker/review/landing gates, including Narrow delta.
+  Its dated Claude worktree/browser workaround applies only to that image; Codex uses its qualified
+  absolute paths and Cloud runtime browser/package guidance. Other shared traps remain binding.
 
 ## Enter and reconcile
 

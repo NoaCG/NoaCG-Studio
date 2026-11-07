@@ -5,7 +5,7 @@ GOAL    The phase lands on main through the merge queue, meeting exactly its acc
 @ACCEPTANCE@
         Required environment: @PHASE_ENV@. @GOAL@
 SPEC    @SPEC@. Build only this phase's authorized acceptance; never broaden scope.
-READ    AGENTS.md; docs/GOALS.md; @SPEC@ with its phase notes; @READ@ @PLAN_READ@ .agent-workflows/verify.md, queue-merge.md (cloud path), cloud-delegate.md "Execute and return"; and the Codex execution procedure @TRAPS@ in full: the traps and rules every worker in this run follows.
+READ    AGENTS.md; docs/GOALS.md; @SPEC@ with its phase notes; @READ@ @PLAN_READ@ .agent-workflows/verify.md, queue-merge.md (cloud path), cloud-delegate.md "Execute and return"; and @TRAPS@ in full: the traps and rules every worker in this run follows.
 TOUCHES @TOUCHES@
 CARRY   @CARRY@
 NOTES   @NOTES@
@@ -22,3 +22,4 @@ RECEIPT Start by replying nothing; end with one receipt block and @RETURN@: nonc
 Source: https://github.com/NoaCG/NoaCG-Studio at @SOURCE@ (fetch first, then pin this exact SHA). Environment @ENVIRONMENT@. Authorized window ends @DEADLINE@.
 
 Execution mode @MODE@. Owned absolute worktree @WORKTREE@. Preserve the current authority; only the coordinator records phase events.
+Read the Codex execution procedure .agents/skills/plan-run/references/codex.md as well; preserve the shared review/landing gates and apply only its qualified Codex path/browser adjustments.

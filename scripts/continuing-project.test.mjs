@@ -1,5 +1,5 @@
 // gate: build
-// guards: scripts/project-authorization.mjs, scripts/project-control.mjs, scripts/plan-run.mjs, scripts/wave-plan-store.mjs, scripts/run-supervisor.mjs, scripts/run-recovery.mjs, scripts/plan-run-preflight.mjs, scripts/run-wake.mjs
+// guards: scripts/plan-launch.mjs, scripts/project-authorization.mjs, scripts/project-control.mjs, scripts/plan-run.mjs, scripts/wave-plan-store.mjs, scripts/run-supervisor.mjs, scripts/run-recovery.mjs, scripts/plan-run-preflight.mjs, scripts/run-wake.mjs
 // measures: none - deterministic control protocol, no provider qualification
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -427,6 +427,14 @@ function codexLaunch(f, sourceSha = 'a'.repeat(40)) {
     native: { provider: 'codex', sessionId: 'coordinator-1', environmentId: 'fixture-cloud', policySha256: 'f'.repeat(64) } } };
 }
 const observationFor = (launch, nativeId = 'native-worker') => ({ ...launch, state: 'accepted', nativeId, evidence: 'native exact-id readback' });
+
+test('legacy actor receipts keep their opaque non-Codex launch metadata', (t) => {
+  const f = fixture(t); f.start();
+  f.record(1, 'build', { actor: 'claude-builder', launch: { native: { provider: 'claude' }, session: 'existing-session' } });
+  assert.equal(JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pending, null);
+  f.record(1, 'landed', MERGE);
+  assert.equal(nextStep(f.text(), NOW).step, 'check');
+});
 
 test('Codex intent blocks duplicate admission until exact native acceptance and preserves checker independence', async (t) => {
   const f = fixture(t); f.start();

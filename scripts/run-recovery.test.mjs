@@ -1,5 +1,5 @@
 // gate: build
-// guards: scripts/run-recovery.mjs, scripts/run-supervisor.mjs, scripts/project-control.mjs
+// guards: scripts/plan-launch.mjs, scripts/run-recovery.mjs, scripts/run-supervisor.mjs, scripts/project-control.mjs
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
