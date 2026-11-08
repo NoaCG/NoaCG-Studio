@@ -29,8 +29,11 @@
       "step": "build",
       "session": "/root/phase1_builder",
       "phase": "p1",
-      "launchedAt": "2026-11-08T10:24:38.3630983+00:00",
-      "nonce": "p1-b-b1e9"
+      "launchedAt": "2026-11-08T12:24:38.3630983+02:00",
+      "nonce": "p1-b-b1e9",
+      "pr": 2287,
+      "head": "6d5f0dac4396459e9f239ca6f3a39421c5c1ecbc",
+      "repairComment": 6720469771
     }
   ],
   "owner": [],
