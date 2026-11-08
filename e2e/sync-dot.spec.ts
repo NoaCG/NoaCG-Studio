@@ -587,6 +587,15 @@ test('personal recovery stays with the session that encountered the failure', as
   state.silentWrites = false;
   expect(await setSession(session)).toBeNull();
   await expect(notice).toHaveCount(0);
+  await expect.poll(() => page.evaluate(async () => (await import('/src/model/durableStore.ts')).canAuthorAccount())).toBe(true);
+  await expect(chip(page)).not.toHaveText('Synced');
+  expect(cueLabel(state.rows.get(id)?.body)).not.toBe('Saved after resuming the session');
+  await chip(page).click();
+  const resumeSync = page.getByTestId('sync-action');
+  await expect(resumeSync, 'the restored session can retry without signing in again').toHaveText('Sync now');
+  await expect(resumeSync).toBeEnabled();
+  await resumeSync.click();
+  await expect(page.getByRole('dialog', { name: 'Sign in' })).toHaveCount(0);
   await page.clock.fastForward(A_MINUTE * 2);
   await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
   expect([...state.rows.values()].some(row => cueLabel(row.body) === 'Saved after resuming the session')).toBe(true);
@@ -601,13 +610,21 @@ test('personal recovery stays with the session that encountered the failure', as
   await expect.poll(() => state.held).toBeGreaterThan(heldBeforeSwitch);
   await page.clock.fastForward(A_MINUTE * 2);
   await expect(notice).toContainText('Not saved to cloud');
+  await chip(page).click();
+  await expect(page.getByTestId('sync-action')).toHaveText('Sync now');
   const nextOwner = '00000000-0000-4000-8000-000000000002';
   state.authUser = { ...user, id: nextOwner };
   const [header, payload] = session.access_token.split('.');
   const nextPayload = { ...JSON.parse(Buffer.from(payload, 'base64url').toString()), sub: nextOwner };
   const nextToken = header + '.' + Buffer.from(JSON.stringify(nextPayload)).toString('base64url') + '.test';
 
-  type PausedLibrary = { loadedOwner: string | null; retryVisible: boolean };
+  type PausedLibrary = {
+    loadedOwner: string | null;
+    retryVisible: boolean;
+    signInVisible: boolean;
+    chipAction: string | null;
+    chipDisabled: boolean | null;
+  };
   const oldLibraryPauses: PausedLibrary[] = [];
   await page.exposeFunction('recordPriorLibraryPause', (pause: PausedLibrary) => { oldLibraryPauses.push(pause); });
   await page.evaluate(async () => {
@@ -619,7 +636,14 @@ test('personal recovery stays with the session that encountered the failure', as
       const banner = document.querySelector('[data-testid=account-save-notice]');
       if (!banner?.textContent?.includes('Account editing paused')) return;
       observer.disconnect();
-      void report?.({ loadedOwner: libraryInUse(), retryVisible: banner.textContent.includes('Retry cloud save') });
+      const chipAction = document.querySelector<HTMLButtonElement>('[data-testid=sync-action]');
+      void report?.({
+        loadedOwner: libraryInUse(),
+        retryVisible: banner.textContent.includes('Retry cloud save'),
+        signInVisible: Array.from(banner.querySelectorAll('button')).some(button => button.textContent === 'Sign in' && !button.disabled),
+        chipAction: chipAction?.textContent ?? null,
+        chipDisabled: chipAction?.disabled ?? null,
+      });
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   });
@@ -634,5 +658,11 @@ test('personal recovery stays with the session that encountered the failure', as
     }, 0);
   }, { ...session, access_token: nextToken });
   await reloading;
-  await expect.poll(() => oldLibraryPauses).toEqual([{ loadedOwner: owner, retryVisible: false }]);
+  await expect.poll(() => oldLibraryPauses).toEqual([{
+    loadedOwner: owner,
+    retryVisible: false,
+    signInVisible: true,
+    chipAction: 'Sync now',
+    chipDisabled: true,
+  }]);
 });
