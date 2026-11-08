@@ -72,10 +72,26 @@
       "branch": "codex/plan-editor-r1-5-e1-build",
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
-      "session": "/root/editor_r15_e1_builder"
+      "nativeId": "/root/editor_r15_e1_builder",
+      "note": "Windows authoring baseline in progress"
     }
   ],
   "owner": [],
   "fixes": [],
-  "triggers": []
+  "triggers": [],
+  "prerequisites": {
+    "gsap": {
+      "runtimeSHA256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+      "cli": "@noacg/cli 0.12.4, npm integrity matched, 63 files inspected, no embedded GSAP runtime. The CLI uses Studio browser bridge to generate packages that include the runtime.",
+      "license": "https://gsap.com/community/standard-license/ (effective 2025-04-30, modified 2025-05-30)",
+      "upstream": "https://github.com/greensock/GSAP/blob/3.15.0/dist/gsap.min.js",
+      "artifact": "GSAP 3.15.0 standard browser build, no separately shipped plugins. NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics.",
+      "ownerReport": "https://github.com/NoaCG/NoaCG-Studio/issues/1951#issuecomment-6589066068",
+      "emitted": "SPX, combined NoaCG and SPX production packages use js/gsap.min.js; OGraf and LiveOS use lib/gsap.min.js; CasparCG, HTML Overlay, H2R and HyperFrames standalone HTML inline the runtime. Per-target paths read in pinned source; fresh output verification stays in the applicable phases.",
+      "status": "Ready for owner to send. Vendor reply and clean-bundle audit required at OW1. E1-E6 and workflow preparation proceed.",
+      "contact": "https://gsap.com/community/contact/",
+      "browserSHA256": "ba935b09e3d88f5088b3768486fb3c83d96a1f0e6b2373487bc083f18d1e9f44",
+      "browser": "Deployed 361cb6f628df0a44d410954aae527cde976d1750; assets/gsap.min-CIpO8SLO.js contains the exact 72927-byte runtime and original notice."
+    }
+  }
 }
