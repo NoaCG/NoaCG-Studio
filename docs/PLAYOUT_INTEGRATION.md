@@ -277,6 +277,10 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
 4. Take and update graphics from the rundown. **Unload** takes the production's Browser input
    off the overlay with the channel's transition. Direct the show from vMix as usual.
 
+Bridge gives its Browser input a local address that points to the production. If you save it
+in a vMix preset, start Bridge on the same port before opening the preset. If Bridge starts late,
+reload the Browser input from vMix.
+
 ### Add a Browser input by hand
 
 1. **Add Input → More → Web Browser**.

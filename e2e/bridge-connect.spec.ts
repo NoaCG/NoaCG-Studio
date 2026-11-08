@@ -1561,7 +1561,23 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   await expect(page.getByTestId('cue-caspar-off')).toHaveAttribute('title', 'This cue plays on CasparCG. This production uses vMix.');
   const row = panel.getByTestId('vmix-output');
   await expect(row).toContainText('Output on Overlay 3');
-  await row.getByRole('button', { name: 'Load' }).click();
+  const postLoadReading = Promise.withResolvers<void>();
+  const releaseReading = Promise.withResolvers<void>();
+  await page.route(BRIDGE + '/state', async route => {
+    if (vmix.actions.length === 1 && route.request().postDataJSON()?.target?.adapter === 'vmix') {
+      postLoadReading.resolve();
+      await releaseReading.promise;
+    }
+    await route.fallback();
+  });
+  try {
+    await row.getByRole('button', { name: 'Load' }).click();
+    await postLoadReading.promise;
+    await expect(panel.getByTestId('vmix-load')).toHaveCount(0);
+    expect(vmix.actions).toHaveLength(1);
+  } finally {
+    releaseReading.resolve();
+  }
   await expect(row).toContainText('On air');
   const load = {
     target: { adapter: 'vmix' },

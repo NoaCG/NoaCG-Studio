@@ -49,6 +49,8 @@ export type AdapterResult<T> = { ok: true; value: T; raw: string } | { ok: false
 export interface ActContext {
   /** What this Bridge queued behind the clip with AUTO that has not aired yet. */
   follower?: Follower;
+  /** The actual loopback HTTP listener port for a new vMix Browser address. */
+  vmixBridgePort?: number;
 }
 
 /** What an action left behind the clip: the file now queued with AUTO, `null` for nothing, and

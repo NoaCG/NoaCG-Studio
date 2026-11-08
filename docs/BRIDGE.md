@@ -269,6 +269,10 @@ replacing another input and shows **On air** when vMix reports this production o
 **Unload** takes the production's input off with the overlay transition. Program and Preview stay
 under the vMix operator's control. A Bridge that needs updating offers **Update** in the panel.
 
+If you save a vMix preset with the NoaCG Browser input, start Bridge on the same computer
+and port before opening the preset. If Bridge starts late, reload that Browser input in vMix.
+Starting Bridge leaves every input and overlay as it is.
+
 ## 3. The Bridge (`noacg bridge`, `cli/src/playout/`)
 
 It lives in the existing `noacg` CLI rather than as a second local process, for the reason
@@ -530,11 +534,15 @@ between `/health` and `/act`.
 
 One Bridge instance per Windows user keeps its vMix Browser keys in
 `%APPDATA%\noacg\vmix-outputs.json`, beside the token and the CasparCG setup. Each key is
-kept by vMix port and a digest of the output URL without its display name. After a lost or
-ambiguous AddInput reply, the Bridge leaves every unowned Browser alone and pauses further
-additions to that vMix. Restart vMix between broadcasts. With Bridge closed, remove only
-the `pending` property of that port's entry
-under `ports` in `vmix-outputs.json`, leaving `keys` intact, then start Bridge again.
+kept by vMix port and a digest of the output URL without its display name. A new input
+uses a unique local Bridge address. The Bridge confirms its exact marker in vMix before it
+keeps the input key, names the input, or puts it on air. The local address redirects to the
+original output page and is saved with the vMix preset. The store keeps a digest of that
+address's destination. Keep the Bridge's data folder and use the same port when reopening
+presets.
+
+If vMix did not confirm the addition, the Bridge leaves the overlay alone. Check vMix for an
+unused Browser input before pressing Load again. A new Load uses a fresh local address.
 
 ### 3b. The CasparCG adapter, one line per verb
 

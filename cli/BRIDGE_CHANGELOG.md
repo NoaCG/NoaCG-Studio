@@ -25,7 +25,8 @@ vMix is connected and lets you choose the overlay. NoaCG uses the highest availa
 
 NoaCG Bridge remembers the input it made for each production, even if you rename the production.
 If another input is already on the overlay, NoaCG asks before replacing it. The vMix operator still
-controls Program and Preview.
+controls Program and Preview. If you save the Browser input in a vMix preset, start Bridge
+on the same port before opening it. If you start Bridge late, reload that Browser input in vMix.
 
 Download and start this Bridge between broadcasts. The vMix connection first shipped in
 [Bridge 0.10.0](https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.10.0).

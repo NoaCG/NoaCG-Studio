@@ -53,6 +53,20 @@ test('vMix replacement requires the exact confirmed overlay and input before dis
   }]);
 });
 
+test('a fresh reading of the owned live output makes Load a no-op', async (t) => {
+  const paths = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/health') return Response.json(health);
+    if (path === '/status') return Response.json(status);
+    if (path === '/state') return Response.json({ ok: true, overlays: [{ overlay: 3, ownsOutput: true }] });
+    assert.fail('unexpected mutation ' + path);
+  });
+  assert.deepEqual(await changeVmixOutput('take', () => choice), {});
+  assert.deepEqual(paths, ['/health', '/status', '/state']);
+});
+
 test('switching adapters during the final health probe sends no vMix action', { timeout: 3000 }, async (t) => {
   const dispatchProbe = Promise.withResolvers();
   const releaseProbe = Promise.withResolvers();

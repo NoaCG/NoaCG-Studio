@@ -11,12 +11,12 @@
 
 import type { AgentError, ItemRef, PlayoutAction, VmixInfo, VmixInput, VmixOverlayState, VmixSlot, VmixTarget } from '../protocol.js';
 import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, vmixOverlayCount, type VmixXml } from '../vmixTcp.js';
-import { VMIX_INPUT_KEY, vmixOutputId, vmixOutputStore, type VmixOutputStore } from '../vmixOutputs.js';
+import { newVmixBrowser, VMIX_INPUT_KEY, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
 import type { ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
 /** The time ONE verb may take, all its commands together, inside the page's 9 s for `/act`. */
 const VMIX_TIMEOUT_MS = 7_000;
-/** Observe the full window before claiming a new input. Reserve time to finish in the same verb. */
+/** Wait this long for the exact Browser marker. Reserve time to finish in the same verb. */
 const ADDED_WAIT_MS = 3_000;
 const ADDED_POLL_MS = 150;
 const ADDED_FINISH_MS = 600;
@@ -43,6 +43,7 @@ export interface VmixAdapter extends PlayoutAdapter<VmixTarget> {
   readonly port: number;
   status(target: VmixTarget): Promise<AdapterResult<{ version: string; vmix: VmixInfo }>>;
   overlays(target: VmixTarget, outputUrl?: string): Promise<AdapterResult<VmixOverlayState[]>>;
+  outputRedirect(host: string | undefined, path: string | undefined, port: number): Promise<string | undefined>;
   /** Close every connection, for a Bridge that stops. */
   close(): void;
 }
@@ -79,12 +80,19 @@ function onChannel(xml: VmixXml, overlay: number): VmixInput | undefined {
 
 /** An absent reference is empty. A number that cannot be resolved to a key is unknown. */
 function channelKey(xml: VmixXml, overlay: number): string | null | undefined {
+  if (!xml.reportedOverlays.has(overlay)) return undefined;
   return xml.overlays.has(overlay) ? onChannel(xml, overlay)?.key : null;
+}
+
+function unreadChannel(xml: VmixXml, count: number): number | undefined {
+  for (let channel = 1; channel <= count; channel += 1) {
+    if (channelKey(xml, channel) === undefined) return channel;
+  }
 }
 
 function ownBrowser(xml: VmixXml, key: string | undefined): VmixInput | undefined {
   return key && VMIX_INPUT_KEY.test(key)
-    ? xml.inputs.find(input => input.key === key && input.type === VMIX_BROWSER_TYPE)
+    ? xml.inputs.find(input => input.key === key.toLowerCase() && input.type === VMIX_BROWSER_TYPE)
     : undefined;
 }
 
@@ -107,8 +115,10 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
   const outputs = options.outputs ?? vmixOutputStore();
   const connections = new Map<number, VmixConnection>();
   const portOf = (target: VmixTarget) => target.port ?? defaultPort;
-  /** One action at a time per vMix: Put on air knows the input it added only as the one new key
-   *  between two readings, which another action's AddInput must not fall between. */
+  // A Browser can navigate while AddInput is still being confirmed. Only committed aliases
+  // survive a Bridge restart.
+  const adding = new Map<string, string>();
+  /** One action at a time per vMix keeps key ownership and the overlay readback consistent. */
   const turns = new Map<number, Promise<unknown>>();
   const exclusive = <T>(port: number, run: () => Promise<T>): Promise<T> => {
     const next = (turns.get(port) ?? Promise.resolve()).then(run, run);
@@ -206,7 +216,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       const value: VmixOverlayState[] = [];
       for (let overlay = 1; overlay <= count; overlay += 1) {
         const input = onChannel(s.xml, overlay);
-        if (!input && s.xml.overlays.has(overlay)) return refused('vMix did not identify the input on overlay ' + overlay + '.');
+        if (channelKey(s.xml, overlay) === undefined) return refused('vMix did not identify the input on overlay ' + overlay + '.');
         value.push({ overlay, ...(input ? { input } : {}), ...(id ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
       }
       return { ok: true, value, raw: s.raw };
@@ -220,7 +230,14 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       return unsupported('a thumbnail');
     },
 
-    async act(target, action: PlayoutAction) {
+    async outputRedirect(host, path, port) {
+      const request = vmixRedirectRequest(host, path, port);
+      if (!request) return;
+      const digest = adding.get(request.alias) ?? await outputs.redirect(request.alias);
+      if (digest === request.digest) return request.output;
+    },
+
+    async act(target, action: PlayoutAction, context) {
       // Everything vMix cannot do from here is refused before anything is sent: the cues play inside
       // the output, so the only things the Bridge puts on a channel are that page and nothing else.
       if (action.verb !== 'take' && action.verb !== 'out' && action.verb !== 'clear') return unsupported(`a ${action.verb}`);
@@ -232,12 +249,12 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       const title = titleOf(item);
       if (!title) return usage(`${action.verb === 'take' ? 'Put on air' : 'Taking the output off'} names the production: the item's label is its title, which names the vMix input.`);
       const name = outputInputName(title);
-      const address = item?.name ?? '';
-      const id = vmixOutputId(address);
-      if (!id) return usage("vMix needs the NoaCG output's http or https address.");
+      const address = vmixOutputAddress(item?.name ?? '')?.href;
+      const id = address && vmixOutputId(address);
+      if (!address || !id) return usage("vMix needs the NoaCG output's http or https address.");
 
       const until = Date.now() + timeoutMs;
-      return exclusive(portOf(target), () => perform(target, action, slot, name, id, address, until));
+      return exclusive(portOf(target), () => perform(target, action, slot, name, id, address, until, context?.vmixBridgePort));
     },
 
     close() {
@@ -259,34 +276,31 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
     }
   }
 
-  /** A generic OK does not identify a Browser. Keep every new Browser seen, including one that
-   *  disappears. A later AddInput may not use any candidate of an unresolved turn. */
+  /** Observe only this attempt's exact default title over the existing observation interval. */
   async function observeAdded(
     conn: VmixConnection, until: number, known: ReadonlySet<string>, expectedTitle: string,
   ): Promise<{ xml: VmixXml; input: VmixInput } | undefined> {
-    const stop = Date.now() + ADDED_WAIT_MS;
-    const readBy = until - ADDED_FINISH_MS;
-    if (stop >= readBy) return;
-    const seen = new Set<string>();
+    const readBy = Math.min(Date.now() + ADDED_WAIT_MS, until - ADDED_FINISH_MS);
+    let observedKey: string | undefined;
     for (;;) {
-      const finalRead = Date.now() >= stop;
+      const finalRead = Date.now() + ADDED_POLL_MS >= readBy;
       const reply = await read(conn, readBy);
-      if (!reply.ok) return;
-      const current = reply.value.inputs.filter(input => input.type === VMIX_BROWSER_TYPE && !known.has(input.key));
-      for (const input of current) seen.add(input.key);
-      if (seen.size > 1) return;
-      if (finalRead) {
-        const input = current[0];
-        if (input?.title === expectedTitle && VMIX_INPUT_KEY.test(input.key)) return { xml: reply.value, input };
-        return;
+      if (!reply.ok || Date.now() > readBy) return;
+      const matches = reply.value.inputs.filter(input => input.type === VMIX_BROWSER_TYPE && input.title === expectedTitle);
+      if (matches.length > 1) return;
+      const [input] = matches;
+      if (input) {
+        if (!VMIX_INPUT_KEY.test(input.key) || known.has(input.key) || (observedKey && observedKey !== input.key)) return;
+        observedKey = input.key;
       }
-      await new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ADDED_POLL_MS, stop - Date.now()))));
+      if (finalRead) return input && { xml: reply.value, input };
+      await new Promise(resolve => setTimeout(resolve, ADDED_POLL_MS));
     }
   }
 
   async function perform(
     target: VmixTarget, action: Extract<PlayoutAction, { verb: 'take' | 'out' | 'clear' }>,
-    slot: VmixSlot, name: string, id: string, address: string, until: number,
+    slot: VmixSlot, name: string, id: string, address: string, until: number, bridgePort: number | undefined,
   ): Promise<ActResult> {
     const port = portOf(target);
     const s = await begin(target, until);
@@ -297,6 +311,10 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
     if (overlay > count) return usage('This vMix offers overlay channels 1 to ' + count + '; there is no channel ' + overlay + '.');
     const original = channelKey(before, overlay);
     if (original === undefined) return refused('vMix did not identify the input on overlay ' + overlay + '.');
+    if (action.verb === 'take') {
+      const unread = unreadChannel(before, count);
+      if (unread !== undefined) return refused('vMix did not identify the input on overlay ' + unread + '.');
+    }
     const changed = () => refused('The input on vMix overlay ' + overlay + ' changed. Check it and try again.');
     if (action.verb === 'take' && action.expectedOverlayInput !== undefined && original !== action.expectedOverlayInput) return changed();
 
@@ -352,43 +370,30 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
     if (existingOverlay !== undefined) return alreadyOn(existingOverlay);
     let namingState = before;
     if (!output) {
-      if (kept.pending) {
-        return uncertain('The Bridge could not identify a previous vMix Browser addition. Check vMix and follow the Bridge guide before adding another output.');
+      if (!bridgePort) return refused('Start NoaCG Bridge before adding a vMix Browser input.');
+      if (Date.now() + ADDED_WAIT_MS + ADDED_FINISH_MS >= until) {
+        return refused('There was not enough time to add a new vMix Browser input. Try Load again.');
       }
-      const tooLate = () => Date.now() + ADDED_WAIT_MS + ADDED_FINISH_MS >= until;
-      const noTime = () => refused('There was not enough time to add a new vMix Browser input. Try Load again.');
-      if (tooLate()) return noTime();
+      const browser = newVmixBrowser(address, bridgePort);
+      const { alias, digest } = browser.binding;
+      adding.set(alias, digest);
       try {
-        await outputs.save(port, { ...kept, pending: true });
-        if (tooLate()) {
-          await outputs.save(port, { keys: kept.keys });
-          return noTime();
+        const added = await fn(conn, 'AddInput', { Value: 'Browser|' + browser.address }, until);
+        if (!added.ok) return added;
+        const known = new Set([...before.inputs.map(input => input.key), ...Object.values(kept.keys).map(key => key.toLowerCase())]);
+        const found = await observeAdded(conn, until, known, 'Browser ' + alias);
+        if (!found) {
+          return uncertain('vMix accepted adding a Browser, but the Bridge could not identify one new output input. Nothing was put on air. Look at vMix.');
         }
-      } catch {
-        return storageFailed();
-      }
-      const added = await fn(conn, 'AddInput', { Value: 'Browser|' + address }, until);
-      if (!added.ok) {
-        if (added.error.code !== 'uncertain') {
-          try {
-            await outputs.save(port, { keys: kept.keys });
-          } catch {
-            return storageFailed();
-          }
+        output = found.input;
+        namingState = found.xml;
+        try {
+          await outputs.save(port, { keys: { ...kept.keys, [id]: output.key } }, browser.binding);
+        } catch {
+          return uncertain('vMix added a Browser input, but the Bridge could not keep its key. Nothing was put on air. Look at vMix.');
         }
-        return added;
-      }
-      const known = new Set([...before.inputs.map(input => input.key), ...Object.values(kept.keys)]);
-      const found = await observeAdded(conn, until, known, 'Browser ' + new URL(address).hostname);
-      if (!found) {
-        return uncertain('vMix accepted adding a Browser, but the Bridge could not identify one new output input. Nothing was put on air. Look at vMix.');
-      }
-      output = found.input;
-      namingState = found.xml;
-      try {
-        await outputs.save(port, { keys: { ...kept.keys, [id]: output.key } });
-      } catch {
-        return uncertain('vMix added a Browser input, but the Bridge could not keep its key. Nothing was put on air. Look at vMix.');
+      } finally {
+        adding.delete(alias);
       }
     }
 
@@ -399,6 +404,11 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
     }
     const fresh = await read(conn, until);
     if (!fresh.ok) return fresh;
+    if (vmixOverlayCount(fresh.value.version, fresh.value.edition) !== count) {
+      return refused('The vMix overlay count changed. Check it and try again.');
+    }
+    const unread = unreadChannel(fresh.value, count);
+    if (unread !== undefined) return refused('vMix did not identify the input on overlay ' + unread + '.');
     if (channelKey(fresh.value, overlay) !== original) return changed();
     const confirmed = ownBrowser(fresh.value, output.key);
     if (confirmed?.title !== title) {
@@ -406,6 +416,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
     }
     const moved = otherOverlay(fresh.value, confirmed, overlay);
     if (moved !== undefined) return alreadyOn(moved);
+    if (original === output.key) return { ok: true, value: {}, raw: 'already on: overlay ' + overlay + ' holds the output' };
     const shown = await fn(conn, 'OverlayInput' + overlay + 'In', { Input: output.key }, until);
     if (!shown.ok) return shown;
     const after = await read(conn, until);

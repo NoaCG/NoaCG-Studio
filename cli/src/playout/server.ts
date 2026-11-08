@@ -435,6 +435,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
 /** Build the Bridge's HTTP server. Exported so a test can drive it on port 0. */
 export function createBridgeServer(options: BridgeOptions, log: (line: string) => void): Server {
   const byId = new Map(options.adapters.map((a) => [a.id, a]));
+  const vmix = options.adapters.find((a): a is VmixAdapter => a.id === 'vmix');
   const memory = options.memory ?? new SlotMemoryBank();
   const servers = options.servers ?? fileServerMemory();
   const pairings = options.pairings ?? new PairingCodes();
@@ -475,7 +476,19 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
       send(status, { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code, detail } satisfies AgentError }, cors);
 
     if (!hostHeaderOk(req.headers.host)) {
-      refuse(403, 'refused', 'This Bridge answers on 127.0.0.1 only.', false);
+      const denied = () => refuse(403, 'refused', 'This Bridge answers on 127.0.0.1 only.', false);
+      const { localPort, remoteAddress } = req.socket;
+      // A saved vMix Browser may navigate through one exact local URL. Its Host never
+      // enters the normal routes or the CORS path.
+      if (vmix && req.method === 'GET' && !origin && localPort && remoteAddress && isLoopbackHost(remoteAddress)) {
+        void vmix.outputRedirect(req.headers.host, req.url, localPort).then(destination => {
+          if (!destination) return denied();
+          res.writeHead(302, { Location: destination, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+          res.end();
+        }, denied);
+      } else {
+        denied();
+      }
       return;
     }
 
@@ -755,7 +768,10 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             // answer leaves on the slot is recorded before the next command's turn.
             r = await memory.serial(target, slot, async () => {
               const refused = notOurs();
-              const done: ActResult = refused ? { ok: false, error: refused } : await adapter.act(target, action, { follower: memory.follower(target, slot) });
+              const done: ActResult = refused ? { ok: false, error: refused } : await adapter.act(target, action, {
+                follower: memory.follower(target, slot),
+                vmixBridgePort: req.socket.localPort,
+              });
               instance = memory.acted(target, slot, action, done);
               return done;
             });

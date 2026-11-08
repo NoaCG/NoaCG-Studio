@@ -94,7 +94,8 @@ export async function changeVmixOutput(
   if (confirmed && (confirmed.overlay !== overlay.overlay || confirmed.input.key !== input?.key)) {
     return { message: 'The input on the vMix overlay changed. Check it and press Load again.' };
   }
-  if (verb === 'take' && input && !overlay.ownsOutput && !confirmed) return { replace: { choice, overlay: overlay.overlay, input } };
+  if (verb === 'take' && overlay.ownsOutput) return {};
+  if (verb === 'take' && input && !confirmed) return { replace: { choice, overlay: overlay.overlay, input } };
   const result = await actVmix(choice.settings, () => {
     const latest = current();
     if (!sameChoice(choice, latest)) return null;

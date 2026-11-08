@@ -101,7 +101,7 @@ export async function startFakeVmix(options = {}) {
         lines.push(line);
         if (options.hook?.(line, sock)) continue;
         if (line === 'XML') {
-          const body = xml();
+          const body = options.transformXml ? options.transformXml(xml()) : xml();
           sock.write(`XML ${Buffer.byteLength(body, 'utf8')}\r\n${body}`);
         } else if (line === 'SUBSCRIBE ACTS') {
           subscribers.add(sock);

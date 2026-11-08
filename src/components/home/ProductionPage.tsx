@@ -3792,6 +3792,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               }}
             >
               <VmixRows
+                key={String(vmixOn && !slotBusy)}
                 on={vmixOn}
                 settings={playoutSettings}
                 url={outputUrl}
