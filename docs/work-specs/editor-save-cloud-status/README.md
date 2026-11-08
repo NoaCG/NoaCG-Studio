@@ -167,3 +167,19 @@ exercise the real team controller.
 
 For an owned rollback branch, revert the two product and test commits in
 order with `git revert c77036773e787caafb0488c93b297b635c2e8852 9b18169feeb4ebf536496ffada01d433fe8a6b5f`.
+
+## Restored session rule found in review
+
+On `eb13eb67c3945783ab4de32b801483bd39873811`, a still-unanswered old pass
+held up the new pass after the same account signed in again. The authoring
+gate reopened and the paused notice cleared. The sync details continued to
+offer Sign in until the old pass finished. A browser probe reproduced that
+action with the candidate product source unchanged.
+
+The loaded account's authoring gate determines whether Sign in can help.
+After the gate reopens, an old offline sync state means confirmation is still
+pending for the current session. The chip shows that pending confirmation,
+uses the existing age and offline detail, and offers Sync now. Synced still
+requires the controller's confirmation. Account and team data, retry timing,
+revision ownership and the deliberate sign-out behavior keep their existing
+rules.
