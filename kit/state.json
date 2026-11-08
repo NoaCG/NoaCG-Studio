@@ -64,7 +64,17 @@
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
   "waitingOn": [],
-  "inFlight": [],
+  "inFlight": [
+    {
+      "sourceSha": "361cb6f628df0a44d410954aae527cde976d1750",
+      "worktree": "C:/claude/Temp/editor-r15-e1-build-1108",
+      "step": "build",
+      "branch": "codex/plan-editor-r1-5-e1-build",
+      "phase": "E1",
+      "actionId": "plan-editor-r1-5-2026-11-08:1",
+      "session": "/root/editor_r15_e1_builder"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
