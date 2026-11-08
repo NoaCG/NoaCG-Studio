@@ -29,11 +29,14 @@ authoring tab on one device per account remains the acceptance boundary.
 | Windows queue j-4996, BebasNeue-Regular reproduction | FAIL at the expected assertion on the baseline product | Rendered imported SVG alias resolved to BebasNeue-Regular, but the Weight menu offered Regular, Medium, Semibold, Bold and Extra bold for one drawable weight |
 | Windows queue j-4997, `e2e/editor-typography.spec.ts` | 8 PASS, 0 retries/skips | On the alias correction, static font shows Regular even when the old source requests 700, source/history stay unchanged, and the maintained catalog, imported SVG, fit, save/reopen checks pass |
 | Windows queue j-4998, fidelity trim, groups, key ease and layer/property qualification | 62 PASS, 0 retries/skips | On the alias correction, ordinary Illustrator and catalog fixtures edit/group/undo/cancel/animate/save/reopen and execute browser-hosted SPX, CasparCG and OGraf outputs. Headless local persistence and browser-hosted output have this bounded scope. |
-| j-4999 and j-5000 native attempts | Unverified, no visible owned target | Offline profiles, browser startup from scheduler. j-5000 process started in the desktop session but the window remained hidden. The job was cancelled. |
+| j-4999 and j-5000 native attempts | Unverified, no visible owned target | j-4999 exited 0 during browser startup without an observed window. j-5000 started installed Chrome in the desktop session but kept the window hidden. j-5000 was cancelled. |
 | j-5001 native attempt | Unverified, app approval timed out after 300 s | Installed Chrome in a fresh profile gave a unique native NoaCG window when launched visibly. No native actions were sent before cancellation. |
+| j-5002 native retry | Cancelled before start | The coordinator qualified an alternate native controller. The fresh queued browser did not reach the existing 3.5 GB scheduler floor. No zoom, picker, drop, native save/reopen or native download was observed. |
+| j-5003 close flags and key clipboard probes | Cancelled before start | Two focused browser probes were ready. The same scheduler floor held them. No current rendered failure or fix is claimed. |
+| Targeted lint, TypeScript and affected gates | PASS | ESLint on the font alias fix/regression, TypeScript app check, 7 cheap gates and 128 Node tests across 8 affected files. No production build or full suite run locally. |
 | Isolated Windows backend/account | Unavailable at worker intake | No Docker/Podman executable or running local stack identified; October's disposable branch was cleaned up. The Windows browser fixtures use offline local storage. A fresh admitted isolated backend and account receipt is still required for W. |
 
-The #1749 edit resolves a computed CSS family's template-local alias only when
+Commit `f589ae0f6` resolves a computed CSS family's template-local alias only when
 the matching font-face declarations consistently point to one bundled face.
 It reads the supported weights from the existing font registry and retains the
 saved CSS and requested weight. No weight option should promise a different
@@ -87,3 +90,41 @@ of the loop phase.
 - Clipboard shortcuts belong to timeline focus and leave normal browser text
   input copy/paste untouched. Context or toolbar actions must share the same
   operation if included. Changes remain in the existing animation JSON format.
+
+
+## Checkpoint
+
+The E1 inventory and verified alias repair are published on the owned branch.
+E1 has no pull request, queue entry or phase verdict. There is no migration.
+The native and defect-probe jobs are stopped. The next verification needs
+an admitted Windows browser, an isolated test backend/account, and supported
+native controller access. Reproduce the two close-flag/key clipboard probes
+before touching those product paths. Remeasure the [reported rotated text
+offset](../../research/editor-r1-1d/README.md#reproduction-and-fidelity-boundary)
+on the maintained Illustrator fixture. Check the reported agent easing and
+clip-path split portions separately, preserving the current exact-refusal
+contract. Animated anchors and broader authoring checks remain open.
+
+The independent pre-code clipboard rules review on
+`155be8ca8deb4356073bfc0f5eeb5f5021ed21af` returned AGREE WITH CORRECTIONS.
+Resolve these points and obtain the required independent rules review before
+implementing that operation.
+
+- Resolve destination cue from the live playhead and the explicit flag-side
+  override. Ordinary scrub lands on the arriving side. Explicit inspection
+  uses the departing side. Define both sides' collision rules and reject
+  ambiguous, synthetic legacy Out and unsupported carried-Out destinations.
+- Compute relative offsets using cumulative stored cue time. Define the
+  same-track two-sided boundary case even when one copy appears selected.
+  Check occupancy after canonical millisecond rounding without clamping or
+  extending the cue.
+- Use the existing authoring instance identity across timeline remounts.
+  Define source revision invalidation and how refused/empty copy treats a
+  previous snapshot. Establish the smallest allowed destination scope before
+  code, including whether an inherited-only track may receive pasted keys.
+- Preserve filter shape, legacy and foreign source boundaries. No unrelated
+  normalization or interpreter writes. Preserve native text and modal
+  keyboard behavior, including copy after a marquee which blurs focus.
+- Use independent hand-written expectations for the transition, exact
+  source/history/fields and changed-default-ease or Hold behavior. A
+  successful targeted copy/paste adds one undo. A refused paste adds none.
