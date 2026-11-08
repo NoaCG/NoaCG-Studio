@@ -57,8 +57,10 @@ phase.
    isolated backend, reopen it from Home and check the saved source and output.
    Cloud status clears with confirmation. The existing production copy stays intact.
 3. Keep Save, Home, the canvas and timeline usable with status at desktop and
-   laptop sizes. Check normal keyboard and focus ownership. Carry the cumulative
-   editor and executable output checks with their original qualifications.
+   laptop sizes. Escape from the focused sync disclosure closes it, returns focus
+   to Sync and leaves editor playback active. The visible notice leaves the lower
+   editor reachable. Carry the cumulative editor and executable output checks with
+   their original qualifications.
 
 ## Baseline evidence
 
@@ -116,3 +118,17 @@ Both rendered results were inspected. The comparisons cover local persistence
 and reopen. NoaCG additionally distinguishes its named local save from account
 confirmation. The references did not exercise NoaCG's account retry state, a
 physical receiving host or owner acceptance.
+
+## Rules found in review
+
+On candidate `304a219ad9608f9e17f62c569e58494f4898898f`, pressing Escape with
+focus on the open sync panel both closed the panel and paused running artwork.
+The same browser journey returned to the editor with an unresolved notice.
+At 1366×768 the editor footer ended at y=768 and the notice began at y=711.
+Hit-testing the footer reached the notice. Both failures were reproduced with
+the candidate product bytes unchanged.
+
+The focused sync disclosure owns its Escape and returns focus to the button.
+The shared menu still handles closing. The editor uses the existing measured
+notice height to leave the canvas and timeline above the notice, without changing
+their layout when the notice is absent.

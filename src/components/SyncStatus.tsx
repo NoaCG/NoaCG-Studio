@@ -97,7 +97,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [teamSince, setTeamSince] = useState<number | null>(null);
-  const host = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
     else if (action === 'sign-in') useAuthUi.getState().openSignIn();
     else {
       // The panel holding the focused button is about to unmount: hand focus back to the trigger.
-      host.current?.querySelector<HTMLButtonElement>('.sync-status')?.focus();
+      trigger.current?.focus();
       if (team) void flushTeamProduction(team.productionId).then(() => refreshTeams());
       else void syncNow();
     }
@@ -143,8 +143,15 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
   const busy = team ? teamSaving === 'pending' : state.phase === 'syncing';
 
   return (
-    <div ref={host} className="lib-menu-host">
+    <div className="lib-menu-host" onKeyDown={(event) => {
+      // LibMenu closes on the document. Claim its Escape before the editor can pause playback.
+      if (open && event.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) {
+        event.preventDefault();
+        trigger.current?.focus();
+      }
+    }}>
       <button
+        ref={trigger}
         className={`sync-status sync-${team ? (tone === 'ok' ? 'synced' : teamSaving ?? 'failed') : state.phase}`}
         data-tone={tone}
         aria-label={`Sync: ${summary}`}

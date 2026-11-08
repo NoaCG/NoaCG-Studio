@@ -2,7 +2,8 @@
    All rules are scoped so opting out leaves the existing editor unchanged. */
 .ef-shell {
   --ef-bg: var(--bg-app); --ef-panel: var(--bg-panel); --ef-border: var(--hairline-2); --ef-muted: var(--text-dim);
-  height: 100dvh; min-height: 540px; display: grid;
+  height: calc(100dvh - var(--account-notice-height, 0px)); min-height: 540px; display: grid;
+  margin-bottom: var(--account-notice-height, 0px);
   grid-template-rows: 48px 36px minmax(170px, 1fr) clamp(240px, 31vh, 340px) 24px;
   background: var(--ef-bg); color: var(--text); font: 12px/1.45 var(--font-ui);
 }

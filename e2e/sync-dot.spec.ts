@@ -1,10 +1,11 @@
 // covers: src/components/{SyncStatus,AccountSaveNotice}.tsx, src/components/editorFoundation/EditorFoundation.tsx
 // covers: src/backend/{supabase,syncController,teamProductions}.ts
+// covers: src/components/editorFoundation/foundation.css
 // The cloud chip on the production page (#2090): it settles within seconds of the last change, and
 // an amber dot says why and has a retry that works. Never a false Synced, signed out or offline.
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
-import { draw, ready, source } from './_layerProperty';
+import { draw, ready, seek, source } from './_layerProperty';
 
 const owner = '00000000-0000-4000-8000-000000000001', team = '00000000-0000-4000-8000-000000000010';
 const user = { id: owner, aud: 'authenticated', role: 'authenticated', email: 'dot@example.invalid', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
@@ -30,6 +31,7 @@ async function cloud(page: Page) {
   const state = {
     rows: new Map<string, Row>(), reads: 0, silent: false, silentWrites: false, silentStorage: false, goneStorage: false, silentReads: false, held: 0, down: false,
     doc: null as { id: string } | null, token: '2026-10-06T00:00:00.000Z', revision: 0,
+    authUser: user, beforeWrite: null as ((row: Row) => Promise<void>) | null,
   };
   const hold = () => {
     state.held++;
@@ -38,7 +40,7 @@ async function cloud(page: Page) {
   await page.route('https://cloudmock.invalid/**', async route => {
     const request = route.request(), url = new URL(request.url());
     const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) }).catch(() => {});
-    if (url.pathname === '/auth/v1/user') return respond(user);
+    if (url.pathname === '/auth/v1/user') return respond(state.authUser);
     if (url.pathname === '/auth/v1/logout') return respond({});
     const teamRow = () => (state.doc ? [{ id: state.doc.id, team_id: team, updated_at: state.token, updated_by: owner, doc: state.doc }] : []);
     if (url.pathname === '/rest/v1/teams' || url.pathname === '/rest/v1/team_members' || url.pathname === '/rest/v1/team_productions') {
@@ -76,6 +78,7 @@ async function cloud(page: Page) {
       if (state.silentWrites && request.method() !== 'GET') await hold();
       if (request.method() === 'POST') {
         const row = request.postDataJSON();
+        if (state.beforeWrite) await state.beforeWrite(row);
         state.rows.set(row.id, row);
         return respond({ body: row.body });
       }
@@ -388,13 +391,23 @@ test('the graphic editor separates a local save from a delayed cloud confirmatio
 
   await page.clock.fastForward(A_MINUTE);
   await page.setViewportSize({ width: 1366, height: 768 });
+  await seek(page, 0);
+  const timeline = page.getByTestId('foundation-timeline');
+  await timeline.getByRole('button', { name: 'Play', exact: true }).click();
+  const pause = timeline.getByRole('button', { name: 'Pause', exact: true });
+  await expect(pause).toBeVisible();
   await expectAmber(page, /Still waiting for the cloud/);
   await expect(page.getByTestId('sync-panel')).toBeInViewport({ ratio: 1 });
   await expect(page.getByTestId('save-status')).toHaveText('Saved');
   await expect(notice).toHaveCount(0);
   await page.screenshot({ path: 'test-results/editor-delayed-cloud.png' });
+  await page.getByTestId('sync-action').focus();
+  await expect(pause).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('sync-panel')).toHaveCount(0);
+  await expect(chip(page)).toBeFocused();
+  await expect(pause, 'Escape in the sync panel closes it without pausing artwork').toBeVisible();
+  await pause.click();
   expect(await source(page)).toEqual(saved);
   await page.getByTestId('open-home').click();
   await expect(page.getByTestId('home-page')).toBeVisible();
@@ -417,6 +430,15 @@ test('the graphic editor separates a local save from a delayed cloud confirmatio
   await page.getByTestId('control-open-editor').click();
   await ready(page);
   await expect(notice).toContainText('Not saved to cloud');
+  const lowerEditor = await page.locator('.ef-status').evaluate(footer => {
+    const area = footer.getBoundingClientRect();
+    const notice = document.querySelector('[data-testid=account-save-notice]')!.getBoundingClientRect();
+    const hit = document.elementFromPoint(area.left + 30, area.top + 12);
+    return { editorBottom: area.bottom, noticeTop: notice.top, covered: !!hit?.closest('[data-testid=account-save-notice]') };
+  });
+  expect(lowerEditor.editorBottom).toBeLessThanOrEqual(lowerEditor.noticeTop);
+  expect(lowerEditor.covered, 'the notice must leave the lower editor reachable').toBe(false);
+  await page.screenshot({ path: 'test-results/editor-failed-cloud.png' });
   expect(await firstNotice!.evaluate(element => element.isConnected)).toBe(true);
   expect(await source(page)).toEqual(saved);
   await page.clock.fastForward(A_MINUTE * 2);
@@ -469,7 +491,48 @@ test('the graphic editor separates a local save from a delayed cloud confirmatio
   expect(await download.failure()).toBeNull();
 });
 
+test('confirming an older revision does not clear the notice while newer work is pending', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  const id = await production(page);
+  state.silentWrites = true;
+  await edit(page, id, 'Older local change');
+  await page.clock.fastForward(3_000);
+  await expect.poll(() => state.held).toBeGreaterThan(0);
+  await page.clock.fastForward(A_MINUTE * 2);
+  const notice = page.getByTestId('account-save-notice');
+  await expect(notice).toContainText('Not saved to cloud');
+  const firstNotice = await notice.elementHandle();
+
+  const writes = new Map<string, () => void>();
+  state.beforeWrite = row => {
+    const label = cueLabel(row.body);
+    if (typeof label !== 'string') return Promise.resolve();
+    return new Promise<void>(release => { writes.set(label, release); });
+  };
+  state.silentWrites = false;
+  await notice.getByRole('button', { name: 'Retry cloud save' }).click();
+  await expect.poll(() => writes.has('Older local change')).toBe(true);
+  await edit(page, id, 'Newest local change');
+  await settleDurableWrites(page);
+  writes.get('Older local change')!();
+  await expect.poll(() => writes.has('Newest local change')).toBe(true);
+  expect(cueLabel(state.rows.get(id)?.body)).toBe('Older local change');
+  await expect(chip(page)).not.toHaveText('Synced');
+  await expect(notice).toContainText('Not saved to cloud');
+  expect(await firstNotice!.evaluate(element => element.isConnected)).toBe(true);
+
+  writes.get('Newest local change')!();
+  await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+  expect(cueLabel(state.rows.get(id)?.body)).toBe('Newest local change');
+  await expect(notice).toHaveCount(0);
+});
+
 test('personal recovery stays with the session that encountered the failure', async ({ page, context }) => {
+  // Team sync separately preserves its paused state. Keep that notice out of the personal-session oracle.
+  await page.route('**/src/components/teams/useTeamsAvailable.ts*', route => route.fulfill({
+    contentType: 'text/javascript', body: 'export function useTeamsAvailable() { return false; }',
+  }));
   const state = await cloud(page);
   await page.clock.install();
   const id = await production(page);
@@ -499,7 +562,9 @@ test('personal recovery stays with the session that encountered the failure', as
   await expect(chip(page)).toHaveAttribute('title', /^Offline\./);
   await expect(notice).toContainText('Not saved to cloud');
   expect(await shown!.evaluate(element => element.isConnected)).toBe(true);
+  const heldBeforeReconnecting = state.held;
   await context.setOffline(false);
+  await expect.poll(() => state.held).toBeGreaterThan(heldBeforeReconnecting);
 
   await signOut(page);
   await expect(notice).toContainText('Account editing paused');
@@ -508,6 +573,17 @@ test('personal recovery stays with the session that encountered the failure', as
   await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
   await page.keyboard.press('Escape');
 
+  const returnedFailure: string[] = [];
+  await page.exposeFunction('recordReturnedCloudFailure', (message: string) => returnedFailure.push(message));
+  await page.evaluate(() => {
+    const report = (window as Window & {
+      recordReturnedCloudFailure?: (message: string) => Promise<void>;
+    }).recordReturnedCloudFailure;
+    new MutationObserver(() => {
+      const message = document.querySelector('[data-testid=account-save-notice]')?.textContent ?? '';
+      if (message.startsWith('Not saved to cloud')) void report?.(message);
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
   state.silentWrites = false;
   expect(await setSession(session)).toBeNull();
   await expect(notice).toHaveCount(0);
@@ -515,4 +591,48 @@ test('personal recovery stays with the session that encountered the failure', as
   await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
   expect([...state.rows.values()].some(row => cueLabel(row.body) === 'Saved after resuming the session')).toBe(true);
   await expect(notice).toHaveCount(0);
+  expect(returnedFailure).toEqual([]);
+
+  // A different authenticated account pauses the old library before its replacement loads.
+  state.silentWrites = true;
+  const heldBeforeSwitch = state.held;
+  await edit(page, id, 'Still private to the old account');
+  await page.clock.fastForward(3_000);
+  await expect.poll(() => state.held).toBeGreaterThan(heldBeforeSwitch);
+  await page.clock.fastForward(A_MINUTE * 2);
+  await expect(notice).toContainText('Not saved to cloud');
+  const nextOwner = '00000000-0000-4000-8000-000000000002';
+  state.authUser = { ...user, id: nextOwner };
+  const [header, payload] = session.access_token.split('.');
+  const nextPayload = { ...JSON.parse(Buffer.from(payload, 'base64url').toString()), sub: nextOwner };
+  const nextToken = header + '.' + Buffer.from(JSON.stringify(nextPayload)).toString('base64url') + '.test';
+
+  type PausedLibrary = { loadedOwner: string | null; retryVisible: boolean };
+  const oldLibraryPauses: PausedLibrary[] = [];
+  await page.exposeFunction('recordPriorLibraryPause', (pause: PausedLibrary) => { oldLibraryPauses.push(pause); });
+  await page.evaluate(async () => {
+    const { libraryInUse } = await import('/src/model/durableStore.ts');
+    const report = (window as Window & {
+      recordPriorLibraryPause?: (pause: PausedLibrary) => Promise<void>;
+    }).recordPriorLibraryPause;
+    const observer = new MutationObserver(() => {
+      const banner = document.querySelector('[data-testid=account-save-notice]');
+      if (!banner?.textContent?.includes('Account editing paused')) return;
+      observer.disconnect();
+      void report?.({ loadedOwner: libraryInUse(), retryVisible: banner.textContent.includes('Retry cloud save') });
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
+  const reloading = page.waitForRequest(request => request.isNavigationRequest() && new URL(request.url()).pathname === '/app');
+  await page.evaluate(next => {
+    // Capture the old document's final notice in-page. A Playwright query after the reload
+    // request is too late because Chromium can already have discarded the old context.
+    window.setTimeout(() => {
+      void import('/src/backend/supabase.ts').then(async ({ getSupabase }) => {
+        await (await getSupabase())!.auth.setSession(next);
+      });
+    }, 0);
+  }, { ...session, access_token: nextToken });
+  await reloading;
+  await expect.poll(() => oldLibraryPauses).toEqual([{ loadedOwner: owner, retryVisible: false }]);
 });
