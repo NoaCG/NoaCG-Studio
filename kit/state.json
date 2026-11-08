@@ -7,7 +7,7 @@
   "coordinator": {
     "session": "01a1bc5d-85b7-7902-9a0b-8870985a016c",
     "environment": "codex-desktop-windows",
-    "return": "Return the terminal receipt through the native Codex worker to the current active coordinator."
+    "return": "Return through the original native Codex worker to the active coordinator."
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -64,9 +64,7 @@
     "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
-  "waitingOn": {
-    "what": "Windows browser scheduler memory headroom for native zoom, file interactions and targeted authoring checks"
-  },
+  "waitingOn": null,
   "inFlight": [
     {
       "sourceSha": "361cb6f628df0a44d410954aae527cde976d1750",
@@ -76,7 +74,7 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_builder",
-      "note": "E1 verification checkpointed on the preserved candidate",
+      "note": "Windows verification resuming from the preserved E1 candidate",
       "checkpointed": true,
       "head": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7"
     }
