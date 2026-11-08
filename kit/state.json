@@ -44,12 +44,12 @@
   "waitingOn": [],
   "inFlight": [
     {
-      "session": "/root/v1_builder",
-      "step": "build",
+      "note": "GitHub merge queue admitted the reviewed V1 head. Merge group CI 42483732764 is running.",
       "phase": "v1",
+      "session": "codex active coordinator",
       "pr": 2291,
       "head": "7362f377c9786453a6f28b5a6d45819cf42582c6",
-      "repairComment": 6721720792
+      "step": "queue"
     }
   ],
   "owner": [],
