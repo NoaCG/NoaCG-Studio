@@ -343,11 +343,13 @@
    "what": "cf13 rank 1 revert for re-run"
   }
  ],
- "pendingAdmission": {
-  "pr": 2282,
-  "receipt": "docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md",
-  "insertAfter": "cf13",
-  "review": "session_017SdbwNEZy1brgUyHTYuoyC",
-  "then": "run-supervisor admit with {receipts:[path], commit:<merge sha>, insert:[{after:'cf13', phases:[cf21 entry]}]} --authority block.json"
- }
+ "admitted": [
+  {
+   "phase": "cf21",
+   "after": "cf13",
+   "commit": "321ef4ef",
+   "receipt": "docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md",
+   "at": "2026-11-07T19:29Z"
+  }
+ ]
 }
