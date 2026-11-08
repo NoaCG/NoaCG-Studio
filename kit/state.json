@@ -5,9 +5,9 @@
   "spec": "docs/work-specs/editor-r1-5/spec.md",
   "issue": 2295,
   "coordinator": {
-    "session": "01a1bc5d-85b7-7902-9a0b-8870985a016c",
+    "return": "Return E1 results to the active coordinator of the restored project through the native Codex worker route. Project is waiting with no active E1 worker.",
     "environment": "codex-desktop-windows",
-    "return": "Return through the original native Codex worker to the active coordinator."
+    "session": "01a1bcc9-81d3-7782-8cc7-198b5e9a40c6"
   },
   "authorization": {
     "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
@@ -65,7 +65,7 @@
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
   "waitingOn": {
-    "what": "A Windows native controller that can verify the isolated browser URL through file interactions"
+    "what": "E1 awaits a working native Windows file picker and download check. Controller probe j-5005 identified the isolated Chrome URL, then reported unavailable click geometry and window-capture timeouts. No file was selected or downloaded."
   },
   "inFlight": [
     {
@@ -76,7 +76,7 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_builder",
-      "note": "Actual Chrome 125% verified. Native file checks and remaining E1 authoring checks are pending.",
+      "note": "Actual Chrome zoom at 125% was observed in j-5004. Native picker/download and remaining E1 authoring checks are pending. Original worker stopped; no PR.",
       "checkpointed": true,
       "head": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7"
     }
@@ -100,7 +100,7 @@
     }
   },
   "e1Checkpoint": {
-    "resume": "Requalify the active local route and restore this project. Verify the worker stop, exact candidate and live queue. Requalify a supported Windows controller that can identify the isolated browser URL through file interactions. Clear the wait after obtaining that evidence, then finish the native file checks, simulated account UI and remaining E1 authoring checks under unchanged scheduler rules.",
+    "resume": "Resume this existing project only after observing a supported Windows controller open, operate and return from an isolated Chrome file picker and download dialog, or arrange the native file check with a present operator. Keep the original E1 attempt and pinned candidate. Then complete the outstanding E1 authoring checks and independent review before any queue action.",
     "pendingProbesSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0",
     "stopped": "Native worker completed and acknowledged clean owned checkout, closed port 5212 and no live E1 browser/scheduler job. Remote branch and absence of a live PR verified.",
     "jobs": "j-4996 reproduced #1749; j-4997 8 pass; j-4998 62 pass; zero retries/skips; j-4999 offline setup only; j-5000 and j-5001 incomplete, j-5001 app approval timeout; j-5002 and j-5003 cancelled before launch at the unchanged RAM floor.",
@@ -118,6 +118,23 @@
       "authorization": "Away mode reported 5.1 GB free before the new block. The existing 3.5 GB browser admission floor admitted the job. No memory or presence overrides.",
       "cleanup": "Original worker acknowledged j-5004 cancelled, port 5212 closed, no E1 jobs still active, clean branch at be049c7ea10ee2b8a1bae6d86711ce507a9468a7. No PR.",
       "job": "j-5004"
+    },
+    "controllerProbe": {
+      "workerProbe": {
+        "nonce": "editor-r15-route-2215",
+        "outcome": "Passed subprocess, disposable workspace IO, Git origin/main and GitHub Actions API reads. Native terminal return observed.",
+        "actor": "/root/editor_r15_route_probe",
+        "at": "2026-11-08T20:15:23.626Z"
+      },
+      "route": "Codex Windows Computer Use",
+      "evidence": "Isolated Chrome title, address bar and document matched the disposable loopback fixture. Element click reported coordinate input geometry unavailable. Two capture requests timed out, including after Raise. Keyboard probing did not move focus to the fixture. No import/download proof.",
+      "job": "j-5005",
+      "outcome": "blocked",
+      "cleanup": "Scheduler confirmed j-5005 cancelled and the fixture HTTP URL closed. Queue empty. No candidate work was started.",
+      "coordinatorPreflights": [
+        "2026-11-08T20:13:18.433Z",
+        "2026-11-08T20:13:36.215Z"
+      ]
     }
   }
 }
