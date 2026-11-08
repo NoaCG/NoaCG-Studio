@@ -9,10 +9,10 @@ below for Phase 1. Product changes, new size policies and an agent-signal trial 
 ## Recommendation
 
 Add no automated mechanism now. Use the existing architecture and review process to make the
-responsibility owner explicit when a real maintenance change needs it; keep a small, manual,
-revision-pinned receipt to check whether that helps. Keep the two existing wizard budgets pending
-concrete evidence of harmful friction, as the owner decided in this research session. Do not add
-ProductionPage, `model/shows.ts`, or any other file to a size policy.
+responsibility owner explicit when a real maintenance change needs it. The November
+[closeout](../../metrics/2026-11-08-codebase-health.md) ends the separate trend receipt. Keep the two existing wizard budgets
+pending concrete evidence of harmful friction, as the owner decided in this research session.
+Do not add ProductionPage, `model/shows.ts`, or any other file to a size policy.
 
 The production-page refactor landed in software, and the owner closed its expanded run on
 November 6 on the recorded studio receipts. Use the landed owners below for maintenance.
@@ -189,7 +189,7 @@ exception or policy revision only on that concrete evidence. This research autho
 | Clarify owner, public seam and allowed wiring in existing architecture/plan docs | Directs the next change to a testable responsibility and avoids duplicate state owners | Docs can drift; must match imports and actual writes | Smallest proposed intervention; edit existing documentation, not a new agent rule |
 | Actionable feedback in existing review | Names the misplaced behavior, intended module, behavior proof and smallest repair | Reviewer effort; judgment remains necessary | Use for actual responsibility violations; line count alone is not actionable |
 | Existing domain, cycle and seam checks | Deterministic checks of established architectural decisions | Broad component allowance and intra-module responsibility remain invisible | Reuse; add no new rule without an observed violation and an agreed boundary |
-| Manual trend receipt using existing Git/metrics commands | Surfaces regrowth, moves and co-change without blocking useful work | Small review cost, no automatic prevention; misleading if window is mostly migration | One bounded follow-up after ordinary work; no bot, schedule or mandatory per-PR report |
+| Manual trend receipt using existing Git/metrics commands | Surfaces regrowth, moves and co-change without blocking useful work | Small review cost, no automatic prevention; misleading if window is mostly migration | November closeout completed the bounded follow-up and ended the separate receipt |
 | Existing per-file budgets | Catches simple length regrowth during a split | Can block valuable in-place fixes; misses responsibility leakage and growth inside headroom | Retain only the existing two, per owner decision; do not expand or mechanically harden |
 | Global line/byte limits, zero-growth ratchet, pre-edit hook | Easy to count and explain | False positives, formatting incentives, more context and urgent-fix friction | Reject |
 | New generic agent instruction / agent-health signal | Might expose repeated misplacement if existing review misses it | Unproven value, instruction and review noise; duplicates #805 | Defer; no trial design or launch |
@@ -329,9 +329,10 @@ to `src/control/`. The [production authority record](../production-page-refactor
 [spec](../production-page-refactor/spec.md) carry the decision. Existing wizard budgets are retained
 under the research-stage answer above. A future exception requires its actual case and owner review.
 
-This plan has yet to measure ordinary post-split maintenance value or blocked-branch friction.
-Its source and history checks do not verify cross-machine run occupancy, full production behavior
-or live hardware performance. The measured history and
+The [November closeout](../../metrics/2026-11-08-codebase-health.md) records concrete review
+work and a budget-driven extraction. It does not establish typical post-split coupling or
+blocked-branch delay. Source and history checks do not verify cross-machine run occupancy,
+full production behavior or live hardware performance. The measured history and
 selected diffs do not prove regression safety, defect causation, or long-term architectural quality.
 
 ## Acceptance inventory
@@ -395,8 +396,8 @@ Layer: independent diff and test-inventory review. See the [maintenance receipt]
 Phase 3's acceptance and verification above pass. Pinned arithmetic is reproducible, available
 wizard S9 evidence is reused, and recommendations distinguish observed maintenance value from
 unknowns. No new numeric threshold, trial, recurring collection or follow-up run is created.
-Layer: independent reproduction and document review; future receipt: `evidence/phase-3.md` and
-the phase's dated metrics document.
+Layer: independent reproduction and document review. See the [Phase 3 receipt](evidence/phase-3.md)
+and the [dated closeout](../../metrics/2026-11-08-codebase-health.md).
 
 ## Phase notes
 
@@ -425,6 +426,20 @@ the phase's dated metrics document.
 - **Traps** Compare each integration with its actual first parent. A move is migration
   evidence. A test file in the inventory establishes what it covers, and this phase
   makes no new claim about running its journey. Keep the October snapshot at its own pin.
+
+### Phase 3
+
+- **Previous verified main SHA** `df5767458230558e9fdee158e663e9367e58f8e3`, also the
+  November history pin. See the [Phase 2 independent check](https://github.com/NoaCG/NoaCG-Studio/pull/2288#issuecomment-6721248732).
+- **Revert** In an isolated branch worktree, run `git revert -m 1 <this PR's merge SHA>`,
+  then `/check` and `/queue-merge`. This reverts the closeout, evidence, and spec updates.
+- **Decisions** End the separate trend receipt. Use the responsibility map in ordinary review when
+  a behavior placement or proof question warrants it. Keep the two wizard budgets. The
+  [closeout](../../metrics/2026-11-08-codebase-health.md) and [receipt](evidence/phase-3.md)
+  record what was observed and what remains unknown.
+- **Traps** Keep the October pin separate. Count old and new paths together when code moves.
+  Landed budget states cannot establish delay or rejected work. The S8 receipt does not complete
+  the existing S9 revisit. Keep the production closeout and CI/CD allocation read-only.
 
 ### Registration
 

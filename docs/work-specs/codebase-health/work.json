@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "1003a7c6cc517cd2b691f6d84f211e8daf471bbe3eb14dc7ed4658d4959bfbe0",
+  "specSha256": "87e38d02a8863daeb8766e6063461bc9ff2df83a2cca960b300a02e9e5c4c766",
   "authority": {
     "status": "agreed",
     "source": "Owner, this session, 2026-10-15. Initial authorization: \"Research and prepare a NoaCG codebase-health work spec. Do not implement the proposed guardrails or launch an automated execution run.\" Research-stage answers: \"Use pinned main as the baseline\" (50ce0911d9f37f5d1116e51a1cb34541ed03aef5) and \"Keep existing budgets pending evidence\" (the two wizard budgets). Later authorization: \"Can you prepare it so I can just use the `plan run` command? What should I avoid running at the same time?\" The later message authorizes preparing/landing this documentation plan and its existing command registration, superseding the initial no-registration/no-merge restriction for preparation only. Registration authorized no execution. On 2026-10-17 the owner settled D8/AC-11 in production-page-refactor/work.json: drop the page size limit and the line-count half of AC-11, and keep the compiled rule directing playout behavior to src/control/. The 2026-11-08 bounded invocation and run issue #2285 authorize only the three documentation phases through 2026-11-09T06:00:00+02:00. Reserved policy exceptions still require the owner."
