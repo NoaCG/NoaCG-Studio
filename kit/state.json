@@ -23,22 +23,16 @@
     "read": "Use the current plan spec, the production closeout on #1553, and the current CI/CD allocation on #1967.",
     "rules": "Documentation/evidence only. No product, CI configuration, test, budget or agent instruction changes. No extra benchmarks, production reactivation, or overlapping document writer. Use required gates and merge queue only."
   },
-  "waitingOn": {
-    "eta": "2026-11-08T11:57:25.7324195+00:00",
-    "what": "PR #2288: required merge-queue checks"
-  },
+  "waitingOn": [],
   "inFlight": [
     {
-      "nonce": "p2-b-1955",
+      "step": "check",
+      "nonce": "p2-c-60a4",
+      "mergeSha": "df5767458230558e9fdee158e663e9367e58f8e3",
+      "launchedAt": "2026-11-08T11:46:46.1297318+00:00",
+      "session": "/root/phase2_checker",
       "phase": "p2",
-      "step": "build",
-      "launchedAt": "2026-11-08T13:19:48.0758984+02:00",
-      "session": "/root/phase2_builder",
-      "pr": 2288,
-      "head": "7e92dd1c1a050b4e2013983a68d3865855cb6620",
-      "repairComment": 6720903954,
-      "ciRun": 42476081193,
-      "configured": "untriggered (0)"
+      "pr": 2288
     }
   ],
   "owner": [],
