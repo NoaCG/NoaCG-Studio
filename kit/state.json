@@ -46,13 +46,12 @@
   },
   "inFlight": [
     {
-      "note": "Owner approved the measured local address design. The original V2 build continues on the same draft.",
-      "step": "build checkpoint",
-      "phase": "v2",
+      "pr": 2293,
+      "step": "build",
       "head": "32a50d0baf7b638c2a91e43b8a0c6b8e1f280555",
       "session": "/root/v2_builder",
-      "pr": 2293,
-      "repairComment": 6723338187
+      "phase": "v2",
+      "note": "Owner approved the local address. Draft stays outside the queue under #1967."
     }
   ],
   "owner": [],
