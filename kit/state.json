@@ -24,7 +24,15 @@
     "rules": "Documentation/evidence only. No product, CI configuration, test, budget or agent instruction changes. No extra benchmarks, production reactivation, or overlapping document writer. Use required gates and merge queue only."
   },
   "waitingOn": [],
-  "inFlight": [],
+  "inFlight": [
+    {
+      "session": "/root/phase3_builder",
+      "phase": "p3",
+      "launchedAt": "2026-11-08T12:06:41.2488034+00:00",
+      "nonce": "p3-b-315b",
+      "step": "build"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": [],
