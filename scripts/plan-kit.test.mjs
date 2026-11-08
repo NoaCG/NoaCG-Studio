@@ -1,17 +1,17 @@
 // gate: build
-// guards: scripts/plan-kit.mjs, docs/plan-runs/templates/**, docs/plan-runs/known-traps.md
+// guards: scripts/plan-kit.mjs, docs/plan-runs/templates/**, docs/plan-runs/known-traps.md, .agents/skills/plan-run/references/templates/**
 // The run kit: briefs are rendered from state.json and the project, never hand-edited, and a value
 // left out is refused before a worker sees it; the heartbeat and the next check-in follow what the
 // run actually waits on.
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { checkin, heartbeat, initKit, renderBrief, TRAPS } from './plan-kit.mjs';
 import { kitDir } from './run-recovery.mjs';
 import { openWave } from './wave-plan-store.mjs';
-import { openStore, recordRun, registerRun, updateRun } from './run-supervisor.mjs';
+import { observePlanLaunch, openStore, readyPlanLaunch, recordRun, registerRun, updateRun } from './run-supervisor.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
 
 const NOW = Date.parse('2026-10-29T12:00:00Z');
@@ -151,4 +151,80 @@ test('completion authority schedules after the target but keeps worker briefs bo
   const body = heartbeat(file, later);
   assert.match(body, /planning target .*continue until complete/);
   assert.doesNotMatch(body, /the run ends/);
+});
+
+test('explicit Codex kits use owned absolute worktrees and Codex briefs; legacy defaults stay Claude', (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'codex-kit-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const p = project();
+  const { file } = openWave({ date: '2026-10-29', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
+  initKit(file, { ...state(), execution: { harness: 'codex', mode: 'active' } });
+  p.status = 'active';
+  p.block = { id: 'codex-block', owner: 'coordinator', epoch: 1, startedAt: iso(NOW), deadline: iso(NOW + HOUR) };
+  writeFileSync(file, writeProject(readFileSync(file, 'utf8'), p));
+  const worktree = path.join(dir, 'worker');
+  for (const kind of ['build', 'check', 'repair', 'fix']) {
+    const values = { SOURCE, MERGE, PARENT, PR: '1', CARRY: 'one failed criterion', TITLE: 'Fix the thing', WORKTREE: worktree };
+    const brief = renderBrief(file, kind, kind === 'fix' ? '123' : 'E1', values, { now: NOW });
+    assert.match(brief.branch, /^codex\//);
+    assert.doesNotMatch(brief.text, /\.claude\/|claude\/check-|@[A-Z_]+@/);
+    assert.ok(brief.text.includes(worktree));
+    assert.match(brief.text, /Execution mode active/);
+    assert.ok(brief.text.includes(`Authorized window ends ${p.block.deadline}`));
+    assert.ok(!brief.text.includes(`Authorized window ends ${p.authorization.deadline}`));
+    assert.ok(brief.text.includes(TRAPS));
+    assert.ok(brief.text.includes('.agents/skills/plan-run/references/codex.md'));
+  }
+  assert.throws(() => renderBrief(file, 'build', 'E1', { SOURCE, WORKTREE: 'relative' }, { now: NOW }), /absolute WORKTREE/);
+  assert.throws(() => renderBrief(file, 'build', 'E1', { SOURCE, WORKTREE: worktree }, { now: NOW + HOUR }), /active bounded/);
+  assert.throws(() => initKit(path.join(dir, 'bad.md'), { ...state(), execution: { mode: 'active' } }), /execution needs/);
+  const legacy = fixture(t);
+  assert.match(renderBrief(legacy.file, 'check', 'E1', { MERGE, PARENT, PR: '1' }).text, /claude\/check-/);
+});
+
+test('Codex active mode has no scheduled recovery; unattended check-in precedes block expiry', async () => {
+  const { rearmNative } = await import('./native-recovery-contract.mjs');
+  const p = { ...project(), status: 'active', block: { id: 'b', owner: 'o', epoch: 1, startedAt: iso(NOW), deadline: iso(NOW + HOUR) } };
+  const s = { ...state(), execution: { harness: 'codex', mode: 'active' } };
+  assert.equal(checkin({ action: 'wait' }, s, p, NOW).at, null);
+  s.execution.mode = 'unattended';
+  const due = checkin({ action: 'wait' }, { ...s, waitingOn: { what: 'CI', eta: iso(NOW + 2 * HOUR) } }, p, NOW);
+  assert.equal(due.at, iso(NOW + HOUR - MINUTE));
+  assert.equal(checkin({ action: 'wait' }, s, p, NOW + HOUR).at, null);
+  const target = { provider: 'codex', sessionId: 'session', environmentId: 'env', policySha256: 'a'.repeat(64) };
+  const auth = { ...p.authorization, policySha256: target.policySha256, standing: { untilComplete: 'until complete', blockRenewal: 'renew blocks' } };
+  const request = { authorization: auth, target, kind: 'plan', block: p.block,
+    previous: { ...target, state: 'fired', actionId: 'wake-1', nativeId: 'wake-1', firedAt: iso(NOW), evidence: 'executing native wake' },
+    next: { ...target, actionId: 'wake-2', previousNativeId: 'wake-1', deadline: p.block.deadline, dueAt: due.at } };
+  assert.equal(rearmNative(request, NOW).state, 'eligible');
+  assert.equal(rearmNative({ ...request, paused: true }, NOW).state, 'stop');
+  // Legacy callers keep their boundary timing; the native guard still refuses equality.
+  assert.equal(checkin({ action: 'stopped' }, state(), p, NOW).at, p.block.deadline);
+  assert.equal(rearmNative({ ...request, next: { ...request.next, dueAt: p.block.deadline } }, NOW).state, 'stop');
+});
+
+test('the generated Codex checker receipt is accepted using the native identity adopted by the supervisor', (t) => {
+  const { dir, file } = fixture(t), s = { ...state(), execution: { harness: 'codex', mode: 'active' } };
+  writeFileSync(path.join(kitDir(file), 'state.json'), JSON.stringify(s));
+  copyFileSync(new URL('../.agents/skills/plan-run/references/templates/check.tmpl', import.meta.url), path.join(kitDir(file), 'templates/check.tmpl'));
+  const db = openStore(path.join(dir, 'control.sqlite'));
+  t.after(() => db.close());
+  const p = project(), packet = { objective: 'Verify generated checker receipt', acceptance: ['native receipt accepted'], nextAction: 'build',
+    phase: 1, tasks: [], decisions: [], constraints: [], files: [], workspace: {}, commits: [], verification: [], blockers: [], evidence: [] };
+  registerRun(db, { version: 1, id: p.id, kind: 'plan', wave: file, authorization: p.authorization, packet,
+    adapter: { command: process.execPath, args: [], cwd: dir } }, NOW);
+  updateRun(db, p.id, 'start-block', { owner: s.coordinator.session, deadline: iso(NOW + HOUR), evidence: 'fixture authority' }, NOW);
+  const authority = readProject(readFileSync(file, 'utf8'), NOW).block;
+  const record = (event, receipt) => recordRun(db, p.id, 1, event, JSON.stringify(receipt), { now: NOW, authority });
+  record('build', { actor: 'native-builder' }); record('landed', { mergeSha: MERGE });
+  const brief = renderBrief(file, 'check', 'E1', { MERGE, PARENT, PR: '42', WORKTREE: path.join(dir, 'checker') }, { now: NOW });
+  const intent = record('check', { actor: 'reserved-checker', launch: { sourceSha: MERGE, branch: brief.branch,
+    brief: path.relative(kitDir(file), brief.file).split(path.sep).join('/'), native: { provider: 'codex', sessionId: s.coordinator.session,
+      environmentId: s.coordinator.environment, policySha256: 'f'.repeat(64) } } });
+  readyPlanLaunch(db, p.id, authority, { now: NOW });
+  observePlanLaunch(db, p.id, { ...intent.launch, state: 'accepted', nativeId: 'accepted-native-checker', evidence: 'native readback' }, { now: NOW });
+  const json = brief.text.split('\n').find((line) => line.trim().startsWith('{"actor":'));
+  const receipt = JSON.parse(json.replaceAll('<your accepted native worker id>', 'accepted-native-checker')
+    .replaceAll('<your native session id>', 'accepted-native-checker'));
+  assert.doesNotThrow(() => record('pass', receipt));
 });
