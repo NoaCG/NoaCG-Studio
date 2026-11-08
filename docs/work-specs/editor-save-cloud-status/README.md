@@ -194,3 +194,24 @@ unavailable. The existing paused notice keeps Sign in available. The chip
 keeps the existing cold boot reading and its existing session-loss action.
 The team production path and the account transition itself keep their
 existing behavior.
+
+### Verification of the two session actions
+
+At product and test source `087d945919b2546f09308bdb17cd9e3b80b1fd1b`, the
+focused browser probe passed both boundaries with zero retries. With an old
+request held, the restored personal session still showed unconfirmed work,
+offered an enabled Sync now, and accepted the click without opening Sign in.
+The isolated cloud then confirmed the intended latest content. Before a real
+different-account reload, the old library was still loaded. Its paused notice
+kept Sign in enabled and its previous Sync now button was disabled.
+
+The full sync spec passed 16 cases in 2.1 minutes. The same four maintained
+editor, output and account cases passed in 23.2 seconds. Both ran with one
+Chromium worker and zero retries. Targeted ESLint, client TypeScript, the
+affected gates and the 13-to-16 Playwright protection inventory comparison
+passed. The six changed paths returned an empty side-ending set under the
+current CI measurement rule.
+
+To revert the product and test changes on an owned rollback branch, first
+revert `087d945919b2546f09308bdb17cd9e3b80b1fd1b`, then the two commits
+listed above.
