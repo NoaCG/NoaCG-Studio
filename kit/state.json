@@ -64,7 +64,9 @@
     "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
-  "waitingOn": null,
+  "waitingOn": {
+    "what": "A Windows native controller that can verify the isolated browser URL through file interactions"
+  },
   "inFlight": [
     {
       "sourceSha": "361cb6f628df0a44d410954aae527cde976d1750",
@@ -74,7 +76,7 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_builder",
-      "note": "Windows verification resuming from the preserved E1 candidate",
+      "note": "Actual Chrome 125% verified. Native file checks and remaining E1 authoring checks are pending.",
       "checkpointed": true,
       "head": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7"
     }
@@ -98,7 +100,7 @@
     }
   },
   "e1Checkpoint": {
-    "resume": "Requalify the active local route and run plan-run for this same project. Verify the worker terminal receipt and exact candidate/remote, current main and overlapping PRs, and scheduler admission at the unchanged floor. Clear the dependency wait with that evidence, retain the E1 build step and attempt history, then finish native 125% and file interactions, isolated simulated account UI, flags/clipboard/animated-anchor and #774 checks. Use coordinator-qualified Windows native controller on a uniquely identified owned browser. Only then complete final review, CI, queue and independent acceptance.",
+    "resume": "Requalify the active local route and restore this project. Verify the worker stop, exact candidate and live queue. Requalify a supported Windows controller that can identify the isolated browser URL through file interactions. Clear the wait after obtaining that evidence, then finish the native file checks, simulated account UI and remaining E1 authoring checks under unchanged scheduler rules.",
     "pendingProbesSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0",
     "stopped": "Native worker completed and acknowledged clean owned checkout, closed port 5212 and no live E1 browser/scheduler job. Remote branch and absence of a live PR verified.",
     "jobs": "j-4996 reproduced #1749; j-4997 8 pass; j-4998 62 pass; zero retries/skips; j-4999 offline setup only; j-5000 and j-5001 incomplete, j-5001 app approval timeout; j-5002 and j-5003 cancelled before launch at the unchanged RAM floor.",
@@ -109,6 +111,13 @@
     "worker": "/root/editor_r15_e1_builder",
     "buildBrief": "The original native prompt normalized two line endings. The same worker read back and verified the authoritative saved brief SHA256 380d2962e29d6f9435a6a66af3bb2d8e51573a50eff13e6b93427eef0b101e87.",
     "actionId": "plan-editor-r1-5-2026-11-08:1",
-    "check": "Scoped lint, client TypeScript and 128 affected Node tests passed. Pre-code clipboard review returned corrections. No final review, PR, queue stamp, or phase acceptance."
+    "check": "Scoped lint, client TypeScript and 128 affected Node tests passed. Pre-code clipboard review returned corrections. No final review, PR, queue stamp, or phase acceptance.",
+    "eveningReceipt": {
+      "stop": "Windows Computer Use stopped the turn because the current browser URL could not be determined with enough confidence to enforce policy. Import and download pending.",
+      "zoom": "Chrome native accessibility button and alert both read Zoom: 125% at the isolated localhost:5212 editor.",
+      "authorization": "Away mode reported 5.1 GB free before the new block. The existing 3.5 GB browser admission floor admitted the job. No memory or presence overrides.",
+      "cleanup": "Original worker acknowledged j-5004 cancelled, port 5212 closed, no E1 jobs still active, clean branch at be049c7ea10ee2b8a1bae6d86711ce507a9468a7. No PR.",
+      "job": "j-5004"
+    }
   }
 }
