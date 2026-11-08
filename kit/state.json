@@ -20,7 +20,8 @@
     "target": "Planning target: I authorize a target 14 days after the actual project start. Record its exact timestamp in Europe/Kiev. This is a planning target, not a hard execution deadline or release promise.",
     "retention": "Retain the active coordinator through each PR's merge, independent acceptance and terminal results. Arm no unattended wake. If the session is interrupted, reconcile the same project before continuing. Do not promise after-session monitoring.",
     "gsap": "GSAP direction: NoaCG is open source, entirely free and earns no revenue. Include those facts and its broadcast-graphics purpose in the exact artifact inventory and clarification request. I will ask GSAP/Webflow for permission or clarification; bring that request forward from the earlier six-month deferral.",
-    "gsapGate": "Continue engineering and technical qualification without waiting for an immediate GSAP reply. A delayed reply must not block E1-E6 or preparation of the workflow review. Preserve G07's licence, provenance, notices and redistribution checks. Before release, present the written response or a separately approved resolution. Do not treat silence as permission. No paid licence, changed terms or replacement engine is authorized."
+    "gsapGate": "Continue engineering and technical qualification without waiting for an immediate GSAP reply. A delayed reply must not block E1-E6 or preparation of the workflow review. Preserve G07's licence, provenance, notices and redistribution checks. Before release, present the written response or a separately approved resolution. Do not treat silence as permission. No paid licence, changed terms or replacement engine is authorized.",
+    "windowsAccountDecision": "Windows UI sign-in uses the isolated Playwright simulation in e2e/sync-dot.spec.ts under the November 8 owner clarification. Report it as simulated. If a separately required real sign-in/cloud check is identified, first verify noacg-staging and use an existing disposable test account via the test process with credential values kept out of output. If unavailable, record that real check as blocked."
   },
   "execution": {
     "harness": "codex",
@@ -63,7 +64,9 @@
     "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
-  "waitingOn": [],
+  "waitingOn": {
+    "what": "Windows browser scheduler memory headroom for native zoom, file interactions and targeted authoring checks"
+  },
   "inFlight": [
     {
       "sourceSha": "361cb6f628df0a44d410954aae527cde976d1750",
@@ -73,7 +76,9 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_builder",
-      "note": "Windows authoring baseline in progress"
+      "note": "E1 verification checkpointed on the preserved candidate",
+      "checkpointed": true,
+      "head": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7"
     }
   ],
   "owner": [],
@@ -93,5 +98,19 @@
       "browserSHA256": "ba935b09e3d88f5088b3768486fb3c83d96a1f0e6b2373487bc083f18d1e9f44",
       "browser": "Deployed 361cb6f628df0a44d410954aae527cde976d1750; assets/gsap.min-CIpO8SLO.js contains the exact 72927-byte runtime and original notice."
     }
+  },
+  "e1Checkpoint": {
+    "resume": "Requalify the active local route and run plan-run for this same project. Verify the worker terminal receipt and exact candidate/remote, current main and overlapping PRs, and scheduler admission at the unchanged floor. Clear the dependency wait with that evidence, retain the E1 build step and attempt history, then finish native 125% and file interactions, isolated simulated account UI, flags/clipboard/animated-anchor and #774 checks. Use coordinator-qualified Windows native controller on a uniquely identified owned browser. Only then complete final review, CI, queue and independent acceptance.",
+    "pendingProbesSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0",
+    "stopped": "Native worker completed and acknowledged clean owned checkout, closed port 5212 and no live E1 browser/scheduler job. Remote branch and absence of a live PR verified.",
+    "jobs": "j-4996 reproduced #1749; j-4997 8 pass; j-4998 62 pass; zero retries/skips; j-4999 offline setup only; j-5000 and j-5001 incomplete, j-5001 app approval timeout; j-5002 and j-5003 cancelled before launch at the unchanged RAM floor.",
+    "receiptAt": "2026-11-08T19:05:58.776Z",
+    "pendingProbes": "receipts/e1-pending-probes.patch",
+    "branch": "codex/plan-editor-r1-5-e1-build",
+    "revision": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7",
+    "worker": "/root/editor_r15_e1_builder",
+    "buildBrief": "The original native prompt normalized two line endings. The same worker read back and verified the authoritative saved brief SHA256 380d2962e29d6f9435a6a66af3bb2d8e51573a50eff13e6b93427eef0b101e87.",
+    "actionId": "plan-editor-r1-5-2026-11-08:1",
+    "check": "Scoped lint, client TypeScript and 128 affected Node tests passed. Pre-code clipboard review returned corrections. No final review, PR, queue stamp, or phase acceptance."
   }
 }

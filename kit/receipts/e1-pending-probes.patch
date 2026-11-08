@@ -1,0 +1,64 @@
+diff --git a/e2e/editor-key-ease.spec.ts b/e2e/editor-key-ease.spec.ts
+index e6cf87f09..3e8e51c93 100644
+--- a/e2e/editor-key-ease.spec.ts
++++ b/e2e/editor-key-ease.spec.ts
+@@ -74,6 +74,30 @@ async function marquee(page: Page, from: [number, Locator], to: [number, Locator
+   for (const m of modifiers) await page.keyboard.up(m);
+ }
+ 
++test('copying selected keys and pasting at the playhead keeps values and easing in one undo', async ({ page }) => {
++  await fixture(page);
++  const before = await state(page);
++  await key(page, '#box', 'x', '1.00').click();
++  await key(page, '#title', 'y', '1.00').click({ modifiers: ['Control'] });
++  await page.keyboard.press('Control+c');
++  expect(await state(page)).toEqual(before);
++  const ruler = page.getByRole('slider', { name: 'Playhead', exact: true });
++  await ruler.press('Home');
++  await ruler.press('Shift+ArrowRight');
++  await ruler.press('Control+v');
++  await ready(page);
++
++  const [entrance] = await layers(page);
++  expect(entrance['#box'].x).toContainEqual({ time: .4, value: -200, ease: 'power2.out' });
++  expect(entrance['#title'].y).toContainEqual({ time: .4, value: 0, ease: 'cubic-bezier(0.3,-0.4,0.6,1.5)' });
++  const pasted = await state(page);
++  expect(pasted.history).toBe(before.history + 1);
++  await ruler.press('Control+v');
++  expect(await state(page)).toEqual(pasted);
++  await page.getByRole('button', { name: 'Undo', exact: true }).click();
++  expect((await state(page)).js).toBe(before.js);
++});
++
+ test('a marquee across rows and the toolbar dropdown write key-side eases as one undo', async ({ page }) => {
+   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+   await fixture(page);
+diff --git a/e2e/editor-steps.spec.ts b/e2e/editor-steps.spec.ts
+index b713d9955..85bff072d 100644
+--- a/e2e/editor-steps.spec.ts
++++ b/e2e/editor-steps.spec.ts
+@@ -403,6 +403,24 @@ test('Add Step, rename, delete and drags are one undo each and survive save and
+   expect(errors).toEqual([]);
+ });
+ 
++test('nearby flags keep separate readable hit targets at their stored times', async ({ page }) => {
++  await page.setViewportSize({ width: 1093, height: 720 });
++  const data = fixture();
++  data.steps.splice(1, 0, { name: 'Headline reveal', duration: .05, ease: 'none', layers: {} });
++  await editorWith(page, data);
++  const first = flag(page, 'Headline reveal');
++  const second = flag(page, data.steps[2].name);
++  const a = (await first.boundingBox())!, b = (await second.boundingBox())!;
++  expect(a.x).toBeLessThan(b.x);
++  expect(a.x + a.width).toBeLessThanOrEqual(b.x + .5);
++  await first.focus();
++  await expect(first).toBeFocused();
++  await page.keyboard.press('F2');
++  await expect(page.getByRole('textbox', { name: 'Step name', exact: true })).toHaveValue('Headline reveal');
++  await page.keyboard.press('Escape');
++  await expect(first).toBeFocused();
++});
++
+ test('flags stay ordered: a drag or nudge onto or past a neighbour refuses and changes nothing', async ({ page }) => {
+   // Step 2 ends in settled air (its keys stop at 0.6 of 0.8), so Out can move into it (R1.2a.2).
+   const settled = fixture(); settled.steps[1].duration = 0.8;
