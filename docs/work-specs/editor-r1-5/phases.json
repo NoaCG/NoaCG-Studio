@@ -1,0 +1,109 @@
+[
+  {
+    "id": "E1",
+    "title": "Baseline and remaining editing gaps",
+    "environment": "WL: owned Windows Chromium and isolated test accounts",
+    "acceptance": [
+      "Pin current main, map required R1 rows to existing receipts or gaps, and retain the October cumulative journey, original failures and single-device scope.",
+      "Exercise Illustrator SVG and catalog artwork through editing, grouping, undo/cancel, animation, save/reopen and export at the required zoom and with native file interactions.",
+      "Reproduce outstanding R1 issues on reachable paths before fixing them. Inventory exact GSAP artifacts and stage the written clarification request in parallel."
+    ],
+    "dependsOn": [],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  },
+  {
+    "id": "E2",
+    "title": "R1.2c loops",
+    "environment": "BL: qualified browser preview and exported fixtures",
+    "acceptance": [
+      "Verify property and layer loops, hold, interruption, replay, Out, boundaries and settling. Preserve source and legacy motion.",
+      "Verify parity with browser exports, stop on state exit, repeatable settling and continuity for supported speed changes."
+    ],
+    "dependsOn": [
+      "E1"
+    ],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  },
+  {
+    "id": "E3",
+    "title": "R1.3 assisted editing and round-trip",
+    "environment": "BL: browser, CLI and isolated fixtures with existing authorized model access",
+    "acceptance": [
+      "Verify manual and reviewed-help flows, correct-document targeting, preview, accept, cancel, undo and safe refusal of stale requests.",
+      "Round-trip a CLI package through import, visual edit, save/reopen and export with its source and operator fields intact.",
+      "Exercise required access paths under existing model policy. Record any unresolved required access or model check."
+    ],
+    "dependsOn": [
+      "E2"
+    ],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  },
+  {
+    "id": "E4",
+    "title": "R1.4 projects to rundown",
+    "environment": "WL: isolated test account, disposable production and browser rehearsal",
+    "acceptance": [
+      "Verify the starter or brand path, multiple durable graphics, Home reopen, selective installation and operator data, In, Next and Out.",
+      "Interrupt and retry install without duplicates, test rollback against a newer edit and preserve the live copy until explicit replacement.",
+      "Retain the October save and recovery evidence. Stage repeatable exports and a named receiving-system rehearsal before E6."
+    ],
+    "dependsOn": [
+      "E3"
+    ],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  },
+  {
+    "id": "E5",
+    "title": "R1.5 software and first-use qualification",
+    "environment": "WL: real first-time users, named desktop and laptop, and pinned reference",
+    "acceptance": [
+      "Record two or three real first-time users completing the two release journeys. Record assistance and misses against the spec timing targets.",
+      "Measure the spec's feedback targets with native zoom where required, and execute the same tasks on the same machine against the pinned Studio reference.",
+      "Resolve release-critical gaps and stage the workflow review and receiving-system handover."
+    ],
+    "dependsOn": [
+      "E4"
+    ],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  },
+  {
+    "id": "E6",
+    "title": "R1.5 receiving systems",
+    "environment": "HW: real CasparCG and named OGraf renderer with a qualified operator",
+    "acceptance": [
+      "On each named release host, exercise data, In, Next, Out, interruption, replay and parity with an exported graphic including a bundled font and logo.",
+      "Record the clean receiving environment, versions, actual output and compatibility scope. Use an off-air window or rehearsal output and preserve the live copy.",
+      "Checkpoint any unavailable required host or evidence with its exact next action."
+    ],
+    "dependsOn": [
+      "E5"
+    ],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  },
+  {
+    "id": "OW1",
+    "title": "Release decision",
+    "environment": "OW: owner workflow review and recorded release decision",
+    "acceptance": [
+      "Present both rehearsed workflows and the tested candidate with first-use, performance, real-host and written GSAP disposition receipts.",
+      "Record the owner's explicit release adoption decision separately from engineering passes. Release adoption requires approval and all mandatory evidence."
+    ],
+    "dependsOn": [
+      "E6"
+    ],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  },
+  {
+    "id": "E7",
+    "title": "Release adoption and exact verification",
+    "environment": "CI: normal GitHub merge queue, independent acceptance and production verification",
+    "acceptance": [
+      "Implement the approved Alpha-to-release change for the current one-editor product, preserving routes, data, runtime and rollback.",
+      "Verify the actual merge with a fresh independent checker and all required checks, then verify the intended live deployment."
+    ],
+    "dependsOn": [
+      "OW1"
+    ],
+    "spec": "docs/work-specs/editor-r1-5/spec.md"
+  }
+]

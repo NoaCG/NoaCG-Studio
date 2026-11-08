@@ -1,6 +1,6 @@
 # Editor R1.5 release run
 
-**Prepared November 8, 2026. Status: draft, awaiting launch authority.**
+**Prepared November 8, 2026. Status: draft, awaiting independent review and launch authority.**
 Baseline for preparation is main `361cb6f628df0a44d410954aae527cde976d1750`.
 The October 13 run is complete. [Phase 3 #2294](https://github.com/NoaCG/NoaCG-Studio/pull/2294)
 and the [Phase 2 single-device closure](../editor-leave-reliability/scoped-closure/README.md)
@@ -41,25 +41,30 @@ on-air copy safe. Release adoption requires explicit owner approval.
 | OW1 | **Release decision.** Present the rehearsed workflow and tested candidate, the first-use and performance results, real-host receipts, the written GSAP disposition and any remaining material limitations. The owner reviews workflow and explicitly approves or declines release adoption. The approval is recorded separately from engineering evidence. | OW: owner workflow review and recorded release decision. |
 | E7 | **Release adoption and exact verification.** After approval and all required evidence, implement the approved Alpha-to-release change for the current one-editor product. Preserve routes, stored data, runtime behavior and rollback. Use the normal merge queue and confirm independent acceptance, required checks on the actual merge, and the intended live deployment. | Normal GitHub queue and exact-merge checks, then applicable production verification. |
 
-Run E1 through E5 in order by default. Prepare receiving-system fixtures and
-the GSAP evidence packet alongside the engineering work. A missing physical
-slot or pending GSAP reply blocks the dependent release gate. Complete the
-independent engineering work first and report the exact outstanding input.
-The project is complete only after all required gates and the final exact
-deployment check.
+Use [phases.json](phases.json) as the supervisor's ordered phase input. Start
+with E1 and progress serially through E5. Stage GSAP clarification and receiving
+access in parallel with those phases. Prepare the workflow walkthrough after
+E5 even if E6 or GSAP is still pending. Start OW1 after E6 passes and the
+written GSAP disposition is available. Missing mandatory evidence checkpoints
+the same project at the first dependent gate, with the exact receipt and action
+needed to resume. The owner handover uses the accepted report route with no
+periodic check-in. Resume on the recorded receipt within the applicable
+authority. If the native route cannot deliver it, the checkpoint names the
+manual resume action. Completion requires E7 and its exact deployment check.
 
 ## When owner involvement is needed
 
 | Milestone | What the team prepares | What the owner supplies |
 | --- | --- | --- |
-| Early in E1, after the dependency inventory | Exact GSAP version and plugins, how the editor uses it, and how it is bundled or redistributed in browser, CLI and exported packages. Prepare a short request for written clarification under the existing licence decision. | Send the request as the project owner once ready, if advancing it ahead of the existing reminder. The written response or separately approved resolution is required before release approval. |
+| Early in E1, after the dependency inventory | Exact GSAP version and plugins, how the editor uses it, and how it is bundled or redistributed in browser, CLI and exported packages. Prepare a short request for written clarification under the existing licence decision. | Send the request as the project owner. The team reconciles any reply with the current artifact inventory. The written response or separately approved resolution is required before release approval. |
 | Once E4 yields repeatable export packages, ahead of E6 | Test exports, host/version checklist, expected output, off-air procedure and rollback. First check access the team already has. | Provide a named CasparCG and OGraf test setup or nominate an operator and off-air slot if the team lacks access. The operator can execute the checklist. |
 | After E5, once both full workflows are rehearsed | One review route, a tested build, representative artwork and a short walkthrough. Include imported artwork through In/Next/Out and save/reopen, and a starter into a rehearsed rundown. Provide known limits and relevant comparison captures. | Judge clarity, timing, comfort and broadcast confidence on the usual setup. Confirm the release decision only after E6 and the licence disposition are recorded. |
 
 The licence question follows [the existing owner receipt](../../STACK_FRESHNESS.md#L271)
 and the [GSAP release gate](../../research/editor-acceptance-register-2026-09-17.md#L182).
 Use the [current vendor licence](https://gsap.com/community/standard-license/)
-as input to the request. The preparation baseline vendors GSAP 3.15.0 in
+and the [vendor licensing contact form](https://gsap.com/community/contact/)
+as inputs to the request. The preparation baseline vendors GSAP 3.15.0 in
 `src/assets/gsap.min.js`. The preview inlines it through
 `src/preview/composeDocument.ts`. Export entry points include
 `src/export/selfContained.ts`, `src/export/noacgPackage.ts` and
@@ -69,26 +74,46 @@ use of GSAP is comparison evidence.
 
 ## Activation and verification
 
-- Preparation creates a local plan draft. Launch authority, actual start and
-  deadline or expressly authorized planning target are recorded at activation.
-  The October run's 15-hour window and authority ended with that run.
-- Use the plan-create and plan-run procedures to reconcile current main,
-  worktree ownership, the old terminal ledger, any new competing run and live
-  GitHub state. Create a new continuing editor project only on explicit launch
-  authorization. Retain the proposed phase IDs and criterion/environment
-  bindings in the supervisor manifest. Use active local Codex by default,
-  with fresh builders and independent checkers in owned worktrees. Qualify the
-  actual coordinator and worker routes at activation.
-- Use the existing scheduler for targeted local checks. Keep full suites in
-  GitHub Actions, normal repair limits, and the one acknowledged PR repair
-  owner through independent exact-merge checks. Run the required comparable
-  reference task per meaningful step. Keep real hardware, human judgment and
-  actual browser zoom tied to their required environments.
+- This is a local draft. Activation requires explicit start authority, actual
+  start and a finite deadline or expressly authorized planning target. Record
+  separate owner grants for running until complete and automatic renewal of
+  bounded work blocks. Each block is at most 24 hours. The October run's
+  authority ended with that run.
+- Use plan-create and plan-run. Reconcile current main, worktree ownership,
+  the old terminal ledger, recovery refs, overlapping work and live GitHub
+  state. Use one continuing project, one supervisor and fresh builders and
+  independent checkers in owned worktrees. Preserve the phase IDs, acceptance
+  and required environments from phases.json. Keep physical and private
+  evidence on the required host.
+- Requested mode is unattended Codex. Before opening the project, qualify the
+  selected native coordinator and worker bindings. Observe coding-session
+  wake and re-entry, a bounded renewal, terminal stop and the effective
+  permission policy on the selected route. Record idle re-entry and reclaimed
+  host recovery separately. The
+  [prior recovery qualification](../native-recovery/evidence/qualification.md)
+  and [Codex implementation evidence](../codex-plan-runs/evidence/implementation.md)
+  provide context. If qualification fails, keep the draft and report the
+  missing proof. Active execution requires its own owner authorization.
+- On a qualified route, progress through routine phase transitions, repairs,
+  queue admission and exact-merge checks within the recorded authority.
+  Use the native wake and existing supervisor state. The phase coordinator
+  owns recovery and each PR has one acknowledged repair owner. OW1 uses the
+  existing owner handover and receipt flow. An explicit owner pause requires
+  explicit resume. Stop launches and block-specific wakes when authority
+  ends, and stop the native wake at terminal completion.
+- Use the existing scheduler for targeted local checks and GitHub Actions for
+  full suites. Run the required comparable reference task per meaningful
+  editor step. Keep named hosts, human judgment and actual browser zoom tied
+  to their required environments.
 - Read the latest [#1967 hold](https://github.com/NoaCG/NoaCG-Studio/issues/1967)
   just before queue admission while it applies. Run the existing sideEnds
   check on exact candidate paths. Preserve selection, budgets, limits,
   quarantine and the original failure evidence.
-- The first authorized step is E1 on refreshed main. Before each later
-  implementation record the exact existing requirement, the smallest gap and
-  its observable verification. Keep the coordinator active through terminal
-  results, or checkpoint the same new run at its authorized boundary.
+- Before each implementation record the requirement, the smallest reproduced
+  gap and its observable verification. Where behavior already passes, use a
+  verification receipt with the tested revision and required environment as
+  phase evidence. Use the normal queue for any required evidence-only PR.
+  Independently check every phase and follow changes through the merge queue,
+  exact-merge checks and applicable deployment. Checkpoint the same project
+  with the exact next action at any remaining external gate, unsupported
+  interruption or authorization boundary.
