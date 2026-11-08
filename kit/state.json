@@ -46,7 +46,10 @@
     {
       "session": "/root/v1_builder",
       "step": "build",
-      "phase": "v1"
+      "phase": "v1",
+      "pr": 2291,
+      "head": "7362f377c9786453a6f28b5a6d45819cf42582c6",
+      "repairComment": 6721720792
     }
   ],
   "owner": [],
