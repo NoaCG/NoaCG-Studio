@@ -804,6 +804,37 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found, and
 the check's findings.
 
+### V1 rules before implementation
+
+Previous verified source `df5767458230558e9fdee158e663e9367e58f8e3`.
+First publish now lives in `src/components/home/useProductionPublish.ts`. The model owns
+the choice and the hook and page use it for their existing CasparCG behavior.
+
+- An explicit vMix choice stores `vmix: true` with `caspar: false` and wins over derived
+  signals. An explicit CasparCG choice or neither stores the existing CasparCG switch
+  shape. Switching to CasparCG removes the vMix flag. Turning CasparCG off preserves a
+  selected vMix system. The old vMix Browser destination remains a Browser output.
+- Without an explicit choice, preserve the existing CasparCG inference for saved
+  destinations, CasparCG cues, account preference, and legacy activity. A cue refers to its
+  own item's adapter. A missing adapter or item keeps the prior CasparCG behavior for
+  legacy playout cues. An explicit vMix cue is never CasparCG. If CasparCG does not win
+  and at least one vMix cue exists, the inferred system is vMix.
+- A stored vMix selection survives validation, the existing output-setup setter and first
+  Publish. An explicit vMix selection does not read the account's CasparCG default or
+  load CasparCG on first Publish. V1 adds no vMix action, playout UI or Bridge change.
+
+The independent rules review found that first Publish also needs to preserve cue-inferred
+vMix. It adds the existing Browser destination without either switch, so a later account
+default cannot change the system and an inferred choice never becomes an explicit one.
+Publish re-reads the record after the account lookup and before a first-Publish CasparCG
+Load. The production Load, Replace and reload paths suppress an obsolete CasparCG Load
+if the browser sees the saved vMix choice before dispatch. The slot read also checks the
+saved choice before offering Replace. V1 has no vMix authoring route. Before V2 adds the
+switch, include the separate Put on air action in Playout Settings in the same check.
+Before V4 enables mixed rundowns, its Take, folder and Play next paths must check the
+cue's adapter before sending to a Bridge target.
+Verification and rollback are in [phase V1 evidence](evidence/phase-v1.md).
+
 ### Before V1 (the plan, 2026-10-14)
 
 - The vMix adapter's Put on air (Load) finds the output input by `title` today; V2 makes it the key
