@@ -29,8 +29,11 @@
       "nonce": "p2-b-1955",
       "phase": "p2",
       "step": "build",
-      "launchedAt": "2026-11-08T11:19:48.0758984+00:00",
-      "session": "/root/phase2_builder"
+      "launchedAt": "2026-11-08T13:19:48.0758984+02:00",
+      "session": "/root/phase2_builder",
+      "pr": 2288,
+      "head": "09ec6ed45d983ac16547fbab12e16cfa4fc051ae",
+      "repairComment": 6720903954
     }
   ],
   "owner": [],
