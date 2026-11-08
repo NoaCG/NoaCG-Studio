@@ -176,10 +176,10 @@ gate reopened and the paused notice cleared. The sync details continued to
 offer Sign in until the old pass finished. A browser probe reproduced that
 action with the candidate product source unchanged.
 
-The loaded account's authoring gate determines whether Sign in can help.
-After the gate reopens, an old offline sync state means confirmation is still
-pending for the current session. The chip shows that pending confirmation,
-uses the existing age and offline detail, and offers Sync now. Synced still
-requires the controller's confirmation. Account and team data, retry timing,
-revision ownership and the deliberate sign-out behavior keep their existing
-rules.
+When a personal library is loaded, its authoring gate is open and the
+controller still reports the previous offline phase, the personal chip shows
+pending confirmation and offers Sync now. The pending reading follows the
+existing minute wake, delay wording and network-offline detail. Synced still
+requires controller confirmation. Team production status keeps its existing
+reading. Cold boot, account switching, retry timing, revision ownership and
+deliberate sign-out retain their existing behavior.
