@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "project": "plan-editor-r1-5-2026-11-08",
+  "plan": "editor-r1-5",
+  "spec": "docs/work-specs/editor-r1-5/spec.md",
+  "issue": 2295,
+  "coordinator": {
+    "session": "01a1bc5d-85b7-7902-9a0b-8870985a016c",
+    "environment": "codex-desktop-windows",
+    "return": "Return the terminal receipt through the native Codex worker to the current active coordinator."
+  },
+  "authorization": {
+    "line": "Execution mode: I explicitly authorize ACTIVE LOCAL Codex execution. This supersedes the draft's requested unattended mode. Record this later decision in the launch receipt and use execution harness codex, mode active.",
+    "startedAt": "2026-11-08T20:19:18.531+02:00",
+    "deadline": "2026-11-22T20:19:18.531+02:00",
+    "standing": {
+      "untilComplete": "I separately authorize continuing the approved scope until all required phases and terminal verification are complete, including beyond the planning target.",
+      "blockRenewal": "I separately authorize automatic renewal of work blocks lasting at most 24 hours each. Renewal cannot override pause, cancellation, unresolved waits, exhausted attempts, uncertain native delivery or permission boundaries."
+    },
+    "target": "Planning target: I authorize a target 14 days after the actual project start. Record its exact timestamp in Europe/Kiev. This is a planning target, not a hard execution deadline or release promise.",
+    "retention": "Retain the active coordinator through each PR's merge, independent acceptance and terminal results. Arm no unattended wake. If the session is interrupted, reconcile the same project before continuing. Do not promise after-session monitoring.",
+    "gsap": "GSAP direction: NoaCG is open source, entirely free and earns no revenue. Include those facts and its broadcast-graphics purpose in the exact artifact inventory and clarification request. I will ask GSAP/Webflow for permission or clarification; bring that request forward from the earlier six-month deferral.",
+    "gsapGate": "Continue engineering and technical qualification without waiting for an immediate GSAP reply. A delayed reply must not block E1-E6 or preparation of the workflow review. Preserve G07's licence, provenance, notices and redistribution checks. Before release, present the written response or a separately approved resolution. Do not treat silence as permission. No paid licence, changed terms or replacement engine is authorized."
+  },
+  "execution": {
+    "harness": "codex",
+    "mode": "active"
+  },
+  "branchPrefix": "codex",
+  "qualification": {
+    "id": "plan-editor-r1-5-2026-11-08",
+    "execution": {
+      "harness": "codex",
+      "mode": "active"
+    },
+    "startedAt": "2026-11-08T20:19:18.531+02:00",
+    "deadline": "2026-11-22T20:19:18.531+02:00",
+    "timeZone": "Europe/Kiev",
+    "source": "f0f2e3fe0c2cc14e23b171957b6f8d18905fd434",
+    "base": "361cb6f628df0a44d410954aae527cde976d1750",
+    "wave": "C:\\claude\\NoaCG-Studio\\.git\\noacg-jobs\\wave-plans\\2026-11-08-plan-editor-r1-5-wave-plan.local.md",
+    "db": "C:\\claude\\Temp\\editor-r15-state-1108\\control.sqlite",
+    "native": {
+      "provider": "codex",
+      "sessionId": "01a1bc5d-85b7-7902-9a0b-8870985a016c",
+      "environmentId": "codex-desktop-windows",
+      "policySha256": "a3157e486efda78385837ff180b8301b70374276b4fd97bda6ba2a446c148ad0"
+    },
+    "coordinatorProbes": [
+      "2026-11-08T18:14:25.304Z",
+      "2026-11-08T18:14:38.782Z"
+    ],
+    "workerProbe": {
+      "nonce": "editor-r15-active-qual-1108-c5de-01",
+      "actor": "/root/editor_r15_route_qual",
+      "sessionId": "01a1bc5f-93ad-7c02-82bb-53f78b92c61e",
+      "passedAt": "2026-11-08T18:16:15.497Z",
+      "cleanAt": "2026-11-08T18:16:31.667Z",
+      "transport": "native final message to active coordinator"
+    }
+  },
+  "brief": {
+    "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
+    "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
+  },
+  "waitingOn": [],
+  "inFlight": [],
+  "owner": [],
+  "fixes": [],
+  "triggers": []
+}
