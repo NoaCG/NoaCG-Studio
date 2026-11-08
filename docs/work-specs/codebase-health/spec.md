@@ -388,7 +388,7 @@ Phase 2's acceptance and verification above pass. The receipt includes justified
 move/extraction, distinguishes ordinary work from migration, and explains the separate model
 concern. Every suggested action identifies responsibility and its existing proof location;
 no-action or insufficient new evidence is an explicit, supported outcome.
-Layer: independent diff and test-inventory review; future receipt: `evidence/maintenance-review.md`.
+Layer: independent diff and test-inventory review. See the [maintenance receipt](evidence/maintenance-review.md).
 
 ### AC-8: Close-out measures value and leaves no unapproved continuation
 
@@ -411,6 +411,20 @@ the phase's dated metrics document.
 - **Traps:** the open production tracking issue and October checkpoint do not establish run
   status. Owner closure, software checks and formal studio acceptance are separate claims.
   Recheck actual PR write paths and the CI/CD hold before queueing.
+
+### Phase 2
+
+- **Previous verified main SHA** `9496e84e1e6a7703ec6d7a217f27e80178ef4f03`, also the
+  maintenance-review source pin. Phase 1's independent check is recorded on
+  [#2287](https://github.com/NoaCG/NoaCG-Studio/pull/2287#issuecomment-6720810871).
+- **Revert** In an isolated branch worktree, run `git revert -m 1 <this PR's merge SHA>`,
+  then `/check` and `/queue-merge`. This reverts only documentation and its digest.
+- **Decisions** Use landed ordinary changes and the wizard S8 move to review owners,
+  wiring and proof. Leave the model write envelope and architecture map as they are.
+  See the [maintenance receipt](evidence/maintenance-review.md).
+- **Traps** Compare each integration with its actual first parent. A move is migration
+  evidence. A test file in the inventory establishes what it covers, and this phase
+  makes no new claim about running its journey. Keep the October snapshot at its own pin.
 
 ### Registration
 
