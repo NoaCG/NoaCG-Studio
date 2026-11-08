@@ -50,7 +50,7 @@
       "session": "/root/v2_builder",
       "head": "c9499d1567880b7f1e3965fc05a827125609db5a",
       "phase": "v2",
-      "note": "Builder finished at c9499d15. AC-4 and AC-6 remain open; draft kept outside the queue.",
+      "note": "Builder finished at c9499d15. AC-4 and AC-6 open. Draft CI identified a compact Playout panel regression. Draft outside the queue.",
       "pr": 2293,
       "repairComment": 6723338187
     }
