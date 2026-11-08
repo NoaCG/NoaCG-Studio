@@ -64,8 +64,12 @@ phases. vMix keeps control of Program, Preview and transitions.
   even if Settings now chooses a different one. Unload addresses the actual
   overlay. After Unload, Load uses the configured channel. The Bridge refuses to
   put the same owned Browser on a second overlay.
-- A disposed production session cannot dispatch a pending vMix Load, Replace or
-  Unload. With vMix selected, CasparCG Stop/Clear is disabled. The shared Clear
+- At the React route commit, the former production immediately loses authority
+  to send a pending Bridge output action. The session store still disposes on its
+  existing deferred schedule. vMix Load, Replace and Unload, production CasparCG
+  Load and reload, Settings Put on air, native actions, and CasparCG Stop/Clear
+  check the mounted session at dispatch. With vMix selected, CasparCG Stop/Clear
+  is disabled. The shared Clear
   sender rechecks the saved choice and session after probing the Bridge. The same
   guard applies to native sends and the offline CasparCG output cleanup. CasparCG
   Out and Clear operate by slot, so cached browser ownership cannot authorize
