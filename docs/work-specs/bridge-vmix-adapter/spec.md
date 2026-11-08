@@ -258,8 +258,14 @@ unique, so the Bridge remembers the key of the input it made for each address (w
 key, so a renamed production still unloads and its input is renamed to the new title. An input
 of the same name that the Bridge did not make for this address is never reused: Load adds a new
 input named `NoaCG <title> (2)`. A key vMix no longer lists (a new session with another preset)
-is forgotten, and Load adds the input again. If vMix's XML turns out to name a Browser input's
-address (V2 measures it), that check is added; it is not relied on.
+is forgotten, and Load adds the input again.
+
+Owner-approved after the V2 preset prototype. Each AddInput uses a fresh, unpredictable local
+Bridge address that redirects to the exact NoaCG output URL. vMix exposes the unique hostname
+in XML and keeps the local address in saved presets. The Bridge keeps the redirect authorization
+as a digest and owns the input only after an acknowledged AddInput and exact marked Browser
+readback. Start Bridge on its original local port before opening a saved vMix preset. If Bridge
+starts late, reload that Browser input in vMix. Starting Bridge sends no mixer commands.
 
 ### One Bridge for every playout system
 

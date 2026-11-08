@@ -4,41 +4,58 @@ V1 was independently verified on `4dab8e67af7d76d2e7f2cd180e36d14df9d151b4`
 (PR #2291, receipt comment 6722265444). To revert V2 after landing, open a PR
 with `git revert -m 1 <V2 merge SHA>` through the queue.
 
+The owner approved a saved local Bridge address after an owned vMix 29 Trial
+prototype. It read the exact random default title in XML, followed the
+redirect to the original renderer, and saved its key and Overlay 8.
+Reopening with the listener ready restored the original decoded Program
+frame. Reopening with the listener down showed the underlying plate and
+stayed there after Bridge startup. Explicit Browser Reload recovered the
+same composite. Each run verified restoration of last.vmix and user.config.
+The isolated prototype lives in C:/claude/Temp/vmix-state-1108.
+V2 reconciled with main at 361cb6f628df0a44d410954aae527cde976d1750 before
+this change.
+
 V2 lets an operator pair, choose vMix and load or unload a published production's
 Browser input on an overlay. Media controls and the media library belong to later
 phases. vMix keeps control of Program, Preview and transitions.
 
 ## Rules
 
-- The Bridge owns a new Browser key only after a successful AddInput reply and
-  the complete three-second observation window. Exactly one new Browser key may
-  appear across the readings, including keys that later disappear. That key must
-  still be present with the default title for the requested hostname at the final
-  reading. No pre-existing key can become owned. The existing seven-second action
-  budget leaves time for naming, overlay dispatch and readback. An action that
-  cannot start within the budget sends no AddInput.
-- The versioned store marks an addition before the send. An unanswered function
-  or incomplete or ambiguous readback never names, records ownership of, or airs a
-  Browser. New additions stay blocked until the operator restarts vMix and clears
-  only the pending marker with the Bridge closed. Known owned Browsers still work.
-  vMix reports the hostname but omits the URL, and its reply identifies no key. If
-  the Bridge's addition produces no observable Browser during the entire window
-  and a concurrent external Browser for the same hostname is its only candidate,
-  that case is still indistinguishable from a successful addition in live XML.
-  The requested addition may have no effect, arrive after the window or appear and
-  disappear between snapshots. A key already kept for another address is excluded.
-  An XML response that omits inputs or overlays cannot establish ownership.
-- A key belongs to the vMix TCP port and the output URL with its display name
-  removed. The store beside the Bridge token keeps the address as a digest and the
-  Browser key. Load and Unload use that key only while vMix lists it as a Browser.
-  An action durably forgets a missing or invalid key before any new addition.
-  The store serializes updates across ports and commits each replacement as one
-  file. Missing storage starts empty. Unreadable, corrupt or unsupported storage
-  blocks writes. One Bridge instance owns the store for each local user.
-- An acknowledged, unambiguous new key is kept before renaming or overlaying it.
-  Failure to save sends neither command. If rename or overlaying later fails, a new
-  explicit Load rechecks the kept key. An unanswered function is uncertain and
-  never sent again as part of the same operation.
+- Each AddInput gets a fresh, cryptographically random 128-bit hostname under
+  .localhost on the same loopback listener and port as the Bridge. Its exact
+  GET path carries the original output address. After an OK, the Bridge
+  accepts only a new Browser with the exact marker title and a valid key
+  that was neither listed before the command nor kept for another address.
+  A lookalike, a concurrent foreign Browser, a no-op, an unacknowledged
+  function, an incomplete XML or an ambiguous marker never establishes
+  ownership. The Bridge sends each function once. Observation stays within
+  the existing three-second cap and leaves time in the seven-second action
+  budget for naming, overlay dispatch and readback.
+- The alias serves a redirect during its own AddInput attempt. An unsuccessful
+  attempt loses the alias and can leave an unowned Browser in vMix. Explicit
+  retry gets a fresh marker and cannot adopt that Browser. Before rename or
+  Overlay In, the Bridge atomically commits the key and the redirect binding.
+  A failed save sends neither function. An operator can remove the unowned
+  Browser in vMix if an addition could not be confirmed.
+- The only alias response is a non-cacheable redirect from an exact known
+  hostname and GET path on the Bridge's port, from a loopback peer, without
+  CORS or referrer. The decoded HTTP or HTTPS destination must match the
+  digest authorized by the original output action, including the display
+  name query value. URL credentials and other Bridge aliases are refused.
+  The redirect does not fetch or proxy anything. It never receives or
+  returns the pairing token, and aliases cannot reach any control route.
+- The key belongs to the vMix TCP port and the production address with its
+  display name removed. A key missing from complete live XML is forgotten
+  before Load makes another. The committed redirect stays valid for a
+  saved preset independently of that key bookkeeping, and contains the
+  full address only in the preset's local URL. The versioned store keeps
+  the digests and keys. Updates across ports are serialized and replaced
+  atomically. Missing storage starts empty. Corrupt or unsupported storage
+  fails closed. One Bridge process owns the store for each local user.
+- Start Bridge on the same port before reopening saved vMix presets. If
+  Bridge starts late, explicitly reload the Browser input in vMix. Starting
+  Bridge never changes or reloads an input or overlay.
+
 - A new Browser gets the first available `NoaCG <title>` name with suffixes starting
   at `(2)` when taken. The Bridge excludes its own key when checking names. It updates
   an owned input's name on Load and when Unload finds it on the chosen overlay.
