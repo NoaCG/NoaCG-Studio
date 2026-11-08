@@ -46,13 +46,12 @@
   },
   "inFlight": [
     {
-      "step": "build checkpoint",
-      "session": "/root/v2_builder",
+      "session": "active coordinator",
+      "step": "local prototype",
+      "note": "Owner authorized isolated preset tests. Draft stays outside the queue.",
       "head": "c9499d1567880b7f1e3965fc05a827125609db5a",
-      "phase": "v2",
-      "note": "Owner authorized an isolated local address prototype. V2 draft remains blocked on proving AC-4 and fixing the compact panel.",
       "pr": 2293,
-      "repairComment": 6723338187
+      "phase": "v2"
     }
   ],
   "owner": [],
