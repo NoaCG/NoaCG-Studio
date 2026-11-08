@@ -18,3 +18,11 @@ the hook use the same model, and the hook awaits the existing durable write befo
 V1 changes no playout UI, no existing CasparCG tests and no Bridge behavior. V4 must guard
 all routes that can Take a cue for the other adapter before it adds vMix cue authoring.
 No real vMix process is required for this phase.
+
+The first implementation passed 61 unchanged browser tests in the shared local queue
+(`j-4949`, Bridge connection and Publish output setup). Review reproduced a newer
+vMix choice being missed during a deferred slot read. A Node probe against the
+actual Load handler and a fake Bridge showed that the corrected handler sends no
+CasparCG Load and shows no Replace confirmation after the choice changes. Stale
+Replace and reload sends also stop. The same probe observed the usual CasparCG
+Load, Replace and reload when CasparCG stays selected.

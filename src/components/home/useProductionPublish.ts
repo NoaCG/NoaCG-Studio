@@ -25,7 +25,7 @@ import {
   type Show,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
-import { accountCasparDefault, casparDestinationId, destinationUrl, outputSetupForFirstPublish, wantsAccountOutputDefault } from '../../model/outputSetup';
+import { accountCasparDefault, casparDestinationId, destinationUrl, outputSetupForFirstPublish, readOutputSetup, wantsAccountOutputDefault } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
 import {
   loadPlayoutSettings,
@@ -254,9 +254,11 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setSlotBusy(false);
     }
   };
+  const readSavedOutputSetup = () => readOutputSetup(loadShows().find(s => s.id === show.id)?.outputSetup);
   /** The load itself, tagged with the production's CasparCG destination, and what it changed. */
-  const sendLoad = async (settings: PlayoutSettings, url: string): Promise<PlayoutResult> => {
-    const casparId = casparDestinationId(loadShows().find((s) => s.id === show.id)?.outputSetup) ?? 'casparcg';
+  const sendLoad = async (settings: PlayoutSettings, url: string, setup = readSavedOutputSetup()): Promise<PlayoutResult | null> => {
+    if (setup?.vmix) return null;
+    const casparId = casparDestinationId(setup) ?? 'casparcg';
     const result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
     onAirChanged('air', result, casparOutputTarget(settings));
     return result;
@@ -268,8 +270,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setNote(`Pair NoaCG Bridge to load the output on ${where}.`);
       return;
     }
-    if (!replace) {
-      const reading = await readState(settings, settings.channel);
+    const reading = replace ? null : await readState(settings, settings.channel);
+    // The operator's saved choice can change while the Bridge is reading the slot.
+    const setup = readSavedOutputSetup();
+    if (setup?.vmix) {
+      setReplaceAsk(false);
+      return;
+    }
+    if (reading) {
       // A Bridge that reads slots but could not read this one cannot say whether another
       // production is there, so nothing is replaced on a guess.
       if (!reading.reply && slotReadable) {
@@ -285,8 +293,8 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       }
     }
     setReplaceAsk(false);
-    const result = await sendLoad(settings, url);
-    if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
+    const result = await sendLoad(settings, url, setup);
+    if (result && result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
   /** LOAD THE LOST OUTPUT AGAIN (control/bridgeWatch.ts decides when, issue #1657): the load alone,
    *  under Load's own guard, so it never goes beside the operator's Load or Unload. No note: the
