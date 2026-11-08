@@ -42,16 +42,16 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "The #1967 hold applies to Bridge release queue admission."
+    "what": "CI/CD #1967 still holds Bridge releases. V2 PR #2293 exact b3bf2f226 has clean reviews and passing CI gate, but cli/package.json ends the measured cap+cfg M1 side. Wait for the CI/CD coordinator to lift the hold before queueing or releasing."
   },
   "inFlight": [
     {
-      "step": "build",
+      "step": "release hold",
       "phase": "v2",
       "pr": 2293,
       "session": "/root/v2_builder",
       "repairComment": 6723338187,
-      "note": "Final local V2 candidate has independent grade A and a passing exact-head check. GitHub review and CI still required; #1967 release hold remains.",
+      "note": "Local and GitHub worker gates passed; Reviewed awaits the usual exact-head stamp after the hold. No queue entry or Bridge release.",
       "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee"
     }
   ],
