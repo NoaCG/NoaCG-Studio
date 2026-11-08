@@ -129,6 +129,18 @@ test('shared-instructions gate accepts the repository and refuses instruction dr
   await refuses('a removed Codex mapping cannot silently fall back', GATE,
     (file, content) => writeFileSync(file, content.replace("  ['plan-run', '.agents/skills/plan-run/references/codex.md'],", '')),
     ['CODEX_WORKFLOWS: missing execution mapping for plan-run']);
+  for (const name of ['plan-create', 'plan-run']) {
+    await refuses(`paired ${name} mapping and wrapper cannot revert to shared execution`, GATE,
+      (file, content) => {
+        const target = `.agents/skills/${name}/references/codex.md`, canonical = `.agent-workflows/${name}.md`;
+        const wrapper = path.join(fixture, `.agents/skills/${name}/SKILL.md`);
+        const original = readFileSync(wrapper, 'utf8');
+        assert.ok(content.includes(`['${name}', '${target}']`) && original.includes(target));
+        writeFileSync(wrapper, original.replaceAll(target, canonical));
+        writeFileSync(file, content.replace(`['${name}', '${target}']`, `['${name}', '${canonical}']`));
+        return () => writeFileSync(wrapper, original);
+      }, [`CODEX_WORKFLOWS: unsupported execution mapping for ${name}`]);
+  }
 
   const gateSource = readFileSync(path.join(fixture, GATE), 'utf8');
   const reserveMatch = gateSource.match(/^const CHAIN_MIN_FREE_BYTES = (\d+);/m);

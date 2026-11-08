@@ -657,7 +657,7 @@ for (const name of workflowNames) {
   checkRepositoryFile(codexSkill, 'Codex skill adapter');
   const codexWorkflow = CODEX_WORKFLOWS.get(name) ?? canonical;
   checkThinWrapper(codexSkill, codexWorkflow, 'Codex skill adapter');
-  if (codexWorkflow !== canonical) {
+  if (CODEX_WORKFLOWS.has(name)) {
     if (!['plan-create', 'plan-run'].includes(name)
         || codexWorkflow !== `.agents/skills/${name}/references/codex.md`) {
       failures.push(`CODEX_WORKFLOWS: unsupported execution mapping for ${name}`);
