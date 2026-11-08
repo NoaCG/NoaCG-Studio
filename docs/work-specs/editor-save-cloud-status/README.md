@@ -77,3 +77,42 @@ disappeared when the retry began with the graphic still unconfirmed, and
 reappeared at its next timeout. During the gap Home still read Not synced.
 The two intended failures were the missing editor indicator and the removed
 notice. Manual recovery and exact-source reopen still passed.
+
+## Verification
+
+Product and test source `9b18169feeb4ebf536496ffada01d433fe8a6b5f`. The previous
+main pin is the baseline above. The implementation can be reverted with
+`git revert 9b18169feeb4ebf536496ffada01d433fe8a6b5f`.
+
+| Check | Observed result |
+| --- | --- |
+| Cloud status browser spec, one Chromium worker | All 15 cases passed with zero retries in 2.1 minutes. The normal editor import, edit and named Save left local Saved visible while the intercepted cloud write was pending. The late indicator explained the wait. The same global notice stayed mounted through the unanswered automatic retry and route changes. Manual retry confirmed the intended HTML and JavaScript, removed the notice and allowed an exact-source Home reopen and SPX download. |
+| Library and production copies | The same journey added the graphic to a production using the control page. A subsequent linked Save updated the intended cloud graphic while the production's pooled HTML and JavaScript stayed byte-identical. The browser did not publish to a physical output. |
+| Session and offline recovery | A valid same-account session update and browser network loss retained the unresolved notice. Session loss replaced it with the existing paused state and reachable Sign in dialog. Same-account resumption cleared the stale failure and confirmed the intended record. The browser used an isolated mock account and intercepted requests. |
+| Laptop layout and input | At 1366×768 the local Save and cloud states both fit in the header. The retry panel fit entirely in the viewport and Escape closed it without changing the source. The screenshot was inspected with the test account's analytics choice dismissed. |
+| Retained editor and account regression checks | Four selected cases passed with zero retries in 23.6 seconds. The cumulative 1920×1080 journey verified editable text, artwork, animation, cancellation, Save/reopen and executable SPX, CasparCG and OGraf browser outputs. The keyboard ownership, anonymous wizard export and current-revision confirmation/session-loss cases also passed. |
+| Static verification | Targeted ESLint, client TypeScript and the eight reached repository gates passed. The unchanged Windows test-protection wrapper could not create its temporary directory symlink. Exact base/head Playwright inventories returned 13 and 15 cases. The unchanged protection functions returned zero refused or allowed removals on those inventories. The normal Linux CI gate remains authoritative. |
+
+### Pinned comparisons
+
+The two bounded reference lifecycle tasks passed on Windows in 17.0 seconds
+with zero retries. Both used a new local browser profile and loopback-only
+servers. No reference code was brought into NoaCG.
+
+- [OGraf Studio v0.17](https://github.com/zerodensity/ograf-studio/releases/tag/v0.17)
+  saved a native file using its documented download fallback. A later experiment
+  was discarded, and the original saved wording rendered after reopening the
+  file. The official Windows executable matched published SHA-256
+  `88836062eab024aac85e5f71400bcf2e198ca09f12447fe4c52ebc1e7473cebd`.
+  The [prior source receipt](../editor-leave-reliability/reference.md) pins
+  inspected source `3142fc7d02934494931eb14e7dc255393e4110d0` to the v0.17 paths.
+- [Eyevinn ograf-editor](https://github.com/Eyevinn/ograf-editor/tree/616841bd949e3a21137579451123f66c292543f0)
+  was run at the exact pinned revision with its lockfile. Switching templates
+  retained the already autosaved record. Cancelling deletion kept both records.
+  Confirming deletion removed only the experiment. Reload kept the intended
+  template.
+
+Both rendered results were inspected. The comparisons cover local persistence
+and reopen. NoaCG additionally distinguishes its named local save from account
+confirmation. The references did not exercise NoaCG's account retry state, a
+physical receiving host or owner acceptance.
