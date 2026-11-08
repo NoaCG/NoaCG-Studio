@@ -4,9 +4,9 @@
     "title": "Baseline and remaining editing gaps",
     "environment": "WL: owned Windows Chromium and isolated test accounts",
     "acceptance": [
-      "Pin current main, map required R1 rows to existing receipts or gaps, and retain the October cumulative journey, original failures and single-device scope.",
-      "Exercise Illustrator SVG and catalog artwork through editing, grouping, undo/cancel, animation, save/reopen and export at the required zoom and with native file interactions.",
-      "Reproduce outstanding R1 issues on reachable paths before fixing them. Inventory exact GSAP artifacts and stage the written clarification request in parallel."
+      "Publish the row-level inventory required by spec.md#acceptance-coverage-and-receipt-rules on pinned main: requirement/subcriterion, responsible phase, receipt/revision, applicability, remaining check, environment and status. Retain the October cumulative journey, original failures and single-device scope.",
+      "Close E1's assigned authoring coverage, including keys/copy/easing, anchors, nested-source identity/transforms, flags/trim and everyday tools. Verify Illustrator SVG and catalog editing, grouping, undo/cancel, animation, save/reopen and export with native zoom and file interactions.",
+      "Reproduce reachable Windows R1 defects before fixing them; assign loop-specific #774 checks to E2 and Linux #775 reproduction and host confirmation to E6. Inventory exact GSAP artifacts and prepare the clarification request without presuming the earlier timing deferral is superseded."
     ],
     "dependsOn": [],
     "spec": "docs/work-specs/editor-r1-5/spec.md"
@@ -16,7 +16,7 @@
     "title": "R1.2c loops",
     "environment": "BL: qualified browser preview and exported fixtures",
     "acceptance": [
-      "Verify property and layer loops, hold, interruption, replay, Out, boundaries and settling. Preserve source and legacy motion.",
+      "Close E2's coverage in spec.md#acceptance-coverage-and-receipt-rules: property and layer repeat/yoyo loops, independent local ruler, deterministic backward seek, hold, interruption, replay, finite Out, boundaries and settling. Preserve source and legacy motion.",
       "Verify parity with browser exports, stop on state exit, repeatable settling and continuity for supported speed changes."
     ],
     "dependsOn": [
@@ -29,9 +29,9 @@
     "title": "R1.3 assisted editing and round-trip",
     "environment": "BL: browser, CLI and isolated fixtures with existing authorized model access",
     "acceptance": [
-      "Verify manual and reviewed-help flows, correct-document targeting, preview, accept, cancel, undo and safe refusal of stale requests.",
+      "Close E3's coverage in spec.md#acceptance-coverage-and-receipt-rules: manual and grounded-help/reviewed-edit flows, correct-document/selection targeting, preview, accept, cancel, undo and safe refusal of stale or invalid requests.",
       "Round-trip a CLI package through import, visual edit, save/reopen and export with its source and operator fields intact.",
-      "Exercise required access paths under existing model policy. Record any unresolved required access or model check."
+      "Verify required free/BYOK and external-tool access paths, quota/timeout handling and offline fallback under existing policy. Supply real-model task-quality evidence separately from deterministic shared-command parity."
     ],
     "dependsOn": [
       "E2"
@@ -43,9 +43,9 @@
     "title": "R1.4 projects to rundown",
     "environment": "WL: isolated test account, disposable production and browser rehearsal",
     "acceptance": [
-      "Verify the starter or brand path, multiple durable graphics, Home reopen, selective installation and operator data, In, Next and Out.",
-      "Interrupt and retry install without duplicates, test rollback against a newer edit and preserve the live copy until explicit replacement.",
-      "Retain the October save and recovery evidence. Stage repeatable exports and a named receiving-system rehearsal before E6."
+      "Close E4's coverage in spec.md#acceptance-coverage-and-receipt-rules: starter selection and branding, brand undo/redo and explicit reapplication preserving local overrides and untouched graphics; multiple durable graphics with independent drafts/history and Home reopen.",
+      "Verify selective installation into two rundowns and operator data/In/Next/Out. Interrupt/retry without duplicates, expose rollback conflicts with newer edits, and prove failed save, rename, project removal and legacy migration preserve documents and existing/on-air copies until explicit replacement.",
+      "Retain the October save/recovery evidence. Stage verified export fixtures, expected outputs and a receiving-system checklist. Operator and host access are E6 prerequisites, not E4 exit conditions."
     ],
     "dependsOn": [
       "E3"
@@ -55,10 +55,10 @@
   {
     "id": "E5",
     "title": "R1.5 software and first-use qualification",
-    "environment": "WL: real first-time users, named desktop and laptop, and pinned reference",
+    "environment": "WL: real first-time users and moderator, named desktop and laptop, native 125% zoom and pinned reference",
     "acceptance": [
-      "Record two or three real first-time users completing the two release journeys. Record assistance and misses against the spec timing targets.",
-      "Measure the spec's feedback targets with native zoom where required, and execute the same tasks on the same machine against the pinned Studio reference.",
+      "Close E5's coverage in spec.md#acceptance-coverage-and-receipt-rules with two or three real first-time users and a moderator completing both release journeys. Record individual times, errors and assistance against the spec timing targets and correct interaction failures.",
+      "Measure the spec's feedback targets and distributions on F4's 30-layer/300-key scene at 1366x768 and 1920x1080 with actual 125% browser zoom and reachable controls. Execute comparable tasks on the same machine against the pinned Studio reference and record versions, rendered results and deliberate differences.",
       "Resolve release-critical gaps and stage the workflow review and receiving-system handover."
     ],
     "dependsOn": [
@@ -69,11 +69,11 @@
   {
     "id": "E6",
     "title": "R1.5 receiving systems",
-    "environment": "HW: real CasparCG and named OGraf renderer with a qualified operator",
+    "environment": "HW: real CasparCG, named OGraf renderer and other claimed targets with a qualified operator; Linux for #775",
     "acceptance": [
-      "On each named release host, exercise data, In, Next, Out, interruption, replay and parity with an exported graphic including a bundled font and logo.",
+      "Close E6's coverage in spec.md#acceptance-coverage-and-receipt-rules: on each named release host exercise data, In, Next, Out, interruption, replay, runtime/resource behavior and parity with an exported graphic including a bundled font and logo.",
       "Record the clean receiving environment, versions, actual output and compatibility scope. Use an off-air window or rehearsal output and preserve the live copy.",
-      "Checkpoint any unavailable required host or evidence with its exact next action."
+      "Reproduce #775 on Linux and verify long-text fit on the applicable named Linux receiving target. A Windows or browser-only pass cannot replace that receiving-host evidence."
     ],
     "dependsOn": [
       "E5"
@@ -85,8 +85,8 @@
     "title": "Release decision",
     "environment": "OW: owner workflow review and recorded release decision",
     "acceptance": [
-      "Present both rehearsed workflows and the tested candidate with first-use, performance, real-host and written GSAP disposition receipts.",
-      "Record the owner's explicit release adoption decision separately from engineering passes. Release adoption requires approval and all mandatory evidence."
+      "Close OW1's coverage in spec.md#acceptance-coverage-and-receipt-rules: present both rehearsed workflows and exact tested candidate, compatibility scope and limitations with complete E1-E6 evidence, first-use/performance/real-host receipts and G07's written GSAP disposition, notices, rights/provenance and clean-bundle dependency-boundary review.",
+      "Record the owner's explicit approval of that candidate separately from engineering passes, publish the receipt through the normal queue and independently verify its provenance and prerequisites. Decline, silence or missing mandatory evidence cannot pass OW1 or admit E7."
     ],
     "dependsOn": [
       "E6"
@@ -98,7 +98,7 @@
     "title": "Release adoption and exact verification",
     "environment": "CI: normal GitHub merge queue, independent acceptance and production verification",
     "acceptance": [
-      "Implement the approved Alpha-to-release change for the current one-editor product, preserving routes, data, runtime and rollback.",
+      "Close E7's coverage in spec.md#acceptance-coverage-and-receipt-rules: implement the approved Alpha-to-release change for the current one-editor product, preserving routes, data, runtime and rollback. Material candidate changes require renewed applicable evidence and owner approval.",
       "Verify the actual merge with a fresh independent checker and all required checks, then verify the intended live deployment."
     ],
     "dependsOn": [
