@@ -1,0 +1,94 @@
+# Editor R1.5 release run
+
+**Prepared November 8, 2026. Status: draft, awaiting launch authority.**
+Baseline for preparation is main `361cb6f628df0a44d410954aae527cde976d1750`.
+The October 13 run is complete. [Phase 3 #2294](https://github.com/NoaCG/NoaCG-Studio/pull/2294)
+and the [Phase 2 single-device closure](../editor-leave-reliability/scoped-closure/README.md)
+carry their actual scope and failure history into this run.
+
+## Why and scope
+
+Finish the remaining required R1 work and bring the editor to a documented
+release decision. Today the editor is available as Alpha. The release gate is
+a useful, dependable workflow from imported or starter artwork to rehearsal
+and playout on the systems the release promises.
+
+Use the [editor plan](../../EDITOR_PLAN.md), the
+[acceptance register](../../research/editor-acceptance-register-2026-09-17.md)
+and the [owner review criteria](../../research/editor-outcomes-and-review-readiness-2026-09-20.md)
+as the authority for scope. Start each phase on current main. Reconcile each
+requirement against shipped behavior, open issues and existing receipts. Fix
+reproduced gaps in small, independently checked changes. Give working
+behavior credit only at its demonstrated scope.
+
+Keep one active authoring tab on one device per account. Carry the October
+single-device restrictions and deferrals. R2, R3, reusable precompositions,
+the deferred shared-lab diagnosis, a new animation engine, and changing
+licence terms or committing to paid services require separate authority.
+Keep existing graphic source, saved revisions, operator fields and the
+on-air copy safe. Release adoption requires explicit owner approval.
+
+## Phases
+
+| ID | Work and observable exit | Evidence environment |
+| --- | --- | --- |
+| E1 | **Baseline and remaining editing gaps.** Inventory the required R1 rows on pinned main, separating existing passes, open checks and reproducible defects. Exercise imported Illustrator SVG and catalog artwork through editing, grouping, undo/cancel, animation, save/reopen and export. Recheck outstanding issues such as [#774](https://github.com/NoaCG/NoaCG-Studio/issues/774), [#775](https://github.com/NoaCG/NoaCG-Studio/issues/775) and [#1749](https://github.com/NoaCG/NoaCG-Studio/issues/1749) on reachable R1 paths. Keep the cumulative October journey and prior failures. | Owned Windows Chromium context, including actual 125% zoom and native import/download when required. Isolated test accounts and fixture files. |
+| E2 | **R1.2c loops.** Complete the required property/layer loop tasks. Prove hold, interruption, replay and Out, boundary and settling behavior, and editor/browser-export parity. Preserve legacy motion and source. Test loop stopping on state exit, repeatability when settling and continuity when supported speed changes during motion. | Maintained test fixtures and browser preview/export. Same-task reference evidence. |
+| E3 | **R1.3 assisted editing and round-trip.** Close the required manual and reviewed-help/edit scenarios under existing model and funding policy. Show correct-document targeting, preview, accept/cancel/undo, a stale request safely refused, and source/fields retained through CLI package import, visual edit, save/reopen and export. Test the supported access paths within existing authority. Record separately if a required model/access check is blocked. | Browser and CLI with isolated fixtures. Real model checks only on an authorized existing route. |
+| E4 | **R1.4 projects to rundown.** Prove the complete starter or brand workflow, multiple durable graphics, Home reopen, selective install into a new or existing rundown, and rehearsed operator data/In/Next/Out. Interrupt installation and retry without duplicates, exercise rollback against a newer edit, preserve the live copy until explicit replacement, and retain October save/recovery evidence. | Local isolated account and disposable production. Browser rehearsal and exported outputs. |
+| E5 | **R1.5 software and first-use qualification.** Run the imported-SVG and starter-to-rundown journeys with 2–3 real first-time users. Ordinary edits target one minute each, and keyframe and collection tasks target five minutes after the short introduction. Record assistance and misses individually. Measure actual feedback with the plan's targets of selection within 100 ms, visible feedback at least 30 Hz under stress, no freeze over 100 ms and final pointer-up pose within 150 ms. Compare the same tasks on the same machine against the existing pinned Studio reference, recording exact sources, versions and deliberate differences. Use current Stable separately when it answers a materially different question. Resolve release-critical gaps and prepare the owner review and playout handover. | Real participants, named desktop and laptop setups, native 125% where relevant. Team or delegated moderator. Actual, executed reference tasks. |
+| E6 | **R1.5 receiving systems.** On a clean receiving environment, play an exported graphic with bundled font and logo, exercise data, In/Next/Out, interruptions, replay and parity, and record the host/version and actual output. Include real CasparCG and a named OGraf renderer. Qualify other release targets where the release claims compatibility. Use a rehearsal output or off-air window with a qualified operator. | Actual named receiving systems. Browser exports and a second browser profile remain separate evidence. |
+| OW1 | **Release decision.** Present the rehearsed workflow and tested candidate, the first-use and performance results, real-host receipts, the written GSAP disposition and any remaining material limitations. The owner reviews workflow and explicitly approves or declines release adoption. The approval is recorded separately from engineering evidence. | OW: owner workflow review and recorded release decision. |
+| E7 | **Release adoption and exact verification.** After approval and all required evidence, implement the approved Alpha-to-release change for the current one-editor product. Preserve routes, stored data, runtime behavior and rollback. Use the normal merge queue and confirm independent acceptance, required checks on the actual merge, and the intended live deployment. | Normal GitHub queue and exact-merge checks, then applicable production verification. |
+
+Run E1 through E5 in order by default. Prepare receiving-system fixtures and
+the GSAP evidence packet alongside the engineering work. A missing physical
+slot or pending GSAP reply blocks the dependent release gate. Complete the
+independent engineering work first and report the exact outstanding input.
+The project is complete only after all required gates and the final exact
+deployment check.
+
+## When owner involvement is needed
+
+| Milestone | What the team prepares | What the owner supplies |
+| --- | --- | --- |
+| Early in E1, after the dependency inventory | Exact GSAP version and plugins, how the editor uses it, and how it is bundled or redistributed in browser, CLI and exported packages. Prepare a short request for written clarification under the existing licence decision. | Send the request as the project owner once ready, if advancing it ahead of the existing reminder. The written response or separately approved resolution is required before release approval. |
+| Once E4 yields repeatable export packages, ahead of E6 | Test exports, host/version checklist, expected output, off-air procedure and rollback. First check access the team already has. | Provide a named CasparCG and OGraf test setup or nominate an operator and off-air slot if the team lacks access. The operator can execute the checklist. |
+| After E5, once both full workflows are rehearsed | One review route, a tested build, representative artwork and a short walkthrough. Include imported artwork through In/Next/Out and save/reopen, and a starter into a rehearsed rundown. Provide known limits and relevant comparison captures. | Judge clarity, timing, comfort and broadcast confidence on the usual setup. Confirm the release decision only after E6 and the licence disposition are recorded. |
+
+The licence question follows [the existing owner receipt](../../STACK_FRESHNESS.md#L271)
+and the [GSAP release gate](../../research/editor-acceptance-register-2026-09-17.md#L182).
+Use the [current vendor licence](https://gsap.com/community/standard-license/)
+as input to the request. The preparation baseline vendors GSAP 3.15.0 in
+`src/assets/gsap.min.js`. The preview inlines it through
+`src/preview/composeDocument.ts`. Export entry points include
+`src/export/selfContained.ts`, `src/export/noacgPackage.ts` and
+`src/export/targets/ograf.ts`. Recheck the exact browser, CLI and export
+artifacts, plugins and notices before sending the request. Other products'
+use of GSAP is comparison evidence.
+
+## Activation and verification
+
+- Preparation creates a local plan draft. Launch authority, actual start and
+  deadline or expressly authorized planning target are recorded at activation.
+  The October run's 15-hour window and authority ended with that run.
+- Use the plan-create and plan-run procedures to reconcile current main,
+  worktree ownership, the old terminal ledger, any new competing run and live
+  GitHub state. Create a new continuing editor project only on explicit launch
+  authorization. Retain the proposed phase IDs and criterion/environment
+  bindings in the supervisor manifest. Use active local Codex by default,
+  with fresh builders and independent checkers in owned worktrees. Qualify the
+  actual coordinator and worker routes at activation.
+- Use the existing scheduler for targeted local checks. Keep full suites in
+  GitHub Actions, normal repair limits, and the one acknowledged PR repair
+  owner through independent exact-merge checks. Run the required comparable
+  reference task per meaningful step. Keep real hardware, human judgment and
+  actual browser zoom tied to their required environments.
+- Read the latest [#1967 hold](https://github.com/NoaCG/NoaCG-Studio/issues/1967)
+  just before queue admission while it applies. Run the existing sideEnds
+  check on exact candidate paths. Preserve selection, budgets, limits,
+  quarantine and the original failure evidence.
+- The first authorized step is E1 on refreshed main. Before each later
+  implementation record the exact existing requirement, the smallest gap and
+  its observable verification. Keep the coordinator active through terminal
+  results, or checkpoint the same new run at its authorized boundary.
