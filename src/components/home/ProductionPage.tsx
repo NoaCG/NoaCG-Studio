@@ -222,7 +222,7 @@ import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
 import { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
-import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows, VmixSection } from './PlayoutPanel';
+import { BridgeSection, BrowserSourceRow, CasparRows, DueActions, PanelProblems, RendererRows, VmixRows } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
 import CueRundown, { nameList } from './CueRundown';
@@ -3780,33 +3780,38 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               onCopy={() => browserOutputUrl && copy('output', browserOutputUrl)}
               onTemplate={downloadEmbed}
             />
-            <VmixSection
-              on={vmixOn}
-              settings={playoutSettings}
-              url={outputUrl}
-              locked={!authoringAllowed}
-              busy={slotBusy}
-              replace={vmixReplace?.choice.url === outputUrl ? vmixReplace : undefined}
-              onToggle={on => void setVmix(on)}
-              onPair={() => setPlayoutSettingsOpen(true)}
-              onLoad={() => outputUrl && void vmixVerb('take', outputUrl)}
-              onUnload={() => outputUrl && void vmixVerb('out', outputUrl)}
-              onReplace={() => outputUrl && vmixReplace && void vmixVerb('take', outputUrl, vmixReplace)}
-              onCancelReplace={() => setVmixReplace(undefined)}
-            />
-            <CasparSection
-              facts={casparFacts}
-              onToggle={(on) => void setCaspar(on)}
-              onLoad={() => outputUrl && void loadOnSlot(outputUrl)}
-              onUnload={() => void unloadFromSlot()}
-              onReplace={() => outputUrl && void loadOnSlot(outputUrl, true)}
-              onCancelReplace={() => setReplaceAsk(false)}
-              onPair={() => setPlayoutSettingsOpen(true)}
+            <BridgeSection
+              vmixOn={vmixOn}
+              casparOn={casparFacts.on}
+              locked={casparFacts.locked}
+              onVmix={on => void setVmix(on)}
+              onCaspar={on => void setCaspar(on)}
               onSettings={() => {
                 setStatusOpen(false);
                 setPlayoutSettingsOpen(true);
               }}
-            />
+            >
+              <VmixRows
+                on={vmixOn}
+                settings={playoutSettings}
+                url={outputUrl}
+                busy={slotBusy}
+                replace={vmixReplace?.choice.url === outputUrl ? vmixReplace : undefined}
+                onPair={() => setPlayoutSettingsOpen(true)}
+                onLoad={() => outputUrl && void vmixVerb('take', outputUrl)}
+                onUnload={() => outputUrl && void vmixVerb('out', outputUrl)}
+                onReplace={() => outputUrl && vmixReplace && void vmixVerb('take', outputUrl, vmixReplace)}
+                onCancelReplace={() => setVmixReplace(undefined)}
+              />
+              <CasparRows
+                facts={casparFacts}
+                onLoad={() => outputUrl && void loadOnSlot(outputUrl)}
+                onUnload={() => void unloadFromSlot()}
+                onReplace={() => outputUrl && void loadOnSlot(outputUrl, true)}
+                onCancelReplace={() => setReplaceAsk(false)}
+                onPair={() => setPlayoutSettingsOpen(true)}
+              />
+            </BridgeSection>
             {!vmixOn && serverOwnership.unidentified.length > 0 && <ServerDiagnostics ownership={serverOwnership} timing={serverPlayout.timing} cues={cues} folders={folders} clear={slot => void clearSlot(slot)} />}
             <DueActions>
               {!started && (
