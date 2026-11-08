@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "project": "plan-vmix-2026-11-08",
+  "plan": "vmix",
+  "spec": "docs/work-specs/bridge-vmix-adapter/spec.md",
+  "issue": 2289,
+  "coordinator": {
+    "session": "01a1bb0e-ec06-7111-ae29-89b778de221e",
+    "environment": "codex-desktop-windows",
+    "return": "Native subagent receipt to the active coordinator in this chat."
+  },
+  "authorization": {
+    "line": "Start the approved V1–V8 plan locally on my Windows/vMix computer, using latest main and active mode. Preserve the configured Codex model and effort.\n\nContinue until the approved scope is complete. I explicitly authorize untilComplete and automatic blockRenewal. Do not ask for an artificial completion deadline. Choose any required finite planning reference internally; it is not a stop condition or promised finish date. Keep normal bounded work blocks, pause/failure rules, repair limits and permission safeguards.",
+    "deadline": "2026-11-22T12:16:07.033Z",
+    "standing": {
+      "untilComplete": "Continue until the approved scope is complete. I explicitly authorize untilComplete and automatic blockRenewal.",
+      "blockRenewal": "I explicitly authorize untilComplete and automatic blockRenewal."
+    }
+  },
+  "execution": {
+    "harness": "codex",
+    "mode": "active"
+  },
+  "branchPrefix": "codex",
+  "brief": {
+    "read": "Read current #1967 and docs/work-specs/cicd-followup/evidence/phase-cf13.md §7.4, #2285 codebase-health allocations, docs/BRIDGE.md current release procedure, and V1–V8 owner decisions and acceptance. Old CLI-linked Bridge bump recipes in AC-6 are superseded by the release instructions in the run.",
+    "rules": "Never operate or close an operator vMix process. Before each real check, confirm vMix GUI idle; use an owned blank session, back up and verify restoration of last.vmix and user.config, terminate only the owned process and leave vMixService alone. Read Program snapshots only; NoaCG does not command Program, Preview or transitions. Preserve CasparCG. Separate worktrees, reserved ports and owned services, and use the existing single local browser queue. Recheck live write allocations before each phase and landing, including documents. Read #1967 and phase-cf13 section 7.4 before each queue operation and run sideEnds on the actual PR changed file paths; wait if ends.m1 includes cap+cfg under the active hold. No CI/workflow/selector/runner/budget/retry/quarantine changes and no optional benchmarks/full-suite dispatches. Never cancel/rerun another run’s jobs. Retain exact-merge checks and release acceptance. Preserve configured model, effort and permissions."
+  },
+  "qualification": {
+    "coordinator": [
+      "2026-11-08T12:09:40.401Z",
+      "2026-11-08T12:10:01.784Z"
+    ],
+    "worker": [
+      "2026-11-08T12:11:21.615Z",
+      "2026-11-08T12:11:35.667Z"
+    ],
+    "workerId": "/root/local_qualification",
+    "nonce": "vmix-qual-1108-84cc",
+    "software": "vMix 29.0.0.49 Trial, two blank inputs, idle outputs, via read-only TCP XML. Owned process exited; original last.vmix and user.config restored and verified by SHA-256. vMix background service untouched. ffmpeg and ffprobe version 2025-03-17-git-5b9356f18e-essentials_build ran.",
+    "source": "df5767458230558e9fdee158e663e9367e58f8e3",
+    "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
+  },
+  "waitingOn": [],
+  "inFlight": [],
+  "owner": [],
+  "fixes": [],
+  "triggers": []
+}

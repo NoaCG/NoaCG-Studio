@@ -1,5 +1,0 @@
-{
-  "file": "src/components/wizard/ai/AiStep.tsx",
-  "lines": 1659,
-  "why": "The Create with AI step is being split into a tested run module (docs/work-specs/wizard-ai/spec.md, AC-10). Lowered to the actual count by each phase that shrinks it; never raised."
-}
