@@ -132,3 +132,38 @@ The focused sync disclosure owns its Escape and returns focus to the button.
 The shared menu still handles closing. The editor uses the existing measured
 notice height to leave the canvas and timeline above the notice, without changing
 their layout when the notice is absent.
+
+## Corrected candidate verification
+
+At `c77036773e787caafb0488c93b297b635c2e8852` the full sync spec passed all
+16 cases in 2.1 minutes with one Chromium worker and zero retries. The four
+maintained cumulative authoring, browser output, keyboard, anonymous export
+and session-loss cases passed in 21.8 seconds with zero retries. Targeted
+ESLint, client TypeScript and the affected repository gates passed. Exact
+Playwright inventories now count 13 cases at the base and 16 at this source.
+The unchanged protection functions found zero removals. The Windows wrapper
+limitation and Linux CI requirement above still apply.
+
+The review regression case plays the editor artwork, opens the sync details
+and focuses the recovery button. Escape closes the disclosure and returns
+focus to Sync while the artwork keeps playing. With the failed save still
+unresolved, the same notice leaves the editor footer above it at 1366×768.
+The before and after browser screenshots were inspected.
+
+The account tests separately held two successive writes. Confirmation of the
+older content left the notice visible while the newer write was pending.
+Confirming the intended latest content removed it. The isolated personal
+session test checked that an old in-flight attempt could not restore the notice
+after same-account reauthentication. On a different sign-in it recorded the
+paused notice without the retry action while the old durable library was still
+loaded, before the browser replaced that document.
+
+Two earlier personal-session probes remain failed. The first observed the
+separate team recovery notice during reauthentication. The next tried reading
+the old page after Chromium had destroyed its navigation context. The final
+driver isolates personal recovery from the unchanged team behavior and observes
+the old document's pause before navigation replaces it. The team cases still
+exercise the real team controller.
+
+For an owned rollback branch, revert the two product and test commits in
+order with `git revert c77036773e787caafb0488c93b297b635c2e8852 9b18169feeb4ebf536496ffada01d433fe8a6b5f`.
