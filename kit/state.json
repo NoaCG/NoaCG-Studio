@@ -42,7 +42,7 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "V2 draft #2293 is blocked on proving ownership of a newly created vMix Browser. The direct-URL API can return generic OK and make an operator Browser look like the only new input. A synthetic .localhost redirect proved a unique title marker and reached the fixture, but requiring Bridge at saved-preset startup is a product decision. The independent #1967 release hold also remains active."
+    "what": "The #1967 hold still applies to any Bridge release."
   },
   "inFlight": [
     {
@@ -50,17 +50,12 @@
       "session": "/root/v2_builder",
       "head": "c9499d1567880b7f1e3965fc05a827125609db5a",
       "phase": "v2",
-      "note": "Builder finished at c9499d15. AC-4 and AC-6 open. Draft CI identified a compact Playout panel regression. Draft outside the queue.",
+      "note": "Owner authorized an isolated local address prototype. V2 draft remains blocked on proving AC-4 and fixing the compact panel.",
       "pr": 2293,
       "repairComment": 6723338187
     }
   ],
-  "owner": [
-    {
-      "where": "Active Codex coordinator chat; draft #2293",
-      "what": "Decide whether to prototype a distinct local Bridge URL for reliable Browser ownership. Presets would depend on Bridge at open."
-    }
-  ],
+  "owner": [],
   "fixes": [],
   "triggers": []
 }
