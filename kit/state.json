@@ -42,7 +42,13 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": [],
-  "inFlight": [],
+  "inFlight": [
+    {
+      "session": "/root/v1_builder",
+      "step": "build",
+      "phase": "v1"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
