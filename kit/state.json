@@ -48,11 +48,11 @@
     {
       "phase": "v2",
       "repairComment": 6723338187,
-      "head": "d6059a982c635d9b96bf28d0e9bf69bf4ea6a29a",
+      "head": "efe4c1207f87cbabdfaf4c8f27a5a171c9c22547",
+      "step": "build",
+      "note": "Fresh rules review sharpened input identity, overlay readback and HTTP port ownership. Product implementation follows. Release hold remains active.",
       "pr": 2293,
-      "note": "Owner-approved attribution rules checkpoint, reconciled with current main. Independent review before product edits. #1967 still active.",
-      "session": "/root/v2_builder",
-      "step": "build"
+      "session": "/root/v2_builder"
     }
   ],
   "owner": [],
