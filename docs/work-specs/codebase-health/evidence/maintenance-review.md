@@ -43,9 +43,10 @@ one-line replacement. `scripts/clock-target.test.mjs` covers the gap decision an
 recheck before building. No avoidable collateral identified. **No action.** The clock behavior stays
 in the capability and the shell supplies the presentation wiring.
 
-**Planned kit move (#1240).** S8 moved `kitPlan.ts` and `KitTray.tsx` into `template/` (97%
-and 98% rename similarity). The walk reducer in `shell/walkState.ts` still owns picker and
-plan state, `template/kitPlan.ts` owns the per-graphic draft transforms, and `template/useKit.ts`
+**Planned kit move (#1240).** S8 gave the kit a capability folder used by its walk. It moved
+`kitPlan.ts` and `KitTray.tsx` into `template/` (97% and 98% rename similarity). The walk reducer
+in `shell/walkState.ts` still owns picker and plan state. `template/kitPlan.ts` owns the
+per-graphic draft transforms, and `template/useKit.ts`
 owns which graphic is open. The tray still renders the kit. Shell, reducer, picker and hook
 import updates follow the move. The existing kit proof stays in `scripts/wizard-kit-plan.test.mjs`,
 `scripts/wizard-kit-moves.test.mjs`, `scripts/wizard-walk-state.test.mjs` and
@@ -64,15 +65,19 @@ or budget friction.
 bound fields without another Take. The persisted production records the file kind, name, format
 and shape in `shows.ts` (+27/−5). Its existing source and binding operations persist the authored
 changes. `model/productionData.ts` owns the data path prefix. `control/fileHandles.ts` keeps the
-browser-local handle in IndexedDB by source ID, and `control/fileSource.ts` owns reading and
-producing revisions. `CueEditor.tsx` supplies the connection UI, `SourcesLine.tsx` supplies status
-and permission controls, and the page selects the file reader alongside the existing readers.
-`scripts/file-source.test.mjs` covers parsing, mapping and permission or missing-file behavior.
-The local-file case in `e2e/production-data.spec.ts` covers connect, live update and permission
-recovery. No avoidable collateral identified. **Review action.** Keep the saved source
-configuration on the existing production write path and the handle with the browser adapter.
-Check the reader's missing-handle and permission cases and the connect and update journey in
-those existing tests. This sample is the browser work described in the production closeout.
+browser-local handle in IndexedDB by source ID. `control/fileSource.ts` supplies the file read and
+availability check to the shared reader in `control/sheetSource.ts`. The shared reader coordinates
+the lease and missed or stale read status. It uses the page's existing live writer,
+`dataSession.applySourcePatch` in `control/productionDataSession.ts`. The page selects the file
+reader alongside the other readers. `CueEditor.tsx` supplies the connection UI. The cue, source
+list and `ProductionDataPanel.tsx` reuse `SourcesLine.tsx`'s permission recovery button.
+`scripts/file-source.test.mjs` covers parsing, mapping, permissions and the two-reader case where
+a page without the file cannot keep the lease. The local-file case in `e2e/production-data.spec.ts`
+covers connect, live update and permission recovery. No avoidable collateral identified.
+**Review action.** Check that source configuration follows the existing production write path,
+the browser keeps the handle, and a page unable to read it gives up the lease. Use the
+two-reader test and the connect and live update journey named above. This is the browser work
+described in the production closeout.
 
 **Leave the write envelope intact.** `shows.ts` is broad because it contains persisted shapes,
 domain mutations and the common write path. In this sample the new source adds a record variant
