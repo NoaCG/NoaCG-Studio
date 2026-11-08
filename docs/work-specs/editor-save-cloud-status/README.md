@@ -32,13 +32,17 @@ phase.
 - A routine pending or in-flight save keeps the header quiet. Its existing
   delayed indicator never claims confirmation early. The first actionable
   personal sync failure makes the existing account notice visible.
-- An unresolved personal failure stays visible through the same account's
-  pending and in-flight retry. Starting a retry or changing routes cannot
-  dismiss and repeat the notice. A confirmed sync clears that failure.
-- A different account or loss of the session retires the prior personal failure.
-  The existing pause and sign-in state takes over if the session expires.
-  Deliberate sign-out retains its current behavior. Actual network loss does
-  not count as signing out. Team error reporting and all controller scheduling,
+- An unresolved personal failure stays visible through the same session's
+  pending and in-flight retry, a valid refresh for the same account, actual
+  network loss and route changes. A retry request or completed pass does not
+  confirm the current revision. Only the controller's confirmed Synced state
+  clears an unresolved failure within that session.
+- A different authenticated account retires the prior personal failure even
+  while the old durable library is still on screen. Expiry or session loss
+  replaces the failure with the existing paused state and Sign in action.
+  Deliberate sign-out retains its current behavior. Reauthenticating the same
+  account starts fresh and stale failure events from an earlier session cannot
+  revive its notice. Team error reporting and all controller scheduling,
   retry, and revision rules keep their existing behavior.
 
 ## Acceptance
