@@ -46,12 +46,13 @@
   },
   "inFlight": [
     {
-      "pr": 2293,
-      "step": "build",
-      "head": "32a50d0baf7b638c2a91e43b8a0c6b8e1f280555",
-      "session": "/root/v2_builder",
       "phase": "v2",
-      "note": "Owner approved the local address. Draft stays outside the queue under #1967."
+      "repairComment": 6723338187,
+      "head": "d6059a982c635d9b96bf28d0e9bf69bf4ea6a29a",
+      "pr": 2293,
+      "note": "Owner-approved attribution rules checkpoint, reconciled with current main. Independent review before product edits. #1967 still active.",
+      "session": "/root/v2_builder",
+      "step": "build"
     }
   ],
   "owner": [],
