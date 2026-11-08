@@ -115,14 +115,47 @@ could still send a CasparCG clear with vMix selected. A fresh read-only rule rev
 confirmed the full observation window, strict recovery for unresolved additions, and
 the overlay and dispatch rules above before the corrections were implemented.
 
+### Independent review findings
+
+The independent review rated commit 5e92b77af175318275b0e044b49efd05ef3d7644 B.
+It reproduced the remaining AC-4 failure in the built adapter and fake. The
+requested AddInput replied OK without creating an input. An operator added the
+only observed Browser for the same hostname with another production address.
+The Bridge named it and put it on Overlay 8. The three-second observation
+window protects against multiple observed candidates but cannot establish
+ownership in this case.
+
+A bounded owned vMix 29.0.0.49 Trial probe compared three ways to add a Browser
+on its actual fixture URL. Plain AddInput, AddInput with generic SelectedName,
+Name, Title and Key query parameters, and a Browser Value with dimensions and
+a trailing marker all fetched their exact loopback fixture address. Each
+replied FUNCTION OK Completed. Each XML row had a generated key and the title
+Browser 127.0.0.1, with neither the supplied marker nor the URL. Program and
+Preview stayed at 1 and 2. The probe sent no overlay, rename or preset command.
+It stopped only the owned process, restored and verified last.vmix and
+user.config by SHA-256, and left vMixService running. The runnable probe and
+log are in the local V2 runtime folder as addinput-attribution.mjs,
+addinput-attribution.ps1 and addinput-attribution.log.
+The [vMix TCP API](https://www.vmix.com/help29/TCPAPI.html) describes a generic
+FUNCTION acknowledgement, and the [shortcut reference](https://www.vmix.com/help29/ShortcutFunctionReference.html)
+documents Value as the AddInput parameter. This probe did not find an
+attribution mechanism within the current action surface. Literal AC-4 stays
+open, so V2 stays outside the queue and the Bridge release waits.
+
+The review also found a dispatch interval between React route teardown and
+deferred session disposal. With timers paused, browser job j-4977 reproduced a
+vMix /act after Home had replaced the old production. The layout-effect cleanup
+now revokes the mounted production's dispatch authority before session disposal.
+The session's deferred cleanup still tolerates StrictMode's extra effect cycle.
+
 ## Verification before landing
 
 | Criterion | Evidence |
 | --- | --- |
 | AC-1 | Independently reran the Slice 1 fake-vMix checks at the V1 baseline, 21 passing, and again with V2, 29 passing. They exercise `/health`, the 29 and 28 and Basic HD channel counts, version and edition, refused and silent greetings, connection loss and ACTS lines. V2 also starts the built CLI with `--vmix-port` pointing at a separate fake TCP listener and reads vMix 28 through the Bridge. [Slice 1 evidence](slice-1.md). |
-| AC-3 | Browser queue `j-4973` verified pairing, both setup diagnoses, Try again, all eight options, default 8, a choice of 3 surviving reload and Update with an older Bridge. The Settings screenshot was inspected. |
+| AC-3 | Browser queue `j-4980` verified pairing, both setup diagnoses, Try again, all eight options, default 8, a choice of 3 surviving reload and Update with an older Bridge. The Settings screenshot was inspected. |
 | AC-4 | The focused TCP suite verifies ownership across Bridge restart, unchanged URL identity after renaming or a display-name change, same-title inputs, an operator's same-title Browser, stale keys, transition readback, delayed uncertain additions, save failure and a replacement during preparation. It reproduces the early same-host Browser race and confirms the Bridge sends no rename or overlay command. Two queued delayed adds both pass within the existing 7 s budget (6.01 s measured). With the rebuilt exe in `j-4972`, vMix 29.0.0.49 Trial created the named Browser and read it back on Overlay 8. Program and Preview indices stayed at 1 and 2. The settled Program image showed the lower third over the original plate. Unload restored the original Program frame by decoded pixel hash. |
-| AC-5 | Browser queue `j-4973` passed all 67 tests in the maintained Bridge connection and Publish setup specs. It verified one Load of the named output URL with title and Overlay 3, On air from state, Unload from the live overlay after choosing another, Cancel sending nothing, a keyed Replace, the Bridge's setup error, disabling Take and Stop/Clear for a CasparCG cue, switching back to CasparCG, abandoning a Load after navigation, and first Publish with vMix selected and unselected. The production panel was inspected in screenshots. The real run also operated Load and Unload from the studio page. |
+| AC-5 | Browser queue `j-4980` passed all 67 tests in the maintained Bridge connection and Publish setup specs. It verified one Load of the named output URL with title and Overlay 3, On air from state, Unload from the live overlay after choosing another, Cancel sending nothing, a keyed Replace, the Bridge's setup error, disabling Take and Stop/Clear for a CasparCG cue, switching back to CasparCG, abandoning a Load after navigation, and first Publish with vMix selected and unselected. The production panel was inspected in screenshots. The real run also operated Load and Unload from the studio page. |
 | AC-6 | Local build of NoaCG-Bridge-0.11.0.exe, SHA-256 `48f38d2707469dac5a7eab8d75494b9b05db6468297b45b612aff849caa7826f`. Its smoke test reported 0.11.0, `vmix` and `vmix-output-key`. The published baseline is 0.10.2. The release changes only the independent Bridge version and operator notes. Exact-merge release and download checks remain for the independent checker after the #1967 hold and landing. |
 
 Real runs used the owned Vite port, an isolated loopback fixture and isolated Bridge storage.
@@ -145,9 +178,12 @@ frame before the Browser settled. Both versions kept Program and Preview inputs 
 The inherited first-load flash needs a Browser readiness signal and is tracked in
 [#2292](https://github.com/NoaCG/NoaCG-Studio/issues/2292).
 
-The local Windows changed-gate run found one LF-sensitive source assertion in
-scripts/ograf-typed-writer.test.mjs reading the unchanged renderer as CRLF.
-The renderer passed that test with the exact LF bytes from the pinned Git blob.
+The changed-gate run on 5e92b77a passed 385 tests after supplying the exact
+pinned LF blobs for the three unchanged files read by LF-sensitive assertions.
+Their normal Windows checkout bytes were restored. TypeScript, changed Studio
+and browser lint, and the ten focused Node tests passed again after the route
+guard change. The local browser-protection check requires a directory symlink
+that this Windows account cannot create. Its CI result is pending.
 
 Every real run confirmed the vMix GUI was idle, verified both listeners belonged to the
 owned vMix process, and restored `last.vmix` and `user.config` with matching SHA-256 hashes.

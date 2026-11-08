@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { useTemplateStore } from '../../store/templateStore';
@@ -694,12 +694,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  session, because effects that never restart (the log follower) keep the one they first saw. */
   const session = useMemo(() => createPlayoutSession(id), [id]);
   const sessionEnd = useRef<{ session: PlayoutSession; timer: ReturnType<typeof setTimeout> } | null>(null);
-  useEffect(() => {
+  const mountedSession = useRef<PlayoutSession | null>(null);
+  useLayoutEffect(() => {
+    mountedSession.current = session;
     if (sessionEnd.current?.session === session) clearTimeout(sessionEnd.current.timer);
     return () => {
+      // Revoke Bridge sends at route commit, before the deferred store disposal.
+      mountedSession.current = null;
       sessionEnd.current = { session, timer: setTimeout(() => session.dispose()) };
     };
   }, [session]);
+  const pageCanDispatch = () => mountedSession.current === session && session.alive();
   // ── Live status: which cue is on air ON EACH LAYER, and what each graphic was last sent. Several
   // graphics are up at once by design, so the marker is a map keyed by graphic name. Both live in
   // the session's `air` part, written only by the folds of control/airState.ts. The page draws them
@@ -2623,12 +2628,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const clashes = duplicateLayers(show.graphics);
 
   // CasparCG Out and Clear name a slot without checking what currently plays there.
-  const canSendCaspar = () => session.alive() && !currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+  const canSendCaspar = () => pageCanDispatch() && !currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
   const { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, vmixVerb, publishNow, publish } = publishActions(
     publishState,
     {
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
-      hostedSlug, slotReadable, outputSlot, sessionAlive: session.alive, canSendCaspar, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
+      hostedSlug, slotReadable, outputSlot, pageCanDispatch, canSendCaspar, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
       setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, prepareFlow,
       // Each adjusted cue measured for the copy being published, from the designs Publish just
       // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
@@ -4530,7 +4535,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           setShows={setShows}
           casparOn={casparOn}
           vmixOn={vmixOn}
-          canPutOutputOnAir={() => !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg')}
+          canPutOutputOnAir={() => pageCanDispatch() && !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg')}
           outputUrl={managedOutputUrl}
           onOutputOnAir={(result, target) => onAirChanged('air', result, target)}
           onClose={() => {

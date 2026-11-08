@@ -1611,6 +1611,7 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
 });
 
 test('a vMix Load still waiting for state is abandoned when its production closes', async ({ page }) => {
+  await page.clock.install();
   const vmix = fakeVmix();
   await fakeBridge(page, { vmix });
   await seedOnce(page, {});
@@ -1631,7 +1632,9 @@ test('a vMix Load still waiting for state is abandoned when its production close
   try {
     await load.click();
     await entered.promise;
-    await page.goto('/app#/home');
+    // Keep the old page's deferred session disposal from running during this race.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+    await page.evaluate(() => { window.location.hash = '#/home'; });
     await expect(page.getByTestId('home-page')).toBeVisible();
     const state = page.waitForResponse(response => response.url() === `${BRIDGE}/state` && response.request().postDataJSON()?.target?.adapter === 'vmix');
     const unexpected = page.waitForRequest(request => request.url() === `${BRIDGE}/act`, { timeout: 1000 })

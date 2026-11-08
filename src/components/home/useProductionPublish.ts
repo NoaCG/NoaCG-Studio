@@ -132,7 +132,7 @@ interface PublishActionsIo {
   hostedSlug: string | null;
   slotReadable: boolean;
   outputSlot: SlotReading | undefined;
-  sessionAlive: () => boolean;
+  pageCanDispatch: () => boolean;
   canSendCaspar: () => boolean;
   onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
   flushDraft: () => Promise<unknown>;
@@ -259,7 +259,8 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setSlotBusy(false);
     }
   };
-  const currentCaspar = () => currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg');
+  const currentCaspar = () => io.pageCanDispatch()
+    ? currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg') : null;
   /** The load itself, tagged with the production's CasparCG destination, and what it changed. */
   const sendLoad = async (settings: PlayoutSettings, url: string): Promise<PlayoutResult | null> => {
     if (!currentCaspar()) return null;
@@ -349,12 +350,12 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   const vmixVerb = (verb: 'take' | 'out', url: string, confirmed?: VmixReplace, automatic = false) => slotAction(async () => {
     setVmixReplace(undefined);
     const outcome = await changeVmixOutput(verb, () => {
-      if (!io.sessionAlive()) return null;
+      if (!io.pageCanDispatch()) return null;
       const saved = currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
       if (!saved?.outputSlug || outputPageUrl(saved.outputSlug) !== url || (automatic && !readOutputSetup(saved.outputSetup)?.vmix)) return null;
       return { settings: loadPlayoutSettings(), url, title: saved.name };
     }, confirmed);
-    if (!io.sessionAlive()) return;
+    if (!io.pageCanDispatch()) return;
     if (outcome.replace) {
       setVmixReplace(outcome.replace);
       setStatusOpen(true);
