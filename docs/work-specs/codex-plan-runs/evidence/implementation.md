@@ -60,3 +60,36 @@ recovery, renewal through interruption and usage-stop recovery remain explicitly
 
 Execution progress, overall criterion acceptance and owner disposition stay separate. This
 implementation neither starts an editor product phase nor reopens a completed Claude run.
+
+## Review repairs, 8 November 2026
+
+Current implementation checkpoint: `f56f8389065aec11969dabd56a3efd344a92cf2f`.
+The earlier source and native observations above remain historical receipts.
+
+- PR #2283's Codex review identified a product defect in the generated checker receipt:
+  its synthetic actor differed from the worker identity adopted by `observe-launch`. A generated
+  brief-to-supervisor integration test failed with the old template and passed when the template
+  named the accepted native worker ID. The separate session field is not an actor substitute.
+- Fresh full source review on `43d103d69208b2d5d292afc64aef4c411c2ac571` returned
+  AGREE WITH CORRECTIONS, grade A-minus: jointly changing an explicit Codex mapping and its wrapper
+  to the shared Claude procedure could evade the mapping-value guard. Paired mutations for both
+  plans reproduced that hole. Validating every explicit mapping, including one equal to the
+  shared path, makes both mutations fail as required. The reviewer found no other actionable defect
+  or material simplification. This review was not counted as a passing final landing review.
+- On the current code bytes, `node scripts/gates.mjs run --changed origin/main` passed all selected
+  static gates and **130 tests in seven files**, with zero failures, skips or cancellations.
+  All eight changed/new scripts passed ESLint; the later two guard files were rechecked after
+  their repair. The whitespace check passed. Claude wrappers, canonical plan-create/plan-run
+  procedures and default brief templates remain byte-identical to the original base.
+- Active execution is explicitly available locally or in managed cloud after that session's
+  qualification. Local device checks stay on their required host. Cloud wake or host-loss
+  qualification is not a prerequisite for local active mode. The retained active coordinator,
+  bounded authority, worker identity and independent acceptance rules still apply.
+- A later arrival carrying the disposable probe nonce was rejected as expired: raw executor
+  arrival `2026-11-07T19:47:38.908089571Z` exceeded its finite deadline
+  `2026-11-07T19:36:52.474263Z`. It produced no new success receipt or recovery qualification.
+  No additional wake or automation was created or rearmed.
+
+AC-5 remains unverified overall. Active PR landing and exact-merge results will be recorded on
+PR #2283; idle/machine-loss recovery, interrupted renewal and usage-stop recovery remain separate
+unqualified capabilities. No product plan is opened by this implementation.
