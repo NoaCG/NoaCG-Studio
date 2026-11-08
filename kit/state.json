@@ -46,13 +46,13 @@
   },
   "inFlight": [
     {
-      "phase": "v2",
-      "repairComment": 6723338187,
-      "head": "efe4c1207f87cbabdfaf4c8f27a5a171c9c22547",
       "step": "build",
-      "note": "Fresh rules review sharpened input identity, overlay readback and HTTP port ownership. Product implementation follows. Release hold remains active.",
+      "phase": "v2",
       "pr": 2293,
-      "session": "/root/v2_builder"
+      "session": "/root/v2_builder",
+      "repairComment": 6723338187,
+      "note": "Final local V2 candidate has independent grade A and a passing exact-head check. GitHub review and CI still required; #1967 release hold remains.",
+      "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee"
     }
   ],
   "owner": [],
