@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { isSigningOut } from '../backend/auth';
 import { isBackendConfigured } from '../backend/config';
-import { getSyncState, onSyncState, syncNow } from '../backend/syncController';
+import { onSyncState, syncNow, type SyncPhase } from '../backend/syncController';
 import { getTeamState, subscribeTeamState, refreshTeams } from '../backend/teamProductions';
 import { canAuthorAccount, libraryInUse } from '../model/durableStore';
 import { exportPendingTeamWork } from '../model/teamOutbox';
@@ -9,16 +9,34 @@ import { useAuthUi } from './auth/authUi';
 
 /** Cloud saving is separate from the readiness of a running output. */
 export default function AccountSaveNotice() {
-  const [sync, setSync] = useState(getSyncState);
+  const [account, setAccount] = useState(() => ({ owner: libraryInUse(), paused: !canAuthorAccount(), failed: false }));
   const [teams, setTeams] = useState(getTeamState);
   const notice = useRef<HTMLElement>(null);
-  useEffect(() => onSyncState(setSync), []);
+  useEffect(() => {
+    if (!isBackendConfigured()) return;
+    let failedOwner: string | null = null;
+    const update = (phase?: SyncPhase) => {
+      const owner = libraryInUse();
+      const paused = !canAuthorAccount();
+      // A retry can still owe confirmation. The authoring gate closes on expiry and before
+      // switching libraries. Reopening it must not replay the old session's last error.
+      if (!owner || paused || phase === 'synced' || phase === 'offline') failedOwner = null;
+      else if (phase === 'error') failedOwner = owner;
+      setAccount({ owner, paused, failed: !!owner && owner === failedOwner });
+    };
+    const authoringChanged = () => update();
+    const stopSync = onSyncState(({ phase }) => update(phase));
+    window.addEventListener('noacg-account-authoring', authoringChanged);
+    return () => {
+      stopSync();
+      window.removeEventListener('noacg-account-authoring', authoringChanged);
+    };
+  }, []);
   useEffect(() => subscribeTeamState(() => setTeams(getTeamState())), []);
-  const owner = libraryInUse();
+  const { owner, paused } = account;
   const pending = Object.keys(teams.saving).length > 0;
-  const paused = owner && !canAuthorAccount();
   // Ordinary saving belongs in the header. Keep recovery visible only when action is needed.
-  const failed = sync.phase === 'error' || Object.values(teams.saving).includes('failed') || !!teams.loadError;
+  const failed = account.failed || Object.values(teams.saving).includes('failed') || !!teams.loadError;
   // A Sign out the user pressed pauses the account until the page reloads; that is no recovery.
   const visible = isBackendConfigured() && !!owner && !isSigningOut() && (paused || failed);
   // Reserve the actual wrapped height, including the bottom margins. The notice stays outside

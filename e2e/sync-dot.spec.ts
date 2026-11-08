@@ -1,8 +1,10 @@
-// covers: src/components/SyncStatus.tsx, src/backend/{supabase,syncController,teamProductions}.ts
+// covers: src/components/{SyncStatus,AccountSaveNotice}.tsx, src/components/editorFoundation/EditorFoundation.tsx
+// covers: src/backend/{supabase,syncController,teamProductions}.ts
 // The cloud chip on the production page (#2090): it settles within seconds of the last change, and
 // an amber dot says why and has a retry that works. Never a false Synced, signed out or offline.
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
+import { draw, ready, source } from './_layerProperty';
 
 const owner = '00000000-0000-4000-8000-000000000001', team = '00000000-0000-4000-8000-000000000010';
 const user = { id: owner, aud: 'authenticated', role: 'authenticated', email: 'dot@example.invalid', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
@@ -49,6 +51,7 @@ async function cloud(page: Page) {
     if (url.pathname.startsWith('/storage/v1/object/')) {
       if (state.silentStorage) await hold();
       if (state.goneStorage) return respond({ statusCode: '404', error: 'not_found', message: 'Object not found' }, 400);
+      if (request.method() === 'POST') return respond({ Key: url.pathname.split('/object/')[1] });
       return route.fulfill({ status: 200, contentType: 'font/woff2', body: Buffer.from('font bytes') }).catch(() => {});
     }
     if (url.pathname === '/rest/v1/rpc/team_production_save') {
@@ -352,4 +355,164 @@ test('a team read that fails is not Synced, and the retry reads again', async ({
   state.down = false;
   await page.getByTestId('sync-action').click();
   await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+});
+
+test('the graphic editor separates a local save from a delayed cloud confirmation', async ({ page }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  await page.goto('/app#/home');
+  await expect(chip(page)).toHaveText('Synced', { timeout: 30_000 });
+  await page.getByTestId('analytics-consent').getByRole('button', { name: 'No thanks' }).click();
+  await page.getByTestId('home-new-project').click();
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type=file]').setInputFiles('e2e/fixtures/cli-round-trip/riverlight.zip');
+  await expect(page.getByTestId('import-template-card')).toContainText('Riverlight');
+  await page.locator('.wz-next').click();
+  await page.getByTestId('wz-finish-edit-artwork').click();
+  await ready(page);
+  await draw(page, .3);
+
+  const notice = page.getByTestId('account-save-notice');
+  const cloudGraphic = () => [...state.rows.values()].find(row => row.kind === 'graphic');
+  state.silentWrites = true;
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('Delayed graphic');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  const saved = await source(page);
+  await page.clock.fastForward(3_000);
+  await expect.poll(() => state.held).toBeGreaterThan(0);
+  await expect(chip(page)).toHaveText('Syncing');
+  await expect(notice).toHaveCount(0);
+  expect(cloudGraphic()).toBeUndefined();
+
+  await page.clock.fastForward(A_MINUTE);
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await expectAmber(page, /Still waiting for the cloud/);
+  await expect(page.getByTestId('sync-panel')).toBeInViewport({ ratio: 1 });
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await expect(notice).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/editor-delayed-cloud.png' });
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('sync-panel')).toHaveCount(0);
+  expect(await source(page)).toEqual(saved);
+  await page.getByTestId('open-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expectAmber(page, /Still waiting for the cloud/);
+  await page.keyboard.press('Escape');
+
+  await page.clock.fastForward(A_MINUTE);
+  await expect(notice).toContainText('Not saved to cloud');
+  const firstNotice = await notice.elementHandle();
+  const heldBeforeRetry = state.held;
+  await page.clock.fastForward(16_000);
+  await expect.poll(() => state.held).toBeGreaterThan(heldBeforeRetry);
+  expect(cloudGraphic()).toBeUndefined();
+  await expect(notice).toContainText('Not saved to cloud');
+  expect(await firstNotice!.evaluate(element => element.isConnected)).toBe(true);
+
+  await page.getByTestId('home-nav-graphics').click();
+  const graphicRow = page.locator('.lib-row', { hasText: 'Delayed graphic' });
+  await graphicRow.getByTestId('open-graphic').click();
+  await page.getByTestId('control-open-editor').click();
+  await ready(page);
+  await expect(notice).toContainText('Not saved to cloud');
+  expect(await firstNotice!.evaluate(element => element.isConnected)).toBe(true);
+  expect(await source(page)).toEqual(saved);
+  await page.clock.fastForward(A_MINUTE * 2);
+  await expect(notice).toHaveCount(1);
+  expect(await firstNotice!.evaluate(element => element.isConnected)).toBe(true);
+
+  state.silentWrites = false;
+  await notice.getByRole('button', { name: 'Retry cloud save' }).click();
+  await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+  await expect(notice).toHaveCount(0);
+  expect(cloudGraphic()?.body).toMatchObject({ name: saved.name, template: { html: saved.html, js: saved.js } });
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+  await graphicRow.getByTestId('open-graphic').click();
+  await page.getByTestId('control-add-production').click();
+  await page.getByTestId('control-new-production-name').fill('Local show');
+  await page.getByTestId('control-new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const productionUrl = page.url();
+  await page.goBack();
+  await page.getByTestId('control-open-editor').click();
+  await ready(page);
+  expect(await source(page)).toEqual(saved);
+
+  await draw(page, .6);
+  await page.getByTestId('save-graphic').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  const linked = await source(page);
+  expect(linked.html).not.toBe(saved.html);
+  await page.clock.fastForward(3_000);
+  await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+  expect(cloudGraphic()?.body).toMatchObject({ template: { html: linked.html, js: linked.js } });
+  const productionTemplate = await page.evaluate(async url => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const id = new URL(url).hash.split('/')[2];
+    return loadShows().find(show => show.id === id)?.graphics[0].template;
+  }, productionUrl);
+  expect(productionTemplate).toMatchObject({ html: saved.html, js: saved.js });
+
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('home-nav-graphics').click();
+  await graphicRow.getByTestId('row-menu').click();
+  await graphicRow.getByTestId('export-graphic').click();
+  await page.locator('.issue', { hasText: 'SPX export' }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /Validate & download/ }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/\.zip$/);
+  expect(await download.failure()).toBeNull();
+});
+
+test('personal recovery stays with the session that encountered the failure', async ({ page, context }) => {
+  const state = await cloud(page);
+  await page.clock.install();
+  const id = await production(page);
+  const session = await page.evaluate(async () => {
+    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { data } = await (await getSupabase())!.auth.getSession();
+    return { access_token: data.session!.access_token, refresh_token: data.session!.refresh_token };
+  });
+  const setSession = (next: typeof session) => page.evaluate(async session => {
+    const { getSupabase } = await import('/src/backend/supabase.ts');
+    const { error } = await (await getSupabase())!.auth.setSession(session);
+    return error?.message ?? null;
+  }, next);
+
+  state.silentWrites = true;
+  await edit(page, id, 'Saved after resuming the session');
+  await page.clock.fastForward(3_000);
+  await expect.poll(() => state.held).toBeGreaterThan(0);
+  await page.clock.fastForward(A_MINUTE * 2);
+  const notice = page.getByTestId('account-save-notice');
+  await expect(notice).toContainText('Not saved to cloud');
+  const shown = await notice.elementHandle();
+  expect(await setSession({ ...session, refresh_token: 'refreshed-test-session' })).toBeNull();
+  await expect(notice).toContainText('Not saved to cloud');
+
+  await context.setOffline(true);
+  await expect(chip(page)).toHaveAttribute('title', /^Offline\./);
+  await expect(notice).toContainText('Not saved to cloud');
+  expect(await shown!.evaluate(element => element.isConnected)).toBe(true);
+  await context.setOffline(false);
+
+  await signOut(page);
+  await expect(notice).toContainText('Account editing paused');
+  await expect(notice.getByRole('button', { name: 'Retry cloud save' })).toHaveCount(0);
+  await notice.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Sign in' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  state.silentWrites = false;
+  expect(await setSession(session)).toBeNull();
+  await expect(notice).toHaveCount(0);
+  await page.clock.fastForward(A_MINUTE * 2);
+  await expect(chip(page)).toHaveText('Synced', { timeout: 15_000 });
+  expect([...state.rows.values()].some(row => cueLabel(row.body) === 'Saved after resuming the session')).toBe(true);
+  await expect(notice).toHaveCount(0);
 });
