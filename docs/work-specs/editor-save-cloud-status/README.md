@@ -183,3 +183,14 @@ existing minute wake, delay wording and network-offline detail. Synced still
 requires controller confirmation. Team production status keeps its existing
 reading. Cold boot, account switching, retry timing, revision ownership and
 deliberate sign-out retain their existing behavior.
+
+The inverse also reproduced during a real sign-in to a different synthetic
+account. Before reload, the old library was still loaded. Its notice showed
+the paused state without Retry cloud save, while the open personal sync
+details still offered an enabled Sync now for that old library.
+
+While a loaded personal library's gate is closed, its Sync now action is
+unavailable. The existing paused notice keeps Sign in available. The chip
+keeps the existing cold boot reading and its existing session-loss action.
+The team production path and the account transition itself keep their
+existing behavior.
