@@ -42,7 +42,15 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": [],
-  "inFlight": [],
+  "inFlight": [
+    {
+      "step": "build",
+      "session": "/root/v2_builder",
+      "head": "4dab8e67af7d76d2e7f2cd180e36d14df9d151b4",
+      "phase": "v2",
+      "note": "Build and local verification are in flight. Release queue admission waits for the CI/CD coordinator to lift the #1967 hold."
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
