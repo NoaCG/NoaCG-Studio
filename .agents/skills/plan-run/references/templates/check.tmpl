@@ -12,8 +12,8 @@ RULES   @PLAN_RULES@
 WORK    In your own worktree: git fetch origin && git worktree add -b @BRANCH@ @WORKTREE@ @MERGE@. Post your findings as one comment on PR #@PR@.
 VERDICT End with exactly one line, then the JSON receipt, and @RETURN@, keeping the message short (the detail goes in your PR comment, linked from "findings"):
         VERDICT: PASS | FAIL product: <what> | FAIL blocked: <prerequisite> | UNAVAILABLE: <infrastructure>
-        {"actor":"checker-@SLUG@-@NONCE@","session":"<your native session id>","findings":"... <PR comment link>","mergeSha":"@MERGE@","mergeChecks":"<each required check on @MERGE@ with its conclusion and run id>","evidence":[@EVIDENCE@]}
-        One evidence entry per criterion, "criterion" and "environment" exactly as written above. Nonce @NONCE@.
+        {"actor":"<your accepted native worker id>","session":"<your native session id>","findings":"... <PR comment link>","mergeSha":"@MERGE@","mergeChecks":"<each required check on @MERGE@ with its conclusion and run id>","evidence":[@EVIDENCE@]}
+        actor is the exact native worker ID accepted by the coordinator's observe-launch, never the branch or nonce; ask the coordinator for it if unavailable. One evidence entry per criterion, "criterion" and "environment" exactly as written above. Nonce @NONCE@.
 Source: https://github.com/NoaCG/NoaCG-Studio at @MERGE@. Environment @ENVIRONMENT@. Authorized window ends @DEADLINE@.
 
 Execution mode @MODE@. Owned absolute worktree @WORKTREE@. Preserve the current authority; only the coordinator records phase events.

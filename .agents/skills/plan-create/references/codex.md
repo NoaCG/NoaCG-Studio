@@ -22,6 +22,8 @@ a date alone grants neither. Blocks remain at most 24 hours. Owner pause needs e
 
 Select the supported mode and write `execution: {harness: "codex", mode: "active"}` or `"unattended"`
 in the kit state. New Codex runs default to active; recording that mode grants no additional authority.
+Active mode works locally or in managed cloud with the actual worker/session binding. Cloud wake or
+host-loss qualification is not a prerequisite for local active execution; device checks stay on their required host.
 - **active:** qualify subprocess, network, owned worktrees and fresh worker/result routes. No durable
   wake is required to create this explicitly bounded project. The active coordinator remains its
   acknowledged PR repair owner through required merge, acceptance and post-landing results. Never

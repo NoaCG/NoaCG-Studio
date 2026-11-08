@@ -4,14 +4,14 @@
 // left out is refused before a worker sees it; the heartbeat and the next check-in follow what the
 // run actually waits on.
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { checkin, heartbeat, initKit, renderBrief, TRAPS } from './plan-kit.mjs';
 import { kitDir } from './run-recovery.mjs';
 import { openWave } from './wave-plan-store.mjs';
-import { openStore, recordRun, registerRun, updateRun } from './run-supervisor.mjs';
+import { observePlanLaunch, openStore, readyPlanLaunch, recordRun, registerRun, updateRun } from './run-supervisor.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
 
 const NOW = Date.parse('2026-10-29T12:00:00Z');
@@ -201,4 +201,30 @@ test('Codex active mode has no scheduled recovery; unattended check-in precedes 
   // Legacy callers keep their boundary timing; the native guard still refuses equality.
   assert.equal(checkin({ action: 'stopped' }, state(), p, NOW).at, p.block.deadline);
   assert.equal(rearmNative({ ...request, next: { ...request.next, dueAt: p.block.deadline } }, NOW).state, 'stop');
+});
+
+test('the generated Codex checker receipt is accepted using the native identity adopted by the supervisor', (t) => {
+  const { dir, file } = fixture(t), s = { ...state(), execution: { harness: 'codex', mode: 'active' } };
+  writeFileSync(path.join(kitDir(file), 'state.json'), JSON.stringify(s));
+  copyFileSync(new URL('../.agents/skills/plan-run/references/templates/check.tmpl', import.meta.url), path.join(kitDir(file), 'templates/check.tmpl'));
+  const db = openStore(path.join(dir, 'control.sqlite'));
+  t.after(() => db.close());
+  const p = project(), packet = { objective: 'Verify generated checker receipt', acceptance: ['native receipt accepted'], nextAction: 'build',
+    phase: 1, tasks: [], decisions: [], constraints: [], files: [], workspace: {}, commits: [], verification: [], blockers: [], evidence: [] };
+  registerRun(db, { version: 1, id: p.id, kind: 'plan', wave: file, authorization: p.authorization, packet,
+    adapter: { command: process.execPath, args: [], cwd: dir } }, NOW);
+  updateRun(db, p.id, 'start-block', { owner: s.coordinator.session, deadline: iso(NOW + HOUR), evidence: 'fixture authority' }, NOW);
+  const authority = readProject(readFileSync(file, 'utf8'), NOW).block;
+  const record = (event, receipt) => recordRun(db, p.id, 1, event, JSON.stringify(receipt), { now: NOW, authority });
+  record('build', { actor: 'native-builder' }); record('landed', { mergeSha: MERGE });
+  const brief = renderBrief(file, 'check', 'E1', { MERGE, PARENT, PR: '42', WORKTREE: path.join(dir, 'checker') }, { now: NOW });
+  const intent = record('check', { actor: 'reserved-checker', launch: { sourceSha: MERGE, branch: brief.branch,
+    brief: path.relative(kitDir(file), brief.file).split(path.sep).join('/'), native: { provider: 'codex', sessionId: s.coordinator.session,
+      environmentId: s.coordinator.environment, policySha256: 'f'.repeat(64) } } });
+  readyPlanLaunch(db, p.id, authority, { now: NOW });
+  observePlanLaunch(db, p.id, { ...intent.launch, state: 'accepted', nativeId: 'accepted-native-checker', evidence: 'native readback' }, { now: NOW });
+  const json = brief.text.split('\n').find((line) => line.trim().startsWith('{"actor":'));
+  const receipt = JSON.parse(json.replaceAll('<your accepted native worker id>', 'accepted-native-checker')
+    .replaceAll('<your native session id>', 'accepted-native-checker'));
+  assert.doesNotThrow(() => record('pass', receipt));
 });
