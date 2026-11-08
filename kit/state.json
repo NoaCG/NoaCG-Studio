@@ -46,9 +46,11 @@
     {
       "step": "build",
       "session": "/root/v2_builder",
-      "head": "4dab8e67af7d76d2e7f2cd180e36d14df9d151b4",
+      "head": "c9499d1567880b7f1e3965fc05a827125609db5a",
       "phase": "v2",
-      "note": "Build and local verification are in flight. Release queue admission waits for the CI/CD coordinator to lift the #1967 hold."
+      "note": "Build and local verification are in flight. Release queue admission waits for the CI/CD coordinator to lift the #1967 hold.",
+      "pr": 2293,
+      "repairComment": 6723338187
     }
   ],
   "owner": [],
