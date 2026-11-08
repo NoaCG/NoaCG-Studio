@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "8a7c2083035ba117d0d9f65bfa0a8f72316991278ef0589de05d451ed96b18c9",
-  "authority": {
-    "status": "agreed",
-    "source": "docs/GOALS.md outcome 5 (one production workflow to every playout environment, OBS staying green) and docs/backlog/bridge-obs-adapter.md (serves NOW, needs-owner none); the decisions the spec marks derived are open to the owner's overrule"
-  },
-  "review": null
-}

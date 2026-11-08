@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "project": "plan-codebase-health-2026-11-08",
+  "plan": "codebase-health",
+  "spec": "docs/work-specs/codebase-health/spec.md",
+  "issue": 2285,
+  "coordinator": {
+    "session": "01a1baa5-78fe-7c80-93c3-f0212163317f",
+    "environment": "codex-desktop-windows",
+    "return": "Native result to the active Codex coordinator."
+  },
+  "authorization": {
+    "line": "Owner invoked $plan-run codebase-health on 2026-11-08, then specified “the deadline is tomorrow morning at 6 am”.",
+    "deadline": "2026-11-09T06:00:00+02:00",
+    "standing": {}
+  },
+  "execution": {
+    "harness": "codex",
+    "mode": "active"
+  },
+  "branchPrefix": "codex",
+  "brief": {
+    "read": "Use the current plan spec, the production closeout on #1553, and the current CI/CD allocation on #1967.",
+    "rules": "Documentation/evidence only. No product, CI configuration, test, budget or agent instruction changes. No extra benchmarks, production reactivation, or overlapping document writer. Use required gates and merge queue only."
+  },
+  "waitingOn": [],
+  "inFlight": [],
+  "owner": [],
+  "fixes": [],
+  "triggers": [],
+  "qualification": {
+    "coordinator": [
+      "2026-11-08T10:15:35.138Z",
+      "2026-11-08T10:15:57.701Z"
+    ],
+    "worker": [
+      "2026-11-08T10:18:20.205Z",
+      "2026-11-08T10:18:37.627Z"
+    ],
+    "workerNonce": "cbh-qual-1108-4f2d",
+    "source": "862fbcb20d1b6280d172fa390e93560d113c4355",
+    "provider": "Codex desktop local active",
+    "scope": "Passed child IO, Git and Actions reads with per-command approval. No wake qualification."
+  }
+}
