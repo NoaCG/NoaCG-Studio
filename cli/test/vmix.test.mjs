@@ -18,6 +18,7 @@ import { createVmixAdapter, functionLine, outputInputName, titleOf } from '../di
 import { casparcgAdapter } from '../dist/playout/adapters/casparcg.js';
 import { createBridgeServer, readAction, readTarget } from '../dist/playout/server.js';
 import { VMIX_OUTPUT_TOKEN_PREFIX } from '../dist/playout/protocol.js';
+import { SlotMemoryBank } from '../dist/playout/slots.js';
 import { parseVmixXml, vmixOverlayCount } from '../dist/playout/vmixTcp.js';
 import { vmixOutputId, vmixOutputStore } from '../dist/playout/vmixOutputs.js';
 import { startFakeVmix } from './_fakeVmix.mjs';
@@ -32,8 +33,8 @@ const ALLOWED = /^(AddInput|SetInputName|OverlayInput[1-8](In|Out|Off))$/;
 
 const noServers = { list: async () => [], remember: async () => [], setStudio: async () => null };
 
-async function withBridge(adapter, fn, port = 0) {
-  const server = createBridgeServer({ token: 't', origins: ['https://noacg.studio'], adapters: [casparcgAdapter, adapter], version: '0.0.0-test', servers: noServers }, () => {});
+async function withBridge(adapter, fn, { port = 0, memory } = {}) {
+  const server = createBridgeServer({ token: 't', origins: ['https://noacg.studio'], adapters: [casparcgAdapter, adapter], version: '0.0.0-test', servers: noServers, memory }, () => {});
   await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const post = async (path, body, token = 't') =>
@@ -86,7 +87,7 @@ test("vMix 29's own state XML reads as its version, edition, inputs by key and t
   assert.deepEqual([...xml.overlays], [[3, 1], [4, 2]]);
   assert.equal(parseVmixXml('<html>no</html>'), undefined);
   assert.equal(parseVmixXml('<vmix><version>29.0.0.49</version></vmix>'), undefined);
-  assert.ok(parseVmixXml('<vmix><version>29.0.0.49</version><inputs /><overlays /></vmix>'));
+  assert.ok(parseVmixXml('<vmix><version>29.0.0.49</version><edition>Trial</edition><inputs /><overlays /></vmix>'));
 });
 
 test('the overlay channels a vMix offers come from its version and edition, not the XML', () => {
@@ -419,7 +420,7 @@ test('AC-4: generic OK and a sole foreign Browser cannot grant ownership', async
 });
 
 test('AC-4: malformed and duplicate input or overlay rows cannot authorize a command', async () => {
-  const template = (rows, overlays) => '<vmix><version>29.0.0.49</version><inputs>' + rows + '</inputs><overlays>' + overlays + '</overlays></vmix>';
+  const template = (rows, overlays) => '<vmix><version>29.0.0.49</version><edition>Trial</edition><inputs>' + rows + '</inputs><overlays>' + overlays + '</overlays></vmix>';
   const key = '913caefe-1c82-4548-85c5-fecde6369290';
   const input = (id, number) => '<input key="' + id + '" number="' + number + '" type="Browser" title="Browser marker" />';
   assert.equal(parseVmixXml(template(input(key, 1) + input('', 2), '<overlay number="8" />')), undefined);
@@ -566,7 +567,7 @@ test('AC-4: scoped state and renamed Unload use the persisted key, and a missing
       assert.equal(JSON.parse(saved).ports[fake.port].keys[vmixOutputId(OUTPUT)], replacement.key);
       assert.equal((await aliasRequest(base, alias)).headers.location, OUTPUT, 'an older preset can still render');
       assert.equal((await aliasRequest(base, new URL(replacement.url))).headers.location, renamed.name);
-    }, bridgePort);
+    }, { port: bridgePort });
     await withBridge(makeAdapter(), async (_post, base) => {
       const otherPort = new URL(base).port;
       assert.equal((await aliasRequest(base, alias, { host: alias.hostname + ':' + otherPort })).status, 403);
@@ -611,7 +612,7 @@ test('AC-4: a dropped AddInput cannot grant ownership and retry uses a fresh add
       assert.notEqual(new URL(current.url).hostname, oldAlias.hostname);
       assert.equal(orphan.title, 'Browser ' + oldAlias.hostname);
       assert.equal((await aliasRequest(base, new URL(current.url))).headers.location, OUTPUT);
-    }, bridgePort);
+    }, { port: bridgePort });
   } finally {
     await fake.stop();
     await rm(file, { force: true });
@@ -631,6 +632,120 @@ test('AC-4: a take without time for complete input attribution sends no AddInput
     await fake.stop();
   }
 });
+
+test('AC-1 and AC-4: a missing or blank edition cannot authorize placeholder overlays', async () => {
+  let edition = '';
+  const fake = await startFakeVmix({
+    edition: 'Basic HD',
+    transformXml: xml => xml.replace('<edition>Basic HD</edition>', edition),
+  });
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      for (edition of ['', '<edition>   </edition>']) {
+        assert.equal((await post('/status', { target: { adapter: 'vmix' } })).ok, false);
+        assert.equal((await act(post, { verb: 'take', item, slot: slot(8) })).ok, false);
+      }
+      assert.deepEqual(fake.functions, []);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('the vMix greeting uses the remaining request budget without diagnosing a non-vMix port', async () => {
+  const fake = await startFakeVmix({ greeting: null });
+  try {
+    const adapter = createVmixAdapter({ port: fake.port, timeoutMs: 50 });
+    const result = await adapter.status({ adapter: 'vmix' });
+    assert.equal(result.error.setup, undefined);
+    assert.match(result.error.detail, /request deadline/);
+    adapter.close();
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('a queued same-slot HTTP vMix action uses its original deadline', async t => {
+  const command = Promise.withResolvers();
+  const second = Promise.withResolvers();
+  const fake = await startFakeVmix({
+    hook(line, socket) {
+      if (line !== 'FUNCTION OverlayInput8Out') return false;
+      fake.overlays.delete(8);
+      command.resolve(socket);
+      return true;
+    },
+  });
+  const output = fake.add('Browser', 'NoaCG Evening News');
+  fake.overlays.set(8, output.key);
+  const outputs = vmixOutputStore();
+  await outputs.save(fake.port, { keys: { [vmixOutputId(OUTPUT)]: output.key } });
+  const memory = new SlotMemoryBank();
+  const serial = memory.serial.bind(memory);
+  let arrivals = 0;
+  t.mock.method(memory, 'serial', (...args) => {
+    if (++arrivals === 2) second.resolve();
+    return serial(...args);
+  });
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port, outputs }), async post => {
+      const action = { verb: 'out', item, slot: slot(8) };
+      const first = act(post, action);
+      const socket = await command.promise;
+      const queued = act(post, action);
+      await second.promise;
+      now += 7001;
+      socket.write('FUNCTION OK Completed\r\n');
+      const [sent, expired] = await Promise.all([first, queued]);
+      assert.equal(sent.error.code, 'uncertain', 'the first Out was sent without confirmed readback');
+      assert.equal(expired.error.code, 'unreachable');
+      assert.equal(expired.error.setup, undefined);
+      assert.match(expired.error.detail, /request deadline/);
+      assert.deepEqual(fake.lines, ['XML', 'XML', 'FUNCTION OverlayInput8Out']);
+    }, { memory });
+  } finally {
+    await fake.stop();
+  }
+});
+
+for (const verb of ['out', 'take']) {
+  test('AC-4: a queued reading cannot interleave with the final ' + verb + ' check', async () => {
+    let armed = false;
+    let reads = 0;
+    let queuedReading;
+    const target = { adapter: 'vmix' };
+    const fake = await startFakeVmix({
+      hook(line) {
+        if (!armed || line !== 'XML') return false;
+        if (++reads === 2) queuedReading = verb === 'out' ? adapter.status(target) : adapter.overlays(target, OUTPUT);
+        if (reads === 3) fake.overlays.set(8, foreign.key);
+        return false;
+      },
+    });
+    const foreign = fake.add('Image', 'Operator sponsor');
+    const adapter = createVmixAdapter({ port: fake.port });
+    const take = { verb: 'take', item, slot: slot(8) };
+    try {
+      assert.equal((await adapter.act(target, take, directTestContext)).ok, true);
+      const key = fake.onChannel(8).key;
+      if (verb === 'take') assert.equal((await adapter.act(target, { ...take, verb: 'out' })).ok, true);
+      const start = fake.lines.length;
+      armed = true;
+      const result = await adapter.act(target, verb === 'take' ? { ...take, expectedOverlayInput: null } : { ...take, verb }, directTestContext);
+      assert.equal((await queuedReading).ok, true);
+      assert.equal(fake.onChannel(8), foreign);
+      assert.equal(result.ok, verb === 'out');
+      if (verb === 'take') assert.equal(result.error.code, 'uncertain');
+      const mutation = verb === 'out' ? 'OverlayInput8Out' : 'OverlayInput8In Input=' + key;
+      assert.deepEqual(fake.lines.slice(start), ['XML', 'XML', 'FUNCTION ' + mutation, 'XML', 'XML']);
+    } finally {
+      adapter.close();
+      await fake.stop();
+    }
+  });
+}
 
 test('AC-4: an overlay change during a prepared Load is left alone', async () => {
   const fake = await startFakeVmix({

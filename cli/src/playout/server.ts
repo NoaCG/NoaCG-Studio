@@ -457,6 +457,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   }
 
   const server = createServer((req, res) => {
+    const receivedAt = Date.now();
     const origin = req.headers.origin;
     const send = (status: number, body: unknown, cors: boolean) => {
       const headers: Record<string, string> = { 'Content-Type': 'application/json; charset=utf-8' };
@@ -603,7 +604,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/status' || url === '/connect') {
           const connect = url === '/connect';
           if (connect && target.adapter === 'ograf') throw new UsageError('An OGraf server is not connected to: name it in each request.');
-          const r = await adapter.status(target);
+          const r = await adapter.status(target, receivedAt);
           log(`${at} ${connect ? 'connect' : 'status'} -> ${r.ok ? r.raw : r.error.code}`);
           if (!r.ok) {
             send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
@@ -640,7 +641,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/state' && adapter.overlays) {
           // What each overlay channel holds, read off vMix's XML over the one connection. Productions
           // linked to this Bridge come with the overlay presses (docs/work-specs/bridge-vmix-adapter).
-          const r = await adapter.overlays(target, typeof body.outputUrl === 'string' ? body.outputUrl : undefined);
+          const r = await adapter.overlays(target, typeof body.outputUrl === 'string' ? body.outputUrl : undefined, receivedAt);
           send(
             200,
             r.ok ? { ok: true, v: PLAYOUT_V, session: memory.session, observedAt: Math.round(performance.now()), overlays: r.value, linked: [] } : { ok: false, v: PLAYOUT_V, error: r.error },
@@ -771,6 +772,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
               const done: ActResult = refused ? { ok: false, error: refused } : await adapter.act(target, action, {
                 follower: memory.follower(target, slot),
                 vmixBridgePort: req.socket.localPort,
+                receivedAt,
               });
               instance = memory.acted(target, slot, action, done);
               return done;

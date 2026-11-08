@@ -32,7 +32,7 @@ const VMIX_REPLY_MS = 3000;
 const MAX_LINE_BYTES = 64 * 1024;
 const MAX_XML_BYTES = 16 * 1024 * 1024;
 
-export type VmixOpen = { ok: true } | { ok: false; setup: 'not-running' | 'not-vmix'; why: string };
+export type VmixOpen = { ok: true } | { ok: false; setup?: 'not-running' | 'not-vmix'; why: string };
 
 /** One command's answer: its status line (and an XML body), or why there is none. `not-sent` (no
  *  connection) and `late` (its turn came with the verb's time spent) never left, so nothing can have
@@ -64,9 +64,11 @@ export class VmixConnection {
   }
 
   /** The connection, greeted: the open one, or a new one. */
-  open(): Promise<VmixOpen> {
+  open(until = Infinity): Promise<VmixOpen> {
+    const wait = Math.min(this.greetingMs, until - Date.now());
+    if (wait <= 0) return Promise.resolve({ ok: false, why: 'the request deadline expired' });
     if (this.socket && this.version && !this.socket.destroyed) return Promise.resolve({ ok: true });
-    this.opening ??= this.start().finally(() => {
+    this.opening ??= this.start(wait).finally(() => {
       this.opening = undefined;
     });
     return this.opening;
@@ -77,7 +79,7 @@ export class VmixConnection {
     this.socket?.destroy();
   }
 
-  private start(): Promise<VmixOpen> {
+  private start(wait: number): Promise<VmixOpen> {
     return new Promise((resolve) => {
       const s = connect({ host: '127.0.0.1', port: this.port });
       s.setNoDelay(true);
@@ -95,10 +97,9 @@ export class VmixConnection {
         if (!r.ok) s.destroy();
         resolve(r);
       };
-      const timer = setTimeout(
-        () => settle({ ok: false, setup: 'not-vmix', why: `port ${this.port} accepted the connection but sent no VERSION OK greeting within ${this.greetingMs} ms` }),
-        this.greetingMs,
-      );
+      const timer = setTimeout(() => settle(wait < this.greetingMs
+        ? { ok: false, why: 'the request deadline expired during the greeting' }
+        : { ok: false, setup: 'not-vmix', why: `port ${this.port} accepted the connection but sent no VERSION OK greeting within ${this.greetingMs} ms` }), wait);
       s.once('connect', () => {
         connected = true;
       });
@@ -290,8 +291,10 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   const version = sections.get('version')?.trim();
   const overlaySection = sections.get('overlays');
   if (!version || !/^\d+\.\d+\.\d+\.\d+$/.test(version) || !sections.has('inputs') || overlaySection === undefined) return;
-  const edition = sections.get('edition') ?? '';
-  if (edition.includes('<')) return;
+  const editionText = sections.get('edition');
+  if (!editionText || editionText.includes('<')) return;
+  const edition = decode(editionText).trim();
+  if (!edition) return;
   const inputs: VmixInput[] = [];
   const keys = new Set<string>();
   const numbers = new Set<number>();
@@ -318,7 +321,7 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
     reportedOverlays.add(channel);
     if (input !== undefined) overlays.set(channel, input);
   }
-  return { version, edition: decode(edition).trim(), inputs, overlays, reportedOverlays };
+  return { version, edition, inputs, overlays, reportedOverlays };
 }
 
 /** How many overlay channels this vMix's UI offers, the one place the rule lives: 8 from vMix 29,

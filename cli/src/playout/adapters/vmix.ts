@@ -41,8 +41,8 @@ export function functionLine(name: string, params: Record<string, string> = {}):
 export interface VmixAdapter extends PlayoutAdapter<VmixTarget> {
   /** The port a target that names none reaches: 8099, or `--vmix-port`. */
   readonly port: number;
-  status(target: VmixTarget): Promise<AdapterResult<{ version: string; vmix: VmixInfo }>>;
-  overlays(target: VmixTarget, outputUrl?: string): Promise<AdapterResult<VmixOverlayState[]>>;
+  status(target: VmixTarget, receivedAt?: number): Promise<AdapterResult<{ version: string; vmix: VmixInfo }>>;
+  overlays(target: VmixTarget, outputUrl?: string, receivedAt?: number): Promise<AdapterResult<VmixOverlayState[]>>;
   outputRedirect(host: string | undefined, path: string | undefined, port: number): Promise<string | undefined>;
   /** Close every connection, for a Bridge that stops. */
   close(): void;
@@ -118,7 +118,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
   // A Browser can navigate while AddInput is still being confirmed. Only committed aliases
   // survive a Bridge restart.
   const adding = new Map<string, string>();
-  /** One action at a time per vMix keeps key ownership and the overlay readback consistent. */
+  /** Keep each vMix request's TCP turn through the final read and any channel command. */
   const turns = new Map<number, Promise<unknown>>();
   const exclusive = <T>(port: number, run: () => Promise<T>): Promise<T> => {
     const next = (turns.get(port) ?? Promise.resolve()).then(run, run);
@@ -126,16 +126,20 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
     return next;
   };
 
+  const timedOut = (): { ok: false; error: AgentError } =>
+    ({ ok: false, error: { hop: 'target', code: 'unreachable', detail: 'vMix did not answer within the request deadline.' } });
+
   /** The one connection to this port, greeted, or the sentence that says why there is none. */
-  async function session(target: VmixTarget): Promise<{ conn: VmixConnection } | { ok: false; error: AgentError }> {
+  async function session(target: VmixTarget, until: number): Promise<{ conn: VmixConnection } | { ok: false; error: AgentError }> {
     const port = portOf(target);
     let conn = connections.get(port);
     if (!conn) {
       conn = new VmixConnection(port, { greetingMs: options.greetingMs, replyMs: options.replyMs });
       connections.set(port, conn);
     }
-    const r = await conn.open();
+    const r = await conn.open(until);
     if (r.ok) return { conn };
+    if (!r.setup) return timedOut();
     const detail =
       r.setup === 'not-running'
         ? `vMix is not running on this computer: nothing answers on port ${port}. Start vMix.`
@@ -162,7 +166,8 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
    */
   async function begin(target: VmixTarget, until: number): Promise<{ conn: VmixConnection; xml: VmixXml; raw: string } | { ok: false; error: AgentError }> {
     for (let attempt = 0; ; attempt += 1) {
-      const s = await session(target);
+      if (Date.now() >= until) return timedOut();
+      const s = await session(target, until);
       if (!('conn' in s)) return s;
       const xml = await read(s.conn, until);
       if (xml.ok) return { conn: s.conn, xml: xml.value, raw: xml.raw };
@@ -192,34 +197,38 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       return { lists: [], thumbnails: false, verbs: ['take', 'out', 'clear'], target: ['state'] };
     },
 
-    async status(target) {
-      const s = await begin(target, Date.now() + timeoutMs);
-      if (!('conn' in s)) return s;
-      const vmix = describe(s.xml);
-      return { ok: true, value: { version: vmix.version, vmix }, raw: `VERSION OK ${vmix.version}; ${vmix.edition}, ${vmix.overlays} overlay channels, ${vmix.inputs} inputs` };
+    async status(target, receivedAt = Date.now()) {
+      return exclusive(portOf(target), async () => {
+        const s = await begin(target, receivedAt + timeoutMs);
+        if (!('conn' in s)) return s;
+        const vmix = describe(s.xml);
+        return { ok: true, value: { version: vmix.version, vmix }, raw: `VERSION OK ${vmix.version}; ${vmix.edition}, ${vmix.overlays} overlay channels, ${vmix.inputs} inputs` };
+      });
     },
 
-    async overlays(target, outputUrl) {
-      const s = await begin(target, Date.now() + timeoutMs);
-      if (!('conn' in s)) return s;
-      const count = vmixOverlayCount(s.xml.version, s.xml.edition);
-      const id = outputUrl === undefined ? undefined : vmixOutputId(outputUrl);
-      if (outputUrl !== undefined && !id) return usage('The vMix state reading needs an http or https output address.');
-      let owned: VmixInput | undefined;
-      if (id) {
-        try {
-          owned = ownBrowser(s.xml, (await outputs.read(portOf(target))).keys[id]);
-        } catch {
-          return storageFailed();
+    async overlays(target, outputUrl, receivedAt = Date.now()) {
+      return exclusive(portOf(target), async () => {
+        const s = await begin(target, receivedAt + timeoutMs);
+        if (!('conn' in s)) return s;
+        const count = vmixOverlayCount(s.xml.version, s.xml.edition);
+        const id = outputUrl === undefined ? undefined : vmixOutputId(outputUrl);
+        if (outputUrl !== undefined && !id) return usage('The vMix state reading needs an http or https output address.');
+        let owned: VmixInput | undefined;
+        if (id) {
+          try {
+            owned = ownBrowser(s.xml, (await outputs.read(portOf(target))).keys[id]);
+          } catch {
+            return storageFailed();
+          }
         }
-      }
-      const value: VmixOverlayState[] = [];
-      for (let overlay = 1; overlay <= count; overlay += 1) {
-        const input = onChannel(s.xml, overlay);
-        if (channelKey(s.xml, overlay) === undefined) return refused('vMix did not identify the input on overlay ' + overlay + '.');
-        value.push({ overlay, ...(input ? { input } : {}), ...(id ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
-      }
-      return { ok: true, value, raw: s.raw };
+        const value: VmixOverlayState[] = [];
+        for (let overlay = 1; overlay <= count; overlay += 1) {
+          const input = onChannel(s.xml, overlay);
+          if (channelKey(s.xml, overlay) === undefined) return refused('vMix did not identify the input on overlay ' + overlay + '.');
+          value.push({ overlay, ...(input ? { input } : {}), ...(id ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
+        }
+        return { ok: true, value, raw: s.raw };
+      });
     },
 
     async list() {
@@ -253,7 +262,7 @@ export function createVmixAdapter(options: { port?: number; timeoutMs?: number; 
       const id = address && vmixOutputId(address);
       if (!address || !id) return usage("vMix needs the NoaCG output's http or https address.");
 
-      const until = Date.now() + timeoutMs;
+      const until = (context?.receivedAt ?? Date.now()) + timeoutMs;
       return exclusive(portOf(target), () => perform(target, action, slot, name, id, address, until, context?.vmixBridgePort));
     },
 

@@ -51,6 +51,14 @@ phases. vMix keeps control of Program, Preview and transitions.
   The redirect passes navigation to the output page without fetching or
   proxying it. The URL carries no Bridge pairing token, and aliases cannot
   reach any control route.
+- Every status, scoped state or action request shares the same turn for its
+  vMix TCP port. The action keeps its turn through its final XML and channel
+  command. A queued reading cannot interleave there. Deadlines start when
+  the request arrives. A newly needed greeting fits the remaining budget.
+  A shortened greeting timeout is a request timeout. Passive ACTS events
+  still arrive normally. vMix can still change state in the native gap
+  between its final XML and the unconditional channel command. Version and
+  a nonblank edition are required before deriving overlay count.
 - The key belongs to the vMix TCP port and the production address with its
   display name removed. A key missing from complete live XML is forgotten
   before Load makes another. The committed redirect stays valid for a
@@ -192,6 +200,17 @@ sections, valid unique input and overlay rows, and complete supported channel
 coverage before Load and before Overlay In. The repaired cases preserve the
 operator's input and send no Overlay In.
 
+The exact-head independent review then reproduced a queued status or state
+read between the final XML and the channel command. The before-patch Out
+trace was XML, XML, XML, OverlayInput8Out, XML. The third XML let the Bridge
+clear a newly placed foreign Image while reporting OK. It also found that a
+missing edition let a Basic HD reading be treated as eight channels.
+The fresh rule review confirmed the shared TCP turn and absolute deadline,
+including the HTTP slot queue. The same two wire-order tests now pass with
+XML, XML, the channel command, XML, XML and the foreign Image preserved.
+The missing and blank edition cases authorize no function. A queued HTTP
+action whose deadline elapsed sends no further XML or mixer command.
+
 The same round found stale panel state after Load or a switch change. The
 panel now drops its reading when polling restarts. Fresh state showing the
 owned Browser already on the chosen overlay makes a second Load a no-op.
@@ -209,11 +228,11 @@ its display name. Broader routing stays with V4.
 
 | Criterion | Evidence |
 | --- | --- |
-| AC-1 | Independently reran the Slice 1 fake-vMix checks at the V1 baseline, 21 passing, and again with V2, 33 passing. They exercise `/health`, the 29 and 28 and Basic HD channel counts, version and edition, refused and silent greetings, connection loss and ACTS lines. V2 also starts the built CLI with `--vmix-port` pointing at a separate fake TCP listener and reads vMix 28 through the Bridge. [Slice 1 evidence](slice-1.md). |
+| AC-1 | Independently reran the Slice 1 fake-vMix checks at the V1 baseline, 21 passing, and again with V2, 38 passing. They exercise `/health`, the 29 and 28 and Basic HD channel counts, version and edition, refused and silent greetings, connection loss and ACTS lines. V2 also starts the built CLI with `--vmix-port` pointing at a separate fake TCP listener and reads vMix 28 through the Bridge. [Slice 1 evidence](slice-1.md). |
 | AC-3 | Browser queue `j-4992` verified pairing, both setup diagnoses, Try again, all eight options, default 8, a choice of 3 surviving reload and Update with an older Bridge. The Settings screenshot was inspected. |
-| AC-4 | The fake TCP and HTTP suite checks exact-marker ownership, the original no-op and sole foreign Browser, a concurrent unrelated addition, malformed or incomplete XML, unknown and modified alias requests, failed or dropped replies, explicit retry, store restart, stale keys, same-title names, transition readback, and replacement during preparation. Two queued delayed additions finished in 5.79 s under the unchanged seven-second action budget. The final packaged executable also passed the owned vMix preset round trip below. |
+| AC-4 | The fake TCP and HTTP suite checks exact-marker ownership, the original no-op and sole foreign Browser, a concurrent unrelated addition, malformed or incomplete XML, unknown and modified alias requests, failed or dropped replies, explicit retry, store restart, stale keys, same-title names, transition readback, and replacement during preparation. Two queued delayed additions finished in 5.76 s under the unchanged seven-second action budget. The final packaged executable also passed the owned vMix preset round trip below. |
 | AC-5 | Browser queue `j-4992` passed all 75 tests in the maintained Bridge connection, Publish setup and production persistence specs. It verified one Load of the named output URL with title and Overlay 3, On air from state, Unload from the live overlay after choosing another, Cancel sending nothing, a keyed Replace, the Bridge's setup error, disabling Take and Stop/Clear for a CasparCG cue, switching back to CasparCG, abandoning a Load after navigation, and first Publish with vMix selected and unselected. The production panel was inspected in screenshots. The real run also operated Load and Unload from the studio page. |
-| AC-6 | Local build of NoaCG-Bridge-0.11.0.exe, SHA-256 `80c58337802e1624c15b9055bcfc22556f0bdee67f5264f11b806bcdd00930fc`. The final build uses the owner-approved local address. Its smoke test reported 0.11.0, `vmix` and `vmix-output-key`. The published baseline is 0.10.2. The release changes only the independent Bridge version and operator notes. Exact-merge release and download checks remain for the independent checker after the #1967 hold and landing. |
+| AC-6 | Local build of NoaCG-Bridge-0.11.0.exe, SHA-256 `0c4104f58d6fe957e552dfa29029598cfc4af590eef119c563f1a709eee0016d`. The final build uses the owner-approved local address. Its smoke test reported 0.11.0, `vmix` and `vmix-output-key`. The published baseline is 0.10.2. The release changes only the independent Bridge version and operator notes. Exact-merge release and download checks remain for the independent checker after the #1967 hold and landing. |
 
 The final packaged preset check used three owned blank vMix 29.0.0.49 Trial
 sessions, with a synthetic renderer and isolated Bridge storage. It saved the
@@ -226,16 +245,16 @@ fetched the exact URL and restored the original composite hash. Program and
 Preview input selections stayed at 1 and 2. Each run stopped only its owned vMix
 process and verified restoration of both vMix files by SHA-256. The service
 remained running. The replayable probe, logs and captures are in
-C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-reviewed.
+C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-sequenced.
 
-Browser job j-4994 used the final packaged executable with the real Studio
+Browser job j-4995 used the final packaged executable with the real Studio
 production page, an isolated renderer and fixture RPCs. Load put the named
 Browser on Overlay 8. Its first sampled Program frame showed the settled
 lower third with the original plate outside the graphic. Unload restored the
 original decoded Program SHA-256, a9b7a25fcc3d2ccba090dc980baa3cc2d97bf398793dc007d1f30f5152ec5710.
 Program and Preview stayed at 1 and 2. Both configuration files were restored
 and verified. Captures and the runnable probe are in
-C:/claude/Temp/vmix-v2-runtime-1108/visuals-alias-verified.
+C:/claude/Temp/vmix-v2-runtime-1108/visuals-alias-sequenced.
 
 The shorter observation build in j-4990 showed the existing startup flash
 before the renderer settled. The final build keeps the prior observation
@@ -245,9 +264,10 @@ flash. The interval does not verify the readiness of a slower renderer, so
 and correctly refused to run the proof after its owned vMix session closed.
 It provided no product evidence.
 
-The final focused Node selection passed 61 tests, including vMix TCP and HTTP
-alias cases, CasparCG and Bridge compatibility, and the Studio's output rules.
-Studio TypeScript and lint on changed Studio and browser source passed.
+The final focused Node selection passed 95 tests, including 38 vMix TCP and
+HTTP alias cases, the Bridge HTTP and protocol suite, CasparCG compatibility
+and Studio output rules. Studio TypeScript and lint on changed Studio and
+browser source passed.
 
 Real runs used the owned Vite port, an isolated loopback fixture and isolated Bridge storage.
 The first snapshot attempt (`j-4958`) read a partial PNG. The next (`j-4960`) confirmed the
