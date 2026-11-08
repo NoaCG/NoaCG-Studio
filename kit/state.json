@@ -42,19 +42,25 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {
-    "what": "The #1967 hold still applies to any Bridge release."
+    "what": "V2 draft #2293 awaits the product decision on adopting the local Bridge address. The prototype proved ownership and restored the same picture when Bridge was running. Starting Bridge after preset open did not recover the graphic within the sample; explicit Browser Reload restored it. The independent #1967 release hold remains active."
   },
   "inFlight": [
     {
+      "note": "The compact-panel regression passed the original checks. Draft CI 42498600044 was pending at the builder checkpoint. AC-4 and AC-6 remain open.",
+      "step": "build checkpoint",
       "phase": "v2",
-      "note": "Isolated preset prototype completed. The original builder is fixing the confirmed compact-panel regression only; V2 draft remains unqueued.",
-      "step": "compact panel fix",
+      "head": "32a50d0baf7b638c2a91e43b8a0c6b8e1f280555",
       "session": "/root/v2_builder",
-      "head": "c9499d1567880b7f1e3965fc05a827125609db5a",
-      "pr": 2293
+      "pr": 2293,
+      "repairComment": 6723338187
     }
   ],
-  "owner": [],
+  "owner": [
+    {
+      "what": "Decide whether to adopt the proven local Bridge address. Start Bridge before opening a preset, or reload its Browser input if Bridge starts late.",
+      "where": "Active Codex coordinator chat; draft #2293"
+    }
+  ],
   "fixes": [],
   "triggers": []
 }
