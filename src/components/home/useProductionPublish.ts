@@ -256,11 +256,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   const readSavedOutputSetup = () => readOutputSetup(loadShows().find(s => s.id === show.id)?.outputSetup);
   /** The load itself, tagged with the production's CasparCG destination, and what it changed. */
-  const sendLoad = async (settings: PlayoutSettings, url: string, setup = readSavedOutputSetup()): Promise<PlayoutResult | null> => {
-    if (setup?.vmix) return null;
-    const casparId = casparDestinationId(setup) ?? 'casparcg';
-    const result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
-    onAirChanged('air', result, casparOutputTarget(settings));
+  const sendLoad = async (settings: PlayoutSettings, url: string): Promise<PlayoutResult | null> => {
+    if (readSavedOutputSetup()?.vmix) return null;
+    const result = await putOutputOnAir(settings, () => {
+      const setup = readSavedOutputSetup();
+      if (setup?.vmix) return null;
+      return destinationUrl(url, casparDestinationId(setup) ?? 'casparcg') ?? url;
+    });
+    if (result) onAirChanged('air', result, casparOutputTarget(settings));
     return result;
   };
   const loadOnSlot = (url: string, replace = false): Promise<void> => slotAction(async () => {
@@ -293,7 +296,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       }
     }
     setReplaceAsk(false);
-    const result = await sendLoad(settings, url, setup);
+    const result = await sendLoad(settings, url);
     if (result && result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
   /** LOAD THE LOST OUTPUT AGAIN (control/bridgeWatch.ts decides when, issue #1657): the load alone,

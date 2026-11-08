@@ -26,3 +26,10 @@ actual Load handler and a fake Bridge showed that the corrected handler sends no
 CasparCG Load and shows no Replace confirmation after the choice changes. Stale
 Replace and reload sends also stop. The same probe observed the usual CasparCG
 Load, Replace and reload when CasparCG stays selected.
+
+A second review reproduced the same failure while the real link waited for
+`/health`. The reassessment placed the check at the first mutating request.
+The focused Node test holds `/health`, changes the saved choice, then verifies
+zero `/act` requests. With CasparCG still selected, the guarded and legacy
+callers send identical payloads. The separate Put on air action in Playout
+Settings remains outside this V1 change and is carried to V2 before its switch.

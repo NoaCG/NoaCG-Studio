@@ -1,4 +1,4 @@
-// guards: src/model/outputSetup.ts, src/model/shows.ts, src/components/home/ProductionPage.tsx, src/components/home/useProductionPublish.ts
+// guards: src/model/outputSetup.ts, src/model/shows.ts, src/components/home/ProductionPage.tsx, src/components/home/useProductionPublish.ts, src/control/playoutLink.ts
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -8,6 +8,7 @@ import {
 import './lib/tsResolve.mjs';
 
 const { createShowNamedChecked, loadShows, productionPlayoutSystem, setShowOutputSetup } = await import('../src/model/shows.ts');
+const { MIN_PLAYOUT_V, PLAYOUT_DEFAULTS, putOutputOnAir } = await import('../src/control/playoutLink.ts');
 
 const unset = outputChoice(null, false);
 const browser = { id: 'browser', profile: 'browser' };
@@ -93,4 +94,39 @@ test('first Publish preserves a saved vMix selection and never turns inferred vM
   assert.deepEqual(inferred, { v: 1, destinations: [browser] });
   assert.equal(wantsAccountOutputDefault(inferred), false);
   assert.equal(playoutSystem({ ...base, setup: inferred, vmixCues: true, accountDefault: true }), 'vmix');
+});
+
+test('an obsolete CasparCG Load never sends after the Bridge health check', { timeout: 3000 }, async (t) => {
+  const started = Promise.withResolvers();
+  const health = Promise.withResolvers();
+  const requests = [];
+  let saved = withCasparSwitch(unset, true);
+  const url = 'http://127.0.0.1/output?production=test';
+  const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token' };
+  t.mock.method(globalThis, 'fetch', (requestUrl, options) => {
+    const route = new URL(requestUrl).pathname;
+    if (route === '/health') {
+      started.resolve();
+      return health.promise.then(() => Response.json({ agent: 'noacg-bridge', v: MIN_PLAYOUT_V }));
+    }
+    assert.equal(route, '/act');
+    requests.push(JSON.parse(options.body));
+    return Promise.resolve(Response.json({ ok: true }));
+  });
+
+  const currentOutput = () => readOutputSetup(saved)?.vmix ? null : url;
+  const stale = putOutputOnAir(settings, currentOutput);
+  await started.promise;
+  saved = withPlayoutSystem(saved, 'vmix');
+  health.resolve();
+  assert.equal(await stale, null);
+  assert.deepEqual(requests, []);
+
+  saved = withCasparSwitch(saved, true);
+  assert.equal((await putOutputOnAir(settings, currentOutput)).state, 'ok');
+  assert.equal((await putOutputOnAir(settings, url)).state, 'ok');
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].target.adapter, 'casparcg');
+  assert.equal(requests[0].action.verb, 'take');
+  assert.deepEqual(requests[0], requests[1]);
 });
