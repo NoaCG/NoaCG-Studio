@@ -44,12 +44,12 @@
   "waitingOn": [],
   "inFlight": [
     {
-      "note": "GitHub merge queue admitted the reviewed V1 head. Merge group CI 42483732764 is running.",
+      "step": "check",
       "phase": "v1",
-      "session": "codex active coordinator",
+      "session": "/root/v1_checker",
+      "head": "4dab8e67af7d76d2e7f2cd180e36d14df9d151b4",
       "pr": 2291,
-      "head": "7362f377c9786453a6f28b5a6d45819cf42582c6",
-      "step": "queue"
+      "note": "Landed through the queue. Exact-merge independent acceptance is in flight."
     }
   ],
   "owner": [],
