@@ -27,10 +27,12 @@
 // so another browser or account paired with it opens with the same channels; the copy here is what
 // every surface reads, and the only one with an older Bridge.
 
-import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type ShowFolder } from '../model/shows';
+import { loadShows, productionPlayoutSystem, MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type ShowFolder } from '../model/shows';
 import { DEFAULT_STUDIO, defaultChannelName, sameServer, sameStudio, studioFields, studioOf, studioStep } from './studioSetup';
 import {
+  MAX_VMIX_OVERLAYS,
   PLAYOUT_V,
+  VMIX_OUTPUT_TOKEN_PREFIX,
   type AdapterId,
   type AgentError,
   type BridgeFeature,
@@ -45,6 +47,8 @@ import {
   type StudioSetup,
   type StateReply,
   type TargetCapability,
+  type VmixInfo,
+  type VmixOverlayState,
 } from './playoutProtocol';
 
 const STORE_KEY = 'spx-gfx-caspar';
@@ -94,6 +98,8 @@ export interface PlayoutSettings {
    *  Bridge: it was not running, or not yet the one with the `studio` feature. The next sync gives
    *  the change to the Bridge rather than taking the Bridge's older copy (D17). */
   studioPending?: { host: string; port: number };
+  /** The device's vMix output overlay. Absent uses the highest channel this vMix offers. */
+  vmix?: { overlay?: number };
 }
 
 /** One CasparCG channel as the studio names it. */
@@ -136,7 +142,11 @@ function normalized(s: PlayoutSettings): PlayoutSettings {
   const channels = rows.some((row) => row.channel === channel) ? rows : [{ channel, name: defaultChannelName(channel) }, ...rows];
   const clip = channelNumber(s.clipChannel);
   const clipChannel = clip !== null && channels.some((row) => row.channel === clip) ? clip : channel;
-  return { ...s, channel, channels, clipChannel };
+  const overlay = s.vmix?.overlay;
+  const vmix = typeof overlay === 'number' && Number.isInteger(overlay) && overlay >= 1 && overlay <= MAX_VMIX_OVERLAYS
+    ? { overlay }
+    : undefined;
+  return { ...s, channel, channels, clipChannel, ...(s.vmix !== undefined ? { vmix } : {}) };
 }
 
 interface StoredSettings extends Partial<PlayoutSettings> {
@@ -378,6 +388,8 @@ interface BridgeReply {
   observedAt?: number;
   slots?: SlotState[];
   channels?: ServerChannel[];
+  vmix?: VmixInfo;
+  overlays?: VmixOverlayState[];
 }
 
 type Call = { http: number; body: BridgeReply } | { timedOut: true } | { networkError: string };
@@ -438,12 +450,16 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
 }
 
 /** `reachBridge`, and what a current Bridge said it understands. */
-async function probeBridge(bridgeUrl: string): Promise<{ unreachable: PlayoutResult | null; features: BridgeFeature[] }> {
+async function probeBridge(bridgeUrl: string): Promise<{ unreachable: PlayoutResult | null; features: BridgeFeature[]; adapters?: AdapterId[] }> {
   const health = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
   if ('http' in health) {
     const { agent, v } = health.body;
     if (agent === 'noacg-bridge' && typeof v === 'number' && v >= MIN_PLAYOUT_V) {
-      return { unreachable: null, features: Array.isArray(health.body.features) ? health.body.features : [] };
+      return {
+        unreachable: null,
+        features: Array.isArray(health.body.features) ? health.body.features : [],
+        adapters: Array.isArray(health.body.adapters) ? health.body.adapters : [],
+      };
     }
     if (agent === 'noacg-bridge' || agent === 'noacg-caspar') {
       return {
@@ -498,8 +514,7 @@ function permissionSentence(permission: 'denied' | 'prompt'): string {
 type PlayoutReply = { result: PlayoutResult; body?: BridgeReply };
 
 /** A Bridge reply, whichever hop it names, as one sentence with a state. */
-function readReply(settings: PlayoutSettings, call: Call): PlayoutReply {
-  const at = `${settings.host}:${settings.amcpPort}`;
+function readReply(settings: PlayoutSettings, call: Call, at = `${settings.host}:${settings.amcpPort}`): PlayoutReply {
   if ('timedOut' in call) {
     return { result: { state: 'server', detail: `${at} did not answer in time.` } };
   }
@@ -534,6 +549,7 @@ function readReply(settings: PlayoutSettings, call: Call): PlayoutReply {
   }
   const error = body.error;
   if (!error) return { result: { state: 'bridge', detail: `NoaCG Bridge answered ${http} with no reason.` } };
+  if (error.setup) return { result: { state: 'server', detail: error.detail }, body };
   if (error.code === 'no-media-scanner') return { result: { state: 'scanner', detail: error.detail, raw: error.raw }, body };
   if (error.hop === 'agent') {
     // A refusal by the Bridge itself of something this page composed is a defect on this side,
@@ -824,8 +840,11 @@ export async function libraryThumbnail(settings: PlayoutSettings, name: string):
 
 /** One verb on the server. The action carries no page state, so it is exactly what a log row
  *  would carry later. An accepted one carries the slot's generation, and a take its instance. */
-export async function act(settings: PlayoutSettings, action: PlayoutAction): Promise<PlayoutResult> {
-  return (await through(settings, '/act', { action })).result;
+export function act(settings: PlayoutSettings, action: PlayoutAction): Promise<PlayoutResult>;
+export function act(settings: PlayoutSettings, action: PlayoutAction, canSend: () => boolean): Promise<PlayoutResult | null>;
+export async function act(settings: PlayoutSettings, action: PlayoutAction, canSend?: () => boolean): Promise<PlayoutResult | null> {
+  if (!canSend) return (await through(settings, '/act', { action })).result;
+  return (await through(settings, '/act', () => canSend() ? { action } : null))?.result ?? null;
 }
 
 /**
@@ -870,8 +889,86 @@ export function namedOutputUrl(outputUrl: string, name: string): string {
 
 /** Out on the output layer is a video-layer STOP, so no item is named: the Bridge refuses an
  *  item without a name, and a real 2.5.0 walk on 2026-09-22 caught exactly that being sent. */
-export function takeOutputOff(settings: PlayoutSettings): Promise<PlayoutResult> {
-  return act(settings, { verb: 'out', slot: slotOf(settings) });
+export function takeOutputOff(settings: PlayoutSettings): Promise<PlayoutResult>;
+export function takeOutputOff(settings: PlayoutSettings, canSend: () => boolean): Promise<PlayoutResult | null>;
+export function takeOutputOff(settings: PlayoutSettings, canSend?: () => boolean): Promise<PlayoutResult | null> {
+  const action: PlayoutAction = { verb: 'out', slot: slotOf(settings) };
+  return canSend ? act(settings, action, canSend) : act(settings, action);
+}
+
+// ---------------------------------------------------------------------------------------------
+// vMix output
+// ---------------------------------------------------------------------------------------------
+
+const vmixTarget = { adapter: 'vmix' } as const;
+
+/** Read the saved choice at the point where a production may send to an adapter. */
+export function currentProductionPlayout(
+  showId: string, legacyCasparActivity: boolean, accountCaspar: boolean | null, adapter: 'casparcg' | 'vmix',
+) {
+  const show = loadShows().find(item => item.id === showId);
+  return show && productionPlayoutSystem(show, legacyCasparActivity, accountCaspar) === adapter ? show : null;
+}
+
+export function bridgePaired(settings: PlayoutSettings): boolean {
+  return Boolean(settings.agentUrl.trim() && settings.agentToken.trim());
+}
+
+export interface VmixConnection {
+  supported: boolean;
+  keyed: boolean;
+  result?: PlayoutResult;
+  info?: VmixInfo;
+}
+
+export async function testVmix(settings: PlayoutSettings, reconnect = false): Promise<VmixConnection> {
+  if (!bridgePaired(settings)) return { supported: false, keyed: false };
+  const { unreachable, features, adapters } = await probeBridge(settings.agentUrl);
+  if (unreachable) return { supported: false, keyed: false, result: unreachable };
+  if (!adapters?.includes('vmix')) return { supported: false, keyed: false };
+  const call = await callBridge(
+    settings.agentUrl, reconnect ? '/connect' : '/status', { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken,
+  );
+  const { result, body } = readReply(settings, call, 'vMix');
+  const info = body?.vmix;
+  if (result.state === 'ok' && (!info || typeof info.version !== 'string' || typeof info.edition !== 'string' ||
+    !Number.isInteger(info.overlays) || info.overlays < 1 || info.overlays > MAX_VMIX_OVERLAYS)) {
+    return { supported: true, keyed: features.includes('vmix-output-key'), result: { state: 'server', detail: 'NoaCG Bridge did not report the vMix overlay channels.' } };
+  }
+  return {
+    supported: true,
+    keyed: features.includes('vmix-output-key'),
+    result,
+    info: result.state === 'ok' ? info : undefined,
+  };
+}
+
+export async function readVmixOverlays(settings: PlayoutSettings, outputUrl: string): Promise<{
+  result: PlayoutResult; overlays?: VmixOverlayState[];
+}> {
+  const call = await callBridge(
+    settings.agentUrl, '/state', { target: vmixTarget, outputUrl }, ACT_TIMEOUT_MS, settings.agentToken,
+  );
+  const { result, body } = readReply(settings, call, 'vMix');
+  // A vMix Bridge from before output keys can read overlays but cannot identify this production.
+  const overlays = body?.overlays;
+  return { result, overlays: Array.isArray(overlays) && overlays.every(row => typeof row?.ownsOutput === 'boolean') ? overlays : undefined };
+}
+
+export async function actVmix(
+  settings: PlayoutSettings, currentAction: () => PlayoutAction | null,
+): Promise<PlayoutResult | null> {
+  const { unreachable, features, adapters } = await probeBridge(settings.agentUrl);
+  const action = currentAction();
+  if (!action) return null;
+  if (unreachable) return unreachable;
+  if (!adapters?.includes('vmix') || !features.includes('vmix-output-key')) {
+    return { state: 'outdated', detail: 'Update NoaCG Bridge to load or unload an output in vMix.' };
+  }
+  const call = await callBridge(
+    settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, VMIX_OUTPUT_TOKEN_PREFIX + settings.agentToken,
+  );
+  return readReply(settings, call, 'vMix').result;
 }
 
 // ---------------------------------------------------------------------------------------------

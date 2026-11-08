@@ -44,7 +44,7 @@ export async function startFakeVmix(options = {}) {
     let m;
     if (name === 'AddInput') {
       const [type, rest] = params.Value.split(/\|(.*)/s);
-      const input = { key: randomUUID(), type: type === 'Browser' ? 'Browser' : type, title: type === 'Browser' ? rest : rest.split(/[\\/]/).pop(), url: rest };
+      const input = { key: randomUUID(), type, title: type === 'Browser' ? 'Browser ' + new URL(rest).hostname : rest.split(/[\\/]/).pop(), url: rest };
       const add = () => inputs.push(input);
       if (options.addDelayMs) setTimeout(add, options.addDelayMs);
       else add();
@@ -67,8 +67,13 @@ export async function startFakeVmix(options = {}) {
       const channel = Number(m[1]);
       const old = overlays.get(channel);
       if (!old) return;
-      overlays.delete(channel);
-      acts(`Overlay${channel} ${numberOf(old)} 0`);
+      const finish = () => {
+        if (overlays.get(channel) !== old) return;
+        overlays.delete(channel);
+        acts(`Overlay${channel} ${numberOf(old)} 0`);
+      };
+      if (m[2] === 'Out' && options.outDelayMs) setTimeout(finish, options.outDelayMs);
+      else finish();
     } else if (name === 'OverlayInputAllOff') {
       for (const [channel, old] of [...overlays]) {
         overlays.delete(channel);

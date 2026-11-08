@@ -19,6 +19,7 @@
 // is the whole browser half of the feature.
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
 // covers: src/control/playoutStatus.ts
+// covers: src/control/vmixSetup.ts
 //
 // PLAYOUT SETTINGS from the production header: the dialog and the form it shares with Settings.
 // bridge-connect drives the form through a fake Bridge; playout-nav owns the header door and the
@@ -36,8 +37,8 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
-import { fakeBridge as slotBridge } from './_fakeBridge';
-import type { RememberedServer, StudioSetup } from '../src/control/playoutProtocol';
+import { fakeBridge as slotBridge, fakeVmix, type FakeVmixRequest } from './_fakeBridge';
+import { VMIX_OUTPUT_TOKEN_PREFIX, type RememberedServer, type StudioSetup } from '../src/control/playoutProtocol';
 
 // NoaCG Bridge (docs/BRIDGE.md). There is no CasparCG on a test machine and there is no Bridge
 // either, so both are FAKED at the network layer: `page.route` answers the Bridge's own HTTP
@@ -81,6 +82,7 @@ type Studio = StudioSetup;
 type Server = RememberedServer;
 
 interface FakeBridge {
+  vmix?: ReturnType<typeof fakeVmix>;
   /** Nothing is listening at all - the Bridge is not running. */
   missing?: boolean;
   /** An agent from before the protocol: answers /health as the old name, protocol 1. */
@@ -151,7 +153,11 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
         200,
         state.outdated
           ? { ok: true, agent: 'noacg-caspar', v: 1 }
-          : { ok: true, agent: 'noacg-bridge', v: 2, version: '0.4.0', adapters: ['casparcg'], ...(state.features ? { features: state.features } : {}) },
+          : {
+            ok: true, agent: 'noacg-bridge', v: 2, version: '0.4.0',
+            adapters: state.vmix ? ['casparcg', 'vmix'] : ['casparcg'],
+            ...(state.vmix ? { features: [...(state.features ?? []), 'vmix-output-key'] } : state.features ? { features: state.features } : {}),
+          },
       );
       return;
     }
@@ -172,8 +178,14 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
       }
       return;
     }
-    if (request.headers().authorization !== `Bearer ${TOKEN}` || state.badToken) {
+    const vmix = (body.target as { adapter?: string } | undefined)?.adapter === 'vmix';
+    const token = vmix && path === '/act' ? VMIX_OUTPUT_TOKEN_PREFIX + TOKEN : TOKEN;
+    if (request.headers().authorization !== `Bearer ${token}` || state.badToken) {
       await json(route, 401, { ok: false, v: 2, error: { hop: 'agent', code: 'refused', detail: 'Bad or missing Bridge token.' } });
+      return;
+    }
+    if (vmix && state.vmix) {
+      await json(route, 200, state.vmix.reply(path, body as FakeVmixRequest));
       return;
     }
     if (path === '/act') {
@@ -363,6 +375,7 @@ test('after pairing, the server the Bridge remembers is connected by itself, and
   await pair(page);
   const connected = page.getByTestId('bridge-connected');
   await expect(connected).toHaveText('✓ Connected to CasparCG 2.5.0 69e8ad5 Stable at 192.168.1.20.');
+  await expect(page.getByTestId('bridge-vmix-connected')).toHaveCount(0);
   // That the Bridge remembers it is said behind the step's info button, not as more lines on the page.
   await expect(page.getByTestId('bridge-pair')).not.toContainText('remembers');
   await page.getByTestId('bridge-connect-line-info').click();
@@ -1494,4 +1507,153 @@ test('a production that is not started cannot be put on air from its Playout dia
   await expect(why).toBeVisible();
   await expect(why).not.toContainText('Start production');
   expect(bridge.actions).toEqual([]);
+});
+
+test('vMix pairing and Settings report the connection and keep the selected overlay', async ({ page }) => {
+  const vmix = fakeVmix();
+  await fakeBridge(page, { pairCode: CODE, vmix });
+  await pair(page);
+  await expect(page.getByTestId('bridge-vmix-connected')).toHaveText('✓ Connected to vMix 29.0.0.49 on this computer.');
+  await page.getByTestId('bridge-pair-open').click();
+  vmix.state.setup = { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'vMix is not running on this computer. Start vMix.' };
+  await reopenPlayoutSettings(page);
+  const section = page.getByTestId('settings-vmix');
+  await expect(section).toContainText('vMix is not running on this computer.');
+  const retry = section.getByRole('button', { name: 'Try again' });
+  vmix.state.setup = { hop: 'target', code: 'unreachable', setup: 'not-vmix', detail: "Something on port 8099 is not vMix's TCP API." };
+  await retry.click();
+  await expect(section).toContainText("Something on port 8099 is not vMix's TCP API.");
+  delete vmix.state.setup;
+  await retry.click();
+  await expect(section).toContainText('vMix 29.0.0.49, Trial, 8 overlay channels, on this computer');
+  expect(vmix.routes.filter(path => path === '/connect')).toHaveLength(2);
+  const overlay = section.getByRole('combobox', { name: 'NoaCG output' });
+  await expect(overlay.locator('option')).toHaveText(['1', '2', '3', '4', '5', '6', '7', '8']);
+  await expect(overlay).toHaveValue('8');
+  await overlay.selectOption('3');
+  await page.screenshot({ path: test.info().outputPath('vmix-settings.png') });
+  await page.reload();
+  await reopenPlayoutSettings(page);
+  await expect(overlay).toHaveValue('3');
+  expect(vmix.actions).toEqual([]);
+});
+
+test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG cues disabled', async ({ page }) => {
+  const vmix = fakeVmix();
+  const bridge = await fakeBridge(page, { vmix });
+  await seedOnce(page, { vmix: { overlay: 3 } });
+  await seededPublishedProduction(page);
+  await page.evaluate(async () => {
+    const { addPlayoutItem, loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows()[0];
+    addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'Intro.mov', layer: 10 });
+    await new Promise(resolve => setTimeout(resolve));
+  });
+  await settleDurableWrites(page);
+  await page.reload();
+  await page.getByTestId('production-status').click();
+  const panel = page.getByTestId('production-status-panel');
+  const toggle = panel.getByTestId('vmix-switch');
+  const caspar = panel.getByTestId('caspar-switch');
+  await expect(caspar).toBeChecked();
+  await toggle.click();
+  await expect(caspar).not.toBeChecked();
+  await expect(page.getByTestId('cue-caspar-off')).toHaveAttribute('title', 'This cue plays on CasparCG. This production uses vMix.');
+  const row = panel.getByTestId('vmix-output');
+  await expect(row).toContainText('Output on Overlay 3');
+  await row.getByRole('button', { name: 'Load' }).click();
+  await expect(row).toContainText('On air');
+  const load = {
+    target: { adapter: 'vmix' },
+    action: {
+      verb: 'take', slot: { adapter: 'vmix', overlay: 3 }, expectedOverlayInput: null,
+      item: { kind: 'url', name: expect.stringMatching(/\/output\?production=demo-output&name=vMix%20Overlay%203$/), label: 'Evening News' },
+    },
+  };
+  expect(vmix.actions).toEqual([load]);
+  await page.screenshot({ path: test.info().outputPath('vmix-output.png') });
+  // A settings change is a destination choice for the next Load, not a live mixer operation.
+  await panel.getByTestId('panel-playout-settings').click();
+  const settings = page.getByTestId('playout-settings');
+  await settings.getByTestId('vmix-overlay').selectOption('2');
+  await settings.getByTestId('playout-settings-close').click();
+  await page.getByTestId('production-status').click();
+  await expect(row).toContainText('Output on Overlay 3');
+  await row.getByRole('button', { name: 'Unload' }).click();
+  await expect(row).toContainText('Off');
+  await expect(row).toContainText('Output on Overlay 2');
+  expect(vmix.actions[1]).toEqual({
+    target: { adapter: 'vmix' },
+    action: { verb: 'out', slot: load.action.slot, item: vmix.actions[0].action?.item },
+  });
+
+  vmix.held[2] = { input: { key: '1a111111-aaaa-41aa-8aaa-aaaaaaaaaaaa', type: 'Image', number: 1, title: 'Sponsor bug' } };
+  await row.getByRole('button', { name: 'Load' }).click();
+  const confirm = panel.getByTestId('vmix-replace');
+  await expect(confirm).toContainText('Replace “Sponsor bug” on Overlay 2?');
+  await confirm.getByRole('button', { name: 'Cancel' }).click();
+  await expect(confirm).toHaveCount(0);
+  expect(vmix.actions).toHaveLength(2);
+  await row.getByRole('button', { name: 'Load' }).click();
+  vmix.state.refuseAction = { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'Start vMix before loading the output.' };
+  await confirm.getByRole('button', { name: 'Replace' }).click();
+  await expect(page.getByTestId('production-note')).toContainText('Start vMix before loading the output.');
+  expect(vmix.actions[2].action?.expectedOverlayInput).toBe(vmix.held[2]?.input.key);
+  await page.getByText('Intro.mov', { exact: true }).click();
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /This production uses vMix/);
+  await expect(page.getByTestId('verb-clear-slot')).toBeDisabled();
+  await page.getByTestId('production-status').click();
+  await caspar.click();
+  await expect(toggle).not.toBeChecked();
+  await expect(caspar).toBeChecked();
+  expect(bridge.actions).toEqual([]);
+});
+
+test('a vMix Load still waiting for state is abandoned when its production closes', async ({ page }) => {
+  const vmix = fakeVmix();
+  await fakeBridge(page, { vmix });
+  await seedOnce(page, {});
+  await seededPublishedProduction(page);
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('vmix-switch').click();
+  const load = page.getByTestId('vmix-load');
+  await expect(load).toBeEnabled();
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  await page.route(`${BRIDGE}/state`, async route => {
+    if (route.request().postDataJSON()?.target?.adapter === 'vmix') {
+      entered.resolve();
+      await release.promise;
+    }
+    await route.fallback();
+  });
+  try {
+    await load.click();
+    await entered.promise;
+    await page.goto('/app#/home');
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    const state = page.waitForResponse(response => response.url() === `${BRIDGE}/state` && response.request().postDataJSON()?.target?.adapter === 'vmix');
+    const unexpected = page.waitForRequest(request => request.url() === `${BRIDGE}/act`, { timeout: 1000 })
+      .then(() => true, error => { if (error.name !== 'TimeoutError') throw error; return false; });
+    release.resolve();
+    await state;
+    expect(await unexpected).toBe(false);
+    expect(vmix.actions).toEqual([]);
+  } finally {
+    release.resolve();
+  }
+});
+
+test('an older Bridge hides vMix Settings and offers Update from the production switch', async ({ page }) => {
+  await seedOnce(page, {});
+  await fakeBridge(page);
+  await openPlayoutSettings(page);
+  await expect(page.getByTestId('settings-vmix')).toHaveCount(0);
+  await seededPublishedProduction(page);
+  await page.getByTestId('production-status').click();
+  const panel = page.getByTestId('production-status-panel');
+  await panel.getByTestId('vmix-switch').click();
+  await expect(panel.getByTestId('vmix-bridge-download')).toHaveText('Update');
+  await expect(panel.getByTestId('vmix-output')).toHaveCount(0);
 });

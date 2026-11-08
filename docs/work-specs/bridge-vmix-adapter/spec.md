@@ -243,10 +243,9 @@ named in its own configuration; vMix has none (documented absence). So:
 
 ### What Load and Unload need beyond studio UI
 
-The Bridge half is on `main` (slice 1, `@noacg/cli` 0.11.0) but in no Bridge download (the latest
-is `bridge-v0.9.0`). The studio needs: to read `/health` `adapters` (nothing reads it today), a
-target-aware request layer (`targetOf` and `slotOf` in `src/control/playoutLink.ts` return
-CasparCG only), the production's title as the item's `label` (the vMix adapter refuses a url
+The Bridge half from slice 1 shipped in `bridge-v0.10.0`, ahead of the studio controls. The studio
+needs `/health` `adapters`, a target-aware request layer, the production's title as the item's
+`label` (the vMix adapter refuses a URL
 without one), the setup sentences for `not-running` and `not-vmix` (`AgentError.setup` is read
 nowhere in `src/`), the `/state` overlays read for the row's state, and a release.
 
@@ -537,13 +536,15 @@ operator switched vMix on; with vMix chosen, a CasparCG cue is disabled with the
 
 ### AC-6: A Bridge release carries each usable step
 
-Each of phases V2, V5, V6 and V7 lands a `cli/BRIDGE_CHANGELOG.md` section for a version the
-release workflow accepts, written for the operator (what was missing, what it does now, what to
-do), and the release workflow publishes that version's exe; `docs/BRIDGE.md` describes the vMix
-adapter as built so far. V2 releases 0.12.0 (its output identity changes the Bridge, and npm
-already shipped 0.11.0); its section covers every Bridge change since 0.9.0, which is the vMix
-adapter. Every version is bumped the way `Release @noacg/cli 0.11.0` (`2128d984d`) did, every
-file it touched, with a `cli/CHANGELOG.md` section (`cli/test/release-notes.test.mjs` requires one).
+Each of V2, V5, V6 and V7 publishes a Windows Bridge exe from its landed commit, under its own
+accepted Bridge version. Choose the next appropriate `bridgeVersion` in `cli/package.json` from
+main and the published releases. Add the operator release notes at the top of
+`cli/BRIDGE_CHANGELOG.md` and document the adapter as built so far in `docs/BRIDGE.md`. V2's
+notes account for vMix Bridge changes since 0.9.0 and link to earlier published notes where
+applicable. Follow the independent Bridge release procedure in `docs/BRIDGE.md` with
+`release-bridge.yml`. The CLI version, lockfile, npm publication and CLI changelog stay at their
+own release cadence. Before PASS, verify the workflow and download on the exact merge SHA.
+While the #1967 hold applies, wait for the CI/CD coordinator's posted release before queueing.
 
 ### AC-7: Failure never airs anything twice
 
@@ -663,14 +664,15 @@ evidence; it starts vMix itself only when that evidence is missing or contradict
    the XML names a Browser input's address, then the built exe with Load and Unload from the dev
    server's production page and the snapshot of Program with the output on Overlay 8).
    Files: `src/control/playoutLink.ts` (requests with an explicit target and slot, `adapters` from
-   `/health`, `vmix` settings), a new pure `src/control/vmixPlayout.ts` (the default channel, the
-   setup sentences, the row's words) with `scripts/vmix-playout.test.mjs`,
-   `src/components/PlayoutSettingsPanel.tsx` with a new `VmixSettingsSection.tsx`,
+   `/health`, `vmix` settings), `src/control/vmixSetup.ts` (the default channel, scoped reading
+   and output actions) with `scripts/vmix-setup.test.mjs`,
+   `src/components/PlayoutSettingsPanel.tsx` and `PlayoutSettingsDialog.tsx`,
    `src/components/home/PlayoutPanel.tsx` (`VmixSection`), `src/components/home/ProductionPage.tsx`
    (wiring only, no new logic), `src/components/home/CueRundown.tsx` (the reason a CasparCG cue
    is disabled when vMix is chosen; today it says to switch CasparCG on),
-   `src/components/BridgePairPage.tsx`, `src/control/playoutStatus.ts`,
-   `e2e/_fakeBridge.ts` and the vMix journeys in `e2e/bridge-connect.spec.ts`,
+   `src/components/BridgePairPage.tsx`, `src/control/takeBlockers.ts`, and the first Publish
+   wiring in `src/components/home/useProductionPublish.ts`. The vMix journeys extend
+   `e2e/_fakeBridge.ts`, `e2e/bridge-connect.spec.ts` and `e2e/publish-output-setup.spec.ts`.
    `cli/src/playout/adapters/vmix.ts`, a new `cli/src/playout/vmixOutputs.ts` (the kept keys),
    `cli/test/_fakeVmix.mjs` and `cli/test/vmix.test.mjs` (the output identity only),
    `cli/BRIDGE_CHANGELOG.md` and the version bump of AC-6, `docs/BRIDGE.md` (the vMix adapter

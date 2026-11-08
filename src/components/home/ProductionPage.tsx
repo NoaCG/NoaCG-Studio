@@ -34,7 +34,7 @@ import {
 import { folderMode } from '../../model/showFolders';
 import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
 import { canAuthorAccount, commitDurableWrites } from '../../model/durableStore';
-import { accountCasparDefault, destinationUrl, readOutputSetup, routeColor, wantsAccountOutputDefault, withCasparSwitch } from '../../model/outputSetup';
+import { accountCasparDefault, destinationUrl, readOutputSetup, routeColor, wantsAccountOutputDefault, withCasparSwitch, withPlayoutSystem } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
 import { CueAccentControl } from './RundownColors';
 import {
@@ -42,6 +42,7 @@ import {
   folderSlot,
   itemSlot,
   listLibrary,
+  currentProductionPlayout,
   loadPlayoutSettings,
   playoutConfigured,
   readState,
@@ -221,7 +222,7 @@ import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
 import { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
-import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows } from './PlayoutPanel';
+import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows, VmixSection } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
 import CueRundown, { nameList } from './CueRundown';
@@ -620,7 +621,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const publishState = useProductionPublish({ authStatus, signInOpen });
   const {
     statusOpen, setStatusOpen, linksOpen, setLinksOpen, busy, publishing, copied, nameDraft, setNameDraft, nameNote,
-    setNameNote, setReplaceAsk, slotBusy,
+    setNameNote, setReplaceAsk, vmixReplace, setVmixReplace, slotBusy,
   } = publishState;
 
   const [note, setNote] = useState<string | null>(null);
@@ -985,7 +986,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Where this production was last put on its CasparCG slot from this browser (model/readyMemory). */
   const casparOutputMemory = show ? loadReadyMemory(show.id).casparOutput : undefined;
   const legacyCasparActivity = casparOutputMemory === casparTarget;
-  const casparOn = !!show && productionPlayoutSystem(show, legacyCasparActivity, accountCaspar ?? null) === 'casparcg';
+  const playoutSystem = show && productionPlayoutSystem(show, legacyCasparActivity, accountCaspar ?? null);
+  const casparOn = playoutSystem === 'casparcg';
+  const vmixOn = playoutSystem === 'vmix';
   const playoutRelevance = relevantPlayout({ configured: playoutConfigured(relevanceSettings), casparOn });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
@@ -2619,11 +2622,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const clashes = duplicateLayers(show.graphics);
 
-  const { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish } = publishActions(
+  // CasparCG Out and Clear name a slot without checking what currently plays there.
+  const canSendCaspar = () => session.alive() && !currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+  const { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, vmixVerb, publishNow, publish } = publishActions(
     publishState,
     {
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
-      hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
+      hostedSlug, slotReadable, outputSlot, sessionAlive: session.alive, canSendCaspar, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
       setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, prepareFlow,
       // Each adjusted cue measured for the copy being published, from the designs Publish just
       // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
@@ -2680,7 +2685,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A cue over the playout server's library, and whether THIS cue is what this page last put
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
-  const selectedPlayoutLive = serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
+  const selectedPlayoutLive = !vmixOn && serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
   /** What the Bridge and its server can do, for a cue's settings: null while it is still being
    *  asked, and a studio with no Bridge set up says so rather than being asked forever. */
   const playbackAbility = bridgeStatus ?? (playoutIsConfigured ? null : { state: 'config' as const });
@@ -2703,6 +2708,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     settings: playoutSettings,
     ability: playbackAbility,
     casparOn,
+    vmixOn,
     bridgeDown,
     itemOf: playoutItemFor,
     graphicOf: graphicOfCue,
@@ -2715,7 +2721,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return typed?.status === 'refused' ? typed.reason : null;
     },
   };
-  const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn);
+  const casparOffRefusal = (cue: ShowCue): string | null => casparOff(cue, casparOn, vmixOn);
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => takeBlockerOf(target, takeContext);
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   const directBlocker = (cue: ShowCue): string | null => directBlockerOf(cue, takeContext, loadPlayoutSettings());
@@ -2872,11 +2878,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     options: { cut?: boolean; takenAt?: number; direct?: boolean } = {},
   ): Promise<ServerVerbOutcome | null> => {
     const item = playoutItemFor(cue);
-    if (!item) return null;
+    if (!item || !canSendCaspar()) return null;
     return runAndRecord(
       serverPlayout,
       {
-        act,
+        act: async (settings, action) => (await act(settings, action, canSendCaspar)) ?? { state: 'config', detail: 'The CasparCG action was cancelled.' },
         loadSettings: loadPlayoutSettings,
         now: () => performance.now(),
         wake: () => bridgeWatch.current?.wake(),
@@ -3016,12 +3022,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * must stop it. Each is cut, as All out cuts, and the server is read again at once.
    */
   const outUnnamed = async () => {
+    if (!canSendCaspar()) return;
     const slots = unnamedSlots(serverPlayout.ownership.get());
     if (!slots.size) return;
     const settings = loadPlayoutSettings();
     const failed: string[] = [];
     for (const [address, slot] of slots) {
-      const r = await act(settings, { verb: 'out', slot });
+      const r = await act(settings, { verb: 'out', slot }, canSendCaspar);
+      if (!r) return;
       if (r.state !== 'ok') failed.push(`${address} did not clear: ${r.detail}`);
     }
     bridgeWatch.current?.wake();
@@ -3110,7 +3118,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     clearing: setClearing,
   };
   const clearSlot = async (slot: Slot) => {
-    const result = await act(loadPlayoutSettings(), { verb: 'clear', slot });
+    if (!canSendCaspar()) return;
+    const result = await act(loadPlayoutSettings(), { verb: 'clear', slot }, canSendCaspar);
+    if (!result) return;
     if (result.state === 'ok') serverPlayout.apply(parts => applyClearedSlot(parts, { slot, generation: result.generation, session: result.session }));
     setNote(result.state === 'ok' ? `✓ Stop/Clear ${slotAddress(slot)} accepted. Check program to confirm it is clear.` : `Stop/Clear ${slotAddress(slot)} failed: ${result.detail}`);
     bridgeWatch.current?.wake();
@@ -3702,6 +3712,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const failure = result.error ?? (await commitDurableWrites());
     if (failure) setNote(`The CasparCG switch was not saved: ${failure}`);
     if (!on) setReplaceAsk(false);
+    if (on) setVmixReplace(undefined);
+  };
+  const setVmix = async (on: boolean) => {
+    const result = setShowOutputSetup(show.id, withPlayoutSystem(show.outputSetup, on ? 'vmix' : null));
+    setShows(result.shows);
+    setReplaceAsk(false);
+    setVmixReplace(undefined);
+    const failure = result.error ?? (await commitDurableWrites());
+    if (failure) setNote('The vMix switch was not saved: ' + failure);
   };
 
   // WHICH VIEWS THE SWITCHER SHOWS (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03): Data and
@@ -3737,7 +3756,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onToggle={() => setStatusOpen((o) => !o)}
             onClose={() => setStatusOpen(false)}
             ready={readySummary}
-            diagnostics={serverOwnership.unidentified.length}
+            diagnostics={vmixOn ? 0 : serverOwnership.unidentified.length}
           >
             <PanelProblems checks={problemChecks} />
             {started && (
@@ -3756,6 +3775,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               onCopy={() => browserOutputUrl && copy('output', browserOutputUrl)}
               onTemplate={downloadEmbed}
             />
+            <VmixSection
+              on={vmixOn}
+              settings={playoutSettings}
+              url={outputUrl}
+              locked={!authoringAllowed}
+              busy={slotBusy}
+              replace={vmixReplace?.choice.url === outputUrl ? vmixReplace : undefined}
+              onToggle={on => void setVmix(on)}
+              onPair={() => setPlayoutSettingsOpen(true)}
+              onLoad={() => outputUrl && void vmixVerb('take', outputUrl)}
+              onUnload={() => outputUrl && void vmixVerb('out', outputUrl)}
+              onReplace={() => outputUrl && vmixReplace && void vmixVerb('take', outputUrl, vmixReplace)}
+              onCancelReplace={() => setVmixReplace(undefined)}
+            />
             <CasparSection
               facts={casparFacts}
               onToggle={(on) => void setCaspar(on)}
@@ -3769,7 +3802,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 setPlayoutSettingsOpen(true);
               }}
             />
-            {serverOwnership.unidentified.length > 0 && <ServerDiagnostics ownership={serverOwnership} timing={serverPlayout.timing} cues={cues} folders={folders} clear={slot => void clearSlot(slot)} />}
+            {!vmixOn && serverOwnership.unidentified.length > 0 && <ServerDiagnostics ownership={serverOwnership} timing={serverPlayout.timing} cues={cues} folders={folders} clear={slot => void clearSlot(slot)} />}
             <DueActions>
               {!started && (
                 <button className="primary" onClick={() => void publish()} disabled={busy || flowBusy || !backendConfigured} data-testid="panel-publish">
@@ -4069,7 +4102,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 selected LAYER, which is not always the selected cue's. */}
             ■ Out <kbd>0</kbd>
           </button>
-          {selectedPlayoutItem && <button className="pd-verb pd-verb-secondary" data-testid="verb-clear-slot" onClick={() => void clearSlot(serverOnAir[selectedPlayoutItem.id]?.slot ?? itemSlot(playoutSettings, selectedPlayoutItem))} title="Immediately clear this CasparCG slot, including queued media. Other slots keep playing.">Stop/Clear slot</button>}
+          {selectedPlayoutItem && <button className="pd-verb pd-verb-secondary" data-testid="verb-clear-slot" disabled={vmixOn} onClick={() => void clearSlot(serverOnAir[selectedPlayoutItem.id]?.slot ?? itemSlot(playoutSettings, selectedPlayoutItem))} title={vmixOn ? 'This production uses vMix.' : 'Immediately clear this CasparCG slot, including queued media. Other slots keep playing.'}>Stop/Clear slot</button>}
           {/* The bar's small print, as ONE block: the on-air chip and, under it, THE OPERATOR'S
               CHOICE of what SPACE does (owner, 2026-09-10: "a checkbox for this so the operator
               can choose for themselves") - here beside the key, not on a settings screen. One
@@ -4429,6 +4462,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         liveCue={liveCue}
         started={started}
         casparOn={casparOn}
+        vmixOn={vmixOn}
         unsentOnAir={unsentOnAir}
         serverOwnership={serverOwnership}
         serverTiming={serverPlayout.timing}
@@ -4495,6 +4529,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           show={show}
           setShows={setShows}
           casparOn={casparOn}
+          vmixOn={vmixOn}
+          canPutOutputOnAir={() => !!currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg')}
           outputUrl={managedOutputUrl}
           onOutputOnAir={(result, target) => onAirChanged('air', result, target)}
           onClose={() => {

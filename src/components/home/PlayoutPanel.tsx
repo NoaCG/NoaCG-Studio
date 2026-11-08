@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { TONE_DOT, type OutputLine, type ReadyTone } from '../../control/readiness';
 import type { StatusCheck } from '../../control/playoutStatus';
+import { bridgePaired, loadPlayoutSettings, type PlayoutSettings } from '../../control/playoutLink';
+import { observeVmixOutput, readVmixOutput, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../../downloads/links';
 
 /**
@@ -276,6 +278,85 @@ export function DueActions({ children }: { children: ReactNode }) {
   return (
     <Section testId="playout-panel-actions">
       <div className="pd-pp-actions">{children}</div>
+    </Section>
+  );
+}
+
+/** The overlay row reads the Bridge while this panel is open. Its poll updates only this section. */
+export function VmixSection({
+  on, settings, url, locked, busy, replace, onToggle, onPair, onLoad, onUnload, onReplace, onCancelReplace,
+}: {
+  on: boolean;
+  settings: PlayoutSettings;
+  url: string | null;
+  locked: boolean;
+  busy: boolean;
+  replace?: VmixReplace;
+  onToggle: (on: boolean) => void;
+  onPair: () => void;
+  onLoad: () => void;
+  onUnload: () => void;
+  onReplace: () => void;
+  onCancelReplace: () => void;
+}) {
+  const paired = bridgePaired(settings);
+  const key = JSON.stringify([settings.agentUrl, settings.agentToken, settings.vmix?.overlay, url]);
+  const [observed, setObserved] = useState<{ key: string; reading: VmixOutputReading }>();
+  useEffect(() => {
+    if (!on || !paired || busy) return;
+    return observeVmixOutput(() => readVmixOutput(loadPlayoutSettings(), url), reading => setObserved({ key, reading }));
+  }, [on, paired, busy, key, url]);
+  const reading = observed?.key === key ? observed.reading : undefined;
+  const connection = reading?.connection;
+  const update = connection && !connection.keyed && (connection.supported || !connection.result || connection.result.state === 'outdated');
+  const status = connection?.info ? `vMix ${connection.info.version}` : 'NoaCG Bridge';
+  const problem = update ? undefined : reading?.detail ?? (connection?.result?.state === 'ok' ? undefined : connection?.result?.detail);
+  const row = reading?.overlay;
+  const tone = row?.ownsOutput ? 'ok' : row?.input ? 'warn' : 'idle';
+  return (
+    <Section testId="playout-panel-vmix">
+      <label className="pd-pp-switch-row">
+        <span className="pd-pp-switch-label">vMix via Bridge</span>
+        <input
+          type="checkbox"
+          role="switch"
+          className="pd-pp-switch"
+          checked={on}
+          disabled={locked}
+          onChange={event => onToggle(event.target.checked)}
+          data-testid="vmix-switch"
+        />
+      </label>
+      {on && (
+        <div className="pd-pp-row" data-testid="vmix-bridge">
+          <Dot tone={problem ? 'bad' : update ? 'warn' : connection?.info ? 'ok' : 'idle'} />
+          <span className="pd-pp-name">{status}</span>
+          {!paired || update ? (
+            <a className="pd-pp-button-link" href={DOWNLOADS_BRIDGE_URL} target="_blank" rel="noopener" data-testid="vmix-bridge-download">
+              {update ? 'Update' : 'Download'}
+            </a>
+          ) : null}
+          {!paired && <button type="button" onClick={onPair}>Pair</button>}
+          {problem && <span className="pd-pp-advice pd-pp-advice--row">{problem}</span>}
+        </div>
+      )}
+      {on && row && (
+        <div className={`pd-pp-row pd-pp-row--${tone}`} data-testid="vmix-output" data-tone={tone}>
+          <Dot tone={tone} />
+          <span className="pd-pp-name">Output on Overlay {row.overlay}</span>
+          <span className="pd-pp-state">{row.ownsOutput ? 'On air' : row.input?.title ?? 'Off'}</span>
+          <button type="button" onClick={row.ownsOutput ? onUnload : onLoad} disabled={busy || !!replace} data-testid={row.ownsOutput ? 'vmix-unload' : 'vmix-load'}>
+            {row.ownsOutput ? 'Unload' : 'Load'}
+          </button>
+        </div>
+      )}
+      {on && replace && (
+        <div className="pd-pp-confirm" role="alertdialog" aria-label="Replace the input on the overlay" data-testid="vmix-replace">
+          <span>Replace “{replace.input.title}” on Overlay {replace.overlay}?</span>
+          <button type="button" className="pd-pp-link" onClick={onCancelReplace}>Cancel</button>
+          <button type="button" onClick={onReplace} disabled={busy}>Replace</button>
+        </div>
+      )}
     </Section>
   );
 }

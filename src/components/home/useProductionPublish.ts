@@ -28,6 +28,7 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { accountCasparDefault, casparDestinationId, destinationUrl, outputSetupForFirstPublish, readOutputSetup, wantsAccountOutputDefault } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
 import {
+  currentProductionPlayout,
   loadPlayoutSettings,
   playoutConfigured,
   putOutputOnAir,
@@ -38,6 +39,7 @@ import {
   type PlayoutResult,
   type PlayoutSettings,
 } from '../../control/playoutLink';
+import { changeVmixOutput, type VmixReplace } from '../../control/vmixSetup';
 import type { Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
@@ -83,6 +85,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   const [nameNote, setNameNote] = useState<string | null>(null);
   /** Publish found another production on the slot: Load waits for "Replace". */
   const [replaceAsk, setReplaceAsk] = useState(false);
+  const [vmixReplace, setVmixReplace] = useState<VmixReplace>();
   /** A Load or Unload is on its way to the Bridge: a second press waits for it. */
   const [slotBusy, setSlotBusy] = useState(false);
   const slotBusyRef = useRef(false);
@@ -107,7 +110,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   }, [authStatus, signInOpen]);
   return {
     statusOpen, setStatusOpen, linksOpen, setLinksOpen, busy, setBusy, publishing, setPublishing, copied, setCopied,
-    nameDraft, setNameDraft, nameNote, setNameNote, replaceAsk, setReplaceAsk, slotBusy, setSlotBusy, slotBusyRef,
+    nameDraft, setNameDraft, nameNote, setNameNote, replaceAsk, setReplaceAsk, vmixReplace, setVmixReplace, slotBusy, setSlotBusy, slotBusyRef,
     publishAfterSignIn, publishRef,
   };
 }
@@ -129,6 +132,8 @@ interface PublishActionsIo {
   hostedSlug: string | null;
   slotReadable: boolean;
   outputSlot: SlotReading | undefined;
+  sessionAlive: () => boolean;
+  canSendCaspar: () => boolean;
   onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
   flushDraft: () => Promise<unknown>;
   history: Pick<ReturnType<typeof useRundownHistory>, 'closeGroup'>;
@@ -150,7 +155,7 @@ interface PublishActionsIo {
 
 /** The publish, slot and links handlers, built on every render after the page's early return. */
 export function publishActions(state: ProductionPublishState, io: PublishActionsIo) {
-  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef } = state;
+  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setVmixReplace, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef } = state;
   const {
     show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
     hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
@@ -254,13 +259,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setSlotBusy(false);
     }
   };
-  const readSavedOutputSetup = () => readOutputSetup(loadShows().find(s => s.id === show.id)?.outputSetup);
+  const currentCaspar = () => currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'casparcg');
   /** The load itself, tagged with the production's CasparCG destination, and what it changed. */
   const sendLoad = async (settings: PlayoutSettings, url: string): Promise<PlayoutResult | null> => {
-    if (readSavedOutputSetup()?.vmix) return null;
+    if (!currentCaspar()) return null;
     const result = await putOutputOnAir(settings, () => {
-      const setup = readSavedOutputSetup();
-      if (setup?.vmix) return null;
+      const saved = currentCaspar();
+      if (!saved) return null;
+      const setup = readOutputSetup(saved.outputSetup);
       return destinationUrl(url, casparDestinationId(setup) ?? 'casparcg') ?? url;
     });
     if (result) onAirChanged('air', result, casparOutputTarget(settings));
@@ -275,8 +281,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     }
     const reading = replace ? null : await readState(settings, settings.channel);
     // The operator's saved choice can change while the Bridge is reading the slot.
-    const setup = readSavedOutputSetup();
-    if (setup?.vmix) {
+    if (!currentCaspar()) {
       setReplaceAsk(false);
       return;
     }
@@ -312,16 +317,18 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   /** Take this production's renderer off its CasparCG slot through the Bridge: where, and the note
    *  a failure leaves. */
-  const takeOffSlot = async (): Promise<{ where: string; failed: string | null }> => {
+  const takeOffSlot = async (): Promise<{ where: string; failed: string | null } | null> => {
+    if (!io.canSendCaspar()) return null;
     const settings = loadPlayoutSettings();
     const where = slotAddress(slotOf(settings));
-    const result = await takeOutputOff(settings);
+    const result = await takeOutputOff(settings, io.canSendCaspar);
+    if (!result) return null;
     onAirChanged('stop', result, casparOutputTarget(settings));
     return { where, failed: result.state === 'ok' ? null : `Unload from ${where} failed: ${result.detail}` };
   };
   const unloadFromSlot = (): Promise<void> => slotAction(async () => {
-    const { failed } = await takeOffSlot();
-    if (failed) setNote(failed);
+    const result = await takeOffSlot();
+    if (result?.failed) setNote(result.failed);
   });
   /** THE OFFLINE CLEAR (docs/work-specs/offline-clear/spec.md): All out did not clear NoaCG
    *  graphics through the cloud, so this production's renderer comes off its CasparCG slot through
@@ -332,11 +339,28 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     if (outputSlot?.holds !== 'ours') return base;
     let said = '';
     await slotAction(async () => {
-      const { where, failed } = await takeOffSlot();
-      said = failed ?? `Unloaded NoaCG graphics from ${where}. When the connection is back, press All out before Load on ${where}.`;
+      const result = await takeOffSlot();
+      if (!result) return;
+      said = result.failed ?? `Unloaded NoaCG graphics from ${result.where}. When the connection is back, press All out before Load on ${result.where}.`;
     });
     return said ? `${base.replace(/\.?$/, '.')} ${said}` : base;
   };
+
+  const vmixVerb = (verb: 'take' | 'out', url: string, confirmed?: VmixReplace, automatic = false) => slotAction(async () => {
+    setVmixReplace(undefined);
+    const outcome = await changeVmixOutput(verb, () => {
+      if (!io.sessionAlive()) return null;
+      const saved = currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
+      if (!saved?.outputSlug || outputPageUrl(saved.outputSlug) !== url || (automatic && !readOutputSetup(saved.outputSetup)?.vmix)) return null;
+      return { settings: loadPlayoutSettings(), url, title: saved.name };
+    }, confirmed);
+    if (!io.sessionAlive()) return;
+    if (outcome.replace) {
+      setVmixReplace(outcome.replace);
+      setStatusOpen(true);
+    }
+    if (outcome.message) setNote(outcome.message);
+  });
 
   /** Publish; the version it wrote, or null when it did not (the note says why). The readiness
    *  flow owns preparation and reports the result in the status panel. */
@@ -438,6 +462,8 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           const latest = loadShows().find(s => s.id === show.id);
           if (latest && productionPlayoutSystem(latest, legacyCasparActivity, defaultCaspar) === 'casparcg') {
             await loadOnSlot(outputPageUrl(published.outputSlug));
+          } else if (readOutputSetup(latest?.outputSetup)?.vmix) {
+            await vmixVerb('take', outputPageUrl(published.outputSlug), undefined, true);
           }
         }
         return published.version ? { n: published.version.n, h: published.version.h } : null;
@@ -460,7 +486,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   };
   // What the sign-in follow-through presses (`useProductionPublish`).
   publishRef.current = publish;
-  return { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, publishNow, publish };
+  return { claimName, downloadEmbed, copy, loadOnSlot, reloadOnSlot, unloadFromSlot, clearThroughBridge, vmixVerb, publishNow, publish };
 }
 
 /** The header's one action and the Playout panel's CasparCG facts, from this render's values. */

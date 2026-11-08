@@ -4,13 +4,21 @@
 // answers the way vMix 29.0.0.49 did (./_fakeVmix.mjs). Run `npm run build` first.
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtemp, readFile, rm, rmdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 import { createVmixAdapter, functionLine, outputInputName, titleOf } from '../dist/playout/adapters/vmix.js';
 import { casparcgAdapter } from '../dist/playout/adapters/casparcg.js';
 import { createBridgeServer, readAction, readTarget } from '../dist/playout/server.js';
+import { VMIX_OUTPUT_TOKEN_PREFIX } from '../dist/playout/protocol.js';
 import { parseVmixXml, vmixOverlayCount } from '../dist/playout/vmixTcp.js';
+import { vmixOutputId, vmixOutputStore } from '../dist/playout/vmixOutputs.js';
 import { startFakeVmix } from './_fakeVmix.mjs';
 
 const OUTPUT = 'https://noacg.studio/output?production=abc123&name=vMix';
@@ -27,8 +35,8 @@ async function withBridge(adapter, fn) {
   const server = createBridgeServer({ token: 't', origins: ['https://noacg.studio'], adapters: [casparcgAdapter, adapter], version: '0.0.0-test', servers: noServers }, () => {});
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const post = async (path, body) =>
-    (await fetch(`${base}${path}`, { method: 'POST', headers: { Authorization: 'Bearer t', 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+  const post = async (path, body, token = 't') =>
+    (await fetch(`${base}${path}`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
   try {
     await fn(post, base);
   } finally {
@@ -61,6 +69,8 @@ test("vMix 29's own state XML reads as its version, edition, inputs by key and t
   ]);
   assert.deepEqual([...xml.overlays], [[3, 1], [4, 2]]);
   assert.equal(parseVmixXml('<html>no</html>'), undefined);
+  assert.equal(parseVmixXml('<vmix><version>29.0.0.49</version></vmix>'), undefined);
+  assert.ok(parseVmixXml('<vmix><version>29.0.0.49</version><inputs /><overlays /></vmix>'));
 });
 
 test('the overlay channels a vMix offers come from its version and edition, not the XML', () => {
@@ -187,9 +197,39 @@ test('AC-1: the port the Bridge was started with (--vmix-port) is used unless a 
   }
 });
 
-// ── AC-3: Put on air and Take off drive the output input ──────────────────────────────────
+test('AC-1: the CLI passes --vmix-port to a real Bridge process', async () => {
+  const fake = await startFakeVmix({ version: '28.0.0.42' });
+  const port = await freePort();
+  const child = spawn(process.execPath, [
+    fileURLToPath(new URL('../dist/index.js', import.meta.url)), 'bridge', '--no-open', '--quiet',
+    '--port', String(port), '--vmix-port', String(fake.port), '--token', 'fixture-vmix-port',
+  ], { stdio: 'ignore' });
+  const exited = once(child, 'exit');
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    let health;
+    for (let attempt = 0; attempt < 30 && !health && child.exitCode === null; attempt += 1) {
+      health = await fetch(base + '/health').then(res => res.json()).catch(() => undefined);
+      if (!health) await sleep(100);
+    }
+    assert.ok(health?.adapters.includes('vmix'));
+    const status = await fetch(base + '/status', {
+      method: 'POST', headers: { Authorization: 'Bearer fixture-vmix-port', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: { adapter: 'vmix' } }),
+    }).then(res => res.json());
+    assert.equal(status.vmix.version, '28.0.0.42');
+    assert.equal(status.vmix.overlays, 4);
+    assert.deepEqual(fake.lines, ['XML']);
+  } finally {
+    child.kill();
+    await exited;
+    await fake.stop();
+  }
+});
 
-test('AC-3: Put on air adds the output as a Web Browser input, names it and puts it on the channel by key', async () => {
+// ── AC-4: Put on air and Take off drive the output input ──────────────────────────────────
+
+test('AC-4: Put on air adds the output as a Web Browser input, names it and puts it on the channel by key', async () => {
   const fake = await startFakeVmix();
   fake.add('Colour', 'Colour');
   try {
@@ -209,7 +249,7 @@ test('AC-3: Put on air adds the output as a Web Browser input, names it and puts
       assert.deepEqual(fake.functions[1].params, { Input: output.key, Value: 'NoaCG Evening News' });
       assert.deepEqual(fake.functions[2].params, { Input: output.key });
 
-      // Again: the input of that name is reused, never added twice.
+      // Again: the input kept for the address is reused, never added twice.
       await act(post, { verb: 'out', item, slot: slot(8) });
       const again = await act(post, { verb: 'take', item, slot: slot(8) });
       assert.equal(again.ok, true);
@@ -226,7 +266,7 @@ test('AC-3: Put on air adds the output as a Web Browser input, names it and puts
   }
 });
 
-test('AC-3: Put on air waits for an input vMix adds a moment after its OK', async () => {
+test('AC-4: Put on air waits for an input vMix adds a moment after its OK', async () => {
   const fake = await startFakeVmix({ addDelayMs: 400 });
   try {
     const r = await createVmixAdapter({ port: fake.port }).act({ adapter: 'vmix' }, { verb: 'take', item, slot: slot(2) });
@@ -237,22 +277,22 @@ test('AC-3: Put on air waits for an input vMix adds a moment after its OK', asyn
   }
 });
 
-test('AC-3: two productions put on air at once each get their own input, even when vMix adds them late', async () => {
+test('AC-4: two productions put on air at once each get their own input, even when vMix adds them late', async () => {
   const fake = await startFakeVmix({ addDelayMs: 300 });
   try {
     await withBridge(createVmixAdapter({ port: fake.port }), async (post) => {
-      const other = { kind: 'url', name: 'https://noacg.studio/output?production=xyz&name=vMix', label: 'Sports Desk' };
+      const other = { ...item, name: 'https://noacg.studio/output?production=xyz&name=vMix' };
       const [a, b] = await Promise.all([act(post, { verb: 'take', item, slot: slot(1) }), act(post, { verb: 'take', item: other, slot: slot(2) })]);
       assert.deepEqual([a.ok, b.ok], [true, true], JSON.stringify([a, b]));
       assert.deepEqual([fake.onChannel(1).title, fake.onChannel(1).url], ['NoaCG Evening News', OUTPUT]);
-      assert.deepEqual([fake.onChannel(2).title, fake.onChannel(2).url], ['NoaCG Sports Desk', other.name]);
+      assert.deepEqual([fake.onChannel(2).title, fake.onChannel(2).url], ['NoaCG Evening News (2)', other.name]);
     });
   } finally {
     await fake.stop();
   }
 });
 
-test('AC-3: an output added and then not read back is uncertain, never unreachable', async () => {
+test('AC-4: an output added and then not read back is uncertain, never unreachable', async () => {
   const fake = await startFakeVmix({
     hook: (line, sock) => {
       if (line === 'XML' && fake.functions.some((f) => f.name === 'AddInput')) {
@@ -265,29 +305,232 @@ test('AC-3: an output added and then not read back is uncertain, never unreachab
   try {
     const r = await createVmixAdapter({ port: fake.port }).act({ adapter: 'vmix' }, { verb: 'take', item, slot: slot(8) });
     assert.equal(r.error.code, 'uncertain');
-    assert.match(r.error.detail, /may hold a new unnamed Web Browser input/);
+    assert.match(r.error.detail, /could not identify one new output input/);
   } finally {
     await fake.stop();
   }
 });
 
-test('AC-3: a name held by another kind of input is refused with nothing changed', async () => {
-  const fake = await startFakeVmix();
-  fake.add('Image', 'NoaCG Evening News');
+test('AC-4: an early same-host Browser cannot be claimed while the requested addition is delayed', async () => {
+  let manual;
+  let reads = 0;
+  const fake = await startFakeVmix({
+    addDelayMs: 400,
+    hook(line) {
+      if (line === 'XML' && fake.functions.some(f => f.name === 'AddInput')) {
+        if (++reads === 1) manual = fake.add('Browser', 'Browser noacg.studio');
+        if (reads === 2) fake.inputs.splice(fake.inputs.indexOf(manual), 1);
+      }
+      return false;
+    },
+  });
   try {
-    const r = await createVmixAdapter({ port: fake.port }).act({ adapter: 'vmix' }, { verb: 'take', item, slot: slot(8) });
-    assert.equal(r.ok, false);
-    assert.equal(r.error.code, 'refused');
-    assert.match(r.error.detail, /is of type Image, not a Web Browser/);
-    assert.deepEqual(fake.lines, ['XML'], 'one read, and no function');
+    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      const reply = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(reply.error.code, 'uncertain');
+      assert.equal(fake.onChannel(8), undefined);
+      assert.deepEqual(fake.functions.map(f => f.name), ['AddInput']);
+      assert.equal(manual.title, 'Browser noacg.studio');
+      assert.equal(fake.inputs[0].url, OUTPUT);
+    });
   } finally {
     await fake.stop();
   }
 });
 
-test("AC-3: Take off and Clear act only when the channel holds the output, with the channel's own Out or Off", async () => {
+test('AC-4: a same-named input is never adopted, even when it is a Browser', async () => {
   const fake = await startFakeVmix();
-  const output = fake.add('Browser', 'NoaCG Evening News');
+  const manual = fake.add('Browser', 'NoaCG Evening News');
+  const image = fake.add('Image', 'NoaCG Evening News (2)');
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async (post) => {
+      fake.overlays.set(8, manual.key);
+      assert.equal((await act(post, { verb: 'out', item, slot: slot() })).ok, true);
+      assert.equal(fake.onChannel(8), manual);
+      assert.deepEqual(fake.functions, []);
+      const loaded = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(loaded.ok, true, JSON.stringify(loaded));
+      const output = fake.onChannel(8);
+      assert.equal(output.title, 'NoaCG Evening News (3)');
+      assert.equal(output.url, OUTPUT);
+      assert.notEqual(output.key, manual.key);
+      assert.notEqual(output.key, image.key);
+      assert.ok(fake.functions.filter(f => f.params.Input).every(f => f.params.Input === output.key));
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('AC-4: scoped state and renamed Unload use the persisted key, and a missing key is replaced', async () => {
+  const fake = await startFakeVmix();
+  const dir = await mkdtemp(join(tmpdir(), 'noacg-vmix-output-'));
+  const file = join(dir, 'vmix-outputs.json');
+  const makeAdapter = () => createVmixAdapter({ port: fake.port, outputs: vmixOutputStore(file) });
+  const renamed = { ...item, label: 'Morning News', name: OUTPUT.replace('name=vMix', 'name=Overlay%208') };
+  let key;
+  try {
+    await withBridge(makeAdapter(), async post => {
+      assert.equal((await act(post, { verb: 'take', item, slot: slot() })).ok, true);
+      key = fake.onChannel(8).key;
+    });
+    await withBridge(makeAdapter(), async post => {
+      const reading = async outputUrl => (await post('/state', { target: { adapter: 'vmix' }, outputUrl })).overlays[7];
+      assert.equal((await reading(renamed.name)).ownsOutput, true);
+      assert.equal((await reading(OUTPUT.replace('abc123', 'someone-else'))).ownsOutput, false);
+      assert.equal((await reading(OUTPUT.replace('noacg.studio', 'example.invalid'))).ownsOutput, false);
+      const secondOverlay = await act(post, { verb: 'take', item: renamed, slot: slot(3) });
+      assert.match(secondOverlay.error.detail, /Unload.*overlay 8/);
+      assert.equal(fake.onChannel(3), undefined);
+      assert.equal((await act(post, { verb: 'out', item: renamed, slot: slot() })).ok, true);
+      assert.equal(fake.onChannel(8), undefined);
+      assert.equal(fake.inputs.find(input => input.key === key).title, 'NoaCG Morning News');
+      assert.deepEqual(fake.functions.slice(-2).map(f => f.name), ['OverlayInput8Out', 'SetInputName']);
+
+      fake.inputs.splice(fake.inputs.findIndex(input => input.key === key), 1);
+      assert.equal((await act(post, { verb: 'take', item: renamed, slot: slot() })).ok, true);
+      const replacement = fake.onChannel(8);
+      assert.notEqual(replacement.key, key);
+      assert.equal(replacement.title, 'NoaCG Morning News');
+      const saved = await readFile(file, 'utf8');
+      assert.ok(!saved.includes('abc123') && !saved.includes(key));
+      assert.equal(JSON.parse(saved).ports[fake.port].keys[vmixOutputId(OUTPUT)], replacement.key);
+    });
+  } finally {
+    await fake.stop();
+    await rm(file, { force: true });
+    await rmdir(dir);
+  }
+});
+
+test('AC-4: a delayed orphan cannot be used by the next load', async () => {
+  let addReceived = false;
+  const fake = await startFakeVmix({
+    hook(line, socket) {
+      if (!addReceived && line.startsWith('FUNCTION AddInput ')) {
+        addReceived = true;
+        socket.destroy();
+        return true;
+      }
+      return false;
+    },
+  });
+  const dir = await mkdtemp(join(tmpdir(), 'noacg-vmix-pending-'));
+  const file = join(dir, 'vmix-outputs.json');
+  const store = () => vmixOutputStore(file);
+  try {
+    const other = { ...item, name: OUTPUT.replace('abc123', 'different') };
+    await withBridge(createVmixAdapter({ port: fake.port, outputs: store() }), async post => {
+      assert.equal((await act(post, { verb: 'take', item, slot: slot() })).error.code, 'uncertain');
+    });
+    await withBridge(createVmixAdapter({ port: fake.port, outputs: store() }), async post => {
+      const take = () => act(post, { verb: 'take', item: other, slot: slot() });
+      assert.equal((await take()).error.code, 'uncertain');
+      assert.equal(fake.lines.filter(line => line.startsWith('FUNCTION AddInput ')).length, 1);
+      const orphan = fake.add('Browser', 'Browser noacg.studio');
+      assert.equal((await take()).error.code, 'uncertain', 'a same-host input cannot clear an unresolved addition');
+      assert.equal(fake.lines.filter(line => line.startsWith('FUNCTION AddInput ')).length, 1);
+      // An operator reset can reopen a preset with the orphan still present. It stays unowned.
+      await store().save(fake.port, { keys: {} });
+      assert.equal((await take()).ok, true);
+      assert.notEqual(fake.onChannel(8).key, orphan.key);
+      assert.equal(fake.onChannel(8).url, other.name);
+      assert.equal(orphan.title, 'Browser noacg.studio');
+    });
+  } finally {
+    await fake.stop();
+    await rm(file, { force: true });
+    await rmdir(dir);
+  }
+});
+
+test('AC-4: a take without time for complete input attribution sends no AddInput', async () => {
+  const fake = await startFakeVmix();
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port, timeoutMs: 3000 }), async post => {
+      const result = await act(post, { verb: 'take', item, slot: slot() });
+      assert.match(result.error.detail, /not enough time to add/);
+      assert.deepEqual(fake.functions, []);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('AC-4: an overlay change during a prepared Load is left alone', async () => {
+  const fake = await startFakeVmix({
+    hook(line) {
+      if (line.startsWith('FUNCTION SetInputName ')) fake.overlays.set(8, operator.key);
+      return false;
+    },
+  });
+  const operator = fake.add('Image', 'Live bug');
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      const result = await act(post, { verb: 'take', item, slot: slot(), expectedOverlayInput: null });
+      assert.match(result.error.detail, /overlay 8 changed/);
+      assert.equal(fake.onChannel(8), operator);
+      assert.deepEqual(fake.functions.map(f => f.name), ['AddInput', 'SetInputName']);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('a version-marked token only authorizes vMix /act and still needs the paired secret', async () => {
+  const fake = await startFakeVmix();
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      const target = { adapter: 'vmix' };
+      const request = { target, action: { verb: 'take', item, slot: slot(), expectedOverlayInput: null } };
+      const marked = VMIX_OUTPUT_TOKEN_PREFIX + 't';
+      assert.equal((await post('/status', { target }, marked)).ok, false);
+      assert.equal((await post('/act', { ...request, target: { adapter: 'casparcg', host: '127.0.0.1' } }, marked)).ok, false);
+      assert.equal((await post('/act', request, VMIX_OUTPUT_TOKEN_PREFIX + 'wrong')).ok, false);
+      assert.deepEqual(fake.functions, []);
+      assert.equal((await post('/act', request, marked)).ok, true);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('AC-4: failed storage cannot acquire or rename an output', async () => {
+  const fake = await startFakeVmix();
+  const dir = await mkdtemp(join(tmpdir(), 'noacg-vmix-corrupt-'));
+  const file = join(dir, 'vmix-outputs.json');
+  const newer = '{"v":2,"ports":{}}';
+  try {
+    await writeFile(file, newer);
+    await withBridge(createVmixAdapter({ port: fake.port, outputs: vmixOutputStore(file) }), async post => {
+      const result = await act(post, { verb: 'take', item, slot: slot() });
+      assert.match(result.error.detail, /could not read or keep/);
+      assert.deepEqual(fake.functions, []);
+      assert.equal(await readFile(file, 'utf8'), newer);
+    });
+    const memory = vmixOutputStore();
+    let writes = 0;
+    await withBridge(createVmixAdapter({ port: fake.port, outputs: {
+      read: memory.read,
+      save(port, outputs) {
+        if (++writes > 1) throw Error('Disk write failed after AddInput');
+        return memory.save(port, outputs);
+      },
+    } }), async post => {
+      const result = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(result.error.code, 'uncertain');
+      assert.deepEqual(fake.functions.map(f => f.name), ['AddInput']);
+      assert.equal(fake.onChannel(8), undefined);
+    });
+  } finally {
+    await fake.stop();
+    await rm(file, { force: true });
+    await rmdir(dir);
+  }
+});
+
+test("AC-4: Take off and Clear act only when the channel holds the output, with the channel's own Out or Off", async () => {
+  const fake = await startFakeVmix({ outDelayMs: 200 });
   const other = fake.add('Image', 'Sponsor bug');
   try {
     const vmix = createVmixAdapter({ port: fake.port });
@@ -304,7 +547,10 @@ test("AC-3: Take off and Clear act only when the channel holds the output, with 
     assert.equal(fake.onChannel(8), other);
     assert.deepEqual(fake.functions, []);
     // The output on it: Out with the channel's transition, Clear at once.
-    fake.overlays.set(8, output.key);
+    r = await vmix.act(t, { verb: 'take', item, slot: slot(8) });
+    assert.equal(r.ok, true);
+    const output = fake.onChannel(8);
+    fake.functions.length = 0;
     r = await vmix.act(t, { verb: 'out', item, slot: slot(8) });
     assert.equal(r.ok, true);
     fake.overlays.set(8, output.key);
@@ -326,7 +572,7 @@ test("AC-3: Take off and Clear act only when the channel holds the output, with 
   }
 });
 
-test('AC-3: a take, Take off or Clear without the production title sends nothing', async () => {
+test('AC-4: a take, Take off or Clear without the production title sends nothing', async () => {
   const fake = await startFakeVmix();
   try {
     const vmix = createVmixAdapter({ port: fake.port });
@@ -346,9 +592,9 @@ test('AC-3: a take, Take off or Clear without the production title sends nothing
   }
 });
 
-// ── AC-6: failure never airs anything ─────────────────────────────────────────────────────
+// ── failure never airs anything ─────────────────────────────────────────────────────
 
-test('AC-6: every verb vMix cannot honour is refused before anything is sent', async () => {
+test('every verb vMix cannot honour is refused before anything is sent', async () => {
   const fake = await startFakeVmix();
   try {
     const vmix = createVmixAdapter({ port: fake.port });
@@ -374,7 +620,7 @@ test('AC-6: every verb vMix cannot honour is refused before anything is sent', a
   }
 });
 
-test('AC-6: a connection dropped mid-function answers uncertain, nothing is resent, and the next request reconnects', async () => {
+test('a connection dropped mid-function answers uncertain, nothing is resent, and the next request reconnects', async () => {
   let dropped = 0;
   const fake = await startFakeVmix({
     hook: (line, sock) => {
@@ -402,7 +648,7 @@ test('AC-6: a connection dropped mid-function answers uncertain, nothing is rese
   }
 });
 
-test('AC-6: a function vMix never answers is uncertain after the reply wait, and a refusal is refused', async () => {
+test('a function vMix never answers is uncertain after the reply wait, and a refusal is refused', async () => {
   const fake = await startFakeVmix({
     hook: (line, sock) => {
       if (line.startsWith('FUNCTION OverlayInput8In')) return true; // silence
@@ -426,7 +672,7 @@ test('AC-6: a function vMix never answers is uncertain after the reply wait, and
   }
 });
 
-test('AC-6: vMix closing reads not-running until it is back', async () => {
+test('vMix closing reads not-running until it is back', async () => {
   const fake = await startFakeVmix();
   const vmix = createVmixAdapter({ port: fake.port });
   assert.equal((await vmix.status({ adapter: 'vmix' })).ok, true);
@@ -442,7 +688,7 @@ test('AC-6: vMix closing reads not-running until it is back', async () => {
   }
 });
 
-test('AC-6: one connection serves every reading and every action, with subscription lines between replies', async () => {
+test('one connection serves every reading and every action, with subscription lines between replies', async () => {
   // As measured: an overlay line arrives before the FUNCTION OK of the call that caused it.
   const fake = await startFakeVmix({ actsAlways: true });
   fake.add('Image', 'Sponsor bug');

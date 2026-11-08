@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   channelLabel,
+  bridgePaired,
   connectServer,
   defaultChannelName,
   loadPlayoutSettings,
@@ -16,6 +17,8 @@ import {
   syncStudio,
   targetOf,
   testConnection,
+  testVmix,
+  type VmixConnection,
   type PlayoutChannel,
   type PlayoutResult,
   type PlayoutSettings,
@@ -26,6 +29,7 @@ import {
 import { MAX_CHANNEL_NAME, MAX_STUDIO_LAYER, type RememberedServer, type ServerChannel } from '../control/playoutProtocol';
 import { plural } from '../control/readiness';
 import { casparOutputTarget } from '../control/playoutStatus';
+import { vmixConnectionLine, vmixOverlay } from '../control/vmixSetup';
 import { studioOf } from '../control/studioSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 import CopyPairingLink from './CopyPairingLink';
@@ -83,7 +87,11 @@ type Verb = 'test' | 'connect' | 'air';
  * server did not answer" have nothing to do with each other, and most of them are the person's
  * own to fix.
  */
-export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { outputUrl?: string | null; onOutputOnAir?: (result: PlayoutResult, target: string) => void } = {}) {
+export default function PlayoutSettingsPanel({ outputUrl, canPutOutputOnAir, onOutputOnAir }: {
+  outputUrl?: string | null;
+  canPutOutputOnAir?: () => boolean;
+  onOutputOnAir?: (result: PlayoutResult, target: string) => void;
+} = {}) {
   const [settings, setSettings] = useState(loadPlayoutSettings);
   const [busy, setBusy] = useState<Verb | null>(null);
   // The verdict, with its success sentence written AT THE PRESS: it is past tense, so it must not be
@@ -201,7 +209,8 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
         setResult({ verb, result: r, ok: `${connectedTo(r)}${r.features?.includes('servers') ? '. NoaCG Bridge remembers this server.' : ''}` });
         if (r.state === 'ok') void readChannels();
       } else if (outputUrl) {
-        const r = await putOutputOnAir(now, outputUrl);
+        const r = await putOutputOnAir(now, () => canPutOutputOnAir?.() === false ? null : outputUrl);
+        if (!r) return;
         setResult({ verb, result: r, ok: `✓ On ${slotAddress(slotOf(now))} of ${serverAddress(targetOf(now))}` });
         onOutputOnAir?.(r, casparOutputTarget(now));
       }
@@ -564,6 +573,66 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
           CasparCG guide
         </a>
       </p>
+      <VmixSettings agentUrl={settings.agentUrl} agentToken={settings.agentToken} />
     </div>
+  );
+}
+
+/** App-wide vMix setup is local to this browser. The Bridge supplies the available channels. */
+export function VmixSettings({ agentUrl, agentToken }: Pick<PlayoutSettings, 'agentUrl' | 'agentToken'>) {
+  const [observed, setObserved] = useState<{ at: string; connection: VmixConnection }>();
+  const [retry, setRetry] = useState(0);
+  const [checking, setChecking] = useState(false);
+  const [settings, setSettings] = useState(loadPlayoutSettings);
+  const request = useRef(0);
+  const at = JSON.stringify([agentUrl, agentToken]);
+  useEffect(() => {
+    const current = ++request.current;
+    const now = { ...loadPlayoutSettings(), agentUrl, agentToken };
+    if (!bridgePaired(now)) return;
+    void testVmix(now, retry > 0).then(result => {
+      if (request.current !== current) return;
+      setObserved({ at, connection: result });
+      setChecking(false);
+    });
+    return () => { request.current += 1; };
+  }, [agentUrl, agentToken, at, retry]);
+  const connection = observed?.at === at ? observed.connection : undefined;
+  if (!connection?.supported) return null;
+  const info = connection.info;
+  const overlay = info && vmixOverlay(settings, info.overlays);
+  const save = (value: number) => {
+    savePlayoutSettings({ vmix: { overlay: value } });
+    setSettings(loadPlayoutSettings());
+  };
+  return (
+    <section aria-label="vMix" data-testid="settings-vmix">
+      <p className="dlg-caption">vMix</p>
+      {info ? (
+        <>
+          <p className="status-ok" data-testid="settings-vmix-connection">{vmixConnectionLine(info)}</p>
+          <div className="dlg-rows">
+            <label className="dlg-row">
+              <span>NoaCG output</span>
+              <select value={overlay} onChange={event => save(Number(event.target.value))} data-testid="vmix-overlay">
+                {Array.from({ length: info.overlays }, (_, index) => index + 1).map(value => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {settings.vmix?.overlay !== undefined && settings.vmix.overlay > info.overlays && (
+            <p className="hint">This vMix offers {info.overlays} overlay channels. NoaCG uses channel {overlay} here.</p>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="status-bad" data-testid="settings-vmix-connection">{connection.result?.detail}</p>
+          <button type="button" disabled={checking} onClick={() => { setChecking(true); setRetry(n => n + 1); }}>
+            {checking ? 'Connecting…' : 'Try again'}
+          </button>
+        </>
+      )}
+    </section>
   );
 }

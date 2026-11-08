@@ -1,5 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
-import { playedSeconds } from '../src/control/playoutProtocol';
+import { VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type VmixInfo, type VmixInput } from '../src/control/playoutProtocol';
 
 // A FAKE NOACG BRIDGE AT THE NETWORK LAYER, for the playout specs that drive server clips
 // (docs/CLIP_PLAYBACK_PLAN.md §10): `/health`, `/status`, `/list`, `/act` and `/state`, answered from
@@ -15,6 +15,66 @@ import { playedSeconds } from '../src/control/playoutProtocol';
 
 export const BRIDGE = 'http://127.0.0.1:8899';
 export const TOKEN = 'e2e-token';
+
+export interface FakeVmixAction {
+  verb: 'take' | 'out';
+  slot: { adapter: 'vmix'; overlay: number };
+  item: ItemRef;
+  expectedOverlayInput?: string | null;
+}
+
+export interface FakeVmixRequest {
+  target: { adapter: 'vmix' };
+  action?: FakeVmixAction;
+  outputUrl?: string;
+}
+
+export function fakeVmix(overlays = 8) {
+  const info: VmixInfo = { version: '29.0.0.49', edition: 'Trial', overlays, inputs: 0 };
+  const held: Record<number, { input: VmixInput; outputUrl?: string } | undefined> = {};
+  const actions: FakeVmixRequest[] = [];
+  const routes: string[] = [];
+  const state: { setup?: AgentError; refuseAction?: AgentError } = {};
+  const sameOutput = (actual: string | undefined, expected: string | undefined) => {
+    if (!actual || !expected) return false;
+    const address = (value: string) => {
+      const url = new URL(value);
+      url.searchParams.delete('name');
+      return url.href;
+    };
+    return address(actual) === address(expected);
+  };
+  const reply = (path: string, body: FakeVmixRequest) => {
+    routes.push(path);
+    if (path === '/act') {
+      actions.push(body);
+      if (state.refuseAction) return { ok: false, error: state.refuseAction };
+    }
+    if (state.setup) return { ok: false, error: state.setup };
+    if (path === '/status' || path === '/connect') return { ok: true, vmix: info, version: info.version, capabilities: ['state'] };
+    if (path === '/state') return {
+      ok: true, session: 'test', overlays: Array.from({ length: info.overlays }, (_, index) => {
+        const overlay = index + 1;
+        return { overlay, input: held[overlay]?.input, ownsOutput: sameOutput(held[overlay]?.outputUrl, body.outputUrl) };
+      }),
+    };
+    if (path === '/act' && body.action) {
+      const { slot: { overlay }, verb, item, expectedOverlayInput } = body.action;
+      if (verb === 'take') {
+        if (expectedOverlayInput !== (held[overlay]?.input.key ?? null)) {
+          return { ok: false, error: { hop: 'target', code: 'refused', detail: 'The overlay changed.' } };
+        }
+        held[overlay] = {
+          input: { key: '69c8c683-9d2b-4fd4-b4c8-c6c85247ad88', number: 2, title: `NoaCG ${item.label}`, type: 'Browser' },
+          outputUrl: item.name,
+        };
+      } else if (sameOutput(held[overlay]?.outputUrl, item.name)) delete held[overlay];
+      return { ok: true };
+    }
+    return { ok: false, error: { hop: 'agent', code: 'unsupported', detail: 'Unsupported vMix test route.' } };
+  };
+  return { info, held, actions, routes, state, reply };
+}
 
 /** Settings for a paired Bridge and a studio with two channels, clips on channel 2. */
 export async function seedSettings(page: Page): Promise<void> {
@@ -69,6 +129,7 @@ interface Run {
 export type FakeAction = { verb: string; slot: { channel: number; layer: number }; [k: string]: unknown };
 
 export interface Fake {
+  vmix?: ReturnType<typeof fakeVmix>;
   /** No Bridge is listening, while its configured settings stay in the browser. */
   missing: boolean;
   session: string;
@@ -168,9 +229,18 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
     const req = route.request();
     const path = new URL(req.url()).pathname;
     if (path === '/health') {
-      return json(route, { ok: true, agent: 'noacg-bridge', v: 2, version: fake.version, adapters: ['casparcg'], features: fake.features });
+      return json(route, {
+        ok: true, agent: 'noacg-bridge', v: 2, version: fake.version,
+        adapters: fake.vmix ? ['casparcg', 'vmix'] : ['casparcg'],
+        features: fake.vmix ? [...fake.features, 'vmix-output-key'] : fake.features,
+      });
     }
-    const body = JSON.parse(req.postData() || '{}') as { channel?: number; kind?: string; action?: FakeAction };
+    const body = JSON.parse(req.postData() || '{}') as { channel?: number; kind?: string; action?: FakeAction; target?: { adapter: string } };
+    if (fake.vmix && body.target?.adapter === 'vmix') {
+      const token = path === '/act' ? VMIX_OUTPUT_TOKEN_PREFIX + TOKEN : TOKEN;
+      if (req.headers().authorization !== `Bearer ${token}`) return route.fulfill({ status: 401, headers: cors });
+      return json(route, fake.vmix.reply(path, body as unknown as FakeVmixRequest));
+    }
     if (path === '/status') {
       return json(route, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', capabilities: fake.capabilities });
     }

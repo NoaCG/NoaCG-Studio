@@ -20,6 +20,7 @@ import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, Usage
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
 import { ografAdapter } from '../playout/adapters/ograf.js';
 import { createVmixAdapter } from '../playout/adapters/vmix.js';
+import { fileVmixOutputStore } from '../playout/vmixOutputs.js';
 import { allowedOrigins, createBridgeServer, DEFAULT_BRIDGE_PORT, isLoopbackHost } from '../playout/server.js';
 import { PLAYOUT_V } from '../playout/protocol.js';
 import { PairingCodes, resolveToken } from '../playout/token.js';
@@ -42,7 +43,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   // vMix on this computer, at its TCP API's own port unless the studio moved it.
   const vmixPort = flagNumber(args, 'vmix-port');
   if (vmixPort !== undefined && (!Number.isInteger(vmixPort) || vmixPort < 1 || vmixPort > 65535)) throw new UsageError('--vmix-port is a port number from 1 to 65535.');
-  const vmix = createVmixAdapter({ port: vmixPort });
+  const vmix = createVmixAdapter({ port: vmixPort, outputs: fileVmixOutputStore() });
   const token = await resolveToken(flagString(args, 'token'), args.flags['new-token'] === true);
   const origins = allowedOrigins(flagList(args, 'origin'));
   const quiet = args.flags.quiet === true;

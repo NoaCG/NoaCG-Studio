@@ -21,7 +21,7 @@
 import { publishProduction, setCasparSwitch } from './_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady } from './_durable';
-import { fakeBridge, seedSettings } from './_fakeBridge';
+import { fakeBridge, fakeVmix, seedSettings } from './_fakeBridge';
 
 const A='11111111-1111-4111-8111-111111111111';
 const KEY='noacg_output_default_v1';
@@ -83,6 +83,37 @@ async function seed(page:Page,legacy=false) {
 }
 async function record(page:Page,id:string){ return page.evaluate(async key=>(await import('/src/model/shows.ts')).loadShows().find(s=>s.id===key)!,id); }
 async function openSettings(page:Page){await page.getByTestId('production-setup').click();await page.getByTestId('setup-playout-settings').click();const dialog=page.getByTestId('playout-settings');await expect(dialog).toBeVisible();return dialog;}
+
+for (const chosen of [true, false]) {
+  test(`first Publish ${chosen ? 'loads the chosen' : 'leaves the unselected'} vMix output`, async ({ page }) => {
+    const b = backend();
+    await account(page, b);
+    await seedSettings(page);
+    const vmix = fakeVmix(4);
+    const bridge = await fakeBridge(page, { vmix });
+    const id = await seed(page);
+    if (chosen) {
+      await page.getByTestId('production-status').click();
+      await page.getByTestId('vmix-switch').click();
+      await page.keyboard.press('Escape');
+    }
+    await publishProduction(page);
+    if (chosen) {
+      await expect(page.getByTestId('vmix-output')).toContainText('On air');
+      expect(vmix.actions).toEqual([{
+        target: { adapter: 'vmix' },
+        action: {
+          verb: 'take', slot: { adapter: 'vmix', overlay: 4 }, expectedOverlayInput: null,
+          item: { kind: 'url', name: expect.stringMatching(new RegExp('/output\\?production=output-' + id + '&name=vMix%20Overlay%204$')), label: 'Output proof' },
+        },
+      }]);
+    } else {
+      await expect(page.getByTestId('production-status')).not.toContainText('Publishing…');
+      expect(vmix.actions).toEqual([]);
+    }
+    expect(bridge.actions).toEqual([]);
+  });
+}
 
 test('Publish asks nothing, the account default starts the CasparCG switch, and Publish changes keeps every URL',async({page})=>{
   const b=backend();b.defaults[A]=choice('browser',true);await account(page,b);const id=await seed(page);

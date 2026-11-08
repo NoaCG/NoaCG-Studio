@@ -229,11 +229,12 @@ export interface VmixXml {
   overlays: Map<number, number>;
 }
 
-/** The part of the XML between `<tag>` and `</tag>`, or nothing. */
-function section(xml: string, tag: string): string {
+/** The part between `<tag>` and `</tag>`. A missing section differs from a real empty one. */
+function section(xml: string, tag: string): string | undefined {
   const start = xml.indexOf(`<${tag}>`);
   const end = xml.indexOf(`</${tag}>`, start);
-  return start < 0 || end < 0 ? '' : xml.slice(start + tag.length + 2, end);
+  if (start >= 0 && end >= 0) return xml.slice(start + tag.length + 2, end);
+  return new RegExp(`<${tag}\\s*/>`).test(xml) ? '' : undefined;
 }
 
 function attributes(tag: string): Record<string, string> {
@@ -247,16 +248,19 @@ function attributes(tag: string): Record<string, string> {
  *  index>` elements inside it. */
 export function parseVmixXml(xml: string): VmixXml | undefined {
   const version = /<version>([^<]*)<\/version>/.exec(xml)?.[1];
-  if (!/^\s*<vmix>/.test(xml) || version === undefined) return undefined;
+  if (!/^\s*<vmix>/.test(xml) || !/<\/vmix>\s*$/.test(xml) || version === undefined) return undefined;
+  const inputSection = section(xml, 'inputs');
+  const overlaySection = section(xml, 'overlays');
+  if (inputSection === undefined || overlaySection === undefined) return undefined;
   const edition = decode(/<edition>([^<]*)<\/edition>/.exec(xml)?.[1] ?? '');
   const inputs: VmixInput[] = [];
-  for (const m of section(xml, 'inputs').matchAll(/<input\s([^>]*)>/g)) {
+  for (const m of inputSection.matchAll(/<input\s([^>]*)>/g)) {
     const a = attributes(m[1]);
     const number = Number(a.number);
     if (a.key && Number.isInteger(number)) inputs.push({ key: a.key, number, title: a.title ?? '', type: a.type ?? '' });
   }
   const overlays = new Map<number, number>();
-  for (const m of section(xml, 'overlays').matchAll(/<overlay\s([^>]*?)\/?>([^<]*)/g)) {
+  for (const m of overlaySection.matchAll(/<overlay\s([^>]*?)\/?>([^<]*)/g)) {
     const channel = Number(attributes(m[1]).number);
     const input = Number(m[2].trim());
     // `<overlay number="1" />` is an empty channel: no text follows it.

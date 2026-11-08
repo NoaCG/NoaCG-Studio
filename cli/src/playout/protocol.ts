@@ -137,7 +137,7 @@ export type PlayoutAction =
    *  match the slot back to its cue after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7). A Bridge
    *  from before it reads the action field by field and never sees it. `playback` is for media
    *  only; a Bridge that does not list the `playback` feature must never be sent one. */
-  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback; imageFit?: 'fit' | 'stretch' }
+  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback; imageFit?: 'fit' | 'stretch'; expectedOverlayInput?: string | null }
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
   | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
   /** `fadeOut` fades a clip to nothing rather than cutting it. */
@@ -211,7 +211,11 @@ export interface AgentError {
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
  *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit';
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit' | 'vmix-output-key';
+
+/** Prefix the paired token for keyed vMix verbs so a legacy Bridge refuses the request even if it
+ * replaced the new Bridge after the browser's capability probe. The token itself is unchanged. */
+export const VMIX_OUTPUT_TOKEN_PREFIX = 'vmix-output-key:';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
  *  a request that names a target can say. The page offers a control only when both lists say yes.
@@ -261,6 +265,8 @@ export interface VmixInput {
 export interface VmixOverlayState {
   overlay: number;
   input?: VmixInput;
+  /** Present when this reading named an output URL. True only for its kept Browser key. */
+  ownsOutput?: boolean;
 }
 
 /** The most overlay channels a vMix offers (vMix 29): a vmix slot's highest channel. */

@@ -21,6 +21,7 @@
 // names its target, and a remembered server is only ever read back to the page, never contacted by
 // the Bridge on its own.
 
+import { VMIX_INPUT_KEY } from './vmixOutputs.js';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { isIP } from 'node:net';
 import { amcpSend } from './amcp.js';
@@ -35,6 +36,7 @@ import {
   playedSeconds,
   type AgentError,
   type BridgeFeature,
+  VMIX_OUTPUT_TOKEN_PREFIX,
   type ItemRef,
   type MediaPlayback,
   type PlayoutAction,
@@ -352,6 +354,11 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   const a = body.action;
   if (!isRecord(a)) throw new UsageError('The request has no action.');
   const slot = readSlot(a.slot);
+  const expected = a.expectedOverlayInput;
+  if (expected !== undefined && (a.verb !== 'take' || slot.adapter !== 'vmix' ||
+    (expected !== null && (typeof expected !== 'string' || !VMIX_INPUT_KEY.test(expected))))) {
+    throw new UsageError('A vMix take can expect an empty overlay or name its current input by key.');
+  }
   if (a.imageFit !== undefined && (a.verb !== 'take' || (a.imageFit !== 'fit' && a.imageFit !== 'stretch') || slot.adapter !== 'casparcg')) throw new UsageError('imageFit is Fit or Stretch on a CasparCG media Take.');
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
   // look applied and change nothing (docs/CLIP_PLAYBACK_PLAN.md §6.6, a level applies at the next Take).
@@ -375,6 +382,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
         loop: a.loop === true,
         ...readCueId(a.cueId),
         ...playbackField(playback),
+        ...(expected !== undefined ? { expectedOverlayInput: expected } : {}),
         ...(a.imageFit === 'fit' || a.imageFit === 'stretch' ? { imageFit: a.imageFit } : {}),
       };
     }
@@ -483,7 +491,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     if (url === '/health' && req.method === 'GET') {
       send(
         200,
-        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES] },
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES, ...(byId.has('vmix') ? ['vmix-output-key'] : [])] },
         true,
       );
       return;
@@ -529,7 +537,9 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         }
 
         const presented = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
-        if (!presented || !secretMatches(presented, options.token)) {
+        const keyedVmixAct = url === '/act' && presented.startsWith(VMIX_OUTPUT_TOKEN_PREFIX) &&
+          secretMatches(presented.slice(VMIX_OUTPUT_TOKEN_PREFIX.length), options.token);
+        if (!presented || (!keyedVmixAct && !secretMatches(presented, options.token))) {
           refuse(401, 'refused', 'Bad or missing Bridge token.', true);
           return;
         }
@@ -555,6 +565,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         }
 
         const target = readTarget(body, options.adapters);
+        if (keyedVmixAct && target.adapter !== 'vmix') throw new UsageError('A keyed vMix action needs a vMix target.');
         const adapter = byId.get(target.adapter)!;
         const at = targetLabel(target);
 
@@ -616,7 +627,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/state' && adapter.overlays) {
           // What each overlay channel holds, read off vMix's XML over the one connection. Productions
           // linked to this Bridge come with the overlay presses (docs/work-specs/bridge-vmix-adapter).
-          const r = await adapter.overlays(target);
+          const r = await adapter.overlays(target, typeof body.outputUrl === 'string' ? body.outputUrl : undefined);
           send(
             200,
             r.ok ? { ok: true, v: PLAYOUT_V, session: memory.session, observedAt: Math.round(performance.now()), overlays: r.value, linked: [] } : { ok: false, v: PLAYOUT_V, error: r.error },
