@@ -30,7 +30,9 @@ phases. vMix keeps control of Program, Preview and transitions.
   function, an incomplete XML or an ambiguous marker never establishes
   ownership. The Bridge sends each function once. Observation stays within
   the existing three-second cap and leaves time in the seven-second action
-  budget for naming, overlay dispatch and readback.
+  budget for naming, overlay dispatch and readback. Malformed or duplicate
+  input rows fail closed. The selected overlay must be explicitly reported,
+  and its reference must resolve or explicitly say it is empty.
 - The alias serves a redirect during its own AddInput attempt. An unsuccessful
   attempt loses the alias and can leave an unowned Browser in vMix. Explicit
   retry gets a fresh marker and cannot adopt that Browser. Before rename or
@@ -41,7 +43,8 @@ phases. vMix keeps control of Program, Preview and transitions.
   hostname and GET path on the Bridge's port, from a loopback peer, without
   CORS or referrer. The decoded HTTP or HTTPS destination must match the
   digest authorized by the original output action, including the display
-  name query value. URL credentials and other Bridge aliases are refused.
+  name query value and the original Bridge HTTP port. URL credentials and
+  other Bridge aliases are refused.
   The redirect does not fetch or proxy anything. It never receives or
   returns the pairing token, and aliases cannot reach any control route.
 - The key belongs to the vMix TCP port and the production address with its
