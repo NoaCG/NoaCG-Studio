@@ -46,12 +46,12 @@
   },
   "inFlight": [
     {
-      "session": "active coordinator",
-      "step": "local prototype",
-      "note": "Owner authorized isolated preset tests. Draft stays outside the queue.",
+      "phase": "v2",
+      "note": "Isolated preset prototype completed. The original builder is fixing the confirmed compact-panel regression only; V2 draft remains unqueued.",
+      "step": "compact panel fix",
+      "session": "/root/v2_builder",
       "head": "c9499d1567880b7f1e3965fc05a827125609db5a",
-      "pr": 2293,
-      "phase": "v2"
+      "pr": 2293
     }
   ],
   "owner": [],
