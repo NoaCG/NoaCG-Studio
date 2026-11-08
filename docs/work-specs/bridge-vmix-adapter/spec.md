@@ -823,6 +823,14 @@ the choice and the hook and page use it for their existing CasparCG behavior.
   Publish. An explicit vMix selection does not read the account's CasparCG default or
   load CasparCG on first Publish. V1 adds no vMix action, playout UI or Bridge change.
 
+The independent rules review found that first Publish also needs to preserve cue-inferred
+vMix. It adds the existing Browser destination without either switch, so a later account
+default cannot change the system and an inferred choice never becomes an explicit one.
+Publish re-reads the record after the account lookup and before a first-Publish CasparCG
+Load. V1 has no vMix authoring route. Before V4 enables mixed rundowns, its Take, folder
+and Play next paths must check the cue's adapter before sending to a Bridge target.
+Verification and rollback are in [phase V1 evidence](evidence/phase-v1.md).
+
 ### Before V1 (the plan, 2026-10-14)
 
 - The vMix adapter's Put on air (Load) finds the output input by `title` today; V2 makes it the key

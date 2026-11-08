@@ -36,7 +36,7 @@ import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
 import { poolPlacement } from './poolIdentity.ts';
-import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
+import { accentColor, playoutSystem, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
 import {
   appendCue,
@@ -215,8 +215,8 @@ export type PlayoutMediaKind = 'movie' | 'still' | 'audio';
 
 export interface PlayoutItem {
   id: string;
-  /** Which kind of playout system. Only `casparcg` exists today; OBS and vMix add their own. */
-  adapter: 'casparcg';
+  /** The system whose library owns the item. */
+  adapter: 'casparcg' | 'vmix';
   kind: 'template' | 'media';
   /** The server's own name: a template id as it lists templates, a clip name as it lists media. */
   name: string;
@@ -1089,6 +1089,24 @@ export function seedValues(fields: SpxTemplate['fields']): Record<string, string
 export function playoutItemOf(show: Pick<Show, 'playoutItems'>, cue: Pick<ShowCue, 'sourceId' | 'source'>): PlayoutItem | null {
   if (cue.source !== 'playout') return null;
   return show.playoutItems?.find((i) => i.id === cue.sourceId) ?? null;
+}
+
+export function productionPlayoutSystem(
+  show: Pick<Show, 'outputSetup' | 'cues' | 'playoutItems'>,
+  legacyActivity: boolean,
+  accountDefault: boolean | null,
+) {
+  let serverCues = false;
+  let vmixCues = false;
+  for (const cue of show.cues ?? []) {
+    if (cue.source !== 'playout') continue;
+    if (playoutItemOf(show, cue)?.adapter === 'vmix') vmixCues = true;
+    else {
+      serverCues = true;
+      break;
+    }
+  }
+  return playoutSystem({ setup: show.outputSetup, serverCues, vmixCues, legacyActivity, accountDefault });
 }
 
 /** A playout template's fields as cue values: every field at its default. */

@@ -16,6 +16,7 @@ import { saveAs } from 'file-saver';
 import {
   loadShows,
   noteShowOutputOpened,
+  productionPlayoutSystem,
   setShowAudienceSlugs,
   setShowHostedSlug,
   setShowOutputSlug,
@@ -24,7 +25,7 @@ import {
   type Show,
 } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
-import { accountCasparDefault, casparDestinationId, casparSwitch, destinationUrl, readOutputSetup, withCasparSwitch } from '../../model/outputSetup';
+import { accountCasparDefault, casparDestinationId, destinationUrl, outputSetupForFirstPublish, wantsAccountOutputDefault } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
 import {
   loadPlayoutSettings,
@@ -131,7 +132,7 @@ interface PublishActionsIo {
   onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
   flushDraft: () => Promise<unknown>;
   history: Pick<ReturnType<typeof useRundownHistory>, 'closeGroup'>;
-  casparOn: boolean;
+  legacyCasparActivity: boolean;
   accountCaspar: boolean | null | undefined;
   publishedReaders: ReadonlySet<string>;
   setPublishedReaders: (readers: ReadonlySet<string>) => void;
@@ -152,7 +153,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
   const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef } = state;
   const {
     show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
-    hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, casparOn, accountCaspar, publishedReaders,
+    hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
     setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, onFirstPublish, prepareFlow,
   } = io;
   /**
@@ -339,23 +340,19 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     setPublishing(true);
     try {
       let current = loadShows().find((s) => s.id === show.id);
-      let publishCaspar = casparOn;
-      // NO CHOOSER (playout-workflow-simplification AC-4): a production that never had its output
-      // set takes the CasparCG switch as it reads now, so the published payload and every later
-      // page agree on it. Absence stays legacy; nothing is asked.
-      if (current?.outputSetup && !readOutputSetup(current.outputSetup)?.destinations.length) {
-        // A press before the account's "Use CasparCG in new productions" has answered asks it here,
-        // rather than freezing the switch off for good.
-        if (accountCaspar === undefined && user?.id) {
-          const preference = await readDefaultOutput(user.id);
-          publishCaspar = casparSwitch({
-            setup: current.outputSetup,
-            serverCues: (current.cues ?? []).some((c) => c.source === 'playout'),
-            legacyActivity: false,
-            accountDefault: accountCasparDefault(preference.setup),
-          });
-        }
-        const result = setShowOutputSetup(show.id, withCasparSwitch(current.outputSetup, publishCaspar));
+      let defaultCaspar = accountCaspar ?? null;
+      // An unconfigured new production settles its outputs on Publish. Leave legacy records
+      // without setup alone, and re-read after an account lookup in case the choice changed.
+      if (wantsAccountOutputDefault(current?.outputSetup) && accountCaspar === undefined && user?.id) {
+        const preference = await readDefaultOutput(user.id);
+        defaultCaspar = accountCasparDefault(preference.setup);
+        current = loadShows().find((s) => s.id === show.id);
+      }
+      const setup = current && outputSetupForFirstPublish(
+        current.outputSetup, productionPlayoutSystem(current, legacyCasparActivity, defaultCaspar),
+      );
+      if (setup) {
+        const result = setShowOutputSetup(show.id, setup);
         setShows(result.shows);
         const failure = result.error ?? await commitDurableWrites();
         if (failure) throw new Error(failure);
@@ -426,7 +423,12 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
         // PUBLISH LOADS THE CASPARCG SLOT (AC-5): the first publish with CasparCG switched on puts
         // this production's renderer on its slot, the step that used to be its own Put on air. It
         // asks before replacing another production, and a failure names the step.
-        if (!wasStarted && publishCaspar && published.outputSlug) await loadOnSlot(outputPageUrl(published.outputSlug));
+        if (!wasStarted && published.outputSlug) {
+          const latest = loadShows().find(s => s.id === show.id);
+          if (latest && productionPlayoutSystem(latest, legacyCasparActivity, defaultCaspar) === 'casparcg') {
+            await loadOnSlot(outputPageUrl(published.outputSlug));
+          }
+        }
         return published.version ? { n: published.version.n, h: published.version.h } : null;
       }
       setNote('Publishing needs the cloud backend, and this build runs offline.');
