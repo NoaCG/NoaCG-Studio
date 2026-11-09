@@ -17,6 +17,9 @@
 // covers: src/components/save/SaveDialogs.tsx
 // covers: src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/useProductionPublish.ts
+// Interaction offers Publish where phones would join, and the sign-in prompt only there; offline it
+// must grow neither (docs/work-specs/interaction/spec.md AC-8).
+// covers: src/components/home/ProductionAudienceWorkspace.tsx
 
 import { test, expect } from '@playwright/test';
 import { FAKE_JOIN_ROUTE, TEAM } from './_teams';
@@ -70,6 +73,15 @@ test('offline / no-backend: the production page grows no auth UI and says why pu
   await expect(page.locator('.auth-gate')).toHaveCount(0);
   await expect(page.locator('.auth-signin')).toHaveCount(0);
   await expect(page.getByTestId('auth-state')).toHaveCount(0);
+
+  // The Interaction view: where phones would join it says why publishing is off, and grows no
+  // sign-in prompt.
+  await page.evaluate((showId) => { window.location.hash = `#/production/${showId}/audience`; }, id);
+  await expect(page.getByTestId('production-audience')).toBeVisible();
+  await expect(page.getByTestId('join-publish')).toBeDisabled();
+  await expect(page.getByTestId('join-publish')).toHaveAttribute('title', 'Publishing needs the cloud backend, and this build runs offline');
+  await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
+  await expect(page.locator('.auth-signin')).toHaveCount(0);
 });
 
 // The password-reset ROUTE (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md). It renders

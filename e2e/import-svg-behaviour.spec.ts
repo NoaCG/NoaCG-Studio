@@ -73,6 +73,7 @@ import {
   VOTE_SVG,
 } from './_svg-import';
 import { openWorkspace } from './_workspace';
+import { addQuestion, goLive } from './_interaction';
 
 // IMPORTED ARTWORK THAT BEHAVES (docs/GRAPHIC_BEHAVIOUR_PLAN.md).
 //
@@ -1202,10 +1203,8 @@ test('imported vote board: a real audience round moves the bars the designer dre
 
   // ── The vote itself, from the audience workspace ────────────────────────────────────────────
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-round-question').fill('Which way should the club vote?');
-  await audience.getByTestId('audience-round-options').fill('Keep the crest\nNew crest\nPut it to members');
-  await audience.getByTestId('audience-round-open').click();
-  await expect(audience.getByTestId('audience-round-live')).toHaveText('Which way should the club vote?');
+  await addQuestion(audience, 'choice', 'Which way should the club vote?', ['Keep the crest', 'New crest', 'Put it to members']);
+  await goLive(audience, 'Which way should the club vote?');
 
   // Votes arrive. The simulator is the LOCAL provider's, present exactly where simulating is
   // meaningful — which is what lets this whole walk run with no backend.

@@ -1,4 +1,6 @@
 // covers: src/audience/**, src/components/home/{ProductionAudienceWorkspace.tsx,useAudienceInbox.ts}
+// covers: src/components/home/InteractionQuestions.tsx, src/model/questions.ts
+// covers: supabase/migrations/0111_audience_questions.sql
 
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
@@ -6,6 +8,7 @@ import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
+import { addQuestion, goLive } from '../_interaction';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -210,6 +213,122 @@ test.describe(() => {
     await wipeMyGraphics(page);
   });
 
+  test('questions on the server: Go live and Stop are atomic, stale and closed sends are refused, Clear empties, answers keep their round (interaction AC-2, AC-3, AC-4, AC-7)', async ({
+    page,
+    context,
+  }) => {
+    // docs/work-specs/interaction/spec.md R1 to R9 and R18, against migration 0111 itself: the
+    // functions are called directly, as an operator page and a phone would call them, and from two
+    // pages at once for the race.
+    test.setTimeout(115_000);
+    await signIn(page);
+    await settleSync(page);
+    await wipeMyGraphics(page);
+    await createGraphicInEditor(page, 'Lower thirds', 'Hairline');
+    const showId = await openProductionWithCurrent(page, `Questions Live ${Date.now()}`);
+    await publishProduction(page);
+    await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
+    await page.keyboard.press('Escape');
+    const slugs = await page.evaluate(async (id) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const show = loadShows().find((s) => s.id === id)!;
+      return { control: show.hostedSlug!, join: show.joinSlug! };
+    }, showId);
+    expect(slugs.control).toBeTruthy();
+    expect(slugs.join).toBeTruthy();
+
+    /** One RPC from `tab`: its data, or its error message. */
+    const rpc = (tab: typeof page, fn: string, args: Record<string, unknown>) =>
+      tab.evaluate(
+        async ([name, params]) => {
+          const { getSupabase } = await import('/src/backend/supabase.ts');
+          const { data, error } = await (await getSupabase())!.rpc(name as string, params as Record<string, unknown>);
+          return { data, error: error?.message ?? null };
+        },
+        [fn, args] as const,
+      );
+    const VOTE = { id: 'q-vote', type: 'choice', text: 'Who wins?', options: ['Home', 'Away'] };
+    const OPEN = { id: 'q-open', type: 'open', text: 'Ask the coach' };
+    const live = async (q: object, tab = page) => {
+      const answer = await rpc(tab, 'audience_go_live', { p_slug: slugs.control, p_question: q });
+      expect(answer.error).toBeNull();
+      return answer.data as { id: string; revision: number };
+    };
+    const vote = (round: { id: string; revision: number }, option: number, device = 'device-configured-1') =>
+      rpc(page, 'audience_vote', { p_join_slug: slugs.join, p_device: device, p_round: round.id, p_option: option, p_revision: round.revision });
+    const answer = (round: { id: string; revision: number }, body: string, device = 'device-configured-1') =>
+      rpc(page, 'audience_submit', { p_join_slug: slugs.join, p_device: device, p_author: '', p_body: body, p_round: round.id, p_revision: round.revision });
+    const openRounds = async () =>
+      ((await rpc(page, 'audience_rounds_list', { p_slug: slugs.control })).data as { id: string; closed_at: string | null }[]).filter((r) => !r.closed_at);
+    const state = async () => (await rpc(page, 'audience_set_join', { p_slug: slugs.control, p_patch: {} })).data as { round: string | null; open: boolean };
+    const tally = async (round: { id: string }) => ((await rpc(page, 'audience_tally', { p_slug: slugs.control, p_round: round.id })).data as { total: number }[])[0].total;
+
+    // Go live, a vote, then another question: the vote's round closes and refuses (AC-3).
+    const v1 = await live(VOTE);
+    expect((await vote(v1, 1)).error).toBeNull();
+    const o1 = await live(OPEN);
+    expect((await openRounds()).map((r) => r.id)).toEqual([o1.id]);
+    expect((await vote(v1, 0)).error).toContain('that question has closed');
+    expect(await tally(v1)).toBe(1);
+
+    // An answer is filed under its round; after Stop one is refused (AC-3, AC-7).
+    expect((await answer(o1, 'Filed under the open question')).error).toBeNull();
+    const stopped = await rpc(page, 'audience_stop', { p_slug: slugs.control, p_round: o1.id });
+    expect(stopped.error).toBeNull();
+    expect((await answer(o1, 'Too late')).error).toContain('that question has closed');
+    const listed = (await rpc(page, 'audience_list', { p_slug: slugs.control })).data as { body: string; round_id: string | null }[];
+    expect(listed.map((r) => [r.body, r.round_id])).toEqual([['Filed under the open question', o1.id]]);
+    // The phone names a round, never a question: a round of no open question is refused, and so is
+    // an answer aimed at a vote.
+    expect((await answer({ id: v1.id, revision: v1.revision }, 'Aimed at the vote')).error).toContain('that question has closed');
+    // The old forms, which named no round, are gone (R19); the old state writers refuse (R18).
+    expect((await rpc(page, 'audience_submit', { p_join_slug: slugs.join, p_device: 'device-configured-1', p_author: '', p_body: 'Old page' })).error).not.toBeNull();
+    expect((await rpc(page, 'audience_set_join', { p_slug: slugs.control, p_patch: { open: true, mode: 'comment' } })).error).not.toBeNull();
+    expect((await rpc(page, 'audience_open_round', { p_slug: slugs.control, p_kind: 'poll', p_question: 'Old', p_options: ['A', 'B'], p_correct: null })).error).not.toBeNull();
+
+    // Going live again continues the same count; a phone that voted changes its vote (AC-2).
+    const v2 = await live(VOTE);
+    expect(v2.id).toBe(v1.id);
+    expect(v2.revision).toBe(v1.revision);
+    expect((await vote(v2, 0)).error).toBeNull();
+    expect(await tally(v2)).toBe(1);
+
+    // Clear results is refused while live, then empties, and an edit going live moves the revision:
+    // a phone holding the old options is refused (AC-2, AC-4).
+    expect((await rpc(page, 'audience_clear_results', { p_slug: slugs.control, p_question: 'q-vote' })).error).toContain('stop the question');
+    await rpc(page, 'audience_stop', { p_slug: slugs.control, p_round: v2.id });
+    expect((await rpc(page, 'audience_go_live', { p_slug: slugs.control, p_question: { ...VOTE, text: 'Changed' } })).error).toContain('has answers');
+    expect((await rpc(page, 'audience_clear_results', { p_slug: slugs.control, p_question: 'q-vote' })).error).toBeNull();
+    expect(await tally(v2)).toBe(0);
+    const v3 = await live({ ...VOTE, options: ['Away', 'Home', 'Draw'] });
+    expect(v3.revision).toBe(v1.revision + 2);
+    expect((await vote(v2, 1)).error).toContain('that question has closed');
+    expect(await tally(v3)).toBe(0);
+    await rpc(page, 'audience_stop', { p_slug: slugs.control, p_round: v3.id });
+
+    // Two operators press Go live on different questions at the same moment, from two pages: one
+    // round is open and the state points at it (AC-3).
+    const second = await context.newPage();
+    await second.goto(page.url());
+    await expect(second.getByTestId('production-setup')).toBeVisible({ timeout: 30_000 });
+    const [a, b] = await Promise.all([
+      rpc(page, 'audience_go_live', { p_slug: slugs.control, p_question: OPEN }),
+      rpc(second, 'audience_go_live', { p_slug: slugs.control, p_question: { id: 'q-third', type: 'open', text: 'Third' } }),
+    ]);
+    expect([a.error, b.error]).toEqual([null, null]);
+    const open = await openRounds();
+    expect(open).toHaveLength(1);
+    const now = await state();
+    expect(now.round).toBe(open[0].id);
+    expect(now.open).toBe(true);
+    await rpc(page, 'audience_stop', { p_slug: slugs.control, p_round: open[0].id });
+    expect((await state()).open).toBe(false);
+
+    await second.close();
+    await unpublishForCleanup(page);
+    await wipeMyGraphics(page);
+  });
+
   test('the published walk: a phone sends a message and a vote, the presenter view follows, and only Take airs (audience AC-5)', async ({
     page,
     browser,
@@ -238,9 +357,10 @@ test.describe(() => {
     const nothingOnAir = () => expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
     const messages = await openWorkspace(page, 'audience');
-    await messages.getByTestId('audience-open').check();
+    await addQuestion(messages, 'open', 'What should we ask on the walk?');
+    await goLive(messages, 'What should we ask on the walk?');
 
-    // The phone: a small touch screen, nothing wider than it, a message sent.
+    // The phone: a small touch screen, nothing wider than it, an answer sent.
     const phoneContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const phone = await phoneContext.newPage();
     await phone.goto(joinUrl);
@@ -263,9 +383,8 @@ test.describe(() => {
     await nothingOnAir();
 
     // The vote: the phone votes, the operator stages it, and nothing airs until Take.
-    await messages.getByTestId('audience-round-question').fill('Who wins the walk?');
-    await messages.getByTestId('audience-round-options').fill('Home\nAway');
-    await messages.getByTestId('audience-round-open').click();
+    await addQuestion(messages, 'choice', 'Who wins the walk?', ['Home', 'Away']);
+    await goLive(messages, 'Who wins the walk?');
     await expect(phone.locator('#join .nj-opt')).toHaveCount(2, { timeout: 20_000 });
     await phone.locator('#join .nj-opt').nth(1).tap();
     await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });

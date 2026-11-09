@@ -465,18 +465,37 @@ const HALL_CUP_AUDIENCE = [
   ['poll', 'House Vote'],
 ];
 
-/** The Audience tab of that production, with the door open. Everything below starts here. */
+/** Write a question in the Interaction tab and put it live on phones. */
+async function liveQuestion(page, type, text, options = []) {
+  await page.getByTestId('question-add').click();
+  await page.getByTestId(type === 'open' ? 'question-type-open' : 'question-type-choice').click();
+  await page.getByTestId('question-text').fill(text);
+  if (type === 'choice') await page.getByTestId('question-options').fill(options.join('\n'));
+  await page.getByTestId('question-save').click();
+  const row = page.locator('.pd-aud-q', { hasText: text }).last();
+  await row.getByTestId('question-go-live').click();
+  await row.getByTestId('question-live').waitFor();
+}
+
+/** Interaction's folded "More ways in", where Simulate sits. */
+async function moreWaysIn(page) {
+  const more = page.getByTestId('interaction-more');
+  if (!(await more.evaluate((el) => el.open))) await more.locator('summary').click();
+}
+
+/** The Interaction tab of that production. Everything below starts here. */
 async function openAudience(page) {
   const showId = await hallCup(page, HALL_CUP_AUDIENCE);
   await page.goto(`${base}/app#/production/${showId}/audience`);
   await page.getByTestId('production-audience').waitFor();
-  await page.getByTestId('audience-open').check();
 }
 
 /** ...and three rehearsal arrivals in, with the viewer preview unfolded. Shared by the two
  *  shots below, which photograph different halves of the same screen. */
 async function audienceInbox(page) {
   await openAudience(page);
+  await liveQuestion(page, 'open', 'What should we ask the captain?');
+  await moreWaysIn(page);
   await page.getByTestId('audience-simulate').click();
   await page.getByTestId('audience-preview-details').locator('summary').click();
   // The preview mounts the join surface and loads its first view over the provider's own
@@ -518,15 +537,12 @@ await shot('audience-inbox', async (page) => {
 // one is about the counts - which exist HERE and nowhere a viewer can reach.
 await shot('audience-vote', async (page) => {
   await openAudience(page);
-  await page.getByTestId('audience-round-question').fill('Who takes the second half?');
-  await page.getByTestId('audience-round-options').fill('Otava\nKarhut\nToo close to call');
-  await page.getByTestId('audience-round-open').click();
-  await page.getByTestId('audience-round-live').waitFor();
+  await liveQuestion(page, 'choice', 'Who takes the second half?', ['Otava', 'Karhut', 'Too close to call']);
   await page.getByTestId('audience-simulate-votes').click();
   // The tally is POLLED at 2 s (ProductionAudienceWorkspace's tally effect), so a shutter
   // fired straight after the press photographs three zeroes and a product that looks broken.
   await page.waitForTimeout(2600);
-  return page.locator('.pd-aud-round');
+  return page.getByTestId('question-selected');
 });
 
 await browser.close();
