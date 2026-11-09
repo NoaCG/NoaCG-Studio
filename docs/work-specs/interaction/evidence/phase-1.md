@@ -73,3 +73,50 @@ are listed apart.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).
+
+## Repair 1: the advisor baseline (post-landing run 42627967625)
+
+**Failure.** Post-land on merge `cdc1011` (run 42627967625, job "Apply migrations") applied 0111,
+then `node scripts/supabase-advisors.mjs` exited 1: 218 findings against 188 accepted, 10 new
+(`anon` and `authenticated` for `audience_go_live(p_slug text, p_question jsonb)`,
+`audience_stop(p_slug text, p_round uuid)`, `audience_clear_results(p_slug text, p_question text)`,
+and the new `audience_submit(..., p_round uuid, p_revision integer)` and
+`audience_vote(..., p_option integer, p_revision integer)`), 25 warn-only unused indexes, and 5
+gone (the old `audience_submit` and `audience_vote` signatures for both roles, and
+`control_shows_team_idx`).
+
+**Reproduced offline.** That run's report was rebuilt from its log (the baseline it read, minus
+the 5 gone, plus the 10 new and the 25 unused indexes it printed in full: 218 findings) and fed to
+the script: `node scripts/supabase-advisors.mjs --input <report>` printed the same 10 new, 25
+warnings and 5 gone and exited 1 on `origin/main` (`cdc1011`).
+
+**Each grant, read in 0111.**
+
+| Function | Who calls it | Guard | What it can change |
+| --- | --- | --- | --- |
+| `audience_go_live(text, jsonb)` | the operator page, signed out or in | control slug through `audience_owner_for_control` (capability, audience kill switch) | that production's rounds and `audience_state`; refuses a changed type, and changed text while live or once answered |
+| `audience_stop(text, uuid)` | the operator page | same | closes the one round it names, if still open, and sets waiting |
+| `audience_clear_results(text, text)` | the operator page | same | deletes one stopped round's answers and votes and bumps its revision; refused while live |
+| `audience_submit(text, text, text, text, uuid, int)` | a phone, no account | join slug and `feature_denied_for(owner, 'audience')` | one answer, only into that production's open Open round at the revision the phone read |
+| `audience_vote(text, text, uuid, int, int)` | a phone, no account | same | one vote row per round and device, only into the open Multiple choice round at that revision |
+
+The operator three are the same control-slug doors as `audience_list` and `audience_operator_add`
+(the operator page runs signed out), and the phone two replace the doors they had in 0035 and 0097
+with a narrower check (round and revision). `authenticated` reaches each because a signed-in
+operator or viewer calls the same function. Each revokes `public` and grants exactly `anon,
+authenticated`; none writes the command log or a production value. No grant is unmeant, so none
+changed.
+
+**Fix.** The reasons are named in `ACCEPTED_CLASSES` (`scripts/supabase-advisors.mjs`), and the
+baseline was written by the recorder from the rebuilt report:
+`node scripts/supabase-advisors.mjs --input <report> --update-baseline` (218 entries). Comparing
+the same report with it: `218 advisor findings; 218 accepted in the baseline. No change against
+the baseline.`, exit 0. The unused indexes are recorded as the recorder records every report; that
+class never fails.
+
+**Regression test.** `scripts/advisor-baseline-grants.test.mjs` replays every migration's create,
+drop, grant and revoke for `public` functions and compares the client-callable definer set with
+the baseline's two definer classes. With `origin/main`'s baseline (the mutation: the baseline
+without this repair) it fails, listing exactly the 10 missing and the 4 stale signatures above;
+with the re-recorded one it passes. Before this repair the replay and production's report agreed
+on every other definer entry, which is what makes the test a fair stand-in for the live check.

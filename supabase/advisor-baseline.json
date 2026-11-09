@@ -1,12 +1,22 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-10-22",
-  "count": 187,
+  "recordedAt": "2026-11-09",
+  "count": 218,
   "entries": {
+    "anon_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_clear_results(p_slug text, p_question text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_clear_results`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_close_round(p_slug text, p_round uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_close_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_go_live_p_slug text, p_question jsonb": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_go_live(p_slug text, p_question jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_go_live`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_audience_join_by_slug_p_join_slug text, p_device text": {
       "name": "anon_security_definer_function_executable",
@@ -48,10 +58,15 @@
       "level": "WARN",
       "detail": "Function `public.audience_set_join(p_slug text, p_patch jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_set_join`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "anon_security_definer_function_executable_public_audience_submit_p_join_slug text, p_device text, p_author text, p_body text": {
+    "anon_security_definer_function_executable_public_audience_stop_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.audience_submit(p_join_slug text, p_device text, p_author text, p_body text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      "detail": "Function `public.audience_stop(p_slug text, p_round uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_stop`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_audience_submit_p_join_slug text, p_device text, p_author text, p_body text, p_round uuid, p_revision integer": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_submit(p_join_slug text, p_device text, p_author text, p_body text, p_round uuid, p_revision integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_audience_tally_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -63,10 +78,10 @@
       "level": "WARN",
       "detail": "Function `public.audience_update(p_slug text, p_id uuid, p_patch jsonb)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_update`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "anon_security_definer_function_executable_public_audience_vote_p_join_slug text, p_device text, p_round uuid, p_option integer": {
+    "anon_security_definer_function_executable_public_audience_vote_p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_community_pack_file_p_id uuid": {
       "name": "anon_security_definer_function_executable",
@@ -268,10 +283,20 @@
       "level": "WARN",
       "detail": "Function `public.admin_user_suspended(p_user uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/admin_user_suspended`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_audience_clear_results_p_slug text, p_question text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_clear_results(p_slug text, p_question text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_clear_results`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_close_round(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_close_round`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_go_live_p_slug text, p_question jsonb": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_go_live(p_slug text, p_question jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_go_live`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_audience_join_by_slug_p_join_slug text, p_device text": {
       "name": "authenticated_security_definer_function_executable",
@@ -313,10 +338,15 @@
       "level": "WARN",
       "detail": "Function `public.audience_set_join(p_slug text, p_patch jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_set_join`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "authenticated_security_definer_function_executable_public_audience_submit_p_join_slug text, p_device text, p_author text, p_body text": {
+    "authenticated_security_definer_function_executable_public_audience_stop_p_slug text, p_round uuid": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.audience_submit(p_join_slug text, p_device text, p_author text, p_body text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      "detail": "Function `public.audience_stop(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_stop`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_submit_p_join_slug text, p_device text, p_author text, p_body text, p_round uuid, p_revision integer": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_submit(p_join_slug text, p_device text, p_author text, p_body text, p_round uuid, p_revision integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_audience_tally_p_slug text, p_round uuid": {
       "name": "authenticated_security_definer_function_executable",
@@ -328,10 +358,10 @@
       "level": "WARN",
       "detail": "Function `public.audience_update(p_slug text, p_id uuid, p_patch jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_update`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "authenticated_security_definer_function_executable_public_audience_vote_p_join_slug text, p_device text, p_round uuid, p_option integer": {
+    "authenticated_security_definer_function_executable_public_audience_vote_p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_pack_decide_p_id uuid, p_state text, p_reason text": {
       "name": "authenticated_security_definer_function_executable",
@@ -873,10 +903,40 @@
       "level": "INFO",
       "detail": "Table \\`public.user_plans\\` has a foreign key \\`user_plans_assigned_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
+    "unused_index_public_admin_audit_log_admin_audit_actor_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`admin_audit_actor_idx\\` on table \\`public.admin_audit_log\\` has not been used"
+    },
+    "unused_index_public_admin_audit_log_admin_audit_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`admin_audit_created_idx\\` on table \\`public.admin_audit_log\\` has not been used"
+    },
     "unused_index_public_admin_audit_log_admin_audit_target_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`admin_audit_target_idx\\` on table \\`public.admin_audit_log\\` has not been used"
+    },
+    "unused_index_public_agent_auth_codes_agent_auth_codes_expires_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`agent_auth_codes_expires_idx\\` on table \\`public.agent_auth_codes\\` has not been used"
+    },
+    "unused_index_public_agent_deliveries_agent_deliveries_key_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`agent_deliveries_key_idx\\` on table \\`public.agent_deliveries\\` has not been used"
+    },
+    "unused_index_public_agent_deliveries_agent_deliveries_user_operation_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`agent_deliveries_user_operation_idx\\` on table \\`public.agent_deliveries\\` has not been used"
+    },
+    "unused_index_public_agent_deliveries_agent_deliveries_user_resource_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`agent_deliveries_user_resource_idx\\` on table \\`public.agent_deliveries\\` has not been used"
     },
     "unused_index_public_agent_keys_agent_keys_user_idx": {
       "name": "unused_index",
@@ -888,25 +948,100 @@
       "level": "INFO",
       "detail": "Index \\`agent_operations_key_idx\\` on table \\`public.agent_operations\\` has not been used"
     },
+    "unused_index_public_ai_gateway_requests_ai_gateway_requests_user_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`ai_gateway_requests_user_created_idx\\` on table \\`public.ai_gateway_requests\\` has not been used"
+    },
     "unused_index_public_ai_generations_ai_generations_status_expires_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`ai_generations_status_expires_idx\\` on table \\`public.ai_generations\\` has not been used"
+    },
+    "unused_index_public_audience_submissions_audience_submissions_device_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`audience_submissions_device_idx\\` on table \\`public.audience_submissions\\` has not been used"
+    },
+    "unused_index_public_audience_submissions_audience_submissions_round_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`audience_submissions_round_idx\\` on table \\`public.audience_submissions\\` has not been used"
+    },
+    "unused_index_public_audience_submissions_audience_submissions_show_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`audience_submissions_show_idx\\` on table \\`public.audience_submissions\\` has not been used"
     },
     "unused_index_public_chat_submissions_chat_show_status_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`chat_show_status_idx\\` on table \\`public.chat_submissions\\` has not been used"
     },
+    "unused_index_public_community_pack_reports_community_pack_reports_dismissed_by_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`community_pack_reports_dismissed_by_idx\\` on table \\`public.community_pack_reports\\` has not been used"
+    },
     "unused_index_public_community_pack_reports_community_pack_reports_pack_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`community_pack_reports_pack_idx\\` on table \\`public.community_pack_reports\\` has not been used"
     },
-    "unused_index_public_control_shows_control_shows_team_idx": {
+    "unused_index_public_community_pack_reports_community_pack_reports_reporter_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index \\`control_shows_team_idx\\` on table \\`public.control_shows\\` has not been used"
+      "detail": "Index \\`community_pack_reports_reporter_idx\\` on table \\`public.community_pack_reports\\` has not been used"
+    },
+    "unused_index_public_community_packs_community_packs_lineage_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`community_packs_lineage_idx\\` on table \\`public.community_packs\\` has not been used"
+    },
+    "unused_index_public_control_data_ticks_control_data_ticks_started": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`control_data_ticks_started\\` on table \\`public.control_data_ticks\\` has not been used"
+    },
+    "unused_index_public_control_show_identity_control_show_identity_owner_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`control_show_identity_owner_idx\\` on table \\`public.control_show_identity\\` has not been used"
+    },
+    "unused_index_public_funnel_events_funnel_events_event_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`funnel_events_event_created_idx\\` on table \\`public.funnel_events\\` has not been used"
+    },
+    "unused_index_public_funnel_events_funnel_events_user_event_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`funnel_events_user_event_idx\\` on table \\`public.funnel_events\\` has not been used"
+    },
+    "unused_index_public_funnel_events_funnel_events_visitor_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`funnel_events_visitor_created_idx\\` on table \\`public.funnel_events\\` has not been used"
+    },
+    "unused_index_public_panel_codes_panel_codes_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`panel_codes_created_idx\\` on table \\`public.panel_codes\\` has not been used"
+    },
+    "unused_index_public_panel_codes_panel_codes_show_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`panel_codes_show_idx\\` on table \\`public.panel_codes\\` has not been used"
+    },
+    "unused_index_public_panel_keys_panel_keys_show_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`panel_keys_show_idx\\` on table \\`public.panel_keys\\` has not been used"
+    },
+    "unused_index_public_shows_shows_owner_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`shows_owner_idx\\` on table \\`public.shows\\` has not been used"
     },
     "unused_index_public_team_members_team_members_user_idx": {
       "name": "unused_index",
@@ -927,6 +1062,21 @@
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`template_admin_visibility_idx\\` on table \\`public.template_admin\\` has not been used"
+    },
+    "unused_index_public_user_feedback_user_feedback_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`user_feedback_created_idx\\` on table \\`public.user_feedback\\` has not been used"
+    },
+    "unused_index_public_user_feedback_user_feedback_status_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`user_feedback_status_created_idx\\` on table \\`public.user_feedback\\` has not been used"
+    },
+    "unused_index_public_user_grants_user_grants_expiry_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`user_grants_expiry_idx\\` on table \\`public.user_grants\\` has not been used"
     },
     "unused_index_public_user_grants_user_grants_user_active_idx": {
       "name": "unused_index",

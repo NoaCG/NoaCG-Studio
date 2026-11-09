@@ -481,3 +481,19 @@ reassessed by a fresh read-only review before the repair):
 - A rehearsal phone in a journey needs `page.clock.install()` before it loads, or its five-second
   poll can refresh it between the operator's press and the phone's, and it is no longer stale.
 
+**Repair 1** (post-landing run 42627967625 red on merge `cdc1011`): the advisor step listed 0111's
+client-callable definer functions as new since `supabase/advisor-baseline.json` and its replaced
+`audience_submit` and `audience_vote` signatures as gone. The migration applied and the six ACs
+passed; the build had not recorded the grants it meant. Each grant was checked against the
+migration and is the intended, minimal door (`evidence/phase-1.md`, Repair 1), so the baseline was
+re-recorded with `node scripts/supabase-advisors.mjs --input <report> --update-baseline` from that
+run's report, and the reasons are named in `ACCEPTED_CLASSES`. No grant changed. The new
+`scripts/advisor-baseline-grants.test.mjs` replays the migrations' grants and fails when the
+baseline does not match them, so the next migration that adds or changes a client-callable
+definer function records it in its own pull request, before landing.
+
+- Trap: post-land's advisor check reads production, so it can only fail after the merge. A
+  migration that adds, drops or re-signs a `security definer` function granted to `anon` or
+  `authenticated` must change `supabase/advisor-baseline.json` in the same pull request; the
+  offline test above now says so in CI.
+
