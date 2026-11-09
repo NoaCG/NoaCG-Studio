@@ -17,6 +17,7 @@
 
 import { bundledFaceRules, FONTS } from '../model/fonts';
 import { css, joinColours, type Rgb } from './joinColours';
+import { pageWords } from './audienceBrand';
 import { AUDIENCE_LIMITS, JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
@@ -148,10 +149,6 @@ function logoUrl(value: unknown): string | null {
   return null;
 }
 
-/** The brand's own words, if it carries them: a string, trimmed, else null. */
-const words = (value: unknown, max: number): string | null =>
-  typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null;
-
 function applyBrand(root: HTMLElement, brand: AudienceBrand | null | undefined): void {
   // A brand arrives as jsonb written at publish, so it is data: joinColours reads only colours it
   // can parse, and makes each one readable where it is used (interaction spec, Contrast).
@@ -251,12 +248,12 @@ export function mountJoinSurface(
     const logo = logoNode(logoUrl(brand?.logo));
     if (logo) root.appendChild(logo);
     // The page's title: the operator's, else the production's name (interaction spec, Join).
-    const name = words(brand?.title, JOIN_PAGE_LIMITS.title) || view.productionName || 'This production';
+    const name = pageWords(brand?.title, JOIN_PAGE_LIMITS.title) || view.productionName || 'This production';
     root.appendChild(el('p', 'nj-title', name));
 
     const { state } = view;
     if (!state.open) {
-      root.appendChild(el('p', 'nj-waiting', words(brand?.waiting, JOIN_PAGE_LIMITS.waiting) || JOIN_WAITING_DEFAULT));
+      root.appendChild(el('p', 'nj-waiting', pageWords(brand?.waiting, JOIN_PAGE_LIMITS.waiting) || JOIN_WAITING_DEFAULT));
       // A send refused because the question closed says so here too (R14).
       renderNote();
       renderMine();

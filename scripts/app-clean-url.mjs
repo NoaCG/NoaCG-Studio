@@ -16,14 +16,16 @@ const SHORT_PATHS = { '/j/': '/join.html' };
 /** The file a request is served from, or the URL unchanged. */
 export function cleanUrlPath(url) {
   if (!url) return url;
+  // A path form keeps its query, as Vercel's rewrite does (`/j/<name>?p=<slug>`: the query wins).
+  const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
   for (const [prefix, entry] of Object.entries(SHORT_PATHS)) {
-    if (url.startsWith(prefix)) return entry;
+    if (url.startsWith(prefix)) return entry + query;
   }
   for (const page of CLEAN_PAGES) {
     if (url === page || url.startsWith(page + '?')) return `${page}.html` + (url.slice(page.length) || '');
     // The path form keeps the name in the URL the page reads it from, so the request is
     // rewritten to the entry WITHOUT the segment rather than to `${page}.html/<name>`.
-    if (PATH_PAGES.includes(page) && url.startsWith(page + '/')) return `${page}.html`;
+    if (PATH_PAGES.includes(page) && url.startsWith(page + '/')) return `${page}.html${query}`;
   }
   return url;
 }

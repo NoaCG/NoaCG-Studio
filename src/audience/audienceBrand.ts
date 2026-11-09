@@ -34,6 +34,10 @@ export function audienceBrandFor(look: ProjectBrand | undefined): AudienceBrand 
   };
 }
 
+/** The page's own words as a page shows them: trimmed and capped, or null for the default. */
+export const pageWords = (value: unknown, max: number): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null;
+
 /**
  * Everything the phone page takes from the production (interaction spec D4): the look's colours
  * and face, the page's title and waiting text, and the look's logo as the caller resolved it (the
@@ -45,15 +49,14 @@ export function joinPageBrand(
   logo: string | null,
 ): AudienceBrand {
   const look = audienceBrandFor(show.look);
-  const words = (value: string | undefined, max: number) => (value?.trim() ? value.trim().slice(0, max) : null);
   return {
     accent: look?.accent ?? null,
     text: look?.text ?? null,
     panel: look?.panel ?? null,
     font: look?.font ?? null,
     logo,
-    title: words(show.joinPage?.title, JOIN_PAGE_LIMITS.title),
-    waiting: words(show.joinPage?.waiting, JOIN_PAGE_LIMITS.waiting),
+    title: pageWords(show.joinPage?.title, JOIN_PAGE_LIMITS.title),
+    waiting: pageWords(show.joinPage?.waiting, JOIN_PAGE_LIMITS.waiting),
   };
 }
 

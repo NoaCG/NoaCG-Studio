@@ -736,7 +736,7 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // of the whole state here could put back a round another tab had just opened or stopped. The
   // brand carries the page settings and the published logo's URL (control/joinLogo.ts).
   if (row.audience_state) {
-    const brand = await publishedJoinBrand(show);
+    const brand = await publishedJoinBrand(show, (row.audience_state.brand as { logo?: unknown } | null | undefined)?.logo);
     await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
   }
   // A production that has never had an audience slug gets a READABLE one derived from its name,

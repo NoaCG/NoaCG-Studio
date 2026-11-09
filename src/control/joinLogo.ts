@@ -57,19 +57,19 @@ async function drawnPng(dataUrl: string): Promise<Blob | null> {
 }
 
 /**
- * The public URL of the look's logo, uploading it when this path is new. Null when the look has no
- * logo, or when it could not be published (signed out, refused, offline): the phone page then
- * shows its title with no logo, which is what it does for a logo that fails to load as well.
+ * The public URL of the look's logo, uploading it when this path is new; null when the look has
+ * no logo. Throws when a logo exists but could not be published (signed out, refused, offline), so
+ * the caller can keep the logo phones already have rather than clear it.
  */
 export async function publishJoinLogo(showId: string, look: ProjectBrand | undefined): Promise<string | null> {
   const dataUrl = await lookLogoDataUrl(look);
   const source = dataUrl ? bytesOf(dataUrl) : null;
   if (!dataUrl || !source) return null;
   const sb = await getSupabase();
-  if (!sb) return null;
+  if (!sb) throw new Error('This build has no cloud backend.');
   const { data: auth } = await sb.auth.getSession();
   const user = auth.session?.user.id;
-  if (!user) return null;
+  if (!user) throw new Error('Sign in to publish the logo.');
   const hash = await sha256(source.bytes);
   const ext = RASTER[source.mime] ?? 'png';
   const path = `${user}/${showId}/${hash}.${ext}`;
@@ -89,15 +89,25 @@ export async function publishJoinLogo(showId: string, look: ProjectBrand | undef
   })();
   published.set(path, run);
   const url = await run;
-  if (!url) published.delete(path);
-  return url;
+  if (url) return url;
+  published.delete(path);
+  throw new Error('The logo could not be published.');
 }
 
-/** Everything a published production's phone page shows, with the logo published. */
-export async function publishedJoinBrand(show: {
-  id: string;
-  look?: ProjectBrand;
-  joinPage?: { title?: string; waiting?: string };
-}): Promise<AudienceBrand> {
-  return joinPageBrand(show, await publishJoinLogo(show.id, show.look));
+/**
+ * Everything a published production's phone page shows, with the logo published. When the logo
+ * cannot be published now, `previous` (what phones have) is kept: a failed upload never removes a
+ * logo, and a removed logo (the look has none) always does.
+ */
+export async function publishedJoinBrand(
+  show: { id: string; look?: ProjectBrand; joinPage?: { title?: string; waiting?: string } },
+  previous: unknown = null,
+): Promise<AudienceBrand> {
+  let logo: string | null;
+  try {
+    logo = await publishJoinLogo(show.id, show.look);
+  } catch {
+    logo = typeof previous === 'string' ? previous : null;
+  }
+  return joinPageBrand(show, logo);
 }

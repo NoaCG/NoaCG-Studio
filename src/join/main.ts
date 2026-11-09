@@ -18,7 +18,7 @@ import { REHEARSE_PARAM, createLocalAudience, localRoomName } from '../audience/
 import type { AudienceBackend } from '../audience/audienceTypes';
 import { deviceToken } from '../audience/deviceToken';
 import { ensureJoinStyle, mountJoinSurface } from '../audience/joinSurface';
-import { joinSlugFrom } from './joinPath';
+import { isSlug, joinSlugFrom } from './joinPath';
 
 const root = document.getElementById('join');
 
@@ -30,7 +30,7 @@ function readSlug(): { join: string | null; presenter: string | null } {
   // app-clean-url plugin.
   return {
     join: joinSlugFrom(window.location.pathname, window.location.search),
-    presenter: presenter && /^[A-Za-z0-9_-]{3,40}$/.test(presenter) ? presenter : null,
+    presenter: isSlug(presenter) ? presenter : null,
   };
 }
 

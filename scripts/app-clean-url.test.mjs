@@ -12,6 +12,9 @@ test('the three join doors serve the join entry', () => {
   assert.equal(cleanUrlPath('/join/friday-night-live'), '/join.html');
   assert.equal(cleanUrlPath('/join?p=friday-night-live'), '/join.html?p=friday-night-live');
   assert.equal(cleanUrlPath('/join'), '/join.html');
+  // A path form keeps its query, as Vercel's rewrite does.
+  assert.equal(cleanUrlPath('/j/one-name?p=other-name'), '/join.html?p=other-name');
+  assert.equal(cleanUrlPath('/join/one-name?p=other-name'), '/join.html?p=other-name');
 });
 
 test('other pages keep their clean URLs, and nothing else moves', () => {

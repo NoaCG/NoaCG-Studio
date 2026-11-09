@@ -40,7 +40,7 @@ import { createSupabaseAudience } from '../../audience/audienceData';
 import { joinPageBrand, lookLogoDataUrl } from '../../audience/audienceBrand';
 import { qrPng, qrSvg } from '../../audience/joinQr';
 import { JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT } from '../../audience/audienceTypes';
-import { publishedJoinBrand } from '../../control/joinLogo';
+import { publishJoinLogo } from '../../control/joinLogo';
 import { useMessagesBackend } from './useAudienceInbox';
 import { rehearsalPageUrl } from '../../audience/localAudience';
 import { useAuthState } from '../auth/useAuthState';
@@ -1008,10 +1008,12 @@ export default function ProductionAudienceWorkspace({
   // PUBLISHED: a change to the page settings or the look made while this tab is open reaches phones
   // on their next read, through the join state's brand (publish sends it too). It starts from what
   // the last publish or push sent, so opening the tab sends nothing.
-  const pageKey = useMemo(
-    () => JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), show.look?.logo?.path ?? null, lookLogo?.length ?? 0]),
-    [show.look, show.joinPage, lookLogo],
-  );
+  // The key is what phones would be sent, with the logo by its own bytes (not by the async data
+  // URL, so the first render already has the final key and opening the tab sends nothing).
+  const pageKey = useMemo(() => {
+    const logo = show.look?.logo?.data;
+    return JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), typeof logo === 'string' ? logo : logo ? `blob:${logo.size}:${logo.type}` : null]);
+  }, [show.look, show.joinPage]);
   const sentPage = useRef<string | null>(null);
   useEffect(() => {
     if (!live || !backend.setPage) return;
@@ -1021,8 +1023,10 @@ export default function ProductionAudienceWorkspace({
     }
     if (sentPage.current === pageKey) return;
     const timer = window.setTimeout(() => {
-      void publishedJoinBrand(show)
-        .then((brand) => backend.setPage!(brand))
+      // A logo that cannot be published sends nothing: phones keep what they have, and the
+      // operator is told, rather than the push clearing a logo that is still in the look.
+      void publishJoinLogo(show.id, show.look)
+        .then((logo) => backend.setPage!(joinPageBrand(show, logo)))
         .then(
           () => {
             sentPage.current = pageKey;
@@ -1524,6 +1528,7 @@ export default function ProductionAudienceWorkspace({
   );
 
   const joinUrl = live && show.joinSlug ? joinPageUrl(show.joinSlug) : null;
+  const joinQrSvg = useMemo(() => (joinUrl ? qrSvg(joinUrl) : null), [joinUrl]);
   const [copied, setCopied] = useState(false);
   const selectedTally = selectedRound ? tallies[selectedRound.id] : undefined;
 
@@ -1693,7 +1698,7 @@ export default function ProductionAudienceWorkspace({
             {joinUrl ? (
               <div className="pd-aud-join" data-testid="join-published">
                 {/* The code a phone camera reads: drawn here from the link, no QR service. */}
-                <div className="pd-aud-qr" role="img" aria-label={`QR code for ${joinUrl}`} data-testid="join-qr" dangerouslySetInnerHTML={{ __html: qrSvg(joinUrl) }} />
+                <div className="pd-aud-qr" role="img" aria-label={`QR code for ${joinUrl}`} data-testid="join-qr" dangerouslySetInnerHTML={{ __html: joinQrSvg ?? '' }} />
                 <div className="pd-aud-join-side">
                   <div className="pd-aud-round-actions">
                     <code className="prod-url" data-testid="join-link">{joinUrl}</code>
@@ -1716,7 +1721,7 @@ export default function ProductionAudienceWorkspace({
                       PNG
                     </button>
                     <button
-                      onClick={() => saveFile(new Blob([qrSvg(joinUrl)], { type: 'image/svg+xml' }), `join-${show.joinSlug}.svg`)}
+                      onClick={() => saveFile(new Blob([joinQrSvg ?? ''], { type: 'image/svg+xml' }), `join-${show.joinSlug}.svg`)}
                       data-testid="join-qr-svg"
                     >
                       SVG

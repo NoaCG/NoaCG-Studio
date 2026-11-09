@@ -11,6 +11,9 @@
 /** A slug is URL-safe base64 or a claimed name; anything else never reaches the server. */
 const SLUG = /^[A-Za-z0-9_-]{3,40}$/;
 
+/** Whether a value has a slug's shape (a join slug or the presenter's). */
+export const isSlug = (value: string | null): value is string => !!value && SLUG.test(value);
+
 /** The path prefixes that carry a name. `/j` first: `/join` must not match it as `/j` + `oin`. */
 const PATH_FORMS = [/^\/j\/(.*)$/, /^\/join\/(.*)$/];
 
@@ -29,7 +32,7 @@ export function joinSlugFrom(pathname: string, search: string): string | null {
     break;
   }
   const slug = fromQuery || fromPath || null;
-  return slug && SLUG.test(slug) ? slug : null;
+  return isSlug(slug) ? slug : null;
 }
 
 /** The link phones open: `<origin>/j/<name>`. On noacg.studio that is `https://noacg.studio/j/<name>`;
