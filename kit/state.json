@@ -1,48 +1,49 @@
 {
-  "version": 1,
-  "project": "plan-interaction-2026-11-09",
-  "plan": "interaction",
-  "spec": "docs/work-specs/interaction/spec.md",
-  "issue": 2312,
-  "coordinator": {
-    "session": "session_017SdbwNbcWHHiCYRSNvTcqR",
-    "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
-    "return": "send it with mcp__claude-code-remote__send_message to session_017SdbwNbcWHHiCYRSNvTcqR, and also print it as your final answer"
-  },
-  "provider": {
-    "name": "Claude Code Cloud",
-    "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
-  },
-  "authorization": {
-    "line": "Owner, 2026-11-09: \"the Interaction plan is agreed\", then \"Yes, let's proceed as you recommend.\" (until complete with a 23 Nov target, daily blocks renew by themselves, database changes allowed on landing).",
-    "startedAt": "2026-11-09T13:15:16+02:00",
-    "deadline": "2026-11-23T23:59:00+02:00",
-    "standing": {
-      "untilComplete": "Continue this scope until complete; 23 Nov is a planning target. (Owner answer 2026-11-09 to \"aim to finish by 23 Nov but keep going until all phases are done\": \"Yes, let's proceed as you recommend.\")",
-      "blockRenewal": "Open each next 24-hour work block without asking. (Owner answer 2026-11-09 to \"open each next day's work block by itself\": \"Yes, let's proceed as you recommend.\")",
-      "productionMigrations": "Apply the run's database migrations to the live database when they land, each tested locally and in CI first. (Owner answer 2026-11-09 to \"apply its database changes to the live database when they land\": \"Yes, let's proceed as you recommend.\")",
-      "provider": "Claude Code Cloud; do not switch providers automatically."
-    }
-  },
-  "brief": {
-    "read": "docs/work-specs/interaction/spec.md (the whole spec: decisions, lifecycle, chat votes, results, graphics, joining, and your phase's acceptance); docs/work-specs/audience-flow/spec.md for the message staging and destination hygiene that stay; src/audience/AGENTS.md if present; docs/ARCHITECTURE.md;",
-    "rules": "Provider is Claude Code Cloud; never substitute a same-VM subagent for a cloud worker. Build only your phase; later phases' features stay out. Never rename persisted identifiers (view key, storage keys, tables, CSS prefixes); only displayed words change. Nothing airs by itself: no Take, Update or graphic event from Interaction except the existing live-figures switch. Migrations go in supabase/migrations with the next free number, are tested on the local stack and in the configured suite, and are applied to production by post-land on landing (owner permission). Never weaken, skip or loosen a test, check, limit or budget, and never write a test-maintenance entry or budget exception to pass a gate. Public text: plain, no em dashes. Evidence for each phase goes in docs/work-specs/interaction/evidence/phase-<id>.md."
-  },
-  "branchPrefix": "claude",
-  "qualification": {
-    "coordinator": "plan-run-preflight coordinator passed twice 2026-11-09T11:09Z in this session",
-    "freshWorker": "create_session worker session_017SdbwNJfniN4JiXwfdAWP9 passed plan-run-preflight worker twice at 11:11Z and replied by send_message",
-    "wake": "send_later trig_0123dsuu4nBMycyBatZWXc5Y fired into this session at 2026-11-09T11:00Z",
-    "github": "cloud-queue-merge.yml dispatches succeeded for PRs #2305, #2306, #2308, #2310, #2311 today; direct commit-status writes refused: stamp via cloud-queue-merge.yml",
-    "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning"
-  },
-  "waitingOn": [],
-  "inFlight": [],
-  "owner": [
-    {
-      "item": "AC-12 owner look on result template taste (phase 5); a look, not a gate"
-    }
-  ],
-  "fixes": [],
-  "triggers": {}
+ "version": 1,
+ "project": "plan-interaction-2026-11-09",
+ "plan": "interaction",
+ "spec": "docs/work-specs/interaction/spec.md",
+ "issue": 2312,
+ "coordinator": {
+  "session": "session_017SdbwNbcWHHiCYRSNvTcqR",
+  "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
+  "return": "send it with mcp__claude-code-remote__send_message to session_017SdbwNbcWHHiCYRSNvTcqR, and also print it as your final answer"
+ },
+ "provider": {
+  "name": "Claude Code Cloud",
+  "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
+ },
+ "authorization": {
+  "line": "Owner, 2026-11-09: \"the Interaction plan is agreed\", then \"Yes, let's proceed as you recommend.\" (until complete with a 23 Nov target, daily blocks renew by themselves, database changes allowed on landing).",
+  "startedAt": "2026-11-09T13:15:16+02:00",
+  "deadline": "2026-11-23T23:59:00+02:00",
+  "standing": {
+   "untilComplete": "Continue this scope until complete; 23 Nov is a planning target. (Owner answer 2026-11-09 to \"aim to finish by 23 Nov but keep going until all phases are done\": \"Yes, let's proceed as you recommend.\")",
+   "blockRenewal": "Open each next 24-hour work block without asking. (Owner answer 2026-11-09 to \"open each next day's work block by itself\": \"Yes, let's proceed as you recommend.\")",
+   "productionMigrations": "Apply the run's database migrations to the live database when they land, each tested locally and in CI first. (Owner answer 2026-11-09 to \"apply its database changes to the live database when they land\": \"Yes, let's proceed as you recommend.\")",
+   "provider": "Claude Code Cloud; do not switch providers automatically."
+  }
+ },
+ "brief": {
+  "read": "docs/work-specs/interaction/spec.md (the whole spec: decisions, lifecycle, chat votes, results, graphics, joining, and your phase's acceptance); docs/work-specs/audience-flow/spec.md for the message staging and destination hygiene that stay; src/audience/AGENTS.md if present; docs/ARCHITECTURE.md;",
+  "rules": "Provider is Claude Code Cloud; never substitute a same-VM subagent for a cloud worker. Build only your phase; later phases' features stay out. Never rename persisted identifiers (view key, storage keys, tables, CSS prefixes); only displayed words change. Nothing airs by itself: no Take, Update or graphic event from Interaction except the existing live-figures switch. Migrations go in supabase/migrations with the next free number, are tested on the local stack and in the configured suite, and are applied to production by post-land on landing (owner permission). Never weaken, skip or loosen a test, check, limit or budget, and never write a test-maintenance entry or budget exception to pass a gate. Public text: plain, no em dashes. Evidence for each phase goes in docs/work-specs/interaction/evidence/phase-<id>.md."
+ },
+ "branchPrefix": "claude",
+ "qualification": {
+  "coordinator": "plan-run-preflight coordinator passed twice 2026-11-09T11:09Z in this session",
+  "freshWorker": "create_session worker session_017SdbwNJfniN4JiXwfdAWP9 passed plan-run-preflight worker twice at 11:11Z and replied by send_message",
+  "wake": "send_later trig_0123dsuu4nBMycyBatZWXc5Y fired into this session at 2026-11-09T11:00Z",
+  "github": "cloud-queue-merge.yml dispatches succeeded for PRs #2305, #2306, #2308, #2310, #2311 today; direct commit-status writes refused: stamp via cloud-queue-merge.yml",
+  "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning"
+ },
+ "waitingOn": [],
+ "inFlight": [],
+ "owner": [
+  {
+   "what": "Look at the result templates for taste (AC-12, phase 5)",
+   "where": "a look, not a gate"
+  }
+ ],
+ "fixes": [],
+ "triggers": {}
 }
