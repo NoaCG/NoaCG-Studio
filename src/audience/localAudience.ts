@@ -459,7 +459,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     r.rounds.find((x) => x.id === roundId && !x.closedAt && x.revision === revision && kinds.includes(x.kind)) ?? null;
 
   /**
-   * One change to this production's stores at a time, across every tab of this browser (Web
+   * One change to this production's ROOM at a time, across every tab of this browser (Web
    * Locks). Each change reads the stored room, edits it and writes the whole of it back, so two
    * tabs interleaving (a rehearsal phone answering while the operator presses Stop) could write
    * back a room the other had already changed and undo it. Without Web Locks (Node) there is one
@@ -525,75 +525,81 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     async addCandidates(items): Promise<AudienceSubmission[]> {
-      return exclusive(() => {
-        if (items.length > OPERATOR_ADD_MAX) {
-          throw new Error(`At most ${OPERATOR_ADD_MAX} messages at a time.`);
-        }
-        // R13: a round of this production, or none; anything else refuses the whole call.
-        const r = room();
-        const roundIds = new Set(r.rounds.map((x) => x.id));
-        if (items.some((i) => i.roundId && !roundIds.has(i.roundId))) throw new Error('not a question of this production');
-        const rows = kept();
-        const known = new Set(
-          [...rows, ...r.answers, ...submissions].map((s) => s.externalId).filter((x): x is string => Boolean(x)),
-        );
-        const added: AudienceSubmission[] = [];
-        for (const item of items) {
-          if (!item.body.trim()) continue;
-          const provenance = clampProvenance(item);
-          if (provenance.externalId && known.has(provenance.externalId)) continue;
-          if (provenance.externalId) known.add(provenance.externalId);
-          added.push({ ...make(item.author ?? '', item.body, item.roundId ?? null), ...provenance });
-        }
-        if (added.length === 0) return [];
-        if (!keep([...rows, ...added])) throw new Error('This browser refused to keep the message.');
-        changed();
-        return added.map((s) => ({ ...s }));
-      });
+      if (items.length > OPERATOR_ADD_MAX) {
+        throw new Error(`At most ${OPERATOR_ADD_MAX} messages at a time.`);
+      }
+      // R13: a round of this production, or none; anything else refuses the whole call.
+      const r = room();
+      const roundIds = new Set(r.rounds.map((x) => x.id));
+      if (items.some((i) => i.roundId && !roundIds.has(i.roundId))) throw new Error('not a question of this production');
+      const rows = kept();
+      const known = new Set(
+        [...rows, ...r.answers, ...submissions].map((s) => s.externalId).filter((x): x is string => Boolean(x)),
+      );
+      const added: AudienceSubmission[] = [];
+      for (const item of items) {
+        if (!item.body.trim()) continue;
+        const provenance = clampProvenance(item);
+        if (provenance.externalId && known.has(provenance.externalId)) continue;
+        if (provenance.externalId) known.add(provenance.externalId);
+        added.push({ ...make(item.author ?? '', item.body, item.roundId ?? null), ...provenance });
+      }
+      if (added.length === 0) return [];
+      if (!keep([...rows, ...added])) throw new Error('This browser refused to keep the message.');
+      changed();
+      return added.map((s) => ({ ...s }));
     },
 
     async settleImported(prefix, present): Promise<void> {
-      return exclusive(() => {
-        if (present.length > OPERATOR_SETTLE_MAX) throw new Error(`At most ${OPERATOR_SETTLE_MAX} rows at a time.`);
-        if (!prefix) return;
-        const here = new Set(present);
-        const rows = kept();
-        const at = nowIso();
-        let changes = 0;
-        const next = rows.flatMap((row) => {
-          if (!row.externalId?.startsWith(prefix)) return [row];
-          const there = here.has(row.externalId);
-          // An unused candidate follows its row; a used one is the operator's record and stays.
-          if (!there && !row.usedAt) return (changes += 1), [];
-          if (!there && !row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: at }];
-          if (there && row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: null }];
-          return [row];
-        });
-        if (changes === 0) return;
-        if (!keep(next)) throw new Error('This browser refused to keep the change.');
-        changed();
+      if (present.length > OPERATOR_SETTLE_MAX) throw new Error(`At most ${OPERATOR_SETTLE_MAX} rows at a time.`);
+      if (!prefix) return;
+      const here = new Set(present);
+      const rows = kept();
+      const at = nowIso();
+      let changes = 0;
+      const next = rows.flatMap((row) => {
+        if (!row.externalId?.startsWith(prefix)) return [row];
+        const there = here.has(row.externalId);
+        // An unused candidate follows its row; a used one is the operator's record and stays.
+        if (!there && !row.usedAt) return (changes += 1), [];
+        if (!there && !row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: at }];
+        if (there && row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: null }];
+        return [row];
       });
+      if (changes === 0) return;
+      if (!keep(next)) throw new Error('This browser refused to keep the change.');
+      changed();
     },
 
     async update(id, patch): Promise<void> {
-      return exclusive(() => {
-        const rows = kept();
-        const r = room();
-        const keptRow = rows.find((s) => s.id === id);
-        const answer = keptRow ? undefined : r.answers.find((s) => s.id === id);
-        const row = keptRow ?? answer ?? submissions.find((s) => s.id === id);
-        if (!row) return;
-        // The allowlist IS the immutability of the original: `author` and `body` are not in the
-        // patch type and are not assigned here either, so neither a UI bug nor a future caller
-        // can rewrite what a person actually sent.
+      // The allowlist IS the immutability of the original: `author` and `body` are not in the
+      // patch type and are not assigned here either, so neither a UI bug nor a future caller
+      // can rewrite what a person actually sent.
+      const apply = (row: AudienceSubmission) => {
         if (patch.broadcastAuthor !== undefined) row.broadcastAuthor = patch.broadcastAuthor.slice(0, AUDIENCE_LIMITS.author);
         if (patch.broadcastBody !== undefined) row.broadcastBody = patch.broadcastBody.slice(0, AUDIENCE_LIMITS.body);
         if (patch.anonymize !== undefined) row.anonymize = patch.anonymize;
         if (patch.status !== undefined) row.status = patch.status;
         if (patch.shortlisted !== undefined) row.shortlisted = patch.shortlisted;
         if (patch.usedAt !== undefined) row.usedAt = patch.usedAt;
+      };
+      // Kept and simulated rows change at once, as they always did: a moderation box is edited
+      // per keystroke. Only a phone's answer lives in the room, and takes the room's lock.
+      const rows = kept();
+      const keptRow = rows.find((s) => s.id === id);
+      const simulated = keptRow ? undefined : submissions.find((s) => s.id === id);
+      if (keptRow || simulated) {
+        apply((keptRow ?? simulated)!);
         if (keptRow && !keep(rows)) throw new Error('This browser refused to keep the change.');
-        if (answer) mustSave(r);
+        changed();
+        return;
+      }
+      return exclusive(() => {
+        const r = room();
+        const answer = r.answers.find((s) => s.id === id);
+        if (!answer) return;
+        apply(answer);
+        mustSave(r);
         changed();
       });
     },
