@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "fae3a463bce3cc12adfee4285bcce0ba265163979ff01aa663b2acdf7f01614b",
+  "specSha256": "e53467ac06a6af07c680d22d5cc4b5013fcae3e06d2d8d2f359214a68ed82084",
   "authority": {
     "status": "draft",
-    "source": "Owner, 2026-11-09, issue #2299: \"one Interaction tab (rename Messages) holding everything audience\", decisions D1-D8 agreed one at a time in the planning session of 2026-11-09. Owner: \"When you are done with the plan, give me a prompt, and I'll get a second opinion before we start building.\" Draft until the owner agrees the plan after that review; no implementation is authorized. Same day, owner supplied an independent second opinion and asked: \"Revise the draft Interaction plan ... using the independent review below. Keep owner decisions D1-D8. Planning only ... Keep the plan's authority status draft.\" Revised accordingly; O1 (reopening a question) remains open."
+    "source": "Owner, 2026-11-09, issue #2299: \"one Interaction tab (rename Messages) holding everything audience\", decisions D1-D8 agreed one at a time in the planning session of 2026-11-09. Owner: \"When you are done with the plan, give me a prompt, and I'll get a second opinion before we start building.\" Draft until the owner agrees the plan after that review; no implementation is authorized. Same day, owner supplied an independent second opinion and asked: \"Revise the draft Interaction plan ... using the independent review below. Keep owner decisions D1-D8. Planning only ... Keep the plan's authority status draft.\" Revised accordingly. Owner on O1: \"one question has one result. If you need to have many results for a question, you can just make a new question.\" Owner on Clear results: \"Yes, let's add the Clear Results button. It can be very useful when testing.\" The plan stays draft until the owner agrees it."
   },
   "review": null
 }

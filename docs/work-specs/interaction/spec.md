@@ -85,7 +85,7 @@ window:
      results to rundown** naming the remembered result graphic, with **Change**.
    - Open: its messages (the inbox filtered to it) with "Prepare cue on <graphic>" and Reject.
      A filter shows all messages or those with no question.
-   - Earlier times this question was live are listed under it, each with its own results.
+   - The question's menu has Duplicate and **Clear results** (two presses, not while live).
 3. **Join.** A live phone preview. Published: QR code, `noacg.studio/j/<name>` with Copy,
    **Download QR** (PNG, SVG), **Add Join card to rundown**, the link name (moved from Links;
    Links keeps a pointer). Unpublished: "Phones can join once this production is published" and
@@ -103,25 +103,31 @@ vote the picked option, changeable while live. No question live: the waiting tex
 
 - **Question** (in `Show.questions`, saved and synced with the production): stable `id` (a
   random id made once, never reused), `type`, `text`, `options` (multiple choice), order.
-- **Live period** (server, one row each time a question goes live): extends `audience_rounds`
-  with `question_id` and the kinds `open` and `word`. It keeps a **snapshot** of the text and
-  options as they were, so results always show what was actually asked. Votes and answers belong
-  to a live period (`round_id` on submissions; votes already have it).
+- **One question, one result** (owner, O1). Each question has one result record on the server:
+  an `audience_rounds` row extended with `question_id` (unique per production) and the kinds
+  `open` and `word`, holding a snapshot of the text and options. Answers carry its `round_id`;
+  votes already do. A viewer has one vote per question and can change it while the question is
+  live.
 - **Go live** is one server function, `audience_go_live(slug, question)`: in one transaction it
-  closes any open period, opens a new one with the snapshot, and sets the state's mode, prompt
-  and `question_id`. **Stop** is `audience_stop(slug)`: closes the open period and sets waiting.
-  Both bump `rev`. Concurrent presses end with exactly one open period: the later transaction
-  wins. The local provider does the same in memory.
-- **Server checks**: `audience_submit` and `audience_vote` take the period id the phone read and
-  refuse any that is not the open period; `question_id` is never taken from the client.
-- **Editing**: text and options can change while the question is not live; the change applies
-  to the next live period only. The live question's text and options are locked until Stop.
-  Type cannot change after the first live period; Duplicate makes a new question instead.
-- **Deleting** a question with answers removes it from the list; its periods, answers and cues
-  stay and are shown under "Earlier questions".
-- **Reopening** (Go live again) starts a new period that counts from zero; the earlier period's
-  results stay. *Owner decision O1 below.*
-- **Stale phones**: a phone that sends to a closed period gets "That question has closed", keeps
+  closes any other open round, opens this question's round (creating it the first time,
+  reopening it after), and sets the state's mode, prompt and `question_id`. **Stop** is
+  `audience_stop(slug)`: closes the round and sets waiting. Both bump `rev`. Concurrent presses
+  end with exactly one open round: the later transaction wins. Going live again continues the
+  same count. The local provider does the same in memory.
+- **Server checks**: `audience_submit` and `audience_vote` take the round id and the round's
+  **revision** the phone read, and refuse a round that is not open or a revision that is not
+  current; `question_id` is never taken from the client. The revision changes whenever the
+  round's snapshot can change (an edit going live, Clear results), never on a plain reopen, so a
+  phone that read the same question earlier still counts into the same result.
+- **Editing**: text and options are locked while the question is live, and locked once it has
+  answers, so the result always matches what was asked; Duplicate makes a new question that
+  starts from zero. Type never changes after creation.
+- **Clear results**: in the question's menu, two presses, only while the question is not live.
+  It removes that question's answers and votes (server function `audience_clear_results`) so a
+  rehearsal does not count on air. A cue already staged keeps its values until the next stage.
+- **Deleting** a question with answers removes it from the list; its answers and cues stay and
+  are shown under "Earlier questions".
+- **Stale phones**: a phone that sends to a closed round gets "That question has closed", keeps
   the typed text in the box, and shows the new question (or the waiting text). The answer is
   never filed under the next question unless the viewer sends again.
 
@@ -133,10 +139,11 @@ vote the picked option, changeable while live. No question live: the waiting tex
 - **Identity**: `yt:<channel id>` or `tw:<user id>`, never the display name. **Dedupe** by the
   platform message id. **Order**: the platform's own timestamp decides; per author the latest
   timestamp wins, whatever order messages arrive in.
-- **Window**: only messages timestamped after the period opened and before it closed count. So
+- **Window**: only messages timestamped after the question last went live, and before it was
+  stopped, count. So
   the "earlier" first page, a backlog read after Pause, and a reconnect's replay cannot vote on a
   new question. A small allowance for clock difference is measured in the fixtures, not guessed.
-- **Intake**: a new operator function `audience_operator_votes(slug, period, items)`, at most 500
+- **Intake**: a new operator function `audience_operator_votes(slug, round, items)`, at most 500
   items a call, with its own limits, separate from the message throttle (20 per 10 seconds per
   production in 0035) and from viewer votes. Vote rows gain `source` (`phone` or `chat`) so the
   panel shows both counts. Read in the operator's browser like chat today, so it counts only
@@ -147,7 +154,7 @@ vote the picked option, changeable while live. No question live: the waiting tex
 - **Staging writes cue values and nothing else.** No Take, Update or graphic event is sent by
   Go live, Stop, staging or a question edit. The one exception stays the existing switch "update
   the percentages on air while voting", which acts only on a cue already on air.
-- **The association is saved with the production**: `Show.resultCues` maps each live period to
+- **The association is saved with the production**: `Show.resultCues` maps each question to
   its cue id. Reload, a tab change or a second operator updates that same cue. If that cue was
   deleted, or its graphic no longer has the result fields, the next press makes a new cue and
   says so.
@@ -200,22 +207,26 @@ existing production opens with its inbox and sources intact. Layer: journey in
 ### AC-2: Questions are prepared, browsed and changed safely
 Open and Multiple choice questions are added, edited, reordered, duplicated and deleted, and
 survive reload locally and published. Selecting a row changes nothing on phones or Program. The
-live question's text and options are locked; an edit applies to the next live period; type is
-fixed after the first. Deleting a question keeps its earlier results. Layer: Node tests for the
-list model; journey.
+text and options are locked while the question is live (even with no answers yet) and once it
+has answers; type never changes. Going live again
+continues the same count and a phone that voted before can change, not add, its vote. Duplicate
+starts from zero. Clear results needs two presses, is refused while live, and leaves zero
+answers and votes. Deleting a question keeps its answers. Layer: Node tests for the list model
+and the local provider; configured suite for reopen and clear; journey.
 
 ### AC-3: Go live and Stop are atomic and enforced by the server
-After Stop, or after another question goes live, a vote or answer sent to the old period is
+After Stop, or after another question goes live, a vote or answer sent to the closed round is
 refused by the server. Two operators pressing Go live on different questions at the same moment
-end with one open period and the state pointing at it. Switching from Multiple choice to Open
+end with one open round and the state pointing at it. Switching from Multiple choice to Open
 closes the round. Layer: configured suite calling the functions directly and from two pages; Node
 tests for the local provider.
 
 ### AC-4: A stale phone loses nothing and misfiles nothing
 A phone holding a closed question that sends an answer or vote sees "That question has closed",
 keeps its typed text, and shows the new question; nothing is filed under the new question until
-the viewer sends again. Layer: journey with two pages (operator, phone) on the local provider;
-configured suite for the server refusal.
+the viewer sends again. After Stop, Clear results, an edit and Go live again, a phone still
+showing the old options is refused rather than counted against the new ones. Layer: journey with
+two pages (operator, phone) on the local provider; configured suite for the server refusal.
 
 ### AC-5: Joining takes one scan or one short link
 Published, Interaction shows a QR code that decodes to `https://noacg.studio/j/<name>`, Copy and
@@ -231,8 +242,8 @@ defined above; a broken logo URL shows no broken image; a failing custom font fa
 layout intact; replacing and removing the logo take effect on the next read. Layer: blank-page
 spec over `joinSurface` with each case; journey for the settings.
 
-### AC-7: Answers arrive under the period they were sent to
-An Open answer and a vote are filed under the live period they were sent to; paste goes under
+### AC-7: Answers arrive under the question they were sent to
+An Open answer and a vote are filed under the question whose round they were sent to; paste goes under
 the destination shown beside it (the live question by default, or none). Changing the live
 question never moves earlier answers. Layer: Node tests over the local provider; configured
 suite for `round_id` and server refusal of a client-chosen question.
@@ -294,7 +305,7 @@ Findings are filed; blocking ones are fixed before the phase passes. Layer: scen
 ## Phases
 
 1. **Questions and their lifecycle** (AC-1, AC-2, AC-3, AC-4, AC-7, AC-8): rename; the list;
-   selected versus live; `audience_go_live` and `audience_stop`; live periods for all kinds;
+   selected versus live; `audience_go_live`, `audience_stop` and `audience_clear_results`; one round per question;
    `round_id` on answers; stale-phone handling; paste destination.
 2. **Joining and a basic Join card** (AC-5, AC-6, AC-11): `/j/`, QR in the panel and download,
    link name moved, page settings, logo, contrast and fallbacks; one Join card design.
@@ -308,21 +319,23 @@ Findings are filed; blocking ones are fixed before the phase passes. Layer: scen
 Each phase lands on its own through `/queue-merge` and adds what the next must know to "Phase
 notes".
 
-## Owner decision still open
+## Owner decisions after review (2026-11-09)
 
-- **O1. Reopening a question.** Recommended: Go live again starts a fresh count and keeps the
-  earlier result beside it. The alternative, continuing the earlier count, suits a vote paused
-  for an ad break but needs a "continue" choice on every Go live.
+- **O1. One question, one result.** Going live again continues the same count; a fresh count is
+  a duplicated question. Owner: "one question has one result. If you need to have many results
+  for a question, you can just make a new question."
+- **O2. Clear results** for testing, as above. Owner: "Yes, let's add the Clear Results button.
+  It can be very useful when testing."
 
 ## Review revisions (2026-11-09)
 
 From the independent review the owner supplied. All six points were taken; adjustments:
 
-- The question-to-round link is a **live period** (an extended `audience_rounds` row for every
-  kind) rather than a separate table, so one mechanism snapshots text, holds the open/closed
-  state the server checks, and carries answers and votes.
-- Stale phones are refused by **period id**, which the phone already reads, rather than by
-  question id, so reopening the same question cannot accept an old phone's vote.
+- The question-to-result link is an extended `audience_rounds` row rather than a separate
+  table, so one mechanism snapshots text, holds the open/closed state the server checks, and
+  carries answers and votes. After O1 there is one such row per question.
+- Stale phones are refused by **round id**, which the phone already reads, rather than by a
+  question id the client could choose.
 - The QR layer reads a **Join link field** rather than the production at play time, which is
   what keeps exported graphics self-contained.
 - AC-5's cold-load target is 3 seconds at the stated throttling, set from the RPC round trips
