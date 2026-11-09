@@ -184,12 +184,99 @@ test('the viewer preview is the join page itself, and it follows the live questi
   await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
 });
 
+test('the page settings reach the phone preview: the title and waiting text, and the look', async ({ page }) => {
+  // interaction spec D4, AC-6 (journey for the settings): Join's page settings are a title (empty
+  // = the production name) and the waiting text. Unpublished, the preview takes them, and the
+  // look, straight from the production; published, they reach phones on the next read
+  // (e2e/configured/audience-live.spec.ts).
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Settings Night');
+  const audience = await openWorkspace(page, 'audience');
+  // Unpublished, Join offers Publish where the code will be (AC-8) and no code yet.
+  await expect(audience.getByTestId('join-unpublished')).toBeVisible();
+  await expect(audience.getByTestId('join-qr')).toHaveCount(0);
+  await audience.getByTestId('audience-preview-details').locator('summary').click();
+  const preview = audience.getByTestId('audience-preview');
+  await expect(preview.locator('.nj-title')).toHaveText('Settings Night');
+  await expect(preview.locator('.nj-waiting')).toHaveText(/^Not taking part right now/);
+
+  const title = audience.getByTestId('join-page-title');
+  const waiting = audience.getByTestId('join-page-waiting');
+  await expect(title).toHaveAttribute('placeholder', 'Settings Night');
+  await title.fill('Quiz Night');
+  await waiting.fill('Back after the break');
+  await waiting.press('Enter');
+  await expect(preview.locator('.nj-title')).toHaveText('Quiz Night');
+  await expect(preview.locator('.nj-waiting')).toHaveText('Back after the break');
+
+  // Saved with the production: a reload keeps both.
+  await settleDurableWrites(audience);
+  await audience.reload();
+  await expect(audience.getByTestId('join-page-title')).toHaveValue('Quiz Night');
+  await expect(audience.getByTestId('join-page-waiting')).toHaveValue('Back after the break');
+  await audience.getByTestId('audience-preview-details').locator('summary').click();
+  await expect(preview.locator('.nj-title')).toHaveText('Quiz Night');
+
+  // Emptied, the defaults come back.
+  await audience.getByTestId('join-page-title').fill('');
+  await audience.getByTestId('join-page-title').blur();
+  await expect(preview.locator('.nj-title')).toHaveText('Settings Night');
+  const stored = await audience.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === id)?.joinPage ?? null;
+  }, showId);
+  expect(stored).toEqual({ waiting: 'Back after the break' });
+});
+
+test('a Join card cue takes its place and size from the cue editor', async ({ page }) => {
+  // interaction spec AC-11: the Join card is an ordinary cue, so the cue editor's Place and Size
+  // move it like any other. Adding it from Interaction needs a published link (the configured
+  // walk presses that button); here it is added the way that button adds it, with a link.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Join Card Night');
+  await page.evaluate(async (id) => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { buildDraftTemplate, initialDraft, mergeDraft } = await import('/src/components/wizard/draft.ts');
+    const { addGraphicToShow } = await import('/src/model/shows.ts');
+    const variant = variantById('jc01')!;
+    const lines = variant.suggestedLines.map((l) => (l.title === 'Join link' ? { ...l, sample: 'https://noacg.studio/j/join-card-night' } : { ...l }));
+    addGraphicToShow(id, buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines })), {});
+    window.dispatchEvent(new Event('spx-data-changed'));
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  const cue = page.locator('.pd-cue', { hasText: 'House Join Card' }).first();
+  await expect(cue).toBeVisible();
+  await cue.click();
+  const frame = async () =>
+    JSON.parse((await page.locator('[data-testid="production-preview"] iframe').first().getAttribute('data-appearance')) ?? '{"frame":null}').frame as { dx: number; dy: number; s: number } | null;
+  const summary = page.getByTestId('cue-adjust-summary');
+  await expect(summary).toHaveText(/as designed/);
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/, { timeout: 15_000 });
+  // The card is designed bottom-right; Place moves it top-left, and Size makes it larger.
+  await page.getByTestId('adjust-place-tl').click();
+  await expect(summary).toHaveText(/top-left/);
+  await expect.poll(async () => (await frame())?.dx ?? 0).toBeLessThan(-400);
+  await page.getByTestId('adjust-larger').click();
+  await expect(page.getByTestId('adjust-size')).toHaveValue('105');
+  await expect.poll(async () => (await frame())?.s ?? 1).toBeGreaterThan(1);
+  // Nothing reaches PROGRAM by being placed.
+  expect(await page.locator('[data-testid="program-stage"] iframe').first().getAttribute('data-appearance')).toBeNull();
+  // The card on PREVIEW still carries its code.
+  await expect(page.frameLocator('[data-testid="production-preview"] iframe').first().locator('#audience-join-qr svg')).toHaveCount(1);
+});
+
 test('the public join page answers honestly on an offline build', async ({ page }) => {
   // The page is a capability URL, so every "nothing here" answer is the SAME answer — but an
   // offline build is not a capability question at all, and saying so beats showing a form that
   // could never send anything.
   await page.goto('/join/friday-night-live');
   await expect(page.locator('#join')).toContainText('runs offline');
+  // The short link is the same page (interaction spec D2).
+  await page.goto('/j/friday-night-live');
+  await expect(page.locator('#join')).toContainText('runs offline');
+  await page.goto('/join/friday-night-live');
   await expect(page.locator('form, textarea')).toHaveCount(0);
   // …and it answers honestly IN THE PAGE'S OWN LOOK. The stylesheet ships with the join surface,
   // so every state that does not mount that surface — this one and the presenter view — used to
