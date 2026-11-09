@@ -8,7 +8,7 @@ import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
-import { addQuestion, goLive } from '../_interaction';
+import { addQuestion, goLive, moreWaysIn } from '../_interaction';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -149,6 +149,8 @@ test.describe(() => {
       route.fulfill({ status: 200, contentType: 'text/csv', headers: { 'access-control-allow-origin': '*' }, body: tab.csv }),
     );
     const messages = await openWorkspace(page, 'audience');
+    // The message sources sit in the folded "More ways in" (docs/work-specs/interaction/spec.md).
+    await moreWaysIn(messages);
     await messages.getByTestId('chat-add-platform').selectOption('sheet');
     await messages.getByTestId('sheet-add-link').fill('https://docs.google.com/spreadsheets/d/1NoaCGMessageSheetLive0000/edit#gid=0');
     await messages.getByTestId('chat-add-connect').click();

@@ -66,6 +66,10 @@ are listed apart.
   action runs (it could otherwise do nothing without a word); the other, a test of Delete's branch
   where another question went live between the read and the Stop, is not written: the journey covers
   Delete of the live question and the Stop line that catches any round left behind.
+- CI on `30bcf33`: the configured test "a message Sheet on a published production imports through
+  the operator door, once per row" timed out twice picking the Sheet source, which this phase moved
+  into the folded "More ways in". The test now opens that fold first, as the local chat intake
+  journeys already do; no assertion changed.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).
