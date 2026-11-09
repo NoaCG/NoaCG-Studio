@@ -9,6 +9,9 @@
 //   * text on the accent (the Send button) 4.5:1.
 // Muted text (labels, notes) is a blend toward the background that still passes, never opacity,
 // so a colour that only just passes cannot fall below the line by being dimmed.
+// Every colour is made in whole RGB channels, the values `css()` writes and the browser renders,
+// so each check judges the colour as it will be seen: a blend checked before rounding could pass
+// at 3.001:1 and render at 2.99:1.
 //
 // Pure and DOM-free: the join surface turns the result into CSS variables.
 
@@ -46,15 +49,15 @@ function parseColour(value: unknown): Rgba | null {
   return [clamp(rgb[0], 255), clamp(rgb[1], 255), clamp(rgb[2], 255), clamp(alpha, 1)];
 }
 
-/** A colour with alpha, laid over an opaque one. */
+/** A colour with alpha, laid over an opaque one, in whole channels (as rendered). */
 function over(top: Rgba, under: Rgb): Rgb {
   const a = top[3];
-  return [0, 1, 2].map((i) => top[i] * a + under[i] * (1 - a)) as Rgb;
+  return [0, 1, 2].map((i) => Math.round(top[i] * a + under[i] * (1 - a))) as Rgb;
 }
 
-/** `t` of `a` and the rest `b`. */
+/** `t` of `a` and the rest `b`, in whole channels (as rendered). */
 function mix(a: Rgb, b: Rgb, t: number): Rgb {
-  return [0, 1, 2].map((i) => a[i] * t + b[i] * (1 - t)) as Rgb;
+  return [0, 1, 2].map((i) => Math.round(a[i] * t + b[i] * (1 - t))) as Rgb;
 }
 
 function luminance([r, g, b]: Rgb): number {
