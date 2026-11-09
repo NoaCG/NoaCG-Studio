@@ -7,9 +7,11 @@
 // can run a script.
 
 import { getSupabase } from '../backend/supabase';
-import { lookLogoDataUrl, joinPageBrand } from '../audience/audienceBrand';
+import { joinPageBrand } from '../audience/audienceBrand';
 import type { AudienceBrand } from '../audience/audienceTypes';
 import type { ProjectBrand } from '../model/brand';
+import { assetBytes, sha256 } from '../model/foreignPackage';
+import { parseDataUrl } from '../assets/assetUtils';
 
 const BUCKET = 'join-logos';
 const RASTER: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' };
@@ -19,32 +21,17 @@ const DRAWN_SIDE = 512;
 /** Uploads this tab already made or found, by path, so a re-push costs no request. */
 const published = new Map<string, Promise<string | null>>();
 
-function bytesOf(dataUrl: string): { mime: string; bytes: Uint8Array } | null {
-  const match = /^data:([^;,]+);base64,(.*)$/.exec(dataUrl);
-  if (!match) return null;
-  try {
-    const raw = atob(match[2]);
-    const bytes = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-    return { mime: match[1].toLowerCase(), bytes };
-  } catch {
-    return null;
-  }
-}
-
-async function sha256(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 /** Draw an image (an SVG) to a PNG no larger than DRAWN_SIDE on its longest side. */
-async function drawnPng(dataUrl: string): Promise<Blob | null> {
+async function drawnPng(source: Blob): Promise<Blob | null> {
+  const url = URL.createObjectURL(source);
   const img = new Image();
-  img.src = dataUrl;
+  img.src = url;
   try {
     await img.decode();
   } catch {
     return null;
+  } finally {
+    URL.revokeObjectURL(url);
   }
   const w = img.naturalWidth || DRAWN_SIDE;
   const h = img.naturalHeight || DRAWN_SIDE;
@@ -62,24 +49,26 @@ async function drawnPng(dataUrl: string): Promise<Blob | null> {
  * the caller can keep the logo phones already have rather than clear it.
  */
 export async function publishJoinLogo(showId: string, look: ProjectBrand | undefined): Promise<string | null> {
-  const dataUrl = await lookLogoDataUrl(look);
-  const source = dataUrl ? bytesOf(dataUrl) : null;
-  if (!dataUrl || !source) return null;
-  const sb = await getSupabase();
+  const asset = look?.logo;
+  if (!asset?.data) return null;
+  const mime = (typeof asset.data === 'string' ? parseDataUrl(asset.data)?.mime : asset.data.type)?.toLowerCase() ?? '';
+  if (!mime.startsWith('image/')) return null;
+  const [sb, bytes] = await Promise.all([getSupabase(), assetBytes(asset)]);
+  if (!bytes) return null;
   if (!sb) throw new Error('This build has no cloud backend.');
-  const { data: auth } = await sb.auth.getSession();
+  const [{ data: auth }, hash] = await Promise.all([sb.auth.getSession(), sha256(bytes)]);
   const user = auth.session?.user.id;
   if (!user) throw new Error('Sign in to publish the logo.');
-  const hash = await sha256(source.bytes);
-  const ext = RASTER[source.mime] ?? 'png';
-  const path = `${user}/${showId}/${hash}.${ext}`;
+  const raster = mime in RASTER;
+  const path = `${user}/${showId}/${hash}.${RASTER[mime] ?? 'png'}`;
   const known = published.get(path);
   if (known) return known;
   const run = (async () => {
-    const body = RASTER[source.mime] ? new Blob([source.bytes as BlobPart], { type: source.mime }) : await drawnPng(dataUrl);
+    const source = new Blob([bytes as BlobPart], { type: mime });
+    const body = raster ? source : await drawnPng(source);
     if (!body) return null;
     const { error } = await sb.storage.from(BUCKET).upload(path, body, {
-      contentType: RASTER[source.mime] ? source.mime : 'image/png',
+      contentType: raster ? mime : 'image/png',
       cacheControl: '31536000',
       upsert: false,
     });

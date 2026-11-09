@@ -16,15 +16,15 @@ export type Rgb = [number, number, number];
 type Rgba = [number, number, number, number];
 
 /** The page behind everything (join.html's own background). */
-export const JOIN_PAGE_BACKGROUND: Rgb = [11, 11, 13];
+const JOIN_PAGE_BACKGROUND: Rgb = [11, 11, 13];
 const WHITE: Rgb = [255, 255, 255];
 const BLACK: Rgb = [0, 0, 0];
 
-export const AA_TEXT = 4.5;
-export const AA_EDGE = 3;
+const AA_TEXT = 4.5;
+const AA_EDGE = 3;
 
 /** `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb()` or `rgba()`; anything else is null. */
-export function parseColour(value: unknown): Rgba | null {
+function parseColour(value: unknown): Rgba | null {
   if (typeof value !== 'string') return null;
   const v = value.trim().toLowerCase();
   const hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/.exec(v);
@@ -47,13 +47,13 @@ export function parseColour(value: unknown): Rgba | null {
 }
 
 /** A colour with alpha, laid over an opaque one. */
-export function over(top: Rgba, under: Rgb): Rgb {
+function over(top: Rgba, under: Rgb): Rgb {
   const a = top[3];
   return [0, 1, 2].map((i) => top[i] * a + under[i] * (1 - a)) as Rgb;
 }
 
 /** `t` of `a` and the rest `b`. */
-export function mix(a: Rgb, b: Rgb, t: number): Rgb {
+function mix(a: Rgb, b: Rgb, t: number): Rgb {
   return [0, 1, 2].map((i) => a[i] * t + b[i] * (1 - t)) as Rgb;
 }
 
@@ -66,7 +66,7 @@ function luminance([r, g, b]: Rgb): number {
 }
 
 /** The WCAG contrast ratio of two opaque colours. */
-export function contrast(a: Rgb, b: Rgb): number {
+function contrast(a: Rgb, b: Rgb): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }

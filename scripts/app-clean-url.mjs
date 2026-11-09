@@ -6,26 +6,15 @@
 
 const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/whats-new', '/roadmap'];
 
-// `/join/<name>`: the readable join URL. The same shape has to work here, or a vanity link is
-// testable only in production. The page reads the name off the path itself.
-const PATH_PAGES = ['/join'];
-
-// `/j/<name>`: the short join link a QR code and the Join card carry (src/join/joinPath.ts).
-const SHORT_PATHS = { '/j/': '/join.html' };
-
 /** The file a request is served from, or the URL unchanged. */
 export function cleanUrlPath(url) {
   if (!url) return url;
-  // A path form keeps its query, as Vercel's rewrite does (`/j/<name>?p=<slug>`: the query wins).
-  const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
-  for (const [prefix, entry] of Object.entries(SHORT_PATHS)) {
-    if (url.startsWith(prefix)) return entry + query;
-  }
+  // The path forms of the join page keep their name in the URL the page reads it from, and their
+  // query, as Vercel's rewrites do: `/j/<name>` (the short link, src/join/joinPath.ts) and
+  // `/join/<name>` (the readable one).
+  if (/^\/j(?:oin)?\//.test(url)) return `/join.html${url.includes('?') ? url.slice(url.indexOf('?')) : ''}`;
   for (const page of CLEAN_PAGES) {
     if (url === page || url.startsWith(page + '?')) return `${page}.html` + (url.slice(page.length) || '');
-    // The path form keeps the name in the URL the page reads it from, so the request is
-    // rewritten to the entry WITHOUT the segment rather than to `${page}.html/<name>`.
-    if (PATH_PAGES.includes(page) && url.startsWith(page + '/')) return `${page}.html${query}`;
   }
   return url;
 }

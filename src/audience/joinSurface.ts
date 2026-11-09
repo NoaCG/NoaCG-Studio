@@ -17,7 +17,7 @@
 
 import { bundledFaceRules, FONTS } from '../model/fonts';
 import { css, joinColours, type Rgb } from './joinColours';
-import { pageWords } from './audienceBrand';
+import { pageWords } from '../model/joinPage.ts';
 import { AUDIENCE_LIMITS, JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
@@ -149,7 +149,13 @@ function logoUrl(value: unknown): string | null {
   return null;
 }
 
+/** The brand each root last had applied: a poll re-renders every few seconds, the brand rarely changes. */
+const applied = new WeakMap<HTMLElement, string>();
+
 function applyBrand(root: HTMLElement, brand: AudienceBrand | null | undefined): void {
+  const key = JSON.stringify([brand?.accent, brand?.text, brand?.panel, brand?.font]);
+  if (applied.get(root) === key) return;
+  applied.set(root, key);
   // A brand arrives as jsonb written at publish, so it is data: joinColours reads only colours it
   // can parse, and makes each one readable where it is used (interaction spec, Contrast).
   const c = joinColours(brand);
@@ -447,6 +453,7 @@ export function mountJoinSurface(
     },
     destroy() {
       destroyed = true;
+      applied.delete(root);
       window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
       root.textContent = '';

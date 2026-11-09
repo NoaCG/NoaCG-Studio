@@ -8,7 +8,8 @@
 import { fontById, fontStack } from '../model/fonts';
 import type { ProjectBrand } from '../model/brand';
 import type { AudienceBrand } from './audienceTypes';
-import { JOIN_PAGE_LIMITS } from '../model/joinPage';
+import { JOIN_PAGE_LIMITS, pageWords } from '../model/joinPage';
+import { fileToDataUrl } from '../assets/assetUtils';
 
 /**
  * Map a production's look onto the join page's four variables, or null when the production has
@@ -33,10 +34,6 @@ export function audienceBrandFor(look: ProjectBrand | undefined): AudienceBrand 
         : null,
   };
 }
-
-/** The page's own words as a page shows them: trimmed and capped, or null for the default. */
-export const pageWords = (value: unknown, max: number): string | null =>
-  typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null;
 
 /**
  * Everything the phone page takes from the production (interaction spec D4): the look's colours
@@ -65,10 +62,5 @@ export async function lookLogoDataUrl(look: ProjectBrand | undefined): Promise<s
   const data = look?.logo?.data;
   if (!data) return null;
   if (typeof data === 'string') return data.startsWith('data:image/') ? data : null;
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(data);
-  });
+  return fileToDataUrl(data).catch(() => null);
 }

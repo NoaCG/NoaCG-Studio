@@ -10,7 +10,7 @@ import qrcode from 'qrcode-generator';
 const QUIET = 4;
 
 /** The code's dark modules, row by row. */
-export function qrMatrix(text: string): boolean[][] {
+function qrMatrix(text: string): boolean[][] {
   const qr = qrcode(0, 'M');
   qr.addData(text, 'Byte');
   qr.make();
@@ -19,7 +19,7 @@ export function qrMatrix(text: string): boolean[][] {
 }
 
 /** The code as a standalone SVG: dark modules as one path over a light square, quiet zone included. */
-export function qrSvg(text: string, colours: { dark?: string; light?: string } = {}): string {
+export function qrSvg(text: string): string {
   const matrix = qrMatrix(text);
   const size = matrix.length + QUIET * 2;
   let d = '';
@@ -30,8 +30,8 @@ export function qrSvg(text: string, colours: { dark?: string; light?: string } =
   );
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">` +
-    `<rect width="${size}" height="${size}" fill="${colours.light ?? '#ffffff'}"/>` +
-    `<path d="${d}" fill="${colours.dark ?? '#000000'}"/></svg>`
+    `<rect width="${size}" height="${size}" fill="#ffffff"/>` +
+    `<path d="${d}" fill="#000000"/></svg>`
   );
 }
 

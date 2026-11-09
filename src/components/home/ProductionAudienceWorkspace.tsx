@@ -990,20 +990,27 @@ export default function ProductionAudienceWorkspace({
     return () => {
       alive = false;
     };
-  }, [show.look]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the logo itself changes
+  }, [show.look?.logo?.data]);
   const localBrand = useMemo(() => joinPageBrand({ look: show.look, joinPage: show.joinPage }, lookLogo), [show.look, show.joinPage, lookLogo]);
+  // Read through a ref, so a settings edit refreshes the open preview instead of remounting it.
+  const localBrandRef = useRef(localBrand);
+  localBrandRef.current = localBrand;
+  useEffect(() => {
+    preview.current?.refresh();
+  }, [localBrand]);
   const previewClient = useMemo<JoinSurfaceClient>(() => {
     const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
     const refuse = async () => ({ ok: false, error: 'This is your preview. Send from a phone to test it.' });
     return {
       load: async () => {
         const view = await viewer.joinView('preview-operator-device');
-        return live ? view : { ...view, brand: localBrand };
+        return live ? view : { ...view, brand: localBrandRef.current };
       },
       submit: refuse,
       vote: refuse,
     };
-  }, [backend, live, show.joinSlug, localBrand]);
+  }, [backend, live, show.joinSlug]);
 
   // PUBLISHED: a change to the page settings or the look made while this tab is open reaches phones
   // on their next read, through the join state's brand (publish sends it too). It starts from what

@@ -14,22 +14,20 @@ const SLUG = /^[A-Za-z0-9_-]{3,40}$/;
 /** Whether a value has a slug's shape (a join slug or the presenter's). */
 export const isSlug = (value: string | null): value is string => !!value && SLUG.test(value);
 
-/** The path prefixes that carry a name. `/j` first: `/join` must not match it as `/j` + `oin`. */
-const PATH_FORMS = [/^\/j\/(.*)$/, /^\/join\/(.*)$/];
+/** The path forms that carry a name: `/j/<name>` and `/join/<name>`. */
+const PATH_FORM = /^\/j(?:oin)?\/(.*)$/;
 
 /** The join slug in a page address, or null when there is none or it is not a slug's shape. */
 export function joinSlugFrom(pathname: string, search: string): string | null {
   const fromQuery = new URLSearchParams(search).get('p');
   let fromPath = '';
-  for (const form of PATH_FORMS) {
-    const match = form.exec(pathname);
-    if (!match) continue;
+  const match = PATH_FORM.exec(pathname);
+  if (match) {
     try {
       fromPath = decodeURIComponent(match[1].replace(/\/$/, ''));
     } catch {
       fromPath = '';
     }
-    break;
   }
   const slug = fromQuery || fromPath || null;
   return isSlug(slug) ? slug : null;
