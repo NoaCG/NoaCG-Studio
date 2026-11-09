@@ -525,7 +525,7 @@ but the side rule against today's landing rate: side-ending landings arrive ever
 
 ### 8.5 Phase notes for this PR
 
-- **Previous verified main SHA:** the branch base after merging `origin/main` (see the PR).
+- **Previous verified main SHA:** d521e014 (#2321), merged into this branch.
 - **Revert:** `git revert -m 1 <this merge's SHA>` removes only these notes.
 - **Ends no side:** this PR changes only this evidence file.
 
