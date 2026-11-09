@@ -62,6 +62,10 @@ are listed apart.
   local provider only (the configured test calls the server functions, not this line).
 - Codex on `ffea2ac` found the room lock was per production while the store is one value for all
   productions; the lock now covers the store, and the lifecycle test races two productions too.
+- The final review of `ffea2ac` graded A. Of its two follow-ups, Delete is now off while another
+  action runs (it could otherwise do nothing without a word); the other, a test of Delete's branch
+  where another question went live between the read and the Stop, is not written: the journey covers
+  Delete of the live question and the Stop line that catches any round left behind.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).

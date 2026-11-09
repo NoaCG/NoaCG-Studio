@@ -233,7 +233,7 @@ export function QuestionList({
                   >
                     {armedClear === q.id ? 'Press again to clear its results' : 'Clear results'}
                   </button>
-                  <button role="menuitem" onClick={close(() => onDelete(q))} data-testid="question-delete">
+                  <button role="menuitem" disabled={busy} onClick={close(() => onDelete(q))} data-testid="question-delete">
                     Delete
                   </button>
                 </LibMenu>
