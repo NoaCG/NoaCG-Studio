@@ -378,12 +378,16 @@ each side; it says nothing about when other landings happen. So:
    also `version` and `engines`), for the `build` script, and for a script entry CI runs; the
    root `package-lock.json` always. So a release that bumps the root version ends every side too.
    Product PRs end sides when they touch the build toolchain or CI configuration: root
-   `tsconfig*.json`, `eslint.config.js`, `vite.config.ts`, `.dependency-cruiser.cjs`, any
+   `tsconfig*.json`, `eslint.config.js`, `vite.config.ts`, `.dependency-cruiser.cjs`,
    `playwright.config.ts`, `playwright.catalog.config.ts`, `playwright.live.config.ts`,
    `scripts/e2e-durations.json`, `supabase/config.toml`, anything under `.github/actions/`, or
-   ci.yml, configured-suite.yml, post-land.yml, quarantine.yml or deploy-verify.yml. Other
-   Playwright configs and other workflows end no side. In recent days 7 of 16 side-ending landings were product PRs of this kind.
-   When in doubt, run `sideEnds`.
+   ci.yml or configured-suite.yml. Most often of all, any non-test script ci.yml or
+   configured-suite.yml runs and every module those scripts import (for example
+   `scripts/e2e-affected.mjs` and `scripts/configured-*.mjs`): #2264 ended a side only through
+   those. post-land.yml, quarantine.yml and deploy-verify.yml, and scripts only they run, end M3
+   sides, not the `cap+cfg` M1 side. Other Playwright configs and other workflows end no side.
+   In recent days 7 of 16 side-ending landings were product PRs of this kind. This list is a
+   guide; `sideEnds` is the test, and every PR in the hold is checked with it.
 3. **If a side-ending landing cannot wait** (an incident fix), it lands, the after side ends
    there, and the trial is read with the n it reached. Unmeasured counts toward the three.
 4. **The bounds:** cf13's 7-day bound from the candidate's start (this PR, opened 2026-11-06)
@@ -443,6 +447,8 @@ M1 sides and every M3 side.
 
 ### 7.8 Re-run: cf13's third and last try
 
+*It never landed: see section 8.1.*
+
 The owner chose to measure rank 1 again properly (https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6694324634). The re-run lands the same
 change as #2237 from `main` after the revert (#2260) lands, inside the owner's 14-day window, which
 still runs from the first landing: 2026-11-06T14:33:58Z to 2026-11-20T14:33Z.
@@ -479,14 +485,28 @@ The re-run (#2261) waited for its before side, counted from the revert's landing
 | --- | --- | --- | --- |
 | #2258, Bridge state readings (first try's after side) | cac69406 | 2026-11-06T18:50:12Z | `cli/package.json`: every group, M1, M2, M3 |
 | #2264, local Supabase stack on a fixed Realtime | 0c193936 | 2026-11-06T22:13:57Z | `scripts/configured-stack.mjs` and `scripts/e2e-affected.mjs`: every group, M1, M2, M3 |
-| #2321, interaction phase 2 | d521e014 | 2026-11-09T19:32:05Z (commit 19:14:16Z) | `package.json`, `package-lock.json`, `vite.config.ts`: every group, M1, M2, M3 |
+| #2321, interaction phase 2 | d521e014 | 2026-11-09T19:32:05Z (commit 19:14:16Z) | including `package.json`, `package-lock.json`, `vite.config.ts`, `scripts/e2e-affected.mjs` and `scripts/deploy-affecting-paths.mjs`: every group, M1, M2, M3 |
 
 After #2264 the before side reached 10 `cap+cfg` merges (M1 median 15.4, M2 waiting 0.68, M2
 execution 12.18; the coordinator's count with cf03's rule). #2321 then ended it before the re-run
-landed, and the count restarted at 0. Over the weekend `cap+cfg` merges arrived at about 3.3 a
-day, so 20 more (10 per side) could not fit before the bound, 2026-11-13T20:18Z. The re-run is
-recorded unmeasured with before 10 and after 0, and its code does not land: this PR now changes
-only this file. The after-side hold ends with it.
+landed, and the count restarted at 0.
+
+**Recorded now, before the bound: an explained departure.** The acceptance records a candidate
+unmeasured when a side cannot reach the minimum within 7 days of its start, here
+2026-11-13T20:18Z. It is recorded on 2026-11-09 instead, because the measured arrival rate leaves
+no realistic way to get there. The 33 merges from #2264 to 2026-11-09T19:50Z, classified as in
+section 7.4 (group from each merge's final head's first ci.yml PR run, `rule` on each merge),
+held 12 `cap+cfg` merges in about 2.9 days, about 4 a day: 3 on 2026-11-06 after #2264, 5 on
+2026-11-07, 2 on 2026-11-08, and 2 of 15 merges on Monday 2026-11-09. The 24 a day of section 7.4
+(2026-11-03 to 2026-11-06) has not held since. At about 4 a day a new before side reaches 10
+around 2026-11-12; the re-run would then land and need 10 more `cap+cfg` merges on its after side
+within about a day and a half (about 6 expected), with no side-ending landing in between (two
+arrived in the same 2.9 days). The coordinator decided to record it now (2026-11-09, reversible if
+the owner says so). Waiting would hold side-ending landings for four more days for a reading that
+cannot reach the minimum.
+
+The re-run is recorded unmeasured with before 10 and after 0, and its code does not land: this PR
+now changes only this file. The after-side hold ends with it.
 
 ### 8.2 The three tries
 
