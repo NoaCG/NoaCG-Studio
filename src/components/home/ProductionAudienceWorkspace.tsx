@@ -1172,7 +1172,12 @@ export default function ProductionAudienceWorkspace({
       return;
     }
     const open = now.find((r) => r.questionId === q.id && !r.closedAt);
-    if (open && !(await stop(open))) return;
+    if (open && !(await stop(open))) {
+      // Stop changed nothing because another question went live, which already closed this one
+      // (R3): deleting it is then safe. Only a round still open keeps it in the list.
+      const after = await backend.rounds().catch(() => null);
+      if (!after || after.some((r) => r.id === open.id && !r.closedAt)) return;
+    }
     if (await editList((list) => removeQuestion(list, q.id), 'The question was not deleted')) {
       if (selectedId === q.id) setSelectedId(null);
       if (questionFilter === `q:${q.id}`) setQuestionFilter(roundOf.get(q.id) ? 'earlier' : 'all');

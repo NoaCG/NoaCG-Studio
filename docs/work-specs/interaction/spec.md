@@ -438,10 +438,13 @@ Found in the final review of `dc19c95`:
 Found in the Codex review of `ecd6c56` (the second finding of one family, so the rule was
 reassessed by a fresh read-only review before the repair):
 
-- R27. Whatever round is open, the panel offers Stop for it, whether or not its question is in the
-  page's list: a line above the list names it and carries Stop when no row does.
+- R27. Whatever round is open on the provider the panel runs on (the published production's, or the
+  local room), the panel offers Stop for it, whether or not its question is in the page's list: a
+  line above the list names it and carries Stop when no row does.
 - R10, amended: Delete asks the provider whether the question's round is open at the press, not the
-  page's last reading, and stops it before removing the question.
+  page's last reading, and stops that round. It removes the question once the round is closed
+  (including when another question going live closed it), and keeps it only while the round is
+  still open or the provider could not be read.
 
 **Decisions** (made in the build, revertible in review):
 
