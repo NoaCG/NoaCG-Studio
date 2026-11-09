@@ -1786,12 +1786,13 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-aud-qr { flex: none; width: 148px; height: 148px; background: #fff; border-radius: 6px; }
 .pd-aud-qr svg { display: block; width: 100%; height: 100%; }
 .pd-aud-join-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.pd-aud-join-side .prod-url { overflow-wrap: anywhere; }
+.pd-aud-join-side .prod-url { flex: 1 1 200px; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.pd-aud-join-side .pd-aud-round-actions .hint { flex: none; }
 .pd-aud-join-side input { flex: 1 1 160px; min-width: 0; width: auto; margin-bottom: 0; }
 /* Page settings: a label and its box per row, the box taking the rest of the row. */
 .pd-aud-page { display: flex; flex-direction: column; margin-top: 4px; }
-.pd-aud-page .pd-aud-correct { display: flex; }
-.pd-aud-page .pd-aud-correct input { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+.pd-aud-page .pd-aud-correct { display: grid; grid-template-columns: 96px minmax(0, 1fr); }
+.pd-aud-page .pd-aud-correct input { min-width: 0; margin-bottom: 0; }
 .pd-aud-round-actions .hint { flex: 1 1 220px; min-width: 0; }
 /* HOW THIS PRODUCTION SHOWS ITS NUMBERS - one checkbox under the round panel, on its own rule so
    it reads as a setting for the whole production rather than another button on this round. The

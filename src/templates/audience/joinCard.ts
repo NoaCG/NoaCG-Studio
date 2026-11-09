@@ -1,4 +1,4 @@
-// JOIN CARD — how viewers join, on air: a QR code and the short link (interaction spec D8, AC-11).
+// JOIN CARD: how viewers join, on air: a QR code and the short link (interaction spec D8, AC-11).
 //
 // The QR is drawn INSIDE the graphic from its Join link field, by the encoder the graphic carries
 // in its own script (shared/qrEncoder.min.js, qrcode-generator, MIT). Nothing is fetched: an
@@ -19,13 +19,13 @@ const S = FORM.lines;
 function joinHtml(o: ResolvedOptions): string {
   return `    <!-- Join card: the QR code, what to do, and the link. -->
     <div class="audience-box">
-      <!-- The accent edge — the house amber bar, fused to the panel's left side. -->
+      <!-- The accent edge: the house amber bar, fused to the panel's left side. -->
       <div class="audience-accent"></div>
       <!-- The QR code, drawn here from the Join link by the card's own encoder. Dark modules on a
            white plate with its quiet zone, because that is what a phone camera reads. -->
       <div class="audience-join-qr" id="audience-join-qr" aria-hidden="true"></div>
       <div class="audience-join-text">
-        <!-- What this is — an operator FIELD, in the production's own language. -->
+        <!-- What this is: an operator FIELD, in the production's own language. -->
         <div class="audience-kicker"><span id="f0">${o.lines[0]?.sample ?? S[0].sample}</span></div>
         <!-- What to do. -->
         <div class="audience-mask"><span class="audience-question" id="f1">${o.lines[1]?.sample ?? S[1].sample}</span></div>
@@ -68,7 +68,7 @@ const JOIN_CSS = `/* The card lays the code beside its words: the code is what a
   min-width: 0;                    /* and wrap inside it rather than push the code off */
 }
 
-/* What to do — the loudest words on the card. */
+/* What to do: the loudest words on the card. */
 .audience-question {
   --message-lines: 3;              /* a call to action is a line or two */
   font-size: calc(40px * var(--scale) * var(--type-scale));

@@ -193,13 +193,13 @@ export const QUEUE_FORM: AudienceForm = {
   ],
 };
 
-/** JOIN CARD — the QR code and the short link viewers join by (templates/audience/joinCard.ts). */
+/** JOIN CARD: the QR code and the short link viewers join by (templates/audience/joinCard.ts). */
 export const JOIN_FORM: AudienceForm = {
   id: 'join',
-  rootComment: 'Join card — a QR code drawn from the Join link, what to do, and the link.',
+  rootComment: 'Join card: a QR code drawn from the Join link, what to do, and the link.',
   hiddenSourceField: 'f2',
   hiddenSourceComment:
-    'Hidden join source — SPX writes field f2 here; the runtime draws it as a QR code and shows it without https://. Empty draws nothing.',
+    'Hidden join source: SPX writes field f2 here; the runtime draws it as a QR code and shows it without https://. Empty draws nothing.',
   repaint: 'audienceJoinPaint();',
   runtimeJs: AUDIENCE_JOIN_JS,
   lines: [
@@ -399,7 +399,7 @@ export function assembleAudience(
 ${design.html}${
       hidden
         ? `
-    <!-- ${form.hiddenSourceComment ?? `Hidden source — SPX writes field ${hidden.field} here.`} -->
+    <!-- ${form.hiddenSourceComment ?? `Hidden source: SPX writes field ${hidden.field} here.`} -->
     <div id="${hidden.field}" class="${DATA_SOURCE_CLASS}">${hidden.value}</div>`
         : ''
     }
