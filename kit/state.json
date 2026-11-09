@@ -36,24 +36,17 @@
   "github": "cloud-queue-merge.yml dispatches succeeded for PRs #2305, #2306, #2308, #2310, #2311 today; direct commit-status writes refused: stamp via cloud-queue-merge.yml",
   "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning"
  },
- "waitingOn": [
-  {
-   "what": "PR #2330 in the merge queue",
-   "eta": "2026-11-09T20:45Z"
-  }
- ],
+ "waitingOn": [],
  "inFlight": [
   {
    "phase": "2",
-   "step": "repair",
-   "session": "session_017SdbwPMzyhro2Cym8G7N2j",
-   "nonce": "2-r-bb70",
-   "launchedAt": "2026-11-09T19:55:09Z",
-   "branch": "claude/plan-interaction-2-repair",
-   "failed": "AC-6 contrast after RGB rounding",
+   "step": "check",
+   "session": "session_017SdbwN7ByVVEzew5hDtJRt",
+   "nonce": "2-c-4fc6",
+   "launchedAt": "2026-11-09T20:20:44Z",
+   "merge": "45ac521117611e3d75162f6e4d7b2fb4c0dbcee9",
    "pr": 2330,
-   "head": "ddee4aec7c2c45dfa103069bfe6c2dc36366f673",
-   "stamped": "2026-11-09T20:12Z"
+   "note": "second check after repair"
   }
  ],
  "owner": [
