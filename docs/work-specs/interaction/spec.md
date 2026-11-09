@@ -569,6 +569,9 @@ the page between publishes), stated as rules before the repair (`src/control/joi
   before it reaches phones, so phones end on the latest saved page.
 - P4. A logo already published under its file's hash is not uploaded again; a logo that cannot be
   published sends nothing, so phones keep theirs. Publish keeps the logo phones have the same way.
+- P5 (from the review of `a8eb578`). Publish writes the page from the production as saved at the
+  moment it writes, not as it was when the publish began, so a title changed during a long publish
+  is not put back by it.
 
 Follow-ups filed: #2319 (render baseline on Windows), #2320 (offer to update Join card cues after
 the link name changes; in the spec's Graphics section, not in phase 2's acceptance).

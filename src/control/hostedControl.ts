@@ -14,7 +14,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import { publishAudio } from '../backend/productionAudio';
-import { graphicLayer, type CueAuto, type CueEnd, type Show, type ShowCue } from '../model/shows';
+import { graphicLayer, loadShows, type CueAuto, type CueEnd, type Show, type ShowCue } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
@@ -735,8 +735,13 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // It goes through `audience_set_join`, which merges the one key on the server: a read-modify-write
   // of the whole state here could put back a round another tab had just opened or stopped. The
   // brand carries the page settings and the published logo's URL (control/joinLogo.ts).
+  // The page is the production AS SAVED when it is written, not as it was when this publish began:
+  // a title changed in Interaction during a long publish must not be put back by it.
   if (row.audience_state) {
-    const brand = await publishedJoinBrand(show, (row.audience_state.brand as { logo?: unknown } | null | undefined)?.logo);
+    const brand = await publishedJoinBrand(
+      { ...show, ...pageOf(loadShows().find((s) => s.id === show.id) ?? show) },
+      (row.audience_state.brand as { logo?: unknown } | null | undefined)?.logo,
+    );
     await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
   }
   // A production that has never had an audience slug gets a READABLE one derived from its name,
@@ -998,6 +1003,9 @@ async function adoptDerivedJoinName(show: Show): Promise<string | null> {
   }
   return null;
 }
+
+/** What the phone page reads from a production: its look and its page settings. */
+const pageOf = (show: Pick<Show, 'look' | 'joinPage'>) => ({ look: show.look, joinPage: show.joinPage });
 
 /** The public audience URL for a join slug: the short `/j/<name>` link a QR code and the Join card
  *  carry (interaction spec D2). `/join/<name>` keeps working for links already handed out. */
