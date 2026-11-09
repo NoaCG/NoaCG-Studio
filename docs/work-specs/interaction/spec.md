@@ -427,8 +427,9 @@ Found after coding (in the code review), apart from the rules above:
 
 Found in the Codex review of the first head:
 
-- R25. The local room is changed by one tab at a time (a Web Lock per production), so a rehearsal
-  phone's send cannot write back a room from before the operator's Stop.
+- R25. The local room store is changed by one tab at a time (one Web Lock for the store, which
+  holds every production's room in one value), so neither a rehearsal phone's send nor another
+  production's change can write back a room from before the operator's Stop.
 
 Found in the final review of `dc19c95`:
 

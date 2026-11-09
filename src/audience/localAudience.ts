@@ -459,8 +459,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     r.rounds.find((x) => x.id === roundId && !x.closedAt && x.revision === revision && kinds.includes(x.kind)) ?? null;
 
   /**
-   * One change to this production's ROOM at a time, across every tab of this browser (Web
-   * Locks). Each change reads the stored room, edits it and writes the whole of it back, so two
+   * One change to the ROOM store at a time, across every tab of this browser (Web Locks). Each change reads the stored room, edits it and writes the whole of it back, so two
    * tabs interleaving (a rehearsal phone answering while the operator presses Stop) could write
    * back a room the other had already changed and undo it. Without Web Locks (Node) there is one
    * tab, and the change runs as it is.
@@ -468,7 +467,9 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
   const exclusive = <T,>(run: () => T): Promise<T> => {
     const locks = (globalThis as { navigator?: { locks?: LockManager } }).navigator?.locks;
     if (!options.showId || !locks) return Promise.resolve().then(run);
-    return locks.request(`${LOCAL_ROOM_KEY}:${options.showId}`, async () => run()) as Promise<T>;
+    // The lock covers what the write replaces: every production's room is one stored value, so
+    // two productions changing at once in two tabs would otherwise undo each other.
+    return locks.request(LOCAL_ROOM_KEY, async () => run()) as Promise<T>;
   };
 
   const backend: LocalAudience = {

@@ -60,6 +60,8 @@ are listed apart.
   read-only review first (AGREE WITH CORRECTIONS: Delete goes ahead once the round is closed by any
   means). The R27 line is shown by the same panel code for both providers; it was walked on the
   local provider only (the configured test calls the server functions, not this line).
+- Codex on `ffea2ac` found the room lock was per production while the store is one value for all
+  productions; the lock now covers the store, and the lifecycle test races two productions too.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).

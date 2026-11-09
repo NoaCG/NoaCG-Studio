@@ -181,7 +181,7 @@ test('the room is kept per production: a reload and a second tab see the same ro
   }
 });
 
-test('two tabs change the room one at a time through a Web Lock, so a phone cannot undo a Stop (R15)', async () => {
+test('tabs change the room store one at a time through a Web Lock, so a phone or another production cannot undo a Stop (R15, R25)', async () => {
   const store = storage();
   // A LockManager stand-in that runs one holder at a time, in request order, and yields between
   // them the way a real browser's lock grant does.
@@ -206,7 +206,15 @@ test('two tabs change the room one at a time through a Web Lock, so a phone cann
     const [, sent] = await Promise.all([operator.stop(open.id), phone.submit('device-1', '', 'Raced the stop', target(open))]);
     assert.equal(sent.closed, true);
     assert.equal((await openRounds(phone)).length, 0, 'the stopped round stays stopped');
-    assert.ok(names.length >= 3 && names.every((n) => n === `${LOCAL_ROOM_KEY}:p1`), 'every change took the production’s lock');
+    assert.ok(names.length >= 3 && names.every((n) => n === LOCAL_ROOM_KEY), 'every change took the room store’s lock');
+    // Two productions share one stored value, so they share the lock: a change to one cannot
+    // write back the other's room from before its Stop.
+    const other = createLocalAudience({ productionName: 'Other', showId: 'p2' });
+    const elsewhere = await other.goLive(OPEN);
+    await Promise.all([other.stop(elsewhere.id), phone.goLive({ id: 'q-p1', type: 'open', text: 'In p1' })]);
+    assert.equal((await openRounds(other)).length, 0, 'p2 stays stopped');
+    assert.equal((await openRounds(phone)).length, 1, 'p1 went live');
+    assert.ok(names.every((n) => n === LOCAL_ROOM_KEY));
   } finally {
     if (original) Object.defineProperty(globalThis, 'navigator', original);
     else delete globalThis.navigator;
