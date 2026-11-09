@@ -19,7 +19,7 @@ are listed apart.
 
 | AC | Result | Evidence |
 | --- | --- | --- |
-| AC-1 | pass (local) | Node: `scripts/interaction-questions.test.mjs` "the Interaction view keeps its persisted key and its inbox key". Journey: `e2e/production-audience.spec.ts` "questions are written, browsed and changed safely..." (Setup says `Interaction…`, the view's heading says Interaction, no `Messages…`); `e2e/production-views.spec.ts` (tab and Setup labels). Links points to Interaction (`links-interaction`). |
+| AC-1 | pass (local) | Node: `scripts/interaction-questions.test.mjs` "the Interaction view keeps its persisted key and its inbox key". Journey: `e2e/production-audience.spec.ts` "questions are written, browsed and changed safely..." (Setup says `Interaction…`, the view's heading says Interaction, no `Messages…`); `e2e/production-views.spec.ts` (tab and Setup labels). Links points to Interaction from the audience link's row (`links-interaction-open`, pinned in `e2e/production-persistence.spec.ts`, which also keeps Links free of explanations). |
 | AC-2 | pass (local); configured in CI | Node: `scripts/interaction-questions.test.mjs` (add, edit, reorder, duplicate, delete, locks, type never changes) and `scripts/interaction-lifecycle.test.mjs` (reopen continues the count, a vote changes rather than adds, duplicate starts from zero, Clear results refused while live and leaves nothing). Journey: the questions test above, including a reload. Configured: `e2e/configured/audience-live.spec.ts` "questions on the server..." (reopen and clear against 0111). |
 | AC-3 | pass (scratch database, local); configured in CI | `scripts/interaction-lifecycle.test.mjs` (Go live and Stop, MC to Open closes, Stop names its round, two providers racing). Scratch Postgres 16 with 0035, 0036, 0095, 0098 and 0111 applied: the migration's own self-check passes, and two sessions pressing Go live on different questions ended with one open round and the state pointing at it. Configured: the same from two pages, and refusal after Stop and after another question goes live. |
 | AC-4 | pass (local); configured in CI | Journey: "a stale phone keeps its words, sees the new question, and files nothing until it sends again" (operator page plus a rehearsal phone page with a held clock; refused send keeps the text and shows the new question; old options refused after Stop, Clear, edit and Go live). Configured: stale revision refused by the server. |
@@ -41,6 +41,7 @@ are listed apart.
   clean. The cross-tab test fails when the Web Lock is removed.
 - Node lifecycle test mutations: removing the revision check fails one test; removing "close the
   other rounds" fails four.
+- CI on the first head (`5e63c36`) failed one test, `production-persistence.spec.ts` "Links… holds one row per capability, with no explanations": the first Links pointer was a sentence. It became a button in the audience row (`94452a0`), and the test passes locally with the pointer pinned.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).
