@@ -51,3 +51,9 @@ export function joinNameCandidates(productionName: string, attempts = 6): string
   for (let n = 2; n <= attempts; n += 1) list.push(`${base}-${n}`);
   return list;
 }
+
+/** The link phones open: `<origin>/j/<name>`. On noacg.studio that is `https://noacg.studio/j/<name>`;
+ *  a self-hosted or local build hands out its own origin, so the link opens the page that made it. */
+export function joinShortUrl(origin: string, name: string): string {
+  return `${origin.replace(/\/+$/, '')}/j/${encodeURIComponent(name)}`;
+}

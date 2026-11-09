@@ -6,7 +6,7 @@
 //   /j/<name>        the short link a QR code and an on-air card carry
 //   /join/<name>     the readable form links already in circulation use
 //   /join?p=<slug>   the random form a production is published with
-// A query `p` wins over a path, as before.
+// A query `p` wins over a path, as before. The link handed out is control/joinName.ts `joinShortUrl`.
 
 /** A slug is URL-safe base64 or a claimed name; anything else never reaches the server. */
 const SLUG = /^[A-Za-z0-9_-]{3,40}$/;
@@ -31,10 +31,4 @@ export function joinSlugFrom(pathname: string, search: string): string | null {
   }
   const slug = fromQuery || fromPath || null;
   return isSlug(slug) ? slug : null;
-}
-
-/** The link phones open: `<origin>/j/<name>`. On noacg.studio that is `https://noacg.studio/j/<name>`;
- *  a self-hosted or local build hands out its own origin, so the link opens the page that made it. */
-export function joinShortUrl(origin: string, name: string): string {
-  return `${origin.replace(/\/+$/, '')}/j/${encodeURIComponent(name)}`;
 }

@@ -14,7 +14,7 @@ const source = readFileSync(fileURLToPath(new URL('../src/join/joinPath.ts', imp
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const { joinSlugFrom, joinShortUrl } = await import(`data:text/javascript,${encodeURIComponent(js)}`);
+const { joinSlugFrom } = await import(`data:text/javascript,${encodeURIComponent(js)}`);
 
 test('all three doors name the same production', () => {
   assert.equal(joinSlugFrom('/j/friday-night-live', ''), 'friday-night-live');
@@ -45,8 +45,7 @@ test('anything that is not a slug never reaches the server', () => {
   assert.equal(joinSlugFrom('/join', '?p=<script>'), null);
 });
 
-test('the link handed out is the short one on the page origin', () => {
-  assert.equal(joinShortUrl('https://noacg.studio', 'friday-night-live'), 'https://noacg.studio/j/friday-night-live');
-  assert.equal(joinShortUrl('http://localhost:5175/', 'quiz-2026'), 'http://localhost:5175/j/quiz-2026');
-  assert.equal(joinSlugFrom(new URL(joinShortUrl('https://noacg.studio', 'Ab3_x-Yz')).pathname, ''), 'Ab3_x-Yz');
+test('the short link the studio hands out reads back as its name', () => {
+  // control/joinName.ts joinShortUrl builds `<origin>/j/<name>` (scripts/join-name.test.mjs).
+  assert.equal(joinSlugFrom(new URL('https://noacg.studio/j/Ab3_x-Yz').pathname, ''), 'Ab3_x-Yz');
 });

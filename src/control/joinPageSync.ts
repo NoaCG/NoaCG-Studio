@@ -15,8 +15,7 @@
 //
 // Every effect goes through `io`, so scripts/join-page-sync.test.mjs drives it with fakes.
 
-import { joinPageBrand } from '../audience/audienceBrand';
-import type { AudienceBrand } from '../audience/audienceTypes';
+import { joinPageBrand, type AudienceBrand } from '../audience/audienceBrand';
 import type { ProjectBrand } from '../model/brand';
 
 export interface JoinPageShow {

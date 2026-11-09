@@ -25,7 +25,6 @@ import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
-import { joinShortUrl } from '../join/joinPath';
 import { publishedJoinBrand } from './joinLogo';
 import type { PublishedAdjust } from './hostedAdjust';
 import { lookImportedFace, withLookFaceIn } from './productionLook';
@@ -33,7 +32,7 @@ import { lookImportedFace, withLookFaceIn } from './productionLook';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate, ProductionGateError } from '../validation/productionGate';
 import { isForeignGraphic, verifyForeignPackage } from '../model/foreignPackage';
-import { joinNameCandidates } from './joinName';
+import { joinNameCandidates, joinShortUrl } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, SEQ_HEAD_EVENT, commandTopic, createAppliedOnce, logTopic, oidOf, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, isRefusal, rpcFailure, seqRoadVerdict, sendWithResend, unansweredError, type SeqRoadAsker } from './failedSends';

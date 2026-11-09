@@ -8,6 +8,9 @@
 import { fontById, fontStack } from '../model/fonts';
 import type { ProjectBrand } from '../model/brand';
 import type { AudienceBrand } from './audienceTypes';
+
+// The shape publishing writes, named here so control/ reads the audience domain through this one module.
+export type { AudienceBrand };
 import { JOIN_PAGE_LIMITS, pageWords } from '../model/joinPage';
 import { fileToDataUrl } from '../assets/assetUtils';
 

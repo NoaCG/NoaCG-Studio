@@ -7,8 +7,7 @@
 // can run a script.
 
 import { getSupabase } from '../backend/supabase';
-import { joinPageBrand } from '../audience/audienceBrand';
-import type { AudienceBrand } from '../audience/audienceTypes';
+import { joinPageBrand, type AudienceBrand } from '../audience/audienceBrand';
 import type { ProjectBrand } from '../model/brand';
 import { assetBytes, sha256 } from '../model/foreignPackage';
 import { parseDataUrl } from '../assets/assetUtils';
