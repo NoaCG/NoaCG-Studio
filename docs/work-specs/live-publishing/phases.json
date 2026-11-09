@@ -21,14 +21,14 @@
         "e2e/"
       ],
       "checks": [],
-      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
     "id": "2",
     "title": "Measure",
     "acceptance": [
-      "Phase 2 of the spec: a receipt in evidence/ with p95 over at least 50 samples and failures for every measurement listed there. No product change."
+      "Phase 2 of the spec: a receipt in evidence/ with every listed timing and byte count, on both fixtures, under the measurement rules. No product change."
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
@@ -46,7 +46,7 @@
         "docs/work-specs/live-publishing/evidence/"
       ],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
@@ -70,11 +70,15 @@
       "touches": [
         "src/control/adjustGeometry.ts",
         "src/control/graphicVerbs.ts",
+        "src/control/hostedControl.ts",
+        "src/control/seqSend.ts",
+        "src/control/folderPlayout.ts",
+        "src/control/serverVerbs.ts",
         "src/control/playoutLink.ts",
         "src/output/"
       ],
       "checks": [],
-      "notes": "C1, C2. Placement must also work in Chromium 71: build target es2017, no ?. or ?? inside template code. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "R1, R2; needs D2. Keep two fast Nexts in press order; if that needs the wait, stop and report. Placement must also work in Chromium 71: es2017, no ?. or ?? inside template code. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
@@ -86,7 +90,7 @@
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "1"
+      "2"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -102,20 +106,47 @@
         "src/components/home/"
       ],
       "checks": [],
-      "notes": "C3, C4, O5 adoption, the Update button. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "R3, R4, O5 adoption, the Update button. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
     "id": "5",
-    "title": "Send only what changed",
+    "title": "Outputs reconcile, and report truthfully",
     "acceptance": [
-      "AC-5",
-      "AC-7"
+      "AC-5"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "2",
-      "4"
+      "2"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Outputs reconcile, and report truthfully",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/output/",
+        "src/control/readiness.ts",
+        "src/control/prepareLive.ts"
+      ],
+      "checks": [],
+      "notes": "R7 and the three reported versions of R9; needs D4. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+    }
+  },
+  {
+    "id": "6",
+    "title": "Send only what changed",
+    "acceptance": [
+      "AC-6",
+      "AC-7",
+      "AC-9"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "4",
+      "5"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -131,18 +162,18 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "C5, C6. A migration touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Old and new clients against old and new servers. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "R5, R6, R8; needs D3 and D6. A migration touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Test old and new writers at the same time. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
-    "id": "6",
+    "id": "7",
     "title": "Images stored once",
     "acceptance": [
-      "AC-6"
+      "AC-8"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "5"
+      "6"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -157,18 +188,18 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "C8. Outputs opened before this keep reading inline images. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "R11. Outputs opened before this keep reading inline images. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
-    "id": "7",
+    "id": "8",
     "title": "Five people at once",
     "acceptance": [
-      "AC-8"
+      "AC-10"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "5"
+      "6"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -182,25 +213,26 @@
         "docs/CLOUD_PLAYOUT.md"
       ],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
-    "id": "8",
-    "title": "Updates by themselves, and the light",
+    "id": "9",
+    "title": "Updates by themselves, held Takes, and the light",
     "acceptance": [
-      "AC-9",
-      "AC-10"
+      "AC-11",
+      "AC-12"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
       "3",
-      "6",
-      "7"
+      "5",
+      "7",
+      "8"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Updates by themselves, and the light",
+      "goal": "Updates by themselves, held Takes, and the light",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
@@ -212,72 +244,18 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "O1, O2, O3, O7, C7. Check now stays. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
-    }
-  },
-  {
-    "id": "9",
-    "title": "Smaller graphic code (only if measured worth it)",
-    "acceptance": [
-      "C10: run phase 2's method after phase 8; build only if a typical production's output start is over 3 s on desktop Chromium, else record 'not needed' with the numbers"
-    ],
-    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
-    "dependsOn": [
-      "8"
-    ],
-    "spec": "docs/work-specs/live-publishing/spec.md",
-    "brief": {
-      "goal": "Smaller graphic code (only if measured worth it)",
-      "read": [
-        "docs/work-specs/live-publishing/spec.md",
-        "docs/plan-runs/known-traps.md"
-      ],
-      "touches": [
-        "src/templates/shared/",
-        "src/control/hostedControl.ts",
-        "src/output/"
-      ],
-      "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "O1, O2, O3, O7, R9, R10; needs D1. Check now stays. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   },
   {
     "id": "10",
-    "title": "Preload server cues (only if measured worth it)",
-    "acceptance": [
-      "C11: build only if phase 2 shows a server template Take over 300 ms p95 from the Bridge to first frame, else record 'not needed'; if built, two templates in a row on one destination on CasparCG 2.5 never touch the one on air"
-    ],
-    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
-    "dependsOn": [
-      "2"
-    ],
-    "spec": "docs/work-specs/live-publishing/spec.md",
-    "brief": {
-      "goal": "Preload server cues (only if measured worth it)",
-      "read": [
-        "docs/work-specs/live-publishing/spec.md",
-        "docs/plan-runs/known-traps.md"
-      ],
-      "touches": [
-        "cli/src/playout/adapters/casparcg.ts",
-        "src/control/playoutLink.ts"
-      ],
-      "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
-    }
-  },
-  {
-    "id": "11",
     "title": "The studio walk",
     "acceptance": [
-      "AC-11"
+      "AC-13"
     ],
     "environment": "OW: the owner's CasparCG 2.5 and 2.3 studio machines with a browser output",
     "dependsOn": [
-      "3",
-      "8",
-      "9",
-      "10"
+      "9"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -288,7 +266,7 @@
       ],
       "touches": [],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
     }
   }
 ]
