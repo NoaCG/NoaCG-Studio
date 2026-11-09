@@ -342,3 +342,50 @@ From the independent review the owner supplied. All six points were taken; adjus
   that profile implies; the builder records the measured baseline in phase 2's notes.
 
 ## Phase notes
+
+### Phase 1: Questions and their lifecycle
+
+Previous verified main: `3985c140631173c267c5e93b37741a15bab8d88c`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is recorded in the evidence once it lands); the
+migration's new columns and functions are additive and stay harmless after a revert.
+
+**Rules** (state rules written before code; each is observable):
+
+- R1. A production has at most one open round at any moment. The database enforces it (the
+  partial unique index of 0035) and `audience_go_live` and `audience_stop` take a row lock on the
+  production first, so concurrent presses run one after the other.
+- R2. A question has at most one round (unique per production and question id). Go live creates
+  it the first time and reopens it after; the count continues.
+- R3. Go live, in one transaction: closes every other open round of the production, opens this
+  question's round, and sets the state to open, the mode (`question` for Open, `poll` for
+  Multiple choice), the prompt (the question's text), the round and the question id, bumping
+  `rev`. Of two concurrent presses the later transaction wins and one round is open.
+- R4. Stop, in one transaction: closes the open round and sets the state to waiting (not open,
+  no round, no question id), bumping `rev`.
+- R5. Each round has a revision, 1 when made. It goes up by one when Go live brings text or
+  options different from the round's snapshot, and on Clear results. A plain reopen keeps it.
+- R6. A phone's answer or vote names the round id and the revision it read. The server refuses
+  it unless the round is this production's, open, of the matching kind (Open takes answers,
+  Multiple choice takes votes) and at that revision. A closed or stale round is refused with
+  "That question has closed". A question id is never taken from a client.
+- R7. An answer is filed under the round it was accepted into, and nothing later moves it: not
+  Go live on another question, not Stop, not an edit. A vote is one row per round and device;
+  sending again changes it.
+- R8. Text and options are locked while the question is live and once its round has an answer
+  or a vote. The server refuses a Go live whose text or options differ from a round that has
+  answers or votes, and one whose type differs from its round's. Type never changes.
+- R9. Clear results is refused while the round is open. It removes the round's answers and votes
+  and bumps its revision. The UI asks for two presses.
+- R10. Deleting a question removes it from the list only. Its round, answers and votes stay;
+  its answers are listed under "Earlier questions".
+- R11. Duplicate makes a new question id with no round, so it starts from zero.
+- R12. Selecting a row is screen state only: it calls nothing and saves nothing.
+- R13. Paste files the message under the destination shown beside Paste: the live question's
+  round by default, or none. The server accepts only a round of this production.
+- R14. A refused stale send keeps the typed text, shows "That question has closed" and the new
+  question (or the waiting text), and never resends by itself.
+- R15. An unpublished production runs R1 to R14 on the local provider in memory, with the same
+  refusals.
+- R16. None of these sends a Take, an Update or a graphic event.
+- R17. `Show.questions` is additive optional. The view key `audience`, the storage keys, the
+  tables and the CSS prefixes keep their names.
