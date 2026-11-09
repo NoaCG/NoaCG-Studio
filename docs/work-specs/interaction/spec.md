@@ -1,9 +1,9 @@
 # Interaction: one tab for everything audience
 
 Authority: owner, 2026-11-09, issue [#2299](https://github.com/NoaCG/NoaCG-Studio/issues/2299).
-**Draft**: the decisions below were agreed with the owner one at a time on 2026-11-09. The owner
-asked for an independent second opinion on this written plan before any building starts, so
-`work.json` stays `draft` until the owner agrees the plan after that review.
+**Draft**: the decisions below were agreed with the owner one at a time on 2026-11-09. Revised the
+same day from an independent second opinion the owner supplied ("Review revisions" below).
+`work.json` stays `draft` until the owner agrees this written plan.
 
 This spec replaces, in `docs/work-specs/audience-flow/spec.md`, the non-goal "Join-page branding"
 and the section "Join, presenter and votes" except the presenter view, which stays with its own
@@ -19,11 +19,14 @@ From the owner's studio test on 2026-11-09 and the code:
    Links ▸ Audience (the join link and its name) and nowhere (no QR code exists in the app).
 2. Phones show a default heading per mode. The join page's `prompt` has no editor.
 3. The phone page takes the production's colours and font, but not its logo.
-4. A vote is composed and opened in one go. There is no list of prepared questions to move
-   through during a show.
-5. Results reach air only on the five live vote boards, all one layout (a card or a band), and a
-   board's own 20-second timer can say "voting closed" while phones still vote.
-6. Nothing on air tells viewers how to join: no join graphic, no QR code.
+4. A vote is composed and opened in one go. There is no list of prepared questions.
+5. Setting the room to waiting leaves a database round open: `audience_vote` checks only
+   `closed_at` (migration 0035), so phones can still vote.
+6. Which cue a round was staged onto lives in browser memory (`stagedCue` in
+   `ProductionAudienceWorkspace.tsx`), so a reload or a second operator makes a duplicate cue.
+7. Results reach air only on the five live vote boards, one layout each, and a board's own
+   20-second timer can say "voting closed" while phones still vote.
+8. Nothing on air tells viewers how to join: no join graphic, no QR code.
 
 ## Goal
 
@@ -34,213 +37,295 @@ operator adds to the rundown as ordinary cues. Nothing airs by itself.
 
 ## Owner decisions (2026-11-09)
 
-- **D1. A separate question list, not the rundown.** Interaction holds a simple list; the
-  operator picks which question is live. A question can stay live all show (a favourite vote)
-  or for one segment. With none live, phones show a waiting screen.
-- **D2. Link: `noacg.studio/j/<name>` and a QR code.** No extra domain (cost and upkeep), no
-  typed number codes (they feel unprofessional). `/join/<name>` keeps working.
-- **D3. Phone messaging later.** WhatsApp waits for its own issue (Meta business account and a
-  number). Here, YouTube and Twitch chat count as votes while a multiple-choice question is live.
-- **D4. Branding follows the production's look.** Colours, font and the look's one logo. No
-  separate phone look and no override. Page settings: a title and the waiting text only.
-- **D5. Three question types.** Open (a sentence, lands as a message), Multiple choice (2 to 8
-  options, a vote), Word (one short word, a word cloud). Word comes in a later phase. How results
-  are shown is chosen afterwards, never fixed by the question.
-- **D6. Paste stays in Interaction**, one message per paste, filed under a question (the live one
-  by default) or none. A second person with only Interaction open can do this work.
+- **D1. A separate question list, not the rundown.** The operator picks which question is live.
+  A question can stay live all show or for one segment. With none live, phones show the waiting
+  text.
+- **D2. Link: `noacg.studio/j/<name>` and a QR code.** No extra domain, no typed number codes.
+  `/join/<name>` and `/join?p=<slug>` keep working.
+- **D3. Phone messaging later.** WhatsApp gets its own issue. Here, YouTube and Twitch chat count
+  as votes while a multiple-choice question is live.
+- **D4. Branding follows the production's look**: colours, font and the look's one logo. No
+  separate phone look. Page settings: a title and the waiting text only.
+- **D5. Three question types**: Open (a sentence, lands as a message), Multiple choice (2 to 8
+  options, a vote), Word (one short word, a word cloud; last phase). How results are shown is
+  chosen afterwards.
+- **D6. Paste stays in Interaction**, one message per paste, filed under the live question by
+  default or under none, with the destination shown beside Paste.
 - **D7. Unpublished: everything works except phones.** Publish sits where the QR code will be.
   Nothing publishes by itself.
-- **D8. Graphics.** A Join card graphic, and the QR code available to any graphic. Results come
-  from templates in several layouts (bars across, bars up, pie or donut) and placements (full
-  screen, lower third, side), designed to sit over a studio picture and to follow the
-  production's look. Anyone can make their own by SVG import or the CLI, through one field
-  contract. Templates are examples, not the only way.
+- **D8. Graphics.** A Join card and a QR code any graphic can carry. Result templates in several
+  layouts and placements, over a studio picture, following the production's look. Anyone can
+  make their own by SVG import or the CLI.
 
-Related issues filed the same day: publishing while live
-([#2303](https://github.com/NoaCG/NoaCG-Studio/issues/2303)) and tidying up idle published
-productions ([#2304](https://github.com/NoaCG/NoaCG-Studio/issues/2304)). Neither blocks this.
+Related, not blocking: [#2303](https://github.com/NoaCG/NoaCG-Studio/issues/2303) (publishing
+while live), [#2304](https://github.com/NoaCG/NoaCG-Studio/issues/2304) (idle published
+productions).
 
 ## Non-goals
 
-- Anything airing without an operator's press, including a result that updates by itself from
-  open-answer words. The existing vote switch "update the percentages on air while voting" stays
-  the one opt-in for live figures.
-- WhatsApp, SMS or any other messaging backend; a separate short domain; number join codes.
-- A separate phone look; viewer accounts; showing results on phones.
-- Jury plus audience scoring on one board (its own issue if wanted).
-- Renaming persisted identifiers: the view's stored key, storage keys, tables and CSS prefixes
-  keep their names; only displayed words change.
+- Anything reaching Program without an operator's press, except the existing opt-in switch
+  "update the percentages on air while voting".
+- WhatsApp, SMS, a separate short domain, number join codes, viewer accounts, results on phones.
+- Jury plus audience scoring on one board.
+- Renaming persisted identifiers (the view's stored key, storage keys, tables, CSS prefixes).
 
 ## Screens
 
 ### Interaction tab (was Messages)
 
-Same place in the production page's view switcher; Setup lists "Interaction…". Three areas, which
-stack on a narrow window:
+Same place in the view switcher; Setup lists "Interaction…". Three areas, stacking on a narrow
+window:
 
-1. **Questions** (left). One row per question: type mark, text, and its state: *Live*, *Ready*
-   or *Done* with its answer count. "+ Question" asks for the type, then the text (and options
-   for multiple choice). Rows reorder by drag and by keyboard. Each row has **Go live**; the live
-   row shows **Stop**. Going live on another row moves the room to it in one press. The list is
-   saved with the production and survives reload.
-2. **Selected question** (middle).
-   - Multiple choice: the options with live bars, phone and chat counts shown apart and summed,
-     and **Add results to rundown** (see "Results to the rundown").
-   - Open: its messages, the existing inbox filtered to this question, with "Prepare cue on
-     <graphic>" and Reject as today. A filter shows all messages or messages with no question.
-   - Paste sits here, filed under the selected question by default.
-3. **Join** (right).
-   - A phone-sized live preview of what phones see now.
-   - Published: the QR code, the link `noacg.studio/j/<name>` with Copy, **Download QR** (PNG and
-     SVG), **Add Join card to rundown**, and the link name (moved here from Links; Links keeps a
-     pointer).
-   - Unpublished: "Phones can join once this production is published" and **Publish**; signed
-     out, the sign-in prompt in that spot only.
-   - Page settings: title (default: the production name) and waiting text.
-   - "More ways in", folded: YouTube, Twitch, the message Sheet, Simulate.
+1. **Questions.** One row per question: type mark, text, answer count. Pressing a row
+   **selects** it to look at; that never changes phones or air. One row may carry the **Live on
+   phones** mark. Each row has **Go live**; the live row has **Stop**. "+ Question" asks for the
+   type, then the text and options. Rows reorder by drag and keyboard.
+2. **Selected question.**
+   - Multiple choice: options with bars, phone and chat counts apart and summed, and **Add
+     results to rundown** naming the remembered result graphic, with **Change**.
+   - Open: its messages (the inbox filtered to it) with "Prepare cue on <graphic>" and Reject.
+     A filter shows all messages or those with no question.
+   - Earlier times this question was live are listed under it, each with its own results.
+3. **Join.** A live phone preview. Published: QR code, `noacg.studio/j/<name>` with Copy,
+   **Download QR** (PNG, SVG), **Add Join card to rundown**, the link name (moved from Links;
+   Links keeps a pointer). Unpublished: "Phones can join once this production is published" and
+   **Publish**; signed out, the sign-in prompt in that spot only. Page settings: title (default
+   the production name) and waiting text. Folded "More ways in": YouTube, Twitch, message Sheet,
+   Simulate. **Paste** sits here with "Files under: <live question>" and Change.
 
-### Phone page (`/j/<name>` and `/join/<name>`)
+### Phone page (`/j/<name>`, `/join/<name>`, `/join?p=<slug>`)
 
-The production's colours, font and logo; the title; then the live question with one big input
-(Open), large option buttons (Multiple choice) or a one-word input (Word). After sending: a
-thank-you and, for a vote, the picked option, changeable while live. No question live: the
-waiting text. No account, no app, no cookie banner beyond what the page needs.
+The look's colours, font and logo; the title; then the live question with one input (Open), large
+option buttons (Multiple choice) or a one-word input (Word). After sending: thanks, and for a
+vote the picked option, changeable while live. No question live: the waiting text.
 
-## Model and backend (derived choices; the builder may improve them and must say so)
+## Question lifecycle
 
-- **Question list:** saved with the production record (`Show`), so it publishes and syncs like
-  the rundown. A question has id, type, text, options (multiple choice) and order.
-- **Live question:** the existing audience state. Multiple choice opens a round as today; Open
-  sets mode `question` with the question text as `prompt`; Stop sets `waiting`. One live at a
-  time, enforced by the server for rounds as now.
-- **Answers filed by question:** a nullable `question_id` on submissions (a migration), written
-  by the join page from the state it read and by paste.
-- **Logo on phones:** the look's logo published as a file the join page loads by URL, not inlined
-  into the state row. Size stays inside the brand's existing 300 KB cap.
-- **Short link:** a `/j/:name` rewrite beside `/join/:name`; the same names and reserved list.
-- **QR code:** made in the browser from the link, by a small MIT-licensed encoder or our own;
-  no third-party QR service, so it works offline and leaks nothing.
-- **Chat votes:** while a multiple-choice question is live and a YouTube or Twitch chat source is
-  connected, a chat message that is only an option's number or letter (`2`, `B`) counts as that
-  author's vote; their latest counts, one per author. Counted through a new operator RPC so
-  totals live with phone votes but stay separable. Read in the operator's browser, as chat is
-  today, so it counts only while a production page is open; the panel says so.
+- **Question** (in `Show.questions`, saved and synced with the production): stable `id` (a
+  random id made once, never reused), `type`, `text`, `options` (multiple choice), order.
+- **Live period** (server, one row each time a question goes live): extends `audience_rounds`
+  with `question_id` and the kinds `open` and `word`. It keeps a **snapshot** of the text and
+  options as they were, so results always show what was actually asked. Votes and answers belong
+  to a live period (`round_id` on submissions; votes already have it).
+- **Go live** is one server function, `audience_go_live(slug, question)`: in one transaction it
+  closes any open period, opens a new one with the snapshot, and sets the state's mode, prompt
+  and `question_id`. **Stop** is `audience_stop(slug)`: closes the open period and sets waiting.
+  Both bump `rev`. Concurrent presses end with exactly one open period: the later transaction
+  wins. The local provider does the same in memory.
+- **Server checks**: `audience_submit` and `audience_vote` take the period id the phone read and
+  refuse any that is not the open period; `question_id` is never taken from the client.
+- **Editing**: text and options can change while the question is not live; the change applies
+  to the next live period only. The live question's text and options are locked until Stop.
+  Type cannot change after the first live period; Duplicate makes a new question instead.
+- **Deleting** a question with answers removes it from the list; its periods, answers and cues
+  stay and are shown under "Earlier questions".
+- **Reopening** (Go live again) starts a new period that counts from zero; the earlier period's
+  results stay. *Owner decision O1 below.*
+- **Stale phones**: a phone that sends to a closed period gets "That question has closed", keeps
+  the typed text in the box, and shows the new question (or the waiting text). The answer is
+  never filed under the next question unless the viewer sends again.
+
+## Chat votes
+
+- While a multiple-choice question is live and a YouTube or Twitch chat source is connected, a
+  chat message that is only an option's number or letter (`2`, `B`, `b`, ` 2 `) is a vote. Other
+  messages go to the inbox as today.
+- **Identity**: `yt:<channel id>` or `tw:<user id>`, never the display name. **Dedupe** by the
+  platform message id. **Order**: the platform's own timestamp decides; per author the latest
+  timestamp wins, whatever order messages arrive in.
+- **Window**: only messages timestamped after the period opened and before it closed count. So
+  the "earlier" first page, a backlog read after Pause, and a reconnect's replay cannot vote on a
+  new question. A small allowance for clock difference is measured in the fixtures, not guessed.
+- **Intake**: a new operator function `audience_operator_votes(slug, period, items)`, at most 500
+  items a call, with its own limits, separate from the message throttle (20 per 10 seconds per
+  production in 0035) and from viewer votes. Vote rows gain `source` (`phone` or `chat`) so the
+  panel shows both counts. Read in the operator's browser like chat today, so it counts only
+  while a production page is open; the panel says so.
 
 ## Results to the rundown
 
-- **One field contract** for every result graphic, catalog or home-made: fields titled
-  Question, Options (one `label | count` line per option) and optional Vote count and Figures
-  (`percent`, `count` or `both`). It is today's `voteBoardFields` matching, documented for SVG
-  import and the CLI, so any graphic carrying those titles works with no mapping screen.
-- **Add results to rundown** on a multiple-choice question lists the production's result
-  graphics first, then the catalog's result templates by layout and placement, styled with the
-  production's look. Picking one adds the graphic if needed and stages the counts onto a cue, as
-  today's staging does; pressing again updates that cue. The operator takes it.
-- **Closing follows Interaction.** A result graphic fed by an audience vote shows "voting closed"
-  when the question is stopped in Interaction, not from its own timer; the timer stays for
-  hand-typed votes.
-- **Join card:** a catalog family whose QR code and link come from the production's join link at
-  play time. "Add Join card to rundown" adds it and a cue. Placement and scale use the cue
-  editor's existing controls.
-- **QR in any graphic:** a layer named `QR` (SVG import, the editor, the CLI) becomes the join QR
-  code, drawn into that layer's box from the production's link. A home-made join graphic needs
-  nothing else from Interaction.
+- **Staging writes cue values and nothing else.** No Take, Update or graphic event is sent by
+  Go live, Stop, staging or a question edit. The one exception stays the existing switch "update
+  the percentages on air while voting", which acts only on a cue already on air.
+- **The association is saved with the production**: `Show.resultCues` maps each live period to
+  its cue id. Reload, a tab change or a second operator updates that same cue. If that cue was
+  deleted, or its graphic no longer has the result fields, the next press makes a new cue and
+  says so.
+- **Remembered result graphic**: `Show.resultTarget`, like the existing `messageTarget`: chosen
+  the first time from the production's result graphics or the catalog, shown on the button,
+  changeable with **Change**.
+- **Closing**: Stop writes "voting closed" into the staged cue's count line, as closing a round
+  does today. It reaches air only through Update or the live-figures switch. It never moves the
+  board to its result state; the reveal stays the operator's press. A cue staged from a vote
+  drops the board's automatic voting timer, the same way imported boards drop it today.
+
+## Graphics
+
+- **Field contract** for result graphics: fields titled Question, Options (one `label | count`
+  line each) and optional Vote count and Figures (`percent`, `count`, `both`); today's
+  `voteBoardFields` matching. Matching supplies values; it does not draw anything.
+- **Drawing**: catalog result templates draw themselves. Imported artwork uses the existing live
+  vote behaviour (`docs/GRAPHIC_BEHAVIOUR_PLAN.md` §12): the designer draws each bar at full
+  length and NoaCG scales it to its share. CLI-made result graphics use the same behaviour. Bars
+  across come first; bars up and pie or donut for imported artwork follow in phase 5.
+- **Join card and QR layer**: the QR is drawn inside the graphic from a field titled **Join
+  link**, with the QR encoder bundled in the graphic, so an exported graphic stays self-contained
+  and works offline. "Add Join card to rundown" fills Join link from the production. When the
+  link name changes, Interaction offers to update cues that carry the old link. A layer named
+  `QR` in imported SVG, the editor or the CLI becomes this QR (phase 5). An empty Join link draws
+  nothing.
+
+## Joining
+
+- `/j/<name>`: added to the join entry's path parser (`src/join/main.ts`), the dev and preview
+  routing (`PATH_PAGES` in `vite.config.ts`) and the Vercel rewrite beside `/join/:name`. Same
+  names and reserved list.
+- **QR**: an established, MIT-licensed browser QR encoder (for example `qrcode-generator`), error
+  correction M, no third-party QR service.
+- **Logo**: published to a public storage path named by the production and the file's hash; the
+  join state carries its URL. A new logo gets a new path; removing it clears the URL. If it fails
+  to load, the page shows the title with no broken image. The brand's 300 KB cap stays.
+- **Contrast**: text on the page meets WCAG AA (4.5:1 for body text, 3:1 for large text and
+  button edges); where the look's colours fail, text switches to black or white, whichever
+  passes. If the look's custom font fails, the system font is used and the layout holds.
 
 ## Acceptance criteria
 
 ### AC-1: Everything audience is in one tab called Interaction
 The view and Setup say Interaction; Messages no longer appears as a name. Questions, the selected
-question, Join (QR, link, link name, page settings, Publish) and the sources are in it. Links
-still points to the audience link. Stored keys are unchanged, so an existing production opens with
-its inbox and sources intact. Layer: journey in `e2e/production-audience.spec.ts`; Node test that
-the persisted view key is unchanged.
+question, Join and the sources are in it; Links points to it. Stored keys are unchanged, so an
+existing production opens with its inbox and sources intact. Layer: journey in
+`e2e/production-audience.spec.ts`; Node test that the persisted view key is unchanged.
 
-### AC-2: The operator prepares questions and moves the room through them
-Questions of type Open and Multiple choice are added, edited, reordered and removed; they survive
-reload, locally and published. Go live puts one question on phones; another's Go live replaces
-it; Stop shows the waiting text; a question can stay live indefinitely. Two operators on one
-published production see the same live question. Layer: Node tests for the list model; journey
-with Simulate; configured suite for two operators.
+### AC-2: Questions are prepared, browsed and changed safely
+Open and Multiple choice questions are added, edited, reordered, duplicated and deleted, and
+survive reload locally and published. Selecting a row changes nothing on phones or Program. The
+live question's text and options are locked; an edit applies to the next live period; type is
+fixed after the first. Deleting a question keeps its earlier results. Layer: Node tests for the
+list model; journey.
 
-### AC-3: Joining takes one scan or one short link
-Published, Interaction shows a QR code that a phone camera opens to the phone page, the link
-`noacg.studio/j/<name>`, Copy and Download QR. `/join/<name>` still works. A cold phone page
-shows the live question within 2 seconds under Chrome's Fast 3G network throttling at phone size. No
-account, app or number code. The QR is made locally. Layer: blank-page spec decoding the drawn QR
-back to the link; journey on a phone-sized page with network throttling; configured suite.
+### AC-3: Go live and Stop are atomic and enforced by the server
+After Stop, or after another question goes live, a vote or answer sent to the old period is
+refused by the server. Two operators pressing Go live on different questions at the same moment
+end with one open period and the state pointing at it. Switching from Multiple choice to Open
+closes the round. Layer: configured suite calling the functions directly and from two pages; Node
+tests for the local provider.
 
-### AC-4: The phone page carries the production's look and words
-Colours, font and the look's logo appear on the phone page; the title and waiting text come from
-Interaction; the live question's text is the heading. Text stays readable: a look whose colours
-fail contrast gets readable text without changing the look. Layer: blank-page spec over
-`joinSurface` with a look, a logo and a low-contrast palette; journey for the settings.
+### AC-4: A stale phone loses nothing and misfiles nothing
+A phone holding a closed question that sends an answer or vote sees "That question has closed",
+keeps its typed text, and shows the new question; nothing is filed under the new question until
+the viewer sends again. Layer: journey with two pages (operator, phone) on the local provider;
+configured suite for the server refusal.
 
-### AC-5: Answers arrive under their question
-An Open answer, a vote and a paste are filed under the question live when sent (paste: the chosen
-one or none). Changing the live question never moves earlier answers. Layer: Node tests over the
-local provider; configured suite for `question_id`.
+### AC-5: Joining takes one scan or one short link
+Published, Interaction shows a QR code that decodes to `https://noacg.studio/j/<name>`, Copy and
+Download QR; `/j/<name>`, `/join/<name>` and `/join?p=<slug>` all open the page, in dev, preview
+and production. Cold load: Playwright Chromium, a new context (empty cache), 390 x 844, network
+throttled to 1.6 Mbps down, 750 kbps up and 563 ms latency; from navigation start to the live
+question's text visible; the median of 5 runs is under 3 seconds against the local stack. Layer:
+blank-page spec decoding the QR; journey with throttling; Node test for the path parser.
 
-### AC-6: Unpublished productions rehearse everything but phones
-Questions, Go live, the phone preview, paste and Simulate (messages and votes) work offline with
-no account. Where the QR goes, the page says phones need publishing and offers Publish; signed
-out, the sign-in prompt appears in that spot only. Nothing publishes without the press. Layer:
-journey offline; `e2e/auth.spec.ts` keeps zero auth UI offline.
+### AC-6: The phone page carries the production's look and survives bad assets
+Colours, font, logo, title and waiting text appear. A low-contrast palette still meets AA as
+defined above; a broken logo URL shows no broken image; a failing custom font falls back with the
+layout intact; replacing and removing the logo take effect on the next read. Layer: blank-page
+spec over `joinSurface` with each case; journey for the settings.
 
-### AC-7: Results reach air only as cues the operator takes
-Add results to rundown offers the production's result graphics and the catalog's, stages the
-counts onto one cue, updates that cue when pressed again, and airs nothing. A result graphic shows
-voting closed when the question is stopped in Interaction, never earlier from its own timer.
-Messages still go through "Prepare cue on <graphic>" with destination hygiene unchanged. Layer:
-Node tests for staging and the field contract; journey through Take; mutation that airs on stage
-must fail.
+### AC-7: Answers arrive under the period they were sent to
+An Open answer and a vote are filed under the live period they were sent to; paste goes under
+the destination shown beside it (the live question by default, or none). Changing the live
+question never moves earlier answers. Layer: Node tests over the local provider; configured
+suite for `round_id` and server refusal of a client-chosen question.
 
-### AC-8: Result templates fit real productions
-The catalog has result templates in at least three layouts (bars across, bars up, pie or donut)
-and three placements (full screen, lower third, side), each designed over a studio picture with a
-transparent background, taking 2 to 8 options and long option names without overflow, showing
-percent, count or both, following the production's look, and responding to the existing
-placement and scale controls. They pass the catalog's visual quality gates. Layer: the catalog
-quality gates; blank-page specs for 2 and 8 options and long names; owner look on taste only.
+### AC-8: Unpublished productions rehearse everything but phones
+Questions, Go live, the phone preview, paste and Simulate work offline with no account. Where the
+QR goes, the page offers Publish; signed out, the sign-in prompt appears there only. Nothing
+publishes without the press. Layer: journey offline; `e2e/auth.spec.ts` keeps zero auth UI
+offline.
 
-### AC-9: Anyone can make their own result or join graphic
-An SVG with layers titled Question, Options and Vote count imports as a working result graphic;
-a layer named `QR` draws the production's join QR. The same works from the CLI. The contract is
-written in the import and CLI docs. Layer: Node test over an imported fixture outside the sample
-set; CLI test.
+### AC-9: Results reach air only as cues the operator takes
+Add results to rundown stages one cue on the remembered graphic; a second press, a reload, a tab
+change or a second operator updates the same cue; a deleted cue or a destination without the
+fields gets a new cue with a note. Go live, Stop, staging and edits send nothing to Program: the
+output's command log gains no rows from them, except live figures with the switch on and the cue
+on air. Stop writes "voting closed" to the cue and never moves the board to its result state.
+Layer: Node tests for staging and the mapping; journey through Take with the log counted; a
+mutation that sends Update on staging must fail.
 
-### AC-10: Chat votes count while a question is live
-With a multiple-choice question live and YouTube or Twitch chat connected, a chat message that is
-only an option's number or letter counts once per author (latest wins); other messages go to the
-inbox as today. Phone and chat counts show apart and summed. The panel says chat counts only
-while this page is open. Layer: Node tests with recorded chat fixtures; journey with a simulated
-chat source.
+### AC-10: Chat votes count once, in order, inside the window
+With recorded YouTube and Twitch fixtures: a number or letter counts once per author; a repeated
+message id counts once; out-of-order arrival keeps the latest by platform time; the earlier page,
+a paused backlog and a reconnect replay do not vote on a new question; non-vote messages reach
+the inbox; phone and chat counts show apart and summed; a burst of 500 chat votes is not limited
+by the message throttle. Layer: Node tests with fixtures; configured suite for the operator
+function.
 
-### AC-11: Word questions make a word cloud the operator approves
-A Word question takes one short word per phone (at most 25 characters). Interaction shows the
-words by frequency; the operator hides any word; staging puts a snapshot of the shown words on a
-word cloud cue. Hidden words never reach the cue. Layer: Node tests for counting and hiding;
-journey through stage and Take.
+### AC-11: A basic Join card works on air and exported
+"Add Join card to rundown" adds one Join card cue whose QR decodes to the production's link; it
+takes placement and scale from the cue editor's controls; an exported Join card, opened with no
+network, still draws a QR that decodes to the same link. Layer: blank-page spec decoding the
+rendered QR, live and exported.
 
-### AC-12: A rehearsal walk on the local stack
-On the local stack: a phone-sized browser joins by the QR link, answers an Open question and a
-vote, a chat fixture votes, results go to the rundown and air through Take, and the room moves
-through three questions. Findings are filed and blocking ones fixed before this passes. Layer:
-scenario run in `evidence/`.
+### AC-12: Result templates fit real productions
+Result templates in three layouts (bars across, bars up, pie or donut) and three placements (full
+screen, lower third, side), over a studio picture with a transparent background, take 2 and 8
+options and long names without overflow, show percent, count or both, follow the look, and pass
+the catalog's visual quality gates. Layer: quality gates; blank-page specs; owner look on taste.
+
+### AC-13: Home-made result and join graphics render correctly
+An SVG outside the sample set with bars drawn at full length and layers titled Question, Options
+and Vote count imports and, rendered with known counts, draws each bar at its share within one
+pixel; the same from the CLI; a layer named `QR` renders a QR that decodes to the Join link. The
+contract is written in the import and CLI docs. Layer: blank-page specs rendering the imported
+and CLI-made graphics.
+
+### AC-14: Word questions make a word cloud the operator approves
+A Word question takes one word of at most 25 characters per phone. Interaction lists words by
+frequency; hidden words never reach the cue; staging puts a snapshot on a word cloud cue. Layer:
+Node tests; journey through stage and Take.
+
+### AC-15: The whole flow is rehearsed after each phase
+On the local stack a phone-sized browser joins by the QR link, answers an Open question and a
+vote, results go to the rundown and air through Take, and the room moves through three
+questions. Run first at the end of phase 3, then repeated with each later phase's additions.
+Findings are filed; blocking ones are fixed before the phase passes. Layer: scenario run in
+`evidence/`.
 
 ## Phases
 
-1. **Interaction and questions** (AC-1, AC-2, AC-5, AC-6): rename, three areas, question list,
-   Go live and Stop, answers by question, paste by question; the `question_id` migration.
-2. **Joining** (AC-3, AC-4): `/j/` link, QR in the panel and download, link name moved, page
-   settings, logo on phones, phone page timing.
-3. **Results to the rundown** (AC-7, AC-9): the field contract, Add results to rundown, closing
-   follows Interaction, the Join card family and the `QR` layer.
-4. **Result templates** (AC-8): the layouts and placements across the look families.
-5. **Chat votes** (AC-10): the chat vote reader and operator RPC.
-6. **Word questions** (AC-11): the type, the phone input and a word cloud family.
-7. **Walk** (AC-12).
+1. **Questions and their lifecycle** (AC-1, AC-2, AC-3, AC-4, AC-7, AC-8): rename; the list;
+   selected versus live; `audience_go_live` and `audience_stop`; live periods for all kinds;
+   `round_id` on answers; stale-phone handling; paste destination.
+2. **Joining and a basic Join card** (AC-5, AC-6, AC-11): `/j/`, QR in the panel and download,
+   link name moved, page settings, logo, contrast and fallbacks; one Join card design.
+3. **First complete flow** (AC-9, AC-15 first run): Add results to rundown on the existing vote
+   boards, `Show.resultCues` and `Show.resultTarget`, closing behaviour, Program safety.
+4. **Chat votes** (AC-10; walk repeated).
+5. **More results and home-made graphics** (AC-12, AC-13; walk repeated): the template
+   combinations, the field contract docs, imported and CLI result graphics, the `QR` layer.
+6. **Word questions** (AC-14; walk repeated).
 
-Each phase lands on its own through `/queue-merge` and adds what the next must know to
-"Phase notes".
+Each phase lands on its own through `/queue-merge` and adds what the next must know to "Phase
+notes".
+
+## Owner decision still open
+
+- **O1. Reopening a question.** Recommended: Go live again starts a fresh count and keeps the
+  earlier result beside it. The alternative, continuing the earlier count, suits a vote paused
+  for an ad break but needs a "continue" choice on every Go live.
+
+## Review revisions (2026-11-09)
+
+From the independent review the owner supplied. All six points were taken; adjustments:
+
+- The question-to-round link is a **live period** (an extended `audience_rounds` row for every
+  kind) rather than a separate table, so one mechanism snapshots text, holds the open/closed
+  state the server checks, and carries answers and votes.
+- Stale phones are refused by **period id**, which the phone already reads, rather than by
+  question id, so reopening the same question cannot accept an old phone's vote.
+- The QR layer reads a **Join link field** rather than the production at play time, which is
+  what keeps exported graphics self-contained.
+- AC-5's cold-load target is 3 seconds at the stated throttling, set from the RPC round trips
+  that profile implies; the builder records the measured baseline in phase 2's notes.
 
 ## Phase notes
