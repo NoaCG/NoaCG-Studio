@@ -23,8 +23,9 @@
 --     function's columns cannot change in place, so those are dropped and recreated here;
 --   * the join resolve returns the open round's revision, and reports the production open only
 --     while a round is (R18);
---   * R18: `audience_set_join` keeps only the presenter pointers and the brand, and the old
---     `audience_open_round` and `audience_close_round` refuse.
+--   * R18: `audience_set_join` keeps only the presenter pointers and the brand, the old
+--     `audience_open_round` and `audience_close_round` refuse, and a round an older page left open
+--     is closed.
 --
 -- Nothing here writes to `control_events` (R16): nothing reaches air.
 --
@@ -618,7 +619,15 @@ end $$;
 revoke execute on function public.audience_rounds_list(text) from public;
 grant execute on function public.audience_rounds_list(text) to anon, authenticated;
 
--- ══ 6. Prove it by calling it ═══════════════════════════════════════════════════════════════
+-- ══ 6. Rounds from before questions ═══════════════════════════════════════════════════════════
+-- A round an older page opened has no question, so no row in the Interaction panel can Stop it,
+-- and phones would keep answering it (R18). Close any such round still open, and point the state
+-- of its production back at the waiting text. A few rows at most; nothing new can open one, since
+-- `audience_open_round` now refuses.
+update public.audience_rounds r set closed_at = now()
+  where r.closed_at is null and r.question_id is null;
+
+-- ══ 7. Prove it by calling it ═══════════════════════════════════════════════════════════════
 -- A throwaway production against a real owner, walked through the lifecycle, then removed. A
 -- shape check alone would have passed 0035's broken `audience_open_round` (supabase/AGENTS.md).
 do $$
@@ -634,6 +643,11 @@ declare
   v_failed boolean;
   v_msg    text;
 begin
+  -- No round from before questions is left open (section 6).
+  if exists (select 1 from public.audience_rounds r where r.closed_at is null and r.question_id is null) then
+    raise exception '0111 self-check failed: a round with no question is still open';
+  end if;
+
   -- The old forms are gone: a send that names no round cannot be filed anywhere.
   if to_regprocedure('public.audience_submit(text, text, text, text)') is not null
      or to_regprocedure('public.audience_vote(text, text, uuid, int)') is not null then

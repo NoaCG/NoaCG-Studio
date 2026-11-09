@@ -42,6 +42,14 @@ are listed apart.
 - Node lifecycle test mutations: removing the revision check fails one test; removing "close the
   other rounds" fails four.
 - CI on the first head (`5e63c36`) failed one test, `production-persistence.spec.ts` "Links… holds one row per capability, with no explanations": the first Links pointer was a sentence. It became a button in the audience row (`94452a0`), and the test passes locally with the pointer pinned.
+- The migration's self-check skips (with a notice) on a database where no account may use the
+  audience feature, which includes CI's local stack, whose seed creates no users; there the
+  configured test above is the database proof. On the hosted projects, which have accounts, the
+  self-check runs.
+- The final review of `dc19c95` (grade B) found that a round an older page left open would still
+  reach phones with no row to Stop it. 0111 now closes such rounds and its self-check asserts none
+  is left (tested on the scratch database with a round opened through the old function), and the
+  configured test now shows the paste door refusing another production's round.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).

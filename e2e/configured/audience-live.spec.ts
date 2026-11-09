@@ -281,6 +281,9 @@ test.describe(() => {
     // The phone names a round, never a question: a round of no open question is refused, and so is
     // an answer aimed at a vote.
     expect((await answer({ id: v1.id, revision: v1.revision }, 'Aimed at the vote')).error).toContain('that question has closed');
+    // The paste door files only under a round of this production (R13).
+    expect((await rpc(page, 'audience_operator_add', { p_slug: slugs.control, p_items: [{ body: 'Elsewhere', round_id: '00000000-0000-4000-8000-000000000000' }] })).error).toContain('not a question of this production');
+    expect((await rpc(page, 'audience_operator_add', { p_slug: slugs.control, p_items: [{ body: 'Pasted under it', round_id: o1.id }] })).error).toBeNull();
     // The old forms, which named no round, are gone (R19); the old state writers refuse (R18).
     expect((await rpc(page, 'audience_submit', { p_join_slug: slugs.join, p_device: 'device-configured-1', p_author: '', p_body: 'Old page' })).error).not.toBeNull();
     expect((await rpc(page, 'audience_set_join', { p_slug: slugs.control, p_patch: { open: true, mode: 'comment' } })).error).not.toBeNull();
