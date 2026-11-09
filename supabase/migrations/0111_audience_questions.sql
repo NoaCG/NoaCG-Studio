@@ -621,9 +621,9 @@ grant execute on function public.audience_rounds_list(text) to anon, authenticat
 
 -- ══ 6. Rounds from before questions ═══════════════════════════════════════════════════════════
 -- A round an older page opened has no question, so no row in the Interaction panel can Stop it,
--- and phones would keep answering it (R18). Close any such round still open, and point the state
--- of its production back at the waiting text. A few rows at most; nothing new can open one, since
--- `audience_open_round` now refuses.
+-- and phones would keep answering it (R18). Close any such round still open; with no round open,
+-- the join resolve and the operator reads show the waiting text. A few rows at most; nothing new
+-- can open one, since `audience_open_round` now refuses.
 update public.audience_rounds r set closed_at = now()
   where r.closed_at is null and r.question_id is null;
 

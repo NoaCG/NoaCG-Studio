@@ -1095,8 +1095,7 @@ export default function ProductionAudienceWorkspace({
    * is usually the moment before the reveal. Without this the staged board still read "voting
    * open" beside its final numbers. The words reach air only through Take or Update.
    */
-  const stop = async (): Promise<boolean> => {
-    const closing = liveRound;
+  const stop = async (closing: AudienceRound | null = liveRound): Promise<boolean> => {
     if (!closing || busy) return false;
     setBusy(true);
     try {
@@ -1163,10 +1162,17 @@ export default function ProductionAudienceWorkspace({
     }
   };
 
-  /** Remove it from the list. Its answers stay, under Earlier questions; the live one stops
-   *  first (R10). */
+  /** Remove it from the list. Its answers stay, under Earlier questions; a live one stops first
+   *  (R10). Whether it is live is asked of the provider at the press, not read off this page:
+   *  another operator may have put it live since this page last refreshed. */
   const remove = async (q: ShowQuestion) => {
-    if (rowStates[q.id]?.live && !(await stop())) return;
+    const now = await backend.rounds().catch(() => null);
+    if (!now) {
+      setNote('The question was not deleted: its state could not be read. Try again.');
+      return;
+    }
+    const open = now.find((r) => r.questionId === q.id && !r.closedAt);
+    if (open && !(await stop(open))) return;
     if (await editList((list) => removeQuestion(list, q.id), 'The question was not deleted')) {
       if (selectedId === q.id) setSelectedId(null);
       if (questionFilter === `q:${q.id}`) setQuestionFilter(roundOf.get(q.id) ? 'earlier' : 'all');
@@ -1437,6 +1443,16 @@ export default function ProductionAudienceWorkspace({
                 + Question
               </button>
             </div>
+            {/* R27: whatever round is open has a Stop, even when no row in this list is its question
+                (deleted elsewhere, or written by another tab this page has not read yet). */}
+            {liveRound && !liveQuestion && (
+              <div className="pd-aud-round-actions" data-testid="question-orphan-live">
+                <span className="hint">“{liveRound.question}” is live on phones and not in this list.</span>
+                <button className="danger" disabled={busy} onClick={() => void stop()} data-testid="question-orphan-stop">
+                  Stop
+                </button>
+              </div>
+            )}
             {composer && !composer.editing && (
               <QuestionComposer editing={null} onSave={saveComposer} onCancel={() => setComposer(null)} />
             )}

@@ -378,6 +378,21 @@ test('questions are written, browsed and changed safely, and the list survives a
   await settleDurableWrites(ws);
   await ws.reload();
   await expect(ws.getByTestId('question-row-text')).toHaveText(['What should we ask the coach?', 'Who wins?', 'Where are you watching from?']);
+
+  // R27: a live question removed from the list elsewhere (here the Playout tab, as another device's
+  // sync would) still has a Stop, and Stop takes phones back to the waiting text.
+  await goLive(ws, 'Where are you watching from?');
+  await page.evaluate(async (id) => {
+    const { setShowQuestions } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    setShowQuestions(id, (list) => list.filter((q) => q.text !== 'Where are you watching from?'));
+    await commitDurableWrites();
+  }, showId);
+  const orphan = ws.getByTestId('question-orphan-live');
+  await expect(orphan).toContainText('Where are you watching from?');
+  await orphan.getByTestId('question-orphan-stop').click();
+  await expect(orphan).toHaveCount(0);
+  expect(((await room(ws, showId))?.rounds ?? []).filter((r) => !r.closedAt)).toHaveLength(0);
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 });
 
