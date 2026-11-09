@@ -293,7 +293,10 @@ test('questions are written, browsed and changed safely, and the list survives a
   // Setup names the view Interaction, and so does the view itself.
   await page.getByTestId('production-setup').click();
   await expect(page.getByTestId('setup-audience')).toHaveText('Interaction…');
-  await page.keyboard.press('Escape');
+  // Links points there, from the audience link's own row.
+  await page.getByTestId('setup-links').click();
+  await expect(page.getByTestId('join-url').getByTestId('links-interaction-open')).toHaveText('Interaction');
+  await page.getByTestId('production-links-close').click();
   const ws = await openWorkspace(page, 'audience');
   await expect(ws.getByRole('heading', { name: 'Interaction', exact: true })).toBeVisible();
   await expect(ws.getByText('Messages…')).toHaveCount(0);

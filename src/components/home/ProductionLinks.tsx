@@ -48,6 +48,13 @@ export function ProductionLinksDialog({
         <button onClick={() => url && onCopy(kind, url)} disabled={!url} data-testid={`copy-${kind === 'join' ? 'join' : kind}-url`}>
           {copied === kind ? '✓ Copied' : 'Copy'}
         </button>
+        {/* Everything audience lives in Interaction (interaction spec AC-1): the row points there
+            rather than explaining, since Links holds one row per link and no explanations. */}
+        {kind === 'join' && (
+          <button onClick={() => window.open(interactionHref, '_blank', 'noopener')} data-testid="links-interaction-open">
+            Interaction
+          </button>
+        )}
       </div>
     </div>
   );
@@ -76,13 +83,6 @@ export function ProductionLinksDialog({
           {row('control', 'Control page', 'Private', controlUrl, 'control-url')}
           {row('presenter', 'Presenter', 'Private', presenterUrl, 'presenter-url')}
           {row('join', 'Audience', 'Public', joinUrl, 'join-url')}
-          <p className="hint" data-testid="links-interaction">
-            Questions, phones and chat are in{' '}
-            <a href={interactionHref} target="_blank" rel="noopener" data-testid="links-interaction-open">
-              Interaction
-            </a>
-            .
-          </p>
           {joinUrl && (
             <div className="dlg-row" data-testid="join-name">
               <span className="prod-links-label">Audience name</span>
