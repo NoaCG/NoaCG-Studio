@@ -1,376 +1,337 @@
 {
-  "version": 1,
-  "project": "plan-cicd-followup-2026-11-02",
-  "plan": "cicd-followup",
-  "spec": "docs/work-specs/cicd-followup/spec.md",
-  "issue": 1967,
-  "coordinator": {
-    "session": "session_017SdbwPphatUYXtpZ9CHkPu",
-    "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
-    "return": "send it with mcp__claude-code-remote__send_message (or mcp__Claude_Code_Remote__send_message) to session_017SdbwPphatUYXtpZ9CHkPu, and also print it as your final answer"
+ "version": 1,
+ "project": "plan-cicd-followup-2026-11-02",
+ "plan": "cicd-followup",
+ "spec": "docs/work-specs/cicd-followup/spec.md",
+ "issue": 1967,
+ "coordinator": {
+  "session": "session_017SdbwPphatUYXtpZ9CHkPu",
+  "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
+  "return": "send it with mcp__claude-code-remote__send_message (or mcp__Claude_Code_Remote__send_message) to session_017SdbwPphatUYXtpZ9CHkPu, and also print it as your final answer"
+ },
+ "provider": {
+  "name": "Claude Code Cloud",
+  "override": "Owner 2026-10-31 override carried by cicd-followup launch.md: Claude Code Cloud; never switch providers automatically; recovery keeps Claude.",
+  "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
+ },
+ "authorization": {
+  "line": "Owner authorization 2026-11-02 in Claude Code Cloud session session_017SdbwPphatUYXtpZ9CHkPu: a focused CI follow-up, the 20 ordered phases of docs/work-specs/cicd-followup/spec.md; planning target 2026-11-30, continue until done (launch.md).",
+  "startedAt": "2026-11-02T12:45:00+02:00",
+  "deadline": "2026-11-30T23:59:00+02:00",
+  "standing": {
+   "untilComplete": "Continue this approved scope until complete past the planning target. (Owner answer 2026-11-02: \"Nov 30, continue until done (Recommended)\")",
+   "blockRenewal": "Renew 24-hour work blocks without asking again; no automatic or indefinite renewal of exceptions. (Owner answer 2026-11-02: \"Nov 30, continue until done (Recommended)\", launch.md)",
+   "provider": "Claude Code Cloud, under the cicd-improvement override of 2026-10-31; do not switch providers automatically. (launch.md)",
+   "alarmOwner": "Me, weekly session backup (Recommended): miwco is primary owner of the growth, age and quarantine alarms and incidents; the weekly owner session is backup. (#1951, launch.md)",
+   "operations": "Create one small follow-up run with a single coordinating agent and separate, reviewable PRs for independent fixes. Keep human operational ownership distinct from agent coordination. (Owner decision G, launch.md)"
+  }
+ },
+ "brief": {
+  "read": "docs/work-specs/cicd-followup/launch.md (the owner's words, verbatim, and the coordinator defaults); the cicd-improvement final report docs/work-specs/cicd-improvement/evidence/phase-ci17.md for context;",
+  "rules": "Provider is Claude Code Cloud; never substitute Codex, an API model or a same-VM subagent for a cloud worker. Evidence goes in docs/work-specs/cicd-followup/evidence/phase-<id>.md, one file per phase. Follow the spec's Rules for every phase and its Measurement contract. Never weaken, skip or loosen a check, test, limit or budget, never write a test-maintenance entry or budget exception to pass a gate (the only exception: a dated extension under the spec's rule, at most 14 days past the original date and once per item), and never manufacture samples or filler work to meet a timing target. No arbitrary sleeps or added retries as a flake fix. The limited unrelated-failure exception applies only with independent attribution evidence and its tracking issue; pending, cancelled or missing results never qualify, and a failure in checks, selection, shared infrastructure or protection the phase changed stays blocking. Human operational ownership (miwco, weekly owner session backup) is distinct from agent coordination: never invent an owner. Bound each GitHub API collection pass to 100 calls, cache immutable run/job reads, and keep credentials and signed log URLs out of evidence. A JEV session may run beside this plan: before touching ci.yml, configured-suite, selectors/lists, helpers, Playwright configs, quarantine handling or locks, check open PRs and branches for overlap and report a conflict instead of racing it."
+ },
+ "branchPrefix": "claude",
+ "qualification": {
+  "coordinator": "same coordinator session and environment as cicd-improvement (qualified 2026-10-31); re-proven 2026-11-02, see block evidence",
+  "freshWorker": "create_session workers session_017SdbwPsynK9DqeqscS1SwC, session_017SdbwNBKkob6ieZ53Jyeav, session_017SdbwM6ewkBSVhHCDSTN8b, session_017SdbwPbWLWqvr3H4UV8hPW returned results 2026-11-02",
+  "wake": "send_later trig_014sBc9YBoXF3b6WHfkMLPwu fired 2026-11-02T10:34Z into this session on a resumed container, worktrees intact",
+  "github": "cloud-queue-merge.yml dispatch run 41429981235 success; commit-status write remains a known proxy denial: stamp via cloud-queue-merge.yml",
+  "open": "archived-session revival; wake delivery during an account usage-limit stop (2026-10-17 finding: not retried); remote owner fencing"
+ },
+ "carry": {
+  "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed. Also: JEV reported e2e/import-svg-credits.spec.ts:1183 (timed credits cards, row 23) fail-then-pass on PR #1985 head 811624b8, CI run 41542753257 attempt 1 E2E 11/15; tracked in #1988 (P3). PR-branch event, no quarantine record.",
+  "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15.",
+  "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985).",
+  "cf20": "cf12: fix #2138 (measure script double-counts a reused branch's runs) before cf20 re-reads phase-cf12-measure.mjs; corrected cf12 mean 6.36. Quarantine run red on posting commit status after passing specs: #2137. cf14: graphics extension cf14-catalog-gate-extension 2026-12-01 to 2026-12-14 (owner miwco), reduction plan #2165; report whether repaid; growth report counts copied re-run jobs (#2168). cf13: negative result, speed goal open; three tries (rank 2 Build lanes #2171 kept; rank 1 #2237 reverted #2260; rank 1 re-run unmeasured, closed early 2026-11-09 as coordinator departure); ranks 3 to 8 untried for cf20(c).",
+  "cf18": "cf18 earliest 2026-11-19T01:09Z (latest selection reset = cf14 merge 86749ef1 at 2026-11-05T01:09:30Z); any later selection change restarts it.",
+  "cf21": "Brief: change 4 (no /so for Ordinary rows) is owner-authorized (receipt owner-decision-2026-11-07-cf21.md), not a gate weakened under (d); (b),(c): cf21 lands the rules, records the before-side rows (review rounds per PR, share passing after one round, cf03 M1 from ready, reverts and post-landing failures) and the method; cf20 reads the after side. /so on #2282 noted placement after cf13 was a choice (ledger allows after cf13..cf19) justified by more after-rows."
+ },
+ "waitingOn": [],
+ "inFlight": [
+  {
+   "phase": "cf13",
+   "step": "check",
+   "session": "session_017SdbwN5z31Lfup2ay6Wv4g",
+   "nonce": "cf13-c-9108",
+   "launchedAt": "2026-11-09T20:37:07Z",
+   "mergeSha": "f47aa360c411cc44f30ba95b09c853b93141ade1",
+   "pr": 2261
+  }
+ ],
+ "owner": [],
+ "fixes": [
+  {
+   "issue": 1805,
+   "what": "early hand release from quarantine after cf07 (documented route)",
+   "session": "session_017SdbwPvMAdvKaa9sgSg1px",
+   "nonce": "fix-1805-f-24b1"
   },
-  "provider": {
-    "name": "Claude Code Cloud",
-    "override": "Owner 2026-10-31 override carried by cicd-followup launch.md: Claude Code Cloud; never switch providers automatically; recovery keeps Claude.",
-    "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
+  {
+   "issue": 2011,
+   "what": "dispatch-only workflow priced per landing in growth gate; blocks JEV PR #2005",
+   "session": "session_017SdbwPaNNL9XoNvHecZXPB",
+   "nonce": "fix-2011",
+   "launchedAt": "2026-11-03T08:22:46Z",
+   "notify": "JEV coordinator session_017SdbwQ6d3pRaakjohGfCcC with PR number and on landing",
+   "pr": 2012,
+   "head": "c374a12a488abefc9e0e499b94395301a2f1720a",
+   "stamped": "run 41609325479",
+   "state": "landed",
+   "merge": "a090662aaa5642be312e3c8e3fce0ad3a6b568a2",
+   "closed": "auto"
+  }
+ ],
+ "triggers": {
+  "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y",
+  "ownerAlarms": "trig_01AMdUqAkdtQgPQ5FmwLtL6U"
+ },
+ "heartbeat": 6575215206,
+ "history": [
+  {
+   "phase": "cf01",
+   "check": 1,
+   "verdict": "FAIL blocked: owner receipt pending; (a), (c) and merge checks pass",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6576623136"
   },
-  "authorization": {
-    "line": "Owner authorization 2026-11-02 in Claude Code Cloud session session_017SdbwPphatUYXtpZ9CHkPu: a focused CI follow-up, the 20 ordered phases of docs/work-specs/cicd-followup/spec.md; planning target 2026-11-30, continue until done (launch.md).",
-    "startedAt": "2026-11-02T12:45:00+02:00",
-    "deadline": "2026-11-30T23:59:00+02:00",
-    "standing": {
-      "untilComplete": "Continue this approved scope until complete past the planning target. (Owner answer 2026-11-02: \"Nov 30, continue until done (Recommended)\")",
-      "blockRenewal": "Renew 24-hour work blocks without asking again; no automatic or indefinite renewal of exceptions. (Owner answer 2026-11-02: \"Nov 30, continue until done (Recommended)\", launch.md)",
-      "provider": "Claude Code Cloud, under the cicd-improvement override of 2026-10-31; do not switch providers automatically. (launch.md)",
-      "alarmOwner": "Me, weekly session backup (Recommended): miwco is primary owner of the growth, age and quarantine alarms and incidents; the weekly owner session is backup. (#1951, launch.md)",
-      "operations": "Create one small follow-up run with a single coordinating agent and separate, reviewable PRs for independent fixes. Keep human operational ownership distinct from agent coordination. (Owner decision G, launch.md)"
-    }
+  {
+   "phase": "cf01",
+   "check": 2,
+   "verdict": "FAIL product: #1951 closed by PR #1970 merge before the receipt",
+   "repair": "coordinator reopened and re-closed #1951 (comment 6589180116)"
   },
-  "brief": {
-    "read": "docs/work-specs/cicd-followup/launch.md (the owner's words, verbatim, and the coordinator defaults); the cicd-improvement final report docs/work-specs/cicd-improvement/evidence/phase-ci17.md for context;",
-    "rules": "Provider is Claude Code Cloud; never substitute Codex, an API model or a same-VM subagent for a cloud worker. Evidence goes in docs/work-specs/cicd-followup/evidence/phase-<id>.md, one file per phase. Follow the spec's Rules for every phase and its Measurement contract. Never weaken, skip or loosen a check, test, limit or budget, never write a test-maintenance entry or budget exception to pass a gate (the only exception: a dated extension under the spec's rule, at most 14 days past the original date and once per item), and never manufacture samples or filler work to meet a timing target. No arbitrary sleeps or added retries as a flake fix. The limited unrelated-failure exception applies only with independent attribution evidence and its tracking issue; pending, cancelled or missing results never qualify, and a failure in checks, selection, shared infrastructure or protection the phase changed stays blocking. Human operational ownership (miwco, weekly owner session backup) is distinct from agent coordination: never invent an owner. Bound each GitHub API collection pass to 100 calls, cache immutable run/job reads, and keep credentials and signed log URLs out of evidence. A JEV session may run beside this plan: before touching ci.yml, configured-suite, selectors/lists, helpers, Playwright configs, quarantine handling or locks, check open PRs and branches for overlap and report a conflict instead of racing it."
+  {
+   "phase": "cf01",
+   "check": 3,
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6589247426"
   },
-  "branchPrefix": "claude",
-  "qualification": {
-    "coordinator": "same coordinator session and environment as cicd-improvement (qualified 2026-10-31); re-proven 2026-11-02, see block evidence",
-    "freshWorker": "create_session workers session_017SdbwPsynK9DqeqscS1SwC, session_017SdbwNBKkob6ieZ53Jyeav, session_017SdbwM6ewkBSVhHCDSTN8b, session_017SdbwPbWLWqvr3H4UV8hPW returned results 2026-11-02",
-    "wake": "send_later trig_014sBc9YBoXF3b6WHfkMLPwu fired 2026-11-02T10:34Z into this session on a resumed container, worktrees intact",
-    "github": "cloud-queue-merge.yml dispatch run 41429981235 success; commit-status write remains a known proxy denial: stamp via cloud-queue-merge.yml",
-    "open": "archived-session revival; wake delivery during an account usage-limit stop (2026-10-17 finding: not retried); remote owner fencing"
+  {
+   "phase": "cf07",
+   "landed": "27c737a2 (#1990)"
   },
-  "carry": {
-    "cf08": "e2e/import-svg.spec.ts left quarantine on main at 9b3d00a2 (PR #1963, 2026-11-02); cf08(d) records that release against #1954. Recurrence after release: JEV coordinator reported import-svg.spec.ts:988 'a growing lower third keeps the space the designer drew around its text' failed then passed on PR #1966 head 58d52e1a, CI run 41431355698 (attempt 1 E2E 9/15, line 1017, expected >= 12, got 11); PR-branch only, so no quarantine record; same test as a #1915 fail-then-pass with a different signature. Treat as evidence the #1954 root cause is not fixed. Also: JEV reported e2e/import-svg-credits.spec.ts:1183 (timed credits cards, row 23) fail-then-pass on PR #1985 head 811624b8, CI run 41542753257 attempt 1 E2E 11/15; tracked in #1988 (P3). PR-branch event, no quarantine record.",
-    "cf05": "production-chat-intake left quarantine in #1968 (2026-11-02); cf01 set repair dates #1924 2026-11-15 and #1603 2026-11-15.",
-    "cf04": "Evidence: CI run 41542753257 attempt 1 lost Configured E2E 1/4 to a runner that could not bind port 54322 (reported by JEV, PR #1985).",
-    "cf20": "cf12: fix #2138 (measure script double-counts a reused branch's runs) before cf20 re-reads phase-cf12-measure.mjs; corrected cf12 mean 6.36. Quarantine run red on posting commit status after passing specs: #2137. cf14: graphics extension cf14-catalog-gate-extension 2026-12-01 to 2026-12-14 (owner miwco), reduction plan #2165; report whether repaid; growth report counts copied re-run jobs (#2168).",
-    "cf18": "cf18 earliest 2026-11-19T01:09Z (latest selection reset = cf14 merge 86749ef1 at 2026-11-05T01:09:30Z); any later selection change restarts it.",
-    "cf21": "Brief: change 4 (no /so for Ordinary rows) is owner-authorized (receipt owner-decision-2026-11-07-cf21.md), not a gate weakened under (d); (b),(c): cf21 lands the rules, records the before-side rows (review rounds per PR, share passing after one round, cf03 M1 from ready, reverts and post-landing failures) and the method; cf20 reads the after side. /so on #2282 noted placement after cf13 was a choice (ledger allows after cf13..cf19) justified by more after-rows."
+  {
+   "fix": 1805,
+   "early release": "#1992 merge cb0040f4; #1805 closed"
   },
-  "waitingOn": [],
-  "inFlight": [
-    {
-      "phase": "cf13",
-      "step": "build",
-      "session": "session_017SdbwPWmpzLswZbC4Bn9W5",
-      "nonce": "cf13-b-e654",
-      "launchedAt": "2026-11-05T01:30:41Z",
-      "pr": 2171,
-      "head": "e9f40a26914a6b61d6ec54bab9e651e98d253762",
-      "stamped": "2026-11-05T02:34Z",
-      "note": "rank 1 untried (backend 141%, #2172) -> cf20(c), accepted in PR comment 6648109922",
-      "rank2": {
-        "pr": 2171,
-        "mergeSha": "a235a93d35c70813abff0c4fb8f4a1b740af2c86",
-        "mergedAt": "2026-11-05T15:21:19Z",
-        "status": "landed on cost grounds; record unmeasured with side counts (before from 2026-11-05T01:09:30Z to merge, after to 2026-11-12)"
-      },
-      "rank3": "untried: superseded by rank 2 (lane timings), to cf20(c)",
-      "rank1": {
-        "pr": 2237,
-        "head": "b276291ec21f5a99b7d4a1d1ada8a4d49a1aeaa5",
-        "stamped": "2026-11-06T08:09Z",
-        "autoMerge": "enqueued 2026-11-06T14:27Z after before side reached 10 (cap+cfg M1 median 16.03, M2 wait 0.58, M2 exec 11.62; no side-ending landing since #2224)",
-        "exception": "not in growth-ceilings (one active backend exception rule X3/X4); approval on #2172; coordinator must schedule read by 2026-11-13 and day-14 revert",
-        "holds": "owner chose option 1; notice https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6680448566",
-        "mergeSha": "09077bc202e0f95e4c0003f45cbe6570c944666c",
-        "mergedAt": "2026-11-06T14:33:58Z",
-        "trialEnds": "2026-11-20T14:34Z",
-        "readBy": "2026-11-13",
-        "afterHold": "active until cap+cfg after side holds 10",
-        "afterSide": "ended at 2026-11-06T18:50:12Z by #2258 (Bridge release, cli/package.json ends all sides); n before 12 (M1 16.03), after 3 (M1 11.1, M2 wait 0.68, M2 exec 11.67): unmeasured unless re-run; asked owner 2026-11-06T19:3xZ",
-        "rerun": "owner chose option 1 (2026-11-06): revert #2237, collect 10 cap+cfg before, re-land as third try with hold incl. package version bumps; hold notice https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6693962369; builder preparing revert",
-        "revert": {
-          "pr": 2260,
-          "mergeSha": "62eb1e4a3dec84163a27bf6b952b38a2f84d996d",
-          "mergedAt": "2026-11-06T20:17:01Z",
-          "note": "before side of the re-run starts here; builder opens re-land PR"
-        },
-        "rerunPR": {
-          "pr": 2261,
-          "head": "6ea388934b72c082ba7a481e502e549d76309cca",
-          "stamped": "2026-11-06T20:40Z",
-          "autoMerge": "held until cap+cfg before side >= 10 after 2026-11-06T20:17:01Z with no side-ending landing (count.sh / sideEnds rule)",
-          "readBy": "2026-11-13T20:18Z",
-          "revertBy": "2026-11-20T14:33Z",
-          "beforeRestart": "#2264 (Supabase Realtime pin, touches scripts/e2e-affected.mjs) landed 2026-11-06T22:13:57Z and ended every side; before side now counts from it: 6 cap+cfg at 2026-11-07T07:25Z (M1 median 15.4)"
-        }
-      }
-    }
-  ],
-  "owner": [],
-  "fixes": [
-    {
-      "issue": 1805,
-      "what": "early hand release from quarantine after cf07 (documented route)",
-      "session": "session_017SdbwPvMAdvKaa9sgSg1px",
-      "nonce": "fix-1805-f-24b1"
-    },
-    {
-      "issue": 2011,
-      "what": "dispatch-only workflow priced per landing in growth gate; blocks JEV PR #2005",
-      "session": "session_017SdbwPaNNL9XoNvHecZXPB",
-      "nonce": "fix-2011",
-      "launchedAt": "2026-11-03T08:22:46Z",
-      "notify": "JEV coordinator session_017SdbwQ6d3pRaakjohGfCcC with PR number and on landing",
-      "pr": 2012,
-      "head": "c374a12a488abefc9e0e499b94395301a2f1720a",
-      "stamped": "run 41609325479",
-      "state": "landed",
-      "merge": "a090662aaa5642be312e3c8e3fce0ad3a6b568a2",
-      "closed": "auto"
-    }
-  ],
-  "triggers": {
-    "checkin": "trig_01VEwpBn5wFF6bHKbeh38L1y",
-    "ownerAlarms": "trig_01AMdUqAkdtQgPQ5FmwLtL6U"
+  {
+   "phase": "cf07",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1990#issuecomment-6593173600"
   },
-  "heartbeat": 6575215206,
-  "history": [
-    {
-      "phase": "cf01",
-      "check": 1,
-      "verdict": "FAIL blocked: owner receipt pending; (a), (c) and merge checks pass",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6576623136"
-    },
-    {
-      "phase": "cf01",
-      "check": 2,
-      "verdict": "FAIL product: #1951 closed by PR #1970 merge before the receipt",
-      "repair": "coordinator reopened and re-closed #1951 (comment 6589180116)"
-    },
-    {
-      "phase": "cf01",
-      "check": 3,
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1970#issuecomment-6589247426"
-    },
-    {
-      "phase": "cf07",
-      "landed": "27c737a2 (#1990)"
-    },
-    {
-      "fix": 1805,
-      "early release": "#1992 merge cb0040f4; #1805 closed"
-    },
-    {
-      "phase": "cf07",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1990#issuecomment-6593173600"
-    },
-    {
-      "phase": "cf09",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1995#issuecomment-6594009006"
-    },
-    {
-      "phase": "cf08",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1998#issuecomment-6595432288"
-    },
-    {
-      "phase": "cf05",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2003#issuecomment-6598557578"
-    },
-    {
-      "phase": "cf04",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2014#issuecomment-6600784535"
-    },
-    {
-      "phase": "cf06",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2016#issuecomment-6604988512"
-    },
-    {
-      "phase": "cf03",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2031#issuecomment-6610940099"
-    },
-    {
-      "phase": "cf12",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2037#issuecomment-6640581274"
-    },
-    {
-      "phase": "cf11",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2142#issuecomment-6642411071"
-    },
-    {
-      "phase": "cf10",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2151#issuecomment-6645401403"
-    },
-    {
-      "phase": "cf14",
-      "verdict": "PASS",
-      "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2167#issuecomment-6647086483"
-    },
-    {
-      "at": "2026-11-09T17:27Z",
-      "note": "cf13 rank1 re-run: cap+cfg before side 9/10 (M1 15.4). #2315 (afbe5cb0) ends M3 sides only (supabase-advisors.mjs run by post-land); M1/M2 sides continue. Next check-in 19:35Z with block renewal."
-    },
-    {
-      "at": "2026-11-09T19:45Z",
-      "note": "Block renewed: epoch 9, deadline 2026-11-10T19:36:14Z. cf13 rank1 re-run: before side reached 10 at 19:14 but #2321 (interaction plan phase 2, d521e014, 19:14:16Z) changed package.json, package-lock.json, e2e-affected.mjs, deploy-affecting-paths.mjs and ends every side. Before side restarts at 0 from 2026-11-09T19:14:16Z. At ~3.3 cap+cfg merges/day both sides cannot reach 10 by the 7-day bound 2026-11-13T20:18Z. Asked owner: record unmeasured and move to rank 2, or keep holding."
-    },
-    {
-      "at": "2026-11-09T20:28Z",
-      "note": "cf13 receipt cf13-b-e654 accepted: #2261 evidence-only, head 3f7540bb, final /so A, Codex clean. Corrections accepted: early close is an explained coordinator departure (8.1, reversible by owner); rank 2 was the first try (#2171 kept), ranks 3-8 untried to cf20(c). Stamp run 42693119903, auto-merge on 20:27:29Z. Next: on merge, record build+landed, launch cf13 check."
-    }
-  ],
-  "decisions": [
-    {
-      "at": "2026-11-02T21:18Z",
-      "what": "Owner chose email delivery: daily cloud scheduled task trig_01CSf61M12iQvmzNYzaZoHnU (06:39 Helsinki), email only when noteworthy; GitHub assignment stays the record. Owner words on #1951 comment 6588697627."
-    },
-    {
-      "at": "2026-11-02T21:24Z",
-      "what": "Email route dropped: trigger-started sessions had no GitHub access (403) and the emails held only a session link; owner prefers Claude Code. Daily wake trig_01AMdUqAkdtQgPQ5FmwLtL6U (06:37 Helsinki) into persistent session session_017SdbwQfGaKDTYKsFgzGxY6 with repo access; no email or push."
-    },
-    {
-      "at": "2026-11-03T19:55Z",
-      "by": "owner (coordinator session)",
-      "what": "cf12: judge the cost measurement once 12 product changes opened after enabling are measured, dropping the builder's 7-day minimum; plan order kept (option 1 of 2; option 2 was changing the ledger tool to allow parallel phases)"
-    },
-    {
-      "at": "2026-11-06T07:3xZ",
-      "by": "owner (coordinator session)",
-      "what": "cf13 rank 1: 14-day backend-tier exception (not 30); keep only if merges measurably faster; account for daily landings on main",
-      "record": "https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6679576372"
-    },
-    {
-      "at": "2026-11-06T19:4xZ",
-      "by": "owner (coordinator session)",
-      "what": "cf13 rank 1 re-run: revert, re-collect before side, re-land as the third try with a stricter hold (option 1 of 3)"
-    },
-    {
-      "at": "2026-11-07T19:1xZ",
-      "by": "owner (coordinator session)",
-      "what": "add phase cf21 Review stopping rules before cf20; receipt docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md (PR #2282); insert after cf13 (ledger admits only after the last phase with an event)"
-    },
-    {
-      "at": "2026-11-09T19:50Z",
-      "by": "coordinator",
-      "what": "cf13 rank 1 third try recorded unmeasured under acceptance (a)'s 7-day rule after #2321 reset every side; third and last try, so cf13 passes with negative result, speed goal open, ranks 2-4 to cf20(c). #2261 lands evidence only. Hold ended (#1967 comment 6749875855). Reversible if the owner asks to keep holding.",
-      "reminders_deleted": [
-        "trig_018Vs4et9y2CPZUthAzJVScZ",
-        "trig_01AKVe78Lfoo6ZUHfrUVhTLu"
-      ]
-    }
-  ],
-  "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
-  "followups": [
-    {
-      "what": "docs PR: record the owner alarm route (Owner alarms (daily) session + wake trigger) in docs/ROUTINES.md and cf01 evidence",
-      "when": "before cf15"
-    }
-  ],
-  "traps": [
-    "A builder's PR body must not use a closing keyword for an issue the phase says to keep open until a later receipt (cf01: 'close #1951' closed it at merge).",
-    "Closing keywords in a PR's commits did not auto-close issues when merged through the merge queue (#1998: #1954/#1926 stayed open); check after each merge and close by hand with a pointer."
-  ],
-  "ciLandings": [
-    {
-      "pr": 1503,
-      "mergeSha": "d97509d023768c3a3b64c5e35f83d0c31bacf129",
-      "mergedAt": "2026-11-04T11:50:18Z",
-      "what": "e2e durations table re-recorded from run 41447757102 (landed by the JEV follow-up coordinator)",
-      "note": "during cf12's measurement window: shard balance changes the table-minute share the measure script prices; cf13 side rule decides whether it ends sides"
-    },
-    {
-      "pr": 2070,
-      "mergeSha": "feeb9078",
-      "mergedAt": "2026-11-04T13:43:15Z",
-      "what": "JEV test upkeep"
-    },
-    {
-      "pr": 2072,
-      "mergeSha": "babc7030",
-      "mergedAt": "2026-11-04T13:43:15Z",
-      "what": "JEV test upkeep"
-    },
-    {
-      "pr": 2080,
-      "mergeSha": "0f297d1d6133dd673f8e6d39691daca2fe078e77",
-      "mergedAt": "2026-11-04T14:33:23Z",
-      "what": "#1750 cause fix (PreviewController pending until restore reply); spec leaves quarantine automatically"
-    },
-    {
-      "pr": 2081,
-      "mergeSha": "74fbcc03",
-      "mergedAt": "2026-11-04T14:33:23Z",
-      "what": "#1915 drag test, partial"
-    },
-    {
-      "pr": 2082,
-      "mergeSha": "aa2ea8fe",
-      "mergedAt": "2026-11-04T14:33:23Z",
-      "what": "#1997"
-    },
-    {
-      "pr": 2085,
-      "mergeSha": "6f72e4699733a7a4b27f84d04fe257de61255df8",
-      "mergedAt": "2026-11-04T14:46:15Z",
-      "what": "#1897: e2e suite server stops watching files (playwright.config.ts, vite.config.ts)"
-    },
-    {
-      "pr": 2083,
-      "mergeSha": "4cca7743",
-      "mergedAt": "2026-11-04T14:33:23Z",
-      "what": "#1988 spec sync"
-    },
-    {
-      "pr": 2112,
-      "mergeSha": "64e1d9eaf33bd46d83e6a10749d90ecaa85ee62f",
-      "mergedAt": "2026-11-04T16:19:52Z",
-      "what": "#2094: catalog, live, endurance Playwright configs stop watching files"
-    },
-    {
-      "pr": 2142,
-      "mergeSha": "3ed797a695496d4fdfab5b7d0d833ec754a1d822",
-      "mergedAt": "2026-11-04T21:01:21Z",
-      "what": "cf11 final selector change; miss-audit reset; cf18 earliest = merge + 14 days (2026-11-18T21:01Z); ends M1/M2/M3 sides of every cf13 group"
-    },
-    {
-      "pr": 2151,
-      "mergeSha": "314862e635ee0ceaa2fae3b2560eac94a137b1be",
-      "mergedAt": "2026-11-04T23:15:33Z",
-      "what": "cf10: protection check moved to the build job (Playwright --list, fetch-depth 0)"
-    },
-    {
-      "pr": 2167,
-      "mergeSha": "86749ef1cf95b3a901f104706691b797671c4521",
-      "mergedAt": "2026-11-05T01:09:30Z",
-      "what": "cf14: #1862 mapping (selection change, audit reset) and graphics extension"
-    },
-    {
-      "pr": 2171,
-      "mergeSha": "a235a93d35c70813abff0c4fb8f4a1b740af2c86",
-      "mergedAt": "2026-11-05T15:21:19Z",
-      "what": "cf13 rank 2 Build lanes; preview-trial concurrency"
-    },
-    {
-      "pr": 2237,
-      "mergeSha": "09077bc202e0f95e4c0003f45cbe6570c944666c",
-      "mergedAt": "2026-11-06T14:33:58Z",
-      "what": "cf13 rank 1 trial: 8 configured stacks for PR selections (14 days)"
-    },
-    {
-      "pr": 2260,
-      "mergeSha": "62eb1e4a3dec84163a27bf6b952b38a2f84d996d",
-      "mergedAt": "2026-11-06T20:17:01Z",
-      "what": "cf13 rank 1 revert for re-run"
-    }
-  ],
-  "admitted": [
-    {
-      "phase": "cf21",
-      "after": "cf13",
-      "commit": "321ef4ef",
-      "receipt": "docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md",
-      "at": "2026-11-07T19:29Z"
-    }
-  ]
+  {
+   "phase": "cf09",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1995#issuecomment-6594009006"
+  },
+  {
+   "phase": "cf08",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/1998#issuecomment-6595432288"
+  },
+  {
+   "phase": "cf05",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2003#issuecomment-6598557578"
+  },
+  {
+   "phase": "cf04",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2014#issuecomment-6600784535"
+  },
+  {
+   "phase": "cf06",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2016#issuecomment-6604988512"
+  },
+  {
+   "phase": "cf03",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2031#issuecomment-6610940099"
+  },
+  {
+   "phase": "cf12",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2037#issuecomment-6640581274"
+  },
+  {
+   "phase": "cf11",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2142#issuecomment-6642411071"
+  },
+  {
+   "phase": "cf10",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2151#issuecomment-6645401403"
+  },
+  {
+   "phase": "cf14",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2167#issuecomment-6647086483"
+  },
+  {
+   "at": "2026-11-09T17:27Z",
+   "note": "cf13 rank1 re-run: cap+cfg before side 9/10 (M1 15.4). #2315 (afbe5cb0) ends M3 sides only (supabase-advisors.mjs run by post-land); M1/M2 sides continue. Next check-in 19:35Z with block renewal."
+  },
+  {
+   "at": "2026-11-09T19:45Z",
+   "note": "Block renewed: epoch 9, deadline 2026-11-10T19:36:14Z. cf13 rank1 re-run: before side reached 10 at 19:14 but #2321 (interaction plan phase 2, d521e014, 19:14:16Z) changed package.json, package-lock.json, e2e-affected.mjs, deploy-affecting-paths.mjs and ends every side. Before side restarts at 0 from 2026-11-09T19:14:16Z. At ~3.3 cap+cfg merges/day both sides cannot reach 10 by the 7-day bound 2026-11-13T20:18Z. Asked owner: record unmeasured and move to rank 2, or keep holding."
+  },
+  {
+   "at": "2026-11-09T20:28Z",
+   "note": "cf13 receipt cf13-b-e654 accepted: #2261 evidence-only, head 3f7540bb, final /so A, Codex clean. Corrections accepted: early close is an explained coordinator departure (8.1, reversible by owner); rank 2 was the first try (#2171 kept), ranks 3-8 untried to cf20(c). Stamp run 42693119903, auto-merge on 20:27:29Z. Next: on merge, record build+landed, launch cf13 check."
+  }
+ ],
+ "decisions": [
+  {
+   "at": "2026-11-02T21:18Z",
+   "what": "Owner chose email delivery: daily cloud scheduled task trig_01CSf61M12iQvmzNYzaZoHnU (06:39 Helsinki), email only when noteworthy; GitHub assignment stays the record. Owner words on #1951 comment 6588697627."
+  },
+  {
+   "at": "2026-11-02T21:24Z",
+   "what": "Email route dropped: trigger-started sessions had no GitHub access (403) and the emails held only a session link; owner prefers Claude Code. Daily wake trig_01AMdUqAkdtQgPQ5FmwLtL6U (06:37 Helsinki) into persistent session session_017SdbwQfGaKDTYKsFgzGxY6 with repo access; no email or push."
+  },
+  {
+   "at": "2026-11-03T19:55Z",
+   "by": "owner (coordinator session)",
+   "what": "cf12: judge the cost measurement once 12 product changes opened after enabling are measured, dropping the builder's 7-day minimum; plan order kept (option 1 of 2; option 2 was changing the ledger tool to allow parallel phases)"
+  },
+  {
+   "at": "2026-11-06T07:3xZ",
+   "by": "owner (coordinator session)",
+   "what": "cf13 rank 1: 14-day backend-tier exception (not 30); keep only if merges measurably faster; account for daily landings on main",
+   "record": "https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6679576372"
+  },
+  {
+   "at": "2026-11-06T19:4xZ",
+   "by": "owner (coordinator session)",
+   "what": "cf13 rank 1 re-run: revert, re-collect before side, re-land as the third try with a stricter hold (option 1 of 3)"
+  },
+  {
+   "at": "2026-11-07T19:1xZ",
+   "by": "owner (coordinator session)",
+   "what": "add phase cf21 Review stopping rules before cf20; receipt docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md (PR #2282); insert after cf13 (ledger admits only after the last phase with an event)"
+  },
+  {
+   "at": "2026-11-09T19:50Z",
+   "by": "coordinator",
+   "what": "cf13 rank 1 third try recorded unmeasured under acceptance (a)'s 7-day rule after #2321 reset every side; third and last try, so cf13 passes with negative result, speed goal open, ranks 2-4 to cf20(c). #2261 lands evidence only. Hold ended (#1967 comment 6749875855). Reversible if the owner asks to keep holding.",
+   "reminders_deleted": [
+    "trig_018Vs4et9y2CPZUthAzJVScZ",
+    "trig_01AKVe78Lfoo6ZUHfrUVhTLu"
+   ]
+  }
+ ],
+ "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
+ "followups": [
+  {
+   "what": "docs PR: record the owner alarm route (Owner alarms (daily) session + wake trigger) in docs/ROUTINES.md and cf01 evidence",
+   "when": "before cf15"
+  }
+ ],
+ "traps": [
+  "A builder's PR body must not use a closing keyword for an issue the phase says to keep open until a later receipt (cf01: 'close #1951' closed it at merge).",
+  "Closing keywords in a PR's commits did not auto-close issues when merged through the merge queue (#1998: #1954/#1926 stayed open); check after each merge and close by hand with a pointer."
+ ],
+ "ciLandings": [
+  {
+   "pr": 1503,
+   "mergeSha": "d97509d023768c3a3b64c5e35f83d0c31bacf129",
+   "mergedAt": "2026-11-04T11:50:18Z",
+   "what": "e2e durations table re-recorded from run 41447757102 (landed by the JEV follow-up coordinator)",
+   "note": "during cf12's measurement window: shard balance changes the table-minute share the measure script prices; cf13 side rule decides whether it ends sides"
+  },
+  {
+   "pr": 2070,
+   "mergeSha": "feeb9078",
+   "mergedAt": "2026-11-04T13:43:15Z",
+   "what": "JEV test upkeep"
+  },
+  {
+   "pr": 2072,
+   "mergeSha": "babc7030",
+   "mergedAt": "2026-11-04T13:43:15Z",
+   "what": "JEV test upkeep"
+  },
+  {
+   "pr": 2080,
+   "mergeSha": "0f297d1d6133dd673f8e6d39691daca2fe078e77",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1750 cause fix (PreviewController pending until restore reply); spec leaves quarantine automatically"
+  },
+  {
+   "pr": 2081,
+   "mergeSha": "74fbcc03",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1915 drag test, partial"
+  },
+  {
+   "pr": 2082,
+   "mergeSha": "aa2ea8fe",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1997"
+  },
+  {
+   "pr": 2085,
+   "mergeSha": "6f72e4699733a7a4b27f84d04fe257de61255df8",
+   "mergedAt": "2026-11-04T14:46:15Z",
+   "what": "#1897: e2e suite server stops watching files (playwright.config.ts, vite.config.ts)"
+  },
+  {
+   "pr": 2083,
+   "mergeSha": "4cca7743",
+   "mergedAt": "2026-11-04T14:33:23Z",
+   "what": "#1988 spec sync"
+  },
+  {
+   "pr": 2112,
+   "mergeSha": "64e1d9eaf33bd46d83e6a10749d90ecaa85ee62f",
+   "mergedAt": "2026-11-04T16:19:52Z",
+   "what": "#2094: catalog, live, endurance Playwright configs stop watching files"
+  },
+  {
+   "pr": 2142,
+   "mergeSha": "3ed797a695496d4fdfab5b7d0d833ec754a1d822",
+   "mergedAt": "2026-11-04T21:01:21Z",
+   "what": "cf11 final selector change; miss-audit reset; cf18 earliest = merge + 14 days (2026-11-18T21:01Z); ends M1/M2/M3 sides of every cf13 group"
+  },
+  {
+   "pr": 2151,
+   "mergeSha": "314862e635ee0ceaa2fae3b2560eac94a137b1be",
+   "mergedAt": "2026-11-04T23:15:33Z",
+   "what": "cf10: protection check moved to the build job (Playwright --list, fetch-depth 0)"
+  },
+  {
+   "pr": 2167,
+   "mergeSha": "86749ef1cf95b3a901f104706691b797671c4521",
+   "mergedAt": "2026-11-05T01:09:30Z",
+   "what": "cf14: #1862 mapping (selection change, audit reset) and graphics extension"
+  },
+  {
+   "pr": 2171,
+   "mergeSha": "a235a93d35c70813abff0c4fb8f4a1b740af2c86",
+   "mergedAt": "2026-11-05T15:21:19Z",
+   "what": "cf13 rank 2 Build lanes; preview-trial concurrency"
+  },
+  {
+   "pr": 2237,
+   "mergeSha": "09077bc202e0f95e4c0003f45cbe6570c944666c",
+   "mergedAt": "2026-11-06T14:33:58Z",
+   "what": "cf13 rank 1 trial: 8 configured stacks for PR selections (14 days)"
+  },
+  {
+   "pr": 2260,
+   "mergeSha": "62eb1e4a3dec84163a27bf6b952b38a2f84d996d",
+   "mergedAt": "2026-11-06T20:17:01Z",
+   "what": "cf13 rank 1 revert for re-run"
+  }
+ ],
+ "admitted": [
+  {
+   "phase": "cf21",
+   "after": "cf13",
+   "commit": "321ef4ef",
+   "receipt": "docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md",
+   "at": "2026-11-07T19:29Z"
+  }
+ ]
 }
