@@ -522,8 +522,8 @@ and the quota row and deletes the bucket once empty.
   `<user>/<production>/<sha-256 of the look's file>.<ext>`, raster only and 300 KB at most; an SVG
   logo is drawn to PNG first, so the bucket serves nothing that can run a script. Old files are
   not deleted (there is no delete or list policy, by design; the 20 MB per-user quota bounds them).
-  A production owned by someone else (a team member publishing) gets no logo rather than a failed
-  publish.
+  A logo that cannot be published (signed out, refused, offline) leaves the page with its title
+  and no logo, never a failed publish.
 - Unpublished, the studio's phone preview takes the page (look, logo, title, waiting text) straight
   from the production; the rehearsal phone tab keeps the studio's own colours, as before.
 - The page keeps the look's colours where they meet AA and switches to black or white where they do
