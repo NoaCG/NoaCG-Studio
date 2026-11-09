@@ -25,7 +25,7 @@ export const AUDIENCE: TemplateVariant[] = [
   qq01, qq02, qq03, qq04,
   // Community and prayer requests.
   rq01, rq02, rq03, rq04,
-  // The Join card — how viewers join, a QR code drawn from the production's link.
+  // The Join card: how viewers join, a QR code drawn from the production's link.
   jc01,
 ];
 

@@ -309,7 +309,7 @@ export const communityRequestType: GraphicType = {
 
 // ── Join card ────────────────────────────────────────────────────────────────
 
-/** JOIN CARD — how viewers join: a QR code drawn from the Join link, inside the graphic.
+/** JOIN CARD: how viewers join, a QR code drawn from the Join link inside the graphic.
  *
  *  NO MACHINE: it comes on and goes off. The code is data the card draws from its own field, so a
  *  new link is an update(), never a state (interaction spec, Graphics ▸ Join card). */

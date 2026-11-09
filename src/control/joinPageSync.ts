@@ -9,8 +9,9 @@
 //       tab: the wait and the send live here, not in the component.
 //   P3. Syncs for one production run one at a time, and a sync that a newer one superseded stops
 //       before it sends, so phones end on the latest saved page.
-//   P4. A logo already published under its file's hash is not uploaded again; one that cannot be
-//       published now sends nothing, so phones keep the logo they have.
+//   P4. A logo already published under its file's hash is not uploaded again. A logo that cannot
+//       be published now keeps the one phones have, and the rest of the page (the words, the
+//       colours) still goes; the failure is reported.
 //
 // Every effect goes through `io`, so scripts/join-page-sync.test.mjs drives it with fakes.
 
@@ -62,12 +63,23 @@ export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number
         if (!show) return;
         const now = await io.readBrand();
         if (!current()) return;
-        const logo = await io.publishLogo(show, typeof now?.logo === 'string' ? now.logo : null);
+        const known = typeof now?.logo === 'string' ? now.logo : null;
+        let logo = known;
+        let logoFailed: unknown = null;
+        try {
+          logo = await io.publishLogo(show, known);
+        } catch (error) {
+          logoFailed = error;
+        }
         if (!current()) return;
         const brand = joinPageBrand(show, logo);
-        if (sameBrand(brand, now)) return;
+        if (sameBrand(brand, now)) {
+          if (logoFailed) io.onError?.(logoFailed);
+          return;
+        }
         await io.send(brand);
         io.onSent?.();
+        if (logoFailed) io.onError?.(logoFailed);
       } catch (error) {
         if (current()) io.onError?.(error);
       }

@@ -86,7 +86,7 @@ test('P3: a slow logo upload superseded by a removal never reaches phones', asyn
   assert.ok(!state.sends.some((b) => b.logo === 'https://x/new.png'), 'the superseded upload was never sent');
 });
 
-test('P4: a logo that cannot be published sends nothing and says so', async () => {
+test('P4: a logo that cannot be published keeps the one phones have, and the words still go', async () => {
   const { show, state, io } = rig({ server: page('Quiz Night', 'https://x/kept.png') });
   show.joinPage = { title: 'New title' };
   io.publishLogo = async () => {
@@ -94,9 +94,8 @@ test('P4: a logo that cannot be published sends nothing and says so', async () =
   };
   syncJoinPage(show.id, io, 0);
   await joinPageSyncSettled(show.id);
-  assert.deepEqual(state.sends, []);
-  assert.deepEqual(state.server, page('Quiz Night', 'https://x/kept.png'), 'phones keep their logo');
-  assert.equal(state.errors.length, 1);
+  assert.deepEqual(state.server, page('New title', 'https://x/kept.png'), 'the new words, the kept logo');
+  assert.equal(state.errors.length, 1, 'and the failure is reported');
 });
 
 test('the logo phones have is handed to the publisher, so a known file is not uploaded again', async () => {

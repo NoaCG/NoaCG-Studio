@@ -411,7 +411,7 @@ wrong* — so only the transition declares one.
   and `map-round` for the series itself.
 - **Lyrics / captions / surtitles** — timed-text playout is a different runtime problem; out
   of scope until external feeds exist.
-- **A QR drawn from a URL field in any graphic** — the qr-card type covers the FORMAT with an
+- **A QR drawn from a URL field in any graphic**: the qr-card type covers the FORMAT with an
   image field, and the join-card type now carries a bundled encoder (21 KB, inlined into that
   card's own script, never a CDN). A `QR` layer any imported or CLI-made graphic can carry is
   phase 5 of docs/work-specs/interaction/spec.md.

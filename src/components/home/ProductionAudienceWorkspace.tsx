@@ -304,6 +304,15 @@ async function addJoinCard(show: Show, link: string): Promise<{ shows: Show[] | 
   return { shows: filled.shows, error: failure };
 }
 
+/** A stable number per Blob, so a replaced Blob logo of the same size still reads as a change. */
+const blobIds = new WeakMap<Blob, number>();
+let nextBlobId = 0;
+function blobId(blob: Blob): number {
+  let id = blobIds.get(blob);
+  if (id === undefined) blobIds.set(blob, (id = ++nextBlobId));
+  return id;
+}
+
 /** Save a file the browser made. */
 function saveFile(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
@@ -1030,7 +1039,7 @@ export default function ProductionAudienceWorkspace({
   // The key is what phones would be sent, with the logo by its own bytes.
   const pageKey = useMemo(() => {
     const logo = show.look?.logo?.data;
-    return JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), typeof logo === 'string' ? logo : logo ? `blob:${logo.size}:${logo.type}` : null]);
+    return JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), typeof logo === 'string' ? logo : logo ? `blob:${blobId(logo)}` : null]);
   }, [show.look, show.joinPage]);
   const pageSynced = useRef(false);
   useEffect(() => {
@@ -1045,7 +1054,7 @@ export default function ProductionAudienceWorkspace({
         publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
         send: (brand) => backend.setPage!(brand),
         onSent: () => preview.current?.refresh(),
-        onError: () => setNote('The phone page could not be updated. It is tried again when Interaction opens, or publish.'),
+        onError: () => setNote('Phones did not get all of this page (the logo or the connection). It is tried again when Interaction opens, and on publish.'),
       },
       pageSynced.current ? 600 : 0,
     );

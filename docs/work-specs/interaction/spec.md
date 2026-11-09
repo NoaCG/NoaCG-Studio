@@ -568,7 +568,9 @@ the page between publishes), stated as rules before the repair (`src/control/joi
 - P3. Sends for one production run one at a time, and a send that a newer change superseded stops
   before it reaches phones, so phones end on the latest saved page.
 - P4. A logo already published under its file's hash is not uploaded again; a logo that cannot be
-  published sends nothing, so phones keep theirs. Publish keeps the logo phones have the same way.
+  published keeps the one phones have, and the rest of the page still goes (amended after the
+  final review of `a8eb578`: sending nothing held the words back too). Publish keeps the logo the
+  same way.
 - P5 (from the review of `a8eb578`). Publish writes the page from the production as saved at the
   moment it writes, not as it was when the publish began, so a title changed during a long publish
   is not put back by it.
