@@ -7,7 +7,7 @@ issue or arm triggers. This overrides plan-create's automatic handover.
 
 ## Prepared files
 
-- `spec.md`: decisions, acceptance and the ten phases.
+- `spec.md`: decisions, measured sizes, acceptance and the eleven phases.
 - `phases.json`: the phase objects plan-create copies into the project, in order.
 - `work.json`: the acceptance record. `draft` until the owner finishes the plan after a second
   opinion; then `agreed` with his words.
@@ -19,7 +19,7 @@ issue or arm triggers. This overrides plan-create's automatic handover.
 2. The interaction run has finished (the owner: "to start after the current interaction tab run").
 3. Ask the owner, once, only what is missing: the authorization line (scope, start, an end date only
    if he gives one) and standing permissions in his words. Already given: "Our database migration
-   is fine" covers phase 5's migration in a quiet window; nothing else is granted.
+   is fine" covers a phase 5 or 6 migration in a quiet window; nothing else is granted.
 
 ## Start
 
@@ -32,5 +32,5 @@ live-publishing`.
 
 - Phase 1 rebases on current `main` right before landing.
 - Phase 5's migration applies only when no production is live (`supabase/AGENTS.md`).
-- Phase 9 may end as "not needed" with its numbers; that passes it.
-- Phase 10 is the owner's; `next` hands it over instead of launching it.
+- Phases 9 and 10 may end as "not needed" with their numbers; that passes them.
+- Phase 11 is the owner's; `next` hands it over instead of launching it.

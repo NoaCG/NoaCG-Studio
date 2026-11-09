@@ -21,14 +21,14 @@
         "e2e/"
       ],
       "checks": [],
-      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css)."
+      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
     "id": "2",
-    "title": "Measure the Take path",
+    "title": "Measure",
     "acceptance": [
-      "A receipt in evidence/ times press to send, send to output and output to first frame for a quiz with and without a placement preset, a server cue, and a Take during a publish, on desktop Chromium. No product change."
+      "Phase 2 of the spec: a receipt in evidence/ with p95 over at least 50 samples and failures for every measurement listed there. No product change."
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
@@ -36,7 +36,7 @@
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Measure the Take path",
+      "goal": "Measure",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/PLAYOUT_ISOLATION_RESEARCH.md",
@@ -46,7 +46,7 @@
         "docs/work-specs/live-publishing/evidence/"
       ],
       "checks": [],
-      "notes": ""
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
@@ -70,10 +70,11 @@
       "touches": [
         "src/control/adjustGeometry.ts",
         "src/control/graphicVerbs.ts",
+        "src/control/playoutLink.ts",
         "src/output/"
       ],
       "checks": [],
-      "notes": "C1, C2. Placement must also work in Chromium 71: build target es2017, no ?. or ?? inside template code."
+      "notes": "C1, C2. Placement must also work in Chromium 71: build target es2017, no ?. or ?? inside template code. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
@@ -101,15 +102,15 @@
         "src/components/home/"
       ],
       "checks": [],
-      "notes": "C3, C4, the Update button."
+      "notes": "C3, C4, O5 adoption, the Update button. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
     "id": "5",
-    "title": "Store graphics and the rundown apart",
+    "title": "Send only what changed",
     "acceptance": [
-      "AC-7",
-      "AC-8"
+      "AC-5",
+      "AC-7"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
@@ -118,7 +119,7 @@
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Store graphics and the rundown apart",
+      "goal": "Send only what changed",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
@@ -126,74 +127,48 @@
       "touches": [
         "supabase/migrations/",
         "src/control/hostedControl.ts",
+        "src/backend/teamProductions.ts",
         "src/output/"
       ],
       "checks": [],
-      "notes": "C5, C6. Live-path migration: applies only in a quiet window (supabase/AGENTS.md). Old publications stay readable; open outputs keep working."
+      "notes": "C5, C6. A migration touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Old and new clients against old and new servers. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
     "id": "6",
-    "title": "Updates by themselves, and the light",
+    "title": "Images stored once",
     "acceptance": [
-      "AC-5",
       "AC-6"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "3",
       "5"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Updates by themselves, and the light",
+      "goal": "Images stored once",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [
-        "src/components/home/",
-        "src/control/playoutStatus.ts",
-        "src/components/control/PrepareForLive.tsx"
+        "src/backend/assets.ts",
+        "src/control/hostedControl.ts",
+        "src/output/"
       ],
       "checks": [],
-      "notes": "O1, O2. Check now stays."
+      "notes": "C8. Outputs opened before this keep reading inline images. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
     "id": "7",
-    "title": "Preload server cues",
-    "acceptance": [
-      "AC-9"
-    ],
-    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
-    "dependsOn": [
-      "1"
-    ],
-    "spec": "docs/work-specs/live-publishing/spec.md",
-    "brief": {
-      "goal": "Preload server cues",
-      "read": [
-        "docs/work-specs/live-publishing/spec.md",
-        "docs/plan-runs/known-traps.md"
-      ],
-      "touches": [
-        "cli/src/playout/adapters/casparcg.ts",
-        "src/control/playoutLink.ts"
-      ],
-      "checks": [],
-      "notes": "C7."
-    }
-  },
-  {
-    "id": "8",
     "title": "Five people at once",
     "acceptance": [
-      "AC-10"
+      "AC-8"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "6"
+      "5"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -207,36 +182,92 @@
         "docs/CLOUD_PLAYOUT.md"
       ],
       "checks": [],
-      "notes": ""
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
-    "id": "9",
-    "title": "Images stored once (only if needed)",
+    "id": "8",
+    "title": "Updates by themselves, and the light",
     "acceptance": [
-      "C8: run phase 2's method after phase 6; build content-named image storage only if a typical design update is over 1 MB, else record 'not needed' with the numbers"
+      "AC-9",
+      "AC-10"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "6"
+      "3",
+      "6",
+      "7"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Images stored once (only if needed)",
+      "goal": "Updates by themselves, and the light",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [
+        "src/components/home/",
+        "src/control/playoutStatus.ts",
+        "src/components/control/PrepareForLive.tsx",
+        "src/output/"
+      ],
+      "checks": [],
+      "notes": "O1, O2, O3, O7, C7. Check now stays. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+    }
+  },
+  {
+    "id": "9",
+    "title": "Smaller graphic code (only if measured worth it)",
+    "acceptance": [
+      "C10: run phase 2's method after phase 8; build only if a typical production's output start is over 3 s on desktop Chromium, else record 'not needed' with the numbers"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "8"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Smaller graphic code (only if measured worth it)",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/templates/shared/",
         "src/control/hostedControl.ts",
         "src/output/"
       ],
       "checks": [],
-      "notes": ""
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   },
   {
     "id": "10",
+    "title": "Preload server cues (only if measured worth it)",
+    "acceptance": [
+      "C11: build only if phase 2 shows a server template Take over 300 ms p95 from the Bridge to first frame, else record 'not needed'; if built, two templates in a row on one destination on CasparCG 2.5 never touch the one on air"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "2"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Preload server cues (only if measured worth it)",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "cli/src/playout/adapters/casparcg.ts",
+        "src/control/playoutLink.ts"
+      ],
+      "checks": [],
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
+    }
+  },
+  {
+    "id": "11",
     "title": "The studio walk",
     "acceptance": [
       "AC-11"
@@ -244,10 +275,9 @@
     "environment": "OW: the owner's CasparCG 2.5 and 2.3 studio machines with a browser output",
     "dependsOn": [
       "3",
-      "6",
-      "7",
       "8",
-      "9"
+      "9",
+      "10"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -258,7 +288,7 @@
       ],
       "touches": [],
       "checks": [],
-      "notes": ""
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Stop and ask the owner if a step would change behaviour he has not decided."
     }
   }
 ]
