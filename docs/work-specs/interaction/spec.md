@@ -1,9 +1,9 @@
 # Interaction: one tab for everything audience
 
 Authority: owner, 2026-11-09, issue [#2299](https://github.com/NoaCG/NoaCG-Studio/issues/2299).
-**Draft**: the decisions below were agreed with the owner one at a time on 2026-11-09. Revised the
-same day from an independent second opinion the owner supplied ("Review revisions" below).
-`work.json` stays `draft` until the owner agrees this written plan.
+**Agreed** by the owner on 2026-11-09 ("the Interaction plan is agreed"), after the decisions
+below were made one at a time and the plan was revised from an independent second opinion the
+owner supplied ("Review revisions" below). It runs as its own plan run.
 
 This spec replaces, in `docs/work-specs/audience-flow/spec.md`, the non-goal "Join-page branding"
 and the section "Join, presenter and votes" except the presenter view, which stays with its own
