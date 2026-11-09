@@ -601,3 +601,45 @@ one each check judged, for every pair the AA rule covers. `scripts/join-colours.
 the rendered CSS strings for all eight pairs over the four named looks and 100,000 seeded random
 looks (a quarter with a panel alpha); it is red on `d521e01` (2748 looks below AA) and adds no E2E
 minutes (`evidence/phase-2.md`, Repair 1).
+
+### Phase 3: First complete flow
+
+Previous verified main: `f47aa360c411cc44f30ba95b09c853b93141ade1`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-3.md` once it lands). The phase
+adds no migration; `Show.resultCues` and `Show.resultTarget` are additive optional, so an older
+build ignores them and the reverted app runs on records that carry them.
+
+**Rules** (state rules written before code; each is observable):
+
+- S1. A question has at most one result cue. `Show.resultCues` maps the question's id to that
+  cue's id and is saved and synced with the production, so a reload, another tab and another
+  operator read the same mapping.
+- S2. Add results to rundown, when the question's mapped cue still exists and its graphic still
+  has the result fields (Question and Options, by title), writes the result values into that cue
+  and adds no cue.
+- S3. Otherwise it adds one cue on the remembered result graphic and records it as the question's
+  cue in the same write. When a mapping existed it says why the cue is new: the earlier cue was
+  deleted, or its graphic no longer has the result fields.
+- S4. Update or add is decided on the production as stored when the write runs (a rebased write),
+  not on the page's copy, so a second press while the first settles, or a press in another tab of
+  the same browser, updates the cue the first press made. Another operator's press does the same
+  once the production has synced to them.
+- S5. The remembered result graphic is `Show.resultTarget`. With none, or one that can no longer
+  take results, the press asks: the production's result graphics, or with none of those the
+  catalog's live vote boards (added with their one cue, which becomes the result cue). Nothing is
+  picked without the operator's choice; Change asks again. The choice is remembered.
+- S6. A refused write says so and records nothing: no cue, no mapping, no remembered graphic.
+- S7. Stop, after the server closed the round, writes the final counts, "voting closed" in the
+  count line and the closed status into the question's mapped cue when it exists with the fields.
+  Stop never adds a cue and never sends an event, so the board stays in whatever state it is in;
+  the reveal is the operator's press.
+- S8. Nothing in Interaction sends a Take, Update, Out, Next or graphic event. Go live, Stop,
+  staging and question edits add no row to the output's command log. A staged cue already on air
+  changes on Program only through the operator's Update; with the live-figures switch on, the
+  board shows its figures from the field it already carries.
+- S9. Staging writes only the result fields (Question, Options as `label | count` lines, and
+  where present Vote count, Vote status and Live figures). The cue's other values, its label and
+  its place in the rundown stay as they are.
+- S10. Duplicate starts with no result cue. Deleting a question leaves its cue in the rundown.
+- S11. `Show.resultCues` and `Show.resultTarget` are additive optional and left out of the
+  publish digest, like the question list.
