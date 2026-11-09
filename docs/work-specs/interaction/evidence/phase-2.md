@@ -72,8 +72,9 @@ Mutation: removing the superseded-work check before sending fails the slow-uploa
 
 - `npm run gates -- run --changed origin/main`: 424 tests, 0 failed.
 - `npx tsc --noEmit -p tsconfig.json` and eslint on the changed files: clean.
-- Browser, local queue: `e2e/join-surface.spec.ts` 11 passed; `e2e/production-audience.spec.ts`
-  (page settings, Join card placement, the offline join page, the viewer preview) 4 passed;
+- Browser, local queue: `e2e/production-audience.spec.ts` and `e2e/audience-pack.spec.ts`, 40
+  passed (the phone page look, the studio QR, the Join card QR live and exported, page settings,
+  Join card placement, the offline join page, the viewer preview, and both files' earlier tests);
   `e2e/catalog-baseline.spec.ts` emitted-code baseline recorded and passing.
 - Not run here: the configured suite (no local Supabase stack on this machine); it runs in the PR's
   CI gate.

@@ -578,6 +578,12 @@ the page between publishes), stated as rules before the repair (`src/control/joi
   same way. Only when what phones have cannot be read (the read throws) and the logo cannot be
   published does nothing go, since a send then could clear their logo; phones with no page yet
   get the rest of the page.
+- The blank-page join tests live in the files that already own their subject, not a new spec
+  file: the phone page and the studio QR in `e2e/production-audience.spec.ts`, the Join card in
+  `e2e/audience-pack.spec.ts`. A new file is priced at the suite median until measured, which took
+  the offline tier over the CI gate's capacity line; folded, the change adds no priced minutes. The
+  measured cost on head `49f9a4d` was 0.10 min for those tests and 0.42 min for the Interaction
+  journeys, less 0.08 min from the link-name test that moved to the configured walk.
 - P5 (from the review of `a8eb578`, completed after the final review of `1bf6181`). Publish writes
   the page through the same one-at-a-time queue, which reads the production as saved when its turn
   runs, so a title changed during a long publish or a slow logo upload is not put back by it, and
