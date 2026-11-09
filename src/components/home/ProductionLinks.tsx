@@ -13,6 +13,7 @@ export function ProductionLinksDialog({
   busy,
   controlUrl,
   joinUrl,
+  interactionHref,
   presenterUrl,
   nameDraft,
   nameNote,
@@ -25,6 +26,8 @@ export function ProductionLinksDialog({
   busy: boolean;
   controlUrl: string | null;
   joinUrl: string | null;
+  /** Where everything audience lives (interaction spec AC-1): Links points there. */
+  interactionHref: string;
   presenterUrl: string | null;
   nameDraft: string;
   nameNote: string | null;
@@ -45,6 +48,13 @@ export function ProductionLinksDialog({
         <button onClick={() => url && onCopy(kind, url)} disabled={!url} data-testid={`copy-${kind === 'join' ? 'join' : kind}-url`}>
           {copied === kind ? '✓ Copied' : 'Copy'}
         </button>
+        {/* Everything audience lives in Interaction (interaction spec AC-1): the row points there
+            rather than explaining, since Links holds one row per link and no explanations. */}
+        {kind === 'join' && (
+          <button onClick={() => window.open(interactionHref, '_blank', 'noopener')} data-testid="links-interaction-open">
+            Interaction
+          </button>
+        )}
       </div>
     </div>
   );

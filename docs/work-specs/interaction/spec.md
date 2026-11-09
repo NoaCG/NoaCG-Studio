@@ -342,3 +342,142 @@ From the independent review the owner supplied. All six points were taken; adjus
   that profile implies; the builder records the measured baseline in phase 2's notes.
 
 ## Phase notes
+
+### Phase 1: Questions and their lifecycle
+
+Previous verified main: `3985c140631173c267c5e93b37741a15bab8d88c`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-1.md` once it lands), AND a new
+migration that restores 0035's `audience_submit(text, text, text, text)`, `audience_vote(text,
+text, uuid, int)`, `audience_set_join` and `audience_close_round`, and 0036's `audience_open_round`.
+Migration 0111 is not purely additive: it drops the phone signatures that named no round and makes
+the old door and round writers refuse (R18, R19), so the old app cannot run on it. Its columns,
+index and new functions can stay; nothing old reads them.
+
+**Rules** (state rules written before code; each is observable):
+
+- R1. A production has at most one open round at any moment. The database enforces it (the
+  partial unique index of 0035) and `audience_go_live` and `audience_stop` take a row lock on the
+  production first, so concurrent presses run one after the other.
+- R2. A question has at most one round (unique per production and question id). Go live creates
+  it the first time and reopens it after; the count continues.
+- R3. Go live, in one transaction: closes every other open round of the production, opens this
+  question's round, and sets the state to open, the mode (`question` for Open, `poll` for
+  Multiple choice), the prompt (the question's text), the round and the question id, bumping
+  `rev`. Of two concurrent presses the later transaction wins and one round is open.
+- R4. Stop names the round it stops. In one transaction, if that round is still open, it closes
+  it and sets the state to waiting (not open, no round, no question id), bumping `rev`; if another
+  question went live meanwhile, Stop changes nothing.
+- R5. Each round has a revision, 1 when made. It goes up by one when Go live brings text or
+  options different from the round's snapshot, and on Clear results. A plain reopen keeps it.
+- R6. A phone's answer or vote names the round id and the revision it read. The server refuses
+  it unless the round is this production's, open, of the matching kind (Open takes answers,
+  Multiple choice takes votes) and at that revision. A closed or stale round is refused with
+  "That question has closed". A question id is never taken from a client. The send holds a share
+  lock on the round, so a Stop, Go live or Clear results either waits for it or is seen by it.
+- R7. An answer is filed under the round it was accepted into, and nothing later moves it: not
+  Go live on another question, not Stop, not an edit. A vote is one row per round and device;
+  sending again changes it.
+- R8. Text and options are locked while the question is live and once its round has an answer
+  or a vote. The server refuses a Go live whose text or options differ from a round that has
+  answers or votes, and one whose type differs from its round's. Type never changes. When Go live
+  is refused for that reason (another tab edited a question that had answers), the page says so
+  and offers Duplicate, which asks the changed words as a new question.
+- R9. Clear results is refused while the round is open. It removes the round's answers and votes
+  and bumps its revision. The UI asks for two presses.
+- R10. Deleting a question removes it from the list only; deleting the live question stops it
+  first. Its round, answers and votes stay; its answers are listed under "Earlier questions".
+- R11. Duplicate makes a new question id with no round, so it starts from zero.
+- R12. Selecting a row is screen state only: it calls nothing and saves nothing.
+- R13. Paste files the message under the destination shown beside Paste: the live question's
+  round by default when it is an Open question, otherwise none; the operator can change it to
+  none. The server accepts only a round of this production. The cue editor's Fill paste files
+  under none.
+- R14. A refused stale send keeps the typed text, shows "That question has closed" and the new
+  question (or the waiting text), and never resends by itself.
+- R15. An unpublished production runs R1 to R14 on the local provider, with the same refusals.
+  Its rounds, live state, votes and phone answers are kept in browser storage per production, so
+  a reload, the production's other tabs and a rehearsal phone tab see the same rounds and a
+  pasted message keeps its question. Simulated rows stay in memory, as before.
+- R16. None of these sends a Take, an Update or a graphic event.
+- R17. `Show.questions` is additive optional. The view key `audience`, the storage keys, the
+  tables and the CSS prefixes keep their names.
+- R18. Only Go live and Stop move the round and the live state. `audience_set_join` keeps the
+  presenter pointers and the brand only; the old `audience_open_round` and `audience_close_round`
+  refuse. The join resolve reports a production as not open unless a round is open, so a state
+  left by an older page (a comment mode, a round with no question) shows phones the waiting text.
+- R19. The old phone signatures (`audience_submit` without a round, `audience_vote` without a
+  revision) are removed, so a page loaded before this change has its sends refused and counted
+  nowhere.
+- R20. Twitch chat keeps going in through the phone door, which is now the live Open question:
+  a line is filed under it, and with no Open question live it is refused and counted as dropped,
+  as with the door closed before. YouTube and the message Sheet keep the operator door and file
+  under no question. (Chat votes are phase 4.)
+- R21. Quiz rounds, the comment mode and the "Accepting messages" switch leave the panel: the
+  spec's question types are Open and Multiple choice (Word is phase 6), and what phones see is
+  the live question or the waiting text (D1).
+
+Found after coding (in the code review), apart from the rules above:
+
+- R22. A send never deadlocks with Go live, Stop or Clear results: those lock the production row
+  `for no key update`, which the send's foreign-key check does not wait on.
+- R23. When Stop finds another question live (R4), the page says nothing was stopped and leaves the
+  staged cue alone.
+- R24. A Twitch line refused because its remembered round closed is sent once more to the round
+  live now, so a switch of question loses no chat line that arrived after it.
+
+Found in the Codex review of the first head:
+
+- R25. The local room store is changed by one tab at a time (one Web Lock for the store, which
+  holds every production's room in one value), so neither a rehearsal phone's send nor another
+  production's change can write back a room from before the operator's Stop.
+
+Found in the final review of `dc19c95`:
+
+- R26. A round an older page left open is closed by the migration, so no production keeps a round
+  that no Interaction row can Stop.
+
+Found in the Codex review of `ecd6c56` (the second finding of one family, so the rule was
+reassessed by a fresh read-only review before the repair):
+
+- R27. Whatever round is open on the provider the panel runs on (the published production's, or the
+  local room), the panel offers Stop for it, whether or not its question is in the page's list: a
+  line above the list names it and carries Stop when no row does.
+- R10, amended: Delete asks the provider whether the question's round is open at the press, not the
+  page's last reading, and stops that round. It removes the question once the round is closed
+  (including when another question going live closed it), and keeps it only while the round is
+  still open or the provider could not be read.
+
+**Decisions** (made in the build, revertible in review):
+
+- The question list is `Show.questions` (`src/model/questions.ts`), saved and synced with the
+  production and left out of the publish digest: questions reach phones through Go live, so
+  writing one never asks for a publish.
+- Twitch keeps the phone door (R20), so with an Open question live its lines answer it and with
+  none live they are refused as before. YouTube and the Sheet keep the operator door. The rules
+  review asked whether this is a product decision; it is the reading closest to "as today" until
+  phase 4's chat votes, and it is one line to change.
+- A rehearsal phone page, `/join?rehearse=<production id>`, mounts the join surface over the local
+  room in the same browser, with a small link from the Join area. It is what lets an unpublished
+  production rehearse a phone (AC-8) and the two-page stale-phone journey run offline (AC-4).
+- The local room (rounds, live state, votes, phone answers) is kept in browser storage under a new
+  key, `spx-gfx-audience-room` (v1); the old inbox key is unchanged (R15, R17).
+- Quiz rounds, the comment mode and the "Accepting messages" switch leave the panel (R21). "Stage
+  counts to a graphic" and Stop writing "voting closed" into the staged cue stay as they were;
+  phase 3 replaces them with Add results to rundown and `Show.resultCues`.
+- The phone page shows the full question as its heading (up to 200 characters); the old 160
+  character prompt cap would have cut long questions.
+
+**Traps found** (for later phases):
+
+- Go live, Stop and Clear results lock the production row `for no key update`, not `for update`:
+  a phone's send holds a share lock on the round and then inserts a row whose foreign key takes a
+  key-share lock on the production row. `for update` deadlocked that pair (reproduced on a scratch
+  Postgres 16 with 0035 to 0111 applied; fixed and re-run before review).
+- 0111 builds its two indexes concurrently and adds the answers' foreign key `not valid`, then
+  validates it: phones insert into `audience_submissions` during a show, and a plain build or a
+  validating `add column ... references` would hold their inserts for the scan.
+- `e2e/_interaction.ts` holds the question steps every journey uses; `scripts/docs-shots.mjs` and
+  `scripts/acceptance-pack.mjs` carry their own copies because they cannot import TypeScript.
+- A rehearsal phone in a journey needs `page.clock.install()` before it loads, or its five-second
+  poll can refresh it between the operator's press and the phone's, and it is no longer stale.
+

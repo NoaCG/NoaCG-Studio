@@ -61,6 +61,25 @@ const NOMINAL = { width: 1920, height: 1080 };
 
 const wait = (page, ms) => page.waitForTimeout(ms);
 
+/** Write a question in the Interaction tab and put it live on phones. The same steps as
+ *  e2e/_interaction.ts, which this script cannot import (it is TypeScript for the test runner). */
+async function liveQuestion(page, type, text, options = []) {
+  await page.getByTestId('question-add').click();
+  await page.getByTestId(type === 'open' ? 'question-type-open' : 'question-type-choice').click();
+  await page.getByTestId('question-text').fill(text);
+  if (type === 'choice') await page.getByTestId('question-options').fill(options.join('\n'));
+  await page.getByTestId('question-save').click();
+  const row = page.locator('.pd-aud-q', { hasText: text }).last();
+  await row.getByTestId('question-go-live').click();
+  await row.getByTestId('question-live').waitFor();
+}
+
+/** Interaction's folded "More ways in", where Simulate sits. */
+async function moreWaysIn(page) {
+  const more = page.getByTestId('interaction-more');
+  if (!(await more.evaluate((el) => el.open))) await more.locator('summary').click();
+}
+
 /** The wizard's exact create path, run in the page - the same helper e2e/_create.ts uses. */
 async function createProject(page, spec) {
   await page.addInitScript(() => {
@@ -813,9 +832,7 @@ async function sectionInteractive(browser) {
     note: 'The audience plane runs on the LOCAL provider here — in memory, with a simulator — which is what makes this walk drivable offline.',
   });
 
-  await vote.getByTestId('audience-round-question').fill('Who wins the derby?');
-  await vote.getByTestId('audience-round-options').fill('The home side\nThe visitors\nA draw');
-  await vote.getByTestId('audience-round-open').click();
+  await liveQuestion(vote, 'choice', 'Who wins the derby?', ['The home side', 'The visitors', 'A draw']);
   await wait(vote, 1_200);
   await vote.getByTestId('audience-simulate-votes').click();
   await wait(vote, 4_000);
@@ -826,7 +843,7 @@ async function sectionInteractive(browser) {
     title: 'A vote open, votes landing, the tally moving',
     question:
       'The round is open and the counts are climbing. Is the tally readable at a glance from across a gallery, and is “the room can see this right now” unmistakable?',
-    note: 'The MODE travels with the round and the selector locks while it is open, so the operator’s screen cannot say “Questions” over a live poll.',
+    note: 'Going live closes any other question and marks this one “Live on phones”; selecting a row only shows it.',
   });
 
   await vote.getByTestId('audience-round-stage').click();
@@ -866,6 +883,7 @@ async function sectionInteractive(browser) {
   await productionFor(room, 'Phone In');
   await room.getByTestId('tab-audience').click();
   await room.waitForSelector('[data-testid="production-audience"]', { timeout: 20_000 });
+  await moreWaysIn(room);
   await room.getByTestId('audience-simulate').click();
   await wait(room, 1_500);
   const rows = room.locator('.pd-aud-row');
@@ -885,7 +903,7 @@ async function sectionInteractive(browser) {
 
   await room.getByTestId('audience-preview-details').locator('summary').click();
   await wait(room, 600);
-  await room.getByTestId('audience-open').check();
+  await liveQuestion(room, 'open', 'What should we ask the coach?');
   await wait(room, 1_200);
   const preview = room.getByTestId('audience-preview');
   await preview.scrollIntoViewIfNeeded();
@@ -901,15 +919,15 @@ async function sectionInteractive(browser) {
       'joinSurface.ts is the ONE renderer both the public /join page and this operator preview mount, so this frame is the real page and not a drawing of it. Cropped to the preview’s phone-shaped frame.',
   });
 
-  await room.getByTestId('audience-mode').selectOption('comment').catch(() => {});
+  await liveQuestion(room, 'choice', 'Who wins tonight?', ['Home', 'Away']);
   await wait(room, 1_000);
-  await preview.screenshot({ path: join(OUT, 'interactive-join-comment.png') }).catch(() => {});
+  await preview.screenshot({ path: join(OUT, 'interactive-join-vote.png') }).catch(() => {});
   record({
     section: 'interactive',
-    file: 'interactive-join-comment.png',
-    title: 'The same page asked for comments instead of questions',
+    file: 'interactive-join-vote.png',
+    title: 'The same page with a Multiple choice question live',
     question:
-      'The mode changed what the room is asked for. Do the two modes read as different enough to matter, or is this one screen with a different heading?',
+      'The live question changed what the room is asked for. Do an Open question and a vote read as different enough to matter, or is this one screen with a different heading?',
     note: 'The operator preview is read-only by design: an operator cannot put words in the audience’s mouth from it.',
   });
 

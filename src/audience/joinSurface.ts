@@ -16,12 +16,13 @@
 // key, never anybody else's words.
 
 import { bundledFaceRules, FONTS } from '../model/fonts';
-import { AUDIENCE_LIMITS, type AudienceBrand, type JoinView, type SubmitResult } from './audienceTypes';
+import { AUDIENCE_LIMITS, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
   load(): Promise<JoinView>;
-  submit(author: string, body: string): Promise<SubmitResult>;
-  vote(roundId: string, option: number): Promise<SubmitResult>;
+  /** An answer to the live Open question this page READ (interaction spec R6). */
+  submit(author: string, body: string, target: RoundTarget): Promise<SubmitResult>;
+  vote(roundId: string, option: number, revision: number): Promise<SubmitResult>;
 }
 
 export interface JoinSurfaceOptions {
@@ -195,14 +196,18 @@ export function mountJoinSurface(
       root.appendChild(
         el('p', 'nj-waiting', 'Not taking part right now. Keep this page open — it updates by itself.'),
       );
+      // A send refused because the question closed says so here too (R14).
+      renderNote();
       renderMine();
       return;
     }
 
     root.appendChild(el('p', 'nj-prompt', state.prompt || defaultPrompt(state.mode)));
 
-    if (state.round && (state.mode === 'poll' || state.mode === 'quiz')) renderRound();
-    else if (state.mode === 'question' || state.mode === 'comment') renderCompose();
+    // What is live decides the input: an Open question takes a sentence, a Multiple choice one
+    // takes a tap. Nothing else can be sent, because every send names the live round.
+    if (state.round?.kind === 'open') renderCompose();
+    else if (state.round) renderRound();
     else root.appendChild(el('p', 'nj-waiting', 'Standing by.'));
 
     renderNote();
@@ -218,7 +223,7 @@ export function mountJoinSurface(
 
   const renderCompose = () => {
     const card = el('div', 'nj-card');
-    const isComment = view?.state.mode === 'comment';
+    const round = view?.state.round;
 
     // Labels are wired to their fields with for/id rather than merely sitting above them: on a
     // phone the label is the biggest thing near a small box, and tapping it has to focus.
@@ -237,13 +242,13 @@ export function mountJoinSurface(
     nameField.append(nameLabel, nameInput);
 
     const bodyField = el('div', 'nj-field');
-    const bodyLabel = el('label', 'nj-label', isComment ? 'Your message' : 'Your question');
+    const bodyLabel = el('label', 'nj-label', 'Your answer');
     bodyLabel.htmlFor = 'nj-body';
     const bodyInput = el('textarea');
     bodyInput.id = 'nj-body';
     bodyInput.maxLength = AUDIENCE_LIMITS.body;
     bodyInput.value = draft.body;
-    bodyInput.placeholder = isComment ? 'Type your message…' : 'Type your question…';
+    bodyInput.placeholder = 'Type your answer';
     const count = el('p', 'nj-count');
     bodyField.append(bodyLabel, bodyInput, count);
 
@@ -261,7 +266,7 @@ export function mountJoinSurface(
     };
     bodyInput.addEventListener('input', sync);
     send.addEventListener('click', () => {
-      void sendNow(nameInput.value, bodyInput.value);
+      if (round) void sendNow(nameInput.value, bodyInput.value, { roundId: round.id, revision: round.revision });
     });
 
     card.append(nameField, bodyField, send);
@@ -291,7 +296,7 @@ export function mountJoinSurface(
       const label = el('span', undefined, option);
       button.append(key, label);
       button.addEventListener('click', () => {
-        void voteNow(round.id, index);
+        void voteNow(round.id, index, round.revision);
       });
       list.appendChild(button);
     });
@@ -324,29 +329,32 @@ export function mountJoinSurface(
     }
   };
 
-  const sendNow = async (author: string, body: string) => {
+  const sendNow = async (author: string, body: string, target: { roundId: string; revision: number }) => {
     if (busy) return;
     busy = true;
     note = null;
     render();
-    const result = await client.submit(author, body);
+    const result = await client.submit(author, body, target);
     busy = false;
     if (result.ok) {
       draft.body = '';
       note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false };
     } else {
+      // A refusal keeps what was typed. When the question moved on under this phone (R14) the
+      // error says so and the re-read below shows the new question; nothing is resent unless the
+      // viewer sends again.
       note = { text: result.error ?? 'That could not be sent right now.', bad: true };
     }
     await load();
     render();
   };
 
-  const voteNow = async (roundId: string, option: number) => {
+  const voteNow = async (roundId: string, option: number, revision: number) => {
     if (busy) return;
     busy = true;
     note = null;
     render();
-    const result = await client.vote(roundId, option);
+    const result = await client.vote(roundId, option, revision);
     busy = false;
     note = result.ok
       ? { text: 'Counted. You can change your mind while the vote is open.', bad: false }

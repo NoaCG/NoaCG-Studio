@@ -25,7 +25,9 @@ import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
   OPERATOR_SETTLE_MAX,
+  QUESTION_CLOSED,
   clampProvenance,
+  openRoundOf,
   clampSubmission,
   type AudienceBrand,
   type AudienceRound,
@@ -68,10 +70,12 @@ interface JoinRow {
     prompt?: string;
     round?: {
       id: string;
-      kind: 'poll' | 'quiz';
+      kind: AudienceRound['kind'];
       question: string;
       options: string[];
       openedAt: string;
+      /** 0111; absent from a server that has not run it. */
+      revision?: number;
     } | null;
   };
   brand: AudienceBrand | null;
@@ -97,22 +101,29 @@ interface SubmissionRow {
   reference?: string | null;
   /** 0098's mark on a used candidate whose row left its source. */
   withdrawn_at?: string | null;
+  /** 0111's round the message was filed under. */
+  round_id?: string | null;
 }
 
 interface RoundRow {
   id: string;
-  kind: 'poll' | 'quiz';
+  kind: AudienceRound['kind'];
   question: string;
   options: unknown;
   correct_option: number | null;
   opened_at: string;
   closed_at: string | null;
+  /** 0111. */
+  question_id?: string | null;
+  revision?: number;
 }
 
 function readRound(row: RoundRow): AudienceRound {
   return {
     id: row.id,
     kind: row.kind,
+    questionId: row.question_id ?? null,
+    revision: Number(row.revision ?? 1),
     question: row.question,
     options: Array.isArray(row.options) ? (row.options as string[]) : [],
     correctOption: row.correct_option,
@@ -137,6 +148,7 @@ function readSubmission(row: SubmissionRow): AudienceSubmission {
     source: row.source ?? null,
     reference: row.reference ?? null,
     withdrawnAt: row.withdrawn_at ?? null,
+    roundId: row.round_id ?? null,
   };
 }
 
@@ -182,6 +194,10 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
   const attempt = async (run: () => PromiseLike<{ error: unknown }>): Promise<SubmitResult> => {
     try {
       const { error } = await run();
+      // The one refusal that says what it is (0111): the round closed or changed under the phone.
+      if (error && /question has closed/.test(String((error as { message?: unknown }).message ?? ''))) {
+        return { ok: false, error: QUESTION_CLOSED, closed: true };
+      }
       return error ? { ok: false, error: REFUSED } : { ok: true, error: null };
     } catch {
       return { ok: false, error: REFUSED };
@@ -198,9 +214,6 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
     return data as T;
   };
 
-  const openRoundOf = (rounds: AudienceRound[]): AudienceRound | null =>
-    rounds.find((r) => !r.closedAt) ?? null;
-
   const stateFrom = (raw: unknown, rounds: AudienceRound[]): AudienceState => {
     const s = (raw ?? {}) as {
       open?: boolean;
@@ -212,11 +225,13 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
     // null here (0035 stores `''` for "cleared" on the way in), and normalizing it once means
     // no surface has to know that.
     const pointer = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
+    const round = openRoundOf(rounds);
     return {
-      open: s.open === true,
-      mode: s.mode ?? 'waiting',
+      // Open only while a round is (R18), the same reading the join resolve makes.
+      open: s.open === true && round !== null,
+      mode: round ? s.mode ?? 'waiting' : 'waiting',
       prompt: s.prompt ?? '',
-      round: openRoundOf(rounds),
+      round,
       presenter: { current: pointer(s.presenter?.current), next: pointer(s.presenter?.next) },
     };
   };
@@ -252,6 +267,9 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
             ? {
                 id: round.id,
                 kind: round.kind,
+                // The phone never needs the question id; it sends the round and its revision.
+                questionId: null,
+                revision: Number(round.revision ?? 1),
                 question: round.question,
                 options: Array.isArray(round.options) ? round.options : [],
                 correctOption: null,
@@ -266,7 +284,7 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       };
     },
 
-    async submit(deviceToken: string, author: string, body: string): Promise<SubmitResult> {
+    async submit(deviceToken, author, body, target): Promise<SubmitResult> {
       if (!body.trim()) return { ok: false, error: 'Nothing to send.' };
       const sb = await client();
       const result = await attempt(() =>
@@ -277,13 +295,16 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
           // no, and the counter under the box has to agree with what actually lands.
           p_author: author.trim().slice(0, AUDIENCE_LIMITS.author),
           p_body: body.trim().slice(0, AUDIENCE_LIMITS.body),
+          // The round and revision the phone READ (0111, R6): never a question id it could choose.
+          p_round: target.roundId,
+          p_revision: target.revision,
         }),
       );
       if (result.ok) changed();
       return result;
     },
 
-    async vote(deviceToken: string, roundId: string, option: number): Promise<SubmitResult> {
+    async vote(deviceToken, roundId, option, revision): Promise<SubmitResult> {
       const sb = await client();
       const result = await attempt(() =>
         sb.rpc('audience_vote', {
@@ -291,10 +312,11 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
           p_device: deviceToken,
           p_round: roundId,
           p_option: option,
+          p_revision: revision,
         }),
       );
       if (result.ok) changed();
-      return result.ok ? result : { ok: false, error: 'That vote could not be counted.' };
+      return result.ok || result.closed ? result : { ok: false, error: 'That vote could not be counted.' };
     },
 
     // ── The operator's half ─────────────────────────────────────────────────────────────────
@@ -317,6 +339,7 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
             external_id: p.externalId,
             source: p.source,
             reference: p.reference,
+            round_id: i.roundId ?? null,
           };
         });
       if (wire.length === 0) return [];
@@ -372,9 +395,6 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
     async setState(patch): Promise<AudienceState> {
       const sb = await client();
       const wire: Record<string, unknown> = {};
-      if (patch.open !== undefined) wire.open = patch.open;
-      if (patch.mode !== undefined) wire.mode = patch.mode;
-      if (patch.prompt !== undefined) wire.prompt = patch.prompt;
       // 0035's allowlist takes `presenter` as an OBJECT of id-or-null, and validates each value
       // against the uuid shape before it is stored - so a cleared pointer travels as null, never
       // as the empty string the read side tolerates.
@@ -388,27 +408,40 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       return stateFrom(raw, await api.rounds());
     },
 
-    async openRound(round): Promise<AudienceRound> {
+    async goLive(question): Promise<AudienceRound> {
       const sb = await client();
-      const rows = await operator<RoundRow[] | null>(() =>
-        sb.rpc('audience_open_round', {
+      // One transaction on the server (0111, R3): the other round closes, this one opens, the
+      // state points at it.
+      const row = await operator<RoundRow | null>(() =>
+        sb.rpc('audience_go_live', {
           p_slug: control(),
-          p_kind: round.kind,
-          p_question: round.question,
-          p_options: round.options.slice(0, AUDIENCE_LIMITS.options),
-          p_correct: round.correctOption,
+          p_question: {
+            id: question.id,
+            type: question.type,
+            text: question.text,
+            ...(question.type === 'choice' ? { options: (question.options ?? []).slice(0, AUDIENCE_LIMITS.options) } : {}),
+          },
         }),
       );
-      const row = one<RoundRow>(rows);
-      if (!row) throw new Error('The round could not be opened.');
+      if (!row) throw new Error('The question could not go live.');
       changed();
       return readRound(row);
     },
 
-    async closeRound(roundId: string): Promise<void> {
+    async stop(roundId): Promise<AudienceState> {
       const sb = await client();
-      await operator(() => sb.rpc('audience_close_round', { p_slug: control(), p_round: roundId }));
+      const raw = await operator<unknown>(() => sb.rpc('audience_stop', { p_slug: control(), p_round: roundId }));
       changed();
+      return stateFrom(raw, await api.rounds());
+    },
+
+    async clearResults(questionId): Promise<AudienceRound | null> {
+      const sb = await client();
+      const row = await operator<RoundRow | null>(() =>
+        sb.rpc('audience_clear_results', { p_slug: control(), p_question: questionId }),
+      );
+      changed();
+      return row ? readRound(row) : null;
     },
 
     async tally(roundId: string): Promise<AudienceTally> {

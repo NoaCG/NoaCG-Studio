@@ -1,4 +1,5 @@
-// covers: src/components/home/ProductionAudienceWorkspace.tsx
+// covers: src/components/home/{ProductionAudienceWorkspace,InteractionQuestions}.tsx
+// covers: src/model/questions.ts
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 // covers: src/components/home/CueEditor.tsx
 // focus
@@ -27,6 +28,7 @@ import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { openWorkspace } from './_workspace';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
+import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
 
 // The production AUDIENCE workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 5).
 //
@@ -36,14 +38,14 @@ import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 // implementation of an interface these specs have already exercised.
 //
 // THE RULE THE SPECS EXIST FOR: nothing a viewer wrote reaches Program without an operator
-// pressing Take. "Prepare cue on <graphic>" makes a CUE and stops (data-sources C0: the view is
-// called Messages, its route is still `audience`).
+// pressing Take. "Prepare cue on <graphic>" makes a CUE and stops (the view is called Interaction,
+// docs/work-specs/interaction/spec.md; its route is still `audience`).
 
 async function productionFor(page: Page, name: string): Promise<string> {
   return openProductionWithCurrent(page, name);
 }
 
-/** Paste a message into Messages, as an operator copying it from a chat window. */
+/** Paste a message into Interaction, as an operator copying it from a chat window. */
 async function paste(workspace: Page, body: string, name = ''): Promise<void> {
   if (name) await workspace.getByTestId('message-paste-name').fill(name);
   await workspace.getByTestId('message-paste-body').fill(body);
@@ -71,7 +73,7 @@ test('the audience workflow: arrive, edit a broadcast version, approve, prepare 
   await expect(audience.getByTestId('audience-empty')).toBeVisible();
 
   // Three arrive.
-  await audience.getByTestId('audience-simulate').click();
+  await simulateArrivals(audience);
   const rows = audience.locator('.pd-aud-row');
   await expect(rows).toHaveCount(3);
   await expect(audience.getByTestId('audience-filter-inbox')).toContainText('(3)');
@@ -125,7 +127,7 @@ test('the audience workspace survives a workspace round trip and a reload', asyn
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Round Trip');
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-simulate').click();
+  await simulateArrivals(audience);
   await expect(audience.locator('.pd-aud-row')).toHaveCount(3);
 
   // THE ROUND TRIP IS INSIDE THE WORKSPACE'S OWN TAB now. Playout is a button there and
@@ -151,29 +153,34 @@ test('the audience workspace survives a workspace round trip and a reload', asyn
   await expect(kept.getByTestId('audience-provenance')).toHaveText('Pasted');
 });
 
-test('the viewer preview is the join page itself, and it follows the operator', async ({ page }) => {
+test('the viewer preview is the join page itself, and it follows the live question', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Preview');
   const audience = await openWorkspace(page, 'audience');
 
   await audience.getByTestId('audience-preview-details').locator('summary').click();
   const preview = audience.getByTestId('audience-preview');
-  // Closed is the honest starting state, and the preview says so in the words a viewer reads.
+  // With no question live, phones show the waiting text, in the words a viewer reads.
   await expect(preview).toContainText('Not taking part right now');
 
-  // Opening the door changes what the room sees — the mode travels with it, so the preview can
-  // never sit on "standing by" while the operator's own screen says Questions.
-  await audience.getByTestId('audience-open').check();
-  await expect(preview.locator('.nj-send')).toBeVisible();
-  await expect(preview).toContainText('Send us your question');
+  // Going live changes what the room sees: an Open question takes a sentence...
+  await addQuestion(audience, 'open', 'What should we ask the coach?');
+  await goLive(audience, 'What should we ask the coach?');
+  await expect(preview.locator('.nj-prompt')).toHaveText('What should we ask the coach?');
+  await expect(preview).toContainText('Your answer');
 
-  await audience.getByTestId('audience-mode').selectOption('comment');
-  await expect(preview).toContainText('Your message');
+  // ...and a Multiple choice one takes a tap, closing the Open one.
+  await addQuestion(audience, 'choice', 'Who wins?', ['Home', 'Away']);
+  await goLive(audience, 'Who wins?');
+  await expect(preview.locator('.nj-opt')).toHaveCount(2);
+  await expect(questionRow(audience, 'What should we ask the coach?').getByTestId('question-live')).toHaveCount(0);
 
   // READ-ONLY: an operator's preview must not be able to put words in the audience's mouth.
+  await stopLive(audience, 'Who wins?');
+  await goLive(audience, 'What should we ask the coach?');
   await preview.locator('textarea').fill('Not from the operator, thanks');
   await preview.locator('.nj-send').click();
-  await expect(preview).toContainText('send from a phone');
+  await expect(preview).toContainText('Send from a phone');
   await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
 });
 
@@ -210,15 +217,9 @@ test('the vote reaches air the same way a question does: open, count, stage a cu
   await productionFor(page, 'Derby Night');
   const audience = await openWorkspace(page, 'audience');
 
-  await audience.getByTestId('audience-round-question').fill('Who wins the derby?');
-  await audience.getByTestId('audience-round-options').fill('The home side\nThe visitors\nA draw');
-  await audience.getByTestId('audience-round-open').click();
-  await expect(audience.getByTestId('audience-round-live')).toHaveText('Who wins the derby?');
-
-  // The MODE follows the vote, and says so. A select whose value is not among its options
-  // renders as the first one — which had this reading "Questions" over an open poll.
-  await expect(audience.getByTestId('audience-mode')).toHaveValue('poll');
-  await expect(audience.getByTestId('audience-mode')).toBeDisabled();
+  await addQuestion(audience, 'choice', 'Who wins the derby?', ['The home side', 'The visitors', 'A draw']);
+  await goLive(audience, 'Who wins the derby?');
+  await expect(audience.getByTestId('question-selected-text')).toHaveText('Who wins the derby?');
 
   // Votes land and the tally moves (it polls while the round is open).
   await audience.getByTestId('audience-simulate-votes').click();
@@ -254,17 +255,11 @@ test('the vote reaches air the same way a question does: open, count, stage a cu
   await expect.poll(async () => (await staged())?.values.f1).toBe('The home side | 4\nThe visitors | 2\nA draw | 2');
   expect(await cueCount()).toBe(1);
 
-  // CLOSING finalises the same cue. Without this the board still said "voting open" beside its
-  // final numbers and there was no way to correct it: staging needs an open round.
-  await audience.getByTestId('audience-round-close').click();
-  await expect(audience.getByTestId('audience-round-open')).toBeVisible(); // composer back
+  // STOP finalises the same cue. Without this the board still said "voting open" beside its
+  // final numbers and there was no way to correct it.
+  await stopLive(audience, 'Who wins the derby?');
   await expect.poll(async () => (await staged())?.values.f2).toContain('voting closed');
   expect(await cueCount()).toBe(1);
-
-  // The room goes back to what it was asked for before the vote — a phone left in poll mode
-  // would show the vote heading over an empty card.
-  await expect(audience.getByTestId('audience-mode')).toHaveValue('question');
-  await expect(audience.getByTestId('audience-mode')).toBeEnabled();
 
   // Only the operator's Take puts the final tally on air.
   await settleDurableWrites(audience);
@@ -280,6 +275,223 @@ test('the vote reaches air the same way a question does: open, count, stage a cu
   await expect(program.locator('body')).toContainText('voting closed');
 });
 
+// ── QUESTIONS AND THEIR LIFECYCLE (docs/work-specs/interaction/spec.md, phase 1). The provider's
+// rules are pinned in Node (scripts/interaction-lifecycle.test.mjs) and against the database in
+// e2e/configured/audience-live.spec.ts; these are the operator's and a phone's walks. ──
+
+/** The production's room as the local provider keeps it (src/audience/localAudience.ts). */
+async function room(tab: Page, showId: string): Promise<{ rounds: { id: string; closedAt: string | null }[] } | null> {
+  return tab.evaluate((id) => {
+    const raw = window.localStorage.getItem('spx-gfx-audience-room');
+    return raw ? (JSON.parse(raw).rooms?.[id] ?? null) : null;
+  }, showId);
+}
+
+test('questions are written, browsed and changed safely, and the list survives a reload (AC-1, AC-2)', async ({ page }) => {
+  await bootstrapGraphic(page, { category: 'Polls', name: 'House Vote' });
+  const showId = await productionFor(page, 'Question Night');
+  // Setup names the view Interaction, and so does the view itself.
+  await page.getByTestId('production-setup').click();
+  await expect(page.getByTestId('setup-audience')).toHaveText('Interaction…');
+  await page.keyboard.press('Escape');
+  const ws = await openWorkspace(page, 'audience');
+  await expect(ws.getByRole('heading', { name: 'Interaction', exact: true })).toBeVisible();
+  await expect(ws.getByText('Messages…')).toHaveCount(0);
+
+  await addQuestion(ws, 'open', 'What should we ask the coach?');
+  await addQuestion(ws, 'choice', 'Who wins?', ['Home', 'Away']);
+  await addQuestion(ws, 'open', 'Where are you watching from');
+  const texts = ws.getByTestId('question-row-text');
+  await expect(texts).toHaveText(['What should we ask the coach?', 'Who wins?', 'Where are you watching from']);
+
+  // Edit, then reorder by the menu and by the keyboard.
+  await questionRow(ws, 'Where are you watching from').getByTestId('question-more').click();
+  await ws.getByTestId('question-edit').click();
+  await ws.getByTestId('question-text').fill('Where are you watching from?');
+  await ws.getByTestId('question-save').click();
+  await questionRow(ws, 'Where are you watching from?').getByTestId('question-more').click();
+  await ws.getByTestId('question-move-up').click();
+  await expect(texts).toHaveText(['What should we ask the coach?', 'Where are you watching from?', 'Who wins?']);
+  await questionRow(ws, 'Who wins?').focus();
+  await ws.keyboard.press('Alt+ArrowUp');
+  await expect(texts).toHaveText(['What should we ask the coach?', 'Who wins?', 'Where are you watching from?']);
+
+  // SELECTING changes nothing on phones or Program (R12): no round, no cue.
+  const cuesBefore = await cueLabels(ws);
+  await questionRow(ws, 'Who wins?').click();
+  await expect(ws.getByTestId('question-selected-text')).toHaveText('Who wins?');
+  expect((await room(ws, showId))?.rounds ?? []).toHaveLength(0);
+  expect(await cueLabels(ws)).toEqual(cuesBefore);
+
+  // Live, the words are locked even with no answers; answered, they stay locked after Stop.
+  const vote = questionRow(ws, 'Who wins?');
+  await goLive(ws, 'Who wins?');
+  await vote.getByTestId('question-more').click();
+  await expect(ws.getByTestId('question-edit')).toBeDisabled();
+  await expect(ws.getByTestId('question-clear')).toBeDisabled(); // refused while live
+  await ws.keyboard.press('Escape');
+  await expect(ws.getByTestId('question-locked')).toBeVisible();
+  await ws.getByTestId('audience-simulate-votes').click();
+  await expect(vote.getByTestId('question-count')).toHaveText('3', { timeout: 10_000 });
+  await stopLive(ws, 'Who wins?');
+  await vote.getByTestId('question-more').click();
+  await expect(ws.getByTestId('question-edit')).toBeDisabled();
+  await ws.keyboard.press('Escape');
+
+  // Going live again continues the same count.
+  await goLive(ws, 'Who wins?');
+  await expect(vote.getByTestId('question-count')).toHaveText('3');
+  await ws.getByTestId('audience-simulate-votes').click();
+  await expect(vote.getByTestId('question-count')).toHaveText('6', { timeout: 10_000 });
+  await stopLive(ws, 'Who wins?');
+
+  // Clear results takes two presses and leaves nothing; the words may then change.
+  await vote.getByTestId('question-more').click();
+  await ws.getByTestId('question-clear').click();
+  await expect(ws.getByTestId('question-clear')).toHaveText('Press again to clear its results');
+  await expect(vote.getByTestId('question-count')).toHaveText('6');
+  await ws.getByTestId('question-clear').click();
+  await expect(vote.getByTestId('question-count')).toHaveText('0');
+  await vote.getByTestId('question-more').click();
+  await expect(ws.getByTestId('question-edit')).toBeEnabled();
+  await ws.keyboard.press('Escape');
+
+  // An answered Open question: Duplicate starts from zero; Delete (while live) stops it first and
+  // keeps its answer under Earlier questions.
+  await goLive(ws, 'What should we ask the coach?');
+  await paste(ws, 'How is the knee?', 'Ana');
+  const coach = questionRow(ws, 'What should we ask the coach?');
+  await expect(coach.getByTestId('question-count')).toHaveText('1');
+  await coach.getByTestId('question-more').click();
+  await ws.getByTestId('question-duplicate').click();
+  await expect(texts).toHaveText(['What should we ask the coach?', 'What should we ask the coach?', 'Who wins?', 'Where are you watching from?']);
+  await expect(ws.getByTestId('question-count').nth(1)).toHaveText('0');
+  await coach.first().getByTestId('question-more').click();
+  await ws.getByTestId('question-delete').click();
+  await expect(texts).toHaveText(['What should we ask the coach?', 'Who wins?', 'Where are you watching from?']);
+  await expect(ws.getByTestId('question-live')).toHaveCount(0);
+  await ws.getByTestId('message-question-filter').selectOption('earlier');
+  await expect(ws.locator('.pd-aud-row')).toHaveCount(1);
+  await expect(ws.locator('.pd-aud-row .pd-aud-body')).toHaveText('How is the knee?');
+
+  // The list, its order and the edited words survive a reload.
+  await settleDurableWrites(ws);
+  await ws.reload();
+  await expect(ws.getByTestId('question-row-text')).toHaveText(['What should we ask the coach?', 'Who wins?', 'Where are you watching from?']);
+
+  // R27: a live question removed from the list elsewhere (here the Playout tab, as another device's
+  // sync would) still has a Stop, and Stop takes phones back to the waiting text.
+  await goLive(ws, 'Where are you watching from?');
+  await page.evaluate(async (id) => {
+    const { setShowQuestions } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    setShowQuestions(id, (list) => list.filter((q) => q.text !== 'Where are you watching from?'));
+    await commitDurableWrites();
+  }, showId);
+  const orphan = ws.getByTestId('question-orphan-live');
+  await expect(orphan).toContainText('Where are you watching from?');
+  await orphan.getByTestId('question-orphan-stop').click();
+  await expect(orphan).toHaveCount(0);
+  expect(((await room(ws, showId))?.rounds ?? []).filter((r) => !r.closedAt)).toHaveLength(0);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+});
+
+test('a stale phone keeps its words, sees the new question, and files nothing until it sends again (AC-4, AC-7)', async ({ page, context }) => {
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Phone Night');
+  const ws = await openWorkspace(page, 'audience');
+  await addQuestion(ws, 'open', 'First question');
+  await addQuestion(ws, 'open', 'Second question');
+  await addQuestion(ws, 'choice', 'Pick one', ['Red', 'Blue']);
+  await goLive(ws, 'First question');
+
+  // A rehearsal phone in this browser. Its clock is held, so it keeps what it last read until the
+  // test lets its five-second poll run: that is what makes it stale.
+  const phone = await context.newPage();
+  await phone.setViewportSize({ width: 390, height: 844 });
+  await phone.clock.install();
+  await phone.goto(`/join?rehearse=${showId}`);
+  await expect(phone.locator('#join .nj-prompt')).toHaveText('First question');
+  await phone.locator('#nj-body').fill('Typed for the first');
+
+  await goLive(ws, 'Second question');
+  await phone.locator('#join .nj-send').click();
+  await expect(phone.locator('#join .nj-note')).toHaveText('That question has closed.');
+  await expect(phone.locator('#join .nj-prompt')).toHaveText('Second question');
+  await expect(phone.locator('#nj-body')).toHaveValue('Typed for the first');
+  // Nothing was filed, under either question, until the viewer sends again.
+  await expect(questionRow(ws, 'First question').getByTestId('question-count')).toHaveText('0');
+  await expect(questionRow(ws, 'Second question').getByTestId('question-count')).toHaveText('0');
+  await phone.locator('#join .nj-send').click();
+  await expect(phone.locator('#join .nj-mine')).toContainText('Typed for the first');
+  await expect(questionRow(ws, 'Second question').getByTestId('question-count')).toHaveText('1');
+
+  // Paste files under the live Open question by default, or under none (AC-7).
+  await expect(ws.getByTestId('paste-destination')).toHaveValue('live');
+  await paste(ws, 'Pasted under the second');
+  await ws.getByTestId('paste-destination').selectOption('none');
+  await paste(ws, 'Pasted under none');
+  await ws.getByTestId('message-question-filter').selectOption({ label: 'No question' });
+  await expect(ws.locator('.pd-aud-row .pd-aud-body')).toHaveText(['Pasted under none']);
+
+  // A vote: after Stop, Clear results, an edit and Go live again, a phone still showing the old
+  // options is refused rather than counted against the new ones.
+  await goLive(ws, 'Pick one');
+  // Changing the live question never moved the earlier answers.
+  await ws.getByTestId('message-question-filter').selectOption({ label: 'Second question' });
+  await expect(ws.locator('.pd-aud-row .pd-aud-body')).toHaveText(['Typed for the first', 'Pasted under the second']);
+  await phone.clock.runFor(7_000);
+  await expect(phone.locator('#join .nj-opt')).toHaveCount(2);
+  await phone.locator('#join .nj-opt').nth(1).click();
+  await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true');
+  const pick = questionRow(ws, 'Pick one');
+  await expect(pick.getByTestId('question-count')).toHaveText('1', { timeout: 10_000 });
+  await stopLive(ws, 'Pick one');
+  await pick.getByTestId('question-more').click();
+  await ws.getByTestId('question-clear').click();
+  await ws.getByTestId('question-clear').click();
+  await expect(pick.getByTestId('question-count')).toHaveText('0');
+  await pick.getByTestId('question-more').click();
+  await ws.getByTestId('question-edit').click();
+  await ws.getByTestId('question-options').fill('Blue\nRed\nGreen');
+  await ws.getByTestId('question-save').click();
+  await goLive(ws, 'Pick one');
+  await phone.locator('#join .nj-opt').nth(0).click(); // still the old "Red"
+  await expect(phone.locator('#join .nj-note')).toHaveText('That question has closed.');
+  await expect(phone.locator('#join .nj-opt')).toHaveCount(3);
+  await expect(pick.getByTestId('question-count')).toHaveText('0');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+});
+
+test('unpublished, Interaction offers Publish where phones would join and publishes nothing by itself (AC-8)', async ({ page }) => {
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Rehearsal');
+  const ws = await openWorkspace(page, 'audience');
+  const join = ws.getByTestId('interaction-join');
+  await expect(join.getByTestId('join-unpublished')).toContainText('Phones can join once this production is published.');
+  // This build has no backend: Publish says why it is off, and no sign-in prompt appears.
+  await expect(join.getByTestId('join-publish')).toBeDisabled();
+  await expect(join.getByTestId('join-publish')).toHaveAttribute('title', 'Publishing needs the cloud backend, and this build runs offline');
+  await expect(ws.getByTestId('signin-prompt')).toHaveCount(0);
+  await expect(join.getByTestId('join-rehearse')).toHaveAttribute('href', `/join?rehearse=${showId}`);
+
+  // Everything but phones rehearses: questions, Go live, the preview, paste and Simulate.
+  await addQuestion(ws, 'open', 'Rehearse me');
+  await goLive(ws, 'Rehearse me');
+  await ws.getByTestId('audience-preview-details').locator('summary').click();
+  await expect(ws.getByTestId('audience-preview').locator('.nj-prompt')).toHaveText('Rehearse me');
+  await paste(ws, 'A pasted answer');
+  await simulateArrivals(ws);
+  await expect(questionRow(ws, 'Rehearse me').getByTestId('question-count')).toHaveText('4');
+  await settleDurableWrites(ws);
+  const published = await ws.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const show = loadShows().find((s) => s.id === id)!;
+    return { hosted: show.hostedSlug ?? null, join: show.joinSlug ?? null };
+  }, showId);
+  expect(published).toEqual({ hosted: null, join: null });
+});
+
 test('a vote with nowhere to go says so instead of writing a cue nobody can read', async ({ page }) => {
   // The pool holds a name strap, not a vote board. Staging a tally into it would put a question
   // in a presenter's name field — so the surface refuses and names the missing thing.
@@ -287,9 +499,8 @@ test('a vote with nowhere to go says so instead of writing a cue nobody can read
   await productionFor(page, 'No Board');
   const audience = await openWorkspace(page, 'audience');
 
-  await audience.getByTestId('audience-round-question').fill('Anything?');
-  await audience.getByTestId('audience-round-options').fill('Yes\nNo');
-  await audience.getByTestId('audience-round-open').click();
+  await addQuestion(audience, 'choice', 'Anything?', ['Yes', 'No']);
+  await goLive(audience, 'Anything?');
   await audience.getByTestId('audience-round-stage').click();
 
   await expect(audience.getByTestId('audience-note')).toContainText('no question/options fields');
@@ -317,7 +528,7 @@ test('a message prepared while the rundown cannot save says so, stays unused, an
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Phone In');
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-simulate').click();
+  await simulateArrivals(audience);
   // All, not the inbox: a message that was used leaves the inbox, and this one must stay in view.
   await audience.getByTestId('audience-filter-all').click();
   const first = audience.locator('.pd-aud-row').first();
@@ -347,9 +558,8 @@ test('a vote staged while the rundown cannot save says so, and staging again add
   await bootstrapGraphic(page, { category: 'Polls', name: 'House Vote' });
   await productionFor(page, 'Derby Night');
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-round-question').fill('Who wins the derby?');
-  await audience.getByTestId('audience-round-options').fill('The home side\nThe visitors');
-  await audience.getByTestId('audience-round-open').click();
+  await addQuestion(audience, 'choice', 'Who wins the derby?', ['The home side', 'The visitors']);
+  await goLive(audience, 'Who wins the derby?');
   await audience.getByTestId('audience-simulate-votes').click();
   await expect(audience.getByTestId('audience-tally-0')).not.toHaveText('0', { timeout: 10_000 });
   const votes = async () => (await cueLabels(audience)).filter((l) => l.startsWith('Vote —')).length;
@@ -379,7 +589,7 @@ test('the presenter pointers: queue what is read now and next, without airing an
   await bootstrapGraphic(page, { name: 'House Q&A' });
   await productionFor(page, 'Autocue');
   const audience = await openWorkspace(page, 'audience');
-  await audience.getByTestId('audience-simulate').click();
+  await simulateArrivals(audience);
   const rows = audience.locator('.pd-aud-row');
   await expect(rows).toHaveCount(3);
 
@@ -467,7 +677,7 @@ test('#1313: with only a scoreboard, Prepare adds no cue and offers the Q&A card
   expect(before.cues).toHaveLength(1);
 
   const messages = await openWorkspace(page, 'audience');
-  await expect(messages.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
+  await expect(messages.getByRole('heading', { name: 'Interaction', exact: true })).toBeVisible();
   await paste(messages, 'Who scores first?', 'Mia');
   const row = messages.locator('.pd-aud-row').first();
   await row.getByTestId('audience-prepare').click();
@@ -681,7 +891,7 @@ test('a tab that has not heard of a binding cannot prepare a message onto it', a
   expect(stored.cues.some((c) => c.stagedFrom)).toBe(false);
 });
 
-test('Fill from… in the cue editor pastes a message into the edited cue, and Messages lists it as used', async ({ page }) => {
+test('Fill from… in the cue editor pastes a message into the edited cue, and Interaction lists it as used', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'House Q&A' });
   const showId = await productionFor(page, 'Editor Door');
   const rec = await record(page, showId);
@@ -731,6 +941,7 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
     `${HEAD}Ana,First from the Sheet,WhatsApp,+358 40 000 0001\nBo,Same words twice,,\nBo,Same words twice,,\nDee,Stays put,,\n`,
   );
   const messages = await openWorkspace(page, 'audience');
+  await moreWaysIn(messages);
   await messages.getByTestId('chat-add-platform').selectOption('sheet');
   await messages.getByTestId('sheet-add-link').fill(MESSAGE_SHEET);
   await messages.getByTestId('chat-add-connect').click();

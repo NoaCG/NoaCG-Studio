@@ -308,6 +308,9 @@ test('the panel holds the browser source in one row, and Links… holds one row 
   await expect(links.locator('.dlg-row')).toHaveCount(3);
   await expect(links.getByTestId('output-url')).toHaveCount(0);
   await expect(links.locator('p')).toHaveCount(0);
+  // The audience link's row points to Interaction, where everything audience lives
+  // (docs/work-specs/interaction/spec.md AC-1), as a button rather than an explanation.
+  await expect(links.getByTestId('join-url').getByTestId('links-interaction-open')).toHaveText('Interaction');
 });
 
 test('the readable audience name: the database decides, and this build says so honestly', async ({ page }) => {
