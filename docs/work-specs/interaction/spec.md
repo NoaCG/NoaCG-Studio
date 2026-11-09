@@ -497,3 +497,98 @@ definer function records it in its own pull request, before landing.
   `authenticated` must change `supabase/advisor-baseline.json` in the same pull request; the
   offline test above now says so in CI.
 
+
+### Phase 2: Joining and a basic Join card
+
+Previous verified main: `afbe5cb0ce9aa3bc2da579ac9a42b60c9a6d1a38`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-2.md` once it lands). Migration
+0112 is purely additive (a public bucket, its quota row, one insert policy) and nothing older reads
+it, so the reverted app runs on it unchanged; removing it is a new migration that drops the policy
+and the quota row and deletes the bucket once empty.
+
+**Decisions** (made in the build, revertible in review):
+
+- The link is `<origin>/j/<name>`: on noacg.studio that is `https://noacg.studio/j/<name>`, and a
+  local or self-hosted build hands out its own origin, so the link always opens the page that made
+  it (`src/join/joinPath.ts`). Links shows the same short link; `/join/<name>` and `/join?p=<slug>`
+  keep working.
+- The look (colours, font and logo) also reaches phones without a publish: Interaction keeps the
+  phone page in step with the production as saved (rules P1 to P5), so a look edit shows on phones
+  on their next read while the publish status still counts it as unpublished for the graphics.
+  The phone page is not air, and AC-6 asks for the look on the next read; publishing it with the
+  graphics would make phones lag the production's own settings.
+- Title, waiting text and the logo's URL travel in the join state's existing `brand` value (no new
+  column): publish writes it, and a change made while Interaction is open is sent through
+  `audience_set_join`'s `brand` key, which merges on the server. Publish now uses that call too,
+  instead of writing the whole state back from a read (which could undo a Go live in between).
+  The page settings are `Show.joinPage`, saved with the production and left out of the publish
+  digest, like the question list.
+- The logo is published to the public bucket `join-logos` (0112) at
+  `<user>/<production>/<sha-256 of the look's file>.<ext>`, raster only and 300 KB at most; an SVG
+  logo is drawn to PNG first, so the bucket serves nothing that can run a script. Old files are
+  not deleted (there is no delete or list policy, by design; the 20 MB per-user quota bounds them).
+  A logo that cannot be published (signed out, refused, offline) never clears the one phones
+  have: publish keeps the logo URL already in the join state, and Interaction sends nothing and
+  says so. A publish never fails over the logo.
+- Unpublished, the studio's phone preview takes the page (look, logo, title, waiting text) straight
+  from the production; the rehearsal phone tab keeps the studio's own colours, as before.
+- The page keeps the look's colours where they meet AA and switches to black or white where they do
+  not (`src/audience/joinColours.ts`); muted text is a blended colour, never opacity. Field and
+  option borders now reach 3:1, which makes them a little stronger in the default look too.
+- The phone reads its view with one plain request instead of through supabase-js, which now loads
+  only when the phone sends: median cold load 2.65 s before, 1.82 s after, on a build against a
+  mock (evidence). The configured test measures a real build against the local stack.
+- The Join card is one audience design, `jc01` House Join Card (house family, bottom-right). Its
+  QR encoder is qrcode-generator 2.0.4 (MIT), vendored minified into
+  `src/templates/shared/qrEncoder.min.js` by `scripts/qr-vendor.mjs` and checked against the
+  installed package; the studio panel uses the package itself. "Add Join card to rundown" adds a
+  cue to the production's Join card if it has one, else adds the card with its one cue.
+- The link name moved from Links to Interaction's Join area. It shows only on a published
+  production (where the link exists), so its offline test became a check that Links has no name
+  control, and the claim, the empty-name refusal and the stale note are pinned against the real
+  database in the configured walk.
+
+**Traps found** (for later phases):
+
+- A minifier writes the string `'$'` as a template literal, and `` $` `` inside a graphic's script
+  is a `String.replace` pattern: the studio's preview splices scripts in with `replace`, so the
+  script was cut short and `play` never existed. `scripts/qr-vendor.mjs` writes it as a plain
+  string and its test refuses any replace pattern in the vendored file.
+- The configured suite runs Vite's dev server, which ships about 2.5 MB to a phone; a cold-load
+  number from it measures the dev server. Build the entry (`vite build` with `configFile: false`
+  and the join input) and serve it with `vite preview` plus `scripts/app-clean-url.mjs`.
+- `e2e/catalog-render-baseline.json` is recorded on Windows and compared only there; a Linux worker
+  must not re-record it (it would replace every design's values). A new design is added there on
+  the recording platform (#2319).
+- A Node test that imports `src/audience/audienceTypes.ts` without the repo's resolver needs
+  relative imports there to name the `.ts` file.
+
+Found in the Codex review of `2e20660` (two findings of one family, keeping phones in step with
+the page between publishes), stated as rules before the repair (`src/control/joinPageSync.ts`):
+
+- P1. Interaction reads what phones get and sends the production's page only when it differs, so
+  opening it repairs a change that never reached phones and otherwise sends nothing.
+- P2. A change is sent a moment after it is made, even if the operator has left the tab: the wait
+  and the send live outside the component.
+- P3. Sends for one production run one at a time, and a send that a newer change superseded stops
+  before it reaches phones, so phones end on the latest saved page.
+- P4. A logo already published under its file's hash is not uploaded again; a logo that cannot be
+  published keeps the one phones have, and the rest of the page still goes (amended after the
+  final review of `a8eb578`: sending nothing held the words back too). Publish keeps the logo the
+  same way. Only when what phones have cannot be read (the read throws) and the logo cannot be
+  published does nothing go, since a send then could clear their logo; phones with no page yet
+  get the rest of the page.
+- The blank-page join tests live in the files that already own their subject, not a new spec
+  file: the phone page and the studio QR in `e2e/production-audience.spec.ts`, the Join card in
+  `e2e/audience-pack.spec.ts`. A new file is priced at the suite median until measured, which took
+  the offline tier over the CI gate's capacity line; folded, the change adds no priced minutes. The
+  measured cost on head `49f9a4d` was 0.10 min for those tests and 0.42 min for the Interaction
+  journeys, less 0.08 min from the link-name test that moved to the configured walk.
+- P5 (from the review of `a8eb578`, completed after the final review of `1bf6181`). Publish writes
+  the page through the same one-at-a-time queue, which reads the production as saved when its turn
+  runs, so a title changed during a long publish or a slow logo upload is not put back by it, and
+  publish and Interaction's sync never overtake each other in one tab. A page-settings edit
+  committed as the tab closes asks for its own sync.
+
+Follow-ups filed: #2319 (render baseline on Windows), #2320 (offer to update Join card cues after
+the link name changes; in the spec's Graphics section, not in phase 2's acceptance).

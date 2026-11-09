@@ -7,6 +7,8 @@ import {
   setShowSourcePaused,
   setShowMessageTarget,
   setShowPollLiveFigures,
+  loadShows,
+  setShowJoinPage,
   setShowQuestions,
   showQuestions,
   updateShowCue,
@@ -36,12 +38,18 @@ import {
   type JoinSurfaceHandle,
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
+import { joinPageBrand, lookLogoDataUrl } from '../../audience/audienceBrand';
+import { qrPng, qrSvg } from '../../audience/joinQr';
+import { JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT } from '../../audience/audienceTypes';
+import { publishJoinLogo } from '../../control/joinLogo';
+import { syncJoinPage } from '../../control/joinPageSync';
 import { useMessagesBackend } from './useAudienceInbox';
 import { rehearsalPageUrl } from '../../audience/localAudience';
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
 import { joinPageUrl } from '../../control/hostedControl';
 import { copyLink } from './copyLink';
+import { useDeferredEdits } from './useDeferredEdits';
 import { QuestionComposer, QuestionList, type QuestionRowState } from './InteractionQuestions';
 import {
   addQuestion,
@@ -256,6 +264,63 @@ async function addMessageCard(show: Show, cardName: string): Promise<{ shows: Sh
   const graphic = after?.graphics.find((g) => !before.has(g.id)) ?? null;
   const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) ?? null : null;
   return { shows, graphicId: graphic?.id ?? null, cueId: cue?.id ?? null, error: graphic ? null : 'The card was not added.' };
+}
+
+/** The Join card in the catalog (templates/audience/joinCard.ts). */
+const JOIN_CARD_ID = 'jc01';
+
+/**
+ * "Add Join card to rundown" (interaction spec, Join; AC-11): one Join card cue whose Join link is
+ * the production's link. A Join card already in the production gets the new cue; otherwise the card
+ * is added with its one seeded cue. Its QR is drawn by the graphic from that field. Nothing airs.
+ */
+async function addJoinCard(show: Show, link: string): Promise<{ shows: Show[] | null; error: string | null }> {
+  const existing = show.graphics.find((g) => lastTitled(g.template.fields ?? [], ['join link']));
+  if (existing) {
+    const field = lastTitled(existing.template.fields ?? [], ['join link'])!;
+    const { shows, error } = addShowCue(show.id, existing.id, { label: 'Join card', values: { [field]: link } });
+    const failure = error ?? (await commitDurableWrites());
+    return { shows, error: failure };
+  }
+  const [{ variantById }, { buildDraftTemplate, initialDraft, mergeDraft }] = await Promise.all([
+    import('../../templates/catalog'),
+    import('../wizard/draft'),
+  ]);
+  const variant = variantById(JOIN_CARD_ID);
+  if (!variant) return { shows: null, error: 'The Join card is not in this build.' };
+  // The link goes into the cue, never into the graphic's own defaults: a graphic holding an
+  // absolute URL is refused by the publish gate (validation/templateBench.ts).
+  const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
+  const added = addGraphicToShow(show.id, template, {});
+  if (added.error) return { shows: added.shows, error: added.error };
+  const before = new Set(show.graphics.map((g) => g.id));
+  const after = added.shows.find((x) => x.id === show.id);
+  const graphic = after?.graphics.find((g) => !before.has(g.id));
+  const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) : undefined;
+  const field = graphic ? lastTitled(graphic.template.fields ?? [], ['join link']) : null;
+  if (!cue || !field) return { shows: added.shows, error: 'The Join card was added without its cue.' };
+  const filled = updateShowCueChecked(show.id, cue.id, { values: { ...cue.values, [field]: link } });
+  const failure = filled.error ?? (await commitDurableWrites());
+  return { shows: filled.shows, error: failure };
+}
+
+/** A stable number per Blob, so a replaced Blob logo of the same size still reads as a change. */
+const blobIds = new WeakMap<Blob, number>();
+let nextBlobId = 0;
+function blobId(blob: Blob): number {
+  let id = blobIds.get(blob);
+  if (id === undefined) blobIds.set(blob, (id = ++nextBlobId));
+  return id;
+}
+
+/** Save a file the browser made. */
+function saveFile(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /** The stores staging writes through, and how a staged candidate is marked used. */
@@ -847,11 +912,15 @@ export default function ProductionAudienceWorkspace({
   show,
   setShows,
   publish = null,
+  joinName = null,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
   /** Publish this production, offered where phones would join (AC-8): a press, never automatic. */
   publish?: { run: () => void; unavailable: string | null } | null;
+  /** The link's name (moved here from Links): the claim stays with the page, which owns its
+   *  account gate (useProductionPublish.ts `claimName`). */
+  joinName?: { draft: string; note: string | null; busy: boolean; onDraft: (value: string) => void; onClaim: () => void } | null;
 }) {
   // ONE provider per PRODUCTION. The local one is held ABOVE this component (the workspace
   // unmounts on every trip to Playout or Data, and an inbox that emptied itself on a tab
@@ -930,15 +999,83 @@ export default function ProductionAudienceWorkspace({
    * Live, it reads through the production's JOIN slug, which the studio holds locally: what is
    * shown is then literally what a phone gets, not a reconstruction of it.
    */
+  // Unpublished, the preview takes the page straight from the production (its look, logo, title
+  // and waiting text), since there are no phones to send it to (AudienceBackend.setPage).
+  const [lookLogo, setLookLogo] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void lookLogoDataUrl(show.look).then((url) => {
+      if (alive) setLookLogo(url);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the logo itself changes
+  }, [show.look?.logo?.data]);
+  const localBrand = useMemo(() => joinPageBrand({ look: show.look, joinPage: show.joinPage }, lookLogo), [show.look, show.joinPage, lookLogo]);
+  // Read through a ref, so a settings edit refreshes the open preview instead of remounting it.
+  const localBrandRef = useRef(localBrand);
+  localBrandRef.current = localBrand;
+  useEffect(() => {
+    preview.current?.refresh();
+  }, [localBrand]);
   const previewClient = useMemo<JoinSurfaceClient>(() => {
     const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
     const refuse = async () => ({ ok: false, error: 'This is your preview. Send from a phone to test it.' });
     return {
-      load: () => viewer.joinView('preview-operator-device'),
+      load: async () => {
+        const view = await viewer.joinView('preview-operator-device');
+        return live ? view : { ...view, brand: localBrandRef.current };
+      },
       submit: refuse,
       vote: refuse,
     };
   }, [backend, live, show.joinSlug]);
+
+  // PUBLISHED: phones follow the page settings and the look without a publish (interaction spec
+  // phase 2, rules P1 to P4 in control/joinPageSync.ts). Opening the tab compares what phones get
+  // with the production and sends only a difference; a change is sent a moment later, even if the
+  // operator has left the tab by then.
+  // The key is what phones would be sent, with the logo by its own bytes.
+  const pageKey = useMemo(() => {
+    const logo = show.look?.logo?.data;
+    return JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), typeof logo === 'string' ? logo : logo ? `blob:${blobId(logo)}` : null]);
+  }, [show.look, show.joinPage]);
+  const pageSynced = useRef(false);
+  /** Ask the page queue to bring phones in step (published only). Read through a ref by the
+   *  page settings' commit, which can run as this component goes away. */
+  const askPageSync = useRef<(delayMs: number) => void>(() => {});
+  askPageSync.current = (delayMs: number) => {
+    if (!live || !backend.setPage || !backend.readPage) return;
+    const showId = show.id;
+    void syncJoinPage(
+      showId,
+      {
+        readShow: () => loadShows().find((s) => s.id === showId) ?? null,
+        readBrand: () => backend.readPage!(),
+        publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
+        send: (brand) => backend.setPage!(brand),
+        onSent: () => preview.current?.refresh(),
+        onError: () => setNote('Phones did not get all of this page (the logo or the connection). It is tried again when Interaction opens, and on publish.'),
+      },
+      delayMs,
+    );
+  };
+  useEffect(() => {
+    askPageSync.current(pageSynced.current ? 600 : 0);
+    pageSynced.current = true;
+    // The key says when to ask; the sync reads the production itself when it runs.
+  }, [live, backend, pageKey, show.joinSlug]);
+
+  /** The page settings' boxes: one write per edit, not per keystroke (useDeferredEdits). */
+  const pageEdits = useDeferredEdits((key, text) => {
+    const { shows, error } = setShowJoinPage(show.id, { [key]: text });
+    if (error) setNote(error);
+    else setShows(shows);
+    // An edit can be committed as this tab closes, when no effect will run after it: ask here too.
+    if (!error) askPageSync.current(600);
+  });
+  const [qrBusy, setQrBusy] = useState(false);
 
   useEffect(() => {
     const host = previewHost.current;
@@ -1420,6 +1557,7 @@ export default function ProductionAudienceWorkspace({
   );
 
   const joinUrl = live && show.joinSlug ? joinPageUrl(show.joinSlug) : null;
+  const joinQrSvg = useMemo(() => (joinUrl ? qrSvg(joinUrl) : null), [joinUrl]);
   const [copied, setCopied] = useState(false);
   const selectedTally = selectedRound ? tallies[selectedRound.id] : undefined;
 
@@ -1587,14 +1725,79 @@ export default function ProductionAudienceWorkspace({
               <h3>Join</h3>
             </div>
             {joinUrl ? (
-              <div className="pd-aud-round-actions" data-testid="join-published">
-                <code className="prod-url">{joinUrl}</code>
-                <button
-                  onClick={() => void copyLink(joinUrl).then((ok) => setCopied(ok))}
-                  data-testid="join-copy"
-                >
-                  {copied ? '✓ Copied' : 'Copy'}
-                </button>
+              <div className="pd-aud-join" data-testid="join-published">
+                {/* The code a phone camera reads: drawn here from the link, no QR service. */}
+                <div className="pd-aud-qr" role="img" aria-label={`QR code for ${joinUrl}`} data-testid="join-qr" dangerouslySetInnerHTML={{ __html: joinQrSvg ?? '' }} />
+                <div className="pd-aud-join-side">
+                  <div className="pd-aud-round-actions">
+                    <code className="prod-url" data-testid="join-link">{joinUrl}</code>
+                    <button onClick={() => void copyLink(joinUrl).then((ok) => setCopied(ok))} data-testid="join-copy">
+                      {copied ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  <div className="pd-aud-round-actions">
+                    <span className="hint">Download QR</span>
+                    <button
+                      disabled={qrBusy}
+                      onClick={() => {
+                        setQrBusy(true);
+                        void qrPng(joinUrl)
+                          .then((blob) => blob && saveFile(blob, `join-${show.joinSlug}.png`))
+                          .finally(() => setQrBusy(false));
+                      }}
+                      data-testid="join-qr-png"
+                    >
+                      PNG
+                    </button>
+                    <button
+                      onClick={() => saveFile(new Blob([joinQrSvg ?? ''], { type: 'image/svg+xml' }), `join-${show.joinSlug}.svg`)}
+                      data-testid="join-qr-svg"
+                    >
+                      SVG
+                    </button>
+                  </div>
+                  <div className="pd-aud-round-actions">
+                    <button
+                      disabled={qrBusy}
+                      onClick={() => {
+                        setQrBusy(true);
+                        void addJoinCard(show, joinUrl)
+                          .then(({ shows, error }) => {
+                            if (shows) setShows(shows);
+                            setNote(error ?? '✓ Join card added to the rundown. Take it when you want it on air.');
+                          })
+                          .finally(() => setQrBusy(false));
+                      }}
+                      data-testid="join-card-add"
+                    >
+                      Add Join card to rundown
+                    </button>
+                  </div>
+                  {joinName && (
+                    <div className="pd-aud-round-actions" data-testid="join-name">
+                      <input
+                        type="text"
+                        value={joinName.draft}
+                        placeholder={show.joinSlug ?? 'friday-night-live'}
+                        aria-label="Link name"
+                        title="Changing the name stops the old link"
+                        onChange={(e) => joinName.onDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') joinName.onClaim();
+                        }}
+                        data-testid="join-name-input"
+                      />
+                      <button onClick={joinName.onClaim} disabled={joinName.busy || !joinName.draft.trim()} data-testid="join-name-claim">
+                        Use this name
+                      </button>
+                    </div>
+                  )}
+                  {joinName?.note && (
+                    <p className={joinName.note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="join-name-note">
+                      {joinName.note}
+                    </p>
+                  )}
+                </div>
               </div>
             ) : needsSignIn ? (
               // AC-8: signed out, the sign-in prompt sits where phones would join, and only here.
@@ -1623,6 +1826,42 @@ export default function ProductionAudienceWorkspace({
                 in this browser.
               </p>
             )}
+            {/* PAGE SETTINGS (interaction spec D4): the page's title and its waiting text. The look,
+                its font and its logo come from the production's look. */}
+            <div className="pd-aud-page" data-testid="join-page-settings">
+              <label className="pd-aud-correct">
+                Title
+                <input
+                  type="text"
+                  maxLength={JOIN_PAGE_LIMITS.title}
+                  placeholder={show.name}
+                  value={pageEdits.text('title', show.joinPage?.title ?? '')}
+                  data-dirty={pageEdits.dirty('title') || undefined}
+                  onChange={(e) => pageEdits.type('title', e.target.value)}
+                  onBlur={pageEdits.flush}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') pageEdits.flush();
+                  }}
+                  data-testid="join-page-title"
+                />
+              </label>
+              <label className="pd-aud-correct">
+                Waiting text
+                <input
+                  type="text"
+                  maxLength={JOIN_PAGE_LIMITS.waiting}
+                  placeholder={JOIN_WAITING_DEFAULT}
+                  value={pageEdits.text('waiting', show.joinPage?.waiting ?? '')}
+                  data-dirty={pageEdits.dirty('waiting') || undefined}
+                  onChange={(e) => pageEdits.type('waiting', e.target.value)}
+                  onBlur={pageEdits.flush}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') pageEdits.flush();
+                  }}
+                  data-testid="join-page-waiting"
+                />
+              </label>
+            </div>
             {/* THE VIEWER'S VIEW. Same renderer as the public page, read-only, folded away by
                 default: an operator wants it when setting up and rarely during a show. */}
             <details

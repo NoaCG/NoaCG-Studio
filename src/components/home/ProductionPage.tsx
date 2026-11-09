@@ -3855,6 +3855,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             show={show}
             setShows={setShows}
             publish={started ? null : { run: () => void publish(), unavailable: backendConfigured ? null : 'Publishing needs the cloud backend, and this build runs offline' }}
+            joinName={{
+              draft: nameDraft,
+              note: nameNote,
+              busy,
+              onDraft: (v) => { setNameDraft(v); setNameNote(null); },
+              onClaim: () => void claimName(),
+            }}
           />
         </AccountAuthoringGate>
       )}
@@ -4485,15 +4492,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {linksOpen && (
         <ProductionLinksDialog
-          busy={busy}
           controlUrl={controlUrl}
           joinUrl={joinUrl}
           interactionHref={routeHash({ view: 'production', id: show.id, sub: 'audience' })}
           presenterUrl={presenterUrl}
-          nameDraft={nameDraft}
-          nameNote={nameNote}
-          onNameDraft={(v) => { setNameDraft(v); setNameNote(null); }}
-          onClaimName={() => void claimName()}
           copied={copied}
           onCopy={copy}
           onClose={() => setLinksOpen(false)}

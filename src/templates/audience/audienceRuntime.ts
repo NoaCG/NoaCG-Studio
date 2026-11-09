@@ -5,6 +5,7 @@
 // so the timeline can never rewrite it, and it survives export untouched.
 
 import { motionSpeedJs } from '../shared/base';
+import QR_ENCODER_JS from '../shared/qrEncoder.min.js?raw';
 
 /**
  * The attribution runtime, in every audience graphic.
@@ -133,3 +134,51 @@ function audienceQueueStep(by) {
 // audienceQueueNext() / audienceQueuePrev(): the two calls the machine's states fire.
 function audienceQueueNext() { audienceQueueStep(1); }
 function audienceQueuePrev() { audienceQueueStep(-1); }`;
+
+/**
+ * The Join card runtime: the QR encoder the card carries, and the painter that draws the Join link
+ * as a code (interaction spec, Graphics ▸ Join card). Data, never state: a new link redraws the
+ * code on update() and changes nothing else (docs/STATE_MACHINE_SCHEMA.md §3).
+ */
+export const AUDIENCE_JOIN_JS = `// ---- The Join card's QR code ----
+
+// The encoder: qrcode-generator (MIT), carried in this file so the card needs no network.
+${QR_ENCODER_JS.trim()}
+
+// audienceJoinPaint(): draw the Join link (the hidden #f2) as a QR code, error correction M, and
+// show the link without its scheme. An empty link draws nothing.
+function audienceJoinPaint() {
+  var source = document.getElementById('f2');
+  var host = document.getElementById('audience-join-qr');
+  var shown = document.querySelector('.audience-join-url');
+  var root = document.querySelector('.audience');
+  if (!source || !host) return;
+  var link = (source.textContent || '').trim();
+  var drawn = host.querySelector('path');
+  if (drawn) drawn.setAttribute('d', '');
+  if (shown) shown.textContent = link.replace(/^https?:\\/\\//i, '').replace(/\\/$/, '');
+  if (root) root.classList.toggle('audience-join-empty', !link);
+  if (!link || typeof qrcode !== 'function') return;
+  var qr;
+  try {
+    qr = qrcode(0, 'M');
+    qr.addData(link, 'Byte');
+    qr.make();
+  } catch (e) {
+    if (root) root.classList.add('audience-join-empty');   // too long for any code: draw nothing
+    return;
+  }
+  var quiet = 4, n = qr.getModuleCount(), size = n + quiet * 2, d = '';
+  for (var r = 0; r < n; r++) {
+    for (var c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) d += 'M' + (c + quiet) + ' ' + (r + quiet) + 'h1v1h-1z';
+    }
+  }
+  // The <svg> is in the markup and only its numbers change here, so this script names no URL
+  // (an svg made in script needs its namespace, and the publish gate refuses any absolute URL).
+  var svg = host.querySelector('svg');
+  var modules = host.querySelector('path');
+  if (!svg || !modules) return;
+  svg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+  modules.setAttribute('d', d);
+}`;

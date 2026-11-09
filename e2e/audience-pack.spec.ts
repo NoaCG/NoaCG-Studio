@@ -5,8 +5,9 @@
 // pack's answer boards.
 // covers: src/templates/quiz/**
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Frame, type Page } from '@playwright/test';
 import { toApp } from './_bench';
+import { qrReader } from './_qr';
 
 // THE AUDIENCE PACK — viewer questions, Q&A cards, chat highlights, question queues, community
 // requests, live votes, and the two- and three-answer boards.
@@ -620,4 +621,108 @@ test('every pack graphic exports to every target with no dangling references', a
     return out;
   })()`);
   expect(report).toEqual([]);
+});
+
+// THE JOIN CARD (interaction spec, phase 2, AC-11): it draws a QR that decodes to its Join link,
+// live and exported with no network. Each QR is read from PIXELS by e2e/_qr.ts.
+const LINK = 'https://noacg.studio/j/friday-night-live';
+
+/** A blank page on the app's origin. */
+async function phonePage(page: Page): Promise<void> {
+  await page.route('**/join-card-probe', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><body></body>' }),
+  );
+  await page.goto('/join-card-probe');
+}
+
+test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
+  /** Build the Join card with this link, as Add Join card to rundown does. */
+  const template = (page: Page, link: string) =>
+    page.evaluate(async (l) => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const variant = variantById('jc01')!;
+      const lines = variant.suggestedLines.map((line) => (line.title === 'Join link' ? { ...line, sample: l } : line));
+      return variant.create({ lines });
+    }, link);
+
+  /** Play the card in this document and wait for its entrance to land. Play is queued in the
+   *  graphic's own event queue, so the wait is on what the page shows, not on a timeline handle. */
+  const settle = async (frame: Page | Frame) => {
+    await frame.evaluate(() => (window as unknown as { play(): void }).play());
+    await frame.waitForFunction(() => {
+      const box = document.querySelector('.audience-box');
+      const root = document.querySelector('.audience');
+      const g = (window as unknown as { gsap: { globalTimeline: { getChildren(a: boolean, b: boolean, c: boolean): { isActive(): boolean }[] } } }).gsap;
+      return !!box && !!root && getComputedStyle(root).opacity === '1' && getComputedStyle(box).opacity === '1'
+        && g.globalTimeline.getChildren(true, true, false).every((t) => !t.isActive());
+    });
+  };
+
+  test('live: the rendered card decodes to its link, follows an update, and an empty link draws nothing', async ({ page, browser }) => {
+    const reader = await qrReader(browser);
+    try {
+      await phonePage(page);
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      const tpl = await template(page, LINK);
+      // As the studio's monitors load it: the preview document in an iframe on the app's origin.
+      await page.evaluate(async (t) => {
+        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const f = document.createElement('iframe');
+        f.id = 'card';
+        f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
+        document.body.appendChild(f);
+        await new Promise((res) => {
+          f.onload = res;
+          f.srcdoc = composeDocument(t as never);
+        });
+      }, tpl);
+      const card = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+      await card.waitForFunction(() => typeof (window as unknown as { play?: unknown }).play === 'function');
+      await settle(card);
+      const qr = page.frameLocator('#card').locator('#audience-join-qr');
+      await expect(qr.locator('path')).toHaveAttribute('d', /^M/);
+      expect(await reader.read(await qr.screenshot())).toBe(LINK);
+      await expect(page.frameLocator('#card').locator('.audience-join-url')).toHaveText('noacg.studio/j/friday-night-live');
+
+      // A new link is data: update() redraws the code, nothing else moves.
+      const other = 'https://noacg.studio/j/quiz-2026';
+      await card.evaluate((l) => (window as unknown as { update(d: unknown): void }).update({ f2: l }), other);
+      expect(await reader.read(await qr.screenshot())).toBe(other);
+
+      await card.evaluate(() => (window as unknown as { update(d: unknown): void }).update({ f2: '' }));
+      await expect(qr).toBeHidden();
+      await expect(qr.locator('path')).toHaveAttribute('d', '');
+      await expect(page.frameLocator('#card').locator('.audience-join-url')).toBeHidden();
+    } finally {
+      await reader.close();
+    }
+  });
+
+  test('exported: the single-file card, opened with no network, still draws the same code', async ({ page, browser }) => {
+    const reader = await qrReader(browser);
+    try {
+      await phonePage(page);
+      const tpl = await template(page, LINK);
+      const html = await page.evaluate(async (t) => {
+        const { composeSelfContainedHtml } = await import('/src/export/selfContained.ts');
+        return composeSelfContainedHtml(t as never);
+      }, tpl);
+      expect(html).not.toMatch(/<script[^>]+src=/i);
+      const offline = await browser.newContext({ offline: true, viewport: { width: 1920, height: 1080 } });
+      const card = await offline.newPage();
+      const requests: string[] = [];
+      card.on('request', (r) => {
+        if (!r.url().startsWith('data:')) requests.push(r.url());
+      });
+      await card.route('**/*', (route) => route.abort());
+      await card.setContent(html);
+      await card.waitForFunction(() => typeof (window as unknown as { play?: unknown }).play === 'function');
+      await settle(card);
+      expect(await reader.read(await card.locator('#audience-join-qr').screenshot())).toBe(LINK);
+      expect(requests, 'nothing was fetched').toEqual([]);
+      await offline.close();
+    } finally {
+      await reader.close();
+    }
+  });
 });

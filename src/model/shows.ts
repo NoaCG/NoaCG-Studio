@@ -32,6 +32,7 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, type ShowQuestion } from './questions';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
@@ -509,6 +510,11 @@ export interface Show {
    *  keeps a newer build's question types whole. Answers and results are not here: they live with
    *  the audience provider, keyed by each question's id. */
   questions?: ShowQuestion[];
+  /** The phone page's own words (interaction spec, Join ▸ Page settings): a title (empty = the
+   *  production's name) and the waiting text (empty = the default). They reach phones through the
+   *  join state like the look (audience/joinBrand.ts), not through a publish. ADDITIVE OPTIONAL;
+   *  absent = both defaults. */
+  joinPage?: { title?: string; waiting?: string };
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
@@ -2492,6 +2498,24 @@ export function setShowQuestions(
     if (JSON.stringify(next) === JSON.stringify(readQuestions(show.questions))) return false;
     if (next.length > 0) show.questions = next;
     else delete show.questions;
+    return true;
+  }, true);
+}
+
+/** Change the phone page's title or waiting text (Show.joinPage). An empty value means the default
+ *  and is not stored. */
+export function setShowJoinPage(showId: string, patch: { title?: string; waiting?: string }): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const next = { ...(show.joinPage ?? {}) };
+    for (const key of ['title', 'waiting'] as const) {
+      if (!(key in patch)) continue;
+      const value = (patch[key] ?? '').slice(0, JOIN_PAGE_LIMITS[key]);
+      if (value.trim()) next[key] = value;
+      else delete next[key];
+    }
+    if (JSON.stringify(next) === JSON.stringify(show.joinPage ?? {})) return false;
+    if (Object.keys(next).length > 0) show.joinPage = next;
+    else delete show.joinPage;
     return true;
   }, true);
 }

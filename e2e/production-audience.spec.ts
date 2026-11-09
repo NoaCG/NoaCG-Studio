@@ -29,6 +29,7 @@ import { openWorkspace } from './_workspace';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { addQuestion, goLive, moreWaysIn, questionRow, simulateArrivals, stopLive } from './_interaction';
+import { qrReader } from './_qr';
 
 // The production AUDIENCE workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 5).
 //
@@ -184,12 +185,99 @@ test('the viewer preview is the join page itself, and it follows the live questi
   await expect(audience.locator('.pd-aud-row')).toHaveCount(0);
 });
 
+test('the page settings reach the phone preview: the title and waiting text, and the look', async ({ page }) => {
+  // interaction spec D4, AC-6 (journey for the settings): Join's page settings are a title (empty
+  // = the production name) and the waiting text. Unpublished, the preview takes them, and the
+  // look, straight from the production; published, they reach phones on the next read
+  // (e2e/configured/audience-live.spec.ts).
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Settings Night');
+  const audience = await openWorkspace(page, 'audience');
+  // Unpublished, Join offers Publish where the code will be (AC-8) and no code yet.
+  await expect(audience.getByTestId('join-unpublished')).toBeVisible();
+  await expect(audience.getByTestId('join-qr')).toHaveCount(0);
+  await audience.getByTestId('audience-preview-details').locator('summary').click();
+  const preview = audience.getByTestId('audience-preview');
+  await expect(preview.locator('.nj-title')).toHaveText('Settings Night');
+  await expect(preview.locator('.nj-waiting')).toHaveText(/^Not taking part right now/);
+
+  const title = audience.getByTestId('join-page-title');
+  const waiting = audience.getByTestId('join-page-waiting');
+  await expect(title).toHaveAttribute('placeholder', 'Settings Night');
+  await title.fill('Quiz Night');
+  await waiting.fill('Back after the break');
+  await waiting.press('Enter');
+  await expect(preview.locator('.nj-title')).toHaveText('Quiz Night');
+  await expect(preview.locator('.nj-waiting')).toHaveText('Back after the break');
+
+  // Saved with the production: a reload keeps both.
+  await settleDurableWrites(audience);
+  await audience.reload();
+  await expect(audience.getByTestId('join-page-title')).toHaveValue('Quiz Night');
+  await expect(audience.getByTestId('join-page-waiting')).toHaveValue('Back after the break');
+  await audience.getByTestId('audience-preview-details').locator('summary').click();
+  await expect(preview.locator('.nj-title')).toHaveText('Quiz Night');
+
+  // Emptied, the defaults come back.
+  await audience.getByTestId('join-page-title').fill('');
+  await audience.getByTestId('join-page-title').blur();
+  await expect(preview.locator('.nj-title')).toHaveText('Settings Night');
+  const stored = await audience.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((s) => s.id === id)?.joinPage ?? null;
+  }, showId);
+  expect(stored).toEqual({ waiting: 'Back after the break' });
+});
+
+test('a Join card cue takes its place and size from the cue editor', async ({ page }) => {
+  // interaction spec AC-11: the Join card is an ordinary cue, so the cue editor's Place and Size
+  // move it like any other. Adding it from Interaction needs a published link (the configured
+  // walk presses that button); here it is added the way that button adds it, with a link.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  const showId = await productionFor(page, 'Join Card Night');
+  await page.evaluate(async (id) => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { buildDraftTemplate, initialDraft, mergeDraft } = await import('/src/components/wizard/draft.ts');
+    const { addGraphicToShow } = await import('/src/model/shows.ts');
+    const variant = variantById('jc01')!;
+    const lines = variant.suggestedLines.map((l) => (l.title === 'Join link' ? { ...l, sample: 'https://noacg.studio/j/join-card-night' } : { ...l }));
+    addGraphicToShow(id, buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines })), {});
+    window.dispatchEvent(new Event('spx-data-changed'));
+    await new Promise((r) => setTimeout(r));
+  }, showId);
+  const cue = page.locator('.pd-cue', { hasText: 'House Join Card' }).first();
+  await expect(cue).toBeVisible();
+  await cue.click();
+  const frame = async () =>
+    JSON.parse((await page.locator('[data-testid="production-preview"] iframe').first().getAttribute('data-appearance')) ?? '{"frame":null}').frame as { dx: number; dy: number; s: number } | null;
+  const summary = page.getByTestId('cue-adjust-summary');
+  await expect(summary).toHaveText(/as designed/);
+  await page.getByTestId('cue-adjust-toggle').click();
+  await expect(page.getByTestId('adjust-floor')).toHaveText(/smallest text \d/, { timeout: 15_000 });
+  // The card is designed bottom-right; Place moves it top-left, and Size makes it larger.
+  await page.getByTestId('adjust-place-tl').click();
+  await expect(summary).toHaveText(/top-left/);
+  await expect.poll(async () => (await frame())?.dx ?? 0).toBeLessThan(-400);
+  await page.getByTestId('adjust-larger').click();
+  await expect(page.getByTestId('adjust-size')).toHaveValue('105');
+  await expect.poll(async () => (await frame())?.s ?? 1).toBeGreaterThan(1);
+  // Nothing reaches PROGRAM by being placed.
+  expect(await page.locator('[data-testid="program-stage"] iframe').first().getAttribute('data-appearance')).toBeNull();
+  // The card on PREVIEW still carries its code.
+  await expect(page.frameLocator('[data-testid="production-preview"] iframe').first().locator('#audience-join-qr path')).toHaveAttribute('d', /^M/);
+});
+
 test('the public join page answers honestly on an offline build', async ({ page }) => {
   // The page is a capability URL, so every "nothing here" answer is the SAME answer — but an
   // offline build is not a capability question at all, and saying so beats showing a form that
   // could never send anything.
   await page.goto('/join/friday-night-live');
   await expect(page.locator('#join')).toContainText('runs offline');
+  // The short link is the same page (interaction spec D2).
+  await page.goto('/j/friday-night-live');
+  await expect(page.locator('#join')).toContainText('runs offline');
+  await page.goto('/join/friday-night-live');
   await expect(page.locator('form, textarea')).toHaveCount(0);
   // …and it answers honestly IN THE PAGE'S OWN LOOK. The stylesheet ships with the join surface,
   // so every state that does not mount that surface — this one and the presenter view — used to
@@ -1003,4 +1091,316 @@ test('a message Sheet: rows arrive as candidates; a vanished row leaves an unuse
   const reads = tab.reads;
   await expect.poll(() => tab.reads, { timeout: 20_000 }).toBeGreaterThan(reads);
   await expect(rows).toHaveCount(4);
+});
+
+// THE PHONE PAGE'S LOOK AND THE STUDIO'S QR CODE, on a blank page (interaction spec, phase 2).
+//   AC-5: the studio's QR code (SVG and PNG) decodes to the short link, read from PIXELS by
+//         e2e/_qr.ts as a phone camera would read it.
+//   AC-6: the join surface shows the look's colours, font, logo, title and waiting text; a
+//         low-contrast palette still meets WCAG AA; a broken logo shows no broken image; a failing
+//         custom font falls back with the layout intact; a replaced or removed logo takes effect
+//         on the next read.
+
+const LINK = 'https://noacg.studio/j/friday-night-live';
+const PHONE = { width: 390, height: 844 };
+
+/** A blank page on the app's origin with join.html's own page colours, the join surface loaded. */
+async function phonePage(page: Page): Promise<void> {
+  await page.setViewportSize(PHONE);
+  await page.route('**/join-surface-probe', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#0b0b0d;color:#f4f4f5}</style><body><main id="join"></main></body>',
+    }),
+  );
+  await page.goto('/join-surface-probe');
+}
+
+/**
+ * Mount the surface over a client whose view the test sets (`window.__view`), and keep the handle
+ * as `window.__join`. `round` picks what is live: none, an Open question or a Multiple choice one.
+ */
+async function mount(page: Page, view: Record<string, unknown>, round: 'none' | 'open' | 'choice' = 'none'): Promise<void> {
+  await page.evaluate(
+    async ({ view, round }) => {
+      const { mountJoinSurface } = await import('/src/audience/joinSurface.ts');
+      const state =
+        round === 'none'
+          ? { open: false, mode: 'waiting', round: null, prompt: '', presenter: { current: null, next: null } }
+          : {
+              open: true,
+              mode: round === 'open' ? 'question' : 'poll',
+              prompt: round === 'open' ? 'What should we ask the panel?' : 'Who wins tonight?',
+              presenter: { current: null, next: null },
+              round: {
+                id: 'r1', kind: round === 'open' ? 'open' : 'poll', question: '', revision: 1, openedAt: '', closedAt: null, correctOption: null,
+                options: round === 'open' ? [] : ['The home side', 'The visitors', 'A draw after extra time'],
+              },
+            };
+      const w = window as unknown as { __view: Record<string, unknown>; __join: { refresh(): void } };
+      w.__view = { productionName: 'Friday Night Live', state, mine: [], myVote: null, ...view };
+      w.__join = mountJoinSurface(document.getElementById('join')!, {
+        load: async () => w.__view as never,
+        submit: async () => ({ ok: true, error: null }),
+        vote: async () => ({ ok: true, error: null }),
+      }, { poll: false });
+    },
+    { view, round },
+  );
+  await expect(page.locator('.nj-title')).toBeVisible();
+}
+
+/** A small PNG logo as a data URL, drawn in the page. */
+const logoDataUrl = (page: Page, colour: string) =>
+  page.evaluate((c) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 120;
+    canvas.height = 40;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = c;
+    ctx.fillRect(0, 0, 120, 40);
+    return canvas.toDataURL('image/png');
+  }, colour);
+
+/** Every text and edge on the page with its contrast against what it sits on (WCAG 2). */
+function contrastReport(page: Page) {
+  return page.evaluate(() => {
+    const parse = (v: string): number[] => (v.match(/[\d.]+/g) ?? []).map(Number);
+    const over = (top: number[], under: number[]) => {
+      const a = top.length > 3 ? top[3] : 1;
+      return [0, 1, 2].map((i) => top[i] * a + under[i] * (1 - a));
+    };
+    const lum = (c: number[]) =>
+      c.slice(0, 3).reduce((sum, v, i) => {
+        const s = v / 255;
+        const lin = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        return sum + lin * [0.2126, 0.7152, 0.0722][i];
+      }, 0);
+    const ratio = (a: number[], b: number[]) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    /** The opaque colour behind an element: its ancestors' fills laid over the page. */
+    const behind = (el: Element | null): number[] => {
+      const chain: number[][] = [];
+      for (let n = el; n && n instanceof HTMLElement; n = n.parentElement) {
+        const bg = parse(getComputedStyle(n).backgroundColor);
+        if (bg.length >= 3 && (bg.length === 3 || bg[3] > 0)) chain.push(bg);
+      }
+      let colour = [11, 11, 13];
+      for (const layer of chain.reverse()) colour = over(layer, colour);
+      return colour;
+    };
+    const out: { what: string; ratio: number; need: number }[] = [];
+    const text = (selector: string) =>
+      document.querySelectorAll(selector).forEach((el) => {
+        if (!(el as HTMLElement).innerText.trim()) return;
+        const style = getComputedStyle(el);
+        if (Number(style.opacity) < 1) throw new Error(`${selector} is dimmed by opacity`);
+        const own = parse(style.backgroundColor);
+        const bg = own.length >= 3 && (own.length === 3 || own[3] > 0) ? behind(el) : behind(el.parentElement);
+        const fg = over(parse(style.color), bg);
+        out.push({ what: `text ${selector}`, ratio: ratio(fg, bg), need: 4.5 });
+      });
+    const edge = (selector: string) =>
+      document.querySelectorAll(selector).forEach((el) => {
+        const style = getComputedStyle(el);
+        const bg = behind(el.parentElement);
+        // A focused field draws its edge as the focus outline (its border goes transparent).
+        const line = document.activeElement === el ? style.outlineColor : style.borderTopColor;
+        out.push({ what: `edge ${selector}${document.activeElement === el ? ':focus' : ''}`, ratio: ratio(over(parse(line), bg), bg), need: 3 });
+      });
+    text('.nj-title');
+    text('.nj-prompt');
+    text('.nj-waiting');
+    text('.nj-label');
+    text('.nj-opt > span:last-child');
+    text('.nj-key');
+    text('.nj-send:not([disabled])');
+    text('.nj-note');
+    text('.nj-mine li');
+    edge('.nj-card');
+    edge('.nj-opt');
+    edge('.nj-send:not([disabled])');
+    edge('.nj input[type=text], .nj textarea');
+    return out;
+  });
+}
+
+test.describe('the phone page carries the production look (AC-6)', () => {
+  test('colours, font, logo, title and waiting text appear', async ({ page }) => {
+    await phonePage(page);
+    const logo = await logoDataUrl(page, '#ff3366');
+    await mount(page, {
+      brand: {
+        accent: '#ff3366', text: '#ffffff', panel: '#202040', font: '"Oswald", Arial, sans-serif',
+        logo, title: 'Quiz Night', waiting: 'Back after the break',
+      },
+    });
+    await expect(page.locator('.nj-title')).toHaveText('Quiz Night');
+    await expect(page.locator('.nj-waiting')).toHaveText('Back after the break');
+    const img = page.locator('img.nj-logo');
+    await expect(img).toBeVisible();
+    expect(await img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(120);
+    const look = await page.evaluate(async () => {
+      await document.fonts.ready;
+      const root = document.getElementById('join')!;
+      return {
+        font: getComputedStyle(root).fontFamily,
+        accent: root.style.getPropertyValue('--nj-accent'),
+        text: getComputedStyle(document.querySelector('.nj-waiting')!).color,
+        oswald: document.fonts.check('16px Oswald'),
+      };
+    });
+    expect(look.font).toContain('Oswald');
+    expect(look.oswald, 'the bundled face is loaded, not only named').toBe(true);
+    expect(look.accent).toBe('rgb(255, 51, 102)');
+
+    // The look's colours where they pass, so a branded page is the brand's, not a safe grey.
+    await page.evaluate(() => {
+      const w = window as unknown as { __view: { state: unknown }; __join: { refresh(): void } };
+      w.__view.state = {
+        open: true, mode: 'question', prompt: 'What should we ask the panel?', presenter: { current: null, next: null },
+        round: { id: 'r1', kind: 'open', question: '', options: [], revision: 1, openedAt: '', closedAt: null, correctOption: null },
+      };
+      w.__join.refresh();
+    });
+    await expect(page.locator('.nj-prompt')).toHaveText('What should we ask the panel?');
+    expect(await page.locator('.nj-prompt').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(255, 255, 255)');
+    expect(await page.locator('.nj-card').first().evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(32, 32, 64)');
+  });
+
+  test('without a look or page settings, the page shows the production name and the default waiting text', async ({ page }) => {
+    await phonePage(page);
+    await mount(page, { brand: null });
+    await expect(page.locator('.nj-title')).toHaveText('Friday Night Live');
+    await expect(page.locator('.nj-waiting')).toHaveText(/^Not taking part right now/);
+    await expect(page.locator('img')).toHaveCount(0);
+  });
+
+  test('a low-contrast palette still meets AA: dark on dark, light on light, a mid grey', async ({ page }) => {
+    await phonePage(page);
+    for (const [name, brand] of [
+      ['dark on dark', { accent: '#1a1a1a', text: '#222222', panel: '#1c1c1c' }],
+      ['light on light', { accent: '#ffff66', text: '#f0f0f0', panel: '#ffffff' }],
+      ['a mid grey that passes nowhere', { accent: '#777777', text: '#6a6a6a', panel: 'rgba(120,120,120,.9)' }],
+    ] as const) {
+      for (const round of ['none', 'open', 'choice'] as const) {
+        await page.evaluate(() => {
+          (window as unknown as { __join?: { destroy(): void } }).__join?.destroy();
+        });
+        await mount(page, { brand: { ...brand, font: null, title: 'Low contrast', waiting: 'Waiting for the next question' }, mine: [{ id: 'm1', body: 'An earlier answer', createdAt: '' }] }, round);
+        if (round === 'open') await page.locator('#nj-body').fill('A sentence to send');
+        if (round === 'choice') {
+          // A picked option, so the accent fill and its text are on the page too.
+          await page.evaluate(() => {
+            const w = window as unknown as { __view: { myVote: number }; __join: { refresh(): void } };
+            w.__view.myVote = 1;
+            w.__join.refresh();
+          });
+          await expect(page.locator('.nj-opt[aria-pressed=true]')).toHaveCount(1);
+        }
+        const report = await contrastReport(page);
+        expect(report.length, `${round}: something was measured`).toBeGreaterThanOrEqual(3);
+        const failing = report.filter((r) => r.ratio < r.need);
+        expect(failing, `${name}, ${round}: every text 4.5:1 and every edge 3:1`).toEqual([]);
+      }
+    }
+  });
+
+  test('a broken logo URL shows the title and no broken image', async ({ page }) => {
+    await phonePage(page);
+    await page.route('**/broken-logo.png', (route) => route.fulfill({ status: 404, body: 'not here' }));
+    // Never painted until it loads: watch every logo the page ever shows.
+    await page.evaluate(() => {
+      const w = window as unknown as { __shown: boolean };
+      w.__shown = false;
+      new MutationObserver(() => {
+        const img = document.querySelector('img.nj-logo') as HTMLImageElement | null;
+        if (img && getComputedStyle(img).visibility !== 'hidden') w.__shown = true;
+      }).observe(document.body, { subtree: true, childList: true, attributes: true });
+    });
+    const url = new URL('/broken-logo.png', page.url()).href;
+    await mount(page, { brand: { accent: null, text: null, panel: null, font: null, logo: url, title: 'Quiz Night' } });
+    await expect(page.locator('img')).toHaveCount(0);
+    await expect(page.locator('.nj-title')).toHaveText('Quiz Night');
+    // A later read with the same URL does not try it again.
+    await page.evaluate(() => (window as unknown as { __join: { refresh(): void } }).__join.refresh());
+    await expect(page.locator('.nj-title')).toHaveText('Quiz Night');
+    await expect(page.locator('img')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __shown: boolean }).__shown)).toBe(false);
+  });
+
+  test('a failing custom font falls back to the system font with the layout intact', async ({ page }) => {
+    await phonePage(page);
+    await page.route('**/missing-face.woff2', (route) => route.fulfill({ status: 404, body: '' }));
+    const layout = async () =>
+      page.evaluate(async () => {
+        await document.fonts.ready;
+        const root = document.documentElement;
+        const boxes = [...document.querySelectorAll('.nj-title, .nj-prompt, .nj-opt, .nj-card')].map((el) => el.getBoundingClientRect());
+        return {
+          overflow: root.scrollWidth - root.clientWidth,
+          outside: boxes.filter((b) => b.left < 0 || b.right > window.innerWidth).length,
+          optionHeights: [...document.querySelectorAll('.nj-opt')].map((el) => el.getBoundingClientRect().height),
+          face: document.fonts.check('16px "Missing Face"'),
+        };
+      });
+    await page.addStyleTag({ content: '@font-face { font-family: "Missing Face"; src: url("/missing-face.woff2") format("woff2"); }' });
+    await mount(page, { brand: { accent: null, text: null, panel: null, font: '"Missing Face", system-ui, sans-serif' } }, 'choice');
+    await page.evaluate(() => document.fonts.load('16px "Missing Face"').catch(() => null));
+    const missing = await layout();
+    expect(missing.overflow, 'no sideways scroll').toBeLessThanOrEqual(0);
+    expect(missing.outside, 'nothing past the screen edge').toBe(0);
+    expect(Math.min(...missing.optionHeights), 'every option keeps its thumb size').toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('join')!).fontFamily)).toContain('system-ui');
+  });
+
+  test('replacing and removing the logo take effect on the next read', async ({ page }) => {
+    await phonePage(page);
+    const first = await logoDataUrl(page, '#ff0000');
+    const second = await logoDataUrl(page, '#0000ff');
+    await mount(page, { brand: { accent: null, text: null, panel: null, font: null, logo: first } });
+    const img = page.locator('img.nj-logo');
+    await expect(img).toHaveAttribute('src', first);
+    await expect(img).toBeVisible();
+    const next = (logo: string | null) =>
+      page.evaluate((l) => {
+        const w = window as unknown as { __view: { brand: { logo: string | null } }; __join: { refresh(): void } };
+        w.__view = { ...w.__view, brand: { ...w.__view.brand, logo: l } };
+        w.__join.refresh();
+      }, logo);
+    await next(second);
+    await expect(img).toHaveAttribute('src', second);
+    await expect(img).toBeVisible();
+    await next(null);
+    await expect(page.locator('img')).toHaveCount(0);
+    await expect(page.locator('.nj-title')).toHaveText('Friday Night Live');
+  });
+});
+
+test('the studio QR code decodes to the short link, as SVG and as PNG (AC-5)', async ({ page, browser }) => {
+  const reader = await qrReader(browser);
+  try {
+    await phonePage(page);
+    await page.setViewportSize({ width: 800, height: 800 });
+    const png = await page.evaluate(async (link) => {
+      const { qrSvg, qrPng } = await import('/src/audience/joinQr.ts');
+      const host = document.createElement('div');
+      host.id = 'qr';
+      host.style.cssText = 'width:400px;height:400px';
+      host.innerHTML = qrSvg(link);
+      (host.firstElementChild as SVGElement).style.cssText = 'width:100%;height:100%;display:block';
+      document.body.prepend(host);
+      const blob = await qrPng(link);
+      const bytes = new Uint8Array(await blob!.arrayBuffer());
+      let s = '';
+      bytes.forEach((b) => (s += String.fromCharCode(b)));
+      return btoa(s);
+    }, LINK);
+    expect(await reader.read(await page.locator('#qr').screenshot()), 'the SVG').toBe(LINK);
+    expect(await reader.read(Buffer.from(png, 'base64')), 'the downloaded PNG').toBe(LINK);
+  } finally {
+    await reader.close();
+  }
 });
