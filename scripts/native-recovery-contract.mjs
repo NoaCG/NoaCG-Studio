@@ -60,12 +60,8 @@ export function reconcileNative(intent, observation) {
 /** Admission for the next one-shot wake, not an implementation of a scheduler. */
 export function rearmNative({ authorization, target, previous, next, kind = 'wave', terminal = false, wait = null, block = null, paused = false }, now = Date.now()) {
   // A plan the owner gave no date runs until complete; its block is the finite bound below.
-  const start = timestamp(authorization?.startedAt), end = authorization?.deadline === undefined && kind === 'plan' ? Infinity : timestamp(authorization?.deadline);
-  if (!nonempty(authorization?.source) || !nonempty(authorization?.scope) || !nonempty(authorization?.permissionPolicy)
-      || !Number.isFinite(start) || Number.isNaN(end) || start > now || end <= start) {
-    return unknown('explicit original authorization required');
-  }
-  try { validateAuthorization(authorization, { now, kind, open: false }); }
+  let start;
+  try { ({ start } = validateAuthorization(authorization, { now, kind, open: false })); }
   catch { return unknown('invalid original authorization or overlong wave'); }
   const authorizedEnd = authorizationEnd(authorization);
   if (terminal || now >= authorizedEnd) return { state: 'stop' };

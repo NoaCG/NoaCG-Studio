@@ -98,7 +98,7 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
   const codex = state.execution?.harness === 'codex';
   if (codex && (!project?.block || projectBoundary(project, now))) throw Error('A Codex worker brief needs an active bounded work block');
   const end = codex || untilComplete(project?.authorization) ? project.block?.deadline : project?.authorization.deadline ?? state.authorization.deadline;
-  if (untilComplete(project?.authorization) && !end) throw Error('An until-complete worker brief needs an actual bounded work block');
+  if (!end) throw Error('A worker brief needs an actual bounded work block');
   const fields = {
     PLAN: state.plan, PROJECT: state.project, ISSUE: String(state.issue), COORDINATOR: state.coordinator.session,
     RETURN: state.coordinator.return, ENVIRONMENT: state.coordinator.environment, DEADLINE: end,
@@ -203,7 +203,7 @@ export function heartbeat(wave, now = Date.now()) {
     '',
     `- **Next:** ${step}${next.why ? `: ${next.why}` : ''}`,
     `- **Phases passed:** ${passed} of ${total}`,
-    `- **Window:** ${block}; ${untilComplete(project?.authorization) ? `${project.authorization.deadline ? `planning target ${project.authorization.deadline}; ` : ''}continue until complete` : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline}`}`,
+    `- **Window:** ${block}; ${untilComplete(project?.authorization) ? `${project.authorization.deadline ? `planning target ${project.authorization.deadline}; ` : ''}continue until complete` : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline ?? 'when its phases are done'}`}`,
     `- **Waiting on:** ${state.waitingOn?.what ? `${state.waitingOn.what}${state.waitingOn.eta ? `, due ${state.waitingOn.eta}` : ''}` : 'nothing outside the ledger'}`,
     `- **Next check-in:** ${due.at ? `${due.at} (${due.why})` : `none (${due.why})`}`,
     '',

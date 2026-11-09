@@ -13,6 +13,9 @@
 //                                                              # the same for a plan run (`/plan-run`):
 //                                                              # a plan run and a wave exclude each other;
 //                                                              # a new --until on the same date is a new window
+//   node scripts/wave-plan-store.mjs --open 2026-10-09 plan-editor --until when-complete --project <json>
+//                                                              # a plan run the owner gave no date: it lasts
+//                                                              # until its phases are done, in 24-hour blocks
 //
 // WHY. The wave plan is the ONLY record of which pools ran, what the routing was, and every
 // `DECIDED:` line the orchestrator wrote when it took a decision on the owner's behalf. It is

@@ -81,5 +81,5 @@ request. Ask only missing outcome decisions, one at a time, and record each answ
 ## 6. Hand over
 
 Report the project id, wave file, kit, run issue, heartbeat and check-in, and the first `next`.
-Then follow `/plan-run <plan> until <deadline>` from its loop in this session, on the store just
+Then follow `/plan-run <plan>` (with `until <date>` only when the owner gave one) from its loop in this session, on the store just
 created; a later session starts at its `continue`.

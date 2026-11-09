@@ -107,6 +107,7 @@ test('a plan with no date runs until complete under 24-hour blocks; a wave still
   const undated = (p) => { delete p.authorization.deadline; p.authorization.standing = { blockRenewal: 'Renew daily blocks automatically.' }; return p; };
   const f = fixture(t, undated), later = NOW + 400 * 24 * HOUR;
   assert.match(f.text(), /^Window ends: when-complete$/m);
+  assert.match(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).checks.at(-1).detail, /start-block/);
   f.start();
   assert.equal(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).ok, true);
   finishPhase(f, 1);
@@ -120,7 +121,7 @@ test('a plan with no date runs until complete under 24-hour blocks; a wave still
   finishPhase(f, 2, later);
   updateRun(f.db, f.p.id, 'finish', '', later);
   assert.equal(nextStep(f.text(), later).action, 'finished');
-  const { deadline: _, ...noDate } = authorization();
+  const noDate = authorization(); delete noDate.deadline;
   assert.throws(() => validateAuthorization(noDate, { now: NOW, kind: 'wave' }), /end date/);
   assert.match(openWave({ date: '2026-10-19', kind: 'day', until: WHEN_COMPLETE, dir: f.dir, now: NOW }).refusal, /only a plan run/);
   assert.match(openWave({ date: '2026-10-20', kind: 'plan-other', until: WHEN_COMPLETE, dir: f.dir, now: NOW }).refusal, /--project/);
