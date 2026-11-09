@@ -45,5 +45,9 @@
   }
  ],
  "fixes": [],
- "triggers": {}
+ "triggers": {},
+ "heartbeat": {
+  "issue": 2312,
+  "comment": 6738700523
+ }
 }
