@@ -1,84 +1,95 @@
 # Retire the hosted control page
 
-Status: draft for owner review, from the owner's decisions on issue #2301 (2026-11-09). Not built.
+Status: agreed with the owner on 2026-11-09 (issue #2301). Not built.
 
 ## Why
 
 The production page already runs a show, and several signed-in people can have it open at the same
 time. The hosted control page (`/app?control=<slug>`, Setup > Links > Control page) is a second
-operator surface that looks almost the same. It costs about 2,700 lines that only it uses
-(`src/components/HostedControlPage.tsx`, `src/styles/control-page.css`, its rules in
-`src/styles/playout-dashboard.css`) and 21 configured browser specs that open it. Every change to
-the operator view is made, and checked, twice.
+operator surface that looks almost the same. About 2,700 lines and a set of configured browser specs
+exist only for it, so every operator change is made and checked twice. Nobody is known to use it.
 
 ## Goal
 
-One operator surface: the production page. An old control link still leads somewhere useful.
+One operator surface: the production page. Nothing on the production page changes behaviour.
 
 ## Owner decisions (2026-11-09, binding)
 
-- **O1. Retire the page.** Everyone who runs a show has the production page open and is trusted to
-  edit and operate it. A separate "operate, don't edit" page is not worth keeping.
-- **O2. Operators have accounts.** Whoever controls anything signs in and reaches the production
-  through their team. Whether a no-account mode should ever exist stays open; it is not decided
-  here, and if it comes it is a mode of the production page, never a second page.
+- **O1. Remove it.** Everyone who runs a show signs in, reaches it through their team, and is
+  trusted to edit it. Remove the page and its tests in the simplest safe way.
+- **O2. The production page must not break.** This outranks every other choice here.
+- **O3. No-account operating stays an open question.** If it ever comes, it is a mode of the
+  production page, never a second page.
 
 ## Key decisions
 
 Derived (revertible; each says how):
 
-- **C1. Old links redirect.** `?control=<slug>` stays a route. It resolves the slug to the
-  production id with the existing `control_show_by_slug` and replaces the URL with
-  `#/production/<id>`. The production page then does what it does for any link: opens it, asks the
-  visitor to sign in, or says it is not theirs. Revert: restore the page from git.
-- **C2. Nothing persisted changes.** `control_shows.slug` (`Show.hostedSlug`), the
-  `control_shows` table, every `control_*` function and grant, the entitlement key
-  `control.hosted`, the presence value `'hosted'` and `panel_rooms.claim_where = 'control'` stay as
-  stored values. Only the client stops producing the last two. The slug is still how every
-  published production is identified and how the production page sends commands.
-- **C3. Phones use the production page as it is.** It already reflows below 900 px. No phone
-  layout work is part of this; AC-4 only checks that operating works there.
-- **C4. Files the production page work is changing go last.** Open pull requests
-  NoaCG/NoaCG-Studio#2314 and NoaCG/NoaCG-Studio#2293 both edit `ProductionPage.tsx` and
-  `playout-dashboard.css`, and #2314 also edits `ProductionLinks.tsx`. Phases 1 and 2 do not touch
-  those files. Phase 3 starts only after both have landed or closed, and is rebased on current
-  `main` before it starts.
+- **C1. One pull request.** Nobody depends on the page, so there is no staged migration. Revert:
+  restore the files from git.
+- **C2. Old links get a tiny redirect.** `?control=<slug>` stays a route. It resolves the slug with
+  the existing `control_show_by_slug` and replaces the URL with `#/production/<id>`, where the
+  production page opens it or asks the visitor to sign in. An unknown slug shows "This link no
+  longer works" with a link home. About forty lines; it keeps saved bookmarks from landing on the
+  studio with an unexplained query. Revert: drop the route.
+- **C3. Nothing persisted changes.** `control_shows.slug` (`Show.hostedSlug`) is still every
+  published production's identity and the key the production page sends with. The table, every
+  `control_*` function and grant, the entitlement key `control.hosted`, the presence value
+  `'hosted'` and `panel_rooms.claim_where = 'control'` stay as stored values; the client just stops
+  producing the last two. No migration.
+- **C4. Shared modules stay unless only the hosted page used them.** `src/control/hostedControl.ts`
+  is mostly shared with the production page (publish, send, log follow). Remove an export only when
+  nothing outside `HostedControlPage.tsx` imports it, checked with `tsc` and a grep, not by
+  judgement.
+- **C5. Tests: delete what proves only the hosted page, keep what guards the production page.**
+  - Delete whole specs whose subject is the hosted page: `hosted-control-profile`,
+    `hosted-space-modes`, `hosted-reveal-after-reload`, `hosted-control-recovery`,
+    `dashboard-hosted-walk` (configured), and `e2e/hosted-control.spec.ts` (offline).
+  - Every other spec that opens `?control=` or `openHosted` also guards the production page or the
+    server (command-sequence, all-out-from-heads, late-commit-notice, late-send-abandoned,
+    live-health, live-prepare, live-ready, live-presence-steady,
+    operator-outage-not-unpublished, playout-adjust-race, playout-both-roads,
+    rundown-timing-recovery, panel-page, panel-lease, panel-production-page). Where the hosted tab
+    was "the other screen", use a second signed-in production page instead. Where it was a
+    hosted-only assertion, drop that assertion and keep the rest.
+  - Drop the `control-url` / `copy-control-url` checks in `production-links.spec.ts`,
+    `production-persistence.spec.ts` and `publish-output-setup.spec.ts`, and the hosted line in
+    `e2e/shows.spec.ts`.
+  - Each spec deleted or narrowed gets a line under `## Test maintenance` below, in the grammar
+    `scripts/check-e2e-protection.mjs` reads. This is a planned feature removal, not a repair to
+    pass a gate.
 
 ## Behaviour
 
 ### AC-1: An old control link opens the production
-A signed-in member of the production's owner account or team who opens `?control=<slug>` lands on
-`#/production/<id>` for that production.
+A signed-in member opening `?control=<slug>` lands on `#/production/<id>` for that production; a
+signed-out visitor lands on the production page's existing sign-in state.
 
-### AC-2: An old control link asks a signed-out visitor to sign in
-A signed-out visitor who opens `?control=<slug>` lands on the production page's existing "Sign in
-to open this production" state, and after signing in as a member reaches the production.
+### AC-2: A dead link says so
+An unknown or unpublished slug shows "This link no longer works" with a way home. A backend outage
+keeps retrying rather than calling the link dead.
 
-### AC-3: A dead link says so
-An unknown, unpublished or deleted slug shows a short "This link no longer works" page with a way
-home. A backend outage keeps asking, as the hosted page did, rather than calling the link dead.
+### AC-3: No surface offers the control link
+Setup > Links shows Presenter and Audience only. `docs.html`, `src/components/auth/accountCopy.ts`,
+`companion-module/companion/HELP.md`, the delete text in `ProductionsSection.tsx` and the
+entitlement explanation in `src/entitlements/contract.ts` no longer mention a control page.
 
-### AC-4: Operating from a phone still works
-On a 390 px wide viewport, a signed-in member can Take, Next, Out and All out on the production
-page, and a second signed-in device sees the same air.
+### AC-4: The hosted code is gone
+`HostedControlPage.tsx`, `src/styles/control-page.css` and its import, hosted-only rules in
+`src/styles/playout-dashboard.css`, `controlPageUrl`, hosted-only exports under C4, the
+`controlUrl` prop of `ProductionLinksDialog`, and the contract rules scoped to the page (retired
+through `npm run learn`, never by editing `AGENTS.md` or `.claude/rules` directly) are removed.
+Scripts that read the page's source (`scripts/ograf-typed-recovery.test.mjs`,
+`scripts/failed-sends.test.mjs`, `scripts/acceptance-pack.mjs`, `scripts/whats-new.mjs`,
+`scripts/production-data-migration.test.mjs`) are updated. Design docs (`ARCHITECTURE.md`,
+`PLAYOUT_DASHBOARD.md`, `CLOUD_PLAYOUT.md`, `CONTROL_PANEL_ANY_GRAPHIC.md`,
+`STUDENT_RELEASE_ACCEPTANCE.md`) describe one operator surface.
 
-### AC-5: Multi-operator coverage moves, it is not lost
-Every behaviour a configured spec proved through a hosted tab is proved through a second signed-in
-production page instead, or is retired with the reason in a `## Test maintenance` section that phase 1 adds here. No spec is
-deleted to pass a gate.
-
-### AC-6: No surface offers the control link
-Setup > Links shows the Presenter and Audience rows only. User-facing copy (`docs.html`,
-`src/components/auth/accountCopy.ts`, `companion-module/companion/HELP.md`, the delete confirmation
-in `ProductionsSection.tsx`, the entitlement explanation in `src/entitlements/contract.ts`) no
-longer sends anyone to a control page.
-
-### AC-7: The code is gone
-`HostedControlPage.tsx`, `control-page.css`, hosted-only rules in `playout-dashboard.css`, the
-hosted-only exports of `src/control/hostedControl.ts` and the contract rules scoped to the page are
-removed. `controlPageUrl` is removed. Design docs (`PLAYOUT_DASHBOARD.md`, `CLOUD_PLAYOUT.md`,
-`CONTROL_PANEL_ANY_GRAPHIC.md`, `STUDENT_RELEASE_ACCEPTANCE.md`, `ARCHITECTURE.md`) describe one
-operator surface.
+### AC-5: The production page is unchanged
+The production page's own behaviour is identical before and after: the offline suite and the full
+configured suite pass, and a walk of publish, Take, Next, Out and All out with two signed-in
+production pages on one production shows both following the same air. Production page diffs are
+limited to removing the control link wiring.
 
 ## Preserved behaviour
 
@@ -86,50 +97,31 @@ operator surface.
 - Several signed-in operators on one production, following each other live.
 - Companion panels pairing with and moving between production pages.
 - Timed cues, data rows, saved entries, Bridge and server clips on the production page.
-- The data API and every slug-keyed database function (`control-link-guard.spec.ts` keeps passing).
+- The data API and every slug-keyed database function (`control-link-guard.spec.ts` passes as is).
 
 ## Non-goals
 
-- Closing anonymous access to the slug-keyed database functions. Today anyone holding a slug can
-  call them; that stays exactly as it is, because the production page uses the same functions and
-  O2 leaves a no-account mode open. A follow-up decides it.
-- A way to rotate or revoke a leaked slug (today republishing brings the same slug back). Separate
-  follow-up.
-- Any new phone layout, read-only role, or no-account mode.
+- Closing anonymous access to the slug-keyed database functions (the production page uses the
+  same functions; O3 leaves no-account operating open). Follow-up.
+- Rotating or revoking a leaked slug (republishing brings the same slug back). Follow-up.
+- Any phone layout, read-only role or no-account mode.
 
 ## Plan
 
-Each phase is one pull request, verified with `/check` and landed with `/queue-merge`.
+One pull request, on a branch from current `main`, rebased again right before landing because
+other production page work is in flight (NoaCG/NoaCG-Studio#2293 touches `ProductionPage.tsx` and
+`playout-dashboard.css`).
 
-1. **Move the coverage (tests only).** Add a configured helper that opens a second signed-in
-   production page for the same production. Retarget each spec that opens `?control=` or
-   `openHosted` to it: all-out-from-heads, command-sequence, dashboard-hosted-walk,
-   hosted-control-profile, hosted-control-recovery, hosted-reveal-after-reload, hosted-space-modes,
-   late-commit-notice, late-send-abandoned, live-health, live-prepare, live-presence-steady,
-   live-ready, operator-outage-not-unpublished, panel-lease, panel-page, panel-production-page,
-   playout-adjust-race, playout-both-roads, rundown-timing-recovery. Behaviour that exists only on
-   the hosted page (a hosted-only layout or refusal) is listed in a `## Test maintenance` section
-   added to this spec, with what replaces it. The hosted page still exists, so nothing breaks while this lands. Touches only
-   `e2e/`.
-2. **Replace the page with the redirect.** `App.tsx` renders a small `ControlLinkRedirect` for
-   `?control=` (AC-1 to AC-3). Delete `HostedControlPage.tsx` and `control-page.css`, prune the
-   hosted-only parts of `hostedControl.ts`, update `e2e/hosted-control.spec.ts`, `e2e/shows.spec.ts`
-   and the scripts that read the page's source (`scripts/ograf-typed-recovery.test.mjs`,
-   `scripts/failed-sends.test.mjs`, `scripts/acceptance-pack.mjs`), retire its contract rules
-   through `npm run learn`, and update the user copy and docs listed in AC-6 and AC-7 that live
-   outside the production page files. Add a blank-page browser spec for the redirect and its dead
-   link state. Does not touch `ProductionPage.tsx`, `ProductionLinks.tsx` or
-   `playout-dashboard.css`.
-3. **Remove the link row (after #2314 and #2293).** Drop the Control page row from
-   `ProductionLinks.tsx`, the `controlUrl` prop and `controlPageUrl` from `ProductionPage.tsx`, the
-   hosted-only rules from `playout-dashboard.css`, and the `copy-control-url` / `control-url`
-   checks in `production-links.spec.ts`, `production-persistence.spec.ts` and
-   `publish-output-setup.spec.ts`. Check AC-4 on a phone viewport here.
+1. Tests first (C5): retarget, narrow or delete, and fill in Test maintenance. Run the touched
+   configured specs while the hosted page still exists, so a failure is the test's, not the removal's.
+2. Remove the page, add the redirect (AC-1, AC-2), and remove the wiring and copy (AC-3, AC-4).
+   Add one blank-page browser spec for the redirect and the dead-link state.
+3. Verify AC-5: the type check, `npm run lint`, the offline suite, the full configured suite,
+   the two-page walk. `/check`, then `/queue-merge`.
 
-## Verification
+Stop and ask the owner if any step would change what the production page does.
 
-- Phase 1: the configured suite on the moved specs, green on the branch with the hosted page still
-  present.
-- Phase 2: blank-page spec for AC-1 to AC-3; the configured suite; `npm run rules` clean.
-- Phase 3: offline and configured suites; AC-4 by a phone-viewport run of the operate path.
-- `/check`, then `/queue-merge`, for each phase.
+## Test maintenance
+
+Filled in by the implementing pull request, one line per deleted or narrowed spec, owner miwco,
+expiry at most 30 days out.
