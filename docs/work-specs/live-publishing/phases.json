@@ -21,7 +21,7 @@
         "e2e/"
       ],
       "checks": [],
-      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -43,15 +43,16 @@
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [
-        "docs/work-specs/live-publishing/evidence/"
+        "docs/work-specs/live-publishing/evidence/",
+        "e2e/configured/"
       ],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "3",
-    "title": "A Take never waits",
+    "title": "A Take never waits on the page's own work",
     "acceptance": [
       "AC-1",
       "AC-2"
@@ -62,7 +63,7 @@
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "A Take never waits",
+      "goal": "A Take never waits on the page's own work",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
@@ -70,20 +71,18 @@
       "touches": [
         "src/control/adjustGeometry.ts",
         "src/control/graphicVerbs.ts",
-        "src/control/hostedControl.ts",
-        "src/control/seqSend.ts",
-        "src/control/folderPlayout.ts",
         "src/control/serverVerbs.ts",
         "src/control/playoutLink.ts",
+        "src/components/home/ProductionPage.tsx",
         "src/output/"
       ],
       "checks": [],
-      "notes": "R1, R2; applies D2. Keep two fast Nexts in press order; if that needs the wait, stop and report. Placement must also work in Chromium 71: es2017, no ?. or ?? inside template code. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "R1, R2 (S1): remove only the page's own waits; keep every ordering wait; no server change. Placement must also work in Chromium 71: es2017, no ?. or ?? inside template code. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "4",
-    "title": "The production's copy is the only truth",
+    "title": "The production's copy is the only truth, and old pages only play out",
     "acceptance": [
       "AC-3",
       "AC-4"
@@ -94,7 +93,7 @@
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "The production's copy is the only truth",
+      "goal": "The production's copy is the only truth, and old pages only play out",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
@@ -103,15 +102,17 @@
         "src/model/library.ts",
         "src/model/shows.ts",
         "src/control/hostedControl.ts",
-        "src/components/home/"
+        "src/backend/",
+        "src/components/home/",
+        "supabase/migrations/"
       ],
       "checks": [],
-      "notes": "R3, R4, O5 adoption, the Update button. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "R3, R4, R6 (S2), O5 adoption, the Update button. The old-page refusal lands with adoption. A migration is applied before the app that relies on it. One touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "5",
-    "title": "Outputs reconcile, and report truthfully",
+    "title": "Outputs catch up by themselves and report three versions",
     "acceptance": [
       "AC-5"
     ],
@@ -121,7 +122,7 @@
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Outputs reconcile, and report truthfully",
+      "goal": "Outputs catch up by themselves and report three versions",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
@@ -132,7 +133,7 @@
         "src/control/prepareLive.ts"
       ],
       "checks": [],
-      "notes": "R7 and the three reported versions of R9; applies D4. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "R9 and the reporting of R10. Pages keep sending today's Presence request for old outputs. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -162,7 +163,7 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "R5, R6, R8; applies D3 and D6. A migration touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Test old and new writers at the same time. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "R5, R7 (S3), R8. A migration is applied before the app that relies on it. One touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -188,7 +189,7 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "R11. Outputs opened before this keep reading inline images. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "R12. Outputs opened before this keep reading inline images. A migration is applied before the app that relies on it. One touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -213,13 +214,14 @@
         "docs/CLOUD_PLAYOUT.md"
       ],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Five signed-in test accounts in their own browser contexts, scripted to press at the same moments. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "9",
     "title": "Updates by themselves, held Takes, and the light",
     "acceptance": [
+      "AC-10 (again, automatic updates on)",
       "AC-11",
       "AC-12"
     ],
@@ -244,29 +246,29 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "O1, O2, O3, O7, R9, R10; applies D1. Check now stays. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "O1, O2, O3, O7, R10, R11 (S4). Check now stays. Prepare the checklist for the owner's final check. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "10",
-    "title": "The studio walk",
+    "title": "The owner's final check",
     "acceptance": [
       "AC-13"
     ],
-    "environment": "OW: the owner's CasparCG 2.5 and 2.3 studio machines with a browser output",
+    "environment": "OW: the owner's studio, CasparCG 2.5 and 2.3 with a browser output",
     "dependsOn": [
       "9"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "The studio walk",
+      "goal": "The owner's final check",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   }
 ]

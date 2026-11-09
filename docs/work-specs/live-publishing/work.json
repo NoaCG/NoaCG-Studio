@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "66536c152e785fd855c6819659ff3620723a3d2ccaeb26c80221f13ebd539468",
+  "specSha256": "c86f34f1d4ce64ff05740ec176a92f6fce0eb997c99ed4a704bbf4f4c6f99a12",
   "authority": {
     "status": "draft",
-    "source": "the owner's answers of 2026-11-09 in the planning session for issue #2303, revised after two second opinions: publish once, then everything updates by itself and the light says it; an updated graphic on air shows its new design at its next Take; a queued graphic is self-contained, takes a library design only through Update, and existing productions keep what is published; a Take never waits and is never blocked; send only what changed, publishing and saving alike, each image uploaded once, the migration is fine; 3 to 5 people at once; CasparCG 2.5 is the target; make no change that risks reliable playout; retire the hosted control page as a phase; separating the production page is a later plan only if proven safer or faster. Owner decisions D1 to D6 settled 2026-11-09: \"All as recommended\". Final after a third second opinion."
+    "source": "the owner's answers of 2026-11-09 in the planning session for issue #2303, revised after two second opinions: publish once, then everything updates by itself and the light says it; an updated graphic on air shows its new design at its next Take; a queued graphic is self-contained, takes a library design only through Update, and existing productions keep what is published; a Take never waits and is never blocked; send only what changed, publishing and saving alike, each image uploaded once, the migration is fine; 3 to 5 people at once; CasparCG 2.5 is the target; make no change that risks reliable playout; retire the hosted control page as a phase; separating the production page is a later plan only if proven safer or faster. Owner decisions D1 to D6 settled 2026-11-09: \"All as recommended\". Simplified after a third second opinion with S1 to S4 (\"Let us do as you recommend\"); every check is the agent's, the owner tests once at the end."
   },
   "review": null
 }

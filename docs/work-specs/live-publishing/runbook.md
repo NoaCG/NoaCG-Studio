@@ -16,12 +16,13 @@ issue or arm triggers. This overrides plan-create's automatic handover.
 
 ## Before start
 
-1. D1 to D6 are decided and recorded in the spec (2026-11-09). After the third second opinion the
-   owner settles the plan, and `work.json` reads `agreed` with his words.
+1. D1 to D6 and S1 to S4 are decided and recorded in the spec (2026-11-09). The owner settles the
+   plan, and `work.json` reads `agreed` with his words.
 2. The interaction run has finished (the owner: "to start after the current interaction tab run").
 3. Ask the owner, once, only what is missing: the authorization line (scope, start, an end date only
    if he gives one) and standing permissions in his words. Already given: "Our database migration
-   is fine" covers a phase 6 or 7 migration in a quiet window; nothing else is granted.
+   is fine" covers a phase 4, 6 or 7 migration, in a quiet window when it is live-path; nothing
+   else is granted.
 
 ## Start
 
@@ -33,6 +34,9 @@ live-publishing`.
 ## During the run
 
 - Phase 1 rebases on current `main` right before landing.
-- A phase 6 or 7 migration applies only when no production is live (`supabase/AGENTS.md`).
+- A migration applies before the app that relies on it; a live-path one only when no production
+  is live (`supabase/AGENTS.md`).
+- The run works on its own: every check is the agent's (spec, "How the agent tests and measures").
+  The owner tests once, at the end.
 - A target the phase 2 numbers prove wrong goes to the owner before the phase that depends on it.
-- Phase 10 is the owner's; `next` hands it over instead of launching it.
+- Phase 10 is the owner's final check; `next` hands it over with the checklist phase 9 prepared.
