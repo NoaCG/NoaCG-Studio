@@ -10,29 +10,19 @@ import { useModalGate } from '../spaceKey';
  * The claim stays on `ProductionPage`, which owns the account gate it needs.
  */
 export function ProductionLinksDialog({
-  busy,
   controlUrl,
   joinUrl,
   interactionHref,
   presenterUrl,
-  nameDraft,
-  nameNote,
-  onNameDraft,
-  onClaimName,
   copied,
   onCopy,
   onClose,
 }: {
-  busy: boolean;
   controlUrl: string | null;
   joinUrl: string | null;
   /** Where everything audience lives (interaction spec AC-1): Links points there. */
   interactionHref: string;
   presenterUrl: string | null;
-  nameDraft: string;
-  nameNote: string | null;
-  onNameDraft: (value: string) => void;
-  onClaimName: () => void;
   copied: 'output' | 'control' | 'join' | 'presenter' | null;
   onCopy: (kind: 'control' | 'join' | 'presenter', text: string) => void;
   onClose: () => void;
@@ -83,33 +73,6 @@ export function ProductionLinksDialog({
           {row('control', 'Control page', 'Private', controlUrl, 'control-url')}
           {row('presenter', 'Presenter', 'Private', presenterUrl, 'presenter-url')}
           {row('join', 'Audience', 'Public', joinUrl, 'join-url')}
-          {joinUrl && (
-            <div className="dlg-row" data-testid="join-name">
-              <span className="prod-links-label">Audience name</span>
-              <div className="dlg-pair">
-                <input
-                  type="text"
-                  value={nameDraft}
-                  placeholder="friday-night-live"
-                  aria-label="Audience link name"
-                  title="Changing the name stops the old audience link"
-                  onChange={(e) => onNameDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') onClaimName();
-                  }}
-                  data-testid="join-name-input"
-                />
-                <button onClick={onClaimName} disabled={busy || !nameDraft.trim()} data-testid="join-name-claim">
-                  Use this name
-                </button>
-              </div>
-              {nameNote && (
-                <p className={nameNote.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="join-name-note">
-                  {nameNote}
-                </p>
-              )}
-            </div>
-          )}
         </div>
       </section>
     </div>

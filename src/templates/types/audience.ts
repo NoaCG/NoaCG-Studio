@@ -19,8 +19,10 @@ import { qa01, qa02, qa03, qa04 } from '../audience/qaCard';
 import { ch01, ch02, ch03, ch04 } from '../audience/chatHighlight';
 import { qq01, qq02, qq03, qq04 } from '../audience/questionQueue';
 import { rq01, rq02, rq03, rq04 } from '../audience/communityRequest';
+import { jc01 } from '../audience/joinCard';
 import {
   CHAT_FORM,
+  JOIN_FORM,
   QA_FORM,
   QUESTION_FORM,
   QUEUE_FORM,
@@ -302,5 +304,34 @@ export const communityRequestType: GraphicType = {
     { id: 'rq02', name: 'Volt Request', family: 'sport', palette: 'volt', fontId: 'oswald', blurb: 'A bold leaning request card for high-contrast community brands, with an accent label and edge.', create: (_t, o) => rq02.create(o) },
     { id: 'rq03', name: 'Frost Request', family: 'glass', palette: 'frost', fontId: 'manrope', blurb: 'A frosted request card: a soft pill label over a generously led request, with the sender beneath.', create: (_t, o) => rq03.create(o) },
     { id: 'rq04', name: 'Clean Request', family: 'minimal', palette: 'ivory', fontId: 'inter', blurb: 'A quiet request card: a small accent label, a calmly led request, and the sender and place beneath.', create: (_t, o) => rq04.create(o) },
+  ]),
+};
+
+// ── Join card ────────────────────────────────────────────────────────────────
+
+/** JOIN CARD — how viewers join: a QR code drawn from the Join link, inside the graphic.
+ *
+ *  NO MACHINE: it comes on and goes off. The code is data the card draws from its own field, so a
+ *  new link is an update(), never a state (interaction spec, Graphics ▸ Join card). */
+export const joinCardType: GraphicType = {
+  id: 'join-card',
+  name: 'Join card',
+  description: 'How viewers join: a QR code and the short link, drawn from the production link.',
+  structure: structure([
+    { id: 'kicker', selector: '.audience-kicker', kind: 'block', required: true },
+    { id: 'action', selector: '#f1', kind: 'line', required: true },
+    { id: 'code', selector: '.audience-join-qr', kind: 'block', required: true },
+  ]),
+  fields: fieldsOf(JOIN_FORM.lines),
+  machine: {},
+  controls: [],
+  capabilities: {
+    maxLines: JOIN_FORM.lines.length,
+    logo: 'none',
+    animationPresets: ['audience-rise', 'audience-slide'],
+    defaultZone: 'bottom-right',
+  },
+  designs: designs([
+    { id: 'jc01', name: 'House Join Card', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'How viewers join: a QR code drawn from the production link, a call to action, and the short link beside it.', create: (_t, o) => jc01.create(o) },
   ]),
 };

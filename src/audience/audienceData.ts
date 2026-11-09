@@ -408,6 +408,11 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       return stateFrom(raw, await api.rounds());
     },
 
+    async setPage(brand): Promise<void> {
+      const sb = await client();
+      await operator<unknown>(() => sb.rpc('audience_set_join', { p_slug: control(), p_patch: { brand } }));
+    },
+
     async goLive(question): Promise<AudienceRound> {
       const sb = await client();
       // One transaction on the server (0111, R3): the other round closes, this one opens, the

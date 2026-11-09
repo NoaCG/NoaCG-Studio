@@ -4,7 +4,8 @@
 // `src/audience/joinSurface.ts` and in migration 0035's RPCs — this file is the door.
 //
 // TWO URL SHAPES, one entry:
-//   /join/<name>      the readable vanity form an operator reads out on air
+//   /j/<name>         the short link a QR code and an on-air Join card carry
+//   /join/<name>      the readable form links already in circulation use
 //   /join?p=<slug>    the random form a production is published with
 //   /join?pv=<slug>   the PRESENTER's own read-only view (its own slug, its own capability)
 //   /join?rehearse=<production id>   a REHEARSAL phone for an unpublished production, in this
@@ -17,23 +18,19 @@ import { REHEARSE_PARAM, createLocalAudience, localRoomName } from '../audience/
 import type { AudienceBackend } from '../audience/audienceTypes';
 import { deviceToken } from '../audience/deviceToken';
 import { ensureJoinStyle, mountJoinSurface } from '../audience/joinSurface';
+import { joinSlugFrom } from './joinPath';
 
 const root = document.getElementById('join');
-
-/** A slug is URL-safe base64 or a claimed vanity name; anything else never reaches the server. */
-const SLUG = /^[A-Za-z0-9_-]{3,40}$/;
 
 function readSlug(): { join: string | null; presenter: string | null } {
   const params = new URLSearchParams(window.location.search);
   const presenter = params.get('pv');
-  const fromQuery = params.get('p');
-  // /join/<name> — the path form. `cleanUrls` serves this entry for it (vercel.json rewrite),
-  // and the dev/preview server does the same through the app-clean-url plugin.
-  const fromPath = decodeURIComponent(window.location.pathname.replace(/^\/join\/?/, '').replace(/\/$/, ''));
-  const join = fromQuery || fromPath || null;
+  // /j/<name>, /join/<name> and /join?p=<slug> (joinPath.ts). `cleanUrls` and the vercel.json
+  // rewrites serve this entry for each, and the dev/preview server does the same through the
+  // app-clean-url plugin.
   return {
-    join: join && SLUG.test(join) ? join : null,
-    presenter: presenter && SLUG.test(presenter) ? presenter : null,
+    join: joinSlugFrom(window.location.pathname, window.location.search),
+    presenter: presenter && /^[A-Za-z0-9_-]{3,40}$/.test(presenter) ? presenter : null,
   };
 }
 

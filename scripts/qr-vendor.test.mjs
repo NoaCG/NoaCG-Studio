@@ -1,0 +1,21 @@
+// guards: src/templates/shared/qrEncoder.min.js, scripts/qr-vendor.mjs
+//
+// The Join card's QR encoder is a copy of the installed qrcode-generator. Both the panel's QR (the
+// package) and the graphic's (this copy) must be the same encoder, so a QR in the studio and the
+// one on air cannot differ; refresh with `node scripts/qr-vendor.mjs`.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { VENDORED, vendoredText } from './qr-vendor.mjs';
+
+test('the vendored encoder is the installed package, minified', () => {
+  assert.equal(readFileSync(VENDORED, 'utf8'), vendoredText(), 'run node scripts/qr-vendor.mjs');
+});
+
+test('the vendored encoder runs as a plain script and defines qrcode', () => {
+  const sandbox = {};
+  vm.runInNewContext(`${readFileSync(VENDORED, 'utf8')};this.out = typeof qrcode;`, sandbox);
+  assert.equal(sandbox.out, 'function');
+});

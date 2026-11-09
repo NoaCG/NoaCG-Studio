@@ -25,7 +25,8 @@ import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
-import { audienceBrandFor } from '../audience/audienceBrand';
+import { joinShortUrl } from '../join/joinPath';
+import { publishedJoinBrand } from './joinLogo';
 import type { PublishedAdjust } from './hostedAdjust';
 import { lookImportedFace, withLookFaceIn } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
@@ -731,12 +732,12 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // `mode` and the round pointer are the operator's, not the publisher's.
   // The activated look when it is on, the captured one otherwise: activation copies the look it
   // turns on into `look` (model/shows.ts `setShowLookApplied`), so one member answers both.
-  const brand = audienceBrandFor(show.look);
+  // It goes through `audience_set_join`, which merges the one key on the server: a read-modify-write
+  // of the whole state here could put back a round another tab had just opened or stopped. The
+  // brand carries the page settings and the published logo's URL (control/joinLogo.ts).
   if (row.audience_state) {
-    await sb
-      .from('control_shows')
-      .update({ audience_state: { ...row.audience_state, brand } })
-      .eq('id', show.id);
+    const brand = await publishedJoinBrand(show);
+    await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
   }
   // A production that has never had an audience slug gets a READABLE one derived from its name,
   // here, on its first publish - so a link an operator can read out exists without anyone typing
@@ -998,10 +999,10 @@ async function adoptDerivedJoinName(show: Show): Promise<string | null> {
   return null;
 }
 
-/** The public audience URL for a join slug — the readable path form, which is what an operator
- *  reads out on air (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). */
+/** The public audience URL for a join slug: the short `/j/<name>` link a QR code and the Join card
+ *  carry (interaction spec D2). `/join/<name>` keeps working for links already handed out. */
 export function joinPageUrl(joinSlug: string): string {
-  return `${window.location.origin}/join/${encodeURIComponent(joinSlug)}`;
+  return joinShortUrl(window.location.origin, joinSlug);
 }
 
 /** The presenter's read-only view — a DIFFERENT capability on the same entry. */

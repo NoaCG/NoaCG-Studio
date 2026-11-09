@@ -173,12 +173,25 @@ export interface AudienceState {
  * the studio's own colours, which is honest: rehearsal is not air.
  */
 export interface AudienceBrand {
-  accent: string;
-  text: string;
-  panel: string;
+  /** Colours as the look has them; null leaves the page's own. The page makes each readable. */
+  accent: string | null;
+  text: string | null;
+  panel: string | null;
   /** A full CSS `font-family` value, or null to use the page's own stack. */
   font: string | null;
+  /** The look's logo: a public https URL named by the production and the file's hash (published),
+   *  or the look's own data URL (rehearsal). Absent or null shows no logo (interaction spec D4). */
+  logo?: string | null;
+  /** The page's title; absent or empty shows the production's name. */
+  title?: string | null;
+  /** What phones show while no question is live; absent or empty shows the default. */
+  waiting?: string | null;
 }
+
+export { JOIN_PAGE_LIMITS } from '../model/joinPage';
+
+/** What phones show while no question is live, unless the operator wrote their own. */
+export const JOIN_WAITING_DEFAULT = 'Not taking part right now. Keep this page open, it updates by itself.';
 
 /** What a viewer sees when they resolve a join slug. Deliberately tiny: see the capability
  *  discipline in the plan — no show id, no other slug, no tallies, no correct answer. */
@@ -256,6 +269,10 @@ export interface AudienceBackend {
   /** The presenter pointers. What phones see moves only through `goLive` and `stop` (R18). */
   setState(patch: Partial<Pick<AudienceState, 'presenter'>>): Promise<AudienceState>;
   getState(): Promise<AudienceState>;
+  /** What phones show around the question (the look, logo, title and waiting text), sent as one
+   *  value and merged on the server. Only a published production has phones to send it to; the
+   *  local provider has none, and the studio's own preview takes the page from the production. */
+  setPage?(brand: AudienceBrand): Promise<void>;
   /** Put this question in front of every phone, in one step: any other open round closes, this
    *  question's round opens (made the first time, reopened after), and the state points at it
    *  (R3). Refused when its words differ from a result that has answers, or its type changed. */

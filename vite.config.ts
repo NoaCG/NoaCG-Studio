@@ -36,6 +36,8 @@ const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf',
 // a rewrite (vercel.json); the same shape has to work here, or a vanity link is testable only
 // in production. The page reads the name off the path itself.
 const PATH_PAGES = ['/join'] as const;
+/** `/j/<name>`, the short join link (src/join/joinPath.ts): the same entry as `/join/<name>`. */
+const SHORT_PATHS: Record<string, string> = { '/j/': '/join.html' };
 
 function appCleanUrl(): Plugin {
   const prepare = (
@@ -46,6 +48,12 @@ function appCleanUrl(): Plugin {
     // is opaque. Bundled OFL fonts are public static assets and need an explicit CORS response
     // to render there. Keep the allowance scoped to /fonts rather than every app response.
     if (req.url?.startsWith('/fonts/')) res.setHeader('Access-Control-Allow-Origin', '*');
+    for (const [prefix, entry] of Object.entries(SHORT_PATHS)) {
+      if (req.url?.startsWith(prefix)) {
+        req.url = entry;
+        return;
+      }
+    }
     for (const page of CLEAN_PAGES) {
       if (req.url === page || req.url?.startsWith(page + '?')) {
         req.url = `${page}.html` + (req.url.slice(page.length) || '');

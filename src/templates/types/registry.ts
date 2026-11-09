@@ -26,6 +26,7 @@ import { livePollType } from './livePoll';
 import {
   chatHighlightType,
   communityRequestType,
+  joinCardType,
   qaCardType,
   questionQueueType,
   viewerQuestionType,
@@ -138,6 +139,7 @@ export const TYPES: GraphicType[] = [
   chatHighlightType,
   questionQueueType,
   communityRequestType,
+  joinCardType,       // how viewers join: a QR code drawn inside the graphic from its Join link
   // The PUBLIC-SERVICE pair (docs/PUBLIC_SERVICE_PACK.md). Neither is in the 60-format
   // reference sheet's frequency ranking — that sheet counts show FORMATS, and an emergency
   // broadcast is a moment inside one rather than a format of its own. They earn their place

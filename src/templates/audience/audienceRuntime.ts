@@ -5,6 +5,7 @@
 // so the timeline can never rewrite it, and it survives export untouched.
 
 import { motionSpeedJs } from '../shared/base';
+import QR_ENCODER_JS from '../shared/qrEncoder.min.js?raw';
 
 /**
  * The attribution runtime, in every audience graphic.
@@ -133,3 +134,57 @@ function audienceQueueStep(by) {
 // audienceQueueNext() / audienceQueuePrev(): the two calls the machine's states fire.
 function audienceQueueNext() { audienceQueueStep(1); }
 function audienceQueuePrev() { audienceQueueStep(-1); }`;
+
+/**
+ * The Join card runtime: the QR encoder the card carries, and the painter that draws the Join link
+ * as a code (interaction spec, Graphics ▸ Join card). Data, never state: a new link redraws the
+ * code on update() and changes nothing else (docs/STATE_MACHINE_SCHEMA.md §3).
+ */
+export const AUDIENCE_JOIN_JS = `// ---- The Join card's QR code ----
+
+// The encoder: qrcode-generator (MIT), carried in this file so the card needs no network.
+${QR_ENCODER_JS.trim()}
+
+// audienceJoinPaint(): draw the Join link (the hidden #f2) as a QR code, error correction M, and
+// show the link without its scheme. An empty link draws nothing.
+function audienceJoinPaint() {
+  var source = document.getElementById('f2');
+  var host = document.getElementById('audience-join-qr');
+  var shown = document.querySelector('.audience-join-url');
+  var root = document.querySelector('.audience');
+  if (!source || !host) return;
+  var link = (source.textContent || '').trim();
+  while (host.firstChild) host.removeChild(host.firstChild);
+  if (shown) shown.textContent = link.replace(/^https?:\\/\\//i, '').replace(/\\/$/, '');
+  if (root) root.classList.toggle('audience-join-empty', !link);
+  if (!link || typeof qrcode !== 'function') return;
+  var qr;
+  try {
+    qr = qrcode(0, 'M');
+    qr.addData(link, 'Byte');
+    qr.make();
+  } catch (e) {
+    if (root) root.classList.add('audience-join-empty');   // too long for any code: draw nothing
+    return;
+  }
+  var quiet = 4, n = qr.getModuleCount(), size = n + quiet * 2, d = '';
+  for (var r = 0; r < n; r++) {
+    for (var c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) d += 'M' + (c + quiet) + ' ' + (r + quiet) + 'h1v1h-1z';
+    }
+  }
+  var ns = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  var plate = document.createElementNS(ns, 'rect');
+  plate.setAttribute('width', String(size));
+  plate.setAttribute('height', String(size));
+  plate.setAttribute('fill', '#ffffff');
+  var modules = document.createElementNS(ns, 'path');
+  modules.setAttribute('d', d);
+  modules.setAttribute('fill', '#000000');
+  svg.appendChild(plate);
+  svg.appendChild(modules);
+  host.appendChild(svg);
+}`;
