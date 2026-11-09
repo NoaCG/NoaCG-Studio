@@ -56,7 +56,7 @@ Adding an eleventh team, a fifth nominee or a third ruling adds **no states**. T
 in as the event's **payload**, so the change is atomic: the graphic never animates to a value
 that has not landed yet (`STATE_MACHINE_SCHEMA.md` §3).
 
-Two corollaries the runtimes are written around:
+Three corollaries the runtimes are written around:
 
 1. **`update()` never transitions.** Typing "B" into a match-up's winner field changes what the
    card *would* show if the operator selected; it does not select. Only a machine state calls
@@ -65,6 +65,17 @@ Two corollaries the runtimes are written around:
    — a replay never inherits the last match's FINAL flag, and the inline styles a reveal tween
    left are cleared with it); the DATA half stays `update()`'s. `noacgSnap(null)` resets every
    group's pointer and leaves the fields alone.
+3. **A snap is painted from the state it lands on.** When a snap (« Back, ⟲ Reset, a
+   recovery) moves any group, the pack clears the marks (classes, which a snap's reset of
+   inline styles never touches) as play() does and runs the calls of the states on the route
+   the snap replays (`noacgCanonicalPath`) with their motion killed; the snap then fires the
+   target call of each group not left at its initial state. So « Back from a celebration
+   lands on the result with no celebration left on it (#2181, #2201). A snap that moves no
+   group (a host settling the state it is already in) adds nothing to those target calls, so
+   a look only the route really taken painted stays: a bracket crowned after its final round
+   keeps that round's cursor, while a recovery into `crowned` shows the replayed route's look,
+   without one. A snap to the first step or off always clears, so ⟲ Reset in place still
+   removes a mark a late call left.
 
 ---
 
@@ -143,9 +154,15 @@ Controls: **Reveal stats** · **Call MVP** · **Clear MVP**.
 spotlight --next--> [exit]
 ```
 
-`spotlight` carries the 1-based player number; `0` or an out-of-range number leaves the line-up
-level rather than dimming it with nothing lit.
-Controls: **Spotlight player** (payload `spotlight`) · **Whole line-up**.
+`spotlight` carries the 1-based player number and ships naming a row (1; Initiative Order starts
+on its current turn, 2), so the first press lights a row; a number past either end of the line-up
+lights the row at that end. An empty line-up lights nothing until its rows arrive, and then the
+named row lights (#2271). An update while a row is lit keeps the row the field names lit; an
+update to a level line-up lights nothing (#2200). On the production and hosted pages « Back from
+a lit row and ⟲ Reset also level the line-up, by snapping it to its first step. **Show all rows**
+stays because the per-graphic control page, an exported control panel, OGraf hosts and Companion
+have no Back or Reset.
+Controls: **Focus row** (payload `spotlight`) · **Show all rows**.
 
 ### Standings / result table (`standings`)
 
@@ -159,9 +176,8 @@ different claim about them (`markFinal`, which clears a highlight: the leader's 
 lit). It is the board's one STEP (`STANDINGS_STEPS`), so » Next and « Back walk the whole table
 and the final one, and Continue alone runs the board. `highlight` carries the 1-based row and
 starts at 1; a number past either end of the table lights the row at that end, so the press
-always shows. Every board in the pack clears its marks (classes, which a snap's reset of inline
-styles never touches) on a snap to its first step or off, as play() does, so « Back to it and
-⟲ Reset land clean (#2181). Any other snap is unchanged. Columns come from the operator's own header line, so one board serves
+always shows. An empty table lights nothing until its rows arrive, and then the named row lights
+(#2271). Columns come from the operator's own header line, so one board serves
 a league table, a medal table and a race result.
 Controls: **Highlight row** (payload `highlight`) · **Final table**.
 
@@ -189,9 +205,21 @@ the session is still live is independent of it (a parallel `session` group), so 
 never disturbs where the caster's focus had got to. The order itself is one hidden textarea —
 one competitor per line, position taken from the line's place in the field, never sorted by the
 graphic — so a twenty-car grid is not twenty fields and nothing here ever disagrees with the
-timing feed over who is third. `focus` carries the competitor's 1-based row number.
+timing feed over who is third. `focus` carries the competitor's 1-based row number and ships
+naming a row (1), so the first press lights a row; a number past either end of the order lights
+the row at that end. An empty order lights nothing until its rows arrive, and then the named row
+lights. An update while a row is in focus keeps the row the field names lit; an update to a level
+tower lights nothing (#2268). On the production and hosted pages « Back from a focused row and
+⟲ Reset also level the tower, by snapping it to its first step. **Whole field** stays for the
+roster's reason: the per-graphic control page, an exported control panel, OGraf hosts and
+Companion have no Back or Reset.
 Controls: **Focus competitor** (payload `focus`) · **Whole field** · **Session final** ·
 **Back to running**.
+
+The podium scoreboards (sb21, sb22, `podium-score`, outside this pack) follow the same rule for
+their **Spotlight** (payload `spotlight`) and keep **All level** for the same reason. The spotlit
+podium ships as 1; a number naming no podium with a contestant lights the nearest named podium
+before it, or the first named one (#2268).
 
 ### Nominee reveal (`nominee-reveal`) — nominees → winner
 
@@ -203,6 +231,9 @@ branch:   [nominees] --suspense--> suspense --reveal--> [winner]
 `reveal` is the walk's own arrow AND the way out of the suspense hold, so the control page has
 one "Reveal winner" button whichever route the operator took. The winner is the `winner` field
 (1-based), applied by `revealWinner`; SPX's `steps` is `'2'` — DERIVED from In + Reveal + Out.
+An update after the reveal (an edit to the list, a recovery's trailing update) lights the
+nominee the field names again, with no motion (a number naming no nominee leaves them all out,
+as the reveal does); before the reveal an update lights nothing (#2266).
 Controls: **Suspense** · **Reveal winner** (payload `winner`).
 
 ### Verdict (`verdict-card`) — correct / incorrect
@@ -259,7 +290,10 @@ measured row arrival — STRUCTURAL, because it names a builder that must ship i
 **Measured motion** (`compMotion.ts`): `compCascade` staggers one row per line the operator
 typed and composes `compBarsGrow`, which grows each `[data-value]` fill to its own percentage.
 Neither number exists until the data does, which is exactly why they are builders and not
-keyframes.
+keyframes. Each row lands on the opacity its design's CSS gives it and keeps no inline opacity
+afterwards, so a rule that dims rows (a focus, a crowned bracket, an unplayed map) shows (#2272).
+The other presets are keyframe data, which ends every block at opacity 1 inline, so a state that
+dims a whole block (the scorebug's pause) uses `filter: opacity()`, which no preset writes (#2275).
 
 **Middle steps.** A design declares `revealSteps: [{ name, call }]` and the assembler authors
 them as real steps before Out (the quiz precedent). That is what keeps SPX's `steps` count

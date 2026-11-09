@@ -1,7 +1,8 @@
 # Shared agent instructions and workflows
 
-This repository supports Claude Code and Codex from one set of project rules and workflow
-procedures. The build fails when their adapters drift.
+This repository supports Claude Code and Codex with shared project rules and runner contracts.
+Most procedures are shared; plan-create and plan-run have explicit Codex execution references.
+The build fails when adapters drift from their declared targets.
 
 ## Canonical sources
 
@@ -30,8 +31,13 @@ procedures. The build fails when their adapters drift.
   `.claude/skills/<name>/SKILL.md`.
 - Codex exposes the same workflow through `.agents/skills/<name>/SKILL.md`.
 - An adapter contains only metadata, invocation policy, argument translation, and a pointer to
-  the canonical workflow. Behavioral changes belong in `.agent-workflows/<name>.md`, so they
-  reach both tools in the same commit.
+  its declared procedure. Most behavior belongs in `.agent-workflows/<name>.md` for both tools.
+- `plan-create` and `plan-run` retain the same invocation names, with Codex procedures at
+  `.agents/skills/<name>/references/codex.md`. `CODEX_WORKFLOWS` explicitly maps only these two.
+  Claude's canonical procedures and default briefs stay unchanged. Codex kits opt into tailored
+  briefs with `execution: {harness: "codex", mode: "active"|"unattended"}`. Shared authorization,
+  admission, verification, acceptance and merge rules still bind both harnesses. Active sessions
+  retain repair ownership through terminal results; unattended recovery needs separate native proof.
 - Shared workflows must use repository state and repository documentation as evidence. Do not
   make tool-private memory or a user-specific home-directory path part of the shared contract.
 - Destructive workflows must be explicit-only in both tools. Claude uses

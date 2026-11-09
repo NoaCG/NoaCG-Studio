@@ -110,6 +110,11 @@ function compRebuild() {
           + '</div>';
   });
   host.innerHTML = html;
+  // The rebuild replaced the marked rows too. After the reveal (an edit to the list, the
+  // trailing update of a recovery) the nominee the winner field names is lit again, with no
+  // motion (#2266).
+  var root = document.querySelector('.${P}');
+  if (root && root.classList.contains('${P}-revealed')) markWinner();
 }
 
 // winnerRow(): the nominee the winner field names, or null.
@@ -118,6 +123,18 @@ function winnerRow() {
   var at = parseInt((document.getElementById('f3') || { textContent: '' }).textContent, 10);
   if (!host || isNaN(at) || at < 1) return null;
   return host.querySelector('[data-row="' + at + '"]');
+}
+
+// markWinner(): the revealed look on the rows - the named nominee won, the rest out. Returns
+// the winner row, or null when the field names none.
+function markWinner() {
+  var winner = winnerRow();
+  var rows = document.querySelectorAll('.${P}-nominee');
+  for (var i = 0; i < rows.length; i++) {
+    rows[i].classList.remove('${P}-won', '${P}-out');
+    rows[i].classList.add(rows[i] === winner ? '${P}-won' : '${P}-out');
+  }
+  return winner;
 }
 
 // markSuspense(): hold the room. Every nominee falls back and the card breathes — the beat
@@ -133,15 +150,10 @@ function markSuspense() {
 // WHICH one is the operator's field — the same reveal serves four nominees or twelve.
 function revealWinner() {
   var root = document.querySelector('.${P}');
-  var winner = winnerRow();
   if (!root) return;
   root.classList.remove('${P}-suspense');
   root.classList.add('${P}-revealed');
-  var rows = document.querySelectorAll('.${P}-nominee');
-  for (var i = 0; i < rows.length; i++) {
-    rows[i].classList.remove('${P}-won', '${P}-out');
-    rows[i].classList.add(rows[i] === winner ? '${P}-won' : '${P}-out');
-  }
+  var winner = markWinner();
   if (!winner) return;             // an unknown row: the card simply stays with its nominees
   gsap.fromTo(winner,
     { scale: 1.06, y: -6 },

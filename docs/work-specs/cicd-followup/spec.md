@@ -70,13 +70,14 @@ or did not reduce total turnaround.
 11. [cf10] Make the test-removal check see loop tests and expire exceptions (#1911).
 12. [cf14] Pay down the graphics tier exception (#1863).
 13. [cf13] Shorten the measured critical path.
-14. [cf02] Archive finished worker sessions in the plan-run workflow.
-15. [cf15] Finish the cicd-improvement documentation follow-ups.
-16. [cf16] Assess the coverage model for catalog narrowing.
-17. [cf17] Run one bounded three-plan trial.
-18. [cf18] Re-qualify catalog narrowing after a clean audit.
-19. [cf19] Activate qualified narrowing or keep full protection.
-20. [cf20] Report measured outcomes.
+14. [cf21] Review stopping rules (owner decision 2026-11-07).
+15. [cf02] Archive finished worker sessions in the plan-run workflow.
+16. [cf15] Finish the cicd-improvement documentation follow-ups.
+17. [cf16] Assess the coverage model for catalog narrowing.
+18. [cf17] Run one bounded three-plan trial.
+19. [cf18] Re-qualify catalog narrowing after a clean audit.
+20. [cf19] Activate qualified narrowing or keep full protection.
+21. [cf20] Report measured outcomes.
 
 ## Acceptance per phase
 
@@ -207,6 +208,19 @@ Each phase below lists its acceptance verbatim for briefs and checkers.
   cancelled where safe: Actions history after the change shows superseded PR runs cancelled and no
   merge-queue or exact-merge coverage run cancelled. If existing concurrency settings already do
   this for every PR workflow, the phase cites those workflow lines and changes nothing.
+- **cf21.** Owner decision 2026-11-07, recorded verbatim in
+  `evidence/owner-decision-2026-11-07-cf21.md` with the six changes it makes to
+  `docs/plan-runs/known-traps.md` "Review checkpoints", `.agent-workflows/plan-run.md`,
+  `.agent-workflows/so.md` and `.agent-workflows/check.md` (delta re-review, round cap, converging
+  findings, risk-scaled review, a Codex review-guidelines rule added through `npm run learn`, and
+  pre-existing findings). (a) plan-run.md, known-traps.md, so.md and check.md state the above
+  without contradicting each other. (b) cf20 reports review rounds per PR, the share passing after
+  one round, and cf03's "M1 from ready" for rows before and after cf21, with sample sizes and
+  cf03's spread rule, and makes no improvement claim without enough rows. (c) The guardrail: cf20
+  also reports reverts and post-landing failures for the same rows, and a rise counts against the
+  change rather than as a saving. (d) No check, test, limit, gate or budget is weakened. cf21 lands
+  the rules and records the before side and the method that (b) and (c) need; cf20 reads the
+  after side with that method.
 - **cf14.** (a) The graphics tier cost is paid down before 2026-11-30, prioritising measured waste
   and critical-path impact, or, only if the remaining work cannot safely finish by then and the
   reason is recorded, a short dated extension is recorded with current cost evidence, an owner and

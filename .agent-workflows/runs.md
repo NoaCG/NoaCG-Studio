@@ -1,7 +1,7 @@
 # runs - watch the live plan runs from a local helper session
 
 Shared canonical procedure, invoked as `/runs` in Claude Code and `$runs` in Codex. Plan runs
-coordinate themselves in the cloud (`plan-run.md`); the owner opens a local session beside them to
+have their own local or cloud coordinators (`plan-run.md`); the owner opens a helper beside them to
 see how they are going, keep the session list tidy and help with anything that needs this computer.
 
 **The coordinators own their runs.** Never record ledger events, launch or stop workers, stamp or
@@ -17,11 +17,14 @@ turn, so send one only when this procedure says to.
   gh search issues '"Phases passed"' --repo NoaCG/NoaCG-Studio --state open --json number,title
   ```
 
-  Read each one's heartbeat comment and its newest milestone comment. Skip a run whose heartbeat
-  says it is done.
-- List your sessions (Claude Code: `ListAgents`) and count each run's open ones by title.
-- Read a coordinator's own log (`RemoteTrigger` `get_run_log`, its session id is on the run issue)
+  Read each one's heartbeat, newest milestone and existing ledger/PR timestamps for progress.
+  Prefer a later owner closure over a stale heartbeat; keep unverified criteria separate from closure.
+  Skip finished runs. Create no reporting store or scheduled report; report when this helper is invoked.
+- Use available native session inventory (Claude Code: `ListAgents`; Codex: exposed session/thread
+  tools), and count each run's open sessions. Unavailable inventory means unknown, never zero.
+- Read a coordinator's own log (Claude: `RemoteTrigger` `get_run_log`; Codex: native read/follow)
   only when its heartbeat is older than its stated next check-in, or something looks stuck.
+  An active Codex run arms no wake; absence of a scheduled check-in alone is not evidence of a stall.
 
 ## 2. Act
 
@@ -36,7 +39,17 @@ turn, so send one only when this procedure says to.
 
 ## 3. Answer
 
-Per run, at most five lines: phases passed of the total, what is in flight with its pull request,
-what is left against the deadline or target, problems with who owns each, and owner items. Then
-the open session count before and after tidying. End with what the owner must do, or
-"Nothing needed from you."
+Per run, at most five lines:
+
+1. Phases independently passed / total; in-flight phase and PR. Merged or worker-completed is not PASS.
+2. Elapsed wall time since start; active time only if measured; phases passed in the last 24 hours.
+3. Remaining-time range and estimated completion at the observed pace, with as-of time and basis.
+   Use comparable build-through-check durations, including CI/review waits, and remaining phase types,
+   dependencies and hardware needs. Few comparable phases, blocked work or missing timestamps mean
+   "too early to estimate" or a conditional estimate; never invent precision from phase counts alone.
+4. Problems and their owners; distinguish a hard deadline, a planning target and authorized until-complete.
+   Internal block boundaries are not completion deadlines; the helper never changes or renews authority.
+5. Owner items. Report stale or unavailable evidence explicitly; use the owner's timezone for forecasts.
+
+Then the open session count before and after tidying. End with what the owner must do, or
+"Nothing needed from you." Reuse existing receipts; no new telemetry, worker or recurring automation.

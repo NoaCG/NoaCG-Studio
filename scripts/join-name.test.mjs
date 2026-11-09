@@ -21,7 +21,7 @@ const source = readFileSync(fileURLToPath(new URL('../src/control/joinName.ts', 
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const { deriveJoinName, joinNameCandidates } = await import(`data:text/javascript,${encodeURIComponent(js)}`);
+const { deriveJoinName, joinNameCandidates, joinShortUrl } = await import(`data:text/javascript,${encodeURIComponent(js)}`);
 
 test('an ordinary production name becomes the link an operator would read out', () => {
   assert.equal(deriveJoinName('Friday Night Live'), 'friday-night-live');
@@ -69,4 +69,9 @@ test('a name too short or reserved still produces candidates the database can ac
   // "admin" is reserved, so 0035 refuses both - and the numbered retry is what heals it.
   assert.deepEqual(joinNameCandidates('TV', 2), ['tv', 'tv-2']);
   assert.deepEqual(joinNameCandidates('Admin', 2), ['admin', 'admin-2']);
+});
+
+test('the link handed out is the short one on the page origin (interaction spec D2, AC-5)', () => {
+  assert.equal(joinShortUrl('https://noacg.studio', 'friday-night-live'), 'https://noacg.studio/j/friday-night-live');
+  assert.equal(joinShortUrl('http://localhost:5175/', 'quiz-2026'), 'http://localhost:5175/j/quiz-2026');
 });

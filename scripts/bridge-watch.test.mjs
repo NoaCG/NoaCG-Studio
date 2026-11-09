@@ -9,7 +9,7 @@
 import test, { afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS } = await import('../src/control/bridgeWatch.ts');
+const { startBridgeWatch, SLOT_READ_MS, FRESH_LOAD_MS, RECOVERY_WINDOW_MS } = await import('../src/control/bridgeWatch.ts');
 const { createPlayoutSession, NO_BRIDGE } = await import('../src/control/playoutSession.ts');
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
 const { loadReadyMemory, saveReadyMemory } = await import('../src/model/readyMemory.ts');
@@ -858,6 +858,202 @@ test('a page reloaded during the outage still puts the output back, once (#2249)
   await settle();
   await u.readSlot();
   assert.ok(!u.calls.includes('reload'), 'three tries already made');
+  assert.deepEqual(u.session.bridge.get().slotReload, { state: 'failed', detail: 'refused' }, 'and says why, as the tab that tried would');
+});
+
+test('a page reloaded during a failing recovery goes on with the tries, then says it failed (#2253)', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  a.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  await restartServer(a);
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'one try failed');
+  assert.equal(a.session.bridge.get().slotReload?.state, 'reloading');
+  // The operator presses F5 now, with the server answering.
+  a.watch.stop();
+  const t = rig({ items: [], browser, server });
+  t.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  t.update();
+  t.answer(OK);
+  await settle();
+  for (let n = 0; n < 30; n += 1) await t.readSlot();
+  assert.equal(t.calls.filter((c) => c === 'reload').length, 2, 'the two tries left, never three more');
+  assert.deepEqual(t.session.bridge.get().slotReload, { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  assert.ok(browser.loaded.get('show-1'), 'the Load is still kept, for the operator to load again');
+
+  // Reloaded once the tries are spent: the failed state, no try.
+  t.watch.stop();
+  const b = rig({ items: [], browser, server });
+  b.update();
+  b.answer(OK);
+  await settle();
+  await b.readSlot();
+  assert.ok(!b.calls.includes('reload'));
+  assert.equal(b.session.bridge.get().slotReload?.state, 'failed');
+});
+
+test('two quick reloads of the page during the wait before the last try still make it, then say failed', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const refused = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  const a = await loadedRig({ browser, server });
+  a.reloading.answer = refused;
+  await restartServer(a);
+  await a.readSlot();
+  await a.readSlot();
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 2, 'two tries made');
+  a.watch.stop();
+  /** A page opened `afterMs` after the last try, reading once on opening and then every 10 s. */
+  const open = async (afterMs, reads) => {
+    browser.clock = browser.loaded.get('show-1').triedAt + afterMs;
+    const t = rig({ items: [], browser, server });
+    t.reloading.answer = refused;
+    t.update();
+    t.answer(OK);
+    await settle();
+    for (let n = 0; n < reads; n += 1) {
+      browser.clock += SLOT_READ_MS;
+      await t.readSlot();
+    }
+    return t;
+  };
+  // F5 40 s after try 2: the page makes try 3 when the last gap is up, 60 s after try 2.
+  const first = await open(40_000, 2);
+  assert.equal(first.calls.filter((c) => c === 'reload').length, 1, 'try 3, on time');
+  first.watch.stop();
+  // F5 again: the tries are spent, and the page says so.
+  const second = await open(35_000, 1);
+  assert.ok(!second.calls.includes('reload'), 'three in all');
+  assert.deepEqual(second.session.bridge.get().slotReload, { state: 'failed', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+});
+
+test('a tab taking the lead over counts the wait from the last try, whichever tab made it', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const refused = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  (await loadedRig({ browser, server })).watch.stop();
+  const a = await reopened(browser, server);
+  a.reloading.answer = refused;
+  await restartServer(a);
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'try 1');
+  // B opens 40 s after try 1 and waits for the lock, reading meanwhile.
+  browser.clock += 40_000;
+  const b = rig({ items: [], browser, server });
+  b.reloading.answer = refused;
+  b.update();
+  b.answer(OK);
+  await settle();
+  await b.readSlot();
+  // A makes try 2 (two readings after try 1), then goes into the background and hands over.
+  for (let n = 0; n < 2 && a.calls.filter((c) => c === 'reload').length < 2; n += 1) {
+    browser.clock += SLOT_READ_MS;
+    await a.readSlot();
+  }
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 2, 'try 2, from A');
+  const try2 = browser.loaded.get('show-1').triedAt;
+  a.hide();
+  // B leads now. Try 3 comes six readings after try 2, not sooner.
+  let at = null;
+  for (let n = 0; n < 10 && at === null; n += 1) {
+    browser.clock += SLOT_READ_MS;
+    await b.readSlot();
+    if (b.calls.includes('reload')) at = browser.clock;
+  }
+  assert.ok(at !== null, 'B makes try 3');
+  assert.ok(at - try2 >= 6 * SLOT_READ_MS, `try 3 came ${(at - try2) / 1000} s after try 2`);
+  assert.equal([...a.calls, ...b.calls].filter((c) => c === 'reload').length, 3, 'three in all');
+});
+
+test('a page reloaded while a try is still out counts it: three PLAYs in all, never four', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const refused = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  const a = await loadedRig({ browser, server });
+  a.reloading.answer = refused;
+  await restartServer(a);
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1, 'try 1, refused');
+  let answerTry;
+  a.reloading.answer = () => new Promise((resolve) => {
+    answerTry = () => resolve(refused());
+  });
+  for (let n = 0; n < 4 && a.calls.filter((c) => c === 'reload').length < 2; n += 1) {
+    browser.clock += SLOT_READ_MS;
+    await a.readSlot();
+  }
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 2, 'try 2 is out');
+  // F5 now. A real browser frees the old page's lock as it unloads, and its try's answer never
+  // reaches it.
+  assert.equal(typeof answerTry, 'function');
+  a.watch.stop();
+  for (const lead of [...browser.locks.get('noacg-caspar-reload show-1')]) lead.release();
+  const t = rig({ items: [], browser, server });
+  t.reloading.answer = refused;
+  t.update();
+  t.answer(OK);
+  await settle();
+  for (let n = 0; n < 30; n += 1) {
+    browser.clock += SLOT_READ_MS;
+    await t.readSlot();
+  }
+  assert.equal([...a.calls, ...t.calls].filter((c) => c === 'reload').length, 3, 'three in all');
+  assert.equal(t.session.bridge.get().slotReload?.state, 'failed');
+});
+
+test('an old record of tries acts on nothing: a CLEAR made since stays, and nothing says failed', async () => {
+  // A try went through, and the page closed before any tab saw the output back: the record keeps
+  // its try. A client clears the slot; the page is opened again later.
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  a.reloading.refill = false;
+  await restartServer(a);
+  assert.equal(browser.loaded.get('show-1')?.tries, 1);
+  a.watch.stop();
+  server.layer = EMPTY;
+  browser.clock += RECOVERY_WINDOW_MS + 1000;
+  const t = rig({ items: [], browser, server });
+  t.update();
+  t.answer(OK);
+  await settle();
+  for (let n = 0; n < 10; n += 1) await t.readSlot();
+  assert.ok(!t.calls.includes('reload'), 'the CLEAR stays');
+  assert.equal(t.session.bridge.get().slotReload, null, 'and nothing says it failed');
+
+  // Refused tries, the browser closed, opened again days later onto an empty slot.
+  const days = newBrowser();
+  const s2 = { layer: ourPage };
+  const b = await loadedRig({ browser: days, server: s2 });
+  b.reloading.answer = () => ({ state: 'server', detail: 'CasparCG refused the command: 404 PLAY FAILED.' });
+  await restartServer(b);
+  for (let n = 0; n < 30; n += 1) await b.readSlot();
+  assert.equal(b.calls.filter((c) => c === 'reload').length, 3);
+  b.watch.stop();
+  days.clock += 3 * 24 * 60 * 60 * 1000;
+  const u = rig({ items: [], browser: days, server: s2 });
+  u.update();
+  u.answer(OK);
+  await settle();
+  await u.readSlot();
+  assert.ok(!u.calls.includes('reload'));
+  assert.equal(u.session.bridge.get().slotReload, null, 'an old failure is not shown as a new one');
+});
+
+test('a recovery that ended, then a CLEAR, then a reload of the page: nothing comes back', async () => {
+  const browser = newBrowser();
+  const server = { layer: ourPage };
+  const a = await loadedRig({ browser, server });
+  await restartServer(a);
+  assert.equal(a.calls.filter((c) => c === 'reload').length, 1);
+  assert.equal(browser.loaded.get('show-1')?.tries, undefined, 'back on the slot: the recovery is over');
+  a.watch.stop();
+  server.layer = EMPTY; // a client clears it while no page is open
+  const t = rig({ items: [], browser, server });
+  t.update();
+  t.answer(OK);
+  await settle();
+  await t.readSlot();
+  await t.readSlot();
+  assert.ok(!t.calls.includes('reload'));
 });
 
 test('a page opened while everything answers never arms from an old outage note, so a CLEAR stays', async () => {

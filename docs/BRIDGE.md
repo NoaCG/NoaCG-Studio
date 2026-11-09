@@ -328,8 +328,14 @@ decision is `src/control/bridgeWatch.ts`; the page only sends the load.
   browser's storage (issue #2245), so a page reloaded, or left and opened again, after Load still
   brings it back, once it has seen the output on the slot again. A page reloaded while CasparCG is
   down brings it back too (issue #2249), when a tab of the browser that had seen the output noted
-  the outage and fewer than three tries were made. An Unload in any tab of the browser counts for
-  all of them, and so does an outage any of its tabs saw, so a background tab that missed the
+  the outage. A page reloaded while a recovery is under way (issue #2253, within about 80 seconds of
+  its last try), with the server already answering, goes on with the tries left, or says the
+  recovery failed once they are spent. Each try is counted as it goes out, so a reload of the page
+  while one is on its way never adds a fourth; reloading the page again every few seconds can hold
+  the last try off until the window has passed, and Load is then the operator's. A client's CLEAR in
+  the few seconds between a try landing and the reloaded page's first reading reads as the same
+  recovery, and the page may use the tries left on it. An Unload in any tab of the browser counts
+  for all of them, and so does an outage any of its tabs saw, so a background tab that missed the
   restart (the browser slows its polls) never takes it for a `CLEAR`. Of the tabs that have seen the
   output on the slot, one holds a browser lock and alone reloads; the three tries are the browser's,
   not each tab's. A tab going into the background or closing hands the lock to the next tab waiting

@@ -82,6 +82,10 @@ export const rosterType: GraphicType = {
           ],
         },
         {
+          // Kept although « Back from a lit row and ⟲ Reset also level the line-up (#2200): they
+          // exist only on the production and hosted pages. On the per-graphic control page, an
+          // exported control panel, an OGraf host or Companion this press is the one way to level
+          // a lit line-up without Out and Take.
           id: 'level',
           name: 'Whole line-up',
           timeline: {
@@ -453,6 +457,10 @@ export const timingTowerType: GraphicType = {
           ],
         },
         {
+          // Kept although « Back from a focused row and ⟲ Reset also level the order (#2268, as
+          // the roster's in #2200): they exist only on the production and hosted pages. On the
+          // per-graphic control page, an exported control panel, an OGraf host or Companion this
+          // press is the one way to level a focused tower without Out and Take.
           id: 'level',
           name: 'Whole field',
           timeline: {

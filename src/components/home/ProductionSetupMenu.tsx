@@ -130,7 +130,7 @@ export function ProductionSetupMenu({
         </button>
         <div className="pd-setup-sep" role="separator" />
         {view('data', 'Data…', 'setup-data', 'Tables and live values your graphics can read')}
-        {view('audience', 'Messages…', 'setup-audience', 'Pasted and audience messages, votes and the join page')}
+        {view('audience', 'Interaction…', 'setup-audience', 'Questions, phones, chat and pasted messages')}
       </LibMenu>
     </span>
   );

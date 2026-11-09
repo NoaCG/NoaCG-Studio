@@ -280,14 +280,15 @@ export const listingCardType: GraphicType = {
  * QR CARD — a scannable code beside the address written out in full.
  *
  * THE HONEST PART, and the reason this type exists rather than a "generate a QR from a URL"
- * feature: NoaCG bundles no QR encoder, and generated templates take no runtime dependency
+ * feature at the time it was made: NoaCG bundled no QR encoder (the Join card, types/audience.ts,
+ * now carries one inside its own script), and generated templates take no runtime dependency
  * (`root/keep-generated-template-self-contained-runtime`), so a template that drew its own code
  * would need an encoder inlined
  * into every export or a call out to the network at playout. A graphic that silently renders an
  * unscannable code is worse than one that never claimed to. So the code is an ordinary SPX
  * image field — the operator makes the PNG once and picks it — and the ADDRESS beside it is
  * real text, which is also what makes the card work for a viewer watching on a TV who cannot
- * scan anything. docs/PACK_TAXONOMY.md records the encoder as the open question it is.
+ * scan anything. docs/PACK_TAXONOMY.md records where an encoder is used.
  */
 export const qrCardType: GraphicType = {
   id: 'qr-card',

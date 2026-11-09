@@ -162,7 +162,7 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
 - **Done for this phase:**
   - **The playout dashboard comes first, with data and messages** (owner, 2026-10-19): all 22 steps
     plus Q and selected H0/E1–E8 in one `/plan-run production-page`; exact order: `work-specs/production-page-refactor/extensions.md`.
-    Data/API, election, Companion and typed OGraf; final CasparCG/Bridge and OBS/browser acceptance. Execution not started.
+    Data/API, election, Companion and typed OGraf; final CasparCG/Bridge and OBS/browser acceptance. Closed 2026-11-06: `production-page-refactor/evidence/run-close-2026-11-06.md`.
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs; more than that is optional.
   - **Shared productions,** proved by verification before anything is rebuilt: members join the

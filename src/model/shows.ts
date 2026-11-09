@@ -32,11 +32,13 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { JOIN_PAGE_LIMITS } from './joinPage';
+import { readQuestions, type ShowQuestion } from './questions';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
 import { poolPlacement } from './poolIdentity.ts';
-import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
+import { accentColor, playoutSystem, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
 import {
   appendCue,
@@ -215,8 +217,8 @@ export type PlayoutMediaKind = 'movie' | 'still' | 'audio';
 
 export interface PlayoutItem {
   id: string;
-  /** Which kind of playout system. Only `casparcg` exists today; OBS and vMix add their own. */
-  adapter: 'casparcg';
+  /** The system whose library owns the item. */
+  adapter: 'casparcg' | 'vmix';
   kind: 'template' | 'media';
   /** The server's own name: a template id as it lists templates, a clip name as it lists media. */
   name: string;
@@ -502,6 +504,17 @@ export interface Show {
    *  next "Prepare cue on <graphic>" names it. Never guessed (control/messageStaging.ts).
    *  ADDITIVE OPTIONAL; absent = not chosen yet. */
   messageTarget?: string;
+  /** The production's QUESTION LIST (model/questions.ts; docs/work-specs/interaction/spec.md): the
+   *  questions the operator prepares and puts live on phones, in the operator's order. ADDITIVE
+   *  OPTIONAL; absent = none written. Read through `showQuestions`, which drops damaged entries and
+   *  keeps a newer build's question types whole. Answers and results are not here: they live with
+   *  the audience provider, keyed by each question's id. */
+  questions?: ShowQuestion[];
+  /** The phone page's own words (interaction spec, Join ▸ Page settings): a title (empty = the
+   *  production's name) and the waiting text (empty = the default). They reach phones through the
+   *  join state like the look (audience/joinBrand.ts), not through a publish. ADDITIVE OPTIONAL;
+   *  absent = both defaults. */
+  joinPage?: { title?: string; waiting?: string };
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
@@ -1089,6 +1102,24 @@ export function seedValues(fields: SpxTemplate['fields']): Record<string, string
 export function playoutItemOf(show: Pick<Show, 'playoutItems'>, cue: Pick<ShowCue, 'sourceId' | 'source'>): PlayoutItem | null {
   if (cue.source !== 'playout') return null;
   return show.playoutItems?.find((i) => i.id === cue.sourceId) ?? null;
+}
+
+export function productionPlayoutSystem(
+  show: Pick<Show, 'outputSetup' | 'cues' | 'playoutItems'>,
+  legacyActivity: boolean,
+  accountDefault: boolean | null,
+) {
+  let serverCues = false;
+  let vmixCues = false;
+  for (const cue of show.cues ?? []) {
+    if (cue.source !== 'playout') continue;
+    if (playoutItemOf(show, cue)?.adapter === 'vmix') vmixCues = true;
+    else {
+      serverCues = true;
+      break;
+    }
+  }
+  return playoutSystem({ setup: show.outputSetup, serverCues, vmixCues, legacyActivity, accountDefault });
 }
 
 /** A playout template's fields as cue values: every field at its default. */
@@ -2445,6 +2476,48 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
     else delete show.pollLiveFigures;
     return true;
   });
+}
+
+/** The production's questions, as this build reads them (model/questions.ts `readQuestions`). */
+export function showQuestions(show: Pick<Show, 'questions'>): ShowQuestion[] {
+  return readQuestions(show.questions);
+}
+
+/**
+ * Change the production's question list through one of model/questions.ts's list edits, applied to
+ * the list as it is stored NOW (rebased like a prepare): two tabs each adding a question both keep
+ * theirs. `edit` returns the new list, or a sentence when the edit cannot be made.
+ */
+export function setShowQuestions(
+  showId: string,
+  edit: (list: ShowQuestion[]) => ShowQuestion[] | string,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const next = edit(readQuestions(show.questions));
+    if (typeof next === 'string') return next;
+    if (JSON.stringify(next) === JSON.stringify(readQuestions(show.questions))) return false;
+    if (next.length > 0) show.questions = next;
+    else delete show.questions;
+    return true;
+  }, true);
+}
+
+/** Change the phone page's title or waiting text (Show.joinPage). An empty value means the default
+ *  and is not stored. */
+export function setShowJoinPage(showId: string, patch: { title?: string; waiting?: string }): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const next = { ...(show.joinPage ?? {}) };
+    for (const key of ['title', 'waiting'] as const) {
+      if (!(key in patch)) continue;
+      const value = (patch[key] ?? '').slice(0, JOIN_PAGE_LIMITS[key]);
+      if (value.trim()) next[key] = value;
+      else delete next[key];
+    }
+    if (JSON.stringify(next) === JSON.stringify(show.joinPage ?? {})) return false;
+    if (Object.keys(next).length > 0) show.joinPage = next;
+    else delete show.joinPage;
+    return true;
+  }, true);
 }
 
 /** Remember where messages go (Show.messageTarget), or forget it with `null`. Part of a prepare,

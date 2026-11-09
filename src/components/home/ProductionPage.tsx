@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useRouter, type ProductionSub } from '../../app/router';
+import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -16,6 +16,7 @@ import {
   updateShowCue,
   updateShowCueChecked,
   playoutItemOf,
+  productionPlayoutSystem,
   fillPlayoutItemFacts,
   renameFolderChecked,
   setFolderMode,
@@ -33,7 +34,7 @@ import {
 import { folderMode } from '../../model/showFolders';
 import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
 import { canAuthorAccount, commitDurableWrites } from '../../model/durableStore';
-import { accountCasparDefault, casparSwitch, destinationUrl, readOutputSetup, routeColor, withCasparSwitch } from '../../model/outputSetup';
+import { accountCasparDefault, destinationUrl, readOutputSetup, routeColor, wantsAccountOutputDefault, withCasparSwitch } from '../../model/outputSetup';
 import { readDefaultOutput } from '../../backend/auth';
 import { CueAccentControl } from './RundownColors';
 import {
@@ -601,7 +602,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  production until the operator sets it (model/outputSetup.ts), so only a production whose
    *  output was never set asks for it. Undefined until it has answered; null for no default. */
   const [accountCaspar, setAccountCaspar] = useState<boolean | null | undefined>(undefined);
-  const wantsAccountDefault = !!show?.outputSetup && !readOutputSetup(show.outputSetup)?.destinations.length;
+  const wantsAccountDefault = wantsAccountOutputDefault(show?.outputSetup);
   useEffect(() => {
     setAccountCaspar(undefined);
     if (!user?.id || !wantsAccountDefault) return;
@@ -979,16 +980,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setSlotRev((n) => n + 1);
   };
   /** THE CASPARCG SWITCH (playout-workflow-simplification AC-4): what the operator set, else what
-   *  this production already does (model/outputSetup.ts `casparSwitch`). Everything CasparCG on
+   *  this production already does (model/outputSetup.ts `playoutSystem`). Everything CasparCG on
    *  this page follows it: the Bridge poll, the slot, the add actions, Load and the status. */
   /** Where this production was last put on its CasparCG slot from this browser (model/readyMemory). */
   const casparOutputMemory = show ? loadReadyMemory(show.id).casparOutput : undefined;
-  const casparOn = !!show && casparSwitch({
-    setup: show.outputSetup,
-    serverCues: (show.cues ?? []).some((c) => c.source === 'playout'),
-    legacyActivity: casparOutputMemory === casparTarget,
-    accountDefault: accountCaspar ?? null,
-  });
+  const legacyCasparActivity = casparOutputMemory === casparTarget;
+  const casparOn = !!show && productionPlayoutSystem(show, legacyCasparActivity, accountCaspar ?? null) === 'casparcg';
   const playoutRelevance = relevantPlayout({ configured: playoutConfigured(relevanceSettings), casparOn });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
@@ -2626,7 +2623,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     publishState,
     {
       show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
-      hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, casparOn, accountCaspar, publishedReaders,
+      hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
       setPublishedReaders, setPublishedStamp, fastEventGraphicsRef, liveCueRef, prepareFlow,
       // Each adjusted cue measured for the copy being published, from the designs Publish just
       // refreshed rather than this page's snapshot of the library, then resolved (capped: a cue the
@@ -3852,7 +3849,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         />
         </AccountAuthoringGate>
       )}
-      {sub === 'audience' && <AccountAuthoringGate><ProductionAudienceWorkspace show={show} setShows={setShows} /></AccountAuthoringGate>}
+      {sub === 'audience' && (
+        <AccountAuthoringGate>
+          <ProductionAudienceWorkspace
+            show={show}
+            setShows={setShows}
+            publish={started ? null : { run: () => void publish(), unavailable: backendConfigured ? null : 'Publishing needs the cloud backend, and this build runs offline' }}
+            joinName={{
+              draft: nameDraft,
+              note: nameNote,
+              busy,
+              onDraft: (v) => { setNameDraft(v); setNameNote(null); },
+              onClaim: () => void claimName(),
+            }}
+          />
+        </AccountAuthoringGate>
+      )}
       {/* THE PLAYOUT SURFACE STAYS MOUNTED behind a sub-page, hidden rather than unmounted.
           Unmounting it destroyed the PROGRAM monitor's iframes, so a trip to Data or Audience
           RELOADED every live graphic: a running match clock came back at its seed, and anything
@@ -4480,14 +4492,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {linksOpen && (
         <ProductionLinksDialog
-          busy={busy}
           controlUrl={controlUrl}
           joinUrl={joinUrl}
+          interactionHref={routeHash({ view: 'production', id: show.id, sub: 'audience' })}
           presenterUrl={presenterUrl}
-          nameDraft={nameDraft}
-          nameNote={nameNote}
-          onNameDraft={(v) => { setNameDraft(v); setNameNote(null); }}
-          onClaimName={() => void claimName()}
           copied={copied}
           onCopy={copy}
           onClose={() => setLinksOpen(false)}

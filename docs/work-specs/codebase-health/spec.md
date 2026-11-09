@@ -2,24 +2,22 @@
 
 **Prepared for `/plan-run codebase-health`, 2026-10-15.** Research baseline: main
 `50ce0911d9f37f5d1116e51a1cb34541ed03aef5` (commit time 06:38:54 UTC / 09:38:54 Europe/Kyiv).
-The owner subsequently authorized preparing the command registration for later use. No phase
-has started; a future invocation with an owner-supplied window authorizes the documentation run.
-Product changes, new size policies and an agent-signal trial remain outside scope.
+The owner subsequently authorized preparing the command registration. The documentation run
+tracked in [#2285](https://github.com/NoaCG/NoaCG-Studio/issues/2285) uses the November baseline
+below for Phase 1. Product changes, new size policies and an agent-signal trial remain outside scope.
 
 ## Recommendation
 
 Add no automated mechanism now. Use the existing architecture and review process to make the
-responsibility owner explicit when a real maintenance change needs it; keep a small, manual,
-revision-pinned receipt to check whether that helps. Keep the two existing wizard budgets pending
-concrete evidence of harmful friction, as the owner decided in this research session. Do not add
-ProductionPage, `model/shows.ts`, or any other file to a size policy.
+responsibility owner explicit when a real maintenance change needs it. The November
+[closeout](../../metrics/2026-11-08-codebase-health.md) ends the separate trend receipt. Keep the two existing wizard budgets
+pending concrete evidence of harmful friction, as the owner decided in this research session.
+Do not add ProductionPage, `model/shows.ts`, or any other file to a size policy.
 
-The production-page refactor is **not complete on this main**. Earlier extractions landed, and
-later reliability work reused some extracted logic, but the fourteen-phase spec still has empty
-phase notes, no review, no production-page budget, and no planned session core. The owner confirmed
-this pinned main as the baseline after this discrepancy was reported. Do not describe the wizard
-close-out as production-page completion. Reconcile the existing production plan before its next
-run; this health plan neither resumes nor duplicates it.
+The production-page refactor landed in software, and the owner closed its expanded run on
+November 6 on the recorded studio receipts. Use the landed owners below for maintenance.
+The [production handoff](evidence/phase-1.md#production-handoff) separates the owner closeout
+from the formal evidence it left open.
 
 `model/shows.ts` is a separate maintenance concern, not automatically another refactor: it combines
 persisted shapes, the shared write envelope and many domain mutators. Preserve that single write
@@ -60,16 +58,55 @@ records this preparation separately.
 
 ## Observed facts
 
-Evidence and reproducible commands: [research receipt](evidence/research.md),
-[measurements](evidence/measurements.json). Numbers are observations, never pass/fail thresholds.
+The [research receipt](evidence/research.md) and [measurements](evidence/measurements.json)
+record the October research. Numbers are observations. Phase 1's current source and coordination
+checks are in [its receipt](evidence/phase-1.md).
 
-### Current state and overlap
+### Ownership at the Phase 1 pin
+
+Main at `862fbcb20d1b6280d172fa390e93560d113c4355` (2026-11-08) is the source pin for
+the map. Each intended owner is the maintenance destination. The production-page destinations
+listed here have landed. The hosted-page row labels a potential future transfer.
+
+| Responsibility | Current owner at the pin | Intended owner | Related wiring |
+|---|---|---|---|
+| Production screen selection and wiring | `src/components/home/ProductionPage.tsx` | Same page | `ProductionShell.tsx`, `CueActions.tsx` and `CueEditor.tsx` render the screen and controls. |
+| Publish, output-slot actions and links in the screen | `src/components/home/useProductionPublish.ts` | Same hook | The page supplies inputs and renders results. |
+| Rundown authoring orchestration | `src/components/home/useRundownAuthoring.ts` | Same hook | The hook routes edits to model mutators. |
+| Session lifecycle and in-memory store | `src/control/playoutSession.ts` | Same session | `storePart.ts` supplies subscriptions. The page creates the session by production ID. |
+| Production-page on-air marker and PROGRAM/log folds | `src/control/airState.ts` | Same folds | `playoutSession.ts` holds the state. `sessionWire.ts` feeds reports and commands into those folds, and `outputRecovery.ts` supplies shared replay rules. |
+| Operator press dispatch | `src/control/verbDispatch.ts` | Same dispatcher | The page calls it with the current view. `verbView.ts` derives that view. |
+| Graphic command behavior | `src/control/graphicVerbs.ts` | Same verb module | The page supplies the current context and invokes the verb. |
+| Take refusals | `src/control/takeBlockers.ts` | Same refusal module | The page passes the refusal checks into the verb wiring. |
+| Server cue command orchestration | `src/control/serverVerbs.ts` | Same orchestration module | Flushes the draft, delegates the command and records accepted results in `serverPlayoutStore.ts`. |
+| Server cue command rules | `src/control/serverPlayout.ts` | Same rules module | Builds actions and chooses which slot a command addresses. |
+| Bridge polling and status | `src/control/bridgeWatch.ts` | Same watcher | Writes the session's Bridge status. |
+| Live data in the production-page session | `src/control/productionDataSession.ts` | Same data session | Owns the session's live tree and its data-key readiness. |
+| Unpublished timed-cue execution | `src/control/cueArmEngine.ts` | Same engine | The page runs the timer locally. Both modes share the rules in `cueAuto.ts`. |
+| Published timed-cue execution in the client | `src/control/cueArmWire.ts` | Same wire module | Follows the shared countdown, asks the server which page may fire and invokes the end action when granted. |
+| Folder playout and cancellation | `src/control/folderPlayout.ts` | Same folder module | Writes folder progress in the session. |
+| Cue draft and save before a command | `src/control/cueDraft.ts` | Same draft module | `CueEditor.tsx` subscribes to the draft for display. |
+| Production and rundown mutation and routing | `src/model/shows.ts` | Same model write envelope | Routes personal writes through `durableStore.ts` and team edits through the `teamShows.ts` in-memory copy. `showFolders.ts`, `cueClipboard.ts` and `rundownHistory.ts` provide separate operations. |
+| Team rundown persistence | `src/backend/teamProductions.ts` | Same backend module | The save pump and conditional team undo share a lock and check the server revision. `useRundownHistory.ts` selects the personal or team undo path. |
+| Published-record digest | `src/model/publishedRecord.ts` | Same digest module | `hostedControl.ts` calls it on publish. `shows.ts` stores the digest, and `usePublishDrift.ts` uses it. |
+| Hosted control page's local on-air marker | `src/components/HostedControlPage.tsx` | **Planned in a separate hosted migration.** `src/control/playoutSession.ts` would hold the marker and use the `airState.ts` folds. | Production refactor section 1.1 and AC-13 prepared the core for reuse. This run assigns no implementation of that migration. |
+
+`docs/ARCHITECTURE.md` already names the playout session seam. The phase receipt traces
+[#1057](https://github.com/NoaCG/NoaCG-Studio/pull/1057)'s digest and replay into the landed
+modules and records the unchanged protections.
+
+### October research snapshot
+
+The table and trend discussion below describe main at the October research pin
+`50ce0911d9f37f5d1116e51a1cb34541ed03aef5`.
+
+#### State and overlap at the October pin
 
 | Area | Observed on pinned main | Consequence |
 |---|---|---|
 | Production page | 5,699 lines; old extraction #473 moved rundown, monitors, server editor and server playout pieces; #1057 subsequently adds recovery/publish fixes | Reuse the existing refactor; its original 5,676-line baseline is stale |
 | Fourteen-phase production plan | Only its planning landing in path history; phase notes empty; phase-1 named browser specs and phase-2 session modules absent; `work.json.review` null | No phase acceptance/completion claim; recheck prerequisites and later partial reuse, not a blind restart |
-| File budgets | Two entries: CreationWizard 1,419/1,419; AiStep 1,659/1,659; no legacy file currently present | Wizard plans own the current entries; production D8 describes an uninstalled budget |
+| File budgets | Two entries: CreationWizard 1,419/1,419; AiStep 1,659/1,659; no legacy file at that pin | Wizard plans own the current entries; production D8 describes an uninstalled budget |
 | Budget gate | Build gate, per-file JSON plus legacy support, duplicate/missing entries fail; increases prevented by review convention, not comparison with base | Neither an architectural test nor a mechanical monotonic ratchet |
 | Wizard work | S8 and A5 receipts exist; extraction and instruction scoping have landed | Reuse the existing S9 revisit of ordinary maintenance; do not reopen these plans or create competing ownership |
 | Architecture | Runtime-cycle and domain-edge checks; wizard import/template seam rules; components have broad allowed imports, seams partly reviewed | Existing checks can protect real boundaries, but cannot detect every misplaced responsibility inside a permitted domain |
@@ -77,7 +114,7 @@ Evidence and reproducible commands: [research receipt](evidence/research.md),
 | Instructions | Audit and actual-load probe already exist; issue #805 covers the broader follow-up | Do not invent another audit, instruction pack, or agent-signal system |
 | Concurrent work | Open PR snapshot: #1137/#1157 concern a configured late-send test; #1074 concerns E2E durations. Production spec #766 remains open; vMix and other registered plans also share playout concerns | This is repository visibility, not proof that other machines/runs are idle; reserve overlapping files before any future work |
 
-### Hotspots: size, integrated change and growth together
+#### Hotspots: size, integrated change and growth together
 
 Window: `(2026-09-15T06:38:54Z, 2026-10-15T06:38:54Z]`. Each first-parent change counts once;
 branch commits are not double-counted. The 14-day column uses the same end. Physical LF-normalized
@@ -94,13 +131,13 @@ lines include comments and blanks. The receipt defines scope, exclusions, dates 
 | `src/export/targets/ograf.ts` | 1,462 → 2,246 | +784 | 12 / 10 |
 | `src/components/canvas/CanvasInteraction.tsx` | 2,240 → 2,240 | 0 | 0 / 0 |
 
-The current AiStep path looks like +1,659 new lines in a path-only report. Following the old
+The October AiStep path looks like +1,659 new lines in a path-only report. Following the old
 `steps/AiStep.tsx` and new `ai/AiStep.tsx` paths gives 2,133 → 1,659, **−474**, across nine
 integrations including the move and shim removal. Likewise newly extracted `CueRundown.tsx`
 (1,162 lines, 24 integrations) is not 1,162 lines of new architectural debt. Static tables and
 unchanged legacy files also invalidate “large means unhealthy.” No composite risk score is used.
 
-### What the growth means
+#### What the growth meant at the October pin
 
 The purposive diff sample in the receipt establishes mixed causes; it does not classify all 70
 page changes or prove that growth caused defects.
@@ -125,7 +162,7 @@ page changes or prove that growth caused defects.
   already calls for reconsideration after 2–4 weeks of ordinary work; coordinate with that existing
   follow-up rather than add a reporting cadence.
 
-### Budget value and likely friction
+#### Budget value and likely friction
 
 Historical replay reads the budget and target file from the **same historical main tree**.
 Across 73 integration snapshots since introduction there were no over-budget or missing-file
@@ -152,7 +189,7 @@ exception or policy revision only on that concrete evidence. This research autho
 | Clarify owner, public seam and allowed wiring in existing architecture/plan docs | Directs the next change to a testable responsibility and avoids duplicate state owners | Docs can drift; must match imports and actual writes | Smallest proposed intervention; edit existing documentation, not a new agent rule |
 | Actionable feedback in existing review | Names the misplaced behavior, intended module, behavior proof and smallest repair | Reviewer effort; judgment remains necessary | Use for actual responsibility violations; line count alone is not actionable |
 | Existing domain, cycle and seam checks | Deterministic checks of established architectural decisions | Broad component allowance and intra-module responsibility remain invisible | Reuse; add no new rule without an observed violation and an agreed boundary |
-| Manual trend receipt using existing Git/metrics commands | Surfaces regrowth, moves and co-change without blocking useful work | Small review cost, no automatic prevention; misleading if window is mostly migration | One bounded follow-up after ordinary work; no bot, schedule or mandatory per-PR report |
+| Manual trend receipt using existing Git/metrics commands | Surfaces regrowth, moves and co-change without blocking useful work | Small review cost, no automatic prevention; misleading if window is mostly migration | November closeout completed the bounded follow-up and ended the separate receipt |
 | Existing per-file budgets | Catches simple length regrowth during a split | Can block valuable in-place fixes; misses responsibility leakage and growth inside headroom | Retain only the existing two, per owner decision; do not expand or mechanically harden |
 | Global line/byte limits, zero-growth ratchet, pre-edit hook | Easy to count and explain | False positives, formatting incentives, more context and urgent-fix friction | Reject |
 | New generic agent instruction / agent-health signal | Might expose repeated misplacement if existing review misses it | Unproven value, instruction and review noise; duplicates #805 | Defer; no trial design or launch |
@@ -167,7 +204,7 @@ not a new mandatory reviewer, CODEOWNERS rule, or assigned person.
 
 ## Start and concurrent work
 
-After this registration lands on main, use:
+The registered command is:
 
 ```text
 /plan-run codebase-health until <YYYY-MM-DD HH:MM Europe/Kyiv>
@@ -182,7 +219,7 @@ continuation and wake mechanism only when the owner actually starts the run.
 |---|---|---|
 | Another `codebase-health` run | Never overlap | Same spec, evidence and phase notes |
 | Any wave | Do not run alongside it | Existing plan-run rule: a wave runs alone |
-| `production-page` | Run sequentially by default; finish or pause its active phase first | Phase 1 writes its spec/digest; both may write architecture; older acceptance/budget language needs owner resolution |
+| `production-page` | Owner closed the run on November 6. Treat its spec and evidence as read-only | The closeout and D8/AC-11 decision are settled. Check actual write paths for separately authorized work |
 | `wizard-shell`, `svg-import-engine`, `noacg-harness` | Serialize phases that write `docs/ARCHITECTURE.md`; other disjoint phases can coexist | Their published plans name that shared document; wizard evidence also has its existing S9 revisit |
 | `wizard-ai`, `vmix`, `editor`, `guided-mod`, `ci-plan`, `remote-mcp`, other work | May coexist only after checking the actual phase file allocation | Shared subject matter or files read by this plan are not by themselves write conflicts; architecture/plan edits still need one writer |
 
@@ -205,35 +242,29 @@ requires its own concrete evidence and owner review;
 these phases cannot expand themselves to create it.
 
 **Launch prerequisites:** this spec and registration landed on main, the owner's command with an
-explicit window of at most 24 hours, and a fresh-main overlap check. `work.json.authority` records
-agreed preparation/scope only; it is not an open run or permission to start autonomously. The
-coordinator records build/check/repair/stop state only in existing plan/wave records. Advance
-automatically only after an independent check passes within the window. Stop and ask for reserved
-policy decisions; do not decide them unattended. Every phase adds its findings to `## Phase notes`
+explicit window of at most 24 hours, and a fresh-main overlap check. The current window is recorded
+on [#2285](https://github.com/NoaCG/NoaCG-Studio/issues/2285). The coordinator records
+build/check/repair/stop state only in existing plan/wave records. Advance automatically only
+after an independent check passes within the window. Stop and ask for reserved policy decisions; do not decide them unattended. Every phase adds its findings to `## Phase notes`
 and keeps this spec's digest in `work.json` current, clearing stale review under existing conventions.
 
 ### Phase 1 — Reconcile ownership and the production-plan handoff
 
-- **Depends on:** the owner's bounded invocation; current production-plan coordinator/file
-  allocation reconciled. It need not wait for all fourteen phases, but must not edit shared plan
-  or architecture files concurrently. A production run already owning them takes precedence.
-- **Affected files:** `docs/ARCHITECTURE.md`,
-  `docs/work-specs/production-page-refactor/spec.md` and its `work.json` digest if changed;
-  this spec's `## Phase notes`. Do not edit the production plan's owner decisions or mark its
-  acceptance satisfied. A stale review must be cleared under existing work-spec conventions.
-- **Outcome:** distinguish current from planned owners for screen wiring, live state, command
-  decisions and persistence; cite landed reuse from #1057. Reconcile the unimplemented D8 budget
-  requirement with the owner's no-new-ceilings requirement **before** any production run relies on
-  it. Proposed resolution: remove that uninstalled size obligation and express maintenance proof
-  through existing ownership/behavior acceptance; owner must approve the exact plan change.
+- **Depends on:** the owner's bounded invocation, a fresh source pin, the production run's owner
+  closeout and a live file overlap check.
+- **Affected files:** this spec and its `work.json` digest, plus `evidence/phase-1.md`.
+  `docs/ARCHITECTURE.md` is only needed if its seam disagrees with the pinned source. The
+  production spec, ledger and closeout receipt are read-only.
+- **Outcome:** record landed responsibility owners, label planned hosted adoption, and trace #1057
+  reuse. Apply the settled owner decision in production D8 and AC-11 when describing the guardrail.
+  Keep the production behavior and evidence protections as recorded by their owner.
 - **Acceptance:** every named current module exists at the new pin; every planned module is labeled
   planned; one current and one intended owner for each responsibility; no duplicate implementation
   work; no numeric replacement gate. Original behavioral protections remain intact.
 - **Verification:** independent source/import and plan comparison; work-spec digest/status; targeted
   changed-file gates. No browser/build for a documentation-only handoff.
-- **Rollback/coordination:** revert only this phase's documentation commit, preserving any later
-  owner ruling; do not revert another plan's code or blindly restore superseded policy. Pause the
-  conflicting production phase if the handoff is rejected.
+- **Rollback/coordination:** revert this phase's documentation merge in isolation. Verify current
+  owner decisions before reverting. Resolve any overlapping writer through the run coordinator.
 
 ### Phase 2 — Apply the boundary map to real maintenance evidence
 
@@ -290,25 +321,24 @@ counts, one failure or an agent's self-rating alone are insufficient. Only then 
 a trial is worth designing. No questionnaire, telemetry pipeline, scoring formula, new instruction,
 trial run or recurring collection is designed or launched here.
 
-## Unresolved owner decisions and evidence limits
+## Owner decisions and evidence limits
 
-Preparation and registration are authorized; no execution window has been supplied and no phase
-has started. A future bounded invocation authorizes the three documentation phases. The owner
-still decides the exact production-plan D8/AC-11 reconciliation before that plan runs.
-Answered 2026-10-17: the owner dropped D8's page limit and AC-11's line count, keeping the
-compiled rule (production plan D8, AC-11).
-Recommendation: accept responsibility/behavior proof and omit the uninstalled size gate. Existing
-wizard budgets stay unchanged by the explicit answer above; a future exception requires its actual
-case. The implementation window is not supplied. These are approval boundaries, not open executions.
+The November window authorizes the three documentation phases. On October 17 the owner dropped
+D8's page limit and AC-11's line count and kept the compiled rule directing playout behavior
+to `src/control/`. The [production authority record](../production-page-refactor/work.json) and
+[spec](../production-page-refactor/spec.md) carry the decision. Existing wizard budgets are retained
+under the research-stage answer above. A future exception requires its actual case and owner review.
 
-Ordinary post-split maintenance value, blocked-branch friction, actual cross-machine run occupancy,
-full production behavior and live hardware performance are unverified. The measured history and
+The [November closeout](../../metrics/2026-11-08-codebase-health.md) records concrete review
+work and a budget-driven extraction. It does not establish typical post-split coupling or
+blocked-branch delay. Source and history checks do not verify cross-machine run occupancy,
+full production behavior or live hardware performance. The measured history and
 selected diffs do not prove regression safety, defect causation, or long-term architectural quality.
 
 ## Acceptance inventory
 
-AC-1 through AC-5 cover research and command preparation. AC-6 through AC-8 are the phase
-acceptance inventory for future execution. No criterion or ledger status opens a run.
+AC-1 through AC-5 cover research and command preparation. AC-6 through AC-8 are the acceptance
+inventory for the documentation run. The run issue records its authorization.
 
 ### AC-1: Authority and current state are explicit
 
@@ -350,8 +380,8 @@ Phase 1's acceptance and verification above pass on an independently checked mai
 Current/planned ownership is explicit, overlapping writers are reconciled, and behavior protections
 remain intact. The exact D8/AC-11 decision has owner evidence before any policy text changes;
 without that answer, stop the affected phase and ask. No size gate is installed by this plan.
-Layer: independent source/plan comparison and targeted document checks; future receipt:
-`evidence/phase-1.md`, plus Phase notes.
+Layer: independent source/plan comparison and targeted document checks. See the
+[Phase 1 receipt](evidence/phase-1.md) and Phase notes.
 
 ### AC-7: Maintenance feedback identifies behavior ownership rather than a size target
 
@@ -359,17 +389,59 @@ Phase 2's acceptance and verification above pass. The receipt includes justified
 move/extraction, distinguishes ordinary work from migration, and explains the separate model
 concern. Every suggested action identifies responsibility and its existing proof location;
 no-action or insufficient new evidence is an explicit, supported outcome.
-Layer: independent diff and test-inventory review; future receipt: `evidence/maintenance-review.md`.
+Layer: independent diff and test-inventory review. See the [maintenance receipt](evidence/maintenance-review.md).
 
 ### AC-8: Close-out measures value and leaves no unapproved continuation
 
 Phase 3's acceptance and verification above pass. Pinned arithmetic is reproducible, available
 wizard S9 evidence is reused, and recommendations distinguish observed maintenance value from
 unknowns. No new numeric threshold, trial, recurring collection or follow-up run is created.
-Layer: independent reproduction and document review; future receipt: `evidence/phase-3.md` and
-the phase's dated metrics document.
+Layer: independent reproduction and document review. See the [Phase 3 receipt](evidence/phase-3.md)
+and the [dated closeout](../../metrics/2026-11-08-codebase-health.md).
 
 ## Phase notes
 
-Registration prepared at the owner's request after research. No phase has started; no window,
-worker or wake task is open. Phase checks and the production-plan policy decision remain unverified.
+### Phase 1
+
+- **Previous verified main SHA:** `862fbcb20d1b6280d172fa390e93560d113c4355`, also the source
+  pin for the ownership map. See the [verification receipt](evidence/phase-1.md#verification).
+- **Revert:** in an isolated branch worktree, run `git revert -m 1 <this PR's merge SHA>`, then
+  `/check` and `/queue-merge`. The revert is documentation only.
+- **Decisions:** use one ownership map here, because the architecture already describes the
+  session seam. Use the November 6 owner closeout and October 17 policy decision as evidence.
+- **Traps:** the open production tracking issue and October checkpoint do not establish run
+  status. Owner closure, software checks and formal studio acceptance are separate claims.
+  Recheck actual PR write paths and the CI/CD hold before queueing.
+
+### Phase 2
+
+- **Previous verified main SHA** `9496e84e1e6a7703ec6d7a217f27e80178ef4f03`, also the
+  maintenance-review source pin. Phase 1's independent check is recorded on
+  [#2287](https://github.com/NoaCG/NoaCG-Studio/pull/2287#issuecomment-6720810871).
+- **Revert** In an isolated branch worktree, run `git revert -m 1 <this PR's merge SHA>`,
+  then `/check` and `/queue-merge`. This reverts only documentation and its digest.
+- **Decisions** Use landed ordinary changes and the wizard S8 move to review owners,
+  wiring and proof. Leave the model write envelope and architecture map as they are.
+  See the [maintenance receipt](evidence/maintenance-review.md).
+- **Traps** Compare each integration with its actual first parent. A move is migration
+  evidence. A test file in the inventory establishes what it covers, and this phase
+  makes no new claim about running its journey. Keep the October snapshot at its own pin.
+
+### Phase 3
+
+- **Previous verified main SHA** `df5767458230558e9fdee158e663e9367e58f8e3`, also the
+  November history pin. See the [Phase 2 independent check](https://github.com/NoaCG/NoaCG-Studio/pull/2288#issuecomment-6721248732).
+- **Revert** In an isolated branch worktree, run `git revert -m 1 <this PR's merge SHA>`,
+  then `/check` and `/queue-merge`. This reverts the closeout, evidence, and spec updates.
+- **Decisions** End the separate trend receipt. Use the responsibility map in ordinary review when
+  a behavior placement or proof question warrants it. Keep the two wizard budgets. The
+  [closeout](../../metrics/2026-11-08-codebase-health.md) and [receipt](evidence/phase-3.md)
+  record what was observed and what remains unknown.
+- **Traps** Keep the October pin separate. Count old and new paths together when code moves.
+  Landed budget states cannot establish delay or rejected work. The S8 receipt does not complete
+  the existing S9 revisit. Keep the production closeout and CI/CD allocation read-only.
+
+### Registration
+
+The owner's registration request prepared the plan for a future invocation. Registration itself
+opened no window, worker or wake task.

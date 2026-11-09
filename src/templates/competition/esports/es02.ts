@@ -185,7 +185,7 @@ ${scoreStructureCss(MARKUP)}
   box-shadow: none;
 }
 .${P}-paused .${P}-body {
-  opacity: 0.55;                   /* the match is on hold */
+  filter: opacity(0.55);           /* the match is on hold; a filter, since the entrance writes the body's opacity inline (#2275) */
 }`,
   }),
 );

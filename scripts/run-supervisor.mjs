@@ -8,11 +8,12 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { nextStep, recordStep, withLedgerLock } from './plan-run.mjs';
-import { MAX_WINDOW_MS, REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
-import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, ownerReceipts, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
+import { REPORT_HEADING, WINDOW_END } from './wave-plan-store.mjs';
+import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredReceipt as deliveryReceipt, githubObservations, kitDir, ownerReceipts, publishRun, recoveryGit, recoveryTables, restoredObservation, restoreRun, transaction } from './run-recovery.mjs';
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
-import { DAY_MS, authorizationEnd, digest, immutableProject, phaseRow, projectBoundary, readProject, untilComplete, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { planLaunchBinding, planLaunchIntent } from './plan-launch.mjs';
+import { DAY_MS, authorizationEnd, digest, immutableProject, needsProject, phaseRow, projectBoundary, readProject, sameWindowEnd, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { admitPhases, changeProject, checkAdmission, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
@@ -88,8 +89,8 @@ export function registerRun(db, manifest, now = Date.now()) {
   }
   const auth = manifest.authorization;
   if (!auth || !required(auth.source) || !required(auth.scope) || !required(auth.permissionPolicy)
-      || !iso(auth.startedAt) || !iso(auth.deadline)) throw new Error('Explicit authorization and permission policy required');
-  const { start, end } = validateAuthorization(auth, { now, kind: manifest.kind });
+      || !iso(auth.startedAt) || (auth.deadline !== undefined && !iso(auth.deadline))) throw new Error('Explicit authorization and permission policy required');
+  const { start } = validateAuthorization(auth, { now, kind: manifest.kind });
   validatePacket(manifest.packet);
   if (!path.isAbsolute(manifest.wave) || !path.isAbsolute(manifest.adapter?.command ?? '')
       || !path.isAbsolute(manifest.adapter?.cwd ?? '') || !Array.isArray(manifest.adapter.args)
@@ -101,9 +102,9 @@ export function registerRun(db, manifest, now = Date.now()) {
   } };
   const text = readFileSync(normalized.wave, 'utf8');
   const project = readProject(text, now);
-  if ((end - start > MAX_WINDOW_MS || untilComplete(auth)) && !project) throw Error('Multi-day or until-complete plans require explicit continuing project metadata');
+  if (needsProject(auth) && !project) throw Error('Multi-day or until-complete plans require explicit continuing project metadata');
   if (project && (manifest.kind !== 'plan' || project.id !== manifest.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Manifest differs from original project authorization');
-  if (windowStart(text) !== start || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== end) throw new Error('Wave window differs from authorization');
+  if (windowStart(text) !== start || !sameWindowEnd(WINDOW_END.exec(text)?.[2], auth)) throw new Error('Wave window differs from authorization');
   if (REPORT_HEADING.test(text)) throw new Error('Wave already reported');
   return ledgerTransaction(db, normalized.wave, (wrote) => {
     if (project) {
@@ -184,12 +185,67 @@ export function recordRun(db, id, phase, event, detail = '', { now = Date.now(),
       checkBlock(project, authority, now);
       if (doc.wait || doc.pending || row.owner) throw Error('Reconcile blocked prerequisite, active lease or uncertain action before phase admission');
     }
+    let receipt;
+    try { receipt = JSON.parse(detail); } catch { /* Legacy plain-text records retain their own validation. */ }
+    const pending = receipt?.launch?.native?.provider === 'codex'
+      ? planLaunchIntent(doc, project, phase, event, receipt, kitDir(doc.manifest.wave), now) : null;
     const result = recordStep(doc.manifest.wave, phase, event, detail, now, { supervised: Boolean(project) });
     if (result.refusal) throw Error(result.refusal);
     wrote();
-    db.prepare('UPDATE runs SET owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(id);
+    if (pending) { doc.sequence += 1; doc.pending = pending; }
+    db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(doc), id);
     publishRun(db, id);
-    return result;
+    return pending ? { ...result, launch: planLaunchBinding(pending) } : result;
+  });
+}
+
+/** Final authority check and one durable dispatch reservation, immediately before native launch. */
+export function readyPlanLaunch(db, id, authority, { now = Date.now() } = {}) {
+  adoptAccepted(db, id);
+  return transaction(db, () => {
+    const { doc } = rowFor(db, id);
+    assertCurrent(db, id, doc);
+    const project = checkedProject(doc, readFileSync(doc.manifest.wave, 'utf8'), now);
+    checkBlock(project, authority, now);
+    const pending = doc.pending;
+    if (pending?.packet?.kind !== 'plan-worker' || pending.packet.block.id !== authority.id) throw Error('No original plan intent under this block');
+    if (doc.wait || pending.dispatchRequestedAt || pending.nonDelivery) throw Error('Dispatch already requested or waiting; reconcile the original action, never resend');
+    pending.dispatchRequestedAt = new Date(now).toISOString();
+    db.prepare('UPDATE runs SET doc=? WHERE id=?').run(JSON.stringify(doc), id);
+    publishRun(db, id);
+    return { ...planLaunchBinding(pending), ...pending.packet };
+  });
+}
+
+/** Reconcile the exact outstanding plan action, even after a pause/expiry; this launches nothing. */
+export function observePlanLaunch(db, id, observation, { now = Date.now() } = {}) {
+  adoptAccepted(db, id);
+  return ledgerTransaction(db, rowFor(db, id).doc.manifest.wave, (wrote) => {
+    const { doc } = rowFor(db, id);
+    assertCurrent(db, id, doc);
+    const pending = doc.pending;
+    if (pending?.packet?.kind !== 'plan-worker') throw Error('No unresolved plan-worker launch; inspect existing work rather than replaying');
+    checkedProject(doc, readFileSync(doc.manifest.wave, 'utf8'), now);
+    const observed = reconcileNative(planLaunchBinding(pending), observation);
+    if (observed.state === 'unknown') return observed;
+    if (observed.state === 'not-delivered') {
+      // Keep this action and its spent admission. A new worker cannot be inferred from absence.
+      pending.nonDelivery = { evidence: observation.evidence, authoritative: true, final: true };
+      db.prepare('UPDATE runs SET doc=? WHERE id=?').run(JSON.stringify(doc), id);
+      publishRun(db, id);
+      return { state: 'not-delivered', reason: 'Original launch was not delivered; stop and reconcile the admitted phase before any replacement' };
+    }
+    if (pending.nonDelivery) return { state: 'unknown', reason: 'Acceptance conflicts with recorded final non-delivery; retain the original action for reconciliation' };
+    const detail = JSON.stringify({ actor: observed.workerId, session: observed.workerId,
+      actionId: pending.id, evidence: observation.evidence });
+    const recorded = recordStep(doc.manifest.wave, pending.packet.phase, 'resume', detail, now, { supervised: true });
+    if (recorded.refusal) throw Error(recorded.refusal);
+    wrote();
+    doc.lastPlanLaunch = { ...pending, receipt: deliveryReceipt(observed) };
+    doc.pending = null;
+    db.prepare('UPDATE runs SET doc=?,owner=NULL,leaseUntil=0,epoch=epoch+1 WHERE id=?').run(JSON.stringify(doc), id);
+    publishRun(db, id);
+    return observed;
   });
 }
 
@@ -513,8 +569,8 @@ function localRecovery() {
 
 export async function main(args = process.argv.slice(2), options = {}) {
   const [command, file, id, value] = args;
-  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'admit', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'renew', 'publish', 'pause', 'finish', 'cancel'].includes(command)) {
-    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase row or id> <event> [detail] [--authority <block.json>] | admit <db> <id> <admission.json> --authority <block.json> | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | renew <db> <id> <block.json to write> | publish <db> <id> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
+  if (!file || !['register', 'restore', 'resume', 'continue', 'next', 'record', 'ready-launch', 'observe-launch', 'admit', 'tick', 'status', 'wait', 'clear-wait', 'checkpoint', 'start-block', 'renew', 'publish', 'pause', 'finish', 'cancel'].includes(command)) {
+    process.stderr.write('Usage: run-supervisor.mjs continue <state-root> <plan> <owner> | register <db> <manifest.json> | restore|resume <db> <config.json> | next <db> <id> | record <db> <id> <phase row or id> <event> [detail] [--authority <block.json>] | ready-launch <db> <id> <block.json> | observe-launch <db> <id> <observation.json> | admit <db> <id> <admission.json> --authority <block.json> | tick|status <db> [id] | wait|checkpoint|start-block <db> <id> <json> | renew <db> <id> <block.json to write> | publish <db> <id> | clear-wait|pause|cancel <db> <id> <evidence> | finish <db> <id>\n'); return 2;
   }
   let db;
   try {
@@ -531,6 +587,8 @@ export async function main(args = process.argv.slice(2), options = {}) {
       assertCurrent(db, id, doc);
       output = nextStep(readFileSync(doc.manifest.wave, 'utf8'));
     }
+    else if (command === 'ready-launch') output = readyPlanLaunch(db, id, JSON.parse(readFileSync(value, 'utf8')), options);
+    else if (command === 'observe-launch') output = observePlanLaunch(db, id, JSON.parse(readFileSync(value, 'utf8')), options);
     else if (command === 'restore') output = restoreRun(db, JSON.parse(readFileSync(id, 'utf8')));
     else if (command === 'resume') {
       const config = JSON.parse(readFileSync(id, 'utf8'));

@@ -3,8 +3,9 @@ import { isBackendConfigured } from '../backend/config';
 import { CLOUD_NO_ANSWER, cloudFailureWords } from '../backend/supabase';
 import { getSyncState, onSyncState, startAutoSync, syncNow, type SyncState } from '../backend/syncController';
 import { flushTeamProduction, refreshTeams } from '../backend/teamProductions';
-import { libraryInUse } from '../model/durableStore';
+import { canAuthorAccount, libraryInUse } from '../model/durableStore';
 import { useAuthUi } from './auth/authUi';
+import { useAccountAuthoring } from './AccountAuthoringGate';
 import LibMenu from './home/LibMenu';
 
 /** How long a save may stay unconfirmed before the chip turns amber (playout-workflow-
@@ -93,11 +94,18 @@ export interface TeamSave {
  * AccountSaveNotice, so the chip is never the only place a failure shows.
  */
 export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
-  const [state, setState] = useState<SyncState>(getSyncState());
+  const [state, setState] = useState(getSyncState);
+  const authoring = useAccountAuthoring();
+  const personalLibrary = !team && !!libraryInUse();
+  // The library can reopen before the new pass supersedes the expired session's phase.
+  const resumed = personalLibrary && authoring && state.phase === 'offline';
+  const displayed: SyncState = resumed
+    ? { phase: 'syncing', firstPass: true, unconfirmedSince: state.unconfirmedSince }
+    : state;
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [teamSince, setTeamSince] = useState<number | null>(null);
-  const host = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
@@ -112,7 +120,10 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
     setTeamSince((since) => (teamSaving ? since ?? Date.now() : null));
   }, [teamSaving]);
   // Wake once, at the minute mark, while something is in flight: the word changes then by itself.
-  const since = team && teamSaving === 'pending' ? teamSince : (team && isOffline()) || state.phase === 'pending' || state.phase === 'syncing' ? state.unconfirmedSince ?? null : null;
+  const waiting = (team && isOffline()) || displayed.phase === 'pending' || displayed.phase === 'syncing';
+  const since = team && teamSaving === 'pending'
+    ? teamSince
+    : waiting ? displayed.unconfirmedSince ?? null : null;
   useEffect(() => {
     if (since === null) return;
     const wait = since + NOT_SYNCED_AFTER_MS - Date.now();
@@ -126,26 +137,35 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
 
   // `now` moves at the minute mark (the effect above), which is the only moment the word can change
   // with no new state behind it.
-  const { tone, summary, detail, action } = team ? describeTeam(team, state, teamSince, now) : describe(state, now);
+  const { tone, summary, detail, action } = team ? describeTeam(team, state, teamSince, now) : describe(displayed, now);
   // The chip's one word: the summary, except a device-only workspace, which says Local.
   const word = tone === 'local' ? 'Local' : summary;
   const act = () => {
+    if (action === 'sync' && !team && libraryInUse() && !canAuthorAccount()) return;
     setOpen(false);
     if (action === 'resume') useAuthUi.getState().openSignIn('Sign in to resume account editing. Pending work is preserved.', 'resume');
     else if (action === 'sign-in') useAuthUi.getState().openSignIn();
     else {
       // The panel holding the focused button is about to unmount: hand focus back to the trigger.
-      host.current?.querySelector<HTMLButtonElement>('.sync-status')?.focus();
+      trigger.current?.focus();
       if (team) void flushTeamProduction(team.productionId).then(() => refreshTeams());
       else void syncNow();
     }
   };
   const busy = team ? teamSaving === 'pending' : state.phase === 'syncing';
+  const retryUnavailable = action === 'sync' && personalLibrary && !authoring;
 
   return (
-    <div ref={host} className="lib-menu-host">
+    <div className="lib-menu-host" onKeyDown={(event) => {
+      // LibMenu closes on the document. Claim its Escape before the editor can pause playback.
+      if (open && event.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) {
+        event.preventDefault();
+        trigger.current?.focus();
+      }
+    }}>
       <button
-        className={`sync-status sync-${team ? (tone === 'ok' ? 'synced' : teamSaving ?? 'failed') : state.phase}`}
+        ref={trigger}
+        className={`sync-status sync-${team ? (tone === 'ok' ? 'synced' : teamSaving ?? 'failed') : displayed.phase}`}
         data-tone={tone}
         aria-label={`Sync: ${summary}`}
         aria-expanded={open}
@@ -162,7 +182,7 @@ export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
           {summary}
         </strong>
         <p className="hint" data-testid="sync-detail">{detail}</p>
-        <button className="sync-panel-action" onClick={act} disabled={busy && tone !== 'warn'} data-testid="sync-action">
+        <button className="sync-panel-action" onClick={act} disabled={retryUnavailable || (busy && tone !== 'warn')} data-testid="sync-action">
           {action === 'sync' ? 'Sync now' : 'Sign in'}
         </button>
       </LibMenu>

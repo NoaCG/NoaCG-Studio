@@ -1,5 +1,5 @@
 // gate: build
-// guards: scripts/run-recovery.mjs, scripts/run-supervisor.mjs, scripts/project-control.mjs
+// guards: scripts/plan-launch.mjs, scripts/run-recovery.mjs, scripts/run-supervisor.mjs, scripts/project-control.mjs
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { admitRun, continueProject, main, openStore, publishCheckpoint, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
+import { admitRun, continueProject, main, observePlanLaunch, openStore, publishCheckpoint, readyPlanLaunch, recordRun, registerRun, tickRun, updateRun } from './run-supervisor.mjs';
 import { kitDir, publishRun, recoveryGit, restoredObservation, restoreRun } from './run-recovery.mjs';
 import { readProject, writeProject } from './project-authorization.mjs';
 import { admitPhases } from './project-control.mjs';
@@ -125,9 +125,11 @@ function projectFixture(t, { open = true, inFlight = false, id = 'plan-fixture-2
     manifest.id = id;
     manifest.authorization.deadline = new Date(now + 72 * HOUR).toISOString();
     if (completion) manifest.authorization.standing = { untilComplete: 'Continue this fixture scope until complete.', blockRenewal: 'Renew fixture blocks automatically.' };
+    // The owner gave no date: the run lasts as long as its phases need.
+    if (completion === 'undated') { delete manifest.authorization.deadline; delete manifest.authorization.standing.untilComplete; }
     const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
       status: 'paused', reason: 'restore fixture only', phases: [{ id: 'restore', title: 'Restore and check', dependsOn: [], acceptance: ['restore verified'], environment: 'controlled-fixture' }] };
-    writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline}`), project));
+    writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline ?? 'when-complete'}`), project));
   });
   if (open) updateRun(f.db, f.manifest.id, 'start-block', { owner: 'session-a', deadline: new Date(f.now + 12 * HOUR).toISOString(), evidence: 'fixture block' }, f.now);
   if (inFlight) recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: blockOf(f.manifest.wave) });
@@ -150,8 +152,8 @@ test('multi-day project restoration preserves authorization and continues under 
   assert.match(ledgerAt(f), /phase 1 build/);
 });
 
-test('completion-authorized recovery after the target retains its worker and fences the old owner', (t) => {
-  const f = projectFixture(t, { inFlight: true, completion: true }), old = blockOf(f.manifest.wave);
+for (const completion of [true, 'undated']) test(`completion-authorized recovery after the target retains its worker and fences the old owner (${completion === true ? 'target date' : 'no date'})`, (t) => {
+  const f = projectFixture(t, { inFlight: true, completion }), old = blockOf(f.manifest.wave);
   const later = f.now + 80 * HOUR;
   const continued = f.continueAs('later-owner', later);
   assert.equal(continued.verdict, 'continued');
@@ -916,4 +918,61 @@ test('admission renumbers only the phase list readPhases reads, keeping its line
   const admitted = admitPhases(project, text, { receipts: [], commit: 'c'.repeat(40), insert: [{ after: 'a', phases: [phaseOf('a2', ['a'])] }] }, [], at).text;
   assert.match(admitted, /## Phases\r\n1\. Phase a\r\n2\. Phase a2\r\n3\. Phase b\r\n\r\n## Phases notes\r\n1\. not a phase\n/);
   assert.deepEqual(readProject(admitted, at).phases.map((p) => p.id), ['a', 'a2', 'b']);
+});
+
+function prepareCodexIntent(f) {
+  const kit = kitDir(f.manifest.wave), native = f.manifest.packet.recovery.native;
+  mkdirSync(path.join(kit, 'briefs'), { recursive: true });
+  const state = { project: f.manifest.id, execution: { harness: 'codex', mode: 'active' },
+    coordinator: { session: native.sessionId, environment: native.environmentId, return: 'original coordinator' } };
+  writeFileSync(path.join(kit, 'state.json'), JSON.stringify(state));
+  writeFileSync(path.join(kit, 'briefs', 'build.txt'), 'Pinned Codex worker request\n');
+  return { actor: 'reserved-builder', launch: { sourceSha: f.manifest.packet.recovery.revision,
+    branch: 'codex/plan-fixture-build', brief: 'briefs/build.txt', native } };
+}
+
+test('Codex unresolved launch survives an empty-store restore with exact brief, identity and return destination', (t) => {
+  const f = projectFixture(t), block = blockOf(f.manifest.wave), input = prepareCodexIntent(f);
+  const result = recordRun(f.db, f.manifest.id, 1, 'build', JSON.stringify(input), { now: f.now, authority: block });
+  readyPlanLaunch(f.db, f.manifest.id, block, { now: f.now });
+  const pending = docFor(f.db).pending;
+  const restored = f.restore();
+  assert.deepEqual(docFor(restored.db).pending, pending);
+  assert.equal(readFileSync(path.join(kitDir(restored.config.wave), 'briefs/build.txt'), 'utf8'), pending.packet.brief.text);
+  assert.equal(JSON.parse(readFileSync(path.join(kitDir(restored.config.wave), 'state.json'), 'utf8')).coordinator.return, 'original coordinator');
+  assert.throws(() => updateRun(restored.db, f.manifest.id, 'start-block', { owner: 'new-owner', deadline: new Date(f.now + HOUR).toISOString(), evidence: 'restored' }, f.now), /Uncertain/);
+  assert.throws(() => observePlanLaunch(f.db, f.manifest.id, { ...result.launch, state: 'accepted', nativeId: 'worker', evidence: 'accepted' }, { now: f.now }), /superseded/);
+  assert.equal(observePlanLaunch(restored.db, f.manifest.id, { ...result.launch, state: 'accepted', nativeId: 'worker', evidence: 'native readback' }, { now: f.now }).state, 'delivered');
+  assert.equal(docFor(restored.db).pending, null);
+  assert.equal(docFor(restored.db).lastPlanLaunch.receipt.workerId, 'worker');
+  updateRun(restored.db, f.manifest.id, 'start-block', { owner: 'new-owner', deadline: new Date(f.now + HOUR).toISOString(), evidence: 'native/GitHub reconciled; update return destination before new work' }, f.now);
+  assert.equal(nextStep(readFileSync(restored.config.wave, 'utf8'), f.now).action, 'wait');
+});
+
+test('Codex intent publication refusal rolls back admission; ambiguous accepted publication is reconciled without relaunch', (t) => {
+  for (const accepted of [false, true]) {
+    const f = projectFixture(t), block = blockOf(f.manifest.wave), input = prepareCodexIntent(f);
+    const ledger = readFileSync(f.manifest.wave, 'utf8');
+    let pushed = false;
+    f.inject((args, call) => {
+      if (args[0] === 'push') { if (accepted) { call(); pushed = true; } throw Error('lost publication acknowledgement'); }
+      if (accepted && pushed && args[0] === 'ls-remote') throw Error('readback unavailable');
+      return call();
+    });
+    assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', JSON.stringify(input), { now: f.now, authority: block }), /publication|readback/);
+    assert.equal(readFileSync(f.manifest.wave, 'utf8'), ledger);
+    assert.equal(docFor(f.db).pending, null);
+    f.inject(null);
+    if (accepted) {
+      publishCheckpoint(f.db, f.manifest.id);
+      assert.equal(docFor(f.db).pending.id, `${f.manifest.id}:1`);
+      assert.throws(() => recordRun(f.db, f.manifest.id, 1, 'build', JSON.stringify(input), { now: f.now, authority: block }), /uncertain action/);
+      const request = readyPlanLaunch(f.db, f.manifest.id, block, { now: f.now });
+      assert.equal(request.brief.text, 'Pinned Codex worker request\n');
+      assert.throws(() => readyPlanLaunch(f.db, f.manifest.id, block, { now: f.now }), /never resend/);
+    } else {
+      assert.equal(readSteps(ledgerAt(f)).length, 0);
+      assert.equal(docFor(f.db).sequence, 0);
+    }
+  }
 });

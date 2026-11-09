@@ -14,6 +14,7 @@ import { renderLatestHtml, renderUpdatesHtml } from './scripts/whats-new.mjs';
 import { renderNowHtml, renderRoadmapHtml } from './scripts/roadmap.mjs';
 import { renderSiteChrome } from './scripts/site-nav.mjs';
 import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.mjs';
+import { appCleanUrl } from './scripts/app-clean-url.mjs';
 
 // NoaCG Studio — dev/build config.
 // Twelve pages: index.html is the static public landing at "/", docs.html is the public docs
@@ -30,51 +31,7 @@ import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.m
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
 // and preview servers the same ones. Terms and Privacy are public pages for the optional
 // hosted service. `?raw` imports bundle GSAP + template snippets.
-const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/whats-new', '/roadmap'] as const;
-
-// `/join/<name>` — the READABLE join URL an operator reads out on air. Vercel serves it through
-// a rewrite (vercel.json); the same shape has to work here, or a vanity link is testable only
-// in production. The page reads the name off the path itself.
-const PATH_PAGES = ['/join'] as const;
-
-function appCleanUrl(): Plugin {
-  const prepare = (
-    req: { url?: string },
-    res: { setHeader: (name: string, value: string) => void },
-  ) => {
-    // Preview iframes are deliberately sandboxed without allow-same-origin, so their origin
-    // is opaque. Bundled OFL fonts are public static assets and need an explicit CORS response
-    // to render there. Keep the allowance scoped to /fonts rather than every app response.
-    if (req.url?.startsWith('/fonts/')) res.setHeader('Access-Control-Allow-Origin', '*');
-    for (const page of CLEAN_PAGES) {
-      if (req.url === page || req.url?.startsWith(page + '?')) {
-        req.url = `${page}.html` + (req.url.slice(page.length) || '');
-        break;
-      }
-      // The path form keeps the name in the URL the page reads it from, so the request is
-      // rewritten to the entry WITHOUT the segment rather than to `${page}.html/<name>`.
-      if (PATH_PAGES.includes(page as (typeof PATH_PAGES)[number]) && req.url?.startsWith(page + '/')) {
-        req.url = `${page}.html`;
-        break;
-      }
-    }
-  };
-  return {
-    name: 'app-clean-url',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        prepare(req, res);
-        next();
-      });
-    },
-    configurePreviewServer(server) {
-      server.middlewares.use((req, res, next) => {
-        prepare(req, res);
-        next();
-      });
-    },
-  };
-}
+// The routing itself is scripts/app-clean-url.mjs, so a test can serve a built page with the same rules.
 
 /**
  * THE PAGES WHOSE LISTS ARE GENERATED: What's new from the notes in docs/whats-new/, and the

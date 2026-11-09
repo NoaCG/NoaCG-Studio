@@ -4,6 +4,7 @@ import { guardNavigation, useRouter } from '../../app/router';
 import { useSaveUi } from '../../store/saveActions';
 import NewGraphicButton from '../NewGraphicButton';
 import SaveControls from '../save/SaveControls';
+import SyncStatus from '../SyncStatus';
 import BrandLogo from '../BrandLogo';
 import AssetsPanel from '../AssetsPanel';
 import InsertTemplateDialog, { useInsertTemplateUi } from '../InsertTemplateDialog';
@@ -196,6 +197,7 @@ export default function EditorFoundation() {
       <span className="ef-release">Editor Alpha</span>
       <button ref={assistantButton} aria-expanded={assistantOpen} onClick={() => setAssistantOpen(!assistantOpen)}>Assistant</button>
       <SaveControls />
+      <SyncStatus />
       {/* No "Existing editor" door: nothing links to the old code editor (owner, 2026-09-21 and
           2026-09-24). Home, beside the brand, is the way out. */}
     </header>

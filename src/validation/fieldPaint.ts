@@ -45,7 +45,7 @@ export const TEXT_FTYPES = new Set(['textfield', 'textarea', 'number', 'hidden']
  * such a holder and are painted verbatim as row chips - so the declaration alone must not silence
  * this check. Paired with `ftype: 'number'` it does say it, and the catalog agrees without an
  * exception: all 72 numeric holders it ships are a duration, a speed, a percentage, a 1-based
- * index or a goal ("Countdown (minutes)" x15, "Scroll speed (%)" x6, "Spotlit player (1-based)"
+ * index or a goal ("Countdown (minutes)" x15, "Scroll speed (%)" x6, "Spotlit player"
  * x4). A runtime turns those into a DIFFERENT string, so the sentinel can never appear - `900001`
  * minutes paints "15000:00:58" - and no value of the field would make it appear either.
  *

@@ -495,8 +495,10 @@ function permissionSentence(permission: 'denied' | 'prompt'): string {
     : 'Your browser is asking whether this site may reach your local network - that is NoaCG Bridge. Answer the prompt at the top of the window, then try again.';
 }
 
+type PlayoutReply = { result: PlayoutResult; body?: BridgeReply };
+
 /** A Bridge reply, whichever hop it names, as one sentence with a state. */
-function readReply(settings: PlayoutSettings, call: Call): { result: PlayoutResult; body?: BridgeReply } {
+function readReply(settings: PlayoutSettings, call: Call): PlayoutReply {
   const at = `${settings.host}:${settings.amcpPort}`;
   if ('timedOut' in call) {
     return { result: { state: 'server', detail: `${at} did not answer in time.` } };
@@ -545,23 +547,31 @@ function readReply(settings: PlayoutSettings, call: Call): { result: PlayoutResu
   return { result: { state: 'server', detail: error.detail, raw: error.raw }, body };
 }
 
-/** One request through the Bridge with every hop told apart. */
+type PlayoutRoute = '/status' | '/connect' | '/list' | '/thumbnail' | '/act';
+type RequestFields = Record<string, unknown>;
+
+/** One request through the Bridge with every hop told apart. A deferred action can
+ *  return null if it is superseded before the first mutating request. */
+function through(settings: PlayoutSettings, path: PlayoutRoute, extra: RequestFields, hop?: 'act' | 'list'): Promise<PlayoutReply>;
+function through(settings: PlayoutSettings, path: '/act', extra: () => RequestFields | null): Promise<PlayoutReply | null>;
 async function through(
   settings: PlayoutSettings,
-  path: '/status' | '/connect' | '/list' | '/thumbnail' | '/act',
-  extra: Record<string, unknown>,
+  path: PlayoutRoute,
+  extra: RequestFields | (() => RequestFields | null),
   hop: 'act' | 'list' = 'act',
-): Promise<{ result: PlayoutResult; body?: BridgeReply }> {
+): Promise<PlayoutReply | null> {
   if (!playoutConfigured(settings)) {
     return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Playout settings).' } };
   }
   const { unreachable, features } = await probeBridge(settings.agentUrl);
+  const fields = typeof extra === 'function' ? extra() : extra;
+  if (fields === null) return null;
   if (unreachable) return { result: unreachable };
   const call = await callBridge(
     settings.agentUrl,
     // A Bridge from before 0.7.0 has no `/connect`: the same round trip without the memory.
     path === '/connect' && !features.includes('servers') ? '/status' : path,
-    { target: targetOf(settings), ...extra },
+    { target: targetOf(settings), ...fields },
     hop === 'list' ? LIST_TIMEOUT_MS : ACT_TIMEOUT_MS,
     settings.agentToken,
   );
@@ -833,9 +843,19 @@ export async function act(settings: PlayoutSettings, action: PlayoutAction): Pro
  * to make here - a page cannot know how its own URL renders elsewhere - so the note is the
  * mechanism: air a production from the deployment, not from a dev server.
  */
-export function putOutputOnAir(settings: PlayoutSettings, outputUrl: string): Promise<PlayoutResult> {
+export function putOutputOnAir(settings: PlayoutSettings, outputUrl: string): Promise<PlayoutResult>;
+export function putOutputOnAir(settings: PlayoutSettings, outputUrl: () => string | null): Promise<PlayoutResult | null>;
+export async function putOutputOnAir(settings: PlayoutSettings, outputUrl: string | (() => string | null)): Promise<PlayoutResult | null> {
   const slot = slotOf(settings);
-  return act(settings, { verb: 'take', item: { kind: 'url', name: namedOutputUrl(outputUrl, `CasparCG ${slot.channel}-${slot.layer}`) }, slot });
+  const take = (url: string): PlayoutAction => ({
+    verb: 'take', item: { kind: 'url', name: namedOutputUrl(url, `CasparCG ${slot.channel}-${slot.layer}`) }, slot,
+  });
+  if (typeof outputUrl === 'string') return act(settings, take(outputUrl));
+  const reply = await through(settings, '/act', () => {
+    const url = outputUrl();
+    return url === null ? null : { action: take(url) };
+  });
+  return reply?.result ?? null;
 }
 
 /**

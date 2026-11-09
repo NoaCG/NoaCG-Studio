@@ -28,6 +28,11 @@ import * as rules from './rules.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_WRAPPER_LINES = 25;
+// Only these execution procedures differ by harness; shared contracts and Claude stay put.
+const CODEX_WORKFLOWS = new Map([
+  ['plan-create', '.agents/skills/plan-create/references/codex.md'],
+  ['plan-run', '.agents/skills/plan-run/references/codex.md'],
+]);
 const DEFAULT_PROJECT_DOC_MAX_BYTES = 32 * 1024;
 // Membership means DESTRUCTIVE, not merely important - it is what earns the
 // disable-model-invocation requirement below. `handoff` briefly joined while it removed its own
@@ -87,12 +92,13 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
-    // A plan run has finite owner authorization, phase after phase. Its order and no-repeat promises
+    // A plan run lasts until its phases are done unless the owner gave a date, phase after phase. Its order and no-repeat promises
     // live in the ledger script; these lines are the boundaries the script cannot hold.
     'plan-run',
     [
       'A wave runs alone; plan runs of different plans may run side by side',
-      'Finite owner-authorized project deadline',
+      "A plan run ends when its phases are done, or on the owner's date if he gave one.",
+      'Blocks stay at most 24 hours',
       'Only phases written in the plan.',
       'Only the merge queue writes `main`.',
       'node scripts/wave-plan-store.mjs --open',
@@ -187,6 +193,9 @@ const SKIP_DIR_NAMES = new Set([
 ]);
 
 const failures = [];
+for (const name of ['plan-create', 'plan-run']) {
+  if (!CODEX_WORKFLOWS.has(name)) failures.push(`CODEX_WORKFLOWS: missing execution mapping for ${name}`);
+}
 
 function rel(file) {
   return path.relative(ROOT, file).replace(/\\/g, '/');
@@ -605,6 +614,7 @@ measured(workflowNames.length, 'workflow definitions');
 // glob that matches no file.
 const declaredWorkflows = new Set(workflowNames);
 for (const [table, keys] of [
+  ['CODEX_WORKFLOWS', CODEX_WORKFLOWS.keys()],
   ['CRITICAL_WORKFLOW_MARKERS', CRITICAL_WORKFLOW_MARKERS.keys()],
   ['WORKFLOW_LINE_LIMITS', WORKFLOW_LINE_LIMITS.keys()],
   ['EXPLICIT_ONLY_WORKFLOWS', EXPLICIT_ONLY_WORKFLOWS.values()],
@@ -646,7 +656,21 @@ for (const name of workflowNames) {
   }
 
   checkRepositoryFile(codexSkill, 'Codex skill adapter');
-  checkThinWrapper(codexSkill, canonical, 'Codex skill adapter');
+  const codexWorkflow = CODEX_WORKFLOWS.get(name) ?? canonical;
+  checkThinWrapper(codexSkill, codexWorkflow, 'Codex skill adapter');
+  if (CODEX_WORKFLOWS.has(name)) {
+    if (!['plan-create', 'plan-run'].includes(name)
+        || codexWorkflow !== `.agents/skills/${name}/references/codex.md`) {
+      failures.push(`CODEX_WORKFLOWS: unsupported execution mapping for ${name}`);
+    }
+    const file = absolute(codexWorkflow);
+    checkRepositoryFile(file, 'Codex execution procedure');
+    if (existsSync(file)) {
+      checkWorkflowScriptReferences(file);
+      checkCriticalWorkflowContract(name, file);
+      checkWorkflowShape(name, file);
+    }
+  }
   if (existsSync(codexSkill)) checkSkillMetadata(codexSkill, name, 'Codex skill adapter');
   checkWorkflowScriptReferences(canonicalFile);
   checkNamedAgents(canonicalFile);

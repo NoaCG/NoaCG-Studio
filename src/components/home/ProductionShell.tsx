@@ -188,8 +188,8 @@ export default function ProductionShell({
             2026-08-21: "the buttons that we have and the side pages we have feel a bit
             dangerous to swap between. I think the playout should always be open." Data and
             Audience are AUTHORING surfaces, and authoring while the thing you are steering is
-            off-screen is how a live mistake happens. (The Audience view is called Messages now;
-            its route stays `audience`.)
+            off-screen is how a live mistake happens. (The Audience view is called Interaction now,
+            docs/work-specs/interaction/spec.md; its route stays `audience`.)
             This needed the durable store's CROSS-TAB INVALIDATION first (model/durableStore.ts):
             two tabs on one production used to overwrite each other, so shipping this before that
             would have made the losing path the default rather than an unlucky one.
@@ -199,8 +199,8 @@ export default function ProductionShell({
             returns IN THIS TAB, where the monitors already are.
 
             ONLY THE VIEWS THIS PRODUCTION USES (owner, 2026-10-03). A plain production has no
-            switcher at all; Setup always lists Data and Messages. The view you are standing
-            on is always listed, so nothing disappears under the operator. Messages carries the
+            switcher at all; Setup always lists Data and Interaction. The view you are standing
+            on is always listed, so nothing disappears under the operator. Interaction carries the
             count of messages waiting in its inbox. */}
         {tabs.length > 0 && (
           <nav className="pd-tabs" aria-label="Production workspaces">
@@ -208,7 +208,7 @@ export default function ProductionShell({
               Playout
             </button>
             {tabs.map((tab) => {
-              const label = tab === 'data' ? 'Data' : 'Messages';
+              const label = tab === 'data' ? 'Data' : 'Interaction';
               const count =
                 tab === 'audience' && views.waiting > 0 ? (
                   <span className="pd-tab-count" title={`${views.waiting} waiting in the inbox`} data-testid="tab-audience-count">

@@ -133,9 +133,11 @@ test('a dead wake chain is visible without automatically granting a second owner
 
 test('completion-authorized native wakes cross and follow the target within their actual block', () => {
   const iso = (time) => new Date(time).toISOString(), hour = 3_600_000;
-  for (const clock of [now, now + 24 * hour]) {
+  for (const clock of [now, now + 24 * hour]) for (const undated of [false, true]) {
     const record = wake(); record.kind = 'plan';
     record.authorization.standing = { untilComplete: 'Continue this scope until complete.' };
+    // The owner gave no date: no target at all, only the block bounds the wake.
+    if (undated) { delete record.authorization.deadline; delete record.authorization.standing; }
     record.block = { startedAt: iso(clock - 30 * 60_000), deadline: iso(clock + 3 * hour) };
     record.previous.firedAt = iso(clock - 5 * 60_000);
     record.next = { ...record.next, dueAt: iso(clock + 2 * hour), deadline: record.block.deadline };

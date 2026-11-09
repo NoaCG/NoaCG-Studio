@@ -1,17 +1,17 @@
 // gate: build
-// guards: scripts/project-authorization.mjs, scripts/project-control.mjs, scripts/plan-run.mjs, scripts/wave-plan-store.mjs, scripts/run-supervisor.mjs, scripts/run-recovery.mjs, scripts/plan-run-preflight.mjs, scripts/run-wake.mjs
+// guards: scripts/plan-launch.mjs, scripts/project-authorization.mjs, scripts/project-control.mjs, scripts/plan-run.mjs, scripts/wave-plan-store.mjs, scripts/run-supervisor.mjs, scripts/run-recovery.mjs, scripts/plan-run-preflight.mjs, scripts/run-wake.mjs
 // measures: none - deterministic control protocol, no provider qualification
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { openWave } from './wave-plan-store.mjs';
 import { nextStep, recordStep, readSteps } from './plan-run.mjs';
-import { openStore, phaseNumber, recordRun, registerRun, renewBlock, tickRun, updateRun } from './run-supervisor.mjs';
-import { digest, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { observePlanLaunch, openStore, phaseNumber, readyPlanLaunch, recordRun, registerRun, renewBlock, tickRun, updateRun } from './run-supervisor.mjs';
+import { WHEN_COMPLETE, digest, readProject, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { preflight } from './plan-run-preflight.mjs';
 import { holdable, wakeVerdict, writeWake } from './run-wake.mjs';
 
@@ -29,7 +29,7 @@ const project = () => ({ version: 1, id: 'fixture-project', ownership: 'local-si
 function fixture(t, edit = (p) => p) {
   const dir = mkdtempSync(path.join(tmpdir(), 'continuing-project-'));
   const p = edit(project());
-  const opened = openWave({ date: '2026-10-19', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
+  const opened = openWave({ date: '2026-10-19', kind: 'plan-fixture', until: p.authorization.deadline ?? WHEN_COMPLETE, project: p, dir, now: NOW });
   assert.equal(opened.refusal, undefined);
   const dbPath = path.join(dir, 'control.sqlite'), db = openStore(dbPath);
   const packet = { objective: 'Generic fixture', acceptance: ['both phases PASS'], nextAction: 'Reconcile', phase: 1,
@@ -101,6 +101,30 @@ test('completion authority crosses the target with bounded blocks and unchanged 
   updateRun(f.db, f.p.id, 'finish', '', later);
   assert.equal(nextStep(f.text(), later).action, 'finished');
   assert.throws(() => renewBlock(f.db, f.p.id, later + 25 * HOUR), /finished/);
+});
+
+test('a plan with no date runs until complete under 24-hour blocks; a wave still needs its date', (t) => {
+  const undated = (p) => { delete p.authorization.deadline; p.authorization.standing = { blockRenewal: 'Renew daily blocks automatically.' }; return p; };
+  const f = fixture(t, undated), later = NOW + 400 * 24 * HOUR;
+  assert.match(f.text(), /^Window ends: when-complete$/m);
+  assert.match(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).checks.at(-1).detail, /start-block/);
+  f.start();
+  assert.equal(preflight({ context: 'coordinator', wave: f.file, now: NOW, run: networkPass }).ok, true);
+  finishPhase(f, 1);
+  assert.equal(nextStep(f.text(), later).action, 'paused');
+  assert.equal(openWave({ date: '2026-10-19', kind: 'plan-fixture', until: WHEN_COMPLETE, dir: f.dir, now: later }).window, 'resumed');
+  assert.match(openWave({ date: '2026-10-19', kind: 'plan-fixture', until: iso(later + HOUR), dir: f.dir, now: later }).refusal, /deadline/);
+  assert.throws(() => updateRun(f.db, f.p.id, 'start-block', { owner: 'coordinator-1', deadline: iso(later + 25 * HOUR), evidence: 'reconciled' }, later), /bounded/);
+  const renewed = renewBlock(f.db, f.p.id, later);
+  assert.equal(Date.parse(renewed.block.deadline), later + 24 * HOUR);
+  assert.equal(nextStep(f.text(), later).action, 'launch');
+  finishPhase(f, 2, later);
+  updateRun(f.db, f.p.id, 'finish', '', later);
+  assert.equal(nextStep(f.text(), later).action, 'finished');
+  const noDate = authorization(); delete noDate.deadline;
+  assert.throws(() => validateAuthorization(noDate, { now: NOW, kind: 'wave' }), /end date/);
+  assert.match(openWave({ date: '2026-10-19', kind: 'day', until: WHEN_COMPLETE, dir: f.dir, now: NOW }).refusal, /only a plan run/);
+  assert.match(openWave({ date: '2026-10-20', kind: 'plan-other', until: WHEN_COMPLETE, dir: f.dir, now: NOW }).refusal, /--project/);
 });
 
 test('completion authority is explicit and cannot renew a pause, wait, uncertainty or wave', (t) => {
@@ -415,4 +439,97 @@ test("a block renews only under the owner's standing permission, only after it e
   updateRun(f.db, f.p.id, 'pause', 'owner paused the run', NOW + 61 * HOUR);
   assert.throws(() => renewBlock(f.db, f.p.id, NOW + 62 * HOUR), /only the owner resumes it/);
   assert.throws(() => validateAuthorization({ ...authorization(), standing: { blockRenewal: '' } }, { now: NOW }), /owner's words/);
+});
+
+function codexLaunch(f, sourceSha = 'a'.repeat(40)) {
+  const kit = f.file.replace(/\.md$/i, '') + '.kit';
+  mkdirSync(path.join(kit, 'briefs'), { recursive: true });
+  writeFileSync(path.join(kit, 'state.json'), JSON.stringify({ project: f.p.id, execution: { harness: 'codex', mode: 'active' },
+    coordinator: { session: 'coordinator-1', environment: 'fixture-cloud', return: 'current coordinator' } }));
+  writeFileSync(path.join(kit, 'briefs', 'request.txt'), 'Exact worker brief, not a launch receipt.\n');
+  return { actor: 'reserved-context', launch: { sourceSha, branch: 'codex/plan-fixture-build', brief: 'briefs/request.txt',
+    native: { provider: 'codex', sessionId: 'coordinator-1', environmentId: 'fixture-cloud', policySha256: 'f'.repeat(64) } } };
+}
+const observationFor = (launch, nativeId = 'native-worker') => ({ ...launch, state: 'accepted', nativeId, evidence: 'native exact-id readback' });
+
+test('legacy actor receipts keep their opaque non-Codex launch metadata', (t) => {
+  const f = fixture(t); f.start();
+  f.record(1, 'build', { actor: 'claude-builder', launch: { native: { provider: 'claude' }, session: 'existing-session' } });
+  assert.equal(JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pending, null);
+  f.record(1, 'landed', MERGE);
+  assert.equal(nextStep(f.text(), NOW).step, 'check');
+});
+
+test('Codex intent blocks duplicate admission until exact native acceptance and preserves checker independence', async (t) => {
+  const f = fixture(t); f.start();
+  const input = codexLaunch(f), result = f.record(1, 'build', input);
+  assert.equal(result.launch.actionId, `${f.p.id}:1`);
+  const request = readyPlanLaunch(f.db, f.p.id, f.current().block, { now: NOW });
+  assert.equal(request.brief.text, 'Exact worker brief, not a launch receipt.\n');
+  assert.throws(() => readyPlanLaunch(f.db, f.p.id, f.current().block, { now: NOW }), /Dispatch already/);
+  assert.equal(readSteps(f.text()).length, 1);
+  assert.throws(() => f.record(1, 'landed', MERGE), /uncertain action/);
+  assert.throws(() => f.record(1, 'build', input), /uncertain action/);
+  const pending = JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pending;
+  for (const key of ['sessionId', 'environmentId', 'revision', 'policySha256', 'actionId', 'requestSha256']) {
+    assert.equal(observePlanLaunch(f.db, f.p.id, { ...observationFor(result.launch), [key]: 'wrong' }, { now: NOW }).state, 'unknown');
+    assert.deepEqual(JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pending, pending);
+  }
+  assert.equal((await tickRun(f.db, f.p.id, { now: () => NOW, invoke() { assert.fail('project tick cannot dispatch'); } })).verdict, 'unknown');
+  assert.deepEqual(observePlanLaunch(f.db, f.p.id, observationFor(result.launch), { now: NOW }), { state: 'delivered', workerId: 'native-worker' });
+  assert.equal(readSteps(f.text()).at(-1).event, 'resume');
+  assert.throws(() => observePlanLaunch(f.db, f.p.id, observationFor(result.launch), { now: NOW }), /No unresolved/);
+  f.record(1, 'landed', MERGE);
+  assert.throws(() => f.record(1, 'check', { actor: 'native-worker' }), /independent/);
+  assert.throws(() => f.record(1, 'check', { ...codexLaunch(f), actor: 'reserved-checker' }), /exact recorded merge/);
+  const check = f.record(1, 'check', { ...codexLaunch(f, MERGE.mergeSha), actor: 'reserved-checker' });
+  assert.throws(() => observePlanLaunch(f.db, f.p.id, observationFor(check.launch), { now: NOW }), /independent/);
+  assert.ok(JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pending);
+  observePlanLaunch(f.db, f.p.id, observationFor(check.launch, 'independent-native'), { now: NOW });
+  f.record(1, 'pass', passReceipt(f, 1, 'independent-native'));
+  assert.equal(nextStep(f.text(), NOW).phase, 2);
+});
+
+test('Codex reconciliation after pause or cancellation records acceptance without resuming launch authority', (t) => {
+  for (const stop of ['pause', 'cancel']) {
+    const f = fixture(t); f.start();
+    const result = f.record(1, 'build', codexLaunch(f));
+    updateRun(f.db, f.p.id, stop, 'owner stop', NOW);
+    assert.equal(observePlanLaunch(f.db, f.p.id, observationFor(result.launch), { now: NOW + HOUR }).state, 'delivered');
+    assert.equal(nextStep(f.text(), NOW + HOUR).action, stop === 'pause' ? 'paused' : 'cancelled');
+    assert.throws(() => f.record(1, 'landed', MERGE), /Terminal|refuses work/);
+  }
+});
+
+test('Codex final non-delivery is retained as a safe stop; malformed and escaping briefs never admit a phase', (t) => {
+  const f = fixture(t, untilComplete); f.start();
+  const input = codexLaunch(f);
+  for (const patch of [{ brief: '../request.txt' }, { sourceSha: 'short' }, { branch: 'main' }]) {
+    assert.throws(() => f.record(1, 'build', { ...input, launch: { ...input.launch, ...patch } }), /Plan launch/);
+    assert.equal(readSteps(f.text()).length, 0);
+  }
+  const result = f.record(1, 'build', input);
+  const observed = { ...result.launch, state: 'not-delivered', authoritative: true, final: true, evidence: 'provider final non-delivery' };
+  assert.equal(observePlanLaunch(f.db, f.p.id, observed, { now: NOW }).state, 'not-delivered');
+  assert.equal(JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pending.nonDelivery.evidence, observed.evidence);
+  assert.throws(() => readyPlanLaunch(f.db, f.p.id, f.current().block, { now: NOW }), /never resend/);
+  assert.equal(observePlanLaunch(f.db, f.p.id, observationFor(result.launch), { now: NOW }).state, 'unknown');
+  assert.throws(() => f.record(1, 'build', input), /uncertain action/);
+  assert.throws(() => renewBlock(f.db, f.p.id, NOW + 2 * HOUR), /Uncertain/);
+});
+
+test('Codex dispatch rechecks block authority immediately before issuing the request once', (t) => {
+  for (const stopped of ['pause', 'cancel', 'expired', 'stale']) {
+    const f = fixture(t); const block = f.start(); f.record(1, 'build', codexLaunch(f));
+    if (['pause', 'cancel'].includes(stopped)) updateRun(f.db, f.p.id, stopped, 'owner decision', NOW);
+    const authority = stopped === 'stale' ? { ...block, epoch: block.epoch + 1 } : block;
+    const at = stopped === 'expired' ? NOW + 2 * HOUR : NOW;
+    assert.throws(() => readyPlanLaunch(f.db, f.p.id, authority, { now: at }), /refuses work|Stale/);
+    assert.equal(JSON.parse(f.db.prepare('SELECT doc FROM runs').get().doc).pending.dispatchRequestedAt, undefined);
+  }
+  const f = fixture(t); f.start(); const request = codexLaunch(f);
+  const kit = f.file.replace(/\.md$/i, '') + '.kit';
+  writeFileSync(path.join(kit, 'state.json'), JSON.stringify({ project: f.p.id, coordinator: request.launch.native }));
+  assert.throws(() => f.record(1, 'build', request), /explicit Codex execution/);
+  assert.equal(readSteps(f.text()).length, 0);
 });

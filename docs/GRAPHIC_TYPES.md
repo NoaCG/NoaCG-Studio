@@ -297,11 +297,12 @@ family a cell is in.
 | Chat highlight | — | ch01 House Comment | timer self-dismiss + pose `held` |
 | Question queue | — | qq01 House Queue | branches `forward` / `back` |
 | Community request | — | rq01 House Request | – |
+| Join card | - | jc01 House Join Card | none: the QR is drawn from the Join link field by the card's own encoder |
 
 Scoreboard, ticker and quiz board earn their place by what they prove rather than by frequency:
 parallel groups, timer-driven motion, and the far end of the model.
 
-The AUDIENCE PACK's eight types (the last eight rows) are the audience-interaction set — the
+The AUDIENCE PACK's eight types (the eight rows before the Join card) are the audience-interaction set: the
 graphics a talk show, livestream, podcast, webinar, church, conference, quiz show or election
 programme uses to put what the audience sent on screen. Three things in that block are worth
 reading as claims rather than as entries:
@@ -388,7 +389,7 @@ gap list had already named as the next two type families (PACK_TAXONOMY §gaps).
 | Head-to-head | h202 House Compare | branches `highlighted` ⟳ / `level` |
 | Player card | pc02 House Player | walk press `stats` + branches `mvp` / `plain` |
 | Roster | rs02 House Roster | branches `spotlight` ⟳ / `level` |
-| Standings / result table | st02 House Standings | branches `highlighted` ⟳ / `plain` / `final` |
+| Standings / result table | st02 House Standings | walk press `final` + branch `highlighted` ⟳ |
 | Bracket | br02 House Bracket | branches `advanced` ⟳ / `crowned` |
 | Nominee reveal | nm01 House Nominees | walk press `reveal` + branch `suspense` |
 | Verdict card | vd02 House Verdict | branches `judged` ⟳ / `unjudged` |

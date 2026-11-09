@@ -1,9 +1,9 @@
 // Presentation intent only. Nothing here sends a command or changes physical routing.
 export type OutputProfile = 'obs' | 'vmix' | 'spx' | 'browser' | 'casparcg';
 export interface OutputDestination { id: string; profile: OutputProfile }
-/** `caspar` is the production's CasparCG switch once the operator has set it
- *  (docs/work-specs/playout-workflow-simplification AC-4); absent, `casparSwitch` derives it. */
-export interface ProductionOutputSetup { v: 1; destinations: OutputDestination[]; caspar?: boolean }
+/** The operator's playout choice. A vMix Browser destination is still a manual browser source. */
+export interface ProductionOutputSetup { v: 1; destinations: OutputDestination[]; caspar?: boolean; vmix?: true }
+export type PlayoutSystem = 'casparcg' | 'vmix' | null;
 export type RundownColors = Record<string, string>;
 export const OUTPUT_PROFILES: readonly { id: OutputProfile; label: string }[] = [
   { id: 'obs', label: 'OBS' }, { id: 'vmix', label: 'vMix' },
@@ -30,39 +30,71 @@ export function readOutputSetup(value: unknown): ProductionOutputSetup | null {
     seen.add(d.id);
     destinations.push({ id: d.id, profile: d.profile });
   }
+  if (s.vmix === true) {
+    return { v: 1, destinations: destinations.filter(d => d.profile !== 'casparcg'), caspar: false, vmix: true };
+  }
   return typeof s.caspar === 'boolean' ? { v: 1, destinations, caspar: s.caspar } : { v: 1, destinations };
 }
 
-/**
- * IS CASPARCG SWITCHED ON for this production? The operator's own switch wins. Until it has been
- * set, a production that already plays through CasparCG (a CasparCG destination, or server cues in
- * its rundown) is on, so no existing rundown loses its clips; a new production takes the account's
- * default; a legacy production with no output setup follows its recorded CasparCG activity.
- */
-export function casparSwitch(input: { setup: unknown; serverCues: boolean; legacyActivity: boolean; accountDefault: boolean | null }): boolean {
-  const setup = readOutputSetup(input.setup);
-  if (setup && typeof setup.caspar === 'boolean') return setup.caspar;
-  if (setup?.destinations.some(d => d.profile === 'casparcg')) return true;
-  if (input.serverCues) return true;
-  if (!input.setup) return input.legacyActivity;
-  if (!setup?.destinations.length) return input.accountDefault ?? false;
-  return false;
+interface PlayoutSystemInput {
+  setup: unknown;
+  serverCues: boolean;
+  legacyActivity: boolean;
+  accountDefault: boolean | null;
+  vmixCues?: boolean;
 }
 
-/** The setup after the switch is set: the browser output always stays (keeping a legacy OBS or
- *  vMix profile as it was), CasparCG joins or leaves. Display metadata only; nothing airs. */
-export function withCasparSwitch(current: unknown, on: boolean): ProductionOutputSetup {
+/**
+ * The operator's switch wins. Until it has been set, keep the existing CasparCG inference.
+ * A production that only resolves to vMix from its cues has not opted into automatic Load.
+ */
+export function playoutSystem(input: PlayoutSystemInput): PlayoutSystem {
+  const setup = readOutputSetup(input.setup);
+  if (setup?.vmix) return 'vmix';
+  if (setup?.caspar !== undefined) return setup.caspar ? 'casparcg' : null;
+  if (setup?.destinations.some(d => d.profile === 'casparcg') || input.serverCues) return 'casparcg';
+  const casparDefault = input.setup ? !setup?.destinations.length && input.accountDefault : input.legacyActivity;
+  if (casparDefault) return 'casparcg';
+  return input.vmixCues ? 'vmix' : null;
+}
+
+export function casparSwitch(input: PlayoutSystemInput): boolean {
+  return playoutSystem(input) === 'casparcg';
+}
+
+/** The browser output stays, including a legacy OBS or vMix profile. Nothing airs. */
+export function withPlayoutSystem(current: unknown, system: PlayoutSystem): ProductionOutputSetup {
   const setup = readOutputSetup(current);
   const browser = setup?.destinations.find(d => d.profile !== 'casparcg') ?? { id: 'browser', profile: 'browser' as const };
   const caspar = setup?.destinations.find(d => d.profile === 'casparcg') ?? { id: 'casparcg', profile: 'casparcg' as const };
+  const on = system === 'casparcg';
+  if (system === 'vmix') return { v: 1, destinations: [browser], caspar: false, vmix: true };
   return { v: 1, destinations: on ? [browser, caspar] : [browser], caspar: on };
 }
+
+export function withCasparSwitch(current: unknown, on: boolean): ProductionOutputSetup {
+  if (on) return withPlayoutSystem(current, 'casparcg');
+  return withPlayoutSystem(current, readOutputSetup(current)?.vmix ? 'vmix' : null);
+}
+
 export function outputChoice(browser: Exclude<OutputProfile, 'casparcg'> | null, caspar: boolean): ProductionOutputSetup {
   return { v: 1, destinations: [
     ...(browser ? [{ id: 'browser', profile: browser }] : []),
     ...(caspar ? [{ id: 'casparcg', profile: 'casparcg' as const }] : []),
   ] };
 }
+export function wantsAccountOutputDefault(current: unknown): boolean {
+  const setup = readOutputSetup(current);
+  return !!current && !setup?.vmix && !setup?.destinations.length;
+}
+
+/** First Publish settles the outputs of new productions. Keep a cue-inferred vMix system
+ *  inferred while giving it a Browser destination so the account default stops applying. */
+export function outputSetupForFirstPublish(current: unknown, system: PlayoutSystem): ProductionOutputSetup | null {
+  if (!wantsAccountOutputDefault(current)) return null;
+  return system === 'vmix' ? outputChoice('browser', false) : withPlayoutSystem(current, system);
+}
+
 export function outputSetupLabel(value: unknown): string {
   const s = readOutputSetup(value);
   return s?.destinations.length ? s.destinations.map(d => outputProfileLabel(d.profile)).join(' + ') : 'Choose output';

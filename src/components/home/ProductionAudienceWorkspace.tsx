@@ -7,6 +7,10 @@ import {
   setShowSourcePaused,
   setShowMessageTarget,
   setShowPollLiveFigures,
+  loadShows,
+  setShowJoinPage,
+  setShowQuestions,
+  showQuestions,
   updateShowCue,
   updateShowCueChecked,
   type SheetShowSource,
@@ -19,12 +23,14 @@ import {
   addInChunks,
   broadcastValues,
   type AudienceBackend,
-  type AudienceMode,
   type AudienceRound,
   type AudienceSubmission,
   type AudienceTally,
   type PresenterPointers,
   type ObservableAudience,
+  openRoundOf,
+  type RoundTarget,
+  type SubmitResult,
 } from '../../audience/audienceTypes';
 import {
   mountJoinSurface,
@@ -32,7 +38,32 @@ import {
   type JoinSurfaceHandle,
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
+import { joinPageBrand, lookLogoDataUrl } from '../../audience/audienceBrand';
+import { qrPng, qrSvg } from '../../audience/joinQr';
+import { JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT } from '../../audience/audienceTypes';
+import { publishJoinLogo } from '../../control/joinLogo';
+import { syncJoinPage } from '../../control/joinPageSync';
 import { useMessagesBackend } from './useAudienceInbox';
+import { rehearsalPageUrl } from '../../audience/localAudience';
+import { useAuthState } from '../auth/useAuthState';
+import SignInPrompt from '../auth/SignInPrompt';
+import { joinPageUrl } from '../../control/hostedControl';
+import { copyLink } from './copyLink';
+import { useDeferredEdits } from './useDeferredEdits';
+import { QuestionComposer, QuestionList, type QuestionRowState } from './InteractionQuestions';
+import {
+  addQuestion,
+  duplicateQuestion,
+  editQuestion,
+  isKnownType,
+  makeQuestion,
+  moveQuestion,
+  questionLocked,
+  removeQuestion,
+  toLive,
+  type QuestionType,
+  type ShowQuestion,
+} from '../../model/questions';
 import {
   chatIntakeFor,
   chatPlatformWord,
@@ -235,6 +266,63 @@ async function addMessageCard(show: Show, cardName: string): Promise<{ shows: Sh
   return { shows, graphicId: graphic?.id ?? null, cueId: cue?.id ?? null, error: graphic ? null : 'The card was not added.' };
 }
 
+/** The Join card in the catalog (templates/audience/joinCard.ts). */
+const JOIN_CARD_ID = 'jc01';
+
+/**
+ * "Add Join card to rundown" (interaction spec, Join; AC-11): one Join card cue whose Join link is
+ * the production's link. A Join card already in the production gets the new cue; otherwise the card
+ * is added with its one seeded cue. Its QR is drawn by the graphic from that field. Nothing airs.
+ */
+async function addJoinCard(show: Show, link: string): Promise<{ shows: Show[] | null; error: string | null }> {
+  const existing = show.graphics.find((g) => lastTitled(g.template.fields ?? [], ['join link']));
+  if (existing) {
+    const field = lastTitled(existing.template.fields ?? [], ['join link'])!;
+    const { shows, error } = addShowCue(show.id, existing.id, { label: 'Join card', values: { [field]: link } });
+    const failure = error ?? (await commitDurableWrites());
+    return { shows, error: failure };
+  }
+  const [{ variantById }, { buildDraftTemplate, initialDraft, mergeDraft }] = await Promise.all([
+    import('../../templates/catalog'),
+    import('../wizard/draft'),
+  ]);
+  const variant = variantById(JOIN_CARD_ID);
+  if (!variant) return { shows: null, error: 'The Join card is not in this build.' };
+  // The link goes into the cue, never into the graphic's own defaults: a graphic holding an
+  // absolute URL is refused by the publish gate (validation/templateBench.ts).
+  const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
+  const added = addGraphicToShow(show.id, template, {});
+  if (added.error) return { shows: added.shows, error: added.error };
+  const before = new Set(show.graphics.map((g) => g.id));
+  const after = added.shows.find((x) => x.id === show.id);
+  const graphic = after?.graphics.find((g) => !before.has(g.id));
+  const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) : undefined;
+  const field = graphic ? lastTitled(graphic.template.fields ?? [], ['join link']) : null;
+  if (!cue || !field) return { shows: added.shows, error: 'The Join card was added without its cue.' };
+  const filled = updateShowCueChecked(show.id, cue.id, { values: { ...cue.values, [field]: link } });
+  const failure = filled.error ?? (await commitDurableWrites());
+  return { shows: filled.shows, error: failure };
+}
+
+/** A stable number per Blob, so a replaced Blob logo of the same size still reads as a change. */
+const blobIds = new WeakMap<Blob, number>();
+let nextBlobId = 0;
+function blobId(blob: Blob): number {
+  let id = blobIds.get(blob);
+  if (id === undefined) blobIds.set(blob, (id = ++nextBlobId));
+  return id;
+}
+
+/** Save a file the browser made. */
+function saveFile(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** The stores staging writes through, and how a staged candidate is marked used. */
 function stagingDeps(backend: AudienceBackend, setShows: (shows: Show[]) => void) {
   return {
@@ -332,7 +420,7 @@ export function CueMessageFill({
             </button>
             <p className="hint">Pick a message</p>
             {unused.length === 0 ? (
-              <p className="hint" data-testid="cue-fill-none">No unused messages in Messages.</p>
+              <p className="hint" data-testid="cue-fill-none">No unused messages in Interaction.</p>
             ) : (
               unused.map((r) => {
                 const air = broadcastValues(r);
@@ -466,10 +554,32 @@ function MessageSources({
   const [fetching, setFetching] = useState<string | null>(null);
 
   // Twitch writes through the VIEWER door that is current: a published production's join slug,
-  // otherwise the local rehearsal provider. Deliberately not cleared on unmount.
+  // otherwise the local rehearsal provider. Deliberately not cleared on unmount. The door is the
+  // live Open question now (interaction spec R20): a line is filed under it, and with none live it
+  // is refused and counted as dropped. Which round is live is read through the viewer half, as a
+  // phone reads it; a published production asks at most every few seconds, so a busy chat does
+  // not double its own request rate.
   useEffect(() => {
     const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
-    const submit: ChatSubmit = (token, author, body) => viewer.submit(token, author, body);
+    let cached: { at: number; target: RoundTarget | null } | null = null;
+    const target = async (): Promise<RoundTarget | null> => {
+      if (live && cached && Date.now() - cached.at < 3_000) return cached.target;
+      const round = (await viewer.joinView('chat-intake-reader')).state.round;
+      cached = { at: Date.now(), target: round?.kind === 'open' ? { roundId: round.id, revision: round.revision } : null };
+      return cached.target;
+    };
+    const submit: ChatSubmit = async (token, author, body) => {
+      const send = async (): Promise<SubmitResult> => {
+        const to = await target().catch(() => null);
+        return to ? viewer.submit(token, author, body, to) : { ok: false, error: 'No Open question is live.' };
+      };
+      const result = await send();
+      if (!result.closed) return result;
+      // The remembered round closed under a line that arrived after the switch: ask once more, so
+      // it answers the question live now. A chat line has no draft to keep, unlike a phone's.
+      cached = null;
+      return send();
+    };
     intake.setSubmit(submit);
   }, [intake, backend, live, show.joinSlug]);
 
@@ -787,11 +897,11 @@ function MessageSources({
           </button>
         </p>
       )}
-      {/* The door refusal made visible: Twitch submits through the viewer door, which refuses while
-          the audience is closed, so a connected channel would count every line as dropped. */}
+      {/* The door refusal made visible: Twitch answers the live Open question (R20), so with none
+          live a connected channel would count every line as dropped. */}
       {!accepting && others.some((s) => s.platform !== 'youtube') && (
         <p className="hint pd-aud-source-hint" data-testid="chat-sources-closed-hint">
-          Accepting messages is off - Twitch chat is refused until you turn it on above.
+          Twitch chat answers the live Open question. With none live, its lines are refused.
         </p>
       )}
     </div>
@@ -801,9 +911,16 @@ function MessageSources({
 export default function ProductionAudienceWorkspace({
   show,
   setShows,
+  publish = null,
+  joinName = null,
 }: {
   show: Show;
   setShows: (shows: Show[]) => void;
+  /** Publish this production, offered where phones would join (AC-8): a press, never automatic. */
+  publish?: { run: () => void; unavailable: string | null } | null;
+  /** The link's name (moved here from Links): the claim stays with the page, which owns its
+   *  account gate (useProductionPublish.ts `claimName`). */
+  joinName?: { draft: string; note: string | null; busy: boolean; onDraft: (value: string) => void; onClaim: () => void } | null;
 }) {
   // ONE provider per PRODUCTION. The local one is held ABOVE this component (the workspace
   // unmounts on every trip to Playout or Data, and an inbox that emptied itself on a tab
@@ -811,21 +928,18 @@ export default function ProductionAudienceWorkspace({
   // keeps across a reload is in localAudience.ts). The Supabase one holds no state to lose: its whole memory
   // is the database, so a fresh instance per mount reads the same inbox.
   const { live, backend } = useMessagesBackend(show);
+  const { needsSignIn } = useAuthState();
 
   const [rows, setRows] = useState<AudienceSubmission[]>([]);
-  const [mode, setMode] = useState<AudienceMode>('question');
-  const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'inbox' | 'approved' | 'shortlist' | 'all'>('inbox');
+  /** Which question's messages the list shows: all, none, one question (`q:<id>`) or the
+   *  questions no longer in the list. */
+  const [questionFilter, setQuestionFilter] = useState<string>('all');
   const [note, setNote] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewHost = useRef<HTMLDivElement | null>(null);
   const preview = useRef<JoinSurfaceHandle | null>(null);
-
-  // ── The VOTE half (Phase 6) ───────────────────────────────────────────────────────────────
-  // A round is one question put to the room. The composer below builds it, `openRound` puts it
-  // in front of every phone, the tally is counted on read while it is open, and the only way
-  // any of it reaches air is the same one a question takes: a CUE the operator takes.
   /** What the presenter's own page is showing (`/join?pv=<slug>`), by submission id. */
   const [presenter, setPresenter] = useState<PresenterPointers>({ current: null, next: null });
   /** The same pointers, readable SYNCHRONOUSLY. Two presses in one tick - queue a question as
@@ -837,12 +951,25 @@ export default function ProductionAudienceWorkspace({
     presenterRef.current = next;
     setPresenter(next);
   };
-  const [round, setRound] = useState<AudienceRound | null>(null);
-  const [tally, setTally] = useState<AudienceTally | null>(null);
-  const [kind, setKind] = useState<'poll' | 'quiz'>('poll');
-  const [question, setQuestion] = useState('');
-  const [optionsText, setOptionsText] = useState('');
-  const [correct, setCorrect] = useState(0);
+
+  // ── QUESTIONS (interaction spec, "Question lifecycle") ─────────────────────────────────────
+  // The list is the production's (Show.questions); each question's one result is a round with the
+  // provider, keyed by the question's id. Which question is live is the provider's, read back on
+  // every change; which one is SELECTED is this screen's alone and calls nothing (R12).
+  const questions = useMemo(() => showQuestions(show), [show]);
+  const [rounds, setRounds] = useState<AudienceRound[]>([]);
+  const liveRound = openRoundOf(rounds);
+  const roundOf = useMemo(() => new Map(rounds.filter((r) => r.questionId).map((r) => [r.questionId!, r] as const)), [rounds]);
+  /** Counts per round, for every vote this production has asked. */
+  const [tallies, setTallies] = useState<Record<string, AudienceTally>>({});
+  /** Which state of each round its counts were read in: a closed round is read once per state. */
+  const tallyRead = useRef(new Map<string, string>());
+  const tallyKey = (r: AudienceRound) => `${r.revision}|${r.closedAt ?? 'open'}`;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [composer, setComposer] = useState<{ editing: ShowQuestion | null } | null>(null);
+  const [armedClear, setArmedClear] = useState<string | null>(null);
+  /** A Go live, Stop, Clear or Delete in flight: their buttons wait for it. */
+  const [busy, setBusy] = useState(false);
   /** Which cue each round is staged onto, so re-staging updates instead of piling rows up. */
   const stagedCue = useRef<Record<string, string>>({});
   /** Does this production run the percentage figures live while a vote is open? Read straight
@@ -862,8 +989,6 @@ export default function ProductionAudienceWorkspace({
     () => show.graphics.some((g) => pollFieldMap(g.template.fields ?? [])?.live),
     [show.graphics],
   );
-  /** What the room was being asked for before a vote took the mode over. */
-  const modeBeforeRound = useRef<AudienceMode>('question');
 
   /**
    * WHAT VIEWERS SEE, rendered by the SAME function the public page renders (the plan's own
@@ -874,15 +999,83 @@ export default function ProductionAudienceWorkspace({
    * Live, it reads through the production's JOIN slug, which the studio holds locally: what is
    * shown is then literally what a phone gets, not a reconstruction of it.
    */
+  // Unpublished, the preview takes the page straight from the production (its look, logo, title
+  // and waiting text), since there are no phones to send it to (AudienceBackend.setPage).
+  const [lookLogo, setLookLogo] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void lookLogoDataUrl(show.look).then((url) => {
+      if (alive) setLookLogo(url);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read only when the logo itself changes
+  }, [show.look?.logo?.data]);
+  const localBrand = useMemo(() => joinPageBrand({ look: show.look, joinPage: show.joinPage }, lookLogo), [show.look, show.joinPage, lookLogo]);
+  // Read through a ref, so a settings edit refreshes the open preview instead of remounting it.
+  const localBrandRef = useRef(localBrand);
+  localBrandRef.current = localBrand;
+  useEffect(() => {
+    preview.current?.refresh();
+  }, [localBrand]);
   const previewClient = useMemo<JoinSurfaceClient>(() => {
     const viewer = live && show.joinSlug ? createSupabaseAudience({ joinSlug: show.joinSlug }) : backend;
-    const refuse = async () => ({ ok: false, error: 'This is your preview — send from a phone to test it.' });
+    const refuse = async () => ({ ok: false, error: 'This is your preview. Send from a phone to test it.' });
     return {
-      load: () => viewer.joinView('preview-operator-device'),
+      load: async () => {
+        const view = await viewer.joinView('preview-operator-device');
+        return live ? view : { ...view, brand: localBrandRef.current };
+      },
       submit: refuse,
       vote: refuse,
     };
   }, [backend, live, show.joinSlug]);
+
+  // PUBLISHED: phones follow the page settings and the look without a publish (interaction spec
+  // phase 2, rules P1 to P4 in control/joinPageSync.ts). Opening the tab compares what phones get
+  // with the production and sends only a difference; a change is sent a moment later, even if the
+  // operator has left the tab by then.
+  // The key is what phones would be sent, with the logo by its own bytes.
+  const pageKey = useMemo(() => {
+    const logo = show.look?.logo?.data;
+    return JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), typeof logo === 'string' ? logo : logo ? `blob:${blobId(logo)}` : null]);
+  }, [show.look, show.joinPage]);
+  const pageSynced = useRef(false);
+  /** Ask the page queue to bring phones in step (published only). Read through a ref by the
+   *  page settings' commit, which can run as this component goes away. */
+  const askPageSync = useRef<(delayMs: number) => void>(() => {});
+  askPageSync.current = (delayMs: number) => {
+    if (!live || !backend.setPage || !backend.readPage) return;
+    const showId = show.id;
+    void syncJoinPage(
+      showId,
+      {
+        readShow: () => loadShows().find((s) => s.id === showId) ?? null,
+        readBrand: () => backend.readPage!(),
+        publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
+        send: (brand) => backend.setPage!(brand),
+        onSent: () => preview.current?.refresh(),
+        onError: () => setNote('Phones did not get all of this page (the logo or the connection). It is tried again when Interaction opens, and on publish.'),
+      },
+      delayMs,
+    );
+  };
+  useEffect(() => {
+    askPageSync.current(pageSynced.current ? 600 : 0);
+    pageSynced.current = true;
+    // The key says when to ask; the sync reads the production itself when it runs.
+  }, [live, backend, pageKey, show.joinSlug]);
+
+  /** The page settings' boxes: one write per edit, not per keystroke (useDeferredEdits). */
+  const pageEdits = useDeferredEdits((key, text) => {
+    const { shows, error } = setShowJoinPage(show.id, { [key]: text });
+    if (error) setNote(error);
+    else setShows(shows);
+    // An edit can be committed as this tab closes, when no effect will run after it: ask here too.
+    if (!error) askPageSync.current(600);
+  });
+  const [qrBusy, setQrBusy] = useState(false);
 
   useEffect(() => {
     const host = previewHost.current;
@@ -907,23 +1100,33 @@ export default function ProductionAudienceWorkspace({
         // away and the inbox keeps showing the last thing that was true.
         () => {},
       );
+      void backend.rounds().then(
+        async (list) => {
+          if (!alive) return;
+          setRounds(list);
+          // Every vote's count, for the list's answer column. A closed round's counts are final, so
+          // each is read once per state it is in (reopened, cleared); the live one is re-read
+          // below at the tally's own rate.
+          const due = list.filter((r) => r.kind !== 'open' && tallyRead.current.get(r.id) !== tallyKey(r));
+          const counted = await Promise.all(due.map((r) => backend.tally(r.id).then((t) => [r, t] as const, () => null)));
+          if (!alive) return;
+          for (const done of counted) if (done) tallyRead.current.set(done[0].id, tallyKey(done[0]));
+          const fresh = counted.filter((d): d is NonNullable<typeof d> => d !== null);
+          if (fresh.length > 0) setTallies((prev) => ({ ...prev, ...Object.fromEntries(fresh.map(([, t]) => [t.roundId, t])) }));
+        },
+        () => {},
+      );
       // One change signal drives both halves of this screen, so the viewer preview can never
-      // be showing a door the inbox says is open.
+      // be showing a question the list says is not live.
       preview.current?.refresh();
     };
     refresh();
-    // The door's own state lives with the production, not in this component: an operator who
-    // opened the audience before the interval, then came back through Playout, must not find
-    // a toggle claiming it is closed while phones are still sending.
+    // The pointers belong to the PRODUCTION, so an operator who queued a question, went to
+    // Playout and came back must not find both slots empty while a presenter's tablet is still
+    // showing them.
     void backend.getState().then(
       (state) => {
-        if (!alive) return;
-        setOpen(state.open);
-        if (state.mode !== 'waiting') setMode(state.mode);
-        // Same reason as the door above: the pointers belong to the PRODUCTION, so an operator
-        // who queued a question, went to Playout and came back must not find both slots empty
-        // while a presenter's tablet is still showing them.
-        applyPresenter(state.presenter);
+        if (alive) applyPresenter(state.presenter);
       },
       () => {},
     );
@@ -934,38 +1137,15 @@ export default function ProductionAudienceWorkspace({
     };
   }, [backend]);
 
-  // THE OPEN ROUND, and its counts while it is open. Two intervals rather than one because
-  // they answer different questions at different rates (the plan's own numbers): which round is
-  // open changes only when the operator says so and rides the provider's change signal, while a
-  // tally moves every time a phone is tapped and is polled at ~2 s. Nothing polls once the round
-  // is closed - a closed round's counts are final, so asking again could only cost battery.
+  // THE LIVE VOTE'S COUNTS move every time a phone is tapped, so they are polled at ~2 s while it
+  // is live. Nothing polls a closed round: its counts are final.
   useEffect(() => {
-    let alive = true;
-    const readRound = () =>
-      void backend.getState().then(
-        (state) => {
-          if (alive) setRound(state.round);
-        },
-        () => {},
-      );
-    readRound();
-    const off = backend.onChange(readRound);
-    return () => {
-      alive = false;
-      off();
-    };
-  }, [backend]);
-
-  useEffect(() => {
-    if (!round || round.closedAt) {
-      setTally(null);
-      return;
-    }
+    if (!liveRound || liveRound.kind === 'open') return;
     let alive = true;
     const read = () =>
-      void backend.tally(round.id).then(
+      void backend.tally(liveRound.id).then(
         (t) => {
-          if (alive) setTally(t);
+          if (alive) setTallies((prev) => ({ ...prev, [t.roundId]: t }));
         },
         () => {},
       );
@@ -975,7 +1155,181 @@ export default function ProductionAudienceWorkspace({
       alive = false;
       clearInterval(timer);
     };
-  }, [backend, round]);
+  }, [backend, liveRound]);
+
+  /** Each question's row: live or not, and how many answers its result holds (messages filed
+   *  under it, or votes). */
+  const rowStates = useMemo(() => {
+    const out: Record<string, QuestionRowState> = {};
+    for (const q of questions) {
+      const round = roundOf.get(q.id);
+      const isLive = !!round && !round.closedAt;
+      const answers = !round ? 0 : round.kind === 'open' ? rows.filter((r) => r.roundId === round.id).length : tallies[round.id]?.total ?? 0;
+      out[q.id] = { live: isLive, answers, locked: questionLocked(q, { live: isLive, answers }) };
+    }
+    return out;
+  }, [questions, roundOf, rows, tallies]);
+  const liveQuestion = liveRound?.questionId ? questions.find((q) => q.id === liveRound.questionId) ?? null : null;
+  const selected = questions.find((q) => q.id === selectedId) ?? null;
+  const selectedRound = selected ? roundOf.get(selected.id) : undefined;
+
+  /** Write the list through one of model/questions.ts's edits; said only once it has landed. */
+  const editList = async (edit: (list: ShowQuestion[]) => ShowQuestion[] | string, failed: string): Promise<boolean> => {
+    const { shows, error } = setShowQuestions(show.id, edit);
+    setShows(shows);
+    const failure = error ?? (await commitDurableWrites());
+    if (failure) setNote(`${failed}: ${failure}`);
+    return !failure;
+  };
+
+  const saveComposer = (type: QuestionType, text: string, options: string[]) => {
+    const editing = composer?.editing ?? null;
+    if (editing) {
+      const state = rowStates[editing.id];
+      void editList((list) => {
+        const done = editQuestion(list, editing.id, { text, options }, state?.locked ?? false);
+        return 'error' in done ? done.error : done.list;
+      }, 'The question was not saved').then((ok) => ok && setComposer(null));
+      return;
+    }
+    const made = makeQuestion(uuid(), type, text, options);
+    if ('error' in made) {
+      setNote(made.error);
+      return;
+    }
+    void editList((list) => addQuestion(list, made.question), 'The question was not added').then((ok) => {
+      if (!ok) return;
+      setComposer(null);
+      setSelectedId(made.question.id);
+    });
+  };
+
+  /** Put a question in front of every phone (R3). Nothing airs: a vote reaches Program only as a
+   *  cue the operator stages and takes. */
+  const goLive = async (q: ShowQuestion) => {
+    if (busy || !isKnownType(q.type)) return;
+    setBusy(true);
+    setArmedClear(null);
+    try {
+      await backend.goLive(toLive({ ...q, type: q.type }));
+      setSelectedId(q.id);
+      setNote(`✓ Phones now show “${q.text}”. Nothing is on air.`);
+    } catch (err) {
+      const message = (err as Error).message;
+      // R8: another tab changed the words of a question that already has answers.
+      setNote(
+        /has answers/.test(message)
+          ? `“${q.text}” has answers to the words it was asked with, so it cannot go live with new ones. Duplicate it to ask the changed version.`
+          : `The question did not go live: ${message}`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Stop the live question (R4) - and FINALISE the cue its vote was staged onto, because stopping
+   * is usually the moment before the reveal. Without this the staged board still read "voting
+   * open" beside its final numbers. The words reach air only through Take or Update.
+   */
+  const stop = async (closing: AudienceRound | null = liveRound): Promise<boolean> => {
+    if (!closing || busy) return false;
+    setBusy(true);
+    try {
+      const after = await backend.stop(closing.id);
+      // Stop names its round (R4): if another operator put a question live meanwhile, nothing
+      // stopped, and the page says so rather than claiming phones are waiting.
+      if (after.round && after.round.id !== closing.id) {
+        setNote('Another question went live meanwhile, so nothing was stopped.');
+        return false;
+      }
+      const final = closing.kind === 'open' ? null : await backend.tally(closing.id).catch(() => tallies[closing.id] ?? null);
+      const cueId = stagedCue.current[closing.id];
+      const cue = cueId ? show.cues?.find((c) => c.id === cueId) : undefined;
+      let failure: string | null = null;
+      if (cue && final) {
+        const target = show.graphics.find((g) => g.id === cue.sourceId);
+        const map = target ? pollFieldMap(target.template.fields ?? []) : null;
+        if (map) {
+          setShows(updateShowCue(show.id, cue.id, { values: tallyValues({ ...closing, closedAt: new Date().toISOString() }, final, map, true, liveFigures) }));
+          failure = await commitDurableWrites();
+        }
+      }
+      setNote(
+        failure
+          ? `Stopped, but the staged cue was not updated with the final counts: ${failure}`
+          : cue
+            ? '✓ Stopped. The staged cue now carries the final counts. Take it when you want them on air.'
+            : '✓ Stopped. Phones show the waiting text.',
+      );
+      return true;
+    } catch (err) {
+      setNote(`The question did not stop: ${(err as Error).message}`);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const duplicate = (q: ShowQuestion) => {
+    const id = uuid();
+    void editList((list) => duplicateQuestion(list, q.id, id), 'The copy was not added').then((ok) => {
+      if (ok) {
+        setSelectedId(id);
+        setNote(`✓ Added a copy of “${q.text}”. It starts with no answers.`);
+      }
+    });
+  };
+
+  /** Two presses (R9): the first arms, the second clears. Refused while live. */
+  const clear = async (q: ShowQuestion) => {
+    if (armedClear !== q.id) {
+      setArmedClear(q.id);
+      return;
+    }
+    setArmedClear(null);
+    setBusy(true);
+    try {
+      await backend.clearResults(q.id);
+      setNote(`✓ Cleared the answers and votes of “${q.text}”.`);
+    } catch (err) {
+      setNote(`The results were not cleared: ${(err as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Remove it from the list. Its answers stay, under Earlier questions; a live one stops first
+   *  (R10). Whether it is live is asked of the provider at the press, not read off this page:
+   *  another operator may have put it live since this page last refreshed. */
+  const remove = async (q: ShowQuestion) => {
+    const now = await backend.rounds().catch(() => null);
+    if (!now) {
+      setNote('The question was not deleted: its state could not be read. Try again.');
+      return;
+    }
+    const open = now.find((r) => r.questionId === q.id && !r.closedAt);
+    if (open && !(await stop(open))) {
+      // Stop changed nothing because another question went live, which already closed this one
+      // (R3): deleting it is then safe. Only a round still open keeps it in the list.
+      const after = await backend.rounds().catch(() => null);
+      if (!after || after.some((r) => r.id === open.id && !r.closedAt)) return;
+    }
+    if (await editList((list) => removeQuestion(list, q.id), 'The question was not deleted')) {
+      if (selectedId === q.id) setSelectedId(null);
+      if (questionFilter === `q:${q.id}`) setQuestionFilter(roundOf.get(q.id) ? 'earlier' : 'all');
+    }
+  };
+
+  const select = (id: string) => {
+    setSelectedId(id);
+    setArmedClear(null);
+    // An edit open on another question closes rather than hiding behind the new selection.
+    if (composer?.editing && composer.editing.id !== id) setComposer(null);
+    // An Open question's answers are its messages: the list below follows the selection.
+    const q = questions.find((x) => x.id === id);
+    if (q?.type === 'open') setQuestionFilter(`q:${id}`);
+  };
 
   const patch = (id: string, p: Parameters<AudienceBackend['update']>[1]) => void backend.update(id, p);
 
@@ -1001,113 +1355,33 @@ export default function ProductionAudienceWorkspace({
     });
   };
 
-  /** The composer's options, one per line, capped where the schema caps them. */
-  const composedOptions = optionsText
-    .split('\n')
-    .map((o) => o.trim())
-    .filter(Boolean)
-    .slice(0, AUDIENCE_LIMITS.options);
-
-  /**
-   * Put the question in front of every phone. The MODE travels with it for the same reason the
-   * door's does: the join page renders a round only in `poll`/`quiz` mode, so opening one
-   * without switching would leave every viewer looking at a question nobody could see.
-   */
-  const openRound = () => {
-    if (!question.trim() || composedOptions.length < 2) return;
-    backend
-      .openRound({
-        kind,
-        question: question.trim(),
-        options: composedOptions,
-        correctOption: kind === 'quiz' ? Math.min(correct, composedOptions.length - 1) : null,
-      })
-      .then(async (opened) => {
-        setRound(opened);
-        // Remembered so closing can put the room back where it was, rather than leaving every
-        // phone on "Cast your vote" with nothing to vote on.
-        modeBeforeRound.current = mode;
-        setMode(kind);
-        await backend.setState({ mode: kind, open: true });
-        setOpen(true);
-        setNote(`✓ Voting is open on “${opened.question}”. Nothing is on air yet.`);
-      })
-      .catch((err: Error) => setNote(`Could not open the vote: ${err.message}`));
-  };
-
-  /**
-   * Stop the vote — and FINALISE the cue it was staged onto, because closing is usually the
-   * moment before the reveal. Without this the staged board still read "voting open" beside its
-   * final numbers, and there was no way to correct it: staging needs an open round, and by then
-   * there isn't one.
-   */
-  const closeRound = () => {
-    if (!round) return;
-    const closing = round;
-    const back = modeBeforeRound.current;
-    backend
-      .closeRound(closing.id)
-      .then(async () => {
-        const final = await backend.tally(closing.id).catch(() => tally);
-        const cueId = stagedCue.current[closing.id];
-        const cue = cueId ? show.cues?.find((c) => c.id === cueId) : undefined;
-        // Said only once the durable write has landed (components/never-report-save-storage-layer-has).
-        let failure: string | null = null;
-        if (cue && final) {
-          const target = show.graphics.find((g) => g.id === cue.sourceId);
-          const map = target ? pollFieldMap(target.template.fields ?? []) : null;
-          if (map) {
-            setShows(
-              updateShowCue(show.id, cue.id, {
-                values: tallyValues(closing, final, map, true, liveFigures),
-              }),
-            );
-            failure = await commitDurableWrites();
-          }
-        }
-        setRound(null);
-        // The room goes back to what it was asked for before the vote. Leaving it in poll mode
-        // would show every phone the vote heading over an empty card, because the join surface
-        // draws a round only while there IS one.
-        setMode(back);
-        await backend.setState({ mode: back });
-        setNote(
-          failure
-            ? `Voting is closed, but the staged cue was not updated with the final counts: ${failure}`
-            : cue
-              ? 'Voting is closed. The staged cue now carries the final counts — Take it when you want them on air.'
-              : 'Voting is closed. Nothing was staged, so nothing changed on the rundown.',
-        );
-      })
-      .catch((err: Error) => setNote(`Could not close the vote: ${err.message}`));
-  };
-
   /**
    * THE VOTE'S ONE EXIT, and it is the same shape as a question's: counts become an ordinary
    * cue's field VALUES, and an operator takes it. The renderer never learns votes exist — a
    * poll board is a graphic that draws whatever numbers are in its fields, exactly as it does
    * for a hand-typed rehearsal, so nothing about it has to change for a live vote.
    *
-   * Re-staging while the round is open UPDATES the same cue rather than adding another, so a
-   * rundown does not fill with a row per refresh; the operator re-takes to move the numbers on
-   * air. Which one gets updated is remembered per round.
+   * Re-staging UPDATES the same cue rather than adding another, so a rundown does not fill with a
+   * row per refresh; the operator re-takes to move the numbers on air. Which one gets updated is
+   * remembered per round.
    *
    * The ✓ is said only once the durable write has landed, and a refused one is said instead
    * (components/never-report-save-storage-layer-has).
    */
-  const stageTally = async () => {
-    if (!round || !tally) return;
+  const stageTally = async (round: AudienceRound) => {
+    const tally = tallies[round.id] ?? (await backend.tally(round.id).catch(() => null));
+    if (!tally) return;
     const target = show.graphics.find((g) => pollFieldMap(g.template.fields ?? []) !== null) ?? show.graphics[0];
     if (!target) {
-      setNote('This production has no graphics yet — add a vote board, then stage the counts to it.');
+      setNote('This production has no graphics yet. Add a vote board, then stage the counts to it.');
       return;
     }
     const map = pollFieldMap(target.template.fields ?? []);
     if (!map) {
-      setNote(`“${target.name}” has no question/options fields to put a vote in — add a vote board to this production.`);
+      setNote(`“${target.name}” has no question/options fields to put a vote in. Add a vote board to this production.`);
       return;
     }
-    const values = tallyValues(round, tally, map, false, liveFigures);
+    const values = tallyValues(round, tally, map, round.closedAt !== null, liveFigures);
     const existing = stagedCue.current[round.id];
     const cue = existing ? show.cues?.find((c) => c.id === existing) : undefined;
     if (cue) {
@@ -1131,22 +1405,36 @@ export default function ProductionAudienceWorkspace({
       setNote(`No cue was added to the rundown for “${target.name}”: ${failure}`);
       return;
     }
-    setNote(`✓ Added a cue to the rundown for “${target.name}”. It airs when you Take it — nothing has gone out.`);
+    setNote(`✓ Added a cue to the rundown for “${target.name}”. It airs when you Take it. Nothing has gone out.`);
   };
 
+  /** Rounds whose question has left the list: their messages are "Earlier questions" (R10). */
+  const earlierRounds = useMemo(() => {
+    const listed = new Set(questions.map((q) => q.id));
+    return new Set(rounds.filter((r) => !r.questionId || !listed.has(r.questionId)).map((r) => r.id));
+  }, [questions, rounds]);
+
+  const byQuestion = useMemo(() => {
+    if (questionFilter === 'all') return rows;
+    if (questionFilter === 'none') return rows.filter((r) => !r.roundId);
+    if (questionFilter === 'earlier') return rows.filter((r) => r.roundId && earlierRounds.has(r.roundId));
+    const round = roundOf.get(questionFilter.slice(2));
+    return round ? rows.filter((r) => r.roundId === round.id) : [];
+  }, [rows, questionFilter, earlierRounds, roundOf]);
+
   const shown = useMemo(() => {
-    const ordered = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const ordered = [...byQuestion].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     if (filter === 'inbox') return ordered.filter((r) => r.status === 'new');
     if (filter === 'approved') return ordered.filter((r) => r.status === 'approved' && !r.usedAt);
     if (filter === 'shortlist') return ordered.filter((r) => r.shortlisted);
     return ordered;
-  }, [rows, filter]);
+  }, [byQuestion, filter]);
 
   const counts = {
-    inbox: rows.filter((r) => r.status === 'new').length,
-    approved: rows.filter((r) => r.status === 'approved' && !r.usedAt).length,
-    shortlist: rows.filter((r) => r.shortlisted).length,
-    all: rows.length,
+    inbox: byQuestion.filter((r) => r.status === 'new').length,
+    approved: byQuestion.filter((r) => r.status === 'approved' && !r.usedAt).length,
+    shortlist: byQuestion.filter((r) => r.shortlisted).length,
+    all: byQuestion.length,
   };
 
   /** Where messages go, once chosen (Show.messageTarget), and what could take them. */
@@ -1158,17 +1446,21 @@ export default function ProductionAudienceWorkspace({
   const [preparing, setPreparing] = useState<string | null>(null);
   const [pasteName, setPasteName] = useState('');
   const [pasteBody, setPasteBody] = useState('');
+  /** Where a paste files (R13): the live Open question by default, or none. */
+  const [pasteTo, setPasteTo] = useState<'live' | 'none'>('live');
+  const pasteRound = pasteTo === 'live' && liveRound?.kind === 'open' ? liveRound : null;
   /** A paste is being added: on a published production that is a server call, and a second
    *  press meanwhile would add the message twice. */
   const [pasting, setPasting] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(() => (show.sources ?? []).some((s) => s.kind === 'youtube' || s.kind === 'sheet'));
 
   /** Paste: the message joins the inbox as a candidate, like any other, and airs only as a cue. */
   const addPasted = () => {
     if (!pasteBody.trim() || pasting) return;
     setPasting(true);
     backend
-      .addCandidates([{ author: pasteName, body: pasteBody, source: 'Pasted' }])
+      .addCandidates([{ author: pasteName, body: pasteBody, source: 'Pasted', roundId: pasteRound?.id ?? null }])
       .then(() => {
         setPasteName('');
         setPasteBody('');
@@ -1264,296 +1556,423 @@ export default function ProductionAudienceWorkspace({
     </div>
   );
 
+  const joinUrl = live && show.joinSlug ? joinPageUrl(show.joinSlug) : null;
+  const joinQrSvg = useMemo(() => (joinUrl ? qrSvg(joinUrl) : null), [joinUrl]);
+  const [copied, setCopied] = useState(false);
+  const selectedTally = selectedRound ? tallies[selectedRound.id] : undefined;
+
   return (
     <section className="pd-audience" data-testid="production-audience">
       <div className="pd-data-head">
-        <h2>Messages</h2>
+        <h2>Interaction</h2>
         <p className="hint">
-          Nothing here goes on air by itself. Prepare a message as a cue, then Take it.
+          Nothing here goes on air by itself. Prepare a cue, then Take it.
         </p>
       </div>
 
-      {/* PASTE: the route every operator already has. Body required, name optional; no audience
-          link, publish or account needed. It joins the inbox below like any arrival. */}
-      <div className="pd-aud-round pd-aud-paste" data-testid="message-paste">
-        <div className="pd-aud-round-head">
-          <h3>Paste a message</h3>
-        </div>
-        <input
-          type="text"
-          value={pasteName}
-          maxLength={AUDIENCE_LIMITS.author}
-          placeholder="Name (optional)"
-          aria-label="Name"
-          onChange={(e) => setPasteName(e.target.value)}
-          data-testid="message-paste-name"
-        />
-        <textarea
-          value={pasteBody}
-          rows={3}
-          maxLength={AUDIENCE_LIMITS.body}
-          placeholder="Message"
-          aria-label="Message"
-          onChange={(e) => setPasteBody(e.target.value)}
-          data-testid="message-paste-body"
-        />
-        <div className="pd-aud-round-actions">
-          <button className="primary" disabled={!pasteBody.trim() || pasting} onClick={addPasted} data-testid="message-paste-add">
-            Add to messages
-          </button>
-          {/* Where messages go, named and changeable. Only compatible graphics are offered, and
-              nothing is chosen until the operator chooses it. */}
-          {destinations.length > 0 && (
-            <label className="pd-aud-correct">
-              Messages go to
-              <select
-                value={target?.graphicId ?? ''}
-                onChange={(e) => void chooseTarget(e.target.value || null)}
-                data-testid="message-target"
-              >
-                {!target && <option value="">Choose…</option>}
-                {destinations.map((d) => (
-                  <option key={d.graphicId} value={d.graphicId}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+      {note && (
+        <p className={note.startsWith('✓') ? 'status-ok pd-data-note' : 'status-bad pd-data-note'} data-testid="audience-note">
+          {note}
+        </p>
+      )}
+
+      <div className="pd-aud-areas">
+        <div className="pd-aud-area">
+          {/* 1. QUESTIONS: prepared before air; one may be live on phones. */}
+          <div className="pd-aud-round pd-aud-questions" data-testid="questions">
+            <div className="pd-aud-round-head">
+              <h3>Questions</h3>
+              <button onClick={() => setComposer({ editing: null })} disabled={composer !== null} data-testid="question-add">
+                + Question
+              </button>
+            </div>
+            {/* R27: whatever round is open has a Stop, even when no row in this list is its question
+                (deleted elsewhere, or written by another tab this page has not read yet). */}
+            {liveRound && !liveQuestion && (
+              <div className="pd-aud-round-actions" data-testid="question-orphan-live">
+                <span className="hint">“{liveRound.question}” is live on phones and not in this list.</span>
+                <button className="danger" disabled={busy} onClick={() => void stop()} data-testid="question-orphan-stop">
+                  Stop
+                </button>
+              </div>
+            )}
+            {composer && !composer.editing && (
+              <QuestionComposer editing={null} onSave={saveComposer} onCancel={() => setComposer(null)} />
+            )}
+            <QuestionList
+              questions={questions}
+              states={rowStates}
+              selectedId={selectedId}
+              busy={busy}
+              armedClear={armedClear}
+              onSelect={select}
+              onGoLive={(q) => void goLive(q)}
+              onStop={() => void stop()}
+              onEdit={(q) => {
+                setSelectedId(q.id);
+                setComposer({ editing: q });
+              }}
+              onMove={(id, to) => void editList((list) => moveQuestion(list, id, to), 'The order was not saved')}
+              onDuplicate={duplicate}
+              onClear={(q) => void clear(q)}
+              onDelete={(q) => void remove(q)}
+              onDisarm={() => setArmedClear(null)}
+            />
+          </div>
+
+          {/* 2. THE SELECTED QUESTION: looked at, never sent anywhere by being looked at. */}
+          {selected && (
+            <div className="pd-aud-round" data-testid="question-selected">
+              <div className="pd-aud-round-head">
+                <h3 data-testid="question-selected-text">{selected.text}</h3>
+                <span className="hint">
+                  {selected.type === 'choice' ? 'Multiple choice' : 'Open'}
+                  {rowStates[selected.id]?.live ? ' · live on phones' : ''}
+                </span>
+              </div>
+              {composer?.editing?.id === selected.id && (
+                <QuestionComposer
+                  key={selected.id}
+                  editing={selected}
+                  onSave={saveComposer}
+                  onCancel={() => setComposer(null)}
+                />
+              )}
+              {rowStates[selected.id]?.locked && composer?.editing?.id !== selected.id && (
+                <p className="hint" data-testid="question-locked">
+                  Its words stay as they were asked while it is live or has answers. Duplicate it to change them.
+                </p>
+              )}
+              {selected.type === 'choice' && (
+                <>
+                  <ul className="pd-aud-tally" data-testid="audience-tally">
+                    {(selectedRound?.options ?? selected.options ?? []).map((option, i) => {
+                      const count = selectedTally?.counts[i] ?? 0;
+                      const share = selectedTally && selectedTally.total > 0 ? Math.round((count / selectedTally.total) * 100) : 0;
+                      return (
+                        <li key={option + String(i)}>
+                          {/* The full option on hover: a long one ellipsizes to keep the bars in a
+                              column, and an operator still has to be able to tell which is which. */}
+                          <span className="pd-aud-tally-label" title={option}>
+                            {option}
+                          </span>
+                          {/* The bar is a picture of the same number beside it, never instead of it. */}
+                          <span className="pd-aud-tally-bar" aria-hidden="true">
+                            <span style={{ width: `${share}%` }} />
+                          </span>
+                          <span className="pd-aud-tally-count" data-testid={`audience-tally-${i}`}>
+                            {count}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="pd-aud-round-actions">
+                    <button
+                      className="primary"
+                      disabled={!selectedRound}
+                      onClick={() => selectedRound && void stageTally(selectedRound)}
+                      data-testid="audience-round-stage"
+                    >
+                      Stage counts to a graphic
+                    </button>
+                    {/* Rehearsal votes, only where simulating means anything. */}
+                    {backend.simulateVotes && rowStates[selected.id]?.live && selectedRound && (
+                      <button
+                        onClick={() => backend.simulateVotes?.(selectedRound.options.map((_, i) => (i === 0 ? 2 : 1)))}
+                        data-testid="audience-simulate-votes"
+                      >
+                        ⟳ Simulate votes
+                      </button>
+                    )}
+                    <span className="hint">
+                      {selectedTally?.total ?? 0} {(selectedTally?.total ?? 0) === 1 ? 'vote' : 'votes'}. Staging writes a cue. Nothing is on air until you Take it.
+                    </span>
+                  </div>
+                  {/* HOW THIS PRODUCTION SHOWS ITS NUMBERS (owner ruling, 2026-08-30): off by
+                      default, a property of the SHOW rather than of a question. */}
+                  {canRunLiveFigures && (
+                    <label className="pd-aud-live" data-testid="audience-live-figures-row">
+                      <input
+                        type="checkbox"
+                        checked={liveFigures}
+                        onChange={(e) => setShows(setShowPollLiveFigures(show.id, e.currentTarget.checked))}
+                        data-testid="audience-live-figures"
+                      />
+                      Update the percentages on air while voting
+                      <span className="hint">
+                        {liveFigures
+                          ? 'The figures follow the counts from the moment the board is taken.'
+                          : 'The figures stay dark until the operator presses Show result.'}
+                      </span>
+                    </label>
+                  )}
+                </>
+              )}
+              {selected.type === 'open' && (
+                <p className="hint" data-testid="question-selected-answers">
+                  {rowStates[selected.id]?.answers ?? 0} {rowStates[selected.id]?.answers === 1 ? 'answer' : 'answers'}, listed under Messages.
+                </p>
+              )}
+            </div>
           )}
         </div>
-      </div>
 
-      <div className="pd-aud-bar">
-        <label className="pd-aud-open">
-          <input
-            type="checkbox"
-            checked={open}
-            onChange={(e) => {
-              const next = e.target.checked;
-              setOpen(next);
-              // The MODE travels with the door. The dropdown shows a choice from the moment
-              // this screen opens, but the production's own state starts at `waiting` — so
-              // opening without sending it left the viewer page saying "standing by" beside
-              // an operator screen that said "Questions".
-              //
-              // The door is also the one control here with a real consequence for people
-              // outside the room, so a refusal is reported and the switch springs back rather
-              // than leaving an operator believing they had opened it.
-              backend.setState({ open: next, mode }).catch((err: Error) => {
-                setOpen(!next);
-                setNote(`Could not ${next ? 'open' : 'close'} the audience: ${err.message}`);
-              });
-            }}
-            data-testid="audience-open"
-          />
-          Accepting messages
-        </label>
-        {/* An open VOTE owns the mode, so the control says so instead of claiming the room is
-            being asked for questions while every phone shows a ballot. A select whose value is
-            not among its options renders as its first one, which is how this read "Questions"
-            over an open poll - the option has to exist for the control to be honest. */}
-        <select
-          value={mode}
-          disabled={!!round}
-          title={round ? 'A vote is open — close it to ask for questions again.' : undefined}
-          onChange={(e) => {
-            const next = e.target.value as AudienceMode;
-            setMode(next);
-            backend.setState({ mode: next }).catch((err: Error) => setNote(`Could not switch: ${err.message}`));
-          }}
-          data-testid="audience-mode"
-        >
-          <option value="question">Questions</option>
-          <option value="comment">Comments</option>
-          {round && <option value={round.kind}>{round.kind === 'quiz' ? 'Quiz — voting' : 'Poll — voting'}</option>}
-        </select>
-        <div className="spacer" />
-        {/* REHEARSAL, and only where it means something. The local provider can invent
-            arrivals — which is exactly what an operator wants before a show, and what lets the
-            offline suite drive the whole workflow; the simulated rows say "(rehearsal)" in
-            their own text, so they can never be mistaken for real material. A LIVE production
-            has a real audience instead, so the button is absent rather than disabled: there is
-            nothing to enable. */}
-        {backend.simulate ? (
-          <button onClick={() => backend.simulate?.(3)} data-testid="audience-simulate">
-            ⟳ Simulate 3 arrivals
-          </button>
-        ) : (
-          <span className="hint" data-testid="audience-live">
-            Live — viewers send from the audience link (Links ▸ Audience link).
-          </span>
-        )}
-      </div>
-
-      <MessageSources show={show} setShows={setShows} backend={backend} live={live} accepting={open} />
-
-
-      {/* THE VOTE. One question at a time, because that is what a room can answer: opening a
-          round closes any previous one server-side, so the panel is either composing or
-          running and never both. The counts are shown here and NOWHERE ELSE the audience can
-          reach - the join page never shows a tally, in v1 or after, because the reveal is a
-          graphic, on air, at the operator's moment. */}
-      <div className="pd-aud-round" data-testid="audience-round">
-        {!round ? (
-          <>
+        {/* 3. JOIN: where phones come in, the preview, paste and the other ways in. */}
+        <div className="pd-aud-area" data-testid="interaction-join">
+          <div className="pd-aud-round">
             <div className="pd-aud-round-head">
-              <h3>Put a question to the room</h3>
-              <select
-                value={kind}
-                onChange={(e) => setKind(e.target.value as 'poll' | 'quiz')}
-                data-testid="audience-round-kind"
-              >
-                <option value="poll">Poll — no right answer</option>
-                <option value="quiz">Quiz — one right answer</option>
-              </select>
+              <h3>Join</h3>
+            </div>
+            {joinUrl ? (
+              <div className="pd-aud-join" data-testid="join-published">
+                {/* The code a phone camera reads: drawn here from the link, no QR service. */}
+                <div className="pd-aud-qr" role="img" aria-label={`QR code for ${joinUrl}`} data-testid="join-qr" dangerouslySetInnerHTML={{ __html: joinQrSvg ?? '' }} />
+                <div className="pd-aud-join-side">
+                  <div className="pd-aud-round-actions">
+                    <code className="prod-url" data-testid="join-link">{joinUrl}</code>
+                    <button onClick={() => void copyLink(joinUrl).then((ok) => setCopied(ok))} data-testid="join-copy">
+                      {copied ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  <div className="pd-aud-round-actions">
+                    <span className="hint">Download QR</span>
+                    <button
+                      disabled={qrBusy}
+                      onClick={() => {
+                        setQrBusy(true);
+                        void qrPng(joinUrl)
+                          .then((blob) => blob && saveFile(blob, `join-${show.joinSlug}.png`))
+                          .finally(() => setQrBusy(false));
+                      }}
+                      data-testid="join-qr-png"
+                    >
+                      PNG
+                    </button>
+                    <button
+                      onClick={() => saveFile(new Blob([joinQrSvg ?? ''], { type: 'image/svg+xml' }), `join-${show.joinSlug}.svg`)}
+                      data-testid="join-qr-svg"
+                    >
+                      SVG
+                    </button>
+                  </div>
+                  <div className="pd-aud-round-actions">
+                    <button
+                      disabled={qrBusy}
+                      onClick={() => {
+                        setQrBusy(true);
+                        void addJoinCard(show, joinUrl)
+                          .then(({ shows, error }) => {
+                            if (shows) setShows(shows);
+                            setNote(error ?? '✓ Join card added to the rundown. Take it when you want it on air.');
+                          })
+                          .finally(() => setQrBusy(false));
+                      }}
+                      data-testid="join-card-add"
+                    >
+                      Add Join card to rundown
+                    </button>
+                  </div>
+                  {joinName && (
+                    <div className="pd-aud-round-actions" data-testid="join-name">
+                      <input
+                        type="text"
+                        value={joinName.draft}
+                        placeholder={show.joinSlug ?? 'friday-night-live'}
+                        aria-label="Link name"
+                        title="Changing the name stops the old link"
+                        onChange={(e) => joinName.onDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') joinName.onClaim();
+                        }}
+                        data-testid="join-name-input"
+                      />
+                      <button onClick={joinName.onClaim} disabled={joinName.busy || !joinName.draft.trim()} data-testid="join-name-claim">
+                        Use this name
+                      </button>
+                    </div>
+                  )}
+                  {joinName?.note && (
+                    <p className={joinName.note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="join-name-note">
+                      {joinName.note}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : needsSignIn ? (
+              // AC-8: signed out, the sign-in prompt sits where phones would join, and only here.
+              <SignInPrompt feature="Phones" reason="Phones join a published production, and publishing needs a free account." />
+            ) : (
+              <div className="pd-aud-round-actions" data-testid="join-unpublished">
+                <span className="hint">Phones can join once this production is published.</span>
+                {publish && (
+                  <button
+                    className="primary"
+                    onClick={publish.run}
+                    disabled={publish.unavailable !== null}
+                    title={publish.unavailable ?? undefined}
+                    data-testid="join-publish"
+                  >
+                    Publish
+                  </button>
+                )}
+              </div>
+            )}
+            {!joinUrl && (
+              <p className="hint">
+                <a href={rehearsalPageUrl(show.id)} target="_blank" rel="noopener" data-testid="join-rehearse">
+                  Open a rehearsal phone
+                </a>{' '}
+                in this browser.
+              </p>
+            )}
+            {/* PAGE SETTINGS (interaction spec D4): the page's title and its waiting text. The look,
+                its font and its logo come from the production's look. */}
+            <div className="pd-aud-page" data-testid="join-page-settings">
+              <label className="pd-aud-correct">
+                Title
+                <input
+                  type="text"
+                  maxLength={JOIN_PAGE_LIMITS.title}
+                  placeholder={show.name}
+                  value={pageEdits.text('title', show.joinPage?.title ?? '')}
+                  data-dirty={pageEdits.dirty('title') || undefined}
+                  onChange={(e) => pageEdits.type('title', e.target.value)}
+                  onBlur={pageEdits.flush}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') pageEdits.flush();
+                  }}
+                  data-testid="join-page-title"
+                />
+              </label>
+              <label className="pd-aud-correct">
+                Waiting text
+                <input
+                  type="text"
+                  maxLength={JOIN_PAGE_LIMITS.waiting}
+                  placeholder={JOIN_WAITING_DEFAULT}
+                  value={pageEdits.text('waiting', show.joinPage?.waiting ?? '')}
+                  data-dirty={pageEdits.dirty('waiting') || undefined}
+                  onChange={(e) => pageEdits.type('waiting', e.target.value)}
+                  onBlur={pageEdits.flush}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') pageEdits.flush();
+                  }}
+                  data-testid="join-page-waiting"
+                />
+              </label>
+            </div>
+            {/* THE VIEWER'S VIEW. Same renderer as the public page, read-only, folded away by
+                default: an operator wants it when setting up and rarely during a show. */}
+            <details
+              className="pd-aud-preview"
+              open={previewOpen}
+              onToggle={(e) => setPreviewOpen((e.currentTarget as HTMLDetailsElement).open)}
+              data-testid="audience-preview-details"
+            >
+              <summary>What phones see</summary>
+              {/* The mount host is a CHILD of the frame, never the frame itself: mounting adds the
+                  join page's own `.nj` class, whose max-width and auto margins would otherwise beat
+                  the frame's and float the preview into the middle of the workspace. */}
+              <div className="pd-aud-preview-frame">
+                <div ref={previewHost} data-testid="audience-preview" />
+              </div>
+            </details>
+          </div>
+
+          {/* PASTE: the route every operator already has. Body required, name optional; no audience
+              link, publish or account needed. It files under the destination shown (R13). */}
+          <div className="pd-aud-round pd-aud-paste" data-testid="message-paste">
+            <div className="pd-aud-round-head">
+              <h3>Paste a message</h3>
             </div>
             <input
               type="text"
-              value={question}
-              maxLength={AUDIENCE_LIMITS.body}
-              placeholder="What should we play next?"
-              onChange={(e) => setQuestion(e.target.value)}
-              data-testid="audience-round-question"
+              value={pasteName}
+              maxLength={AUDIENCE_LIMITS.author}
+              placeholder="Name (optional)"
+              aria-label="Name"
+              onChange={(e) => setPasteName(e.target.value)}
+              data-testid="message-paste-name"
             />
             <textarea
-              value={optionsText}
-              rows={4}
-              placeholder={'One option per line\nAt least two, at most eight'}
-              onChange={(e) => setOptionsText(e.target.value)}
-              data-testid="audience-round-options"
+              value={pasteBody}
+              rows={3}
+              maxLength={AUDIENCE_LIMITS.body}
+              placeholder="Message"
+              aria-label="Message"
+              onChange={(e) => setPasteBody(e.target.value)}
+              data-testid="message-paste-body"
             />
-            {kind === 'quiz' && composedOptions.length > 1 && (
+            <div className="pd-aud-round-actions">
+              <button className="primary" disabled={!pasteBody.trim() || pasting} onClick={addPasted} data-testid="message-paste-add">
+                Paste
+              </button>
               <label className="pd-aud-correct">
-                Right answer
-                <select
-                  value={Math.min(correct, composedOptions.length - 1)}
-                  onChange={(e) => setCorrect(Number(e.target.value))}
-                  data-testid="audience-round-correct"
-                >
-                  {composedOptions.map((o, i) => (
-                    <option key={o + String(i)} value={i}>
-                      {o}
-                    </option>
-                  ))}
+                Files under
+                <select value={pasteRound ? 'live' : 'none'} onChange={(e) => setPasteTo(e.target.value as 'live' | 'none')} data-testid="paste-destination">
+                  {liveRound?.kind === 'open' && <option value="live">{liveQuestion?.text ?? liveRound.question}</option>}
+                  <option value="none">No question</option>
                 </select>
               </label>
-            )}
-            <div className="pd-aud-round-actions">
-              <button
-                className="primary"
-                disabled={!question.trim() || composedOptions.length < 2}
-                onClick={openRound}
-                data-testid="audience-round-open"
-              >
-                Open voting
-              </button>
-              <span className="hint">
-                {composedOptions.length < 2
-                  ? 'Two options at least — a vote with one answer is not a vote.'
-                  : `${composedOptions.length} options. Opening it switches every phone to this question.`}
-              </span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="pd-aud-round-head">
-              <h3 data-testid="audience-round-live">{round.question}</h3>
-              <span className="hint">{round.kind === 'quiz' ? 'Quiz' : 'Poll'} · voting open</span>
-            </div>
-            <ul className="pd-aud-tally" data-testid="audience-tally">
-              {round.options.map((option, i) => {
-                const count = tally?.counts[i] ?? 0;
-                const share = tally && tally.total > 0 ? Math.round((count / tally.total) * 100) : 0;
-                return (
-                  <li key={option + String(i)}>
-                    {/* The full option on hover: a long one ellipsizes to keep the bars in a
-                        column, and an operator still has to be able to tell which is which. */}
-                    <span className="pd-aud-tally-label" title={option}>
-                      {option}
-                      {round.correctOption === i && <span className="pd-aud-correct-mark"> ✓</span>}
-                    </span>
-                    {/* The bar is a picture of the same number beside it, never instead of it:
-                        an operator reads the count and glances at the shape. */}
-                    <span className="pd-aud-tally-bar" aria-hidden="true">
-                      <span style={{ width: `${share}%` }} />
-                    </span>
-                    <span className="pd-aud-tally-count" data-testid={`audience-tally-${i}`}>
-                      {count}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="pd-aud-round-actions">
-              <button className="primary" onClick={() => void stageTally()} data-testid="audience-round-stage">
-                Stage counts to a graphic
-              </button>
-              <button onClick={closeRound} data-testid="audience-round-close">
-                Close voting
-              </button>
-              {/* Rehearsal votes, on the same terms as simulated arrivals: only where
-                  simulating means anything, and never on a production with a real room. */}
-              {backend.simulateVotes && (
-                <button
-                  onClick={() =>
-                    backend.simulateVotes?.(round.options.map((_, i) => (i === 0 ? 2 : 1)))
-                  }
-                  data-testid="audience-simulate-votes"
-                >
-                  ⟳ Simulate votes
-                </button>
+              {/* Where messages go, named and changeable. Only compatible graphics are offered, and
+                  nothing is chosen until the operator chooses it. */}
+              {destinations.length > 0 && (
+                <label className="pd-aud-correct">
+                  Messages go to
+                  <select
+                    value={target?.graphicId ?? ''}
+                    onChange={(e) => void chooseTarget(e.target.value || null)}
+                    data-testid="message-target"
+                  >
+                    {!target && <option value="">Choose…</option>}
+                    {destinations.map((d) => (
+                      <option key={d.graphicId} value={d.graphicId}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
-              <span className="hint">
-                {tally?.total ?? 0} {(tally?.total ?? 0) === 1 ? 'vote' : 'votes'} so far. Staging
-                writes a cue — nothing is on air until you Take it.
-              </span>
             </div>
-          </>
-        )}
-        {/* HOW THIS PRODUCTION SHOWS ITS NUMBERS, and it is one line because it is one decision
-            (owner ruling, 2026-08-30): *"Usually people will use it just to show the results, so
-            the poll does not have to automatically update. However, we should give that
-            possibility to those who want it."*
+          </div>
 
-            OFF is the shipped answer and the default here. It sits OUTSIDE the composing/running
-            branches deliberately: it is a property of the SHOW, not of a round, so it reads the
-            same whether the operator is writing the next question or watching this one, and
-            ticking it mid-round is an ordinary field change on the next stage rather than
-            anything the vote has to be interrupted for. */}
-        {canRunLiveFigures && (
-          <label className="pd-aud-live" data-testid="audience-live-figures-row">
-            <input
-              type="checkbox"
-              checked={liveFigures}
-              onChange={(e) => setShows(setShowPollLiveFigures(show.id, e.currentTarget.checked))}
-              data-testid="audience-live-figures"
-            />
-            Update the percentages on air while voting
-            <span className="hint">
-              {liveFigures
-                ? 'The figures follow the counts from the moment the board is taken.'
-                : 'The figures stay dark until the operator presses Show result.'}
-            </span>
-          </label>
-        )}
+          <details
+            className="pd-aud-more"
+            open={moreOpen}
+            onToggle={(e) => setMoreOpen((e.currentTarget as HTMLDetailsElement).open)}
+            data-testid="interaction-more"
+          >
+            <summary>More ways in</summary>
+            <MessageSources show={show} setShows={setShows} backend={backend} live={live} accepting={liveRound?.kind === 'open'} />
+            {/* REHEARSAL, and only where it means something: the simulated rows say "(rehearsal)" in
+                their own text, and a published production has a real audience instead. */}
+            {backend.simulate && (
+              <div className="pd-aud-round-actions">
+                <button onClick={() => backend.simulate?.(3)} data-testid="audience-simulate">
+                  ⟳ Simulate 3 arrivals
+                </button>
+              </div>
+            )}
+          </details>
+        </div>
       </div>
 
-      {/* THE VIEWER'S VIEW. Same renderer as the public page, read-only, folded away by
-          default: an operator wants it when setting up and never during a show. */}
-      <details
-        className="pd-aud-preview"
-        open={previewOpen}
-        onToggle={(e) => setPreviewOpen((e.currentTarget as HTMLDetailsElement).open)}
-        data-testid="audience-preview-details"
-      >
-        <summary>What viewers see</summary>
-        {/* The mount host is a CHILD of the frame, never the frame itself: mounting adds the
-            join page's own `.nj` class, whose max-width and auto margins would otherwise beat
-            the frame's and float the preview into the middle of the workspace. */}
-        <div className="pd-aud-preview-frame">
-          <div ref={previewHost} data-testid="audience-preview" />
-        </div>
-      </details>
+      <div className="pd-aud-messages-head">
+        <h3>Messages</h3>
+        <select value={questionFilter} onChange={(e) => setQuestionFilter(e.target.value)} aria-label="Messages of" data-testid="message-question-filter">
+          <option value="all">All questions</option>
+          <option value="none">No question</option>
+          {questions
+            .filter((q) => q.type === 'open')
+            .map((q) => (
+              <option key={q.id} value={`q:${q.id}`}>
+                {q.text}
+              </option>
+            ))}
+          {(earlierRounds.size > 0 || questionFilter === 'earlier') && <option value="earlier">Earlier questions</option>}
+        </select>
+      </div>
 
       <div className="pd-aud-filters" data-testid="audience-filters">
         {([
@@ -1573,19 +1992,13 @@ export default function ProductionAudienceWorkspace({
         ))}
       </div>
 
-      {note && (
-        <p className={note.startsWith('✓') ? 'status-ok pd-data-note' : 'status-bad pd-data-note'} data-testid="audience-note">
-          {note}
-        </p>
-      )}
-
       {shown.length === 0 ? (
         <p className="hint pd-data-empty" data-testid="audience-empty">
-          {open
-            ? 'Nothing waiting. Messages appear here as they arrive.'
+          {liveRound?.kind === 'open'
+            ? 'Nothing waiting. Answers appear here as they arrive.'
             : backend.simulate
-              ? 'Nothing here yet. Paste a message above, or simulate a few to rehearse.'
-              : 'Nothing here yet. Paste a message above, or turn on Accepting messages and share the audience link.'}
+              ? 'Nothing here yet. Paste a message, put an Open question live, or simulate a few to rehearse.'
+              : 'Nothing here yet. Paste a message, or put an Open question live and share the link.'}
         </p>
       ) : (
         <ul className="pd-aud-list" data-testid="audience-list">
