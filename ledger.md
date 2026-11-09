@@ -29,3 +29,4 @@ Project: {"version":1,"id":"plan-interaction-2026-11-09","ownership":"local-sing
 - 2026-11-09T19:54:44.106Z phase 2 repair {"actor":"repairer-2-2-r-bb70","nonce":"2-r-bb70","evidence":"create_session from d521e014, brief saved in kit briefs/2-repair-2-r-bb70.txt"}
 - 2026-11-09T20:20:00.202Z phase 2 landed {"mergeSha":"45ac521117611e3d75162f6e4d7b2fb4c0dbcee9","pr":2330}
 - 2026-11-09T20:20:05.327Z phase 2 check {"actor":"checker-2-recheck","evidence":"second check after repair PR #2330, create_session on its merge"}
+- 2026-11-09T20:52:31.174Z phase 2 resume {"actor":"checker-2-2-c-4fc6","session":"session_017SdbwN7ByVVEzew5hDtJRt","nonce":"2-c-4fc6","evidence":"ledger correction: the second check launched 20:20Z was recorded under the placeholder actor checker-2-recheck; the launched brief 2-c-4fc6 names checker-2-2-c-4fc6, an independent cloud session that built and repaired nothing in phase 2"}
