@@ -363,7 +363,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       await card.waitForFunction(() => typeof (window as unknown as { play?: unknown }).play === 'function');
       await settle(card);
       const qr = page.frameLocator('#card').locator('#audience-join-qr');
-      await expect(qr.locator('svg')).toHaveCount(1);
+      await expect(qr.locator('path')).toHaveAttribute('d', /^M/);
       expect(await reader.read(await qr.screenshot())).toBe(LINK);
       await expect(page.frameLocator('#card').locator('.audience-join-url')).toHaveText('noacg.studio/j/friday-night-live');
 
@@ -374,7 +374,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
 
       await card.evaluate(() => (window as unknown as { update(d: unknown): void }).update({ f2: '' }));
       await expect(qr).toBeHidden();
-      await expect(qr.locator('svg')).toHaveCount(0);
+      await expect(qr.locator('path')).toHaveAttribute('d', '');
       await expect(page.frameLocator('#card').locator('.audience-join-url')).toBeHidden();
     } finally {
       await reader.close();

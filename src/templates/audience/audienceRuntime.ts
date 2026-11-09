@@ -154,7 +154,8 @@ function audienceJoinPaint() {
   var root = document.querySelector('.audience');
   if (!source || !host) return;
   var link = (source.textContent || '').trim();
-  while (host.firstChild) host.removeChild(host.firstChild);
+  var drawn = host.querySelector('path');
+  if (drawn) drawn.setAttribute('d', '');
   if (shown) shown.textContent = link.replace(/^https?:\\/\\//i, '').replace(/\\/$/, '');
   if (root) root.classList.toggle('audience-join-empty', !link);
   if (!link || typeof qrcode !== 'function') return;
@@ -173,18 +174,11 @@ function audienceJoinPaint() {
       if (qr.isDark(r, c)) d += 'M' + (c + quiet) + ' ' + (r + quiet) + 'h1v1h-1z';
     }
   }
-  var ns = 'http://www.w3.org/2000/svg';
-  var svg = document.createElementNS(ns, 'svg');
+  // The <svg> is in the markup and only its numbers change here, so this script names no URL
+  // (an svg made in script needs its namespace, and the publish gate refuses any absolute URL).
+  var svg = host.querySelector('svg');
+  var modules = host.querySelector('path');
+  if (!svg || !modules) return;
   svg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
-  svg.setAttribute('shape-rendering', 'crispEdges');
-  var plate = document.createElementNS(ns, 'rect');
-  plate.setAttribute('width', String(size));
-  plate.setAttribute('height', String(size));
-  plate.setAttribute('fill', '#ffffff');
-  var modules = document.createElementNS(ns, 'path');
   modules.setAttribute('d', d);
-  modules.setAttribute('fill', '#000000');
-  svg.appendChild(plate);
-  svg.appendChild(modules);
-  host.appendChild(svg);
 }`;

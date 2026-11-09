@@ -209,7 +209,9 @@ export const JOIN_FORM: AudienceForm = {
   lines: [
     { title: 'Label', sample: 'JOIN IN' },
     { title: 'Call to action', sample: 'Scan to answer on your phone' },
-    { title: 'Join link', sample: 'https://noacg.studio/j/your-show' },
+    // A graphic's own text may hold no absolute URL (the publish gate), so the sample has no
+    // scheme; Add Join card to rundown writes the real link into the cue, not the graphic.
+    { title: 'Join link', sample: 'noacg.studio/j/your-show' },
   ],
 };
 

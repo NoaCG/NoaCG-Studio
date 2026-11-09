@@ -23,7 +23,7 @@ function joinHtml(o: ResolvedOptions): string {
       <div class="audience-accent"></div>
       <!-- The QR code, drawn here from the Join link by the card's own encoder. Dark modules on a
            white plate with its quiet zone, because that is what a phone camera reads. -->
-      <div class="audience-join-qr" id="audience-join-qr" aria-hidden="true"></div>
+      <div class="audience-join-qr" id="audience-join-qr" aria-hidden="true"><svg viewBox="0 0 1 1" shape-rendering="crispEdges"><path fill="#000000" d=""/></svg></div>
       <div class="audience-join-text">
         <!-- What this is: an operator FIELD, in the production's own language. -->
         <div class="audience-kicker"><span id="f0">${o.lines[0]?.sample ?? S[0].sample}</span></div>

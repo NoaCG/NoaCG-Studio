@@ -25,3 +25,8 @@ test('the vendored encoder holds no String.replace pattern, so splicing it into 
   // the graphic's script into the preview that way).
   assert.doesNotMatch(readFileSync(VENDORED, 'utf8'), /\$[$&`'0-9<]/);
 });
+
+test('the vendored encoder names no absolute URL, so a Join card passes the publish gate', () => {
+  // The same pattern the gate reads a graphic's script with (src/validation/templateBench.ts JS_URL).
+  assert.doesNotMatch(readFileSync(VENDORED, 'utf8'), /\bhttps?:\/\/[a-z0-9.-]+\.[a-z]{2,}/i);
+});

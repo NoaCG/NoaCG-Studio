@@ -288,11 +288,20 @@ async function addJoinCard(show: Show, link: string): Promise<{ shows: Show[] | 
   ]);
   const variant = variantById(JOIN_CARD_ID);
   if (!variant) return { shows: null, error: 'The Join card is not in this build.' };
-  const lines = variant.suggestedLines.map((l) => (l.title === 'Join link' ? { ...l, sample: link } : { ...l }));
-  const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines }));
-  const { shows, error } = addGraphicToShow(show.id, template, {});
-  const failure = error ?? (await commitDurableWrites());
-  return { shows, error: failure };
+  // The link goes into the cue, never into the graphic's own defaults: a graphic holding an
+  // absolute URL is refused by the publish gate (validation/templateBench.ts).
+  const template = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
+  const added = addGraphicToShow(show.id, template, {});
+  if (added.error) return { shows: added.shows, error: added.error };
+  const before = new Set(show.graphics.map((g) => g.id));
+  const after = added.shows.find((x) => x.id === show.id);
+  const graphic = after?.graphics.find((g) => !before.has(g.id));
+  const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) : undefined;
+  const field = graphic ? lastTitled(graphic.template.fields ?? [], ['join link']) : null;
+  if (!cue || !field) return { shows: added.shows, error: 'The Join card was added without its cue.' };
+  const filled = updateShowCueChecked(show.id, cue.id, { values: { ...cue.values, [field]: link } });
+  const failure = filled.error ?? (await commitDurableWrites());
+  return { shows: filled.shows, error: failure };
 }
 
 /** Save a file the browser made. */

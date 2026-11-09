@@ -264,7 +264,7 @@ test('a Join card cue takes its place and size from the cue editor', async ({ pa
   // Nothing reaches PROGRAM by being placed.
   expect(await page.locator('[data-testid="program-stage"] iframe').first().getAttribute('data-appearance')).toBeNull();
   // The card on PREVIEW still carries its code.
-  await expect(page.frameLocator('[data-testid="production-preview"] iframe').first().locator('#audience-join-qr svg')).toHaveCount(1);
+  await expect(page.frameLocator('[data-testid="production-preview"] iframe').first().locator('#audience-join-qr path')).toHaveAttribute('d', /^M/);
 });
 
 test('the public join page answers honestly on an offline build', async ({ page }) => {
