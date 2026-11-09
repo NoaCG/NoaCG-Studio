@@ -165,7 +165,7 @@ with Simulate; configured suite for two operators.
 ### AC-3: Joining takes one scan or one short link
 Published, Interaction shows a QR code that a phone camera opens to the phone page, the link
 `noacg.studio/j/<name>`, Copy and Download QR. `/join/<name>` still works. A cold phone page
-shows the live question within 2 seconds on Playwright's Fast 3G profile at phone size. No
+shows the live question within 2 seconds under Chrome's Fast 3G network throttling at phone size. No
 account, app or number code. The QR is made locally. Layer: blank-page spec decoding the drawn QR
 back to the link; journey on a phone-sized page with network throttling; configured suite.
 

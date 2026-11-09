@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "cc8c136ac6ca29a4154cb730c8fe819ce8b09327e533af2e5a50a7f4cc169635",
+  "specSha256": "aaba587c2420e795e9001fcf7d200887f0c55bd779a52453c92b396e6a2cde7d",
   "authority": {
     "status": "draft",
     "source": "Owner, 2026-11-09, issue #2299: \"one Interaction tab (rename Messages) holding everything audience\", decisions D1-D8 agreed one at a time in the planning session of 2026-11-09. Owner: \"When you are done with the plan, give me a prompt, and I'll get a second opinion before we start building.\" Draft until the owner agrees the plan after that review; no implementation is authorized."
