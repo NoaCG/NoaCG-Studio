@@ -46,3 +46,14 @@ export async function simulateArrivals(ws: Page): Promise<void> {
   await moreWaysIn(ws);
   await ws.getByTestId('audience-simulate').click();
 }
+
+/** "Add results to rundown" (interaction AC-9): press it, and on the first press pick where results
+ *  go among the production's result graphics (`graphic`, by name). */
+export async function addResults(ws: Page, graphic: string): Promise<void> {
+  await ws.getByTestId('audience-round-stage').click();
+  const choose = ws.getByTestId('result-choose-graphic').filter({ hasText: graphic });
+  const done = ws.getByTestId('audience-note').filter({ hasText: '✓' });
+  await expect(choose.or(done).first()).toBeVisible();
+  if (await choose.isVisible()) await choose.click();
+  await expect(ws.getByTestId('audience-note')).toContainText('✓');
+}

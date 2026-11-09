@@ -16,7 +16,7 @@ import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
-import { addQuestion, goLive, moreWaysIn } from '../_interaction';
+import { addQuestion, addResults, goLive, moreWaysIn } from '../_interaction';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -547,7 +547,7 @@ test.describe(() => {
     await phone.locator('#join .nj-opt').nth(1).tap();
     await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
     await expect(messages.getByTestId('audience-tally-1')).toHaveText('1', { timeout: 20_000 });
-    await messages.getByTestId('audience-round-stage').click();
+    await addResults(messages, 'House Vote');
     await settleDurableWrites(messages);
     await nothingOnAir();
     const voteCue = page.locator('.pd-cue', { hasText: 'Vote —' });

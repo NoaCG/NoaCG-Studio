@@ -23,23 +23,17 @@ import type { TypeMachine } from '../types/graphicType';
 import type { BehaviourRecipe } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 
-/** The status field's title and vocabulary. Exported because the production dashboard writes
- *  this field and has to find it by title (`pollFieldMap` / `tallyValues`). An EMPTY value means
- *  "not stated" - what a board saved before this field existed reports. */
-export const POLL_STATUS_TITLE = 'Vote status';
-export const POLL_STATUS_OPEN = 'open';
-export const POLL_STATUS_CLOSED = 'closed';
+import { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE } from './voteFields';
+
+/** The field contract's words live in ./voteFields.ts, so plain modules can read them; the
+ *  production dashboard writes these fields and finds them by title (control/resultStaging.ts). */
+export { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE };
 
 const POLL_STATUS_CHOICES = [
   { label: 'Not stated (follow the count line)', value: '' },
   { label: 'Voting open', value: POLL_STATUS_OPEN },
   { label: 'Voting closed', value: POLL_STATUS_CLOSED },
 ];
-
-/** When the percentage figures appear (owner ruling, 2026-08-30): the RESULT's beat unless a
- *  production ticks the box, which rides this field as the one exact token. */
-export const POLL_LIVE_TITLE = 'Live figures';
-export const POLL_LIVE_ON = 'live';
 
 const POLL_LIVE_CHOICES = [
   { label: 'Wait for Show result', value: '' },

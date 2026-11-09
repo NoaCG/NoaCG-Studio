@@ -34,6 +34,7 @@ import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, type ShowQuestion } from './questions';
+import { planResultCue, readResultCues, type ResultPlan } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
@@ -504,6 +505,14 @@ export interface Show {
    *  next "Prepare cue on <graphic>" names it. Never guessed (control/messageStaging.ts).
    *  ADDITIVE OPTIONAL; absent = not chosen yet. */
   messageTarget?: string;
+  /** Where results go: the pool graphic id the operator chose for "Add results to rundown",
+   *  remembered like `messageTarget` (model/resultCues.ts, interaction phase 3 S5). ADDITIVE
+   *  OPTIONAL; absent = not chosen yet. */
+  resultTarget?: string;
+  /** Each question's one RESULT CUE: question id to cue id (model/resultCues.ts, S1). Saved with
+   *  the production so a reload, another tab and another operator update the same cue. ADDITIVE
+   *  OPTIONAL; absent = no result staged. */
+  resultCues?: Record<string, string>;
   /** The production's QUESTION LIST (model/questions.ts; docs/work-specs/interaction/spec.md): the
    *  questions the operator prepares and puts live on phones, in the operator's order. ADDITIVE
    *  OPTIONAL; absent = none written. Read through `showQuestions`, which drops damaged entries and
@@ -2516,6 +2525,64 @@ export function setShowJoinPage(showId: string, patch: { title?: string; waiting
     if (JSON.stringify(next) === JSON.stringify(show.joinPage ?? {})) return false;
     if (Object.keys(next).length > 0) show.joinPage = next;
     else delete show.joinPage;
+    return true;
+  }, true);
+}
+
+/**
+ * "Add results to rundown" and Stop's final counts (interaction phase 3, S1 to S9): write a
+ * question's result into its one result cue, deciding update or add on the production as stored
+ * NOW (a rebased write, S4), so a second press, another tab or a synced second operator updates the
+ * cue the first press made. `valuesFor` gives the result values for a graphic's fields, or null when
+ * it cannot take them. `chosen` is a graphic the operator just picked, remembered in the same
+ * write; `adopt` is a cue already on that graphic (a catalog board's seeded cue) to use as the
+ * result cue instead of adding one. `closeOnly` (Stop, S7) writes only into an existing result cue
+ * and never adds. Only result values are written (S9). Nothing airs: this writes the record.
+ */
+export function stageShowResult(
+  showId: string,
+  questionId: string,
+  opts: {
+    valuesFor: (fields: readonly { field: string; title?: string }[]) => Record<string, string> | null;
+    label: string;
+    chosen?: string | null;
+    adopt?: string | null;
+    closeOnly?: boolean;
+  },
+): { shows: Show[]; error: string | null; plan: ResultPlan | null; cueId: string | null } {
+  let plan: ResultPlan | null = null;
+  let cueId: string | null = null;
+  const takes = (fields: readonly { field: string; title?: string }[]) => opts.valuesFor(fields) !== null;
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    const p = planResultCue(show, questionId, takes, opts.chosen);
+    plan = p;
+    if (p.kind === 'choose') return false;
+    if (opts.closeOnly && p.kind !== 'update') return false;
+    const graphic = show.graphics.find((g) => g.id === p.graphicId)!;
+    const values = opts.valuesFor(graphic.template.fields ?? [])!;
+    let cue = p.kind === 'update' ? show.cues?.find((c) => c.id === p.cueId) : undefined;
+    if (!cue && opts.adopt) cue = show.cues?.find((c) => c.id === opts.adopt && c.sourceId === graphic.id);
+    if (cue) {
+      cue.values = { ...cue.values, ...values };
+      if (p.kind === 'add') cue.label = opts.label;
+    } else {
+      cue = { id: uuid(), sourceId: graphic.id, label: opts.label, values: { ...seedValues(graphic.template.fields), ...values } };
+      show.cues = appendCue(show.cues ?? [], cue);
+    }
+    cueId = cue.id;
+    show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
+    if (opts.chosen && p.kind === 'add') show.resultTarget = opts.chosen;
+    return true;
+  }, true);
+  return { shows, error, plan: error ? null : plan, cueId: error ? null : cueId };
+}
+
+/** Remember where results go (Show.resultTarget), or forget it with `null` (Change, S5). */
+export function setShowResultTarget(showId: string, graphicId: string | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if ((show.resultTarget ?? null) === graphicId) return false;
+    if (graphicId) show.resultTarget = graphicId;
+    else delete show.resultTarget;
     return true;
   }, true);
 }

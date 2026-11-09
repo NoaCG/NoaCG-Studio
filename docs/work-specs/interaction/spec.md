@@ -643,3 +643,27 @@ build ignores them and the reverted app runs on records that carry them.
 - S10. Duplicate starts with no result cue. Deleting a question leaves its cue in the rundown.
 - S11. `Show.resultCues` and `Show.resultTarget` are additive optional and left out of the
   publish digest, like the question list.
+
+Added after the rules review (a fresh read-only `/so`, AGREE WITH CORRECTIONS), before code:
+
+- S12. On a team production a save is merged with a teammate's, not rebased. `resultCues` merges
+  question by question (`model/teamShowMerge.ts`): one operator staging Q1 while another stages
+  Q2 keeps both links. Two operators pressing Add results on the same question at the same moment,
+  before either save reaches the other, can make two cues; the merge keeps one link and the other
+  cue stays in the rundown as an ordinary cue.
+- S13. Stop's write is rebased like staging's and driven by the stored `resultCues`, so a Stop
+  pressed in any tab finalises the cue another tab staged. A refused write is said: "Stopped, but
+  the result cue was not updated".
+- S14. A round closed by Go live on another question gets the same closing write as Stop, for
+  the question whose round it was (coordinator default; a close is a close).
+- S15. The note always reports what the stored write did (updated or added, and why a cue is
+  new), never what the page expected. The ✓ is said only once the durable write has landed.
+- S16. Change, then picking a graphic, when the selected question already has a result cue on
+  another graphic, adds a new result cue on the picked graphic and links it; the old cue stays in
+  the rundown as an ordinary cue and the note says so (coordinator default).
+- S6, amended: a catalog board picked under S5 is added first, with its one cue; if the result
+  write after it is refused, the board and its cue stay as an ordinary graphic and the note says
+  the result was not written.
+- S8, decided: the live-figures exception permits rows; this phase adds no automatic sender. The
+  switch writes the board's Live figures field and the board shows its own figures (coordinator
+  default).
