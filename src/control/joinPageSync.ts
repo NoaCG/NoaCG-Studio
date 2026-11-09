@@ -12,6 +12,8 @@
 //   P4. A logo already published under its file's hash is not uploaded again. A logo that cannot
 //       be published now keeps the one phones have, and the rest of the page (the words, the
 //       colours) still goes; the failure is reported.
+//   P5. Publish writes the page through this same queue, so it reads the production as saved when
+//       its turn runs and never overtakes, or is overtaken by, Interaction's sync in this tab.
 //
 // Every effect goes through `io`, so scripts/join-page-sync.test.mjs drives it with fakes.
 
@@ -44,15 +46,32 @@ export function sameBrand(a: AudienceBrand | null | undefined, b: AudienceBrand 
   return FIELDS.every((k) => ((a?.[k] as unknown) ?? null) === ((b?.[k] as unknown) ?? null));
 }
 
-const runs = new Map<string, { gen: number; timer?: ReturnType<typeof setTimeout>; chain: Promise<void> }>();
+interface Run {
+  gen: number;
+  timer?: ReturnType<typeof setTimeout>;
+  chain: Promise<void>;
+  /** Callers waiting for the queue to catch up with what they asked for. */
+  waiting: Array<() => void>;
+}
+const runs = new Map<string, Run>();
 
-/** Ask for a sync of this production's page in `delayMs`; a later ask replaces an earlier one. */
-export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number): void {
-  const run = runs.get(showId) ?? { gen: 0, chain: Promise.resolve() };
+/** Release the waiters once the latest ask has run (a superseded ask waits for the one after it). */
+function caughtUp(run: Run, gen: number): void {
+  if (gen !== run.gen || run.timer !== undefined) return;
+  for (const done of run.waiting.splice(0)) done();
+}
+
+/**
+ * Ask for a sync of this production's page in `delayMs`; a later ask replaces an earlier one. The
+ * promise settles once the queue has run the latest ask (publish awaits it; Interaction does not).
+ */
+export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number): Promise<void> {
+  const run = runs.get(showId) ?? { gen: 0, chain: Promise.resolve(), waiting: [] };
   runs.set(showId, run);
   const gen = ++run.gen;
   if (run.timer !== undefined) clearTimeout(run.timer);
   const current = () => gen === run.gen;
+  const settled = new Promise<void>((resolve) => run.waiting.push(resolve));
   run.timer = setTimeout(() => {
     run.timer = undefined;
     run.chain = run.chain.then(async () => {
@@ -82,8 +101,9 @@ export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number
       } catch (error) {
         if (current()) io.onError?.(error);
       }
-    });
+    }).finally(() => caughtUp(run, gen));
   }, delayMs);
+  return settled;
 }
 
 /** Wait for every sync asked for so far to finish (tests). */

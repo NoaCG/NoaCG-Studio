@@ -25,7 +25,9 @@ import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
 // audience): publish is the courier, not the author.
-import { publishedJoinBrand } from './joinLogo';
+import { publishJoinLogo } from './joinLogo';
+import { syncJoinPage } from './joinPageSync';
+import type { AudienceBrand } from '../audience/audienceBrand';
 import type { PublishedAdjust } from './hostedAdjust';
 import { lookImportedFace, withLookFaceIn } from './productionLook';
 // The library->air gate (docs/ARCHITECTURE.md §3, control -> validation): publishing is the
@@ -734,14 +736,27 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // It goes through `audience_set_join`, which merges the one key on the server: a read-modify-write
   // of the whole state here could put back a round another tab had just opened or stopped. The
   // brand carries the page settings and the published logo's URL (control/joinLogo.ts).
-  // The page is the production AS SAVED when it is written, not as it was when this publish began:
-  // a title changed in Interaction during a long publish must not be put back by it.
+  // P5 (control/joinPageSync.ts): the page goes through the same one-at-a-time queue as
+  // Interaction's sync, which reads the production as saved when this turn runs, so a title
+  // changed during a long publish (or a slow logo upload) is what phones end on.
   if (row.audience_state) {
-    const brand = await publishedJoinBrand(
-      { ...show, ...pageOf(loadShows().find((s) => s.id === show.id) ?? show) },
-      (row.audience_state.brand as { logo?: unknown } | null | undefined)?.logo,
+    const read = async () => {
+      const { data } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: {} });
+      return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;
+    };
+    await syncJoinPage(
+      show.id,
+      {
+        readShow: () => loadShows().find((s) => s.id === show.id) ?? show,
+        readBrand: read,
+        publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
+        send: async (brand) => {
+          const { error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
+          if (error) throw new Error(error.message);
+        },
+      },
+      0,
     );
-    await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: { brand } });
   }
   // A production that has never had an audience slug gets a READABLE one derived from its name,
   // here, on its first publish - so a link an operator can read out exists without anyone typing
@@ -1002,9 +1017,6 @@ async function adoptDerivedJoinName(show: Show): Promise<string | null> {
   }
   return null;
 }
-
-/** What the phone page reads from a production: its look and its page settings. */
-const pageOf = (show: Pick<Show, 'look' | 'joinPage'>) => ({ look: show.look, joinPage: show.joinPage });
 
 /** The public audience URL for a join slug: the short `/j/<name>` link a QR code and the Join card
  *  carry (interaction spec D2). `/join/<name>` keeps working for links already handed out. */

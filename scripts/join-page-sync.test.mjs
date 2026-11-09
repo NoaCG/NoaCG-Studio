@@ -110,3 +110,36 @@ test('the logo phones have is handed to the publisher, so a known file is not up
   assert.deepEqual(asked, ['https://x/same.png']);
   assert.deepEqual(state.sends, []);
 });
+
+test('P5: publish waits its turn, reads the page when it runs, and an edit during its slow upload is what phones end on', async () => {
+  const { show, state, io } = rig({ server: page('Quiz Night', 'https://x/old.png') });
+  let release;
+  const slow = new Promise((r) => (release = r));
+  const publishIo = {
+    ...io,
+    publishLogo: async (s) => {
+      if (s.logoUrl === 'https://x/new.png') await slow;
+      return s.logoUrl ?? null;
+    },
+  };
+  // Publish starts with a new logo whose upload is slow.
+  show.logoUrl = 'https://x/new.png';
+  const published = syncJoinPage(show.id, publishIo, 0);
+  await new Promise((r) => setTimeout(r, 10));
+  // Meanwhile the title changes in Interaction, which asks the same queue.
+  show.joinPage = { title: 'Changed during publish' };
+  syncJoinPage(show.id, io, 0);
+  release();
+  await published;
+  assert.deepEqual(state.server, page('Changed during publish', 'https://x/new.png'), 'publish settles only once phones have the latest page');
+});
+
+test('an ask that a later one replaced still settles, once the later one has run', async () => {
+  const { show, state, io } = rig({ server: page('Old') });
+  show.joinPage = { title: 'First' };
+  const first = syncJoinPage(show.id, io, 30);
+  show.joinPage = { title: 'Second' };
+  const second = syncJoinPage(show.id, io, 0);
+  await Promise.all([first, second]);
+  assert.deepEqual(state.sends, [page('Second')]);
+});

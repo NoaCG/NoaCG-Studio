@@ -7,7 +7,6 @@
 // can run a script.
 
 import { getSupabase } from '../backend/supabase';
-import { joinPageBrand, type AudienceBrand } from '../audience/audienceBrand';
 import type { ProjectBrand } from '../model/brand';
 import { assetBytes, sha256 } from '../model/foreignPackage';
 import { parseDataUrl } from '../assets/assetUtils';
@@ -83,22 +82,4 @@ export async function publishJoinLogo(showId: string, look: ProjectBrand | undef
   if (url) return url;
   published.delete(path);
   throw new Error('The logo could not be published.');
-}
-
-/**
- * Everything a published production's phone page shows, with the logo published. When the logo
- * cannot be published now, `previous` (what phones have) is kept: a failed upload never removes a
- * logo, and a removed logo (the look has none) always does.
- */
-export async function publishedJoinBrand(
-  show: { id: string; look?: ProjectBrand; joinPage?: { title?: string; waiting?: string } },
-  previous: unknown = null,
-): Promise<AudienceBrand> {
-  let logo: string | null;
-  try {
-    logo = await publishJoinLogo(show.id, show.look, typeof previous === 'string' ? previous : null);
-  } catch {
-    logo = typeof previous === 'string' ? previous : null;
-  }
-  return joinPageBrand(show, logo);
 }

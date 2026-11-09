@@ -1042,11 +1042,14 @@ export default function ProductionAudienceWorkspace({
     return JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), typeof logo === 'string' ? logo : logo ? `blob:${blobId(logo)}` : null]);
   }, [show.look, show.joinPage]);
   const pageSynced = useRef(false);
-  useEffect(() => {
+  /** Ask the page queue to bring phones in step (published only). Read through a ref by the
+   *  page settings' commit, which can run as this component goes away. */
+  const askPageSync = useRef<(delayMs: number) => void>(() => {});
+  askPageSync.current = (delayMs: number) => {
     if (!live || !backend.setPage || !show.joinSlug) return;
     const viewer = createSupabaseAudience({ joinSlug: show.joinSlug });
     const showId = show.id;
-    syncJoinPage(
+    void syncJoinPage(
       showId,
       {
         readShow: () => loadShows().find((s) => s.id === showId) ?? null,
@@ -1056,11 +1059,13 @@ export default function ProductionAudienceWorkspace({
         onSent: () => preview.current?.refresh(),
         onError: () => setNote('Phones did not get all of this page (the logo or the connection). It is tried again when Interaction opens, and on publish.'),
       },
-      pageSynced.current ? 600 : 0,
+      delayMs,
     );
+  };
+  useEffect(() => {
+    askPageSync.current(pageSynced.current ? 600 : 0);
     pageSynced.current = true;
-    // `show` is read by the sync when it runs; the key says when to ask.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // The key says when to ask; the sync reads the production itself when it runs.
   }, [live, backend, pageKey, show.joinSlug]);
 
   /** The page settings' boxes: one write per edit, not per keystroke (useDeferredEdits). */
@@ -1068,6 +1073,8 @@ export default function ProductionAudienceWorkspace({
     const { shows, error } = setShowJoinPage(show.id, { [key]: text });
     if (error) setNote(error);
     else setShows(shows);
+    // An edit can be committed as this tab closes, when no effect will run after it: ask here too.
+    if (!error) askPageSync.current(600);
   });
   const [qrBusy, setQrBusy] = useState(false);
 

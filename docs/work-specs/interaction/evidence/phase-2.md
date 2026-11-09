@@ -62,7 +62,9 @@ leaving the tab never reached phones, and a slow logo upload could land after a 
 rules P1 to P4 (phase notes) were written first; `src/control/joinPageSync.ts` implements them and
 `scripts/join-page-sync.test.mjs` drives it with a fake server and production (no send when phones
 match, a change sent with nobody left to ask, several changes send the last one once, a superseded
-slow upload is never sent, a failed logo sends nothing, a known logo is not uploaded again).
+slow upload is never sent, a logo that cannot be published keeps the one phones have while the
+words still go, a known logo is not uploaded again, and publish waits for the queue and ends on
+the latest saved page).
 Mutation: removing the superseded-work check before sending fails the slow-upload test.
 
 ## Checks run on this machine

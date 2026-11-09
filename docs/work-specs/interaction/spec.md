@@ -571,9 +571,11 @@ the page between publishes), stated as rules before the repair (`src/control/joi
   published keeps the one phones have, and the rest of the page still goes (amended after the
   final review of `a8eb578`: sending nothing held the words back too). Publish keeps the logo the
   same way.
-- P5 (from the review of `a8eb578`). Publish writes the page from the production as saved at the
-  moment it writes, not as it was when the publish began, so a title changed during a long publish
-  is not put back by it.
+- P5 (from the review of `a8eb578`, completed after the final review of `1bf6181`). Publish writes
+  the page through the same one-at-a-time queue, which reads the production as saved when its turn
+  runs, so a title changed during a long publish or a slow logo upload is not put back by it, and
+  publish and Interaction's sync never overtake each other in one tab. A page-settings edit
+  committed as the tab closes asks for its own sync.
 
 Follow-ups filed: #2319 (render baseline on Windows), #2320 (offer to update Join card cues after
 the link name changes; in the spec's Graphics section, not in phase 2's acceptance).
