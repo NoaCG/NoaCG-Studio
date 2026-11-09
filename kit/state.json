@@ -54,7 +54,9 @@
   }
  ],
  "fixes": [],
- "triggers": {},
+ "triggers": {
+  "checkin": "trig_015kgtvZatEVRLY3cZYeXik2"
+ },
  "heartbeat": {
   "issue": 2312,
   "comment": 6738700523
