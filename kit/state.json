@@ -36,25 +36,17 @@
   "github": "cloud-queue-merge.yml dispatches succeeded for PRs #2305, #2306, #2308, #2310, #2311 today; direct commit-status writes refused: stamp via cloud-queue-merge.yml",
   "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning"
  },
- "waitingOn": [
-  {
-   "what": "PR #2321 in the merge queue",
-   "eta": "2026-11-09T19:50Z"
-  }
- ],
+ "waitingOn": [],
  "inFlight": [
   {
    "phase": "2",
-   "step": "build",
-   "session": "session_017SdbwMPp5LNCQWUxwS2A3i",
-   "nonce": "2-b-c703",
-   "launchedAt": "2026-11-09T15:08:19Z",
-   "branch": "claude/plan-interaction-2-build",
+   "step": "check",
+   "session": "session_017SdbwPxxv4PqySmEKaQb85",
+   "nonce": "2-c-3487",
+   "launchedAt": "2026-11-09T19:33:01Z",
+   "merge": "d521e014ac0181467452e20541cd64aa813d8e80",
    "pr": 2321,
-   "head": "93e894937939916d373568bc0a0323d16de5e93a",
-   "note": "receipt 18:08Z green; capacity warn 83% (tests moved into existing files; real added time ~0.1-0.45 min recorded in phase notes). Stamp blocked: cloud-queue-merge.yml dispatches 42671380645, 42671641151, 42671949471 fail at startup with 0 jobs (workflow file unchanged, check:workflows OK); retry 18:28Z",
-   "stamped": "2026-11-09T19:2xZ on 93e8949 (66a0159 plus coordinator merge of main; the PR run on 66a0159 could not re-run Reviewed after a startup failure)",
-   "queued": true
+   "builder": "session_017SdbwMPp5LNCQWUxwS2A3i"
   }
  ],
  "owner": [
