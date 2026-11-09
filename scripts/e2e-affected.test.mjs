@@ -2104,7 +2104,7 @@ test('ci04: the catalog flag of a combined change is the union of its parts', ()
 // ── ci05: path selection (cicd-improvement P1b, AC-4) ─────────────────────────
 // Each case reproduces a reported narrowing first (the defect is the `readers: null` or old-shape
 // answer), then pins the corrected plan.
-import { ESCALATES_WITH_HEADERS, PATH_ROUTE_PAGES, checkoutReaders, readerIndex, readersOf } from './e2e-affected.mjs';
+import { ESCALATES_WITH_HEADERS, PATH_ROUTE_PAGES, SHORT_ROUTES, checkoutReaders, readerIndex, readersOf } from './e2e-affected.mjs';
 import { specRegexes } from './e2e-affected-copy.mjs';
 
 test('ci05: a rename contributes its old and its new path, committed or staged', () => {
@@ -2191,10 +2191,17 @@ test('ci05: readerIndex reads literal paths, routes and imports, and nothing it 
   assert.deepEqual(readersOf('e2e/fixtures/anything.svg', broken).specs, ['z.spec.ts']);
 });
 
-test('ci05: the path pages the planner extends match vite.config.ts', () => {
-  const declared = /const PATH_PAGES = \[([^\]]*)\]/.exec(readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8'))?.[1];
-  assert.ok(declared, 'PATH_PAGES moved in vite.config.ts');
-  assert.deepEqual([...declared.matchAll(/'\/([\w-]+)'/g)].map((m) => m[1]), PATH_ROUTE_PAGES);
+test('ci05: the path pages the planner extends match the dev server routing', async () => {
+  const routing = await import('./app-clean-url.mjs');
+  assert.deepEqual(routing.PATH_PAGES.map((p) => p.slice(1)), PATH_ROUTE_PAGES);
+  const short = {};
+  for (const [prefix, page] of Object.entries(routing.SHORT_PATHS)) (short[page.slice(1)] ??= []).push(prefix.slice(1, -1));
+  assert.deepEqual(short, SHORT_ROUTES);
+});
+
+test('ci05: join.html is read by a spec that opens the short /j/ link', () => {
+  const index = readerIndex(new Map([['e2e/short.spec.ts', "await page.goto('/j/friday-night-live');"], ['e2e/other.spec.ts', "await page.goto('/jx/nothing');"]]));
+  assert.deepEqual(readersOf('join.html', index).specs, ['short.spec.ts']);
 });
 
 test('ci05: output.html plans every spec that opens /output, not the one its header names', () => {

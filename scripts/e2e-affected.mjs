@@ -693,7 +693,7 @@ function resolveModule(base, read) {
  *     `page.evaluate`) names that repository file: the spec runs the module and asserts on it.
  * A root page `<name>.html` is read by every module with a literal (or template piece) that opens
  * its route: `/<name>`, alone or after a scheme and host, followed by `?`, `#`, `*`, `.html` or the
- * end (or `/` for `PATH_ROUTE_PAGES`). `/api/output` is not `/output`.
+ * end (or `/` for `PATH_ROUTE_PAGES`, and `/<short>/` for `SHORT_ROUTES`). `/api/output` is not `/output`.
  *
  * What it cannot see, stated: a path built at run time from parts (`join(dir, 'fixtures', name)`)
  * and a route assembled from a variable. Such a reader is not found; the file then plans what it
@@ -797,7 +797,7 @@ const MODULE_EXT = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 export function readersOf(file, index) {
   const page = /^([\w-]+)\.html$/.exec(file)?.[1];
   const route = page && page !== 'index'
-    ? new RegExp(String.raw`^(?:[a-z][\w+.-]*://[^/]*)?/${page}(?:[?#*]|\.html|$${PATH_ROUTE_PAGES.includes(page) ? '|/' : ''})`, 'i')
+    ? new RegExp(String.raw`^(?:[a-z][\w+.-]*://[^/]*)?/(?:${page}(?:[?#*]|\.html|$${PATH_ROUTE_PAGES.includes(page) ? '|/' : ''})${(SHORT_ROUTES[page] ?? []).map((short) => `|${short}/`).join('')})`, 'i')
     : null;
   const direct = [];
   for (const [from, list] of index.refs) {
@@ -807,11 +807,13 @@ export function readersOf(file, index) {
 }
 
 /**
- * The pages the dev server also serves under `/<name>/<segment>` (vite.config.ts `PATH_PAGES`), so a
- * route with a further segment opens them too. Any other `/<name>/...` is a different page (the
- * docs tree under `/docs/` is not docs.html). Pinned against vite.config.ts by a test.
+ * The pages the dev server also serves under `/<name>/<segment>` (scripts/app-clean-url.mjs
+ * `PATH_PAGES`), so a route with a further segment opens them too, and the short prefixes that open
+ * them as well (`SHORT_PATHS`: `/j/<name>` is the join page). Any other `/<name>/...` is a different
+ * page (the docs tree under `/docs/` is not docs.html). Pinned against that module by a test.
  */
 export const PATH_ROUTE_PAGES = ['join'];
+export const SHORT_ROUTES = { join: ['j'] };
 
 /** `readerIndex` over this checkout's e2e/ modules, read once per process. */
 let readerCache = null;

@@ -6,13 +6,24 @@
 
 const CLEAN_PAGES = ['/app', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/whats-new', '/roadmap'];
 
+// The pages also served under `/<name>/<segment>`: the join page reads its name off the path.
+// scripts/e2e-affected.mjs plans the specs that open these routes from the same two lists.
+export const PATH_PAGES = ['/join'];
+// Short prefixes for a path page: `/j/<name>` is the join page's short link (src/join/joinPath.ts).
+export const SHORT_PATHS = { '/j/': '/join' };
+
 /** The file a request is served from, or the URL unchanged. */
 export function cleanUrlPath(url) {
   if (!url) return url;
-  // The path forms of the join page keep their name in the URL the page reads it from, and their
-  // query, as Vercel's rewrites do: `/j/<name>` (the short link, src/join/joinPath.ts) and
-  // `/join/<name>` (the readable one).
-  if (/^\/j(?:oin)?\//.test(url)) return `/join.html${url.includes('?') ? url.slice(url.indexOf('?')) : ''}`;
+  // A path form keeps its name in the URL the page reads it from, and its query, as Vercel's
+  // rewrites do.
+  const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
+  for (const [prefix, page] of Object.entries(SHORT_PATHS)) {
+    if (url.startsWith(prefix)) return `${page}.html${query}`;
+  }
+  for (const page of PATH_PAGES) {
+    if (url.startsWith(page + '/')) return `${page}.html${query}`;
+  }
   for (const page of CLEAN_PAGES) {
     if (url === page || url.startsWith(page + '?')) return `${page}.html` + (url.slice(page.length) || '');
   }
