@@ -1,7 +1,7 @@
 # Future planned-run readiness
 
 This is preparation guidance. No example below authorizes or starts a real plan.
-Keep the owner's original deadline/target, scope, phase set and acceptance throughout.
+Keep the owner's original date (if he gave one), scope, phase set and acceptance throughout.
 
 Timezone-free owner dates and times use `Europe/Helsinki`, including today/tomorrow.
 Resolve the date's daylight-saving offset and report it; pass explicit-offset ISO
@@ -44,10 +44,11 @@ his words. An environment that starts `OW:` marks an owner phase: `next` answers
 `owner` (hand it over, wait on him) instead of launching its build. `/plan-create`
 writes this file.
 
-Only explicit owner words in `standing.untilComplete` make the finite `deadline` a planning
-target. This option is valid only for continuing plans, never ordinary waves. Record a target
-from the owner or an explicitly authorized start +14-day default; never persist Infinity or
-rewrite dates on renewal. `blockRenewal` is separate permission. Existing fixed-date projects
+With no date from the owner, omit `deadline`: the run lasts until its phases are done, and
+the wave file reads `Window ends: when-complete` (`--until when-complete`). Never invent a date.
+Only explicit owner words in `standing.untilComplete` make a date he gave a planning target.
+Both options are valid only for continuing plans, never ordinary waves. Never persist Infinity
+or rewrite dates on renewal. `blockRenewal` is separate permission. Existing fixed-date projects
 remain fixed; do not retrofit this option into an already published authorization.
 
 Preserve every phase object and its additional plan data. Dependencies reference
@@ -57,7 +58,7 @@ do not replace hardware, OS, performance or human acceptance with cloud fixtures
 
 `wave-plan-store --open ... --project <json>` creates the continuing wave file in
 the existing job store, with its immutable authorization and copied phase titles.
-It starts paused. Use that same file and deadline on every restart. Different
+It starts paused. Use that same file and `--until` on every restart. Different
 project IDs must not be used to escape an unfinished run. Existing short legacy
 windows still load; adding continuing metadata to one requires an explicit
 reviewed migration preserving its original phases/events/authorization. The
@@ -70,7 +71,7 @@ Packet/adapter/recovery requirements remain in the native-recovery runbook.
 Start a block with `run-supervisor.mjs start-block <db> <id> <json-file>` where the
 JSON contains `owner`, `deadline` and `evidence` of reconciliation. A block lasts
 at most 24 hours and, for fixed-date plans, ends no later than the project deadline. An
-until-complete plan can open such blocks after its target, under unchanged authority. Save the returned
+until-complete plan, dated or not, keeps opening such blocks under unchanged authority. Save the returned
 block's `id`, `owner` and `epoch` as the authority receipt for phase recording.
 On one host an active block cannot be replaced by a competing caller. An old
 receipt becomes invalid after resume. With a standing `blockRenewal`,
@@ -206,7 +207,7 @@ The previous coordinator needs nothing. Its next `record`, `next` or `tick` answ
 
 ## Checklist before any future planned run
 
-1. Current owner authorization: finite deadline/target, explicit duration policy, immutable scope, complete phases,
+1. Current owner authorization: his date if he gave one (none: until complete), explicit duration policy, immutable scope, complete phases,
    dependencies, criteria and required acceptance environments.
 2. Separate landed preflights and a fresh delegated context; record actual shell,
    child, network and policy evidence. Resolve every prerequisite once.

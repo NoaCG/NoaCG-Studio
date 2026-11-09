@@ -32,12 +32,13 @@ const state = () => ({ version: 1, project: 'plan-fixture-2026-10-29', plan: 'fi
   authorization: { line: 'Run the fixture plan until Friday.', deadline: iso(NOW + 72 * HOUR) },
   brief: { read: 'docs/fixture-plan.md;', rules: 'The fixture switch stays off.' } });
 
-function fixture(t) {
+function fixture(t, { undated = false } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'plan-kit-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const p = project();
-  const { file } = openWave({ date: '2026-10-29', kind: 'plan-fixture', until: p.authorization.deadline, project: p, dir, now: NOW });
-  initKit(file, state());
+  const p = project(), s = state();
+  if (undated) { delete p.authorization.deadline; delete s.authorization.deadline; }
+  const { file } = openWave({ date: '2026-10-29', kind: 'plan-fixture', until: p.authorization.deadline ?? 'when-complete', project: p, dir, now: NOW });
+  initKit(file, s);
   return { dir, file };
 }
 
@@ -151,6 +152,20 @@ test('completion authority schedules after the target but keeps worker briefs bo
   const body = heartbeat(file, later);
   assert.match(body, /planning target .*continue until complete/);
   assert.doesNotMatch(body, /the run ends/);
+});
+
+test('a run the owner gave no date names no target, and briefs and check-ins stay inside the block', (t) => {
+  const { file } = fixture(t, { undated: true }), text = readFileSync(file, 'utf8'), p = readProject(text, NOW);
+  const later = NOW + 400 * 24 * HOUR;
+  p.status = 'active';
+  p.block = { id: 'later-block', owner: 'same-owner', epoch: 2, startedAt: iso(later), deadline: iso(later + HOUR) };
+  writeFileSync(file, writeProject(text, p));
+  assert.equal(checkin({ action: 'wait' }, state(), p, later).at, iso(later + 30 * MINUTE));
+  assert.equal(checkin({ action: 'wait' }, { ...state(), waitingOn: { eta: iso(later + 4 * HOUR) } }, p, later).at, p.block.deadline);
+  assert.ok(renderBrief(file, 'build', 'E1', { SOURCE }).text.includes(`Authorized window ends ${p.block.deadline}`));
+  const body = heartbeat(file, later);
+  assert.match(body, /continue until complete/);
+  assert.doesNotMatch(body, /planning target|the run ends|undefined/);
 });
 
 test('explicit Codex kits use owned absolute worktrees and Codex briefs; legacy defaults stay Claude', (t) => {
