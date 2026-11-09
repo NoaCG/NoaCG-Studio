@@ -16,8 +16,8 @@ issue or arm triggers. This overrides plan-create's automatic handover.
 
 ## Before start
 
-1. The owner has decided D1 to D6 in the spec, the spec records his answers, and `work.json` reads
-   `agreed` with his words.
+1. D1 to D6 are decided and recorded in the spec (2026-11-09). After the third second opinion the
+   owner settles the plan, and `work.json` reads `agreed` with his words.
 2. The interaction run has finished (the owner: "to start after the current interaction tab run").
 3. Ask the owner, once, only what is missing: the authorization line (scope, start, an end date only
    if he gives one) and standing permissions in his words. Already given: "Our database migration

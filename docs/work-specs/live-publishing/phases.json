@@ -21,7 +21,7 @@
         "e2e/"
       ],
       "checks": [],
-      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -46,7 +46,7 @@
         "docs/work-specs/live-publishing/evidence/"
       ],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -78,7 +78,7 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "R1, R2; needs D2. Keep two fast Nexts in press order; if that needs the wait, stop and report. Placement must also work in Chromium 71: es2017, no ?. or ?? inside template code. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "R1, R2; applies D2. Keep two fast Nexts in press order; if that needs the wait, stop and report. Placement must also work in Chromium 71: es2017, no ?. or ?? inside template code. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -106,7 +106,7 @@
         "src/components/home/"
       ],
       "checks": [],
-      "notes": "R3, R4, O5 adoption, the Update button. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "R3, R4, O5 adoption, the Update button. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -132,7 +132,7 @@
         "src/control/prepareLive.ts"
       ],
       "checks": [],
-      "notes": "R7 and the three reported versions of R9; needs D4. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "R7 and the three reported versions of R9; applies D4. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -162,7 +162,7 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "R5, R6, R8; needs D3 and D6. A migration touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Test old and new writers at the same time. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "R5, R6, R8; applies D3 and D6. A migration touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Test old and new writers at the same time. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -188,7 +188,7 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "R11. Outputs opened before this keep reading inline images. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "R11. Outputs opened before this keep reading inline images. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -213,7 +213,7 @@
         "docs/CLOUD_PLAYOUT.md"
       ],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -244,7 +244,7 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "O1, O2, O3, O7, R9, R10; needs D1. Check now stays. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "O1, O2, O3, O7, R9, R10; applies D1. Check now stays. Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -266,7 +266,7 @@
       ],
       "touches": [],
       "checks": [],
-      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets an open owner decision (D1 to D6) that is not recorded as decided in the spec, stop and ask."
+      "notes": "Make no change that risks reliable playout. Open outputs and open pages keep working across this phase. Measure against the spec section \"How things are measured\". If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   }
 ]

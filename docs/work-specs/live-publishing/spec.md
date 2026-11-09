@@ -1,7 +1,8 @@
 # Publishing while live
 
 Status: owner decisions of 2026-11-09 (issue #2303), revised after two second opinions (both grade
-C). Draft: six owner decisions are open (see "Open owner decisions"). Not built. Plan name
+C). Owner decisions D1 to D6 settled the same day ("All as recommended"). Draft until a third
+second opinion. Not built. Plan name
 `live-publishing`, preparation only: see `runbook.md`.
 
 ## Why
@@ -62,8 +63,7 @@ load an update. A Take does not download the production; it carries the cue's va
 - **O6. Take sends one command; the output plays what it already holds.** No lookups or waits on the
   way.
 - **O7. Never block a Take.** A Take of a graphic an output is still loading plays there once it is
-  loaded, with a "Loading" mark on the cue meanwhile. How long it may wait, and what an updated
-  graphic does meanwhile, is open (D1).
+  loaded, with a "Loading" mark on the cue meanwhile, within D1's limits.
 - **O8. Live adjustments belong to the production page**, never the editor, ready at once.
 - **O9. Send only what changed, publishing and saving alike.** Same storage, small patches. Each image
   is uploaded once. "Our database migration is fine" if one is needed.
@@ -74,30 +74,32 @@ load an update. A Take does not download the production; it carries the cue's va
   page is removed (`docs/work-specs/retire-hosted-control/spec.md`, #2301).
 - **O13. Separating the production page** is a later plan, only if shown safer or faster (#2317).
 
-## Open owner decisions
+## Owner decisions D1 to D6 (settled 2026-11-09: "All as recommended")
 
-Each has a recommendation; none is decided until the owner says so.
+Each was put to the owner with a recommendation; he accepted every recommendation. On D1 he added:
+"I hope that's just a theoretical maximum." The 5 s is a ceiling, not an expected wait; phase 2
+measures real load times.
 
 - **D1. A Take while an output is still loading.** (a) A brand-new graphic: how long may the Take be
-  held before it is dropped and the light turns red? Recommended: 5 s. (b) An updated graphic whose
+  held before it is dropped and the light turns red? **Decided: 5 s.** (b) An updated graphic whose
   old design is ready and new design still loading: play the old design now, or wait for the new?
-  Recommended: play the old design now, and say "Scorebug aired its previous design".
+  **Decided: play the old design now, and say "Scorebug aired its previous design".**
 - **D2. Refusals under "never block a Take".** Today a Take is refused, with a note, when its typed
   data is invalid (`src/control/graphicVerbs.ts:679`) or when it was pressed on a stale view of air
-  (`supabase/migrations/0071_command_sequence.sql:431`). Recommended: keep both. They stop wrong
+  (`supabase/migrations/0071_command_sequence.sql:431`). **Decided: keep both.** They stop wrong
   air; they are refusals, not waits.
 - **D3. Pages opened before phase 6 lands.** They still publish the library's design
-  (`src/control/hostedControl.ts:473`), which would break O4. Recommended: they keep taking and
-  editing cues, but their publishes are refused with "Reload this page to publish".
+  (`src/control/hostedControl.ts:473`), which would break O4. **Decided: they keep taking and
+  editing cues, but their publishes are refused with "Reload this page to publish".**
 - **D4. Forgetting outputs.** Today an output stays expected until someone presses Forget
-  (`src/control/readiness.ts:463,493`), so a lost one keeps the light red. Recommended: keep that;
-  never forget automatically.
+  (`src/control/readiness.ts:463,493`), so a lost one keeps the light red. **Decided: keep that;
+  never forget automatically.**
 - **D5. Optional work out of this run.** Smaller graphic code (one engine per output, no comments)
-  and preloading CasparCG server cues add risk for unproven gain. Recommended: move both to their
-  own follow-ups, started only if this run's measurements justify them.
-- **D6. Changes not yet sent when the browser fails.** Recommended: they stay in the browser's own
+  and preloading CasparCG server cues add risk for unproven gain. **Decided: move both to their own
+  follow-ups, started only if this run's measurements justify them.**
+- **D6. Changes not yet sent when the browser fails.** **Decided: they stay in the browser's own
   storage and are sent when the production page opens again on that device; a lost device loses
-  them (the owner accepted laptop loss).
+  them** (the owner accepted laptop loss).
 
 ## Requirements
 
@@ -264,7 +266,7 @@ owner walk, receipt in `evidence/`.
 ## Phases
 
 One pull request each, landed with `/queue-merge`, adding its notes to `## Phase notes`. A phase
-that meets an open decision (D1 to D6) stops and asks.
+that meets a behaviour choice the owner has not decided stops and asks.
 
 1. **Retire the hosted control page.** Its own spec, AC-1 to AC-5.
 2. **Measure.** No product change. Every timing and byte count above, on both fixtures, for today's
@@ -272,19 +274,19 @@ that meets an open decision (D1 to D6) stops and asks.
    without a preset, a server cue), Take latency during a publish, bytes per cue edit, graphic add
    and design update (publish and save), output start and update time. The baseline for every
    target.
-3. **A Take never waits.** R1, R2. AC-1, AC-2. Needs D2.
+3. **A Take never waits.** R1, R2. AC-1, AC-2. Applies D2.
 4. **The production's copy is the only truth.** R3, R4, O5. AC-3, AC-4.
-5. **Outputs reconcile, and report truthfully.** R7, the three versions of R9. AC-5. Needs D4.
-6. **Send only what changed.** R5, R6, R8. AC-6, AC-7, AC-9. Needs D3, D6.
+5. **Outputs reconcile, and report truthfully.** R7, the three versions of R9. AC-5. Applies D4.
+6. **Send only what changed.** R5, R6, R8. AC-6, AC-7, AC-9. Applies D3, D6.
 7. **Images stored once.** R11. AC-8.
 8. **Five people at once.** AC-10, before automatic updates are switched on.
 9. **Updates by themselves, held Takes, and the light.** O1, O2, O3, O7, R9, R10. AC-11, AC-12.
-   Needs D1.
+   Applies D1.
 10. **The studio walk (owner).** AC-13.
 
-Follow-ups if D5 is accepted (otherwise phases 11 and 12 of this run, each only after phase 2's
-numbers justify it, the preload with real CasparCG 2.5 evidence before it lands): smaller graphic
-code, and preloading CasparCG server cues on a spare slot that never touches an on-air template.
+Follow-ups outside this run (D5), each started only if phase 2's numbers justify it: smaller graphic
+code, and preloading CasparCG server cues on a spare slot that never touches an on-air template,
+with real CasparCG 2.5 evidence before it lands.
 
 ## Phase notes
 
