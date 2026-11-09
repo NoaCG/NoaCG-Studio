@@ -500,10 +500,12 @@ held 12 `cap+cfg` merges (by merge time, #2264 included) in about 2.9 days, abou
 2026-11-07, 2 on 2026-11-08, and 2 of 15 merges on Monday 2026-11-09. The 24 a day of section 7.4
 (2026-11-03 to 2026-11-06) has not held since. At about 4 a day a new before side reaches 10
 around 2026-11-12; the re-run would then land and need 10 more `cap+cfg` merges on its after side
-within about a day and a half (about 6 expected), with no side-ending landing in between (two
-arrived in the same 2.9 days). The coordinator decided to record it now (2026-11-09, reversible if
-the owner says so). Waiting would hold side-ending landings for four more days for a reading that
-cannot reach the minimum.
+within about a day and a half (about 6 expected), with no side-ending landing in between (one
+more, #2321, arrived in the same 2.9 days). The weekday part of this rests on one Monday; had
+the weekday rate gone back toward 24 a day the bound could still have been reached, which is why
+the decision is reversible. The coordinator decided to record it now (2026-11-09, reversible if
+the owner says so). Waiting would keep the trial open four more days, and then hold side-ending
+landings for about a day and a half, for a reading that cannot reach the minimum.
 
 The re-run is recorded unmeasured with before 10 and after 0, and its code does not land: this PR
 now changes only this file. The after-side hold ends with it.
@@ -521,8 +523,10 @@ now changes only this file. The after-side hold ends with it.
 Every tried candidate (three) is unmeasured, so under acceptance (a) cf13 **passes with the
 negative result recorded**: no candidate showed M1 or M3 lower beyond cf03's spread. **The speed
 goal stays open**, and cf20 reports it as open. What blocked measurement was not the candidates
-but the side rule against today's landing rate: side-ending landings arrive every few hours
-(16 in 3 days, section 7.4), and the hold could not stop all of them.
+but the side rule against the landing pattern. For the first and second tries, side-ending
+landings arrived every few hours (16 in 3 days, section 7.4), and the hold could not stop all of
+them. For the third, `cap+cfg` merges themselves fell from about 24 a day to about 4 (section
+8.1), so even one side-ending landing (#2321) left no time to collect both sides.
 
 (b) is met as recorded in section 3 and landed in #2171.
 
