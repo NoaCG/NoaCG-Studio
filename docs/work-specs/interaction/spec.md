@@ -512,6 +512,11 @@ and the quota row and deletes the bucket once empty.
   local or self-hosted build hands out its own origin, so the link always opens the page that made
   it (`src/join/joinPath.ts`). Links shows the same short link; `/join/<name>` and `/join?p=<slug>`
   keep working.
+- The look (colours, font and logo) also reaches phones without a publish: Interaction keeps the
+  phone page in step with the production as saved (rules P1 to P5), so a look edit shows on phones
+  on their next read while the publish status still counts it as unpublished for the graphics.
+  The phone page is not air, and AC-6 asks for the look on the next read; publishing it with the
+  graphics would make phones lag the production's own settings.
 - Title, waiting text and the logo's URL travel in the join state's existing `brand` value (no new
   column): publish writes it, and a change made while Interaction is open is sent through
   `audience_set_join`'s `brand` key, which merges on the server. Publish now uses that call too,

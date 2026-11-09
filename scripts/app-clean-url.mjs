@@ -1,6 +1,6 @@
 // The dev and preview servers' clean URLs: the same pages Vercel serves through `cleanUrls` and
 // the rewrites in vercel.json. vite.config.ts installs it, and a test that serves a built page
-// (e2e/configured/join-cold-load.spec.ts) uses it too, so both route exactly alike.
+// (the cold-load test in e2e/configured/audience-live.spec.ts) uses it too, so both route exactly alike.
 //
 // Twelve pages; Terms and Privacy are public pages for the optional hosted service.
 

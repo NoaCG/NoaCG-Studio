@@ -90,6 +90,12 @@ export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number
           logoFailed = error;
         }
         if (!current()) return;
+        // Not knowing what phones have AND not being able to publish the logo: sending now could
+        // clear a logo phones have, so nothing goes and the failure is reported (P4).
+        if (logoFailed && !now) {
+          io.onError?.(logoFailed);
+          return;
+        }
         const brand = joinPageBrand(show, logo);
         if (sameBrand(brand, now)) {
           if (logoFailed) io.onError?.(logoFailed);

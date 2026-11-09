@@ -63,8 +63,8 @@ rules P1 to P4 (phase notes) were written first; `src/control/joinPageSync.ts` i
 `scripts/join-page-sync.test.mjs` drives it with a fake server and production (no send when phones
 match, a change sent with nobody left to ask, several changes send the last one once, a superseded
 slow upload is never sent, a logo that cannot be published keeps the one phones have while the
-words still go, a known logo is not uploaded again, and publish waits for the queue and ends on
-the latest saved page).
+words still go, nothing is sent when neither what phones have nor the logo can be had, a known
+logo is not uploaded again, and publish waits for the queue and ends on the latest saved page).
 Mutation: removing the superseded-work check before sending fails the slow-upload test.
 
 ## Checks run on this machine

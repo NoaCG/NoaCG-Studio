@@ -98,6 +98,19 @@ test('P4: a logo that cannot be published keeps the one phones have, and the wor
   assert.equal(state.errors.length, 1, 'and the failure is reported');
 });
 
+test('P4: when what phones have cannot be read and the logo cannot be published, nothing is sent', async () => {
+  const { show, state, io } = rig({ server: page('Quiz Night', 'https://x/kept.png') });
+  show.joinPage = { title: 'New title' };
+  io.readBrand = async () => null;
+  io.publishLogo = async () => {
+    throw new Error('offline');
+  };
+  syncJoinPage(show.id, io, 0);
+  await joinPageSyncSettled(show.id);
+  assert.deepEqual(state.sends, [], 'a send now could clear the logo phones have');
+  assert.equal(state.errors.length, 1);
+});
+
 test('the logo phones have is handed to the publisher, so a known file is not uploaded again', async () => {
   const { show, state, io } = rig({ server: page('Quiz Night', 'https://x/same.png') });
   const asked = [];
