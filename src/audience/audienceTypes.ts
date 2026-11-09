@@ -188,7 +188,7 @@ export interface AudienceBrand {
   waiting?: string | null;
 }
 
-export { JOIN_PAGE_LIMITS } from '../model/joinPage';
+export { JOIN_PAGE_LIMITS } from '../model/joinPage.ts';
 
 /** What phones show while no question is live, unless the operator wrote their own. */
 export const JOIN_WAITING_DEFAULT = 'Not taking part right now. Keep this page open, it updates by itself.';
