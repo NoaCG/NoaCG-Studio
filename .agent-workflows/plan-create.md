@@ -27,23 +27,24 @@ A plan run needs explicit authorization. Reuse the owner's still-applicable reco
 and plan launch receipt; do not ask again. Without them, an unattended session stops with one
 request. Ask only missing outcome decisions, one at a time, and record each answer verbatim:
 
-- **The authorization line:** scope, actual start and finite deadline or planning target. Timezone-free times are
+- **The authorization line:** scope, actual start, and an end date only if he gives one. With no date
+  the run lasts until its phases are done; never invent one. Timezone-free times are
   `Europe/Helsinki`; report the resolved date, time and offset.
 - **Standing permissions**, each his words or absent, never inferred: `blockRenewal` (open the next
-  24-hour block yourself), `untilComplete` (continue the same scope beyond the planning target),
-  production migrations, and anything else he grants. A date alone never grants until-complete.
+  24-hour block yourself), `untilComplete` (when he gave a date: continue the same scope past it, so the date is a planning
+  target), production migrations, and anything else he grants. A date alone never grants until-complete.
 - **The phase list**, when it differs from the spec's order or scope.
 
 ## 3. Write the project
 
 - Before creating runtime state, qualify the chosen native coordinator, fresh workers and real
   wake/re-entry as plan-run requires. Missing capabilities stop here; no provider substitution.
-- With explicit `untilComplete`, use the owner's target or authorized start +14-day default;
-  retain that immutable date throughout. Without it, the finite date is a hard deadline.
+- No date from the owner: omit `deadline`; the run ends when its phases pass. A date he gave is a
+  hard deadline, or a planning target with `untilComplete`; keep it unchanged throughout.
 - The project JSON from the runbook: id `plan-<plan>-<first-date>`, `ownership`, `authorization`
-  (`source`, `scope`, `permissionPolicy` with its evidence, `startedAt`, `deadline`, and `standing`
-  holding his words), `status: "paused"` and the phases.
-- `node scripts/wave-plan-store.mjs --open <first-date> plan-<plan> --until <deadline> --project <json>`
+  (`source`, `scope`, `permissionPolicy` with its evidence, `startedAt`, his `deadline` if any, and
+  `standing` holding his words), `status: "paused"` and the phases.
+- `node scripts/wave-plan-store.mjs --open <first-date> plan-<plan> --until <deadline | when-complete> --project <json>`
   writes the wave file, paused, with the phases copied.
 - Register the manifest with its recovery block: `node scripts/run-supervisor.mjs register <db> <manifest.json>`,
   same id and authorization. Then `node scripts/run-supervisor.mjs start-block <db> <id> <block.json>`
@@ -53,7 +54,7 @@ request. Ask only missing outcome decisions, one at a time, and record each answ
 
 - `state.json`: `version: 1`, `project`, `plan`, `spec`, `issue`, `coordinator` (`session`,
   `environment`, `return`: how a worker sends its receipt back), `authorization` (`line` verbatim,
-  `deadline`, `standing`), `brief` (`read` and `rules` every worker of this plan needs, such as a
+  `deadline` if any, `standing`), `brief` (`read` and `rules` every worker of this plan needs, such as a
   production switch that stays off), `branchPrefix`, and the running fields `waitingOn`,
   `inFlight`, `owner`, `fixes` and `triggers`.
 - `node scripts/plan-kit.mjs init <wave> <state.json>` creates `<wave>.kit/` with the build, check,

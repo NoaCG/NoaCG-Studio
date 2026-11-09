@@ -5,7 +5,7 @@ import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readdirSync,
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
-import { authorizationEnd, digest, immutableProject, readProject, untilComplete, validateAuthorization } from './project-authorization.mjs';
+import { authorizationEnd, digest, immutableProject, readProject, untilComplete, validateAuthorization, windowEndValue } from './project-authorization.mjs';
 import { PLAN_RUN_KIND } from './wave-plan-store.mjs';
 import { RECOVERY_BRANCH_PREFIX, recoveryCheckpointBranch } from './recovery-branch.mjs';
 
@@ -102,9 +102,7 @@ function validateState(doc, ledger) {
       || !['active', 'finished', 'cancelled', 'expired'].includes(doc.status)
       || !Number.isSafeInteger(doc.sequence) || doc.sequence < 0 || !auth
       || !['source', 'scope', 'permissionPolicy'].every((key) => required(auth[key]))
-      || !Number.isFinite(Date.parse(auth.startedAt)) || !Number.isFinite(Date.parse(auth.deadline))
-      || Date.parse(auth.deadline) <= Date.parse(auth.startedAt)
-      || (m.kind !== 'plan' && Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000)
+      || !Number.isFinite(Date.parse(auth.startedAt))
       || !doc.packet || doc.packet.objective !== m.packet.objective
       || JSON.stringify(doc.packet.acceptance) !== JSON.stringify(m.packet.acceptance)) throw new Error('Invalid durable run state');
   validateAuthorization(auth, { now: Date.parse(auth.startedAt), kind: m.kind, open: false });
@@ -112,9 +110,9 @@ function validateState(doc, ledger) {
   if (!project && (doc.projectState || doc.projectAuthorization)) throw Error('Recovery project metadata missing');
   if (project && (immutableProject(project) !== doc.projectAuthorization || digest(project) !== doc.projectState
       || project.id !== m.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Restored project authorization or state differs');
-  if (!project && (Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000 || untilComplete(auth))) throw Error('Multi-day or until-complete recovery requires explicit continuing project metadata');
+  if (!project && (untilComplete(auth) || Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000)) throw Error('Multi-day or until-complete recovery requires explicit continuing project metadata');
   if (/^Window starts: (\S+)/m.exec(ledger)?.[1] !== auth.startedAt
-      || /^Window ends: (\S+)/m.exec(ledger)?.[1] !== auth.deadline) throw new Error('Recovery ledger authorization differs');
+      || /^Window ends: (\S+)/m.exec(ledger)?.[1] !== windowEndValue(auth)) throw new Error('Recovery ledger authorization differs');
   if (doc.pending && (doc.pending.id !== `${m.id}:${doc.sequence}` || !Number.isSafeInteger(doc.pending.attempts)
       || doc.pending.attempts < 0 || doc.pending.attempts > 3 || !Number.isFinite(doc.pending.retryAt))) throw new Error('Invalid unresolved delivery intent');
   if (doc.pending && (!doc.pending.packet || doc.pending.requestSha256 !== sha(JSON.stringify({

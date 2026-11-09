@@ -13,7 +13,7 @@ import { activeProject, adoptAccepted, assertCurrent, sameRepository, deliveredR
 import { repoFromRemote } from './ci-failure-set.mjs';
 import { reconcileNative } from './native-recovery-contract.mjs';
 import { planLaunchBinding, planLaunchIntent } from './plan-launch.mjs';
-import { DAY_MS, authorizationEnd, digest, immutableProject, phaseRow, projectBoundary, readProject, untilComplete, validateAuthorization, writeProject } from './project-authorization.mjs';
+import { DAY_MS, authorizationEnd, digest, immutableProject, phaseRow, projectBoundary, readProject, sameWindowEnd, untilComplete, validateAuthorization, writeProject } from './project-authorization.mjs';
 import { admitPhases, changeProject, checkAdmission, checkBlock, checkedProject, checkpointReceipt, hasInFlight } from './project-control.mjs';
 
 export const PACKET_BYTES = 16 * 1024;
@@ -89,7 +89,7 @@ export function registerRun(db, manifest, now = Date.now()) {
   }
   const auth = manifest.authorization;
   if (!auth || !required(auth.source) || !required(auth.scope) || !required(auth.permissionPolicy)
-      || !iso(auth.startedAt) || !iso(auth.deadline)) throw new Error('Explicit authorization and permission policy required');
+      || !iso(auth.startedAt) || (auth.deadline !== undefined && !iso(auth.deadline))) throw new Error('Explicit authorization and permission policy required');
   const { start, end } = validateAuthorization(auth, { now, kind: manifest.kind });
   validatePacket(manifest.packet);
   if (!path.isAbsolute(manifest.wave) || !path.isAbsolute(manifest.adapter?.command ?? '')
@@ -104,7 +104,7 @@ export function registerRun(db, manifest, now = Date.now()) {
   const project = readProject(text, now);
   if ((end - start > MAX_WINDOW_MS || untilComplete(auth)) && !project) throw Error('Multi-day or until-complete plans require explicit continuing project metadata');
   if (project && (manifest.kind !== 'plan' || project.id !== manifest.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Manifest differs from original project authorization');
-  if (windowStart(text) !== start || Date.parse(WINDOW_END.exec(text)?.[2] ?? '') !== end) throw new Error('Wave window differs from authorization');
+  if (windowStart(text) !== start || !sameWindowEnd(WINDOW_END.exec(text)?.[2], auth)) throw new Error('Wave window differs from authorization');
   if (REPORT_HEADING.test(text)) throw new Error('Wave already reported');
   return ledgerTransaction(db, normalized.wave, (wrote) => {
     if (project) {

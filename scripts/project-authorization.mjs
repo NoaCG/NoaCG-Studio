@@ -12,9 +12,17 @@ export function instant(value) {
   return time;
 }
 
-/** Only explicit owner words make a plan's date a target. Persist no Infinity or moving deadline. */
-export const untilComplete = (auth) => nonempty(auth?.standing?.untilComplete);
+/** The ledger's `Window ends:` value for a plan the owner gave no date: it runs until its phases are done. */
+export const WHEN_COMPLETE = 'when-complete';
+/** A plan with no date runs until complete. A date stays a hard deadline unless the owner's
+ * words in `standing.untilComplete` make it a planning target. Persist no Infinity or moving deadline. */
+export const undated = (auth) => Boolean(auth) && auth.deadline === undefined;
+export const untilComplete = (auth) => undated(auth) || nonempty(auth?.standing?.untilComplete);
 export const authorizationEnd = (auth) => untilComplete(auth) ? Infinity : instant(auth?.deadline);
+/** The `Window ends:` value a ledger records for this authorization. */
+export const windowEndValue = (auth) => undated(auth) ? WHEN_COMPLETE : auth.deadline;
+/** Whether a recorded `Window ends:` value matches this authorization. */
+export const sameWindowEnd = (value, auth) => undated(auth) ? value === WHEN_COMPLETE : instant(value) === instant(auth?.deadline);
 
 export function validateAuthorization(auth, { now = Date.now(), open = true, kind = 'plan' } = {}) {
   if (!['plan', 'wave'].includes(kind)) throw Error('Authorization kind must be plan or wave');
@@ -22,10 +30,11 @@ export function validateAuthorization(auth, { now = Date.now(), open = true, kin
   // Standing permissions (block renewal, migrations, auto-merge) are the owner's words, kept verbatim.
   if (auth.standing !== undefined && (!auth.standing || typeof auth.standing !== 'object' || Array.isArray(auth.standing)
       || !Object.keys(auth.standing).length || Object.values(auth.standing).some((words) => !nonempty(words)))) throw Error('Standing permissions are the owner\'s words, one line each');
+  if (undated(auth) && kind !== 'plan') throw Error('A wave needs its end date');
   if (untilComplete(auth) && kind !== 'plan') throw Error('Until-complete permission is only for continuing plans, never waves');
-  const start = instant(auth.startedAt), end = instant(auth.deadline);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start > now
-      || (open && now >= authorizationEnd(auth))) throw Error('Original finite authorization is invalid or expired');
+  const start = instant(auth.startedAt), end = undated(auth) ? Infinity : instant(auth.deadline);
+  if (!Number.isFinite(start) || Number.isNaN(end) || end <= start || start > now
+      || (open && now >= authorizationEnd(auth))) throw Error('Original authorization is invalid or expired');
   if (kind !== 'plan' && end - start > DAY_MS) throw Error('A wave remains limited to 24 hours');
   return { start, end };
 }
@@ -63,7 +72,7 @@ export function readProject(text, now = Date.now()) {
   try { project = JSON.parse(LINE.exec(text)?.[1]); } catch { throw Error('Unreadable project metadata'); }
   validateProject(project, now);
   if (instant(/^Window starts: (\S+)/m.exec(text)?.[1]) !== instant(project.authorization.startedAt)
-      || instant(/^Window ends: (\S+)/m.exec(text)?.[1]) !== instant(project.authorization.deadline)) throw Error('Project deadline differs from original authorization');
+      || !sameWindowEnd(/^Window ends: (\S+)/m.exec(text)?.[1], project.authorization)) throw Error('Project deadline differs from original authorization');
   const section = /^## Phases[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m.exec(text.replace(/\r\n/g, '\n'))?.[1] ?? '';
   const titles = [...section.matchAll(/^\d+\.\s+(.+)$/gm)].map((m) => m[1].trim());
   if (JSON.stringify(titles) !== JSON.stringify(project.phases.map((p) => p.title))) throw Error('Authorized phase set or order changed');

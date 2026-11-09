@@ -52,7 +52,7 @@ export function checkState(state) {
     ['coordinator.return (how a worker sends its receipt back)', nonempty(state?.coordinator?.return)],
     ['coordinator.environment', nonempty(state?.coordinator?.environment)],
     ['authorization.line (the owner\'s words, verbatim)', nonempty(state?.authorization?.line)],
-    ['authorization.deadline (ISO with offset)', Number.isFinite(instant(state?.authorization?.deadline))],
+    ['authorization.deadline (ISO with offset), or none for a run until complete', state?.authorization?.deadline === undefined || Number.isFinite(instant(state.authorization.deadline))],
   ].filter(([, ok]) => !ok).map(([what]) => what);
   if (missing.length) throw Error(`state.json needs ${missing.join(', ')}`);
   return state;
@@ -203,7 +203,7 @@ export function heartbeat(wave, now = Date.now()) {
     '',
     `- **Next:** ${step}${next.why ? `: ${next.why}` : ''}`,
     `- **Phases passed:** ${passed} of ${total}`,
-    `- **Window:** ${block}; ${untilComplete(project?.authorization) ? `planning target ${project.authorization.deadline}; continue until complete` : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline}`}`,
+    `- **Window:** ${block}; ${untilComplete(project?.authorization) ? `${project.authorization.deadline ? `planning target ${project.authorization.deadline}; ` : ''}continue until complete` : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline}`}`,
     `- **Waiting on:** ${state.waitingOn?.what ? `${state.waitingOn.what}${state.waitingOn.eta ? `, due ${state.waitingOn.eta}` : ''}` : 'nothing outside the ledger'}`,
     `- **Next check-in:** ${due.at ? `${due.at} (${due.why})` : `none (${due.why})`}`,
     '',
