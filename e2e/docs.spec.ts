@@ -122,6 +122,33 @@ test('on a phone the nav above the text stays five topics and unfolds only on a 
   await expect(nav.locator('a[href="#tickers"]')).toBeVisible();
 });
 
+test('the Companion setup guide is readable on a phone and links to the module', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs');
+  await page.getByRole('button', { name: 'Pages under Run the show' }).click();
+  const link = page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Stream Deck with Companion' });
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(page).toHaveURL(/\/docs#companion$/);
+
+  const guide = page.locator('#companion');
+  await expect(guide.getByRole('heading', { name: 'Set up a Stream Deck with Companion' })).toBeInViewport();
+  await expect(guide.getByRole('listitem')).toContainText([
+    'Modules, press Import module package',
+    /Stream Deck panel…[\s\S]*Pair a panel/,
+    'NoaCG: NoaCG Studio',
+    'Buttons, open Presets',
+  ]);
+  expect(await guide.evaluate((section) => section.scrollWidth - section.clientWidth)).toBeLessThanOrEqual(0);
+
+  await guide.getByRole('link', { name: 'Download the Companion module' }).click();
+  await expect(page).toHaveURL(/\/downloads#companion$/);
+  await expect(page.getByTestId('companion-download')).toHaveAttribute(
+    'href',
+    /^https:\/\/github\.com\/NoaCG\/NoaCG-Studio\/releases\b/,
+  );
+});
+
 // Where a link into the page leaves its target once the scroll has stopped: the distance from
 // the target's top to the line its scroll margin asks for. It waits for the scroll to START
 // (every target here is far down) and then to hold still, so a smooth scroll is read at its end.
