@@ -18,3 +18,4 @@ Project: {"version":1,"id":"plan-interaction-2026-11-09","ownership":"local-sing
 - 2026-11-09T13:43:37.030Z phase 1 landed {"mergeSha":"cdc1011e4aee0bcd8b04aad3a5314815fc42d752","pr":2314}
 - 2026-11-09T13:43:53.536Z phase 1 check {"actor":"checker-1-1-c-5617","nonce":"1-c-5617","evidence":"create_session on merge cdc1011e, brief saved in kit briefs/1-check-1-c-5617.txt"}
 - 2026-11-09T14:04:42.189Z phase 1 fail product: post-landing run 42627967625 red on cdc1011: advisors step lists 0111's new anon/authenticated security-definer functions as new since supabase/advisor-baseline.json; all six ACs pass. checker-1-1-c-5617, findings https://github.com/NoaCG/NoaCG-Studio/pull/2314#issuecomment-6741982055
+- 2026-11-09T14:05:08.615Z phase 1 repair {"actor":"repairer-1-1-r-90a0","nonce":"1-r-90a0","evidence":"create_session from cdc1011e, brief saved in kit briefs/1-repair-1-r-90a0.txt"}
