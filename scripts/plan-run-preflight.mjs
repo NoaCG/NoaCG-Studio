@@ -71,6 +71,7 @@ export function preflight({ context, until, wave, cwd = ROOT, now,
   catch (error) { return block(error.message); }
   // Qualification is bounded by the actual work block, even when the plan's target is past.
   if (project?.block) until = project.block.deadline;
+  else if (project) return block('no open work block: start-block first, then qualify against it');
   const end = ISO_OFFSET.test(until ?? '') ? Date.parse(until) : NaN;
   if (!Number.isFinite(end) || !Number.isFinite(start)) {
     return block('invalid window: require an explicit finite deadline with offset');

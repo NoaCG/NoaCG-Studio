@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // THE WAVE-PLAN STORE - where a wave's plan lives so that it outlives the session that wrote it.
-// Continuing projects opt into --project <json>: one immutable finite authorization and ledger
-// across bounded blocks. The 24-hour/new-window behavior described below is the legacy path.
+// Continuing projects opt into --project <json>: one immutable authorization and ledger across
+// bounded blocks, ending on the owner's date or, with `--until when-complete`, when its phases are done. The 24-hour/new-window behavior described below is the legacy path.
 //
 //   node scripts/wave-plan-store.mjs --path 2026-09-09 night   # the path to write, dir created
 //   node scripts/wave-plan-store.mjs --dir                     # just the directory
@@ -13,6 +13,9 @@
 //                                                              # the same for a plan run (`/plan-run`):
 //                                                              # a plan run and a wave exclude each other;
 //                                                              # a new --until on the same date is a new window
+//   node scripts/wave-plan-store.mjs --open 2026-10-09 plan-editor --until when-complete --project <json>
+//                                                              # a plan run the owner gave no date: it lasts
+//                                                              # until its phases are done, in 24-hour blocks
 //
 // WHY. The wave plan is the ONLY record of which pools ran, what the routing was, and every
 // `DECIDED:` line the orchestrator wrote when it took a decision on the owner's behalf. It is
@@ -57,7 +60,7 @@ import { fileURLToPath } from 'node:url';
 import { jobsDir } from './jobs-store.mjs';
 import { nextStep } from './plan-run.mjs';
 import { samePath } from './worktree-cleanup-lib.mjs';
-import { immutableProject, projectBoundary, readProject, untilComplete, validateProject, writeProject } from './project-authorization.mjs';
+import { WHEN_COMPLETE, immutableProject, projectBoundary, readProject, sameWindowEnd, untilComplete, validateProject, writeProject } from './project-authorization.mjs';
 
 /** The store's folder name inside the job store, beside `logs/` and `relay/`. */
 export const WAVE_PLANS_DIR = 'wave-plans';
@@ -189,9 +192,11 @@ export const WINDOW_END = /^(Window ends: )(\S+)/m;
  */
 export function openWave({ date, kind, until, session, project, dir = jobsDir(), now = Date.now() }) {
   const name = wavePlanName(date, kind);
-  const end = Date.parse(until ?? '');
-  if (!/(?:[+-]\d{2}:\d{2}|Z)$/.test(String(until ?? '')) || Number.isNaN(end)) {
-    return { refusal: `--until must be an ISO time with its offset, e.g. 2026-10-09T06:00:00+03:00 (got "${until}")` };
+  // A plan run the owner gave no date lasts as long as its phases need: `--until when-complete`.
+  const whenComplete = until === WHEN_COMPLETE;
+  const end = whenComplete ? Infinity : Date.parse(until ?? '');
+  if (!whenComplete && (!/(?:[+-]\d{2}:\d{2}|Z)$/.test(String(until ?? '')) || Number.isNaN(end))) {
+    return { refusal: `--until must be an ISO time with its offset, e.g. 2026-10-09T06:00:00+03:00, or ${WHEN_COMPLETE} for a plan run (got "${until}")` };
   }
   const file = path.join(ensureWavePlansDir(dir), name);
   const text = existsSync(file) ? readFileSync(file, 'utf8') : null;
@@ -201,15 +206,16 @@ export function openWave({ date, kind, until, session, project, dir = jobsDir(),
     if (end <= now && !untilComplete(existing?.authorization)) throw Error(`the window end ${until} has already passed`);
     if (project) {
       validateProject(project, now);
-      if (!PLAN_RUN_KIND.test(kind) || Date.parse(project.authorization.deadline) !== end) throw Error('Project authorization must match this plan deadline');
+      if (!PLAN_RUN_KIND.test(kind) || !sameWindowEnd(until, project.authorization)) throw Error('Project authorization must match this plan deadline');
       if (existing && immutableProject(existing) !== immutableProject({ ...project, authorityStore: existing.authorityStore })) throw Error('Original project identity, scope, deadline and phases are immutable');
       if (text !== null && !existing) throw Error('Legacy run requires explicit reviewed migration; do not replace its ledger');
     }
-    if (existing && Date.parse(existing.authorization.deadline) !== end) throw Error('Restart cannot extend the original project deadline');
+    if (existing && !sameWindowEnd(until, existing.authorization)) throw Error('Restart cannot extend the original project deadline');
+    if (whenComplete && !existing && !project) throw Error(`only a plan run with its owner-authorized --project may run ${WHEN_COMPLETE}; a wave needs its end time`);
     if (existing && ['cancelled', 'finished'].includes(existing.status)) throw Error(`Project is ${existing.status}`);
   } catch (error) { return { refusal: error.message }; }
   const recorded = { start: WINDOW_START.exec(text ?? '')?.[2], end: WINDOW_END.exec(text ?? '')?.[2] };
-  const window = text === null ? 'opened' : recorded.end && Date.parse(recorded.end) !== end ? 'new' : 'resumed';
+  const window = text === null ? 'opened' : recorded.end && recorded.end !== until && Date.parse(recorded.end) !== end ? 'new' : 'resumed';
   const start = window === 'resumed' && !Number.isNaN(Date.parse(recorded.start ?? '')) ? Date.parse(recorded.start) : now;
   if (!project && !existing && end - start > MAX_WINDOW_MS) {
     const from = window === 'resumed' ? `its start (${new Date(start).toISOString()})` : `now (${new Date(now).toISOString()})`;
@@ -298,7 +304,7 @@ export function sessionsIn(text) {
 const USAGE = `Usage: node scripts/wave-plan-store.mjs --path <YYYY-MM-DD> <day|night|plan-<plan>>
        node scripts/wave-plan-store.mjs --dir
        node scripts/wave-plan-store.mjs --list
-       node scripts/wave-plan-store.mjs --open <YYYY-MM-DD> <day|night|plan-<plan>> --until <iso time with offset> [--project <owner-authorized.json>]`;
+       node scripts/wave-plan-store.mjs --open <YYYY-MM-DD> <day|night|plan-<plan>> --until <iso time with offset | when-complete> [--project <owner-authorized.json>]`;
 
 export function main(argv = process.argv.slice(2)) {
   const folder = wavePlansDir();
