@@ -56,7 +56,10 @@ are listed apart.
   the helpers, the step passed. Recorded as an intermittent fault in the check, not in this change.
 - Codex on `ecd6c56` found that Delete trusted the page's last reading of whether the question was
   live (R27, R10 amended). The journey now removes a live question from another tab and shows the
-  Stop that remains, which returns phones to the waiting text.
+  Stop that remains, which returns phones to the waiting text. The rule was reassessed by a fresh
+  read-only review first (AGREE WITH CORRECTIONS: Delete goes ahead once the round is closed by any
+  means). The R27 line is shown by the same panel code for both providers; it was walked on the
+  local provider only (the configured test calls the server functions, not this line).
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).
