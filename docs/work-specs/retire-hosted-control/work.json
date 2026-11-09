@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "552b9f8a1df37b2c96e58f0e82d365bd46d9b158dd18d91dc4fc35abad01190a",
+  "authority": {
+    "status": "agreed",
+    "source": "the owner's answers of 2026-11-09 on issue #2301: everyone who runs a show signs in and is trusted to edit it, so remove the hosted control page and its tests in one change, the safest way, without breaking the production page in any way; whether a no-account mode should ever exist stays open"
+  },
+  "review": null
+}
