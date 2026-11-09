@@ -667,3 +667,36 @@ Added after the rules review (a fresh read-only `/so`, AGREE WITH CORRECTIONS), 
 - S8, decided: the live-figures exception permits rows; this phase adds no automatic sender. The
   switch writes the board's Live figures field and the board shows its own figures (coordinator
   default).
+
+**Decisions** (made in the build, revertible in review):
+
+- The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)
+  are one rebased write that decides update or add on the stored production; the page reports
+  what that write did (S15). `control/resultStaging.ts` holds the field contract (`pollFieldMap`,
+  `tallyValues`, moved out of the workspace) and the notes.
+- With no remembered result graphic the press lists the production's result graphics, and with
+  none the five catalog live vote boards (House, Volt, Frost, Clean, Floor). A board picked from
+  the catalog arrives with its one seeded cue, which becomes the result cue.
+- The live-figures switch stays as it was: it writes the board's Live figures field, and nothing
+  sends Update automatically (S8). Go live closing another question's round finalises its cue
+  (S14). Change then a pick starts a new result cue for the selected question (S16). The three are
+  the coordinator defaults sent before the patch.
+- The vote field words (`Vote status`, `Live figures` and their tokens) moved to
+  `templates/behaviours/voteFields.ts`, re-exported by `vote.ts`, so the staging module runs in
+  Node without the recipe machinery. No emitted byte changes.
+- The rehearsal walk on the local stack is a configured test (the existing published walk,
+  extended), because it has to run where a local stack exists; this machine walks it offline.
+
+**Traps found** (for later phases):
+
+- A Take adds more than one row to the action log (Took, Played in, Updated n fields). A journey
+  counts the rows after the Take and asserts nothing else adds any, rather than adding one.
+- The local provider's simulated device ids restart on reload (`sim-<option>-<n>`), so Simulate
+  votes after a reload overwrites earlier simulated votes instead of adding. Simulate before the
+  reload in a journey.
+- A prepared message cue is labelled by the message text, not by the card's name.
+- `git commit -a` for a temporary mutation sweeps every unstaged edit into it; reverting it with
+  `reset --hard HEAD~1` drops them. Commit real work first.
+
+**Walk** (AC-15, first run): `evidence/phase-3.md`. One blocking finding fixed here (the phone's
+thanks outlived its question); #2333 and #2334 filed.
