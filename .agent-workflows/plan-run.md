@@ -13,6 +13,8 @@
 
 - `jev-svg-import`: `docs/work-specs/jev-svg-import/spec.md`, with exact phase metadata and preparation/start contract in its `runbook.md`. **Preparation-only registration:** do not open a project, start a block, create the run issue or arm triggers until the owner says start and the runbook's pre-start prerequisites pass. The approved $5 ceiling, 14-day window and standing block renewal do not start the run.
 
+- `live-publishing`: `docs/work-specs/live-publishing/spec.md`, `phases.json` and `runbook.md`; phase 1 is `docs/work-specs/retire-hosted-control/spec.md`. **Preparation-only registration:** do not open a project, start a block, create the run issue or arm triggers until the owner says start; it follows the interaction run.
+
 ## Boundaries
 
 - **A wave runs alone; plan runs of different plans may run side by side** (never two on one file).
