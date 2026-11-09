@@ -818,6 +818,44 @@ test('a step: the graphic up goes off first, its answer moves liveCue, then the 
   assert.deepEqual(r.folders().folderSteps, { M: 'vt' });
 });
 
+test('a mixed step waits for server-off before graphics-off', async () => {
+  const title = { id: 'title', adapter: 'casparcg', kind: 'template', name: 'TITLE', channel: 2, layer: 10 };
+  const cues = [manualCues[0], cue('title', 'title', 'M'), manualCues[1]];
+  const r = folderRig({ folders: [MANUAL], cues, items: [title] });
+  r.up('title', 'title');
+  r.live({ One: 'g1' });
+
+  await r.fp.step(MANUAL);
+
+  assert.deepEqual(r.log.slice(2, 6), [
+    'server out title "Out of TITLE"',
+    'answer server out title "Out of TITLE"',
+    'send Out One',
+    'answer send Out One',
+  ], 'the server template must be off before sending graphics-off');
+  assert.deepEqual(r.liveCue(), { Two: 'g2' });
+});
+
+test('Out during a step\'s graphics-off prevents the next Take', async () => {
+  const r = folderRig({ folders: [MANUAL], cues: manualCues });
+  r.live({ One: 'g1' });
+  r.hold();
+  const step = r.fp.step(MANUAL);
+  r.answer('flush');
+  await settle();
+  assert.equal(r.log.at(-1), 'send Out One', 'the step is waiting for its own graphics-off');
+
+  const out = r.fp.out(MANUAL);
+  r.answer('send Out One'); // The step's Out.
+  r.answer('send Out One'); // The operator's Out.
+  await out;
+  await settle();
+
+  assert.deepEqual(r.log.filter((line) => line.startsWith('graphic ')), [], 'the stopped step must never send Take');
+  await step;
+  assert.deepEqual(r.folders().folderSteps, { M: null });
+});
+
 test('a folder\'s Out is a press on each live candidate layer it clears, settled by its answer (E7.1)', async () => {
   const r = folderRig({ folders: [MANUAL], cues: manualCues });
   const presses = [];
@@ -907,6 +945,25 @@ test('Out or All out while a step\'s take is on its way: what it put up goes bac
   e.answer('g1');
   await d;
   assert.equal(e.log.at(-1), 'answer graphic g1 "Take"');
+});
+
+test('taking a late graphic back off leaves a later press on air', async () => {
+  const r = folderRig({ folders: [MANUAL], cues: manualCues });
+  r.hold();
+  const step = r.fp.step(MANUAL);
+  r.answer('flush');
+  await settle();
+  assert.equal(r.log.at(-1), 'graphic g1 "Take"');
+  r.fp.stopAll('all-out');
+  r.answer('g1');
+  await settle();
+  assert.equal(r.log.at(-1), 'send Out One', 'the late Take is being cleared');
+
+  r.live({ One: 'later-cue' });
+  r.answer('send Out One', { ...SENT, pressedAgain: ['One'] });
+  await step;
+
+  assert.deepEqual(r.liveCue(), { One: 'later-cue' }, 'the late Out must preserve the newer live cue');
 });
 
 test('the misses and the step bookkeeping: cleared, noted and settled only when they move', () => {
