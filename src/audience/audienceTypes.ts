@@ -122,6 +122,11 @@ export interface AudienceRound {
   closedAt: string | null;
 }
 
+/** The one open round among `rounds`, if any. What phones see follows it (R18). */
+export function openRoundOf<R extends Pick<AudienceRound, 'closedAt'>>(rounds: readonly R[]): R | null {
+  return rounds.find((r) => !r.closedAt) ?? null;
+}
+
 /** A round's counts, by option index. Counted on read over the votes' own primary key — there
  *  is no maintained counter column (hot-row conflicts, drift, no benefit at this scale). */
 export interface AudienceTally {

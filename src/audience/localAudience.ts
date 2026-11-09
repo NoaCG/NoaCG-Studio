@@ -20,6 +20,7 @@
 // SIMULATED rows stay in memory, as before: invented questions must never accumulate.
 
 import { uuid } from '../model/id.ts';
+import { QUESTION_LIMITS, isQuestionId } from '../model/questions.ts';
 import {
   AUDIENCE_LIMITS,
   QUESTION_CLOSED,
@@ -31,6 +32,7 @@ import {
   type AudienceRound,
   type AudienceState,
   type AudienceSubmission,
+  openRoundOf,
   type AudienceTally,
   type JoinView,
   type PresenterPointers,
@@ -211,11 +213,10 @@ interface PhoneAnswer extends AudienceSubmission {
   device: string;
 }
 
+/** A production's room. What phones see (open, mode, prompt) is not stored: it is read off the
+ *  open round, so it cannot disagree with it (R18). */
 export interface Room {
   name: string;
-  open: boolean;
-  mode: AudienceState['mode'];
-  prompt: string;
   presenter: PresenterPointers;
   rounds: AudienceRound[];
   /** roundId -> device -> option. The key IS the dedupe; an overwrite is "change your vote". */
@@ -225,9 +226,6 @@ export interface Room {
 
 const emptyRoom = (name: string): Room => ({
   name,
-  open: false,
-  mode: 'waiting',
-  prompt: '',
   presenter: { current: null, next: null },
   rounds: [],
   votes: {},
@@ -259,11 +257,6 @@ function readRoomOf(raw: unknown, name: string): Room {
   const r = raw as Record<string, unknown>;
   if (text(r.name) && r.name) room.name = r.name;
   room.rounds = Array.isArray(r.rounds) ? r.rounds.map(readRound).filter((x): x is AudienceRound => x !== null) : [];
-  const open = room.rounds.find((x) => !x.closedAt) ?? null;
-  // Open only while a round is (R18): a state with no round is the waiting text.
-  room.open = r.open === true && open !== null;
-  room.mode = open && text(r.mode) ? (r.mode as Room['mode']) : 'waiting';
-  room.prompt = text(r.prompt) ? r.prompt : '';
   const p = (r.presenter ?? {}) as Record<string, unknown>;
   room.presenter = { current: text(p.current) ? p.current : null, next: text(p.next) ? p.next : null };
   if (r.votes && typeof r.votes === 'object') {
@@ -286,11 +279,27 @@ function readRoomOf(raw: unknown, name: string): Room {
   return room;
 }
 
-/** Every production's room, and whether this build may write the store. */
+/** The last store read, by its raw text: every provider call reads the room, and most reads find
+ *  the text unchanged, so it is parsed once per change rather than once per call. */
+let lastRead: { raw: string; result: { rooms: Record<string, unknown>; writable: boolean } } | null = null;
+
+/** Every production's room, and whether this build may write the store. Treat the result as read
+ *  only: it is shared with the next read of the same text. */
 function readRooms(): { rooms: Record<string, unknown>; writable: boolean } {
   try {
     const raw = globalThis.localStorage?.getItem(LOCAL_ROOM_KEY);
     if (!raw) return { rooms: {}, writable: true };
+    if (lastRead?.raw === raw) return lastRead.result;
+    const result = parseRooms(raw);
+    lastRead = { raw, result };
+    return result;
+  } catch {
+    return { rooms: {}, writable: true };
+  }
+}
+
+function parseRooms(raw: string): { rooms: Record<string, unknown>; writable: boolean } {
+  try {
     const parsed = JSON.parse(raw) as { v?: unknown; rooms?: unknown } | null;
     if (!parsed || typeof parsed !== 'object' || typeof parsed.v !== 'number' || parsed.v < LOCAL_ROOM_VERSION) {
       return { rooms: {}, writable: true };
@@ -313,6 +322,12 @@ function writeRoom(showId: string, room: Room): boolean {
   }
 }
 
+/** The query parameter, and the page, of a rehearsal phone (`src/join/main.ts`). */
+export const REHEARSE_PARAM = 'rehearse';
+export function rehearsalPageUrl(showId: string): string {
+  return `/join?${REHEARSE_PARAM}=${encodeURIComponent(showId)}`;
+}
+
 /** The room a rehearsal phone tab reads (`/join?rehearse=<id>`): its production name as the
  *  operator's tab last wrote it, or empty when this browser holds none. */
 export function localRoomName(showId: string): string {
@@ -321,13 +336,14 @@ export function localRoomName(showId: string): string {
 
 /** The question's snapshot in the server's own normal form (0111), so comparing is fair. */
 function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text: string; options: string[] } | string {
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(question.id)) return 'not a question';
-  const textNow = question.text.trim().slice(0, 200);
+  if (!isQuestionId(question.id)) return 'not a question';
+  const textNow = question.text.trim().slice(0, QUESTION_LIMITS.text);
   if (!textNow) return 'a question needs its text';
   if (question.type === 'open') return { kind: 'open', text: textNow, options: [] };
   if (question.type !== 'choice') return 'not a question';
-  const options = (question.options ?? []).map((o) => o.trim().slice(0, 60)).slice(0, AUDIENCE_LIMITS.options);
-  if (options.length < 2) return 'a vote needs two options at least';
+  // Like the server, blanks are not dropped here: the composer already cleaned them.
+  const options = (question.options ?? []).map((o) => o.trim().slice(0, QUESTION_LIMITS.option)).slice(0, QUESTION_LIMITS.maxOptions);
+  if (options.length < QUESTION_LIMITS.minOptions) return 'a vote needs two options at least';
   return { kind: 'poll', text: textNow, options };
 }
 
@@ -407,14 +423,18 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
   // The clock is read once per write rather than being injected: a virtual clock belongs to the
   // render runtime, and every consumer here only ever compares two of these to each other.
   const nowIso = () => new Date().toISOString();
-  const openRoundOf = (r: Room) => r.rounds.find((x) => !x.closedAt) ?? null;
-  const stateOf = (r: Room): AudienceState => ({
-    open: r.open,
-    mode: r.mode,
-    prompt: r.prompt,
-    presenter: { ...r.presenter },
-    round: openRoundOf(r),
-  });
+  const liveOf = (r: Room) => openRoundOf(r.rounds);
+  /** What phones see, read off the open round (R18). */
+  const stateOf = (r: Room): AudienceState => {
+    const round = liveOf(r);
+    return {
+      open: round !== null,
+      mode: round ? (round.kind === 'open' ? 'question' : 'poll') : 'waiting',
+      prompt: round?.question ?? '',
+      presenter: { ...r.presenter },
+      round,
+    };
+  };
   const strip = ({ device: _device, ...row }: PhoneAnswer): AudienceSubmission => row;
 
   const make = (author: string, body: string, roundId: string | null = null): AudienceSubmission => {
@@ -441,7 +461,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
   const backend: LocalAudience = {
     async joinView(deviceToken: string): Promise<JoinView> {
       const r = room();
-      const open = openRoundOf(r);
+      const open = liveOf(r);
       return {
         productionName: r.name,
         // The round is handed over WITHOUT its answer key, here as on the wire: the join page
@@ -492,11 +512,12 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         throw new Error(`At most ${OPERATOR_ADD_MAX} messages at a time.`);
       }
       // R13: a round of this production, or none; anything else refuses the whole call.
-      const roundIds = new Set(room().rounds.map((x) => x.id));
+      const r = room();
+      const roundIds = new Set(r.rounds.map((x) => x.id));
       if (items.some((i) => i.roundId && !roundIds.has(i.roundId))) throw new Error('not a question of this production');
       const rows = kept();
       const known = new Set(
-        [...rows, ...room().answers, ...submissions].map((s) => s.externalId).filter((x): x is string => Boolean(x)),
+        [...rows, ...r.answers, ...submissions].map((s) => s.externalId).filter((x): x is string => Boolean(x)),
       );
       const added: AudienceSubmission[] = [];
       for (const item of items) {
@@ -595,9 +616,6 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         round.closedAt = null;
         round.openedAt = at;
       }
-      r.open = true;
-      r.mode = snap.kind === 'open' ? 'question' : 'poll';
-      r.prompt = snap.text;
       mustSave(r);
       changed();
       return { ...round };
@@ -608,8 +626,6 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       const round = r.rounds.find((x) => x.id === roundId && !x.closedAt);
       if (round) {
         round.closedAt = nowIso();
-        r.open = false;
-        r.mode = 'waiting';
         mustSave(r);
         changed();
       }
@@ -649,7 +665,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
 
     simulate(count = 1): AudienceSubmission[] {
       const made: AudienceSubmission[] = [];
-      const open = openRoundOf(room());
+      const open = liveOf(room());
       const roundId = open?.kind === 'open' ? open.id : null;
       for (let i = 0; i < count; i += 1) {
         const pool = roundId ? SAMPLE_COMMENTS : SAMPLE_QUESTIONS;
@@ -664,7 +680,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
 
     simulateVotes(counts: number[]): void {
       const r = room();
-      const round = openRoundOf(r);
+      const round = liveOf(r);
       if (!round || round.kind === 'open') return;
       const byDevice = { ...(r.votes[round.id] ?? {}) };
       counts.forEach((n, option) => {

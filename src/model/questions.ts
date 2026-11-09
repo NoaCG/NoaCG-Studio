@@ -34,6 +34,16 @@ export const QUESTION_LIMITS = { text: 200, option: 60, minOptions: 2, maxOption
 /** The id shape the server accepts (0111's `question_id` check). */
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
+/** Whether `id` can name a question on the server. */
+export function isQuestionId(id: string): boolean {
+  return ID.test(id);
+}
+
+/** What Go live sends for a question this build can ask (audienceTypes `QuestionLive`). */
+export function toLive(q: ShowQuestion & { type: QuestionType }): { id: string; type: QuestionType; text: string; options?: string[] } {
+  return q.type === 'choice' ? { id: q.id, type: 'choice', text: q.text, options: q.options ?? [] } : { id: q.id, type: 'open', text: q.text };
+}
+
 export function isKnownType(type: string): type is QuestionType {
   return type === 'open' || type === 'choice';
 }

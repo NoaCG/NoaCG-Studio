@@ -16,7 +16,7 @@
 // key, never anybody else's words.
 
 import { bundledFaceRules, FONTS } from '../model/fonts';
-import { AUDIENCE_LIMITS, QUESTION_CLOSED, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
+import { AUDIENCE_LIMITS, type AudienceBrand, type JoinView, type RoundTarget, type SubmitResult } from './audienceTypes';
 
 export interface JoinSurfaceClient {
   load(): Promise<JoinView>;
@@ -339,11 +339,10 @@ export function mountJoinSurface(
     if (result.ok) {
       draft.body = '';
       note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false };
-    } else if (result.closed) {
-      // R14: the question moved on under this phone. What was typed stays in the box, and the
-      // page re-reads to show the new question; nothing is resent unless the viewer sends again.
-      note = { text: QUESTION_CLOSED, bad: true };
     } else {
+      // A refusal keeps what was typed. When the question moved on under this phone (R14) the
+      // error says so and the re-read below shows the new question; nothing is resent unless the
+      // viewer sends again.
       note = { text: result.error ?? 'That could not be sent right now.', bad: true };
     }
     await load();
@@ -359,9 +358,7 @@ export function mountJoinSurface(
     busy = false;
     note = result.ok
       ? { text: 'Counted. You can change your mind while the vote is open.', bad: false }
-      : result.closed
-        ? { text: QUESTION_CLOSED, bad: true }
-        : { text: result.error ?? 'That vote could not be counted.', bad: true };
+      : { text: result.error ?? 'That vote could not be counted.', bad: true };
     await load();
     render();
   };

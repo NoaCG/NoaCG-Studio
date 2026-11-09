@@ -27,6 +27,7 @@ import {
   OPERATOR_SETTLE_MAX,
   QUESTION_CLOSED,
   clampProvenance,
+  openRoundOf,
   clampSubmission,
   type AudienceBrand,
   type AudienceRound,
@@ -212,9 +213,6 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
     if (error) throw new Error(error.message);
     return data as T;
   };
-
-  const openRoundOf = (rounds: AudienceRound[]): AudienceRound | null =>
-    rounds.find((r) => !r.closedAt) ?? null;
 
   const stateFrom = (raw: unknown, rounds: AudienceRound[]): AudienceState => {
     const s = (raw ?? {}) as {

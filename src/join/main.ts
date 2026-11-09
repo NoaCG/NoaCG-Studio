@@ -13,7 +13,7 @@
 
 import { isBackendConfigured } from '../backend/config';
 import { createSupabaseAudience, presenterBySlug } from '../audience/audienceData';
-import { createLocalAudience, localRoomName } from '../audience/localAudience';
+import { REHEARSE_PARAM, createLocalAudience, localRoomName } from '../audience/localAudience';
 import type { AudienceBackend } from '../audience/audienceTypes';
 import { deviceToken } from '../audience/deviceToken';
 import { ensureJoinStyle, mountJoinSurface } from '../audience/joinSurface';
@@ -124,7 +124,7 @@ function mountPhone(backend: AudienceBackend): void {
 
 function boot(): void {
   if (!root) return;
-  const rehearse = new URLSearchParams(window.location.search).get('rehearse');
+  const rehearse = new URLSearchParams(window.location.search).get(REHEARSE_PARAM);
   if (rehearse !== null) {
     if (!/^[A-Za-z0-9_-]{3,80}$/.test(rehearse)) {
       nothing();

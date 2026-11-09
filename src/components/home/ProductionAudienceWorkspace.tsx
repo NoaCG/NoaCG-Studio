@@ -26,6 +26,7 @@ import {
   type AudienceTally,
   type PresenterPointers,
   type ObservableAudience,
+  openRoundOf,
   type RoundTarget,
   type SubmitResult,
 } from '../../audience/audienceTypes';
@@ -36,6 +37,7 @@ import {
 } from '../../audience/joinSurface';
 import { createSupabaseAudience } from '../../audience/audienceData';
 import { useMessagesBackend } from './useAudienceInbox';
+import { rehearsalPageUrl } from '../../audience/localAudience';
 import { useAuthState } from '../auth/useAuthState';
 import SignInPrompt from '../auth/SignInPrompt';
 import { joinPageUrl } from '../../control/hostedControl';
@@ -50,6 +52,7 @@ import {
   moveQuestion,
   questionLocked,
   removeQuestion,
+  toLive,
   type QuestionType,
   type ShowQuestion,
 } from '../../model/questions';
@@ -886,7 +889,7 @@ export default function ProductionAudienceWorkspace({
   // every change; which one is SELECTED is this screen's alone and calls nothing (R12).
   const questions = useMemo(() => showQuestions(show), [show]);
   const [rounds, setRounds] = useState<AudienceRound[]>([]);
-  const liveRound = rounds.find((r) => !r.closedAt) ?? null;
+  const liveRound = openRoundOf(rounds);
   const roundOf = useMemo(() => new Map(rounds.filter((r) => r.questionId).map((r) => [r.questionId!, r] as const)), [rounds]);
   /** Counts per round, for every vote this production has asked. */
   const [tallies, setTallies] = useState<Record<string, AudienceTally>>({});
@@ -1017,22 +1020,17 @@ export default function ProductionAudienceWorkspace({
     };
   }, [backend, liveRound]);
 
-  /** How many answers a question's result holds: messages filed under it, or votes. */
-  const answersOf = (round: AudienceRound | undefined): number => {
-    if (!round) return 0;
-    if (round.kind === 'open') return rows.filter((r) => r.roundId === round.id).length;
-    return tallies[round.id]?.total ?? 0;
-  };
+  /** Each question's row: live or not, and how many answers its result holds (messages filed
+   *  under it, or votes). */
   const rowStates = useMemo(() => {
     const out: Record<string, QuestionRowState> = {};
     for (const q of questions) {
       const round = roundOf.get(q.id);
       const isLive = !!round && !round.closedAt;
-      const answers = answersOf(round);
+      const answers = !round ? 0 : round.kind === 'open' ? rows.filter((r) => r.roundId === round.id).length : tallies[round.id]?.total ?? 0;
       out[q.id] = { live: isLive, answers, locked: questionLocked(q, { live: isLive, answers }) };
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, roundOf, rows, tallies]);
   const liveQuestion = liveRound?.questionId ? questions.find((q) => q.id === liveRound.questionId) ?? null : null;
   const selected = questions.find((q) => q.id === selectedId) ?? null;
@@ -1076,7 +1074,7 @@ export default function ProductionAudienceWorkspace({
     setBusy(true);
     setArmedClear(null);
     try {
-      await backend.goLive({ id: q.id, type: q.type, text: q.text, ...(q.options ? { options: q.options } : {}) });
+      await backend.goLive(toLive({ ...q, type: q.type }));
       setSelectedId(q.id);
       setNote(`✓ Phones now show “${q.text}”. Nothing is on air.`);
     } catch (err) {
@@ -1117,7 +1115,7 @@ export default function ProductionAudienceWorkspace({
         const target = show.graphics.find((g) => g.id === cue.sourceId);
         const map = target ? pollFieldMap(target.template.fields ?? []) : null;
         if (map) {
-          setShows(updateShowCue(show.id, cue.id, { values: tallyValues({ ...closing, closedAt: closing.closedAt ?? new Date().toISOString() }, final, map, true, liveFigures) }));
+          setShows(updateShowCue(show.id, cue.id, { values: tallyValues({ ...closing, closedAt: new Date().toISOString() }, final, map, true, liveFigures) }));
           failure = await commitDurableWrites();
         }
       }
@@ -1554,7 +1552,7 @@ export default function ProductionAudienceWorkspace({
               )}
               {selected.type === 'open' && (
                 <p className="hint" data-testid="question-selected-answers">
-                  {answersOf(selectedRound)} {answersOf(selectedRound) === 1 ? 'answer' : 'answers'}, listed under Messages.
+                  {rowStates[selected.id]?.answers ?? 0} {rowStates[selected.id]?.answers === 1 ? 'answer' : 'answers'}, listed under Messages.
                 </p>
               )}
             </div>
@@ -1598,7 +1596,7 @@ export default function ProductionAudienceWorkspace({
             )}
             {!joinUrl && (
               <p className="hint">
-                <a href={`/join?rehearse=${encodeURIComponent(show.id)}`} target="_blank" rel="noopener" data-testid="join-rehearse">
+                <a href={rehearsalPageUrl(show.id)} target="_blank" rel="noopener" data-testid="join-rehearse">
                   Open a rehearsal phone
                 </a>{' '}
                 in this browser.
