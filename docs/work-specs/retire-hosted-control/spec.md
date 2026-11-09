@@ -45,6 +45,12 @@ Derived (revertible; each says how):
   - Delete whole specs whose subject is the hosted page: `hosted-control-profile`,
     `hosted-space-modes`, `hosted-reveal-after-reload`, `hosted-control-recovery`,
     `dashboard-hosted-walk` (configured), and `e2e/hosted-control.spec.ts` (offline).
+  - Audit each deleted file by what each test proves, not by its name. Before deleting, move every
+    assertion that guards shared code into a surviving spec. Found so far in
+    `e2e/hosted-control.spec.ts`: the shared `canAdvance` and `movedStateNames` checks (around line
+    896) and the production output-payload serialisation through `buildOutputPayload` and
+    `readOutputPayload` (around line 1027). (Added after the live-publishing plan's fourth second
+    opinion, 2026-11-09.)
   - Every other spec that opens `?control=` or `openHosted` also guards the production page or the
     server (command-sequence, all-out-from-heads, late-commit-notice, late-send-abandoned,
     live-health, live-prepare, live-ready, live-presence-steady,

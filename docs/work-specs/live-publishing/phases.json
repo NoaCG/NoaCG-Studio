@@ -21,7 +21,7 @@
         "e2e/"
       ],
       "checks": [],
-      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; move assertions that guard shared code into surviving specs before deleting a file; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
@@ -47,15 +47,14 @@
         "e2e/configured/"
       ],
       "checks": [],
-      "notes": "Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "3",
     "title": "A Take never waits on the page's own work",
     "acceptance": [
-      "AC-1",
-      "AC-2"
+      "AC-1"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
@@ -77,15 +76,15 @@
         "src/output/"
       ],
       "checks": [],
-      "notes": "R1, R2 (S1): remove only the page's own waits; keep every ordering wait; no server change. Placement must also work in Chromium 71: es2017, no ?. or ?? inside template code. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "W1 (S1): remove only the page's own waits; keep every ordering wait; no server change. Placement must also work in Chromium 71: es2017, no ?. or ?? inside template code. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "4",
-    "title": "The production's copy is the only truth, and old pages only play out",
+    "title": "The production's copy is the only truth; old pages only play out",
     "acceptance": [
-      "AC-3",
-      "AC-4"
+      "Design G1 graded A by an independent /so",
+      "AC-2"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
@@ -93,12 +92,13 @@
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "The production's copy is the only truth, and old pages only play out",
+      "goal": "The production's copy is the only truth; old pages only play out",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [
+        "docs/work-specs/live-publishing/designs/",
         "src/model/library.ts",
         "src/model/shows.ts",
         "src/control/hostedControl.ts",
@@ -107,70 +107,75 @@
         "supabase/migrations/"
       ],
       "checks": [],
-      "notes": "R3, R4, R6 (S2), O5 adoption, the Update button. The old-page refusal lands with adoption. A migration is applied before the app that relies on it. One touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Design gate G1: first write docs/work-specs/live-publishing/designs/G1.md covering every point the spec lists for G1; land it as its own pull request only after an independent /so grades it A; then build in the next pull request. W2, O5, S2, E3. A migration is applied before the app that relies on it; a live-path one (control_*) is additive and applies only in a quiet window (supabase/AGENTS.md). Feature switch-on is separate from migration install. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "5",
-    "title": "Outputs catch up by themselves and report three versions",
+    "title": "The honest light and held Takes",
     "acceptance": [
-      "AC-5"
+      "Design G2 graded A by an independent /so",
+      "AC-3"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "2"
+      "3",
+      "4"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Outputs catch up by themselves and report three versions",
+      "goal": "The honest light and held Takes",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [
+        "docs/work-specs/live-publishing/designs/",
         "src/output/",
-        "src/control/readiness.ts",
-        "src/control/prepareLive.ts"
+        "src/control/",
+        "src/components/home/"
       ],
       "checks": [],
-      "notes": "R9 and the reporting of R10. Pages keep sending today's Presence request for old outputs. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Design gate G2: first write docs/work-specs/live-publishing/designs/G2.md covering every point the spec lists for G2; land it as its own pull request only after an independent /so grades it A; then build in the next pull request. W3, E1, S4, D1, D4. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "6",
-    "title": "Send only what changed",
+    "title": "Automatic updates, whole publishes",
     "acceptance": [
-      "AC-6",
-      "AC-7",
-      "AC-9"
+      "Design G3 graded A by an independent /so",
+      "AC-4"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "4",
       "5"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Send only what changed",
+      "goal": "Automatic updates, whole publishes",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [
-        "supabase/migrations/",
+        "docs/work-specs/live-publishing/designs/",
         "src/control/hostedControl.ts",
-        "src/backend/teamProductions.ts",
-        "src/output/"
+        "src/backend/",
+        "src/output/",
+        "src/components/home/",
+        "src/control/playoutStatus.ts",
+        "supabase/migrations/"
       ],
       "checks": [],
-      "notes": "R5, R7 (S3), R8. A migration is applied before the app that relies on it. One touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Design gate G3: first write docs/work-specs/live-publishing/designs/G3.md covering every point the spec lists for G3; land it as its own pull request only after an independent /so grades it A; then build in the next pull request. W4, O1, S3, E2, E4. Check now stays. A migration is applied before the app that relies on it; a live-path one (control_*) is additive and applies only in a quiet window (supabase/AGENTS.md). Feature switch-on is separate from migration install. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "7",
-    "title": "Images stored once",
+    "title": "Only what changed, each image once",
     "acceptance": [
-      "AC-8"
+      "Design G4 graded A by an independent /so",
+      "AC-5"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
@@ -178,29 +183,31 @@
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
-      "goal": "Images stored once",
+      "goal": "Only what changed, each image once",
       "read": [
         "docs/work-specs/live-publishing/spec.md",
         "docs/plan-runs/known-traps.md"
       ],
       "touches": [
-        "src/backend/assets.ts",
+        "docs/work-specs/live-publishing/designs/",
+        "supabase/migrations/",
         "src/control/hostedControl.ts",
+        "src/backend/",
         "src/output/"
       ],
       "checks": [],
-      "notes": "R12. Outputs opened before this keep reading inline images. A migration is applied before the app that relies on it. One touching control_* is live-path: additive, quiet window only (supabase/AGENTS.md). Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Design gate G4: first write docs/work-specs/live-publishing/designs/G4.md covering every point the spec lists for G4; land it as its own pull request only after an independent /so grades it A; then build in the next pull request. W5, O9. A migration is applied before the app that relies on it; a live-path one (control_*) is additive and applies only in a quiet window (supabase/AGENTS.md). Feature switch-on is separate from migration install. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "8",
     "title": "Five people at once",
     "acceptance": [
-      "AC-10"
+      "AC-6"
     ],
     "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
     "dependsOn": [
-      "6"
+      "7"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -214,50 +221,18 @@
         "docs/CLOUD_PLAYOUT.md"
       ],
       "checks": [],
-      "notes": "Five signed-in test accounts in their own browser contexts, scripted to press at the same moments. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Five signed-in test accounts in their own browser contexts, scripted to press at the same moments, automatic updates on. Prepare the checklist for the owner's final check, listing every hardware check the run could not do. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   },
   {
     "id": "9",
-    "title": "Updates by themselves, held Takes, and the light",
-    "acceptance": [
-      "AC-10 (again, automatic updates on)",
-      "AC-11",
-      "AC-12"
-    ],
-    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
-    "dependsOn": [
-      "3",
-      "5",
-      "7",
-      "8"
-    ],
-    "spec": "docs/work-specs/live-publishing/spec.md",
-    "brief": {
-      "goal": "Updates by themselves, held Takes, and the light",
-      "read": [
-        "docs/work-specs/live-publishing/spec.md",
-        "docs/plan-runs/known-traps.md"
-      ],
-      "touches": [
-        "src/components/home/",
-        "src/control/playoutStatus.ts",
-        "src/components/control/PrepareForLive.tsx",
-        "src/output/"
-      ],
-      "checks": [],
-      "notes": "O1, O2, O3, O7, R10, R11 (S4). Check now stays. Prepare the checklist for the owner's final check. Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
-    }
-  },
-  {
-    "id": "10",
     "title": "The owner's final check",
     "acceptance": [
-      "AC-13"
+      "AC-7"
     ],
     "environment": "OW: the owner's studio, CasparCG 2.5 and 2.3 with a browser output",
     "dependsOn": [
-      "9"
+      "8"
     ],
     "spec": "docs/work-specs/live-publishing/spec.md",
     "brief": {
@@ -268,7 +243,7 @@
       ],
       "touches": [],
       "checks": [],
-      "notes": "Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check is run by the agent itself, as the spec section \"How the agent tests and measures\" says; the owner tests only at the end. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
+      "notes": "Make no change that risks reliable playout (\"Let's avoid any risky changes\"). Open outputs and open pages keep working across this phase. Every check the run can do, it does itself (spec, \"How the agent tests and measures\"); hardware checks are listed for the owner's final check and never counted as passed. If the phase meets a behaviour choice the owner has not decided in the spec, stop and ask."
     }
   }
 ]

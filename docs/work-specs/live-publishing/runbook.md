@@ -7,21 +7,21 @@ issue or arm triggers. This overrides plan-create's automatic handover.
 
 ## Prepared files
 
-- `spec.md`: agreed and open decisions, measured sizes, requirements, measurement rules,
-  acceptance and the ten phases.
+- `spec.md`: decisions, measured sizes, what must be true (with design-gate lists), test and
+  measurement rules, acceptance and the nine phases.
 - `phases.json`: the phase objects plan-create copies into the project, in order.
-- `work.json`: the acceptance record. `draft` until the owner finishes the plan after a second
-  opinion; then `agreed` with his words.
+- `work.json`: the acceptance record. `draft` until the owner settles the plan; then `agreed` with
+  his words.
 - `docs/work-specs/retire-hosted-control/`: phase 1's own spec, agreed on issue #2301.
 
 ## Before start
 
-1. D1 to D6 and S1 to S4 are decided and recorded in the spec (2026-11-09). The owner settles the
-   plan, and `work.json` reads `agreed` with his words.
+1. The owner has settled the plan and `work.json` reads `agreed` with his words. Every decision so
+   far is recorded in the spec (O1 to O14, D1 to D6, S1 to S4, E1 to E5).
 2. The interaction run has finished (the owner: "to start after the current interaction tab run").
 3. Ask the owner, once, only what is missing: the authorization line (scope, start, an end date only
    if he gives one) and standing permissions in his words. Already given: "Our database migration
-   is fine" covers a phase 4, 6 or 7 migration, in a quiet window when it is live-path; nothing
+   is fine" covers a migration in phases 4, 6 or 7, in a quiet window when it is live-path; nothing
    else is granted.
 
 ## Start
@@ -34,9 +34,12 @@ live-publishing`.
 ## During the run
 
 - Phase 1 rebases on current `main` right before landing.
-- A migration applies before the app that relies on it; a live-path one only when no production
-  is live (`supabase/AGENTS.md`).
-- The run works on its own: every check is the agent's (spec, "How the agent tests and measures").
-  The owner tests once, at the end.
+- Phases 4 to 7 open with a design gate: the design lands as its own pull request only after an
+  independent `/so` grades it A; product code follows in the next pull request. A design that cannot
+  reach A without a behaviour choice the owner has not made goes to him as one question.
+- A migration applies before the app that relies on it; a live-path one only when no production is
+  live (`supabase/AGENTS.md`). Installing a migration and switching a feature on are separate steps.
+- Every check the run can do, it does itself (spec, "How the agent tests and measures"). Hardware
+  checks are listed for the final check and never counted as passed.
 - A target the phase 2 numbers prove wrong goes to the owner before the phase that depends on it.
-- Phase 10 is the owner's final check; `next` hands it over with the checklist phase 9 prepared.
+- Phase 9 is the owner's final check; `next` hands it over with the checklist phase 8 prepared.
