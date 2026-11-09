@@ -40,13 +40,12 @@
  "inFlight": [
   {
    "phase": "1",
-   "step": "check",
-   "session": "session_017SdbwM31R2TH1MuuRf2j7C",
-   "nonce": "1-c-5617",
-   "launchedAt": "2026-11-09T13:44:30Z",
-   "merge": "cdc1011e4aee0bcd8b04aad3a5314815fc42d752",
-   "pr": 2314,
-   "builder": "session_017SdbwNii92ZmZGyUNnuoji"
+   "step": "repair",
+   "session": "session_017SdbwPhK5ZudgiKUxBnu7S",
+   "nonce": "1-r-90a0",
+   "launchedAt": "2026-11-09T14:05:36Z",
+   "branch": "claude/plan-interaction-1-repair",
+   "failed": "post-landing advisors baseline after 0111 (run 42627967625)"
   }
  ],
  "owner": [
