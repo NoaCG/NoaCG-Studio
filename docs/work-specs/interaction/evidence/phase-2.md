@@ -23,6 +23,8 @@ the question's text visible:
 - Before this phase (the read through supabase-js): 2668, 2653, 2652, 2653, 2665 ms; median 2653.
 - After (the read is one plain request; supabase-js loads only when the phone sends): 1821, 1820,
   1835, 1821, 1820 ms; median 1821. Three requests: the page, one script, the read.
+- In CI against the local stack (run 42652474854, configured shard 1, head `2e20660`): 1803, 1818,
+  1803, 1803, 1871 ms; median 1803.
 - The suite's dev server is not a measure of what phones get: it served about 2.5 MB (Vite's
   client, React refresh, unbundled supabase-js) and took 5.7 s offline. The configured test
   therefore builds the join entry and measures that; its five numbers are printed in the CI log
