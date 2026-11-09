@@ -435,6 +435,14 @@ Found in the final review of `dc19c95`:
 - R26. A round an older page left open is closed by the migration, so no production keeps a round
   that no Interaction row can Stop.
 
+Found in the Codex review of `ecd6c56` (the second finding of one family, so the rule was
+reassessed by a fresh read-only review before the repair):
+
+- R27. Whatever round is open, the panel offers Stop for it, whether or not its question is in the
+  page's list: a line above the list names it and carries Stop when no row does.
+- R10, amended: Delete asks the provider whether the question's round is open at the press, not the
+  page's last reading, and stops it before removing the question.
+
 **Decisions** (made in the build, revertible in review):
 
 - The question list is `Show.questions` (`src/model/questions.ts`), saved and synced with the

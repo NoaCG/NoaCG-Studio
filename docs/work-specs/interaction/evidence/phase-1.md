@@ -1,7 +1,7 @@
 # Phase 1 evidence: questions and their lifecycle
 
 Spec: `docs/work-specs/interaction/spec.md`, phase 1 (AC-1, AC-2, AC-3, AC-4, AC-7, AC-8), with the
-Rules R1 to R25 in its phase notes. Base: `3985c140631173c267c5e93b37741a15bab8d88c`. Branch:
+Rules R1 to R27 in its phase notes. Base: `3985c140631173c267c5e93b37741a15bab8d88c`. Branch:
 `claude/plan-interaction-1-build`. The PR, its reviewed head, the CI run and the merge sha are in
 the PR description and the receipt to the coordinator; this file holds what was checked and how.
 
@@ -50,6 +50,13 @@ are listed apart.
   reach phones with no row to Stop it. 0111 now closes such rounds and its self-check asserts none
   is left (tested on the scratch database with a round opened through the old function), and the
   configured test now shows the paste door refusing another production's round.
+- CI on `dc19c95`: the Build job's e2e-protection step failed listing the base tree's specs (a
+  `_create` export it reported missing exists on main, on that head and on its parent; the same
+  command passed locally against the same base). On the next head, with no change to that check or
+  the helpers, the step passed. Recorded as an intermittent fault in the check, not in this change.
+- Codex on `ecd6c56` found that Delete trusted the page's last reading of whether the question was
+  live (R27, R10 amended). The journey now removes a live question from another tab and shows the
+  Stop that remains, which returns phones to the waiting text.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
   start; CI runs the selection), the production build (CI), and specs outside the audience flow
   that `shows.ts` maps to (CI).
