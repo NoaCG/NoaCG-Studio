@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "specSha256": "715f70d6ce7f0313108f2653d3dd4757a928aa9f763485fb63cdc04f12c47abe",
-  "authority": {
-    "status": "agreed",
-    "source": "owner, 2026-10-13: the research prompt (\"Research and plan whether and how to restructure the creation wizard ... This session produces a verdict and a plan, not code\"), the one in-session answer of the same day (scope: both tracks, the shell plan and the AI plan, registered as two runnable names that may run beside each other), and the two second-opinion rounds of the same day applied in full (smaller prerequisites, one owner of walk state with explicit transition policies, concrete parallel rules with one writer per file, representative-change probe over the lagging metric, door and run contracts at the risky seams, validation preserved per route, AC-7 as a measured target with a reporting obligation, mandatory close-out inside the first run). The owner then asked for the run to start once the plan is on main, with a window ending 2026-10-14 06:30 Helsinki time."
-  },
-  "review": null
-}
