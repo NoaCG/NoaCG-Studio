@@ -601,6 +601,41 @@ test('every command block is one copy-paste, with a copy button', async ({ page 
   expect(clipboard).toContain('npx -y @noacg/cli@');
 });
 
+test('mobile docs commands fit clear of Copy and still copy exactly', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs#agent-setup');
+
+  const installLine = '/plugin install noacg --marketplace NoaCG/NoaCG-Studio';
+  const blocks = page.locator('.doc-body .cmd');
+  const copy = blocks.filter({ hasText: installLine }).locator('.cmd-copy');
+  await expect(copy).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+
+  const clashes = await blocks.evaluateAll((shells) => shells.flatMap((shell) => {
+    const pre = shell.querySelector('pre');
+    const button = shell.querySelector('.cmd-copy')?.getBoundingClientRect();
+    if (!pre || !button || pre.textContent?.includes('\n')) return [];
+
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    const underButton = Array.from(range.getClientRects()).some((line) =>
+      line.left < button.right && line.right > button.left &&
+      line.top < button.bottom && line.bottom > button.top,
+    );
+    return underButton || pre.scrollWidth > pre.clientWidth ? [pre.innerText] : [];
+  }));
+  expect(clashes).toEqual([]);
+
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await copy.click();
+  await expect(copy).toHaveText('Copied');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(installLine);
+
+  const json = blocks.filter({ hasText: 'Junior final starts at 19:30' }).locator('pre');
+  await expect(json).toHaveCSS('white-space', 'pre');
+  expect(await json.evaluate((pre) => pre.scrollWidth > pre.clientWidth)).toBe(true);
+});
+
 test('the agent guide offers both install routes, and they are the real ones', async ({ page }) => {
   await page.goto('/docs');
   const agents = page.locator('#claude-code');

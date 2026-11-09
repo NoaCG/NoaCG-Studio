@@ -167,6 +167,8 @@ pre .c { color: var(--faint); }
 /* The button is 50px wide; on a phone the block cannot spare more room than it needs. */
 @media (max-width: 600px) {
   .cmd pre { padding-right: 72px; }
+  /* Commands wrap on phones. Samples with authored line breaks keep their scroll. */
+  .doc-grid .cmd-single-line pre { white-space: pre-wrap; overflow-wrap: break-word; }
 }
 
 /* The bootstrap prompt. Same block and same copy button as a command, but its content is

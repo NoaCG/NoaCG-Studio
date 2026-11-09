@@ -124,6 +124,7 @@ const copyText = async (text: string): Promise<boolean> => {
 for (const pre of Array.from(document.querySelectorAll<HTMLPreElement>('.doc-body pre'))) {
   const shell = document.createElement('div');
   shell.className = 'cmd';
+  if (!pre.textContent?.includes('\n')) shell.classList.add('cmd-single-line');
   pre.parentNode?.insertBefore(shell, pre);
   shell.appendChild(pre);
 
