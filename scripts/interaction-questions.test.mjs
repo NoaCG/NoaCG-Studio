@@ -88,6 +88,10 @@ test('a stored list is read safely: damaged entries drop, a newer type is kept w
   assert.equal(q.questionLocked(read[1], { live: false, answers: 0 }), true);
   assert.ok('error' in q.editQuestion(read, 'w', { text: 'Changed' }, false));
   assert.deepEqual(q.readQuestions(undefined), []);
+  // An additive field a newer build put on a known type survives reading and an edit.
+  const later = q.readQuestions([{ id: 'x', type: 'open', text: 'Kept', resultTarget: 'g1' }]);
+  assert.equal(later[0].resultTarget, 'g1');
+  assert.equal(q.editQuestion(later, 'x', { text: 'Edited' }, false).list[0].resultTarget, 'g1');
 });
 
 test('the Interaction view keeps its persisted key and its inbox key (AC-1, R17)', () => {

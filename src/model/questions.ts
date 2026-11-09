@@ -73,8 +73,11 @@ export function readQuestions(raw: unknown): ShowQuestion[] {
       out.push({ ...(q as unknown as ShowQuestion) });
       continue;
     }
+    // Additive optional fields a newer build stored stay on the question (the spread), so a list
+    // edit here never drops them.
     const options = Array.isArray(q.options) ? q.options.filter((o): o is string => typeof o === 'string') : [];
-    out.push(q.type === 'choice' ? { id: q.id, type: 'choice', text: q.text, options } : { id: q.id, type: 'open', text: q.text });
+    const { options: _options, ...rest } = q;
+    out.push(q.type === 'choice' ? ({ ...rest, options } as unknown as ShowQuestion) : ({ ...rest } as unknown as ShowQuestion));
   }
   return out;
 }
@@ -123,7 +126,7 @@ export function editQuestion(
   const made = makeQuestion(was.id, was.type, patch.text ?? was.text, patch.options ?? was.options ?? []);
   if ('error' in made) return made;
   const next = [...list];
-  next[at] = made.question;
+  next[at] = { ...was, ...made.question };
   return { list: next };
 }
 

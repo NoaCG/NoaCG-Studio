@@ -346,8 +346,12 @@ From the independent review the owner supplied. All six points were taken; adjus
 ### Phase 1: Questions and their lifecycle
 
 Previous verified main: `3985c140631173c267c5e93b37741a15bab8d88c`. Revert of this merge:
-`git revert -m 1 <merge sha>` (the merge sha is recorded in the evidence once it lands); the
-migration's new columns and functions are additive and stay harmless after a revert.
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-1.md` once it lands), AND a new
+migration that restores 0035's `audience_submit(text, text, text, text)`, `audience_vote(text,
+text, uuid, int)`, `audience_set_join` and `audience_close_round`, and 0036's `audience_open_round`.
+Migration 0111 is not purely additive: it drops the phone signatures that named no round and makes
+the old door and round writers refuse (R18, R19), so the old app cannot run on it. Its columns,
+index and new functions can stay; nothing old reads them.
 
 **Rules** (state rules written before code; each is observable):
 
@@ -411,3 +415,44 @@ migration's new columns and functions are additive and stay harmless after a rev
 - R21. Quiz rounds, the comment mode and the "Accepting messages" switch leave the panel: the
   spec's question types are Open and Multiple choice (Word is phase 6), and what phones see is
   the live question or the waiting text (D1).
+
+Found after coding (in the code review), apart from the rules above:
+
+- R22. A send never deadlocks with Go live, Stop or Clear results: those lock the production row
+  `for no key update`, which the send's foreign-key check does not wait on.
+- R23. When Stop finds another question live (R4), the page says nothing was stopped and leaves the
+  staged cue alone.
+- R24. A Twitch line refused because its remembered round closed is sent once more to the round
+  live now, so a switch of question loses no chat line that arrived after it.
+
+**Decisions** (made in the build, revertible in review):
+
+- The question list is `Show.questions` (`src/model/questions.ts`), saved and synced with the
+  production and left out of the publish digest: questions reach phones through Go live, so
+  writing one never asks for a publish.
+- Twitch keeps the phone door (R20), so with an Open question live its lines answer it and with
+  none live they are refused as before. YouTube and the Sheet keep the operator door. The rules
+  review asked whether this is a product decision; it is the reading closest to "as today" until
+  phase 4's chat votes, and it is one line to change.
+- A rehearsal phone page, `/join?rehearse=<production id>`, mounts the join surface over the local
+  room in the same browser, with a small link from the Join area. It is what lets an unpublished
+  production rehearse a phone (AC-8) and the two-page stale-phone journey run offline (AC-4).
+- The local room (rounds, live state, votes, phone answers) is kept in browser storage under a new
+  key, `spx-gfx-audience-room` (v1); the old inbox key is unchanged (R15, R17).
+- Quiz rounds, the comment mode and the "Accepting messages" switch leave the panel (R21). "Stage
+  counts to a graphic" and Stop writing "voting closed" into the staged cue stay as they were;
+  phase 3 replaces them with Add results to rundown and `Show.resultCues`.
+- The phone page shows the full question as its heading (up to 200 characters); the old 160
+  character prompt cap would have cut long questions.
+
+**Traps found** (for later phases):
+
+- Go live, Stop and Clear results lock the production row `for no key update`, not `for update`:
+  a phone's send holds a share lock on the round and then inserts a row whose foreign key takes a
+  key-share lock on the production row. `for update` deadlocked that pair (reproduced on a scratch
+  Postgres 16 with 0035 to 0111 applied; fixed and re-run before review).
+- `e2e/_interaction.ts` holds the question steps every journey uses; `scripts/docs-shots.mjs` and
+  `scripts/acceptance-pack.mjs` carry their own copies because they cannot import TypeScript.
+- A rehearsal phone in a journey needs `page.clock.install()` before it loads, or its five-second
+  poll can refresh it between the operator's press and the phone's, and it is no longer stale.
+

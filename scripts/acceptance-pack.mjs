@@ -61,9 +61,8 @@ const NOMINAL = { width: 1920, height: 1080 };
 
 const wait = (page, ms) => page.waitForTimeout(ms);
 
-/** The wizard's exact create path, run in the page - the same helper e2e/_create.ts uses. */
-
-/** Write a question in the Interaction tab and put it live on phones. */
+/** Write a question in the Interaction tab and put it live on phones. The same steps as
+ *  e2e/_interaction.ts, which this script cannot import (it is TypeScript for the test runner). */
 async function liveQuestion(page, type, text, options = []) {
   await page.getByTestId('question-add').click();
   await page.getByTestId(type === 'open' ? 'question-type-open' : 'question-type-choice').click();
@@ -81,6 +80,7 @@ async function moreWaysIn(page) {
   if (!(await more.evaluate((el) => el.open))) await more.locator('summary').click();
 }
 
+/** The wizard's exact create path, run in the page - the same helper e2e/_create.ts uses. */
 async function createProject(page, spec) {
   await page.addInitScript(() => {
     try {

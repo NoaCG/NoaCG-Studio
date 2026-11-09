@@ -28,11 +28,13 @@
 --
 -- Nothing here writes to `control_events` (R16): nothing reaches air.
 --
--- Additive: nullable columns, a column with a default, an index, three new functions; the
--- replaced functions keep their names. Revert: drop the three new functions, restore 0035's
--- `audience_submit` and `audience_vote`, 0098's `audience_list` and `audience_operator_add`,
--- 0035's `audience_rounds_list`, `audience_join_by_slug` and `audience_round_guard`, the kind
--- check, then the index and the columns.
+-- NOT purely additive. The columns, the index and the three new functions add; but the old phone
+-- signatures are dropped and the old round and door writers refuse (R18, R19), so an app from
+-- before this change cannot run on a database after it. Reverting the app therefore needs a new
+-- migration that restores 0035's `audience_submit(text, text, text, text)`, `audience_vote(text,
+-- text, uuid, int)`, `audience_set_join`, `audience_open_round` (0036's body) and
+-- `audience_close_round`. The columns, the index and the new functions can stay: nothing old reads
+-- them.
 
 set lock_timeout = '2s';
 set statement_timeout = '30s';
@@ -152,7 +154,11 @@ begin
   end if;
 
   -- R1: one press at a time per production. A second press waits here and then sees the first.
-  perform 1 from public.control_shows s where s.id = v_show for update;
+  -- NO KEY UPDATE, not UPDATE: a phone's send holds a share lock on the round and then inserts a
+  -- row whose foreign key takes a key-share lock on this production row. FOR UPDATE would block
+  -- that key-share while this press waits on the phone's round lock: a deadlock. NO KEY UPDATE
+  -- still excludes every other press, and lets the phone's insert through.
+  perform 1 from public.control_shows s where s.id = v_show for no key update;
 
   select * into v_round from public.audience_rounds r
     where r.show_id = v_show and r.question_id = v_id;
@@ -192,7 +198,7 @@ begin
   update public.control_shows s set audience_state = s.audience_state || jsonb_build_object(
       'open', true,
       'mode', case v_kind when 'open' then 'question' else 'poll' end,
-      'prompt', left(v_text, 160),
+      'prompt', v_text,
       'round', v_round.id,
       'question', v_id,
       'rev', coalesce((s.audience_state->>'rev')::int, 0) + 1
@@ -212,7 +218,7 @@ declare
   v_state jsonb;
 begin
   select o.show_id into v_show from public.audience_owner_for_control(p_slug) o;
-  perform 1 from public.control_shows s where s.id = v_show for update;
+  perform 1 from public.control_shows s where s.id = v_show for no key update;
   update public.audience_rounds r set closed_at = now()
     where r.show_id = v_show and r.id = p_round and r.closed_at is null;
   if found then
@@ -301,7 +307,7 @@ declare
   v_round public.audience_rounds%rowtype;
 begin
   select o.show_id into v_show from public.audience_owner_for_control(p_slug) o;
-  perform 1 from public.control_shows s where s.id = v_show for update;
+  perform 1 from public.control_shows s where s.id = v_show for no key update;
   select * into v_round from public.audience_rounds r
     where r.show_id = v_show and r.question_id = p_question;
   if v_round.id is null then

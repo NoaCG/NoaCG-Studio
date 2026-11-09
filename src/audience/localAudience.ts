@@ -597,7 +597,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       }
       r.open = true;
       r.mode = snap.kind === 'open' ? 'question' : 'poll';
-      r.prompt = snap.text.slice(0, 160);
+      r.prompt = snap.text;
       mustSave(r);
       changed();
       return { ...round };

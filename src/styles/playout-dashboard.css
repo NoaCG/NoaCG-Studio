@@ -1806,9 +1806,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-aud-tally-bar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
 .pd-aud-tally-bar > span { display: block; height: 100%; background: var(--accent); transition: width 240ms ease; }
 .pd-aud-tally-count { font-variant-numeric: tabular-nums; font-size: 13px; text-align: right; }
-/* The viewer preview: the PUBLIC page's own renderer, dropped into the studio behind a
-   disclosure. It brings its own colours (the production's published brand), so the frame
-   around it stays neutral and just gives it a phone's worth of width to lay out in. */
 /* INTERACTION (docs/work-specs/interaction/spec.md, "Screens"): questions and the selected one on
    the left, Join, paste and the other ways in on the right; one column on a narrow window. */
 .pd-aud-areas { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: start; }
@@ -1840,6 +1837,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-aud-messages-head h3 { margin: 0; font-size: 14px; font-weight: 650; }
 .pd-aud-messages-head select { width: auto; min-width: 190px; }
 .pd-aud-round-actions .prod-url { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+/* The viewer preview: the PUBLIC page's own renderer, dropped into the studio behind a
+   disclosure. It brings its own colours (the production's published brand), so the frame
+   around it stays neutral and just gives it a phone's worth of width to lay out in. */
 .pd-aud-preview { margin-bottom: 12px; }
 .pd-aud-preview > summary { cursor: pointer; font-size: 13px; color: var(--text-dim); padding: 4px 0; }
 .pd-aud-preview[open] > summary { color: var(--text); }

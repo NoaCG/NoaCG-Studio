@@ -465,7 +465,8 @@ const HALL_CUP_AUDIENCE = [
   ['poll', 'House Vote'],
 ];
 
-/** Write a question in the Interaction tab and put it live on phones. */
+/** Write a question in the Interaction tab and put it live on phones. The same steps as
+ *  e2e/_interaction.ts, which this script cannot import (it is TypeScript for the test runner). */
 async function liveQuestion(page, type, text, options = []) {
   await page.getByTestId('question-add').click();
   await page.getByTestId(type === 'open' ? 'question-type-open' : 'question-type-choice').click();

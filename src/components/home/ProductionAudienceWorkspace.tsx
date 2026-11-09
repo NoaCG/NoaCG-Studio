@@ -27,6 +27,7 @@ import {
   type PresenterPointers,
   type ObservableAudience,
   type RoundTarget,
+  type SubmitResult,
 } from '../../audience/audienceTypes';
 import {
   mountJoinSurface,
@@ -500,11 +501,16 @@ function MessageSources({
       return cached.target;
     };
     const submit: ChatSubmit = async (token, author, body) => {
-      const to = await target().catch(() => null);
-      if (!to) return { ok: false, error: 'No Open question is live.' };
-      const result = await viewer.submit(token, author, body, to);
-      if (result.closed) cached = null;
-      return result;
+      const send = async (): Promise<SubmitResult> => {
+        const to = await target().catch(() => null);
+        return to ? viewer.submit(token, author, body, to) : { ok: false, error: 'No Open question is live.' };
+      };
+      const result = await send();
+      if (!result.closed) return result;
+      // The remembered round closed under a line that arrived after the switch: ask once more, so
+      // it answers the question live now. A chat line has no draft to keep, unlike a phone's.
+      cached = null;
+      return send();
     };
     intake.setSubmit(submit);
   }, [intake, backend, live, show.joinSlug]);
@@ -884,6 +890,9 @@ export default function ProductionAudienceWorkspace({
   const roundOf = useMemo(() => new Map(rounds.filter((r) => r.questionId).map((r) => [r.questionId!, r] as const)), [rounds]);
   /** Counts per round, for every vote this production has asked. */
   const [tallies, setTallies] = useState<Record<string, AudienceTally>>({});
+  /** Which state of each round its counts were read in: a closed round is read once per state. */
+  const tallyRead = useRef(new Map<string, string>());
+  const tallyKey = (r: AudienceRound) => `${r.revision}|${r.closedAt ?? 'open'}`;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composer, setComposer] = useState<{ editing: ShowQuestion | null } | null>(null);
   const [armedClear, setArmedClear] = useState<string | null>(null);
@@ -955,13 +964,15 @@ export default function ProductionAudienceWorkspace({
         async (list) => {
           if (!alive) return;
           setRounds(list);
-          // Every vote's count, for the list's answer column. A closed round's counts are final
-          // and the live one is re-read below at the tally's own rate.
-          const counted = await Promise.all(
-            list.filter((r) => r.kind !== 'open').map((r) => backend.tally(r.id).catch(() => null)),
-          );
+          // Every vote's count, for the list's answer column. A closed round's counts are final, so
+          // each is read once per state it is in (reopened, cleared); the live one is re-read
+          // below at the tally's own rate.
+          const due = list.filter((r) => r.kind !== 'open' && tallyRead.current.get(r.id) !== tallyKey(r));
+          const counted = await Promise.all(due.map((r) => backend.tally(r.id).then((t) => [r, t] as const, () => null)));
           if (!alive) return;
-          setTallies(Object.fromEntries(counted.filter((t): t is AudienceTally => t !== null).map((t) => [t.roundId, t])));
+          for (const done of counted) if (done) tallyRead.current.set(done[0].id, tallyKey(done[0]));
+          const fresh = counted.filter((d): d is NonNullable<typeof d> => d !== null);
+          if (fresh.length > 0) setTallies((prev) => ({ ...prev, ...Object.fromEntries(fresh.map(([, t]) => [t.roundId, t])) }));
         },
         () => {},
       );
@@ -1091,7 +1102,13 @@ export default function ProductionAudienceWorkspace({
     if (!closing || busy) return false;
     setBusy(true);
     try {
-      await backend.stop(closing.id);
+      const after = await backend.stop(closing.id);
+      // Stop names its round (R4): if another operator put a question live meanwhile, nothing
+      // stopped, and the page says so rather than claiming phones are waiting.
+      if (after.round && after.round.id !== closing.id) {
+        setNote('Another question went live meanwhile, so nothing was stopped.');
+        return false;
+      }
       const final = closing.kind === 'open' ? null : await backend.tally(closing.id).catch(() => tallies[closing.id] ?? null);
       const cueId = stagedCue.current[closing.id];
       const cue = cueId ? show.cues?.find((c) => c.id === cueId) : undefined;
@@ -1161,6 +1178,8 @@ export default function ProductionAudienceWorkspace({
   const select = (id: string) => {
     setSelectedId(id);
     setArmedClear(null);
+    // An edit open on another question closes rather than hiding behind the new selection.
+    if (composer?.editing && composer.editing.id !== id) setComposer(null);
     // An Open question's answers are its messages: the list below follows the selection.
     const q = questions.find((x) => x.id === id);
     if (q?.type === 'open') setQuestionFilter(`q:${id}`);
