@@ -496,7 +496,7 @@ unmeasured when a side cannot reach the minimum within 7 days of its start, here
 2026-11-13T20:18Z. It is recorded on 2026-11-09 instead, because the measured arrival rate leaves
 no realistic way to get there. The 33 merges from #2264 to 2026-11-09T19:50Z, classified as in
 section 7.4 (group from each merge's final head's first ci.yml PR run, `rule` on each merge),
-held 12 `cap+cfg` merges in about 2.9 days, about 4 a day: 3 on 2026-11-06 after #2264, 5 on
+held 12 `cap+cfg` merges (by merge time, #2264 included) in about 2.9 days, about 4 a day: 3 on 2026-11-06, 5 on
 2026-11-07, 2 on 2026-11-08, and 2 of 15 merges on Monday 2026-11-09. The 24 a day of section 7.4
 (2026-11-03 to 2026-11-06) has not held since. At about 4 a day a new before side reaches 10
 around 2026-11-12; the re-run would then land and need 10 more `cap+cfg` merges on its after side
