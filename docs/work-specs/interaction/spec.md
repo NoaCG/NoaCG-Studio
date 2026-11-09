@@ -360,32 +360,54 @@ migration's new columns and functions are additive and stay harmless after a rev
   question's round, and sets the state to open, the mode (`question` for Open, `poll` for
   Multiple choice), the prompt (the question's text), the round and the question id, bumping
   `rev`. Of two concurrent presses the later transaction wins and one round is open.
-- R4. Stop, in one transaction: closes the open round and sets the state to waiting (not open,
-  no round, no question id), bumping `rev`.
+- R4. Stop names the round it stops. In one transaction, if that round is still open, it closes
+  it and sets the state to waiting (not open, no round, no question id), bumping `rev`; if another
+  question went live meanwhile, Stop changes nothing.
 - R5. Each round has a revision, 1 when made. It goes up by one when Go live brings text or
   options different from the round's snapshot, and on Clear results. A plain reopen keeps it.
 - R6. A phone's answer or vote names the round id and the revision it read. The server refuses
   it unless the round is this production's, open, of the matching kind (Open takes answers,
   Multiple choice takes votes) and at that revision. A closed or stale round is refused with
-  "That question has closed". A question id is never taken from a client.
+  "That question has closed". A question id is never taken from a client. The send holds a share
+  lock on the round, so a Stop, Go live or Clear results either waits for it or is seen by it.
 - R7. An answer is filed under the round it was accepted into, and nothing later moves it: not
   Go live on another question, not Stop, not an edit. A vote is one row per round and device;
   sending again changes it.
 - R8. Text and options are locked while the question is live and once its round has an answer
   or a vote. The server refuses a Go live whose text or options differ from a round that has
-  answers or votes, and one whose type differs from its round's. Type never changes.
+  answers or votes, and one whose type differs from its round's. Type never changes. When Go live
+  is refused for that reason (another tab edited a question that had answers), the page says so
+  and offers Duplicate, which asks the changed words as a new question.
 - R9. Clear results is refused while the round is open. It removes the round's answers and votes
   and bumps its revision. The UI asks for two presses.
-- R10. Deleting a question removes it from the list only. Its round, answers and votes stay;
-  its answers are listed under "Earlier questions".
+- R10. Deleting a question removes it from the list only; deleting the live question stops it
+  first. Its round, answers and votes stay; its answers are listed under "Earlier questions".
 - R11. Duplicate makes a new question id with no round, so it starts from zero.
 - R12. Selecting a row is screen state only: it calls nothing and saves nothing.
 - R13. Paste files the message under the destination shown beside Paste: the live question's
-  round by default, or none. The server accepts only a round of this production.
+  round by default when it is an Open question, otherwise none; the operator can change it to
+  none. The server accepts only a round of this production. The cue editor's Fill paste files
+  under none.
 - R14. A refused stale send keeps the typed text, shows "That question has closed" and the new
   question (or the waiting text), and never resends by itself.
-- R15. An unpublished production runs R1 to R14 on the local provider in memory, with the same
-  refusals.
+- R15. An unpublished production runs R1 to R14 on the local provider, with the same refusals.
+  Its rounds, live state, votes and phone answers are kept in browser storage per production, so
+  a reload, the production's other tabs and a rehearsal phone tab see the same rounds and a
+  pasted message keeps its question. Simulated rows stay in memory, as before.
 - R16. None of these sends a Take, an Update or a graphic event.
 - R17. `Show.questions` is additive optional. The view key `audience`, the storage keys, the
   tables and the CSS prefixes keep their names.
+- R18. Only Go live and Stop move the round and the live state. `audience_set_join` keeps the
+  presenter pointers and the brand only; the old `audience_open_round` and `audience_close_round`
+  refuse. The join resolve reports a production as not open unless a round is open, so a state
+  left by an older page (a comment mode, a round with no question) shows phones the waiting text.
+- R19. The old phone signatures (`audience_submit` without a round, `audience_vote` without a
+  revision) are removed, so a page loaded before this change has its sends refused and counted
+  nowhere.
+- R20. Twitch chat keeps going in through the phone door, which is now the live Open question:
+  a line is filed under it, and with no Open question live it is refused and counted as dropped,
+  as with the door closed before. YouTube and the message Sheet keep the operator door and file
+  under no question. (Chat votes are phase 4.)
+- R21. Quiz rounds, the comment mode and the "Accepting messages" switch leave the panel: the
+  spec's question types are Open and Multiple choice (Word is phase 6), and what phones see is
+  the live question or the waiting text (D1).
