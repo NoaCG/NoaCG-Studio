@@ -1,0 +1,43 @@
+# Phase 1 evidence: questions and their lifecycle
+
+Spec: `docs/work-specs/interaction/spec.md`, phase 1 (AC-1, AC-2, AC-3, AC-4, AC-7, AC-8), with the
+Rules R1 to R24 in its phase notes. Base: `3985c140631173c267c5e93b37741a15bab8d88c`. Branch:
+`claude/plan-interaction-1-build`. The PR, its reviewed head, the CI run and the merge sha are in
+the PR description and the receipt to the coordinator; this file holds what was checked and how.
+
+## How the rules were set
+
+The phase changes who may open, close and count a round, so the Rules were written and pushed
+before any code (`5f32dfa`) and challenged by a fresh read-only `/so` session. Its verdict was
+AGREE WITH CORRECTIONS; every correction went into the Rules (`80f2160`) before the build: the old
+door and round writers refuse (R18), the old phone signatures go (R19), Stop names its round (R4),
+deleting the live question stops it first (R10), the local room is kept so a paste keeps its
+question (R15), and Twitch's door is stated (R20). R22 to R24 were found in the code review and
+are listed apart.
+
+## Per criterion
+
+| AC | Result | Evidence |
+| --- | --- | --- |
+| AC-1 | pass (local) | Node: `scripts/interaction-questions.test.mjs` "the Interaction view keeps its persisted key and its inbox key". Journey: `e2e/production-audience.spec.ts` "questions are written, browsed and changed safely..." (Setup says `Interaction…`, the view's heading says Interaction, no `Messages…`); `e2e/production-views.spec.ts` (tab and Setup labels). Links points to Interaction (`links-interaction`). |
+| AC-2 | pass (local); configured in CI | Node: `scripts/interaction-questions.test.mjs` (add, edit, reorder, duplicate, delete, locks, type never changes) and `scripts/interaction-lifecycle.test.mjs` (reopen continues the count, a vote changes rather than adds, duplicate starts from zero, Clear results refused while live and leaves nothing). Journey: the questions test above, including a reload. Configured: `e2e/configured/audience-live.spec.ts` "questions on the server..." (reopen and clear against 0111). |
+| AC-3 | pass (scratch database, local); configured in CI | `scripts/interaction-lifecycle.test.mjs` (Go live and Stop, MC to Open closes, Stop names its round, two providers racing). Scratch Postgres 16 with 0035, 0036, 0095, 0098 and 0111 applied: the migration's own self-check passes, and two sessions pressing Go live on different questions ended with one open round and the state pointing at it. Configured: the same from two pages, and refusal after Stop and after another question goes live. |
+| AC-4 | pass (local); configured in CI | Journey: "a stale phone keeps its words, sees the new question, and files nothing until it sends again" (operator page plus a rehearsal phone page with a held clock; refused send keeps the text and shows the new question; old options refused after Stop, Clear, edit and Go live). Configured: stale revision refused by the server. |
+| AC-7 | pass (local); configured in CI | Node: lifecycle test "answers are filed under the round they were sent to". Journey: the stale-phone test (paste defaults to the live Open question, changes to none; switching the live question moves nothing). Configured: `round_id` on `audience_list`, and an answer aimed at a closed vote's round refused. |
+| AC-8 | pass (local) | Journey: "unpublished, Interaction offers Publish where phones would join and publishes nothing by itself" (offline: Publish disabled with its reason, no sign-in prompt, questions, Go live, preview, paste and Simulate work, no slug minted). `e2e/auth.spec.ts` offline production test extended to the Interaction view (zero auth UI). |
+
+## Checks run on this machine
+
+- `npm run gates -- run --changed origin/main`: 356 tests, 0 failed (after recording the tighter
+  copy baseline: the panel's em dashes went from 13 to 1).
+- Browser, local queue: `e2e/production-audience.spec.ts`, `e2e/production-chat-intake.spec.ts`,
+  `e2e/production-views.spec.ts`: 33 passed. `e2e/auth.spec.ts` (offline production test) and
+  `e2e/import-svg-behaviour.spec.ts` (imported vote board): 2 passed.
+- Migration: `classifyMigration` on 0111 reports no blocked statement and no live-path statement;
+  the self-check fails when Go live stops closing other rounds or when the revision check is
+  removed (mutation runs on the scratch database).
+- Node lifecycle test mutations: removing the revision check fails one test; removing "close the
+  other rounds" fails four.
+- Not run here: the configured suite (needs the local Supabase stack, which this container cannot
+  start; CI runs the selection), the production build (CI), and specs outside the audience flow
+  that `shows.ts` maps to (CI).
