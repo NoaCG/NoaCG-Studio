@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useRouter, type ProductionSub } from '../../app/router';
+import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { holdReload } from '../../app/deploySkew';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -3849,7 +3849,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         />
         </AccountAuthoringGate>
       )}
-      {sub === 'audience' && <AccountAuthoringGate><ProductionAudienceWorkspace show={show} setShows={setShows} /></AccountAuthoringGate>}
+      {sub === 'audience' && (
+        <AccountAuthoringGate>
+          <ProductionAudienceWorkspace
+            show={show}
+            setShows={setShows}
+            publish={started ? null : { run: () => void publish(), unavailable: backendConfigured ? null : 'Publishing needs the cloud backend, and this build runs offline' }}
+          />
+        </AccountAuthoringGate>
+      )}
       {/* THE PLAYOUT SURFACE STAYS MOUNTED behind a sub-page, hidden rather than unmounted.
           Unmounting it destroyed the PROGRAM monitor's iframes, so a trip to Data or Audience
           RELOADED every live graphic: a running match clock came back at its seed, and anything
@@ -4480,6 +4488,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           busy={busy}
           controlUrl={controlUrl}
           joinUrl={joinUrl}
+          interactionHref={routeHash({ view: 'production', id: show.id, sub: 'audience' })}
           presenterUrl={presenterUrl}
           nameDraft={nameDraft}
           nameNote={nameNote}

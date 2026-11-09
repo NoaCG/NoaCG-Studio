@@ -13,6 +13,7 @@ export function ProductionLinksDialog({
   busy,
   controlUrl,
   joinUrl,
+  interactionHref,
   presenterUrl,
   nameDraft,
   nameNote,
@@ -25,6 +26,8 @@ export function ProductionLinksDialog({
   busy: boolean;
   controlUrl: string | null;
   joinUrl: string | null;
+  /** Where everything audience lives (interaction spec AC-1): Links points there. */
+  interactionHref: string;
   presenterUrl: string | null;
   nameDraft: string;
   nameNote: string | null;
@@ -73,6 +76,13 @@ export function ProductionLinksDialog({
           {row('control', 'Control page', 'Private', controlUrl, 'control-url')}
           {row('presenter', 'Presenter', 'Private', presenterUrl, 'presenter-url')}
           {row('join', 'Audience', 'Public', joinUrl, 'join-url')}
+          <p className="hint" data-testid="links-interaction">
+            Questions, phones and chat are in{' '}
+            <a href={interactionHref} target="_blank" rel="noopener" data-testid="links-interaction-open">
+              Interaction
+            </a>
+            .
+          </p>
           {joinUrl && (
             <div className="dlg-row" data-testid="join-name">
               <span className="prod-links-label">Audience name</span>

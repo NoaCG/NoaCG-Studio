@@ -92,6 +92,16 @@ test('what a publish writes back, and bookkeeping, never reads as a change', () 
   assert.equal(recordChangedSincePublish(after), false);
 });
 
+test('the question list never reads as a change: it reaches phones through Go live, not a publish', () => {
+  // docs/work-specs/interaction/spec.md: writing questions during a show must not turn the
+  // production page amber and ask for a publish that would send nothing new.
+  const live = published(show());
+  const after = write(live, (s) => {
+    s.questions = [{ id: 'q1', type: 'open', text: 'Ask the coach' }];
+  });
+  assert.equal(recordChangedSincePublish(after), false);
+});
+
 test('re-adding the same design does not count; what the publish reads from the pool does', () => {
   const live = published(show());
   // addGraphicToShow replaces by name with a fresh save time and a fresh copy of the template.

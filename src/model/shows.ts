@@ -32,6 +32,7 @@ import type { JsonValue } from './productionData';
 import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { readQuestions, type ShowQuestion } from './questions';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
@@ -502,6 +503,12 @@ export interface Show {
    *  next "Prepare cue on <graphic>" names it. Never guessed (control/messageStaging.ts).
    *  ADDITIVE OPTIONAL; absent = not chosen yet. */
   messageTarget?: string;
+  /** The production's QUESTION LIST (model/questions.ts; docs/work-specs/interaction/spec.md): the
+   *  questions the operator prepares and puts live on phones, in the operator's order. ADDITIVE
+   *  OPTIONAL; absent = none written. Read through `showQuestions`, which drops damaged entries and
+   *  keeps a newer build's question types whole. Answers and results are not here: they live with
+   *  the audience provider, keyed by each question's id. */
+  questions?: ShowQuestion[];
   /** The hosted control page's capability slug, once published (control/hostedControl.ts).
    *  Kept on the record so the URL survives reloads and the show export can bake the hosted
    *  receiver into its graphics. Rotating/unpublishing clears it. */
@@ -2463,6 +2470,30 @@ export function setShowPollLiveFigures(showId: string, on: boolean): Show[] {
     else delete show.pollLiveFigures;
     return true;
   });
+}
+
+/** The production's questions, as this build reads them (model/questions.ts `readQuestions`). */
+export function showQuestions(show: Pick<Show, 'questions'>): ShowQuestion[] {
+  return readQuestions(show.questions);
+}
+
+/**
+ * Change the production's question list through one of model/questions.ts's list edits, applied to
+ * the list as it is stored NOW (rebased like a prepare): two tabs each adding a question both keep
+ * theirs. `edit` returns the new list, or a sentence when the edit cannot be made.
+ */
+export function setShowQuestions(
+  showId: string,
+  edit: (list: ShowQuestion[]) => ShowQuestion[] | string,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const next = edit(readQuestions(show.questions));
+    if (typeof next === 'string') return next;
+    if (JSON.stringify(next) === JSON.stringify(readQuestions(show.questions))) return false;
+    if (next.length > 0) show.questions = next;
+    else delete show.questions;
+    return true;
+  }, true);
 }
 
 /** Remember where messages go (Show.messageTarget), or forget it with `null`. Part of a prepare,
