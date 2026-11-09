@@ -36,24 +36,17 @@
   "github": "cloud-queue-merge.yml dispatches succeeded for PRs #2305, #2306, #2308, #2310, #2311 today; direct commit-status writes refused: stamp via cloud-queue-merge.yml",
   "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning"
  },
- "waitingOn": [
-  {
-   "what": "PR #2314 in the merge queue",
-   "eta": "2026-11-09T14:15Z"
-  }
- ],
+ "waitingOn": [],
  "inFlight": [
   {
    "phase": "1",
-   "step": "build",
-   "session": "session_017SdbwNii92ZmZGyUNnuoji",
-   "nonce": "1-b-7ac6",
-   "launchedAt": "2026-11-09T11:17:44Z",
-   "branch": "claude/plan-interaction-1-build",
+   "step": "check",
+   "session": "session_017SdbwM31R2TH1MuuRf2j7C",
+   "nonce": "1-c-5617",
+   "launchedAt": "2026-11-09T13:44:30Z",
+   "merge": "cdc1011e4aee0bcd8b04aad3a5314815fc42d752",
    "pr": 2314,
-   "head": "c91dd17deac22bd365920bad31b3cd713482ade8",
-   "stamped": "2026-11-09T13:30Z",
-   "receipt": "builder receipt 13:28Z: CI 42623264162 green except Reviewed, configured all 69 success, /so A, migration 0111_audience_questions.sql"
+   "builder": "session_017SdbwNii92ZmZGyUNnuoji"
   }
  ],
  "owner": [
