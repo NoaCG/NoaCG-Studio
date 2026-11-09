@@ -210,6 +210,14 @@
     {
       "at": "2026-11-09T17:27Z",
       "note": "cf13 rank1 re-run: cap+cfg before side 9/10 (M1 15.4). #2315 (afbe5cb0) ends M3 sides only (supabase-advisors.mjs run by post-land); M1/M2 sides continue. Next check-in 19:35Z with block renewal."
+    },
+    {
+      "at": "2026-11-09T19:45Z",
+      "note": "Block renewed: epoch 9, deadline 2026-11-10T19:36:14Z. cf13 rank1 re-run: before side reached 10 at 19:14 but #2321 (interaction plan phase 2, d521e014, 19:14:16Z) changed package.json, package-lock.json, e2e-affected.mjs, deploy-affecting-paths.mjs and ends every side. Before side restarts at 0 from 2026-11-09T19:14:16Z. At ~3.3 cap+cfg merges/day both sides cannot reach 10 by the 7-day bound 2026-11-13T20:18Z. Asked owner: record unmeasured and move to rank 2, or keep holding."
+    },
+    {
+      "at": "2026-11-09T20:28Z",
+      "note": "cf13 receipt cf13-b-e654 accepted: #2261 evidence-only, head 3f7540bb, final /so A, Codex clean. Corrections accepted: early close is an explained coordinator departure (8.1, reversible by owner); rank 2 was the first try (#2171 kept), ranks 3-8 untried to cf20(c). Stamp run 42693119903, auto-merge on 20:27:29Z. Next: on merge, record build+landed, launch cf13 check."
     }
   ],
   "decisions": [
@@ -241,6 +249,15 @@
       "at": "2026-11-07T19:1xZ",
       "by": "owner (coordinator session)",
       "what": "add phase cf21 Review stopping rules before cf20; receipt docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-07-cf21.md (PR #2282); insert after cf13 (ledger admits only after the last phase with an event)"
+    },
+    {
+      "at": "2026-11-09T19:50Z",
+      "by": "coordinator",
+      "what": "cf13 rank 1 third try recorded unmeasured under acceptance (a)'s 7-day rule after #2321 reset every side; third and last try, so cf13 passes with negative result, speed goal open, ranks 2-4 to cf20(c). #2261 lands evidence only. Hold ended (#1967 comment 6749875855). Reversible if the owner asks to keep holding.",
+      "reminders_deleted": [
+        "trig_018Vs4et9y2CPZUthAzJVScZ",
+        "trig_01AKVe78Lfoo6ZUHfrUVhTLu"
+      ]
     }
   ],
   "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
