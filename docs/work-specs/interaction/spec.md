@@ -592,3 +592,12 @@ the page between publishes), stated as rules before the repair (`src/control/joi
 
 Follow-ups filed: #2319 (render baseline on Windows), #2320 (offer to update Join card cues after
 the link name changes; in the spec's Graphics section, not in phase 2's acceptance).
+
+**Repair 1** (independent check checker-2-2-c-3487 on merge `d521e01`, AC-6): `joinColours`
+checked contrast on fractional colours and `css()` rounded them to whole RGB, so a colour that
+passed at 3.001:1 could render at 2.99:1 (about 2.7% of 100,000 random looks; four named looks).
+Root fix: `over()` and `mix()` produce whole channels, so every colour the page gets is exactly the
+one each check judged, for every pair the AA rule covers. `scripts/join-colours.test.mjs` judges
+the rendered CSS strings for all eight pairs over the four named looks and 100,000 seeded random
+looks (a quarter with a panel alpha); it is red on `d521e01` (2748 looks below AA) and adds no E2E
+minutes (`evidence/phase-2.md`, Repair 1).

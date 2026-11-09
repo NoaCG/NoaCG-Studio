@@ -78,3 +78,21 @@ Mutation: removing the superseded-work check before sending fails the slow-uploa
   `e2e/catalog-baseline.spec.ts` emitted-code baseline recorded and passing.
 - Not run here: the configured suite (no local Supabase stack on this machine); it runs in the PR's
   CI gate.
+
+## Repair 1 (independent check checker-2-2-c-3487, AC-6)
+
+The check found that low-contrast looks could render below AA once `css()` rounded the colours
+to whole RGB (for example look `#cc3333` / `#dd4444` / `#bb3333`: option and field edges 3.0011:1
+before rounding, 2.9936:1 as rendered).
+
+- Reproduced on `d521e01`: `node --test scripts/join-colours.test.mjs` fails both sweeps: the four
+  named looks, and 2748 of 100,000 seeded random looks below AA on at least one pair (worst kinds:
+  card muted text 4.498:1, option and field edge 2.997:1, page muted text 4.491:1).
+- Fix: `over()` and `mix()` in `src/audience/joinColours.ts` round to whole channels, so every
+  check judges the exact colour the page renders.
+- After: the same test passes (3 of 3, about 2.8 s), also on a second seed (run by hand, not kept).
+- Mutation: removing `Math.round` from `over()` and `mix()` (the code on `d521e01`) turns the test
+  red as above.
+- Browser, local queue: the six AC-6 tests in `e2e/production-audience.spec.ts` (look, defaults,
+  low-contrast palettes, broken logo, failing font, logo replace and remove) pass.
+- No E2E test added: the regression test is a Node test.
