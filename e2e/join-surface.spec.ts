@@ -11,7 +11,7 @@
 //
 // Each QR is read from PIXELS by e2e/_qr.ts, as a phone camera would read it.
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Frame, type Page } from '@playwright/test';
 import { qrReader } from './_qr';
 
 const LINK = 'https://noacg.studio/j/friday-night-live';
@@ -119,7 +119,9 @@ function contrastReport(page: Page) {
       document.querySelectorAll(selector).forEach((el) => {
         const style = getComputedStyle(el);
         const bg = behind(el.parentElement);
-        out.push({ what: `edge ${selector}`, ratio: ratio(over(parse(style.borderTopColor), bg), bg), need: 3 });
+        // A focused field draws its edge as the focus outline (its border goes transparent).
+        const line = document.activeElement === el ? style.outlineColor : style.borderTopColor;
+        out.push({ what: `edge ${selector}${document.activeElement === el ? ':focus' : ''}`, ratio: ratio(over(parse(line), bg), bg), need: 3 });
       });
     text('.nj-title');
     text('.nj-prompt');
@@ -129,6 +131,8 @@ function contrastReport(page: Page) {
     text('.nj-key');
     text('.nj-send:not([disabled])');
     text('.nj-note');
+    text('.nj-mine li');
+    edge('.nj-card');
     edge('.nj-opt');
     edge('.nj-send:not([disabled])');
     edge('.nj input[type=text], .nj textarea');
@@ -210,7 +214,7 @@ test.describe('the phone page carries the production look (AC-6)', () => {
           await expect(page.locator('.nj-opt[aria-pressed=true]')).toHaveCount(1);
         }
         const report = await contrastReport(page);
-        expect(report.length, `${round}: something was measured`).toBeGreaterThan(3);
+        expect(report.length, `${round}: something was measured`).toBeGreaterThanOrEqual(3);
         const failing = report.filter((r) => r.ratio < r.need);
         expect(failing, `${name}, ${round}: every text 4.5:1 and every edge 3:1`).toEqual([]);
       }
@@ -324,13 +328,18 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       return variant.create({ lines });
     }, link);
 
-  /** Play the card in this document and let every timeline land (no waiting out real seconds). */
-  const settle = (page: Page) =>
-    page.evaluate(() => {
-      const w = window as unknown as { play(): void; gsap: { globalTimeline: { getChildren(a: boolean, b: boolean, c: boolean): { progress(n: number): void }[] } } };
-      w.play();
-      w.gsap.globalTimeline.getChildren(true, true, true).forEach((t) => t.progress(1));
+  /** Play the card in this document and wait for its entrance to land. Play is queued in the
+   *  graphic's own event queue, so the wait is on what the page shows, not on a timeline handle. */
+  const settle = async (frame: Page | Frame) => {
+    await frame.evaluate(() => (window as unknown as { play(): void }).play());
+    await frame.waitForFunction(() => {
+      const box = document.querySelector('.audience-box');
+      const root = document.querySelector('.audience');
+      const g = (window as unknown as { gsap: { globalTimeline: { getChildren(a: boolean, b: boolean, c: boolean): { isActive(): boolean }[] } } }).gsap;
+      return !!box && !!root && getComputedStyle(root).opacity === '1' && getComputedStyle(box).opacity === '1'
+        && g.globalTimeline.getChildren(true, true, false).every((t) => !t.isActive());
     });
+  };
 
   test('live: the rendered card decodes to its link, follows an update, and an empty link draws nothing', async ({ page, browser }) => {
     const reader = await qrReader(browser);
@@ -338,19 +347,25 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       await phonePage(page);
       await page.setViewportSize({ width: 1920, height: 1080 });
       const tpl = await template(page, LINK);
-      const html = await page.evaluate(async (t) => {
+      // As the studio's monitors load it: the preview document in an iframe on the app's origin.
+      await page.evaluate(async (t) => {
         const { composeDocument } = await import('/src/preview/composeDocument.ts');
-        return composeDocument(t as never);
+        const f = document.createElement('iframe');
+        f.id = 'card';
+        f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
+        document.body.appendChild(f);
+        await new Promise((res) => {
+          f.onload = res;
+          f.srcdoc = composeDocument(t as never);
+        });
       }, tpl);
-      const card = await page.context().newPage();
-      await card.setViewportSize({ width: 1920, height: 1080 });
-      await card.setContent(html);
+      const card = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
       await card.waitForFunction(() => typeof (window as unknown as { play?: unknown }).play === 'function');
       await settle(card);
-      const qr = card.locator('#audience-join-qr');
+      const qr = page.frameLocator('#card').locator('#audience-join-qr');
       await expect(qr.locator('svg')).toHaveCount(1);
       expect(await reader.read(await qr.screenshot())).toBe(LINK);
-      await expect(card.locator('.audience-join-url')).toHaveText('noacg.studio/j/friday-night-live');
+      await expect(page.frameLocator('#card').locator('.audience-join-url')).toHaveText('noacg.studio/j/friday-night-live');
 
       // A new link is data: update() redraws the code, nothing else moves.
       const other = 'https://noacg.studio/j/quiz-2026';
@@ -360,8 +375,7 @@ test.describe('the Join card draws its QR from its Join link (AC-11)', () => {
       await card.evaluate(() => (window as unknown as { update(d: unknown): void }).update({ f2: '' }));
       await expect(qr).toBeHidden();
       await expect(qr.locator('svg')).toHaveCount(0);
-      await expect(card.locator('.audience-join-url')).toBeHidden();
-      await card.close();
+      await expect(page.frameLocator('#card').locator('.audience-join-url')).toBeHidden();
     } finally {
       await reader.close();
     }

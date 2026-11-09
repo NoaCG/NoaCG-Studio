@@ -19,3 +19,9 @@ test('the vendored encoder runs as a plain script and defines qrcode', () => {
   vm.runInNewContext(`${readFileSync(VENDORED, 'utf8')};this.out = typeof qrcode;`, sandbox);
   assert.equal(sandbox.out, 'function');
 });
+
+test('the vendored encoder holds no String.replace pattern, so splicing it into a page keeps it whole', () => {
+  // $& $` $' $1 $<name> in a replacement string are patterns, not text (composeDocument splices
+  // the graphic's script into the preview that way).
+  assert.doesNotMatch(readFileSync(VENDORED, 'utf8'), /\$[&`'0-9<]/);
+});
