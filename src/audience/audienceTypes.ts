@@ -273,6 +273,8 @@ export interface AudienceBackend {
    *  value and merged on the server. Only a published production has phones to send it to; the
    *  local provider has none, and the studio's own preview takes the page from the production. */
   setPage?(brand: AudienceBrand): Promise<void>;
+  /** The page phones get now (null when there is none yet). Throws when it cannot be read. */
+  readPage?(): Promise<AudienceBrand | null>;
   /** Put this question in front of every phone, in one step: any other open round closes, this
    *  question's round opens (made the first time, reopened after), and the state points at it
    *  (R3). Refused when its words differ from a result that has answers, or its type changed. */

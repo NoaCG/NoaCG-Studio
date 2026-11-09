@@ -429,6 +429,14 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       return stateFrom(raw, await api.rounds());
     },
 
+    async readPage(): Promise<AudienceBrand | null> {
+      const sb = await client();
+      // An EMPTY patch is the read (0035): the same capability check, no rev bump. `operator`
+      // throws on an error, so a failed read is never taken for "no page yet".
+      const raw = await operator<unknown>(() => sb.rpc('audience_set_join', { p_slug: control(), p_patch: {} }));
+      return ((raw ?? {}) as { brand?: AudienceBrand | null }).brand ?? null;
+    },
+
     async setPage(brand): Promise<void> {
       const sb = await client();
       await operator<unknown>(() => sb.rpc('audience_set_join', { p_slug: control(), p_patch: { brand } }));

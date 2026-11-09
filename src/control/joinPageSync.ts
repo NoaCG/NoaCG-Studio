@@ -29,7 +29,8 @@ export interface JoinPageShow {
 export interface JoinPageSyncIo {
   /** The production as saved now (read when the sync runs, not when it was asked for). */
   readShow(): JoinPageShow | null;
-  /** What phones get now. */
+  /** What phones get now: null when they have no page yet. THROWS when it cannot be read, so a
+   *  failed read is never mistaken for "no page" (P4). */
   readBrand(): Promise<AudienceBrand | null | undefined>;
   /** The look's logo as a public URL, given the one phones have (P4); throws when it cannot be published. */
   publishLogo(show: JoinPageShow, known: string | null): Promise<string | null>;
@@ -79,7 +80,13 @@ export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number
       try {
         const show = io.readShow();
         if (!show) return;
-        const now = await io.readBrand();
+        let now: AudienceBrand | null | undefined = null;
+        let readFailed = false;
+        try {
+          now = await io.readBrand();
+        } catch {
+          readFailed = true;
+        }
         if (!current()) return;
         const known = typeof now?.logo === 'string' ? now.logo : null;
         let logo = known;
@@ -91,8 +98,9 @@ export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number
         }
         if (!current()) return;
         // Not knowing what phones have AND not being able to publish the logo: sending now could
-        // clear a logo phones have, so nothing goes and the failure is reported (P4).
-        if (logoFailed && !now) {
+        // clear a logo phones have, so nothing goes and the failure is reported (P4). Phones with
+        // no page yet have no logo to lose, so the rest of the page goes to them.
+        if (logoFailed && readFailed) {
           io.onError?.(logoFailed);
           return;
         }

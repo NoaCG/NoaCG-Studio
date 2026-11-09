@@ -1046,14 +1046,13 @@ export default function ProductionAudienceWorkspace({
    *  page settings' commit, which can run as this component goes away. */
   const askPageSync = useRef<(delayMs: number) => void>(() => {});
   askPageSync.current = (delayMs: number) => {
-    if (!live || !backend.setPage || !show.joinSlug) return;
-    const viewer = createSupabaseAudience({ joinSlug: show.joinSlug });
+    if (!live || !backend.setPage || !backend.readPage) return;
     const showId = show.id;
     void syncJoinPage(
       showId,
       {
         readShow: () => loadShows().find((s) => s.id === showId) ?? null,
-        readBrand: async () => (await viewer.joinView('interaction-page-sync')).brand,
+        readBrand: () => backend.readPage!(),
         publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
         send: (brand) => backend.setPage!(brand),
         onSent: () => preview.current?.refresh(),

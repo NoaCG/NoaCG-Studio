@@ -575,7 +575,9 @@ the page between publishes), stated as rules before the repair (`src/control/joi
 - P4. A logo already published under its file's hash is not uploaded again; a logo that cannot be
   published keeps the one phones have, and the rest of the page still goes (amended after the
   final review of `a8eb578`: sending nothing held the words back too). Publish keeps the logo the
-  same way.
+  same way. Only when what phones have cannot be read (the read throws) and the logo cannot be
+  published does nothing go, since a send then could clear their logo; phones with no page yet
+  get the rest of the page.
 - P5 (from the review of `a8eb578`, completed after the final review of `1bf6181`). Publish writes
   the page through the same one-at-a-time queue, which reads the production as saved when its turn
   runs, so a title changed during a long publish or a slow logo upload is not put back by it, and

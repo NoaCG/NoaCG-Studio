@@ -740,8 +740,10 @@ export async function publishControlShow(show: Show, publishedOf?: CuePublished)
   // Interaction's sync, which reads the production as saved when this turn runs, so a title
   // changed during a long publish (or a slow logo upload) is what phones end on.
   if (row.audience_state) {
+    // A failed read throws, so it is never mistaken for "phones have no page yet" (P4).
     const read = async () => {
-      const { data } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: {} });
+      const { data, error } = await sb.rpc('audience_set_join', { p_slug: row.slug, p_patch: {} });
+      if (error) throw new Error(error.message);
       return ((data ?? null) as { brand?: AudienceBrand } | null)?.brand ?? null;
     };
     await syncJoinPage(
