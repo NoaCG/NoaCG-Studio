@@ -40,13 +40,12 @@
  "inFlight": [
   {
    "phase": "2",
-   "step": "check",
-   "session": "session_017SdbwPxxv4PqySmEKaQb85",
-   "nonce": "2-c-3487",
-   "launchedAt": "2026-11-09T19:33:01Z",
-   "merge": "d521e014ac0181467452e20541cd64aa813d8e80",
-   "pr": 2321,
-   "builder": "session_017SdbwMPp5LNCQWUxwS2A3i"
+   "step": "repair",
+   "session": "session_017SdbwPMzyhro2Cym8G7N2j",
+   "nonce": "2-r-bb70",
+   "launchedAt": "2026-11-09T19:55:09Z",
+   "branch": "claude/plan-interaction-2-repair",
+   "failed": "AC-6 contrast after RGB rounding"
   }
  ],
  "owner": [
