@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Canvas guides fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div id="tiny" style="position:relative; width:40px; height:40px; background:#222"></div>
+  <div id="normal" style="position:relative; width:480px; height:260px; background:#222"></div>
+  <script type="module">
+    import { createElement } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import CanvasGuides from '/src/components/canvas/CanvasGuides.tsx';
+
+    createRoot(document.getElementById('tiny')).render(createElement(CanvasGuides, {
+      width: 0.7155555555555556, height: 0.4025, safeAreas: false, grid: false,
+    }));
+    createRoot(document.getElementById('normal')).render(createElement(CanvasGuides, {
+      width: 480, height: 260, safeAreas: true, grid: true,
+      canvasRect: { left: 40, top: 30, width: 400, height: 200 },
+    }));
+  </script>
+</body>
+</html>
