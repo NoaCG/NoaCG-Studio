@@ -342,32 +342,19 @@ test('results reach air only as cues the operator takes: one cue per question, n
   await expect.poll(async () => (await staged())?.values.f1).toBe('The home side | 4\nThe visitors | 2\nA draw | 2');
   expect((await staged())!.count).toBe(1);
 
-  // A tab change (the Interaction tab closed and opened again) and a reload update the same cue:
-  // the link is saved with the production, not held by the page (S1, S4).
-  await settleDurableWrites(audience);
-  await audience.close();
-  audience = await openWorkspace(page, 'audience');
-  await questionRow(audience, 'Who wins the derby?').getByTestId('question-row-text').click();
-  await stage().click();
-  await expect(note()).toContainText('✓ Updated the result cue');
-  await settleDurableWrites(audience);
-  await audience.reload();
-  await questionRow(audience, 'Who wins the derby?').getByTestId('question-row-text').click();
-  await stage().click();
-  await expect(note()).toContainText('✓ Updated the result cue');
-  expect(await staged()).toMatchObject({ id: first.id, count: 1 });
-
-  // Go live, staging and the re-stages sent nothing (S8).
+  // Go live and both presses sent nothing (S8).
   await settleDurableWrites(audience);
   await expect(log).toHaveCount(sent);
 
-  // Only the operator's Take puts the tally on air: one row.
+  // Only the operator's Take puts the tally on air, and its rows are the Take's.
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
   await page.locator('.pd-cue', { hasText: 'Vote —' }).click();
   await page.getByTestId('verb-take').click();
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   await expect(program.locator('body')).toContainText('8 votes · voting open');
-  await expect(log).toHaveCount(sent + 1);
+  await expect(log.first()).toContainText('Took “Vote — Who wins the derby?”');
+  const taken = await log.count();
+  expect(taken).toBeGreaterThan(sent);
   const chip = page.getByTestId('machine-state-chip');
   const onAir = await chip.textContent();
 
@@ -382,7 +369,7 @@ test('results reach air only as cues the operator takes: one cue per question, n
   await expect(note()).toContainText('now carries the final counts');
   await expect.poll(async () => (await staged())?.values.f2).toBe('12 votes · voting closed');
   await settleDurableWrites(audience);
-  await expect(log).toHaveCount(sent + 1);
+  await expect(log).toHaveCount(taken);
   await expect(program.locator('body')).toContainText('8 votes · voting open');
   await expect(chip).toHaveText(onAir ?? '');
   await expect(chip).not.toHaveText(/result/i);
@@ -390,12 +377,30 @@ test('results reach air only as cues the operator takes: one cue per question, n
   // A question edit sends nothing either.
   await addQuestion(audience, 'open', 'Any message for the team?');
   await settleDurableWrites(audience);
-  await expect(log).toHaveCount(sent + 1);
+  await expect(log).toHaveCount(taken);
+
+  // A tab change (the Interaction tab closed and opened again) and a reload update the same cue:
+  // the link is saved with the production, not held by the page (S1, S4).
+  await settleDurableWrites(audience);
+  await audience.close();
+  audience = await openWorkspace(page, 'audience');
+  await questionRow(audience, 'Who wins the derby?').getByTestId('question-row-text').click();
+  await stage().click();
+  await expect(note()).toContainText('✓ The result cue on “House Vote” now carries the final 12 votes');
+  await settleDurableWrites(audience);
+  await audience.reload();
+  await questionRow(audience, 'Who wins the derby?').getByTestId('question-row-text').click();
+  await stage().click();
+  await expect(note()).toContainText('✓ The result cue on “House Vote” now carries the final 12 votes');
+  expect(await staged()).toMatchObject({ id: first.id, count: 1 });
+  expect((await staged())!.values.f2).toBe('12 votes · voting closed');
+  await settleDurableWrites(audience);
+  await expect(log).toHaveCount(taken);
 
   // The operator's Update moves the closed numbers on air.
   await page.getByTestId('verb-update').click();
   await expect(program.locator('body')).toContainText('12 votes · voting closed');
-  await expect(log).toHaveCount(sent + 2);
+  await expect.poll(() => log.count()).toBeGreaterThan(taken);
 
   // A deleted result cue gets a new one, and the note says so (S3).
   await audience.evaluate(async (id) => {

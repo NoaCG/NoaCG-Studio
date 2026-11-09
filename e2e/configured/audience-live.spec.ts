@@ -16,7 +16,7 @@ import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 import { openWorkspace } from '../_workspace';
 import { settleDurableWrites } from '../_durable';
-import { addQuestion, addResults, goLive, moreWaysIn } from '../_interaction';
+import { addQuestion, addResults, goLive, moreWaysIn, stopLive } from '../_interaction';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -487,15 +487,16 @@ test.describe(() => {
     await wipeMyGraphics(page);
   });
 
-  test('the published walk: a phone sends a message and a vote, the presenter view follows, and only Take airs (audience AC-5)', async ({
+  test('the rehearsal walk: a phone joins by the QR, answers an Open question and a vote, results air through Take, three questions (interaction AC-15; audience AC-5)', async ({
     page,
     browser,
-  }) => {
-    // audience-flow AC-5, walked on the local stack (data-sources C7): the join page on a
-    // phone-sized browser, the presenter view and a vote on air. A submitted message reaches the
-    // inbox; presenter selection changes the presenter view and takes no graphic; the staged vote
-    // airs only through the operator's Take.
-    test.setTimeout(115_000);
+  }, testInfo) => {
+    // interaction AC-15, first run at the end of phase 3, and audience-flow AC-5, walked on the
+    // local stack: a phone-sized browser joins by the link the studio's QR code carries, answers an
+    // Open question and a vote, the answer and the result go to the rundown and air only through
+    // Take, and the room moves through three questions. The phone's screens are attached for the
+    // walk's record (docs/work-specs/interaction/evidence/phase-3.md).
+    test.setTimeout(150_000);
     await signIn(page);
     await settleSync(page);
     await wipeMyGraphics(page);
@@ -507,27 +508,37 @@ test.describe(() => {
     await page.getByTestId('production-setup').click();
     await page.getByTestId('setup-links').click();
     const link = async (id: string) => ((await page.getByTestId(id).locator('code').textContent()) ?? '').trim();
-    const joinUrl = await link('join-url');
     const presenterUrl = await link('presenter-url');
-    expect(joinUrl).toContain('/j/');
     expect(presenterUrl).toContain('/join?pv=');
     await page.getByTestId('production-links-close').click();
     const nothingOnAir = () => expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+    const program = page.frameLocator('[data-testid="program-stage"] iframe');
 
     const messages = await openWorkspace(page, 'audience');
+    // The link a phone camera reads, from the QR code's pixels.
+    const reader = await qrReader(browser);
+    const joinUrl = (await reader.read(await messages.getByTestId('join-qr').screenshot())) ?? '';
+    await reader.close();
+    expect(joinUrl).toContain('/j/');
+
+    // Question 1, Open.
     await addQuestion(messages, 'open', 'What should we ask on the walk?');
     await goLive(messages, 'What should we ask on the walk?');
 
     // The phone: a small touch screen, nothing wider than it, an answer sent.
     const phoneContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const phone = await phoneContext.newPage();
+    const shot = async (name: string) => testInfo.attach(`phone-${name}`, { body: await phone.screenshot(), contentType: 'image/png' });
     await phone.goto(joinUrl);
-    await expect(phone.locator('#join .nj-send')).toBeVisible({ timeout: 20_000 });
+    await expect(phone.locator('#join .nj-prompt')).toHaveText('What should we ask on the walk?', { timeout: 20_000 });
+    await expect(phone.locator('#join .nj-send')).toBeVisible();
     expect(await phone.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await shot('1-open-question');
     await phone.locator('#nj-author').fill('Ana');
     await phone.locator('#nj-body').fill('Sent from a phone on the walk');
     await phone.locator('#join .nj-send').tap();
     await expect(phone.locator('#join .nj-mine')).toContainText('Sent from a phone on the walk', { timeout: 20_000 });
+    await shot('2-open-sent');
     const row = messages.locator('.pd-aud-row', { hasText: 'Sent from a phone on the walk' });
     await expect(row).toBeVisible({ timeout: 20_000 });
 
@@ -540,24 +551,45 @@ test.describe(() => {
     await expect(presenter.locator('#join .nj-prompt')).toHaveText('Sent from a phone on the walk', { timeout: 20_000 });
     await nothingOnAir();
 
-    // The vote: the phone votes, the operator stages it, and nothing airs until Take.
+    // The answer goes to the rundown on a message card and airs through Take.
+    await row.getByTestId('audience-prepare').click();
+    await row.getByTestId('audience-choose-card').filter({ hasText: 'House Q&A' }).click();
+    await expect(messages.getByTestId('audience-note')).toContainText('✓');
+    await settleDurableWrites(messages);
+    await nothingOnAir();
+    const answerCue = page.locator('.pd-cue', { hasText: 'House Q&A' });
+    await expect(answerCue).toHaveCount(1, { timeout: 20_000 });
+    await answerCue.click();
+    await nothingOnAir();
+    await page.getByTestId('verb-take').click();
+    await expect(program.locator('body')).toContainText('Sent from a phone on the walk', { timeout: 20_000 });
+
+    // Question 2, a vote: going live closes question 1; the phone votes; the result airs via Take.
     await addQuestion(messages, 'choice', 'Who wins the walk?', ['Home', 'Away']);
     await goLive(messages, 'Who wins the walk?');
     await expect(phone.locator('#join .nj-opt')).toHaveCount(2, { timeout: 20_000 });
+    await shot('3-vote');
     await phone.locator('#join .nj-opt').nth(1).tap();
     await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+    await shot('4-voted');
     await expect(messages.getByTestId('audience-tally-1')).toHaveText('1', { timeout: 20_000 });
     await addResults(messages, 'House Vote');
     await settleDurableWrites(messages);
-    await nothingOnAir();
     const voteCue = page.locator('.pd-cue', { hasText: 'Vote —' });
     await expect(voteCue).toHaveCount(1, { timeout: 20_000 });
     await voteCue.click();
-    await nothingOnAir();
     await page.getByTestId('verb-take').click();
-    const program = page.frameLocator('[data-testid="program-stage"] iframe');
     await expect(program.locator('body')).toContainText('Who wins the walk?', { timeout: 20_000 });
     await expect(program.locator('body')).toContainText('Away');
+
+    // Question 3: the room moves on, and Stop leaves phones the waiting text.
+    await addQuestion(messages, 'open', 'One word for tonight?');
+    await goLive(messages, 'One word for tonight?');
+    await expect(phone.locator('#join .nj-prompt')).toHaveText('One word for tonight?', { timeout: 20_000 });
+    await shot('5-third-question');
+    await stopLive(messages, 'One word for tonight?');
+    await expect(phone.locator('#join .nj-waiting')).toBeVisible({ timeout: 20_000 });
+    await shot('6-waiting');
 
     await phoneContext.close();
     await presenter.close();
