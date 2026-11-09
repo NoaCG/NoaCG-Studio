@@ -64,11 +64,10 @@ const argsOf = (list) =>
     .map((a) => a.text);
 
 /** A signature is the function name and its argument TYPES: a grant names types, a create names both. */
-const TYPE_NAMES = /^(?:[a-z_][a-z0-9_]* )?(.+)$/;
 const looksLikeType = (word) => /^(text|uuid|jsonb?|int\w*|bigint|smallint|numeric|boolean|bool|timestamp\w*|time\w*|date|real|double|character|varchar|bytea|public\.)/.test(word);
 const typeOf = (arg) => {
   const [first, ...rest] = arg.split(' ');
-  return rest.length && !looksLikeType(first) ? rest.join(' ') : TYPE_NAMES.exec(arg)[1];
+  return rest.length && !looksLikeType(first) ? rest.join(' ') : arg;
 };
 const signature = (name, args) => canonicalKey(`${name}(${args.map((a) => ` ${typeOf(a)}`).join(',')}`);
 
