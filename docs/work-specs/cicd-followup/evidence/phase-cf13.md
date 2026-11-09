@@ -3,8 +3,9 @@
 Plan run #1967 (cicd-followup), phase cf13. Builder session on branch
 `claude/plan-cicd-followup-cf13-build`, from `main` at acf26dbe. This file is written in two
 steps: before the candidate lands (what it is, its expected effect and its side windows, as the
-brief requires), and after its after side is read (the result). Until the second step, the
-result is open and the phase has not passed.
+brief requires), and after its after side is read (the result). **Result (2026-11-09): every
+tried candidate was unmeasured, so cf13 passes with a negative result and the speed goal stays
+open (section 8).**
 
 ## Acceptance, verbatim
 
@@ -33,11 +34,12 @@ cites those workflow lines and changes nothing.
 
 | Item | State |
 | --- | --- |
-| Rank 1, 8 configured stacks | second try unmeasured (before 12, after 3; section 7.7), reverted; the owner chose a re-run as the third and last try (section 7.8) |
-| Rank 2, Build step in parallel | first of the three tries; landed in #2171 (a235a93d) on cost grounds, expected unmeasured (section 2.2) |
+| Rank 2, Build step in parallel | first try; landed in #2171 (a235a93d) and kept on cost grounds; unmeasured (section 2.2) |
+| Rank 1, 8 configured stacks | second try unmeasured (before 12, after 3; section 7.7), reverted in #2260; third try (re-run) unmeasured, never landed (before 10, after 0; section 8) |
 | Rank 3, ESLint and tsc caches | untried, superseded by rank 2 (section 7.5); goes to cf20(c) |
 | Rank 4 | not built: no M1 or M3 effect alone, so building it would be filler (section 7.5) |
 | Ranks 5 to 8 | untried; they go to cf20(c) |
+| **Phase** | **passes with a negative result: every tried candidate unmeasured; speed goal open (section 8)** |
 | (b) | landed in #2171: preview-trial.yml was the one PR workflow without cancellation (section 3) |
 
 ## 1. Rank 1: give the PR's configured selection 8 stacks
@@ -54,6 +56,9 @@ returns WARN, as it does on main, because it prices added spec files and added j
 to a stack-count constant. The gate passing is a gap in what it can see, not permission, so rank 1
 is skipped for cost. It never ran, so it is an untried candidate: it does not count toward the
 three, and it goes to cf20(c) as a measured next step for when the backend tier has room. The gap is filed as #2172.
+
+**Superseded on 2026-11-06:** the owner approved rank 1 as a 14-day trial (section 7), so it was
+tried after all and counts toward the three (sections 7.7 and 7.8).
 
 ## 2. Rank 2: the Build step's parts in parallel, in the one Build job
 
@@ -237,8 +242,8 @@ kind of cancelled run on `main`.
 
 | Criterion | Result | How |
 | --- | --- | --- |
-| (a) a candidate from the ranking lands | pending | this PR, on cost grounds, expected unmeasured (section 2.2) |
-| (a) M1 or M3 lower beyond the spread, no M2 or M4 regression | open, not claimed | read after the after side fills (section 2) |
+| (a) a candidate from the ranking lands | met | rank 2 in #2171 (kept); rank 1 in #2237 (reverted in #2260) |
+| (a) M1 or M3 lower beyond the spread, no M2 or M4 regression | not shown: all three tries unmeasured | section 8; the phase passes on the acceptance's negative-result clause |
 | (a) candidates taken in ranked order | recorded | section 1; the capacity gate's verdict reproduced locally (WARN) |
 | The lanes shorten the Build step on Actions | one run: 402 to 268.6 s | section 2.1 |
 | The lanes run concurrently, keep every failure and the first failing status, and a cancel stops every lane's tools | pass | `scripts/build-lanes.test.mjs` (6 tests; concurrency shown by each lane waiting for the other's file, not by timing; the cancel test fails on the earlier shell-only kill) |
@@ -365,16 +370,28 @@ each side; it says nothing about when other landings happen. So:
    `node --input-type=module -e "const m = await import('./docs/work-specs/cicd-followup/evidence/phase-cf03-baseline.mjs'); console.log(m.sideEnds('HEAD', process.argv.slice(1)).ends)" <files>`;
    it holds when `m1` lists `cap+cfg`. Docs, product code outside
    the rule, specs, `covers:` edits and quarantine entries do not end a side and need no hold.
-   **Name these explicitly, because one slipped through on the first try:** a version or
-   dependency change in any package CI installs or builds ends every side, not only the root
-   `package.json` and `package-lock.json`: `cli/package.json`, `cli/package-lock.json` and
-   `cli/tsconfig*.json` (the CLI package, built and tested in the Build job), and any other
-   package a workflow installs with `npm --prefix <dir>`. A release that bumps the CLI or the
-   Bridge version is such a change, whatever else it does. When in doubt, run `sideEnds`.
+   **Name these explicitly, because one slipped through on the first try:** any change at all
+   to `cli/package.json`, `cli/package-lock.json` or `cli/tsconfig*.json` ends every side, a
+   version bump or a script edit alike: `cli` is the package ci.yml installs and builds with
+   `npm --prefix` (today the only one among the rule's five runners). The root `package.json`
+   ends every side for any changed line whose value looks like a version (dependencies, but
+   also `version` and `engines`), for the `build` script, and for a script entry CI runs; the
+   root `package-lock.json` always. So a release that bumps the root version ends every side too.
+   Product PRs end sides when they touch the build toolchain or CI configuration: root
+   `tsconfig*.json`, `eslint.config.js`, `vite.config.ts`, `.dependency-cruiser.cjs`,
+   `playwright.config.ts`, `playwright.catalog.config.ts`, `playwright.live.config.ts`,
+   `scripts/e2e-durations.json`, `supabase/config.toml`, anything under `.github/actions/`, or
+   ci.yml or configured-suite.yml. Most often of all, any non-test script ci.yml or
+   configured-suite.yml runs and every module those scripts import (for example
+   `scripts/e2e-affected.mjs` and `scripts/configured-*.mjs`): #2264 ended a side only through
+   those. post-land.yml, quarantine.yml and deploy-verify.yml, and scripts only they run, end M3
+   sides, not the `cap+cfg` M1 side. Other Playwright configs and other workflows end no side.
+   In recent days 7 of 16 side-ending landings were product PRs of this kind. This list is a
+   guide; `sideEnds` is the test, and every PR in the hold is checked with it.
 3. **If a side-ending landing cannot wait** (an incident fix), it lands, the after side ends
    there, and the trial is read with the n it reached. Unmeasured counts toward the three.
 4. **The bounds:** cf13's 7-day bound from the candidate's start (this PR, opened 2026-11-06)
-   is 2026-11-13; the owner's 14 days run from the landing date. The reading happens as soon as
+   is 2026-11-13; the owner's 14 days run from the landing date (for the re-run, see 7.8). The reading happens as soon as
    both sides hold 10, and at the latest at 2026-11-13.
 5. **The decision:** keep only if `cap+cfg` M1 median is lower beyond 1.04 with no regression in
    M2 waiting, M2 execution or M4. Otherwise revert through the queue before the 14 days end.
@@ -413,7 +430,7 @@ Running them side by side is the measured next step for the Build job.
 - **Trap.** A second exception in a tier is invalid while the first is active, whatever the owner
   approved: the ledger enforces one active exception per tier.
 
-### 7.7 First try: unmeasured, reverted
+### 7.7 Rank 1's first try (cf13's second): unmeasured, reverted
 
 #2237 landed at 2026-11-06T14:33:58Z (09077bc2) with 12 `cap+cfg` merges on its before side
 (M1 median 16.03). Its after side ended at 3 merges (M1 median 11.1, M2 waiting 0.68, M2
@@ -430,17 +447,111 @@ M1 sides and every M3 side.
 
 ### 7.8 Re-run: cf13's third and last try
 
-The owner chose to measure rank 1 again properly. The re-run lands the same change as #2237 from
-`main` after this revert lands, inside the owner's 14-day window, which still runs from the first
-landing: 2026-11-06T14:33:58Z to 2026-11-20T14:33Z.
+*It never landed: see section 8.1.*
 
-- **Landing condition:** 10 `cap+cfg` merges on the before side after this revert's merge, with no
-  side-ending landing in between (if one lands, the count restarts after it).
+The owner chose to measure rank 1 again properly (https://github.com/NoaCG/NoaCG-Studio/issues/2172#issuecomment-6694324634). The re-run lands the same
+change as #2237 from `main` after the revert (#2260) lands, inside the owner's 14-day window, which
+still runs from the first landing: 2026-11-06T14:33:58Z to 2026-11-20T14:33Z.
+
+**A departure from the acceptance's wording, explained.** The acceptance moves to the next ranked
+candidate when one fails to improve. Rank 1's first try did not fail: it was never measured, cut
+at three merges by a landing the hold should have stopped. The other remaining candidates cannot
+show an effect beyond a spread (section 2.2), so a properly held re-run of the one candidate that
+can is the owner's choice for the third and last try. The 7-day bound counts from the re-run's
+start, because the first try's sides were cut and nothing of them carries over; the owner's window
+caps it either way.
+
+- **Landing condition:** 10 `cap+cfg` merges on the before side after the revert's merge (#2260,
+  62eb1e4a, merged 2026-11-06T20:17:01Z; `rule` confirms it ends the `+cfg` M1 sides and every
+  M3 side), with no side-ending landing in between (if one lands, the count restarts after it).
 - **After the landing:** the hold in section 7.4, with the version-bump rule above, until the after
   side holds 10 `cap+cfg` merges.
-- **Bounds:** cf13's 7-day bound from the re-run's start, and the owner's window, whichever ends
-  first; the reading happens when both sides hold 10.
+- **Bounds:** cf13's 7-day bound from the re-run's start (its PR, #2261, opened
+  2026-11-06T20:18:16Z, so 2026-11-13T20:18Z) and the owner's window (2026-11-20T14:33Z),
+  whichever ends first: 2026-11-13T20:18Z. The reading happens when both sides hold 10, at the
+  latest then.
 - **Decision:** as section 7.4: keep only if `cap+cfg` M1 median is lower by more than 1.04 with no
   regression in M2 waiting, M2 execution or M4; otherwise revert before 2026-11-20T14:33Z. This is
   the last try: whatever it shows, the phase then records its result.
+
+## 8. Result (2026-11-09)
+
+### 8.1 Rank 1's re-run (cf13's third and last try): unmeasured, never landed
+
+The re-run (#2261) waited for its before side, counted from the revert's landing (#2260,
+62eb1e4a, 2026-11-06T20:17:01Z):
+
+| Landing that ended the `cap+cfg` sides | Merge | Merged | `rule` |
+| --- | --- | --- | --- |
+| #2258, Bridge state readings (first try's after side) | cac69406 | 2026-11-06T18:50:12Z | `cli/package.json`: every group, M1, M2, M3 |
+| #2264, local Supabase stack on a fixed Realtime | 0c193936 | 2026-11-06T22:13:57Z | `scripts/configured-stack.mjs` and `scripts/e2e-affected.mjs`: every group, M1, M2, M3 |
+| #2321, interaction phase 2 | d521e014 | 2026-11-09T19:32:05Z (commit 19:14:16Z) | including `package.json`, `package-lock.json`, `vite.config.ts`, `scripts/e2e-affected.mjs` and `scripts/deploy-affecting-paths.mjs`: every group, M1, M2, M3 |
+
+After #2264 the before side reached 10 `cap+cfg` merges (M1 median 15.4, M2 waiting 0.68, M2
+execution 12.18; the coordinator's count with cf03's rule). #2321 then ended it before the re-run
+landed, and the count restarted at 0.
+
+**Recorded now, before the bound: an explained departure.** The acceptance records a candidate
+unmeasured when a side cannot reach the minimum within 7 days of its start, here
+2026-11-13T20:18Z. It is recorded on 2026-11-09 instead, because the measured arrival rate leaves
+no realistic way to get there. The 33 merges from #2264 to 2026-11-09T19:50Z, classified as in
+section 7.4 (group from each merge's final head's first ci.yml PR run, `rule` on each merge),
+held 12 `cap+cfg` merges (by merge time, #2264 included) in about 2.9 days, about 4 a day: 3 on 2026-11-06, 5 on
+2026-11-07, 2 on 2026-11-08, and 2 of 15 merges on Monday 2026-11-09. The 24 a day of section 7.4
+(2026-11-03 to 2026-11-06) has not held since. At about 4 a day a new before side reaches 10
+around 2026-11-12; the re-run would then land and need 10 more `cap+cfg` merges on its after side
+within about a day and a half (about 6 expected), with no side-ending landing in between (one
+more, #2321, arrived in the same 2.9 days). The weekday part of this rests on one Monday, which is why the decision
+is reversible: should the weekday rate go back toward 24 a day, the bound could still be reached. The coordinator decided to record it now (2026-11-09, reversible if
+the owner says so). Waiting would keep the trial open four more days, the last day and a half of
+them holding side-ending landings, for a reading that cannot reach the minimum.
+
+The re-run is recorded unmeasured with before 10 and after 0, and its code does not land: this PR
+now changes only this file. The after-side hold ends with it.
+
+### 8.2 The three tries
+
+| Try | Candidate | Landed | Before side | After side | Outcome |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Rank 2, Build step in parallel | #2171, a235a93d, 2026-11-05 | `none` too rare to reach 8 (section 2.2) | same | unmeasured; kept on cost grounds (no added job, about 2.2 runner-minutes less per Build) |
+| 2 | Rank 1, 8 configured stacks | #2237, 09077bc2, 2026-11-06T14:33:58Z | 12 `cap+cfg`, M1 16.03 | 3, M1 11.1; cut by #2258 | unmeasured; reverted in #2260 |
+| 3 | Rank 1 re-run | not landed (#2261) | 10, M1 15.4; reset by #2321 | 0 | unmeasured |
+
+### 8.3 Phase result
+
+Every tried candidate (three) is unmeasured, so under acceptance (a) cf13 **passes with the
+negative result recorded**: no candidate showed M1 or M3 lower beyond cf03's spread. **The speed
+goal stays open**, and cf20 reports it as open. What blocked measurement was not the candidates
+but the groups they act on and the landing pattern, and it differed per try. The first try (rank 2)
+acts on the `none` group, which since cf12 is too rare to reach the minimum, and its effect on
+every other group is below the spread (section 2.2); no hold was involved. The second try was
+cut by a side-ending landing the hold did not name (#2258), at a time when side-ending landings
+arrived every few hours (16 in 3 days, section 7.4). For the third, `cap+cfg` merges fell from
+about 24 a day to about 4 (section 8.1), so one side-ending landing (#2321) left no time to
+collect both sides.
+
+(b) is met as recorded in section 3 and landed in #2171.
+
+### 8.4 For cf20(c): measured next steps
+
+- **Rank 1 (8 stacks for the PR's configured selection)**: the only candidate with an effect above a
+  spread on a group that still flows (`cap+cfg` M1 -2.6 against 1.04). Its first try's three
+  after-side merges ran at 11.1 against a before median of 16.03, which is not a result (below the
+  minimum of 10). A measurement needs a window with no side-ending landing for about 10 `cap+cfg`
+  merges on each side, which needs either a hold that every landing respects, or a lighter
+  side rule; changing cf03's rule is cf20's or the owner's call, not cf13's.
+- **Rank 3 (ESLint and tsc caches)**: untried, superseded by rank 2 (section 7.5).
+- **Rank 4 (split the catalog gate)**: untried; no M1 effect alone (section 7.5).
+- **Ranks 5 to 8**: untried (section 1 and cf03 section 7).
+- **New, outside cf03's ranking**: run `test:ai-gateway` beside the `node --test` pass inside the
+  Build job's gates lane (section 7.5).
+- **Still open from section 7.3**: the capacity gate does not price a stack-count change (#2172),
+  and the frozen estimate `backendStackQuantumMinutes` stays 10; `docs/plan-runs/known-traps.md`
+  still says one stack per ten minutes, which is right again with rank 1 not landed.
+
+### 8.5 Phase notes for this PR
+
+- **Previous verified main SHA:** d521e014 (#2321), merged into this branch.
+- **Revert:** `git revert -m 1 <this merge's SHA>` removes only these notes.
+- **Ends no side:** this PR changes only this evidence file.
 
