@@ -37,7 +37,16 @@
   "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning"
  },
  "waitingOn": [],
- "inFlight": [],
+ "inFlight": [
+  {
+   "phase": "1",
+   "step": "build",
+   "session": "session_017SdbwNii92ZmZGyUNnuoji",
+   "nonce": "1-b-7ac6",
+   "launchedAt": "2026-11-09T11:17:44Z",
+   "branch": "claude/plan-interaction-1-build"
+  }
+ ],
  "owner": [
   {
    "what": "Look at the result templates for taste (AC-12, phase 5)",
