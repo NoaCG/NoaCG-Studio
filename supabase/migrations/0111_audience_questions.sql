@@ -40,6 +40,18 @@ set lock_timeout = '2s';
 set statement_timeout = '30s';
 
 -- ══ 1. Columns ══════════════════════════════════════════════════════════════════════════════
+-- HOW THIS FILE RUNS (supabase/AGENTS.md, "A concurrent statement runs on its own"; 0098 is the
+-- worked example). Phones insert into audience_submissions during a show, so its new index is built
+-- concurrently, and so is the rounds index, for the same reason. The CLI commits the statements
+-- before each concurrent build, runs it alone, then runs the rest:
+--   1. the timeouts, the columns (catalog only: nullable, or a constant default), the checks on
+--      audience_rounds (a few rows per production), the foreign key NOT VALID (no scan, no wait on
+--      inserts), and the drop of any index a failed build left behind;
+--   2. the two builds, each under SHARE UPDATE EXCLUSIVE, which no insert or read waits on;
+--   3. the proof both indexes are valid, the key validated (it scans without blocking inserts),
+--      then the functions and the self-check.
+-- A failed build leaves an INVALID index and no ledger row; the next landing runs the file from the
+-- top, where step 1 drops the leftover. Every step above is safe to run again.
 
 alter table public.audience_rounds
   add column if not exists question_id text,
@@ -53,14 +65,43 @@ alter table public.audience_rounds drop constraint if exists audience_rounds_que
 alter table public.audience_rounds add constraint audience_rounds_question_id_shape
   check (question_id is null or question_id ~ '^[A-Za-z0-9_-]{1,64}$');
 
--- One round per question (R2). The table holds a few rows per production, so a plain build.
-create unique index if not exists audience_rounds_question_idx
+alter table public.audience_submissions
+  add column if not exists round_id uuid;
+alter table public.audience_submissions drop constraint if exists audience_submissions_round_fk;
+alter table public.audience_submissions add constraint audience_submissions_round_fk
+  foreign key (round_id) references public.audience_rounds (id) on delete set null not valid;
+
+drop index if exists public.audience_rounds_question_idx;
+drop index if exists public.audience_submissions_round_idx;
+
+set statement_timeout = '5min';
+
+-- One round per question (R2).
+create unique index concurrently audience_rounds_question_idx
   on public.audience_rounds (show_id, question_id) where question_id is not null;
 
-alter table public.audience_submissions
-  add column if not exists round_id uuid references public.audience_rounds (id) on delete set null;
-create index if not exists audience_submissions_round_idx
+create index concurrently audience_submissions_round_idx
   on public.audience_submissions (round_id) where round_id is not null;
+
+set statement_timeout = '30s';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_index i
+     where i.indexrelid = to_regclass('public.audience_rounds_question_idx')
+       and i.indisvalid and i.indisready and i.indisunique) then
+    raise exception '0111: audience_rounds_question_idx is missing or invalid after its build';
+  end if;
+  if not exists (
+    select 1 from pg_index i
+     where i.indexrelid = to_regclass('public.audience_submissions_round_idx')
+       and i.indisvalid and i.indisready) then
+    raise exception '0111: audience_submissions_round_idx is missing or invalid after its build';
+  end if;
+end $$;
+
+alter table public.audience_submissions validate constraint audience_submissions_round_fk;
 
 -- ══ 2. The round guard: an Open round has no options ════════════════════════════════════════
 
@@ -599,9 +640,11 @@ begin
     raise exception '0111 self-check failed: a send without its round is still accepted';
   end if;
 
-  select u.id into v_owner from auth.users u limit 1;
+  -- An owner the audience feature is open to: a suspended or switched-off account would make the
+  -- functions refuse, and a deploy must not depend on one arbitrary account's entitlements.
+  select u.id into v_owner from auth.users u where not public.feature_denied_for(u.id, 'audience') limit 1;
   if v_owner is null then
-    raise notice '0111 self-check skipped: no account on this instance';
+    raise notice '0111 self-check skipped: no account here may use the audience feature';
     return;
   end if;
   insert into public.control_shows (id, owner_id, title) values (v_show, v_owner, 'Questions self-check');

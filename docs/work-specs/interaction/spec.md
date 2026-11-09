@@ -425,6 +425,11 @@ Found after coding (in the code review), apart from the rules above:
 - R24. A Twitch line refused because its remembered round closed is sent once more to the round
   live now, so a switch of question loses no chat line that arrived after it.
 
+Found in the Codex review of the first head:
+
+- R25. The local room is changed by one tab at a time (a Web Lock per production), so a rehearsal
+  phone's send cannot write back a room from before the operator's Stop.
+
 **Decisions** (made in the build, revertible in review):
 
 - The question list is `Show.questions` (`src/model/questions.ts`), saved and synced with the
@@ -451,6 +456,9 @@ Found after coding (in the code review), apart from the rules above:
   a phone's send holds a share lock on the round and then inserts a row whose foreign key takes a
   key-share lock on the production row. `for update` deadlocked that pair (reproduced on a scratch
   Postgres 16 with 0035 to 0111 applied; fixed and re-run before review).
+- 0111 builds its two indexes concurrently and adds the answers' foreign key `not valid`, then
+  validates it: phones insert into `audience_submissions` during a show, and a plain build or a
+  validating `add column ... references` would hold their inserts for the scan.
 - `e2e/_interaction.ts` holds the question steps every journey uses; `scripts/docs-shots.mjs` and
   `scripts/acceptance-pack.mjs` carry their own copies because they cannot import TypeScript.
 - A rehearsal phone in a journey needs `page.clock.install()` before it loads, or its five-second

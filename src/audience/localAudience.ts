@@ -458,6 +458,19 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
   const liveRound = (r: Room, roundId: string, revision: number, kinds: AudienceRound['kind'][]) =>
     r.rounds.find((x) => x.id === roundId && !x.closedAt && x.revision === revision && kinds.includes(x.kind)) ?? null;
 
+  /**
+   * One change to this production's stores at a time, across every tab of this browser (Web
+   * Locks). Each change reads the stored room, edits it and writes the whole of it back, so two
+   * tabs interleaving (a rehearsal phone answering while the operator presses Stop) could write
+   * back a room the other had already changed and undo it. Without Web Locks (Node) there is one
+   * tab, and the change runs as it is.
+   */
+  const exclusive = <T,>(run: () => T): Promise<T> => {
+    const locks = (globalThis as { navigator?: { locks?: LockManager } }).navigator?.locks;
+    if (!options.showId || !locks) return Promise.resolve().then(run);
+    return locks.request(`${LOCAL_ROOM_KEY}:${options.showId}`, async () => run()) as Promise<T>;
+  };
+
   const backend: LocalAudience = {
     async joinView(deviceToken: string): Promise<JoinView> {
       const r = room();
@@ -477,30 +490,34 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     async submit(deviceToken, author, body, target): Promise<SubmitResult> {
-      const r = room();
-      const round = liveRound(r, target.roundId, target.revision, ['open']);
-      if (!round) return { ok: false, error: QUESTION_CLOSED, closed: true };
-      if (!body.trim()) return { ok: false, error: 'Nothing to send.' };
-      const now = Date.now();
-      const recent = (sends.get(deviceToken) ?? []).filter((t) => now - t < PER_DEVICE_WINDOW_MS);
-      if (recent.length >= PER_DEVICE_MAX) return { ok: false, error: 'Too many messages. Wait a moment.' };
-      sends.set(deviceToken, [...recent, now]);
-      r.answers.push({ ...make(author, body, round.id), device: deviceToken });
-      if (!saveRoom(r)) return { ok: false, error: 'That could not be sent right now.' };
-      changed();
-      return { ok: true, error: null };
+      return exclusive(() => {
+        const r = room();
+        const round = liveRound(r, target.roundId, target.revision, ['open']);
+        if (!round) return { ok: false, error: QUESTION_CLOSED, closed: true };
+        if (!body.trim()) return { ok: false, error: 'Nothing to send.' };
+        const now = Date.now();
+        const recent = (sends.get(deviceToken) ?? []).filter((t) => now - t < PER_DEVICE_WINDOW_MS);
+        if (recent.length >= PER_DEVICE_MAX) return { ok: false, error: 'Too many messages. Wait a moment.' };
+        sends.set(deviceToken, [...recent, now]);
+        r.answers.push({ ...make(author, body, round.id), device: deviceToken });
+        if (!saveRoom(r)) return { ok: false, error: 'That could not be sent right now.' };
+        changed();
+        return { ok: true, error: null };
+      });
     },
 
     async vote(deviceToken, roundId, option, revision): Promise<SubmitResult> {
-      const r = room();
-      const round = liveRound(r, roundId, revision, ['poll', 'quiz']);
-      if (!round) return { ok: false, error: QUESTION_CLOSED, closed: true };
-      // One generic refusal for every other reason, exactly as the RPC answers.
-      if (option < 0 || option >= round.options.length) return { ok: false, error: 'That vote could not be counted.' };
-      r.votes[roundId] = { ...(r.votes[roundId] ?? {}), [deviceToken]: option }; // upsert = change your mind
-      if (!saveRoom(r)) return { ok: false, error: 'That vote could not be counted.' };
-      changed();
-      return { ok: true, error: null };
+      return exclusive(() => {
+        const r = room();
+        const round = liveRound(r, roundId, revision, ['poll', 'quiz']);
+        if (!round) return { ok: false, error: QUESTION_CLOSED, closed: true };
+        // One generic refusal for every other reason, exactly as the RPC answers.
+        if (option < 0 || option >= round.options.length) return { ok: false, error: 'That vote could not be counted.' };
+        r.votes[roundId] = { ...(r.votes[roundId] ?? {}), [deviceToken]: option }; // upsert = change your mind
+        if (!saveRoom(r)) return { ok: false, error: 'That vote could not be counted.' };
+        changed();
+        return { ok: true, error: null };
+      });
     },
 
     async list(): Promise<AudienceSubmission[]> {
@@ -508,71 +525,77 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     async addCandidates(items): Promise<AudienceSubmission[]> {
-      if (items.length > OPERATOR_ADD_MAX) {
-        throw new Error(`At most ${OPERATOR_ADD_MAX} messages at a time.`);
-      }
-      // R13: a round of this production, or none; anything else refuses the whole call.
-      const r = room();
-      const roundIds = new Set(r.rounds.map((x) => x.id));
-      if (items.some((i) => i.roundId && !roundIds.has(i.roundId))) throw new Error('not a question of this production');
-      const rows = kept();
-      const known = new Set(
-        [...rows, ...r.answers, ...submissions].map((s) => s.externalId).filter((x): x is string => Boolean(x)),
-      );
-      const added: AudienceSubmission[] = [];
-      for (const item of items) {
-        if (!item.body.trim()) continue;
-        const provenance = clampProvenance(item);
-        if (provenance.externalId && known.has(provenance.externalId)) continue;
-        if (provenance.externalId) known.add(provenance.externalId);
-        added.push({ ...make(item.author ?? '', item.body, item.roundId ?? null), ...provenance });
-      }
-      if (added.length === 0) return [];
-      if (!keep([...rows, ...added])) throw new Error('This browser refused to keep the message.');
-      changed();
-      return added.map((s) => ({ ...s }));
+      return exclusive(() => {
+        if (items.length > OPERATOR_ADD_MAX) {
+          throw new Error(`At most ${OPERATOR_ADD_MAX} messages at a time.`);
+        }
+        // R13: a round of this production, or none; anything else refuses the whole call.
+        const r = room();
+        const roundIds = new Set(r.rounds.map((x) => x.id));
+        if (items.some((i) => i.roundId && !roundIds.has(i.roundId))) throw new Error('not a question of this production');
+        const rows = kept();
+        const known = new Set(
+          [...rows, ...r.answers, ...submissions].map((s) => s.externalId).filter((x): x is string => Boolean(x)),
+        );
+        const added: AudienceSubmission[] = [];
+        for (const item of items) {
+          if (!item.body.trim()) continue;
+          const provenance = clampProvenance(item);
+          if (provenance.externalId && known.has(provenance.externalId)) continue;
+          if (provenance.externalId) known.add(provenance.externalId);
+          added.push({ ...make(item.author ?? '', item.body, item.roundId ?? null), ...provenance });
+        }
+        if (added.length === 0) return [];
+        if (!keep([...rows, ...added])) throw new Error('This browser refused to keep the message.');
+        changed();
+        return added.map((s) => ({ ...s }));
+      });
     },
 
     async settleImported(prefix, present): Promise<void> {
-      if (present.length > OPERATOR_SETTLE_MAX) throw new Error(`At most ${OPERATOR_SETTLE_MAX} rows at a time.`);
-      if (!prefix) return;
-      const here = new Set(present);
-      const rows = kept();
-      const at = nowIso();
-      let changes = 0;
-      const next = rows.flatMap((row) => {
-        if (!row.externalId?.startsWith(prefix)) return [row];
-        const there = here.has(row.externalId);
-        // An unused candidate follows its row; a used one is the operator's record and stays.
-        if (!there && !row.usedAt) return (changes += 1), [];
-        if (!there && !row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: at }];
-        if (there && row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: null }];
-        return [row];
+      return exclusive(() => {
+        if (present.length > OPERATOR_SETTLE_MAX) throw new Error(`At most ${OPERATOR_SETTLE_MAX} rows at a time.`);
+        if (!prefix) return;
+        const here = new Set(present);
+        const rows = kept();
+        const at = nowIso();
+        let changes = 0;
+        const next = rows.flatMap((row) => {
+          if (!row.externalId?.startsWith(prefix)) return [row];
+          const there = here.has(row.externalId);
+          // An unused candidate follows its row; a used one is the operator's record and stays.
+          if (!there && !row.usedAt) return (changes += 1), [];
+          if (!there && !row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: at }];
+          if (there && row.withdrawnAt) return (changes += 1), [{ ...row, withdrawnAt: null }];
+          return [row];
+        });
+        if (changes === 0) return;
+        if (!keep(next)) throw new Error('This browser refused to keep the change.');
+        changed();
       });
-      if (changes === 0) return;
-      if (!keep(next)) throw new Error('This browser refused to keep the change.');
-      changed();
     },
 
     async update(id, patch): Promise<void> {
-      const rows = kept();
-      const r = room();
-      const keptRow = rows.find((s) => s.id === id);
-      const answer = keptRow ? undefined : r.answers.find((s) => s.id === id);
-      const row = keptRow ?? answer ?? submissions.find((s) => s.id === id);
-      if (!row) return;
-      // The allowlist IS the immutability of the original: `author` and `body` are not in the
-      // patch type and are not assigned here either, so neither a UI bug nor a future caller
-      // can rewrite what a person actually sent.
-      if (patch.broadcastAuthor !== undefined) row.broadcastAuthor = patch.broadcastAuthor.slice(0, AUDIENCE_LIMITS.author);
-      if (patch.broadcastBody !== undefined) row.broadcastBody = patch.broadcastBody.slice(0, AUDIENCE_LIMITS.body);
-      if (patch.anonymize !== undefined) row.anonymize = patch.anonymize;
-      if (patch.status !== undefined) row.status = patch.status;
-      if (patch.shortlisted !== undefined) row.shortlisted = patch.shortlisted;
-      if (patch.usedAt !== undefined) row.usedAt = patch.usedAt;
-      if (keptRow && !keep(rows)) throw new Error('This browser refused to keep the change.');
-      if (answer) mustSave(r);
-      changed();
+      return exclusive(() => {
+        const rows = kept();
+        const r = room();
+        const keptRow = rows.find((s) => s.id === id);
+        const answer = keptRow ? undefined : r.answers.find((s) => s.id === id);
+        const row = keptRow ?? answer ?? submissions.find((s) => s.id === id);
+        if (!row) return;
+        // The allowlist IS the immutability of the original: `author` and `body` are not in the
+        // patch type and are not assigned here either, so neither a UI bug nor a future caller
+        // can rewrite what a person actually sent.
+        if (patch.broadcastAuthor !== undefined) row.broadcastAuthor = patch.broadcastAuthor.slice(0, AUDIENCE_LIMITS.author);
+        if (patch.broadcastBody !== undefined) row.broadcastBody = patch.broadcastBody.slice(0, AUDIENCE_LIMITS.body);
+        if (patch.anonymize !== undefined) row.anonymize = patch.anonymize;
+        if (patch.status !== undefined) row.status = patch.status;
+        if (patch.shortlisted !== undefined) row.shortlisted = patch.shortlisted;
+        if (patch.usedAt !== undefined) row.usedAt = patch.usedAt;
+        if (keptRow && !keep(rows)) throw new Error('This browser refused to keep the change.');
+        if (answer) mustSave(r);
+        changed();
+      });
     },
 
     async getState(): Promise<AudienceState> {
@@ -580,73 +603,81 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     async setState(patch): Promise<AudienceState> {
-      // Only the presenter pointers (R18): what phones see moves through goLive and stop.
-      const r = room();
-      if (patch.presenter) r.presenter = { current: patch.presenter.current, next: patch.presenter.next };
-      mustSave(r);
-      changed();
-      return stateOf(r);
+      return exclusive(() => {
+        // Only the presenter pointers (R18): what phones see moves through goLive and stop.
+        const r = room();
+        if (patch.presenter) r.presenter = { current: patch.presenter.current, next: patch.presenter.next };
+        mustSave(r);
+        changed();
+        return stateOf(r);
+      });
     },
 
     async goLive(question): Promise<AudienceRound> {
-      const snap = snapshotOf(question);
-      if (typeof snap === 'string') throw new Error(snap);
-      const r = room();
-      const at = nowIso();
-      let round = r.rounds.find((x) => x.questionId === question.id) ?? null;
-      if (round) {
-        if (round.kind !== snap.kind) throw new Error('a question keeps its type');
-        const same = round.question === snap.text && JSON.stringify(round.options) === JSON.stringify(snap.options);
-        if (!same) {
-          if (!round.closedAt) throw new Error('a live question cannot change');
-          const answered =
-            Object.keys(r.votes[round.id] ?? {}).length > 0 ||
-            [...kept(), ...r.answers, ...submissions].some((s) => s.roundId === round!.id);
-          if (answered) throw new Error('this question has answers, so it cannot change');
-          round.question = snap.text;
-          round.options = snap.options;
-          round.revision += 1;
+      return exclusive(() => {
+        const snap = snapshotOf(question);
+        if (typeof snap === 'string') throw new Error(snap);
+        const r = room();
+        const at = nowIso();
+        let round = r.rounds.find((x) => x.questionId === question.id) ?? null;
+        if (round) {
+          if (round.kind !== snap.kind) throw new Error('a question keeps its type');
+          const same = round.question === snap.text && JSON.stringify(round.options) === JSON.stringify(snap.options);
+          if (!same) {
+            if (!round.closedAt) throw new Error('a live question cannot change');
+            const answered =
+              Object.keys(r.votes[round.id] ?? {}).length > 0 ||
+              [...kept(), ...r.answers, ...submissions].some((s) => s.roundId === round!.id);
+            if (answered) throw new Error('this question has answers, so it cannot change');
+            round.question = snap.text;
+            round.options = snap.options;
+            round.revision += 1;
+          }
         }
-      }
-      for (const other of r.rounds) if (other !== round && !other.closedAt) other.closedAt = at; // one open round
-      if (!round) {
-        round = { id: uuid(), kind: snap.kind, questionId: question.id, revision: 1, question: snap.text, options: snap.options, correctOption: null, openedAt: at, closedAt: null };
-        r.rounds.push(round);
-      } else if (round.closedAt) {
-        round.closedAt = null;
-        round.openedAt = at;
-      }
-      mustSave(r);
-      changed();
-      return { ...round };
+        for (const other of r.rounds) if (other !== round && !other.closedAt) other.closedAt = at; // one open round
+        if (!round) {
+          round = { id: uuid(), kind: snap.kind, questionId: question.id, revision: 1, question: snap.text, options: snap.options, correctOption: null, openedAt: at, closedAt: null };
+          r.rounds.push(round);
+        } else if (round.closedAt) {
+          round.closedAt = null;
+          round.openedAt = at;
+        }
+        mustSave(r);
+        changed();
+        return { ...round };
+      });
     },
 
     async stop(roundId): Promise<AudienceState> {
-      const r = room();
-      const round = r.rounds.find((x) => x.id === roundId && !x.closedAt);
-      if (round) {
-        round.closedAt = nowIso();
-        mustSave(r);
-        changed();
-      }
-      return stateOf(r);
+      return exclusive(() => {
+        const r = room();
+        const round = r.rounds.find((x) => x.id === roundId && !x.closedAt);
+        if (round) {
+          round.closedAt = nowIso();
+          mustSave(r);
+          changed();
+        }
+        return stateOf(r);
+      });
     },
 
     async clearResults(questionId): Promise<AudienceRound | null> {
-      const r = room();
-      const round = r.rounds.find((x) => x.questionId === questionId);
-      if (!round) return null;
-      if (!round.closedAt) throw new Error('stop the question before clearing its results');
-      delete r.votes[round.id];
-      r.answers = r.answers.filter((s) => s.roundId !== round.id);
-      round.revision += 1;
-      const rows = kept();
-      const left = rows.filter((s) => s.roundId !== round.id);
-      if (left.length !== rows.length && !keep(left)) throw new Error('This browser refused to keep the change.');
-      for (let i = submissions.length - 1; i >= 0; i -= 1) if (submissions[i].roundId === round.id) submissions.splice(i, 1);
-      mustSave(r);
-      changed();
-      return { ...round };
+      return exclusive(() => {
+        const r = room();
+        const round = r.rounds.find((x) => x.questionId === questionId);
+        if (!round) return null;
+        if (!round.closedAt) throw new Error('stop the question before clearing its results');
+        delete r.votes[round.id];
+        r.answers = r.answers.filter((s) => s.roundId !== round.id);
+        round.revision += 1;
+        const rows = kept();
+        const left = rows.filter((s) => s.roundId !== round.id);
+        if (left.length !== rows.length && !keep(left)) throw new Error('This browser refused to keep the change.');
+        for (let i = submissions.length - 1; i >= 0; i -= 1) if (submissions[i].roundId === round.id) submissions.splice(i, 1);
+        mustSave(r);
+        changed();
+        return { ...round };
+      });
     },
 
     async tally(roundId: string): Promise<AudienceTally> {
@@ -679,16 +710,18 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     },
 
     simulateVotes(counts: number[]): void {
-      const r = room();
-      const round = liveOf(r);
-      if (!round || round.kind === 'open') return;
-      const byDevice = { ...(r.votes[round.id] ?? {}) };
-      counts.forEach((n, option) => {
-        for (let i = 0; i < n; i += 1) byDevice[`sim-${option}-${seq++}`] = option;
+      void exclusive(() => {
+        const r = room();
+        const round = liveOf(r);
+        if (!round || round.kind === 'open') return;
+        const byDevice = { ...(r.votes[round.id] ?? {}) };
+        counts.forEach((n, option) => {
+          for (let i = 0; i < n; i += 1) byDevice[`sim-${option}-${seq++}`] = option;
+        });
+        r.votes[round.id] = byDevice;
+        saveRoom(r);
+        changed();
       });
-      r.votes[round.id] = byDevice;
-      saveRoom(r);
-      changed();
     },
 
     onChange(cb: () => void): () => void {

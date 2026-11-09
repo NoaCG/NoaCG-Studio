@@ -180,3 +180,36 @@ test('the room is kept per production: a reload and a second tab see the same ro
     store.restore();
   }
 });
+
+test('two tabs change the room one at a time through a Web Lock, so a phone cannot undo a Stop (R15)', async () => {
+  const store = storage();
+  // A LockManager stand-in that runs one holder at a time, in request order, and yields between
+  // them the way a real browser's lock grant does.
+  const names = [];
+  let tail = Promise.resolve();
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    locks: {
+      request(name, run) {
+        names.push(name);
+        const next = tail.then(() => new Promise((r) => setTimeout(r, 0))).then(run);
+        tail = next.catch(() => {});
+        return next;
+      },
+    },
+  } });
+  try {
+    const operator = createLocalAudience({ productionName: 'Show', showId: 'p1' });
+    const phone = createLocalAudience({ productionName: 'Show', showId: 'p1' });
+    const open = await operator.goLive(OPEN);
+    // Pressed together: Stop first, then the phone's send. The send must see the round closed.
+    const [, sent] = await Promise.all([operator.stop(open.id), phone.submit('device-1', '', 'Raced the stop', target(open))]);
+    assert.equal(sent.closed, true);
+    assert.equal((await openRounds(phone)).length, 0, 'the stopped round stays stopped');
+    assert.ok(names.length >= 3 && names.every((n) => n === `${LOCAL_ROOM_KEY}:p1`), 'every change took the production’s lock');
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'navigator', original);
+    else delete globalThis.navigator;
+    store.restore();
+  }
+});

@@ -1,7 +1,7 @@
 # Phase 1 evidence: questions and their lifecycle
 
 Spec: `docs/work-specs/interaction/spec.md`, phase 1 (AC-1, AC-2, AC-3, AC-4, AC-7, AC-8), with the
-Rules R1 to R24 in its phase notes. Base: `3985c140631173c267c5e93b37741a15bab8d88c`. Branch:
+Rules R1 to R25 in its phase notes. Base: `3985c140631173c267c5e93b37741a15bab8d88c`. Branch:
 `claude/plan-interaction-1-build`. The PR, its reviewed head, the CI run and the merge sha are in
 the PR description and the receipt to the coordinator; this file holds what was checked and how.
 
@@ -36,6 +36,9 @@ are listed apart.
 - Migration: `classifyMigration` on 0111 reports no blocked statement and no live-path statement;
   the self-check fails when Go live stops closing other rounds or when the revision check is
   removed (mutation runs on the scratch database).
+- After the Codex review of the first head: 0111 re-run twice from the top on the scratch database
+  (concurrent index builds, key validated after), and the send-versus-Go-live deadlock check re-run
+  clean. The cross-tab test fails when the Web Lock is removed.
 - Node lifecycle test mutations: removing the revision check fails one test; removing "close the
   other rounds" fails four.
 - Not run here: the configured suite (needs the local Supabase stack, which this container cannot
