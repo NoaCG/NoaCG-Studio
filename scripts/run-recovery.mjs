@@ -5,7 +5,7 @@ import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readdirSync,
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { inspectNative } from './native-recovery-contract.mjs';
-import { authorizationEnd, digest, immutableProject, readProject, untilComplete, validateAuthorization, windowEndValue } from './project-authorization.mjs';
+import { authorizationEnd, digest, immutableProject, needsProject, readProject, validateAuthorization, windowEndValue } from './project-authorization.mjs';
 import { PLAN_RUN_KIND } from './wave-plan-store.mjs';
 import { RECOVERY_BRANCH_PREFIX, recoveryCheckpointBranch } from './recovery-branch.mjs';
 
@@ -110,7 +110,7 @@ function validateState(doc, ledger) {
   if (!project && (doc.projectState || doc.projectAuthorization)) throw Error('Recovery project metadata missing');
   if (project && (immutableProject(project) !== doc.projectAuthorization || digest(project) !== doc.projectState
       || project.id !== m.id || JSON.stringify(project.authorization) !== JSON.stringify(auth))) throw Error('Restored project authorization or state differs');
-  if (!project && (untilComplete(auth) || Date.parse(auth.deadline) - Date.parse(auth.startedAt) > 86_400_000)) throw Error('Multi-day or until-complete recovery requires explicit continuing project metadata');
+  if (!project && needsProject(auth)) throw Error('Multi-day or until-complete recovery requires explicit continuing project metadata');
   if (/^Window starts: (\S+)/m.exec(ledger)?.[1] !== auth.startedAt
       || /^Window ends: (\S+)/m.exec(ledger)?.[1] !== windowEndValue(auth)) throw new Error('Recovery ledger authorization differs');
   if (doc.pending && (doc.pending.id !== `${m.id}:${doc.sequence}` || !Number.isSafeInteger(doc.pending.attempts)

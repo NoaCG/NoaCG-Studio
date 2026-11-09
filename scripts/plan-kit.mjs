@@ -197,13 +197,16 @@ export function heartbeat(wave, now = Date.now()) {
   const due = checkin(next, state, project, now);
   const step = [next.action, next.step, next.phase && `phase ${next.phase}`, next.id && `(${next.id})`].filter(Boolean).join(' ');
   const block = project?.block && project.status === 'active' ? `block ${project.block.epoch} ends ${project.block.deadline}` : `no open block (${project?.status ?? 'no project'})`;
+  const target = project?.authorization.deadline ? `planning target ${project.authorization.deadline}; ` : '';
+  const ends = untilComplete(project?.authorization) ? `${target}continue until complete`
+    : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline ?? 'when its phases are done'}`;
   return [
     `<!-- noacg:plan-run-heartbeat ${state.project} -->`,
     `**Plan run \`${state.project}\`**, updated ${new Date(now).toISOString()}`,
     '',
     `- **Next:** ${step}${next.why ? `: ${next.why}` : ''}`,
     `- **Phases passed:** ${passed} of ${total}`,
-    `- **Window:** ${block}; ${untilComplete(project?.authorization) ? `${project.authorization.deadline ? `planning target ${project.authorization.deadline}; ` : ''}continue until complete` : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline ?? 'when its phases are done'}`}`,
+    `- **Window:** ${block}; ${ends}`,
     `- **Waiting on:** ${state.waitingOn?.what ? `${state.waitingOn.what}${state.waitingOn.eta ? `, due ${state.waitingOn.eta}` : ''}` : 'nothing outside the ledger'}`,
     `- **Next check-in:** ${due.at ? `${due.at} (${due.why})` : `none (${due.why})`}`,
     '',

@@ -193,10 +193,9 @@ export const WINDOW_END = /^(Window ends: )(\S+)/m;
 export function openWave({ date, kind, until, session, project, dir = jobsDir(), now = Date.now() }) {
   const name = wavePlanName(date, kind);
   // A plan run the owner gave no date lasts as long as its phases need: `--until when-complete`.
-  const undated = until === WHEN_COMPLETE;
-  if (undated && !project && !PLAN_RUN_KIND.test(kind)) return { refusal: `only a plan run may run ${WHEN_COMPLETE}; a wave needs its end time` };
-  const end = undated ? Infinity : Date.parse(until ?? '');
-  if (!undated && (!/(?:[+-]\d{2}:\d{2}|Z)$/.test(String(until ?? '')) || Number.isNaN(end))) {
+  const whenComplete = until === WHEN_COMPLETE;
+  const end = whenComplete ? Infinity : Date.parse(until ?? '');
+  if (!whenComplete && (!/(?:[+-]\d{2}:\d{2}|Z)$/.test(String(until ?? '')) || Number.isNaN(end))) {
     return { refusal: `--until must be an ISO time with its offset, e.g. 2026-10-09T06:00:00+03:00, or ${WHEN_COMPLETE} for a plan run (got "${until}")` };
   }
   const file = path.join(ensureWavePlansDir(dir), name);
@@ -212,7 +211,7 @@ export function openWave({ date, kind, until, session, project, dir = jobsDir(),
       if (text !== null && !existing) throw Error('Legacy run requires explicit reviewed migration; do not replace its ledger');
     }
     if (existing && !sameWindowEnd(until, existing.authorization)) throw Error('Restart cannot extend the original project deadline');
-    if (undated && !existing && !project) throw Error(`a ${WHEN_COMPLETE} plan run needs its owner-authorized --project`);
+    if (whenComplete && !existing && !project) throw Error(`only a plan run with its owner-authorized --project may run ${WHEN_COMPLETE}; a wave needs its end time`);
     if (existing && ['cancelled', 'finished'].includes(existing.status)) throw Error(`Project is ${existing.status}`);
   } catch (error) { return { refusal: error.message }; }
   const recorded = { start: WINDOW_START.exec(text ?? '')?.[2], end: WINDOW_END.exec(text ?? '')?.[2] };

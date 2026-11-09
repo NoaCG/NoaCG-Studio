@@ -19,6 +19,8 @@ export const WHEN_COMPLETE = 'when-complete';
 export const undated = (auth) => Boolean(auth) && auth.deadline === undefined;
 export const untilComplete = (auth) => undated(auth) || nonempty(auth?.standing?.untilComplete);
 export const authorizationEnd = (auth) => untilComplete(auth) ? Infinity : instant(auth?.deadline);
+/** A run longer than one 24-hour window, or until complete, needs continuing project metadata. */
+export const needsProject = (auth) => untilComplete(auth) || instant(auth?.deadline) - instant(auth?.startedAt) > DAY_MS;
 /** The `Window ends:` value a ledger records for this authorization. */
 export const windowEndValue = (auth) => undated(auth) ? WHEN_COMPLETE : auth.deadline;
 /** Whether a recorded `Window ends:` value matches this authorization. */
