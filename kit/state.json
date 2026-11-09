@@ -44,7 +44,10 @@
    "session": "session_017SdbwMPp5LNCQWUxwS2A3i",
    "nonce": "2-b-c703",
    "launchedAt": "2026-11-09T15:08:19Z",
-   "branch": "claude/plan-interaction-2-build"
+   "branch": "claude/plan-interaction-2-build",
+   "pr": 2321,
+   "head": "49f9a4d51a01b5d5177a9575ac43e5c069022b35",
+   "note": "receipt 17:38Z: all green except CI gate capacity line (offline tier 88% > 85%); sent back 17:39Z to make the change cheaper, no budget exception"
   }
  ],
  "owner": [
