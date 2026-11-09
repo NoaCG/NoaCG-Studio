@@ -1,9 +1,9 @@
 # Publishing while live
 
-Status: owner decisions of 2026-11-09 (issue #2303). After four second opinions (each grade C) the
-plan was reshaped (E1 to E5): this spec states outcomes, decisions and acceptance; the three hard
-parts each get a design, graded A by an independent review, before they are built. Draft until the
-owner settles it. Not built. Plan name `live-publishing`, preparation only: see `runbook.md`.
+Status: agreed with the owner on 2026-11-09 ("Agree.", issue #2303), after four second opinions
+(each grade C) and a reshape (E1 to E5). This spec states outcomes, decisions and acceptance; the hard
+parts each get a design, graded A by an independent review, before they are built. Not built. Plan
+name `live-publishing`, preparation only: see `runbook.md`.
 
 ## Why
 

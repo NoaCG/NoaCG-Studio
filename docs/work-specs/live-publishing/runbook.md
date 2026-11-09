@@ -10,14 +10,13 @@ issue or arm triggers. This overrides plan-create's automatic handover.
 - `spec.md`: decisions, measured sizes, what must be true (with design-gate lists), test and
   measurement rules, acceptance and the nine phases.
 - `phases.json`: the phase objects plan-create copies into the project, in order.
-- `work.json`: the acceptance record. `draft` until the owner settles the plan; then `agreed` with
-  his words.
+- `work.json`: the acceptance record, `agreed` with the owner's words (2026-11-09).
 - `docs/work-specs/retire-hosted-control/`: phase 1's own spec, agreed on issue #2301.
 
 ## Before start
 
-1. The owner has settled the plan and `work.json` reads `agreed` with his words. Every decision so
-   far is recorded in the spec (O1 to O14, D1 to D6, S1 to S4, E1 to E5).
+1. Done: the owner settled the plan on 2026-11-09 ("Agree."); every decision is recorded in the spec
+   (O1 to O14, D1 to D6, S1 to S4, E1 to E5).
 2. The interaction run has finished (the owner: "to start after the current interaction tab run").
 3. Ask the owner, once, only what is missing: the authorization line (scope, start, an end date only
    if he gives one) and standing permissions in his words. Already given: "Our database migration
