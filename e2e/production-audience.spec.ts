@@ -652,6 +652,14 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await expect(phone.locator('#join .nj-opt')).toHaveCount(3);
   await expect(pick.getByTestId('question-count')).toHaveText('0');
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // A thanks belongs to the question it was for (found on the phase 3 rehearsal walk): once the
+  // room moves on, the phone does not keep saying "Counted ... while the vote is open".
+  await phone.locator('#join .nj-opt').nth(2).click();
+  await expect(phone.locator('#join .nj-note')).toHaveText(/^Counted\./);
+  await stopLive(ws, 'Pick one');
+  await phone.clock.runFor(7_000);
+  await expect(phone.locator('#join .nj-waiting')).toBeVisible();
+  await expect(phone.locator('#join .nj-note')).toHaveCount(0);
 });
 
 test('unpublished, Interaction offers Publish where phones would join and publishes nothing by itself (AC-8)', async ({ page }) => {

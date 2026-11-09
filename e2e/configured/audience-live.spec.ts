@@ -557,7 +557,7 @@ test.describe(() => {
     await expect(messages.getByTestId('audience-note')).toContainText('✓');
     await settleDurableWrites(messages);
     await nothingOnAir();
-    const answerCue = page.locator('.pd-cue', { hasText: 'House Q&A' });
+    const answerCue = page.locator('.pd-cue', { hasText: 'Sent from a phone on the walk' });
     await expect(answerCue).toHaveCount(1, { timeout: 20_000 });
     await answerCue.click();
     await nothingOnAir();
