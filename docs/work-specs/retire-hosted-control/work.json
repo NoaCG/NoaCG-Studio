@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "0eb3558bd2739a359a960d78acff95aaecfcafb795fbbabba1d89cc8049deed1",
+  "authority": {
+    "status": "draft",
+    "source": "the owner's answers of 2026-11-09 on issue #2301: everyone who runs a show signs in and is trusted to edit it, so retire the hosted control page now; whether a no-account mode should ever exist stays open; write the spec and plan before any work and mind the production page files other work is changing"
+  },
+  "review": null
+}
