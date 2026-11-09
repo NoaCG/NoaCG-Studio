@@ -79,7 +79,7 @@ takes to start or to load an update.
   that risks reliable playout. The hosted control page is removed
   (`docs/work-specs/retire-hosted-control/spec.md`, issue #2301).
 - **O13. Separating the production page into its own app** is a later plan, and only if shown to
-  make playout safer or faster (issue to be filed).
+  make playout safer or faster (issue #2317).
 
 ## Key decisions
 
