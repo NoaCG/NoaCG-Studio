@@ -114,11 +114,14 @@ vote the picked option, changeable while live. No question live: the waiting tex
   `audience_stop(slug)`: closes the round and sets waiting. Both bump `rev`. Concurrent presses
   end with exactly one open round: the later transaction wins. Going live again continues the
   same count. The local provider does the same in memory.
-- **Server checks**: `audience_submit` and `audience_vote` take the round id the phone read and
-  refuse any round that is not open; `question_id` is never taken from the client.
-- **Editing**: text and options can change only while the question has no answers. After that
-  they are locked, so the result always matches what was asked; Duplicate makes a new question
-  that starts from zero. Type never changes after creation.
+- **Server checks**: `audience_submit` and `audience_vote` take the round id and the round's
+  **revision** the phone read, and refuse a round that is not open or a revision that is not
+  current; `question_id` is never taken from the client. The revision changes whenever the
+  round's snapshot can change (an edit going live, Clear results), never on a plain reopen, so a
+  phone that read the same question earlier still counts into the same result.
+- **Editing**: text and options are locked while the question is live, and locked once it has
+  answers, so the result always matches what was asked; Duplicate makes a new question that
+  starts from zero. Type never changes after creation.
 - **Clear results**: in the question's menu, two presses, only while the question is not live.
   It removes that question's answers and votes (server function `audience_clear_results`) so a
   rehearsal does not count on air. A cue already staged keeps its values until the next stage.
@@ -204,7 +207,8 @@ existing production opens with its inbox and sources intact. Layer: journey in
 ### AC-2: Questions are prepared, browsed and changed safely
 Open and Multiple choice questions are added, edited, reordered, duplicated and deleted, and
 survive reload locally and published. Selecting a row changes nothing on phones or Program. The
-text and options are locked once a question has answers; type never changes. Going live again
+text and options are locked while the question is live (even with no answers yet) and once it
+has answers; type never changes. Going live again
 continues the same count and a phone that voted before can change, not add, its vote. Duplicate
 starts from zero. Clear results needs two presses, is refused while live, and leaves zero
 answers and votes. Deleting a question keeps its answers. Layer: Node tests for the list model
@@ -220,8 +224,9 @@ tests for the local provider.
 ### AC-4: A stale phone loses nothing and misfiles nothing
 A phone holding a closed question that sends an answer or vote sees "That question has closed",
 keeps its typed text, and shows the new question; nothing is filed under the new question until
-the viewer sends again. Layer: journey with two pages (operator, phone) on the local provider;
-configured suite for the server refusal.
+the viewer sends again. After Stop, Clear results, an edit and Go live again, a phone still
+showing the old options is refused rather than counted against the new ones. Layer: journey with
+two pages (operator, phone) on the local provider; configured suite for the server refusal.
 
 ### AC-5: Joining takes one scan or one short link
 Published, Interaction shows a QR code that decodes to `https://noacg.studio/j/<name>`, Copy and
