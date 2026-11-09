@@ -85,6 +85,7 @@ Settled with recommendations ("All as recommended", three times):
   previous design now, and the page says so.
 - **D2.** A Take with invalid typed data, or pressed on a stale view of air, is still refused with a
   note (`src/control/graphicVerbs.ts:679`, `supabase/migrations/0071_command_sequence.sql:431`).
+- **D3** was replaced by S2.
 - **D4.** Outputs are never forgotten automatically (`src/control/readiness.ts:463,493`).
 - **D5.** Smaller graphic code and preloading CasparCG server cues are follow-ups, started only if
   this run's measurements justify them.
