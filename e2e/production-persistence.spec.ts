@@ -249,7 +249,7 @@ test('the audience and presenter links are offered separately, and only once the
 
   // Each renders in its own form: the audience one is the readable vanity path an operator
   // reads out, the presenter one its own query capability.
-  await expect(links.getByTestId('join-url')).toContainText('/join/friday-night-live');
+  await expect(links.getByTestId('join-url')).toContainText('/j/friday-night-live');
   await expect(links.getByTestId('presenter-url')).toContainText('?pv=pv-test-slug');
   await expect(links.getByTestId('copy-presenter-url')).toBeEnabled();
   await expect(links.getByTestId('copy-join-url')).toBeEnabled();
@@ -313,16 +313,11 @@ test('the panel holds the browser source in one row, and Links… holds one row 
   await expect(links.getByTestId('join-url').getByTestId('links-interaction-open')).toHaveText('Interaction');
 });
 
-test('the readable audience name: the database decides, and this build says so honestly', async ({ page }) => {
-  // The vanity name is the one URL that gets SAID OUT LOUD, so an operator can claim
-  // "friday-night-live" instead of spelling out base64 (docs/INTERACTIVE_PLAYOUT_PLAN.md).
-  //
-  // Every rule lives on the column in migration 0035 - the shape, the reserved-word list, the
-  // unique index - and the claim is an ordinary owner UPDATE, so the CLAIM ITSELF is backend
-  // work that belongs on the maintainer's live checklist. What is pinned here is the half an
-  // offline build owns: the control exists wherever an audience link does, it refuses an empty
-  // name without asking anyone, it reports the offline truth instead of pretending, and a
-  // verdict never outlives the name it was about.
+test('the audience link is the short /j/ link, and its name is changed in Interaction, not Links', async ({ page }) => {
+  // The name moved to Interaction's Join area, beside the QR code (interaction spec, Join), which
+  // shows only once a production is published; the claim and its refusals are pinned against the
+  // real database in e2e/configured/audience-live.spec.ts. What an offline build owns here: Links
+  // shows the short link and no name control, and points to Interaction.
   const id = await seedProduction(page, 'Readable Name');
   await page.goto(`/app#/production/${id}`);
   await page.evaluate(async (showId) => {
@@ -332,34 +327,10 @@ test('the readable audience name: the database decides, and this build says so h
   }, id);
   await settleDurableWrites(page);
   await page.reload();
-  // The audience name lives with the audience link under Setup › Links… (playout-workflow-simplification AC-8).
   await page.getByTestId('production-setup').click();
   await page.getByTestId('setup-links').click();
-
-  const input = page.getByTestId('join-name-input');
-  const claim = page.getByTestId('join-name-claim');
-  const note = page.getByTestId('join-name-note');
-  await expect(input).toBeVisible();
-
-  // Empty is the ONE refusal that needs no server: "Use this name" stays off until a name is typed
-  // (a disabled button instead of a sentence, AC-10).
-  await expect(claim).toHaveText('Use this name');
-  await expect(claim).toBeDisabled();
-  await input.fill('   ');
-  await expect(claim).toBeDisabled();
-  await expect(note).toHaveCount(0);
-
-  // A real name offline says what is actually wrong - it does not claim success, and it does not
-  // pretend the name was taken.
-  await input.fill('friday-night-live');
-  await claim.click();
-  await expect(note).toContainText('offline');
-
-  // Typing again clears the verdict: a refusal left standing under a DIFFERENT name is a lie
-  // about the name now in the box.
-  await input.fill('another-name');
-  await expect(note).toHaveCount(0);
-
-  // The audience link is unchanged - nothing was claimed.
-  await expect(page.getByTestId('production-links')).toContainText('/join/aB3xK9zQ');
+  const links = page.getByTestId('production-links');
+  await expect(links.getByTestId('join-url')).toContainText('/j/aB3xK9zQ');
+  await expect(links.getByTestId('join-name-input')).toHaveCount(0);
+  await expect(links.getByTestId('join-url').getByTestId('links-interaction-open')).toHaveText('Interaction');
 });

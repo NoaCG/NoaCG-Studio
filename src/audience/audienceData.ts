@@ -21,6 +21,7 @@
 // the cadence its job needs.
 
 import { getSupabase } from '../backend/supabase';
+import { isBackendConfigured, loadBackendConfig } from '../backend/config';
 import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
@@ -158,6 +159,31 @@ function one<T>(data: unknown): T | null {
   return (row ?? null) as T | null;
 }
 
+/**
+ * The join resolve, read with a plain request rather than through the Supabase client.
+ *
+ * It is the phone page's first read, on venue wifi (interaction spec AC-5: the live question
+ * visible within 3 seconds at 1.6 Mbps and 563 ms latency). The client library is the largest
+ * thing the page would load and adds a round trip of its own, so a phone loads it only when it
+ * sends. The request is the one the client makes for this call: the same function, the public
+ * key in `apikey` and as the bearer, so the database sees the same caller. Any failure reads as
+ * nothing to show, as before.
+ */
+async function joinRead(slug: string, device: string): Promise<JoinRow | null> {
+  const cfg = loadBackendConfig();
+  if (!isBackendConfigured(cfg)) throw new Error('This build has no cloud backend.');
+  try {
+    const res = await fetch(`${cfg.url.replace(/\/+$/, '')}/rest/v1/rpc/audience_join_by_slug`, {
+      method: 'POST',
+      headers: { apikey: cfg.anonKey, Authorization: `Bearer ${cfg.anonKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_join_slug: slug, p_device: device }),
+    });
+    return res.ok ? one<JoinRow>(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The state the join page starts from and falls back to: a closed door, honestly described. */
 const CLOSED: AudienceState = {
   open: false,
@@ -241,12 +267,7 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
   const api: ObservableAudience = {
     // ── The viewer's half ───────────────────────────────────────────────────────────────────
     async joinView(deviceToken: string): Promise<JoinView> {
-      const sb = await client();
-      const { data, error } = await sb.rpc('audience_join_by_slug', {
-        p_join_slug: join(),
-        p_device: deviceToken,
-      });
-      const row = error ? null : one<JoinRow>(data);
+      const row = await joinRead(join(), deviceToken);
       // An unknown slug, a deleted production and a switched-off feature all look alike on
       // purpose: the join URL is a capability, and a page that distinguishes them is a probe.
       if (!row) return { productionName: '', state: CLOSED, brand: null, mine: [], myVote: null };
