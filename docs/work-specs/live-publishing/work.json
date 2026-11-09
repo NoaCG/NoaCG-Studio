@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "9aecf88bd0e2b03856a6048e7375892c5665d765ed2ee772492543b9fa550589",
+  "authority": {
+    "status": "draft",
+    "source": "the owner's answers of 2026-11-09 in the planning session for issue #2303: publish once, then everything updates by itself and the light says it; a queued graphic is self-contained and takes a library design only through Update; a Take never waits; upload in two parts, the migration is fine; 3 to 5 people at once, later edit wins; CasparCG 2.5 is the target; keep it simple and reliable; retire the hosted control page as a phase. Final after a second opinion."
+  },
+  "review": null
+}

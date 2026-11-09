@@ -1,0 +1,264 @@
+[
+  {
+    "id": "1",
+    "title": "Retire the hosted control page",
+    "acceptance": [
+      "retire-hosted-control AC-1 to AC-5, as written in docs/work-specs/retire-hosted-control/spec.md"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [],
+    "spec": "docs/work-specs/retire-hosted-control/spec.md",
+    "brief": {
+      "goal": "Retire the hosted control page",
+      "read": [
+        "docs/work-specs/retire-hosted-control/spec.md",
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/HostedControlPage.tsx",
+        "src/styles/control-page.css",
+        "e2e/"
+      ],
+      "checks": [],
+      "notes": "Owner rules: the production page must not change behaviour (stop and ask if a step would); rename or migrate nothing persisted; remove a hostedControl.ts export only when tsc and grep prove nothing else imports it; retire contract rules with npm run learn; tests first, run while the page exists; Test maintenance lines owner miwco, at most 30 days; rebase on current main right before landing (#2293 touches ProductionPage.tsx and playout-dashboard.css)."
+    }
+  },
+  {
+    "id": "2",
+    "title": "Measure the Take path",
+    "acceptance": [
+      "A receipt in evidence/ times press to send, send to output and output to first frame for a quiz with and without a placement preset, a server cue, and a Take during a publish, on desktop Chromium. No product change."
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "1"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Measure the Take path",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/PLAYOUT_ISOLATION_RESEARCH.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "docs/work-specs/live-publishing/evidence/"
+      ],
+      "checks": [],
+      "notes": ""
+    }
+  },
+  {
+    "id": "3",
+    "title": "A Take never waits",
+    "acceptance": [
+      "AC-1",
+      "AC-2"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "2"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "A Take never waits",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/control/adjustGeometry.ts",
+        "src/control/graphicVerbs.ts",
+        "src/output/"
+      ],
+      "checks": [],
+      "notes": "C1, C2. Placement must also work in Chromium 71: build target es2017, no ?. or ?? inside template code."
+    }
+  },
+  {
+    "id": "4",
+    "title": "The production's copy is the only truth",
+    "acceptance": [
+      "AC-3",
+      "AC-4"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "1"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "The production's copy is the only truth",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/model/library.ts",
+        "src/model/shows.ts",
+        "src/control/hostedControl.ts",
+        "src/components/home/"
+      ],
+      "checks": [],
+      "notes": "C3, C4, the Update button."
+    }
+  },
+  {
+    "id": "5",
+    "title": "Store graphics and the rundown apart",
+    "acceptance": [
+      "AC-7",
+      "AC-8"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "2",
+      "4"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Store graphics and the rundown apart",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "supabase/migrations/",
+        "src/control/hostedControl.ts",
+        "src/output/"
+      ],
+      "checks": [],
+      "notes": "C5, C6. Live-path migration: applies only in a quiet window (supabase/AGENTS.md). Old publications stay readable; open outputs keep working."
+    }
+  },
+  {
+    "id": "6",
+    "title": "Updates by themselves, and the light",
+    "acceptance": [
+      "AC-5",
+      "AC-6"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "3",
+      "5"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Updates by themselves, and the light",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/components/home/",
+        "src/control/playoutStatus.ts",
+        "src/components/control/PrepareForLive.tsx"
+      ],
+      "checks": [],
+      "notes": "O1, O2. Check now stays."
+    }
+  },
+  {
+    "id": "7",
+    "title": "Preload server cues",
+    "acceptance": [
+      "AC-9"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "1"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Preload server cues",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "cli/src/playout/adapters/casparcg.ts",
+        "src/control/playoutLink.ts"
+      ],
+      "checks": [],
+      "notes": "C7."
+    }
+  },
+  {
+    "id": "8",
+    "title": "Five people at once",
+    "acceptance": [
+      "AC-10"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "6"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Five people at once",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "e2e/configured/",
+        "docs/CLOUD_PLAYOUT.md"
+      ],
+      "checks": [],
+      "notes": ""
+    }
+  },
+  {
+    "id": "9",
+    "title": "Images stored once (only if needed)",
+    "acceptance": [
+      "C8: run phase 2's method after phase 6; build content-named image storage only if a typical design update is over 1 MB, else record 'not needed' with the numbers"
+    ],
+    "environment": "CA: qualified Claude cloud builder/checker plus GitHub Actions",
+    "dependsOn": [
+      "6"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "Images stored once (only if needed)",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [
+        "src/control/hostedControl.ts",
+        "src/output/"
+      ],
+      "checks": [],
+      "notes": ""
+    }
+  },
+  {
+    "id": "10",
+    "title": "The studio walk",
+    "acceptance": [
+      "AC-11"
+    ],
+    "environment": "OW: the owner's CasparCG 2.5 and 2.3 studio machines with a browser output",
+    "dependsOn": [
+      "3",
+      "6",
+      "7",
+      "8",
+      "9"
+    ],
+    "spec": "docs/work-specs/live-publishing/spec.md",
+    "brief": {
+      "goal": "The studio walk",
+      "read": [
+        "docs/work-specs/live-publishing/spec.md",
+        "docs/plan-runs/known-traps.md"
+      ],
+      "touches": [],
+      "checks": [],
+      "notes": ""
+    }
+  }
+]
