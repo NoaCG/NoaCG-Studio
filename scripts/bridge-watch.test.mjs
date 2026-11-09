@@ -291,7 +291,7 @@ test('an answering Bridge starts the slot, the file check, the older clips and t
   assert.equal(t.learnt.length, 1);
   assert.deepEqual([...t.learnt[0][1]], [['old', { mediaKind: 'movie', frames: 100, fps: 25 }]]);
   assert.deepEqual(t.live(), { subs: 1, everys: 1, visibles: 1 });
-  assert.equal(t.everys[0].ms, SLOT_READ_MS);
+  assert.equal(t.everys[0].ms, 10_000);
 
   // The status answers again every few seconds: nothing restarts for an unchanged answer.
   t.answer({ ...OK });
@@ -333,6 +333,15 @@ test('a pending studio change goes to the Bridge when it answers, again after ea
   t.answer(OK);
   await settle();
   assert.equal(t.take().filter((c) => c === 'sync').length, 1);
+
+  // The setup change is still pending. A render and another OK answer must not send it again.
+  t.update();
+  await settle();
+  assert.equal(t.take().filter((c) => c === 'sync').length, 0, 'a render under the same answer does not sync');
+  t.answer({ ...OK });
+  await settle();
+  assert.equal(t.take().filter((c) => c === 'sync').length, 0, 'another OK answer does not sync');
+
   t.answer({ state: 'bridge', detail: 'away' });
   t.answer(OK);
   await settle();
