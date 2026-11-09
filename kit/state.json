@@ -38,8 +38,8 @@
  },
  "waitingOn": [
   {
-   "what": "cloud-queue-merge.yml starting jobs again (startup failures since 18:08Z)",
-   "eta": "2026-11-09T18:28Z"
+   "what": "PR #2321 in the merge queue",
+   "eta": "2026-11-09T18:50Z"
   }
  ],
  "inFlight": [
@@ -52,7 +52,8 @@
    "branch": "claude/plan-interaction-2-build",
    "pr": 2321,
    "head": "66a01599baabd00055d977f2392806b4c86bb176",
-   "note": "receipt 18:08Z green; capacity warn 83% (tests moved into existing files; real added time ~0.1-0.45 min recorded in phase notes). Stamp blocked: cloud-queue-merge.yml dispatches 42671380645, 42671641151, 42671949471 fail at startup with 0 jobs (workflow file unchanged, check:workflows OK); retry 18:28Z"
+   "note": "receipt 18:08Z green; capacity warn 83% (tests moved into existing files; real added time ~0.1-0.45 min recorded in phase notes). Stamp blocked: cloud-queue-merge.yml dispatches 42671380645, 42671641151, 42671949471 fail at startup with 0 jobs (workflow file unchanged, check:workflows OK); retry 18:28Z",
+   "stamped": "2026-11-09T18:21Z (cloud-queue-merge 42673201897 after three startup failures 18:08-18:12Z)"
   }
  ],
  "owner": [
