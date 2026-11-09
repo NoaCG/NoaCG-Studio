@@ -7,6 +7,7 @@ import {
   setShowSourcePaused,
   setShowMessageTarget,
   setShowPollLiveFigures,
+  loadShows,
   setShowJoinPage,
   setShowQuestions,
   showQuestions,
@@ -41,6 +42,7 @@ import { joinPageBrand, lookLogoDataUrl } from '../../audience/audienceBrand';
 import { qrPng, qrSvg } from '../../audience/joinQr';
 import { JOIN_PAGE_LIMITS, JOIN_WAITING_DEFAULT } from '../../audience/audienceTypes';
 import { publishJoinLogo } from '../../control/joinLogo';
+import { syncJoinPage } from '../../control/joinPageSync';
 import { useMessagesBackend } from './useAudienceInbox';
 import { rehearsalPageUrl } from '../../audience/localAudience';
 import { useAuthState } from '../auth/useAuthState';
@@ -1012,40 +1014,36 @@ export default function ProductionAudienceWorkspace({
     };
   }, [backend, live, show.joinSlug]);
 
-  // PUBLISHED: a change to the page settings or the look made while this tab is open reaches phones
-  // on their next read, through the join state's brand (publish sends it too). It starts from what
-  // the last publish or push sent, so opening the tab sends nothing.
-  // The key is what phones would be sent, with the logo by its own bytes (not by the async data
-  // URL, so the first render already has the final key and opening the tab sends nothing).
+  // PUBLISHED: phones follow the page settings and the look without a publish (interaction spec
+  // phase 2, rules P1 to P4 in control/joinPageSync.ts). Opening the tab compares what phones get
+  // with the production and sends only a difference; a change is sent a moment later, even if the
+  // operator has left the tab by then.
+  // The key is what phones would be sent, with the logo by its own bytes.
   const pageKey = useMemo(() => {
     const logo = show.look?.logo?.data;
     return JSON.stringify([joinPageBrand({ look: show.look, joinPage: show.joinPage }, null), typeof logo === 'string' ? logo : logo ? `blob:${logo.size}:${logo.type}` : null]);
   }, [show.look, show.joinPage]);
-  const sentPage = useRef<string | null>(null);
+  const pageSynced = useRef(false);
   useEffect(() => {
-    if (!live || !backend.setPage) return;
-    if (sentPage.current === null) {
-      sentPage.current = pageKey;
-      return;
-    }
-    if (sentPage.current === pageKey) return;
-    const timer = window.setTimeout(() => {
-      // A logo that cannot be published sends nothing: phones keep what they have, and the
-      // operator is told, rather than the push clearing a logo that is still in the look.
-      void publishJoinLogo(show.id, show.look)
-        .then((logo) => backend.setPage!(joinPageBrand(show, logo)))
-        .then(
-          () => {
-            sentPage.current = pageKey;
-            preview.current?.refresh();
-          },
-          () => setNote('The phone page could not be updated. Try again, or publish.'),
-        );
-    }, 600);
-    return () => window.clearTimeout(timer);
-    // `show` is read when the timer fires; the key says when it matters.
+    if (!live || !backend.setPage || !show.joinSlug) return;
+    const viewer = createSupabaseAudience({ joinSlug: show.joinSlug });
+    const showId = show.id;
+    syncJoinPage(
+      showId,
+      {
+        readShow: () => loadShows().find((s) => s.id === showId) ?? null,
+        readBrand: async () => (await viewer.joinView('interaction-page-sync')).brand,
+        publishLogo: (current, known) => publishJoinLogo(current.id, current.look, known),
+        send: (brand) => backend.setPage!(brand),
+        onSent: () => preview.current?.refresh(),
+        onError: () => setNote('The phone page could not be updated. It is tried again when Interaction opens, or publish.'),
+      },
+      pageSynced.current ? 600 : 0,
+    );
+    pageSynced.current = true;
+    // `show` is read by the sync when it runs; the key says when to ask.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, backend, pageKey]);
+  }, [live, backend, pageKey, show.joinSlug]);
 
   /** The page settings' boxes: one write per edit, not per keystroke (useDeferredEdits). */
   const pageEdits = useDeferredEdits((key, text) => {

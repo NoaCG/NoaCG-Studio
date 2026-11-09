@@ -45,10 +45,11 @@ async function drawnPng(source: Blob): Promise<Blob | null> {
 
 /**
  * The public URL of the look's logo, uploading it when this path is new; null when the look has
- * no logo. Throws when a logo exists but could not be published (signed out, refused, offline), so
+ * no logo. `known` is the logo URL phones have: when it is this file, it is returned as it is.
+ * Throws when a logo exists but could not be published (signed out, refused, offline), so
  * the caller can keep the logo phones already have rather than clear it.
  */
-export async function publishJoinLogo(showId: string, look: ProjectBrand | undefined): Promise<string | null> {
+export async function publishJoinLogo(showId: string, look: ProjectBrand | undefined, known: string | null = null): Promise<string | null> {
   const asset = look?.logo;
   if (!asset?.data) return null;
   const mime = (typeof asset.data === 'string' ? parseDataUrl(asset.data)?.mime : asset.data.type)?.toLowerCase() ?? '';
@@ -57,12 +58,14 @@ export async function publishJoinLogo(showId: string, look: ProjectBrand | undef
   if (!bytes) return null;
   if (!sb) throw new Error('This build has no cloud backend.');
   const [{ data: auth }, hash] = await Promise.all([sb.auth.getSession(), sha256(bytes)]);
+  // Phones already have this very file: its path names the production and the file's hash.
+  if (known && known.endsWith(`/${showId}/${hash}.${RASTER[mime] ?? 'png'}`)) return known;
   const user = auth.session?.user.id;
   if (!user) throw new Error('Sign in to publish the logo.');
   const raster = mime in RASTER;
   const path = `${user}/${showId}/${hash}.${RASTER[mime] ?? 'png'}`;
-  const known = published.get(path);
-  if (known) return known;
+  const pending = published.get(path);
+  if (pending) return pending;
   const run = (async () => {
     const source = new Blob([bytes as BlobPart], { type: mime });
     const body = raster ? source : await drawnPng(source);
@@ -94,7 +97,7 @@ export async function publishedJoinBrand(
 ): Promise<AudienceBrand> {
   let logo: string | null;
   try {
-    logo = await publishJoinLogo(show.id, show.look);
+    logo = await publishJoinLogo(show.id, show.look, typeof previous === 'string' ? previous : null);
   } catch {
     logo = typeof previous === 'string' ? previous : null;
   }

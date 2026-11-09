@@ -1,0 +1,91 @@
+// KEEPING PHONES ON THE PRODUCTION'S PAGE (interaction spec phase 2; phase notes, rules P1 to P5).
+//
+// What phones show around the question (the look, logo, title and waiting text) is the join
+// state's `brand`. Publish writes it; between publishes, Interaction keeps it in step:
+//
+//   P1. It READS what phones get and sends the production's page only when that differs, so
+//       opening Interaction repairs a change that never reached phones and otherwise sends nothing.
+//   P2. A change is sent a moment after it is made (`delayMs`), even if the operator has left the
+//       tab: the wait and the send live here, not in the component.
+//   P3. Syncs for one production run one at a time, and a sync that a newer one superseded stops
+//       before it sends, so phones end on the latest saved page.
+//   P4. A logo already published under its file's hash is not uploaded again; one that cannot be
+//       published now sends nothing, so phones keep the logo they have.
+//
+// Every effect goes through `io`, so scripts/join-page-sync.test.mjs drives it with fakes.
+
+import { joinPageBrand } from '../audience/audienceBrand';
+import type { AudienceBrand } from '../audience/audienceTypes';
+import type { ProjectBrand } from '../model/brand';
+
+export interface JoinPageShow {
+  id: string;
+  look?: ProjectBrand;
+  joinPage?: { title?: string; waiting?: string };
+}
+
+export interface JoinPageSyncIo {
+  /** The production as saved now (read when the sync runs, not when it was asked for). */
+  readShow(): JoinPageShow | null;
+  /** What phones get now. */
+  readBrand(): Promise<AudienceBrand | null | undefined>;
+  /** The look's logo as a public URL, given the one phones have (P4); throws when it cannot be published. */
+  publishLogo(show: JoinPageShow, known: string | null): Promise<string | null>;
+  send(brand: AudienceBrand): Promise<void>;
+  /** A sync failed (the latest one only). */
+  onError?(error: unknown): void;
+  /** A sync sent the page. */
+  onSent?(): void;
+}
+
+/** The fields phones read, in one order, absent as null. */
+const FIELDS = ['accent', 'text', 'panel', 'font', 'logo', 'title', 'waiting'] as const;
+export function sameBrand(a: AudienceBrand | null | undefined, b: AudienceBrand | null | undefined): boolean {
+  return FIELDS.every((k) => ((a?.[k] as unknown) ?? null) === ((b?.[k] as unknown) ?? null));
+}
+
+const runs = new Map<string, { gen: number; timer?: ReturnType<typeof setTimeout>; chain: Promise<void> }>();
+
+/** Ask for a sync of this production's page in `delayMs`; a later ask replaces an earlier one. */
+export function syncJoinPage(showId: string, io: JoinPageSyncIo, delayMs: number): void {
+  const run = runs.get(showId) ?? { gen: 0, chain: Promise.resolve() };
+  runs.set(showId, run);
+  const gen = ++run.gen;
+  if (run.timer !== undefined) clearTimeout(run.timer);
+  const current = () => gen === run.gen;
+  run.timer = setTimeout(() => {
+    run.timer = undefined;
+    run.chain = run.chain.then(async () => {
+      if (!current()) return;
+      try {
+        const show = io.readShow();
+        if (!show) return;
+        const now = await io.readBrand();
+        if (!current()) return;
+        const logo = await io.publishLogo(show, typeof now?.logo === 'string' ? now.logo : null);
+        if (!current()) return;
+        const brand = joinPageBrand(show, logo);
+        if (sameBrand(brand, now)) return;
+        await io.send(brand);
+        io.onSent?.();
+      } catch (error) {
+        if (current()) io.onError?.(error);
+      }
+    });
+  }, delayMs);
+}
+
+/** Wait for every sync asked for so far to finish (tests). */
+export async function joinPageSyncSettled(showId: string): Promise<void> {
+  for (;;) {
+    const run = runs.get(showId);
+    if (!run) return;
+    if (run.timer !== undefined) {
+      await new Promise((r) => setTimeout(r, 5));
+      continue;
+    }
+    const chain = run.chain;
+    await chain;
+    if (run.chain === chain && run.timer === undefined) return;
+  }
+}

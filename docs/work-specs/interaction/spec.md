@@ -558,5 +558,17 @@ and the quota row and deletes the bucket once empty.
 - A Node test that imports `src/audience/audienceTypes.ts` without the repo's resolver needs
   relative imports there to name the `.ts` file.
 
+Found in the Codex review of `2e20660` (two findings of one family, keeping phones in step with
+the page between publishes), stated as rules before the repair (`src/control/joinPageSync.ts`):
+
+- P1. Interaction reads what phones get and sends the production's page only when it differs, so
+  opening it repairs a change that never reached phones and otherwise sends nothing.
+- P2. A change is sent a moment after it is made, even if the operator has left the tab: the wait
+  and the send live outside the component.
+- P3. Sends for one production run one at a time, and a send that a newer change superseded stops
+  before it reaches phones, so phones end on the latest saved page.
+- P4. A logo already published under its file's hash is not uploaded again; a logo that cannot be
+  published sends nothing, so phones keep theirs. Publish keeps the logo phones have the same way.
+
 Follow-ups filed: #2319 (render baseline on Windows), #2320 (offer to update Join card cues after
 the link name changes; in the spec's Graphics section, not in phase 2's acceptance).
