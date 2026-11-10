@@ -1,0 +1,15 @@
+{
+  "observed": "Owner dragged the PNG from Windows File Explorer onto the editor canvas and reported: Yes, the logo and image layer appeared.",
+  "fixture": {
+    "sha256": "f690e10b37a7b7499dd0b8eda9562b3664cac39e8e90c89c48e4916e9c34a304",
+    "path": "public/noacg-mark-512.png",
+    "bytes": 34153
+  },
+  "environment": "Physical Windows desktop, installed Chrome, isolated offline profile and worktree port 5212. Runtime paths clean at the stated commit through the handoff.",
+  "cleanup": "Scheduler job cancelled after observation to close the isolated test Chrome; server confirmed closed.",
+  "phase": "E1",
+  "limits": "Owner-observed OS file drop creates one raster image on the stated source. Browser-driven logo replacement, crop/fit and persistence have separate evidence.",
+  "job": "j-5060",
+  "at": "2026-11-10T20:15:17.841Z",
+  "candidate": "24439f46f8a585c79ad9bc9458d8e01aca5d89de"
+}

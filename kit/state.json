@@ -74,9 +74,9 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "Same E1 worker resumed from b4466bfb after memory recovered. Windows job j-5046 started for the flag and clipboard reproductions. Native file receipt retained.",
+      "note": "Windows timeline fixes tested and pushed. Native SVG picker/drop, SPX download and raster drop each verified at their pinned sources. Remaining rotated import and animated anchor work in progress.",
       "checkpointed": false,
-      "head": "b4466bfb52d0b804e95462f8c8c8dbad85449fbf"
+      "head": "24439f46f8a585c79ad9bc9458d8e01aca5d89de"
     }
   ],
   "owner": [],
@@ -165,6 +165,11 @@
       "ram": "6.6 GB at worker intake",
       "job": "j-5046",
       "briefSHA256": "5ed11fc563e4b520bc4e295f2b752e584c0c7a4b69fbf81b20c1206dba04eb09"
+    },
+    "nativeRaster": {
+      "outcome": "Owner-operated native PNG drop produced a visible logo and one image layer.",
+      "receipt": "receipts/e1-owner-native-raster-2026-11-10.json",
+      "job": "j-5060"
     }
   }
 }
