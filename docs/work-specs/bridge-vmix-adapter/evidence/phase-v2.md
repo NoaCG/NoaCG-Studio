@@ -447,6 +447,39 @@ Bridge refused Load without changing the overlay, then unloaded the owned input.
 The four sessions restored both settings files by SHA-256 and left vMixService running.
 The captures are in `C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-final-grammar`.
 
+### Rules for replacing the XML scanner
+
+The independent review of `b515256d2444292f92c27117bf378fb073129c7f` graded it B.
+The compiled Bridge accepted malformed input body text, malformed comments and
+malformed attribute prefixes. Those snapshots authorized durable ownership and
+overlay commands. The owner approved replacing the scanner with a strict XML
+parser. This checkpoint records the rules before implementation. The parser here
+still has the known failures.
+
+- A length-framed reply must decode as UTF-8 and parse as one complete,
+  well-formed, namespace-aware XML document before any part can supply state.
+  Syntax errors in ignored descendants and after an otherwise valid state table
+  invalidate the entire reply. DTDs are refused and no custom entities or external
+  resolver are available. Only parsed predefined and numeric XML references may
+  supply text.
+- The root and recognized direct state sections are unqualified. The direct input
+  and overlay rows, and the attributes that supply their state, are unqualified.
+  A nested input layer or unrelated metadata never supplies an input or an
+  output overlay. Legitimate nested records are allowed and are checked for XML
+  well-formedness. Version, edition and overlay occupancy are scalar values.
+- The existing vMix state checks still apply after parsing. The required sections
+  occur once. Input keys and positions are valid and unique. Overlay numbers are
+  valid and unique. A reported empty overlay is distinct from an omitted one.
+  Status can identify a supported edition with partial coverage. Load and scoped
+  state still require the complete supported overlay set, and Out or Clear still
+  requires the chosen channel to resolve. A malformed observation after AddInput
+  cannot keep the key or redirect, rename the input or send Overlay In.
+- The captured vMix 29 fixture and the fake vMix 28 and Basic HD cases must still
+  read correctly. The compiled Bridge must reject the earlier malformed cases
+  and prove the AddInput ownership boundary in a fake. The rebuilt Windows
+  Bridge must pass the applicable preset cases on an owned blank vMix process.
+  The Bridge version, deadlines, CasparCG and CI policy are outside this repair.
+
 ### Changed files
 
 - Studio request and control code in `src/control/playoutLink.ts`, `vmixSetup.ts`,
