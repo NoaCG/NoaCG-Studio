@@ -74,8 +74,8 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "E1 Windows browser work can resume under the normal scheduler. Native file receipt retained.",
-      "checkpointed": true,
+      "note": "Same E1 worker resumed from b4466bfb after memory recovered. Windows job j-5046 started for the flag and clipboard reproductions. Native file receipt retained.",
+      "checkpointed": false,
       "head": "b4466bfb52d0b804e95462f8c8c8dbad85449fbf"
     }
   ],
@@ -157,6 +157,14 @@
       "revision": "b4466bfb52d0b804e95462f8c8c8dbad85449fbf",
       "pendingProbe": "receipts/e1-pending-probes.patch",
       "pendingProbeSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0"
+    },
+    "lateResume": {
+      "actor": "/root/editor_r15_e1_resume",
+      "observedAt": "2026-11-10T19:38:00Z",
+      "head": "b4466bfb52d0b804e95462f8c8c8dbad85449fbf",
+      "ram": "6.6 GB at worker intake",
+      "job": "j-5046",
+      "briefSHA256": "5ed11fc563e4b520bc4e295f2b752e584c0c7a4b69fbf81b20c1206dba04eb09"
     }
   }
 }
