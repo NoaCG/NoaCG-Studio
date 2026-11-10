@@ -47,7 +47,17 @@
   "cf21": "Brief: change 4 (no /so for Ordinary rows) is owner-authorized (receipt owner-decision-2026-11-07-cf21.md), not a gate weakened under (d); (b),(c): cf21 lands the rules, records the before-side rows (review rounds per PR, share passing after one round, cf03 M1 from ready, reverts and post-landing failures) and the method; cf20 reads the after side. /so on #2282 noted placement after cf13 was a choice (ledger allows after cf13..cf19) justified by more after-rows."
  },
  "waitingOn": [],
- "inFlight": [],
+ "inFlight": [
+  {
+   "phase": "cf15",
+   "step": "check",
+   "session": "session_017SdbwP9cr9eejbG5DQAkFP",
+   "nonce": "cf15-c-bb8c",
+   "launchedAt": "2026-11-10T15:09:03Z",
+   "mergeSha": "3d652dfd5f7f2c8d17cab1fa9cbcd95d765ff978",
+   "pr": 2356
+  }
+ ],
  "owner": [],
  "fixes": [
   {
