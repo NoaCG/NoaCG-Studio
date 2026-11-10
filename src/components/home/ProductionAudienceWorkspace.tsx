@@ -1176,11 +1176,14 @@ export default function ProductionAudienceWorkspace({
     closingId: string | null = null,
   ): Promise<{ done: ResultOutcome[]; unread: number }> => {
     const done: ResultOutcome[] = [];
-    let unread = after ? 0 : 1;
-    for (const round of after ? roundsToFinalise(loadShows().find((x) => x.id === show.id) ?? show, before, after, openedId, closingId) : []) {
+    const current = loadShows().find((x) => x.id === show.id) ?? show;
+    // Unread counts matter only where there is a result cue to finalise.
+    const hasCue = (questionId: string | null) => Boolean(questionId && current.resultCues?.[questionId]);
+    let unread = after ? 0 : Object.keys(current.resultCues ?? {}).length > 0 ? 1 : 0;
+    for (const round of after ? roundsToFinalise(current, before, after, openedId, closingId) : []) {
       const final = await backend.tally(round.id).catch(() => null);
       if (!final) {
-        unread += 1;
+        if (hasCue(round.questionId)) unread += 1;
         continue;
       }
       done.push(await writeResult(round, final, { closed: true, closeOnly: true }));
@@ -1237,7 +1240,8 @@ export default function ProductionAudienceWorkspace({
         return false;
       }
       const swept = await finaliseClosed(null, await backend.rounds().catch(() => null), null, closing.id);
-      setNote(`✓ Stopped. Phones show the waiting text.${sweepWords(swept)}${swept.done.length ? ' Take it when you want them on air.' : ''}`);
+      const finalised = swept.done.some((d) => d.ok && d.kind === 'updated');
+      setNote(`✓ Stopped. Phones show the waiting text.${sweepWords(swept)}${finalised ? ' Take it when you want them on air.' : ''}`);
       return true;
     } catch (err) {
       setNote(`The question did not stop: ${(err as Error).message}`);

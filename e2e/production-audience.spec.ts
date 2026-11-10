@@ -701,6 +701,9 @@ test('a vote with nowhere to go offers a vote board instead of writing a cue nob
 
   await addQuestion(audience, 'choice', 'Anything?', ['Yes', 'No']);
   await goLive(audience, 'Anything?');
+  // Stopped with no result cue: the note offers nothing to take.
+  await stopLive(audience, 'Anything?');
+  await expect(audience.getByTestId('audience-note')).toHaveText('✓ Stopped. Phones show the waiting text.');
   await audience.getByTestId('audience-round-stage').click();
   await expect(audience.getByTestId('result-no-destination')).toBeVisible();
   const cues = async () =>

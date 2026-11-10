@@ -103,3 +103,15 @@ live (S14); Program changed only on Take.
 - Codex review of `6e258ef`: one P2 finding, fixed (S29 amended): a reopened question whose cue
   still said "closed" was skipped by the sweep. The sweep test now covers a reopened round under
   Stop and under Go live, and fails with the closed-by-this-call check removed.
+- Final read-only `/so` on `fb9d864`: AGREE WITH CORRECTIONS, grade A. Fixed: Stop on a vote with
+  no result cue said "Take it when you want them on air" with nothing to take (the note now counts
+  only a cue it actually finalised, and unread counts only where a cue exists); pinned in "a vote
+  with nowhere to go offers a vote board", which fails on the old note. A fresh `/so` assesses the
+  final head.
+
+## What "a second operator" rests on
+
+The journeys show a second operator as a second Interaction tab of the same browser (shared
+storage, rebased writes, S4). A second device reaching the same cue after sync rests on the Node
+merge test (S12, question by question) and the rebase argument; the configured suite has no
+two-account check for result cues. S4 states this ("once the production has synced to them").
