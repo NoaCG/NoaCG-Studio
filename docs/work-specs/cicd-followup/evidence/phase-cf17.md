@@ -22,21 +22,37 @@ retries and CI cost, and stops if contention or failure rates cross the threshol
 (c) "Permanent three-plan concurrency is enabled only if the trial meets the success criteria
 written in (a)."
 
-## 1. The cohort the owner chose, and whether it can run
+## 1. The cohort
 
-Owner decision, 2026-11-10T17:31Z (#1967, comment 6774413052): "vMix + interaction + editor
-(Recommended)", one bounded window of about 3 days. Read again at 2026-11-10T17:35Z:
+**First choice, could not run.** Owner decision, 2026-11-10T17:31Z (#1967, comment 6774413052):
+"vMix + interaction + editor (Recommended)", one bounded window of about 3 days. Read again at
+2026-11-10T17:35Z, none of the three could run a phase: interaction had finished at 15:19Z (#2312,
+6 of 6 phases passed, issue closed; giving it new work to fill the window is forbidden), vMix
+(#2289) was blocked waiting for the owner's authorization on V2's remaining findings, and
+editor-r1-5 (#2295) was blocked since 2026-11-08 on Windows device work (a native file picker and
+download check). Under (a) the coordinator asked the owner once on #1967.
 
-| Plan | Runnable plans entry | Run issue and state | Work left for the window | Coordinator |
-| --- | --- | --- | --- | --- |
-| interaction | `interaction` | #2312, **finished** 2026-11-10T15:19Z, 6 of 6 phases passed, issue closed | none: every phase has landed (#2314, #2315, #2321, #2330, #2338, #2341, #2343, #2349) | cloud session `session_017SdbwNbcWHHiCYRSNvTcqR`, no phase left |
-| vMix | `vmix` (`bridge-vmix-adapter`) | #2289, **blocked**, no open block since 2026-11-10T16:01Z | V2 (draft #2293) to V8; V2 "waits for authorization to address the remaining findings" | a Codex coordinator on Windows (#2289), not a Claude Code Cloud session |
-| editor | `editor` names `docs/EDITOR_REBUILD_PLAN.md`; the run is editor-r1-5, whose spec is not on `main` | #2295, **blocked** since 2026-11-08T20:18Z | E1 to E8; E1 needs a native Windows file picker and download check | a Codex coordinator on Windows (#2295) |
+**The cohort, owner answer verbatim** (#1967, comment 6774704765, 2026-11-10T17:43Z): "I will try
+to run some planned runs here at the same time. If it doesn't work out tonight, then we can record
+it as not run. I will start a new run now called live-publishing and continue VMix and editor runs
+if I have enough RAM."
 
-So when cf17 starts, none of the three can run a phase in the window: one has no work left and
-two wait on the owner or on a Windows device. Giving interaction new work to fill the window is
-forbidden (no filler work). Under (a) that is "fewer than three such plans can run": the
-coordinator asks the owner once on #1967, recommending a cohort. Asked: see section 6.
+| Plan            | Runnable plans entry                                                                                                                                                      | Run issue                           | Work in the window                                                                   | Coordinator                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| live-publishing | `live-publishing` (`docs/work-specs/live-publishing/`, phase 1 is `retire-hosted-control`); preparation-only until the owner says start, and the owner started it himself | the run issue its coordinator opens | its phases in `phases.json` order, from phase 1                                      | the owner's machine, started by the owner          |
+| vMix            | `vmix` (`docs/work-specs/bridge-vmix-adapter/spec.md`)                                                                                                                    | #2289                               | V2 (draft #2293), then V3 onward, after the owner authorizes V2's remaining findings | a Codex coordinator on the owner's Windows machine |
+| editor-r1-5     | `editor` names `docs/EDITOR_REBUILD_PLAN.md`, whose R1.5 this run carries out; the run's own spec (`docs/work-specs/editor-r1-5/`) is **not on `main`**                   | #2295                               | E1 (blocked on the Windows file picker), then E2 onward                              | a Codex coordinator on the owner's Windows machine |
+
+None of the three coordinators is a Claude Code Cloud session the cf17 builder can message. So
+the builder watches from GitHub only (the run issues, the runs' PRs and Actions history), and a
+stop is a message to the cicd-followup coordinator, which tells the owner on #1967; the owner
+pauses the runs.
+
+**When the trial starts, and its bound.** The trial starts when all three are running: each has
+a phase in flight, shown by its run issue's heartbeat or a pushed branch or PR of that phase. If
+they are not all running by 2026-11-11T06:00Z (the end of "tonight", the coordinator's bound),
+stage 2 records the trial as not run, with the reason, and cf17 passes under (a): permanent
+three-plan concurrency stays off and cf20(b) reports decision E as open.
 
 ## 2. What is measured, and the solo reference
 
@@ -61,19 +77,24 @@ cf03's definitions (phase-cf03.md section 2) and its comparability rule and spre
 **Solo reference, per plan.** A plan's recent rate is its phases landed per day over its own last
 run segment with one plan phase in flight, from its first launch to its last landing, with n:
 
-| Plan | Segment | Phases landed (n) | Rate |
-| --- | --- | ---: | --- |
-| interaction | 2026-11-09T11:16Z to 2026-11-10T14:41Z (27.4 h; cicd-followup ran beside it) | 6 | 5.3 per day |
-| vMix | 2026-11-08 to 2026-11-10T17:35Z | 1 (V1, #2291) | 0.4 per day, blocked since V2 |
-| editor-r1-5 | 2026-11-08 to 2026-11-10T17:35Z | 0 | 0, blocked on E1 |
+| Plan            | Segment                             | Phases landed (n) | Rate                          |
+| --------------- | ----------------------------------- | ----------------: | ----------------------------- |
+| live-publishing | none: a new run, started 2026-11-10 |                 0 | none                          |
+| vMix            | 2026-11-08 to 2026-11-10T17:35Z     |     1 (V1, #2291) | 0.4 per day, blocked since V2 |
+| editor-r1-5     | 2026-11-08 to 2026-11-10T17:35Z     |                 0 | 0, blocked on E1              |
 
-A plan whose reference n is below 3 phases has no usable solo rate: its W is reported, not
-judged, and the trial cannot meet S1 for it. That alone means the chosen cohort could not meet
-the criteria even if it ran.
+For comparison, interaction, which finished just before cf17, landed 6 phases in 27.4 hours
+(2026-11-09T11:16Z to 2026-11-10T14:41Z, cicd-followup beside it): 5.3 per day.
+
+A plan whose reference n is below 3 phases has no usable solo rate: its W is reported, not judged,
+and the trial cannot meet S1 for it. None of the three plans has such a reference today, so this
+trial can at best give operating evidence on S2 to S6: unless S1 can be judged, permanent
+three-plan concurrency stays off whatever the other figures show. This is stated before the trial
+starts so nobody reads its result as a near miss.
 
 ## 3. Success criteria (all must hold to enable permanent three-plan concurrency)
 
-Taken from cicd-improvement AC-6 (the owner-approved target for this trial) and the existing
+Taken from cicd-improvement AC-6 (the target that authorized spec set for a three-plan cohort) and the existing
 timing limits in `scripts/growth-ceilings.json`; none is new or looser.
 
 - **S1, completed work.** Combined W over the window at least 2x the matched serial rate (the
@@ -99,9 +120,10 @@ timing limits in `scripts/growth-ceilings.json`; none is new or looser.
 
 ## 4. Stop thresholds
 
-The cf17 builder measures every 6 hours from Actions history. Crossing either line pauses all
-three runs: the builder messages each coordinator to pause launches (in-flight PRs keep their
-repair owner), records the reason here and ends the trial.
+The cf17 builder measures at least every 6 hours from Actions history and the runs' PRs.
+Crossing either line stops the trial: the builder messages the cicd-followup coordinator, which
+tells the owner on #1967, and the owner pauses launches in all three runs (in-flight PRs keep their
+repair owner). The builder records the reason and the figures in stage 2.
 
 - **Contention.** Any of: two contention events (section 2, C) within 24 hours; trial landings'
   M2 waiting p90 above 20 minutes over a rolling 24 hours with at least 5 landings; any required
@@ -121,20 +143,20 @@ and nothing is bought.
   value (S5), and total runner-minutes per day stay inside `envelopeRunnerMinutesPerDay` (28,800).
   Concurrent jobs stay under 57 (section 4).
 - **Sessions.** Each plan keeps its own procedure: one coordinator and at most one phase in flight
-  (build, repair or check), plus that phase's `/so` reviews. No extra builders are started for the
-  trial, and no second coordinator.
-- **Spend.** Each plan's reported session cost per landed phase may not exceed 1.25x its own solo
-  cost per phase. Interaction's solo cost was about $400 over 48 sessions for 5 phases, about $80
-  per phase (#2312, retro note of 2026-11-10); vMix and editor-r1-5 run on Codex and report their
-  own. Over the 3-day window the ceiling is the sum, over the three plans, of solo rate x 3 days x
-  1.25x solo cost per phase; crossing it is a stop.
-- **Window.** One bounded window of 72 hours from the start message to the three coordinators.
-  No extension.
+  (build, repair or check), plus that phase's reviews. No extra builders are started for the
+  trial, and no second coordinator. The trial adds no Claude Code Cloud session beyond this
+  builder's monitoring.
+- **Spend.** The three runs use the owner's own machine and existing subscriptions: no API key,
+  paid overage or new plan is added for the trial. Where a run reports session cost, a landed phase
+  may cost at most 1.25x the one measured figure, interaction's about $80 per phase (about $400
+  over 48 sessions for 5 phases, #2312 retro note of 2026-11-10): above $100 per landed phase for
+  two phases in a row is a stop. A subscription usage limit reached is recorded, not worked around.
+  This builder's monitoring is bounded to 100 GitHub API calls per pass.
+- **Window.** One bounded window: from the moment all three are running (section 1) for at most
+  72 hours, or shorter if the owner ends it. No extension.
 
 ## 6. Status
 
-Stage 1 is written before any execution. The chosen cohort cannot run (section 1), so the trial
-waits on one owner answer on #1967, asked by the coordinator with a recommended cohort. If no
-runnable cohort is authorized within 7 days of that ask, stage 2 records the trial as not run,
-with this reason, and cf17 passes under (a); permanent three-plan concurrency stays off and cf20(b)
-reports decision E as open.
+Stage 1 is written before any execution and lands before the trial counts. The trial starts when
+all three runs are running, measured as above; if that has not happened by 2026-11-11T06:00Z,
+stage 2 records the trial as not run, with the reason, and cf17 passes under (a).
