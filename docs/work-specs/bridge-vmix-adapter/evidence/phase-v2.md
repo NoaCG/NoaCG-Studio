@@ -134,6 +134,52 @@ actual URL with BrowserNavigate after Chromium was ready. The saved preset still
 held the original marker URL, so the Bridge adds the actual output URL directly.
 Both probes restored the two configuration files and verified their SHA-256 hashes.
 
+### Rules for the Bridge reply repair
+
+The repaired boundary lets Studio act on a complete vMix reading after the
+Bridge advertises keyed vMix support. Replay on the reconciled baseline
+reproduced thrown null replies on all four routes, false success on state and
+act, an owned Overlay 99 with no input, Load on stale Overlay 4, and the
+uppercase Replace refusal.
+
+- For vMix, a healthy Bridge advertises a typed feature list before keyed
+  output is allowed. An unknown string feature is additive. A mixed-type
+  feature list cannot authorize keyed output. Validate the HTTP status and
+  the JSON discriminator and fields for each of status, connect, state and
+  act. Preserve valid target and setup errors and the existing authentication,
+  origin and network results. A malformed reading supplies no authority. An
+  incomplete or malformed reply after sending an action leaves its result
+  unknown. Recover from a fresh valid scoped reading, with no automatic
+  resend. Keep the legacy CasparCG path.
+- Scoped state carries vMix info and overlay rows from the same XML snapshot.
+  The Studio checks that every channel from 1 through that count appears once
+  and that every occupied row has a positive whole input number, a GUID and
+  typed title and type. An owned row requires a Browser. Ownership for a key
+  agrees across rows, and only one distinct key can belong to the scoped
+  output. An absent selection uses the highest fresh channel, and an
+  available explicit selection is kept. The panel still unloads from an
+  actual owned overlay when it differs from the chosen channel. Missing or
+  malformed authority stays unknown. Compare confirmed Replace keys exactly
+  after normalizing valid GUIDs, including uppercase spellings at the Bridge
+  action boundary.
+- A complete scoped reading with a load problem and omitted ownership is
+  diagnostic only. A valid port-mismatch reading still has typed ownership
+  and can authorize Unload. A valid later poll restores actionability.
+  Successful retry or a confirmed no-op clears obsolete vMix action
+  feedback while preserving unrelated notes.
+- Exercise the malformed and recovering states, the fresh-count choice,
+  the uppercase confirmation, and existing first Publish on the shared
+  browser queue. The first-Publish spec is included explicitly because its
+  covers declaration misses the vMix setup module. Keep selection policy
+  and the existing assertions.
+- On an owned blank vMix 29 Trial process, compare the live and saved source
+  after a supported off-air Browser source change and preset reopen. Record
+  the exact key, type, title and endpoint hits. An ownership-policy decision
+  goes to the coordinator if the real operation keeps the key and leaves no
+  observable source identity. Keep the approved saved-input reuse rule,
+  strict XML parsing, Bridge version and mixer Program, Preview and
+  transition behaviour.
+
 ## Rules made explicit during implementation
 
 - The vMix action repeats the capability check at dispatch and prefixes the paired
