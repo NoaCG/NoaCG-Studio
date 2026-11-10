@@ -64,7 +64,9 @@
     "read": "Read the finalized spec and phases from f0f2e3fe0c2cc14e23b171957b6f8d18905fd434 with git show; the runtime worktree starts on pinned main, independently of the plan-only source. Read docs/EDITOR_PLAN.md, the editor acceptance register and the October single-device closure named in the spec. Preserve the old October ledger and source-specific evidence. #2294 exact acceptance and terminal checks are recorded in its repair-owner closeout. Read the latest issue details for #774, #1749 and #775 before using them.",
     "rules": "Run the current worker plan preflight before work and use only the owned absolute Windows worktree. Use the local verification scheduler, isolated accounts and required native 125% zoom/file interactions; full suites stay in GitHub Actions. Respect the October single-device boundaries and the serial phase order. Before E1 product edits reproduce and write the short observable rule or gap. Report every subcriterion and retain original failures and any missing evidence. Inventory the exact GSAP browser, CLI and export artifacts early and send the finished draft back to the coordinator for the owner. State that NoaCG is open source, entirely free, earns no revenue and serves broadcast graphics. The owner superseded the six-month deferral and sends the request. Preserve licence, provenance, notices and redistribution checks. A delayed reply is not an engineering wait before OW1. Stage actual receiving hosts/operator, first-time users/moderator and existing model-access leads in E1 without claiming availability. Do not launch other phases. Do not change provider, funding, licence, engine or release posture. Do not use or modify production data. Respect #1967 and check sideEnds on exact candidate paths, including package versions. The active coordinator acknowledges PR repair duty and owns queue stamping and terminal monitoring. Follow the latest check and queue guidance and obtain fresh independent review under the shared traps."
   },
-  "waitingOn": null,
+  "waitingOn": {
+    "what": "E1 native Illustrator picker/drop and SPX save are verified. The remaining Windows authoring probes need the scheduler to admit a browser at its 3.5 GB free-RAM floor. Job j-5043 was cancelled before launch at 2,099 MB free; no test verdict or product attempt spent."
+  },
   "inFlight": [
     {
       "sourceSha": "361cb6f628df0a44d410954aae527cde976d1750",
@@ -74,9 +76,9 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "Fresh native replacement acknowledged on pinned E1 branch. November 10 SVG picker/drop and SPX download verified. Current-main reconciliation and remaining authoring checks are in progress, subject to scheduler headroom.",
-      "checkpointed": false,
-      "head": "be049c7ea10ee2b8a1bae6d86711ce507a9468a7"
+      "note": "Clean pushed E1 checkpoint b4466bfb. Native SVG file evidence complete at its pinned source. Scoped offline checks passed. Pending Windows probes saved; no active job or PR.",
+      "checkpointed": true,
+      "head": "b4466bfb52d0b804e95462f8c8c8dbad85449fbf"
     }
   ],
   "owner": [],
@@ -98,7 +100,7 @@
     }
   },
   "e1Checkpoint": {
-    "resume": "Continue the same admitted E1 build from the pinned candidate under existing scheduler rules, carrying the November 10 native file receipt. Reproduce remaining product gaps, finish assigned authoring checks, and obtain required independent review before queueing.",
+    "resume": "Resume the same E1 build from pushed b4466bfb52d0b804e95462f8c8c8dbad85449fbf when the Windows scheduler admits browser work. Restore the preserved flag/key clipboard patch only after git apply --check; run the focused reproductions, isolated simulated sign-in and remaining E1 authoring checks. Carry the November 10 owner-operated file evidence at its pinned source. No PR, acceptance or landing yet.",
     "pendingProbesSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0",
     "stopped": "Native worker completed and acknowledged clean owned checkout, closed port 5212 and no live E1 browser/scheduler job. Remote branch and absence of a live PR verified.",
     "jobs": "j-4996 reproduced #1749; j-4997 8 pass; j-4998 62 pass; zero retries/skips; j-4999 offline setup only; j-5000 and j-5001 incomplete, j-5001 app approval timeout; j-5002 and j-5003 cancelled before launch at the unchanged RAM floor.",
@@ -146,6 +148,17 @@
       "preflight": "passed on clean exact candidate",
       "nativeId": "/root/editor_r15_e1_resume",
       "ram": "2.0 GB free, 3.5 GB browser admission floor"
+    },
+    "november10": {
+      "result": "Agent easing guidance corrected. Real Add Step and Set Out operations refused unsupported clip-path splitting without modifying serialized template. Scoped lint, TypeScript, check:skill, 11 gates, 218 affected tests and 41 targeted authoring tests passed.",
+      "base": "9afdd04df93279429089666e2fb399ddf10854ad",
+      "nativeStop": "Terminal result acknowledged; exact remote, clean checkout, closed test port and zero live E1 jobs.",
+      "j5043": "Cancelled before launch at 2,099 MB free, browser floor 3.5 GB.",
+      "worker": "/root/editor_r15_e1_resume",
+      "mergedCandidate": "8f4ced46d0916fe6bde911d856bd8635353a3efb",
+      "revision": "b4466bfb52d0b804e95462f8c8c8dbad85449fbf",
+      "pendingProbe": "receipts/e1-pending-probes.patch",
+      "pendingProbeSHA256": "8131576d9a90b3c9419a3a08758cc86117e48661b186a88921adc646cf39c9b0"
     }
   }
 }
