@@ -634,8 +634,9 @@ function creditsTake() {
   // by is the rows' own extent, and the pace's scale the rows' own transform, so a second take,
   // with the riders already in the group, measures exactly what the first did.
   var rowsBox = rows.getBBox();
-  var rowsAt = rows.transform.baseVal.consolidate();
-  var rowsM = rowsAt ? rowsAt.matrix : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  // Read, never consolidated: consolidate() rewrites the list in place, and the rows were just built.
+  var rowsList = rows.transform.baseVal;
+  var rowsM = rowsList.numberOfItems === 1 ? rowsList.getItem(0).matrix : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
   var rowsScale = Math.sqrt(rowsM.c * rowsM.c + rowsM.d * rowsM.d);
   var colA = rowsM.a * rowsBox.x + rowsM.e, colB = rowsM.a * (rowsBox.x + rowsBox.width) + rowsM.e;
   creditsRiders(roll, win, { x: Math.min(colA, colB), width: Math.abs(colB - colA) });
