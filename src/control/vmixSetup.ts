@@ -117,8 +117,9 @@ export async function changeVmixOutput(
   });
   if (!result) return {};
   const latest = current();
+  const sameProduction = latest?.url === choice.url;
   if (!sameChoice(choice, latest)) {
-    if (result.browserAdded && latest?.url === choice.url) {
+    if (result.browserAdded && sameProduction) {
       const address = choice.settings.agentUrl;
       const host = URL.canParse(address) ? new URL(address).host : '';
       const bridge = host ? `the Bridge at ${host}` : 'the original Bridge';
