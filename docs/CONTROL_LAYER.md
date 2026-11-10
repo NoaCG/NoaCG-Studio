@@ -220,9 +220,9 @@ Deleting it is one action (`deleteShowProfile`) and restores the generated panel
   buffer, and `live` — each graphic's own report of applied data + machine state.
 - **Entries are published, not authored.** The panel spec carries each
   graphic's saved `ControlEntry` rows (docs/SAVED_CONTENT_MODEL.md §4), read out of the
-  library at publish time; the page renders a READ-ONLY switcher, and picking one loads its
-  values into the SHARED staging buffer — the same path typing takes — so an entry airs on an
-  explicit take, never on selection. Editing entries stays in the app (`#/control/<id>`), one
+  library at publish time; the hosted control page (retired 2026-11) rendered them as a
+  read-only switcher that loaded an entry's values into the shared staging buffer, airing only
+  on an explicit take. Editing entries stays in the app (`#/control/<id>`), one
   re-publish away from air. The library record is found by `SavedGraphic.graphicId` (recorded
   when the graphic is added to the show), falling back to a unique library name for copies
   added before that link existed; an ambiguous name publishes no entries rather than guessing.
