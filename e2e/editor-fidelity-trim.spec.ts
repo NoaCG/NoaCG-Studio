@@ -95,6 +95,15 @@ async function imported(page: Page) {
   await ruler.focus(); await ruler.press('Home'); await ruler.press('Shift+ArrowRight'); await ready(page);
 }
 
+test('the rotated Illustrator card offers its text alignment without a below-threshold nudge', async ({ page }) => {
+  await page.goto('/app#/new');
+  await dropSvg(page, fileURLToPath(new URL('./fixtures/fidelity-nested.svg', import.meta.url)));
+  const card = page.getByTestId('map-svg-box-t0');
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId('map-svg-align-t0')).toBeVisible();
+  await expect(card.getByTestId('map-svg-nudge-t0')).toHaveCount(0);
+});
+
 test('actual wizard exposes nested artwork and independent trim handles', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await imported(page);

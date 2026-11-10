@@ -231,6 +231,11 @@ the existing Keep position control stays absent for this fixture.
 `j-5059` reproduced the missing alignment grid with the maintained fixture
 regression before the correction. The same run's separate clip-path UI case
 passed. Its overall exit was 1 because the alignment regression reproduced.
+Windows `j-5061` then passed all 12 selected cases with exit 0. The rotated
+plate now offers alignment. The fitting output and existing text geometry
+remain consistent with the import baseline. A true full-frame backplate still
+has no group, a line without a plate still has no alignment, and existing
+grouping order, margins, alignment and nudge controls passed.
 
 ### Comparable Windows timeline task
 

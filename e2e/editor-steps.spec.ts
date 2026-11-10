@@ -349,6 +349,26 @@ async function dragFlag(page: Page, name: string, frames: number, hold = false) 
 const undo = async (page: Page) => { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); };
 const redo = async (page: Page) => { await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); };
 
+test('Add Step and Set Out refuse a crossed clip-path track without changing the document', async ({ page }) => {
+  const withClip = fixture();
+  for (const step of withClip.steps.slice(0, -1)) {
+    step.layers['#box'].clipPath = [{ time: 0, value: 'inset(100%)' }, { time: step.duration, value: 'inset(0%)' }];
+  }
+  const refuses = /Only numeric tracks split exactly/;
+  await editorWith(page, withClip);
+  const original = await source(page), entries = await history(page);
+  await seekFrames(page, 10);
+  await page.getByRole('button', { name: 'Add Step at playhead', exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: refuses })).toBeVisible();
+  expect(await source(page)).toEqual(original);
+  expect(await history(page)).toBe(entries);
+  await seekFrames(page, 30);
+  await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click();
+  await expect(page.locator('.ef-out-controls').getByRole('alert')).toContainText(refuses);
+  expect(await source(page)).toEqual(original);
+  expect(await history(page)).toBe(entries);
+});
+
 test('Add Step, rename, delete and drags are one undo each and survive save and reopen', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const original = await editorWith(page, fixture()), start = await state(page);
