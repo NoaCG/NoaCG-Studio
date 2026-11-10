@@ -228,6 +228,10 @@
    "phase": "cf16",
    "verdict": "PASS",
    "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2358#issuecomment-6774356679"
+  },
+  {
+   "at": "2026-11-10T18:06Z",
+   "note": "cf17 stage 1 #2359 merged 18:05Z (criteria before execution; /so A). Stated: no plan has a solo reference with n>=3, so S1 cannot be judged and permanent concurrency stays off whatever the trial shows. Builder watches for live-publishing + vMix + editor-r1-5 until 2026-11-11T06:00Z."
   }
  ],
  "decisions": [
@@ -278,6 +282,11 @@
    "at": "2026-11-10T17:31Z",
    "by": "owner miwco",
    "what": "cf17 cohort: 'vMix + interaction + editor (Recommended)'; about 3-day window; coordinator may pause them on a stop threshold. Recorded on #1967 comment 6774413052."
+  },
+  {
+   "at": "2026-11-10T17:45Z",
+   "by": "owner miwco",
+   "what": "cf17 cohort correction: interaction finished, vMix and editor blocked. Owner: 'I will try to run some planned runs here at the same time. If it doesn't work out tonight, then we can record it as not run. I will start a new run now called live-publishing and continue VMix and editor runs if I have enough RAM.' Cohort live-publishing + vMix + editor-r1-5 on owner's machine; bound 2026-11-11T06:00Z else not run. #1967 comment 6774704765."
   }
  ],
  "ownerAlarmSession": "session_017SdbwQfGaKDTYKsFgzGxY6",
