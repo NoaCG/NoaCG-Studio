@@ -871,3 +871,30 @@ fresh read-only review challenged them before the final assessment:
 - A YouTube page is a burst of lines in one moment, so a vote and the reading of what is live are
   decided together: the intake reads the live round once per batch (cached three seconds), never
   per line.
+
+### Phase 5: More results and home-made graphics
+
+Previous verified main: `1740d4f128ec6f74bc9b95ca3b90d12f0c101ab5`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-5.md` once it lands). No
+migration. Status: partial. This pull request lands the `QR` layer slice of AC-13 only; AC-12,
+the rest of AC-13 and the AC-15 walk are left for a later builder (`evidence/phase-5.md`).
+
+**Decisions** (made in the build, revertible in review):
+
+- A layer whose name (`data-name`, `inkscape:label`, `serif:id` or id, as the mapping step reads
+  names) is `QR`, in any case, is stamped `imported-design-qr` at bind. The graphic gains one
+  field, `Join link`, appended after the artwork's and the behaviour's fields, so no saved `fN`
+  moves, and an artwork without a QR layer emits exactly what it did.
+- The runtime draws the code (error correction M, four-module quiet zone, black on a white
+  square plate) centred in the layer's own box, under the layer's own transform, with the
+  encoder the Join card already carries. The placeholder layer is hidden; an empty link draws
+  nothing. Data, never state: update() redraws, nothing transitions.
+
+**Traps found** (for later phases):
+
+- `e2e/` blank-page specs cannot import `src/components/wizard/import/draft.ts` (React preamble
+  error); build an imported graphic with `importSvgMarkup` and `IMPORTED_SVG.create` instead.
+- `scripts/svg-import-passes.test.mjs` fails 4 of 22 on a cloud worker on `main` itself (same
+  file counts), so compare a change against a `main` control run there rather than reading the
+  failures as the change's.
+
