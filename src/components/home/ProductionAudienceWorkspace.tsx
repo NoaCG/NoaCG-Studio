@@ -132,18 +132,18 @@ import {
  *  menu reads nothing, so a published production is not polled for a list nobody sees). */
 function useCandidates(backend: ObservableAudience, enabled: boolean): AudienceSubmission[] {
   const [rows, setRows] = useState<AudienceSubmission[]>([]);
+  /** The Word rounds last read: a failed rounds read keeps them, so the list still refreshes. */
+  const wordRounds = useRef(new Set<string>());
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
     // A Word question's words are not messages (W9): they reach a cue only as a word cloud.
     const refresh = () =>
-      void Promise.all([backend.list(), backend.rounds()]).then(
-        ([list, rounds]) => {
-          const words = new Set(rounds.filter((r) => r.kind === 'word').map((r) => r.id));
-          if (alive) setRows(list.filter((r) => !r.roundId || !words.has(r.roundId)));
-        },
-        () => {},
-      );
+      void Promise.allSettled([backend.list(), backend.rounds()]).then(([list, rounds]) => {
+        if (rounds.status === 'fulfilled') wordRounds.current = new Set(rounds.value.filter((r) => r.kind === 'word').map((r) => r.id));
+        const words = wordRounds.current;
+        if (alive && list.status === 'fulfilled') setRows(list.value.filter((r) => !r.roundId || !words.has(r.roundId)));
+      });
     refresh();
     const off = backend.onChange(refresh);
     return () => {

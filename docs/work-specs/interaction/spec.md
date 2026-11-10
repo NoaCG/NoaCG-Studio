@@ -951,7 +951,8 @@ challenged them before the final assessment:
   page (added after the PR review of `88cc688`).
 - W2. A word is one word: trimmed, no space and no `|` inside, 1 to 25 characters (code points).
   The phone, the local provider and the server apply the same rule; the server refuses anything
-  else.
+  else, and lists the Unicode spaces the phone refuses by code point rather than trusting its
+  locale's `[:space:]` (added after the first `/so`).
 - W3. One word per phone per question. A second send from the same phone is refused with "You have
   already sent your word."; a word cannot be changed once sent.
 - W4. Words never count against the message throttle (20 per 10 seconds per production), and the

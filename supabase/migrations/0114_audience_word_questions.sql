@@ -186,9 +186,13 @@ begin
     raise exception 'that question has closed' using errcode = 'check_violation';
   end if;
   if v_kind = 'word' then
-    -- W2: one word, no space and no line divider inside, at most 25 characters.
+    -- W2: one word, no space and no line divider inside, at most 25 characters. The spaces are the
+    -- ones the phone refuses (JavaScript's \s, model/wordCloud.ts), listed by code point because
+    -- what [:space:] covers depends on the database's locale.
     v_body := btrim(coalesce(p_body, ''));
-    if v_body = '' or v_body ~ '[[:space:]|[:cntrl:]]' or char_length(v_body) > 25 then
+    if v_body = '' or char_length(v_body) > 25
+       or v_body ~ ('[[:space:]|[:cntrl:]' || chr(160) || chr(5760) || chr(8192) || '-' || chr(8202)
+                    || chr(8232) || chr(8233) || chr(8239) || chr(8287) || chr(12288) || chr(65279) || ']') then
       raise exception 'that message could not be sent' using errcode = 'check_violation';
     end if;
     -- W3: one word per phone per question. The lock makes two sends from one phone take turns,
@@ -405,7 +409,7 @@ begin
   end if;
 
   -- Two words, 26 characters and the line divider are refused; 25 characters are taken (W2).
-  foreach v_msg in array array['two words', repeat('x', 26), 'a|b'] loop
+  foreach v_msg in array array['two words', repeat('x', 26), 'a|b', 'a' || chr(160) || 'b', 'a' || chr(12288) || 'b'] loop
     begin
       perform public.audience_submit(v_join, 'device-word-0114b', '', v_msg, (v_word->>'id')::uuid, 1);
       v_fail := false;

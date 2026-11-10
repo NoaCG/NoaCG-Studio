@@ -89,6 +89,16 @@ baseline records its two intended grants (the same door as `audience_tally`), ch
 spellings); two Node tests (counts per spelling read as the words one by one; the local provider
 counts a round's words only); the journey and the walk pass on the fix.
 
+## Review of `88cc688` (`/so`, fresh read-only session)
+
+AGREE, grade A. Three low findings: the cue editor's Pick a message refresh read the message list
+and the rounds together, so one failed rounds read stalled it (fixed: the last Word rounds read
+are kept and the list still refreshes); the server's one-word check used `[:space:]`, whose
+coverage depends on the database locale, where the phone refuses JavaScript's `\s` (fixed: the
+code points are listed, and the self-check now refuses a no-break space and an ideographic space);
+a phone's earlier word shows under "What you sent" once another question is live (kept: it is what
+that phone sent).
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine
