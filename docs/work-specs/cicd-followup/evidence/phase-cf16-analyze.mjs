@@ -136,13 +136,10 @@ out("exact commit had no full E2E push run of its own", [
 const dup = R.filter(
   (r) => r.group?.catalog === "success" && r.push?.catalog === "success",
 );
+const dupMinutes = dup.reduce((m, r) => m + r.push.catalog_minutes, 0);
 out(
   "whole-catalog gate green on the same commit in both merge group and push: landings / push-side minutes / per landing",
-  [
-    dup.length,
-    Math.round(stats(dup.map((r) => r.push.catalog_minutes)).sum),
-    +(stats(dup.map((r) => r.push.catalog_minutes)).sum / n).toFixed(1),
-  ],
+  [dup.length, Math.round(dupMinutes), +(dupMinutes / n).toFixed(1)],
 );
 out(
   "push raised the catalog gate where the merge group did not",

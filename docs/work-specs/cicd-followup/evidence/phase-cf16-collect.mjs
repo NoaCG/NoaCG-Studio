@@ -371,17 +371,13 @@ function concurrency() {
   let peak = 0;
   let peakAt = null;
   let atMost20 = 0;
+  let busy = 0;
   for (let i = 0; i < edges.length; i += 1) {
     c += edges[i][1];
     if (c > peak) [peak, peakAt] = [c, new Date(edges[i][0]).toISOString()];
-    if (c > 0 && c <= 20 && edges[i + 1])
-      atMost20 += edges[i + 1][0] - edges[i][0];
-  }
-  let busy = 0;
-  c = 0;
-  for (let i = 0; i < edges.length; i += 1) {
-    c += edges[i][1];
-    if (c > 0 && edges[i + 1]) busy += edges[i + 1][0] - edges[i][0];
+    const span = edges[i + 1] ? edges[i + 1][0] - edges[i][0] : 0;
+    if (c > 0) busy += span;
+    if (c > 0 && c <= 20) atMost20 += span;
   }
   return {
     peak,
