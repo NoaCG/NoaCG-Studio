@@ -184,3 +184,6 @@ other plan runs' rows (interaction is active); cf20 may well report "not enough 
 - **Traps.** `gh api` with `head_sha` needs the full SHA. A merged PR's commit list says nothing
   about reverts that do not name it (900ce353 names no PR), so reverts are also found by the lines
   they remove.
+- **Follow-up, 2026-11-10.** Change 5 now applies to every PR: the rule's scope is `**`, so it
+  compiles into the root AGENTS.md, and the root ceiling is 3480 bytes
+  (owner-decision-2026-11-10-codex-root.md).

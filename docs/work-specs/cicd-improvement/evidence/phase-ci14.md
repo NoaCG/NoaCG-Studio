@@ -45,7 +45,7 @@ What exists instead is two kinds of evidence, reported below and labelled for wh
 | Criterion | Evidence | Result |
 | --- | --- | --- |
 | (a) Two-plan smoke, then three plans of four rows each | No authorized cohort and no third plan (above). The cicd/JEV co-run is not a cohort: unfrozen configuration, separate authorizations, unmatched | **pending** |
-| (a) Preserve dependency PASS | Co-run: all 26 judged within-plan successors started after their predecessor's independent check (section 2.4); one JEV pair is unjudged | held in the co-run (operating evidence); unmeasured as a cohort |
+| (a) Preserve dependency PASS | Co-run: all 27 within-plan successors started after their predecessor's independent check (section 2.4; the 27th, JEV row 2 to 3, judged by cicd-followup cf15) | held in the co-run (operating evidence); unmeasured as a cohort |
 | (a) Single repair owners | cicd: 15 of 15 PRs carry exactly one `noacg:repair-owner` marker, all the coordinator. JEV: its PRs carry no marker, so uniqueness cannot be read from the PR records this row may read | held for cicd; **unverified** for JEV |
 | (a) Pause/resume | Neither run paused or resumed in the window (no pause in either run issue; both heartbeats renewed blocks) | **pending**, not exercised |
 | (b) Fixed-configuration matched throughput, latency, tails, unfinished work, resources against AC-6 targets | No fixed configuration and no matched cohort. Unmatched figures in section 2 | **not met** (unmeasured) |
@@ -133,8 +133,11 @@ Other durations, as a description only:
   by anything else.
 - **Merge-group failures: 1 of 42** in the window, run 41243467985 for #1877, a quarantine PR from
   neither plan. It landed at 21:35Z.
-- **Overlapping queue stays across plans: 3** (#1860/#1861, #1864/#1866, #1896/#1899), each
-  6.8 to 12.4 minutes.
+- **Overlapping queue stays across plans: 3** (#1860/#1861, #1864/#1866, #1896/#1899). Each
+  PR's own stay was 6.8 to 12.4 minutes; the time both were in the queue together was 6.4, 7.3
+  and 5.5 minutes (from the issue events' `added_to_merge_queue` and `removed_from_merge_queue`,
+  #1896/#1899 after the clock correction). (Corrected by cicd-followup cf15, #1939 item 2: the
+  line first gave only the per-PR stays, which read as the overlap.)
 - **Post-landing configured-suite reds: 5** (#1857, #1869, #1881, #1905, #1925). They fell on the
   landings of JEV 2, JEV 5, two quarantine PRs and a non-plan PR. Each one is "no report from
   shard N", with 0 failed tests: the local stack start fault #1865/#1829, not either plan's code.
@@ -148,14 +151,20 @@ Other durations, as a description only:
 ### 2.4 Admission before prerequisite PASS: none observed
 
 Each within-plan successor's first branch commit was compared with its predecessor's
-independent-check comment. There are 27 successor pairs. 26 could be judged, and all 26 started
-after the check. The closest two were:
+independent-check comment. There are 27 successor pairs. All 27 are judged, and all 27 started
+after the check (26 at first; the JEV row 2 to row 3 pair was added by cicd-followup cf15, #1939
+item 1, below). The closest two were:
 
 - cicd ci08: started at 08:35:40, about 12 minutes after the ci07 check.
 - JEV 12: started at 08:47:22, about 10 minutes after the JEV 11 check.
 
-Both built from `7030eb18`, which reached `main` at 08:10:47. One JEV pair (row 2 to row 3) has no
-check comment on the PR and is not judged here.
+Both built from `7030eb18`, which reached `main` at 08:10:47.
+
+The JEV row 2 to row 3 pair was first left unjudged because #1853 seemed to have no check comment.
+It has one: "Independent phase 2 check (checker-2-2-c-b349): PASS", comment 6544011578 on #1853,
+2026-10-31T13:31:19Z, on merge `7f0a00ba`. JEV 3's first branch commit (#1858, `e8d41f3b`) is
+2026-10-31T13:57:16Z, about 26 minutes later, so it started after the check. #1853's own first
+commit (`8a24521d`, 11:26:21Z) to that check is 2.08 hours, now in section 4.
 
 The ledger `build` event can only come earlier than the first commit, so this test can miss an
 early admission. A ledger read by the coordinator would close that gap.
@@ -199,7 +208,7 @@ What still stays open in AC-6:
 | #1848 | cicd ci01 | 10-31T09:03 | 10-31T10:00 | 10-31T10:07 | 6.8 | 1.42 |
 | #1851 | JEV 1 | 10-31T10:38 | 10-31T10:55 | 10-31T11:02 | 6.8 | 0.67 |
 | #1852 | cicd ci02 | 10-31T10:44 | 10-31T11:34 | 10-31T11:40 | 5.4 | 1.37 |
-| #1853 | JEV 2 | 10-31T11:27 | 10-31T13:04 | 10-31T13:12 | 8.5 | no check comment |
+| #1853 | JEV 2 | 10-31T11:27 | 10-31T13:04 | 10-31T13:12 | 8.5 | 2.08 (added by cf15, #1939) |
 | #1854 | cicd ci03 | 10-31T12:40 | 10-31T14:52 | 10-31T14:58 | 6.5 | 3.22 |
 | #1858 | JEV 3 | 10-31T13:59 | 10-31T14:44 | 10-31T14:49 | 4.7 | 1.15 |
 | #1860 | JEV 4 | 10-31T15:34 | 10-31T16:08 | 10-31T16:15 | 6.8 | 1.36 |
