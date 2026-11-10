@@ -32,6 +32,15 @@ export const RESULT_BOARDS: readonly { id: string; name: string }[] = [
   { id: 'pl03', name: 'Frost Vote' },
   { id: 'pl04', name: 'Clean Vote' },
   { id: 'pl05', name: 'Floor Vote' },
+  { id: 'pl06', name: 'Result Bars Full' },
+  { id: 'pl07', name: 'Result Bars Lower' },
+  { id: 'pl08', name: 'Result Bars Side' },
+  { id: 'pl09', name: 'Result Columns Full' },
+  { id: 'pl10', name: 'Result Columns Lower' },
+  { id: 'pl11', name: 'Result Columns Side' },
+  { id: 'pl12', name: 'Result Donut Full' },
+  { id: 'pl13', name: 'Result Donut Lower' },
+  { id: 'pl14', name: 'Result Donut Side' },
 ];
 
 export interface PollFieldMap {

@@ -70,7 +70,7 @@ test('the field contract: Question and Options by title, the last match wins, a 
   assert.deepEqual(map, { question: 'f9', options: 'f1', count: 'f2', status: 'f3', live: 'f4' });
   const v = tallyValues(round, tally(3, 1), map, true, true);
   assert.deepEqual(v, { f9: 'Who wins?', f1: 'Home | 3\nAway | 1', f2: '4 votes · voting closed', f3: 'closed', f4: 'live' });
-  assert.deepEqual(RESULT_BOARDS.map((b) => b.id), ['pl01', 'pl02', 'pl03', 'pl04', 'pl05']);
+  assert.deepEqual(RESULT_BOARDS.map((b) => b.id), ['pl01', 'pl02', 'pl03', 'pl04', 'pl05', 'pl06', 'pl07', 'pl08', 'pl09', 'pl10', 'pl11', 'pl12', 'pl13', 'pl14']);
 });
 
 test('nothing is picked without a choice; the choice is remembered (S5)', async () => {

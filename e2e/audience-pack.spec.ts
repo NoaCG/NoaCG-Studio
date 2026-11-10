@@ -896,3 +896,113 @@ for (const maker of ['studio import', 'CLI scaffold --svg'] as const) {
     }
   });
 }
+
+// THE RESULT BOARDS (interaction spec, AC-12): every layout in every placement, rendered over a
+// studio picture, with two short options and eight long ones, in each Figures mode. Nothing on a
+// board leaves the board, the board stays inside the frame, a long name ends rather than
+// overflows, the figures say what the Figures field asks, the graphic's own background is
+// transparent, and the look's accent paints the chart.
+test('result boards: three layouts by three placements take 2 and 8 options and long names without overflow', async ({ page }) => {
+  test.setTimeout(120_000);
+  await phonePage(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  // A stand-in for a studio picture: bright key lights over a dark set, behind the graphic.
+  await page.evaluate(() => {
+    // The preview document declares a dark color scheme; an embedder that disagrees makes
+    // Chromium paint the iframe opaque, which would hide the picture.
+    document.documentElement.style.colorScheme = 'dark';
+    document.body.style.cssText = 'margin:0;background:radial-gradient(circle at 25% 30%, #fff6d8 0 8%, transparent 30%), radial-gradient(circle at 75% 25%, #d8ecff 0 6%, transparent 28%), linear-gradient(180deg, #3a3f4a, #0d0f14 70%, #2a2016)';
+  });
+  const ids = ['pl06', 'pl07', 'pl08', 'pl09', 'pl10', 'pl11', 'pl12', 'pl13', 'pl14'];
+  const two = 'Yes | 640\nNo | 410';
+  const eight = Array.from({ length: 8 }, (_, i) => `Option ${i + 1}: the longest answer anyone could possibly type into this box tonight | ${(8 - i) * 137}`).join('\n');
+  for (const id of ids) {
+    for (const palette of ['noacg', 'volt'] as const) {
+      const tpl = await page.evaluate(async ({ id, palette }) => {
+        const { variantById } = await import('/src/templates/catalog.ts');
+        const { paletteById } = await import('/src/model/wizard.ts');
+        return variantById(id)!.create({ palette: paletteById(palette) });
+      }, { id, palette });
+      const fields = Object.fromEntries(tpl.fields.map((f) => [f.title, f.field]));
+      expect(Object.keys(fields), `${id}: the result fields`).toEqual(['Question', 'Options', 'Vote count', 'Vote badge', 'Figures']);
+      await page.evaluate(async (t) => {
+        document.getElementById('board')?.remove();
+        const { composeDocument } = await import('/src/preview/composeDocument.ts');
+        const f = document.createElement('iframe');
+        f.id = 'board';
+        f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;background:transparent';
+        f.style.colorScheme = 'dark';
+        document.body.appendChild(f);
+        await new Promise((res) => {
+          f.onload = res;
+          f.srcdoc = composeDocument(t as never);
+        });
+      }, tpl);
+      const board = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+      await board.waitForFunction(() => typeof (window as unknown as { play?: unknown }).play === 'function');
+      await board.evaluate(() => (window as unknown as { play(): void }).play());
+      // The entrance has landed: the board is in and no tween is still moving anything.
+      await board.waitForFunction(() => {
+        const g = (window as unknown as { gsap: { globalTimeline: { getChildren(a: boolean, b: boolean, c: boolean): { isActive(): boolean }[] } } }).gsap;
+        return getComputedStyle(document.querySelector('.poll')!).opacity === '1' && g.globalTimeline.getChildren(true, true, false).every((t) => !t.isActive());
+      }, null, { timeout: 10_000 });
+      const look = await board.evaluate(() => ({
+        bg: [getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor],
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+      }));
+      for (const bg of look.bg) expect(bg, `${id}: the graphic's own background is transparent`).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+      for (const [options, n] of [[two, 2], [eight, 8]] as const) {
+        for (const mode of ['percent', 'count', 'both'] as const) {
+          const where = `${id} ${palette} ${n} options ${mode}`;
+          const report = await board.evaluate(async ({ data, n, mode }) => {
+            (window as unknown as { update(d: unknown): void }).update(data);
+            // Show the result as the Result step leaves it: every bar at its share, every figure in.
+            (window as unknown as { pollRevealed: boolean }).pollRevealed = true;
+            (window as unknown as { pollPaintState(): void }).pollPaintState();
+            // The layout watcher answers the new rows one microtask later; measure after a frame.
+            await new Promise((r) => requestAnimationFrame(() => r(null)));
+            const box = document.querySelector('.poll-box')!.getBoundingClientRect();
+            const inside = (r: DOMRect, o: DOMRect) => r.left >= o.left - 1 && r.right <= o.right + 1 && r.top >= o.top - 1 && r.bottom <= o.bottom + 1;
+            const out: string[] = [];
+            if (!inside(box, new DOMRect(0, 0, 1920, 1080))) out.push(`board leaves the frame: ${JSON.stringify(box)}`);
+            // The action-safe area (93% of the frame) is where a board has to stay.
+            if (!inside(box, new DOMRect(1920 * 0.035, 1080 * 0.035, 1920 * 0.93, 1080 * 0.93))) out.push(`board leaves the action-safe area: ${Math.round(box.top)}..${Math.round(box.bottom)}`);
+            for (const el of Array.from(document.querySelectorAll('.poll-box *'))) {
+              const r = el.getBoundingClientRect();
+              if (r.width === 0 && r.height === 0) continue;
+              if (getComputedStyle(el).display === 'none') continue;
+              if (!inside(r, box)) out.push(`${el.className || el.tagName} leaves the board`);
+            }
+            const rows = Array.from(document.querySelectorAll('.poll-row'));
+            if (rows.length !== n) out.push(`${rows.length} rows for ${n} options`);
+            for (const row of rows) {
+              const rr = row.getBoundingClientRect();
+              for (const el of Array.from(row.querySelectorAll('.poll-row-label, .poll-row-figures'))) {
+                if (!inside(el.getBoundingClientRect(), rr)) out.push(`${el.className} leaves its row`);
+              }
+              const label = row.querySelector('.poll-row-label') as HTMLElement;
+              if (label.scrollWidth > label.clientWidth + 1) out.push('a label runs past its column');
+              const shown = Array.from(row.querySelectorAll('.poll-row-value')).filter((v) => getComputedStyle(v).display !== 'none').map((v) => v.textContent!.trim());
+              const want = mode === 'percent' ? /^\d+(\.\d)?%$/ : mode === 'count' ? /^[\d\u202f]+$/ : /^\d+(\.\d)?%\|[\d\u202f]+$/;
+              if (!want.test(shown.join('|'))) out.push(`figures "${shown.join('|')}" for ${mode}`);
+            }
+            const fill = document.querySelector('.poll-swatch, .poll-bar-fill') as HTMLElement;
+            return { out, fill: getComputedStyle(fill).backgroundColor };
+          }, { data: { [fields.Options]: options, [fields.Figures]: mode, [fields.Question]: n === 8 ? 'Of all the songs played tonight, which one should close the show for everyone at home?' : 'Encore?' }, n, mode });
+          expect(report.out, where).toEqual([]);
+          // The look: the first option wears the palette's accent.
+          const accent = await page.evaluate((c) => {
+            const probe = document.createElement('div');
+            probe.style.color = c;
+            document.body.appendChild(probe);
+            const v = getComputedStyle(probe).color;
+            probe.remove();
+            return v;
+          }, look.accent);
+          expect(report.fill, `${where}: the chart follows the look's accent`).toBe(accent);
+        }
+      }
+      if (palette === 'noacg') await page.screenshot({ path: test.info().outputPath(`${id}-8.png`) });
+    }
+  }
+});
