@@ -1490,7 +1490,8 @@ export default function ProductionAudienceWorkspace({
       }
       // The hidden words as stored now, so a word hidden in another tab stays off the cue.
       // A question still in the stored list decides, an empty list included: another tab may have
-      // shown its last hidden word. Only a question gone from it keeps this page's reading.
+      // shown its last hidden word. Only a question gone from it keeps this page's reading. The write
+      // itself then takes off every word hidden on the record it lands on (W11).
       const stored = loadShows().find((x) => x.id === show.id) ?? show;
       const now = showQuestions(stored).find((x) => x.id === q.id);
       const hidden = now ? now.hidden ?? [] : q.hidden ?? [];

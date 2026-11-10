@@ -22,6 +22,8 @@ const { stageWords, wordCloudValues, wordDestinationOf, wordDestinations, WORD_C
 const { messageFields } = await import('../src/control/messageStaging.ts');
 const { pollFieldMap } = await import('../src/control/resultStaging.ts');
 const { planResultCue, readResultCues } = await import('../src/model/resultCues.ts');
+const { scrubHiddenWords } = await import('../src/model/wordCues.ts');
+const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
 
 const target = (round) => ({ roundId: round.id, revision: round.revision });
 
@@ -275,4 +277,46 @@ test('staging cannot reach an output: it imports nothing that sends (W8)', async
     const imports = [...src.matchAll(/^import[^;]*from '([^']+)'/gm)].map((m) => m[1]);
     for (const spec of imports) assert.doesNotMatch(spec, /graphicVerbs|hostedControl|playoutSession|serverVerbs|bridge|output/i, `${file} imports ${spec}`);
   }
+});
+
+// ── W11: the record a write lands on decides which words are hidden ─────────────────────────
+
+const wordShow = (hidden, words) => ({
+  id: 's',
+  name: 'Show',
+  graphics: [cloud('g-cloud'), board('g-vote')],
+  questions: [{ id: 'q-word', type: 'word', text: 'One word?', ...(hidden.length ? { hidden } : {}) }],
+  resultCues: { 'q-word': 'c-mapped' },
+  cues: [
+    { id: 'c-mapped', sourceId: 'g-cloud', label: 'Words: One word?', values: { f0: 'YOUR WORDS', f1: 'One word?', f2: words } },
+    // Left behind by Change, or duplicated: it carries the same question's words.
+    { id: 'c-moved', sourceId: 'g-cloud', label: 'Words: One word?', values: { f0: 'YOUR WORDS', f1: 'One word?', f2: words } },
+    // Another question's cloud and a vote board are not this question's.
+    { id: 'c-other', sourceId: 'g-cloud', label: 'Words: Other', values: { f0: 'YOUR WORDS', f1: 'Something else?', f2: words } },
+    { id: 'c-vote', sourceId: 'g-vote', label: 'Vote', values: { f0: 'One word?', f1: 'Rude | 3' } },
+  ],
+});
+
+test('every cue carrying a question\'s words loses its hidden words; nothing else changes (W6, W11)', () => {
+  const show = wordShow(['rude'], 'Fun | 4\nRude | 3\nLoud | 1');
+  assert.equal(scrubHiddenWords(show), true);
+  const byId = Object.fromEntries(show.cues.map((c) => [c.id, c.values]));
+  assert.equal(byId['c-mapped'].f2, 'Fun | 4\nLoud | 1');
+  assert.equal(byId['c-moved'].f2, 'Fun | 4\nLoud | 1');
+  assert.equal(byId['c-other'].f2, 'Fun | 4\nRude | 3\nLoud | 1');
+  assert.deepEqual(byId['c-vote'], { f0: 'One word?', f1: 'Rude | 3' });
+  assert.equal(byId['c-mapped'].f1, 'One word?');
+  assert.equal(scrubHiddenWords(show), false, 'a second pass changes nothing');
+  assert.equal(scrubHiddenWords(wordShow([], 'Rude | 3')), false);
+});
+
+test('a team merge never keeps a hidden word on a cue, whichever side hid it (W11)', () => {
+  // Base: Rude on the cue, nothing hidden. Ours hides Rude (and took it off the cue); theirs pressed
+  // again with a stale list and saved first, so their cue still carries Rude and wins the cue.
+  const base = wordShow([], 'Fun | 4\nRude | 3');
+  const ours = wordShow(['rude'], 'Fun | 4');
+  const theirs = wordShow([], 'Fun | 5\nRude | 3');
+  const { doc } = mergeTeamShow(base, ours, theirs, '2026-11-10T00:00:00.000Z');
+  assert.deepEqual(readQuestions(doc.questions)[0].hidden, ['rude']);
+  for (const id of ['c-mapped', 'c-moved']) assert.doesNotMatch(doc.cues.find((c) => c.id === id).values.f2, /Rude/, id);
 });

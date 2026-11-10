@@ -34,7 +34,7 @@ import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { JOIN_PAGE_LIMITS } from './joinPage';
 import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
-import { wordCloudFields, wordsWithout } from './wordCloud';
+import { scrubHiddenWords } from './wordCues';
 import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
@@ -2526,20 +2526,11 @@ export function setShowWordHidden(showId: string, questionId: string, key: strin
   return patchShowChecked(showId, (show) => {
     const before = readQuestions(show.questions);
     const next = setWordHidden(before, questionId, key, hide);
-    let changed = JSON.stringify(next) !== JSON.stringify(before);
-    if (changed) show.questions = next;
-    const cueId = hide ? readResultCues(show.resultCues)[questionId] : undefined;
-    const cue = cueId ? show.cues?.find((c) => c.id === cueId) : undefined;
-    const graphic = cue ? show.graphics.find((g) => g.id === cue.sourceId) : undefined;
-    const map = graphic ? wordCloudFields(graphic.template.fields ?? []) : null;
-    if (cue && map && typeof cue.values[map.words] === 'string') {
-      const without = wordsWithout(cue.values[map.words], key);
-      if (without !== cue.values[map.words]) {
-        cue.values = { ...cue.values, [map.words]: without };
-        changed = true;
-      }
-    }
-    return changed;
+    const listed = JSON.stringify(next) !== JSON.stringify(before);
+    if (listed) show.questions = next;
+    // W6, W11: off every cue that carries the question's words, on the record this write lands on.
+    const scrubbed = scrubHiddenWords(show);
+    return listed || scrubbed;
   }, true);
 }
 
@@ -2620,6 +2611,8 @@ export function stageShowResult(
     }
     cueId = cue.id;
     show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
+    // W11: a word cloud press applies the hidden words of the record it writes into, in every pass.
+    if (opts.target === 'wordTarget') scrubHiddenWords(show);
     // An explicit pick is remembered, whether it added a cue or landed on the one already there (S5).
     if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show[opts.target ?? 'resultTarget'] = opts.chosen;
     return true;
