@@ -303,8 +303,8 @@ Filled in by each phase's pull request.
   `e2e/configured/operator-outage-not-unpublished.spec.ts` (the configured suite is the layer that
   can resolve a slug; the offline half is `e2e/shows.spec.ts`). `e2e/hosted-control.spec.ts` was
   renamed to `e2e/published-control.spec.ts` because almost all of it guards shared code.
-  Retargeted specs use a second production page in the same signed-in browser
-  (`openSecondProductionPage`), except panel-lease's phone, which signs in in its own browser.
+  Retargeted specs open the other operator as a second device: a fresh browser signed in to
+  the same account (`openSecondProductionPage`), so it holds no local copy, as the hosted seat did not.
   `PanelGraphicSpec` stays exported: it is the return type of the shared `buildPanelSpec`.
 - Traps: `npm run learn` refuses while any active rule scopes a deleted file, so the page was put
   back, untracked from the deletion, for the three `--supersedes` calls and removed again. The
