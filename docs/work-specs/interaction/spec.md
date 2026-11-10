@@ -993,6 +993,12 @@ challenged them before the final assessment:
 - W10. A press stages only the words the operator has seen: fresh counts for the words the panel
   was listing at the press. A word that arrived since the panel last read waits for the next press,
   and the note says how many are listed now and not on the cue. Added after the `/so` of `428ff47`.
+- W11. Every write that can put a word on a cue or hide one applies the hidden words of the record
+  it lands on, inside that write: a press (its rebased pass included), Hide and a team merge
+  (`scrubHiddenWords`, `model/wordCues.ts`). It takes them off every cue carrying the question's
+  words: its result cue, and any word cloud cue whose Question is the question's text (the cue
+  left behind by Change, a duplicate). A tab's own earlier reading never decides. Found by the
+  final `/so` of `0ccd83e` as the rule missing behind the cross-tab and team cases.
 
 Model correction (after the review of `ad7ec51`): W9 had been held by filtering words out of the
 message list in each surface, using the rounds the page had read. Two successive rounds found the

@@ -137,6 +137,18 @@ in W6 and approval, fixed:
 
 And one doc correction: the revert note now says what an older build does with rehearsal words.
 
+## Review of `0ccd83e` (`/so`, full, with the approach reassessment)
+
+AGREE WITH CORRECTIONS, B+. The reassessment named one missing rule, W11: a press filtered hidden
+words by this tab's reading, so a word hidden in another tab could be written back onto the cue by
+the press's rebased pass (F1); a team merge could keep a teammate's cue that still carried it (F2);
+and a cue left behind by Change or duplicated kept hidden words (F3). One class, fixed in one
+place: `scrubHiddenWords` runs inside the press's write, inside Hide and after a team merge, on the
+record each lands on. Proof: Node tests (every cue carrying the question's words loses a hidden
+word, another question's cloud and a vote board are untouched; a team merge where ours hid the word
+and theirs re-staged it keeps it off the cue; mutation: removing the merge's call fails that test);
+the Word, Fill from and second-operator journeys pass (j-0024); the walk below.
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine
