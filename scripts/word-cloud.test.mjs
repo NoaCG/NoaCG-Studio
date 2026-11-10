@@ -24,7 +24,7 @@ const { pollFieldMap } = await import('../src/control/resultStaging.ts');
 const { planResultCue, readResultCues } = await import('../src/model/resultCues.ts');
 const { scrubHiddenWords } = await import('../src/model/wordCues.ts');
 const { mergeTeamShow } = await import('../src/model/teamShowMerge.ts');
-const { replaceRundown, rundownSlice, landedReplacement, sameRundown } = await import('../src/model/rundownHistory.ts');
+const { replaceRundown, rundownSlice, landedReplacement, sameRundown, RundownHistory } = await import('../src/model/rundownHistory.ts');
 
 const target = (round) => ({ roundId: round.id, revision: round.revision });
 
@@ -349,6 +349,16 @@ test('an undo that brings a deleted word cloud cue back brings no hidden word wi
   // The history checks the restore against what it lands as, so it is accepted, not invalidated.
   assert.equal(sameRundown(rundownSlice(show), landedReplacement(hidden, s0)), true);
   assert.equal(sameRundown(rundownSlice(show), s0), false);
+  // The history keeps what the undo landed as, so Redo (and any further Undo) still lines up with
+  // the stored rundown rather than clearing.
+  const history = new RundownHistory();
+  const earlier = { before: rundownSlice(wordShow([], 'Fun | 1')), after: s0, label: 'Stage' };
+  const entry = { before: s0, after: s1, label: 'Delete' };
+  history.undo.push(earlier, entry);
+  const landed = landedReplacement(hidden, s0);
+  history.accepted('undo', entry, landed);
+  assert.equal(sameRundown(history.peek('redo').before, rundownSlice(show)), true, 'Redo expects the stored rundown');
+  assert.equal(sameRundown(history.peek('undo').after, rundownSlice(show)), true, 'the next Undo expects it too');
 });
 
 test('a teammate\'s record from the server never brings a hidden word onto a cue here (W11)', async () => {

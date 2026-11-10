@@ -153,9 +153,19 @@ export class RundownHistory {
     return 'recorded';
   }
   peek(direction: 'undo' | 'redo'): RundownHistoryEntry | undefined { return this[direction][this[direction].length - 1]; }
-  accepted(direction: 'undo' | 'redo', entry: RundownHistoryEntry): void {
+  /** `landed` is the rundown the restore landed as when it differs from the snapshot it restored (a
+   *  hidden word taken off a cue, W11): every snapshot equal to the restored one becomes `landed`,
+   *  so the next step compares against what is really stored instead of clearing the history. */
+  accepted(direction: 'undo' | 'redo', entry: RundownHistoryEntry, landed?: RundownSlice): void {
     if (this.peek(direction) !== entry) return;
     this[direction].pop();
+    const restored = direction === 'undo' ? entry.before : entry.after;
+    if (landed && !sameRundown(landed, restored)) {
+      for (const e of [...this.undo, ...this.redo, entry]) {
+        if (sameRundown(e.before, restored)) e.before = landed;
+        if (sameRundown(e.after, restored)) e.after = landed;
+      }
+    }
     this[direction === 'undo' ? 'redo' : 'undo'].push(entry);
   }
 }

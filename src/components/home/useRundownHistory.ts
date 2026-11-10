@@ -183,9 +183,11 @@ export function useRundownHistory(
         else callbacks.current.note(result.error);
         return false;
       }
-      // What the restore lands as: the replacement less any hidden word (W11, `replaceRundown`).
-      if (!accepted || !sameRundown(rundownSlice(accepted), landedReplacement(current, replacement))) { invalidate(); return false; }
-      history.current.accepted(direction, entry); callbacks.current.note(`✓ ${direction === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`); changed(); return true;
+      // What the restore lands as: the replacement less any hidden word (W11, `replaceRundown`). The
+      // history keeps that, so the next step compares against what is stored.
+      const landed = landedReplacement(current, replacement);
+      if (!accepted || !sameRundown(rundownSlice(accepted), landed)) { invalidate(); return false; }
+      history.current.accepted(direction, entry, landed); callbacks.current.note(`✓ ${direction === 'undo' ? 'Undid' : 'Redid'}: ${entry.label}`); changed(); return true;
     }, false);
   };
   /** Whether there is a step that way to take, read from the stacks as they stand. */
