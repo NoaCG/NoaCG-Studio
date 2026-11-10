@@ -155,7 +155,7 @@ async function importTemplate(page: Page, t: Template) {
 
 for (const t of templates) {
   test(`${t.name} template imports, keeps every named text, runs its controls and stays clean on air`, async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(120_000);
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await importTemplate(page, t);
