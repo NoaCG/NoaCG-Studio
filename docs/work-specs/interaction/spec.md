@@ -655,18 +655,18 @@ Added after the rules review (a fresh read-only `/so`, AGREE WITH CORRECTIONS), 
   pressed in any tab finalises the cue another tab staged. A refused write is said: "Stopped, but
   the result cue was not updated".
 - S14. A round closed by Go live on another question gets the same closing write as Stop, for
-  the question whose round it was (coordinator default; a close is a close).
+  the question whose round it was (coordinator decision, 2026-11-09; a close is a close).
 - S15. The note always reports what the stored write did (updated or added, and why a cue is
   new), never what the page expected. The ✓ is said only once the durable write has landed.
 - S16. Change, then picking a graphic, when the selected question already has a result cue on
   another graphic, adds a new result cue on the picked graphic and links it; the old cue stays in
-  the rundown as an ordinary cue and the note says so (coordinator default).
+  the rundown as an ordinary cue and the note says so (coordinator decision, 2026-11-09).
 - S6, amended: a catalog board picked under S5 is added first, with its one cue; if the result
   write after it is refused, the board and its cue stay as an ordinary graphic and the note says
   the result was not written.
 - S8, decided: the live-figures exception permits rows; this phase adds no automatic sender. The
   switch writes the board's Live figures field and the board shows its own figures (coordinator
-  default).
+  decision, 2026-11-09).
 
 **Decisions** (made in the build, revertible in review):
 
@@ -679,8 +679,8 @@ Added after the rules review (a fresh read-only `/so`, AGREE WITH CORRECTIONS), 
   the catalog arrives with its one seeded cue, which becomes the result cue.
 - The live-figures switch stays as it was: it writes the board's Live figures field, and nothing
   sends Update automatically (S8). Go live closing another question's round finalises its cue
-  (S14). Change then a pick starts a new result cue for the selected question (S16). The three are
-  the coordinator defaults sent before the patch.
+  (S14). Change then a pick starts a new result cue for the selected question (S16). The three were
+  sent to the coordinator before the patch and confirmed by it as decisions the owner can revert.
 - The vote field words (`Vote status`, `Live figures` and their tokens) moved to
   `templates/behaviours/voteFields.ts`, re-exported by `vote.ts`, so the staging module runs in
   Node without the recipe machinery. No emitted byte changes.
