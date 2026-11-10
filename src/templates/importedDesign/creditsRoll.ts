@@ -558,6 +558,7 @@ function creditsRiders(roll, win, rows) {
     if (!into) continue;
     var look = getComputedStyle(parent);
     var wrap = document.createElementNS(rider.namespaceURI, 'g');
+    wrap.setAttribute('data-noacg-rider', '');
     wrap.setAttribute('transform', 'matrix(' + [into.a, into.b, into.c, into.d, into.e, into.f].join(' ') + ')');
     var keep = '';
     for (var k = 0; k < CREDITS_RIDER_KEEP.length; k++) keep += CREDITS_RIDER_KEEP[k] + ':' + look.getPropertyValue(CREDITS_RIDER_KEEP[k]) + ';';
@@ -635,7 +636,18 @@ function creditsTake() {
   var rowsScale = Math.sqrt(rowsM.c * rowsM.c + rowsM.d * rowsM.d);
   var colA = rowsM.a * rowsBox.x + rowsM.e, colB = rowsM.a * (rowsBox.x + rowsBox.width) + rowsM.e;
   creditsRiders(roll, win, { x: Math.min(colA, colB), width: Math.abs(colB - colA) });
+  // A rider that is a field is a line the entrance moves on its own: measured at rest, as the
+  // rows are (creditsAtRest), or the travel depends on when in the entrance the take ran.
+  var posed = roll.querySelectorAll('[data-noacg-rider] *');
+  var undone = [];
+  for (var p = 0; p < posed.length; p++) {
+    if (posed[p].style && posed[p].style.transform) {
+      undone.push({ el: posed[p], transform: posed[p].style.transform });
+      posed[p].style.transform = 'none';
+    }
+  }
   try { bb = roll.getBBox(); } catch (e) { bb = null; }
+  for (var u = 0; u < undone.length; u++) undone[u].el.style.transform = undone[u].transform;
   if (!bb || !(bb.height > 0)) return null;` : ''}
   frame.setAttribute('x', String(win.left));
   frame.setAttribute('y', String(win.top));
