@@ -677,7 +677,8 @@ test.describe(() => {
     await messages.getByTestId('word-choose-board').filter({ hasText: 'House Word Cloud' }).click();
     await expect(messages.getByTestId('audience-note')).toContainText('✓ Added a word cloud cue on “House Word Cloud” with 1 word', { timeout: 20_000 });
     await settleDurableWrites(messages);
-    await expect(program('House Word Cloud').locator('.audience-word')).toHaveCount(0);
+    // Staging sent nothing: the off-air word cloud still holds its own sample words.
+    expect(await program('House Word Cloud').locator('.audience-word').allTextContents()).not.toContain('Electric');
     const wordCue = page.locator('.pd-cue', { hasText: 'Words:' });
     await expect(wordCue).toHaveCount(1, { timeout: 20_000 });
     await wordCue.click();
