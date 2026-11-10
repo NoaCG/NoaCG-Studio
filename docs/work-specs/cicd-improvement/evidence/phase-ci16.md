@@ -61,7 +61,7 @@ From ci15, re-read 2026-11-02:
 
 | Blocker | Tracking | State |
 | --- | --- | --- |
-| Deadline receipt fails: once selection narrows, the nightly is the only carrier for engine-floor and for the specs a scoped selection would omit (phase-ci13.md:23-24; every push to `main` still runs the full suite today, section 2; qualifier restored by cicd-followup cf15, #1949 item 1). Over 14 days, 128 landings waited more than 24 hours for a complete green E2E verdict and 11 for engine-floor | [phase-ci13.md](phase-ci13.md) (NOT QUALIFIED, checker PASS on `d26c0ba0`, PR #1930); nightly cause #1622 | #1622 open |
+| Deadline receipt fails: the nightly is the only carrier for engine-floor and, once selection narrows, for the E2E specs a scoped selection would omit (phase-ci13.md:23-24; every push to `main` still runs the full suite today, section 2; qualifier restored by cicd-followup cf15, #1949 item 1). Over 14 days, 128 landings waited more than 24 hours for a complete green E2E verdict and 11 for engine-floor | [phase-ci13.md](phase-ci13.md) (NOT QUALIFIED, checker PASS on `d26c0ba0`, PR #1930); nightly cause #1622 | #1622 open |
 | Pre-reset unexplained miss: `video-hyperframes`, culprit `aa2717b3` | #1900 | open |
 | Pre-reset unexplained miss: `editor-foundation`, culprit `b0331ecb` | #1942 | open |
 | Pre-reset unexplained miss: `editor-base-edits`, culprit `97311f15` | #1944 | open |

@@ -140,9 +140,9 @@ the traced map and the header index):
 
 Plan sizes are as of this row's base `5ca8b87a` (cicd-followup cf15, #1945 item 3). #1940 then
 quarantined `production-data.spec.ts`, a `// focus` spec, and the planner removes quarantined specs
-from every plan (`scripts/e2e-affected.mjs`, the quarantine block at line 52), so each plan above
-is one spec smaller on `main` after `9c2980d0`, as the ci15 review reported; which specs the
-culprits select, the column that matters, is unchanged. Not re-run here: the culprits predate this
+from every plan (`scripts/e2e-affected.mjs`, the quarantine block at line 52), so a plan above that
+held it is one spec smaller on `main` after `9c2980d0`; the ci15 review reported each one lower.
+Whether each culprit selects the failed spec, the column that matters, is unchanged. Not re-run here: the culprits predate this
 clone's history. #1942 and #1944 carry the same base-time counts.
 
 **Where I disagree with the ci07 checker.** Its comment says "`planFor` on `4abaa4a5` and

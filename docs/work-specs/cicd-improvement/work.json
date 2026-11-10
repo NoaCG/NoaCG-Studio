@@ -69,7 +69,7 @@
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci13.md",
-            "sha256": "18f1d9f66937cd0cdefb04424594f9dff9b74d630ffba3124b5ba31ab0b14094"
+            "sha256": "5e3a6076f32a89f1b703701ba5fae16ec20f6c355f41a9731da173321638c2a4"
           }
         ]
       },
@@ -95,11 +95,11 @@
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci15.md",
-            "sha256": "ef37a87ce4ae169cdb26881c274efd11bfee7fbbcffbbb0df775456e23d6e356"
+            "sha256": "7663e33f87d7ffa377f6f364c5d4af0485c91b19e7a966ef0143d1de3f8fb853"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci16.md",
-            "sha256": "166f838243c8ba06af902e306ee977463de5ee3ec36824c2e4cac665a3755405"
+            "sha256": "312d3a9c9dfc31b1603950b340ba234a44e48b37abc368f92dbc872d67c0ebc2"
           }
         ]
       },
@@ -129,15 +129,15 @@
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci13.md",
-            "sha256": "18f1d9f66937cd0cdefb04424594f9dff9b74d630ffba3124b5ba31ab0b14094"
+            "sha256": "5e3a6076f32a89f1b703701ba5fae16ec20f6c355f41a9731da173321638c2a4"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci15.md",
-            "sha256": "ef37a87ce4ae169cdb26881c274efd11bfee7fbbcffbbb0df775456e23d6e356"
+            "sha256": "7663e33f87d7ffa377f6f364c5d4af0485c91b19e7a966ef0143d1de3f8fb853"
           },
           {
             "path": "docs/work-specs/cicd-improvement/evidence/phase-ci16.md",
-            "sha256": "166f838243c8ba06af902e306ee977463de5ee3ec36824c2e4cac665a3755405"
+            "sha256": "312d3a9c9dfc31b1603950b340ba234a44e48b37abc368f92dbc872d67c0ebc2"
           }
         ]
       },

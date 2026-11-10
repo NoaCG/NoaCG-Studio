@@ -88,9 +88,8 @@ the 15 midday sweep logs needed to read each run's scope, and 800 push records o
 pages). About 70 API calls in one pass, run and job records cached by ID.
 
 **How the per-contract tables were made (added by cicd-followup cf15, #1932 items 1 and 5).** The
-tables in 2.1 and 2.2 come from that one-off measurement pass, which is not committed: it applied
-`CONTRACTS` from `scripts/schedule-coverage.mjs` and read the midday pass's scope from each sweep
-job's `ONLY` in the logs. The committed CLI (`node scripts/schedule-coverage.mjs`, run by
+tables in 2.1 and 2.2 come from that one-off measurement pass, which is not committed; it read the
+midday pass's scope from each sweep job's `ONLY` in the logs. The committed CLI (`node scripts/schedule-coverage.mjs`, run by
 `nightly-drift.yml`) reports only the whole-nightly contract; `CONTRACTS` and the per-run
 `required`/`scope` are used only by its tests. Rerunning the CLI therefore reproduces the
 whole-nightly row, not the engine-floor or catalog-battery rows. Run completion is read from
