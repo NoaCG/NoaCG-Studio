@@ -88,6 +88,15 @@ export const SVG_ALIGN_TOL = 0.05;
  */
 export const SVG_LINE_HEIGHT = 1.2;
 
+/** A FIGURE: digits and the marks a score or a clock carries, and no letters. A centred figure
+ *  keeps no side margin beyond its own glyphs' bearings (`svgAlignOf`, runtime/svgFit.js), so a
+ *  score drawn as "0" paints "100" at the drawn size while its plate holds it. EXPORTED for the
+ *  mapping step's mirror (`boxFitOf`); the runtime's `svgIsFigure` is this rule in ES5, and the
+ *  fit-rungs mirror gate compares the two. */
+export function isSvgFigure(value: string): boolean {
+  return /[0-9]/.test(value) && !/[^0-9\s:.,'+%\u2212\u2013-]/.test(value);
+}
+
 /** Stand-in used only when a preview (or the catalog baseline) renders the variant before an
  *  SVG exists. Deterministic on purpose - the baselines hash the emitted panes. */
 const NO_SVG: DesignSvg = {
