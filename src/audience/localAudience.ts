@@ -21,10 +21,13 @@
 
 import { uuid } from '../model/id.ts';
 import { QUESTION_LIMITS, isQuestionId } from '../model/questions.ts';
+import { cleanWord } from '../model/wordCloud.ts';
 import { CHAT_VOTES_MAX, CHAT_VOTE_ALLOWANCE_MS, latestPerVoter, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
 import {
   AUDIENCE_LIMITS,
   QUESTION_CLOSED,
+  WORD_ALREADY_SENT,
+  WORD_REFUSED,
   OPERATOR_ADD_MAX,
   OPERATOR_SETTLE_MAX,
   clampProvenance,
@@ -59,6 +62,10 @@ const SAMPLE_COMMENTS = [
   'That was the best save of the season.',
   'Hello from the school hall, we are all watching together.',
 ];
+
+/** Rehearsal words for a Word question, repeated so the list has an order by frequency: one
+ *  simulated phone sends one word. */
+const SAMPLE_WORDS = ['Exciting', 'Tense', 'Exciting', 'Loud', 'Fun', 'Exciting', 'Tense', 'Proud'];
 
 /** The rate caps a server trigger would enforce, mirrored here so rehearsal behaves like air. */
 const PER_DEVICE_WINDOW_MS = 30_000;
@@ -242,7 +249,7 @@ function readRound(raw: unknown): AudienceRound | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   if (!text(r.id) || !text(r.kind) || !text(r.question) || !Array.isArray(r.options) || !text(r.openedAt)) return null;
-  if (r.kind !== 'poll' && r.kind !== 'quiz' && r.kind !== 'open') return null;
+  if (r.kind !== 'poll' && r.kind !== 'quiz' && r.kind !== 'open' && r.kind !== 'word') return null;
   return {
     id: r.id,
     kind: r.kind,
@@ -356,6 +363,7 @@ function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text
   const textNow = question.text.trim().slice(0, QUESTION_LIMITS.text);
   if (!textNow) return 'a question needs its text';
   if (question.type === 'open') return { kind: 'open', text: textNow, options: [] };
+  if (question.type === 'word') return { kind: 'word', text: textNow, options: [] };
   if (question.type !== 'choice') return 'not a question';
   // Like the server, blanks are not dropped here: the composer already cleaned them.
   const options = (question.options ?? []).map((o) => o.trim().slice(0, QUESTION_LIMITS.option)).slice(0, QUESTION_LIMITS.maxOptions);
@@ -364,7 +372,8 @@ function snapshotOf(question: QuestionLive): { kind: AudienceRound['kind']; text
 }
 
 export interface LocalAudience extends AudienceBackend {
-  /** Simulate viewers sending something in: answers to the live Open question, or unfiled. */
+  /** Simulate viewers sending something in: answers to the live Open question, one word per
+   *  simulated phone to a live Word question, or unfiled. */
   simulate(count?: number): AudienceSubmission[];
   /** Simulate votes landing on the open round. */
   simulateVotes(counts: number[]): void;
@@ -445,7 +454,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     const round = liveOf(r);
     return {
       open: round !== null,
-      mode: round ? (round.kind === 'open' ? 'question' : 'poll') : 'waiting',
+      mode: round ? (round.kind === 'open' ? 'question' : round.kind === 'word' ? 'word' : 'poll') : 'waiting',
       prompt: round?.question ?? '',
       presenter: { ...r.presenter },
       round,
@@ -501,7 +510,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         // would turn a public URL into a moderation feed.
         mine: r.answers
           .filter((s) => s.device === deviceToken)
-          .map((s) => ({ id: s.id, body: s.body, createdAt: s.createdAt })),
+          .map((s) => ({ id: s.id, body: s.body, createdAt: s.createdAt, roundId: s.roundId ?? null })),
         myVote: open ? r.votes[open.id]?.[deviceToken] ?? null : null,
       };
     },
@@ -509,9 +518,16 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     async submit(deviceToken, author, body, target): Promise<SubmitResult> {
       return exclusive(() => {
         const r = room();
-        const round = liveRound(r, target.roundId, target.revision, ['open']);
+        const round = liveRound(r, target.roundId, target.revision, ['open', 'word']);
         if (!round) return { ok: false, error: QUESTION_CLOSED, closed: true };
         if (!body.trim()) return { ok: false, error: 'Nothing to send.' };
+        // A Word question: one word of at most 25 characters, one per phone (0114, W2, W3).
+        if (round.kind === 'word') {
+          const word = cleanWord(body);
+          if (!word) return { ok: false, error: WORD_REFUSED };
+          if (r.answers.some((s) => s.roundId === round.id && s.device === deviceToken)) return { ok: false, error: WORD_ALREADY_SENT };
+          body = word;
+        }
         const now = Date.now();
         const recent = (sends.get(deviceToken) ?? []).filter((t) => now - t < PER_DEVICE_WINDOW_MS);
         if (recent.length >= PER_DEVICE_MAX) return { ok: false, error: 'Too many messages. Wait a moment.' };
@@ -756,9 +772,9 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
     simulate(count = 1): AudienceSubmission[] {
       const made: AudienceSubmission[] = [];
       const open = liveOf(room());
-      const roundId = open?.kind === 'open' ? open.id : null;
+      const roundId = open?.kind === 'open' || open?.kind === 'word' ? open.id : null;
       for (let i = 0; i < count; i += 1) {
-        const pool = roundId ? SAMPLE_COMMENTS : SAMPLE_QUESTIONS;
+        const pool = open?.kind === 'word' ? SAMPLE_WORDS : roundId ? SAMPLE_COMMENTS : SAMPLE_QUESTIONS;
         const row = make(SAMPLE_AUTHORS[seq % SAMPLE_AUTHORS.length], pool[seq % pool.length], roundId);
         seq += 1;
         submissions.push(row);
@@ -772,7 +788,7 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
       void exclusive(() => {
         const r = room();
         const round = liveOf(r);
-        if (!round || round.kind === 'open') return;
+        if (!round || round.kind === 'open' || round.kind === 'word') return;
         const byDevice = { ...(r.votes[round.id] ?? {}) };
         counts.forEach((n, option) => {
           for (let i = 0; i < n; i += 1) byDevice[`sim-${option}-${seq++}`] = option;

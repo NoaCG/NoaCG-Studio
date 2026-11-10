@@ -24,9 +24,9 @@ import type { ChatVote, ChatVoteOutcome } from './chatVotes.ts';
 export type AudienceStatus = 'new' | 'approved' | 'rejected';
 
 /** What the audience is being asked for right now: `question` while an Open question is live,
- *  `poll` while a Multiple choice one is. `comment` and `quiz` are older states a join page may
- *  still read. */
-export type AudienceMode = 'waiting' | 'question' | 'comment' | 'poll' | 'quiz';
+ *  `poll` while a Multiple choice one is, `word` while a Word one is. `comment` and `quiz` are
+ *  older states a join page may still read. */
+export type AudienceMode = 'waiting' | 'question' | 'comment' | 'poll' | 'quiz' | 'word';
 
 /**
  * One thing a viewer sent in.
@@ -105,11 +105,12 @@ export const OPERATOR_SETTLE_MAX = 2_000;
 /**
  * A question's ONE result (interaction spec, "Question lifecycle"; migration 0111): opened by Go
  * live, closed by Stop or by another question going live, reopened by Go live again with the same
- * count. `poll` is a Multiple choice question, `open` an Open one; `quiz` is an older round.
+ * count. `poll` is a Multiple choice question, `open` an Open one, `word` a Word one (one word per
+ * phone, migration 0114); `quiz` is an older round.
  */
 export interface AudienceRound {
   id: string;
-  kind: 'poll' | 'quiz' | 'open';
+  kind: 'poll' | 'quiz' | 'open' | 'word';
   /** The production question it belongs to (model/questions.ts), or null for an older round. */
   questionId: string | null;
   /** Moves when the snapshot can have changed (an edit going live, Clear results), never on a
@@ -209,7 +210,7 @@ export interface JoinView {
   brand?: AudienceBrand | null;
   /** What THIS device has already sent, so the page can say "thanks" rather than inviting a
    *  double post. Never anyone else's. */
-  mine: { id: string; body: string; createdAt: string }[];
+  mine: { id: string; body: string; createdAt: string; roundId?: string | null }[];
   /** This device's current vote in the open round, so it can be shown as picked (and changed —
    *  the round's primary key is (round, device), so an upsert IS "change your mind"). */
   myVote: number | null;
@@ -228,6 +229,12 @@ export interface SubmitResult {
 /** What a phone page says when its send reached a round that has closed or changed. */
 export const QUESTION_CLOSED = 'That question has closed.';
 
+/** What a phone page says when it already sent its one word to this question (W3). */
+export const WORD_ALREADY_SENT = 'You have already sent your word.';
+
+/** What a phone page says when what it sent is not one word of at most 25 characters (W2). */
+export const WORD_REFUSED = 'Send one word of at most 25 characters.';
+
 /** Which round an answer or vote is for, as the phone read it (R6). */
 export interface RoundTarget {
   roundId: string;
@@ -237,7 +244,7 @@ export interface RoundTarget {
 /** What Go live sends: the question as it stands in the production's list. */
 export interface QuestionLive {
   id: string;
-  type: 'open' | 'choice';
+  type: 'open' | 'choice' | 'word';
   text: string;
   options?: string[];
 }
@@ -250,8 +257,9 @@ export interface QuestionLive {
 export interface AudienceBackend {
   // ── The viewer's half (a join slug is the only capability) ────────────────────────────────
   joinView(deviceToken: string): Promise<JoinView>;
-  /** An answer to the live Open question named by `target`; refused unless that round is open at
-   *  that revision (R6). */
+  /** An answer to the live Open question named by `target`, or this phone's one word to a live Word
+   *  question; refused unless that round is open at that revision (R6), and a second word from
+   *  the same phone is refused (W3). */
   submit(deviceToken: string, author: string, body: string, target: RoundTarget): Promise<SubmitResult>;
   /** A vote on the Multiple choice round `roundId` at `revision`. Sending again changes it. */
   vote(deviceToken: string, roundId: string, option: number, revision: number): Promise<SubmitResult>;

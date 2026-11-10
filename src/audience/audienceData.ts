@@ -28,6 +28,7 @@ import {
   OPERATOR_ADD_MAX,
   OPERATOR_SETTLE_MAX,
   QUESTION_CLOSED,
+  WORD_ALREADY_SENT,
   clampProvenance,
   openRoundOf,
   clampSubmission,
@@ -81,7 +82,8 @@ interface JoinRow {
     } | null;
   };
   brand: AudienceBrand | null;
-  mine: { id: string; body: string; createdAt: string }[];
+  /** `roundId` from 0114: the round each was filed under, so a phone knows its word is in. */
+  mine: { id: string; body: string; createdAt: string; roundId?: string | null }[];
   my_vote: number | null;
 }
 
@@ -224,6 +226,10 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       // The one refusal that says what it is (0111): the round closed or changed under the phone.
       if (error && /question has closed/.test(String((error as { message?: unknown }).message ?? ''))) {
         return { ok: false, error: QUESTION_CLOSED, closed: true };
+      }
+      // A Word question takes one word per phone (0114, W3); a phone that already sent one is told.
+      if (error && /already sent your word/.test(String((error as { message?: unknown }).message ?? ''))) {
+        return { ok: false, error: WORD_ALREADY_SENT };
       }
       return error ? { ok: false, error: REFUSED } : { ok: true, error: null };
     } catch {

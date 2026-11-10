@@ -1,0 +1,74 @@
+// WORD QUESTIONS (docs/work-specs/interaction/spec.md, D5 and AC-14; the Rules W1 to W9 in its
+// phase 6 notes).
+//
+// A Word question takes ONE short word from each phone. The words become a word cloud the operator
+// approves: Interaction lists them by frequency, the operator hides any that must not air, and
+// "Add word cloud to rundown" writes a snapshot of the rest onto a word cloud cue
+// (control/wordStaging.ts). Nothing here airs anything.
+//
+// Pure and Node-runnable (scripts/word-cloud.test.mjs), shared by the phone page, both audience
+// providers and the panel, so a word the phone accepts is a word the server accepts.
+
+/** The most characters (code points, as Postgres counts them) one word may have. */
+export const WORD_MAX = 25;
+
+/** The most words a cue carries: the word cloud draws this many at most. */
+export const WORD_CLOUD_MAX = 30;
+
+/** One word as the phone sends it: trimmed, no space inside, 1 to WORD_MAX characters, no line
+ *  divider. Null when it is not one word. */
+export function cleanWord(input: string): string | null {
+  const word = input.trim().normalize('NFC');
+  if (!word || /[\s|]/u.test(word) || /\p{Cc}/u.test(word)) return null;
+  if (Array.from(word).length > WORD_MAX) return null;
+  return word;
+}
+
+/** What makes two words the same word in the count: case does not matter. */
+export function wordKey(word: string): string {
+  return word.trim().normalize('NFC').toLowerCase();
+}
+
+export interface WordCount {
+  /** As shown: the spelling most phones used (of equals, the first to arrive). */
+  word: string;
+  key: string;
+  count: number;
+  hidden: boolean;
+}
+
+/**
+ * The words of a question by frequency (most first, then alphabetically), with the operator's
+ * hidden ones marked. `bodies` are the answers in arrival order; one that is not a word is skipped.
+ */
+export function countWords(bodies: readonly string[], hidden: readonly string[] = []): WordCount[] {
+  const hide = new Set(hidden);
+  const groups = new Map<string, { count: number; spellings: Map<string, number> }>();
+  for (const body of bodies) {
+    const word = cleanWord(body);
+    if (!word) continue;
+    const key = wordKey(word);
+    const g = groups.get(key) ?? { count: 0, spellings: new Map<string, number>() };
+    g.count += 1;
+    g.spellings.set(word, (g.spellings.get(word) ?? 0) + 1);
+    groups.set(key, g);
+  }
+  const out: WordCount[] = [];
+  for (const [key, g] of groups) {
+    let word = '';
+    let most = 0;
+    for (const [spelling, n] of g.spellings) if (n > most) [word, most] = [spelling, n];
+    out.push({ word, key, count: g.count, hidden: hide.has(key) });
+  }
+  return out.sort((a, b) => b.count - a.count || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+}
+
+/** The cue's Words value: the shown words, most first, at most WORD_CLOUD_MAX, one `word | count`
+ *  line each. A hidden word is never in it. */
+export function wordLines(counts: readonly WordCount[]): string {
+  return counts
+    .filter((w) => !w.hidden)
+    .slice(0, WORD_CLOUD_MAX)
+    .map((w) => `${w.word} | ${w.count}`)
+    .join('\n');
+}

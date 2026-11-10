@@ -60,8 +60,17 @@ export function voteBoardFields(fields: readonly Field[]): { question: string; o
 
 /** Where a message would land on this graphic: its body field and, if it has one, its name field.
  *  Null for a graphic with no body field and for a vote board (its Question is not a message). */
+/** A word cloud's question and words fields (interaction spec, AC-14), or null when the graphic is
+ *  not one: Question and Words, matched by title like a vote board's. */
+export function wordCloudFields(fields: readonly Field[]): { question: string; words: string } | null {
+  const question = lastTitled(fields, ['question']);
+  const words = lastTitled(fields, ['words']);
+  return question && words ? { question, words } : null;
+}
+
 export function messageFields(fields: readonly Field[]): { body: string; name: string | null } | null {
-  if (voteBoardFields(fields)) return null;
+  // A vote board's or a word cloud's Question is the question asked, not a message.
+  if (voteBoardFields(fields) || wordCloudFields(fields)) return null;
   const body = firstTitled(fields, BODY_TITLES);
   if (!body) return null;
   return { body, name: firstTitled(fields, NAME_TITLES) };
