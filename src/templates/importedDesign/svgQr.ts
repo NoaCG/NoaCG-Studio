@@ -21,9 +21,13 @@ export const QR_FIELD_TITLE = 'Join link';
 /** The class the bind pass stamps on the `QR` layer. */
 export const QR_LAYER_CLASS = `${PREFIX}-qr`;
 
-/** The first element whose layer name is `QR`, in document order, or null. */
+/** The first drawn element whose layer name is `QR`, in document order, or null. Text is never
+ *  one (Figma names a text layer after its words, so a label reading "QR" would qualify), and
+ *  nothing in `<defs>` is drawn where it stands. */
 export function findQrLayer(root: Element): Element | null {
   for (const el of Array.from(root.querySelectorAll('*'))) {
+    const tag = el.localName;
+    if (tag === 'text' || tag === 'tspan' || el.closest('defs, text')) continue;
     if (svgLayerLabel(el).toUpperCase() === QR_LAYER_NAME) return el;
   }
   return null;

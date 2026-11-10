@@ -739,17 +739,22 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
     const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400">
   <rect id="Plate" width="900" height="400" fill="#14213d"/>
   <text id="Title" x="380" y="120" font-family="Arial" font-size="48" fill="#ffffff">Scan to join</text>
+  <text id="QR " x="380" y="200" font-family="Arial" font-size="32" fill="#ffffff">QR</text>
   <g id="QR" transform="translate(40 40)"><rect width="320" height="320" fill="#888888"/></g>
 </svg>`;
-    const tpl = await page.evaluate(async (m) => {
+    const built = await page.evaluate(async (m) => {
       const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
       const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
       const imported = importSvgMarkup(m);
       const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
-      return IMPORTED_SVG.create({
+      const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+      const template = IMPORTED_SVG.create({
         designSvg: { markup: imported.markup, width: imported.width, height: imported.height, fields, images: [], outlines: [], fonts: [] },
       });
+      return { template, errors: validateTemplate(template).errors.map((e) => e.message) };
     }, markup);
+    expect(built.errors, 'the export gate passes the graphic').toEqual([]);
+    const tpl = built.template;
     const join = tpl.fields.find((f) => f.title === 'Join link');
     expect(join, 'the QR layer adds a Join link field').toBeTruthy();
     expect(tpl.fields.at(-1)!.field, 'the Join link field comes last').toBe(join!.field);
