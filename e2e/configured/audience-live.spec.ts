@@ -658,9 +658,9 @@ test.describe(() => {
     await goLive(messages, 'One word for tonight?');
     await expect(phone.locator('#join .nj-prompt')).toHaveText('One word for tonight?', { timeout: 20_000 });
     await shot('5-third-question');
-    await phone.locator('#nj-word').fill('Electric');
+    await phone.locator('#nj-word').fill('Sparkling');
     await phone.locator('#join .nj-send').tap();
-    await expect(phone.locator('#join .nj-word')).toHaveText('Electric', { timeout: 20_000 });
+    await expect(phone.locator('#join .nj-word')).toHaveText('Sparkling', { timeout: 20_000 });
     await expect(phone.locator('#nj-word')).toHaveCount(0);
     await shot('6-word-sent');
     // A second phone (its own browser, so its own device) sends a word the operator will hide.
@@ -670,7 +670,7 @@ test.describe(() => {
     await second.locator('#nj-word').fill('Boring');
     await second.locator('#join .nj-send').tap();
     await expect(second.locator('#join .nj-word')).toHaveText('Boring', { timeout: 20_000 });
-    await expect(messages.getByTestId('word-text')).toHaveText(['Boring', 'Electric'], { timeout: 20_000 });
+    await expect(messages.getByTestId('word-text')).toHaveText(['Boring', 'Sparkling'], { timeout: 20_000 });
     await messages.getByTestId('word-row').filter({ hasText: 'Boring' }).getByTestId('word-hide').click();
     await expect(messages.getByTestId('word-row').filter({ hasText: 'Boring' })).toHaveClass(/hidden/);
     await messages.getByTestId('word-stage').click();
@@ -678,12 +678,12 @@ test.describe(() => {
     await expect(messages.getByTestId('audience-note')).toContainText('✓ Added a word cloud cue on “House Word Cloud” with 1 word', { timeout: 20_000 });
     await settleDurableWrites(messages);
     // Staging sent nothing: the off-air word cloud still holds its own sample words.
-    expect(await program('House Word Cloud').locator('.audience-word').allTextContents()).not.toContain('Electric');
+    expect(await program('House Word Cloud').locator('.audience-word').allTextContents()).not.toContain('Sparkling');
     const wordCue = page.locator('.pd-cue', { hasText: 'Words:' });
     await expect(wordCue).toHaveCount(1, { timeout: 20_000 });
     await wordCue.click();
     await page.getByTestId('verb-take').click();
-    await expect(program('House Word Cloud').locator('.audience-word')).toHaveText(['Electric'], { timeout: 20_000 });
+    await expect(program('House Word Cloud').locator('.audience-word')).toHaveText(['Sparkling'], { timeout: 20_000 });
     await testInfo.attach('program-word-cloud', { body: await page.getByTestId('program-stage').screenshot(), contentType: 'image/png' });
     await stopLive(messages, 'One word for tonight?');
     await expect(phone.locator('#join .nj-waiting')).toBeVisible({ timeout: 20_000 });
