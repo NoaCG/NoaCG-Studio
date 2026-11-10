@@ -36,8 +36,8 @@
  },
  "waitingOn": [
   {
-   "what": "phase 2 builder receipt",
-   "eta": "2026-11-11T01:00:00Z"
+   "what": "phase 2 measurement campaign, then receipt, /check and PR",
+   "eta": "2026-11-11T06:00:00Z"
   }
  ],
  "inFlight": [
@@ -47,7 +47,8 @@
    "actor": "builder-2-2-b-3da5",
    "session": "session_017SdbwRAwGnmr1povTTBwU9",
    "branch": "claude/plan-live-publishing-2-build",
-   "launchedAt": "2026-11-10T22:13:03Z"
+   "launchedAt": "2026-11-10T22:13:03Z",
+   "lastSeen": "2026-11-10T23:49Z builder reply: 15 of 116 local measurement jobs done (5-minute queue jobs on a local Supabase stack via the Docker Hub mirror), all passing; nudged at the 30-minute idle threshold, not hung"
   }
  ],
  "owner": [
