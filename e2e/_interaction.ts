@@ -10,9 +10,9 @@ export function questionRow(ws: Page, text: string): Locator {
 }
 
 /** Write a question through "+ Question": the type first, then the words. */
-export async function addQuestion(ws: Page, type: 'open' | 'choice', text: string, options: string[] = []): Promise<Locator> {
+export async function addQuestion(ws: Page, type: 'open' | 'choice' | 'word', text: string, options: string[] = []): Promise<Locator> {
   await ws.getByTestId('question-add').click();
-  await ws.getByTestId(type === 'open' ? 'question-type-open' : 'question-type-choice').click();
+  await ws.getByTestId(`question-type-${type}`).click();
   await ws.getByTestId('question-text').fill(text);
   if (type === 'choice') await ws.getByTestId('question-options').fill(options.join('\n'));
   await ws.getByTestId('question-save').click();

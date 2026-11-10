@@ -13,6 +13,9 @@ import type { Show } from './shows';
 
 type Field = { field: string; title?: string };
 
+/** The production key that remembers where a question's result goes. */
+export type ResultTargetKey = 'resultTarget' | 'wordTarget';
+
 /** Why a question with a mapped cue gets a new one: its cue is gone, its graphic can no longer
  *  take results (S3), or the operator chose another graphic after Change (S16). */
 export type ResultReplaced = 'deleted' | 'no-fields' | 'moved';
@@ -45,10 +48,13 @@ export function readResultCues(value: unknown): Record<string, string> {
  *   elimination.
  */
 export function planResultCue(
-  show: Pick<Show, 'graphics' | 'cues' | 'resultCues' | 'resultTarget'>,
+  show: Pick<Show, 'graphics' | 'cues' | 'resultCues' | 'resultTarget' | 'wordTarget'>,
   questionId: string,
   takes: (fields: readonly Field[]) => boolean,
   chosen?: string | null,
+  /** Which remembered graphic applies: a vote's result graphic, or a Word question's word cloud
+   *  (`Show.wordTarget`, interaction phase 6, W7). One question still has one result cue. */
+  target: ResultTargetKey = 'resultTarget',
 ): ResultPlan {
   const graphicTakes = (id: string | undefined | null) => {
     const g = id ? show.graphics.find((x) => x.id === id) : undefined;
@@ -64,6 +70,7 @@ export function planResultCue(
     else return { kind: 'update', cueId: cue.id, graphicId: cue.sourceId };
   }
   if (chosen && graphicTakes(chosen)) return { kind: 'add', graphicId: chosen, replaced };
-  if (graphicTakes(show.resultTarget)) return { kind: 'add', graphicId: show.resultTarget!, replaced };
+  const remembered = show[target];
+  if (graphicTakes(remembered)) return { kind: 'add', graphicId: remembered!, replaced };
   return { kind: 'choose', replaced };
 }

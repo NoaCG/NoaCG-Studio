@@ -77,13 +77,14 @@ test('a stored list is read safely: damaged entries drop, a newer type is kept w
     { id: 'ok', type: 'open', text: 'Fine' },
     { id: 'ok', type: 'open', text: 'Duplicate id' },
     { type: 'open', text: 'No id' },
-    { id: 'w', type: 'word', text: 'One word', maxLength: 25 },
+    // Word became a known type in phase 6, so the newer type here is one no build has yet.
+    { id: 'w', type: 'rating', text: 'Rate it', scale: 5 },
     { id: 'c', type: 'choice', text: 'Vote', options: ['A', 3, 'B'] },
     null,
   ];
   const read = q.readQuestions(stored);
   assert.deepEqual(read.map((x) => x.id), ['ok', 'w', 'c']);
-  assert.deepEqual(read[1], { id: 'w', type: 'word', text: 'One word', maxLength: 25 }, 'a newer build keeps what it wrote');
+  assert.deepEqual(read[1], { id: 'w', type: 'rating', text: 'Rate it', scale: 5 }, 'a newer build keeps what it wrote');
   assert.deepEqual(read[2].options, ['A', 'B']);
   assert.equal(q.questionLocked(read[1], { live: false, answers: 0 }), true);
   assert.ok('error' in q.editQuestion(read, 'w', { text: 'Changed' }, false));

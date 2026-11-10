@@ -1074,3 +1074,82 @@ test('CLI scaffold --svg builds the studio import\'s own default for every corpu
   expect(report.out).toEqual([]);
   expect(report.compared, 'most of the corpus builds').toBeGreaterThan(40);
 });
+
+test('the word cloud draws its Words by count, keeps every word inside its box, and draws nothing when empty (AC-14)', async ({ page }, info) => {
+  await phonePage(page);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.evaluate(() => {
+    document.documentElement.style.colorScheme = 'dark';
+    document.body.style.cssText = 'margin:0;background:linear-gradient(180deg, #3a3f4a, #0d0f14 70%, #2a2016)';
+  });
+  const tpl = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    return variantById('wc01')!.create({});
+  });
+  expect(tpl.fields.map((f) => f.title), 'the word cloud fields Interaction writes').toEqual(['Label', 'Question', 'Words']);
+  await page.evaluate(async (t) => {
+    const { composeDocument } = await import('/src/preview/composeDocument.ts');
+    const f = document.createElement('iframe');
+    f.id = 'cloud';
+    f.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0;background:transparent';
+    document.body.appendChild(f);
+    await new Promise((res) => {
+      f.onload = res;
+      f.srcdoc = composeDocument(t as never);
+    });
+  }, tpl);
+  const cloud = page.frames().find((f) => f.parentFrame() === page.mainFrame())!;
+  await cloud.waitForFunction(() => typeof (window as unknown as { play?: unknown }).play === 'function');
+  await cloud.evaluate(() => (window as unknown as { play(): void }).play());
+  await cloud.waitForFunction(() => getComputedStyle(document.querySelector('.audience')!).opacity === '1');
+
+  /** What the cloud drew: each word, its count, its size, and whether it sits inside the cloud's
+   *  box and the box inside the frame. */
+  const read = (words: string) =>
+    cloud.evaluate(async (w) => {
+      (window as unknown as { update(d: unknown): void }).update({ f2: w });
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      const host = document.querySelector('.audience-words')!.getBoundingClientRect();
+      const box = document.querySelector('.audience-box')!.getBoundingClientRect();
+      const counts = new Map(w.split('\n').map((l) => [l.slice(0, l.lastIndexOf('|')).trim(), Number(l.slice(l.lastIndexOf('|') + 1))]));
+      const drawn = [...document.querySelectorAll('.audience-word')].map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          word: el.textContent!,
+          count: counts.get(el.textContent!) ?? 0,
+          size: parseFloat(getComputedStyle(el).fontSize),
+          top: el.classList.contains('audience-word-top'),
+          inside: r.left >= host.left - 0.5 && r.right <= host.right + 0.5 && r.top >= host.top - 0.5 && r.bottom <= host.bottom + 0.5,
+        };
+      });
+      return { drawn, frame: box.left >= 0 && box.top >= 0 && box.right <= 1920 && box.bottom <= 1080, cloudShown: getComputedStyle(document.querySelector('.audience-words')!).display !== 'none' };
+    }, words);
+
+  // Ordinary words: all drawn, more-sent never smaller, the most-sent biggest and marked, inside.
+  const ordinary = 'Brilliant | 18\nTense | 11\nElectric | 9\nProud | 7\nLoud | 6\nFun | 1';
+  let r = await read(ordinary);
+  expect(r.drawn.map((d) => d.word).sort()).toEqual(['Brilliant', 'Electric', 'Fun', 'Loud', 'Proud', 'Tense']);
+  const bySent = [...r.drawn].sort((a, b) => b.count - a.count);
+  for (let i = 1; i < bySent.length; i += 1) expect(bySent[i].size, `${bySent[i].word} is not bigger than ${bySent[i - 1].word}`).toBeLessThanOrEqual(bySent[i - 1].size);
+  expect(r.drawn.filter((d) => d.top).map((d) => d.word)).toEqual(['Brilliant']);
+  expect(r.drawn.every((d) => d.inside) && r.frame).toBe(true);
+  await page.screenshot({ path: info.outputPath('wc01-ordinary.png') });
+
+  // The worst case Interaction can send: 30 words of 25 characters, the widest letters, steep
+  // counts. Nothing leaves the box, no word is drawn under the smallest size, and what is left out
+  // is the least-sent: the drawn words are the most-sent ones.
+  const worst = Array.from({ length: 30 }, (_, i) => `${String.fromCharCode(65 + (i % 26))}${'W'.repeat(23)}${i % 10} | ${300 - i * 9}`).join('\n');
+  r = await read(worst);
+  expect(r.drawn.length).toBeGreaterThan(0);
+  expect(r.drawn.every((d) => d.inside) && r.frame).toBe(true);
+  expect(Math.min(...r.drawn.map((d) => d.size))).toBeGreaterThanOrEqual(34 - 0.5);
+  const least = Math.min(...r.drawn.map((d) => d.count));
+  const sentMore = worst.split('\n').filter((l) => Number(l.split('|')[1]) > least).length;
+  expect(r.drawn.filter((d) => d.count > least).length, 'every word sent more than the least-drawn one is drawn').toBe(sentMore);
+  await page.screenshot({ path: info.outputPath('wc01-worst.png') });
+
+  // Empty Words draws no cloud.
+  r = await read('');
+  expect(r.drawn).toEqual([]);
+  expect(r.cloudShown).toBe(false);
+});
