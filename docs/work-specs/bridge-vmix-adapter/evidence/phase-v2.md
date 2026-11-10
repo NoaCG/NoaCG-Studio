@@ -775,3 +775,42 @@ or Preview, source edits in vMix, or changes to other playout adapters.
   no extra mixer function, and saved alias behavior on reopen. Restore
   both local vMix files by hash. Keep Bridge 0.11.0 and its independent
   release acceptance.
+
+#### Corrections from the independent source Rules review
+
+The owner-approved AC-4 and AC-5 changes supersede the earlier kept-key Load,
+post-Out rename and key-only On air rules recorded above. The saved alias
+reopen and rendering evidence remains separate. When the kept input is a
+Browser, the recovery message tells the operator to check it, unload it if
+needed and remove it only when safe. With a foreign-type kept GUID, Bridge
+reports the conflict and asks the operator to check the input in vMix.
+
+A valid current v2 health reply includes the Bridge version even when it
+does not list vMix. A malformed capability reply cannot declare vMix
+unsupported. The older protocol's genuine outdated reply remains valid.
+
+The absent kept-key case is rechecked before Add and before In when a
+previous key exists. If the previous input reappears during Add readback,
+Bridge keeps the old association. If it reappears after the confirmed new
+association and before In, Bridge stops the action without sending In.
+As with an external overlay writer, vMix supplies no atomic operation that
+locks the input table between the last read and a function.
+
+### Findings after coding
+
+- The scoped Unload decision needs the overlay and GUID from the operator's
+  click. If an operator moves the Browser before the next reading, Unload
+  refuses instead of moving with it. Studio sends the captured pair and
+  Bridge checks it again immediately before the channel command. Direct
+  callers may still omit the GUID. The Browser is left alone if the stored
+  association, selected overlay or Browser type changed.
+- A valid XML reply delayed by 180 ms exposed a final observation that had
+  at most 150 ms left to finish. Schedule the final Add observation with
+  room for the measured read time inside the existing three-second cap.
+  Require its complete valid snapshot, retain the seven-second action
+  limit and leave malformed or timed-out reads uncertain.
+- The configured agent-access job on the Rules checkpoint failed before
+  running its CLI flow. The root-only compiled CLI tried to import the
+  vMix XML parser during `--version`. The default CLI no longer loads
+  that parser until Bridge starts. The packaged Bridge bundles the parser
+  and runs its own startup health check.

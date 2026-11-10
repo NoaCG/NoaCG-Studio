@@ -1,5 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
-import { PLAYOUT_V, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type VmixInfo, type VmixInput } from '../src/control/playoutProtocol';
+import { PLAYOUT_V, VMIX_BROWSER_LOAD_PROBLEM, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type VmixInfo, type VmixInput } from '../src/control/playoutProtocol';
 
 // A FAKE NOACG BRIDGE AT THE NETWORK LAYER, for the playout specs that drive server clips
 // (docs/CLIP_PLAYBACK_PLAN.md §10): `/health`, `/status`, `/list`, `/act` and `/state`, answered from
@@ -29,22 +29,24 @@ export interface FakeVmixRequest {
   outputUrl?: string;
 }
 
-export function fakeVmix(overlays = 8) {
-  const info: VmixInfo = { version: '29.0.0.49', edition: 'Trial', overlays, inputs: 0 };
-  const held: Record<number, { input: VmixInput; outputUrl?: string } | undefined> = {};
+export function fakeVmix(overlays: 1 | 4 | 8 = 8) {
+  const info: VmixInfo = {
+    version: overlays === 4 ? '28.0.0.42' : '29.0.0.49',
+    edition: overlays === 1 ? 'Basic HD' : 'Trial', overlays, inputs: 0,
+  };
+  const held: Record<number, { input: VmixInput } | undefined> = {};
+  const kept = new Map<string, VmixInput>();
   const actions: FakeVmixRequest[] = [];
   const routes: string[] = [];
   const state: { setup?: AgentError; refuseAction?: AgentError; actionReply?: unknown; stateReply?: unknown } = {};
   let generation = 0;
-  const sameOutput = (actual: string | undefined, expected: string | undefined) => {
-    if (!actual || !expected) return false;
-    const address = (value: string) => {
-      const url = new URL(value);
-      url.searchParams.delete('name');
-      return url.href;
-    };
-    return address(actual) === address(expected);
+  let nextInput = 2;
+  const outputId = (value: string) => {
+    const url = new URL(value);
+    url.searchParams.delete('name');
+    return url.href;
   };
+  const removeInput = (url: string) => kept.delete(outputId(url));
   const reply = (path: string, body: FakeVmixRequest) => {
     routes.push(path);
     if (path === '/act') {
@@ -52,37 +54,49 @@ export function fakeVmix(overlays = 8) {
       if (state.refuseAction) return { ok: false, v: PLAYOUT_V, error: state.refuseAction };
     }
     if (state.setup) return { ok: false, v: PLAYOUT_V, error: state.setup };
-    const occupiedKeys = new Set(Object.values(held).flatMap(row => row ? [row.input.key] : []));
-    const vmix = { ...info, inputs: Math.max(info.inputs, occupiedKeys.size) };
+    const inputKeys = new Set([...kept.values()].map(input => input.key));
+    for (const row of Object.values(held)) if (row) inputKeys.add(row.input.key);
+    const vmix = { ...info, inputs: Math.max(info.inputs, inputKeys.size) };
     if (path === '/status' || path === '/connect') return {
       ok: true, v: PLAYOUT_V, vmix, version: info.version, raw: 'VERSION OK', capabilities: ['state'],
       ...(path === '/connect' ? { servers: [] } : {}),
     };
+    const remembered = body.outputUrl === undefined ? undefined : kept.get(outputId(body.outputUrl));
     if (path === '/state') return state.stateReply === undefined ? {
       ok: true, v: PLAYOUT_V, session: 'test', observedAt: 0, vmix, linked: [],
+      ...(remembered ? { loadProblem: VMIX_BROWSER_LOAD_PROBLEM } : {}),
       overlays: Array.from({ length: info.overlays }, (_, index) => {
         const overlay = index + 1;
-        return { overlay, input: held[overlay]?.input, ownsOutput: sameOutput(held[overlay]?.outputUrl, body.outputUrl) };
+        return { overlay, input: held[overlay]?.input, ownsOutput: !!remembered && held[overlay]?.input.key === remembered.key };
       }),
     } : state.stateReply;
     if (path === '/act' && body.action) {
       const { slot: { overlay }, verb, item, expectedOverlayInput } = body.action;
+      const id = outputId(item.name);
       if (verb === 'take') {
+        if (kept.has(id)) return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: VMIX_BROWSER_LOAD_PROBLEM } };
         if (expectedOverlayInput !== (held[overlay]?.input.key ?? null)) {
           return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The overlay changed.' } };
         }
-        held[overlay] = {
-          input: { key: '69c8c683-9d2b-4fd4-b4c8-c6c85247ad88', number: 2, title: `NoaCG ${item.label}`, type: 'Browser' },
-          outputUrl: item.name,
-        };
-      } else if (sameOutput(held[overlay]?.outputUrl, item.name)) delete held[overlay];
+        const number = nextInput++;
+        const key = '69c8c683-9d2b-4fd4-b4c8-' + number.toString(16).padStart(12, '0');
+        const input = { key, number, title: `NoaCG ${item.label}`, type: 'Browser' };
+        kept.set(id, input);
+        held[overlay] = { input };
+      } else {
+        const input = held[overlay]?.input;
+        if (expectedOverlayInput !== undefined && (expectedOverlayInput !== input?.key || kept.get(id)?.key !== input?.key)) {
+          return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The overlay changed.' } };
+        }
+        if (input && kept.get(id)?.key === input.key) delete held[overlay];
+      }
       generation += 1;
       return state.actionReply === undefined
         ? { ok: true, v: PLAYOUT_V, raw: 'FUNCTION OK', session: 'test', generation } : state.actionReply;
     }
     return { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code: 'unsupported', detail: 'Unsupported vMix test route.' } };
   };
-  return { info, held, actions, routes, state, reply };
+  return { info, held, actions, routes, state, reply, removeInput };
 }
 
 /** Settings for a paired Bridge and a studio with two channels, clips on channel 2. */
@@ -188,7 +202,7 @@ export async function fakeBridge(page: Pick<Page, 'route'>, init: Partial<Omit<F
     stateGate: () => {},
     list: [],
     features: ['state', 'playback', 'sequence'],
-    version: '0.5.0',
+    version: init.vmix ? '0.11.0' : '0.5.0',
     capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'],
     lengths: {},
     refuse: () => null,

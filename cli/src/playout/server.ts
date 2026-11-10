@@ -355,9 +355,10 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   if (!isRecord(a)) throw new UsageError('The request has no action.');
   const slot = readSlot(a.slot);
   const expected = a.expectedOverlayInput;
-  if (expected !== undefined && (a.verb !== 'take' || slot.adapter !== 'vmix' ||
-    (expected !== null && (typeof expected !== 'string' || !VMIX_INPUT_KEY.test(expected))))) {
-    throw new UsageError('A vMix take can expect an empty overlay or name its current input by key.');
+  if (expected !== undefined && (slot.adapter !== 'vmix' || (a.verb !== 'take' && a.verb !== 'out') ||
+    (expected !== null && (typeof expected !== 'string' || !VMIX_INPUT_KEY.test(expected))) ||
+    (expected === null && a.verb !== 'take'))) {
+    throw new UsageError('A vMix take or out can name the current input by key. Only take can expect an empty overlay.');
   }
   if (a.imageFit !== undefined && (a.verb !== 'take' || (a.imageFit !== 'fit' && a.imageFit !== 'stretch') || slot.adapter !== 'casparcg')) throw new UsageError('imageFit is Fit or Stretch on a CasparCG media Take.');
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
@@ -393,7 +394,10 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
     }
     case 'out': {
       const item = isRecord(a.item) ? readItem(a.item) : undefined;
-      return { verb: 'out', slot, item, ...(a.fadeOut !== undefined ? { fadeOut: readFade(a.fadeOut, 'fadeOut') } : {}) };
+      return {
+        verb: 'out', slot, item, ...(a.fadeOut !== undefined ? { fadeOut: readFade(a.fadeOut, 'fadeOut') } : {}),
+        ...(typeof expected === 'string' ? { expectedOverlayInput: expected } : {}),
+      };
     }
     case 'next':
     case 'pause':

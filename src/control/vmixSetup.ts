@@ -2,7 +2,7 @@ import {
   actVmix, bridgePaired, namedOutputUrl, readVmixOverlays, testVmix,
   type PlayoutSettings, type VmixConnection,
 } from './playoutLink';
-import { VMIX_INPUT_KEY, type VmixInfo, type VmixOverlayState } from './playoutProtocol';
+import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, type VmixInfo, type VmixOverlayState } from './playoutProtocol';
 
 export function vmixOverlay(settings: PlayoutSettings, count: number): number {
   const selected = settings.vmix?.overlay;
@@ -16,27 +16,21 @@ export function vmixConnectionLine(info: VmixInfo): string {
 
 export interface VmixOutputReading {
   connection: VmixConnection;
-  configuredOverlay?: number;
   overlay?: VmixOverlayState;
   detail?: string;
   loadProblem?: string;
 }
 
 /** Scope the XML to this production's address. A missing or failed reading stays unknown. */
-export async function readVmixOutput(settings: PlayoutSettings, outputUrl: string | null): Promise<VmixOutputReading> {
+export async function readVmixOutput(settings: PlayoutSettings, outputUrl: string | null, atOverlay?: number): Promise<VmixOutputReading> {
   const connection = await testVmix(settings);
   if (!connection.keyed || !connection.info || !outputUrl) return { connection };
   const { result, info, overlays, loadProblem } = await readVmixOverlays(settings, outputUrl);
   if (!info) return { connection, detail: result.detail };
-  const channel = vmixOverlay(settings, info.overlays);
-  const configured = overlays?.find(row => row.overlay === channel);
-  const owned = configured?.ownsOutput ? configured : overlays?.find(row => row.ownsOutput);
-  return {
-    connection: { ...connection, info },
-    configuredOverlay: channel,
-    overlay: owned ?? configured,
-    loadProblem,
-  };
+  const channel = atOverlay ?? vmixOverlay(settings, info.overlays);
+  const selected = overlays?.find(row => row.overlay === channel);
+  const matched = atOverlay === undefined && !selected?.ownsOutput ? overlays?.find(row => row.ownsOutput) : undefined;
+  return { connection: { ...connection, info }, overlay: matched ?? selected, loadProblem };
 }
 
 export function observeVmixOutput(
@@ -69,36 +63,43 @@ export interface VmixReplace {
   input: NonNullable<VmixOverlayState['input']>;
 }
 
+export type VmixOutputCommand =
+  | { verb: 'take'; confirmed?: VmixReplace }
+  | { verb: 'out'; overlay: number; inputKey: string };
+
 const sameChoice = (a: VmixOutputChoice, b: VmixOutputChoice | null): b is VmixOutputChoice =>
   !!b && a.url === b.url && a.settings.agentUrl === b.settings.agentUrl &&
   a.settings.agentToken === b.settings.agentToken && a.settings.vmix?.overlay === b.settings.vmix?.overlay;
 
 /** Both the panel and first Publish use the same check, and the confirmed key is sent to the Bridge. */
 export async function changeVmixOutput(
-  verb: 'take' | 'out',
+  command: VmixOutputCommand,
   current: () => VmixOutputChoice | null,
-  confirmed?: VmixReplace,
 ): Promise<{ message?: string; replace?: VmixReplace; completed?: true }> {
+  const { verb } = command;
+  const confirmed = verb === 'take' ? command.confirmed : undefined;
   const choice = current();
   if (!choice) return {};
   if (confirmed && !sameChoice(confirmed.choice, choice)) return { message: 'The vMix output setup changed. Check it and press Load again.' };
   if (!bridgePaired(choice.settings)) return { message: 'Pair NoaCG Bridge to use vMix.' };
-  const { connection, configuredOverlay, overlay, detail, loadProblem } = await readVmixOutput(choice.settings, choice.url);
+  const { connection, overlay, detail, loadProblem } = await readVmixOutput(
+    choice.settings, choice.url, verb === 'out' ? command.overlay : undefined,
+  );
   if (!sameChoice(choice, current())) return {};
   if (connection.result?.state !== undefined && connection.result.state !== 'ok') return { message: connection.result.detail };
   if (!connection.keyed) return { message: 'Update NoaCG Bridge to load or unload an output in vMix.' };
   if (!overlay) return { message: loadProblem ?? detail ?? 'The vMix overlay could not be read. Check vMix and try again.' };
   if (verb === 'take' && loadProblem) return { message: loadProblem };
-  if (verb === 'take' && overlay.overlay !== configuredOverlay) {
-    return { message: `Unload from Overlay ${overlay.overlay} before loading on Overlay ${configuredOverlay}.` };
-  }
+  if (verb === 'take' && overlay.ownsOutput) return { message: VMIX_BROWSER_LOAD_PROBLEM };
 
   const input = overlay.input;
+  if (verb === 'out' && (!overlay.ownsOutput || input?.key !== command.inputKey)) {
+    return { message: `The Browser on Overlay ${command.overlay} changed. Check vMix before trying Unload again.` };
+  }
   if (confirmed && (confirmed.overlay !== overlay.overlay || !VMIX_INPUT_KEY.test(confirmed.input.key) ||
     confirmed.input.key.toLowerCase() !== input?.key)) {
     return { message: 'The input on the vMix overlay changed. Check it and press Load again.' };
   }
-  if (verb === 'take' && overlay.ownsOutput) return { completed: true };
   if (verb === 'take' && input && !confirmed) return { replace: { choice, overlay: overlay.overlay, input } };
   const result = await actVmix(choice.settings, () => {
     const latest = current();
@@ -107,7 +108,7 @@ export async function changeVmixOutput(
     const item = { kind: 'url', name: namedOutputUrl(latest.url, `vMix Overlay ${overlay.overlay}`), label: latest.title } as const;
     return verb === 'take'
       ? { verb, slot, item, expectedOverlayInput: input?.key ?? null }
-      : { verb, slot, item };
+      : { verb, slot, item, expectedOverlayInput: command.inputKey };
   });
   if (!result) return {};
   if (!sameChoice(choice, current())) {

@@ -8,10 +8,11 @@ const { changeVmixOutput, readVmixOutput, vmixOverlay } = await import('../src/c
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
 const choice = { settings, url: 'http://127.0.0.1:5284/output?production=owned', title: 'News' };
-const health = { ok: true, agent: 'noacg-bridge', v: 2, adapters: ['casparcg', 'vmix'], features: ['vmix-output-key'] };
+const health = { ok: true, agent: 'noacg-bridge', v: 2, version: '0.11.0', adapters: ['casparcg', 'vmix'], features: ['vmix-output-key'] };
 const ok = { ok: true, v: 2 };
 const vmix = { version: '29.0.0.49', edition: 'Trial', overlays: 8, inputs: 2 };
-const status = { ...ok, vmix, version: vmix.version, raw: 'VERSION OK', capabilities: ['state'], servers: [] };
+const status = { ...ok, vmix, version: vmix.version, raw: 'VERSION OK', capabilities: ['state'] };
+const connected = { ...status, servers: [] };
 const acted = { ...ok, raw: 'FUNCTION OK', session: 'fixture', generation: 1 };
 const scoped = (rows = {}, info = vmix, loadProblem) => ({
   ...ok, vmix: info, session: 'fixture', observedAt: 1, linked: [], loadProblem,
@@ -19,6 +20,8 @@ const scoped = (rows = {}, info = vmix, loadProblem) => ({
 });
 const occupied = { key: '1a111111-aaaa-41aa-8aaa-aaaaaaaaaaaa', number: 1, type: 'Image', title: 'Sponsor' };
 const browser = { key: '2b222222-bbbb-42bb-8bbb-bbbbbbbbbbbb', number: 2, type: 'Browser', title: 'NoaCG News' };
+const load = { verb: 'take' };
+const outOn3 = { verb: 'out', overlay: 3, inputKey: browser.key };
 const unload = { verb: 'out', slot: { adapter: 'vmix', overlay: 3 }, item: { kind: 'url', name: choice.url, label: choice.title } };
 
 test('the output uses the highest overlay only when no valid choice fits this vMix', () => {
@@ -40,6 +43,12 @@ test('an invalid Bridge health reply does not disprove vMix support', async (t) 
     [200, { ...health, ok: false, adapters: [] }], [200, { ...health, v: 3 }],
     [200, { ...health, features: ['vmix-output-key', 2] }], [200, { ...health, features: null }],
     [200, { ...health, adapters: [], features: ['vmix-output-key', 2] }],
+    [200, { ...health, adapters: ['casparcg'] }],
+    [200, { ...health, version: null }],
+    [200, { ...health, version: undefined, adapters: ['casparcg'], features: [] }],
+    [200, { ...health, error: { hop: 'agent', code: 'refused', detail: 'Refused.' } }],
+    [200, { ...health, generation: 3 }],
+    [200, { ...health, token: 'not-a-health-field' }],
   ]) {
     const connection = await testVmix(settings);
     assert.equal(connection.supported, undefined);
@@ -47,7 +56,7 @@ test('an invalid Bridge health reply does not disprove vMix support', async (t) 
     const act = await actVmix(settings, () => ({ verb: 'out', slot: { adapter: 'vmix', overlay: 3 }, item: { kind: 'url', name: choice.url, label: choice.title } }));
     assert.equal(act.state, 'bridge');
   }
-  body = { ...health, adapters: ['casparcg'] };
+  body = { ...health, adapters: ['casparcg'], features: ['future-feature'] };
   assert.equal((await testVmix(settings)).supported, false);
   body = { ok: true, agent: 'noacg-caspar', v: 1 };
   const legacy = await testVmix(settings);
@@ -69,19 +78,19 @@ test('vMix replacement requires the exact confirmed overlay and input before dis
     actions.push(JSON.parse(options.body));
     return Response.json(acted);
   });
-  const { replace } = await changeVmixOutput('take', () => current);
+  const { replace } = await changeVmixOutput(load, () => current);
   assert.equal(replace.input.key, occupied.key);
   assert.deepEqual(actions, []);
 
   held = { ...held, key: '2b222222-bbbb-42bb-8bbb-bbbbbbbbbbbb' };
-  assert.match((await changeVmixOutput('take', () => current, replace)).message, /input.*changed/);
+  assert.match((await changeVmixOutput({ ...load, confirmed: replace }, () => current)).message, /input.*changed/);
   current = { ...choice, settings: { ...settings, vmix: { overlay: 4 } } };
-  assert.match((await changeVmixOutput('take', () => current, replace)).message, /setup changed/);
+  assert.match((await changeVmixOutput({ ...load, confirmed: replace }, () => current)).message, /setup changed/);
   assert.deepEqual(actions, []);
 
   held = { ...occupied, key: occupied.key.toUpperCase() };
   const upper = { ...replace, input: { ...replace.input, key: replace.input.key.toUpperCase() } };
-  assert.equal((await changeVmixOutput('take', () => choice, upper)).completed, true);
+  assert.equal((await changeVmixOutput({ ...load, confirmed: upper }, () => choice)).completed, true);
   assert.deepEqual(actions, [{
     target: { adapter: 'vmix' },
     action: {
@@ -91,7 +100,7 @@ test('vMix replacement requires the exact confirmed overlay and input before dis
   }]);
 });
 
-test('a fresh reading of the owned live output makes Load a no-op', async (t) => {
+test('a matched live Browser never verifies Load, even if Bridge omits the diagnostic', async (t) => {
   const paths = [];
   t.mock.method(globalThis, 'fetch', async url => {
     const path = new URL(url).pathname;
@@ -101,7 +110,7 @@ test('a fresh reading of the owned live output makes Load a no-op', async (t) =>
     if (path === '/state') return Response.json(scoped({ 3: { input: browser, ownsOutput: true } }));
     assert.fail('unexpected mutation ' + path);
   });
-  assert.deepEqual(await changeVmixOutput('take', () => choice), { completed: true });
+  assert.match((await changeVmixOutput(load, () => choice)).message, /cannot verify the current vMix Browser page/);
   assert.deepEqual(paths, ['/health', '/status', '/state']);
 });
 
@@ -118,13 +127,32 @@ test('a stale vMix Browser listener prevents Load but leaves the owned overlay a
     actions.push(JSON.parse(options.body).action);
     return Response.json(acted);
   });
-  assert.deepEqual(await changeVmixOutput('take', () => choice), { message: loadProblem });
+  assert.deepEqual(await changeVmixOutput(load, () => choice), { message: loadProblem });
   ownsOutput = false;
-  assert.deepEqual(await changeVmixOutput('take', () => choice), { message: loadProblem });
+  assert.deepEqual(await changeVmixOutput(load, () => choice), { message: loadProblem });
   assert.deepEqual(actions, []);
   ownsOutput = true;
-  await changeVmixOutput('out', () => choice);
-  assert.deepEqual(actions.map(action => [action.verb, action.slot]), [['out', { adapter: 'vmix', overlay: 3 }]]);
+  await changeVmixOutput(outOn3, () => choice);
+  assert.deepEqual(actions.map(action => [action.verb, action.slot, action.expectedOverlayInput]),
+    [['out', { adapter: 'vmix', overlay: 3 }, browser.key]]);
+});
+
+test('Unload refuses if the Browser moved or changed after the click was offered', async (t) => {
+  let reading;
+  t.mock.method(globalThis, 'fetch', async url => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json(health);
+    if (path === '/status') return Response.json(status);
+    if (path === '/state') return Response.json(reading);
+    assert.fail('unexpected Unload ' + path);
+  });
+  for (reading of [
+    scoped({ 4: { input: browser, ownsOutput: true } }),
+    scoped({ 3: { input: { ...browser, key: occupied.key }, ownsOutput: true } }),
+  ]) {
+    const result = await changeVmixOutput(outOn3, () => choice);
+    assert.match(result.message, /Browser on Overlay 3 changed/);
+  }
 });
 
 test('switching adapters during the final health probe sends no vMix action', { timeout: 3000 }, async (t) => {
@@ -145,11 +173,11 @@ test('switching adapters during the final health probe sends no vMix action', { 
     if (path === '/state') return Response.json(scoped());
     assert.fail('unexpected mutation ' + path);
   });
-  const load = changeVmixOutput('take', () => current);
+  const loading = changeVmixOutput(load, () => current);
   await dispatchProbe.promise;
   current = null;
   releaseProbe.resolve();
-  assert.deepEqual(await load, {});
+  assert.deepEqual(await loading, {});
 });
 
 test('a vMix adapter without keyed output actions offers Update and sends no mutation', async (t) => {
@@ -159,12 +187,15 @@ test('a vMix adapter without keyed output actions offers Update and sends no mut
     paths.push(path);
     return Response.json(path === '/health' ? { ...health, features: [] } : status);
   });
-  assert.match((await changeVmixOutput('take', () => choice)).message, /Update NoaCG Bridge/);
+  assert.match((await changeVmixOutput(load, () => choice)).message, /Update NoaCG Bridge/);
   assert.deepEqual(paths, ['/health', '/status']);
 });
 
 test('vMix accepts only route-shaped replies and preserves typed failures', async (t) => {
   let reply;
+  const savedWindow = globalThis.window;
+  globalThis.window = { location: { origin: 'https://noacg.studio' } };
+  t.after(() => { globalThis.window = savedWindow; });
   const calls = {
     '/status': async () => (await testVmix(settings)).result,
     '/connect': async () => (await testVmix(settings, true)).result,
@@ -178,17 +209,24 @@ test('vMix accepts only route-shaped replies and preserves typed failures', asyn
     if (reply === 'lost') throw new Error('lost reply');
     return Response.json(reply[1], { status: reply[0] });
   });
-  const successes = { '/status': status, '/connect': status, '/state': scoped(), '/act': acted };
+  const successes = { '/status': status, '/connect': connected, '/state': scoped(), '/act': acted };
+  const domainError = { hop: 'target', code: 'refused', detail: 'Refused.' };
   for (const [path, call] of Object.entries(calls)) {
     const contradictory = { ...successes[path], error: { hop: 'agent', code: 'usage', detail: 'Invalid request.' } };
-    for (reply of [[200, null], [200, { ok: 'false' }], [200, ok], [503, successes[path]], [200, contradictory]]) {
+    const falseCertainty = { ...successes[path], ok: false, error: domainError };
+    const foreignField = path === '/act' ? { vmix } : { generation: 3 };
+    for (reply of [
+      [200, null], [200, { ok: 'false' }], [200, ok], [503, successes[path]], [200, contradictory],
+      [200, falseCertainty], [401, successes[path]], [200, { ...successes[path], ...foreignField }],
+    ]) {
       const before = requests;
       const result = await call();
       assert.equal(result.state, 'bridge', path);
       assert.match(result.detail, path === '/act' ? /result is unknown/ : /valid vMix reading/);
+      if (path === '/act') assert.equal(result.unknownAction, true);
       assert.equal(requests, before + 1);
     }
-    reply = [200, successes[path]];
+    reply = [200, { ...successes[path], futureNote: { value: 'additive' } }];
     assert.equal((await call()).state, 'ok', path);
     reply = [200, { ok: false, v: 2, error: { hop: 'target', code: 'unreachable', setup: 'not-running', detail: 'Start vMix.' } }];
     assert.equal((await call()).detail, 'Start vMix.', path);
@@ -198,9 +236,53 @@ test('vMix accepts only route-shaped replies and preserves typed failures', asyn
     assert.equal((await call()).detail, 'vMix did not answer.', path);
     reply = [401, null];
     assert.equal((await call()).state, 'token', path);
+    reply = [403, { ok: false, v: 2, error: { hop: 'agent', code: 'refused', detail: 'Invalid origin.' } }];
+    assert.match((await call()).detail, /Bridge refused this site/);
   }
   reply = 'lost';
   assert.match((await calls['/act']()).detail, /lost reply.*result is unknown/);
+});
+
+test('connect validates every remembered server and preserves a complete optional Studio setup', async (t) => {
+  const server = { host: 'playout.local', port: 5250 };
+  const studio = { channels: [{ channel: 1, name: 'Graphics' }], output: { channel: 1, layer: 0 }, newMedia: 1 };
+  let servers;
+  t.mock.method(globalThis, 'fetch', async url => Response.json(new URL(url).pathname === '/health' ? health : { ...connected, servers }));
+  for (servers of [
+    [null], [server, { ...server, port: 65536 }], [{ ...server, host: 'bad host' }],
+    [{ ...server, studio: null }], [{ ...server, studio: { ...studio, channels: [null] } }],
+    [{ ...server, studio: { ...studio, output: { channel: 1, layer: -1 } } }],
+  ]) {
+    const result = await testVmix(settings, true);
+    assert.equal(result.info, undefined);
+    assert.match(result.result.detail, /valid vMix reading/);
+  }
+  servers = [server, { ...server, host: 'other.local', studio: { ...studio, futureField: 1 } }];
+  assert.deepEqual((await testVmix(settings, true)).info, vmix);
+});
+
+test('vMix reports only the overlay count its version and edition support', async (t) => {
+  let info;
+  let version;
+  t.mock.method(globalThis, 'fetch', async url => Response.json(new URL(url).pathname === '/health' ? health : { ...status, version, vmix: info }));
+  for (info of [
+    { ...vmix, overlays: 7 }, { ...vmix, overlays: 4 }, { ...vmix, edition: 'Basic HD' },
+    { ...vmix, edition: '' }, { ...vmix, version: 'v29' }, { ...vmix, version: '29.0.49' },
+    { ...vmix, version: '28.0.0.42' },
+  ]) {
+    version = info.version;
+    assert.equal((await testVmix(settings)).info, undefined, JSON.stringify(info));
+  }
+  for (info of [
+    vmix, { ...vmix, version: '28.0.0.42', edition: '4K', overlays: 4 },
+    { ...vmix, edition: 'Basic HD', overlays: 1 },
+    { ...vmix, version: '30.0.0.1', edition: 'Future edition' },
+  ]) {
+    version = info.version;
+    assert.deepEqual((await testVmix(settings)).info, info);
+  }
+  version = '29.0.0.49';
+  assert.equal((await testVmix(settings)).info, undefined);
 });
 
 test('an unknown sent result stays visible for its original overlay after a settings change', async (t) => {
@@ -215,7 +297,7 @@ test('an unknown sent result stays visible for its original overlay after a sett
     current = { ...choice, settings: { ...settings, vmix: { overlay: 4 } } };
     return Response.json(null);
   });
-  const outcome = await changeVmixOutput('take', () => current);
+  const outcome = await changeVmixOutput(load, () => current);
   assert.match(outcome.message, /^The action targeted Overlay 3\. The vMix action result is unknown/);
   assert.deepEqual(dispatches, [3]);
 });
@@ -247,24 +329,34 @@ test('scoped vMix state grants overlay authority only as a complete fresh snapsh
     scoped({ 7: { input: browser, ownsOutput: true }, 8: { input: wrongKey, ownsOutput: true } }),
     scoped({ 7: { input: browser }, 8: { input: { ...browser, title: 'Different' } } }),
     scoped({ 8: { ownsOutput: undefined } }, vmix, 'The key store is unavailable.'),
+    scoped({}, { ...vmix, overlays: 7 }),
+    ...[
+      [null], [{ id: '', output: {}, live: [] }], [{ id: 'show', output: [], live: [] }],
+      [{ id: 'show', output: { onOverlay: 9 }, live: [] }],
+      [{ id: 'show', output: {}, live: ['cue', false] }],
+    ].map(linked => ({ ...scoped(), linked })),
   ]) {
     assert.equal((await readVmixOutput(settings, choice.url)).overlay, undefined);
-    assert.match((await changeVmixOutput('take', () => choice)).message, /valid vMix reading/);
+    assert.match((await changeVmixOutput(load, () => choice)).message, /valid vMix reading/);
   }
   const diagnosticRows = Object.fromEntries(Array.from({ length: 8 }, (_, index) => [index + 1, { ownsOutput: undefined }]));
   reading = scoped(diagnosticRows, vmix, 'The key store is unavailable.');
-  assert.deepEqual(await changeVmixOutput('take', () => choice), { message: 'The key store is unavailable.' });
+  assert.deepEqual(await changeVmixOutput(load, () => choice), { message: 'The key store is unavailable.' });
   assert.deepEqual(requests, []);
 
-  reading = scoped();
+  reading = {
+    ...scoped({ 6: { input: browser } }),
+    linked: [{ id: 'show', output: { onOverlay: 6 }, live: ['cue'], futureNote: true }],
+  };
   const unset = { ...choice, settings: { ...settings, vmix: undefined } };
-  assert.equal((await changeVmixOutput('take', () => unset)).completed, true);
+  assert.equal((await changeVmixOutput(load, () => unset)).completed, true);
   assert.equal(requests[0].slot.overlay, 8);
-  assert.equal((await changeVmixOutput('take', () => choice)).completed, true);
+  assert.equal((await changeVmixOutput(load, () => choice)).completed, true);
   assert.equal(requests[1].slot.overlay, 3);
   reading = scoped({ 4: { input: browser, ownsOutput: true }, 8: { input: browser, ownsOutput: true } });
-  assert.equal((await changeVmixOutput('out', () => choice)).completed, true);
+  assert.equal((await changeVmixOutput({ ...outOn3, overlay: 4 }, () => choice)).completed, true);
   assert.equal(requests[2].slot.overlay, 4);
+  assert.equal(requests[2].expectedOverlayInput, browser.key);
 });
 
 test('a native Clear cancelled during the health probe does not reach the Bridge', { timeout: 3000 }, async (t) => {

@@ -39,7 +39,7 @@ import {
   type PlayoutResult,
   type PlayoutSettings,
 } from '../../control/playoutLink';
-import { changeVmixOutput, type VmixReplace } from '../../control/vmixSetup';
+import { changeVmixOutput, type VmixOutputCommand, type VmixReplace } from '../../control/vmixSetup';
 import type { Resolution } from '../../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../../model/projectFormat';
 import { outputEmbedFileName, outputEmbedHtml } from '../../export/outputEmbed';
@@ -359,14 +359,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
     return said ? `${base.replace(/\.?$/, '.')} ${said}` : base;
   };
 
-  const vmixVerb = (verb: 'take' | 'out', url: string, confirmed?: VmixReplace, automatic = false) => slotAction(async () => {
+  const vmixVerb = (command: VmixOutputCommand, url: string, automatic = false) => slotAction(async () => {
     setVmixReplace(undefined);
-    const outcome = await changeVmixOutput(verb, () => {
+    const outcome = await changeVmixOutput(command, () => {
       if (!io.pageCanDispatch()) return null;
       const saved = currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
       if (!saved?.outputSlug || outputPageUrl(saved.outputSlug) !== url || (automatic && !readOutputSetup(saved.outputSetup)?.vmix)) return null;
       return { settings: loadPlayoutSettings(), url, title: saved.name };
-    }, confirmed);
+    });
     if (!io.pageCanDispatch()) return;
     if (outcome.replace) {
       setVmixReplace(outcome.replace);
@@ -483,7 +483,7 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
           if (latest && productionPlayoutSystem(latest, legacyCasparActivity, defaultCaspar) === 'casparcg') {
             await loadOnSlot(outputPageUrl(published.outputSlug));
           } else if (readOutputSetup(latest?.outputSetup)?.vmix) {
-            await vmixVerb('take', outputPageUrl(published.outputSlug), undefined, true);
+            await vmixVerb({ verb: 'take' }, outputPageUrl(published.outputSlug), true);
           }
         }
         return published.version ? { n: published.version.n, h: published.version.h } : null;

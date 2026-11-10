@@ -1525,7 +1525,7 @@ test('vMix pairing and Settings report the connection and keep the selected over
     if (health === 'offline') return route.abort('failed');
     if (health === 'older' || health === 'invalid') return route.fulfill({
       headers: { 'Access-Control-Allow-Origin': '*' },
-      json: { ok: health === 'older', agent: 'noacg-bridge', v: 2, adapters: ['casparcg'] },
+      json: { ok: health === 'older', agent: 'noacg-bridge', v: 2, version: '0.10.2', adapters: ['casparcg'] },
     });
     return route.fallback();
   });
@@ -1602,7 +1602,7 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   } finally {
     releaseReading.resolve();
   }
-  await expect(row).toContainText('On air');
+  await expect(row).toContainText('Source unverified');
   const load = {
     target: { adapter: 'vmix' },
     action: {
@@ -1619,16 +1619,26 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   await settings.getByTestId('playout-settings-close').click();
   await page.getByTestId('production-status').click();
   await expect(row).toContainText('Output on Overlay 3');
+  const originalKey = vmix.held[3]?.input.key;
+  expect(originalKey).toBeTruthy();
   await row.getByRole('button', { name: 'Unload' }).click();
   await expect(row).toContainText('Off');
   await expect(row).toContainText('Output on Overlay 2');
   expect(vmix.actions[1]).toEqual({
     target: { adapter: 'vmix' },
-    action: { verb: 'out', slot: load.action.slot, item: vmix.actions[0].action?.item },
+    action: { verb: 'out', slot: load.action.slot, item: vmix.actions[0].action?.item, expectedOverlayInput: originalKey },
   });
 
+  const nextLoad = row.getByRole('button', { name: 'Load' });
+  await expect(nextLoad).toBeDisabled();
+  await expect(panel.getByTestId('vmix-bridge')).toContainText('Bridge cannot verify the current vMix Browser page.');
+  expect(vmix.actions).toHaveLength(2);
+
+  // The operator removes the unused Browser in vMix before the next Load.
+  expect(vmix.removeInput(vmix.actions[0].action!.item.name)).toBe(true);
   vmix.held[2] = { input: { key: '1a111111-aaaa-41aa-8aaa-aaaaaaaaaaaa', type: 'Image', number: 1, title: 'Sponsor bug' } };
-  await row.getByRole('button', { name: 'Load' }).click();
+  await expect(nextLoad).toBeEnabled();
+  await nextLoad.click();
   const confirm = panel.getByTestId('vmix-replace');
   await expect(confirm).toContainText('Replace “Sponsor bug” on Overlay 2?');
   await confirm.getByRole('button', { name: 'Cancel' }).click();
@@ -1658,7 +1668,8 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
 
   delete vmix.state.stateReply;
   delete vmix.state.actionReply;
-  await expect(row).toContainText('On air');
+  await expect(row).toContainText('Source unverified');
+  await expect(page.getByTestId('production-note')).toContainText('The vMix action result is unknown.');
   expect(vmix.actions).toHaveLength(4);
   await row.getByRole('button', { name: 'Unload' }).click();
   await expect(row).toContainText('Off');

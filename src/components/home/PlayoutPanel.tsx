@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { TONE_DOT, type OutputLine, type ReadyTone } from '../../control/readiness';
 import type { StatusCheck } from '../../control/playoutStatus';
 import { bridgePaired, loadPlayoutSettings, type PlayoutSettings } from '../../control/playoutLink';
-import { observeVmixOutput, readVmixOutput, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
+import { observeVmixOutput, readVmixOutput, type VmixOutputCommand, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../../downloads/links';
 
 /**
@@ -319,7 +319,7 @@ export function VmixRows({
   replace?: VmixReplace;
   onPair: () => void;
   onLoad: () => void;
-  onUnload: () => void;
+  onUnload: (command: Extract<VmixOutputCommand, { verb: 'out' }>) => void;
   onReplace: () => void;
   onCancelReplace: () => void;
 }) {
@@ -339,7 +339,8 @@ export function VmixRows({
   const row = reading?.overlay;
   const activeReplace = !loadProblem && row && !row.ownsOutput && replace?.overlay === row.overlay &&
     replace.input.key === row.input?.key ? replace : undefined;
-  const tone = loadProblem ? 'bad' : row?.ownsOutput ? 'ok' : row?.input ? 'warn' : 'idle';
+  const matched = row?.ownsOutput ? row.input : undefined;
+  const tone = loadProblem && !matched ? 'bad' : row?.input ? 'warn' : 'idle';
   return (
     <>
       {on && (
@@ -359,10 +360,12 @@ export function VmixRows({
         <div className={`pd-pp-row pd-pp-row--${tone}`} data-testid="vmix-output" data-tone={tone}>
           <Dot tone={tone} />
           <span className="pd-pp-name">Output on Overlay {row.overlay}</span>
-          <span className="pd-pp-state">{row.ownsOutput ? (loadProblem ? 'Source unavailable' : 'On air') : row.input?.title ?? 'Off'}</span>
-          <button type="button" onClick={row.ownsOutput ? onUnload : onLoad} disabled={!row.ownsOutput && (!!activeReplace || !!loadProblem)} data-testid={row.ownsOutput ? 'vmix-unload' : 'vmix-load'}>
-            {row.ownsOutput ? 'Unload' : 'Load'}
-          </button>
+          <span className="pd-pp-state">{matched ? 'Source unverified' : row.input?.title ?? 'Off'}</span>
+          {matched ? (
+            <button type="button" onClick={() => onUnload({ verb: 'out', overlay: row.overlay, inputKey: matched.key })} data-testid="vmix-unload">Unload</button>
+          ) : (
+            <button type="button" onClick={onLoad} disabled={!!activeReplace || !!loadProblem} data-testid="vmix-load">Load</button>
+          )}
         </div>
       )}
       {on && activeReplace && (

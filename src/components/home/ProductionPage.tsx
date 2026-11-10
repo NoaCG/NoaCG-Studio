@@ -3818,9 +3818,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 busy={slotBusy}
                 replace={vmixReplace?.choice.url === outputUrl ? vmixReplace : undefined}
                 onPair={() => setPlayoutSettingsOpen(true)}
-                onLoad={() => outputUrl && void vmixVerb('take', outputUrl)}
-                onUnload={() => outputUrl && void vmixVerb('out', outputUrl)}
-                onReplace={() => outputUrl && vmixReplace && void vmixVerb('take', outputUrl, vmixReplace)}
+                onLoad={() => outputUrl && void vmixVerb({ verb: 'take' }, outputUrl)}
+                onUnload={command => outputUrl && void vmixVerb(command, outputUrl)}
+                onReplace={() => outputUrl && vmixReplace && void vmixVerb({ verb: 'take', confirmed: vmixReplace }, outputUrl)}
                 onCancelReplace={() => setVmixReplace(undefined)}
               />
               <CasparRows

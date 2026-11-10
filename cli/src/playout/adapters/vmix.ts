@@ -9,8 +9,8 @@
 // or an input key it does not know, so an OK proves nothing: what matters is read back from the XML.
 // A function that was sent and got no answer is `uncertain` and never sent again.
 
-import { VMIX_INPUT_KEY, type AgentError, type ItemRef, type PlayoutAction, type VmixInfo, type VmixInput, type VmixOverlayState, type VmixSlot, type VmixTarget } from '../protocol.js';
-import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, vmixOverlayCount, type VmixXml } from '../vmixTcp.js';
+import { VMIX_BROWSER_LOAD_PROBLEM, VMIX_INPUT_KEY, vmixOverlayCount, type AgentError, type ItemRef, type PlayoutAction, type VmixInfo, type VmixInput, type VmixOverlayState, type VmixSlot, type VmixTarget } from '../protocol.js';
+import { DEFAULT_VMIX_PORT, VmixConnection, parseVmixXml, type VmixXml } from '../vmixTcp.js';
 import { newVmixBrowser, vmixOutputAddress, vmixOutputId, vmixOutputStore, vmixRedirectRequest, type VmixOutputStore } from '../vmixOutputs.js';
 import type { ActResult, AdapterResult, PlayoutAdapter } from './casparcg.js';
 
@@ -97,15 +97,21 @@ interface SnapshotScope {
   selectedOnly?: boolean;
 }
 
-function ownBrowser(xml: VmixXml, key: string | undefined): VmixInput | undefined {
-  return key && VMIX_INPUT_KEY.test(key)
-    ? xml.inputs.find(input => input.key === key.toLowerCase() && input.type === VMIX_BROWSER_TYPE)
-    : undefined;
+function inputByKey(xml: VmixXml, key: string | undefined): VmixInput | undefined {
+  return key && VMIX_INPUT_KEY.test(key) ? xml.inputs.find(input => input.key === key.toLowerCase()) : undefined;
 }
 
-function browserPortProblem(keptPort: number | undefined, bridgePort: number | undefined): string | undefined {
-  if (keptPort === undefined) return 'NoaCG Bridge cannot verify this vMix Browser address. Unload and remove the Browser input in vMix before loading again.';
-  if (keptPort !== bridgePort) return `This vMix Browser uses NoaCG Bridge port ${keptPort}. Start Bridge on that port and pair it again before loading.`;
+function ownBrowser(xml: VmixXml, key: string | undefined): VmixInput | undefined {
+  const input = inputByKey(xml, key);
+  return input?.type === VMIX_BROWSER_TYPE ? input : undefined;
+}
+
+function keptInputProblem(input: VmixInput, keptPort: number | undefined, bridgePort: number | undefined): string {
+  if (input.type !== VMIX_BROWSER_TYPE) return 'The vMix input Bridge recorded is no longer a Browser. Check the input in vMix before trying Load again.';
+  if (keptPort !== undefined && bridgePort !== undefined && keptPort !== bridgePort) {
+    return `This vMix Browser uses NoaCG Bridge port ${keptPort}. Start Bridge on that port to reopen its preset. ${VMIX_BROWSER_LOAD_PROBLEM}`;
+  }
+  return VMIX_BROWSER_LOAD_PROBLEM;
 }
 
 function availableName(xml: VmixXml, base: string, key: string): string {
@@ -243,8 +249,11 @@ export function createVmixAdapter(options: {
         if (id && !ownershipProblem) {
           try {
             const kept = await outputs.read(portOf(target));
-            owned = ownBrowser(s.xml, kept.keys[id]);
-            if (owned && vmixBridgePort !== undefined) loadProblem = browserPortProblem(kept.bridgePorts?.[id], vmixBridgePort);
+            const input = inputByKey(s.xml, kept.keys[id]);
+            if (input) {
+              loadProblem = keptInputProblem(input, kept.bridgePorts?.[id], vmixBridgePort);
+              if (input.type === VMIX_BROWSER_TYPE) owned = input;
+            }
           } catch {
             return storageFailed();
           }
@@ -321,10 +330,14 @@ export function createVmixAdapter(options: {
   ): Promise<{ xml: VmixXml; input: VmixInput } | undefined> {
     const readBy = Math.min(Date.now() + ADDED_WAIT_MS, until - ADDED_FINISH_MS);
     let observedKey: string | undefined;
+    let longestRead = 0;
+    let finalRead = false;
     for (;;) {
-      const finalRead = Date.now() + ADDED_POLL_MS >= readBy;
+      const started = Date.now();
+      finalRead ||= started >= readBy - ADDED_POLL_MS - longestRead;
       const reply = await read(conn, readBy, scope);
-      if (!reply.ok || Date.now() > readBy) return;
+      const now = Date.now();
+      if (!reply.ok || now > readBy) return;
       const matches = reply.value.inputs.filter(input => input.type === VMIX_BROWSER_TYPE && input.title === expectedTitle);
       if (matches.length > 1) return;
       const [input] = matches;
@@ -333,7 +346,12 @@ export function createVmixAdapter(options: {
         observedKey = input.key;
       }
       if (finalRead) return input && { xml: reply.value, input };
-      await new Promise(resolve => setTimeout(resolve, ADDED_POLL_MS));
+      // Leave room to receive the final snapshot. Skip a poll that would overlap its start.
+      longestRead = Math.max(longestRead, now - started);
+      const untilFinal = readBy - ADDED_POLL_MS - longestRead - now;
+      finalRead = untilFinal <= ADDED_POLL_MS + longestRead;
+      const delay = finalRead ? untilFinal : ADDED_POLL_MS;
+      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
@@ -352,26 +370,19 @@ export function createVmixAdapter(options: {
     const scope = { overlay, selectedOnly, expectedCount: count };
     const original = channelKey(before, overlay);
     const changed = () => refused('The input on vMix overlay ' + overlay + ' changed. Check it and try again.');
-    if (action.verb === 'take' && action.expectedOverlayInput !== undefined &&
-      original !== (action.expectedOverlayInput?.toLowerCase() ?? null)) return changed();
-
     let kept;
     try {
       kept = await outputs.read(port);
-      if (action.verb === 'take' && kept.keys[id] && !ownBrowser(before, kept.keys[id])) {
-        const keys = { ...kept.keys };
-        const bridgePorts = { ...kept.bridgePorts };
-        delete keys[id];
-        delete bridgePorts[id];
-        kept = { keys, bridgePorts };
-        await outputs.save(port, kept);
-      }
     } catch {
       return storageFailed();
     }
-    let output = ownBrowser(before, kept.keys[id]);
+    const keptKey = kept.keys[id];
+    const existing = inputByKey(before, keptKey);
+
     if (action.verb !== 'take') {
-      if (!output || original !== output.key) {
+      const expected = action.verb === 'out' ? action.expectedOverlayInput?.toLowerCase() : undefined;
+      if (existing?.type !== VMIX_BROWSER_TYPE || original !== existing.key || (expected !== undefined && original !== expected)) {
+        if (expected !== undefined) return changed();
         const held = onChannel(before, overlay);
         return { ok: true, value: {}, raw: `already off: overlay ${overlay} holds ${held ? `"${held.title}"` : 'nothing'}` };
       }
@@ -379,66 +390,66 @@ export function createVmixAdapter(options: {
       const fresh = await read(conn, until, scope);
       if (!fresh.ok) return fresh;
       const current = channelKey(fresh.value, overlay);
-      const key = output.key;
-      if (current !== key || !ownBrowser(fresh.value, key)) return { ok: true, value: {}, raw: 'already off: overlay ' + overlay + ' no longer holds the output' };
+      const key = existing.key;
+      if (current !== key || !ownBrowser(fresh.value, key)) {
+        if (expected !== undefined) return changed();
+        return { ok: true, value: {}, raw: 'already off: overlay ' + overlay + ' no longer holds the output' };
+      }
       const sent = await fn(conn, 'OverlayInput' + overlay + (action.verb === 'out' ? 'Out' : 'Off'), undefined, until);
       if (!sent.ok) return sent;
       const off = await observe(conn, until, until, scope, xml => channelKey(xml, overlay) !== key ? xml : undefined);
       if (!off) return uncertain('vMix accepted the command, but the Bridge could not confirm the output left overlay ' + overlay + '. Look at vMix.');
-      output = ownBrowser(off, key);
-      if (action.verb === 'out' && output) {
-        const title = availableName(off, name, key);
-        if (output.title !== title) {
-          const renamed = await fn(conn, 'SetInputName', { Input: key, Value: title }, until);
-          if (!renamed.ok) return { ok: true, value: { warning: renamed.error.detail }, raw: sent.raw };
-          const checked = await read(conn, until, scope);
-          if (!checked.ok || ownBrowser(checked.value, key)?.title !== title) {
-            return { ok: true, value: { warning: 'The output is off, but the Bridge could not confirm the new vMix input name.' }, raw: sent.raw };
-          }
-        }
-      }
       return { ok: true, value: {}, raw: sent.raw };
     }
 
-    if (output) {
-      const problem = browserPortProblem(kept.bridgePorts?.[id], bridgePort);
-      if (problem) return refused(problem);
+    // A saved key identifies an input, but it cannot verify what that Browser is showing now.
+    if (existing) return refused(keptInputProblem(existing, kept.bridgePorts?.[id], bridgePort));
+    if (action.expectedOverlayInput !== undefined &&
+      original !== (action.expectedOverlayInput?.toLowerCase() ?? null)) return changed();
+
+    let addingTo = before;
+    if (keptKey) {
+      // An old preset may reopen during the store read. Only an absent key permits replacement.
+      const fresh = await read(conn, until, scope);
+      if (!fresh.ok) return fresh;
+      const restored = inputByKey(fresh.value, keptKey);
+      if (restored) return refused(keptInputProblem(restored, kept.bridgePorts?.[id], bridgePort));
+      if (channelKey(fresh.value, overlay) !== original) return changed();
+      addingTo = fresh.value;
     }
-    const alreadyOn = (channel: number) => refused(`Unload the output from vMix overlay ${channel} before loading it on overlay ${overlay}.`);
-    const existingOverlay = output && otherOverlay(before, output, overlay);
-    if (existingOverlay !== undefined) return alreadyOn(existingOverlay);
-    let namingState = before;
-    if (!output) {
-      if (!bridgePort) return refused('Start NoaCG Bridge before adding a vMix Browser input.');
-      if (Date.now() + ADDED_WAIT_MS + ADDED_FINISH_MS >= until) {
-        return refused('There was not enough time to add a new vMix Browser input. Try Load again.');
-      }
-      const browser = newVmixBrowser(address, bridgePort);
-      const { alias, digest } = browser.binding;
-      adding.set(alias, digest);
-      try {
-        const added = await fn(conn, 'AddInput', { Value: 'Browser|' + browser.address }, until);
-        if (!added.ok) return added;
-        const known = new Set([...before.inputs.map(input => input.key), ...Object.values(kept.keys).map(key => key.toLowerCase())]);
-        const found = await observeAdded(conn, until, scope, known, 'Browser ' + alias);
-        if (!found) {
-          return uncertain('vMix accepted adding a Browser, but the Bridge could not identify one new output input. Nothing was put on air. Look at vMix.');
-        }
-        output = found.input;
-        namingState = found.xml;
-        try {
-          await outputs.save(port, {
-            keys: { ...kept.keys, [id]: output.key },
-            bridgePorts: { ...kept.bridgePorts, [id]: bridgePort },
-          }, browser.binding);
-        } catch {
-          return uncertain('vMix added a Browser input, but the Bridge could not keep its key. Nothing was put on air. Look at vMix.');
-        }
-      } finally {
-        adding.delete(alias);
-      }
+    if (!bridgePort) return refused('Start NoaCG Bridge before adding a vMix Browser input.');
+    if (Date.now() + ADDED_WAIT_MS + ADDED_FINISH_MS >= until) {
+      return refused('There was not enough time to add a new vMix Browser input. Try Load again.');
     }
 
+    const oldInputReturned = () =>
+      uncertain('The old input returned while vMix was preparing a new Browser. Check both inputs in vMix before trying Load again.');
+    const browser = newVmixBrowser(address, bridgePort);
+    const { alias, digest } = browser.binding;
+    adding.set(alias, digest);
+    let found;
+    try {
+      const added = await fn(conn, 'AddInput', { Value: 'Browser|' + browser.address }, until);
+      if (!added.ok) return added;
+      const known = new Set([...addingTo.inputs.map(input => input.key), ...Object.values(kept.keys).map(key => key.toLowerCase())]);
+      found = await observeAdded(conn, until, scope, known, 'Browser ' + alias);
+      if (!found) {
+        return uncertain('vMix accepted adding a Browser, but the Bridge could not identify one new output input. Nothing was put on air. Look at vMix.');
+      }
+      if (inputByKey(found.xml, keptKey)) return oldInputReturned();
+      try {
+        await outputs.save(port, {
+          keys: { ...kept.keys, [id]: found.input.key },
+          bridgePorts: { ...kept.bridgePorts, [id]: bridgePort },
+        }, browser.binding);
+      } catch {
+        return uncertain('vMix added a Browser input, but the Bridge could not keep its key. Nothing was put on air. Look at vMix.');
+      }
+    } finally {
+      adding.delete(alias);
+    }
+
+    const { input: output, xml: namingState } = found;
     const title = availableName(namingState, name, output.key);
     if (output.title !== title) {
       const renamed = await fn(conn, 'SetInputName', { Input: output.key, Value: title }, until);
@@ -446,14 +457,14 @@ export function createVmixAdapter(options: {
     }
     const fresh = await read(conn, until, scope);
     if (!fresh.ok) return fresh;
+    if (inputByKey(fresh.value, keptKey)) return oldInputReturned();
     if (channelKey(fresh.value, overlay) !== original) return changed();
     const confirmed = ownBrowser(fresh.value, output.key);
     if (confirmed?.title !== title) {
       return uncertain('vMix did not confirm the name of the output Browser input. Nothing was put on air.');
     }
     const moved = otherOverlay(fresh.value, confirmed, overlay);
-    if (moved !== undefined) return alreadyOn(moved);
-    if (original === output.key) return { ok: true, value: {}, raw: 'already on: overlay ' + overlay + ' holds the output' };
+    if (moved !== undefined) return refused(`Unload the Browser from vMix overlay ${moved} before loading on overlay ${overlay}.`);
     const shown = await fn(conn, 'OverlayInput' + overlay + 'In', { Input: output.key }, until);
     if (!shown.ok) return shown;
     const after = await read(conn, until, scope);

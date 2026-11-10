@@ -260,14 +260,15 @@ page shows the version of vMix it reached. In **Settings > Playout**, the vMix s
 edition and available overlays. If vMix is closed or the port answers as something else, the
 section says why and offers **Try again**. **NoaCG output** starts at the highest available
 overlay and keeps your choice in this browser. If vMix offers fewer channels later, NoaCG uses
-the highest one it has. A new choice applies the next time you Load. An output already on air
-stays on its current overlay until you Unload it.
+the highest one it has. A Browser already on an overlay stays there until you Unload it.
 
 In the production's Playout panel, switch on **vMix via Bridge**. First Publish loads the output
 when the switch is on. For an already published production press **Load**. The panel asks before
-replacing another input and shows **On air** when vMix reports this production on the overlay.
-**Unload** takes the production's input off with the overlay transition. Program and Preview stay
-under the vMix operator's control. A Bridge that needs updating offers **Update** in the panel.
+replacing another input. A matched Browser on the overlay shows **Source unverified** because
+Bridge can see which input is there but cannot read its current page. **Unload** takes the
+Browser off with the overlay transition. To use Load again, check the Browser in vMix, unload
+it if needed, and remove it when safe. Program and Preview stay under the vMix operator's
+control. A Bridge that needs updating offers **Update** in the panel.
 
 If you save a vMix preset with the NoaCG Browser input, start Bridge on the same computer
 and port before opening the preset. If Bridge starts late, reload that Browser input in vMix.
@@ -523,9 +524,11 @@ server - and any local page could learn as much from how fast a refused connecti
 `--vmix-port` overrides it. The target is `{ adapter: 'vmix', port? }` and the slot is
 `{ adapter: 'vmix', overlay }`. It keeps one connection per port. `/status` and `/connect` read
 the version and edition. `/state` lists the overlays and the input each holds. A state request
-with `outputUrl` also reports `ownsOutput` for each overlay, using the Browser key kept for that
-address. A `take` may carry `expectedOverlayInput`, the observed key or `null` for an empty
-channel. The Bridge checks it again just before `OverlayInput<N>In`.
+with `outputUrl` also reports `ownsOutput` for each overlay. It means the overlay holds the
+Browser with the kept key for that address. It cannot verify the current page. A `take` may
+carry `expectedOverlayInput`, the observed key or `null` for an empty channel. The Bridge
+checks it again before `OverlayInput<N>In`. The panel includes the displayed key and overlay
+in an `out` request. Bridge checks both again before `OverlayInput<N>Out`.
 
 The `vmix-output-key` feature marks Bridges that can make these checks. The studio sends
 the usual paired token with the `vmix-output-key:` prefix on vMix `/act` requests, so a
@@ -540,8 +543,8 @@ keeps the input key, names the input, or puts it on air. The local address redir
 original output page and is saved with the vMix preset. The store keeps a digest of that
 address's destination and the Bridge HTTP port associated with the kept input. Keep the
 Bridge's data folder and use the same port when reopening presets. On another port,
-the Bridge reports the original port and refuses Load. The original key can still Unload
-that input while vMix reports it on the overlay.
+the Bridge reports the original port. A present kept key blocks Load even on the original port.
+Unload still uses the key when the selected overlay holds the matched Browser.
 
 If another Bridge already owns the vMix data folder, the second can still detect vMix and
 run CasparCG or OGraf. To control vMix, pair with the first Bridge or close it and start

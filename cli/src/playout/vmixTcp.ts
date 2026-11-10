@@ -22,7 +22,7 @@ import { isUtf8 } from 'node:buffer';
 import { connect, type Socket } from 'node:net';
 import { SaxesParser } from 'saxes';
 import { isNCNameStartChar } from 'xmlchars/xmlns/1.0/ed3.js';
-import { MAX_VMIX_OVERLAYS, VMIX_INPUT_KEY, type VmixInput } from './protocol.js';
+import { VMIX_INPUT_KEY, VMIX_VERSION, type VmixInput } from './protocol.js';
 
 /** vMix's TCP API port, documented and fixed unless somebody changed vMix's own setting. */
 export const DEFAULT_VMIX_PORT = 8099;
@@ -357,14 +357,6 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   } catch {
     return;
   }
-  if (!/^\d+\.\d+\.\d+\.\d+$/.test(version) || !edition || !seen.has('inputs') || !seen.has('overlays')) return;
+  if (!VMIX_VERSION.test(version) || !edition || !seen.has('inputs') || !seen.has('overlays')) return;
   return { version, edition, inputs, overlays, reportedOverlays };
-}
-
-/** How many overlay channels this vMix's UI offers, the one place the rule lives: 8 from vMix 29,
- *  4 before it, and 1 on a Basic edition. The XML's own `<overlay>` count (16 on 29) is not it. Only
- *  vMix 29 Trial has been measured; the rest is vMix's published edition table. */
-export function vmixOverlayCount(version: string, edition: string): number {
-  if (/^basic/i.test(edition.trim())) return 1;
-  return Number.parseInt(version, 10) >= 29 ? MAX_VMIX_OVERLAYS : 4;
 }

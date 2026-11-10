@@ -280,7 +280,11 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
 Bridge gives its Browser input a local address that points to the production. If you save it
 in a vMix preset, start Bridge on the same port before opening the preset. If Bridge starts late,
 reload the Browser input from vMix. If the Playout panel says the Browser uses a different port,
-start Bridge on the port it names and pair it again. You can still unload the input.
+start Bridge on the port it names and pair it again.
+
+**Source unverified** means Bridge sees the Browser on the overlay but cannot read its current
+page. You can still **Unload** it. Before using **Load** again, check the Browser in vMix,
+unload it if needed, and remove it when safe.
 
 ### Add a Browser input by hand
 

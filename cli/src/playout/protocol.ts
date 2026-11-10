@@ -140,8 +140,8 @@ export type PlayoutAction =
   | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback; imageFit?: 'fit' | 'stretch'; expectedOverlayInput?: string | null }
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
   | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
-  /** `fadeOut` fades a clip to nothing rather than cutting it. */
-  | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number }
+  /** `fadeOut` fades a clip to nothing. A vMix panel Out carries the displayed input key. */
+  | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number; expectedOverlayInput?: string }
   /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. On
    *  vMix it names the output (`item`) and removes only that from its channel. */
   | { verb: 'clear'; slot: Slot; item?: ItemRef }
@@ -261,6 +261,9 @@ export interface VmixInput {
   type: string;
 }
 
+/** vMix reports a four-part version in its state XML. */
+export const VMIX_VERSION = /^\d+\.\d+\.\d+\.\d+$/;
+
 /** vMix names inputs with GUIDs. */
 export const VMIX_INPUT_KEY = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
@@ -268,12 +271,25 @@ export const VMIX_INPUT_KEY = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 export interface VmixOverlayState {
   overlay: number;
   input?: VmixInput;
-  /** Present when this reading named an output URL. True only for its kept Browser key. */
+  /**
+   * Present when this reading named an output URL. True when the overlay holds the Browser
+   * with the kept key. The current page of that Browser is unverified.
+   */
   ownsOutput?: boolean;
 }
 
 /** The most overlay channels a vMix offers (vMix 29): a vmix slot's highest channel. */
 export const MAX_VMIX_OVERLAYS = 8;
+
+/** How many overlay channels this vMix's UI offers, the one place the rule lives: 8 from vMix 29,
+ *  4 before it, and 1 on a Basic edition. The XML's own `<overlay>` count (16 on 29) is not it. Only
+ *  vMix 29 Trial has been measured; the rest is vMix's published edition table. */
+export function vmixOverlayCount(version: string, edition: string): number {
+  if (/^basic/i.test(edition.trim())) return 1;
+  return Number.parseInt(version, 10) >= 29 ? MAX_VMIX_OVERLAYS : 4;
+}
+
+export const VMIX_BROWSER_LOAD_PROBLEM = 'Bridge cannot verify the current vMix Browser page. Check it in vMix, unload it if needed, and remove it when safe before loading again.';
 
 /** `POST /state` with a vMix `{ target }`: what each overlay channel holds, and for each production
  *  linked to this Bridge whether its output is on a channel and which of its cues are up. */
@@ -317,6 +333,43 @@ export interface RememberedServer {
   host: string;
   port: number;
   studio?: StudioSetup;
+}
+
+export function isRememberedServerAddress(v: unknown): v is RememberedServer {
+  if (!v || typeof v !== 'object') return false;
+  const { host, port } = v as Record<string, unknown>;
+  return (
+    typeof host === 'string' &&
+    host.length > 0 &&
+    host.length <= 253 &&
+    !/\s/.test(host) &&
+    typeof port === 'number' &&
+    Number.isInteger(port) &&
+    port > 0 &&
+    port < 65536
+  );
+}
+
+const wholeIn = (v: unknown, min: number, max: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+
+/**
+ * A studio setup, or null when it is not one. Read the same way from the page and from the file, so
+ * what the Bridge hands a page is always whole. What it MEANS (a duplicate row, New media on a channel
+ * no row names) is the page's to judge; this only keeps the shape and the sizes bounded.
+ */
+export function readStudio(v: unknown): StudioSetup | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const { channels, output, newMedia } = v as Record<string, unknown>;
+  if (!Array.isArray(channels) || channels.length === 0 || channels.length > MAX_STUDIO_CHANNELS) return null;
+  const rows: StudioSetup['channels'] = [];
+  for (const row of channels) {
+    const { channel, name } = (row ?? {}) as Record<string, unknown>;
+    if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || typeof name !== 'string' || name.length > MAX_CHANNEL_NAME) return null;
+    rows.push({ channel, name });
+  }
+  const { channel, layer } = (output ?? {}) as Record<string, unknown>;
+  if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || !wholeIn(layer, 0, MAX_STUDIO_LAYER) || !wholeIn(newMedia, 1, MAX_STUDIO_CHANNEL)) return null;
+  return { channels: rows, output: { channel, layer }, newMedia };
 }
 
 /** One channel a server reports having: its number and its video mode in the server's own words

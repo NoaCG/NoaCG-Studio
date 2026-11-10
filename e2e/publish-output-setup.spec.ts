@@ -99,7 +99,7 @@ for (const chosen of [true, false]) {
     }
     await publishProduction(page);
     if (chosen) {
-      await expect(page.getByTestId('vmix-output')).toContainText('On air');
+      await expect(page.getByTestId('vmix-output')).toContainText('Source unverified');
       expect(vmix.actions).toEqual([{
         target: { adapter: 'vmix' },
         action: {
@@ -138,7 +138,7 @@ for (const refused of [false, true]) {
       const note = panel.getByTestId('production-note');
       await expect(note).toBeVisible();
       await expect(note).toHaveText(setup);
-    } else await expect(panel.getByTestId('vmix-output')).toContainText('On air');
+    } else await expect(panel.getByTestId('vmix-output')).toContainText('Source unverified');
     expect(vmix.actions).toEqual([{
       target: { adapter: 'vmix' },
       action: {
