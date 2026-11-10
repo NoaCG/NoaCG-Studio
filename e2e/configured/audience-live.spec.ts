@@ -663,8 +663,9 @@ test.describe(() => {
     await expect(phone.locator('#join .nj-word')).toHaveText('Electric', { timeout: 20_000 });
     await expect(phone.locator('#nj-word')).toHaveCount(0);
     await shot('6-word-sent');
-    // A second phone sends a word the operator will hide.
-    const second = await phoneContext.newPage();
+    // A second phone (its own browser, so its own device) sends a word the operator will hide.
+    const secondContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const second = await secondContext.newPage();
     await second.goto(joinUrl);
     await second.locator('#nj-word').fill('Boring');
     await second.locator('#join .nj-send').tap();
@@ -688,6 +689,7 @@ test.describe(() => {
     await shot('7-waiting');
 
     await phoneContext.close();
+    await secondContext.close();
     await presenter.close();
     await messages.close();
     await unpublishForCleanup(page);
