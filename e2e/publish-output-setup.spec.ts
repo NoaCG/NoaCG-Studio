@@ -1,5 +1,5 @@
 // covers: src/model/{outputSetup,shows,cueClipboard}.ts, src/backend/auth.ts
-// covers: src/components/{DefaultOutputPreference,SettingsDialog,HostedControlPage,PlayoutSettingsDialog}.tsx, src/components/control/PrepareForLive.tsx
+// covers: src/components/{DefaultOutputPreference,SettingsDialog,PlayoutSettingsDialog}.tsx, src/components/control/PrepareForLive.tsx
 // covers: src/components/home/{RundownColors,ProductionPage,ProductionLinks,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu,ServerCueEditor,CueRundown,sections/ProductionsSection}.tsx
 // covers: src/components/home/CueEditor.tsx
 // covers: src/control/{playoutStatus,livePath,hostedControl,prepareBridge,prepareLive}.ts, src/output/main.ts, src/packs/graphicsPack.ts
@@ -154,13 +154,14 @@ test('Setup › Links… holds the people links, marked private or public; the p
   const b=backend();await account(page,b);await seed(page);
   await page.getByTestId('production-setup').click();await page.getByTestId('setup-links').click();
   const links=page.getByTestId('production-links');
-  await expect(links.getByTestId('control-url')).toContainText('Available after publishing');
+  await expect(links.getByTestId('presenter-url')).toContainText('Available after publishing');
   await links.getByTestId('production-links-close').click();
   await publishProduction(page);
   await page.getByTestId('production-setup').click();await page.getByTestId('setup-links').click();
-  await expect(links.getByTestId('control-url')).toContainText('Private');
-  await expect(links.getByTestId('control-url')).toContainText('/app?control=');
-  await expect(links.getByTestId('copy-control-url')).toBeEnabled();
+  await expect(links.locator('.dlg-row')).toHaveCount(2);
+  await expect(links.getByTestId('control-url')).toHaveCount(0);
+  await expect(links.getByTestId('presenter-url')).toContainText('Private');
+  await expect(links.getByTestId('join-url')).toContainText('Public');
   await page.screenshot({path:test.info().outputPath('links-dialog.png')});
   await links.getByTestId('production-links-close').click();
   await page.getByTestId('production-status').click();

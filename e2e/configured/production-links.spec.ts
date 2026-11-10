@@ -82,7 +82,8 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
     const dialog = page.getByTestId('production-links');
     await expect(dialog).toBeVisible();
     const read = async (id: string) => (await dialog.getByTestId(id).locator('code').textContent())?.trim() ?? '';
-    const shown = { control: await read('control-url'), presenter: await read('presenter-url'), join: await read('join-url') };
+    await expect(dialog.getByTestId('control-url')).toHaveCount(0);
+    const shown = { presenter: await read('presenter-url'), join: await read('join-url') };
     await dialog.getByTestId('production-links-close').click();
     await expect(dialog).toBeHidden();
     return shown;
@@ -95,7 +96,6 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   expect(first.presenter).toBeTruthy();
   const firstShown = await shownLinks();
   // A slug can hold "+", which a URL carries encoded.
-  expect(decodeURIComponent(firstShown.control)).toContain(first.control!);
   expect(decodeURIComponent(firstShown.presenter)).toContain(first.presenter!);
 
   // Unpublish through the API, the only road left to it.

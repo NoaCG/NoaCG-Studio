@@ -158,7 +158,7 @@ spotlight --next--> [exit]
 on its current turn, 2), so the first press lights a row; a number past either end of the line-up
 lights the row at that end. An empty line-up lights nothing until its rows arrive, and then the
 named row lights (#2271). An update while a row is lit keeps the row the field names lit; an
-update to a level line-up lights nothing (#2200). On the production and hosted pages « Back from
+update to a level line-up lights nothing (#2200). On the production page « Back from
 a lit row and ⟲ Reset also level the line-up, by snapping it to its first step. **Show all rows**
 stays because the per-graphic control page, an exported control panel, OGraf hosts and Companion
 have no Back or Reset.
@@ -209,7 +209,7 @@ timing feed over who is third. `focus` carries the competitor's 1-based row numb
 naming a row (1), so the first press lights a row; a number past either end of the order lights
 the row at that end. An empty order lights nothing until its rows arrive, and then the named row
 lights. An update while a row is in focus keeps the row the field names lit; an update to a level
-tower lights nothing (#2268). On the production and hosted pages « Back from a focused row and
+tower lights nothing (#2268). On the production page « Back from a focused row and
 ⟲ Reset also level the tower, by snapping it to its first step. **Whole field** stays for the
 roster's reason: the per-graphic control page, an exported control panel, OGraf hosts and
 Companion have no Back or Reset.

@@ -63,7 +63,7 @@ const PayloadStage = forwardRef<
    * graphic already up re-runs an animation and settles on exactly the picture that was already
    * there, so the surface after the bug is pixel-identical to the surface without it. That is
    * how a boot replay firing twice on the operator's own first take survived review, and why
-   * asserting on the picture could not have caught it (e2e/configured/hosted-control-recovery).
+   * asserting on the picture could not have caught it (e2e/configured/panel-page.spec.ts counts it).
    *
    * Counted only when a stage actually took the command, so the number never claims more than
    * happened, and reset per stage build - a rebuilt stage is a blank renderer the host replays

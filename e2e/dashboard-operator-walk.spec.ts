@@ -142,7 +142,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   // UNPUBLISHED, nothing ever left this machine (ProductionPage `runVerb`), so a reload has
   // nothing on air to come back to and the honest dashboard says so. What must survive is the
   // show itself: every figure the operator moved and every value they typed. The published
-  // half, where air outlives the page, is e2e/configured/dashboard-hosted-walk.spec.ts.
+  // half, where air outlives the page, is e2e/configured/playout-resolve-race.spec.ts.
   await page.waitForTimeout(400);
   await settleDurableWrites(page);
   await page.reload();

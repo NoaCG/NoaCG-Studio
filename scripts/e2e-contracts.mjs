@@ -159,7 +159,7 @@ export const CONTRACTS = [
       { path: 'e2e/configured/shared-lab-computer.spec.ts', layer: 'configured' },
       { path: 'e2e/configured/output-url-cannot-push.spec.ts', layer: 'configured' },
       { path: 'e2e/configured/panel-lease.spec.ts', layer: 'configured' },
-      { path: 'e2e/configured/hosted-control-recovery.spec.ts', layer: 'configured' },
+      { path: 'e2e/configured/playout-resolve-race.spec.ts', layer: 'configured' },
     ],
     backend: {
       runs: 'selected on every triggered pull request (ci06) and the full configured suite on every landing; the merge group is exempt, so the combined tree is first checked after landing',

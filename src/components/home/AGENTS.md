@@ -120,7 +120,7 @@ stays there, because every surface owes it.
   control-surfaces review; its removal is ruled, after its saved entries move to production data) -
   live graphic + transport + machine event buttons (GREYED by controlModel `isEventLegal`
   against a 500ms poll of the graphic's own `noacgMachineState`, exactly as the editor's
-  Rehearse panel, the event strip and the hosted page do) + a STATE CHIP naming the current
+  Rehearse panel and the event strip do) + a STATE CHIP naming the current
   state (the fact the greying is judged against, so a button is never greyed without the
   surface saying why) + ENTRIES (named data rows: add/duplicate/rename/delete/select-active,
   ▶ Play with an entry, ★ make an entry the template's default data via setFieldDefault) +
@@ -178,9 +178,8 @@ stage-3 evidence bar, not a nicety.
 
 - **home/PayloadStage** - ONE monitor component: `createOutputStage` over an `OutputPayload`,
   the same two functions the published output URL is built from, fed the same
-  `ControlSendItem[]` the verbs send. Both monitors on both playout surfaces (the in-app
-  production page and `components/HostedControlPage`) are one of these, which is what makes a
-  monitor unable to disagree with air without the renderer itself being wrong.
+  `ControlSendItem[]` the verbs send. Both monitors on the production page are one of
+  these, which is what makes a monitor unable to disagree with air without the renderer itself being wrong.
   **It RE-ASKS for machine state once a second**, as `/output` always has (src/output/main.ts;
   the staleness it prevents is in PayloadStage.tsx's own comments - the ⚡ buttons grey against
   this state via `isEventLegal`). The guard is the SUBSCRIBER (`onState`), not mount-time
@@ -189,8 +188,8 @@ stage-3 evidence bar, not a nicety.
   It also publishes **`data-plays`** on its root - entrances applied since this stage came up,
   reset per rebuild and counted only when a stage actually took the command. A DUPLICATE
   renderer command is the one fault that leaves no trace (a second `play` settles on the picture
-  already showing), so this is the only handle a test has on it; mutation-test both halves of
-  `e2e/configured/hosted-control-recovery.spec.ts` when touching either.
+  already showing), so this is the only handle a test has on it; mutation-test
+  `e2e/configured/panel-page.spec.ts` when touching it.
 - **home/ProgramStage** is the app-side wrapper that builds the payload from the local show
   first (it was the rehearsal stage; rehearsal is retired - docs/PLAYOUT_DASHBOARD.md §6).
 
@@ -255,9 +254,7 @@ Phase 1 is built - manual, local, no API.
   airs the selected cue's LAYER out of it, so a second copy that a verb acts on changes what goes
   on air: every fold writes the part (`session.apply`), the page draws it (`usePacedPart`), and a
   verb or module reads the render's copy of it (`liveCueRef`), so a press sees the render it was
-  made from. `selectedCueId` stays React state in the page. `HostedControlPage.tsx` keeps its own
-  `liveCue`; a session constructs with no Bridge, tree or monitor, so that page could adopt it in a
-  spec of its own.
+  made from. `selectedCueId` stays React state in the page.
   **Typing a value never renders the page.** The draft is the `draft` part; `CueEditor`, the
   rundown rows and `PlayoutMonitors` subscribe to it, and the page subscribes only to what it
   draws from it (`useDrawnDraft`, compared by value): whether something is unsent, and the

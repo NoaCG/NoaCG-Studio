@@ -760,14 +760,3 @@ export function needsServerInstant(clock: ClockSpec | undefined, msg: ControlEve
   if (durationOf(held)) return durationOf(clockValueAfterUpdate(held, incoming))?.slot === CORRECTED_ORIGIN;
   return plainClockValue(incoming) !== plainClockValue(held ?? clock.seed);
 }
-
-/** The imported clocks of a PUBLISHED payload, by wire name: the graphics `needsServerInstant` can
- *  answer yes for. Read off the payload for the reason `fastEventGraphics` is. */
-export function serverInstantClocks(graphics: { key: string; html: string }[]): Map<string, ClockSpec> {
-  const out = new Map<string, ClockSpec>();
-  for (const g of graphics) {
-    const spec = clockSpecFromHtml(g.html);
-    if (spec?.events && !spec.fixedInstant) out.set(g.key, spec);
-  }
-  return out;
-}

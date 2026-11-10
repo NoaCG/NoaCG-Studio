@@ -6,7 +6,7 @@ import EditorFoundation from './components/editorFoundation/EditorFoundation';
 import AccountAuthoringGate from './components/AccountAuthoringGate';
 import VideoAppShell from './components/video/VideoAppShell';
 import SendIn from './showchat/SendIn';
-import HostedControlPage from './components/HostedControlPage';
+import OldControlLink from './components/OldControlLink';
 import HomePage from './components/home/HomePage';
 import ExportWindow from './components/ExportWindow';
 import CreationWizard from './components/wizard/CreationWizard';
@@ -336,10 +336,10 @@ export default function App() {
   const chatSlug = params.get('chat');
   if (chatSlug) return <SendIn slug={chatSlug} />;
 
-  // Hosted control page: <app-url>?control=<slug> — the show's operator page, no login,
-  // the unguessable slug is the capability (same pattern as ?chat=).
+  // An old control link: <app-url>?control=<slug>. The hosted control page is retired; the link
+  // opens its production's page, or says it no longer works (components/OldControlLink.tsx).
   const controlSlug = params.get('control');
-  if (controlSlug) return <HostedControlPage key={controlSlug} slug={controlSlug} />;
+  if (controlSlug) return <OldControlLink key={controlSlug} slug={controlSlug} />;
 
   // Agent access consent: <app-url>?agent=<state>&port=&name=&challenge= — a coding agent's CLI
   // (`noacg login`) opened this; the page asks once and hands a one-time code to the CLI's

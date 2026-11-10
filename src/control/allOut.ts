@@ -1,6 +1,6 @@
 // ALL OUT'S TARGETS AND PACE, plain functions so they run in Node (scripts/all-out.test.mjs). The
-// send is hostedControl.ts `sendControlVerbs`; the presses are ProductionPage's and
-// HostedControlPage's `outAll`; what the heads say is hostedControl.ts `headsSay`.
+// send is hostedControl.ts `sendControlVerbs`; the press is the production page's All out; what
+// the heads say is hostedControl.ts `headsSay`.
 
 /** What All out clears (playout-workflow-simplification D11): every graphic this page has up and
  *  every one the server's heads say is on, since the page's list misses a graphic whose cue marker
