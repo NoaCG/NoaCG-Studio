@@ -99,6 +99,16 @@ code points are listed, and the self-check now refuses a no-break space and an i
 a phone's earlier word shows under "What you sent" once another question is live (kept: it is what
 that phone sent).
 
+## Review of `ad7ec51` (`/so`, fresh read-only session)
+
+AGREE, grade A. Its standalone probe of the new space check on Postgres 16 (C.UTF-8) refused a
+space, tab, NEL, NBSP, U+2003, U+2008, U+3000, U+FEFF and `|`, and accepted `a-b`, accented letters
+and U+200B, as `cleanWord` does. Three low findings, answered in the notes: the run of 0114's
+self-check at its final text was not recorded (it was run: `audience_submit` at `ad7ec51` and the
+whole DO block, with a throwaway account, on the local stack, and passed, including the
+no-break and ideographic spaces); W9 holds in the page, not at the operator door (stated in W9);
+a blocklisted word is filed masked and the operator hides it (stated in W6).
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine

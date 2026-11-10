@@ -963,7 +963,9 @@ challenged them before the final assessment:
 - W6. The operator hides a word (Hide beside it); a hidden word stays listed, struck through, and
   can be shown again. A hidden word is never in a cue's Words. Hiding is kept on the question
   (`Show.questions[].hidden`, by the word's key), allowed while live and with answers, and Duplicate
-  starts with none. A cue carries the 30 most-sent shown words at most.
+  starts with none. A cue carries the 30 most-sent shown words at most. A word the production's
+  blocklist masks (0035's courtesy filter) is filed as asterisks, counted and listed like any
+  other; the operator hides it.
 - W7. "Add word cloud to rundown" writes a snapshot of the shown words (Question, and Words as
   `word | count` lines, most first) onto the question's one cue, through the phase 3 mapping
   (`Show.resultCues`, S1 to S6, S15): a second press, a reload or another tab updates that cue; a
@@ -974,7 +976,10 @@ challenged them before the final assessment:
 - W8. Nothing in this sends a Take, Update or graphic event (R16, S8). Stop writes nothing into a
   word cloud cue.
 - W9. Words are not messages: they are not in the inbox, the Messages filter or the cue editor's
-  Pick a message, and paste never files under a Word question.
+  Pick a message, and paste never files under a Word question. This is the page's rule: the
+  operator door (`audience_operator_add`, unchanged) still accepts any round of the production, so
+  an operator call that named a Word round would add a word without the per-phone limit. Only the
+  production's owner can make that call.
 
 **Decisions** (made in the build, revertible in review):
 
