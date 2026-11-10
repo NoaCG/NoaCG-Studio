@@ -88,6 +88,11 @@
       "level": "WARN",
       "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "anon_security_definer_function_executable_public_audience_word_counts_p_slug text, p_round uuid": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_word_counts(p_slug text, p_round uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_word_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_community_pack_file_p_id uuid": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
@@ -372,6 +377,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer, p_revision integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_audience_word_counts_p_slug text, p_round uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.audience_word_counts(p_slug text, p_round uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_word_counts`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_pack_decide_p_id uuid, p_state text, p_reason text": {
       "name": "authenticated_security_definer_function_executable",

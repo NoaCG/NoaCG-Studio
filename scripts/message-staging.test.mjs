@@ -285,6 +285,8 @@ test('the audience backend interface has no method that airs anything', async ()
     'tally',
     'update',
     'vote',
+    // A Word round's word counts (interaction phase 6, W1): a read.
+    'wordCounts',
   ]);
   for (const words of ['control_events', 'control_data', 'runVerb', 'addShowCue', 'take(']) {
     assert.equal(block[1].includes(words), false, `the interface names ${words}`);

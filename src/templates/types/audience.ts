@@ -20,9 +20,11 @@ import { ch01, ch02, ch03, ch04 } from '../audience/chatHighlight';
 import { qq01, qq02, qq03, qq04 } from '../audience/questionQueue';
 import { rq01, rq02, rq03, rq04 } from '../audience/communityRequest';
 import { jc01 } from '../audience/joinCard';
+import { wc01 } from '../audience/wordCloud';
 import {
   CHAT_FORM,
   JOIN_FORM,
+  WORDS_FORM,
   QA_FORM,
   QUESTION_FORM,
   QUEUE_FORM,
@@ -333,5 +335,35 @@ export const joinCardType: GraphicType = {
   },
   designs: designs([
     { id: 'jc01', name: 'House Join Card', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'How viewers join: a QR code drawn from the production link, a call to action, and the short link beside it.', create: (_t, o) => jc01.create(o) },
+  ]),
+};
+
+// ── Word cloud ───────────────────────────────────────────────────────────────
+
+/** WORD CLOUD: a Word question's words, sized by how many phones sent each (interaction spec
+ *  AC-14).
+ *
+ *  NO MACHINE: it comes on and goes off. The words are data the cloud draws from its own Words
+ *  field, so new words are an update(), never a state. */
+export const wordCloudType: GraphicType = {
+  id: 'word-cloud',
+  name: 'Word cloud',
+  description: 'A Word question’s words, sized by how many sent each.',
+  structure: structure([
+    { id: 'kicker', selector: '.audience-kicker', kind: 'block', required: true },
+    { id: 'question', selector: '#f1', kind: 'line', required: true },
+    { id: 'words', selector: '.audience-words', kind: 'block', required: true },
+  ]),
+  fields: fieldsOf(WORDS_FORM.lines),
+  machine: {},
+  controls: [],
+  capabilities: {
+    maxLines: WORDS_FORM.lines.length,
+    logo: 'none',
+    animationPresets: ['audience-rise', 'audience-slide'],
+    defaultZone: 'mid-center',
+  },
+  designs: designs([
+    { id: 'wc01', name: 'House Word Cloud', family: 'noacg', palette: 'noacg', fontId: 'space-grotesk', blurb: 'The words a Word question gathered: the question above, the words sized by how many sent each.', create: (_t, o) => wc01.create(o) },
   ]),
 };

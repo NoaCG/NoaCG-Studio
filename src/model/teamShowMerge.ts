@@ -35,6 +35,7 @@
 import type { Show } from './shows';
 import { settleFolders } from './showFolders.ts';
 import { freeName } from './poolIdentity.ts';
+import { scrubHiddenWords } from './wordCues.ts';
 
 /** A top-level field's readable name, for the "your change to … was replaced" line. */
 const FIELD_LABEL: Record<string, string> = {
@@ -273,6 +274,9 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string):
     if (settled.folders.length) doc.folders = settled.folders;
     else delete doc.folders;
   }
+  // W11 (interaction phase 6): a cue taken from one side cannot carry a word the merged question
+  // list hides, whichever side hid it.
+  scrubHiddenWords(doc as unknown as Show);
   const dropped = dropBindingsOnPreparedFields(doc as unknown as Show);
   if ((dropBindingsOnStoppedReaders(doc as unknown as Show) || dropped) && !lost.includes(FIELD_LABEL.bindings)) {
     lost.push(FIELD_LABEL.bindings);
