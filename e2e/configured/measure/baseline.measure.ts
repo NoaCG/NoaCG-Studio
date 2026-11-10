@@ -70,13 +70,14 @@ async function select(op: Page, label: string) {
 }
 
 /** Wait until every request the page started has answered and nothing new started for `quietMs`. */
-async function settle(op: Page, quietMs = 250, timeout = 20_000) {
+async function settle(op: Page, quietMs = 250, timeout = 20_000, only?: RegExp) {
   const end = Date.now() + timeout;
   let last = -1, since = Date.now();
   for (;;) {
     const lpm = await readLpm(op);
-    const open = lpm.sends.filter((s) => s.end === undefined).length;
-    if (lpm.sends.length !== last || open > 0) { last = lpm.sends.length; since = Date.now(); }
+    const sends = only ? lpm.sends.filter((s) => only.test(s.name)) : lpm.sends;
+    const open = sends.filter((s) => s.end === undefined).length;
+    if (sends.length !== last || open > 0) { last = sends.length; since = Date.now(); }
     else if (Date.now() - since >= quietMs) return;
     if (Date.now() > end) return;
     await op.waitForTimeout(40);
@@ -146,6 +147,12 @@ async function outputReady(out: Page, graphics: number, timeout = 180_000) {
     .toBe(true);
 }
 
+/** MEASURE_PATHS (comma-separated) narrows a takes group to some of its paths, so one path's 50
+ *  samples fit one five-minute job; MEASURE_PART names the job's result file. */
+const PATHS = process.env.MEASURE_PATHS ? new Set(process.env.MEASURE_PATHS.split(',')) : null;
+const PART = process.env.MEASURE_PART ?? '1';
+const count = (path: string) => (!PATHS || PATHS.has(path) ? SAMPLES : 0);
+
 function report(name: string, samples: Record<string, Sample[]>, extra: Record<string, unknown> = {}) {
   const out: Record<string, unknown> = { fixture: FIXTURE, net: NET, at: new Date().toISOString(), ...extra, paths: {} };
   for (const [path, list] of Object.entries(samples)) {
@@ -162,10 +169,10 @@ function report(name: string, samples: Record<string, Sample[]>, extra: Record<s
       },
       otherRequests: [...new Set(ok.flatMap((s) => s.others))],
       failures: failed.map((f) => f.failed).slice(0, 5),
-      raw: ok.map((s) => [Math.round(s.total * 10) / 10, Math.round(s.own * 10) / 10]),
+      samples: list,
     };
   }
-  return writeResult(`${name}-${tag}`, out);
+  return writeResult(`${name}-${tag}-part${PART}`, out);
 }
 
 const SEND = /rpc:control_send_seq|rpc:control_send_many/;
@@ -191,7 +198,7 @@ test('takes-a', async ({ page, browser }) => {
     return loadShows().find((x) => x.id === id)!.cues!.find((c) => c.id === cue)!.label;
   }, { id: fx.showId, cue });
 
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('graphic'); i++) {
     await select(page, plainLabels[i % Math.min(5, plainLabels.length)]);
     await clearLpm(page);
     samples.graphic.push(await pressAndMeasure(page, take, 'verb-take', SEND));
@@ -200,7 +207,7 @@ test('takes-a', async ({ page, browser }) => {
     await settle(page);
   }
   const picture = await labelOf(fx.cues.picture);
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('picture'); i++) {
     await select(page, picture);
     await clearLpm(page);
     samples.picture.push(await pressAndMeasure(page, take, 'verb-take', SEND));
@@ -209,7 +216,7 @@ test('takes-a', async ({ page, browser }) => {
     await settle(page);
   }
   const folderRow = page.locator('.pd-folder').filter({ hasText: 'LP2 Folder' });
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('folder'); i++) {
     await folderRow.getByTestId('select-folder').click();
     await clearLpm(page);
     samples.folder.push(await pressAndMeasure(page, take, 'verb-take', SEND));
@@ -218,9 +225,11 @@ test('takes-a', async ({ page, browser }) => {
     await settle(page, 400);
   }
   const server = await labelOf(fx.cues.server);
-  await select(page, server);
-  await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok', { timeout: 20_000 });
-  for (let i = 0; i < SAMPLES; i++) {
+  if (count('server')) {
+    await select(page, server);
+    await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok', { timeout: 20_000 });
+  }
+  for (let i = 0; i < count('server'); i++) {
     await select(page, server);
     await clearLpm(page);
     samples.server.push(await pressAndMeasure(page, take, 'verb-take', /8899\/act/));
@@ -247,14 +256,14 @@ test('takes-b', async ({ page, browser }) => {
   await settle(page);
   const goal = page.getByTestId('cue-action-goalA');
   await expect(goal).toBeEnabled({ timeout: 20_000 });
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('quick'); i++) {
     await clearLpm(page);
     samples.quick.push(await pressAndMeasure(page, goal, 'cue-action-goalA', SEND));
     await settle(page);
   }
   // TWO FAST PRESSES: the second Goal pressed as soon as the first is sent, so the kept wait for
   // the previous press (graphicVerbs.ts afterPress) and one send in flight per graphic show up.
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('quickSecondOfTwo'); i++) {
     await clearLpm(page);
     samples.quickSecondOfTwo.push(await secondOfTwo(page, goal, 'cue-action-goalA', SEND));
     await settle(page);
@@ -262,12 +271,12 @@ test('takes-b', async ({ page, browser }) => {
   const up = page.getByTestId('live-numbers').locator('[data-testid^="live-number-"][data-testid$="-up"]').first();
   await expect(up).toBeEnabled({ timeout: 20_000 });
   const upId = (await up.getAttribute('data-testid'))!;
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('plusOne'); i++) {
     await clearLpm(page);
     samples.plusOne.push(await pressAndMeasure(page, up, upId, /rpc:control_send_seq|rpc:control_send_many|data\/patch/));
     await settle(page);
   }
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('plusOneSecondOfTwo'); i++) {
     await clearLpm(page);
     samples.plusOneSecondOfTwo.push(await secondOfTwo(page, up, upId, /rpc:control_send_seq|rpc:control_send_many|data\/patch/));
     await settle(page);
@@ -289,7 +298,7 @@ test('takes-c', async ({ page, browser }) => {
 
   // NEXT on the stepped lower third: Take it, measure one Next, Out.
   const next = page.getByTestId('verb-next');
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('next'); i++) {
     await select(page, 'LP2 Stepped');
     await take.click();
     await settle(page);
@@ -304,12 +313,13 @@ test('takes-c', async ({ page, browser }) => {
   // A SCRIPTED HARDWARE-PANEL TAKE: the module's `panel_press`, relayed to the page. The press is
   // stamped on this machine as the module's request leaves; the page's own share starts when the
   // relayed press reaches the page (its Realtime frame, stamped on arrival by the init script).
+  if (!count('panel')) { report('takes-c', samples, { fixtureFacts: fx }); return; }
   const deck = await pairPanel(page);
   await answerPanel(page);
   await page.keyboard.press('Escape');
   const rows = await deck.rows();
   const target = rows.find((r) => r.kind === 'cue' && /LP2 G/.test(r.label))!;
-  for (let i = 0; i < SAMPLES; i++) {
+  for (let i = 0; i < count('panel'); i++) {
     await clearLpm(page);
     const seen = (await deck.state()).ver as number;
     // The relay takes ids shaped `name:number` (supabase/migrations/0110_panel_last_press.sql).
@@ -389,14 +399,15 @@ test('render', async ({ page, browser }) => {
   await cast.stop();
   // The capture's own resolution: the gap between consecutive frames while a graphic animates.
   const gaps = rows.map((r) => r.gapAfter).filter(Number.isFinite);
-  writeResult(`render-${tag}`, {
+  writeResult(`render-${tag}-part${PART}`, {
     fixture: FIXTURE, net: NET, at: new Date().toISOString(), fixtureFacts: fx,
     sentToPlay: summary(rows.map((r) => r.sentToPlay), failures.length),
     sentToDispatch: summary(rows.map((r) => r.sentToDispatch), failures.length),
     sentToSeen: summary(rows.map((r) => r.sentToSeen), failures.length),
     captureGap: summary(gaps),
     failures: failures.slice(0, 5),
-    raw: rows.map((r) => [r.sentToPlay, r.sentToDispatch, r.sentToSeen].map((x) => Math.round(x * 10) / 10)),
+    rows,
+    failureCount: failures.length,
   });
 });
 
@@ -430,7 +441,7 @@ test('publish', async ({ page, browser }) => {
   }, fx.showId);
   const during: Sample[] = [];
   const outside: Sample[] = [];
-  const deadline = Date.now() + 9 * 60_000;
+  const deadline = Date.now() + 2.5 * 60_000;
   let k = 0;
   while (during.length < SAMPLES && Date.now() < deadline) {
     await select(page, labels[k++ % labels.length]);
@@ -443,14 +454,15 @@ test('publish', async ({ page, browser }) => {
     const lastEnd = windows.length ? windows[windows.length - 1][1] : 0;
     const inside = press !== null && (windows.some(([a, b]) => press >= a && press <= b) || press > lastEnd + 25);
     (inside ? during : outside).push(s);
-    await settle(page, 150);
+    // The publish loop never goes quiet: wait for the Take's and the Out's own sends only.
+    await settle(page, 150, 20_000, SEND);
     await page.getByTestId('verb-out').click();
-    await settle(page, 150);
+    await settle(page, 150, 20_000, SEND);
   }
   const pub = await page.evaluate(() => { const w = window as unknown as { __lpPub: { on: boolean; windows: [number, number][]; errors: string[] } }; w.__lpPub.on = false; return w.__lpPub; });
   report('publish', { duringPublish: during, outsidePublish: outside }, {
     fixtureFacts: fx,
-    publishes: { n: pub.windows.length, ms: summary(pub.windows.map(([a, b]) => b - a)), errors: pub.errors.slice(0, 3) },
+    publishes: { n: pub.windows.length, ms: summary(pub.windows.map(([a, b]) => b - a)), durations: pub.windows.map(([a, b]) => b - a), errors: pub.errors.slice(0, 3) },
   });
 });
 
@@ -467,7 +479,6 @@ test('bytes', async ({ page, browser }) => {
   // production keeps its size from round to round.
   const kinds = ['cue-edit', 'graphic-add', 'graphic-remove', 'design-update'] as const;
   const rounds = Number(process.env.MEASURE_ROUNDS ?? 6);
-  const part = process.env.MEASURE_PART ?? '1';
   const rows: Record<string, unknown>[] = [];
   let lastPrepare = 0;
   for (let i = 0; i < rounds * kinds.length; i++) {
@@ -574,7 +585,7 @@ test('bytes', async ({ page, browser }) => {
     const op = r.op as { up: number; down: number }, o = r.output as { up: number; down: number };
     return op.up + op.down + o.up + o.down;
   };
-  writeResult(`bytes-${tag}-part${part}`, {
+  writeResult(`bytes-${tag}-part${PART}`, {
     fixture: FIXTURE, net: NET, at: new Date().toISOString(), fixtureFacts: fx,
     perKind: Object.fromEntries(kinds.map((k) => [k, {
       bytesTotal: summary(by(k).map(sum)),
@@ -622,7 +633,7 @@ test('boot', async ({ page, browser }) => {
     }
     await ctx.close();
   }
-  writeResult(`boot-${tag}`, {
+  writeResult(`boot-${tag}-part${PART}`, {
     fixture: FIXTURE, net: NET, at: new Date().toISOString(), fixtureFacts: fx, cache: 'cold (a new browser context per start)',
     navigationToReady: summary(rows.map((r) => r.ready), failures.length),
     navigationToFirstGraphicLoaded: summary(rows.map((r) => r.firstLoaded)),
@@ -630,6 +641,8 @@ test('boot', async ({ page, browser }) => {
     bytesAll: summary(rows.map((r) => r.bytes)),
     bytesProductionData: summary(rows.map((r) => r.dataBytes)),
     failures: failures.slice(0, 5),
+    failureCount: failures.length,
+    rows,
   });
 });
 
