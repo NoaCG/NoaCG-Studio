@@ -743,12 +743,12 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
 </svg>`;
     const tpl = await page.evaluate(async (m) => {
       const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const D = await import('/src/components/wizard/import/draft.ts');
-      const variant = variantsFor('imported-design').find((v) => v.id === 'svg01')!;
-      const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
-      return buildDraftTemplate(variant, mergeDraft(initialDraft(), patch));
+      const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+      const imported = importSvgMarkup(m);
+      const fields = imported.candidates.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+      return IMPORTED_SVG.create({
+        designSvg: { markup: imported.markup, width: imported.width, height: imported.height, fields, images: [], outlines: [], fonts: [] },
+      });
     }, markup);
     const join = tpl.fields.find((f) => f.title === 'Join link');
     expect(join, 'the QR layer adds a Join link field').toBeTruthy();

@@ -410,6 +410,16 @@ table is either written into or switched on and off.
 which. Two writers on one layer is a graphic whose operator watches their own typing be
 overwritten.
 
+### A QR code - a layer named `QR`
+
+Name any layer `QR` (a placeholder square is enough) and the graphic gains a field titled
+**Join link**. NoaCG draws that link as a QR code over the layer's box: black modules on a white
+square plate with its quiet zone, centred in the box, at the layer's own position and transform.
+Your placeholder is hidden on air. An empty Join link draws nothing. The encoder rides inside the
+graphic, so an exported graphic draws the same code with no network. The code ignores your
+palette on purpose, because a tinted code scans badly. Use it on a join card, or beside a vote
+board, so viewers can scan their way to the vote.
+
 ### The clock - up, down, or to a set time
 
 For a match clock beside a score, a running time, or a "starts at 19:00" card. Draw one text
