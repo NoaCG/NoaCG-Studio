@@ -301,7 +301,7 @@ function report() {
   const sp = { m1_from_ready: spreadOf(ref, 'm1_from_ready', ruleLandings), rounds: spreadOf(before, 'rounds', ruleLandings) };
   const minN = Object.fromEntries(Object.entries(sp).map(([m, s]) => [m, {
     median: minSample((m === 'rounds' ? before : ref).map((r) => r[m]), s.spread, median),
-    p95: (() => { const x = minSample((m === 'rounds' ? before : ref).map((r) => r[m]), s.spread, (v) => quantile(v, 0.95), { nMin: 20 }); return x; })(),
+    p95: minSample((m === 'rounds' ? before : ref).map((r) => r[m]), s.spread, (v) => quantile(v, 0.95), { nMin: 20 }),
   }]));
   const out = { window: { from, until, cf21: cf21 ?? null }, before: sideReport(before), after: cf21 ? sideReport(after) : null, straddling, spread: sp, min_n_per_side: minN, rule_landings: ruleLandings };
   if (cf21 && after.length) {
