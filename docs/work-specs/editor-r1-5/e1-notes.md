@@ -735,8 +735,12 @@ candidate difference. Both raw `jc01` hashes were `ec5dc4ccf279231f`.
 Normalizing eight CRLFs in the unchanged QR encoder produced
 `8d17b8a35536b6dd`, the committed fingerprint. The local raw result stays
 red, the baseline stays exact and the PR catalog check still applies.
-The local CI plan selected 179 offline specs in 15 shards and all 65
-configured specs. The exact PR run supplies the authoritative selection.
+On the corrected product head `3cab0eb446b7abbfd6895efcf92162c9ab702c15`,
+raw gate `j-5127` again exited 1 on only `jc01` JavaScript. The exact-main
+control `j-5128` exited 0 and found no candidate difference across all
+539 fingerprints, with the same raw `jc01` hash above. The local CI plan
+now selects 182 offline specs in 15 shards and all 65 configured specs.
+The exact PR run supplies the authoritative selection.
 
 ## Earlier checkpoints
 
