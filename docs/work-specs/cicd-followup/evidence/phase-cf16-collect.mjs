@@ -114,8 +114,11 @@ function runList(wf, event) {
   const key = `runs-${wf}-${event}-${SINCE}-${UNTIL}`;
   const cached = readCache(key);
   if (cached?.done) return cached.runs;
-  const runs = cached?.runs ?? [];
-  let page = cached?.page ?? 1;
+  // Runs are kept by id, so a page read twice replaces its runs instead of adding them again. A
+  // list that stopped on the call budget resumes at the page it had not read; a list that was
+  // read to the end while runs in it were still going is read again from page 1.
+  const byId = new Map((cached?.runs ?? []).map((x) => [x.id, x]));
+  let page = cached?.partial ? cached.page : 1;
   const created = `${day(SINCE, -1)}..${day(UNTIL, 1)}`;
   for (;;) {
     let r;
@@ -124,11 +127,17 @@ function runList(wf, event) {
         `repos/${REPO}/actions/workflows/${wf}/runs?event=${event}&created=${created}&per_page=100&page=${page}`,
       );
     } catch (e) {
-      if (e instanceof Budget) writeCache(key, { runs, page, done: false });
+      if (e instanceof Budget)
+        writeCache(key, {
+          runs: [...byId.values()],
+          page,
+          partial: true,
+          done: false,
+        });
       throw e;
     }
     for (const x of r.workflow_runs) {
-      runs.push({
+      byId.set(x.id, {
         id: x.id,
         head_sha: x.head_sha,
         head_branch: x.head_branch,
@@ -144,9 +153,9 @@ function runList(wf, event) {
     if (r.workflow_runs.length < 100) break;
     page += 1;
   }
-  // A run list taken while runs in it are still going is re-read next pass.
+  const runs = [...byId.values()];
   const done = runs.every((x) => x.status === "completed");
-  writeCache(key, { runs, page, done });
+  writeCache(key, { runs, page: 1, partial: false, done });
   return runs;
 }
 function jobs(run) {
@@ -202,6 +211,16 @@ console.error(
 );
 if (!args.report) process.exit(complete ? 0 : 3);
 if (!complete) process.exit(3);
+// A run still going has no cached jobs, so it would read as a run with no shards. Refuse.
+const going = Object.values(lists)
+  .flat()
+  .filter((r) => shas.has(r.head_sha) && r.status !== "completed");
+if (going.length) {
+  console.error(
+    `runs on landings still in progress: ${going.map((r) => r.id).join(" ")}; report later`,
+  );
+  process.exit(3);
+}
 
 // ---- Report: one record per landing ----
 const min = (a, b) => (Date.parse(b) - Date.parse(a)) / 60_000;
@@ -276,7 +295,9 @@ const records = L.map((l) => {
   const cs = (conf.get(l.sha) ?? []).sort((a, b) =>
     a.created_at.localeCompare(b.created_at),
   );
-  const qs = quar.get(l.sha) ?? [];
+  const qs = (quar.get(l.sha) ?? []).sort((a, b) =>
+    a.created_at.localeCompare(b.created_at),
+  );
   return {
     sha: l.sha,
     committed_at: l.committed_at,
@@ -324,9 +345,54 @@ const sched = (k) =>
       })),
     };
   });
+// Concurrent jobs over the window among the runs collected (every landing's merge-group, push,
+// configured and quarantine runs, every nightly and midday catalog run): a lower bound on the
+// account's load, since pull request runs are not collected.
+function concurrency() {
+  const edges = [];
+  const seen = new Set();
+  for (const r of Object.values(lists).flat()) {
+    const scheduled = r.event === "schedule";
+    if (!scheduled && !shas.has(r.head_sha)) continue;
+    for (const j of readCache(`jobs-${r.id}-a${r.run_attempt}`) ?? []) {
+      if (!j.started_at || !j.completed_at) continue;
+      const k = `${r.id}|${j.name}|${j.started_at}|${j.completed_at}`;
+      if (seen.has(k) || Date.parse(j.completed_at) <= Date.parse(j.started_at))
+        continue;
+      seen.add(k);
+      edges.push(
+        [Date.parse(j.started_at), 1],
+        [Date.parse(j.completed_at), -1],
+      );
+    }
+  }
+  edges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let c = 0;
+  let peak = 0;
+  let peakAt = null;
+  let atMost20 = 0;
+  for (let i = 0; i < edges.length; i += 1) {
+    c += edges[i][1];
+    if (c > peak) [peak, peakAt] = [c, new Date(edges[i][0]).toISOString()];
+    if (c > 0 && c <= 20 && edges[i + 1])
+      atMost20 += edges[i + 1][0] - edges[i][0];
+  }
+  let busy = 0;
+  c = 0;
+  for (let i = 0; i < edges.length; i += 1) {
+    c += edges[i][1];
+    if (c > 0 && edges[i + 1]) busy += edges[i + 1][0] - edges[i][0];
+  }
+  return {
+    peak,
+    peak_at: peakAt,
+    busy_share_at_most_20: Math.round((atMost20 / busy) * 1000) / 1000,
+  };
+}
 console.log(
   JSON.stringify(
     {
+      concurrency: concurrency(),
       since: SINCE,
       until: UNTIL,
       collected_at: new Date().toISOString(),

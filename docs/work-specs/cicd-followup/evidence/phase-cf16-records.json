@@ -1,7 +1,12 @@
 {
+  "concurrency": {
+    "peak": 56,
+    "peak_at": "2026-11-03T12:55:40.000Z",
+    "busy_share_at_most_20": 0.741
+  },
   "since": "2026-11-03T00:00:00Z",
   "until": "2026-11-10T00:00:00Z",
-  "collected_at": "2026-11-10T16:27:15.966Z",
+  "collected_at": "2026-11-10T16:35:55.007Z",
   "records": [
     {
       "sha": "27c737a22c7c228784cd8b3e8c099e5af0fa8097",
@@ -25,7 +30,7 @@
         "jobs": 29,
         "minutes": 84.32
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41556247248,
         "conclusion": "success",
@@ -74,7 +79,7 @@
         "jobs": 15,
         "minutes": 8.22
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41559433697,
         "conclusion": "success",
@@ -123,7 +128,7 @@
         "jobs": 15,
         "minutes": 9.2
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41561324124,
         "conclusion": "success",
@@ -172,7 +177,7 @@
         "jobs": 15,
         "minutes": 8.22
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41565492491,
         "conclusion": "success",
@@ -221,7 +226,7 @@
         "jobs": 15,
         "minutes": 12.47
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41569487238,
         "conclusion": "success",
@@ -270,7 +275,7 @@
         "jobs": 29,
         "minutes": 104.55
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41576117114,
         "conclusion": "success",
@@ -319,7 +324,7 @@
         "jobs": 29,
         "minutes": 78.9
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41577335895,
         "conclusion": "success",
@@ -368,7 +373,7 @@
         "jobs": 19,
         "minutes": 22.58
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41590230163,
         "conclusion": "success",
@@ -417,7 +422,7 @@
         "jobs": 15,
         "minutes": 7.3
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41596366458,
         "conclusion": "failure",
@@ -466,7 +471,7 @@
         "jobs": 29,
         "minutes": 133.48
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41598168744,
         "conclusion": "success",
@@ -515,7 +520,7 @@
         "jobs": 15,
         "minutes": 9.33
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41599943330,
         "conclusion": "success",
@@ -564,7 +569,7 @@
         "jobs": 29,
         "minutes": 99
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41606023566,
         "conclusion": "success",
@@ -613,7 +618,7 @@
         "jobs": 15,
         "minutes": 8.3
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41610394197,
         "conclusion": "success",
@@ -662,7 +667,7 @@
         "jobs": 30,
         "minutes": 82.98
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41614218827,
         "conclusion": "success",
@@ -711,7 +716,7 @@
         "jobs": 18,
         "minutes": 21.43
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41615172694,
         "conclusion": "success",
@@ -760,7 +765,7 @@
         "jobs": 15,
         "minutes": 9.1
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41630463961,
         "conclusion": "success",
@@ -809,7 +814,7 @@
         "jobs": 29,
         "minutes": 86.3
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41636891792,
         "conclusion": "success",
@@ -885,7 +890,7 @@
         "jobs": 15,
         "minutes": 8.85
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41639745869,
         "conclusion": "success",
@@ -961,7 +966,7 @@
         "jobs": 29,
         "minutes": 73.95
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41640931107,
         "conclusion": "cancelled",
@@ -1010,7 +1015,7 @@
         "jobs": 29,
         "minutes": 88.38
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41641180978,
         "conclusion": "success",
@@ -1059,7 +1064,7 @@
         "jobs": 15,
         "minutes": 8.75
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41644643082,
         "conclusion": "success",
@@ -1108,7 +1113,7 @@
         "jobs": 15,
         "minutes": 7.65
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41645987526,
         "conclusion": "success",
@@ -1157,7 +1162,7 @@
         "jobs": 15,
         "minutes": 6.7
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41649391597,
         "conclusion": "success",
@@ -1206,7 +1211,7 @@
         "jobs": 19,
         "minutes": 23.77
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41661208641,
         "conclusion": "success",
@@ -1255,7 +1260,7 @@
         "jobs": 29,
         "minutes": 126.62
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41676043546,
         "conclusion": "success",
@@ -1304,7 +1309,7 @@
         "jobs": 15,
         "minutes": 11.45
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41680822248,
         "conclusion": "success",
@@ -1353,7 +1358,7 @@
         "jobs": 17,
         "minutes": 23.67
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41689955444,
         "conclusion": "success",
@@ -1402,7 +1407,7 @@
         "jobs": 30,
         "minutes": 96.98
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41703811956,
         "conclusion": "success",
@@ -1451,7 +1456,7 @@
         "jobs": 15,
         "minutes": 11.6
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41704126220,
         "conclusion": "success",
@@ -1500,7 +1505,7 @@
         "jobs": 16,
         "minutes": 25.33
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41707157408,
         "conclusion": "success",
@@ -1549,7 +1554,7 @@
         "jobs": 15,
         "minutes": 14.07
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41710583409,
         "conclusion": "success",
@@ -1598,7 +1603,7 @@
         "jobs": 15,
         "minutes": 11.6
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41717759897,
         "conclusion": "success",
@@ -1647,7 +1652,7 @@
         "jobs": 29,
         "minutes": 93.85
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41721685420,
         "conclusion": "success",
@@ -1696,7 +1701,7 @@
         "jobs": 15,
         "minutes": 16.88
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41725517982,
         "conclusion": "success",
@@ -1745,7 +1750,7 @@
         "jobs": 15,
         "minutes": 12.57
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41730913276,
         "conclusion": "success",
@@ -1794,7 +1799,7 @@
         "jobs": 15,
         "minutes": 9.97
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41736547256,
         "conclusion": "success",
@@ -1843,7 +1848,7 @@
         "jobs": 15,
         "minutes": 9.93
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41789790344,
         "conclusion": "success",
@@ -1892,7 +1897,7 @@
         "jobs": 15,
         "minutes": 8.2
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41824171583,
         "conclusion": "success",
@@ -1941,7 +1946,7 @@
         "jobs": 19,
         "minutes": 25.82
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41825248130,
         "conclusion": "cancelled",
@@ -1990,7 +1995,7 @@
         "jobs": 29,
         "minutes": 83.03
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41826473778,
         "conclusion": "cancelled",
@@ -2039,7 +2044,7 @@
         "jobs": 15,
         "minutes": 9.55
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41827104985,
         "conclusion": "success",
@@ -2088,7 +2093,7 @@
         "jobs": 29,
         "minutes": 101.88
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41828915708,
         "conclusion": "cancelled",
@@ -2137,7 +2142,7 @@
         "jobs": 15,
         "minutes": 12.47
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41831193630,
         "conclusion": "cancelled",
@@ -2186,7 +2191,7 @@
         "jobs": 17,
         "minutes": 18.92
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41831597071,
         "conclusion": "success",
@@ -2235,7 +2240,7 @@
         "jobs": 27,
         "minutes": 50.75
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41833025217,
         "conclusion": "cancelled",
@@ -2284,7 +2289,7 @@
         "jobs": 29,
         "minutes": 89.85
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41835491688,
         "conclusion": "cancelled",
@@ -2333,7 +2338,7 @@
         "jobs": 29,
         "minutes": 151.82
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41836667668,
         "conclusion": "success",
@@ -2409,7 +2414,7 @@
         "jobs": 29,
         "minutes": 153.83
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41838845661,
         "conclusion": "cancelled",
@@ -2485,7 +2490,7 @@
         "jobs": 15,
         "minutes": 10.3
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41840677297,
         "conclusion": "cancelled",
@@ -2534,7 +2539,7 @@
         "jobs": 21,
         "minutes": 31.3
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41841765460,
         "conclusion": "success",
@@ -2583,7 +2588,7 @@
         "jobs": 29,
         "minutes": 121.53
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41844301547,
         "conclusion": "cancelled",
@@ -2632,7 +2637,7 @@
         "jobs": 29,
         "minutes": 126.88
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41846403026,
         "conclusion": "cancelled",
@@ -2762,7 +2767,7 @@
         "jobs": 15,
         "minutes": 13.75
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41848738858,
         "conclusion": "success",
@@ -2865,7 +2870,7 @@
         "jobs": 23,
         "minutes": 38.9
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41850887569,
         "conclusion": "cancelled",
@@ -2914,7 +2919,7 @@
         "jobs": 15,
         "minutes": 9.08
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41851582782,
         "conclusion": "success",
@@ -2963,7 +2968,7 @@
         "jobs": 29,
         "minutes": 122.98
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41854791114,
         "conclusion": "cancelled",
@@ -3012,7 +3017,7 @@
         "jobs": 29,
         "minutes": 158.38
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41855718881,
         "conclusion": "cancelled",
@@ -3088,7 +3093,7 @@
         "jobs": 15,
         "minutes": 8.55
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41856118624,
         "conclusion": "success",
@@ -3137,7 +3142,7 @@
         "jobs": 29,
         "minutes": 136.15
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41859169536,
         "conclusion": "success",
@@ -3186,7 +3191,7 @@
         "jobs": 29,
         "minutes": 103.73
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41865457911,
         "conclusion": "success",
@@ -3262,7 +3267,7 @@
         "jobs": 19,
         "minutes": 26.18
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41866138976,
         "conclusion": "success",
@@ -3311,7 +3316,7 @@
         "jobs": 29,
         "minutes": 84.47
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41870484041,
         "conclusion": "success",
@@ -3360,7 +3365,7 @@
         "jobs": 29,
         "minutes": 151.7
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41871604001,
         "conclusion": "cancelled",
@@ -3409,7 +3414,7 @@
         "jobs": 29,
         "minutes": 144.27
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41872042856,
         "conclusion": "success",
@@ -3458,7 +3463,7 @@
         "jobs": 15,
         "minutes": 10.75
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41874674908,
         "conclusion": "cancelled",
@@ -3507,7 +3512,7 @@
         "jobs": 29,
         "minutes": 128.43
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41875887514,
         "conclusion": "success",
@@ -3556,7 +3561,7 @@
         "jobs": 29,
         "minutes": 85.02
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41902126137,
         "conclusion": "success",
@@ -3605,7 +3610,7 @@
         "jobs": 29,
         "minutes": 106.52
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41903317226,
         "conclusion": "cancelled",
@@ -3681,7 +3686,7 @@
         "jobs": 29,
         "minutes": 131.45
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41904429320,
         "conclusion": "cancelled",
@@ -3730,7 +3735,7 @@
         "jobs": 29,
         "minutes": 157.73
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41905627720,
         "conclusion": "success",
@@ -3806,7 +3811,7 @@
         "jobs": 19,
         "minutes": 27.4
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41906316592,
         "conclusion": "success",
@@ -3855,7 +3860,7 @@
         "jobs": 29,
         "minutes": 85.2
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41912103787,
         "conclusion": "success",
@@ -3931,7 +3936,7 @@
         "jobs": 15,
         "minutes": 10.22
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41915626548,
         "conclusion": "success",
@@ -3980,7 +3985,7 @@
         "jobs": 29,
         "minutes": 85.6
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41923451668,
         "conclusion": "success",
@@ -4029,7 +4034,7 @@
         "jobs": 29,
         "minutes": 122.93
       },
-      "push_runs": 15,
+      "push_runs": 1,
       "push": {
         "id": 41928880867,
         "conclusion": "success",

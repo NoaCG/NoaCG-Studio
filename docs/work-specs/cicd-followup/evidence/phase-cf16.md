@@ -27,17 +27,21 @@ cf19 acts on it."
   the full E2E suite on 0 of 184, the configured (backend) suite on 0 (exempt by design), the
   whole-catalog gate on 77 (only when the change can move a design) and engine-floor on 0. It is
   equivalent evidence for no landing. After the merge, 127 landings got a green full E2E run on
-  their own commit; 54 got none (34 superseded runs that cancel themselves by design, 20 landings
-  that reached `main` in the same push as the next one and so had no push run of their own).
+  their own commit and 54 did not: 33 runs cancelled themselves when superseded (by design), 1 run
+  was red before every shard finished, and 20 landings reached `main` in the same push as the
+  next one and so had no push run of their own.
 - **(b) Validating every exact commit in full costs about 272 runner-minutes per landing, 82
-  more than today.** Over the window that is 15,150 extra runner-minutes (2,164 a day). It fits
-  the 60-job Team ceiling easily on average (about 10 jobs at the busiest day's rate) and meets
+  more than today** (15,150 over the window, 2,164 a day). Most of that, 75 per landing, closes
+  gaps that exist today with or without narrowing (full E2E, configured suite and engine-floor on
+  every exact commit); 7.1 is the whole catalog that narrowing itself moves after the merge.
+  Narrowing saves at most 17.8 per landing pre-merge. So narrowing alone could save up to 10.7
+  per landing, but the model the owner set for it (decision C, cf19(a)) costs at least 64.5 more.
+  It fits the 60-job Team ceiling (about 10 jobs on average at the busiest day's rate) and meets
   24 hours with large margin (one run takes 19 minutes median, 38 at p95), but only with a new
-  carrier that starts one run per landed commit, a per-commit ledger and an hourly alarm. Narrowing
-  the catalog gate saves at most 17.8 runner-minutes per landing pre-merge, so the model costs
-  at least 64.5 more runner-minutes per landing. The latency gain is small: the gate never set the
-  pull request's critical path in cf03's after side, and it lengthened the merge-queue run only
-  when it was the last job (10 of 35 runs, 2.5 minutes median, 0.7 per landing on average).
+  carrier that starts one run per landed commit, a per-commit ledger and an hourly alarm. The
+  latency gain is small: the gate never set the pull request's critical path in cf03's after
+  side, and it lengthened the merge-queue run only when it was the last job (10 of 35 runs, 2.5
+  minutes median, 0.7 per landing on average).
 - **(c) Recommendation: keep full pre-merge catalog coverage and optimize its execution.** Full
   pre-merge testing stays until cf18 qualifies, and cf19 re-reads this against cf18's result.
 - **(d)** Nothing changed here. cf19 re-reads section 6 against cf18 before it acts.
@@ -82,6 +86,12 @@ The checks that exist on some carrier today, read from the workflows at `74102c1
 | Whole-catalog gate (emit fingerprints and calibration tripwire) | when the planner raises the catalog flag | when the push's own diff raises it (`--catalog-since`) | every night |
 | Type floor, overflow, field coverage, engine-floor | never | never | every night |
 
+`catalog-gates.yml` also runs at midday on `main`: the battery `catalog-affected.mjs` plans for
+what landed since its last green run (emit, catalog specs, type floor, overflow, field coverage,
+numerals), scoped to those designs and without engine-floor. It is range evidence on a later
+commit, like the nightly, and adds coverage on top of the full gates rather than replacing them
+(ci16 section 2). 8 runs in the window, 22.9 runner-minutes each on average.
+
 Catalog narrowing (ci16 section 4) would make the pre-merge catalog gate bench only the designs a
 change can move. The owner's decision C asks that, if narrowing goes ahead, every exact merged
 revision gets full validation within 24 hours. This phase prices that for the whole table (the bar
@@ -115,7 +125,8 @@ is equivalent to the pre-merge selection, which is exactly what a narrowing woul
 | Reading (n = 184) | Count |
 | --- | ---: |
 | Own `ci.yml` push run with the full suite, every shard finished | 130 (127 green, 3 red) |
-| Own push run superseded and cancelled (by design) | 34 |
+| Own push run superseded and cancelled (by design) | 33 |
+| Own push run red before every shard finished | 1 |
 | No push run of its own (landed in the same push as the next landing) | **20** |
 | Own `configured-suite.yml` run: green / red / none | 163 / 1 / **20** |
 | Whole-catalog gate green on the exact commit (merge group or push) | 86 |
@@ -124,19 +135,24 @@ is equivalent to the pre-merge selection, which is exactly what a narrowing woul
 
 The 20 commits without a push run also have no configured-suite run of their own: GitHub fires
 one `push` event per push, for its head commit, so when the queue merges two entries at once the
-first is never pushed alone. cf13's checker saw 14 superseded runs of this kind; this window has 34
+first is never pushed alone. cf13's checker saw 14 superseded runs of this kind; this window has 33
 superseded and 20 unpushed.
 
 **Range coverage is quick; exact coverage is not universal.** Every landing was inside a green
-full-E2E push run within 157 minutes (median 21, p95 65.5), but that run tested a later tree. The
+full-E2E push run within 157 minutes (median 21, p95 65.5; the earliest-finishing green run on
+it or a later landing), but that run tested a later tree. The
 owner's decision C says a later run "does not prove that every intervening merge was tested". The
 nightly is range evidence only, and its start drifted from the `00:20` UTC cron to 06:03 to 07:23
 UTC on all nine nights.
 
 **Duplicate work on the same commit.** On 52 landings the merge group and the push run both ran
-the whole-catalog gate green on the identical commit: about 551 runner-minutes in the week (3.0
-per landing) answer the same question twice. That is the one place where the merge queue already
-gives equivalent evidence and the push run repeats it.
+the whole-catalog gate green on the identical commit: the push side spent 548 runner-minutes in
+the week (3.0 per landing) answering the same question twice. That is the one place where the
+merge queue already gives equivalent evidence: the same job on the same commit, unscoped. This
+answers #2165 item 3 ("cf16 decides whether the merge group's run is equivalent evidence"): for
+the catalog gate, a green merge-group gate on the landed commit is equivalent evidence for that
+commit. It is not for the 9 landings where the push diff raised the gate and the merge group's
+did not, nor for the 20 commits the push never ran on its own.
 
 ## 3. (b) Cost of validating every exact merged revision
 
@@ -152,24 +168,31 @@ gives equivalent evidence and the push run repeats it.
 
 ### 3.2 Two models, one week (184 landings)
 
-| | Full pre-merge (today) | Post-merge model, full | Post-merge model, catalog rows only |
-| --- | --- | --- | --- |
-| Pre-merge catalog gate | whole catalog when flagged: 812 min on the merge group (4.4 per landing) plus 13.4 per landing on PR runs (cf14, 2026-11-04, n = 42) | scoped | scoped |
-| Saved pre-merge, upper bound (scoped run costing nothing) | | 17.8 per landing | 17.8 per landing |
-| Added post-merge | | full E2E on 54 commits (10,535), configured on 20 (1,084), whole catalog on 123 (1,304), floor on 184 (2,226): **15,150, 82.3 per landing** | whole catalog on 123 and floor on 184: **3,530, 19.2 per landing** |
-| Net CI minutes per landing | 0 | **at least +64.5** | at least +1.4 |
-| Merge-queue execution (M2) | unchanged | at most 0.7 min less on average; 2.5 min median less on the 29% of runs where the gate is last (cf03 after side, 10 of 35) | same |
-| Ready to green checks (M1) | unchanged | about 0: the gate never set the PR run's end in cf03's after side (0 of 35); the configured selection does | same |
-| Time to a full verdict on the exact commit | before merge | after merge: 19 min median, 38 min p95 when started at once; up to 24 h by contract | same |
+The pre-merge gate on pull request runs is not collected here; cf14 measured it at 13.4 per
+landing on 2026-11-04 (n = 42 landings), and that figure is used as given.
 
-"At least" because a scoped bench still costs its setup, so the real saving is below 17.8.
-The catalog-only column is not full validation: it closes only what narrowing removes, and leaves
-the 54 commits without their own full E2E run and the 20 without their own configured run as
-today. It is listed so cf19 sees the cheapest variant, not as a substitute for cf19(a)'s bar.
+| | Full pre-merge (today) | Post-merge model (decision C) |
+| --- | --- | --- |
+| Pre-merge catalog gate | whole catalog when flagged: 812 min on the merge group (4.4 per landing) plus 13.4 per landing on PR runs | scoped |
+| Saved pre-merge, upper bound (a scoped run costing nothing) | | 17.8 per landing |
+| Added post-merge, caused by narrowing: whole catalog on the 123 commits without it after the merge | | 1,304 (7.1 per landing) |
+| Added post-merge, the rest of the per-commit bar: full E2E on 54 commits (10,535), configured on 20 (1,084), floor on 184 (2,226) | | 13,845 (75.2 per landing) |
+| Net CI minutes per landing | 0 | **at least +64.5** (narrowing's own part: at best -10.7) |
+| Merge-queue execution (M2) | unchanged | at most 0.7 min less on average; 2.5 min median less on the 29% of runs where the gate is last (cf03 after side, 10 of 35) |
+| Ready to green checks (M1) | unchanged | about 0: the gate never set the PR run's end in cf03's after side (0 of 35); the configured selection does |
+| Time to a full verdict on the exact commit | before merge for the catalog; 69% get full E2E and configured on their own commit after merge | after merge for everything: 19 min median, 38 min p95 when started at once; up to 24 h by contract |
+
+The saving is an upper bound because a scoped bench still costs its setup. The bar's 75.2 is not
+caused by narrowing: those gaps exist today under full pre-merge catalog coverage. They count
+against the model because decision C and cf19(a) make full validation of every exact commit the
+condition for narrowing, so adopting narrowing means paying them. Narrowing with only a
+post-merge whole catalog per commit (the 7.1) would leave the 54 commits without their own full
+E2E run and the 20 without their own configured run as today; that is not the model the owner
+set, and it is shown only so cf19 sees where the cost sits.
 
 **Graphics tier.** cf14 recorded the tier at 10.16 per landing for merge queue plus main push
 against a ceiling of 10, under the dated extension `cf14-catalog-gate-extension` to 2026-12-14.
-Under either post-merge model the per-commit whole-catalog run alone is 10.6 per landing, plus
+Under the post-merge model the per-commit whole-catalog run alone is 10.6 per landing, plus
 12.1 for the floor job if it is counted in the tier, so the model does not bring the tier under
 its ceiling. The full model also adds 5.9 per landing to the backend tier (the 20 unpushed
 configured runs), which ran about 119% of its line on 2026-11-03.
@@ -178,10 +201,11 @@ configured runs), which ran about 119% of its line on 2026-11-03.
 
 - **Ceiling.** The organisation is on GitHub Team: phase-ci01.md measured at least 60 concurrent
   standard jobs with none waiting. In this window the landing-related runs alone (merge group,
-  push, configured, quarantine, nightly, midday catalog) peaked at 56 concurrent jobs and were at
-  20 or fewer 92% of the time. The 20-job figure still quoted in `ci.yml` comments is out of date.
+  push, configured, quarantine, nightly, midday catalog; pull request runs not collected) peaked
+  at 56 concurrent jobs (2026-11-03T12:55Z) and were at 20 or fewer for 74% of the time any of
+  them ran. The 20-job figure still quoted in `ci.yml` comments is out of date.
 - **Average load.** At the busiest day's rate (54 landings), full per-commit validation is
-  54 x 272 = 14,700 runner-minutes, about 10 jobs on average over 24 hours. Of that, 4,400 is new
+  54 x 272 = 14,688 runner-minutes, about 10 jobs on average over 24 hours. Of that, 4,446 is new
   (82.3 x 54), about 3 jobs on average: 5% of the ceiling.
 - **Bursts.** 10 landings in one hour would ask for 2,720 runner-minutes in that hour, about 45
   jobs if all start at once, on top of pull request and queue runs. Started at once, that would
@@ -226,7 +250,7 @@ builds none.
 | --- | --- | --- |
 | Merge latency | unchanged: M1 cap+cfg 14.6 min, M2 execution 11.7 (cf03) | M1 about the same; M2 execution 0.7 min less on average, 2.5 less where the gate is last (cf03 spread 0.62) |
 | When a catalog regression is caught | before it reaches `main` | up to 24 hours after, with a revert of an exact commit |
-| CI minutes | today's | at least 64.5 more per landing (full), at least 1.4 more (catalog rows only) |
+| CI minutes | today's | at least 64.5 more per landing; narrowing's own part at best 10.7 fewer |
 | New moving parts | none | per-commit carrier, ledger, hourly alarm, owner routing, rollback |
 | Exact-commit full coverage | still 69% (section 2), unchanged | 100% by construction, if the carrier runs |
 
@@ -239,8 +263,9 @@ Why:
 
 1. The merge queue already proves identity, not coverage (section 2), so the model needs a new
    carrier and alarm; there is no existing evidence to reuse beyond the duplicate catalog gate.
-2. It costs more CI minutes than it saves: at least 64.5 per landing for full validation, and
-   at best break-even even for the catalog rows alone.
+2. It costs more CI minutes than it saves: at least 64.5 more per landing. Narrowing's own part
+   could save up to 10.7 per landing, but only together with the per-commit bar the owner set,
+   which costs 75.2.
 3. It buys little latency: the pull request's critical path is the configured selection, not the
    catalog gate, and the merge queue gains 0.7 minutes per landing on average.
 4. It trades a pre-merge catch for a catch up to a day later on a branch that deploys.
@@ -254,7 +279,10 @@ What would change the answer (cf19 re-reads these against cf18):
 - The pre-merge gate cost grows (more landings that move a design, more superseded PR gate
   runs), so that the saving passes the per-commit carrier's cost.
 - A per-commit carrier is built for another reason (for example to close the 31% of landings
-  without their own full E2E or configured run), so its cost no longer counts against narrowing.
+  without their own green full E2E and configured run), so its cost no longer counts against
+  narrowing. Then narrowing's own part, up to 10.7 fewer runner-minutes per landing and up to
+  2.5 minutes off the merge-queue run where the gate is last, decides it, and adoption may then
+  be worth it.
 
 Optimizations of full pre-merge coverage, measured here:
 
@@ -263,11 +291,11 @@ Optimizations of full pre-merge coverage, measured here:
    runner-minutes per landing, about 30% of the tier's 10.16 merge-queue-plus-push figure. The
    push run could reuse a green merge-group gate on the same sha and run it only where the push
    diff raised the flag and the merge group did not (9 landings). This keeps every commit's
-   whole-catalog answer and is a candidate for reduction plan #2165, not a change made here.
-2. **Superseded pull-request gate runs.** cf14 measured 38 of 79 PR gate jobs cancelled on
-   2026-11-04 (131.7 minutes), the largest share of the gate's waste. They are the pull request's
-   own cancellations, which the rules allow; starting the gate only when the run is not about to
-   be superseded is cf14's plan #2165, not this phase's.
+   whole-catalog answer. It is #2165 item 3; changing what the push run runs is a workflow change
+   with its own rules and review, not made here.
+2. **Pull request heads re-running the gate.** #2165 item 1 measured 13.4 per landing (57% of
+   the gate) on PR heads, 131.7 minutes of it cancelled by a newer push on 2026-11-04. That is
+   the largest pre-merge cost that can shrink without narrowing anything.
 
 ## 6. (d) For cf19
 

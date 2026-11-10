@@ -38,9 +38,10 @@ const out = (k, v) =>
   console.log(`${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`);
 
 // A landing that reached main in the same push as the next one has no push run of its own; it
-// takes the next landing's time (the ci13 rule R1).
+// takes the next landing's time (the ci13 rule R1); the window's last landing, with no next one
+// inside it, falls back to its committer time.
 for (let i = n - 1; i >= 0; i -= 1)
-  R[i].landed = R[i].landed_at ?? R[i + 1]?.landed;
+  R[i].landed = R[i].landed_at ?? R[i + 1]?.landed ?? R[i].committed_at;
 const fullPush = (r) =>
   r.push?.mode === "full" &&
   r.push.shards > 0 &&
@@ -94,7 +95,11 @@ out("ci.yml push: full suite, every shard finished", count(fullPush));
 out("ci.yml push: full suite green", count(greenFullPush));
 out(
   "ci.yml push: superseded and cancelled",
-  count((r) => r.push && !fullPush(r)),
+  count((r) => r.push?.conclusion === "cancelled" && !fullPush(r)),
+);
+out(
+  "ci.yml push: full suite, red and not every shard finished",
+  count((r) => r.push && r.push.conclusion !== "cancelled" && !fullPush(r)),
 );
 out(
   "ci.yml push conclusion",
@@ -120,9 +125,28 @@ out(
 );
 const exactAll = (r) =>
   greenFullPush(r) && r.configured?.conclusion === "success";
-out(
-  "exact commit had green full E2E push AND green configured suite",
+out("exact commit had green full E2E push AND green configured suite", [
   count(exactAll),
+  `${Math.round((count(exactAll) / n) * 100)}%`,
+]);
+out("exact commit had no full E2E push run of its own", [
+  n - count(fullPush),
+  `${Math.round(((n - count(fullPush)) / n) * 100)}%`,
+]);
+const dup = R.filter(
+  (r) => r.group?.catalog === "success" && r.push?.catalog === "success",
+);
+out(
+  "whole-catalog gate green on the same commit in both merge group and push: landings / push-side minutes / per landing",
+  [
+    dup.length,
+    Math.round(stats(dup.map((r) => r.push.catalog_minutes)).sum),
+    +(stats(dup.map((r) => r.push.catalog_minutes)).sum / n).toFixed(1),
+  ],
+);
+out(
+  "push raised the catalog gate where the merge group did not",
+  count((r) => r.group?.catalog !== "success" && r.push?.catalog === "success"),
 );
 
 console.log(
@@ -131,13 +155,21 @@ console.log(
 const own = R.filter(greenFullPush).map((r) =>
   mins(r.landed, r.push.updated_at),
 );
+// Range: the earliest-finishing green full push run on this landing or any later one.
 const range = [];
 for (let i = 0; i < n; i += 1) {
-  const j = R.slice(i).find(greenFullPush);
-  if (j) range.push(mins(R[i].landed, j.push.updated_at));
+  const ends = R.slice(i)
+    .filter(greenFullPush)
+    .map((r) => Date.parse(r.push.updated_at));
+  if (ends.length)
+    range.push(mins(R[i].landed, new Date(Math.min(...ends)).toISOString()));
 }
 out("exact (own push run)", stats(own));
-out("range (first later green full push run)", stats(range));
+out(
+  "range (earliest green full push run on this or a later landing)",
+  stats(range),
+);
+out("landings with no such run in the window", n - range.length);
 out(
   "nightly runs",
   d.nightly.map((x) => `${x.created_at} ${x.conclusion}`),
@@ -247,22 +279,56 @@ out("added minutes total / per landing / per day", [
   +(addTotal / n).toFixed(1),
   Math.round(addTotal / days),
 ]);
-const catOnly = add.catalog + add.floor;
-out(
-  "catalog-only carrier (whole catalog + floor per exact commit) total / per landing",
-  [Math.round(catOnly), +(catOnly / n).toFixed(1)],
-);
+// What narrowing itself removes is the pre-merge whole catalog; the rest of the bar (full E2E,
+// configured, floor on every exact commit) closes gaps that exist today with or without it.
+// PR-run gate cost is not collected here: cf14 measured it on 2026-11-04 (n = 42 landings).
+const PR_GATE_PER_LANDING = 13.4;
 const preCat = stats(
   R.filter((r) => r.group?.catalog === "success").map(
     (r) => r.group.catalog_minutes,
   ),
 ).sum;
+const saved = preCat / n + PR_GATE_PER_LANDING;
 out(
-  "merge-group catalog gate minutes (narrowing could shrink these) total / per landing",
-  [preCat, +(preCat / n).toFixed(1)],
+  "pre-merge whole-catalog minutes: merge group total / per landing; PR per landing (cf14); saving upper bound per landing",
+  [
+    Math.round(preCat),
+    +(preCat / n).toFixed(1),
+    PR_GATE_PER_LANDING,
+    +saved.toFixed(1),
+  ],
+);
+const caused = add.catalog / n;
+const bar = (add.e2e + add.configured + add.floor) / n;
+out(
+  "per landing: added by narrowing itself (post-merge whole catalog) / added by the rest of the per-commit bar",
+  [+caused.toFixed(1), +bar.toFixed(1)],
+);
+out(
+  "net per landing: whole model (bar + catalog - saving) / narrowing itself (catalog - saving), lower bounds",
+  [+(addTotal / n - saved).toFixed(1), +(caused - saved).toFixed(1)],
+);
+out(
+  "backend tier added per landing (configured on unpushed commits)",
+  +(add.configured / n).toFixed(1),
 );
 const perExact = pushE2E + conf + cat + floor;
 out(
   "one complete exact validation (E2E full + configured + catalog + floor), runner-minutes",
   +perExact.toFixed(1),
+);
+const busiest = Math.max(...Object.values(tally((r) => r.landed.slice(0, 10))));
+out(
+  "busiest day: landings / full-validation runner-minutes / mean jobs over 24 h / of it added / mean added jobs",
+  [
+    busiest,
+    Math.round(busiest * perExact),
+    +((busiest * perExact) / 1440).toFixed(1),
+    Math.round(busiest * (addTotal / n)),
+    +((busiest * (addTotal / n)) / 1440).toFixed(1),
+  ],
+);
+out(
+  "concurrent jobs among collected runs (lower bound on account load)",
+  d.concurrency,
 );
