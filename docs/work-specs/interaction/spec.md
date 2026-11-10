@@ -705,7 +705,7 @@ stored write deciding):
   (S14). Change then a pick starts a new result cue for the selected question (S16). The three were
   sent to the coordinator before the patch and confirmed by it as decisions the owner can revert.
 - The vote field words (`Vote status`, `Live figures` and their tokens) moved to
-  `templates/behaviours/voteFields.ts`, re-exported by `vote.ts`, so the staging module runs in
+  `model/voteFields.ts`, re-exported by `vote.ts`, so the staging module runs in
   Node without the recipe machinery. No emitted byte changes.
 - The rehearsal walk on the local stack is a configured test (the existing published walk,
   extended), because it has to run where a local stack exists; this machine walks it offline.
@@ -718,6 +718,9 @@ stored write deciding):
   votes after a reload overwrites earlier simulated votes instead of adding. Simulate before the
   reload in a journey.
 - A prepared message cue is labelled by the message text, not by the card's name.
+- `src/control/` may not import `src/templates/` (`.dependency-cruiser.cjs`, run in CI's Build lane,
+  not in `npm run gates`): shared words go in `src/model/`. Run
+  `npx depcruise --config .dependency-cruiser.cjs src` before pushing a new import edge.
 - `git commit -a` for a temporary mutation sweeps every unstaged edit into it; reverting it with
   `reset --hard HEAD~1` drops them. Commit real work first.
 

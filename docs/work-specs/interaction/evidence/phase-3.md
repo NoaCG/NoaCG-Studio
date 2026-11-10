@@ -61,7 +61,9 @@ live (S14); Program changed only on Take.
 
 - `npm run gates -- run --changed origin/main`: 283 tests, 0 failed (after re-recording the copy
   baseline down by one em dash the moved code no longer has).
-- `npx tsc --noEmit -p tsconfig.json` and eslint on the changed files: clean.
+- `npx tsc --noEmit -p tsconfig.json`, eslint on the changed files and
+  `npx depcruise --config .dependency-cruiser.cjs src`: clean. (The first CI run on `4230b2e` found
+  `src/control` importing `src/templates`; the field words moved to `src/model/voteFields.ts`.)
 - Browser, local queue: `e2e/production-audience.spec.ts` and `e2e/import-svg-behaviour.spec.ts`
   filtered to the Interaction, vote, phone, join and message tests: 35 passed (j-0006); the AC-9
   journeys and the stale-phone journey again after the last changes.
@@ -69,7 +71,7 @@ live (S14); Program changed only on Take.
   offline files (+0.00 min); `check-e2e-protection`: OK, `production-audience.spec.ts` 29 to 30
   tests.
 - Not run here: the configured suite and the catalog battery (the change moves the vote field
-  words into `voteFields.ts`, which `e2e-affected` reads as catalog-affecting); both run in the
+  words into `model/voteFields.ts`, which `vote.ts` imports, so `e2e-affected` reads as catalog-affecting); both run in the
   PR's CI gate.
 
 ## Review rounds

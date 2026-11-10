@@ -1,6 +1,6 @@
 // The live vote's FIELD CONTRACT words, apart from the recipe so plain modules (the production's
 // result staging, control/resultStaging.ts) can read them without loading the recipe machinery.
-// templates/behaviours/vote.ts emits the fields and re-exports these.
+// templates/behaviours/vote.ts emits the fields and re-exports these; they live in model/ so control/ may read them.
 
 /** The status field's title and vocabulary. An EMPTY value means "not stated" - what a board
  *  saved before this field existed reports. */

@@ -23,9 +23,9 @@ import type { TypeMachine } from '../types/graphicType';
 import type { BehaviourRecipe } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 
-import { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE } from './voteFields';
+import { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE } from '../../model/voteFields';
 
-/** The field contract's words live in ./voteFields.ts, so plain modules can read them; the
+/** The field contract's words live in model/voteFields.ts, so plain modules can read them; the
  *  production dashboard writes these fields and finds them by title (control/resultStaging.ts). */
 export { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE };
 

@@ -20,7 +20,7 @@
 import type { Show } from '../model/shows';
 import type { ResultPlan } from '../model/resultCues';
 import { lastTitled, voteBoardFields } from './messageStaging';
-import { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE } from '../templates/behaviours/voteFields';
+import { POLL_LIVE_ON, POLL_LIVE_TITLE, POLL_STATUS_CLOSED, POLL_STATUS_OPEN, POLL_STATUS_TITLE } from '../model/voteFields';
 
 type Field = { field: string; title?: string };
 
