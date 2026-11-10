@@ -641,13 +641,14 @@ const sha = (o) => hash(JSON.stringify(o));
  *  stops it (stopCreditsRoll, called by the Out step); the test "#2108, #2104, #2098" asserts both.
  *  The artwork and plain imports are unchanged. Re-taken for #1795: the shared animation
  *  interpreter in every build's js gained the exit-rest undo; with the previous interpreter swapped
- *  back in, each build hashes to its previous pin exactly. */
+ *  back in, each build hashes to its previous pin exactly. Re-taken for #2355: only the SVG fit runtime
+ *  every build carries moved (a centred figure keeps its drawn size). */
 const PINS = {
-  editable: '2dc75d9fb6b50125',
-  artwork: 'cbfeb869218af59a',
-  'fixed:credits-1': '6a18dc3f245cb90d',
-  'fixed:credits-2': 'ee14eb0ec6e427b2',
-  'fixed:credits-3': '8e2e56d12dc7deab',
+  editable: '6902ebe3a2844d9c',
+  artwork: '6ae5a3dd2ba05e94',
+  'fixed:credits-1': 'c4f5b8c9f6482163',
+  'fixed:credits-2': 'f61330c0b459ee0a',
+  'fixed:credits-3': 'a3d5e4aeb160f29c',
 };
 
 if (process.env.CREDITS_PRINT_STYLED) console.log(JSON.stringify({ styled: R.styled, fallbacks: R.fallbacks, issue1941: R.issue1941 }, (k, v) => (['doc', 'html', 'css', 'js', 'sourceMarkup', 'outer'].includes(k) ? undefined : v), 1));
@@ -1053,7 +1054,7 @@ test('#1955: the editable roll\'s list holder keeps its line breaks through the 
  *  ends or is cut short (creditsLetGo), lets it go after a snap (noacgCreditsRested), and measures
  *  the take at rest (creditsAtRest); html and css unchanged; the test "#2108, #2104, #2098" below
  *  asserts it. Re-taken for #1795, as the pins above: only the shared interpreter moved. */
-const ROLE_ABOVE_PINS = { one: '8b52b52e15fec403', bold: 'c6c473bc1142cd64', grouped: '5de46c281e716a80', roleGroup: '59e3e5fb354a3320', idGroup: '173ecb85bc41a3bb' };
+const ROLE_ABOVE_PINS = { one: '08c6071dff7dd3b1', bold: '1f610686d84b1677', grouped: 'a362e03881a580f7', roleGroup: '2229d83a0de1af10', idGroup: '21be5164ce2b2475' };
 const BESIDE = ['beside', 'besideEnd', 'hebrewBeside', 'namesLeft', 'pickBesideName'];
 
 test('row 20: role-above styled credits build exactly as row 19 built them', () => {
@@ -1066,7 +1067,7 @@ test('row 20: role-above styled credits build exactly as row 19 built them', () 
  *  styled one is as main built it before #1965; the editable one gained exactly creditsSettle.
  *  Both re-taken for #2098 and the styled one for #2108 and #2104, as the pins above, and both
  *  for #1795 (the shared interpreter only). */
-const FACED_PINS = { styled: 'a03ad161718a1708', editable: '98bc6ef6dddb5d46' };
+const FACED_PINS = { styled: '048062dfd63b6987', editable: 'c604a15cbf457e4e' };
 
 test('#1969, #1965: a styled or editable roll whose design ships a face builds as pinned, with its second measure', () => {
   for (const k of ['styled', 'editable']) {
