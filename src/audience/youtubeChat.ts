@@ -20,6 +20,7 @@
 // so the operator can pick a line said just before connecting without it reading as new.
 
 import type { ChatDriver, ChatDriverHandlers } from './chatIntake';
+import { chatVoter } from './chatVotes.ts';
 
 export const YOUTUBE_API = 'https://www.googleapis.com/youtube/v3';
 /** The poll floor. The API suggests about 3 s; every extra poll is the operator's quota. */
@@ -167,6 +168,8 @@ export function youtubeChatDriver(videoInput: string, apiKey: string, handlers: 
           authorId,
           authorName: item.authorDetails?.displayName ?? 'Viewer',
           text,
+          at: Date.parse(item.snippet.publishedAt ?? ''),
+          voter: chatVoter('youtube', authorId),
           ...(earlier ? { earlier: true } : {}),
         });
       }

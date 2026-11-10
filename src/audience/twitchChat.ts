@@ -10,7 +10,8 @@
 // when it drops. Everything about identity, throttling and moderation happens in chatIntake.ts
 // - this file must not grow opinions about what to do with a message.
 
-import type { ChatDriver, ChatDriverHandlers } from './chatIntake';
+import type { ChatDriver, ChatDriverHandlers, ChatDriverMessage } from './chatIntake';
+import { chatVoter } from './chatVotes.ts';
 
 const TWITCH_IRC_WSS = 'wss://irc-ws.chat.twitch.tv:443';
 
@@ -152,7 +153,7 @@ export function twitchChatDriver(channel: string, handlers: ChatDriverHandlers):
 
 /** `@tags :login!login@login.tmi.twitch.tv PRIVMSG #channel :the text` - anything else is not
  *  a chat line and returns null. */
-function parsePrivmsg(line: string): { id: string | null; authorId: string; authorName: string; text: string } | null {
+export function parsePrivmsg(line: string): ChatDriverMessage | null {
   let rest = line;
   let tags: Record<string, string> = {};
   if (rest.startsWith('@')) {
@@ -174,5 +175,7 @@ function parsePrivmsg(line: string): { id: string | null; authorId: string; auth
     authorId: match[1],
     authorName: tags['display-name'] || match[1],
     text,
+    ...(tags['tmi-sent-ts'] ? { at: Number(tags['tmi-sent-ts']) } : {}),
+    voter: chatVoter('twitch', tags['user-id']),
   };
 }

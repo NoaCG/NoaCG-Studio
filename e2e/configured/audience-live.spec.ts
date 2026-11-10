@@ -3,6 +3,7 @@
 // covers: supabase/migrations/0111_audience_questions.sql
 // covers: src/join/**, join.html, scripts/app-clean-url.mjs, src/control/joinLogo.ts
 // covers: supabase/migrations/0112_join_logos.sql
+// covers: supabase/migrations/0113_audience_chat_votes.sql
 
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -464,6 +465,40 @@ test.describe(() => {
     expect(await tally(v3)).toBe(0);
     await rpc(page, 'audience_stop', { p_slug: slugs.control, p_round: v3.id });
 
+    // Chat votes through the operator door (AC-10, migration 0113): each voter once, the latest by
+    // platform time whatever order the calls arrive in, nothing said before the question went live,
+    // no display name as a voter, a closed round refused as closed, phone and chat apart and summed,
+    // and a burst of 500 past the phones' burst cap and apart from the message throttle.
+    const c1 = await live({ id: 'q-chat', type: 'choice', text: 'Chat picks?', options: ['Red', 'Blue', 'Green'] });
+    const rounds = (await rpc(page, 'audience_rounds_list', { p_slug: slugs.control })).data as { id: string; opened_at: string }[];
+    const openedAt = Date.parse(rounds.find((r) => r.id === c1.id)!.opened_at);
+    const said = (seconds: number) => new Date(openedAt + seconds * 1000).toISOString();
+    const chatVotes = (items: object[], round: { id: string } = c1) =>
+      rpc(page, 'audience_operator_votes', { p_slug: slugs.control, p_round: round.id, p_items: items });
+    const tallied = async () =>
+      ((await rpc(page, 'audience_tally', { p_slug: slugs.control, p_round: c1.id })).data as { counts: number[]; phone_counts: number[]; chat_counts: number[]; total: number }[])[0];
+    expect((await vote(c1, 0)).error).toBeNull();
+    const first = await chatVotes([
+      { voter: 'yt:UCchatA', option: 1, at: said(2) },
+      { voter: 'yt:UCchatA', option: 2, at: said(1) },
+      { voter: 'tw:500001', option: 2, at: said(1) },
+      { voter: 'tw:500002', option: 0, at: said(-5) },
+      { voter: 'Nina K', option: 0, at: said(1) },
+    ]);
+    expect(first).toEqual({ data: 2, error: null });
+    // An earlier-said vote arriving later does not replace a newer one; the same message again
+    // leaves one vote.
+    expect((await chatVotes([{ voter: 'yt:UCchatA', option: 0, at: said(1.5) }])).data).toBe(0);
+    expect((await chatVotes([{ voter: 'tw:500001', option: 2, at: said(1) }])).error).toBeNull();
+    expect(await tallied()).toMatchObject({ counts: [1, 1, 1], phone_counts: [1, 0, 0], chat_counts: [0, 1, 1], total: 3 });
+    const burst = Array.from({ length: 500 }, (_, n) => ({ voter: `tw:${900000 + n}`, option: n % 3, at: said(3) }));
+    expect(await chatVotes(burst)).toEqual({ data: 500, error: null });
+    expect((await tallied()).total).toBe(503);
+    expect((await chatVotes(burst.concat(burst[0]))).error).toContain('at most 500');
+    await rpc(page, 'audience_stop', { p_slug: slugs.control, p_round: c1.id });
+    expect((await chatVotes([{ voter: 'tw:500003', option: 0, at: said(4) }])).error).toContain('that question has closed');
+    expect((await tallied()).total).toBe(503);
+
     // Two operators press Go live on different questions at the same moment, from two pages: one
     // round is open and the state points at it (AC-3).
     const second = await context.newPage();
@@ -501,7 +536,8 @@ test.describe(() => {
     await settleSync(page);
     await wipeMyGraphics(page);
     await createGraphicInEditor(page, 'Polls', 'House Vote');
-    await openProductionWithCurrent(page, `Audience Walk ${Date.now()}`);
+    const walkTitle = `Audience Walk ${Date.now()}`;
+    await openProductionWithCurrent(page, walkTitle);
     await publishProduction(page);
     await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
     await page.keyboard.press('Escape');
@@ -578,6 +614,25 @@ test.describe(() => {
     await expect(phone.locator('#join .nj-opt').nth(1)).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
     await shot('4-voted');
     await expect(messages.getByTestId('audience-tally-1')).toHaveText('1', { timeout: 20_000 });
+    // Chat votes too (AC-10, walked again in phase 4): a chat source in this tab (the test source,
+    // standing in for Twitch) says `1`, `b` and a line that is not a vote. The panel shows phone and
+    // chat apart and summed; the line that is not a vote reaches the inbox.
+    await moreWaysIn(messages);
+    await messages.evaluate(async (title) => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const show = loadShows().find((s) => s.name === title)!;
+      const seam = (window as unknown as { __noacgChatIntake: { for(id: string): { addTest(): { push(a: string, t: string, id: string, x: { voter: string }): void } } } }).__noacgChatIntake;
+      const chat = seam.for(show.id).addTest();
+      chat.push('Chat One', '1', 'walk-1', { voter: 'tw:910001' });
+      chat.push('Chat Two', 'b', 'walk-2', { voter: 'tw:910002' });
+      chat.push('Chat Three', 'Great walk so far', 'walk-3', { voter: 'tw:910003' });
+    }, walkTitle);
+    await expect(messages.getByTestId('audience-tally-0')).toHaveText('1', { timeout: 20_000 });
+    await expect(messages.getByTestId('audience-tally-1')).toHaveText('2', { timeout: 20_000 });
+    await expect(messages.getByTestId('audience-tally-split-0')).toHaveText('0 phone · 1 chat');
+    await expect(messages.getByTestId('audience-tally-split-1')).toHaveText('1 phone · 1 chat');
+    await expect(messages.getByTestId('chat-source-stats')).toHaveText('1 in · 2 votes · 0 dropped');
+    await testInfo.attach('studio-phone-and-chat-votes', { body: await messages.getByTestId('audience-tally').screenshot(), contentType: 'image/png' });
     await addResults(messages, 'House Vote');
     await settleDurableWrites(messages);
     // Staging sent nothing: Program still holds the answer and not the vote.
