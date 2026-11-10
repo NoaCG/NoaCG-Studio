@@ -237,6 +237,13 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string):
   for (const key of keys) {
     if (IGNORED.has(key)) continue;
     if (same(o[key], b[key])) continue; // Our side did not touch it: theirs, already in `doc`.
+    if (key === 'resultCues') {
+      // Question by question (interaction phase 3, S12): staging Q1 here and Q2 there keeps both.
+      const merged = mergeKeyed(b[key], o[key], t[key]);
+      if (Object.keys(merged).length > 0) doc[key] = merged;
+      else delete doc[key];
+      continue;
+    }
     if (key === 'ownReaderStops') {
       const stops = mergeStops(b[key], o[key], t[key]);
       if (stops.length > 0) doc[key] = stops;
@@ -272,6 +279,21 @@ export function mergeTeamShow(base: Show, mine: Show, theirs: Show, at: string):
   }
   doc.updatedAt = at;
   return { doc: doc as unknown as Show, lost, gathered: settled.changed };
+}
+
+/** A string map merged key by key: our change to a key stands where theirs left it as the base had
+ *  it; where both changed one key differently, theirs stands (S12). */
+function mergeKeyed(base: unknown, ours: unknown, theirs: unknown): Record<string, string> {
+  const map = (v: unknown): Record<string, string> => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, string>) : {});
+  const b = map(base);
+  const o = map(ours);
+  const out = { ...map(theirs) };
+  for (const k of new Set([...Object.keys(b), ...Object.keys(o)])) {
+    if (o[k] === b[k] || out[k] !== b[k]) continue;
+    if (o[k] === undefined) delete out[k];
+    else out[k] = o[k];
+  }
+  return out;
 }
 
 /**

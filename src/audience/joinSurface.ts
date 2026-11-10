@@ -204,7 +204,10 @@ export function mountJoinSurface(
   root.classList.add('nj');
 
   let view: JoinView | null = null;
-  let note: { text: string; bad: boolean } | null = null;
+  // A note says what happened to the viewer's last send. A thanks belongs to the round it was for
+  // (`round`): once the room moves on it goes, so a phone never says "Counted" under the next
+  // question or the waiting text. A refusal stays: it explains why the question changed (R14).
+  let note: { text: string; bad: boolean; round?: string } | null = null;
   let busy = false;
   let destroyed = false;
   let timer = 0;
@@ -386,6 +389,7 @@ export function mountJoinSurface(
       const next = await client.load();
       if (destroyed) return;
       view = next;
+      if (note && !note.bad && note.round !== (view.state.round?.id ?? undefined)) note = null;
       render();
     } catch {
       // A failed poll is not an event a viewer needs told about: the next one is five seconds
@@ -402,7 +406,7 @@ export function mountJoinSurface(
     busy = false;
     if (result.ok) {
       draft.body = '';
-      note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false };
+      note = { text: 'Sent — thanks. It goes to the team, who choose what to show.', bad: false, round: target.roundId };
     } else {
       // A refusal keeps what was typed. When the question moved on under this phone (R14) the
       // error says so and the re-read below shows the new question; nothing is resent unless the
@@ -421,7 +425,7 @@ export function mountJoinSurface(
     const result = await client.vote(roundId, option, revision);
     busy = false;
     note = result.ok
-      ? { text: 'Counted. You can change your mind while the vote is open.', bad: false }
+      ? { text: 'Counted. You can change your mind while the vote is open.', bad: false, round: roundId }
       : { text: result.error ?? 'That vote could not be counted.', bad: true };
     await load();
     render();

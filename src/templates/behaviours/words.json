@@ -499,9 +499,10 @@
           "write"
         ],
         "pool": "text",
-        "words": "total|votes|ääntä|röster|\\bstimmen\\b|votos",
+        "words": "total|votes|vote count|ääntä|röster|\\bstimmen\\b|votos",
         "teach": "Total votes",
         "also": [
+          "Vote count",
           "Ääntä",
           "Röster"
         ],

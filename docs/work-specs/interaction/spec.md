@@ -601,3 +601,333 @@ one each check judged, for every pair the AA rule covers. `scripts/join-colours.
 the rendered CSS strings for all eight pairs over the four named looks and 100,000 seeded random
 looks (a quarter with a panel alpha); it is red on `d521e01` (2748 looks below AA) and adds no E2E
 minutes (`evidence/phase-2.md`, Repair 1).
+
+### Phase 3: First complete flow
+
+Previous verified main: `f47aa360c411cc44f30ba95b09c853b93141ade1`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-3.md` once it lands). The phase
+adds no migration; `Show.resultCues` and `Show.resultTarget` are additive optional, so an older
+build ignores them and the reverted app runs on records that carry them.
+
+**Rules** (state rules written before code; each is observable):
+
+- S1. A question has at most one result cue. `Show.resultCues` maps the question's id to that
+  cue's id and is saved and synced with the production, so a reload, another tab and another
+  operator read the same mapping.
+- S2. Add results to rundown, when the question's mapped cue still exists and its graphic still
+  has the result fields (Question and Options, by title), writes the result values into that cue
+  and adds no cue.
+- S3. Otherwise it adds one cue on the remembered result graphic and records it as the question's
+  cue in the same write. When a mapping existed it says why the cue is new: the earlier cue was
+  deleted, or its graphic no longer has the result fields.
+- S4. Update or add is decided on the production as stored when the write runs (a rebased write),
+  not on the page's copy, so a second press while the first settles, or a press in another tab of
+  the same browser, updates the cue the first press made. Another operator's press does the same
+  once the production has synced to them.
+- S5. The remembered result graphic is `Show.resultTarget`. With none, or one that can no longer
+  take results, the press asks: the production's result graphics, or with none of those the
+  catalog's live vote boards (added with their one cue, which becomes the result cue). Nothing is
+  picked without the operator's choice; Change asks again. The choice is remembered.
+- S6. A refused write says so and records nothing: no cue, no mapping, no remembered graphic.
+- S7. Stop, after the server closed the round, writes the final counts, "voting closed" in the
+  count line and the closed status into the question's mapped cue when it exists with the fields.
+  Stop never adds a cue and never sends an event, so the board stays in whatever state it is in;
+  the reveal is the operator's press.
+- S8. Nothing in Interaction sends a Take, Update, Out, Next or graphic event. Go live, Stop,
+  staging and question edits add no row to the output's command log. A staged cue already on air
+  changes on Program only through the operator's Update; with the live-figures switch on, the
+  board shows its figures from the field it already carries.
+- S9. Staging writes only the result fields (Question, Options as `label | count` lines, and
+  where present Vote count, Vote status and Live figures). The cue's other values, its label and
+  its place in the rundown stay as they are.
+- S10. Duplicate starts with no result cue. Deleting a question leaves its cue in the rundown.
+- S11. `Show.resultCues` and `Show.resultTarget` are additive optional and left out of the
+  publish digest, like the question list.
+
+Added after the rules review (a fresh read-only `/so`, AGREE WITH CORRECTIONS), before code:
+
+- S12. On a team production a save is merged with a teammate's, not rebased. `resultCues` merges
+  question by question (`model/teamShowMerge.ts`): one operator staging Q1 while another stages
+  Q2 keeps both links. Two operators pressing Add results on the same question at the same moment,
+  before either save reaches the other, can make two cues; the merge keeps one link and the other
+  cue stays in the rundown as an ordinary cue.
+- S13. Stop's write is rebased like staging's and driven by the stored `resultCues`, so a Stop
+  pressed in any tab finalises the cue another tab staged. A refused write is said: "Stopped, but
+  the result cue was not updated".
+- S14. A round closed by Go live on another question gets the same closing write as Stop, for
+  the question whose round it was (coordinator decision, 2026-11-09; a close is a close).
+- S15. The note always reports what the stored write did (updated or added, and why a cue is
+  new), never what the page expected. The ✓ is said only once the durable write has landed.
+- S16. Change, then picking a graphic, when the selected question already has a result cue on
+  another graphic, adds a new result cue on the picked graphic and links it; the old cue stays in
+  the rundown as an ordinary cue and the note says so (coordinator decision, 2026-11-09).
+- S6, amended: a catalog board picked under S5 is added first, with its one cue; if the result
+  write after it is refused, the board and its cue stay as an ordinary graphic and the note says
+  the result was not written.
+- S8, decided: the live-figures exception permits rows; this phase adds no automatic sender. The
+  switch writes the board's Live figures field and the board shows its own figures (coordinator
+  decision, 2026-11-09).
+
+Found in the code review (`/check`), apart from the rules above:
+
+- S17. The rebased write makes the new cue's id once, outside the part that runs twice, so the cue
+  this tab shows is the cue the store keeps. The note and the page's productions come from the
+  stored write after it landed (S15 made exact).
+- S18. Change only opens the choice; Cancel keeps the remembered graphic. A pick is remembered
+  whether it added a cue or landed on the cue already there (S5).
+- S19. A catalog board's seeded cue that the stored write does not use is removed in that write,
+  so one press leaves one board and one result cue.
+- S20. Go live that finalises another question's cue (S14) says so in its note.
+
+Found in the Codex review of `4230b2e` (three findings; S21 and S22 are one family with S15, the
+stored write deciding):
+
+- S21. Stop's close-only write reaches the stored record even when this tab's copy has no link
+  yet: its first pass changes nothing but still asks for the rebased pass, which decides. A team
+  production, not rebased, keeps its merge (S12).
+- S22. When the stored pass has nowhere to write (another tab removed the graphic or its fields),
+  nothing was written and the press asks again; Stop then says nothing about a cue. The tab's own
+  guess is never reported as success.
+- S23. A catalog board picked under S5 takes a free pool name ("House Vote 2"), so it never
+  replaces a same-named graphic already in the production.
+
+Found in the Codex review of `fb8a835`:
+
+- S24. The button names where this question's press would write: its result cue's graphic while
+  that cue can take results, else the remembered graphic (`resultDestinationOf`, the planner the
+  write uses), so it never names one graphic and writes another.
+- S12 kept as written: two team operators staging the same question before either save reaches
+  the other keep two cues, one linked. The merge does not delete either, because one may already
+  be on air; the unlinked one stays an ordinary cue in the rundown.
+
+Found in the Codex review of `b854d6b`:
+
+- S25. A press decides from state read at the press, never from the page's last reading. Go live
+  reads the provider's rounds before and after its call and finalises each poll round the press
+  closed (`roundsClosedBy`), so a question another operator put live meanwhile gets its closing
+  write; the page's own reading counts only for a round the press-time reading lacks. Add results
+  reads the round and its counts afresh, so a round stopped in another tab stages as closed. What
+  remains is the moment between the press-time reading and the server's Go live, two calls apart.
+
+Reassessed after the Codex review of `b4d62b5` (a stale snapshot written after a slow catalog-board
+add, while Stop or Go live closed the round: the second successive round of one family, so a
+fresh read-only review reassessed the rule model before any patch; AGREE WITH CORRECTIONS). The
+missing rule was about the end state, not about when to read. S26 to S30 replace S25's read rule;
+`roundsClosedBy` is gone.
+
+- S26. Once a round is closed, its question's result cue ends up saying "voting closed" with
+  counts read after the close, whatever order Add results, Stop and Go live ran in, in one tab,
+  across tabs, or across operators on a production that is not a team's.
+- S27. In one page, Add results, Stop and Go live take turns: one runs to its note before the
+  next starts (one lock, held in a ref).
+- S28. Values are read after every other wait of the press, immediately before the write. A
+  reading that fails writes nothing; the page's earlier reading (its rounds, its counts) is never
+  written.
+- S29. A staging write that wrote "open" reads the round again once it landed; closed meanwhile,
+  the same press makes the closing write with fresh counts. Stop and Go live make the closing
+  sweep: every poll round the provider reports closed whose result cue still says open
+  (`roundsToFinalise`, `resultCueSaysOpen`).
+- S30 (residual, stated): on a team production, a Stop in a copy that has not yet synced the link,
+  landing after the stager's re-check, leaves the cue open until the next Stop, Go live or Add
+  results on that production.
+
+Found in the Codex review of `6e258ef` (a defect in building S29, not a new rule: S26 already
+says the counts are read after the close):
+
+- S29, amended: the sweep always finalises the round the call itself closed, whatever its cue
+  says (Stop names its round; for Go live, a round whose closed time changed between the
+  provider's readings just before and just after the call). A reopened question's cue can still
+  say "closed" from an earlier Stop while its counts moved on. "Cue still says open" only adds the
+  rounds closed elsewhere.
+
+**Decisions** (made in the build, revertible in review):
+
+- The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)
+  are one rebased write that decides update or add on the stored production; the page reports
+  what that write did (S15). `control/resultStaging.ts` holds the field contract (`pollFieldMap`,
+  `tallyValues`, moved out of the workspace) and the notes.
+- With no remembered result graphic the press lists the production's result graphics, and with
+  none the five catalog live vote boards (House, Volt, Frost, Clean, Floor). A board picked from
+  the catalog arrives with its one seeded cue, which becomes the result cue.
+- The live-figures switch stays as it was: it writes the board's Live figures field, and nothing
+  sends Update automatically (S8). Go live closing another question's round finalises its cue
+  (S14). Change then a pick starts a new result cue for the selected question (S16). The three were
+  sent to the coordinator before the patch and confirmed by it as decisions the owner can revert.
+- The vote field words (`Vote status`, `Live figures` and their tokens) moved to
+  `model/voteFields.ts`, re-exported by `vote.ts`, so the staging module runs in
+  Node without the recipe machinery. No emitted byte changes.
+- The rehearsal walk on the local stack is a configured test (the existing published walk,
+  extended), because it has to run where a local stack exists; this machine walks it offline.
+
+**Traps found** (for later phases):
+
+- A Take adds more than one row to the action log (Took, Played in, Updated n fields). A journey
+  counts the rows after the Take and asserts nothing else adds any, rather than adding one.
+- The local provider's simulated device ids restart on reload (`sim-<option>-<n>`), so Simulate
+  votes after a reload overwrites earlier simulated votes instead of adding. Simulate before the
+  reload in a journey.
+- A prepared message cue is labelled by the message text, not by the card's name.
+- `src/control/` may not import `src/templates/` (`.dependency-cruiser.cjs`, run in CI's Build lane,
+  not in `npm run gates`): shared words go in `src/model/`. Run
+  `npx depcruise --config .dependency-cruiser.cjs src` before pushing a new import edge.
+- `git commit -a` for a temporary mutation sweeps every unstaged edit into it; reverting it with
+  `reset --hard HEAD~1` drops them. Commit real work first.
+
+**Walk** (AC-15, first run): `evidence/phase-3.md`. One blocking finding fixed here (the phone's
+thanks outlived its question); #2333 and #2334 filed.
+
+### Phase 4: Chat votes
+
+Previous verified main: `034cbc057621083581361db310d848d7b2530844`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-4.md` once it lands). Migration
+0113 is additive for the app: `audience_votes.source` defaults to `phone` and `cast_at` is nullable,
+the phone functions keep their signatures, and `audience_tally` keeps its first three columns, so
+the reverted app runs on it unchanged. Its function and columns can stay; nothing older reads them.
+
+**Rules** (state rules; each is observable). They were written with the code, not before it, and a
+fresh read-only review challenged them before the final assessment:
+
+- C1. A chat line is a vote only while a Multiple choice question is live and the line is only one
+  option's number (`1` to the number of options) or letter (`A` onwards), ignoring case and the
+  spaces around it. Any other line, and every line while no Multiple choice question is live, is
+  a message as before.
+- C2. A chat voter is `yt:<channel id>` or `tw:<user id>`, never a display name. A line with no
+  user id never votes. A phone's token cannot hold a colon, so a chat vote and a phone vote are
+  never the same row.
+- C3. One vote per voter per question; voting again changes it. A repeated message id counts
+  once: the intake drops an id it has seen, and a re-sent vote changes nothing on the server.
+- C4. Per voter, the vote said latest by the platform's own time wins, whatever order the messages
+  arrive in, within one call and across calls; of equal times, the last to arrive. The page sends
+  votes one call at a time in arrival order, and a retried call leaves out any vote a newer line
+  from the same voter has replaced, so a retry never undoes a later choice made in the same second.
+- C5. The server counts chat votes only into this production's open Multiple choice round, and
+  refuses any other as "that question has closed". The page then reads what is live once: if
+  another Multiple choice question is live, the votes said inside its window go there; the rest are
+  dropped and counted.
+- C6. The window alone decides: only a line said at or after the question last went live, less one
+  second (the measured allowance), and before it closed, counts, wherever it was read (the YouTube
+  first page marked "earlier", a backlog read after a pause, a reconnect's replay). The server also
+  refuses a time more than a minute ahead of its own clock. A replay is stopped first by the page's
+  dedupe, and after a reload, when the page has forgotten the ids, by the window. A vote that
+  reaches the page after the question closed is not counted, as a phone's would not be; chat
+  arrives a few seconds late (YouTube is read every five seconds), so the panel says to wait a
+  moment before Stop.
+- C7. Chat votes go in through `audience_operator_votes(slug, round, items)` with the control slug,
+  at most 500 a call. An item whose option or time cannot be read is skipped, never the whole call.
+  A source's "votes" figure is what the server counted; a vote that changed nothing (older than one
+  it holds) shows as dropped.
+- C8. Each source has its own limits. A chat vote never passes the message throttle (the intake's
+  10 in 10 seconds, the server's 20 per 10 seconds on messages). Phones keep 0035's 300 votes per
+  10 seconds a round, now counted over phone votes only, so a chat burst cannot crowd phones out;
+  chat has its own ceiling of 5,000 per round in 10 seconds.
+- C9. The tally gives phone and chat apart and their sum; a result cue carries the sum. Clear
+  results removes chat votes too, and a question with chat votes counts as answered, so its words
+  are locked (R8).
+- C10. A Twitch line that is not a vote answers the live Open question through the viewer door
+  (R20). With no Open question live, it reaches the inbox under no question through the operator
+  door, deduped by `tw:<message id>`. YouTube lines that are not votes go in as before.
+- C11. Chat is read in the operator's browser, so it counts only while a production page is open;
+  the panel says so. While a vote is live, a vote-shaped line that does not count (outside the
+  window) is not a message either; it is counted as dropped on its source. A line is sorted against
+  one reading of what is live: this page's own Go live or Stop is read at once, another operator's
+  within three seconds, and a failed reading is tried again, never taken as "nothing live". A
+  Twitch answer goes to the Open question that same reading named.
+- C12. Nothing here sends a Take, Update or graphic event (R16).
+- C13. An unpublished production runs C1 to C11 on the local provider, with chat votes kept in the
+  local room store beside the phone votes (an additive field, store version unchanged). The
+  server's chat ceiling (C8) has no local counterpart.
+
+**Decisions** (made in the build, revertible in review):
+
+- The allowance is one second: the recorded YouTube later page gives `publishedAt` in whole
+  seconds, so a line said in Go live's own second can read up to 999 ms earlier; Twitch's
+  `tmi-sent-ts` carries milliseconds. `scripts/chat-votes.test.mjs` re-reads that step from the
+  fixtures. The difference between the platforms' clocks and the database's is not in any fixture
+  and is not covered beyond this second.
+- The window is the one rule for the earlier page, a paused backlog and a replay, as the spec's
+  Chat votes section words it. The first build also refused every line on the earlier page and the
+  first page after a resume; the code review found that a long pause fills more than one page, so
+  the flags were removed rather than extended.
+- Twitch lines that are not votes now reach the inbox when no Open question is live (C10), as the
+  phase 1 decision foresaw ("one line to change"); AC-10 asks that non-vote messages reach the
+  inbox while a vote is live. The intake's test source stands in for Twitch here too, so the
+  offline journey "with no Open question live a chat line reaches the inbox" pins the rule.
+- The panel shows "N phone · M chat" under each option once chat has voted, the count beside the
+  bar stays the sum, and a source's line reads "in · votes · dropped" once it has votes.
+- The tally, `audience_tally`, gained `phone_counts` and `chat_counts`; a table function's columns
+  cannot change in place, so 0113 drops and recreates it with the same arguments and grant.
+- The new operator function is recorded in `supabase/advisor-baseline.json` in this pull request
+  (anon and authenticated, the same intended door as `audience_operator_add`), checked by
+  `scripts/advisor-baseline-grants.test.mjs`. The recorder reads production, which has no 0113
+  yet, so the two entries were written in its format and the replay test confirms them.
+
+**Traps found** (for later phases):
+
+- On a cloud worker the Docker daemon is not running at start; `dockerd` started by hand works,
+  and `npx -y supabase@2.111.0 start -x studio,edge-runtime` brings a local stack up in about five
+  minutes. `scripts/configured-stack.mjs` refuses there, because `ss` is not installed.
+- A migration's self-check skips on a fresh local stack (no account yet). Insert a throwaway
+  `auth.users` row and run the file's DO block with `psql` to see it run.
+- A YouTube page is a burst of lines in one moment, so a vote and the reading of what is live are
+  decided together: the intake reads the live round once per batch (cached three seconds), never
+  per line.
+
+### Phase 5: More results and home-made graphics
+
+Previous verified main: `1740d4f128ec6f74bc9b95ca3b90d12f0c101ab5`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-5.md` once it lands). No
+migration. The Vote result type and its nine designs are new ids, so a reverted app opens a
+production that uses one as an unknown catalog id, like any design it never had; its cues keep
+their values.
+
+**Decisions** (made in the build, revertible in review):
+
+- The result templates are nine designs (`poll/results.ts`, `pl06` to `pl14`), every layout in
+  every placement, in the house family, on a new type, Vote result (`types/resultBoard.ts`): the
+  live vote's arc, buttons and four fields, plus Figures (percent, count, both). A type of its own
+  because a type declares one field list. Placement is a design, not a zone: a lower third, a side
+  card and a full-screen board need different arrangements, not the same card moved.
+- Their drawing lives in each design's own script (`PollDesign.extraJs`, `figures`), so the five
+  existing vote boards emit byte-identical code. Bars up turn the track a quarter, so the growth
+  builder's width reads as height; the donut paints its ring from hidden tracks' widths through a
+  MutationObserver, so it sweeps with the bars and a renderer that never ticks a frame still shows
+  the finished ring.
+- Long names wrap to two lines and end in an ellipsis; at six or more options full screen and on
+  a side donut, one line. Five or more options in a lower third run in two columns.
+- The result picker offers all fourteen catalog vote boards (`RESULT_BOARDS`).
+- `Vote count`, the field contract's word, also names the vote's total layer in artwork.
+- A layer named `QR` (any case; never text, nothing in `<defs>` or a hidden layer) gains a last
+  field, Join link; the code is drawn inside that layer (a bare shape is wrapped in a group at
+  bind), with the encoder the Join card carries, on a white plate with its own paint.
+- The CLI path is `noacg scaffold --svg <file>`, through the bridge's `scaffold`, which calls the
+  studio SVG drop's own default (`components/wizard/import/svgDefault.ts`: `svgDraftFromImport`
+  then `svgDesignOptions`), so the CLI and the studio cannot drift. That is one new named edge,
+  bridge to that file, in `docs/ARCHITECTURE.md` §3 and `.dependency-cruiser.cjs`; the file loads
+  no React. The first build re-created the defaults by hand and two review rounds each found one
+  more it missed; a fresh reassessment chose the shared function instead. Studio-only: a lower
+  third's measured growth and every answer an author gives in the mapping step. Moving the import
+  draft's pure core down to templates would retire the edge. The MCP server's scaffold is
+  unchanged.
+- Imported upright bars and pies are filed (#2344), not built: AC-13 asks for bars at their
+  share, and the change re-records every pinned behaviour runtime.
+
+**Traps found** (for later phases):
+
+- Artwork with each row (`Option N`, `Bar N`) wrapped in its own group named `Options N` was
+  proposed as nothing; the same layers in two plain groups were proposed as a vote. The cause is
+  not traced here; test home-made artwork with the layer tree the docs teach.
+- `e2e/` blank-page specs cannot import `src/components/wizard/import/draft.ts` on a bare page
+  (React preamble error); load `/app` first, or use `importSvgMarkup` and `IMPORTED_SVG.create`.
+- A page embedding the preview document must declare `color-scheme: dark`, or Chromium paints
+  the iframe opaque.
+- A layout read by a MutationObserver is one microtask behind `update()`; a test measures after a
+  frame.
+- `scripts/svg-import-passes.test.mjs` fails 4 of 22 on a cloud worker on `main` itself; compare
+  against a `main` control there.
+- The rendered catalog baseline is Windows-only; a Linux worker adds no rows to it.
+- `node scripts/catalog-specs.mjs` is refused by the queue without a check stamp on the head;
+  admit it with `node scripts/jobs.mjs add "<command>" --cap 12` after `/check`.
+- The local stack's image pulls can be refused for one layer by the proxy and succeed on retry;
+  `supabase start` retries by itself.
+
+**Walk** (AC-15, phase 5): `evidence/phase-5.md`. No blocking finding; #2344 filed.

@@ -10,6 +10,14 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## Unreleased
+
+`noacg scaffold --svg <file.svg>` makes a graphic from your own SVG artwork, the way the studio's
+import does: the layer names decide the fields and any behaviour. A vote board drawn with
+`Question`, `Option 1`, `Bar 1` (at full length) and `Vote count` layers moves its bars to each
+option's share, and a layer named `QR` draws the graphic's Join link as a QR code. It needs a
+NoaCG deployment that has this change.
+
 ## 0.12.4 - 2026-10-30
 
 The CLI and MCP server now use patched dependencies, including their input validator and HTTP

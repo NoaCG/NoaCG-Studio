@@ -18,6 +18,8 @@
 // text and stops there. A future provider cannot bypass that, because the interface gives it
 // nowhere to write.
 
+import type { ChatVote, ChatVoteOutcome } from './chatVotes.ts';
+
 /** Where a submission is in moderation. `new` is the only state a viewer can put it in. */
 export type AudienceStatus = 'new' | 'approved' | 'rejected';
 
@@ -131,8 +133,13 @@ export function openRoundOf<R extends Pick<AudienceRound, 'closedAt'>>(rounds: r
  *  is no maintained counter column (hot-row conflicts, drift, no benefit at this scale). */
 export interface AudienceTally {
   roundId: string;
+  /** Phone and chat votes summed, by option: what a result cue carries. */
   counts: number[];
   total: number;
+  /** The same counts apart, by source (interaction spec, "Chat votes"). Absent from a provider that
+   *  cannot tell them apart; then every vote is a phone's. */
+  phone?: number[];
+  chat?: number[];
 }
 
 /**
@@ -286,6 +293,10 @@ export interface AudienceBackend {
   clearResults(questionId: string): Promise<AudienceRound | null>;
   tally(roundId: string): Promise<AudienceTally>;
   rounds(): Promise<AudienceRound[]>;
+  /** Chat votes into the open Multiple choice round `roundId` (interaction spec, "Chat votes";
+   *  migration 0113): each voter's latest by platform time, only what was said after the round
+   *  last went live. `closed` when the round is not the open one. At most CHAT_VOTES_MAX a call. */
+  chatVotes?(roundId: string, votes: ChatVote[]): Promise<ChatVoteOutcome>;
 }
 
 /**

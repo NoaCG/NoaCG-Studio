@@ -70,7 +70,8 @@ module.exports = {
       from: { path: '^src/', pathNot: '^src/components/wizard/import/' },
       to: {
         path: '^src/components/wizard/import/',
-        pathNot: '^src/components/wizard/import/index\\.ts$',
+        // svgDefault.ts: the bridge's one door in (the bridge -> wizard/import rule below).
+        pathNot: '^src/components/wizard/import/(index|svgDefault)\\.ts$',
       },
     },
     {
@@ -283,6 +284,14 @@ module.exports = {
         'the rest of community/ talks to the backend, which the bridge never reaches.',
       from: { path: '^src/bridge/' },
       to: { path: '^src/community/packChecks\\.ts$' },
+    },
+    {
+      comment:
+        '§3: bridge -> the studio SVG drop\'s defaults, svgDefault.ts only. `noacg scaffold --svg` ' +
+        'builds what the studio\'s import builds by default by calling the import\'s own ' +
+        'function rather than a copy of its rules; that file loads no React and no step.',
+      from: { path: '^src/bridge/' },
+      to: { path: '^src/components/wizard/import/svgDefault\\.ts$' },
     },
     {
       comment:
