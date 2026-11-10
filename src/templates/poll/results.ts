@@ -566,7 +566,8 @@ function resultBoard(id: string, layout: ResultLayout, placement: ResultPlacemen
     },
     { name, description, uicolor: '4' },
     (o) => ({
-      stageWidth: STAGE[placement].width,
+      // Columns at the side need the most width per option: eight of them with their figures.
+      stageWidth: layout === 'up' && placement === 'side' ? 780 : STAGE[placement].width,
       html: html(layout, placement, o.lines),
       css: `${baseCss(placement)}
 
