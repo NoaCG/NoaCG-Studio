@@ -95,10 +95,11 @@ test('words: a centred line of words keeps half its type as margin on each side'
 });
 
 test('the mapping step and the runtime spell "a figure" the same way', () => {
-  const pattern = (rel) => {
-    const m = /\/\[\^0-9[^/]*\//.exec(readFileSync(root(rel), 'utf8'));
-    assert.ok(m, `${rel} spells the figure rule`);
-    return m[0];
+  // The return line of each function, which is the whole rule.
+  const rule = (rel, name) => {
+    const m = new RegExp(`function ${name}\\([^)]*\\)[^{]*\\{[\\s\\S]*?\\n\\s*(return [^\\n]*)\\n\\}`).exec(readFileSync(root(rel), 'utf8'));
+    assert.ok(m, `${rel} spells the figure rule in ${name}`);
+    return m[1].replace(/\bvalue\b|\bs\b/g, 'v');
   };
-  assert.equal(pattern('src/templates/importedDesign/runtime/svgFit.js'), pattern('src/templates/importedDesign/svg.ts'));
+  assert.equal(rule('src/templates/importedDesign/runtime/svgFit.js', 'svgIsFigure'), rule('src/templates/importedDesign/svg.ts', 'isSvgFigure'));
 });

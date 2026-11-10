@@ -388,7 +388,11 @@ function svgFitContainer(el) {
 /** How far, in screen px, a line's box overhangs its EM box at each of its top and bottom: half
  *  of what the font's ascent plus descent adds to the type size. Zero where it cannot be read. */
 function svgEmTrim(el) {
-  var size = parseFloat(getComputedStyle(el).fontSize) || 0;
+  // The size of the run holding the first character, which is the one the cell is read off: an
+  // exporter often sizes the inner tspan and leaves the text at the default.
+  var run = el;
+  while (run.firstElementChild) run = run.firstElementChild;
+  var size = parseFloat(getComputedStyle(run).fontSize) || 0;
   var cell = el.getNumberOfChars && el.getNumberOfChars() > 0 ? el.getExtentOfChar(0).height : 0;
   var ctm = el.getScreenCTM ? el.getScreenCTM() : null;
   var scale = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
