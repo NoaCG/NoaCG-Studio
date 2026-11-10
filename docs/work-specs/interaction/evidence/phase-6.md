@@ -65,7 +65,7 @@ votes, the vote airs on Result Donut Lower through Take; then the Word question 
 phone sends "Sparkling" and shows it in place of the box, a second phone (its own device) sends
 "Boring", Interaction lists both, Boring is hidden, Add word cloud to rundown adds House Word Cloud
 with one word, Program still shows only the cloud's off-air sample, Take airs exactly
-["Sparkling"], and Stop leaves phones the waiting text. Passed (queue job j-0015, 47 s).
+["Sparkling"], and Stop leaves phones the waiting text. Passed (queue job j-0015, 47 s; again as j-0018, 52 s, after the review fix below).
 
 Two earlier runs failed on the walk's own steps, not the product: the second phone shared the first
 phone's browser and so was the same device (it rightly showed the word already sent), and the
@@ -76,6 +76,18 @@ only" with Send disabled; after sending, the card reads "Your word / Brilliant" 
 word is in."
 
 Findings: none blocking. None filed.
+
+## Review of `88cc688` (PR review bot)
+
+One finding, a product defect: the panel and staging counted words off the operator's message
+list, which PostgREST caps at 1000 rows (`max_rows`), oldest first, so in a big room the later
+words, or a whole later question's, were missing from the cloud. Fixed: 0114 adds
+`audience_word_counts(slug, round)`, one jsonb value of counts per spelling over every word of the
+round; both providers implement `wordCounts`, and the panel and staging use it. The advisor
+baseline records its two intended grants (the same door as `audience_tally`), checked by
+`scripts/advisor-baseline-grants.test.mjs`. Proof: 0114's self-check now calls it (32 words, three
+spellings); two Node tests (counts per spelling read as the words one by one; the local provider
+counts a round's words only); the journey and the walk pass on the fix.
 
 ## Not run, or partly run
 

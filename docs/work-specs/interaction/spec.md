@@ -946,7 +946,9 @@ challenged them before the final assessment:
 
 - W1. Interaction lists a Word question's words by frequency, most first, then alphabetically.
   Case does not split a word (`Brilliant` and `brilliant` are one word), and the spelling most
-  phones used is shown.
+  phones used is shown. Every word counts: the provider counts a round's words itself
+  (`audience_word_counts`), never off the operator's message list, which the server caps at a
+  page (added after the PR review of `88cc688`).
 - W2. A word is one word: trimmed, no space and no `|` inside, 1 to 25 characters (code points).
   The phone, the local provider and the server apply the same rule; the server refuses anything
   else.
@@ -1003,5 +1005,9 @@ challenged them before the final assessment:
   uses `rating`.
 - A dev server left on this worktree's port makes the offline suite refuse to start; stop it
   before queueing a browser job.
+
+- PostgREST caps a set-returning RPC at `max_rows` (1000 in `supabase/config.toml`, the same
+  hosted), with no error: anything that must count every row of a big room counts on the server
+  and returns one value, as `audience_word_counts` does. The message list itself has this cap.
 
 **Walk** (AC-15, phase 6): `evidence/phase-6.md`.
