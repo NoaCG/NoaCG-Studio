@@ -47,7 +47,8 @@
    "actor": "builder-1-1-b-fadf",
    "session": "session_017SdbwNnPuYSroBErFxfAH2",
    "branch": "claude/plan-live-publishing-1-build",
-   "launchedAt": "2026-11-10T18:49:22Z"
+   "launchedAt": "2026-11-10T18:49:22Z",
+   "pr": 2362
   }
  ],
  "owner": [
@@ -62,7 +63,7 @@
    "pr": 2363,
    "branch": "claude/plan-run-live-publishing-started",
    "head": "35b1914f97a824d7db58d3896e43db5492c2cd1e",
-   "state": "queued, auto-merge on; check-ins read its queue state until merge and post-land are recorded"
+   "state": "merged 27d50cc14fffffdabaa4df70adf0ed65bb3105c2 at 19:5xZ; Post-landing and Quarantine green; CI 42889219830 and configured-suite 42889219566 running at 19:53Z"
   }
  ],
  "triggers": {
