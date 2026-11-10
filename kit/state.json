@@ -44,13 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "/root/v2_reply_repair",
-      "step": "build",
-      "note": "Fresh Rules reassessment for the authorized V2 Browser source refusal and remaining malformed replies on existing draft.",
       "pr": 2293,
-      "head": "6efb650efd1b5b244798a306c62981c1a3bd3641",
+      "note": "Browser source verification rule and remaining reply repair authorized. Fresh local builder and Rules reassessment. Draft stays outside the queue.",
+      "step": "build",
       "phase": "v2",
-      "repairComment": 6723338187
+      "session": "/root/v2_source_repair",
+      "head": "6efb650efd1b5b244798a306c62981c1a3bd3641"
     }
   ],
   "owner": [],
