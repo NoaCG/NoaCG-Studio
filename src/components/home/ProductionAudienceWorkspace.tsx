@@ -10,7 +10,6 @@ import {
   loadShows,
   setShowJoinPage,
   setShowQuestions,
-  setShowResultTarget,
   showQuestions,
   stageShowResult,
   updateShowCueChecked,
@@ -1158,7 +1157,9 @@ export default function ProductionAudienceWorkspace({
       setNote(
         closed && !closed.ok
           ? `✓ Phones now show “${q.text}”, but the earlier question’s result cue was not updated: ${closed.message}`
-          : `✓ Phones now show “${q.text}”. Nothing is on air.`,
+          : closed?.ok && closed.kind === 'updated'
+            ? `✓ Phones now show “${q.text}”. The earlier question’s result cue on “${closed.graphic}” now carries its final counts. Nothing is on air.`
+            : `✓ Phones now show “${q.text}”. Nothing is on air.`,
       );
     } catch (err) {
       const message = (err as Error).message;
@@ -1307,11 +1308,12 @@ export default function ProductionAudienceWorkspace({
         tally,
         closed: opts.closed,
         liveFigures,
+        label: `Vote — ${round.question.slice(0, 32)}`,
         chosen: opts.chosen,
         adopt: opts.adopt,
         closeOnly: opts.closeOnly,
       },
-      { stage: stageShowResult, commit: commitDurableWrites, setShows },
+      { stage: stageShowResult, commit: commitDurableWrites, setShows, reread: loadShows },
     );
 
   /**
@@ -1355,18 +1357,9 @@ export default function ProductionAudienceWorkspace({
     }
   };
 
-  /** Change: forget the remembered result graphic and ask again (S5). The cue already made stays
-   *  the question's result cue. */
-  const changeResultTarget = async (questionId: string) => {
-    const { shows, error } = setShowResultTarget(show.id, null);
-    setShows(shows);
-    const failure = error ?? (await commitDurableWrites());
-    if (failure) {
-      setNote(`Where results go was not changed: ${failure}`);
-      return;
-    }
-    setChoosingResult(questionId);
-  };
+  /** Change: ask again where results go (S5, S16). Nothing is forgotten until a graphic is
+   *  picked, so Cancel keeps the remembered one. */
+  const changeResultTarget = (questionId: string) => setChoosingResult(questionId);
 
   /** Rounds whose question has left the list: their messages are "Earlier questions" (R10). */
   const earlierRounds = useMemo(() => {
@@ -1637,7 +1630,7 @@ export default function ProductionAudienceWorkspace({
                       {resultTarget ? `Add results to rundown on ${resultTarget.name}` : 'Add results to rundown'}
                     </button>
                     {resultTarget && (
-                      <button disabled={staging} onClick={() => void changeResultTarget(selected.id)} data-testid="result-target-change">
+                      <button disabled={staging} onClick={() => changeResultTarget(selected.id)} data-testid="result-target-change">
                         Change
                       </button>
                     )}

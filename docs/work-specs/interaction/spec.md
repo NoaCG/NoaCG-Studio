@@ -668,6 +668,17 @@ Added after the rules review (a fresh read-only `/so`, AGREE WITH CORRECTIONS), 
   switch writes the board's Live figures field and the board shows its own figures (coordinator
   decision, 2026-11-09).
 
+Found in the code review (`/check`), apart from the rules above:
+
+- S17. The rebased write makes the new cue's id once, outside the part that runs twice, so the cue
+  this tab shows is the cue the store keeps. The note and the page's productions come from the
+  stored write after it landed (S15 made exact).
+- S18. Change only opens the choice; Cancel keeps the remembered graphic. A pick is remembered
+  whether it added a cue or landed on the cue already there (S5).
+- S19. A catalog board's seeded cue that the stored write does not use is removed in that write,
+  so one press leaves one board and one result cue.
+- S20. Go live that finalises another question's cue (S14) says so in its note.
+
 **Decisions** (made in the build, revertible in review):
 
 - The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)

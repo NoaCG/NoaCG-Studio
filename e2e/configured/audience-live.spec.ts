@@ -575,6 +575,9 @@ test.describe(() => {
     await expect(messages.getByTestId('audience-tally-1')).toHaveText('1', { timeout: 20_000 });
     await addResults(messages, 'House Vote');
     await settleDurableWrites(messages);
+    // Staging sent nothing: Program still holds the answer and not the vote.
+    await expect(program.locator('body')).toContainText('Sent from a phone on the walk');
+    await expect(program.locator('body')).not.toContainText('Who wins the walk?');
     const voteCue = page.locator('.pd-cue', { hasText: 'Vote —' });
     await expect(voteCue).toHaveCount(1, { timeout: 20_000 });
     await voteCue.click();

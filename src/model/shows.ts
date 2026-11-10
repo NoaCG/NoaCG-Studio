@@ -2549,42 +2549,41 @@ export function stageShowResult(
     adopt?: string | null;
     closeOnly?: boolean;
   },
-): { shows: Show[]; error: string | null; plan: ResultPlan | null; cueId: string | null } {
+): { shows: Show[]; error: string | null; outcome: () => { plan: ResultPlan | null; cueId: string | null } } {
+  // The write is REBASED: the mutator runs on this tab's copy, then again on the stored record when
+  // the write lands, so it must give the same answer for the same record. The new cue's id is made
+  // once, here, and `outcome` reads what the LAST run decided, which after commitDurableWrites is
+  // the stored write's (S15).
   let plan: ResultPlan | null = null;
   let cueId: string | null = null;
+  const newId = uuid();
   const takes = (fields: readonly { field: string; title?: string }[]) => opts.valuesFor(fields) !== null;
   const { shows, error } = patchShowChecked(showId, (show) => {
     const p = planResultCue(show, questionId, takes, opts.chosen);
     plan = p;
+    cueId = null;
     if (p.kind === 'choose') return false;
     if (opts.closeOnly && p.kind !== 'update') return false;
     const graphic = show.graphics.find((g) => g.id === p.graphicId)!;
     const values = opts.valuesFor(graphic.template.fields ?? [])!;
     let cue = p.kind === 'update' ? show.cues?.find((c) => c.id === p.cueId) : undefined;
     if (!cue && opts.adopt) cue = show.cues?.find((c) => c.id === opts.adopt && c.sourceId === graphic.id);
+    // A catalog board's seeded cue that this write does not use goes with it: one press, one cue.
+    if (opts.adopt && cue?.id !== opts.adopt) show.cues = (show.cues ?? []).filter((c) => c.id !== opts.adopt);
     if (cue) {
       cue.values = { ...cue.values, ...values };
       if (p.kind === 'add') cue.label = opts.label;
     } else {
-      cue = { id: uuid(), sourceId: graphic.id, label: opts.label, values: { ...seedValues(graphic.template.fields), ...values } };
+      cue = { id: newId, sourceId: graphic.id, label: opts.label, values: { ...seedValues(graphic.template.fields), ...values } };
       show.cues = appendCue(show.cues ?? [], cue);
     }
     cueId = cue.id;
     show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
-    if (opts.chosen && p.kind === 'add') show.resultTarget = opts.chosen;
+    // An explicit pick is remembered, whether it added a cue or landed on the one already there (S5).
+    if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show.resultTarget = opts.chosen;
     return true;
   }, true);
-  return { shows, error, plan: error ? null : plan, cueId: error ? null : cueId };
-}
-
-/** Remember where results go (Show.resultTarget), or forget it with `null` (Change, S5). */
-export function setShowResultTarget(showId: string, graphicId: string | null): { shows: Show[]; error: string | null } {
-  return patchShowChecked(showId, (show) => {
-    if ((show.resultTarget ?? null) === graphicId) return false;
-    if (graphicId) show.resultTarget = graphicId;
-    else delete show.resultTarget;
-    return true;
-  }, true);
+  return { shows, error, outcome: () => (error ? { plan: null, cueId: null } : { plan, cueId }) };
 }
 
 /** Remember where messages go (Show.messageTarget), or forget it with `null`. Part of a prepare,

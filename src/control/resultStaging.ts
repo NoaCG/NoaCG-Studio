@@ -118,9 +118,11 @@ export interface ResultStagingDeps {
       adopt?: string | null;
       closeOnly?: boolean;
     },
-  ) => { shows: Show[]; error: string | null; plan: ResultPlan | null; cueId: string | null };
+  ) => { shows: Show[]; error: string | null; outcome: () => { plan: ResultPlan | null; cueId: string | null } };
   commit: () => Promise<string | null>;
   setShows: (shows: Show[]) => void;
+  /** The productions as stored, read after the write landed. */
+  reread: () => Show[];
 }
 
 export type ResultOutcome =
@@ -140,6 +142,8 @@ export async function stageResults(
     tally: ResultTally;
     closed: boolean;
     liveFigures: boolean;
+    /** The cue's name when one is added (the caller's words, so they stay where copy is checked). */
+    label: string;
     chosen?: string | null;
     adopt?: string | null;
     closeOnly?: boolean;
@@ -150,20 +154,24 @@ export async function stageResults(
     const map = pollFieldMap(fields);
     return map ? tallyValues(input.round, input.tally, map, input.closed, input.liveFigures) : null;
   };
-  const label = `Vote — ${input.round.question.slice(0, 32)}`;
-  const made = deps.stage(show.id, input.questionId, { valuesFor, label, chosen: input.chosen, adopt: input.adopt, closeOnly: input.closeOnly });
+  const made = deps.stage(show.id, input.questionId, { valuesFor, label: input.label, chosen: input.chosen, adopt: input.adopt, closeOnly: input.closeOnly });
   deps.setShows(made.shows);
-  const after = made.shows.find((s) => s.id === show.id) ?? show;
-  const plan = made.plan;
-  const name = (id: string | undefined) => after.graphics.find((g) => g.id === id)?.name ?? 'the graphic';
   if (made.error) return { ok: false, choose: false, message: `No result was written: ${made.error}` };
-  if (!plan || plan.kind === 'choose') {
+  // This tab's run: when it found nowhere to write, nothing was written and the operator chooses.
+  const asked = made.outcome().plan;
+  if (!asked || asked.kind === 'choose') {
     if (input.closeOnly) return { ok: true, kind: 'none', cueId: null, graphic: '', message: '' };
-    return { ok: false, choose: true, message: plan?.replaced ? replacedWords(plan.replaced) : 'Choose where results go.' };
+    return { ok: false, choose: true, message: asked?.replaced ? replacedWords(asked.replaced) : 'Choose where results go.' };
   }
-  if (input.closeOnly && plan.kind !== 'update') return { ok: true, kind: 'none', cueId: null, graphic: '', message: '' };
+  if (input.closeOnly && asked.kind !== 'update') return { ok: true, kind: 'none', cueId: null, graphic: '', message: '' };
   const failure = await deps.commit();
-  const graphic = name(plan.graphicId);
+  // What the STORED write decided, which can differ from this tab's guess (S4, S15).
+  const stored = deps.reread();
+  deps.setShows(stored);
+  const after = stored.find((s) => s.id === show.id) ?? show;
+  const { plan: landed, cueId } = made.outcome();
+  const plan = landed && landed.kind !== 'choose' ? landed : asked;
+  const graphic = after.graphics.find((g) => g.id === plan.graphicId)?.name ?? 'the graphic';
   if (failure) {
     return {
       ok: false,
@@ -176,7 +184,7 @@ export async function stageResults(
     return {
       ok: true,
       kind: 'updated',
-      cueId: made.cueId,
+      cueId,
       graphic,
       message: input.closed
         ? `✓ The result cue on “${graphic}” now carries the final ${votes}. Take it when you want them on air.`
@@ -184,7 +192,7 @@ export async function stageResults(
     };
   }
   const why = plan.replaced ? `${replacedWords(plan.replaced)} ` : '';
-  return { ok: true, kind: 'added', cueId: made.cueId, graphic, message: `✓ ${why}Added a result cue on “${graphic}”. It airs when you Take it. Nothing has gone out.` };
+  return { ok: true, kind: 'added', cueId, graphic, message: `✓ ${why}Added a result cue on “${graphic}”. It airs when you Take it. Nothing has gone out.` };
 }
 
 function replacedWords(replaced: 'deleted' | 'no-fields' | 'moved'): string {

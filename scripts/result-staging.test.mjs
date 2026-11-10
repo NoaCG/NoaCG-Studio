@@ -38,29 +38,31 @@ function store(initial) {
     const show = structuredClone(s.record);
     const takes = (fields) => opts.valuesFor(fields) !== null;
     const plan = planResultCue(show, questionId, takes, opts.chosen);
-    if (plan.kind === 'choose' || (opts.closeOnly && plan.kind !== 'update')) return { shows: [s.record], error: null, plan, cueId: null };
-    if (s.refuse) return { shows: [s.record], error: s.refuse, plan: null, cueId: null };
+    if (plan.kind === 'choose' || (opts.closeOnly && plan.kind !== 'update')) return { shows: [s.record], error: null, outcome: () => ({ plan, cueId: null }) };
+    if (s.refuse) return { shows: [s.record], error: s.refuse, outcome: () => ({ plan: null, cueId: null }) };
     const g = show.graphics.find((x) => x.id === plan.graphicId);
     const values = opts.valuesFor(g.template.fields);
     let cue = plan.kind === 'update' ? show.cues.find((c) => c.id === plan.cueId) : undefined;
     if (!cue && opts.adopt) cue = show.cues.find((c) => c.id === opts.adopt);
+    if (opts.adopt && cue?.id !== opts.adopt) show.cues = show.cues.filter((c) => c.id !== opts.adopt);
     if (cue) cue.values = { ...cue.values, ...values };
     else {
       cue = { id: `cue-${++n}`, sourceId: g.id, label: opts.label, values };
       show.cues.push(cue);
     }
     show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
-    if (opts.chosen && plan.kind === 'add') show.resultTarget = opts.chosen;
+    if (opts.chosen && show.graphics.some((x) => x.id === opts.chosen && takes(x.template.fields))) show.resultTarget = opts.chosen;
     s.record = show;
     s.writes++;
-    return { shows: [show], error: null, plan, cueId: cue.id };
+    const id = cue.id;
+    return { shows: [show], error: null, outcome: () => ({ plan, cueId: id }) };
   };
-  s.deps = { stage: s.stage, commit: async () => null, setShows: () => {} };
+  s.deps = { stage: s.stage, commit: async () => null, setShows: () => {}, reread: () => [s.record] };
   return s;
 }
 
 const press = (s, input = {}) =>
-  stageResults(s.record, { questionId: 'q1', round, tally: tally(2, 1), closed: false, liveFigures: false, ...input }, s.deps);
+  stageResults(s.record, { questionId: 'q1', round, tally: tally(2, 1), closed: false, liveFigures: false, label: 'Vote: Who wins?', ...input }, s.deps);
 
 test('the field contract: Question and Options by title, the last match wins, a strap is not a board', () => {
   assert.equal(pollFieldMap(strap.template.fields), null);
@@ -95,7 +97,7 @@ test('one cue per question: a second press, a reload and another tab update the 
   // A second press, from a page holding the record as it was BEFORE the first write (a stale tab):
   // the write is decided on the stored record, so it updates, and the note says so (S15).
   const stalePage = { id: 's', graphics: [board('g-a')] };
-  const second = await stageResults(stalePage, { questionId: 'q1', round, tally: tally(5, 1), closed: false, liveFigures: false }, s.deps);
+  const second = await stageResults(stalePage, { questionId: 'q1', round, tally: tally(5, 1), closed: false, liveFigures: false, label: 'Vote: Who wins?' }, s.deps);
   assert.equal(second.kind, 'updated');
   assert.equal(second.cueId, cueId);
   assert.match(second.message, /Updated the result cue on “House Vote” with 6 votes/);
@@ -197,4 +199,42 @@ test('staging cannot reach an output: it imports nothing that sends (S8)', async
     const imports = [...src.matchAll(/^import[^;]*from '([^']+)'/gm)].map((m) => m[1]);
     for (const spec of imports) assert.doesNotMatch(spec, /graphicVerbs|hostedControl|playoutSession|serverVerbs|bridge|output/i, `${file} imports ${spec}`);
   }
+});
+
+test('the note reports what the stored write did, not this tab’s guess (S4, S15)', async () => {
+  // This tab's copy has no link yet, so its run plans an add; the stored record (another tab
+  // staged meanwhile) makes the rebased run update that cue. The note follows the stored run.
+  let last = { plan: { kind: 'add', graphicId: 'g-a', replaced: null }, cueId: 'phantom' };
+  const record = { id: 's', graphics: [board('g-a')], cues: [{ id: 'theirs', sourceId: 'g-a', label: 'Vote', values: {} }], resultTarget: 'g-a', resultCues: { q1: 'theirs' } };
+  let shown = null;
+  const deps = {
+    stage: () => ({ shows: [record], error: null, outcome: () => last }),
+    commit: async () => {
+      last = { plan: { kind: 'update', cueId: 'theirs', graphicId: 'g-a' }, cueId: 'theirs' };
+      return null;
+    },
+    setShows: (shows) => (shown = shows),
+    reread: () => [record],
+  };
+  const out = await stageResults(record, { questionId: 'q1', round, tally: tally(1, 1), closed: false, liveFigures: false, label: 'Vote' }, deps);
+  assert.equal(out.kind, 'updated');
+  assert.equal(out.cueId, 'theirs');
+  assert.match(out.message, /Updated the result cue/);
+  // The page shows the stored productions, not its own phantom cue.
+  assert.deepEqual(shown, [record]);
+});
+
+test('a pick is remembered even when it lands on the cue already there; an unused seeded cue goes (S5, S16)', async () => {
+  const s = store({ id: 's', graphics: [board('g-a'), board('g-b', 'Volt Vote')], cues: [], resultTarget: 'g-a' });
+  await press(s);
+  delete s.record.resultTarget;
+  const same = await press(s, { chosen: 'g-a' });
+  assert.equal(same.kind, 'updated');
+  assert.equal(s.record.resultTarget, 'g-a');
+  // A board added for this pick whose seeded cue the write does not use: the seed goes.
+  s.record.cues.push({ id: 'seed', sourceId: 'g-a', label: 'House Vote', values: {} });
+  const again = await press(s, { chosen: 'g-a', adopt: 'seed' });
+  assert.equal(again.kind, 'updated');
+  assert.equal(s.record.cues.some((c) => c.id === 'seed'), false);
+  assert.equal(s.record.cues.length, 1);
 });

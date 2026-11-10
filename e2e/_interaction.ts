@@ -48,12 +48,14 @@ export async function simulateArrivals(ws: Page): Promise<void> {
 }
 
 /** "Add results to rundown" (interaction AC-9): press it, and on the first press pick where results
- *  go among the production's result graphics (`graphic`, by name). */
+ *  go among the production's result graphics (`graphic`, by name). It waits for a note that names a
+ *  result cue, so an earlier ✓ (Go live's) never passes for one. */
 export async function addResults(ws: Page, graphic: string): Promise<void> {
+  const note = ws.getByTestId('audience-note');
+  const staged = note.filter({ hasText: /✓.*result cue/ });
   await ws.getByTestId('audience-round-stage').click();
   const choose = ws.getByTestId('result-choose-graphic').filter({ hasText: graphic });
-  const done = ws.getByTestId('audience-note').filter({ hasText: '✓' });
-  await expect(choose.or(done).first()).toBeVisible();
+  await expect(choose.or(staged).first()).toBeVisible();
   if (await choose.isVisible()) await choose.click();
-  await expect(ws.getByTestId('audience-note')).toContainText('✓');
+  await expect(staged).toBeVisible();
 }
