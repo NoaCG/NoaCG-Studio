@@ -6,7 +6,7 @@ Spec: `docs/work-specs/interaction/spec.md`, phase 5 (AC-12, AC-13, AC-15 repeat
 | Criterion | Changed behaviour | Proof |
 | --- | --- | --- |
 | AC-12 | Nine result boards, `pl06` to `pl14`: bars across, bars up and a donut, each full screen, as a lower third and at the side, on a new Vote result type with a fifth field, Figures (percent, count or both). Offered in Interaction's result picker. | `e2e/audience-pack.spec.ts` "result boards: three layouts by three placements ..."; catalog gates below |
-| AC-13 | Home-made vote artwork with Question, Option N, Bar N (full length) and Vote count layers imports as a live vote; `noacg scaffold --svg` makes the same graphic from the CLI; a layer named `QR` draws the Join link as a QR code. Docs: `docs/SVG_AUTHORING.md`, `cli/README.md`, the CLI skill. | `e2e/audience-pack.spec.ts` "studio import: ...", "CLI scaffold --svg: ...", "an imported SVG with a layer named QR ..."; `cli/test/unit.test.mjs` "scaffold --svg ..." |
+| AC-13 | Home-made vote artwork with Question, Option N, Bar N (full length) and Vote count layers imports as a live vote; `noacg scaffold --svg` makes the same graphic from the CLI; a layer named `QR` draws the Join link as a QR code. Docs: `docs/SVG_AUTHORING.md`, `cli/README.md`, the CLI skill. | `e2e/audience-pack.spec.ts` "studio import: ...", "CLI scaffold --svg: ...", "CLI scaffold --svg builds the studio import's own default for every corpus file", "an imported SVG with a layer named QR ..."; `cli/test/unit.test.mjs` "scaffold --svg ..." |
 | AC-15 | The walk airs the vote on a result board (Result Donut Lower) instead of House Vote. | Rehearsal walk below |
 
 ## AC-12, result boards
@@ -88,11 +88,22 @@ the scoped catalog specs and calibration gate on the head are posted on the pull
 two open items are filed (#2345 grouped rows not proposed, #2346 Windows render rows).
 
 Codex: two findings, one family (the CLI path must apply the studio import's defaults), product
-defects, fixed in `svgFromMarkup.ts`: a proposed countdown's clock layer was not bound, so the
-CLI-made timer never ticked; and the artwork's bundled faces were dropped. New test "CLI scaffold
---svg: a countdown board ticks and keeps its bundled faces, as the studio import does" compares
-the CLI path with the studio's own draft on the corpus timer board (fields, the clock's start,
-the declared faces). Mutation: undoing either fix fails it.
+defects: a proposed countdown's clock layer was not bound, so the CLI-made timer never ticked;
+and the artwork's bundled faces were dropped. Fixed at `bb021b2` in the then hand-made helper.
+
+## Review of `bb021b2`
+
+`/so`: A, with one minor finding (text off the artboard offered as fields by the CLI only;
+filed as #2347). Codex: oversized artwork not fitted to the frame by the CLI path. That made two
+successive rounds of one missing rule (the CLI path must equal the studio import's default), so
+patching stopped and a fresh read-only reassessment of the model came first. It found six more
+defaults the copy missed (`static:` and `f:` layers, picture slots, `show:`/`choice:` extras,
+typed behaviours with their gap check, the written-layer filter) and recommended calling the
+studio's own function. Done: `svgDefault.ts`, called by the bridge; the copy is removed. The
+parity test is now a sweep: every file in the SVG corpus (51) plus a 3840x2160 artwork and text
+off the artboard, asserting the CLI-made template equals the one built from the studio chain's
+own `DesignSvg` (html, css, js, fields). Mutation: stripping the fonts on the bridge side fails
+it on 53 points.
 
 ## Rehearsal walk (AC-15, phase 5)
 

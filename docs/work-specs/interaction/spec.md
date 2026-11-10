@@ -899,11 +899,15 @@ their values.
 - A layer named `QR` (any case; never text, nothing in `<defs>` or a hidden layer) gains a last
   field, Join link; the code is drawn inside that layer (a bare shape is wrapped in a group at
   bind), with the encoder the Join card carries, on a white plate with its own paint.
-- The CLI path is `noacg scaffold --svg <file>`, through the bridge's `scaffold`, with one helper
-  (`importedDesign/svgFromMarkup.ts`) applying the mapping step's default: layer names decide,
-  and layers a behaviour writes are not operator fields. Pictures, outlines and bundled font
-  aliases stay as drawn; the studio's mapping step is where they are chosen. The MCP server's
-  scaffold is unchanged.
+- The CLI path is `noacg scaffold --svg <file>`, through the bridge's `scaffold`, which calls the
+  studio SVG drop's own default (`components/wizard/import/svgDefault.ts`: `svgDraftFromImport`
+  then `svgDesignOptions`), so the CLI and the studio cannot drift. That is one new named edge,
+  bridge to that file, in `docs/ARCHITECTURE.md` §3 and `.dependency-cruiser.cjs`; the file loads
+  no React. The first build re-created the defaults by hand and two review rounds each found one
+  more it missed; a fresh reassessment chose the shared function instead. Studio-only: a lower
+  third's measured growth and every answer an author gives in the mapping step. Moving the import
+  draft's pure core down to templates would retire the edge. The MCP server's scaffold is
+  unchanged.
 - Imported upright bars and pies are filed (#2344), not built: AC-13 asks for bars at their
   share, and the change re-records every pinned behaviour runtime.
 
