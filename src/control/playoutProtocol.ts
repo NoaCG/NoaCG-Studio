@@ -281,6 +281,8 @@ export interface VmixStateReply {
   ok: true;
   session: string;
   observedAt: number;
+  /** Edition and channel count from the same XML as the overlay rows. */
+  vmix: VmixInfo;
   overlays: VmixOverlayState[];
   /** The scoped output cannot be loaded. A reported owned input can still be unloaded. */
   loadProblem?: string;

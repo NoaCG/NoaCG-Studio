@@ -2,11 +2,11 @@ import {
   actVmix, bridgePaired, namedOutputUrl, readVmixOverlays, testVmix,
   type PlayoutSettings, type VmixConnection,
 } from './playoutLink';
-import type { VmixInfo, VmixOverlayState } from './playoutProtocol';
+import { VMIX_INPUT_KEY, type VmixInfo, type VmixOverlayState } from './playoutProtocol';
 
 export function vmixOverlay(settings: PlayoutSettings, count: number): number {
   const selected = settings.vmix?.overlay;
-  return selected !== undefined && selected <= count ? selected : count;
+  return selected !== undefined && Number.isInteger(selected) && selected >= 1 && selected <= count ? selected : count;
 }
 
 export function vmixConnectionLine(info: VmixInfo): string {
@@ -26,16 +26,16 @@ export interface VmixOutputReading {
 export async function readVmixOutput(settings: PlayoutSettings, outputUrl: string | null): Promise<VmixOutputReading> {
   const connection = await testVmix(settings);
   if (!connection.keyed || !connection.info || !outputUrl) return { connection };
-  const channel = vmixOverlay(settings, connection.info.overlays);
-  const { result, overlays, loadProblem } = await readVmixOverlays(settings, outputUrl);
+  const { result, info, overlays, loadProblem } = await readVmixOverlays(settings, outputUrl);
+  if (!info) return { connection, detail: result.detail };
+  const channel = vmixOverlay(settings, info.overlays);
   const configured = overlays?.find(row => row.overlay === channel);
   const owned = configured?.ownsOutput ? configured : overlays?.find(row => row.ownsOutput);
   return {
-    connection,
+    connection: { ...connection, info },
     configuredOverlay: channel,
     overlay: owned ?? configured,
     loadProblem,
-    ...(result.state !== 'ok' ? { detail: result.detail } : {}),
   };
 }
 
@@ -78,7 +78,7 @@ export async function changeVmixOutput(
   verb: 'take' | 'out',
   current: () => VmixOutputChoice | null,
   confirmed?: VmixReplace,
-): Promise<{ message?: string; replace?: VmixReplace }> {
+): Promise<{ message?: string; replace?: VmixReplace; completed?: true }> {
   const choice = current();
   if (!choice) return {};
   if (confirmed && !sameChoice(confirmed.choice, choice)) return { message: 'The vMix output setup changed. Check it and press Load again.' };
@@ -94,10 +94,11 @@ export async function changeVmixOutput(
   }
 
   const input = overlay.input;
-  if (confirmed && (confirmed.overlay !== overlay.overlay || confirmed.input.key !== input?.key)) {
+  if (confirmed && (confirmed.overlay !== overlay.overlay || !VMIX_INPUT_KEY.test(confirmed.input.key) ||
+    confirmed.input.key.toLowerCase() !== input?.key)) {
     return { message: 'The input on the vMix overlay changed. Check it and press Load again.' };
   }
-  if (verb === 'take' && overlay.ownsOutput) return {};
+  if (verb === 'take' && overlay.ownsOutput) return { completed: true };
   if (verb === 'take' && input && !confirmed) return { replace: { choice, overlay: overlay.overlay, input } };
   const result = await actVmix(choice.settings, () => {
     const latest = current();
@@ -108,5 +109,9 @@ export async function changeVmixOutput(
       ? { verb, slot, item, expectedOverlayInput: input?.key ?? null }
       : { verb, slot, item };
   });
-  return { message: result?.state === 'ok' ? result.warning : result?.detail };
+  if (!result) return {};
+  if (!sameChoice(choice, current())) {
+    return result.unknownAction ? { message: `The action targeted Overlay ${overlay.overlay}. ${result.detail}` } : {};
+  }
+  return result.state === 'ok' ? { completed: true, message: result.warning } : { message: result.detail };
 }

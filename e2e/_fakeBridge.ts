@@ -1,5 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
-import { VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type VmixInfo, type VmixInput } from '../src/control/playoutProtocol';
+import { PLAYOUT_V, VMIX_OUTPUT_TOKEN_PREFIX, playedSeconds, type AgentError, type ItemRef, type VmixInfo, type VmixInput } from '../src/control/playoutProtocol';
 
 // A FAKE NOACG BRIDGE AT THE NETWORK LAYER, for the playout specs that drive server clips
 // (docs/CLIP_PLAYBACK_PLAN.md §10): `/health`, `/status`, `/list`, `/act` and `/state`, answered from
@@ -34,7 +34,8 @@ export function fakeVmix(overlays = 8) {
   const held: Record<number, { input: VmixInput; outputUrl?: string } | undefined> = {};
   const actions: FakeVmixRequest[] = [];
   const routes: string[] = [];
-  const state: { setup?: AgentError; refuseAction?: AgentError } = {};
+  const state: { setup?: AgentError; refuseAction?: AgentError; actionReply?: unknown; stateReply?: unknown } = {};
+  let generation = 0;
   const sameOutput = (actual: string | undefined, expected: string | undefined) => {
     if (!actual || !expected) return false;
     const address = (value: string) => {
@@ -48,30 +49,38 @@ export function fakeVmix(overlays = 8) {
     routes.push(path);
     if (path === '/act') {
       actions.push(body);
-      if (state.refuseAction) return { ok: false, error: state.refuseAction };
+      if (state.refuseAction) return { ok: false, v: PLAYOUT_V, error: state.refuseAction };
     }
-    if (state.setup) return { ok: false, error: state.setup };
-    if (path === '/status' || path === '/connect') return { ok: true, vmix: info, version: info.version, capabilities: ['state'] };
-    if (path === '/state') return {
-      ok: true, session: 'test', overlays: Array.from({ length: info.overlays }, (_, index) => {
+    if (state.setup) return { ok: false, v: PLAYOUT_V, error: state.setup };
+    const occupiedKeys = new Set(Object.values(held).flatMap(row => row ? [row.input.key] : []));
+    const vmix = { ...info, inputs: Math.max(info.inputs, occupiedKeys.size) };
+    if (path === '/status' || path === '/connect') return {
+      ok: true, v: PLAYOUT_V, vmix, version: info.version, raw: 'VERSION OK', capabilities: ['state'],
+      ...(path === '/connect' ? { servers: [] } : {}),
+    };
+    if (path === '/state') return state.stateReply === undefined ? {
+      ok: true, v: PLAYOUT_V, session: 'test', observedAt: 0, vmix, linked: [],
+      overlays: Array.from({ length: info.overlays }, (_, index) => {
         const overlay = index + 1;
         return { overlay, input: held[overlay]?.input, ownsOutput: sameOutput(held[overlay]?.outputUrl, body.outputUrl) };
       }),
-    };
+    } : state.stateReply;
     if (path === '/act' && body.action) {
       const { slot: { overlay }, verb, item, expectedOverlayInput } = body.action;
       if (verb === 'take') {
         if (expectedOverlayInput !== (held[overlay]?.input.key ?? null)) {
-          return { ok: false, error: { hop: 'target', code: 'refused', detail: 'The overlay changed.' } };
+          return { ok: false, v: PLAYOUT_V, error: { hop: 'target', code: 'refused', detail: 'The overlay changed.' } };
         }
         held[overlay] = {
           input: { key: '69c8c683-9d2b-4fd4-b4c8-c6c85247ad88', number: 2, title: `NoaCG ${item.label}`, type: 'Browser' },
           outputUrl: item.name,
         };
       } else if (sameOutput(held[overlay]?.outputUrl, item.name)) delete held[overlay];
-      return { ok: true };
+      generation += 1;
+      return state.actionReply === undefined
+        ? { ok: true, v: PLAYOUT_V, raw: 'FUNCTION OK', session: 'test', generation } : state.actionReply;
     }
-    return { ok: false, error: { hop: 'agent', code: 'unsupported', detail: 'Unsupported vMix test route.' } };
+    return { ok: false, v: PLAYOUT_V, error: { hop: 'agent', code: 'unsupported', detail: 'Unsupported vMix test route.' } };
   };
   return { info, held, actions, routes, state, reply };
 }

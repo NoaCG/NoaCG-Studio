@@ -907,7 +907,7 @@ test('AC-4: a kept Browser on the old HTTP port refuses Load, but can still be u
       const foreign = fake.add('Browser', 'Another operator');
       fake.overlays.set(8, foreign.key);
       const take = await act(post, {
-        verb: 'take', item: { ...item, label: 'Changed name' }, slot: slot(), expectedOverlayInput: foreign.key,
+        verb: 'take', item: { ...item, label: 'Changed name' }, slot: slot(), expectedOverlayInput: foreign.key.toUpperCase(),
       });
       assert.equal(take.ok, false);
       assert.equal((await state(post)).loadProblem, take.error.detail);
@@ -1328,10 +1328,19 @@ test('one connection serves every reading and every action, with subscription li
   fake.add('Image', 'Sponsor bug');
   try {
     await withBridge(createVmixAdapter({ port: fake.port }), async (post) => {
-      assert.equal((await act(post, { verb: 'take', item, slot: slot(8) })).ok, true);
-      const state = await post('/state', { target: { adapter: 'vmix' } });
+      const loaded = await act(post, { verb: 'take', item, slot: slot(8) });
+      assert.equal(loaded.ok, true);
+      assert.equal(loaded.v, 2);
+      assert.match(loaded.raw, /OverlayInput8In OK/);
+      assert.ok(Number.isSafeInteger(loaded.generation));
+      const state = await post('/state', { target: { adapter: 'vmix' }, outputUrl: item.name });
       assert.equal(state.ok, true);
-      assert.equal(state.overlays.length, 8);
+      assert.equal(state.v, 2);
+      assert.equal(state.session, loaded.session);
+      assert.ok(Number.isSafeInteger(state.observedAt));
+      assert.deepEqual(state.vmix, { version: '29.0.0.49', edition: 'Trial', overlays: 8, inputs: 2 });
+      assert.equal(state.overlays.length, state.vmix.overlays);
+      assert.equal(state.overlays[7].ownsOutput, true);
       assert.deepEqual(state.overlays[7].input, { key: fake.onChannel(8).key, number: 2, title: 'NoaCG Evening News', type: 'Browser' });
       assert.equal(state.overlays[0].input, undefined);
       assert.deepEqual(state.linked, []);

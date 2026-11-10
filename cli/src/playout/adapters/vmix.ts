@@ -234,7 +234,7 @@ export function createVmixAdapter(options: {
       return exclusive(portOf(target), async () => {
         const s = await begin(target, receivedAt + timeoutMs);
         if (!('conn' in s)) return s;
-        const count = vmixOverlayCount(s.xml.version, s.xml.edition);
+        const vmix = describe(s.xml);
         const id = outputUrl === undefined ? undefined : vmixOutputId(outputUrl);
         if (outputUrl !== undefined && !id) return usage('The vMix state reading needs an http or https output address.');
         const ownershipProblem = id ? options.ownershipProblem?.() : undefined;
@@ -250,11 +250,11 @@ export function createVmixAdapter(options: {
           }
         }
         const value: VmixOverlayState[] = [];
-        for (let overlay = 1; overlay <= count; overlay += 1) {
+        for (let overlay = 1; overlay <= vmix.overlays; overlay += 1) {
           const input = onChannel(s.xml, overlay);
           value.push({ overlay, ...(input ? { input } : {}), ...(id && !ownershipProblem ? { ownsOutput: !!owned && input?.key === owned.key } : {}) });
         }
-        return { ok: true, value: { overlays: value, ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
+        return { ok: true, value: { vmix, overlays: value, ...(loadProblem ? { loadProblem } : {}) }, raw: s.raw };
       });
     },
 
@@ -352,7 +352,8 @@ export function createVmixAdapter(options: {
     const scope = { overlay, selectedOnly, expectedCount: count };
     const original = channelKey(before, overlay);
     const changed = () => refused('The input on vMix overlay ' + overlay + ' changed. Check it and try again.');
-    if (action.verb === 'take' && action.expectedOverlayInput !== undefined && original !== action.expectedOverlayInput) return changed();
+    if (action.verb === 'take' && action.expectedOverlayInput !== undefined &&
+      original !== (action.expectedOverlayInput?.toLowerCase() ?? null)) return changed();
 
     let kept;
     try {

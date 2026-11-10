@@ -180,6 +180,29 @@ uppercase Replace refusal.
   strict XML parsing, Bridge version and mixer Program, Preview and
   transition behaviour.
 
+#### Corrections from the independent Rules review
+
+- HTTP 200 and the current protocol version identify the route's success.
+  Status and connect include the target version, raw text, capabilities and
+  vMix info with an input count. Connect also carries a servers array.
+  Scoped state carries the same-snapshot vMix info, session, observation time,
+  links and overlay rows. Act carries raw text, a generation and session, with
+  typed optional warning and instance. Preserve the Bridge's 200 domain errors,
+  400 agent refusal and 502 target errors, alongside 401, 403 and transport
+  diagnoses. An absent health feature list remains valid for an older Bridge.
+- All scoped rows carry boolean ownership, or all omit ownership with a
+  diagnostic. Repeated canonical GUIDs carry identical input records. A
+  saved choice beyond the current count falls back to the highest available
+  channel without rewriting the preference. This applies to first Publish.
+- An unknown action result stays visible. Controls that rely on the old
+  reading stay unavailable until a valid new poll, including Replace. Only a
+  completed successful action or a fresh observation confirming a no-op clears
+  obsolete vMix action feedback. A cancelled or superseded action leaves it
+  alone. Keep unrelated feedback.
+- Report a confirmed same-GUID source change to the coordinator before any
+  ownership change. Distinguish a live BrowserNavigate from the supported
+  source edit and its saved and reopened preset.
+
 ## Rules made explicit during implementation
 
 - The vMix action repeats the capability check at dispatch and prefixes the paired
@@ -273,6 +296,43 @@ stable, so the renderer's reported display name can still name its original
 overlay. The outgoing Studio action and current overlay status use the actual
 channel. NoaCG does not navigate or reload an existing mixer input to change
 its display name. Broader routing stays with V4.
+
+### Bridge reply repair and the remaining vMix ownership blocker
+
+The compiled baseline reproduced the malformed replies and stale default
+described in the Rules. The repair validates vMix replies separately from
+the legacy CasparCG client, uses the overlay count from the scoped state
+reading, and compares canonical keys at Replace. Its tests exercise
+diagnostic-only readings, contradictory ownership, the action with no valid
+reply, recovery without resending, and explicit retry. The local code
+review also required a count consistent with the distinct occupied input
+keys, capability validation before interpreting an absent adapter, and
+the original overlay number on an unknown sent result after a settings
+change. First Publish runs explicitly in the shared browser queue under
+the owner's test-selection constraint.
+
+An owned vMix 29.0.0.49 Trial test confirmed a separate AC-4 failure. On the
+packaged baseline, the Browser first fetched the intended synthetic output.
+The supported BrowserNavigate function on the off-air Browser then fetched
+a second synthetic endpoint. Its type, title and GUID
+`5dc9354f-b06b-4214-a8f4-8e932dfa5c00` stayed identical in vMix XML. An
+ordinary subsequent Load reused the key, reported success and put the
+alternate page on Overlay 8. Scoped state claimed ownership. The intended
+and alternate center pixels were RGB `ec3898` and `15b061` respectively.
+The saved preset still had its original Bridge address. Reopening fetched
+the intended output again with the same key. Program and Preview stayed
+on 1 and 2. Both vMix files were restored and verified by SHA-256, and
+vMixService stayed running. The replay and captures are in
+`C:/claude/Temp/vmix-v2-reply-evidence-1110/native-navigation`.
+
+A separate owned attempt prepared Browser input 3 with black fixture
+plates on 1 and 2. Its original endpoint was hit and saved. The Windows
+tool could read the vMix control tree, but could not operate the Browser's
+settings because click geometry was unavailable and capture timed out.
+That probe stopped, restored both files and verified their hashes. The
+native General > Change path, which can change the saved source, remains
+unverified. The transient navigation alone already shows the AC-4
+failure. The ownership policy awaits a separate coordinator decision.
 
 ## Verification before landing
 

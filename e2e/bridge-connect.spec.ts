@@ -1639,6 +1639,32 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   await confirm.getByRole('button', { name: 'Replace' }).click();
   await expect(page.getByTestId('production-note')).toContainText('Start vMix before loading the output.');
   expect(vmix.actions[2].action?.expectedOverlayInput).toBe(vmix.held[2]?.input.key);
+  delete vmix.state.refuseAction;
+
+  await row.getByRole('button', { name: 'Load' }).click();
+  await expect(confirm).toBeVisible();
+  vmix.state.actionReply = { ok: true, v: 2 };
+  // Let Replace's fresh preflight read pass, then lose both the action reply and the next poll.
+  await page.route(BRIDGE + '/act', async route => {
+    vmix.state.stateReply = null;
+    await route.fallback();
+  }, { times: 1 });
+  await confirm.getByRole('button', { name: 'Replace' }).click();
+  await expect(page.getByTestId('production-note')).toContainText('The vMix action result is unknown.');
+  await expect(panel.getByTestId('vmix-bridge')).toContainText('did not return a valid vMix reading');
+  await expect(row).toHaveCount(0);
+  await expect(confirm).toHaveCount(0);
+  expect(vmix.actions).toHaveLength(4);
+
+  delete vmix.state.stateReply;
+  delete vmix.state.actionReply;
+  await expect(row).toContainText('On air');
+  expect(vmix.actions).toHaveLength(4);
+  await row.getByRole('button', { name: 'Unload' }).click();
+  await expect(row).toContainText('Off');
+  await expect(page.getByTestId('production-note')).toHaveCount(0);
+  expect(vmix.actions).toHaveLength(5);
+
   await page.getByText('Intro.mov', { exact: true }).click();
   await expect(page.getByTestId('verb-take')).toBeDisabled();
   await expect(page.getByTestId('verb-take')).toHaveAttribute('title', /This production uses vMix/);

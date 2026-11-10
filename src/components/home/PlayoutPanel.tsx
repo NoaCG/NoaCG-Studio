@@ -330,13 +330,15 @@ export function VmixRows({
     if (!on || !paired || busy) return;
     return observeVmixOutput(() => readVmixOutput(loadPlayoutSettings(), url), reading => setObserved({ key, reading }));
   }, [on, paired, busy, key, url]);
-  const reading = observed?.key === key ? observed.reading : undefined;
+  const reading = !busy && observed?.key === key ? observed.reading : undefined;
   const connection = reading?.connection;
   const update = connection && !connection.keyed && (connection.supported || !connection.result || connection.result.state === 'outdated');
   const status = connection?.info ? `vMix ${connection.info.version}` : 'NoaCG Bridge';
   const loadProblem = reading?.loadProblem;
   const problem = update ? undefined : loadProblem ?? reading?.detail ?? (connection?.result?.state === 'ok' ? undefined : connection?.result?.detail);
   const row = reading?.overlay;
+  const activeReplace = !loadProblem && row && !row.ownsOutput && replace?.overlay === row.overlay &&
+    replace.input.key === row.input?.key ? replace : undefined;
   const tone = loadProblem ? 'bad' : row?.ownsOutput ? 'ok' : row?.input ? 'warn' : 'idle';
   return (
     <>
@@ -358,16 +360,16 @@ export function VmixRows({
           <Dot tone={tone} />
           <span className="pd-pp-name">Output on Overlay {row.overlay}</span>
           <span className="pd-pp-state">{row.ownsOutput ? (loadProblem ? 'Source unavailable' : 'On air') : row.input?.title ?? 'Off'}</span>
-          <button type="button" onClick={row.ownsOutput ? onUnload : onLoad} disabled={busy || (!row.ownsOutput && (!!replace || !!loadProblem))} data-testid={row.ownsOutput ? 'vmix-unload' : 'vmix-load'}>
+          <button type="button" onClick={row.ownsOutput ? onUnload : onLoad} disabled={!row.ownsOutput && (!!activeReplace || !!loadProblem)} data-testid={row.ownsOutput ? 'vmix-unload' : 'vmix-load'}>
             {row.ownsOutput ? 'Unload' : 'Load'}
           </button>
         </div>
       )}
-      {on && replace && !loadProblem && (
+      {on && activeReplace && (
         <div className="pd-pp-confirm" role="alertdialog" aria-label="Replace the input on the overlay" data-testid="vmix-replace">
-          <span>Replace “{replace.input.title}” on Overlay {replace.overlay}?</span>
+          <span>Replace “{activeReplace.input.title}” on Overlay {activeReplace.overlay}?</span>
           <button type="button" className="pd-pp-link" onClick={onCancelReplace}>Cancel</button>
-          <button type="button" onClick={onReplace} disabled={busy}>Replace</button>
+          <button type="button" onClick={onReplace}>Replace</button>
         </div>
       )}
     </>

@@ -11,7 +11,7 @@
 // inline code did. The rehearsal the first publish clears stays the page's (`onFirstPublish`): the
 // live map and PROGRAM are not this module's.
 
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { saveAs } from 'file-saver';
 import {
   loadShows,
@@ -86,6 +86,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   /** Publish found another production on the slot: Load waits for "Replace". */
   const [replaceAsk, setReplaceAsk] = useState(false);
   const [vmixReplace, setVmixReplace] = useState<VmixReplace>();
+  const vmixNoteRef = useRef<string | null>(null);
   /** A Load or Unload is on its way to the Bridge: a second press waits for it. */
   const [slotBusy, setSlotBusy] = useState(false);
   const slotBusyRef = useRef(false);
@@ -111,7 +112,7 @@ export function useProductionPublish({ authStatus, signInOpen }: { authStatus: A
   return {
     statusOpen, setStatusOpen, linksOpen, setLinksOpen, busy, setBusy, publishing, setPublishing, copied, setCopied,
     nameDraft, setNameDraft, nameNote, setNameNote, replaceAsk, setReplaceAsk, vmixReplace, setVmixReplace, slotBusy, setSlotBusy, slotBusyRef,
-    publishAfterSignIn, publishRef,
+    publishAfterSignIn, publishRef, vmixNoteRef,
   };
 }
 
@@ -121,7 +122,7 @@ export type ProductionPublishState = ReturnType<typeof useProductionPublish>;
 interface PublishActionsIo {
   show: Show;
   setShows: (shows: Show[]) => void;
-  setNote: (note: string | null) => void;
+  setNote: Dispatch<SetStateAction<string | null>>;
   backendConfigured: boolean;
   authStatus: AuthUiState['status'];
   needsSignIn: boolean;
@@ -156,7 +157,7 @@ interface PublishActionsIo {
 
 /** The publish, slot and links handlers, built on every render after the page's early return. */
 export function publishActions(state: ProductionPublishState, io: PublishActionsIo) {
-  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setVmixReplace, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef } = state;
+  const { setBusy, setPublishing, setCopied, nameDraft, setNameDraft, setNameNote, setReplaceAsk, setVmixReplace, setStatusOpen, setSlotBusy, slotBusyRef, publishAfterSignIn, publishRef, vmixNoteRef } = state;
   const {
     show, setShows, setNote, backendConfigured, authStatus, needsSignIn, openSignIn, user, outputUrl, browserOutputUrl,
     hostedSlug, slotReadable, outputSlot, onAirChanged, flushDraft, history, legacyCasparActivity, accountCaspar, publishedReaders,
@@ -371,7 +372,14 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       setVmixReplace(outcome.replace);
       setStatusOpen(true);
     }
-    if (outcome.message) setNote(outcome.message);
+    if (outcome.message) {
+      vmixNoteRef.current = outcome.message;
+      setNote(outcome.message);
+    } else if (outcome.completed) {
+      const previous = vmixNoteRef.current;
+      vmixNoteRef.current = null;
+      if (previous) setNote(note => note === previous ? null : note);
+    }
   });
 
   /** Publish; the version it wrote, or null when it did not (the note says why). The readiness
