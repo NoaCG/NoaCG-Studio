@@ -1,0 +1,68 @@
+# Phase 6 evidence: Word questions
+
+Spec: `docs/work-specs/interaction/spec.md`, phase 6 (AC-14, AC-15 repeated). Base:
+`7c16e66a89942d7020d19004603d091a56e4f635`. Rules W1 to W9 are in the spec's phase 6 notes.
+
+| Criterion | Changed behaviour | Proof |
+| --- | --- | --- |
+| AC-14 | "+ Question" offers Word. Live, a phone sends one word of at most 25 characters, once; Interaction lists the words by frequency with Hide; "Add word cloud to rundown" writes a snapshot of the shown words onto one word cloud cue (House Word Cloud, `wc01`, new); hidden words never reach it; it airs only through Take. Migration 0114 holds the server half. | `scripts/word-cloud.test.mjs` (13 tests); journey `e2e/production-audience.spec.ts` "a Word question takes one word per phone ..."; blank page `e2e/audience-pack.spec.ts` "the word cloud draws its Words by count ..."; 0114's self-check run on the local stack |
+| AC-15 | The walk's third question is a Word question: a phone sends a word, a second phone's word is hidden, the word cloud airs through Take with the shown word only, then Stop. | Rehearsal walk below |
+
+## AC-14
+
+Node (`scripts/word-cloud.test.mjs`, written from the Rules):
+
+- W2: trimmed; 25 characters taken, 26 refused, counted in characters (25 emoji pass); empty,
+  spaces, a tab, a line break and `|` refused.
+- W1: by frequency, case does not split a word, the most used spelling shows, ties alphabetical.
+- W6: a hidden word stays listed and is never in the cue's Words; at most 30 words, the most sent.
+- The question model: Word is made, read back with its hidden words (junk dropped), put live as a
+  word; hiding is not locked; Duplicate starts with none.
+- Local provider (R15 for words): one word per phone, a second refused; two words, 26 characters
+  and `|` refused; filed under its round with the phone's own view naming the round (W5); a word
+  to a stopped question refused as closed and filed nowhere; going live again continues the same
+  result; Clear results removes the words; Simulate files one word per simulated phone.
+- Staging (W7, W8): a word cloud takes Question and Words and is neither a vote board nor a
+  message destination; the first press asks, a pick adds one cue and is remembered as
+  `wordTarget` (not `resultTarget`); a second press updates the same cue with a new snapshot
+  without the hidden word; a deleted cue gets a new one with a note; a refused write records
+  nothing; the staging modules import nothing that sends.
+- Mutations: letting hidden words into `wordLines` fails two tests; dropping the one-word-per-phone
+  check in the local provider fails one.
+
+Server: 0114's self-check (a throwaway production walked through a Word question) was run with
+`psql` on the local stack with a throwaway `auth.users` row (it skips on a stack with no account):
+a word trimmed and filed with no name; a second word from one phone refused as "you have already
+sent your word"; two words, 26 characters and `a|b` refused; 25 characters taken; the join resolve
+gives the phone's own word its round; 30 words in a burst taken past the message throttle; an Open
+question going live then takes a message at once; the closed Word round refuses as closed; an Open
+question still takes a sentence; Clear results removes the words. 0111's and 0113's self-checks
+were run again on the same stack and pass.
+
+Journey (offline, local provider, rehearsal phone): a Word question; the phone refuses two words
+and 26 characters before sending, sends " Brilliant ", then shows the word instead of the box,
+also after a reload; Simulate words; the list reads Exciting 2, Brilliant, Loud, Tense; no word is
+in the inbox; Loud hidden; Add word cloud to rundown asks, House Word Cloud is added with one cue
+carrying `Exciting | 2`, `Brilliant | 1`, `Tense | 1`; the action log gains no row; Take airs
+exactly those three words; a second press after more words updates the same cue; Stop and the
+press add no row and leave Program as it was; Update airs the new snapshot.
+
+Graphic (blank page): the fields are Label, Question, Words; ordinary words all drawn, more-sent
+never smaller, the most-sent in the accent, all inside the cloud's box and the box inside the
+frame; the worst case Interaction can send (30 words of 25 characters, the widest letters) stays
+inside the box with no word under 34 px and the drawn words the most-sent ones; empty Words draws
+no cloud. Catalog gates scoped to `wc01`: emit (only the new row recorded in
+`e2e/catalog-baseline.json`), type floor, overflow sweep (no baseline row needed), field coverage,
+numerals and the factory gates pass. The catalog layer count in `e2e/editor-transforms.spec.ts`
+grows by the word cloud's one layer, as it did for the Join card.
+
+## Rehearsal walk (AC-15, phase 6)
+
+WALK
+
+## Not run, or partly run
+
+- The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine
+  is Linux, so it has no row for `wc01` (#2319).
+- The full affected browser selection is broad (shared model files) and runs in GitHub Actions; on
+  this machine the two files that cover the change ran whole.
