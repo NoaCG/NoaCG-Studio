@@ -44,7 +44,10 @@
    "session": "session_017SdbwMcEvbAxyDLdN4K8gr",
    "nonce": "4-b-55c7",
    "launchedAt": "2026-11-10T07:42:42Z",
-   "branch": "claude/plan-interaction-4-build"
+   "branch": "claude/plan-interaction-4-build",
+   "pr": 2341,
+   "head": "d64af849e3cb6a8dfdbbc16987a21ac0f549511d",
+   "stamped": "2026-11-10T09:15Z"
   }
  ],
  "owner": [
@@ -64,5 +67,8 @@
  "heartbeat": {
   "issue": 2312,
   "comment": 6738700523
- }
+ },
+ "traps": [
+  "Squashing with git reset --soft origin/main after main moved silently reverts files main changed meanwhile (phase 4 lost scripts/e2e-traced.json until restored). Add to docs/plan-runs/known-traps.md at the end of the run."
+ ]
 }
