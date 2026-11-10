@@ -162,14 +162,15 @@ test('a Sheet refresh keeps a rolling list as taken, says newer data waits, and 
 test('a typed Update on a held roll says the new list shows on the next Re-take, from what PROGRAM holds; an Update that leaves the list as taken says nothing; a reload brings back no stale note', async ({ page }) => {
   test.setTimeout(120_000);
   await styledCreditsProduction(page, 'roll', 'Typed roll');
-  const list = page.getByTestId('cue-field-f1');
-  await expect(list).toHaveValue(LIST);
+  // The drawn title is the list's first line (DesignSvgCredits.title); the list is the one field.
+  const list = page.getByTestId('cue-field-f0');
+  await expect(list).toHaveValue(`PRODUCTION\n${LIST}`);
   const fate = page.getByTestId('cue-unsent');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
   const waiting = () => air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsWaiting: boolean }).noacgCreditsWaiting);
   await page.getByTestId('verb-take').click();
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   await expect(fate).toBeEmpty();
 
   // A corrected name, sent with Update: PROGRAM keeps the list its Take took, and the editor says
@@ -180,46 +181,47 @@ test('a typed Update on a held roll says the new list shows on the next Re-take,
   await expect.poll(waiting).toBe(true);
   await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
   await expect(fate).toHaveAttribute('title', /keeps the names its Take took/);
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
 
   // RELOAD: an unpublished production airs on this page only, so a reload leaves nothing on air
   // and nothing waits. The note follows PROGRAM, not a memory of its own: none comes back, and
   // the Take airs the list as typed.
   await settleDurableWrites(page);
   await page.reload();
-  await expect(page.getByTestId('cue-field-f1')).toHaveValue(OTHER);
+  await expect(page.getByTestId('cue-field-f0')).toHaveValue(OTHER);
   await expect(page.getByTestId('verb-retake')).toBeDisabled();
   await expect(fate).toBeEmpty();
   await page.getByTestId('verb-take').click();
   await expect(rows).toHaveText(['Camera', 'Jonas Berg', 'Ida Lake', 'Director', 'Alex Rivera']);
   await expect(fate).toBeEmpty();
   // Sent again on air: it waits, as before the reload.
-  await page.getByTestId('cue-field-f1').fill(LIST);
+  await page.getByTestId('cue-field-f0').fill(LIST);
   await page.getByTestId('verb-update').click();
   await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
 
   // The list put back as taken, sent: nothing waits any more, so nothing is said.
-  await page.getByTestId('cue-field-f1').fill(OTHER);
+  await page.getByTestId('cue-field-f0').fill(OTHER);
   await page.getByTestId('verb-update').click();
   await expect.poll(waiting).toBe(false);
   await expect(fate).toBeEmpty();
 
-  // A change to another field leaves the list as taken: nothing is said either.
-  await page.getByTestId('cue-field-f0').fill('CREW');
+  // A change to another field leaves the list as taken: nothing is said either. Scroll speed is the
+  // graphic's other field, and it changes the pace on air at once.
+  await page.getByTestId('cue-field-f1').fill('150');
   await page.getByTestId('verb-update').click();
-  await expect(air.getByText('CREW')).toBeVisible();
+  await expect.poll(() => air.locator('.imported-design-credits-roll').evaluate(() => (window as unknown as { noacgCreditsTween: { timeScale(): number } }).noacgCreditsTween.timeScale())).toBeCloseTo(1.5, 5);
   await expect.poll(waiting).toBe(false);
   await expect(fate).toBeEmpty();
 
   // Changed again and sent, then RE-TAKE: the new list airs and the note clears.
-  await page.getByTestId('cue-field-f1').fill(LIST);
+  await page.getByTestId('cue-field-f0').fill(LIST);
   await page.getByTestId('verb-update').click();
   await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
   await page.getByTestId('verb-retake').click();
   await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen', 'Sound', 'Ari Moss']);
   await expect(fate).toBeEmpty();
   // OUT: off air nothing waits.
-  await page.getByTestId('cue-field-f1').fill(OTHER);
+  await page.getByTestId('cue-field-f0').fill(OTHER);
   await page.getByTestId('verb-update').click();
   await expect(fate).toHaveText('New list shows on the next ⟳ Re-take');
   await page.getByTestId('verb-out').click();
