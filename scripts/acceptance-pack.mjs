@@ -847,14 +847,16 @@ async function sectionInteractive(browser) {
   });
 
   await vote.getByTestId('audience-round-stage').click();
+  // The first press asks where results go (interaction AC-9); the production's House Vote it is.
+  await vote.getByTestId('result-choose-graphic').filter({ hasText: 'House Vote' }).click();
   await wait(vote, 1_500);
   await vote.screenshot({ path: join(OUT, 'interactive-vote-staged.png') });
   record({
     section: 'interactive',
     file: 'interactive-vote-staged.png',
-    title: 'Staged — the counts became an ordinary cue',
+    title: 'Added to the rundown — the counts became an ordinary cue',
     question:
-      'Staging wrote a cue and stopped. Does the surface say clearly enough that this has NOT aired?',
+      'Add results to rundown wrote a cue and stopped. Does the surface say clearly enough that this has NOT aired?',
     note: 'The counts land as the poll board’s own `Label | count` idiom, so the renderer never learns votes exist. Re-staging updates that one cue rather than adding a row per refresh.',
   });
 

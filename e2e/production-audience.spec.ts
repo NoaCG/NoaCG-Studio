@@ -296,71 +296,174 @@ test('an unknown production workspace degrades to Playout rather than a dead sur
   await expect(page.getByTestId('production-audience')).toHaveCount(0);
 });
 
-test('the vote reaches air the same way a question does: open, count, stage a cue, take it', async ({ page }) => {
-  // PHASE 6 (docs/INTERACTIVE_PLAYOUT_PLAN.md). The plane could already open rounds, count
-  // votes and tally them — nothing called any of it. What is pinned here is the whole walk,
-  // and above all its ENDING: counts become an ordinary cue's field values, so the renderer
-  // never learns votes exist and nothing goes out without a Take.
+test('results reach air only as cues the operator takes: one cue per question, nothing sent from Interaction (AC-9)', async ({ page }) => {
+  // docs/work-specs/interaction/spec.md AC-9 and the Rules S1 to S16 in its phase 3 notes. Counts
+  // become an ordinary cue's field values on the remembered result graphic; the renderer never
+  // learns votes exist, and nothing in Interaction adds a row to the output's command log.
   await bootstrapGraphic(page, { category: 'Polls', name: 'House Vote' });
   await productionFor(page, 'Derby Night');
-  const audience = await openWorkspace(page, 'audience');
+  await page.getByTestId('action-log').locator('summary').click();
+  const log = page.getByTestId('action-log-row');
+  const sent = await log.count();
+  let audience = await openWorkspace(page, 'audience');
+  const stage = () => audience.getByTestId('audience-round-stage');
+  const note = () => audience.getByTestId('audience-note');
 
   await addQuestion(audience, 'choice', 'Who wins the derby?', ['The home side', 'The visitors', 'A draw']);
   await goLive(audience, 'Who wins the derby?');
   await expect(audience.getByTestId('question-selected-text')).toHaveText('Who wins the derby?');
-
-  // Votes land and the tally moves (it polls while the round is open).
   await audience.getByTestId('audience-simulate-votes').click();
   await expect(audience.getByTestId('audience-tally-0')).toHaveText('2', { timeout: 10_000 });
-  await expect(audience.getByTestId('audience-tally-1')).toHaveText('1');
 
-  // STAGING WRITES A CUE AND STOPS. The values are the poll board's own `Label | count` idiom,
-  // the same one a hand-typed rehearsal uses.
-  await audience.getByTestId('audience-round-stage').click();
+  // The first press asks where results go (S5), then stages one cue there and remembers it.
+  await stage().click();
+  await audience.getByTestId('result-choose-graphic').filter({ hasText: 'House Vote' }).click();
+  await expect(note()).toContainText('✓ Added a result cue on “House Vote”');
+  await expect(stage()).toHaveText('Add results to rundown on House Vote');
   const staged = async () =>
     audience.evaluate(async () => {
       const { loadShows } = await import('/src/model/shows.ts');
-      const cue = loadShows()[0].cues?.find((c) => c.label.startsWith('Vote —'));
-      return cue ? { label: cue.label, values: cue.values } : null;
+      const show = loadShows()[0];
+      const results = (show.cues ?? []).filter((c) => c.label.startsWith('Vote —'));
+      const cue = results[0];
+      return cue ? { id: cue.id, count: results.length, values: cue.values, mapped: Object.values(show.resultCues ?? {}) } : null;
     });
-  await expect.poll(async () => (await staged())?.values.f0).toBe('Who wins the derby?');
-  const first = await staged();
-  expect(first?.values.f0).toBe('Who wins the derby?');
-  expect(first?.values.f1).toBe('The home side | 2\nThe visitors | 1\nA draw | 1');
-  expect(first?.values.f2).toContain('4 votes');
-  expect(first?.values.f2).toContain('voting open');
+  await expect.poll(async () => (await staged())?.values.f1).toBe('The home side | 2\nThe visitors | 1\nA draw | 1');
+  const first = (await staged())!;
+  expect(first.values.f0).toBe('Who wins the derby?');
+  expect(first.values.f2).toBe('4 votes · voting open');
+  expect(first.mapped).toEqual([first.id]);
 
-  // Re-staging UPDATES that cue rather than adding another — a rundown must not fill with a row
-  // per refresh.
-  const cueCount = async () =>
-    audience.evaluate(async () => {
-      const { loadShows } = await import('/src/model/shows.ts');
-      return (loadShows()[0].cues ?? []).filter((c) => c.label.startsWith('Vote —')).length;
-    });
+  // A second press updates that cue (S2).
   await audience.getByTestId('audience-simulate-votes').click();
   await expect(audience.getByTestId('audience-tally-0')).toHaveText('4', { timeout: 10_000 });
-  await audience.getByTestId('audience-round-stage').click();
+  await stage().click();
+  await expect(note()).toContainText('✓ Updated the result cue on “House Vote” with 8 votes');
   await expect.poll(async () => (await staged())?.values.f1).toBe('The home side | 4\nThe visitors | 2\nA draw | 2');
-  expect(await cueCount()).toBe(1);
+  expect((await staged())!.count).toBe(1);
 
-  // STOP finalises the same cue. Without this the board still said "voting open" beside its
-  // final numbers and there was no way to correct it.
-  await stopLive(audience, 'Who wins the derby?');
-  await expect.poll(async () => (await staged())?.values.f2).toContain('voting closed');
-  expect(await cueCount()).toBe(1);
-
-  // Only the operator's Take puts the final tally on air.
+  // Go live and both presses sent nothing (S8).
   await settleDurableWrites(audience);
+  await expect(log).toHaveCount(sent);
+
+  // Only the operator's Take puts the tally on air, and its rows are the Take's.
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
-  const final = await staged();
-  expect(final).not.toBeNull();
-  await page.locator('.pd-cue', { hasText: final!.label }).click();
+  await page.locator('.pd-cue', { hasText: 'Vote —' }).click();
   await page.getByTestId('verb-take').click();
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
-  await expect(program.locator('body')).toContainText('Who wins the derby?');
-  await expect(program.locator('body')).toContainText('The home side');
-  await expect(program.locator('body')).toContainText('8 votes');
-  await expect(program.locator('body')).toContainText('voting closed');
+  await expect(program.locator('body')).toContainText('8 votes · voting open');
+  await expect(log.first()).toContainText('Took “Vote — Who wins the derby?”');
+  const taken = await log.count();
+  expect(taken).toBeGreaterThan(sent);
+  const chip = page.getByTestId('machine-state-chip');
+  const onAir = await chip.textContent();
+
+  // With the cue on air, staging changes the cue and not Program (S8).
+  await audience.getByTestId('audience-simulate-votes').click();
+  await expect(audience.getByTestId('audience-tally-0')).toHaveText('6', { timeout: 10_000 });
+  await stage().click();
+  await expect.poll(async () => (await staged())?.values.f2).toBe('12 votes · voting open');
+
+  // Stop writes "voting closed" into the cue (S7), sends nothing, and leaves the board where it was.
+  await stopLive(audience, 'Who wins the derby?');
+  await expect(note()).toContainText('now carries the final counts');
+  await expect.poll(async () => (await staged())?.values.f2).toBe('12 votes · voting closed');
+  await settleDurableWrites(audience);
+  await expect(log).toHaveCount(taken);
+  await expect(program.locator('body')).toContainText('8 votes · voting open');
+  await expect(chip).toHaveText(onAir ?? '');
+  await expect(chip).not.toHaveText(/result/i);
+
+  // A question edit sends nothing either.
+  await addQuestion(audience, 'open', 'Any message for the team?');
+  await settleDurableWrites(audience);
+  await expect(log).toHaveCount(taken);
+
+  // A tab change (the Interaction tab closed and opened again) and a reload update the same cue:
+  // the link is saved with the production, not held by the page (S1, S4).
+  await settleDurableWrites(audience);
+  await audience.close();
+  audience = await openWorkspace(page, 'audience');
+  await questionRow(audience, 'Who wins the derby?').getByTestId('question-row-text').click();
+  await stage().click();
+  await expect(note()).toContainText('✓ The result cue on “House Vote” now carries the final 12 votes');
+  await settleDurableWrites(audience);
+  await audience.reload();
+  await questionRow(audience, 'Who wins the derby?').getByTestId('question-row-text').click();
+  await stage().click();
+  await expect(note()).toContainText('✓ The result cue on “House Vote” now carries the final 12 votes');
+  expect(await staged()).toMatchObject({ id: first.id, count: 1 });
+  expect((await staged())!.values.f2).toBe('12 votes · voting closed');
+  await settleDurableWrites(audience);
+  await expect(log).toHaveCount(taken);
+
+  // The operator's Update moves the closed numbers on air.
+  await page.getByTestId('verb-update').click();
+  await expect(program.locator('body')).toContainText('12 votes · voting closed');
+  await expect.poll(() => log.count()).toBeGreaterThan(taken);
+
+  // A deleted result cue gets a new one, and the note says so (S3).
+  await audience.evaluate(async (id) => {
+    const { loadShows, removeShowCue } = await import('/src/model/shows.ts');
+    removeShowCue(loadShows()[0].id, id);
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    await commitDurableWrites();
+  }, first.id);
+  await audience.reload();
+  await questionRow(audience, 'Who wins the derby?').getByTestId('question-row-text').click();
+  await stage().click();
+  await expect(note()).toContainText('The earlier result cue was deleted, so this is a new one.');
+  const replaced = (await staged())!;
+  expect(replaced.count).toBe(1);
+  expect(replaced.id).not.toBe(first.id);
+  expect(replaced.mapped).toContain(replaced.id);
+});
+
+test('a second operator tab updates the same result cue; a graphic without the fields gets a new cue (AC-9)', async ({ page }) => {
+  // Two Interaction tabs of one production stand for two operators of one browser; a synced
+  // second operator reads the same saved link (Node: scripts/result-staging.test.mjs).
+  await bootstrapGraphic(page, { category: 'Polls', name: 'House Vote' });
+  await productionFor(page, 'Two Desks');
+  const one = await openWorkspace(page, 'audience');
+  await addQuestion(one, 'choice', 'Best goal?', ['First', 'Second']);
+  await goLive(one, 'Best goal?');
+  await one.getByTestId('audience-round-stage').click();
+  await one.getByTestId('result-choose-graphic').filter({ hasText: 'House Vote' }).click();
+  await expect(one.getByTestId('audience-note')).toContainText('✓ Added a result cue');
+  await settleDurableWrites(one);
+  const two = await openWorkspace(page, 'audience');
+  await questionRow(two, 'Best goal?').getByTestId('question-row-text').click();
+  await two.getByTestId('audience-round-stage').click();
+  await expect(two.getByTestId('audience-note')).toContainText('✓ Updated the result cue on “House Vote”');
+  const results = async () =>
+    two.evaluate(async () => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      const show = loadShows()[0];
+      return { cues: (show.cues ?? []).filter((c) => c.label.startsWith('Vote —')).map((c) => ({ id: c.id, source: c.sourceId })), mapped: Object.values(show.resultCues ?? {}) };
+    });
+  const before = await results();
+  expect(before.cues).toHaveLength(1);
+
+  // Its graphic loses the result fields (an edit made elsewhere): the next press makes a new cue on
+  // the graphic chosen, with a note, and the old cue stays in the rundown.
+  await two.evaluate(async (id) => {
+    const { loadShows, addGraphicToShow } = await import('/src/model/shows.ts');
+    const show = loadShows()[0];
+    const g = show.graphics.find((x) => x.id === id)!;
+    // The graphic updated in place (same name, same id), now without an Options field.
+    addGraphicToShow(show.id, { ...g.template, fields: (g.template.fields ?? []).map((f) => (f.title === 'Options' ? { ...f, title: 'Rows' } : f)) }, { graphicId: g.id });
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    await commitDurableWrites();
+  }, before.cues[0].source);
+  await two.reload();
+  await questionRow(two, 'Best goal?').getByTestId('question-row-text').click();
+  await two.getByTestId('audience-round-stage').click();
+  await expect(two.getByTestId('audience-note')).toContainText('no longer has the result fields');
+  await two.getByTestId('result-choose-board').filter({ hasText: 'Volt Vote' }).click();
+  await expect(two.getByTestId('audience-note')).toContainText('✓ The earlier result cue’s graphic no longer has the result fields, so this is a new one. Added a result cue on “Volt Vote”');
+  const after = await results();
+  expect(after.cues).toHaveLength(2);
+  expect(after.mapped).toContain(after.cues.find((c) => c.id !== before.cues[0].id)!.id);
 });
 
 // ── QUESTIONS AND THEIR LIFECYCLE (docs/work-specs/interaction/spec.md, phase 1). The provider's
@@ -549,6 +652,14 @@ test('a stale phone keeps its words, sees the new question, and files nothing un
   await expect(phone.locator('#join .nj-opt')).toHaveCount(3);
   await expect(pick.getByTestId('question-count')).toHaveText('0');
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // A thanks belongs to the question it was for (found on the phase 3 rehearsal walk): once the
+  // room moves on, the phone does not keep saying "Counted ... while the vote is open".
+  await phone.locator('#join .nj-opt').nth(2).click();
+  await expect(phone.locator('#join .nj-note')).toHaveText(/^Counted\./);
+  await stopLive(ws, 'Pick one');
+  await phone.clock.runFor(7_000);
+  await expect(phone.locator('#join .nj-waiting')).toBeVisible();
+  await expect(phone.locator('#join .nj-note')).toHaveCount(0);
 });
 
 test('unpublished, Interaction offers Publish where phones would join and publishes nothing by itself (AC-8)', async ({ page }) => {
@@ -580,23 +691,34 @@ test('unpublished, Interaction offers Publish where phones would join and publis
   expect(published).toEqual({ hosted: null, join: null });
 });
 
-test('a vote with nowhere to go says so instead of writing a cue nobody can read', async ({ page }) => {
-  // The pool holds a name strap, not a vote board. Staging a tally into it would put a question
-  // in a presenter's name field — so the surface refuses and names the missing thing.
+test('a vote with nowhere to go offers a vote board instead of writing a cue nobody can read', async ({ page }) => {
+  // The pool holds a name strap, not a vote board. Staging a tally into it would put a question in
+  // a presenter's name field, so the press offers the catalog's vote boards (S5), and the board
+  // picked arrives with one cue, which becomes the result cue.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionFor(page, 'No Board');
   const audience = await openWorkspace(page, 'audience');
 
   await addQuestion(audience, 'choice', 'Anything?', ['Yes', 'No']);
   await goLive(audience, 'Anything?');
+  // Stopped with no result cue: the note offers nothing to take.
+  await stopLive(audience, 'Anything?');
+  await expect(audience.getByTestId('audience-note')).toHaveText('✓ Stopped. Phones show the waiting text.');
   await audience.getByTestId('audience-round-stage').click();
+  await expect(audience.getByTestId('result-no-destination')).toBeVisible();
+  const cues = async () =>
+    page.evaluate(async () => {
+      const { loadShows } = await import('/src/model/shows.ts');
+      return (loadShows()[0].cues ?? []).map((c) => ({ label: c.label, values: c.values }));
+    });
+  expect((await cues()).filter((c) => c.label.startsWith('Vote —'))).toHaveLength(0);
 
-  await expect(audience.getByTestId('audience-note')).toContainText('no question/options fields');
-  const votes = await page.evaluate(async () => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    return (loadShows()[0].cues ?? []).filter((c) => c.label.startsWith('Vote —')).length;
-  });
-  expect(votes).toBe(0);
+  await audience.getByTestId('result-choose-board').filter({ hasText: 'House Vote' }).click();
+  await expect(audience.getByTestId('audience-note')).toContainText('✓ Added a result cue on “House Vote”');
+  await expect.poll(async () => (await cues()).filter((c) => c.label.startsWith('Vote —'))).toHaveLength(1);
+  // The board's one seeded cue became the result cue: no extra sample cue was left behind.
+  expect((await cues()).filter((c) => c.label === 'House Vote')).toHaveLength(0);
+  expect((await cues()).some((c) => Object.values(c.values).includes('Anything?'))).toBe(true);
 });
 
 // ── A cue the rundown did not keep is said as such, never with a tick
@@ -641,7 +763,7 @@ test('a message prepared while the rundown cannot save says so, stays unused, an
   expect((await cueLabels(audience)).length).toBe(before.length + 1);
 });
 
-test('a vote staged while the rundown cannot save says so, and staging again adds the cue once', async ({ page }) => {
+test('a result staged while the rundown cannot save says so, and staging again adds the cue once', async ({ page }) => {
   await armStorageFailure(page.context());
   await bootstrapGraphic(page, { category: 'Polls', name: 'House Vote' });
   await productionFor(page, 'Derby Night');
@@ -652,14 +774,31 @@ test('a vote staged while the rundown cannot save says so, and staging again add
   await expect(audience.getByTestId('audience-tally-0')).not.toHaveText('0', { timeout: 10_000 });
   const votes = async () => (await cueLabels(audience)).filter((l) => l.startsWith('Vote —')).length;
 
+  // Where results go is chosen first, so the refused write below is the cue's alone.
+  await audience.getByTestId('audience-round-stage').click();
+  await audience.getByTestId('result-choose-graphic').filter({ hasText: 'House Vote' }).click();
+  await expect(audience.getByTestId('audience-note')).toContainText('✓ Added a result cue');
+  expect(await votes()).toBe(1);
+  // The cue is deleted, so the next press adds one, and that write is refused.
+  await audience.evaluate(async () => {
+    const { loadShows, removeShowCue } = await import('/src/model/shows.ts');
+    const show = loadShows()[0];
+    const cue = (show.cues ?? []).find((c) => c.label.startsWith('Vote —'))!;
+    removeShowCue(show.id, cue.id);
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    await commitDurableWrites();
+  });
+  expect(await votes()).toBe(0);
+
   await fillStorage(audience);
   await audience.getByTestId('audience-round-stage').click();
-  await expect(audience.getByTestId('audience-note')).toContainText('No cue was added to the rundown');
+  await expect(audience.getByTestId('audience-note')).toContainText('No result');
+  await expect(audience.getByTestId('audience-note')).not.toContainText('✓');
   expect(await votes()).toBe(0);
 
   await freeStorage(audience);
   await audience.getByTestId('audience-round-stage').click();
-  await expect(audience.getByTestId('audience-note')).toContainText('✓ Added a cue to the rundown');
+  await expect(audience.getByTestId('audience-note')).toContainText('✓ The earlier result cue was deleted, so this is a new one. Added a result cue');
   expect(await votes()).toBe(1);
 
   // Re-staging a cue that exists: a refused update is said, and no second cue appears.

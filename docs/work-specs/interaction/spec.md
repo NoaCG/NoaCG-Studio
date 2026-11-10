@@ -601,3 +601,177 @@ one each check judged, for every pair the AA rule covers. `scripts/join-colours.
 the rendered CSS strings for all eight pairs over the four named looks and 100,000 seeded random
 looks (a quarter with a panel alpha); it is red on `d521e01` (2748 looks below AA) and adds no E2E
 minutes (`evidence/phase-2.md`, Repair 1).
+
+### Phase 3: First complete flow
+
+Previous verified main: `f47aa360c411cc44f30ba95b09c853b93141ade1`. Revert of this merge:
+`git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-3.md` once it lands). The phase
+adds no migration; `Show.resultCues` and `Show.resultTarget` are additive optional, so an older
+build ignores them and the reverted app runs on records that carry them.
+
+**Rules** (state rules written before code; each is observable):
+
+- S1. A question has at most one result cue. `Show.resultCues` maps the question's id to that
+  cue's id and is saved and synced with the production, so a reload, another tab and another
+  operator read the same mapping.
+- S2. Add results to rundown, when the question's mapped cue still exists and its graphic still
+  has the result fields (Question and Options, by title), writes the result values into that cue
+  and adds no cue.
+- S3. Otherwise it adds one cue on the remembered result graphic and records it as the question's
+  cue in the same write. When a mapping existed it says why the cue is new: the earlier cue was
+  deleted, or its graphic no longer has the result fields.
+- S4. Update or add is decided on the production as stored when the write runs (a rebased write),
+  not on the page's copy, so a second press while the first settles, or a press in another tab of
+  the same browser, updates the cue the first press made. Another operator's press does the same
+  once the production has synced to them.
+- S5. The remembered result graphic is `Show.resultTarget`. With none, or one that can no longer
+  take results, the press asks: the production's result graphics, or with none of those the
+  catalog's live vote boards (added with their one cue, which becomes the result cue). Nothing is
+  picked without the operator's choice; Change asks again. The choice is remembered.
+- S6. A refused write says so and records nothing: no cue, no mapping, no remembered graphic.
+- S7. Stop, after the server closed the round, writes the final counts, "voting closed" in the
+  count line and the closed status into the question's mapped cue when it exists with the fields.
+  Stop never adds a cue and never sends an event, so the board stays in whatever state it is in;
+  the reveal is the operator's press.
+- S8. Nothing in Interaction sends a Take, Update, Out, Next or graphic event. Go live, Stop,
+  staging and question edits add no row to the output's command log. A staged cue already on air
+  changes on Program only through the operator's Update; with the live-figures switch on, the
+  board shows its figures from the field it already carries.
+- S9. Staging writes only the result fields (Question, Options as `label | count` lines, and
+  where present Vote count, Vote status and Live figures). The cue's other values, its label and
+  its place in the rundown stay as they are.
+- S10. Duplicate starts with no result cue. Deleting a question leaves its cue in the rundown.
+- S11. `Show.resultCues` and `Show.resultTarget` are additive optional and left out of the
+  publish digest, like the question list.
+
+Added after the rules review (a fresh read-only `/so`, AGREE WITH CORRECTIONS), before code:
+
+- S12. On a team production a save is merged with a teammate's, not rebased. `resultCues` merges
+  question by question (`model/teamShowMerge.ts`): one operator staging Q1 while another stages
+  Q2 keeps both links. Two operators pressing Add results on the same question at the same moment,
+  before either save reaches the other, can make two cues; the merge keeps one link and the other
+  cue stays in the rundown as an ordinary cue.
+- S13. Stop's write is rebased like staging's and driven by the stored `resultCues`, so a Stop
+  pressed in any tab finalises the cue another tab staged. A refused write is said: "Stopped, but
+  the result cue was not updated".
+- S14. A round closed by Go live on another question gets the same closing write as Stop, for
+  the question whose round it was (coordinator decision, 2026-11-09; a close is a close).
+- S15. The note always reports what the stored write did (updated or added, and why a cue is
+  new), never what the page expected. The ✓ is said only once the durable write has landed.
+- S16. Change, then picking a graphic, when the selected question already has a result cue on
+  another graphic, adds a new result cue on the picked graphic and links it; the old cue stays in
+  the rundown as an ordinary cue and the note says so (coordinator decision, 2026-11-09).
+- S6, amended: a catalog board picked under S5 is added first, with its one cue; if the result
+  write after it is refused, the board and its cue stay as an ordinary graphic and the note says
+  the result was not written.
+- S8, decided: the live-figures exception permits rows; this phase adds no automatic sender. The
+  switch writes the board's Live figures field and the board shows its own figures (coordinator
+  decision, 2026-11-09).
+
+Found in the code review (`/check`), apart from the rules above:
+
+- S17. The rebased write makes the new cue's id once, outside the part that runs twice, so the cue
+  this tab shows is the cue the store keeps. The note and the page's productions come from the
+  stored write after it landed (S15 made exact).
+- S18. Change only opens the choice; Cancel keeps the remembered graphic. A pick is remembered
+  whether it added a cue or landed on the cue already there (S5).
+- S19. A catalog board's seeded cue that the stored write does not use is removed in that write,
+  so one press leaves one board and one result cue.
+- S20. Go live that finalises another question's cue (S14) says so in its note.
+
+Found in the Codex review of `4230b2e` (three findings; S21 and S22 are one family with S15, the
+stored write deciding):
+
+- S21. Stop's close-only write reaches the stored record even when this tab's copy has no link
+  yet: its first pass changes nothing but still asks for the rebased pass, which decides. A team
+  production, not rebased, keeps its merge (S12).
+- S22. When the stored pass has nowhere to write (another tab removed the graphic or its fields),
+  nothing was written and the press asks again; Stop then says nothing about a cue. The tab's own
+  guess is never reported as success.
+- S23. A catalog board picked under S5 takes a free pool name ("House Vote 2"), so it never
+  replaces a same-named graphic already in the production.
+
+Found in the Codex review of `fb8a835`:
+
+- S24. The button names where this question's press would write: its result cue's graphic while
+  that cue can take results, else the remembered graphic (`resultDestinationOf`, the planner the
+  write uses), so it never names one graphic and writes another.
+- S12 kept as written: two team operators staging the same question before either save reaches
+  the other keep two cues, one linked. The merge does not delete either, because one may already
+  be on air; the unlinked one stays an ordinary cue in the rundown.
+
+Found in the Codex review of `b854d6b`:
+
+- S25. A press decides from state read at the press, never from the page's last reading. Go live
+  reads the provider's rounds before and after its call and finalises each poll round the press
+  closed (`roundsClosedBy`), so a question another operator put live meanwhile gets its closing
+  write; the page's own reading counts only for a round the press-time reading lacks. Add results
+  reads the round and its counts afresh, so a round stopped in another tab stages as closed. What
+  remains is the moment between the press-time reading and the server's Go live, two calls apart.
+
+Reassessed after the Codex review of `b4d62b5` (a stale snapshot written after a slow catalog-board
+add, while Stop or Go live closed the round: the second successive round of one family, so a
+fresh read-only review reassessed the rule model before any patch; AGREE WITH CORRECTIONS). The
+missing rule was about the end state, not about when to read. S26 to S30 replace S25's read rule;
+`roundsClosedBy` is gone.
+
+- S26. Once a round is closed, its question's result cue ends up saying "voting closed" with
+  counts read after the close, whatever order Add results, Stop and Go live ran in, in one tab,
+  across tabs, or across operators on a production that is not a team's.
+- S27. In one page, Add results, Stop and Go live take turns: one runs to its note before the
+  next starts (one lock, held in a ref).
+- S28. Values are read after every other wait of the press, immediately before the write. A
+  reading that fails writes nothing; the page's earlier reading (its rounds, its counts) is never
+  written.
+- S29. A staging write that wrote "open" reads the round again once it landed; closed meanwhile,
+  the same press makes the closing write with fresh counts. Stop and Go live make the closing
+  sweep: every poll round the provider reports closed whose result cue still says open
+  (`roundsToFinalise`, `resultCueSaysOpen`).
+- S30 (residual, stated): on a team production, a Stop in a copy that has not yet synced the link,
+  landing after the stager's re-check, leaves the cue open until the next Stop, Go live or Add
+  results on that production.
+
+Found in the Codex review of `6e258ef` (a defect in building S29, not a new rule: S26 already
+says the counts are read after the close):
+
+- S29, amended: the sweep always finalises the round the call itself closed, whatever its cue
+  says (Stop names its round; for Go live, a round whose closed time changed between the
+  provider's readings just before and just after the call). A reopened question's cue can still
+  say "closed" from an earlier Stop while its counts moved on. "Cue still says open" only adds the
+  rounds closed elsewhere.
+
+**Decisions** (made in the build, revertible in review):
+
+- The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)
+  are one rebased write that decides update or add on the stored production; the page reports
+  what that write did (S15). `control/resultStaging.ts` holds the field contract (`pollFieldMap`,
+  `tallyValues`, moved out of the workspace) and the notes.
+- With no remembered result graphic the press lists the production's result graphics, and with
+  none the five catalog live vote boards (House, Volt, Frost, Clean, Floor). A board picked from
+  the catalog arrives with its one seeded cue, which becomes the result cue.
+- The live-figures switch stays as it was: it writes the board's Live figures field, and nothing
+  sends Update automatically (S8). Go live closing another question's round finalises its cue
+  (S14). Change then a pick starts a new result cue for the selected question (S16). The three were
+  sent to the coordinator before the patch and confirmed by it as decisions the owner can revert.
+- The vote field words (`Vote status`, `Live figures` and their tokens) moved to
+  `model/voteFields.ts`, re-exported by `vote.ts`, so the staging module runs in
+  Node without the recipe machinery. No emitted byte changes.
+- The rehearsal walk on the local stack is a configured test (the existing published walk,
+  extended), because it has to run where a local stack exists; this machine walks it offline.
+
+**Traps found** (for later phases):
+
+- A Take adds more than one row to the action log (Took, Played in, Updated n fields). A journey
+  counts the rows after the Take and asserts nothing else adds any, rather than adding one.
+- The local provider's simulated device ids restart on reload (`sim-<option>-<n>`), so Simulate
+  votes after a reload overwrites earlier simulated votes instead of adding. Simulate before the
+  reload in a journey.
+- A prepared message cue is labelled by the message text, not by the card's name.
+- `src/control/` may not import `src/templates/` (`.dependency-cruiser.cjs`, run in CI's Build lane,
+  not in `npm run gates`): shared words go in `src/model/`. Run
+  `npx depcruise --config .dependency-cruiser.cjs src` before pushing a new import edge.
+- `git commit -a` for a temporary mutation sweeps every unstaged edit into it; reverting it with
+  `reset --hard HEAD~1` drops them. Commit real work first.
+
+**Walk** (AC-15, first run): `evidence/phase-3.md`. One blocking finding fixed here (the phone's
+thanks outlived its question); #2333 and #2334 filed.
