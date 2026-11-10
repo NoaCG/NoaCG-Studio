@@ -876,8 +876,9 @@ fresh read-only review challenged them before the final assessment:
 
 Previous verified main: `1740d4f128ec6f74bc9b95ca3b90d12f0c101ab5`. Revert of this merge:
 `git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-5.md` once it lands). No
-migration. Status: partial. This pull request lands the `QR` layer slice of AC-13 only; AC-12,
-the rest of AC-13 and the AC-15 walk are left for a later builder (`evidence/phase-5.md`).
+migration. Status: partial. This pull request lands the imported half of AC-13 (bars at their
+share, the `QR` layer, the import docs); AC-12, the CLI half of AC-13 and the AC-15 walk are left
+for a later builder (`evidence/phase-5.md`).
 
 **Decisions** (made in the build, revertible in review):
 
@@ -890,8 +891,14 @@ the rest of AC-13 and the AC-15 walk are left for a later builder (`evidence/pha
   encoder the Join card already carries. The placeholder layer is hidden; an empty link draws
   nothing. Data, never state: update() redraws, nothing transitions.
 
+- `Vote count`, the field contract's word, also names the vote's total layer in artwork, beside
+  `Total votes`.
+
 **Traps found** (for later phases):
 
+- A vote's rows are found only when each `Bar N` is its own shape under a plain group; wrapping
+  each row (option, bar) in its own named group hides the bars from the proposal, so the docs'
+  flat layer tree is the one to teach.
 - `e2e/` blank-page specs cannot import `src/components/wizard/import/draft.ts` (React preamble
   error); build an imported graphic with `importSvgMarkup` and `IMPORTED_SVG.create` instead.
 - `scripts/svg-import-passes.test.mjs` fails 4 of 22 on a cloud worker on `main` itself (same
