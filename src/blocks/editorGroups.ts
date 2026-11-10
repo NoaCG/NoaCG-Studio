@@ -1,5 +1,6 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, svgInspectionSelector } from '../model/structure';
+import { SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_VERSION, SVG_GROUP_TRACK_CSS, svgGroupOrigin, svgGroupTransformCss } from '../model/svgGroupTransform';
 import { artworkNode, artworkRange } from './artworkEdits';
 import { artworkLayerNode } from './artworkLayers';
 import { baseValues } from './baseEdits';
@@ -7,7 +8,7 @@ import { appendCss, findRuleBody } from './edit';
 import { locateAnimData, losslessAnimData } from './animData';
 import { allTimelines } from './animMachine';
 import { animateLayer, documentContains, sequenceAuthoringReason, trackOwner } from './editorAnimation';
-import { writeAnimData } from '../templates/shared/animRuntime';
+import { withSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
 
 export interface GroupBox { x: number; y: number; width: number; height: number }
 export type GroupOperation =
@@ -133,20 +134,24 @@ function createGroup(template: SpxTemplate, selectors: string[], box: GroupBox) 
   if (svg && allTimelines(data!).some(step => Object.keys(step.layers).some(selector => Object.keys(step.layers[selector]).some(property => property !== 'transformOrigin') && nodes.some(node => node.matches(selector) || [...node.querySelectorAll('*')].some(member => member.matches(selector)))))) throw new Error('Group SVG members before authoring their motion so the new pivot can be initialized exactly. Their existing motion is preserved.');
   const ranges = ordered.map(node => artworkRange(template.html, node));
   const id = freshId(template, 'group-'), selector = '#' + id;
+  const fixedRuntime = svg && data ? withSvgGroupRuntime(template.js) : null;
+  const fixedMarker = fixedRuntime ? ' ' + SVG_GROUP_PIVOT_ATTRIBUTE + '="' + SVG_GROUP_PIVOT_VERSION + '"' : '';
   const wrapper = doc.createElementNS(svg ? SVG : 'http://www.w3.org/1999/xhtml', svg ? 'g' : 'div');
   wrapper.id = id; wrapper.setAttribute('data-gfx', ''); wrapper.setAttribute('data-noacg-group', '');
+  if (fixedRuntime) wrapper.setAttribute(SVG_GROUP_PIVOT_ATTRIBUTE, SVG_GROUP_PIVOT_VERSION);
   const frame = (['x', 'y', 'width', 'height'] as const).map(key => [key, fine(box[key])] as const);
   frame.forEach(([key, value]) => wrapper.setAttribute('data-group-' + key, String(value)));
   checkStructure(template, doc, () => { parent.insertBefore(wrapper, ordered[0]); ordered.forEach(node => wrapper.appendChild(node)); return [wrapper]; });
   const tag = svg ? 'g' : 'div', attrs = frame.map(([key, value]) => ' data-group-' + key + '="' + value + '"').join('');
-  const opening = '<' + tag + ' id="' + id + '" data-gfx data-noacg-group' + attrs + '>';
+  const opening = '<' + tag + ' id="' + id + '" data-gfx data-noacg-group' + fixedMarker + attrs + '>';
   const html = template.html.slice(0, ranges[0].start) + opening + template.html.slice(ranges[0].start, ranges[ranges.length - 1].end) + '</' + tag + '>' + template.html.slice(ranges[ranges.length - 1].end);
-  const geometry = svg ? 'transform-box: fill-box;' : 'position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; box-sizing: border-box;';
+  const geometry = fixedRuntime ? svgGroupTransformCss(svgGroupOrigin(fine(box.x), fine(box.y)))
+    : svg ? 'transform-box: fill-box;' : 'position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; box-sizing: border-box;';
   const css = appendCss(template.css, 'Group transform; member coordinates and animation remain intact.', selector + ' { ' + geometry + '\n' +
     '  --base-anchor-x: ' + fine((svg ? 0 : box.x) + box.width / 2) + 'px; --base-anchor-y: ' + fine((svg ? 0 : box.y) + box.height / 2) + 'px;\n' +
-    '  transform-origin: var(--base-anchor-x) var(--base-anchor-y);\n}');
-  let js = template.js;
-  if (data) {
+    (fixedRuntime ? '' : '  transform-origin: var(--base-anchor-x) var(--base-anchor-y);\n') + '}');
+  let js = fixedRuntime ?? template.js;
+  if (data && !fixedRuntime) {
     // A static source initializer fixes GSAP's SVG pivot before any member motion.
     // It uses the existing interpreter and remains a base pivot, hidden from key authoring.
     for (const step of allTimelines(data)) step.layers[selector] = {transformOrigin:[{time:0,value:fine(box.width/2)+'px '+fine(box.height/2)+'px'}]};
@@ -162,9 +167,13 @@ function groupNode(template: SpxTemplate, selector: string) {
 }
 function ungroup(template: SpxTemplate, selector: string) {
   const node = groupNode(template, selector), range = artworkRange(template.html, node);
+  const fixed = node.namespaceURI === SVG && node.matches(SVG_GROUP_PIVOT_SELECTOR);
   const data = losslessAnimData(template.js);
   if (locateAnimData(template.js) && !data) throw new Error('This animation contains data the current writer cannot preserve exactly. Its source is preserved.');
   const timelines = data ? allTimelines(data) : [];
+  if (fixed && timelines.some(step => step.layers[selector]?.['--base-anchor-x']?.length || step.layers[selector]?.['--base-anchor-y']?.length)) {
+    throw new Error('This SVG group animates its pivot. Disable that motion before ungrouping. Its source is preserved.');
+  }
   const originalData = JSON.stringify(data);
   if (data && node.matches(data.root)) throw new Error('The graphic root is owned by playback. Its source is preserved.');
   for (const step of timelines) {
@@ -179,6 +188,7 @@ function ungroup(template: SpxTemplate, selector: string) {
     'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y', '--base-scale-x', '--base-scale-y', '--base-rotation',
     'transform', 'translate', 'scale', 'rotate', 'visibility', 'overflow', 'opacity',
     'filter', 'backdrop-filter', 'clip-path', 'mask', 'mask-image', 'mix-blend-mode', 'isolation', 'background', 'background-color', 'box-shadow']);
+  if (fixed) for (const property of Object.values(SVG_GROUP_TRACK_CSS)) ownedProperties.add(property);
   const neutralEdge = (property: string) => /^(?:margin|padding)-(?:top|right|bottom|left)$/.test(property) && Number.parseFloat(rule.style.getPropertyValue(property)) === 0 || /^border-(?:top|right|bottom|left)-(?:width|style|color)$/.test(property) && ['top', 'right', 'bottom', 'left'].every(side => Number.parseFloat(rule.style.getPropertyValue('border-' + side + '-width')) === 0);
   for (const property of rule.style) if (!ownedProperties.has(property) && !neutralEdge(property) && !(property.startsWith('border-image-') && ['none', 'initial', ''].includes(rule.style.getPropertyValue('border-image-source')))) throw new Error('This group owns unsupported CSS (' + property + '). Ungroup cannot remove or split that appearance exactly. Its source is preserved.');
   const opacity = rule.style.opacity;
@@ -188,7 +198,9 @@ function ungroup(template: SpxTemplate, selector: string) {
   }) || timelines.some(step => Object.entries(step.layers[selector] ?? {}).some(([property, keys]) => ['opacity', 'autoAlpha', 'filter', 'clipPath'].includes(property) && keys.some(key => property !== 'opacity' || key.value !== 1)))) {
     throw new Error('This group composites opacity, masking or effects across its members. Ungroup cannot split that appearance exactly. Its source is preserved.');
   }
-  if (node.attributes.length !== [...node.attributes].filter(attr => ['id', 'data-gfx', 'data-noacg-group', 'data-noacg-label', 'data-group-x', 'data-group-y', 'data-group-width', 'data-group-height'].includes(attr.name)).length) throw new Error('This group has additional source attributes. Ungroup would change their meaning; its source is preserved.');
+  const ownedAttributes = ['id', 'data-gfx', 'data-noacg-group', 'data-noacg-label', 'data-group-x', 'data-group-y', 'data-group-width', 'data-group-height'];
+  if (fixed) ownedAttributes.push(SVG_GROUP_PIVOT_ATTRIBUTE);
+  if ([...node.attributes].some(attr => !ownedAttributes.includes(attr.name))) throw new Error('This group has additional source attributes. Ungroup would change their meaning; its source is preserved.');
   const groupReference = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])');
   const relatedRules = rulesOf(template).filter(rule => groupReference.test(rule.selectorText));
   if (relatedRules.length !== 1 || relatedRules[0].selectorText !== selector) throw new Error('Other CSS rules refer to this group. Its source is preserved.');
@@ -208,6 +220,7 @@ function ungroup(template: SpxTemplate, selector: string) {
   const transformed = ['left', 'top', '--base-x', '--base-y', '--base-scale-x', '--base-scale-y', '--base-rotation'].some(property => {
     const value = rule.style.getPropertyValue(property); return value && Number.parseFloat(value) !== (property.includes('scale') ? 1 : 0);
   }) || ['transform', 'translate', 'scale', 'rotate', 'visibility', 'overflow'].some(property => {
+    if (fixed && property === 'transform') return false;
     const value = rule.style.getPropertyValue(property); return value && !['none', 'visible'].includes(value);
   }) || node.namespaceURI !== SVG && (rule.style.width !== '100%' || rule.style.height !== '100%') || timelines.some(step => step.layers[selector] || step.spans?.[selector] || step.reveals?.includes(selector) || step.hides?.includes(selector));
   if (transformed && rulesOf(template).some(rule => rule.style.zIndex && rule.style.zIndex !== 'auto' && [...node.querySelectorAll('*')].some(member => member.matches(rule.selectorText)))) throw new Error('Group members own a stacking order inside the shared transform. Ungroup cannot split that order exactly. Its source is preserved.');

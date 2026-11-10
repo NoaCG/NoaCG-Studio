@@ -1,4 +1,5 @@
 import type { SpxTemplate } from '../../model/types';
+import { SVG_GROUP_PIVOT_UNITS } from '../../model/svgGroupTransform';
 import { baseValues, type BasePatch, type BaseValues, type TransformPatch } from '../../blocks/baseEdits';
 import { ANCHOR_CHANNELS, channelValue, controlKeyReason, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
@@ -151,7 +152,7 @@ export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appear
     const channel = ANCHOR_CHANNELS[axis];
     if (!isArmed(view.data, owner, channel)) continue;
     const sampled = departing ? resolveValue(view.data, owner, channel, segment.index, 0) : appearance?.origin?.[index];
-    if (typeof sampled === 'number') result[axis] = departing ? sampled : sampled / (appearance?.unit ?? 1);
+    if (typeof sampled === 'number') result[axis] = departing ? sampled / (base.svgGroupPivot ? SVG_GROUP_PIVOT_UNITS : 1) : sampled / (appearance?.unit ?? 1);
   }
   return result;
 }

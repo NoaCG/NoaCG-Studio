@@ -1,9 +1,10 @@
 // Base artwork edits share the existing source writers. Motion retains transform ownership.
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, detectPrefix } from '../model/structure';
+import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_TRACK_CSS, SVG_GROUP_TRANSFORM, svgGroupOrigin } from '../model/svgGroupTransform';
 import { parseTransform } from '../assets/svgGeometry';
-import { locateAnimData, losslessAnimData, parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
-import { canWriteAnchorData, writeAnimData } from '../templates/shared/animRuntime';
+import { locateAnimData, losslessAnimData, parseAnimData, type AnimLayerTracks, type AnimStep } from './animData';
+import { canWriteAnchorData, hasSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
 import { allTimelines } from './animMachine';
 import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
@@ -30,6 +31,8 @@ export interface BaseValues {
   anchorReason: string | null;
   /** The imported SVG member's origin belongs to CSS rather than GSAP. */
   cssSvgAnchor?: boolean;
+  /** A marked SVG group, with true for an intact generated transform owner. */
+  svgGroupPivot?: boolean;
 }
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const precise = (n: number) => Math.round(n * 1000) / 1000;
@@ -84,17 +87,12 @@ function tracksOn(steps: AnimStep[], node: Element): AnimLayerTracks[] {
     try { return node.matches(key) ? [tracks] : []; } catch { return []; }
   }));
 }
-/** Whether the graphic's script or animation data sets this element's transformOrigin itself: a
- *  transformOrigin track under a data selector naming it, or a script (outside the generated
- *  interpreter, which only names the property) that sets the origin or an anchor variable and names
- *  it by id or class. A script naming neither (the imported designs' text fit, which squeezes a placed line's
- *  text, never its box) leaves the anchor alone. */
-function originSetFor(js: string, data: AnimData | null, node: Element): boolean {
-  if (tracksOn(data ? allTimelines(data) : [], node).some(tracks => tracks.transformOrigin?.length)) return true;
+/** Source outside the known interpreter that names this artwork and a competing property. */
+function externalWrite(js: string, node: Element, properties: RegExp): boolean {
   const start = js.indexOf(ANIMATION_MARK_OPEN), end = js.indexOf(ANIMATION_MARK_CLOSE), at = locateAnimData(js);
   const exterior = start >= 0 && end > start && at && at.start > start && at.end < end ? js.slice(0, start) + js.slice(end) : js;
   const script = exterior.replace(/^\s*\/\/[^\n]*/gm, '');
-  if (!/transformOrigin|transform-origin|--base-anchor-[xy]/.test(script)) return false;
+  if (!properties.test(script)) return false;
   return [node.id, ...Array.from(node.classList)].filter(Boolean).some(name => new RegExp('(?:^|[^\\w-])' + esc(name) + '(?![\\w-])').test(script));
 }
 
@@ -134,12 +132,17 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const targetNode = doc.querySelector(target)!;
   const rules = matchingRules(template.css, targetNode), styles = rules.map(({ rule }) => rule.style);
   const motion = parseAnimData(template.js);
+  // Read the exact source rule the base writer edits, without serializing CSSOM.
+  const own = findRuleBody(template.css, target)?.body ?? '';
+  const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
+  const ownRule = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
+  const fixedMarker = svg && !!groupFrame && node.localName === 'g' && node.matches(SVG_GROUP_PIVOT_SELECTOR);
   // The channels animated on the base target: a placed text's box, which its text's tracks never touch.
   const owned = new Set(tracksOn(motion?.steps ?? [], targetNode).flatMap(tracks => Object.keys(tracks)));
   const scaleReason = ['scale', 'scaleX', 'scaleY', 'transform'].some(key => owned.has(key))
     ? 'Scale is animated on this layer. Use its existing animation controls; base scaling would compete with that motion.' : null;
   const svgMatrix = svg ? parseTransform(node.getAttribute('transform')) : null;
-  const rawTransforms = [...styles.map(style => style.transform), (targetNode as HTMLElement).style.transform].filter(raw => raw && raw !== 'none');
+  const rawTransforms = [...rules.filter(({ rule }) => !fixedMarker || rule !== ownRule).map(({ rule }) => rule.style.transform), (targetNode as HTMLElement).style.transform].filter(raw => raw && raw !== 'none');
   const mixed = svgMatrix && (Math.abs(svgMatrix.b) > 1e-8 || Math.abs(svgMatrix.c) > 1e-8) || rawTransforms.some(raw => {
     try { const matrix = new DOMMatrix(raw); return !matrix.is2D || Math.abs(matrix.b) > 1e-8 || Math.abs(matrix.c) > 1e-8 || Math.abs(matrix.e) > 1e-8 || Math.abs(matrix.f) > 1e-8; }
     catch { return true; }
@@ -188,8 +191,6 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   }
   // The anchor is the base target's transform-origin, ours where it names our custom properties, read
   // from the rule the writer writes (the first top-level rule with exactly the target's selector).
-  const own = findRuleBody(template.css, target)?.body ?? '';
-  const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
   const rawAnchor = ownValue('transform-origin')?.includes('--base-anchor-') ? { x: parseFloat(ownValue('--base-anchor-x') ?? '') || 0, y: parseFloat(ownValue('--base-anchor-y') ?? '') || 0 } : null;
   const anchor = rawAnchor && groupFrame && !svg ? { x: rawAnchor.x - groupFrame.x, y: rawAnchor.y - groupFrame.y } : rawAnchor;
   // A second declaration (or its -webkit- alias) later in the rule would win over the one written.
@@ -208,15 +209,44 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const keys = step.layers[selector]?.transformOrigin;
     return keys?.length === 1 && keys[0].time === 0 && keys[0].value === rawAnchor.x+'px '+rawAnchor.y+'px';
   });
-  const anchorReason = svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
-    : originSetFor(template.js, motion, targetNode) && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
+  let svgGroupPivot: boolean | undefined;
+  if (fixedMarker && groupFrame) {
+    const critical = ['transform', 'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y',
+      '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)];
+    const competing = [...critical, '-webkit-transform', '-webkit-transform-origin', 'translate', 'rotate', 'scale', 'display'];
+    const sourceStyles = [...doc.querySelectorAll('style')].flatMap(style => matchingRules(style.textContent ?? '', node));
+    const competingRules = [...rules, ...sourceStyles].some(({ rule }) => rule !== ownRule && competing.some(key => rule.style.getPropertyValue(key)));
+    const inline = (node as SVGElement).style;
+    const timelines = motion ? allTimelines(motion) : [];
+    const transformTracks = new Set([...TRANSFORM_CHANNELS, ...competing, 'transformOrigin', 'svgOrigin', 'smoothOrigin']);
+    const allowed = new Set<string>([...Object.keys(SVG_GROUP_TRACK_CSS), '--base-anchor-x', '--base-anchor-y']);
+    const foreignMotion = timelines.some(step => Object.entries(step.layers).some(([name, tracks]) => {
+      try { return node.matches(name) && Object.keys(tracks).some(prop => transformTracks.has(prop) && (name !== target || !allowed.has(prop))); }
+      catch { return true; }
+    }) || step.dynamics?.some(entry => entry.target && node.matches(entry.target)));
+    svgGroupPivot = target === '#' + node.id && hasSvgGroupRuntime(template.js) && !!motion && !!ownRule && !competingRules && !foreignMotion
+      && !node.hasAttribute('transform') && !competing.some(key => inline.getPropertyValue(key))
+      && !externalWrite(template.js, node, /transform|svgOrigin|smoothOrigin|--(?:base|noacg-group)-|\b(?:rotation|scale[XY]?|translate|rotate)\s*:/)
+      && !['translate', 'rotate', 'scale', 'display', '-webkit-transform', '-webkit-transform-origin'].some(ownValue)
+      && critical.every(key => ownRule.style.getPropertyValue(key) && !ownRule.style.getPropertyPriority(key)
+        && (own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(key) + '\\s*:', 'g'))?.length ?? 0) === 1)
+      && ['x', 'y', 'width', 'height'].every(key => node.getAttribute('data-group-' + key)?.trim())
+      && ['x', 'y'].every(axis => /^-?(?:\d+(?:\.\d+)?|\.\d+)px$/.test(ownValue('--base-anchor-' + axis) ?? ''))
+      && ownValue('transform-box') === 'view-box' && ownValue('transform') === SVG_GROUP_TRANSFORM
+      && ownValue('transform-origin') === svgGroupOrigin(groupFrame.x, groupFrame.y);
+  }
+  const originSet = tracksOn(motion ? allTimelines(motion) : [], targetNode).some(tracks => tracks.transformOrigin?.length)
+    || externalWrite(template.js, targetNode, /transformOrigin|transform-origin|--base-anchor-[xy]/);
+  const anchorReason = svgGroupPivot === false ? 'This SVG group has a conflicting pivot owner. Its source is preserved.'
+    : svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
+    : originSet && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
     : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`
     : repeated ? 'This layer\'s own rule declares transform-origin more than once, so an anchor written there would lose to the later one. Its source is preserved.'
     : /(?:^|;)\s*(?:transform-(?:origin|box)|--base-anchor-[xy])\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
     : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
     : null;
   return { selector, target, mode, groupFrame, offsetPosition, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
-    originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason,
+    originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason, svgGroupPivot,
     x: offsetPosition ? originX + number(template.css, target, '--base-x') : placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
     y: offsetPosition ? originY + number(template.css, target, '--base-y') : placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
@@ -267,6 +297,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     throw new Error('Enter finite artwork coordinates and scale.');
   }
   const base = baseValues(template, selector);
+  if (base.svgGroupPivot === false) throw new Error(base.anchorReason!);
   const changeScale = patch.scaleX !== undefined && patch.scaleX !== base.scaleX || patch.scaleY !== undefined && patch.scaleY !== base.scaleY;
   if (changeScale && base.scaleReason) throw new Error(base.scaleReason);
   if (patch.rotation !== undefined && base.rotationReason) throw new Error(base.rotationReason);
@@ -277,7 +308,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   if (Object.entries(patch).every(([key, value]) => unchanged(key, value))) return template;
   const x = transformPrecision(patch.x ?? base.x), y = transformPrecision(patch.y ?? base.y);
   let html = template.html;
-  const svgMotion = base.mode === 'svg' && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
+  const svgMotion = base.mode === 'svg' && !base.svgGroupPivot && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
   if (svgMotion && (patch.x !== undefined || patch.y !== undefined)) {
     // Numeric SVG geometry remains independent of GSAP's transform channels.
     // Moving its authored coordinates preserves motion instead of writing a CSS
@@ -311,7 +342,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
       css = setCssDeclaration(css, base.target, '--base-x', transformPrecision(x - base.originX) + 'px');
       css = setCssDeclaration(css, base.target, '--base-y', transformPrecision(y - base.originY) + 'px');
       const offset = (axis: string) => base.scaled ? `calc(var(--base-${axis}) * var(--scale, 1))` : `var(--base-${axis})`;
-      css = setCssDeclaration(css, base.target, 'translate', offset('x') + ' ' + offset('y'));
+      if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'translate', offset('x') + ' ' + offset('y'));
     } else if (base.mode === 'placed' || base.mode === 'absolute') {
       css = setCssDeclaration(css, base.target, 'left', placementCss(x, base.scaled));
       css = setCssDeclaration(css, base.target, 'top', placementCss(y, base.scaled));
@@ -333,11 +364,11 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     // A one-pixel resize of wide artwork also needs fine transform precision.
     css = setCssDeclaration(css, base.target, '--base-scale-x', String(transformPrecision(patch.scaleX ?? base.scaleX)));
     css = setCssDeclaration(css, base.target, '--base-scale-y', String(transformPrecision(patch.scaleY ?? base.scaleY)));
-    css = setCssDeclaration(css, base.target, 'scale', 'var(--base-scale-x) var(--base-scale-y)');
+    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'scale', 'var(--base-scale-x) var(--base-scale-y)');
   }
   if (patch.rotation !== undefined) {
     css = setCssDeclaration(css, base.target, '--base-rotation', String(precise(patch.rotation)));
-    css = setCssDeclaration(css, base.target, 'rotate', 'calc(var(--base-rotation) * 1deg)');
+    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'rotate', 'calc(var(--base-rotation) * 1deg)');
   }
   if (anchored) {
     // Rotation and scale, base and animated alike, turn about transform-origin. A layer whose placement
@@ -345,11 +376,11 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     const unit = (axis: string) => base.mode === 'flow' || base.scaled ? `calc(var(--base-anchor-${axis}) * var(--scale, 1))` : `var(--base-anchor-${axis})`;
     css = setCssDeclaration(css, base.target, '--base-anchor-x', transformPrecision(patch.anchorX! + (base.mode === 'svg' ? 0 : base.groupFrame?.x ?? 0)) + 'px');
     css = setCssDeclaration(css, base.target, '--base-anchor-y', transformPrecision(patch.anchorY! + (base.mode === 'svg' ? 0 : base.groupFrame?.y ?? 0)) + 'px');
-    css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
+    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
     if (base.cssSvgAnchor) css = setCssDeclaration(css, base.target, 'transform-box', 'fill-box');
   }
   let js = template.js;
-  if (anchored && base.groupFrame && base.mode === 'svg') {
+  if (anchored && base.groupFrame && base.mode === 'svg' && !base.svgGroupPivot) {
     const data = losslessAnimData(js);
     if (!data) throw new Error('This SVG group has no supported pivot initializer. Its source is preserved.');
     for (const step of allTimelines(data)) if (step.layers[selector]?.transformOrigin) step.layers[selector].transformOrigin = [{time:0,value:transformPrecision(patch.anchorX!)+'px '+transformPrecision(patch.anchorY!)+'px'}];
@@ -358,7 +389,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   // With its transform already animated (Rotation, Scale), GSAP would clear a CSS translate here too,
   // so the move goes into the transform attribute. Only this move: an offset already in the CSS,
   // which GSAP already hides on a graphic saved before #2062, stays where it is.
-  const motion = base.mode === 'svg' && !svgMotion && (patch.x !== undefined || patch.y !== undefined) ? parseAnimData(template.js) : null;
+  const motion = base.mode === 'svg' && !base.svgGroupPivot && !svgMotion && (patch.x !== undefined || patch.y !== undefined) ? parseAnimData(template.js) : null;
   const transformed = !!motion && allTimelines(motion).some(step => TRANSFORM_CHANNELS.some(channel => step.layers[selector]?.[channel]?.length));
   const kept = { x: number(template.css, base.target, '--base-x'), y: number(template.css, base.target, '--base-y') };
   return transformed ? settleSvgOffset({ ...template, html, css, js }, selector, kept).template : { ...template, html, css, js };

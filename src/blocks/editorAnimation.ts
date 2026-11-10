@@ -1,5 +1,6 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts } from '../model/structure';
+import { SVG_GROUP_PIVOT_UNITS } from '../model/svgGroupTransform';
 import { losslessAnimData, spliceAnimData, type AnimData } from './animData';
 import { captureKeys, deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, pasteKeys, trimLayerSpan, type CopiedKey, type KeyEasePreset, type KeyRef } from './animEdit';
 import { resolveValue } from './animEval';
@@ -223,8 +224,11 @@ export function anchorKeyReason(template: SpxTemplate, selector: string): string
     const data = animationSource(template), owner = animationTarget(template, data, selector);
     const base = baseValues(template, selector);
     if (base.anchorReason) return base.anchorReason;
-    if (base.groupFrame) return 'This group uses a shared pivot. Set its pivot in the base.';
-    if (base.mode === 'svg' && !base.cssSvgAnchor || base.target !== selector) return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
+    if (base.groupFrame && !base.svgGroupPivot) return base.mode === 'svg'
+      ? 'This older SVG group keeps its saved pivot. Set its pivot in the base.' : 'This group uses a shared pivot. Set its pivot in the base.';
+    if ((base.mode === 'svg' && !base.cssSvgAnchor && !base.svgGroupPivot) || base.target !== selector || (base.svgGroupPivot && owner !== selector)) {
+      return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
+    }
     if (base.scaleX === 0 || base.scaleY === 0) return 'Restore a nonzero scale before animating this pivot.';
     for (const channel of Object.values(ANCHOR_CHANNELS)) {
       if (data.steps.some(step => step.layers[owner]?.[channel]?.some(key => typeof key.value !== 'number'))) return 'This pivot has nonnumeric keys in its source.';
@@ -325,6 +329,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
     if (TRANSFORM_CHANNELS.includes(operation.property) && template.css.includes('--base-anchor-')) {
       let base;
       try { base = baseValues(template, selector); } catch { /* A track can be editable without base placement. */ }
+      if (base?.svgGroupPivot === false) throw new Error(base.anchorReason!);
       if (base?.cssSvgAnchor && base.anchor) throw new Error('This SVG member has a CSS pivot. A GSAP transform key would replace it, so its source is preserved.');
     }
   }
@@ -332,11 +337,13 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
     const reason = anchorKeyReason(template, selector);
     if (reason) throw new Error(reason);
     if (Math.abs(operation.value) > 100000) throw new Error('Enter a finite anchor coordinate.');
-    if (operation.action === 'set' && !baseValues(template, selector).anchor) {
+    const base = baseValues(template, selector);
+    if (operation.action === 'set' && !base.anchor) {
       const { anchorX, anchorY } = operation.baseValues ?? {};
       if (anchorX === undefined || anchorY === undefined) throw new Error('A current rendered pivot is required to create the first anchor key.');
       template = editBase(template, selector, { anchorX, anchorY });
     }
+    if (operation.action === 'set' && base.svgGroupPivot) operation = { ...operation, value: operation.value * SVG_GROUP_PIVOT_UNITS };
   }
   const channels = operation.kind !== 'animation.key' ? undefined : operation.action === 'set' ? [operation.property] : CONTROL_CHANNELS[operation.property as ControlProperty] ?? [operation.property];
   const owner = animationTarget(template, source, selector, channels);

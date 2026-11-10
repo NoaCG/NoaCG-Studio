@@ -13,6 +13,7 @@ import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
 import { contentHash } from '../../model/contentHash';
+import { SVG_GROUP_PIVOT_SELECTOR, SVG_GROUP_PIVOT_UNITS, SVG_GROUP_TRACK_CSS } from '../../model/svgGroupTransform';
 
 /** The interpreter body — identical in every template. Kept as one exported string so the
  *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
@@ -1085,6 +1086,91 @@ noacgEntranceTimeline = (function (enter) {
   };
 })(noacgEntranceTimeline);`;
 
+// A marked group composes its transform in CSS. Translate its authored channels once, then
+// let the same step and exit builders provide holds, ease, visibility and interruption.
+const SVG_GROUP_RUNTIME_JS = `// Capability: svg-group-fixed-frame-v1.
+function noacgSvgGroup(selector) {
+  if (!/^#[a-zA-Z_][\\w-]*$/.test(selector)) return null;
+  var matches = document.querySelectorAll(selector);
+  var element = matches.length === 1 && matches[0];
+  return element && selector === '#' + element.id && element.localName === 'g'
+    && element.namespaceURI === 'http://www.w3.org/2000/svg'
+    && (element.hasAttribute('data-noacg-group') || element.hasAttribute('data-noacg-carrier'))
+    && element.matches('${SVG_GROUP_PIVOT_SELECTOR}') ? element : null;
+}
+function noacgSvgGroupDisplay(selector, hidden) {
+  var element = noacgSvgGroup(selector);
+  if (!element || (NOACG_ANIM.steps[0].spans || {})[selector] !== undefined) return null;
+  return { display: hidden ? 'none' : 'inline' };
+}
+(function (stepTimeline, exitTimeline, applyReveals, enter, reset) {
+  var channels = Object.assign(Object.create(null), ${JSON.stringify(SVG_GROUP_TRACK_CSS)});
+  var axes = ['--base-anchor-x', '--base-anchor-y'];
+  var runtimeProperties = Object.keys(channels).map(function (key) { return channels[key]; }).concat(axes, 'display');
+  function adapt(step) {
+    var layers = step.layers, loops = step.loops;
+    Object.keys(step.layers).forEach(function (selector) {
+      if (!noacgSvgGroup(selector)) return;
+      if (layers === step.layers) layers = Object.assign({}, layers);
+      var tracks = step.layers[selector], converted = Object.create(null);
+      Object.keys(tracks).forEach(function (key) {
+        converted[channels[key] || key] = axes.indexOf(key) < 0 ? tracks[key] : tracks[key].map(function (frame) {
+          return Object.assign({}, frame, { value: frame.value / ${SVG_GROUP_PIVOT_UNITS} });
+        });
+      });
+      layers[selector] = converted;
+      if (step.loops && step.loops[selector]) {
+        if (loops === step.loops) loops = Object.assign({}, loops);
+        var mapped = Object.create(null);
+        Object.keys(loops[selector]).forEach(function (key) { mapped[channels[key] || key] = loops[selector][key]; });
+        loops[selector] = mapped;
+      }
+    });
+    return layers === step.layers ? step : Object.assign({}, step, { layers: layers, loops: loops });
+  }
+  buildStepTimeline = function (input) {
+    var step = typeof input === 'number' ? NOACG_ANIM.steps[input] : input;
+    var timeline = stepTimeline(adapt(step));
+    (step.reveals || []).forEach(function (selector) {
+      var display = noacgSvgGroupDisplay(selector, false);
+      if (display) timeline.set(selector, display, 0);
+    });
+    return timeline;
+  };
+  noacgBuildExit = function (step, interrupted, silent, early) {
+    return exitTimeline(adapt(step), interrupted, silent, early);
+  };
+  noacgApplyReveals = function (timeline) {
+    var hidden = Object.create(null);
+    applyReveals({ set: function (selector, vars, at) {
+      var display = noacgSvgGroupDisplay(selector, true);
+      if (!display) timeline.set(selector, vars, at);
+      else if (!hidden[selector]) {
+        hidden[selector] = true;
+        timeline.set(selector, display, at);
+      }
+    } });
+  };
+  function resetGroups() {
+    document.querySelectorAll('g${SVG_GROUP_PIVOT_SELECTOR}').forEach(function (element) {
+      if (!noacgSvgGroup('#' + element.id)) return;
+      runtimeProperties.forEach(function (property) { element.style.removeProperty(property); });
+      // GSAP's clearProps reparses SVG transforms and inserts a zero inline origin.
+      // A canonical group always gets its base origin from its own CSS instead.
+      element.style.removeProperty('transform-origin');
+      element.removeAttribute('data-svg-origin');
+    });
+  }
+  noacgEntranceTimeline = function () {
+    resetGroups();
+    return enter();
+  };
+  noacgResetGraphic = function () {
+    reset();
+    resetGroups();
+  };
+})(buildStepTimeline, noacgBuildExit, noacgApplyReveals, noacgEntranceTimeline, noacgResetGraphic);`;
+
 /** Emit the full marked ANIMATION region for a data-driven template. */
 export function emitAnimRegion(data: AnimData): string {
   return `${ANIMATION_MARK_OPEN}
@@ -1200,18 +1286,33 @@ function interpreterBody(js: string): string | null {
 
 const currentInterpreter = ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim();
 const anchorInterpreter = currentInterpreter + '\n\n' + ANCHOR_REPLAY_JS;
+const svgGroupInterpreter = anchorInterpreter + '\n' + SVG_GROUP_RUNTIME_JS;
+
+export function hasSvgGroupRuntime(js: string): boolean {
+  return js.includes('// Capability: svg-group-fixed-frame-v1.') && interpreterBody(js) === svgGroupInterpreter;
+}
+
+/** Group creation adds the capability without rewriting the existing literal or surrounding JS. */
+export function withSvgGroupRuntime(js: string): string | null {
+  const body = interpreterBody(js);
+  if (body === svgGroupInterpreter) return js;
+  if (body !== currentInterpreter && body !== anchorInterpreter) return null;
+  const at = js.indexOf(ANIMATION_MARK_CLOSE), line = js.includes('\r\n') ? '\r\n' : '\n';
+  const extension = (body === currentInterpreter ? '\n\n' + ANCHOR_REPLAY_JS : '') + '\n' + SVG_GROUP_RUNTIME_JS + '\n';
+  return js.slice(0, at).trimEnd() + extension.replace(/\n/g, line) + js.slice(at);
+}
 
 /** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */
 export function canWriteAnchorData(js: string): boolean {
   const body = interpreterBody(js);
-  return body === currentInterpreter || body === anchorInterpreter;
+  return body === currentInterpreter || body === anchorInterpreter || body === svgGroupInterpreter;
 }
 
 /** Exact known bodies only: a capability comment alone cannot authorize replacement. */
 export function writeOutData(js: string, data: AnimData): string | null {
   const body = interpreterBody(js);
   if (body === null) return null;
-  if (body === anchorInterpreter) return spliceAnimData(js, data);
+  if (body === anchorInterpreter || body === svgGroupInterpreter) return spliceAnimData(js, data);
   if (body === currentInterpreter) return dataUsesAnchor(data) ? replaceRegionWithAnimData(js, data) : spliceAnimData(js, data);
   const hash = contentHash(body);
   if (dataUsesAnchor(data)) return null;

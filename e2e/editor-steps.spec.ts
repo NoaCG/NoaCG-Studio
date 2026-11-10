@@ -79,8 +79,8 @@ type Run = { poses: Record<string, Pose>; held: Pose; visible: string[]; release
  * and Next is pressed at every flag; otherwise `nexts` Next cues are played and settled. Then Out,
  * sampled at `exit` seconds on its own clock.
  */
-async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS, root = '.fixture', retake = false }:
-  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[]; root?: string; retake?: boolean }): Promise<Run> {
+async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS, root = '.fixture', retake = false, svgParent, interruptAt, outLength, repeatStopAt }:
+  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[]; root?: string; retake?: boolean; svgParent?: string; interruptAt?: number; outLength?: number; repeatStopAt?: number }): Promise<Run> {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (built.html) await output.setContent(built.html);
@@ -100,7 +100,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       });
     } else await output.goto('http://step-package.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
   }
-  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props, root, retake }) => {
+  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props, root, retake, svgParent, interruptAt, outLength, repeatStopAt }) => {
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number };
     const w = window as unknown as Record<string, () => unknown> & { gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('step-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
@@ -128,9 +128,25 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       return 1;
     };
     const seen = (e: Element, style: CSSStyleDeclaration) => style.visibility === 'hidden' || style.display === 'none' ? 0 : Number(style.opacity) * clipped(e);
-    const pose = () => layers.flatMap(s => { const e = body.querySelector(s)!; return props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(e, getComputedStyle(e))); });
-    const shown = (s: string) => { const style = getComputedStyle(body.querySelector(s)!); return style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0; };
-    const poses: Record<string, number[]> = {}, width = props.length + 1;
+    const parent = svgParent ? body.querySelector<SVGGraphicsElement>(svgParent) : null;
+    const matrix = (e: Element) => {
+      const { a, b, c, d, e: x, f: y } = parent!.getScreenCTM()!.inverse().multiply((e as SVGGraphicsElement).getScreenCTM()!);
+      return [a, b, c, d, x, y];
+    };
+    const svgOpacity = (e: Element) => {
+      let opacity = 1;
+      for (let node: Element | null = e; node && !node.matches(root); node = node.parentElement) opacity *= seen(node, getComputedStyle(node));
+      return opacity;
+    };
+    const pose = () => layers.flatMap(s => {
+      const e = body.querySelector(s)!;
+      return parent ? [...matrix(e), svgOpacity(e)] : props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(e, getComputedStyle(e)));
+    });
+    const shown = (s: string) => {
+      const e = body.querySelector(s)!, style = getComputedStyle(e);
+      return parent ? svgOpacity(e) > 0 : style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0;
+    };
+    const poses: Record<string, number[]> = {}, width = parent ? 7 : props.length + 1;
     await command('play');
     let cue = timeline(seconds[0]);
     const walked = cues ? seconds.length - 2 : nexts;
@@ -143,19 +159,28 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
         if (sample.left) { cue.time(Math.max(0, sample.t - 1e-6), true); const before = pose(); at.forEach((_, j) => { if (j % width === width - 1) at[j] = before[j]; }); }
         poses[sample.key] = at;
       }
-      cue.progress(1, true);
+      if (i === walked && interruptAt !== undefined) cue.time(interruptAt, true);
+      else cue.progress(1, true);
     }
     const held = pose(), visible = layers.filter(shown);
     await command('stop');
     const released = pose();
-    const out = timeline(seconds[seconds.length - 1]); out.pause();
-    const leaving = exit.map(t => { out.time(t, true); return pose(); });
+    const duration = outLength ?? seconds[seconds.length - 1], out = timeline(duration); out.pause();
+    const leaving: Pose[] = [];
+    for (const t of exit) {
+      out.time(t, true);
+      if (t === repeatStopAt) {
+        await command('stop');
+        if (timeline(duration) !== out) throw new Error('Repeated Stop replaced its live timeline.');
+      }
+      leaving.push(pose());
+    }
     const result = { poses, held, visible, released, leaving };
     if (!retake) return result;
     await command('play');
     timeline(seconds[0]).pause();
     return { ...result, retaken: pose() };
-  }, { target, seconds, cues, nexts, exit, layers, props, root, retake });
+  }, { target, seconds, cues, nexts, exit, layers, props, root, retake, svgParent, interruptAt, outLength, repeatStopAt });
   await output.close();
   return result;
 }
@@ -385,6 +410,167 @@ test('an Out-only pivot starts at the CSS base again on the next take in every p
       { nexts: 0, exit: [seconds.at(-1)!], layers: ['#box'], props: ['--base-anchor-x'], retake: true });
     expect([result.held[0], result.leaving[0][0], result.retaken?.[0]], target).toEqual([100, 180, 100]);
   }
+});
+
+test('canonical SVG groups keep their cue pivots in every saved package', async ({ page }) => {
+  await open(page);
+  const init = { time: 0, value: '40px 25px' };
+  const data: Data = { version: fixture().version, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: .8, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init], rotation: [{ time: 0, value: 35 }] } } },
+    { name: 'Step 2', duration: .56, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init] } } },
+    { name: 'Out', duration: .72, ease: 'none', layers: { '#old-pivot': { transformOrigin: [init] }, '#box': { '--base-anchor-x': [{ time: 0, value: 100 }, { time: .72, value: 180 }] } } },
+  ] };
+  const original = await template(page, data);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="270" viewBox="35 24 960 270">
+    <g id="matrix-parent" transform="translate(100 80) rotate(30) scale(2 1.5)">
+      <g id="old-pivot" data-gfx data-noacg-group data-group-x="20" data-group-y="30" data-group-width="80" data-group-height="50"><rect id="old-member" x="20" y="30" width="80" height="50"/></g>
+      <rect id="matrix-a" data-gfx x="180" y="90" width="90" height="60" fill="orange"/><path id="matrix-b" data-gfx d="M370 170 L450 170 L420 230 Z" fill="red"/>
+      <rect id="future-a" data-gfx x="500" y="100" width="80" height="60"/><rect id="future-b" data-gfx x="600" y="180" width="40" height="30"/>
+    </g></svg>`;
+  original.html = original.html.replace('</div></body>', svg + '</div></body>');
+  original.css += '\n.fixture svg { overflow: visible; }\n#old-pivot {transform-box: fill-box; --base-anchor-x: 40px; --base-anchor-y: 25px; transform-origin: var(--base-anchor-x) var(--base-anchor-y);}\n' +
+    '#box { --base-anchor-x: 100px; transform-origin: var(--base-anchor-x) 50px; }';
+  const grouped = await operate(page, original, [
+    { kind: 'group.create', selectors: ['#matrix-a', '#matrix-b'], box: { x: 180, y: 90, width: 270, height: 140 } },
+    { kind: 'group.create', selectors: ['#future-a', '#future-b'], box: { x: 500, y: 100, width: 140, height: 110 } },
+  ]);
+  expect(grouped.html).toContain('id="group-1" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"');
+  expect(grouped.html).toContain('id="group-2" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"');
+  expect((await dataOf(page, grouped)).steps).toEqual(data.steps);
+  const olderBefore = await run(page, await build(page, original, 'simulator'), 'simulator', secondsOf(data),
+    { svgParent: '#matrix-parent', layers: ['#old-pivot'], exit: [0] });
+  await expect(operate(page, grouped, [{ kind: 'animation.key', selector: '#old-pivot', step: 0, time: .2, property: '--base-anchor-x', value: 40, action: 'set' }]))
+    .rejects.toThrow('This older SVG group keeps its saved pivot');
+
+  const a = '#group-1', b = '#group-2';
+  const customData = structuredClone(data);
+  delete customData.steps[2].layers['#box'];
+  const customJs = (await template(page, customData)).js.replace('function noacgPaintFirstFrame(', '// Custom preview instrument\nfunction noacgPaintFirstFrame(');
+  const custom = { ...original, js: customJs };
+  const customGroup = await operate(page, custom, [{ kind: 'group.create', selectors: ['#matrix-a', '#matrix-b'], box: { x: 180, y: 90, width: 270, height: 140 } }]);
+  expect(customGroup.html).not.toContain('data-noacg-group-pivot');
+  expect(customGroup.js).toContain('// Custom preview instrument');
+  expect((await dataOf(page, customGroup)).steps.every(step => step.layers[a].transformOrigin?.[0].time === 0)).toBe(true);
+  const conflict = { ...grouped, css: grouped.css + '\nsvg g { transform-box: stroke-box; }' };
+  await expect(operate(page, conflict, [{ kind: 'animation.key', selector: a, step: 0, time: .2, property: '--base-anchor-x', value: 135, action: 'set' }]))
+    .rejects.toThrow('conflicting pivot owner');
+  const withReveal = await page.evaluate(async ({ grouped, selector }) => {
+    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const source = parseAnimData(grouped.js)!;
+    source.steps[1].reveals = [selector];
+    return { ...grouped, js: spliceAnimData(grouped.js, source)! };
+  }, { grouped, selector: b });
+  const key = (selector: string, step: number, time: number, property: string, value: number) =>
+    ({ kind: 'animation.key', selector, step, time, property, value, action: 'set' });
+  const authored = await operate(page, withReveal, [
+    { kind: 'base.set', selector: a, values: { x: 17.375, y: -9.25, rotation: 35, scaleX: 1.4, scaleY: .8, anchorX: 135.00049, anchorY: 70 } },
+    { kind: 'base.set', selector: b, values: { x: -14, y: 23, rotation: 24, scaleX: 1.25, scaleY: .75 } },
+    key('#matrix-a', 0, 0, 'x', 0), key('#matrix-a', 0, .6, 'x', -80),
+    key(a, 0, 0, '--base-anchor-x', 135.00049), key(a, 0, .6, '--base-anchor-x', 95),
+    key(a, 1, .12, '--base-anchor-y', 90), key(a, 1, .48, '--base-anchor-y', 110),
+    key(b, 1, .12, '--base-anchor-x', 45), key(b, 1, .4, '--base-anchor-x', 55),
+    key(a, 2, 0, '--base-anchor-x', 95), key(a, 2, .56, '--base-anchor-x', 130), key(a, 2, .72, '--base-anchor-y', 110),
+  ]);
+  await editorWith(page, authored);
+  await page.getByTestId('save-graphic').click();
+  await page.getByTestId('save-name').fill('SVG cue pivots');
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  await settleDurableWrites(page);
+  await page.reload(); await ready(page);
+  const saved = await source(page);
+  expect([saved.html, saved.css, saved.js]).toEqual([authored.html, authored.css, authored.js]);
+  const savedData = await dataOf(page, saved), seconds = secondsOf(savedData);
+  const stepRoundTrip = await operate(page, saved, [{ kind: 'step.add', time: .32 }, { kind: 'step.move', step: 1, time: .36 }, { kind: 'step.delete', step: 1 }]);
+  expect(await dataOf(page, stepRoundTrip)).toEqual(savedData);
+  const carried = await operate(page, stepRoundTrip, [{ kind: 'out.set', time: 1.04 }]);
+  const carriedData = await dataOf(page, carried), carriedSeconds = secondsOf(carriedData);
+  expect(carriedSeconds).toEqual([.8, .24, .96]);
+  expect(carriedData.steps.map(step => step.layers[a]?.transformOrigin)).toEqual([undefined, undefined, undefined]);
+  const rejoined = await operate(page, carried, [{ kind: 'out.set', time: 1.36 }]);
+  expect(await dataOf(page, rejoined)).toEqual(savedData);
+  const bounded = await operate(page, saved, [
+    { kind: 'group.trim', selector: a, step: 0, interval: 0, edge: 'end', time: .72 },
+    ...['#matrix-a', '#matrix-b'].map(selector => ({ kind: 'layer.trim', selector, step: 0, interval: 0, edge: 'end', time: .72 })),
+  ]);
+  expect((await dataOf(page, bounded)).steps[0].layers[a]).toEqual(savedData.steps[0].layers[a]);
+  const moved = await operate(page, bounded, [{ kind: 'group.move', selector: a, step: 0, delta: .04 }]);
+  const movedIn = (await dataOf(page, moved)).steps[0];
+  expect(movedIn.layers[a]['--base-anchor-x']).toEqual(savedData.steps[0].layers[a]['--base-anchor-x'].map((key, i) => ({ ...key, time: [.04, .64][i] })));
+  expect(movedIn.layers['#matrix-a'].x.map(key => key.time)).toEqual([.04, .64]);
+  expect(movedIn.spans?.[a]).toEqual([{ start: .04, end: .76 }]);
+  const duplicate = await operate(page, saved, [{ kind: 'layer.duplicate', selector: a }]);
+  const copies = (await dataOf(page, duplicate)).steps[0].layers;
+  const copy = Object.keys(copies).find(id => id !== a && copies[id]['--base-anchor-x']?.length)!;
+  expect(copy).toBeTruthy();
+  expect(copies[copy]).toEqual(copies[a]);
+  expect(duplicate.html).toContain(`id="${copy.slice(1)}" data-gfx data-noacg-group data-noacg-group-pivot="frame-v1"`);
+  const bake = (selector: string, step: number, time: number, axis: 'x' | 'y', value: number) => ({ ...key(selector, step, time, '--base-anchor-' + axis, value), action: 'disable', baseValues: { [axis === 'x' ? 'anchorX' : 'anchorY']: value } });
+  const baked = await operate(page, saved, [bake(a, 0, .3, 'x', 115.000245), bake(a, 1, .3, 'y', 100), bake(b, 1, .3, 'x', 45 + 10 * .18 / .28),
+    { kind: 'step.add', time: .32 }, { kind: 'step.delete', step: 1 }]);
+  expect((await dataOf(page, baked)).steps.some(step => [a, b].some(id => step.layers[id]?.['--base-anchor-x'] || step.layers[id]?.['--base-anchor-y']))).toBe(false);
+
+  function composed(x: number, y: number, angle: number, sx: number, sy: number, px: number, py: number) {
+    const radians = angle * Math.PI / 180;
+    const a = Math.cos(radians) * sx, b = Math.sin(radians) * sx, c = -Math.sin(radians) * sy, d = Math.cos(radians) * sy;
+    return [a, b, c, d, x + px - a * px - c * py, y + py - b * px - d * py];
+  }
+  const expected = (x: number, y: number, moved: number, future: number, showing: number) => {
+    const main = composed(17.375, -9.25, 35, 1.4, .8, 180 + x, 90 + y);
+    const child = [...main]; child[4] += main[0] * moved; child[5] += main[1] * moved;
+    const later = composed(-14, 23, 24, 1.25, .75, 500 + future, 155);
+    return [...main, 1, ...child, 1, ...main, 1, ...later, showing];
+  };
+  const match = (actual: Pose, wanted: Pose, label: string) => {
+    expect(actual).toHaveLength(wanted.length);
+    actual.forEach((value, i) => expect(value, `${label}, matrix component ${i}`).toBeCloseTo(wanted[i], 3));
+  };
+  const samples = { svgParent: '#matrix-parent', layers: [a, '#matrix-a', '#matrix-b', b] };
+  for (const target of TARGETS) {
+    const built = await build(page, saved, target);
+    const normal = await run(page, built, target, seconds, { ...samples, exit: [0, .28, .72], retake: true, repeatStopAt: .28,
+      cues: [[{ key: 'in', t: 0 }, { key: 'arriving', t: .8 }], [{ key: 'departing', t: 0 }, { key: 'inside', t: .3 }]] });
+    match(normal.poses.in, expected(135.00049, 70, 0, 70, 0), target + ' In before future group');
+    match(normal.poses.arriving, expected(95, 70, -80, 70, 0), target + ' arriving at flag');
+    match(normal.poses.departing, expected(95, 90, -80, 45, 1), target + ' departing and revealing');
+    match(normal.poses.inside, expected(95, 100, -80, 45 + 10 * .18 / .28, 1), target + ' inside Next');
+    match(normal.leaving[1], expected(112.5, 110, -80, 55, 1), target + ' authored Out');
+    match(normal.leaving[2], expected(130, 110, -80, 55, 1), target + ' Out terminal');
+    match(normal.retaken!, expected(135.00049, 70, 0, 70, 0), target + ' next Take');
+
+    const early = await run(page, built, target, seconds, { ...samples, nexts: 0, interruptAt: .3, exit: [0, .28, .72] });
+    match(early.released, expected(115.000245, 70, -40, 70, 0), target + ' early Out live pose');
+    match(early.leaving[1], expected(122.5001225, 70, -40, 70, 0), target + ' early Out holds single Y');
+    match(early.leaving[2], expected(130, 110, -40, 70, 0), target + ' early Out takes terminal Y');
+
+    const carriedOutput = await build(page, carried, target);
+    const carriedOut = await run(page, carriedOutput, target, carriedSeconds, { ...samples, exit: [0, .24, .52, .96] });
+    match(carriedOut.leaving[0], expected(95, 90 + 20 / 3, -80, 45 + 10 * .12 / .28, 1), target + ' carried Out starts at the cut');
+    match(carriedOut.leaving[1], expected(95, 110, -80, 55, 1), target + ' finishes carried motion');
+    match(carriedOut.leaving[2], expected(112.5, 110, -80, 55, 1), target + ' authored Out follows the carry');
+    match(carriedOut.leaving[3], expected(130, 110, -80, 55, 1), target + ' carried Out terminal');
+
+    const skipped = await run(page, carriedOutput, target, carriedSeconds,
+      { ...samples, nexts: 0, interruptAt: .3, outLength: .72, exit: [0, .28, .72] });
+    match(skipped.leaving[0], early.leaving[0], target + ' early Out skips unreached carry');
+    match(skipped.leaving[1], early.leaving[1], target + ' early Out keeps live Y during carry skip');
+    match(skipped.leaving[2], early.leaving[2], target + ' early Out keeps the terminal value');
+
+    const baseOnly = await run(page, await build(page, baked, target), target, seconds, { ...samples, exit: [.72], retake: true,
+      cues: [[{ key: 'in', t: 0 }], [{ key: 'departing', t: 0 }]] });
+    const bakedFuture = 45 + 10 * .18 / .28;
+    match(baseOnly.poses.in, expected(115.000245, 100, 0, bakedFuture, 0), target + ' baked pivot before reveal');
+    match(baseOnly.poses.departing, expected(115.000245, 100, -80, bakedFuture, 1), target + ' keyless group still reveals');
+    match(baseOnly.retaken!, expected(115.000245, 100, 0, bakedFuture, 0), target + ' baked retake');
+  }
+  const mixed = await build(page, saved, 'simulator');
+  const lastInterrupted = await run(page, mixed, 'simulator', seconds, { ...samples, interruptAt: .3, exit: [0, .28, .72] });
+  match(lastInterrupted.held, expected(95, 100, -80, 45 + 10 * .18 / .28, 1), 'last cue live pose');
+  match(lastInterrupted.leaving[1], expected(112.5, 110, -80, 45 + 10 * .18 / .28, 1), 'last cue interrupted Out');
+  const olderAfter = await run(page, mixed, 'simulator', seconds, { svgParent: '#matrix-parent', layers: ['#old-pivot'], exit: [0] });
+  match(olderAfter.held, olderBefore.held, 'older group unchanged beside new group');
+  const ordinary = await run(page, mixed, 'simulator', seconds, { nexts: 0, layers: ['#box'], props: ['--base-anchor-x'], exit: [.72], retake: true });
+  expect([ordinary.held[0], ordinary.leaving[0][0], ordinary.retaken![0]]).toEqual([100, 180, 100]);
 });
 
 test('Add Step, rename, delete and drags are one undo each and survive save and reopen', async ({ page }) => {
