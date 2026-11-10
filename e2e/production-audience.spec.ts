@@ -653,8 +653,9 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   // Only Take puts it on air, and air carries the shown words only.
   await page.locator('.pd-cue', { hasText: 'Words:' }).click();
   await page.getByTestId('verb-take').click();
-  const program = page.frameLocator('[data-testid="program-stage"] iframe');
-  await expect(program.locator('.audience-word')).toHaveText(['Brilliant', 'Exciting', 'Tense']);
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="House Word Cloud"]');
+  const onAir = async () => (await program.locator('.audience-word').allTextContents()).sort();
+  await expect.poll(onAir).toEqual(['Brilliant', 'Exciting', 'Tense']);
   await expect(log.first()).toContainText('Took “Words: Sum up tonight in one word”');
   const taken = await log.count();
 
@@ -669,9 +670,9 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   await stopLive(ws, 'Sum up tonight in one word');
   await settleDurableWrites(ws);
   await expect(log).toHaveCount(taken);
-  await expect(program.locator('.audience-word')).toHaveText(['Brilliant', 'Exciting', 'Tense']);
+  expect(await onAir()).toEqual(['Brilliant', 'Exciting', 'Tense']);
   await page.getByTestId('verb-update').click();
-  await expect(program.locator('.audience-word')).toHaveCount(5);
+  await expect.poll(onAir).toEqual(['Brilliant', 'Exciting', 'Fun', 'Proud', 'Tense']);
 });
 
 test('a stale phone keeps its words, sees the new question, and files nothing until it sends again (AC-4, AC-7)', async ({ page, context }) => {
