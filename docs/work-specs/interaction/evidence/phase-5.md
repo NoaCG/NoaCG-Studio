@@ -62,6 +62,14 @@ refused); the result picker's names not checked against the catalog (now in the 
 they are: the QR search re-states the importer's hidden and non-rendered test rather than sharing
 it, and an imported build parses its markup once more to look for a QR layer.
 
+## CI repairs
+
+CI on `0e0dd49` found two things this machine did not: on the side card with bars up, eight
+options' share figures were a little wider on the runner than here and left their columns (that
+board's card is now 780 px wide instead of 660); and `EXEMPLAR_CORPORA`, the AI harness's
+measured catalog corpus, is derived from the catalog and had to be regenerated for the nine new
+designs (`scripts/pro-harness-exemplars.test.mjs` writes the block; pasted as it says).
+
 ## Rehearsal walk (AC-15, phase 5)
 
 `e2e/configured/audience-live.spec.ts` "the rehearsal walk" now creates Result Donut Lower
