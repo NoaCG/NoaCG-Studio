@@ -44,13 +44,13 @@
   "waitingOn": [],
   "inFlight": [
     {
-      "step": "reconcile current main",
-      "phase": "v2",
+      "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee",
       "pr": 2293,
+      "note": "Owner resumed; #1967 hold lifted. V2 reconciling the current main conflict before fresh verification.",
       "session": "/root/v2_builder",
-      "repairComment": 6723338187,
-      "note": "Explicit owner resume. Release hold lifted. Resolve current-main conflict and repeat exact-head review and gates.",
-      "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee"
+      "step": "build",
+      "phase": "v2",
+      "repairComment": 6723338187
     }
   ],
   "owner": [],
