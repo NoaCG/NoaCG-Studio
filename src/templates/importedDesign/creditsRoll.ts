@@ -516,12 +516,63 @@ function creditsWindow(sample) {
 }`;
 }
 
+/** THE TITLE ROLLS WITH THE LIST (owner walk 2026-11-10: "It should be just one text that
+ *  scrolls"). Emitted into the styled ROLL only: a still page and cards keep the title where it
+ *  was drawn, because nothing moves there. */
+const CREDITS_RIDERS_JS = `
+// creditsRiders(roll, win, rows): everything else drawn in the list's column inside the window -
+// a show title above the first role, the rule under it, a closing line below the last name - is
+// part of the one text that scrolls, so the take moves it into the roll group once, where it was
+// drawn, and it travels with the rows. What fills most of the window (a background) stays put, and
+// so does anything beside the column, such as a corner logo. A moved layer keeps its id, so the
+// operator's field still writes into it; the look it inherited from its old group is copied on.
+var CREDITS_RIDER_KEEP = ['font-family', 'font-size', 'font-weight', 'font-style', 'letter-spacing',
+  'word-spacing', 'text-anchor', 'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'opacity'];
+function creditsRiders(roll, win, rows) {
+  var art = typeof noacgArt === 'function' ? noacgArt() : null;
+  if (!art || !roll.getScreenCTM) return;
+  var area = (win.right - win.left) * (win.bottom - win.top);
+  var box = typeof noacgRoleEls === 'function' ? noacgRoleEls('${CREDITS_BOX_ROLE}', null)[0] : null;
+  var found = art.querySelectorAll('text, rect, path, polygon, polyline, line, ellipse, circle, image, use');
+  var riders = [];
+  for (var i = 0; i < found.length; i++) {
+    var el = found[i];
+    if (el === box || roll.contains(el) || (el.parentNode && el.parentNode.closest && el.parentNode.closest('text'))) continue;
+    var shown = el.getBoundingClientRect();
+    if (!(shown.width > 0 || shown.height > 0) || getComputedStyle(el).visibility === 'hidden') continue;
+    var m = creditsFrom(el, roll);
+    var b = null;
+    try { b = el.getBBox(); } catch (e) { b = null; }
+    if (!m || !b) continue;
+    var a = creditsAt(m, b.x, b.y), z = creditsAt(m, b.x + b.width, b.y + b.height);
+    var l = Math.min(a.x, z.x), r = Math.max(a.x, z.x), t = Math.min(a.y, z.y), u = Math.max(a.y, z.y);
+    if ((r - l) * (u - t) > area / 2) continue;                       // a background
+    if (r < rows.x || l > rows.x + rows.width) continue;              // beside the column
+    if (u < win.top || t > win.bottom) continue;                       // outside the window
+    riders.push(el);
+  }
+  for (var j = 0; j < riders.length; j++) {
+    var rider = riders[j];
+    var parent = rider.parentNode;
+    var into = creditsFrom(parent, roll);
+    if (!into) continue;
+    var look = getComputedStyle(parent);
+    var wrap = document.createElementNS(rider.namespaceURI, 'g');
+    wrap.setAttribute('transform', 'matrix(' + [into.a, into.b, into.c, into.d, into.e, into.f].join(' ') + ')');
+    var keep = '';
+    for (var k = 0; k < CREDITS_RIDER_KEEP.length; k++) keep += CREDITS_RIDER_KEEP[k] + ':' + look.getPropertyValue(CREDITS_RIDER_KEEP[k]) + ';';
+    wrap.setAttribute('style', keep);
+    roll.insertBefore(wrap, roll.lastChild);         // in drawing order, under the rows (the last child)
+    wrap.appendChild(rider);
+  }
+}`;
+
 /** THE TAKE, shared by the editable roll and the styled one: the window, the travel, the pace and
  *  a live speed change. Each engine supplies `creditsSample()` (the layer whose parent the rows
  *  sit in) and `creditsRender()` (the rows and the name step they were built with). */
-function creditsTakeJs(settle = false, held = false): string {
+function creditsTakeJs(settle = false, held = false, riders = false): string {
   return `${creditsWindowJs()}
-
+${riders ? CREDITS_RIDERS_JS : ''}
 var noacgCreditsTween = null;
 var noacgCreditsBuiltAt = 1;       // the speed the running take was built at (creditsDataUpdated)
 // What the last take measured, for a reader (and for the spec that pins the pace): where the
@@ -574,7 +625,18 @@ function creditsTake() {
   // all, and leaves the group's own travel out - so it reads the same mid-roll as at rest.
   var bb = null;
   try { bb = roll.getBBox(); } catch (e) { bb = null; }
-  if (!win || !bb || !(bb.height > 0)) return null;
+  if (!win || !bb || !(bb.height > 0)) return null;${riders ? `
+  // The title and what rides with it join the travel (creditsRiders); the column they are picked
+  // by is the rows' own extent, and the pace's scale the rows' own transform, so a second take,
+  // with the riders already in the group, measures exactly what the first did.
+  var rowsBox = rows.getBBox();
+  var rowsAt = rows.transform.baseVal.consolidate();
+  var rowsM = rowsAt ? rowsAt.matrix : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  var rowsScale = Math.sqrt(rowsM.c * rowsM.c + rowsM.d * rowsM.d);
+  var colA = rowsM.a * rowsBox.x + rowsM.e, colB = rowsM.a * (rowsBox.x + rowsBox.width) + rowsM.e;
+  creditsRiders(roll, win, { x: Math.min(colA, colB), width: Math.abs(colB - colA) });
+  try { bb = roll.getBBox(); } catch (e) { bb = null; }
+  if (!bb || !(bb.height > 0)) return null;` : ''}
   frame.setAttribute('x', String(win.left));
   frame.setAttribute('y', String(win.top));
   frame.setAttribute('width', String(win.right - win.left));
@@ -588,8 +650,8 @@ function creditsTake() {
   var distance = startY - endY;
   // The pace rides the sample's name-to-name step, scaled the way the text's own transform
   // scales it: the step is read in the text's units and the travel in the window's.
-  var textHeight = rows.getBBox().height;
-  var step = built.looks.afterName * (textHeight > 0 ? bb.height / textHeight : 1);
+  ${riders ? `var step = built.looks.afterName * rowsScale;` : `var textHeight = rows.getBBox().height;
+  var step = built.looks.afterName * (textHeight > 0 ? bb.height / textHeight : 1);`}
   var speed = creditsLiveSpeed();
   var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * speed;
   var duration = distance / perSecond;
@@ -1605,7 +1667,7 @@ if (typeof noacgSnap === 'function') {
   };
 }
 `)}
-${still(creditsTakeJs(faces === true, true), cards(creditsHoldJs(), creditsCardsJs()))}
+${still(creditsTakeJs(faces === true, true, true), cards(creditsHoldJs(), creditsCardsJs()))}
 
 // Render once on load, so a preview shows the list before the first update(); again when the
 // real typeface arrives, because the drawn widths decide where an aligned row starts.
