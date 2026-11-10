@@ -3,6 +3,7 @@ import type { SavedGraphic } from './packets';
 import { foldersContiguous, throughRefusal } from './showFolders.ts';
 import { selectionFrozen, selectionKeep, selectionReadOnly } from './productionData.ts';
 import { typedFrozen, typedKeep, typedValuesOf } from './ografTyped.ts';
+import { scrubHiddenWords } from './wordCues.ts';
 
 /** Only prepared rundown data. Air, publication, datasets and production metadata stay outside. */
 export interface RundownSlice {
@@ -92,6 +93,8 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
     folders: copy.folders.map(f => ({ ...f, ...(collapse.has(f.id) ? { collapsed: collapse.get(f.id) } : {}) })),
     updatedAt: new Date().toISOString(),
   };
+  // W11 (interaction phase 6): an undo or redo that brings a cue back brings no hidden word with it.
+  scrubHiddenWords(next);
   // An undo is a write like any other, except that a cue it brings back keeps the selection the
   // record had: history copies are the record's own bytes. So does a cue whose live candidate the
   // writer moved (E7.2a): undone or redone, it goes back to the selection it had, a cue of a later
@@ -114,6 +117,14 @@ export function replaceRundown(show: Show, expected: RundownSlice, replacement: 
   const restored = new Set(copy.cues.map((c) => c.id));
   const frozen = selectionFrozen(selectionKeep(show), next, restored, moved.size ? { cues: moved } : undefined) ?? typedFrozen(typedKeep(show), next, restored, typedMoved);
   return frozen ? { show: null, refused: frozen } : { show: next, refused: null };
+}
+
+/** The rundown a restore of `replacement` onto `show` lands as: the replacement, with every hidden
+ *  word taken off the cues carrying its question (W11). What a restore is checked against. */
+export function landedReplacement(show: Show, replacement: RundownSlice): RundownSlice {
+  const next = { ...show, ...structuredClone(replacement) } as Show;
+  scrubHiddenWords(next);
+  return rundownSlice(next);
 }
 
 export interface RundownHistoryEntry { before: RundownSlice; after: RundownSlice; label: string }
@@ -142,9 +153,19 @@ export class RundownHistory {
     return 'recorded';
   }
   peek(direction: 'undo' | 'redo'): RundownHistoryEntry | undefined { return this[direction][this[direction].length - 1]; }
-  accepted(direction: 'undo' | 'redo', entry: RundownHistoryEntry): void {
+  /** `landed` is the rundown the restore landed as when it differs from the snapshot it restored (a
+   *  hidden word taken off a cue, W11): every snapshot equal to the restored one becomes `landed`,
+   *  so the next step compares against what is really stored instead of clearing the history. */
+  accepted(direction: 'undo' | 'redo', entry: RundownHistoryEntry, landed?: RundownSlice): void {
     if (this.peek(direction) !== entry) return;
     this[direction].pop();
+    const restored = direction === 'undo' ? entry.before : entry.after;
+    if (landed && !sameRundown(landed, restored)) {
+      for (const e of [...this.undo, ...this.redo, entry]) {
+        if (sameRundown(e.before, restored)) e.before = landed;
+        if (sameRundown(e.after, restored)) e.after = landed;
+      }
+    }
     this[direction === 'undo' ? 'redo' : 'undo'].push(entry);
   }
 }

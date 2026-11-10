@@ -38,7 +38,7 @@ has the format.
 **Compiled, never hand-edited.** `npm run contracts:compile` (`scripts/compile-contracts.mjs`)
 writes:
 
-- the root `AGENTS.md`: only the `**`-scoped rules, which every session loads, capped at 3 KB
+- the root `AGENTS.md`: only the `**`-scoped rules, which every session loads, capped at 3,480 bytes
   (`KERNEL_MAX_BYTES` in `scripts/contracts-lib.mjs`), so adding a rule there retires another;
 - a folder `AGENTS.md` in each directory the compiler owns, which is any directory whose
   `AGENTS.md` carries the generated marker (for example `src/`, `src/components/`,
@@ -265,7 +265,7 @@ an edit to existing text. `/orchestrator-week` is the weekly alignment read with
 | Bytes per compiled file and the root budget | `node scripts/compile-contracts.mjs --report` |
 | Instruction drift over time | `npm run audit:instructions` |
 
-The live budgets, each enforced by a gate in the build: the root `AGENTS.md` at 3 KB
+The live budgets, each enforced by a gate in the build: the root `AGENTS.md` at 3,480 bytes
 (`check:contracts`), every Codex chain at least 4 KiB under `project_doc_max_bytes` and the
 orchestrator workflow's line limits (`check:shared-instructions`), and `docs/GOALS.md` under 200
 lines (`check:goals-budget`). `docs/METRICS.md` is the

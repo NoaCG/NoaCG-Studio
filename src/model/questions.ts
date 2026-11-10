@@ -15,8 +15,9 @@
 // optional. A question of a type this build does not know (Word arrives in phase 6) is read and
 // written back exactly as it was, and is read-only here: it is shown, never edited or put live.
 
-/** The types this build can ask. Multiple choice is `choice`; Open lands as a message. */
-export type QuestionType = 'open' | 'choice';
+/** The types this build can ask. Multiple choice is `choice`; Open lands as a message; Word takes one
+ *  short word per phone and makes a word cloud (model/wordCloud.ts). */
+export type QuestionType = 'open' | 'choice' | 'word';
 
 export interface ShowQuestion {
   /** Made once, never reused: the server keys the question's one result by it (R2, R11). */
@@ -26,6 +27,9 @@ export interface ShowQuestion {
   text: string;
   /** Multiple choice only: 2 to 8, each at most 60 characters. */
   options?: string[];
+  /** Word only: the words the operator hid, by `wordKey` (model/wordCloud.ts). A hidden word stays
+   *  in the count but never reaches a cue. Not part of what was asked, so never locked. */
+  hidden?: string[];
 }
 
 /** The server's own caps (0035's round guard), so a question never goes live trimmed. */
@@ -41,11 +45,11 @@ export function isQuestionId(id: string): boolean {
 
 /** What Go live sends for a question this build can ask (audienceTypes `QuestionLive`). */
 export function toLive(q: ShowQuestion & { type: QuestionType }): { id: string; type: QuestionType; text: string; options?: string[] } {
-  return q.type === 'choice' ? { id: q.id, type: 'choice', text: q.text, options: q.options ?? [] } : { id: q.id, type: 'open', text: q.text };
+  return q.type === 'choice' ? { id: q.id, type: 'choice', text: q.text, options: q.options ?? [] } : { id: q.id, type: q.type, text: q.text };
 }
 
 export function isKnownType(type: string): type is QuestionType {
-  return type === 'open' || type === 'choice';
+  return type === 'open' || type === 'choice' || type === 'word';
 }
 
 /** One option per line, trimmed, blank lines dropped, capped as the server caps them. */
@@ -86,8 +90,11 @@ export function readQuestions(raw: unknown): ShowQuestion[] {
     // Additive optional fields a newer build stored stay on the question (the spread), so a list
     // edit here never drops them.
     const options = Array.isArray(q.options) ? q.options.filter((o): o is string => typeof o === 'string') : [];
-    const { options: _options, ...rest } = q;
-    out.push(q.type === 'choice' ? ({ ...rest, options } as unknown as ShowQuestion) : ({ ...rest } as unknown as ShowQuestion));
+    const { options: _options, hidden: _hidden, ...rest } = q;
+    const hidden = Array.isArray(q.hidden) ? [...new Set(q.hidden.filter((w): w is string => typeof w === 'string' && w.length > 0))] : [];
+    if (q.type === 'choice') out.push({ ...rest, options } as unknown as ShowQuestion);
+    else if (q.type === 'word' && hidden.length > 0) out.push({ ...rest, hidden } as unknown as ShowQuestion);
+    else out.push({ ...rest } as unknown as ShowQuestion);
   }
   return out;
 }
@@ -140,6 +147,20 @@ export function editQuestion(
   return { list: next };
 }
 
+/** Hide a word of a Word question from its cue, or show it again (`key` is the word's `wordKey`).
+ *  Hiding changes nothing that was asked or answered, so it is allowed while live and with answers. */
+export function setWordHidden(list: readonly ShowQuestion[], id: string, key: string, hide: boolean): ShowQuestion[] {
+  return list.map((q) => {
+    if (q.id !== id || q.type !== 'word' || !key) return q;
+    const now = new Set(q.hidden ?? []);
+    if (hide === now.has(key)) return q;
+    if (hide) now.add(key);
+    else now.delete(key);
+    const { hidden: _hidden, ...rest } = q;
+    return now.size > 0 ? { ...rest, hidden: [...now] } : rest;
+  });
+}
+
 /** Move a question to `to` (clamped), for drag and for the keyboard's up and down. */
 export function moveQuestion(list: readonly ShowQuestion[], id: string, to: number): ShowQuestion[] {
   const from = list.findIndex((q) => q.id === id);
@@ -155,7 +176,8 @@ export function moveQuestion(list: readonly ShowQuestion[], id: string, to: numb
 export function duplicateQuestion(list: readonly ShowQuestion[], id: string, newId: string): ShowQuestion[] {
   const at = list.findIndex((q) => q.id === id);
   if (at < 0 || !ID.test(newId) || list.some((q) => q.id === newId)) return [...list];
-  const was = list[at];
+  // The words hidden on the original were hidden from its answers; the copy has none yet.
+  const { hidden: _hidden, ...was } = list[at];
   const copy: ShowQuestion = { ...was, id: newId, ...(was.options ? { options: [...was.options] } : {}) };
   const next = [...list];
   next.splice(at + 1, 0, copy);

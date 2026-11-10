@@ -23,11 +23,13 @@
 import type { ChatVoteOutcome } from './chatVotes.ts';
 import { getSupabase } from '../backend/supabase';
 import { isBackendConfigured, loadBackendConfig } from '../backend/config';
+import type { WordTally } from '../model/wordCloud';
 import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
   OPERATOR_SETTLE_MAX,
   QUESTION_CLOSED,
+  WORD_ALREADY_SENT,
   clampProvenance,
   openRoundOf,
   clampSubmission,
@@ -81,7 +83,8 @@ interface JoinRow {
     } | null;
   };
   brand: AudienceBrand | null;
-  mine: { id: string; body: string; createdAt: string }[];
+  /** `roundId` from 0114: the round each was filed under, so a phone knows its word is in. */
+  mine: { id: string; body: string; createdAt: string; roundId?: string | null; word?: boolean }[];
   my_vote: number | null;
 }
 
@@ -224,6 +227,10 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
       // The one refusal that says what it is (0111): the round closed or changed under the phone.
       if (error && /question has closed/.test(String((error as { message?: unknown }).message ?? ''))) {
         return { ok: false, error: QUESTION_CLOSED, closed: true };
+      }
+      // A Word question takes one word per phone (0114, W3); a phone that already sent one is told.
+      if (error && /already sent your word/.test(String((error as { message?: unknown }).message ?? ''))) {
+        return { ok: false, error: WORD_ALREADY_SENT };
       }
       return error ? { ok: false, error: REFUSED } : { ok: true, error: null };
     } catch {
@@ -492,6 +499,18 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
         // 0113: the same counts by source.
         ...(Array.isArray(row.phone_counts) && Array.isArray(row.chat_counts) ? { phone: row.phone_counts, chat: row.chat_counts } : {}),
       };
+    },
+
+    async wordCounts(roundId): Promise<WordTally[]> {
+      const sb = await client();
+      // One jsonb value, not a set of rows: PostgREST caps a set at a page (max_rows), and a word
+      // cloud must count every word (0114).
+      const raw = await operator<unknown>(() => sb.rpc('audience_word_counts', { p_slug: control(), p_round: roundId }));
+      if (!Array.isArray(raw)) return [];
+      return raw.flatMap((x) => {
+        const t = x as { word?: unknown; count?: unknown };
+        return typeof t.word === 'string' && Number(t.count) > 0 ? [{ word: t.word, count: Number(t.count) }] : [];
+      });
     },
 
     async chatVotes(roundId, votes): Promise<ChatVoteOutcome> {

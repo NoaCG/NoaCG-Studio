@@ -24,7 +24,7 @@
 
 import { parseCssColor } from '../../../model/cssVars';
 import { transformedBox } from '../../../assets/svgGeometry';
-import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT } from '../../../templates/importedDesign/svg';
+import { PANEL_SAFE, SVG_ALIGN_TOL, SVG_ALIGN_WORD, SVG_LINE_HEIGHT, isSvgFigure } from '../../../templates/importedDesign/svg';
 import { SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import type { DesignSvgAlign } from '../../../templates/importedDesign/designTypes';
 import type { PreviewBoxOverlay } from '../WizardPreview';
@@ -635,7 +635,12 @@ export function boxFitOf(
     Math.max(0, cap === null ? Math.min(before, after) : Math.min(before, after, cap));
   return {
     box,
-    insetX: keep(own.x - box.x, box.x + box.width - (own.x + own.width), align.h === 'centred' ? type * 0.5 : null),
+    insetX: keep(
+      own.x - box.x,
+      box.x + box.width - (own.x + own.width),
+      // A centred line of words keeps half its type; a centred figure only its own bearings.
+      align.h === 'centred' ? (isSvgFigure(textEl.textContent ?? '') ? 0 : type * 0.5) : null,
+    ),
     insetY: keep(
       own.y - band.top,
       band.bottom - (own.y + own.height),

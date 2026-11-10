@@ -2,7 +2,8 @@
 // Q&A card, the chat highlight, the moderator's question queue, and the community or prayer
 // request. Family-consistent with the rest of the package (docs/DESIGN_LANGUAGE.md §8).
 //
-// Twenty-one designs: five forms in four style families each, and the one Join card. Every one of them is fully usable by
+// Twenty-two designs: five forms in four style families each, the one Join card and the one word
+// cloud. Every one of them is fully usable by
 // hand: an operator types the message, the name and the source into ordinary SPX fields. No
 // chat integration exists, and none is assumed.
 
@@ -13,6 +14,7 @@ import { ch01, ch02, ch03, ch04 } from './chatHighlight';
 import { qq01, qq02, qq03, qq04 } from './questionQueue';
 import { rq01, rq02, rq03, rq04 } from './communityRequest';
 import { jc01 } from './joinCard';
+import { wc01 } from './wordCloud';
 
 export const AUDIENCE: TemplateVariant[] = [
   // Viewer questions — the workhorse.
@@ -27,6 +29,8 @@ export const AUDIENCE: TemplateVariant[] = [
   rq01, rq02, rq03, rq04,
   // The Join card: how viewers join, a QR code drawn from the production's link.
   jc01,
+  // The word cloud: a Word question's words, sized by how many sent each.
+  wc01,
 ];
 
 export function audienceById(id: string): TemplateVariant | undefined {

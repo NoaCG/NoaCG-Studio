@@ -43,6 +43,9 @@ export function QuestionComposer({
         <button onClick={() => setType('choice')} data-testid="question-type-choice">
           Multiple choice
         </button>
+        <button onClick={() => setType('word')} data-testid="question-type-word">
+          Word
+        </button>
         <button onClick={onCancel} data-testid="question-cancel">
           Cancel
         </button>
@@ -55,7 +58,7 @@ export function QuestionComposer({
         type="text"
         value={text}
         maxLength={QUESTION_LIMITS.text}
-        placeholder={type === 'choice' ? 'Who wins tonight?' : 'What should we ask the guest?'}
+        placeholder={type === 'choice' ? 'Who wins tonight?' : type === 'word' ? 'Sum up tonight in one word' : 'What should we ask the guest?'}
         aria-label="Question"
         onChange={(e) => setText(e.target.value)}
         data-testid="question-text"
@@ -173,7 +176,7 @@ export function QuestionList({
             data-testid={`question-${q.id}`}
           >
             <span className="pd-aud-q-type" data-testid="question-type">
-              {q.type === 'choice' ? 'Vote' : q.type === 'open' ? 'Open' : 'Newer'}
+              {q.type === 'choice' ? 'Vote' : q.type === 'open' ? 'Open' : q.type === 'word' ? 'Word' : 'Newer'}
             </span>
             <span className="pd-aud-q-text" data-testid="question-row-text">
               {q.text}

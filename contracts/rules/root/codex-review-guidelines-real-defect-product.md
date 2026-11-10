@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/**, api/**, e2e/**, supabase/**
+scope: **
 kind: rule
 fires: contract
 status: active

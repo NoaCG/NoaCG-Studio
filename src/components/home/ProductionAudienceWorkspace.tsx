@@ -12,6 +12,7 @@ import {
   setShowQuestions,
   showQuestions,
   stageShowResult,
+  setShowWordHidden,
   updateShowCueChecked,
   type SheetShowSource,
   type Show,
@@ -64,6 +65,8 @@ import {
   type QuestionType,
   type ShowQuestion,
 } from '../../model/questions';
+import { countWordTallies, type WordCount, type WordTally } from '../../model/wordCloud';
+import { stageWords, WORD_CLOUDS, wordDestinationOf, wordDestinations } from '../../control/wordStaging';
 import {
   chatIntakeFor,
   chatPlatformWord,
@@ -132,6 +135,7 @@ function useCandidates(backend: ObservableAudience, enabled: boolean): AudienceS
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
+    // `list()` holds messages only: a Word question's words never come back from it (W9).
     const refresh = () =>
       void backend.list().then(
         (list) => {
@@ -184,7 +188,7 @@ async function addResultBoard(show: Show, id: string): Promise<{ shows: Show[] |
     import('../wizard/draft'),
   ]);
   const variant = variantById(id);
-  if (!variant) return { shows: null, graphicId: null, cueId: null, error: 'That vote board is not in this build.' };
+  if (!variant) return { shows: null, graphicId: null, cueId: null, error: 'That graphic is not in this build.' };
   const built = buildDraftTemplate(variant, mergeDraft(initialDraft(), { variantId: variant.id, lines: variant.suggestedLines.map((l) => ({ ...l })) }));
   // A free name: a same-named graphic already in the pool (one that lost its result fields, say)
   // would otherwise be REPLACED by this board, artwork and all.
@@ -199,11 +203,13 @@ async function addResultBoard(show: Show, id: string): Promise<{ shows: Show[] |
   const before = new Set(show.graphics.map((g) => g.id));
   const graphic = after?.graphics.find((g) => !before.has(g.id)) ?? null;
   const cue = graphic ? after?.cues?.find((c) => c.sourceId === graphic.id) ?? null : null;
-  return { shows, graphicId: graphic?.id ?? null, cueId: cue?.id ?? null, error: graphic ? null : 'The vote board was not added.' };
+  return { shows, graphicId: graphic?.id ?? null, cueId: cue?.id ?? null, error: graphic ? null : 'The graphic was not added.' };
 }
 
 /** A result cue's name in the rundown (tests and older cues know it by its prefix). */
 const resultLabel = (question: string) => `Vote — ${question.slice(0, 32)}`;
+/** A word cloud cue's name in the rundown. */
+const wordCloudLabel = (question: string) => `Words: ${question.slice(0, 32)}`;
 
 /** The Join card in the catalog (templates/audience/joinCard.ts). */
 const JOIN_CARD_ID = 'jc01';
@@ -911,6 +917,11 @@ export default function ProductionAudienceWorkspace({
   /** Which state of each round its counts were read in: a closed round is read once per state. */
   const tallyRead = useRef(new Map<string, string>());
   const tallyKey = (r: AudienceRound) => `${r.revision}|${r.closedAt ?? 'open'}`;
+  /** Each Word round's words per spelling, counted by the provider over every word (W1): the
+   *  message list is capped at a page on the server, so it is never counted for a cloud. */
+  const [wordTallies, setWordTallies] = useState<Record<string, WordTally[]>>({});
+  /** Which state of each Word round its words were read in; the live one is read on every change. */
+  const wordsRead = useRef(new Map<string, string>());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composer, setComposer] = useState<{ editing: ShowQuestion | null } | null>(null);
   const [armedClear, setArmedClear] = useState<string | null>(null);
@@ -1056,12 +1067,19 @@ export default function ProductionAudienceWorkspace({
           // Every vote's count, for the list's answer column. A closed round's counts are final, so
           // each is read once per state it is in (reopened, cleared); the live one is re-read
           // below at the tally's own rate.
-          const due = list.filter((r) => r.kind !== 'open' && tallyRead.current.get(r.id) !== tallyKey(r));
+          const due = list.filter((r) => r.kind !== 'open' && r.kind !== 'word' && tallyRead.current.get(r.id) !== tallyKey(r));
           const counted = await Promise.all(due.map((r) => backend.tally(r.id).then((t) => [r, t] as const, () => null)));
           if (!alive) return;
           for (const done of counted) if (done) tallyRead.current.set(done[0].id, tallyKey(done[0]));
           const fresh = counted.filter((d): d is NonNullable<typeof d> => d !== null);
           if (fresh.length > 0) setTallies((prev) => ({ ...prev, ...Object.fromEntries(fresh.map(([, t]) => [t.roundId, t])) }));
+          // Every Word round's words: a closed one once per state, the live one on every change.
+          const words = list.filter((r) => r.kind === 'word' && (!r.closedAt || wordsRead.current.get(r.id) !== tallyKey(r)));
+          const read = await Promise.all(words.map((r) => backend.wordCounts(r.id).then((w) => [r, w] as const, () => null)));
+          if (!alive) return;
+          const got = read.filter((d): d is NonNullable<typeof d> => d !== null);
+          for (const [r] of got) wordsRead.current.set(r.id, tallyKey(r));
+          if (got.length > 0) setWordTallies((prev) => ({ ...prev, ...Object.fromEntries(got.map(([r, w]) => [r.id, w])) }));
         },
         () => {},
       );
@@ -1089,7 +1107,7 @@ export default function ProductionAudienceWorkspace({
   // THE LIVE VOTE'S COUNTS move every time a phone is tapped, so they are polled at ~2 s while it
   // is live. Nothing polls a closed round: its counts are final.
   useEffect(() => {
-    if (!liveRound || liveRound.kind === 'open') return;
+    if (!liveRound || liveRound.kind === 'open' || liveRound.kind === 'word') return;
     let alive = true;
     const read = () =>
       void backend.tally(liveRound.id).then(
@@ -1113,11 +1131,17 @@ export default function ProductionAudienceWorkspace({
     for (const q of questions) {
       const round = roundOf.get(q.id);
       const isLive = !!round && !round.closedAt;
-      const answers = !round ? 0 : round.kind === 'open' ? rows.filter((r) => r.roundId === round.id).length : tallies[round.id]?.total ?? 0;
+      const answers = !round
+        ? 0
+        : round.kind === 'word'
+          ? (wordTallies[round.id] ?? []).reduce((n, w) => n + w.count, 0)
+          : round.kind === 'open'
+            ? rows.filter((r) => r.roundId === round.id).length
+            : tallies[round.id]?.total ?? 0;
       out[q.id] = { live: isLive, answers, locked: questionLocked(q, { live: isLive, answers }) };
     }
     return out;
-  }, [questions, roundOf, rows, tallies]);
+  }, [questions, roundOf, rows, tallies, wordTallies]);
   const liveQuestion = liveRound?.questionId ? questions.find((q) => q.id === liveRound.questionId) ?? null : null;
   const selected = questions.find((q) => q.id === selectedId) ?? null;
   const selectedRound = selected ? roundOf.get(selected.id) : undefined;
@@ -1436,6 +1460,88 @@ export default function ProductionAudienceWorkspace({
     }
   };
 
+  /**
+   * "Add word cloud to rundown" (AC-14; W6, W7): a snapshot of the Word question's shown words, most
+   * first, becomes the values of its one word cloud cue. Hidden words are never in it. A second
+   * press, a reload or another tab updates that same cue; with nowhere remembered the operator
+   * chooses one of the production's word clouds, or the catalog's, added with its one cue. Nothing airs.
+   */
+  const addWordCloud = async (q: ShowQuestion, round: AudienceRound, on: { graphicId?: string; board?: string } = {}) => {
+    if (!takeTurn()) return;
+    try {
+      let chosen = on.graphicId ?? null;
+      let adopt: string | null = null;
+      if (on.board) {
+        const made = await addResultBoard(show, on.board);
+        if (made.shows) setShows(made.shows);
+        if (made.error || !made.graphicId) {
+          setNote(`The word cloud was not added: ${made.error}`);
+          return;
+        }
+        chosen = made.graphicId;
+        adopt = made.cueId;
+      }
+      // The words as the provider counts them NOW, every one of them (like S28): a reading that
+      // fails writes nothing.
+      const list = await backend.wordCounts(round.id).catch(() => null);
+      if (!list) {
+        setNote('The words could not be read, so nothing was written. Try again.');
+        return;
+      }
+      // The hidden words as stored now, so a word hidden in another tab stays off the cue.
+      // A question still in the stored list decides, an empty list included: another tab may have
+      // shown its last hidden word. Only a question gone from it keeps this page's reading. The write
+      // itself then takes off every word hidden on the record it lands on (W11).
+      const stored = loadShows().find((x) => x.id === show.id) ?? show;
+      const now = showQuestions(stored).find((x) => x.id === q.id);
+      const hidden = now ? now.hidden ?? [] : q.hidden ?? [];
+      // Only the words the operator has seen (W10): fresh counts for the words the panel shows. A
+      // word that arrived since the panel last read waits for the next press, after it is listed.
+      const seen = new Set(countWordTallies(wordTallies[round.id] ?? []).map((w) => w.key));
+      const fresh = countWordTallies(list, hidden);
+      const counts = fresh.filter((w) => seen.has(w.key));
+      const unseen = fresh.filter((w) => !seen.has(w.key) && !w.hidden).length;
+      setWordTallies((prev) => ({ ...prev, [round.id]: list }));
+      const result = await stageWords(
+        show,
+        { questionId: q.id, question: round.question, counts, label: wordCloudLabel(round.question), chosen, adopt },
+        { stage: stageShowResult, commit: commitDurableWrites, setShows, reread: loadShows },
+      );
+      if (!result.ok && result.choose) {
+        setChoosingResult(q.id);
+        setNote(result.message === 'Choose where the word cloud goes.' ? null : result.message);
+        return;
+      }
+      setChoosingResult(null);
+      setNote(
+        result.ok && unseen
+          ? `${result.message} ${unseen} newer ${unseen === 1 ? 'word is' : 'words are'} listed now and not on the cue; press again to add ${unseen === 1 ? 'it' : 'them'}.`
+          : result.message,
+      );
+    } finally {
+      endTurn();
+    }
+  };
+
+  /** Hide a word from the word cloud, or show it again (W6). Hiding also takes it off the question's
+   *  word cloud cue, in the same write, so a word hidden after the press never airs. */
+  const hideWord = async (q: ShowQuestion, key: string, hide: boolean) => {
+    const { shows, error } = setShowWordHidden(show.id, q.id, key, hide);
+    setShows(shows);
+    const failure = error ?? (await commitDurableWrites());
+    if (failure) setNote(`${hide ? 'The word was not hidden' : 'The word was not shown again'}: ${failure}`);
+    // A cue already on air keeps what it showed until the operator's Update (W8): say so.
+    else if (hide && shows.find((x) => x.id === show.id)?.resultCues?.[q.id]) {
+      // The hosted control page and Companion run the published copy of the cues, which changes only
+      // with a publish, as for any cue edit.
+      setNote(
+        `Hidden, and taken off the word cloud cue. If the cloud is on air, press Update to take the word off air too.${
+          show.hostedSlug ? ' Publish again so the hosted control page and Companion drop it as well.' : ''
+        }`,
+      );
+    }
+  };
+
   /** Change: ask again where results go (S5, S16). Nothing is forgotten until a graphic is
    *  picked, so Cancel keeps the remembered one. */
   const changeResultTarget = (questionId: string) => setChoosingResult(questionId);
@@ -1660,7 +1766,7 @@ export default function ProductionAudienceWorkspace({
               <div className="pd-aud-round-head">
                 <h3 data-testid="question-selected-text">{selected.text}</h3>
                 <span className="hint">
-                  {selected.type === 'choice' ? 'Multiple choice' : 'Open'}
+                  {selected.type === 'choice' ? 'Multiple choice' : selected.type === 'word' ? 'Word' : 'Open'}
                   {rowStates[selected.id]?.live ? ' · live on phones' : ''}
                 </span>
               </div>
@@ -1782,6 +1888,21 @@ export default function ProductionAudienceWorkspace({
                     </label>
                   )}
                 </>
+              )}
+              {selected.type === 'word' && (
+                <WordPanel
+                  round={selectedRound ?? null}
+                  words={selectedRound ? countWordTallies(wordTallies[selectedRound.id] ?? [], selected.hidden ?? []) : []}
+                  destination={wordDestinationOf(show, selected.id)}
+                  clouds={wordDestinations(show)}
+                  choosing={choosingResult === selected.id}
+                  busy={busy}
+                  live={!!rowStates[selected.id]?.live}
+                  onStage={(on) => selectedRound && void addWordCloud(selected, selectedRound, on)}
+                  onChoose={(open) => setChoosingResult(open ? selected.id : null)}
+                  onHide={(key, hide) => void hideWord(selected, key, hide)}
+                  onSimulate={backend.simulate ? () => backend.simulate?.(4) : null}
+                />
               )}
               {selected.type === 'open' && (
                 <p className="hint" data-testid="question-selected-answers">
@@ -2207,5 +2328,111 @@ export default function ProductionAudienceWorkspace({
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * A Word question's words (AC-14): most first, each with how many phones sent it and Hide, and
+ * "Add word cloud to rundown" naming where it writes. Hidden words stay listed, struck through, and
+ * never reach the cue (W6). Props only: the workspace owns every write.
+ */
+function WordPanel({
+  round,
+  words,
+  destination,
+  clouds,
+  choosing,
+  busy,
+  live,
+  onStage,
+  onChoose,
+  onHide,
+  onSimulate,
+}: {
+  round: AudienceRound | null;
+  words: WordCount[];
+  destination: { graphicId: string; name: string } | null;
+  clouds: { graphicId: string; name: string }[];
+  choosing: boolean;
+  busy: boolean;
+  live: boolean;
+  onStage: (on?: { graphicId?: string; board?: string }) => void;
+  onChoose: (open: boolean) => void;
+  onHide: (key: string, hide: boolean) => void;
+  onSimulate: (() => void) | null;
+}) {
+  const sent = words.reduce((n, w) => n + w.count, 0);
+  const hidden = words.filter((w) => w.hidden).length;
+  return (
+    <>
+      {words.length > 0 ? (
+        <ul className="pd-aud-words" data-testid="word-list">
+          {words.map((w) => (
+            <li key={w.key} className={w.hidden ? 'hidden' : ''} data-testid="word-row">
+              <span className="pd-aud-word" title={w.word} data-testid="word-text">
+                {w.word}
+              </span>
+              <span className="pd-aud-tally-count" data-testid="word-count">
+                {w.count}
+              </span>
+              <button onClick={() => onHide(w.key, !w.hidden)} aria-label={`${w.hidden ? 'Show' : 'Hide'} ${w.word}`} data-testid="word-hide">
+                {w.hidden ? 'Show' : 'Hide'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="hint" data-testid="word-empty">
+          {round ? 'No words yet.' : 'Words arrive once this question is live on phones.'}
+        </p>
+      )}
+      <div className="pd-aud-round-actions">
+        <button className="primary" disabled={!round || busy} onClick={() => onStage()} data-testid="word-stage">
+          {destination ? `Add word cloud to rundown on ${destination.name}` : 'Add word cloud to rundown'}
+        </button>
+        {destination && (
+          <button disabled={busy} onClick={() => onChoose(true)} data-testid="word-target-change">
+            Change
+          </button>
+        )}
+        {onSimulate && live && (
+          <button onClick={onSimulate} data-testid="word-simulate">
+            ⟳ Simulate words
+          </button>
+        )}
+        <span className="hint">
+          {sent} {sent === 1 ? 'word' : 'words'}
+          {hidden ? `, ${hidden} hidden` : ''}. The cue changes on air only when you Take or Update it.
+        </span>
+      </div>
+      {choosing && round && (
+        <div className="pd-aud-choose" data-testid="word-choose">
+          {clouds.length > 0 ? (
+            <>
+              <span className="hint">Word cloud on:</span>
+              {clouds.map((d) => (
+                <button key={d.graphicId} disabled={busy} onClick={() => onStage({ graphicId: d.graphicId })} data-testid="word-choose-graphic">
+                  {d.name}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <span className="hint" data-testid="word-no-destination">
+                No graphic here can show words. Add a word cloud:
+              </span>
+              {WORD_CLOUDS.map((b) => (
+                <button key={b.id} disabled={busy} onClick={() => onStage({ board: b.id })} data-testid="word-choose-board">
+                  {b.name}
+                </button>
+              ))}
+            </>
+          )}
+          <button onClick={() => onChoose(false)} data-testid="word-choose-cancel">
+            Cancel
+          </button>
+        </div>
+      )}
+    </>
   );
 }

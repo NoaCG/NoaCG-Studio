@@ -62,7 +62,7 @@ import { stageFitRuntimeJs } from '../shared/stageFit';
 import type { AnimData, AnimStep } from '../../blocks/animData';
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import { audiencePresetById } from './audiencePresets';
-import { AUDIENCE_ATTRIBUTION_JS, AUDIENCE_JOIN_JS, AUDIENCE_QUEUE_JS } from './audienceRuntime';
+import { AUDIENCE_ATTRIBUTION_JS, AUDIENCE_JOIN_JS, AUDIENCE_QUEUE_JS, AUDIENCE_WORDS_JS } from './audienceRuntime';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
 // ── Forms ────────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ export interface AudienceLine {
 }
 
 export interface AudienceForm {
-  id: 'question' | 'qa' | 'chat' | 'queue' | 'request' | 'join';
+  id: 'question' | 'qa' | 'chat' | 'queue' | 'request' | 'join' | 'words';
   /** The fields, in emission order — they compile to f0…fN positionally. */
   lines: AudienceLine[];
   /** One-line comment describing the root in the generated HTML. */
@@ -212,6 +212,28 @@ export const JOIN_FORM: AudienceForm = {
     // A graphic's own text may hold no absolute URL (the publish gate), so the sample has no
     // scheme; Add Join card to rundown writes the real link into the cue, not the graphic.
     { title: 'Join link', sample: 'noacg.studio/j/your-show' },
+  ],
+};
+
+/** WORD CLOUD: the words a Word question gathered, sized by how many phones sent each
+ *  (templates/audience/wordCloud.ts; interaction spec AC-14). */
+export const WORDS_FORM: AudienceForm = {
+  id: 'words',
+  rootComment: 'Word cloud: the question, and the words the audience sent, sized by how many sent each.',
+  hiddenSourceField: 'f2',
+  hiddenSourceComment:
+    'Hidden words source: SPX writes field f2 here, one "word | count" line each, most first; the runtime draws them as a cloud. Empty draws nothing.',
+  repaint: 'audienceWordsPaint();',
+  repaintNote: '                 // what the form draws from its fields',
+  runtimeJs: AUDIENCE_WORDS_JS,
+  lines: [
+    { title: 'Label', sample: 'YOUR WORDS' },
+    { title: 'Question', sample: 'Sum up tonight in one word' },
+    {
+      title: 'Words',
+      ftype: 'textarea',
+      sample: ['Brilliant | 18', 'Tense | 11', 'Electric | 9', 'Proud | 7', 'Loud | 6', 'Joyful | 5', 'Nervous | 4', 'Unforgettable | 3', 'Fun | 3', 'Epic | 2', 'Wild | 2', 'Classy | 1'].join('\n'),
+    },
   ],
 };
 
@@ -383,7 +405,8 @@ export function assembleAudience(
   const font = resolveHeadingFont(o); // imported font wins over the bundled set
   const scale = computeScale(o);
   // A quoted message reads best on a measure wider than a strap and narrower than a full card.
-  const maxTextWidth = Math.round(o.resolution.width * (form.id === 'queue' ? 0.5 : 0.44));
+  // A word cloud is a board: it needs the width of one.
+  const maxTextWidth = Math.round(o.resolution.width * (form.id === 'queue' ? 0.5 : form.id === 'words' ? 0.7 : 0.44));
   const fields = audienceFields(form, o);
   const hidden = form.hiddenSourceField
     ? fields.find((f) => f.field === form.hiddenSourceField)

@@ -33,8 +33,9 @@ import { canAuthorAccount, conditionalDurableWrite, durable, rebasedDurableSet, 
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { JOIN_PAGE_LIMITS } from './joinPage';
-import { readQuestions, type ShowQuestion } from './questions';
-import { planResultCue, readResultCues, type ResultPlan } from './resultCues';
+import { readQuestions, setWordHidden, type ShowQuestion } from './questions';
+import { scrubHiddenWords } from './wordCues';
+import { planResultCue, readResultCues, type ResultPlan, type ResultTargetKey } from './resultCues';
 import { hasLiveData } from './liveDataMark';
 import { ownReaderHolds } from './ownReaderHolds';
 import { loadGraphics, resolveSavedGraphicDoc, type GraphicDoc } from './library';
@@ -509,6 +510,10 @@ export interface Show {
    *  remembered like `messageTarget` (model/resultCues.ts, interaction phase 3 S5). ADDITIVE
    *  OPTIONAL; absent = not chosen yet. */
   resultTarget?: string;
+  /** Where a Word question's word cloud goes: the pool graphic id chosen for "Add word cloud to
+   *  rundown", remembered like `resultTarget` (control/wordStaging.ts, interaction phase 6 W7).
+   *  ADDITIVE OPTIONAL; absent = not chosen yet. */
+  wordTarget?: string;
   /** Each question's one RESULT CUE: question id to cue id (model/resultCues.ts, S1). Saved with
    *  the production so a reload, another tab and another operator update the same cue. ADDITIVE
    *  OPTIONAL; absent = no result staged. */
@@ -608,6 +613,10 @@ function saveAll(list: Show[]): string | null {
   if (!canAuthorAccount()) return 'Account editing is paused. Sign in again; pending work is preserved.';
   const personal: Show[] = [];
   for (const show of list) {
+    // W11 (interaction phase 6): no write leaves a hidden word on a cue carrying its question's
+    // words, whichever writer put it there (a press, a paste of an earlier copy, a duplicate, an
+    // edit). A no-op for a production with no hidden words.
+    if (!show.deleted) scrubHiddenWords(show);
     if (show.teamId) writeTeamShow(show);
     else personal.push(show);
   }
@@ -1079,6 +1088,7 @@ function patchShowChecked(
   const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
+  scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
   const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
   rebasedDurableSet(SHOWS_KEY, JSON.stringify(personal), (current) => {
@@ -1091,6 +1101,7 @@ function patchShowChecked(
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
+    if (again) scrubHiddenWords(fresh); // W11, on the stored record this pass lands on
     const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
@@ -2511,6 +2522,24 @@ export function setShowQuestions(
   }, true);
 }
 
+/**
+ * Hide a Word question's word, or show it again (interaction phase 6, W6), in ONE rebased write.
+ * Hiding also takes the word out of the question's word cloud cue when it has one, so a word hidden
+ * after "Add word cloud to rundown" never airs with the next Take. Showing it again changes only the
+ * list: the next press puts it back with its count. A record write; nothing airs.
+ */
+export function setShowWordHidden(showId: string, questionId: string, key: string, hide: boolean): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const before = readQuestions(show.questions);
+    const next = setWordHidden(before, questionId, key, hide);
+    const listed = JSON.stringify(next) !== JSON.stringify(before);
+    if (listed) show.questions = next;
+    // W6, W11: off every cue that carries the question's words, on the record this write lands on.
+    const scrubbed = scrubHiddenWords(show);
+    return listed || scrubbed;
+  }, true);
+}
+
 /** Change the phone page's title or waiting text (Show.joinPage). An empty value means the default
  *  and is not stored. */
 export function setShowJoinPage(showId: string, patch: { title?: string; waiting?: string }): { shows: Show[]; error: string | null } {
@@ -2548,6 +2577,8 @@ export function stageShowResult(
     chosen?: string | null;
     adopt?: string | null;
     closeOnly?: boolean;
+    /** Which remembered graphic a pick is kept in: a vote's (default) or a word cloud's. */
+    target?: ResultTargetKey;
   },
 ): { shows: Show[]; error: string | null; outcome: () => { plan: ResultPlan | null; cueId: string | null } } {
   // The write is REBASED: the mutator runs on this tab's copy, then again on the stored record when
@@ -2566,7 +2597,7 @@ export function stageShowResult(
   const { shows, error } = patchShowChecked(showId, (show) => {
     const local = firstPass;
     firstPass = false;
-    const p = planResultCue(show, questionId, takes, opts.chosen);
+    const p = planResultCue(show, questionId, takes, opts.chosen, opts.target);
     plan = p;
     cueId = null;
     if (opts.closeOnly && p.kind !== 'update') return local && rebasedHere(show);
@@ -2587,7 +2618,7 @@ export function stageShowResult(
     cueId = cue.id;
     show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
     // An explicit pick is remembered, whether it added a cue or landed on the one already there (S5).
-    if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show.resultTarget = opts.chosen;
+    if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show[opts.target ?? 'resultTarget'] = opts.chosen;
     return true;
   }, true);
   return { shows, error, outcome: () => (error ? { plan: null, cueId: null } : { plan, cueId }) };

@@ -48,7 +48,7 @@ at `5f60ce97`.
 | No usable diff base means the full suite | ci.yml:427-430, `--all` | The last-resort fallback runs everything |
 | `--integration` on pull requests and the merge group | ci.yml:431-441 | The plan reads from the fork point, so it can only plan more |
 | `e2e-catalog` job, "Catalog calibration gate" | ci.yml:920-949 | Runs when the flag is raised. Step `Catalog emit fingerprints` (`npm run check:catalog-emit`) checks every design's emit; step `Catalog calibration tripwire` (`npm run test:e2e:catalog`, `playwright.catalog.config.ts`) benches the **whole catalog**. No scope variable or `--only` is passed, and this row adds none |
-| `gate` job ("CI gate") | ci.yml:1410, needs at :1427, `optional "Catalog calibration gate"` at :1533 | A failed or cancelled catalog gate holds the PR or merge group back. Skipped is accepted only when the plan did not raise the flag |
+| `gate` job ("CI gate") | ci.yml:1410, needs at :1427, `optional "Catalog calibration gate"` at :1533 | A failed or cancelled catalog gate holds the PR or merge group back. Skipped is accepted only when the plan did not raise the flag: what ties a skip to the flag is the job's `if: ${{ needs.plan.outputs.catalog == 'true' }}` at ci.yml:923, while `optional()` (defined at :1522) accepts any `skipped` (corrected by cicd-followup cf15, #1949 item 3) |
 | `nightly.yml`, cron `20 0 * * *` | nightly.yml:30, `catalog` and `catalog-gates` jobs, `engine-floor.mjs --fail` at :269 | The whole-catalog nightly and its engine-floor gate keep their daily cadence |
 | `catalog-gates.yml`, cron `50 11 * * *` | catalog-gates.yml:78 | The scoped midday battery stays as it is. It adds coverage on top of the full gates and does not replace them |
 
@@ -61,7 +61,7 @@ From ci15, re-read 2026-11-02:
 
 | Blocker | Tracking | State |
 | --- | --- | --- |
-| Deadline receipt fails: the nightly is the only carrier for engine-floor and the full E2E suite. Over 14 days, 128 landings waited more than 24 hours for a complete green E2E verdict and 11 for engine-floor | [phase-ci13.md](phase-ci13.md) (NOT QUALIFIED, checker PASS on `d26c0ba0`, PR #1930); nightly cause #1622 | #1622 open |
+| Deadline receipt fails: the nightly is the only carrier for engine-floor and, once selection narrows, for the E2E specs a scoped selection would omit (phase-ci13.md:23-24; every push to `main` still runs the full suite today, section 2; qualifier restored by cicd-followup cf15, #1949 item 1). Over 14 days, 128 landings waited more than 24 hours for a complete green E2E verdict and 11 for engine-floor | [phase-ci13.md](phase-ci13.md) (NOT QUALIFIED, checker PASS on `d26c0ba0`, PR #1930); nightly cause #1622 | #1622 open |
 | Pre-reset unexplained miss: `video-hyperframes`, culprit `aa2717b3` | #1900 | open |
 | Pre-reset unexplained miss: `editor-foundation`, culprit `b0331ecb` | #1942 | open |
 | Pre-reset unexplained miss: `editor-base-edits`, culprit `97311f15` | #1944 | open |
@@ -92,8 +92,10 @@ failure on a docs-only PR), #1865 and #1829 (configured-suite stack start).
 
 ## 5. Verification
 
-- `git log --first-parent 8e84002d..origin/main`: four landings after ci15's base read
-  (#1936, #1938, #1940, #1943). None is a reset.
+- `git log --first-parent 8e84002d..5f60ce97` (this row's base): 11 landings since the reset, none
+  a reset. The four named here are those from ci15's base `5ca8b87a` on (#1936, #1938, #1940,
+  #1943). (Corrected by cicd-followup cf15, #1949 item 2: the line first gave this range with the
+  count four.)
 - `node scripts/e2e-selection-misses.mjs resets --ref origin/main` at `5f60ce97`: `8e84002d`.
 - `e2e/quarantine.json` at `5f60ce97`: four entries, as tabled.
 - Read ci.yml, nightly.yml and catalog-gates.yml at `5f60ce97` for section 2.
