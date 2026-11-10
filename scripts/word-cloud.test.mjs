@@ -310,6 +310,19 @@ test('every cue carrying a question\'s words loses its hidden words; nothing els
   assert.equal(scrubHiddenWords(wordShow([], 'Rude | 3')), false);
 });
 
+test('a duplicate with the same words keeps its own cue: only its own hidden list applies (W11)', () => {
+  // The original hides Rude; its Duplicate (same text, new id, nothing hidden) has its own cue.
+  const show = wordShow(['rude'], 'Fun | 4\nRude | 3');
+  show.questions.push({ id: 'q-copy', type: 'word', text: 'One word?' });
+  show.resultCues['q-copy'] = 'c-copy';
+  show.cues.push({ id: 'c-copy', sourceId: 'g-cloud', label: 'Words: One word?', values: { f0: 'YOUR WORDS', f1: 'One word?', f2: 'Rude | 2' } });
+  scrubHiddenWords(show);
+  const byId = Object.fromEntries(show.cues.map((c) => [c.id, c.values.f2]));
+  assert.equal(byId['c-mapped'], 'Fun | 4', 'the original\'s own cue loses its hidden word');
+  assert.equal(byId['c-copy'], 'Rude | 2', 'the copy\'s cue keeps a word only the original hides');
+  assert.equal(byId['c-moved'], 'Fun | 4\nRude | 3', 'an unmapped cue two questions could own is nobody\'s');
+});
+
 test('a team merge never keeps a hidden word on a cue, whichever side hid it (W11)', () => {
   // Base: Rude on the cue, nothing hidden. Ours hides Rude (and took it off the cue); theirs pressed
   // again with a stale list and saved first, so their cue still carries Rude and wins the cue.

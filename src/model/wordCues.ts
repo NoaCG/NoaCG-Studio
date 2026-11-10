@@ -7,9 +7,11 @@
 // pass included), Hide, and a team merge. A tab's own earlier reading never decides, so a word
 // hidden in another tab or by a teammate stays off the cue whatever order the writes land in.
 //
-// A cue carries a question's words when it is the question's result cue (`Show.resultCues`), or
-// when it sits on a word cloud whose Question value is the question's text (the cue left behind by
-// Change, a duplicate of the result cue). Only the Words lines go; nothing else on a cue changes.
+// A cue carries a question's words when it is the question's result cue (`Show.resultCues`): a
+// mapped cue belongs to that one question and no other. A word cloud cue that no question maps (the
+// cue left behind by Change, a duplicate of a result cue) carries the words of the one Word question
+// whose text its Question holds; when two Word questions share that text (Duplicate keeps it), it is
+// nobody's and is left as it is. Only the Words lines go; nothing else on a cue changes.
 //
 // Pure and Node-runnable (scripts/word-cloud.test.mjs).
 
@@ -21,9 +23,12 @@ import { wordCloudFields, wordsWithout } from './wordCloud.ts';
 /** Take every hidden word of every Word question off the cues that carry that question's words.
  *  Changes `show` in place; true when a cue changed. */
 export function scrubHiddenWords(show: Pick<Show, 'questions' | 'cues' | 'graphics' | 'resultCues'>): boolean {
-  const questions = readQuestions(show.questions).filter((q) => q.type === 'word' && (q.hidden?.length ?? 0) > 0);
+  const words = readQuestions(show.questions).filter((q) => q.type === 'word');
+  const questions = words.filter((q) => (q.hidden?.length ?? 0) > 0);
   if (!questions.length || !show.cues?.length) return false;
   const mapped = readResultCues(show.resultCues);
+  const mappedCues = new Set(Object.values(mapped));
+  const sameText = (text: string) => words.filter((w) => w.text.trim() === text.trim()).length;
   let changed = false;
   for (const cue of show.cues) {
     const graphic = show.graphics.find((g) => g.id === cue.sourceId);
@@ -32,7 +37,9 @@ export function scrubHiddenWords(show: Pick<Show, 'questions' | 'cues' | 'graphi
     if (!map || typeof words !== 'string') continue;
     let next = words;
     for (const q of questions) {
-      if (mapped[q.id] !== cue.id && (cue.values[map.question] ?? '').trim() !== q.text.trim()) continue;
+      const own = mapped[q.id] === cue.id;
+      const orphan = !mappedCues.has(cue.id) && (cue.values[map.question] ?? '').trim() === q.text.trim() && sameText(q.text) === 1;
+      if (!own && !orphan) continue;
       for (const key of q.hidden ?? []) next = wordsWithout(next, key);
     }
     if (next !== words) {

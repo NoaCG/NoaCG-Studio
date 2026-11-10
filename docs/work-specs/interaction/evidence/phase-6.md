@@ -149,6 +149,14 @@ word, another question's cloud and a vote board are untouched; a team merge wher
 and theirs re-staged it keeps it off the cue; mutation: removing the merge's call fails that test);
 the Word, Fill from and second-operator journeys pass (j-0024); the walk below.
 
+## Review of `cafc165` (PR review bot)
+
+One finding, family W11: the text match also scrubbed a Duplicate's own result cue (same text, new
+id) with the original's hidden words. Fixed: a mapped cue belongs to its question only, and an
+unmapped cue is matched by text only when one Word question has that text. Node test: the
+original's cue loses its hidden word, the copy's cue keeps it, an unmapped cue two questions share
+is left as it is.
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine

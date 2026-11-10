@@ -996,9 +996,13 @@ challenged them before the final assessment:
 - W11. Every write that can put a word on a cue or hide one applies the hidden words of the record
   it lands on, inside that write: a press (its rebased pass included), Hide and a team merge
   (`scrubHiddenWords`, `model/wordCues.ts`). It takes them off every cue carrying the question's
-  words: its result cue, and any word cloud cue whose Question is the question's text (the cue
-  left behind by Change, a duplicate). A tab's own earlier reading never decides. Found by the
-  final `/so` of `0ccd83e` as the rule missing behind the cross-tab and team cases.
+  words: its result cue (a mapped cue belongs to that one question only), and a word cloud cue no
+  question maps whose Question is this question's text, when no other Word question has that text
+  (the cue left behind by Change, a duplicate). A tab's own earlier reading never decides. Found by
+  the final `/so` of `0ccd83e` as the rule missing behind the cross-tab and team cases; narrowed to
+  question identity after the PR review of `cafc165` (a Duplicate keeps its text, and its own cue
+  must not lose a word only the original hides). Residual: an unmapped cue whose text two Word
+  questions share keeps its words.
 
 Model correction (after the review of `ad7ec51`): W9 had been held by filtering words out of the
 message list in each surface, using the rounds the page had read. Two successive rounds found the
