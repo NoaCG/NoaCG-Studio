@@ -880,6 +880,7 @@ function creditsCardTime() {
 // whole list laid out once at its drawn size (the probe), so nothing is laid out twice to deal it.
 function creditsCardsOf(probe) {
   var sections = parseCredits(creditsHeldList(), function (s) { return s; });
+  creditsTitleWords(sections);          // the title is no row of any card's count (creditsTitle)
   var units = [];
   var at = 0;
   var glued = null;
@@ -1243,16 +1244,15 @@ ${held('', creditsHeldJs())}
 // (DesignSvgCredits.title), that line is taken out of the list and painted as a copy of the drawn
 // title - its look, and where it was drawn - inside the rows, so it travels with them. Without a
 // drawn title, or when the list starts with a role, every line reads as before. Cards show it on
-// the first card only (SHOWN false on the others).
+// the first card only (SHOWN false on the others). Returns the copy, for the width fit, or null.
 function creditsTitle(sections, rows, ref, container, shown) {
   var source = document.querySelector('[${CREDITS_TITLE_ATTR}]');
-  if (!source || !sections.length || !sections[0].length || sections[0][0].type !== 'entry') return;
-  var words = sections[0].shift().text;
-  if (!sections[0].length) sections.shift();
-  var at = shown === false ? null : creditsFrom(source.parentNode, ref);
-  if (!at) return;
+  var words = creditsTitleWords(sections);
+  var at = words === null || shown === false ? null : creditsFrom(source.parentNode, ref);
+  if (!at) return null;
   // A copy that keeps where the title was drawn: its own x, y and transform, in its parent's frame.
-  var row = creditsCopy(source, words, true).row;
+  var copy = creditsCopy(source, words, true);
+  var row = copy.row;
   row.setAttribute('data-noacg-credits', 'title');
   // What the drawn title inherits from its own groups, which the copy no longer sits in.
   var look = creditsLookOf(source, container);
@@ -1261,6 +1261,17 @@ function creditsTitle(sections, rows, ref, container, shown) {
   wrap.setAttribute('style', look.paint + ';' + look.whole + ';text-anchor:' + getComputedStyle(source).textAnchor);
   wrap.appendChild(row);
   rows.appendChild(wrap);
+  return copy;
+}
+
+// creditsTitleWords(sections): the show title the list starts with, taken out of the list, or null
+// where no title is drawn or the list starts with a role. The painter and the card dealer both ask
+// it, so the rows they count agree.
+function creditsTitleWords(sections) {
+  if (!document.querySelector('[${CREDITS_TITLE_ATTR}]') || !sections.length || !sections[0].length || sections[0][0].type !== 'entry') return null;
+  var words = sections[0].shift().text;
+  if (!sections[0].length) sections.shift();
+  return words;
 }
 
 // creditsFrom(a, b): the matrix taking a's own units into b's, through the screen, so any two
@@ -1461,7 +1472,7 @@ ${beside(`  // THE SHARED EDGE, the mean over every drawn layer in the first rol
   // Written as textContent, so nothing here is escaped: the identity is the escape.
   var sections = parseCredits(text, function (s) { return s; });
   while (rows.firstChild) rows.removeChild(rows.firstChild);
-  creditsTitle(sections, rows, ref, container${cards('', ', !card || card.from === 0')});
+  var title = creditsTitle(sections, rows, ref, container${cards('', ', !card || card.from === 0')});
   var S = NOACG_CREDITS_STYLE;
   // One look rule per kind, and the shared edge every row is anchored on.
   var sel = '.${cls}-rows > .${cls}-row';
@@ -1603,6 +1614,27 @@ ${still(`      var width = box.width * scale;
     }`)}
     if (fit.reported) over = true;
     noacgCreditsFit.push(fit);
+  }
+  // The show title fits the window's whole width, from where it is anchored, as a row does: it
+  // shrinks to its room, is reported past 55% and stops at the 30% floor.
+  var titleBox = null;
+  if (title && lo !== null) try { titleBox = title.row.getBBox(); } catch (err) { titleBox = null; }
+  var titleM = titleBox && titleBox.width > 0 ? creditsFrom(title.row, ref) : null;
+  if (titleM) {
+    var tl = creditsAt(titleM, titleBox.x, titleBox.y).x, tr = creditsAt(titleM, titleBox.x + titleBox.width, titleBox.y).x;
+    var tLeft = Math.min(tl, tr), tRight = Math.max(tl, tr);
+    var tPx = parseFloat(getComputedStyle(title.run).fontSize) || 16;
+    var tMargin = 0.5 * tPx * (Math.sqrt(Math.abs(titleM.a * titleM.d - titleM.b * titleM.c)) || 1);
+    var tAnchor = getComputedStyle(title.row).textAnchor;
+    var tAt = tAnchor === 'middle' ? (tLeft + tRight) / 2 : tAnchor === 'end' ? tRight : tLeft;
+    var tRoom = tAnchor === 'middle' ? 2 * Math.min(tAt - lo, hi - tAt) - 2 * tMargin : tAnchor === 'end' ? tAt - lo - tMargin : hi - tAt - tMargin;
+    var tScale = tRight - tLeft > tRoom ? Math.max(NOACG_CREDITS_FLOOR, tRoom / (tRight - tLeft)) : 1;${still('', `
+    if (K < tScale) tScale = K;`)}
+    if (tScale < 1) {
+      title.row.style.fontSize = (tPx * tScale) + 'px';
+      if (title.run !== title.row) title.run.style.fontSize = (tPx * tScale) + 'px';
+      if (tScale < NOACG_CREDITS_REPORT) over = true;
+    }
   }
   if (sizes) noacgCreditsSheet.textContent = base + sizes;${still('', `
   // THIRD PASS, TOO TALL (a still page): the page holds in the window (the Credits box, else the

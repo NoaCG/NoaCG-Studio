@@ -269,6 +269,19 @@ for (const t of templates) {
           if (SHOTS && k % 2 === 1) await page.getByTestId('program-stage').screenshot({ path: `${SHOTS}/${t.slug}-roll-${k * 10}.png` });
         }
         for (let k = 1; k < ys.length; k++) expect(ys[k], 'the title moves up with the list').toBeLessThan(ys[k - 1]);
+        // A title too long for the window shrinks into it, as a row does, rather than running off.
+        const drawnSize = await heading.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+        await page.locator('textarea[data-testid^="cue-field-"]').first().fill('The Extraordinary Grand Final of the Weekly Quiz Night Championship 2026\nDirector: Casey Hill');
+        await page.getByTestId('verb-update').click();
+        await page.getByTestId('verb-retake').click();
+        await expect(heading).toHaveText('The Extraordinary Grand Final of the Weekly Quiz Night Championship 2026');
+        const fitted = await heading.evaluate((el) => {
+          const frame = el.closest('svg')!.getBoundingClientRect();
+          const box = el.getBoundingClientRect();
+          return { size: parseFloat(getComputedStyle(el).fontSize), width: box.width, room: frame.width };
+        });
+        expect(fitted.size, `the long title shrinks: ${JSON.stringify(fitted)}`).toBeLessThan(drawnSize);
+        expect(fitted.width, `and fits the window: ${JSON.stringify(fitted)}`).toBeLessThanOrEqual(fitted.room);
         break;
       }
     }

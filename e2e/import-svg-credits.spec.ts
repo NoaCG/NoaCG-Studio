@@ -735,14 +735,15 @@ test('role-above credits chosen to play as cards change on Next card, and a card
   await expect(page.getByTestId('cue-field-over-f0')).toBeVisible();
   await expect(page.getByTestId('cue-overflow')).toContainText('too long for the design');
 
-  // Two cards that fit: Take shows the first, Next card the second.
-  await credits.fill('Research:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss');
+  // Two cards that fit, the list starting with its show title: Take shows the first card with the
+  // title above it, Next card the second without it. The title is no row of either card's count.
+  await credits.fill('PRODUCTION\nResearch:\nNia Vale\nTomas Fen\n\nSound:\nAri Moss');
   await expect(page.getByTestId('cue-field-over-f0')).toHaveCount(0);
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('action-log')).toContainText('Took');
   const air = page.frameLocator('[data-testid="program-stage"] iframe');
   const rows = air.locator('.imported-design-credits-row');
-  await expect(rows).toHaveText(['Research', 'Nia Vale', 'Tomas Fen']);
+  await expect(rows).toHaveText(['PRODUCTION', 'Research', 'Nia Vale', 'Tomas Fen']);
   await page.getByTestId('cue-actions').getByRole('button', { name: /Next card$/ }).click();
   await expect(rows).toHaveText(['Sound', 'Ari Moss']);
   expect((await creditRowsAtRest(air)).map((r) => [r.kind, r.y])).toEqual([['role', 175], ['name', 240]]);
