@@ -74,8 +74,8 @@
       "phase": "E1",
       "actionId": "plan-editor-r1-5-2026-11-08:1",
       "nativeId": "/root/editor_r15_e1_resume",
-      "note": "Owner approved protection for older SVG groups. Same E1 build resumes from clean bc8dfdf6.",
-      "checkpointed": true,
+      "note": "Same E1 worker acknowledged on bc8dfdf6 after the owner compatibility decision. Updating and reviewing SVG group rules before product edits.",
+      "checkpointed": false,
       "head": "bc8dfdf685e4fe7d6c7e3a124211979f99f3bc3f"
     }
   ],
@@ -182,7 +182,13 @@
       "patch": "briefs/e1-svg-group-geometry-review.patch",
       "verifiedProduct": "df0761176002b37190200d35265be0fb15c09cbb",
       "outcome": "Fresh repeated-family review DISAGREE with local patch under the pinned rule model. Unchanged j-5076 plus candidate j-5080/j-5081 prove legacy effective pivot differs from the stored pivot when child bounds move. Keeping fixed frame, first paint and untouched axis requires refusing the unsafe edit unless the owner authorizes a conversion.",
-      "ownerReceipt": "receipts/e1-svg-group-owner-decision-2026-11-10.json"
+      "ownerReceipt": "receipts/e1-svg-group-owner-decision-2026-11-10.json",
+      "resumed": {
+        "actor": "/root/editor_r15_e1_resume",
+        "briefSHA256": "f18a60d4d6b9cdf1ac58ed234c030d92f2e6bcd21f151084076041d10f7d0fc1",
+        "head": "bc8dfdf685e4fe7d6c7e3a124211979f99f3bc3f",
+        "observedAt": "2026-11-10T21:38:46Z"
+      }
     }
   }
 }
