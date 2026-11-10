@@ -224,7 +224,8 @@ adds no emitted JS**: a behaviour that needs a line is a missing FIELD KIND in t
   styles and an optional Credits box. The recipe's entrance calls `noacgCreditsRoll` in all three.
   **A styled ROLL is one text** (owner ruling): at the take, everything else drawn in the
   list's column inside the window moves into the rolled group (`creditsRiders`), so a title never
-  sits still while rows pass over it; backgrounds and what stands beside the column stay put.
+  sits still while rows pass over it; backgrounds, what stands beside the column and an operator's
+  field (the entrance poses it line by line, which would move the measure) stay put.
   **The list's first line is the show title** (owner ruling): a text drawn above the roles in
   a third look is the binding's `title`, never a field, and a first line that is not a role is
   painted as its copy where it was drawn (`creditsTitleOf`, `creditsTitle`).

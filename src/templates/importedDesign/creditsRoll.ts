@@ -524,8 +524,10 @@ const CREDITS_RIDERS_JS = `
 // a show title above the first role, the rule under it, a closing line below the last name - is
 // part of the one text that scrolls, so the take moves it into the roll group once, where it was
 // drawn, and it travels with the rows. What fills most of the window (a background) stays put, and
-// so does anything beside the column, such as a corner logo. A moved layer keeps its id, so the
-// operator's field still writes into it; the look it inherited from its old group is copied on.
+// so does anything beside the column, such as a corner logo, and so does an operator's field: the
+// entrance moves a field line by itself, and a line posed by its entrance would move the roll's
+// measure with it. The show title the list starts with is no field (creditsTitle). The look a
+// moved layer inherited from its old group is copied on.
 var CREDITS_RIDER_KEEP = ['font-family', 'font-size', 'font-weight', 'font-style', 'letter-spacing',
   'word-spacing', 'text-anchor', 'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'opacity'];
 function creditsRiders(roll, win, rows) {
@@ -538,6 +540,7 @@ function creditsRiders(roll, win, rows) {
   for (var i = 0; i < found.length; i++) {
     var el = found[i];
     if (el === box || roll.contains(el) || (el.parentNode && el.parentNode.closest && el.parentNode.closest('text'))) continue;
+    if (/^f\\d+$/.test(el.id) || Array.prototype.some.call(el.querySelectorAll('[id]'), function (n) { return /^f\\d+$/.test(n.id); })) continue;
     var shown = el.getBoundingClientRect();
     if (!(shown.width > 0 || shown.height > 0) || getComputedStyle(el).visibility === 'hidden') continue;
     var m = creditsFrom(el, roll);
@@ -636,18 +639,7 @@ function creditsTake() {
   var rowsScale = Math.sqrt(rowsM.c * rowsM.c + rowsM.d * rowsM.d);
   var colA = rowsM.a * rowsBox.x + rowsM.e, colB = rowsM.a * (rowsBox.x + rowsBox.width) + rowsM.e;
   creditsRiders(roll, win, { x: Math.min(colA, colB), width: Math.abs(colB - colA) });
-  // A rider that is a field is a line the entrance moves on its own: measured at rest, as the
-  // rows are (creditsAtRest), or the travel depends on when in the entrance the take ran.
-  var posed = roll.querySelectorAll('[data-noacg-rider] *');
-  var undone = [];
-  for (var p = 0; p < posed.length; p++) {
-    if (posed[p].style && posed[p].style.transform) {
-      undone.push({ el: posed[p], transform: posed[p].style.transform });
-      posed[p].style.transform = 'none';
-    }
-  }
   try { bb = roll.getBBox(); } catch (e) { bb = null; }
-  for (var u = 0; u < undone.length; u++) undone[u].el.style.transform = undone[u].transform;
   if (!bb || !(bb.height > 0)) return null;` : ''}
   frame.setAttribute('x', String(win.left));
   frame.setAttribute('y', String(win.top));
