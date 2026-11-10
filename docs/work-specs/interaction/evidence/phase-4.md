@@ -76,3 +76,13 @@ marks, and how results look on air is phase 5.
   written; the panel now says to wait a moment before Stop); every backend change cleared the
   reading of what is live (now only this page's Go live and Stop do). A fresh `/so` assesses the
   final head.
+- Read-only `/so` on `1ec645d`: AGREE, grade A, three low findings, none blocking (a dropped count
+  can be credited to the wrong source when one batch mixes YouTube and Twitch; a reading of what is
+  live that hangs rather than fails holds lines without a timeout; the fixtures are recorded-shape,
+  invented data). Not changed; the coordinator may file them.
+- PR review of `1ec645d`: one P2 finding, fixed: a send that failed and was retried could
+  overwrite a newer vote from the same voter with the same whole-second time. Vote sends now run
+  one at a time in arrival order, and a retry leaves out replaced votes (C4); test "a retried send
+  never overwrites a newer vote said in the same second", which fails with the filter removed.
+- `45c7c7f` restored `scripts/e2e-traced.json` to main's copy: squashing onto a moved `origin/main`
+  with `reset --soft` had put an older nightly map back.

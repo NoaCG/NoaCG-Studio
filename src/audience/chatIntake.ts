@@ -332,6 +332,10 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
   let liveRead: { at: number; round: AudienceRound | null } | null = null;
   /** Moves on every `liveChanged`, so a reading already under way is known to be stale. */
   let liveGeneration = 0;
+  /** Per voter, the newest vote sorted so far (C4). Bounded like the dedupe set. */
+  const newestSeen = new Map<string, ChatVote>();
+  /** The chain vote sends run on, one at a time. */
+  let sending: Promise<void> = Promise.resolve();
   /** False while no production page is open in this tab: lines are not collected (C11). */
   let collecting = true;
   /** Lines waiting for a reading of the live round, in arrival order. */
@@ -473,7 +477,16 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
               runtime.state.dropped += 1;
               continue;
             }
-            votes.push({ runtime, vote: { voter, option, at: new Date(at).toISOString() } });
+            const vote = { voter, option, at: new Date(at).toISOString() };
+            // C4: remember the newest vote seen from this voter, by platform time and then by
+            // arrival, so a send that is retried later never overwrites it.
+            const seen = newestSeen.get(voter);
+            if (!seen || at >= Date.parse(seen.at)) {
+              newestSeen.delete(voter); // re-inserted last, so the trim below drops the oldest
+              newestSeen.set(voter, vote);
+              if (newestSeen.size > 20_000) for (const old of newestSeen.keys()) if (newestSeen.size > 10_000) newestSeen.delete(old); else break;
+            }
+            votes.push({ runtime, vote });
             continue;
           }
           route(runtime, message, text, round);
@@ -488,53 +501,61 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
 
   /** Send votes for `round`, CHAT_VOTES_MAX a call, each voter's latest only (C3, C4, C7). */
   function sendVotes(round: AudienceRound, votes: Array<{ runtime: SourceRuntime; vote: ChatVote }>, tries: number, rerouted: boolean) {
-    const door = voteDoor;
     const latest = new Set(latestPerVoter(votes.map((v) => v.vote)));
     const kept = votes.filter((v) => latest.has(v.vote));
     for (let at = 0; at < kept.length; at += CHAT_VOTES_MAX) {
-      const chunk = kept.slice(at, at + CHAT_VOTES_MAX);
-      const fail = () => {
-        if (tries + 1 > CHAT_ADD_TRIES) {
-          for (const v of chunk) v.runtime.state.dropped += 1;
+      const slice = kept.slice(at, at + CHAT_VOTES_MAX);
+      // One send at a time, in the order the votes arrived: the server breaks a tie of equal
+      // platform times by arrival, so two calls must never cross.
+      sending = sending.then(() => sendChunk(round, slice, tries, rerouted));
+    }
+  }
+
+  async function sendChunk(round: AudienceRound, slice: Array<{ runtime: SourceRuntime; vote: ChatVote }>, tries: number, rerouted: boolean) {
+    const door = voteDoor;
+    // A vote a newer one from the same voter has replaced since it was sorted (a retry, mostly)
+    // is not sent: it would overwrite the newer choice when their platform times are equal.
+    const chunk = slice.filter((v) => newestSeen.get(v.vote.voter) === v.vote);
+    for (const v of slice) if (!chunk.includes(v)) v.runtime.state.dropped += 1;
+    if (chunk.length === 0) return changed();
+    const fail = () => {
+      if (tries + 1 > CHAT_ADD_TRIES) {
+        for (const v of chunk) v.runtime.state.dropped += 1;
+        changed();
+        return;
+      }
+      setTimeout(() => sendVotes(round, chunk, tries + 1, rerouted), CHAT_ADD_RETRY_MS);
+    };
+    if (!door) return fail();
+    await door
+      .send(round.id, chunk.map((v) => v.vote))
+      .then(async (outcome) => {
+        if (!outcome.closed) {
+          // What the server counted: a vote older than one it already holds changes nothing, and
+          // shows as dropped rather than as a vote (the call does not say which, only how many).
+          let counted = outcome.counted;
+          for (const v of chunk) {
+            if (counted > 0) {
+              v.runtime.state.votes += 1;
+              counted -= 1;
+            } else v.runtime.state.dropped += 1;
+          }
           changed();
           return;
         }
-        setTimeout(() => sendVotes(round, chunk, tries + 1, rerouted), CHAT_ADD_RETRY_MS);
-      };
-      if (!door) {
-        fail();
-        continue;
-      }
-      door
-        .send(round.id, chunk.map((v) => v.vote))
-        .then(async (outcome) => {
-          if (!outcome.closed) {
-            // What the server counted: a vote older than one it already holds changes nothing, and
-            // shows as dropped rather than as a vote (the call does not say which, only how many).
-            let counted = outcome.counted;
-            for (const v of chunk) {
-              if (counted > 0) {
-                v.runtime.state.votes += 1;
-                counted -= 1;
-              } else v.runtime.state.dropped += 1;
-            }
-            changed();
-            return;
-          }
-          // C5: the round closed under these votes. Once, read what is live now: a vote said after
-          // the next Multiple choice question went live counts there; anything else is dropped.
-          const now = rerouted ? null : await readLive(true).catch(() => null);
-          if (now && now.kind === 'poll' && now.id !== round.id) {
-            const moved = chunk.filter((v) => inVoteWindow(Date.parse(v.vote.at), now) && v.vote.option < now.options.length);
-            for (const v of chunk) if (!moved.includes(v)) v.runtime.state.dropped += 1;
-            if (moved.length) sendVotes(now, moved, 0, true);
-          } else {
-            for (const v of chunk) v.runtime.state.dropped += 1;
-          }
-          changed();
-        })
-        .catch(fail);
-    }
+        // C5: the round closed under these votes. Once, read what is live now: a vote said after
+        // the next Multiple choice question went live counts there; anything else is dropped.
+        const now = rerouted ? null : await readLive(true).catch(() => null);
+        if (now && now.kind === 'poll' && now.id !== round.id) {
+          const moved = chunk.filter((v) => inVoteWindow(Date.parse(v.vote.at), now) && v.vote.option < now.options.length);
+          for (const v of chunk) if (!moved.includes(v)) v.runtime.state.dropped += 1;
+          if (moved.length) sendVotes(now, moved, 0, true);
+        } else {
+          for (const v of chunk) v.runtime.state.dropped += 1;
+        }
+        changed();
+      })
+      .catch(fail);
   }
 
   /** Queue a line for the operator door: one call per source and moment (`flush`). */

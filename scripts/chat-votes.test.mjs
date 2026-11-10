@@ -434,3 +434,33 @@ test('with no production page open the intake collects nothing, and collects aga
   await drain();
   assert.deepEqual(await chat(q), [0, 1, 0]);
 });
+
+test('a retried send never overwrites a newer vote said in the same second (C4)', async (t) => {
+  clock(t, yt.goLiveAt);
+  const { backend, chat } = room(t);
+  const q = await backend.goLive(NEXT);
+  let failNext = true;
+  const intake = createChatIntake();
+  intake.setVotes({
+    live: async () => openRoundOf(await backend.rounds()),
+    send: async (id, votes) => {
+      if (failNext) {
+        failNext = false;
+        throw new Error('offline for a moment');
+      }
+      return backend.chatVotes(id, votes);
+    },
+  });
+  const source = intake.addTest('T');
+  mock.timers.setTime(at(yt.goLiveAt, 3));
+  // YouTube gives whole seconds, so two lines from one viewer can carry the same time.
+  source.push('Viewer', 'A', 'r1', { at: at(yt.goLiveAt, 2), voter: 'yt:UCsame' });
+  await drain();
+  source.push('Viewer', 'B', 'r2', { at: at(yt.goLiveAt, 2), voter: 'yt:UCsame' });
+  await drain();
+  assert.deepEqual(await chat(q), [0, 1]);
+  await new Promise((r) => setTimeout(r, 5_300)); // the failed send's retry
+  await drain();
+  assert.deepEqual(await chat(q), [0, 1], 'the retried A does not replace B');
+  assert.equal(intake.sources()[0].votes, 1);
+});

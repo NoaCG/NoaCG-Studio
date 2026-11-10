@@ -797,7 +797,9 @@ fresh read-only review challenged them before the final assessment:
 - C3. One vote per voter per question; voting again changes it. A repeated message id counts
   once: the intake drops an id it has seen, and a re-sent vote changes nothing on the server.
 - C4. Per voter, the vote said latest by the platform's own time wins, whatever order the messages
-  arrive in, within one call and across calls; of equal times, the last to arrive.
+  arrive in, within one call and across calls; of equal times, the last to arrive. The page sends
+  votes one call at a time in arrival order, and a retried call leaves out any vote a newer line
+  from the same voter has replaced, so a retry never undoes a later choice made in the same second.
 - C5. The server counts chat votes only into this production's open Multiple choice round, and
   refuses any other as "that question has closed". The page then reads what is live once: if
   another Multiple choice question is live, the votes said inside its window go there; the rest are
