@@ -34,7 +34,7 @@ marks, and how results look on air is phase 5.
 
 ## Checks run on this machine
 
-- `npm run gates -- run --changed origin/main` on the final state: 185 tests, 0 failed (it includes
+- `npm run gates -- run --changed origin/main` on the final state: 187 tests, 0 failed (it includes
   `chat-votes`, `chat-intake`, `twitch-chat`, `youtube-chat`, `advisor-baseline-grants` and the
   migration gates).
 - `npx tsc --noEmit -p tsconfig.json` and eslint on the changed files: clean.
@@ -46,11 +46,11 @@ marks, and how results look on air is phase 5.
   self-check run with `psql` after a throwaway account was added (a fresh stack has none, so it
   skips on start), again after the tally rewrite: passed.
 - Configured, on that stack (`playwright.live.config.ts`): "questions on the server" (with the chat
-  vote calls) and "the rehearsal walk": 2 passed (j-0003), again on the final code (j-0007).
+  vote calls) and "the rehearsal walk": 2 passed (j-0003), again after each review round (j-0007, j-0008, j-0010).
 - Offline, local queue: `e2e/production-chat-intake.spec.ts` whole (9 tests; the first run lost two
   YouTube comment tests to the dev server failing to serve `App.tsx` while Docker pulled images,
   both passed on the next run, j-0004) and the chat, vote, tally and result tests of
-  `e2e/production-audience.spec.ts`: 13 passed (j-0006).
+  `e2e/production-audience.spec.ts`: 13 passed (j-0006, again on the final code j-0011).
 - Capacity: `node scripts/e2e-capacity.mjs --changed origin/main`: 174.0 of 210.7 table-minutes
   (83%), no new spec file. `check-e2e-protection` could not build its base tree here (no packages
   in its temporary checkout); CI runs it. No test was added to a spec file (one offline test was
