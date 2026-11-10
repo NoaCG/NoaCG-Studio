@@ -6,13 +6,16 @@
 // (`behaviours/naming.ts bestProposal`): a vote board's Question, Option N, Bar N and Vote count
 // layers become a live vote, a layer named QR becomes the code (svgQr.ts). Every other text layer
 // becomes an operator field. A layer a behaviour writes is NOT a field, because two writers on
-// one layer means an operator watching their own typing be overwritten. Pictures and outlined
-// text stay as drawn; the studio's mapping step is where they are chosen.
+// one layer means an operator watching their own typing be overwritten. A proposed countdown's
+// clock layer ticks, and bundled fonts resolve, as in the step. Pictures, outlined text and
+// fonts that are not bundled stay as drawn; the studio's mapping step is where they are chosen.
 
 import { importSvgMarkup } from '../../assets/svgImport';
 import type { DesignSvg, DesignSvgRecipeBehaviour, WizardOptions } from '../../model/wizard';
 import type { SpxTemplate } from '../../model/types';
+import { FONTS, fontNameKey } from '../../model/fonts';
 import { bestProposal } from '../behaviours/naming';
+import { recipeById } from '../behaviours/registry';
 import { IMPORTED_SVG } from './svg';
 
 export interface SvgMarkupGraphic {
@@ -34,7 +37,17 @@ export function graphicFromSvgMarkup(markup: string, options: WizardOptions = {}
   const proposal = bestProposal(imported);
   const written = new Set(proposal ? candidateIds(proposal.layers) : []);
   const offered = imported.candidates.filter((c) => !written.has(c.id));
-  const fields = offered.map((c) => ({ candidateId: c.id, title: c.label, sample: c.sample, numeric: c.numeric }));
+  // A proposed countdown's clock layer is the ticking readout, as the step arms it for a proposed
+  // timer (components/wizard/import/draft.ts `armTimerClock`): bound by kind, not by name.
+  const clockRole = proposal ? recipeById(proposal.recipe)?.roles.find((r) => r.countdown) : undefined;
+  const clockId = clockRole && proposal ? proposal.fields[clockRole.id] : undefined;
+  const fields = offered.map((c) => ({
+    candidateId: c.id,
+    title: c.label,
+    sample: c.sample,
+    numeric: c.numeric,
+    ...(typeof clockId === 'string' && c.id === clockId ? { countdown: true } : {}),
+  }));
   let behaviour: DesignSvgRecipeBehaviour | undefined;
   if (proposal) {
     // A field role points at a text layer the operator types into: its index among the fields.
@@ -58,7 +71,13 @@ export function graphicFromSvgMarkup(markup: string, options: WizardOptions = {}
     fields,
     images: [],
     outlines: [],
-    fonts: [],
+    // Bundled faces matched on the lookup name, the artwork's own family and weight kept, exactly
+    // as the step's draft does (svgDraftFromImport), so the face the artwork asks for is the one
+    // the graphic declares.
+    fonts: imported.fonts.map((f) => {
+      const fontId = FONTS.find((b) => fontNameKey(b.family) === fontNameKey(f.lookup))?.id;
+      return { family: f.family, ...(fontId ? { fontId } : {}), ...(f.weight !== null ? { weight: f.weight } : {}) };
+    }),
     ...(behaviour ? { behaviour } : {}),
   };
   const template = IMPORTED_SVG.create({ ...options, designSvg });

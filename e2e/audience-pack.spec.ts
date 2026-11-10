@@ -5,6 +5,7 @@
 // pack's answer boards.
 // covers: src/templates/quiz/**
 
+import { readFileSync } from 'node:fs';
 import { test, expect, type Frame, type Page } from '@playwright/test';
 import { toApp } from './_bench';
 import { qrReader } from './_qr';
@@ -1023,4 +1024,32 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
       if (palette === 'noacg') await page.screenshot({ path: test.info().outputPath(`${id}-8.png`) });
     }
   }
+});
+
+// THE CLI PATH TAKES THE STUDIO'S DEFAULTS (interaction spec AC-13, "the same from the CLI"): a
+// countdown board from the corpus, whose artwork names bundled faces, scaffolded through the
+// bridge and imported through the studio's own draft, gives the same fields, the same ticking
+// clock and the same declared faces.
+test('CLI scaffold --svg: a countdown board ticks and keeps its bundled faces, as the studio import does', async ({ page }) => {
+  await page.goto('/app');
+  const markup = readFileSync(new URL('./fixtures/svg-corpus/illustrator-question-timer-board.svg', import.meta.url), 'utf8');
+  const both = await page.evaluate(async (m) => {
+    const { scaffold } = await import('/src/bridge/bridgeApi.ts');
+    const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+    const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+    const { initialDraft, mergeDraft, draftToOptions } = await import('/src/components/wizard/draft/core.ts');
+    const D = await import('/src/components/wizard/import/draft.ts');
+    const cli = (await scaffold({ svg: m })).template;
+    const patch = D.svgDraftFromImport(importSvgMarkup(m), { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+    const studio = IMPORTED_SVG.create(draftToOptions(IMPORTED_SVG, mergeDraft(initialDraft(), patch)));
+    const read = (t: { fields: { title: string; ftype: string }[]; css: string; js: string }) => ({
+      fields: t.fields.map((f) => `${f.title}:${f.ftype}`),
+      clock: /startClock/.test(t.js),
+      faces: (t.css.match(/@font-face\s*\{[^}]*\}/g) ?? []).map((f) => f.replace(/\s+/g, ' ')).sort(),
+    });
+    return { cli: read(cli), studio: read(studio) };
+  }, markup);
+  expect(both.studio.clock, 'the studio import starts the clock').toBe(true);
+  expect(both.studio.faces.length, 'the artwork names bundled faces').toBeGreaterThan(0);
+  expect(both.cli).toEqual(both.studio);
 });
