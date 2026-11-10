@@ -31,7 +31,10 @@ Change 5 is the rule `root/codex-review-guidelines-real-defect-product`, written
 The brief templates (`docs/plan-runs/templates/{build,fix,repair}.tmpl`) were changed for
 consistency: they named Narrow delta and required a `/so` on every row.
 
-Searched for conflicting wording after the change: `Narrow delta` appears nowhere;
+The Codex copies of the templates and the plan-run reference
+(`.agents/skills/plan-run/references/templates/{build,fix,repair}.tmpl`, `codex.md`) were changed
+the same way. Searched for conflicting wording after the change: `Narrow delta` appears only in
+the owner's decision and this file;
 `Repeated family`, the repair limits bullet and every `/so` gate read as above.
 
 ## 2. (d) Nothing weakened
@@ -41,7 +44,8 @@ Searched for conflicting wording after the change: `Narrow delta` appears nowher
 - **`/so` on Ordinary rows:** dropped, as change 4 authorizes. Every path the owner named as never
   Ordinary is in the Risky row and keeps the Rules-first `/so` and the final `/so`.
 - **Delta re-review** keeps every reason for a full `/so` the owner listed, plus Narrow delta's.
-- **Pre-existing findings** are defects that already exist on the base. A defect the PR causes,
+- **Pre-existing findings** are defects in code the PR did not change that already exist on the
+  base. A defect the PR causes,
   in changed code or not, still blocks. `check.md` used to say to report a problem outside the
   diff; now that problem does not block the branch when it is already on the base, and it gets an
   issue link when it is not fixed.
@@ -138,8 +142,9 @@ Two rows are long by holding, not by review: #2261 (4,328 minutes, cf13's re-run
 design) and #2171 (783). The median is the compared statistic, so they do not move a claim.
 
 **No improvement claim is made here.** cf21 has no after rows yet. cf20 runs `report --cf21
-<cf21 merged_at>` and claims nothing unless both sides reach 25 rows; with fewer it reports the
-sample sizes. Only six cicd-followup phases remain before cf20, so the after side depends on the
+<cf21 merged_at>` and claims nothing unless both sides reach the minimum n it prints (25 on today's
+before side; it is recomputed from the before side cf20 reads); with fewer it reports the sample
+sizes. Only six cicd-followup phases remain before cf20, so the after side depends on the
 other plan runs' rows (interaction is active); cf20 may well report "not enough rows".
 
 ## 5. Verification
@@ -167,6 +172,14 @@ other plan runs' rows (interaction is active); cf20 may well report "not enough 
   - Rows from every plan run, with the claim required within the dominant plan too, because a
     two-plan frame would leave the after side too small and open to a mix effect.
   - Reverts count within 7 days of the merge, so every row has the same time to be reverted.
+  - Delta re-review applies to every row, Risky included. Change 1 extends Narrow delta, which
+    already applied to Risky rows, and the owner did not limit it. The reviewer goes back to a full
+    `/so` for any effect beyond the delta. The stricter reading (a full `/so` for every repair on a
+    Risky row) was not taken.
+  - This PR reached the new round cap itself: a Codex round and two `/so` rounds (grade B, both
+    AGREE WITH CORRECTIONS). The reassessment before the third patch found the approach sound and
+    the remaining findings one class (rule text not carried to every copy and case: the Codex
+    template copies, the receipt's third class, the pre-existing condition), fixed together.
   - The before window starts at ci02, when today's review rule set began.
 - **Traps.** `gh api` with `head_sha` needs the full SHA. A merged PR's commit list says nothing
   about reverts that do not name it (900ce353 names no PR), so reverts are also found by the lines

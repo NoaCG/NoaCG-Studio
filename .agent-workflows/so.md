@@ -61,9 +61,9 @@ Ordinary row; the final `/so` for every other row, and the Rules-first one too f
 - **Name the class.** Report the rule a defect breaks and every instance of it you see, so one
   checkpoint fixes them all. Do not raise again a finding the PR answered with a recorded reason
   unless the code it rests on changed.
-- **Pre-existing.** Label a confirmed defect that already exists on the base (it reproduces at the
-  merge-base) `pre-existing`: it does not block the verdict and is not a round. A defect the PR
-  causes in code it did not change is the PR's.
+- **Pre-existing.** Label a confirmed defect in code the PR did not change that already exists on
+  the base (it reproduces at the merge-base) `pre-existing`: it does not block the verdict and is
+  not a round. A defect in changed code, or one the PR causes elsewhere, is the PR's.
 
 ## Judge
 

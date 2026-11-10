@@ -35,9 +35,9 @@ base from the local `main`, which the merge queue does not move. If nothing chan
   was built that nobody asked for.
 - Verify every finding against the code before acting on it. Fix confirmed defects in the changed
   code, every instance of a defect's class in one pass, including what the change breaks in code
-  it did not touch. A defect that already exists on the base is pre-existing: it does not block
-  the branch. Fix it in its own commit if it is small, clear and contained; otherwise file an
-  issue and link it.
+  it did not touch. A defect in code the branch did not change that already exists on the base
+  is pre-existing: it does not block the branch. Fix it in its own commit if it is small, clear
+  and contained; otherwise file an issue and link it.
 
 ## 3. Simplify
 
@@ -68,6 +68,7 @@ selections follow verify.md, with build-included checks reused. CI remains autho
   their results, and what was not checked. Name each leg's mode; never report a leg that did not
   run as one that passed.
 - Then stop. Landing is the queue-merge workflow, which refuses a tip the stamp does not cover.
-  In a plan run, an Ordinary row needs this check and the Codex review, no `/so`; every other row
-  adds a final `/so`, and a Risky row its Rules-first `/so` too. After three confirmed review rounds on one PR, reassess the approach
-  before patching again (Review checkpoints in `docs/plan-runs/known-traps.md`).
+  In a plan run, an Ordinary row needs this check and the Codex review, no `/so`; every other
+  row adds a final `/so`, and a Risky row its Rules-first `/so` too. After three confirmed review
+  rounds on one PR, reassess the approach before patching again (Review checkpoints in
+  `docs/plan-runs/known-traps.md`).
