@@ -19,6 +19,7 @@
 // nowhere to write.
 
 import type { ChatVote, ChatVoteOutcome } from './chatVotes.ts';
+import type { WordTally } from '../model/wordCloud.ts';
 
 /** Where a submission is in moderation. `new` is the only state a viewer can put it in. */
 export type AudienceStatus = 'new' | 'approved' | 'rejected';
@@ -300,6 +301,10 @@ export interface AudienceBackend {
    *  (R9). Null when the question never went live. */
   clearResults(questionId: string): Promise<AudienceRound | null>;
   tally(roundId: string): Promise<AudienceTally>;
+  /** A Word round's words, counted per exact spelling over EVERY word filed under it (0114's
+   *  `audience_word_counts`), first arrival first. Never read off `list()`, which a server caps at a
+   *  page of rows. */
+  wordCounts(roundId: string): Promise<WordTally[]>;
   rounds(): Promise<AudienceRound[]>;
   /** Chat votes into the open Multiple choice round `roundId` (interaction spec, "Chat votes";
    *  migration 0113): each voter's latest by platform time, only what was said after the round

@@ -37,20 +37,33 @@ export interface WordCount {
   hidden: boolean;
 }
 
+/** How many phones sent one exact spelling: what a provider counts per round (0114's
+ *  `audience_word_counts`), in the order it first arrived. */
+export interface WordTally {
+  word: string;
+  count: number;
+}
+
 /**
  * The words of a question by frequency (most first, then alphabetically), with the operator's
  * hidden ones marked. `bodies` are the answers in arrival order; one that is not a word is skipped.
  */
 export function countWords(bodies: readonly string[], hidden: readonly string[] = []): WordCount[] {
+  return countWordTallies(bodies.map((word) => ({ word, count: 1 })), hidden);
+}
+
+/** The same, from counts per exact spelling. */
+export function countWordTallies(tallies: readonly WordTally[], hidden: readonly string[] = []): WordCount[] {
   const hide = new Set(hidden);
   const groups = new Map<string, { count: number; spellings: Map<string, number> }>();
-  for (const body of bodies) {
-    const word = cleanWord(body);
-    if (!word) continue;
+  for (const t of tallies) {
+    const word = cleanWord(t.word);
+    const n = Number.isFinite(t.count) && t.count > 0 ? Math.floor(t.count) : 0;
+    if (!word || !n) continue;
     const key = wordKey(word);
     const g = groups.get(key) ?? { count: 0, spellings: new Map<string, number>() };
-    g.count += 1;
-    g.spellings.set(word, (g.spellings.get(word) ?? 0) + 1);
+    g.count += n;
+    g.spellings.set(word, (g.spellings.get(word) ?? 0) + n);
     groups.set(key, g);
   }
   const out: WordCount[] = [];

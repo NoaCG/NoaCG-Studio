@@ -65,7 +65,7 @@ import {
   type QuestionType,
   type ShowQuestion,
 } from '../../model/questions';
-import { countWords, type WordCount } from '../../model/wordCloud';
+import { countWordTallies, type WordCount, type WordTally } from '../../model/wordCloud';
 import { stageWords, WORD_CLOUDS, wordDestinationOf, wordDestinations } from '../../control/wordStaging';
 import {
   chatIntakeFor,
@@ -918,6 +918,11 @@ export default function ProductionAudienceWorkspace({
   /** Which state of each round its counts were read in: a closed round is read once per state. */
   const tallyRead = useRef(new Map<string, string>());
   const tallyKey = (r: AudienceRound) => `${r.revision}|${r.closedAt ?? 'open'}`;
+  /** Each Word round's words per spelling, counted by the provider over every word (W1): the
+   *  message list is capped at a page on the server, so it is never counted for a cloud. */
+  const [wordTallies, setWordTallies] = useState<Record<string, WordTally[]>>({});
+  /** Which state of each Word round its words were read in; the live one is read on every change. */
+  const wordsRead = useRef(new Map<string, string>());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composer, setComposer] = useState<{ editing: ShowQuestion | null } | null>(null);
   const [armedClear, setArmedClear] = useState<string | null>(null);
@@ -1069,6 +1074,13 @@ export default function ProductionAudienceWorkspace({
           for (const done of counted) if (done) tallyRead.current.set(done[0].id, tallyKey(done[0]));
           const fresh = counted.filter((d): d is NonNullable<typeof d> => d !== null);
           if (fresh.length > 0) setTallies((prev) => ({ ...prev, ...Object.fromEntries(fresh.map(([, t]) => [t.roundId, t])) }));
+          // Every Word round's words: a closed one once per state, the live one on every change.
+          const words = list.filter((r) => r.kind === 'word' && (!r.closedAt || wordsRead.current.get(r.id) !== tallyKey(r)));
+          const read = await Promise.all(words.map((r) => backend.wordCounts(r.id).then((w) => [r, w] as const, () => null)));
+          if (!alive) return;
+          const got = read.filter((d): d is NonNullable<typeof d> => d !== null);
+          for (const [r] of got) wordsRead.current.set(r.id, tallyKey(r));
+          if (got.length > 0) setWordTallies((prev) => ({ ...prev, ...Object.fromEntries(got.map(([r, w]) => [r.id, w])) }));
         },
         () => {},
       );
@@ -1120,11 +1132,17 @@ export default function ProductionAudienceWorkspace({
     for (const q of questions) {
       const round = roundOf.get(q.id);
       const isLive = !!round && !round.closedAt;
-      const answers = !round ? 0 : round.kind === 'open' || round.kind === 'word' ? rows.filter((r) => r.roundId === round.id).length : tallies[round.id]?.total ?? 0;
+      const answers = !round
+        ? 0
+        : round.kind === 'word'
+          ? (wordTallies[round.id] ?? []).reduce((n, w) => n + w.count, 0)
+          : round.kind === 'open'
+            ? rows.filter((r) => r.roundId === round.id).length
+            : tallies[round.id]?.total ?? 0;
       out[q.id] = { live: isLive, answers, locked: questionLocked(q, { live: isLive, answers }) };
     }
     return out;
-  }, [questions, roundOf, rows, tallies]);
+  }, [questions, roundOf, rows, tallies, wordTallies]);
   const liveQuestion = liveRound?.questionId ? questions.find((q) => q.id === liveRound.questionId) ?? null : null;
   const selected = questions.find((q) => q.id === selectedId) ?? null;
   const selectedRound = selected ? roundOf.get(selected.id) : undefined;
@@ -1464,8 +1482,9 @@ export default function ProductionAudienceWorkspace({
         chosen = made.graphicId;
         adopt = made.cueId;
       }
-      // The words as the provider has them NOW (like S28): a reading that fails writes nothing.
-      const list = await backend.list().catch(() => null);
+      // The words as the provider counts them NOW, every one of them (like S28): a reading that
+      // fails writes nothing.
+      const list = await backend.wordCounts(round.id).catch(() => null);
       if (!list) {
         setNote('The words could not be read, so nothing was written. Try again.');
         return;
@@ -1473,7 +1492,7 @@ export default function ProductionAudienceWorkspace({
       // The hidden words as stored now, so a word hidden in another tab stays off the cue.
       const stored = loadShows().find((x) => x.id === show.id) ?? show;
       const hidden = showQuestions(stored).find((x) => x.id === q.id)?.hidden ?? q.hidden ?? [];
-      const counts = countWords(list.filter((r) => r.roundId === round.id).map((r) => r.body), hidden);
+      const counts = countWordTallies(list, hidden);
       const result = await stageWords(
         show,
         { questionId: q.id, question: round.question, counts, label: wordCloudLabel(round.question), chosen, adopt },
@@ -1852,7 +1871,7 @@ export default function ProductionAudienceWorkspace({
               {selected.type === 'word' && (
                 <WordPanel
                   round={selectedRound ?? null}
-                  words={selectedRound ? countWords(rows.filter((r) => r.roundId === selectedRound.id).map((r) => r.body), selected.hidden ?? []) : []}
+                  words={selectedRound ? countWordTallies(wordTallies[selectedRound.id] ?? [], selected.hidden ?? []) : []}
                   destination={wordDestinationOf(show, selected.id)}
                   clouds={wordDestinations(show)}
                   choosing={choosingResult === selected.id}

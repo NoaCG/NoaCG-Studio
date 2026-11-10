@@ -21,7 +21,7 @@
 
 import { uuid } from '../model/id.ts';
 import { QUESTION_LIMITS, isQuestionId } from '../model/questions.ts';
-import { cleanWord } from '../model/wordCloud.ts';
+import { cleanWord, type WordTally } from '../model/wordCloud.ts';
 import { CHAT_VOTES_MAX, CHAT_VOTE_ALLOWANCE_MS, latestPerVoter, type ChatVote, type ChatVoteOutcome } from './chatVotes.ts';
 import {
   AUDIENCE_LIMITS,
@@ -764,6 +764,14 @@ export function createLocalAudience(options: LocalAudienceOptions): LocalAudienc
         changed();
         return { counted };
       });
+    },
+
+    async wordCounts(roundId): Promise<WordTally[]> {
+      const counts = new Map<string, number>();
+      for (const s of [...kept(), ...room().answers, ...submissions]) {
+        if (s.roundId === roundId) counts.set(s.body, (counts.get(s.body) ?? 0) + 1);
+      }
+      return [...counts].map(([word, count]) => ({ word, count }));
     },
 
     async rounds(): Promise<AudienceRound[]> {

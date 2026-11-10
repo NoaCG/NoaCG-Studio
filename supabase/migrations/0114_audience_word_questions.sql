@@ -16,11 +16,14 @@
 --     ten seconds (as phone votes), never against the 20-per-10-seconds message throttle, and the
 --     message throttle no longer counts words (W4): a hall answering at once is not refused;
 --   * the join resolve gives each of this phone's own messages its round, so a phone knows its word
---     is in (W5).
+--     is in (W5);
+--   * `audience_word_counts(slug, round)`: a Word round's words counted per spelling, as one value,
+--     so the operator's cloud counts every word (W1). A new operator function, granted like
+--     `audience_tally`.
 --
 -- Nothing here writes to `control_events` (R16): nothing reaches air.
 --
--- Additive for the app: every function keeps its signature and grant, an Open or Multiple choice
+-- Additive for the app: every existing function keeps its signature and grant, an Open or Multiple choice
 -- question behaves as before, and `mine` gains a key an older page ignores. Revert: `git revert`
 -- the app; the kind and the functions can stay, since an older page never makes a Word round.
 
@@ -326,7 +329,34 @@ begin
   return next;
 end $$;
 
--- ══ 6. Prove it by calling it ═══════════════════════════════════════════════════════════════
+-- ══ 6. The operator's word count (W1) ═══════════════════════════════════════════════════════
+-- A Word round's words, counted per exact spelling over every word filed under it, first arrival
+-- first: [{ word, count }]. One jsonb value rather than a set of rows, because PostgREST caps a
+-- set at a page (`max_rows`) and the operator's message list is such a set: a big room's later
+-- words would be missing from the cloud. Grouping by case is the page's (model/wordCloud.ts).
+create or replace function public.audience_word_counts(p_slug text, p_round uuid)
+returns jsonb language plpgsql security definer set search_path = '' stable as $$
+declare
+  v_show uuid;
+begin
+  select o.show_id into v_show from public.audience_owner_for_control(p_slug) o;
+  if not exists (select 1 from public.audience_rounds r where r.id = p_round and r.show_id = v_show) then
+    raise exception 'unknown round';
+  end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object('word', w.body, 'count', w.n) order by w.first_at, w.body)
+    from (
+      select x.body, count(*) as n, min(x.created_at) as first_at
+        from public.audience_submissions x
+       where x.round_id = p_round
+       group by x.body
+    ) as w
+  ), '[]'::jsonb);
+end $$;
+revoke execute on function public.audience_word_counts(text, uuid) from public;
+grant execute on function public.audience_word_counts(text, uuid) to anon, authenticated;
+
+-- ══ 7. Prove it by calling it ═══════════════════════════════════════════════════════════════
 -- A throwaway production against a real owner, walked through a Word question, then removed.
 do $$
 declare
@@ -398,6 +428,14 @@ begin
   for g in 1..30 loop
     perform public.audience_submit(v_join, 'device-word-0114-' || lpad(g::text, 3, '0'), '', 'Loud', (v_word->>'id')::uuid, 1);
   end loop;
+
+  -- The operator's count covers every word, per spelling (W1).
+  -- (As a set: in this one transaction every row has the same time, so arrival order ties.)
+  if not (public.audience_word_counts(v_slug, (v_word->>'id')::uuid)
+            @> '[{"word": "Brilliant", "count": 1}, {"word": "yyyyyyyyyyyyyyyyyyyyyyyyy", "count": 1}, {"word": "Loud", "count": 30}]'::jsonb
+          and jsonb_array_length(public.audience_word_counts(v_slug, (v_word->>'id')::uuid)) = 3) then
+    raise exception '0114 self-check failed: word counts %', public.audience_word_counts(v_slug, (v_word->>'id')::uuid);
+  end if;
 
   -- An Open question going live takes a message at once: the words do not count against it.
   v_open := public.audience_go_live(v_slug, '{"id":"q-open","type":"open","text":"Ask us"}');

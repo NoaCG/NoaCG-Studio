@@ -14,7 +14,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { cleanWord, countWords, wordKey, wordLines, WORD_MAX, WORD_CLOUD_MAX } = await import('../src/model/wordCloud.ts');
+const { cleanWord, countWords, countWordTallies, wordKey, wordLines, WORD_MAX, WORD_CLOUD_MAX } = await import('../src/model/wordCloud.ts');
 const { readQuestions, makeQuestion, setWordHidden, duplicateQuestion, toLive, isKnownType } = await import('../src/model/questions.ts');
 const { createLocalAudience } = await import('../src/audience/localAudience.ts');
 const { QUESTION_CLOSED, WORD_ALREADY_SENT, WORD_REFUSED } = await import('../src/audience/audienceTypes.ts');
@@ -70,6 +70,12 @@ test('the cue carries at most WORD_CLOUD_MAX words, the most used (W6)', () => {
   assert.equal(lines.length, WORD_CLOUD_MAX);
   assert.equal(lines[0], 'w39 | 40');
   assert.equal(lines.at(-1), 'w10 | 11');
+});
+
+test('counts per spelling, as a provider gives them, read the same as the words one by one (W1)', () => {
+  const tallies = [{ word: 'Loud', count: 1200 }, { word: 'loud', count: 3 }, { word: 'Fun', count: 2 }, { word: 'two words', count: 9 }, { word: 'Zero', count: 0 }];
+  assert.deepEqual(countWordTallies(tallies).map((w) => [w.word, w.count]), [['Loud', 1203], ['Fun', 2]]);
+  assert.deepEqual(countWordTallies([{ word: 'a', count: 2 }, { word: 'b', count: 1 }]), countWords(['a', 'b', 'a']));
 });
 
 // ── The question list (W1, W6) ──────────────────────────────────────────────────────────────
@@ -142,6 +148,15 @@ test('a word sent to a stopped Word question is refused as closed and filed nowh
   assert.equal((await b.list()).length, 0);
   // An Open question still takes a sentence, and a Word question keeps its type (R8).
   await assert.rejects(b.goLive({ ...WORD, type: 'open' }), /keeps its type/);
+});
+
+test('the provider counts every word of a round per spelling, not a page of the message list (W1)', async () => {
+  const b = createLocalAudience({ productionName: 'Show' });
+  const round = await b.goLive(WORD);
+  for (const [device, word] of [['phone-a-0001', 'Loud'], ['phone-b-0001', 'Loud'], ['phone-c-0001', 'Fun']]) await b.submit(device, '', word, target(round));
+  const open = await b.goLive({ id: 'q-open', type: 'open', text: 'Ask' });
+  await b.submit('phone-a-0001', '', 'Not a word of the cloud', target(open));
+  assert.deepEqual(await b.wordCounts(round.id), [{ word: 'Loud', count: 2 }, { word: 'Fun', count: 1 }]);
 });
 
 test('Simulate files one word per simulated phone under the live Word question', async () => {

@@ -23,6 +23,7 @@
 import type { ChatVoteOutcome } from './chatVotes.ts';
 import { getSupabase } from '../backend/supabase';
 import { isBackendConfigured, loadBackendConfig } from '../backend/config';
+import type { WordTally } from '../model/wordCloud';
 import {
   AUDIENCE_LIMITS,
   OPERATOR_ADD_MAX,
@@ -498,6 +499,18 @@ export function createSupabaseAudience(caps: AudienceCapabilities): ObservableAu
         // 0113: the same counts by source.
         ...(Array.isArray(row.phone_counts) && Array.isArray(row.chat_counts) ? { phone: row.phone_counts, chat: row.chat_counts } : {}),
       };
+    },
+
+    async wordCounts(roundId): Promise<WordTally[]> {
+      const sb = await client();
+      // One jsonb value, not a set of rows: PostgREST caps a set at a page (max_rows), and a word
+      // cloud must count every word (0114).
+      const raw = await operator<unknown>(() => sb.rpc('audience_word_counts', { p_slug: control(), p_round: roundId }));
+      if (!Array.isArray(raw)) return [];
+      return raw.flatMap((x) => {
+        const t = x as { word?: unknown; count?: unknown };
+        return typeof t.word === 'string' && Number(t.count) > 0 ? [{ word: t.word, count: Number(t.count) }] : [];
+      });
     },
 
     async chatVotes(roundId, votes): Promise<ChatVoteOutcome> {
