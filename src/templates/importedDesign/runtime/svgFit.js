@@ -362,6 +362,14 @@ function svgFitContainer(el) {
   var art = document.querySelector('.__PREFIX__-art');
   if (!art) return null;
   var box = el.getBoundingClientRect();
+  // HELD BY ITS EM BOX, NOT ITS LINE BOX. A text's rectangle runs from the font's ascent to its
+  // descent - about one and a half ems in Oswald - and a figure drawn big in a snug plate is
+  // the normal case for a score: the downloadable scoreboard's 60px "0" sits in a 90px plate
+  // with its ink well inside, and its line box poked 2.7px over the top. The line then had NO
+  // panel, its room was its own drawn width, and "10" painted at 59% of its size.
+  var trim = svgEmTrim(el);
+  var top = box.top + trim;
+  var bottom = box.bottom - trim;
   var shapes = art.querySelectorAll('rect, path, polygon, ellipse, circle');
   var best = null;
   var bestArea = 0;
@@ -370,11 +378,27 @@ function svgFitContainer(el) {
     // Contains the line, and is genuinely bigger than it - a highlight rule under a word is
     // not the panel the word sits in.
     if (r.left > box.left + 1 || r.right < box.right - 1) continue;
-    if (r.top > box.top + 1 || r.bottom < box.bottom - 1) continue;
+    if (r.top > top + 1 || r.bottom < bottom - 1) continue;
     if (r.width * r.height <= box.width * box.height) continue;
     if (!best || r.width * r.height < bestArea) { best = shapes[i]; bestArea = r.width * r.height; }
   }
   return best;
+}
+
+/** How far, in screen px, a line's box overhangs its EM box at each of its top and bottom: half
+ *  of what the font's ascent plus descent adds to the type size. Zero where it cannot be read. */
+function svgEmTrim(el) {
+  var size = parseFloat(getComputedStyle(el).fontSize) || 0;
+  var cell = el.getNumberOfChars && el.getNumberOfChars() > 0 ? el.getExtentOfChar(0).height : 0;
+  var ctm = el.getScreenCTM ? el.getScreenCTM() : null;
+  var scale = ctm ? Math.sqrt(ctm.a * ctm.a + ctm.b * ctm.b) : 1;
+  return Math.max(0, (cell - size) / 2) * (scale || 1);
+}
+
+/** A FIGURE: a value of digits and the marks a score or a clock carries, and no letters. */
+function svgIsFigure(value) {
+  var s = String(value == null ? '' : value);
+  return /[0-9]/.test(s) && !/[^0-9\s:.,'+%\u2212\u2013-]/.test(s);
 }
 
 /** THE PANEL, IN THE LINE'S OWN COORDINATE SYSTEM.
@@ -652,8 +676,16 @@ function svgAlignOf(el, panelEl) {
       // already served keeps precisely what it had, so no graphic gets tighter because of this.
       // A line DRAWN centred and sent to an edge keeps the same typographic margin, because its
       // drawn gaps are still not margins.
+      //
+      // A FIGURE KEEPS NO MARGIN BUT ITS OWN BEARINGS. A score drawn as "0" in its own plate is
+      // one digit centred in room for three: half the type each side of the score-and-clock
+      // example's 104px plate left 42px, so "10" painted at 73% and "100" at 55% in a plate that
+      // holds "100" at the drawn size. Digits carry their side bearings and a figure plate is
+      // drawn for the figures, so the number keeps its size until the plate itself cannot hold
+      // it (owner, 2026-11-10: "numbers must keep their drawn size when the digit count changes").
       if (align.h === 'middle' || (landmark && placed === 'middle')) {
-        var open = svgReach(align.h, align.anchor, box, halfType);
+        var margin = svgIsFigure(svgFitDrawn[el.id]) ? 0 : halfType;
+        var open = svgReach(align.h, align.anchor, box, margin);
         if (open > (align.width || 0)) align.width = open;
       }
     }
