@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "pr": 2293,
+      "head": "fcb4f15167973b94a53dedef30733f2fcdd5f855",
+      "session": "/root/v2_tcp_repair",
       "phase": "v2",
-      "head": "3d8337b59bc8713fd47f5fd292a1de289f0258fa",
-      "note": "Owner authorized the focused TCP reply repair. Fresh local worker active on same draft. Independent rules review recorded. Prior pairing verification and failing full V2 verdict retained.",
       "step": "build",
-      "session": "/root/v2_tcp_repair"
+      "note": "TCP reply candidate passed focused, changed-file and packaged real-vMix checks. Fresh full review B for malformed prefix/length framing. Independent reassessment recorded; continuing the same focused repair under normal limits.",
+      "pr": 2293
     }
   ],
   "owner": [],

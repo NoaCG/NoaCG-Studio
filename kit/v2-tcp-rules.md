@@ -12,3 +12,11 @@ Reference: https://www.vmix.com/help29/TCPAPI.html
 The independent rules review clarified the reply boundary. Accept exact space-delimited FUNCTION and OK or ER tokens and optional UTF-8 response text. Normal TCP fragmentation and unrelated event lines do not alter the result. Reject invalid UTF-8, missing CRLF, embedded CR, and unknown status in a FUNCTION reply. Once rejected, discard the rest of that connection's buffer, including any valid-looking line in the same chunk. The next separate request can open a fresh connection.
 
 The regression fake applies In before it emits the invalid reply. Check that Browser creation is reported, placement stays uncertain, and there is one dispatch. Confirm that a separate read reconnects. Check valid refusal detail and retain existing OK readback cases.
+
+#### Classify every frame while a FUNCTION is pending
+
+The first repair candidate fcb4f151 passed 19 focused tests, 590 changed-file checks, and the exact Windows real-vMix package proof. Full independent review graded it B because a frame with leading whitespace or an unexpected length header could be skipped while buffered bytes behind it remained eligible to settle the command.
+
+The fresh independent reassessment confirmed three outcomes for each complete frame while a FUNCTION is pending. First validate the size bound, UTF-8 and CRLF without trimming. A valid FUNCTION OK or ER completes the exchange. A valid ACTS or TALLY event envelope is skipped, with its UTF-8 event detail kept opaque. Any other frame ends the pending command as uncertain and retires the connection before considering later buffered bytes. There is one outstanding request, so the Bridge cannot be waiting for an XML or other solicited reply in that turn. Keep the existing behavior outside the pending FUNCTION path.
+
+Extend the focused fake cases for leading whitespace, an unexpected length header, and malformed event framing. Exercise documented events, fragmentation, confirmed Browser creation, one send and later reconnect.
