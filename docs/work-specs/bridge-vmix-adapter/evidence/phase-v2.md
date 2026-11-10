@@ -697,3 +697,81 @@ are under `C:/claude/Temp/vmix-xml-parser-probes-1110/packaged-preset`.
 - `cli/package.json`, `cli/BRIDGE_CHANGELOG.md`, `docs/BRIDGE.md`,
   `docs/PLAYOUT_INTEGRATION.md` and this work spec's `spec.md`, `work.json`
   and `evidence/phase-v2.md`. No database migration.
+
+
+### Rules for verifying the current vMix Browser source and reply authority
+
+V2 pairs Studio to vMix, creates a Browser for a published production and
+lets the operator place it on a selected overlay. The confirmed failure was
+reusing the kept Browser after off-air BrowserNavigate changed its live page
+without changing the input GUID, title or type. The previous Windows
+Bridge put the alternate page on Overlay 8 and reported success. Reopening
+the preset restored the original URL, showing that the saved alias and live
+page can differ. The retained native probe establishes no trustworthy
+read-only live URL. The owner approved refusing reuse when Bridge cannot
+verify that URL. This repair does not extend V2 to clip cues, mixer Program
+or Preview, source edits in vMix, or changes to other playout adapters.
+
+- For Load, a kept key present anywhere in the fresh vMix input table is
+  a reuse candidate. The key, title, type, preset marker, past redirect
+  request and earlier successful Load cannot verify its current page.
+  In this V2 implementation every present kept input refuses Load before
+  any mixer function or key write. This includes a Browser off overlay, on
+  the selected or another overlay, and an input with the same GUID but a
+  foreign type. The refusal neither renames, navigates, reloads, removes,
+  replaces nor duplicates the input. It explains how to check the source,
+  unload it if applicable and remove the old input in vMix before loading
+  again. When the kept Browser has a mismatched port, retain the port
+  diagnosis and explain that the original port restores saved-preset
+  rendering. It does not establish current-source authority for Load.
+- A genuinely absent kept key can be replaced by the normal first-Load
+  transaction after fresh exact overlay agreement, including the existing
+  explicit Replace confirmation for a foreign occupant. Only that
+  transaction can Add with a new marker, observe the exact new Browser, name
+  it by key, recheck the selected overlay and send keyed In. Store the new
+  association and keep the old redirect bindings. A distinct production
+  with the same title still gets its own uniquely named Browser. Preserve
+  the original Add attribution, readback and uncertainty guards.
+- The recorded GUID and Browser type can identify a matched input and its
+  actual occupied overlay. This observation never claims that the intended
+  page is on air. A scoped state with a present kept key exposes a Load
+  problem even when the Browser is off overlay or the key has a foreign
+  type. The panel shows a matched Browser on its actual overlay as Source
+  unverified and keeps Unload available, including after a change to the
+  configured overlay or a port mismatch. Studio Load also refuses a
+  matched row with an omitted diagnostic. A key-only observation cannot
+  complete Load or clear obsolete action feedback. The Bridge rechecks
+  the selected exact key and Browser type before a requested Out or Off.
+  With an absent, empty, changed or foreign input it sends no function.
+  Out or Off does not rename the Browser. A later genuinely new input
+  receives the production's then-current title.
+- Validate the keyed vMix health envelope and each of status, connect,
+  scoped state and act against their protocol success or error shape.
+  On 200 the current v2 success contains the fields of its route; it
+  cannot contain an error or another route's known success fields.
+  Failures cannot contain known success fields. Preserve the Bridge's
+  valid domain errors, 400 usage, 502 target unreachable, 401 token,
+  403 origin and network semantics, and the legacy CasparCG behavior.
+  An invalid keyed health reply cannot authorize an action. Unknown
+  additive fields and well-typed additive features remain compatible.
+  A malformed or contradictory reply after dispatch leaves the action
+  unknown until a fresh valid scoped reading, with no automatic resend.
+- Require a valid four-part vMix version, a nonblank edition as required
+  by the Bridge XML, and an overlay count computed by the same rule as
+  the Bridge (Basic 1, prior to 29 other editions 4, and 29 onward other
+  editions 8). Status and Connect also agree with the top-level target
+  version. Check every Connect server record, including its optional
+  Studio setup, and every scoped linked production record, including a
+  bounded on-overlay number when present. Keep the existing complete
+  same-snapshot rows and diagnostic-only distinction.
+- Verify these rules against an independent verb and occupancy table
+  in the compiled tests, authority-negative and valid positive reply
+  cases in Studio, and the maintained browser journeys, including an
+  explicit shared-queue run of first Publish. Keep malformed XML and
+  existing safety cases, moving only assertions that exercised the
+  superseded kept-input Load or rename to the equivalent first-Add
+  boundary when applicable. On an isolated blank vMix 29 Trial, show
+  first Load, a same-key BrowserNavigate refusal and scoped Unload with
+  no extra mixer function, and saved alias behavior on reopen. Restore
+  both local vMix files by hash. Keep Bridge 0.11.0 and its independent
+  release acceptance.
