@@ -537,14 +537,51 @@ test('AC-4: malformed and duplicate input or overlay rows cannot authorize a com
   }
 });
 
-for (const fault of ['missing overlay', 'changed edition']) {
+test('vMix input and overlay start tags consume attributes in order before a contiguous />', () => {
+  const key = '913caefe-1c82-4548-85c5-fecde6369290';
+  const input = '<input key="' + key + '" number="1" type="Browser" title="Browser marker" />';
+  const overlay = '<overlay number="8">1</overlay>';
+  const xml = (inputs = input, overlays = overlay) =>
+    '<vmix><version>29.0.0.49</version><edition>Trial</edition><inputs>' + inputs + '</inputs><overlays>' + overlays + '</overlays></vmix>';
+  for (const malformed of [
+    input.replace('<input', '<input/').replace(' />', '></input>'),
+    input.replace(' number=', ' / number=').replace(' />', '></input>'),
+    input.replace('/>', '/ >'), input.replace('/>', '//>'),
+    input.replace('" number=', '"number='), input.replace(' />', ' junk />'),
+    input.replace(' key=', '\u00a0key='), input.replace('/>', '/\u00a0>'),
+    input.replace(' />', '><layer unexpected junk /></input>'),
+    input.replace(' />', '><layer /></input\u00a0>'),
+    input.replace(' />', '><layer></input></layer>'),
+  ]) assert.equal(parseVmixXml(xml(malformed)), undefined, malformed);
+  for (const malformed of [
+    overlay.replace('<overlay', '<overlay/'),
+    overlay.replace('>1</overlay>', ' / >'),
+    overlay.replace(' number=', '\u00a0number='),
+    overlay.replace('>1</', '>\u00a01</'),
+    overlay.replace('>1</', '>1<layer /></'),
+  ]) assert.equal(parseVmixXml(xml(input, malformed)), undefined, malformed);
+  assert.equal(parseVmixXml(xml().replace('</vmix>', '</vmix>\u00a0')), undefined);
+  assert.equal(parseVmixXml(xml().replace('29.0.0.49', '\u00a029.0.0.49')), undefined);
+  const formatted = xml(
+    "<input \n\tkey = '" + key + "' type = 'Browser' number='1' title='Browser > / marker'>\n<layer index='1' />\n</input \t>",
+    "<overlay \n number = '7'> \r\n</overlay \t><overlay number='8'> \n1\t </overlay>",
+  );
+  const parsed = parseVmixXml(formatted);
+  assert.equal(parsed?.inputs[0].title, 'Browser > / marker');
+  assert.deepEqual([...parsed.reportedOverlays], [7, 8]);
+  assert.deepEqual([...parsed.overlays], [[8, 1]]);
+});
+
+for (const [fault, corrupt] of [
+  ['missing overlay', xml => xml.replace('<overlay number="7" />', '')],
+  ['changed edition', xml => xml.replace('<edition>Trial</edition>', '<edition>Basic HD</edition>')],
+  ['malformed input start tag', xml => xml.replace('<input key=', '<input/ key=')],
+]) {
   test('AC-4: AddInput cannot keep a key after ' + fault + ' during observation', async () => {
     const fake = await startFakeVmix({
       transformXml(xml) {
         if (!fake.functions.some(fn => fn.name === 'AddInput') || fake.functions.some(fn => fn.name === 'SetInputName')) return xml;
-        return fault === 'missing overlay'
-          ? xml.replace('<overlay number="7" />', '')
-          : xml.replace('<edition>Trial</edition>', '<edition>Basic HD</edition>');
+        return corrupt(xml);
       },
     });
     const outputs = vmixOutputStore();

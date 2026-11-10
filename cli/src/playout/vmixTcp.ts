@@ -231,51 +231,64 @@ export interface VmixXml {
   reportedOverlays: Set<number>;
 }
 
+const XML_SPACE = /^[ \t\r\n]*$/;
+const trimXml = (text: string) => text.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+
 /** Keep only state sections directly under <vmix>. A nested lookalike is not mixer state. */
 function rootSections(xml: string) {
   const names = new Set(['version', 'edition', 'inputs', 'overlays']);
   const sections = new Map<string, string>();
-  const inputRows: string[] = [];
-  const stack: string[] = [];
+  const inputRows: Record<string, string>[] = [];
+  const overlayRows: { attributes: Record<string, string>; content: string }[] = [];
+  const stack: { name: string; attributes: Record<string, string>; start: number }[] = [];
   let root = false;
   let previous = 0;
-  let contentStart = 0;
-  const tags = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(\/?)([\w:-]+)((?:[^<>"']|"[^"]*"|'[^']*')*)>/g;
+  const tags = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(\/?)([A-Za-z_:][\w.:-]*)((?:[^<>"']|"[^"]*"|'[^']*')*)>/g;
   for (const tag of xml.matchAll(tags)) {
     const index = tag.index;
-    const inInputs = stack.length === 2 && stack[1] === 'inputs';
-    const direct = stack.length === 1 || inInputs;
+    const inInputs = stack.length === 2 && stack[1].name === 'inputs';
+    const inOverlays = stack.length === 2 && stack[1].name === 'overlays';
+    const inOverlay = stack.length === 3 && stack[1].name === 'overlays';
+    const onlySpace = stack.length <= 1 || inInputs || inOverlays;
     const gap = xml.slice(previous, index);
-    if (gap.includes('<') || (direct && gap.trim())) return;
+    if (gap.includes('<') || (onlySpace && !XML_SPACE.test(gap))) return;
     previous = index + tag[0].length;
     const [, close, name, rest] = tag;
     if (!name) {
-      if (direct && tag[0].startsWith('<![CDATA[')) return;
+      if (!root || inOverlays || inOverlay || (onlySpace && tag[0].startsWith('<![CDATA['))) return;
       continue;
     }
-    const tail = rest.trim();
     if (close) {
-      if (tail || stack.pop() !== name) return;
-      if (stack.length === 1 && names.has(name)) sections.set(name, xml.slice(contentStart, index));
+      const opening = stack.pop();
+      if (opening?.name !== name || !XML_SPACE.test(rest)) return;
+      if (inOverlay) overlayRows.push({ attributes: opening.attributes, content: xml.slice(opening.start, index) });
+      if (stack.length === 1 && names.has(name)) sections.set(name, xml.slice(opening.start, index));
       continue;
     }
+    if (inOverlay) return;
+    // The scanner stops at > outside quotes. Only a slash immediately before it closes the tag.
+    const empty = rest.endsWith('/');
+    const attributes = readAttributes(empty ? rest.slice(0, -1) : rest);
+    if (!attributes) return;
     if (!stack.length) {
-      if (root || name !== 'vmix' || tail) return;
+      if (root || name !== 'vmix' || empty || Object.keys(attributes).length) return;
       root = true;
     }
-    const empty = tail.endsWith('/');
     if (inInputs) {
       if (name !== 'input') return;
-      inputRows.push(rest);
+      inputRows.push(attributes);
+    }
+    if (inOverlays) {
+      if (name !== 'overlay') return;
+      if (empty) overlayRows.push({ attributes, content: '' });
     }
     if (stack.length === 1 && names.has(name)) {
-      if (sections.has(name) || tail !== (empty ? '/' : '')) return;
+      if (sections.has(name) || Object.keys(attributes).length) return;
       if (empty) sections.set(name, '');
-      else contentStart = previous;
     }
-    if (!empty) stack.push(name);
+    if (!empty) stack.push({ name, attributes, start: previous });
   }
-  if (root && !stack.length && !xml.slice(previous).trim()) return { sections, inputRows };
+  if (root && !stack.length && XML_SPACE.test(xml.slice(previous))) return { sections, inputRows, overlayRows };
 }
 
 /** Decode only valid XML text. The generic decoder also serves CasparCG. */
@@ -288,38 +301,35 @@ function vmixText(text: string): string | undefined {
   if (!/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uD800-\uDFFF\uFFFE\uFFFF]/u.test(decoded)) return decoded;
 }
 
-function attributes(tag: string): Record<string, string> | undefined {
-  const attribute = /\s+([\w:-]+)="([^"]*)"/g;
-  if (!/^\/?$/.test(tag.replace(attribute, '').trim())) return;
+function readAttributes(tail: string): Record<string, string> | undefined {
+  const attribute = /[ \t\r\n]+([A-Za-z_:][\w.:-]*)[ \t\r\n]*=[ \t\r\n]*(?:"([^"]*)"|'([^']*)')/y;
   const out: Record<string, string> = Object.create(null);
-  for (const m of tag.matchAll(attribute)) {
-    const value = vmixText(m[2]);
-    if (value === undefined || Object.hasOwn(out, m[1])) return;
-    out[m[1]] = value;
+  let end = 0;
+  for (let match = attribute.exec(tail); match; match = attribute.exec(tail)) {
+    const [, name, doubleQuoted, singleQuoted] = match;
+    const value = vmixText(doubleQuoted ?? singleQuoted);
+    if (value === undefined || Object.hasOwn(out, name)) return;
+    out[name] = value;
+    end = attribute.lastIndex;
   }
-  return out;
+  if (XML_SPACE.test(tail.slice(end))) return out;
 }
 
 /** vMix's state XML, or nothing when it is not one. Only `<input>` elements directly in `<inputs>`
  *  and `<overlay number>` elements in `<overlays>` count: an input's own layers are `<overlay
  *  index>` elements inside it. */
 export function parseVmixXml(xml: string): VmixXml | undefined {
-  if (!/^\s*<vmix>/.test(xml)) return;
   const parsed = rootSections(xml);
   if (!parsed) return;
-  const { sections, inputRows } = parsed;
-  const version = sections.get('version')?.trim();
-  const overlaySection = sections.get('overlays');
-  if (!version || !/^\d+\.\d+\.\d+\.\d+$/.test(version) || !sections.has('inputs') || overlaySection === undefined) return;
-  const editionText = sections.get('edition');
-  const edition = editionText === undefined ? undefined : vmixText(editionText)?.trim();
+  const { sections, inputRows, overlayRows } = parsed;
+  const version = trimXml(sections.get('version') ?? '');
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(version) || !sections.has('inputs') || !sections.has('overlays')) return;
+  const edition = vmixText(sections.get('edition') ?? '')?.trim();
   if (!edition) return;
   const inputs: VmixInput[] = [];
   const keys = new Set<string>();
   const numbers = new Set<number>();
-  for (const row of inputRows) {
-    const a = attributes(row);
-    if (!a) return;
+  for (const a of inputRows) {
     const key = a.key?.toLowerCase();
     const number = Number(a.number);
     if (!key || !VMIX_INPUT_KEY.test(key) || !/^[1-9]\d*$/.test(a.number ?? '') || !Number.isSafeInteger(number) ||
@@ -330,11 +340,13 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   }
   const overlays = new Map<number, number>();
   const reportedOverlays = new Set<number>();
-  const row = /<overlay\s+number="([1-9]\d*)"\s*(?:\/>|>\s*([1-9]\d*)?\s*<\/overlay>)/g;
-  if (overlaySection.replace(row, '').trim()) return;
-  for (const match of overlaySection.matchAll(row)) {
-    const channel = Number(match[1]);
-    const input = match[2] === undefined ? undefined : Number(match[2]);
+  for (const { attributes, content } of overlayRows) {
+    const { number } = attributes;
+    const occupant = trimXml(content);
+    if (Object.keys(attributes).length !== 1 || !/^[1-9]\d*$/.test(number ?? '') ||
+      (occupant && !/^[1-9]\d*$/.test(occupant))) return;
+    const channel = Number(number);
+    const input = occupant ? Number(occupant) : undefined;
     if (!Number.isSafeInteger(channel) || reportedOverlays.has(channel)) return;
     if (input !== undefined && !Number.isSafeInteger(input)) return;
     // An explicit empty channel is distinct from one vMix omitted.

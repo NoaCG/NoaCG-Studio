@@ -422,6 +422,31 @@ configuration files and left vMixService running. The captures are under
 `C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-final-snapshot` and
 `C:/claude/Temp/vmix-v2-runtime-1108/visuals-v2-final-snapshot`.
 
+### Validate the whole XML start tag
+
+The next full independent review rated the retained candidate
+`da70b219a62c32fee1d21673f62670af83856c7d` B. The fake mixer returned its complete
+overlay table and the exact new Browser marker, but wrote the input as
+`<input/ key="…">…</input>`. The compiled Bridge kept the input key, renamed it and
+put it on Overlay 8. The first three repairs in this family were `6394eb6bc`,
+`b3bf2f226` and `cd9d211d1`. The owner authorized one additional repair of the
+start-tag grammar after the independent rule review.
+
+The parser now reads attributes in order and checks the entire tag before a row
+can prove ownership or overlay state. An empty element ends in contiguous `/>`.
+The same parser reads input and overlay rows, including paired empty overlays.
+Malformed attribute separators, duplicates and mismatched closes make the snapshot
+unusable. The fake reproduction now returns uncertain after only AddInput, keeps
+no key or redirect, and leaves Overlay 8 empty. The captured vMix 29 fixture and
+valid quoted and multiline rows still parse. Mixer commands and deadlines are unchanged.
+
+The rebuilt Windows Bridge 0.11.0 passed all four owned vMix 29.0.0.49 Trial preset
+checks on ports 48831 and 48832. Reopening with the original listener and reloading
+after late startup each recovered the same Program composite. The different-port
+Bridge refused Load without changing the overlay, then unloaded the owned input.
+The four sessions restored both settings files by SHA-256 and left vMixService running.
+The captures are in `C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-final-grammar`.
+
 ### Changed files
 
 - Studio request and control code in `src/control/playoutLink.ts`, `vmixSetup.ts`,
