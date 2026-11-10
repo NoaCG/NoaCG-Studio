@@ -142,26 +142,38 @@ confirmation and session-local recovery ran in an isolated simulation.
   changes leave it intact. A successful paste keeps it for another position
   at the resulting source revision. Other source edits, undo, redo and
   document switches invalidate it. The paste request still checks the latest
-  document revision through the existing session transaction.
+  document revision through the existing session transaction. A still-current
+  refused paste keeps the snapshot. A stale paste discards it.
 - Paste places the first copied key at the live playhead and retains the
   relative offsets after canonical millisecond rounding. Ordinary scrub
   uses the arriving side of a flag. Explicit inspection uses the departing
-  side. Every new key stays in that one cue, including its endpoints.
+  side, including the retained Out side when scrubbing within inspected Out.
+  The live session supplies both time and cue. A position outside that cue
+  refuses before rounding. An interrupted Out rehearsal, even paused, must
+  return to authored time by seeking or inspecting before paste.
+  Every new key stays in that one cue, including its endpoints.
   Any authored key at the same stored time on that track occupies the slot,
   including the opposite side of a flag. A synthetic legacy Out or an Out
   with carried motion refuses paste. Nothing extends or clamps a cue.
-- Every target must resolve to the same unambiguous editable artwork track
-  and already have authored keys in the destination cue. Inherited-only
+- Capture records both the uniquely addressable artwork selector and its
+  data owner. Paste re-resolves that pair without creating or changing an
+  identity. Every target must already have authored keys in the destination
+  cue. Inherited-only
   tracks do not acquire keys. The existing ownership and lossless-source
-  checks apply to every track. Keep value types and compatible filter shapes.
+  checks apply to every track. Keep value types. Each composed filter value
+  must be recognized in canonical form and have the same ordered functions
+  as every existing key in the destination track. Existing filter strings
+  are kept byte for byte.
   Refuse the entire batch on a missing, protected, incompatible or occupied
   target. A successful batch adds one undo and preserves the original keys,
-  fields, assets and source outside the supported animation data. Undo
-  restores the exact previous source.
+  fields, assets and bytes outside the animation data literal. If the guarded
+  writer requires an interpreter upgrade, paste refuses. Undo restores the
+  exact previous source.
 - Ctrl or Command with C or V applies when the timeline owns focus,
-  including after selecting with a marquee. Text fields and active modal
-  surfaces keep their own shortcuts. No system clipboard data is read or
-  written. The format of saved animation data does not change.
+  including after selecting with a marquee, which focuses the timeline lane.
+  Text fields and active modal surfaces keep their own shortcuts. Clipboard
+  actions wait for an active editor gesture to end or cancel. No system
+  clipboard data is read or written. The saved animation format stays the same.
 
 The transition checks use hand-written expectations for source revision and
 instance changes, distinct cue sides and occupied slots, mixed-track refusal,
