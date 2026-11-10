@@ -52,7 +52,7 @@ other session's chat transcript or any tool-private memory.
 ## In a plan run
 
 The Review checkpoints in `docs/plan-runs/known-traps.md` decide when a `/so` runs: none for an
-Ordinary row; the Rules-first and final `/so` for a Risky one.
+Ordinary row; the final `/so` for every other row, and the Rules-first one too for a Risky row.
 
 - **Delta re-review.** Given an earlier full verdict that met the grade, its head and the findings
   a repair answers, review `git diff <assessed head>..<new head>` alone. Say a full review is
@@ -61,8 +61,9 @@ Ordinary row; the Rules-first and final `/so` for a Risky one.
 - **Name the class.** Report the rule a defect breaks and every instance of it you see, so one
   checkpoint fixes them all. Do not raise again a finding the PR answered with a recorded reason
   unless the code it rests on changed.
-- **Pre-existing.** Label a confirmed defect in code the PR did not change `pre-existing`: it does
-  not block the verdict and is not a round.
+- **Pre-existing.** Label a confirmed defect that already exists on the base (it reproduces at the
+  merge-base) `pre-existing`: it does not block the verdict and is not a round. A defect the PR
+  causes in code it did not change is the PR's.
 
 ## Judge
 

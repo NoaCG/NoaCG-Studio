@@ -23,11 +23,16 @@ const CODEX = 'chatgpt-codex-connector[bot]';
 // The agents of a plan run and the owner post as this account; its reviews are replies, not reviews.
 const AGENT_ACCOUNT = 'miwco';
 const CI = '.github/workflows/ci.yml';
-// A plan-run row: a build, repair or re-run branch of a phase, or an owner-requested fix, of the
-// cicd-followup or jev-svg-import run (the two runs cf21's before side reads).
-export const ROW = /^claude\/plan-(cicd-followup|jev-svg-import)-(?:(.+)-(build|repair|rerun)|fix-(\d+))$/;
-// The files whose review rules cf21 changes; a landing that changes one of them ends a side.
-const RULE_FILES = ['docs/plan-runs/known-traps.md', '.agent-workflows/plan-run.md', '.agent-workflows/so.md', '.agent-workflows/check.md'];
+// A plan-run row: a build, repair or re-run branch of a phase, or an owner-requested fix, of any
+// plan run (branch `<tool>/plan-<plan>-<phase id>-<build|repair|rerun>` or `-fix-<issue>`).
+export const ROW = /^(?:claude|codex)\/plan-(.+?)-(?:([^-]+)-(build|repair|rerun)|fix-(\d+))$/;
+// A landing that changes the review rules ends a side: one that changes so.md or check.md, or the
+// Review checkpoints section of known-traps.md. plan-run.md only points to that section.
+const RULE_FILES = ['.agent-workflows/so.md', '.agent-workflows/check.md'];
+const TRAPS = 'docs/plan-runs/known-traps.md';
+// Reverts count only within this time after a row's merge, so older rows are not favoured; a row
+// read sooner after its merge has no revert result yet.
+const REVERT_WINDOW_MS = 7 * 86400000;
 
 const args = process.argv.slice(2);
 const cmd = args[0];
@@ -45,13 +50,14 @@ const cacheDir = () => { const c = opt('--cache'); if (!c) usage(); mkdirSync(c,
 const load = (c, name) => (existsSync(join(c, name)) ? JSON.parse(readFileSync(join(c, name), 'utf8')) : undefined);
 const save = (c, name, v) => writeFileSync(join(c, name), JSON.stringify(v));
 // Pages of a list endpoint until a short page; `key` picks the array out of a wrapped response.
-function pages(path, key) {
+// Job lists use pages of 50: a run with many jobs answers 502 at 100 (as cf03 found).
+function pages(path, key, size = 100) {
   const out = [];
   for (let page = 1; ; page += 1) {
-    const body = api(`${path}${path.includes('?') ? '&' : '?'}per_page=100&page=${page}`);
+    const body = api(`${path}${path.includes('?') ? '&' : '?'}per_page=${size}&page=${page}`);
     const list = key ? body[key] : body;
     out.push(...list);
-    if (list.length < 100) return out;
+    if (list.length < size) return out;
   }
 }
 // A commit's run list is not immutable: runs appear late and failed ones are run again. It is read
@@ -104,7 +110,7 @@ function collect() {
       }
       for (const r of runsOf(c, p.head_sha).filter((x) => x.path === CI && x.status === 'completed' && (x.event === 'pull_request' || x.event === 'workflow_dispatch'))) {
         const file = `jobs-${r.id}-${r.run_attempt}.json`;
-        if (!load(c, file)) save(c, file, pages(`repos/${REPO}/actions/runs/${r.id}/jobs?filter=all`, 'jobs').map((j) => ({ name: j.name, conclusion: j.conclusion, run_attempt: j.run_attempt, started_at: j.started_at, completed_at: j.completed_at })));
+        if (!load(c, file)) save(c, file, pages(`repos/${REPO}/actions/runs/${r.id}/jobs?filter=all`, 'jobs', 50).map((j) => ({ name: j.name, conclusion: j.conclusion, run_attempt: j.run_attempt, started_at: j.started_at, completed_at: j.completed_at })));
       }
     }
   } catch (e) {
@@ -141,7 +147,10 @@ function derive() {
     .map((s) => { const [sha, at, subject, ...body] = s.split('\t'); return { sha, at, subject, body: body.join('\t') }; })
     .filter((r) => /^revert/i.test(r.subject));
   // Landings that changed a review-rule file (they end a side; cf03 section 5.2's clean stretch).
-  const ruleLandings = git('log', 'origin/main', '--first-parent', `--since=${from}`, '--format=%H%x09%cI', '--', ...RULE_FILES).trim().split('\n').filter(Boolean).map((l) => l.split('\t')[1]).sort();
+  const landings = (files) => git('log', 'origin/main', '--first-parent', `--since=${from}`, '--format=%H%x09%cI', '--', ...files).trim().split('\n').filter(Boolean).map((l) => l.split('\t'));
+  const section = (sha) => { try { return /## Review checkpoints\n[\s\S]*?(?=\n## )/.exec(git('show', `${sha}:${TRAPS}`))?.[0] ?? ''; } catch { return ''; } };
+  const ruleLandings = [...landings(RULE_FILES), ...landings([TRAPS]).filter(([sha]) => section(`${sha}^1`) !== section(sha))]
+    .map(([, at]) => new Date(at).toISOString().replace('.000Z', 'Z')).filter((at, i, all) => all.indexOf(at) === i).sort();
   const records = [];
   for (const p of rowsFrom(c, from, until)) {
     const n = p.number;
@@ -201,7 +210,9 @@ function derive() {
     const files = git('diff', '--name-only', `${p.merge_sha}^1`, p.merge_sha).split('\n').filter(Boolean);
     const added = addedLines(`${p.merge_sha}^1..${p.merge_sha}`, files);
     const revertedBy = [];
-    for (const r of reverts.filter((x) => x.at > p.merged_at)) {
+    const revertUntil = Date.parse(p.merged_at) + REVERT_WINDOW_MS;
+    const revertKnown = Date.parse(until) >= revertUntil;
+    for (const r of reverts.filter((x) => Date.parse(x.at) > Date.parse(p.merged_at) && Date.parse(x.at) <= revertUntil)) {
       const named = new RegExp(`#${n}\\b|${p.merge_sha.slice(0, 7)}`).test(`${r.subject} ${r.body}`);
       const shared = git('diff', '--name-only', `${r.sha}^1`, r.sha).split('\n').filter((f) => files.includes(f));
       const removed = addedLines(`${r.sha}^1..${r.sha}`, shared);
@@ -215,7 +226,7 @@ function derive() {
       created_at: p.created_at, merged_at: p.merged_at, merge_sha: p.merge_sha, head_sha: p.head_sha,
       rounds, findings, reviews_to_pass: rounds + 1, passed_first: rounds === 0, codex_clean: codexClean, codex_requests: requests,
       ready_at: ready, gate_at: gate, m1_from_ready: m1FromReady, mode, shards, bucket, configured_jobs: configured, group: `${bucket}${configured > 0 ? '+cfg' : ''}`,
-      land_failures: landFailures, land_pending: landPending, reverted_by: revertedBy,
+      land_failures: landFailures, land_pending: landPending, revert_known: revertKnown, reverted_by: revertedBy,
     });
   }
   writeFileSync(outPath, `${JSON.stringify({ from, until, ruleLandings, records }, null, 1)}\n`);
@@ -287,14 +298,14 @@ const higher = (a, b) => a.n > 0 && b.n > 0 && a.hits * b.n > b.hits * a.n;
 function sideReport(rows) {
   return {
     n: rows.length,
-    by_plan: Object.fromEntries(['cicd-followup', 'jev-svg-import'].map((p) => [p, rows.filter((r) => r.plan === p).length])),
+    by_plan: Object.fromEntries([...new Set(rows.map((r) => r.plan))].sort().map((p) => [p, rows.filter((r) => r.plan === p).length])),
     rounds: stats(rows.map((r) => r.rounds)),
     rounds_histogram: rows.reduce((h, r) => ({ ...h, [r.rounds]: (h[r.rounds] ?? 0) + 1 }), {}),
     passed_after_one_round: share(rows, (r) => r.passed_first),
     five_or_more_reviews: share(rows, (r) => r.reviews_to_pass >= 5),
     m1_from_ready: stats(rows.map((r) => r.m1_from_ready)),
     m1_from_ready_by_group: Object.fromEntries([...new Set(rows.map((r) => r.group))].sort().map((g) => [g, stats(rows.filter((r) => r.group === g).map((r) => r.m1_from_ready))])),
-    reverted: share(rows, (r) => r.reverted_by.length > 0),
+    reverted: share(rows.filter((r) => r.revert_known), (r) => r.reverted_by.length > 0),
     post_landing_failure: share(rows, (r) => r.land_failures.length > 0),
     post_landing_pending: rows.filter((r) => r.land_pending > 0).length,
   };
@@ -306,7 +317,9 @@ function report() {
   const before = records.filter((r) => !cf21 || r.merged_at < cf21);
   // After: built under cf21's rules, so the PR was opened after cf21 landed. A PR opened before
   // and merged after straddles the change and is on neither side.
-  const after = cf21 ? records.filter((r) => r.created_at > cf21) : [];
+  // The after side ends at the next landing that changes the review rules again.
+  const next = cf21 ? ruleLandings.find((t) => t > cf21) : null;
+  const after = cf21 ? records.filter((r) => r.created_at > cf21 && (!next || r.merged_at < next)) : [];
   const straddling = cf21 ? records.filter((r) => r.merged_at >= cf21 && r.created_at <= cf21).map((r) => r.number) : [];
   const ref = before.filter((r) => r.m1_from_ready != null);
   const sp = { m1_from_ready: spreadOf(ref, 'm1_from_ready', ruleLandings), rounds: spreadOf(before, 'rounds', ruleLandings) };
@@ -314,17 +327,30 @@ function report() {
     median: minSample((m === 'rounds' ? before : ref).map((r) => r[m]), s.spread, median),
     p95: minSample((m === 'rounds' ? before : ref).map((r) => r[m]), s.spread, (v) => quantile(v, 0.95), { nMin: 20 }),
   }]));
-  const out = { window: { from, until, cf21: cf21 ?? null }, before: sideReport(before), after: cf21 ? sideReport(after) : null, straddling, spread: sp, min_n_per_side: minN, rule_landings: ruleLandings };
+  const out = { window: { from, until, cf21: cf21 ?? null, after_ends: next ?? null }, before: sideReport(before), after: cf21 ? sideReport(after) : null, straddling, spread: sp, min_n_per_side: minN, rule_landings: ruleLandings };
   if (cf21 && after.length) {
-    const claim = {};
-    for (const m of ['m1_from_ready', 'rounds']) {
-      const b = before.map((r) => r[m]).filter((x) => x != null); const a = after.map((r) => r[m]).filter((x) => x != null);
+    // An improvement must hold over all rows and within the plan with the most after rows, so a
+    // change in the plan mix alone cannot make one.
+    const counts = after.reduce((h, r) => ({ ...h, [r.plan]: (h[r.plan] ?? 0) + 1 }), {});
+    const dominant = Object.keys(counts).sort((x, y) => counts[y] - counts[x] || x.localeCompare(y))[0];
+    const inPlan = (rows) => rows.filter((r) => r.plan === dominant);
+    const medianTest = (bRows, aRows, m) => {
+      const b = bRows.map((r) => r[m]).filter((x) => x != null); const a = aRows.map((r) => r[m]).filter((x) => x != null);
       const enough = typeof minN[m].median === 'number' && a.length >= minN[m].median && b.length >= minN[m].median;
-      claim[m] = { enough_rows: enough, before_median: median(b), after_median: median(a), improved: enough && median(b) - median(a) > sp[m].spread, regressed: enough && median(a) - median(b) > sp[m].spread };
+      return { n_before: b.length, n_after: a.length, enough_rows: enough, before_median: median(b), after_median: median(a), improved: enough && median(b) - median(a) > sp[m].spread, regressed: enough && median(a) - median(b) > sp[m].spread };
+    };
+    const shareTest = (bRows, aRows) => {
+      const a = share(aRows, (r) => r.passed_first); const b = share(bRows, (r) => r.passed_first);
+      const enough = a.n >= 8 && b.n >= 8; const p = fisherGreater(a.hits, a.n, b.hits, b.n);
+      return { n_before: b.n, n_after: a.n, enough_rows: enough, p_higher_after: p, improved: enough && p < 0.05 };
+    };
+    const claim = { dominant_plan: dominant };
+    for (const m of ['m1_from_ready', 'rounds']) {
+      const all = medianTest(before, after, m); const plan = medianTest(inPlan(before), inPlan(after), m);
+      claim[m] = { all, [dominant]: plan, improved: all.improved && plan.improved };
     }
-    const pf = (s) => [s.passed_after_one_round.hits, s.passed_after_one_round.n];
-    const [ah, an] = pf(out.after); const [bh, bn] = pf(out.before);
-    claim.passed_after_one_round = { enough_rows: an >= 8 && bn >= 8, p_higher_after: fisherGreater(ah, an, bh, bn) };
+    const all = shareTest(before, after); const plan = shareTest(inPlan(before), inPlan(after));
+    claim.passed_after_one_round = { all, [dominant]: plan, improved: all.improved && plan.improved };
     // The guardrail: a rise in reverts or post-landing failures counts against the change.
     for (const k of ['reverted', 'post_landing_failure']) {
       const a = out.after[k]; const b = out.before[k];

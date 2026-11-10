@@ -41,14 +41,19 @@ Searched for conflicting wording after the change: `Narrow delta` appears nowher
 - **`/so` on Ordinary rows:** dropped, as change 4 authorizes. Every path the owner named as never
   Ordinary is in the Risky row and keeps the Rules-first `/so` and the final `/so`.
 - **Delta re-review** keeps every reason for a full `/so` the owner listed, plus Narrow delta's.
-- **Pre-existing findings** were already outside the PR's diff in `check.md`; the change adds the
-  issue link and says they are not a round. A defect in changed code still blocks.
+- **Pre-existing findings** are defects that already exist on the base. A defect the PR causes,
+  in changed code or not, still blocks. `check.md` used to say to report a problem outside the
+  diff; now that problem does not block the branch when it is already on the base, and it gets an
+  issue link when it is not fixed.
+- **Every row that is not Ordinary** keeps its final `/so`. The receipt names the row's class, and
+  the coordinator checks the diff against the Risky paths before stamping a row with no `/so`.
 - **The root `AGENTS.md` byte ceiling** (3,072, `KERNEL_MAX_BYTES`) was not raised. The
   guidelines rule scoped to `**` would make the file 3,447 bytes, so it is scoped to `src/**`,
   `api/**`, `e2e/**` and `supabase/**`. Of those, only `src/AGENTS.md` is compiled; the other three
   folder contracts are hand-written, so a reviewer of a change only there does not read it. The
   owner's list of real defects (state rules, playout, export, data loss) is product code, mostly
-  under `src/`.
+  under `src/`. `scripts/`, `.github/` and `docs/`, where most cicd-followup rows land, are not
+  covered, so cf20 should not expect the rule to change those rows' Codex rounds.
 
 ## 3. (b) and (c): the method cf20 uses
 
@@ -58,10 +63,14 @@ until it is non-empty, finished and read at least two days after the merge, so l
 are seen. No log, signed URL or credential is read or stored.
 
 - **Rows.** Merged PRs whose branch is a build, repair or re-run of a phase, or an owner-requested
-  fix, of the cicd-followup or jev-svg-import run (`ROW` in the script). Spec branches are not rows.
-- **Sides.** Before: merged before cf21's `merged_at`. After: PR created after cf21's `merged_at`,
-  so it was built under the new rules. A PR opened before and merged after is on neither side and
-  is listed (`straddling`).
+  fix, of any plan run (`ROW`: `<tool>/plan-<plan>-<phase>-<build|repair|rerun>` or `-fix-<n>`).
+  Every plan run works under the same Review checkpoints, and the after side needs every row it can
+  get. Spec and check branches are not rows.
+- **Sides.** Before: merged before cf21's `merged_at`. After: PR created after cf21's `merged_at`
+  (built under the new rules) and merged before the next landing that changes the review rules
+  again. A PR opened before and merged after is on neither side and is listed (`straddling`).
+  A landing changes the review rules when it changes `so.md`, `check.md` or the Review checkpoints
+  section of `known-traps.md` (`ruleLandings`). Other edits to `known-traps.md` do not end a side.
 - **A review round** is a reviewer result that carried findings: a Codex review (from
   `chatgpt-codex-connector[bot]`) with at least one inline comment, or a review by any other person
   that requests changes or has inline comments. Reviews by the agents' account and bots are
@@ -76,50 +85,62 @@ are seen. No log, signed URL or credential is read or stored.
   head's ci.yml PR or dispatch runs, any attempt. Each row also gets cf03's group (section 4.1).
 - **Post-landing failure:** a run on the merge commit from the push to main or its deployment whose
   latest attempt failed, timed out or did not start, or that was run again.
-- **Revert:** a later commit on main whose subject starts with "Revert" and that names the PR or its
-  merge SHA, or removes lines the PR added to a file both changed.
+- **Revert:** a commit on main within 7 days after the row's merge whose subject starts with
+  "Revert" and that names the PR or its merge SHA, or removes lines the PR added to a file both
+  changed. A row merged less than 7 days before the read has no revert result yet and is left out
+  of the share (`revert_known`), so older rows are not favoured.
 - **cf03's spread rule** (phase-cf03.md section 5.2), with the before rows as the reference: the
   robust standard deviation (1.4826 times the median absolute deviation), also over the longest
-  stretch of rows with no landing that changed one of the four review-rule files, the larger one
-  being the spread; the minimum n per side by cf03's resampling test (2,000 draws, seed 3, floors 8
-  and 20). The statistics are copied unchanged from `phase-cf03-baseline.mjs`.
-- **Claims** (`report --cf21 <merged_at>`). M1 from ready improves only when both sides reach the
-  minimum n and the after median is lower by more than the spread. Rounds per PR have a spread of 0
-  (most rows have none), so cf03's test cannot size them: the share passing after one round is
-  compared with cf03's share test (one-sided Fisher exact, p below 0.05, at least 8 rows a side).
-  Reverts and post-landing failures: any higher rate on the after side (compared on the exact
-  counts, not the rounded shares) is reported as counting against the change, with its Fisher p,
-  never as a saving.
+  stretch of rows with no review-rule landing, the larger one being the spread; the minimum n per
+  side by cf03's resampling test (2,000 draws, seed 3, floors 8 and 20). The statistics are copied
+  unchanged from `phase-cf03-baseline.mjs`.
+- **One departure from cf03: the reference is all rows, not one group.** cf03 groups by offline
+  shard count and configured jobs, because they decide which CI chain is critical. M1 from ready
+  is mostly review and repair time (before median 27.8 minutes against cf03's CI-only M1 of 5 to 15),
+  and only `cap+cfg` has enough rows for a per-group minimum. The report prints M1 from ready per
+  group, so cf20 can see a shift in the group mix.
+- **Claims** (`report --cf21 <merged_at>`). An improvement must hold over all rows **and** within
+  the plan with the most after rows, so a change in the plan mix cannot make one alone (before,
+  passed after one round: cicd-followup 12 of 18, jev-svg-import 22 of 41).
+  - M1 from ready: both sides reach the minimum n, and the after median is lower by more than the
+    spread.
+  - Rounds per PR have a spread of 0 (most rows have none), so cf03's test cannot size them. The
+    share passing after one round is compared with cf03's share test instead: one-sided Fisher
+    exact, p below 0.05, at least 8 rows a side.
+  - Reverts and post-landing failures: any higher rate on the after side, compared on the exact
+    counts, is reported as counting against the change, with its Fisher p, never as a saving.
 
 ## 4. The before side
 
 Window: merges from 2026-10-31T11:40:05Z (ci02, #1852, which made Review checkpoints the one rule
 set for plan-run reviews) to the read at 2026-11-10T12:44:21Z. Rows merged after the read and
 before cf21 lands are before rows too: cf20 collects up to cf21's `merged_at`. Records:
-[phase-cf21-records.json](phase-cf21-records.json); eight collection passes of at most 100 calls
-(the first four stopped early on a `gh` error and were run again; cached reads are not repeated),
-then four passes (122 calls) that read every run list again under the settle rule above, with the
-same result.
+[phase-cf21-records.json](phase-cf21-records.json). Collection used passes of at most 100 calls
+(some stopped early on a GitHub 502 and were run again; cached reads are not repeated).
 
-| Measure | Before (n = 59: 41 jev-svg-import, 18 cicd-followup) |
+| Measure | Before (n = 88) |
 | --- | --- |
-| Review rounds per PR | median 0, p95 6; 0: 34, 1: 14, 2: 3, 3: 1, 4: 3, 5: 1, 6: 2, 7: 1 |
-| Passing after one round | 34 of 59 (0.58) |
-| Five or more reviews to pass | 7 of 59 (0.12) |
-| M1 from ready, minutes | median 28.3, p95 151.8 (n 59) |
-| M1 from ready by cf03 group | cap+cfg 32 rows, median 32.0; none 8, 14.7; small 7, 21.4; small+cfg 5, 28.7; none+cfg 4, 20.5; cap 3, 34.3 |
-| Reverted | 1 of 59 (#2237, by 900ce353, the cf13 trial's planned revert) |
-| Post-landing failure | 8 of 59 (6 runs that were run again and passed, the cf12 quarantine run, a ci.yml push failure on #2171) |
+| Rows by plan | jev-svg-import 41, cicd-followup 18, cicd-improvement 17, interaction 7, codebase-health 3, editor 1, vmix 1 |
+| Review rounds per PR | median 0, p95 6; 0: 54, 1: 15, 2: 5, 3: 3, 4: 3, 5: 2, 6: 3, 7: 1, 10: 1, 26: 1 (#1880, ci18) |
+| Passing after one round | 54 of 88 (0.61) |
+| Five or more reviews to pass | 11 of 88 (0.13) |
+| M1 from ready, minutes | median 27.8, p95 151.8 (n 88) |
+| M1 from ready by cf03 group | cap+cfg 46 rows, median 40.9; none 16, 14.2; small 9, 18.1; cap 6, 24.5; small+cfg 6, 21.8; none+cfg 5, 20.5 |
+| Reverted within 7 days | 0 of 58 rows with a full window (#2237's revert, 900ce353, is inside its window, but #2237 merged under 7 days before the read) |
+| Post-landing failure | 11 of 88 |
 
-**Spread and minimum n (cf03 section 5.2).** M1 from ready: whole 20.2, clean stretch 13.2 over 30
-rows, spread 20.2 minutes; minimum 13 rows a side for the median, over 120 for the p95 (compared by
-median only). Rounds: spread 0, compared through the share passing after one round.
+**Spread and minimum n (cf03 section 5.2).** M1 from ready: whole 20.6, clean stretch 20.7 over
+67 rows, spread 20.7 minutes; minimum 25 rows a side for the median, over 120 for the p95 (compared
+by median only). Rounds: spread 0, compared through the share passing after one round. One
+review-rule landing fell in the window (2026-11-03T20:51:56Z).
 
 Two rows are long by holding, not by review: #2261 (4,328 minutes, cf13's re-run held for days by
 design) and #2171 (783). The median is the compared statistic, so they do not move a claim.
 
-**No improvement claim is made here.** cf21 has no after rows yet; cf20 reads them with
-`report --cf21 <cf21 merged_at>` once at least 13 after rows exist, and states the sample if fewer.
+**No improvement claim is made here.** cf21 has no after rows yet. cf20 runs `report --cf21
+<cf21 merged_at>` and claims nothing unless both sides reach 25 rows; with fewer it reports the
+sample sizes. Only six cicd-followup phases remain before cf20, so the after side depends on the
+other plan runs' rows (interaction is active); cf20 may well report "not enough rows".
 
 ## 5. Verification
 
@@ -143,6 +164,9 @@ design) and #2171 (783). The median is the compared statistic, so they do not mo
   - The guidelines rule is scoped to the product folders, not `**`, because the root contract is
     at its byte ceiling and a ceiling is not raised (acceptance d).
   - Rounds count reviewer results with findings on GitHub, the one record both sides share.
+  - Rows from every plan run, with the claim required within the dominant plan too, because a
+    two-plan frame would leave the after side too small and open to a mix effect.
+  - Reverts count within 7 days of the merge, so every row has the same time to be reverted.
   - The before window starts at ci02, when today's review rule set began.
 - **Traps.** `gh api` with `head_sha` needs the full SHA. A merged PR's commit list says nothing
   about reverts that do not name it (900ce353 names no PR), so reverts are also found by the lines
