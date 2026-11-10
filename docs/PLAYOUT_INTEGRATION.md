@@ -261,7 +261,7 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
   shared storage, so a dock showing the panel from the same local address as the browser source
   pairs with it and drives it, no relay needed. A source added with **Local file** does not
   have that address (OBS serves it as `http://absolute/<path>`), so serve the folder and use its
-  http address for both. For remote operation use the hosted control page instead.
+  http address for both. For remote operation, sign in on the other device and open the production page.
 
 ## 5. vMix
 
@@ -355,7 +355,7 @@ than one that admits the gaps.
 
 - **Verified on real hardware** (2026-08-03): the cloud output URL playing in **OBS** and in
   **CasparCG 2.3.2**, at 1920×1080, transparent, surviving a refresh and a kill-and-reopen with
-  commands issued while the renderer was down; the hosted control page driving it from a phone;
+  commands issued while the renderer was down; the hosted control page (retired 2026-11) driving it from a phone;
   two operators agreeing on which cue is live.
 - **Verified by the test suite, not on hardware**: the exported packages open and play from
   `file://` with no network, fonts and images inlined; the bundled control panel pairs with

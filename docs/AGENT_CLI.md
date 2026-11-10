@@ -196,7 +196,7 @@ env file), Codex sessions, and the `noacg` MCP server, which cannot log in or ou
 `save` reads that store.
 
 Vocabulary (the product's): `save` puts a graphic in the LIBRARY. `publish` is what a PRODUCTION
-does when it goes to the hosted control page / output URL; `add`, `publish`, `take`/`update`/
+does when it goes to its output URL; `add`, `publish`, `take`/`update`/
 `next`/`out` are reserved verbs for later capabilities and are never what `save` does.
 
 ### Protocol
