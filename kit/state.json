@@ -49,18 +49,20 @@
  "waitingOn": [],
  "inFlight": [
   {
-   "phase": "cf02",
-   "step": "build",
-   "session": "session_017SdbwN7jhzhEi2sh6D8NcS",
-   "nonce": "cf02-b-f9c7",
-   "launchedAt": "2026-11-10T13:53:57Z"
-  },
-  {
    "phase": "cf21-followup",
    "step": "build",
    "session": "session_017SdbwPMaBaH6SDUhN2Z9qX",
    "nonce": "cf21-f-codexroot",
    "launchedAt": "2026-11-10T13:52:32Z"
+  },
+  {
+   "phase": "cf02",
+   "step": "check",
+   "session": "session_017SdbwQ9GYMPbgArcPbLoMG",
+   "nonce": "cf02-c-dbe1",
+   "launchedAt": "2026-11-10T14:16:47Z",
+   "mergeSha": "446ae235e7760273734f7d6ef10862ca85338f29",
+   "pr": 2352
   }
  ],
  "owner": [],
