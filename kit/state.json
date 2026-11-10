@@ -41,26 +41,19 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {
-    "what": "V2 stopped at the three-attempt XML ownership limit. Fresh full independent review of local da70b219 against 446ae235 reproduced malformed input attributes being accepted and authorizing durable ownership, rename and Overlay 8. Grade B. The earlier PR head remains b3bf2f226 outside the queue. CI/CD hold is lifted; AC-4 and release acceptance remain open."
-  },
+  "waitingOn": [],
   "inFlight": [
     {
-      "note": "Local da70b219 retained unpushed, independently reviewed B. No running worker or queue entry.",
+      "note": "One owner-authorized additional repair from local da70b219, with prior attempt history preserved.",
       "pr": 2293,
       "head": "b3bf2f2262142e71e30b8870a12238c4fa442aee",
-      "step": "blocked at repair limit",
+      "step": "authorized XML repair",
       "phase": "v2",
       "repairComment": 6723338187,
       "session": "/root/v2_builder"
     }
   ],
-  "owner": [
-    {
-      "where": "This Codex chat and existing PR #2293",
-      "what": "Further V2 parser repair requires an explicit owner decision after the repair cap"
-    }
-  ],
+  "owner": [],
   "fixes": [],
   "triggers": []
 }
