@@ -42,7 +42,16 @@
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
   "waitingOn": {},
-  "inFlight": [],
+  "inFlight": [
+    {
+      "pr": 2293,
+      "phase": "v2",
+      "head": "3d8337b59bc8713fd47f5fd292a1de289f0258fa",
+      "note": "Owner authorized the focused TCP reply repair. Fresh local worker active on same draft. Independent rules review recorded. Prior pairing verification and failing full V2 verdict retained.",
+      "step": "build",
+      "session": "/root/v2_tcp_repair"
+    }
+  ],
   "owner": [],
   "fixes": [],
   "triggers": []
