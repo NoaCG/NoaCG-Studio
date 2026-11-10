@@ -39,14 +39,12 @@
  "waitingOn": [],
  "inFlight": [
   {
-   "phase": "4",
-   "step": "check",
-   "session": "session_017SdbwNUCXF9RwtcodfwWtx",
-   "nonce": "4-c-762c",
-   "launchedAt": "2026-11-10T09:29:14Z",
-   "merge": "1740d4f128ec6f74bc9b95ca3b90d12f0c101ab5",
-   "pr": 2341,
-   "builder": "session_017SdbwMcEvbAxyDLdN4K8gr"
+   "phase": "5",
+   "step": "build",
+   "session": "session_017SdbwMoZKV2TMmJKYh1CJi",
+   "nonce": "5-b-f305",
+   "launchedAt": "2026-11-10T09:50:25Z",
+   "branch": "claude/plan-interaction-5-build"
   }
  ],
  "owner": [
