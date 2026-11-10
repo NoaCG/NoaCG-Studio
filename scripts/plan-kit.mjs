@@ -52,7 +52,7 @@ export function checkState(state) {
     ['coordinator.return (how a worker sends its receipt back)', nonempty(state?.coordinator?.return)],
     ['coordinator.environment', nonempty(state?.coordinator?.environment)],
     ['authorization.line (the owner\'s words, verbatim)', nonempty(state?.authorization?.line)],
-    ['authorization.deadline (ISO with offset)', Number.isFinite(instant(state?.authorization?.deadline))],
+    ['authorization.deadline (ISO with offset), or none for a run until complete', state?.authorization?.deadline === undefined || Number.isFinite(instant(state.authorization.deadline))],
   ].filter(([, ok]) => !ok).map(([what]) => what);
   if (missing.length) throw Error(`state.json needs ${missing.join(', ')}`);
   return state;
@@ -98,7 +98,7 @@ export function renderBrief(wave, kind, target, values = {}, { nonce = randomByt
   const codex = state.execution?.harness === 'codex';
   if (codex && (!project?.block || projectBoundary(project, now))) throw Error('A Codex worker brief needs an active bounded work block');
   const end = codex || untilComplete(project?.authorization) ? project.block?.deadline : project?.authorization.deadline ?? state.authorization.deadline;
-  if (untilComplete(project?.authorization) && !end) throw Error('An until-complete worker brief needs an actual bounded work block');
+  if (!end) throw Error('A worker brief needs an actual bounded work block');
   const fields = {
     PLAN: state.plan, PROJECT: state.project, ISSUE: String(state.issue), COORDINATOR: state.coordinator.session,
     RETURN: state.coordinator.return, ENVIRONMENT: state.coordinator.environment, DEADLINE: end,
@@ -197,13 +197,16 @@ export function heartbeat(wave, now = Date.now()) {
   const due = checkin(next, state, project, now);
   const step = [next.action, next.step, next.phase && `phase ${next.phase}`, next.id && `(${next.id})`].filter(Boolean).join(' ');
   const block = project?.block && project.status === 'active' ? `block ${project.block.epoch} ends ${project.block.deadline}` : `no open block (${project?.status ?? 'no project'})`;
+  const target = project?.authorization.deadline ? `planning target ${project.authorization.deadline}; ` : '';
+  const ends = untilComplete(project?.authorization) ? `${target}continue until complete`
+    : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline ?? 'when its phases are done'}`;
   return [
     `<!-- noacg:plan-run-heartbeat ${state.project} -->`,
     `**Plan run \`${state.project}\`**, updated ${new Date(now).toISOString()}`,
     '',
     `- **Next:** ${step}${next.why ? `: ${next.why}` : ''}`,
     `- **Phases passed:** ${passed} of ${total}`,
-    `- **Window:** ${block}; ${untilComplete(project?.authorization) ? `planning target ${project.authorization.deadline}; continue until complete` : `the run ends ${project?.authorization.deadline ?? state.authorization.deadline}`}`,
+    `- **Window:** ${block}; ${ends}`,
     `- **Waiting on:** ${state.waitingOn?.what ? `${state.waitingOn.what}${state.waitingOn.eta ? `, due ${state.waitingOn.eta}` : ''}` : 'nothing outside the ledger'}`,
     `- **Next check-in:** ${due.at ? `${due.at} (${due.why})` : `none (${due.why})`}`,
     '',

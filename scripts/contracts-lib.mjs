@@ -95,8 +95,11 @@ export const MERGE_DRIVER = 'noacg-contracts';
  * Claude's own AGENTS.md reading off, so nothing arrives twice). Only `**`-scoped rules land in it. Everything else loads only when a file it
  * scopes to is touched. A rule that does not belong in every session's first tokens gets a scope,
  * and adding one here means removing one.
+ *
+ * 3480, not 3 * 1024: the owner raised it to fit the Codex review-guidelines rule at the root,
+ * docs/work-specs/cicd-followup/evidence/owner-decision-2026-11-10-codex-root.md.
  */
-export const KERNEL_MAX_BYTES = 3 * 1024;
+export const KERNEL_MAX_BYTES = 3480;
 const ROOT_TITLE = 'NoaCG Studio';
 export const KERNEL_OUTPUT = NESTED_CONTRACT;
 

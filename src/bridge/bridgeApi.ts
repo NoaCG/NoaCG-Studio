@@ -197,6 +197,13 @@ export type ScaffoldRequest =
       fields: NeutralFieldSpec[];
       name?: string;
       style?: ScaffoldStyle;
+    }
+  | {
+      /** SVG artwork: imported as the studio imports it, its layer names deciding the fields
+       *  and any behaviour (docs/SVG_AUTHORING.md). */
+      svg: string;
+      name?: string;
+      style?: ScaffoldStyle;
     };
 
 export interface ScaffoldResult {
@@ -219,6 +226,25 @@ function styleOptions(style: ScaffoldStyle | undefined): WizardOptions {
 }
 
 export async function scaffold(req: ScaffoldRequest): Promise<ScaffoldResult> {
+  if ('svg' in req) {
+    // The studio SVG drop's own default (components/wizard/import/svgDefault.ts), not a copy of it.
+    const [{ importSvgMarkup }, { svgDefaultDesign }, { IMPORTED_SVG }] = await Promise.all([
+      import('../assets/svgImport'),
+      import('../components/wizard/import/svgDefault'),
+      import('../templates/importedDesign/svg'),
+    ]);
+    const options = styleOptions(req.style);
+    const designSvg = svgDefaultDesign(importSvgMarkup(req.svg), options.resolution ?? { width: 1920, height: 1080 });
+    const template = IMPORTED_SVG.create({ ...options, designSvg });
+    const behaviour = designSvg?.behaviour && 'recipe' in designSvg.behaviour ? designSvg.behaviour.recipe : designSvg?.behaviour?.kind ?? null;
+    const notes = [
+      'Imported as the studio imports a dropped SVG by default: the layer names decide the fields and any behaviour (docs/SVG_AUTHORING.md).',
+      behaviour ? `Your layer names made this a "${behaviour}" graphic: the layers it writes are not operator fields.` : 'Plain artwork: its text layers are operator fields.',
+      `Operator fields: ${template.fields.map((f) => f.title).join(', ') || 'none'}.`,
+      'What the studio asks by hand (a lower third\'s measured growth, picked pictures, outlined text) is not applied; to change the drawing, change the SVG and scaffold again.',
+    ];
+    return { template: req.name ? nameTemplate(template, req.name) : template, notes };
+  }
   if ('fields' in req) {
     const template = neutralSpineFor(req.fields, { ...styleOptions(req.style), name: req.name });
     return {

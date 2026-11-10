@@ -171,6 +171,9 @@ sweep-*.json
 .claude/launch.json
 .claude/dev-port.json
 
+# Claude Code stores local command approvals here.
+/.claude/settings.local.json
+
 # Every session's feature worktrees (and the orchestrator's home) live here. Each is its own git
 # checkout, so the primary checkout must not list them as untracked: the cloud Stop hook
 # (Claude Code on the web) flags any untracked path, and `git add -A` there would stage them.

@@ -14,7 +14,7 @@ Never reopen a completed or owner-closed run to fill historical evidence. Work o
 phase set, order, dependencies and acceptance. A product plan, provider or topology change needs its
 own authorization; this procedure does not transfer a Claude-owned run to Codex.
 
-Record scope, owner words, actual start and finite deadline/target in the existing launch receipt.
+Record scope, owner words, actual start and the owner's date if he gave one (none: until complete) in the existing launch receipt.
 Reuse permission already supplied; ask only missing owner-level choices. Resolve owner-facing dates
 in the owner's supplied timezone (the current client preference otherwise), preserve explicit offsets
 and recorded instants. `untilComplete` and automatic `blockRenewal` are separate standing permissions;

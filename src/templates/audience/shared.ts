@@ -62,7 +62,7 @@ import { stageFitRuntimeJs } from '../shared/stageFit';
 import type { AnimData, AnimStep } from '../../blocks/animData';
 import type { PresetConfig } from '../lowerThirds/animPresets';
 import { audiencePresetById } from './audiencePresets';
-import { AUDIENCE_ATTRIBUTION_JS, AUDIENCE_QUEUE_JS } from './audienceRuntime';
+import { AUDIENCE_ATTRIBUTION_JS, AUDIENCE_JOIN_JS, AUDIENCE_QUEUE_JS, AUDIENCE_WORDS_JS } from './audienceRuntime';
 import { resolveTokens, type ThemeTokens, type TokenOverrides } from '../../model/themeTokens';
 
 // ── Forms ────────────────────────────────────────────────────────────────────
@@ -76,14 +76,21 @@ export interface AudienceLine {
 }
 
 export interface AudienceForm {
-  id: 'question' | 'qa' | 'chat' | 'queue' | 'request';
+  id: 'question' | 'qa' | 'chat' | 'queue' | 'request' | 'join' | 'words';
   /** The fields, in emission order — they compile to f0…fN positionally. */
   lines: AudienceLine[];
   /** One-line comment describing the root in the generated HTML. */
   rootComment: string;
   /** A field held in a HIDDEN source div instead of being rendered directly (the queue's list,
-   *  which the runtime turns into rows). */
+   *  which the runtime turns into rows; the Join card's link, which it turns into a QR code). */
   hiddenSourceField?: string;
+  /** What the hidden source holds, said in the generated HTML beside it. */
+  hiddenSourceComment?: string;
+  /** The runtime call that repaints what the form derives from its fields, run on load, on
+   *  update() and on play() (the queue's rows, the Join card's code). */
+  repaint?: string;
+  /** The comment beside that call in update() and play(), padding included. */
+  repaintNote?: string;
   /** Extra design-owned runtime this form needs, emitted OUTSIDE the marked region. */
   runtimeJs?: string;
   /** A middle step this form authors on the default path (the Q&A card's answer reveal). */
@@ -164,6 +171,10 @@ export const QUEUE_FORM: AudienceForm = {
   id: 'queue',
   rootComment: 'Question queue — the running order, with one question live.',
   hiddenSourceField: 'f0',
+  hiddenSourceComment:
+    'Hidden queue source — SPX writes field f0 here; the runtime renders it as rows.\n         One entry per line, written "Question | Name | Source". Name and source are optional.',
+  repaint: 'audienceQueueRebuild();',
+  repaintNote: "          // fresh rows from the operator's list",
   runtimeJs: AUDIENCE_QUEUE_JS,
   lines: [
     {
@@ -182,6 +193,47 @@ export const QUEUE_FORM: AudienceForm = {
     // types — which is exactly the kind of thing that strands a template at a broadcaster
     // who works in another language. The numbers stay the runtime's.
     { title: 'Position word', sample: 'of' },
+  ],
+};
+
+/** JOIN CARD: the QR code and the short link viewers join by (templates/audience/joinCard.ts). */
+export const JOIN_FORM: AudienceForm = {
+  id: 'join',
+  rootComment: 'Join card: a QR code drawn from the Join link, what to do, and the link.',
+  hiddenSourceField: 'f2',
+  hiddenSourceComment:
+    'Hidden join source: SPX writes field f2 here; the runtime draws it as a QR code and shows it without https://. Empty draws nothing.',
+  repaint: 'audienceJoinPaint();',
+  repaintNote: '                  // what the form draws from its fields',
+  runtimeJs: AUDIENCE_JOIN_JS,
+  lines: [
+    { title: 'Label', sample: 'JOIN IN' },
+    { title: 'Call to action', sample: 'Scan to answer on your phone' },
+    // A graphic's own text may hold no absolute URL (the publish gate), so the sample has no
+    // scheme; Add Join card to rundown writes the real link into the cue, not the graphic.
+    { title: 'Join link', sample: 'noacg.studio/j/your-show' },
+  ],
+};
+
+/** WORD CLOUD: the words a Word question gathered, sized by how many phones sent each
+ *  (templates/audience/wordCloud.ts; interaction spec AC-14). */
+export const WORDS_FORM: AudienceForm = {
+  id: 'words',
+  rootComment: 'Word cloud: the question, and the words the audience sent, sized by how many sent each.',
+  hiddenSourceField: 'f2',
+  hiddenSourceComment:
+    'Hidden words source: SPX writes field f2 here, one "word | count" line each, most first; the runtime draws them as a cloud. Empty draws nothing.',
+  repaint: 'audienceWordsPaint();',
+  repaintNote: '                 // what the form draws from its fields',
+  runtimeJs: AUDIENCE_WORDS_JS,
+  lines: [
+    { title: 'Label', sample: 'YOUR WORDS' },
+    { title: 'Question', sample: 'Sum up tonight in one word' },
+    {
+      title: 'Words',
+      ftype: 'textarea',
+      sample: ['Brilliant | 18', 'Tense | 11', 'Electric | 9', 'Proud | 7', 'Loud | 6', 'Joyful | 5', 'Nervous | 4', 'Unforgettable | 3', 'Fun | 3', 'Epic | 2', 'Wild | 2', 'Classy | 1'].join('\n'),
+    },
   ],
 };
 
@@ -286,7 +338,7 @@ function audienceFields(form: AudienceForm, o: ResolvedOptions): SpxField[] {
 
 /** The audience runtime: the standard scaffold plus the attribution pass every form runs. */
 function audienceRuntimeJs(name: string, form: AudienceForm, animationBlock: string): string {
-  const rebuild = form.id === 'queue' ? '\n  audienceQueueRebuild();          // fresh rows from the operator\'s list' : '';
+  const rebuild = form.repaint ? `\n  ${form.repaint}${form.repaintNote ?? ''}` : '';
   return `// ${name} — generated by NoaCG Studio. SPX calls update(), play(), stop(), next().
 
 ${setFieldValueJs}
@@ -329,9 +381,9 @@ function next() {
 // Read the attribution once on load, so the preview is right before the first update().
 // This file loads in <head>, before the card exists — wait for the DOM.
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function () { ${form.id === 'queue' ? 'audienceQueueRebuild(); ' : ''}audienceAttribution(); });
+  document.addEventListener('DOMContentLoaded', function () { ${form.repaint ? `${form.repaint} ` : ''}audienceAttribution(); });
 } else {
-  ${form.id === 'queue' ? 'audienceQueueRebuild();\n  ' : ''}audienceAttribution();          // DOM already parsed (e.g. an inline preview build)
+  ${form.repaint ? `${form.repaint}\n  ` : ''}audienceAttribution();          // DOM already parsed (e.g. an inline preview build)
 }
 
 ${animationBlock}
@@ -353,7 +405,8 @@ export function assembleAudience(
   const font = resolveHeadingFont(o); // imported font wins over the bundled set
   const scale = computeScale(o);
   // A quoted message reads best on a measure wider than a strap and narrower than a full card.
-  const maxTextWidth = Math.round(o.resolution.width * (form.id === 'queue' ? 0.5 : 0.44));
+  // A word cloud is a board: it needs the width of one.
+  const maxTextWidth = Math.round(o.resolution.width * (form.id === 'queue' ? 0.5 : form.id === 'words' ? 0.7 : 0.44));
   const fields = audienceFields(form, o);
   const hidden = form.hiddenSourceField
     ? fields.find((f) => f.field === form.hiddenSourceField)
@@ -371,8 +424,7 @@ export function assembleAudience(
 ${design.html}${
       hidden
         ? `
-    <!-- Hidden queue source — SPX writes field ${hidden.field} here; the runtime renders it as rows.
-         One entry per line, written "Question | Name | Source". Name and source are optional. -->
+    <!-- ${form.hiddenSourceComment ?? `Hidden source: SPX writes field ${hidden.field} here.`} -->
     <div id="${hidden.field}" class="${DATA_SOURCE_CLASS}">${hidden.value}</div>`
         : ''
     }

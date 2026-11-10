@@ -125,9 +125,11 @@ function projectFixture(t, { open = true, inFlight = false, id = 'plan-fixture-2
     manifest.id = id;
     manifest.authorization.deadline = new Date(now + 72 * HOUR).toISOString();
     if (completion) manifest.authorization.standing = { untilComplete: 'Continue this fixture scope until complete.', blockRenewal: 'Renew fixture blocks automatically.' };
+    // The owner gave no date: the run lasts as long as its phases need.
+    if (completion === 'undated') { delete manifest.authorization.deadline; delete manifest.authorization.standing.untilComplete; }
     const project = { version: 1, id: manifest.id, ownership: 'local-single-owner', authorization: manifest.authorization,
       status: 'paused', reason: 'restore fixture only', phases: [{ id: 'restore', title: 'Restore and check', dependsOn: [], acceptance: ['restore verified'], environment: 'controlled-fixture' }] };
-    writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline}`), project));
+    writeFileSync(wave, writeProject(readFileSync(wave, 'utf8').replace(/^Window ends: .+$/m, `Window ends: ${manifest.authorization.deadline ?? 'when-complete'}`), project));
   });
   if (open) updateRun(f.db, f.manifest.id, 'start-block', { owner: 'session-a', deadline: new Date(f.now + 12 * HOUR).toISOString(), evidence: 'fixture block' }, f.now);
   if (inFlight) recordRun(f.db, f.manifest.id, 1, 'build', '{"actor":"builder"}', { now: f.now, authority: blockOf(f.manifest.wave) });
@@ -150,8 +152,8 @@ test('multi-day project restoration preserves authorization and continues under 
   assert.match(ledgerAt(f), /phase 1 build/);
 });
 
-test('completion-authorized recovery after the target retains its worker and fences the old owner', (t) => {
-  const f = projectFixture(t, { inFlight: true, completion: true }), old = blockOf(f.manifest.wave);
+for (const completion of [true, 'undated']) test(`completion-authorized recovery after the target retains its worker and fences the old owner (${completion === true ? 'target date' : 'no date'})`, (t) => {
+  const f = projectFixture(t, { inFlight: true, completion }), old = blockOf(f.manifest.wave);
   const later = f.now + 80 * HOUR;
   const continued = f.continueAs('later-owner', later);
   assert.equal(continued.verdict, 'continued');

@@ -9,6 +9,11 @@ import { fontById, fontStack } from '../model/fonts';
 import type { ProjectBrand } from '../model/brand';
 import type { AudienceBrand } from './audienceTypes';
 
+// The shape publishing writes, named here so control/ reads the audience domain through this one module.
+export type { AudienceBrand };
+import { JOIN_PAGE_LIMITS, pageWords } from '../model/joinPage';
+import { fileToDataUrl } from '../assets/assetUtils';
+
 /**
  * Map a production's look onto the join page's four variables, or null when the production has
  * chosen no look (the page then renders in the studio's own control-room colours, which is the
@@ -31,4 +36,34 @@ export function audienceBrandFor(look: ProjectBrand | undefined): AudienceBrand 
         ? fontStack(fontById(look.fontId))
         : null,
   };
+}
+
+/**
+ * Everything the phone page takes from the production (interaction spec D4): the look's colours
+ * and face, the page's title and waiting text, and the look's logo as the caller resolved it (the
+ * published https URL, or the data URL in the studio's own preview). Empty words are left out, so
+ * the page shows its defaults.
+ */
+export function joinPageBrand(
+  show: { look?: ProjectBrand; joinPage?: { title?: string; waiting?: string } },
+  logo: string | null,
+): AudienceBrand {
+  const look = audienceBrandFor(show.look);
+  return {
+    accent: look?.accent ?? null,
+    text: look?.text ?? null,
+    panel: look?.panel ?? null,
+    font: look?.font ?? null,
+    logo,
+    title: pageWords(show.joinPage?.title, JOIN_PAGE_LIMITS.title),
+    waiting: pageWords(show.joinPage?.waiting, JOIN_PAGE_LIMITS.waiting),
+  };
+}
+
+/** The look's logo as a data URL, or null when it has none. */
+export async function lookLogoDataUrl(look: ProjectBrand | undefined): Promise<string | null> {
+  const data = look?.logo?.data;
+  if (!data) return null;
+  if (typeof data === 'string') return data.startsWith('data:image/') ? data : null;
+  return fileToDataUrl(data).catch(() => null);
 }

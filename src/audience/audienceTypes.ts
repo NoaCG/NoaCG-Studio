@@ -18,11 +18,16 @@
 // text and stops there. A future provider cannot bypass that, because the interface gives it
 // nowhere to write.
 
+import type { ChatVote, ChatVoteOutcome } from './chatVotes.ts';
+import type { WordTally } from '../model/wordCloud.ts';
+
 /** Where a submission is in moderation. `new` is the only state a viewer can put it in. */
 export type AudienceStatus = 'new' | 'approved' | 'rejected';
 
-/** What the audience is being asked for right now. */
-export type AudienceMode = 'waiting' | 'question' | 'comment' | 'poll' | 'quiz';
+/** What the audience is being asked for right now: `question` while an Open question is live,
+ *  `poll` while a Multiple choice one is, `word` while a Word one is. `comment` and `quiz` are
+ *  older states a join page may still read. */
+export type AudienceMode = 'waiting' | 'question' | 'comment' | 'poll' | 'quiz' | 'word';
 
 /**
  * One thing a viewer sent in.
@@ -59,6 +64,10 @@ export interface AudienceSubmission {
   /** ISO, once its row left the source it was imported from (`settleImported`). Only a used
    *  candidate carries it: an unused one leaves the inbox instead. Absent or null = still there. */
   withdrawnAt?: string | null;
+  /** The round this message was filed under: the live question's when a phone answered it, or the
+   *  one the operator chose when pasting (interaction spec R7, R13). Never moved once set. Absent or
+   *  null = no question. */
+  roundId?: string | null;
 }
 
 /** One message an OPERATOR adds: pasted, or imported from a source. Body required, the rest
@@ -69,6 +78,8 @@ export interface CandidateInput {
   externalId?: string | null;
   source?: string | null;
   reference?: string | null;
+  /** File it under this round (a round of this production), or under none. */
+  roundId?: string | null;
 }
 
 /** The most an operator adds in one call (migration 0095's `audience_operator_add` bound). */
@@ -92,10 +103,20 @@ export async function addInChunks(
  *  bound): a message Sheet is read whole, so this is the longest tab Messages follows. */
 export const OPERATOR_SETTLE_MAX = 2_000;
 
-/** One opened poll or quiz question (Phase 6 uses these; Phase 5 only has to carry them). */
+/**
+ * A question's ONE result (interaction spec, "Question lifecycle"; migration 0111): opened by Go
+ * live, closed by Stop or by another question going live, reopened by Go live again with the same
+ * count. `poll` is a Multiple choice question, `open` an Open one, `word` a Word one (one word per
+ * phone, migration 0114); `quiz` is an older round.
+ */
 export interface AudienceRound {
   id: string;
-  kind: 'poll' | 'quiz';
+  kind: 'poll' | 'quiz' | 'open' | 'word';
+  /** The production question it belongs to (model/questions.ts), or null for an older round. */
+  questionId: string | null;
+  /** Moves when the snapshot can have changed (an edit going live, Clear results), never on a
+   *  plain reopen. A phone sends the revision it read; a stale one is refused (R5, R6). */
+  revision: number;
   question: string;
   /** At most 8. A vote is an INDEX into this list. */
   options: string[];
@@ -105,12 +126,22 @@ export interface AudienceRound {
   closedAt: string | null;
 }
 
+/** The one open round among `rounds`, if any. What phones see follows it (R18). */
+export function openRoundOf<R extends Pick<AudienceRound, 'closedAt'>>(rounds: readonly R[]): R | null {
+  return rounds.find((r) => !r.closedAt) ?? null;
+}
+
 /** A round's counts, by option index. Counted on read over the votes' own primary key — there
  *  is no maintained counter column (hot-row conflicts, drift, no benefit at this scale). */
 export interface AudienceTally {
   roundId: string;
+  /** Phone and chat votes summed, by option: what a result cue carries. */
   counts: number[];
   total: number;
+  /** The same counts apart, by source (interaction spec, "Chat votes"). Absent from a provider that
+   *  cannot tell them apart; then every vote is a phone's. */
+  phone?: number[];
+  chat?: number[];
 }
 
 /**
@@ -151,12 +182,25 @@ export interface AudienceState {
  * the studio's own colours, which is honest: rehearsal is not air.
  */
 export interface AudienceBrand {
-  accent: string;
-  text: string;
-  panel: string;
+  /** Colours as the look has them; null leaves the page's own. The page makes each readable. */
+  accent: string | null;
+  text: string | null;
+  panel: string | null;
   /** A full CSS `font-family` value, or null to use the page's own stack. */
   font: string | null;
+  /** The look's logo: a public https URL named by the production and the file's hash (published),
+   *  or the look's own data URL (rehearsal). Absent or null shows no logo (interaction spec D4). */
+  logo?: string | null;
+  /** The page's title; absent or empty shows the production's name. */
+  title?: string | null;
+  /** What phones show while no question is live; absent or empty shows the default. */
+  waiting?: string | null;
 }
+
+export { JOIN_PAGE_LIMITS } from '../model/joinPage.ts';
+
+/** What phones show while no question is live, unless the operator wrote their own. */
+export const JOIN_WAITING_DEFAULT = 'Not taking part right now. Keep this page open, it updates by itself.';
 
 /** What a viewer sees when they resolve a join slug. Deliberately tiny: see the capability
  *  discipline in the plan — no show id, no other slug, no tallies, no correct answer. */
@@ -167,7 +211,7 @@ export interface JoinView {
   brand?: AudienceBrand | null;
   /** What THIS device has already sent, so the page can say "thanks" rather than inviting a
    *  double post. Never anyone else's. */
-  mine: { id: string; body: string; createdAt: string }[];
+  mine: { id: string; body: string; createdAt: string; roundId?: string | null; word?: boolean }[];
   /** This device's current vote in the open round, so it can be shown as picked (and changed —
    *  the round's primary key is (round, device), so an upsert IS "change your mind"). */
   myVote: number | null;
@@ -177,6 +221,33 @@ export interface SubmitResult {
   ok: boolean;
   /** Generic on purpose. A submit endpoint that explains precisely why it refused is an oracle. */
   error: string | null;
+  /** The round it was sent to has closed or changed (R6, R14): the page shows the new question and
+   *  keeps what was typed. Whether a question is still live is not a secret, so this one refusal
+   *  says what it is. */
+  closed?: boolean;
+}
+
+/** What a phone page says when its send reached a round that has closed or changed. */
+export const QUESTION_CLOSED = 'That question has closed.';
+
+/** What a phone page says when it already sent its one word to this question (W3). */
+export const WORD_ALREADY_SENT = 'You have already sent your word.';
+
+/** What a phone page says when what it sent is not one word of at most 25 characters (W2). */
+export const WORD_REFUSED = 'Send one word of at most 25 characters.';
+
+/** Which round an answer or vote is for, as the phone read it (R6). */
+export interface RoundTarget {
+  roundId: string;
+  revision: number;
+}
+
+/** What Go live sends: the question as it stands in the production's list. */
+export interface QuestionLive {
+  id: string;
+  type: 'open' | 'choice' | 'word';
+  text: string;
+  options?: string[];
 }
 
 /**
@@ -187,10 +258,16 @@ export interface SubmitResult {
 export interface AudienceBackend {
   // ── The viewer's half (a join slug is the only capability) ────────────────────────────────
   joinView(deviceToken: string): Promise<JoinView>;
-  submit(deviceToken: string, author: string, body: string): Promise<SubmitResult>;
-  vote(deviceToken: string, roundId: string, option: number): Promise<SubmitResult>;
+  /** An answer to the live Open question named by `target`, or this phone's one word to a live Word
+   *  question; refused unless that round is open at that revision (R6), and a second word from
+   *  the same phone is refused (W3). */
+  submit(deviceToken: string, author: string, body: string, target: RoundTarget): Promise<SubmitResult>;
+  /** A vote on the Multiple choice round `roundId` at `revision`. Sending again changes it. */
+  vote(deviceToken: string, roundId: string, option: number, revision: number): Promise<SubmitResult>;
 
   // ── The operator's half (the control slug) ────────────────────────────────────────────────
+  /** The messages. A Word question's words are not messages and never come back here (W9): they
+   *  are counted by `wordCounts` and reach a cue only as a word cloud. */
   list(): Promise<AudienceSubmission[]>;
   /** Add operator-supplied candidates (paste, an import). They arrive `new`, like any message,
    *  and air only as a cue the operator prepares and Takes. At most OPERATOR_ADD_MAX per call;
@@ -207,12 +284,34 @@ export interface AudienceBackend {
     id: string,
     patch: Partial<Pick<AudienceSubmission, 'broadcastAuthor' | 'broadcastBody' | 'anonymize' | 'status' | 'shortlisted' | 'usedAt'>>,
   ): Promise<void>;
-  setState(patch: Partial<Pick<AudienceState, 'open' | 'mode' | 'prompt' | 'presenter'>>): Promise<AudienceState>;
+  /** The presenter pointers. What phones see moves only through `goLive` and `stop` (R18). */
+  setState(patch: Partial<Pick<AudienceState, 'presenter'>>): Promise<AudienceState>;
   getState(): Promise<AudienceState>;
-  openRound(round: Omit<AudienceRound, 'id' | 'openedAt' | 'closedAt'>): Promise<AudienceRound>;
-  closeRound(roundId: string): Promise<void>;
+  /** What phones show around the question (the look, logo, title and waiting text), sent as one
+   *  value and merged on the server. Only a published production has phones to send it to; the
+   *  local provider has none, and the studio's own preview takes the page from the production. */
+  setPage?(brand: AudienceBrand): Promise<void>;
+  /** The page phones get now (null when there is none yet). Throws when it cannot be read. */
+  readPage?(): Promise<AudienceBrand | null>;
+  /** Put this question in front of every phone, in one step: any other open round closes, this
+   *  question's round opens (made the first time, reopened after), and the state points at it
+   *  (R3). Refused when its words differ from a result that has answers, or its type changed. */
+  goLive(question: QuestionLive): Promise<AudienceRound>;
+  /** Close `roundId` and show phones the waiting text, if that round is still the open one (R4). */
+  stop(roundId: string): Promise<AudienceState>;
+  /** Remove a question's answers and votes and move its revision on; refused while it is live
+   *  (R9). Null when the question never went live. */
+  clearResults(questionId: string): Promise<AudienceRound | null>;
   tally(roundId: string): Promise<AudienceTally>;
+  /** A Word round's words, counted per exact spelling over EVERY word filed under it (0114's
+   *  `audience_word_counts`), first arrival first. Never read off `list()`, which a server caps at a
+   *  page of rows. */
+  wordCounts(roundId: string): Promise<WordTally[]>;
   rounds(): Promise<AudienceRound[]>;
+  /** Chat votes into the open Multiple choice round `roundId` (interaction spec, "Chat votes";
+   *  migration 0113): each voter's latest by platform time, only what was said after the round
+   *  last went live. `closed` when the round is not the open one. At most CHAT_VOTES_MAX a call. */
+  chatVotes?(roundId: string, votes: ChatVote[]): Promise<ChatVoteOutcome>;
 }
 
 /**

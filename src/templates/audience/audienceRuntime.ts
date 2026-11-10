@@ -5,6 +5,7 @@
 // so the timeline can never rewrite it, and it survives export untouched.
 
 import { motionSpeedJs } from '../shared/base';
+import QR_ENCODER_JS from '../shared/qrEncoder.min.js?raw';
 
 /**
  * The attribution runtime, in every audience graphic.
@@ -133,3 +134,135 @@ function audienceQueueStep(by) {
 // audienceQueueNext() / audienceQueuePrev(): the two calls the machine's states fire.
 function audienceQueueNext() { audienceQueueStep(1); }
 function audienceQueuePrev() { audienceQueueStep(-1); }`;
+
+/**
+ * The Join card runtime: the QR encoder the card carries, and the painter that draws the Join link
+ * as a code (interaction spec, Graphics ▸ Join card). Data, never state: a new link redraws the
+ * code on update() and changes nothing else (docs/STATE_MACHINE_SCHEMA.md §3).
+ */
+export const AUDIENCE_JOIN_JS = `// ---- The Join card's QR code ----
+
+// The encoder: qrcode-generator (MIT), carried in this file so the card needs no network.
+${QR_ENCODER_JS.trim()}
+
+// audienceJoinPaint(): draw the Join link (the hidden #f2) as a QR code, error correction M, and
+// show the link without its scheme. An empty link draws nothing.
+function audienceJoinPaint() {
+  var source = document.getElementById('f2');
+  var host = document.getElementById('audience-join-qr');
+  var shown = document.querySelector('.audience-join-url');
+  var root = document.querySelector('.audience');
+  if (!source || !host) return;
+  var link = (source.textContent || '').trim();
+  var drawn = host.querySelector('path');
+  if (drawn) drawn.setAttribute('d', '');
+  if (shown) shown.textContent = link.replace(/^https?:\\/\\//i, '').replace(/\\/$/, '');
+  if (root) root.classList.toggle('audience-join-empty', !link);
+  if (!link || typeof qrcode !== 'function') return;
+  var qr;
+  try {
+    qr = qrcode(0, 'M');
+    qr.addData(link, 'Byte');
+    qr.make();
+  } catch (e) {
+    if (root) root.classList.add('audience-join-empty');   // too long for any code: draw nothing
+    return;
+  }
+  var quiet = 4, n = qr.getModuleCount(), size = n + quiet * 2, d = '';
+  for (var r = 0; r < n; r++) {
+    for (var c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) d += 'M' + (c + quiet) + ' ' + (r + quiet) + 'h1v1h-1z';
+    }
+  }
+  // The <svg> is in the markup and only its numbers change here, so this script names no URL
+  // (an svg made in script needs its namespace, and the publish gate refuses any absolute URL).
+  var svg = host.querySelector('svg');
+  var modules = host.querySelector('path');
+  if (!svg || !modules) return;
+  svg.setAttribute('viewBox', '0 0 ' + size + ' ' + size);
+  modules.setAttribute('d', d);
+}`;
+
+/**
+ * The word cloud runtime: draws the Words field (one `word | count` line each, most first) as words
+ * sized by their count, the biggest in the middle (interaction spec, AC-14). Data, never state: new
+ * words redraw on update() and change nothing else (docs/STATE_MACHINE_SCHEMA.md §3).
+ *
+ * It keeps every word inside the cloud's box without going under the type floor: a word too wide
+ * for the box is drawn smaller, down to the smallest size, and when the words do not all fit the
+ * least-sent go first. What the cloud shows is always the most-sent words.
+ */
+export const AUDIENCE_WORDS_JS = `// ---- The word cloud ----
+
+// The smallest and the largest word, in px at 1080p (scaled like every other size here).
+var AUDIENCE_WORD_MIN = 34;
+var AUDIENCE_WORD_MAX = 92;
+var AUDIENCE_WORDS_MOST = 30;
+
+// audienceWordsRead(): the words in the hidden #f2, most first, at most AUDIENCE_WORDS_MOST.
+function audienceWordsRead() {
+  var source = document.getElementById('f2');
+  var lines = source ? (source.textContent || '').split('\\n') : [];
+  var words = [];
+  for (var i = 0; i < lines.length && words.length < AUDIENCE_WORDS_MOST; i++) {
+    var line = lines[i];
+    var at = line.lastIndexOf('|');
+    var word = (at >= 0 ? line.slice(0, at) : line).trim();
+    var count = at >= 0 ? parseFloat(line.slice(at + 1)) : 1;
+    if (!word) continue;
+    words.push({ word: word, count: count > 0 ? count : 1, order: words.length });
+  }
+  words.sort(function (a, b) { return b.count - a.count || a.order - b.order; });
+  return words;
+}
+
+// audienceWordsPaint(): draw the words, the most-sent biggest and in the middle of the cloud.
+function audienceWordsPaint() {
+  var host = document.querySelector('.audience-words');
+  var root = document.querySelector('.audience');
+  if (!host) return;
+  var words = audienceWordsRead();
+  host.textContent = '';
+  if (root) root.classList.toggle('audience-words-empty', words.length === 0);
+  if (!words.length) return;
+  var most = words[0].count, least = words[words.length - 1].count;
+  // Middle out: the first word in the centre, the next either side of it, and so on.
+  var placed = [];
+  for (var i = 0; i < words.length; i++) {
+    if (i % 2) placed.push(words[i]); else placed.unshift(words[i]);
+  }
+  var scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--scale')) || 1;
+  var typeScale = parseFloat(getComputedStyle(host).getPropertyValue('--type-scale')) || 1;
+  var smallest = AUDIENCE_WORD_MIN * scale * typeScale;
+  var spans = [];
+  for (var j = 0; j < placed.length; j++) {
+    var w = placed[j];
+    var share = most === least ? 1 : Math.sqrt((w.count - least) / (most - least));
+    var span = document.createElement('span');
+    span.className = 'audience-word' + (w === words[0] ? ' audience-word-top' : share < 0.34 ? ' audience-word-quiet' : '');
+    span.textContent = w.word;
+    span.style.fontSize = (smallest + (AUDIENCE_WORD_MAX - AUDIENCE_WORD_MIN) * scale * typeScale * share) + 'px';
+    host.appendChild(span);
+    spans.push({ el: span, count: w.count, rank: words.indexOf(w) });
+  }
+  // A word wider than the box is drawn smaller, never below the smallest size.
+  var room = host.clientWidth;
+  for (var k = 0; k < spans.length; k++) {
+    var wide = spans[k].el.offsetWidth;
+    if (room > 0 && wide > room) {
+      var size = parseFloat(spans[k].el.style.fontSize);
+      spans[k].el.style.fontSize = Math.max(smallest, size * (room / wide) * 0.98) + 'px';
+    }
+  }
+  // When they do not all fit, the least-sent go first.
+  spans.sort(function (a, b) { return b.rank - a.rank; });
+  while (spans.length > 1 && host.scrollHeight > host.clientHeight + 1) {
+    var gone = spans.shift();
+    host.removeChild(gone.el);
+  }
+}
+
+// A face that arrives after the first paint changes every word's width: draw again once it has.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function () { audienceWordsPaint(); });
+}`;

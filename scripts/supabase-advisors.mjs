@@ -144,7 +144,18 @@ const ACCEPTED_CLASSES = {
     'the same control-slug door as control_data_patch_by_slug: it holds or releases what the data ' +
     'key sends to that production. Pause writes only the row\'s pause columns; Resume appends at ' +
     'most one update row per graphic, the values the key already sent (bounded by its graphics). ' +
-    'It cannot play, take or clear a graphic, and the slug holder could out-write those values anyway.',
+    'It cannot play, take or clear a graphic, and the slug holder could out-write those values anyway. ' +
+    'audience_go_live, audience_stop and audience_clear_results (0111, the Interaction tab\'s ' +
+    'questions, docs/work-specs/interaction/) are the same control-slug door as audience_list: each ' +
+    'resolves the slug through audience_owner_for_control (capability and audience kill switch) and ' +
+    'touches only that production\'s audience_rounds, its audience_state and, for Clear results, the ' +
+    'answers and votes of one stopped round. Go live and Stop are the only verbs that open or close a ' +
+    'round; Clear results is refused while the round is live. None writes the command log or a ' +
+    'production value, so nothing airs. ' +
+    'audience_submit and audience_vote (0111) replace the 0035 and 0097 phone doors with the round ' +
+    'and revision the phone read added: they take the join slug, check the audience kill switch, and ' +
+    'accept a send only into that production\'s open round at that revision, so a phone can reach ' +
+    'nothing it could not before and a closed or edited question refuses it.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
@@ -156,7 +167,10 @@ const ACCEPTED_CLASSES = {
     'control_data_owner_patch (0100, the owner\'s Data view on a published production) is granted to ' +
     'authenticated only: it applies the control_shows row policy\'s own test (owner, or a current team ' +
     'member) and the suspension check before the apply, labelled as an operator write, so it opens ' +
-    'nothing the owner\'s row policy and the control slug do not already allow.',
+    'nothing the owner\'s row policy and the control slug do not already allow. ' +
+    'audience_go_live, audience_stop and audience_clear_results (0111) are the anon control-slug ' +
+    'doors above, reached by a signed-in operator; audience_submit and audience_vote (0111) are the ' +
+    'join-slug phone doors, reached by a viewer who happens to be signed in.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +

@@ -7,14 +7,16 @@ Claude's commands and default templates continue to use `.agent-workflows/plan-r
 ## Binding contracts
 
 - A wave runs alone; plan runs of different plans may run side by side, never on the same files.
-- Finite owner-authorized project deadline binds unless explicit untilComplete makes it a target.
-  Automatic daily blocks separately need blockRenewal; preserve the immutable scope, date and attempts.
+- A plan run ends when its phases are done, or on the owner's date if he gave one. No date: omit
+  `deadline` (ledger `Window ends: when-complete`); a date binds unless explicit untilComplete makes
+  it a target. Blocks stay at most 24 hours; automatic renewal separately needs blockRenewal.
+  Preserve the immutable scope, any date and attempts.
 - Only phases written in the plan. Missing acceptance refuses launch. Owner closure is not technical PASS.
 - Only the merge queue writes `main`. Use `.agent-workflows/queue-merge.md` and
   `.agent-workflows/verify.md` with their current checks, budgets, retry rules and one PR repair owner.
 - The wave ledger is execution authority; work.json is acceptance evidence; kit/heartbeat are context/views.
   Never rewrite an old failure as green, weaken tests to pass a gate, or create another ledger.
-- Read `docs/plan-runs/known-traps.md` for shared worker/review/landing gates, including Narrow delta.
+- Read `docs/plan-runs/known-traps.md` for shared worker/review/landing gates, including Review checkpoints (Delta re-review, the round cap, Ordinary rows without `$so`).
   Its dated Claude worktree/browser workaround applies only to that image; Codex uses its qualified
   absolute paths and Cloud runtime browser/package guidance. Other shared traps remain binding.
 

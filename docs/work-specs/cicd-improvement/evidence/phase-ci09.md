@@ -133,6 +133,12 @@ of the diff (only `production()`, its import and one added test change) and this
 Per-test time is the sum of the spec's test durations (Playwright JSON or blob report), so it does
 not depend on how workers share the tests.
 
+**The comparable figure is the same-machine pair: 468.8 s before and 326.0 s after, 30% less**
+(sample 2, before and after alternating per shard on one cloud worker). The Actions samples below
+only support it: the before samples are the spec inside a 15-spec shard, the after samples are the
+spec alone, and the runners differ in speed by up to a third. (Corrected by cicd-followup cf15,
+#1914: this section first led with the Actions means. No figure changed.)
+
 | Sample | Before (52 tests) | After (53 tests) |
 |---|---|---|
 | This machine, profile run (before) and first green run (after) | 496.0 s | 340.1 s |
@@ -147,9 +153,9 @@ GitHub hands each shard a fast or a slow runner, measured at 0.68 to 1.10 of eac
 (`scripts/e2e-durations.mjs`), so single Actions samples move with the runner as much as with the
 change. The before runs show it: the same spec read 227.5 s on the faster runner of run
 41294635431, whose other fourteen specs in the shard also read 13% under the other two runs. The
-after runs carry no other spec to calibrate against. Taken as means, 257.5 s before (three
-samples) and 183.1 s after (two) is 74 s, or 29%, less per execution; that matches the cloud
-worker, where the same comparison on one machine is 31% and 30%. The saving is the removed second
+after runs carry no other spec to calibrate against. As supporting evidence only, the means,
+257.5 s before (three samples) and 183.1 s after (two), are 74 s, or 29%, less per execution,
+consistent with the same-machine 31% and 30%. The saving is the removed second
 boot, about 2.7 s per test here, and nothing else changed in the tests.
 
 Runner cost. The offline shards run on standard Linux runners, so a runner-second saved is a

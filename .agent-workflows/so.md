@@ -49,6 +49,22 @@ other session's chat transcript or any tool-private memory.
   (`node scripts/worktree-activity.mjs`), and does it conflict with another unqueued branch
   (`node scripts/merge-order.mjs`)?
 
+## In a plan run
+
+The Review checkpoints in `docs/plan-runs/known-traps.md` decide when a `/so` runs: none for an
+Ordinary row; the final `/so` for every other row, and the Rules-first one too for a Risky row.
+
+- **Delta re-review.** Given an earlier full verdict that met the grade, its head and the findings
+  a repair answers, review `git diff <assessed head>..<new head>` alone. Say a full review is
+  needed instead when the delta touches files outside the findings' area, includes a merge from
+  main or a rebase, or has effects beyond the delta.
+- **Name the class.** Report the rule a defect breaks and every instance of it you see, so one
+  checkpoint fixes them all. Do not raise again a finding the PR answered with a recorded reason
+  unless the code it rests on changed.
+- **Pre-existing.** Label a confirmed defect in code the PR did not change that already exists on
+  the base (it reproduces at the merge-base) `pre-existing`: it does not block the verdict and is
+  not a round. A defect in changed code, or one the PR causes elsewhere, is the PR's.
+
 ## Judge
 
 Answer these, in this order of importance:

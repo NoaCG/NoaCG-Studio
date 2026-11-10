@@ -170,12 +170,14 @@ test('no catalog layer refuses as another channel: its bar moves and trims and i
     return { ...out, designs: out.designs.size };
   });
   console.log(JSON.stringify(report, null, 1));
-  // The reproduction's count: 354 layers in 129 designs refused with the channel refusal.
-  expect(report.blocked).toBe(354);
-  expect(report.designs).toBe(129);
+  // The reproduction's count: 354 layers in 129 designs refused with the channel refusal, plus the
+  // Join card's (jc01, interaction phase 2) and the word cloud's (wc01, phase 6), which joined the
+  // catalog later.
+  expect(report.blocked).toBe(356);
+  expect(report.designs).toBe(131);
   expect(report.channel).toEqual([]);
   expect(report.keyFailures).toEqual([]);
-  expect(report.applied.key).toBe(354);
+  expect(report.applied.key).toBe(356);
   // A bar edit may still refuse for timing (R1.2a.4 and R1.2a.5), never for the channel it animates.
   for (const reason of Object.keys(report.refused)) expect(reason).toMatch(/^(move|trim): .*(past the end of Out|before In starts|overlap|exact split|legacy|jump|only after the Out flag|one frame long|carried)/);
 });
