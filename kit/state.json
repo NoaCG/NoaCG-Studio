@@ -1,47 +1,54 @@
 {
-  "version": 1,
-  "project": "plan-live-publishing-2026-11-10",
-  "plan": "live-publishing",
-  "spec": "docs/work-specs/live-publishing/spec.md",
+ "version": 1,
+ "project": "plan-live-publishing-2026-11-10",
+ "plan": "live-publishing",
+ "spec": "docs/work-specs/live-publishing/spec.md",
+ "issue": 2361,
+ "coordinator": {
+  "session": "session_017SdbwQ3odeX4g6yc2nYsLZ",
+  "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
+  "return": "send it with mcp__claude-code-remote__send_message to session_017SdbwQ3odeX4g6yc2nYsLZ, and also print it as your final answer"
+ },
+ "provider": {
+  "name": "Claude Code Cloud",
+  "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE as the full 40-hex SHA or a branch name; a short SHA is refused>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
+ },
+ "authorization": {
+  "line": "Owner, 2026-11-10: \"Start the live-publishing run now. It is registered as preparation only; this message is the owner's \\\"start\\\".\" Scope: \"all nine phases exactly as phases.json lists them. Start: now. No end date: run until the phases are done.\"",
+  "startedAt": "2026-11-10T20:42:33+02:00",
+  "standing": {
+   "blockRenewal": "\"you may open the next 24-hour block yourself (blockRenewal)\" (owner, 2026-11-10)",
+   "productionMigrations": "\"Our database migration is fine\" for the migrations in phases 4, 6 and 7, applied in a quiet window when live-path, as the runbook says. Nothing else is granted. (owner, 2026-11-10)"
+  }
+ },
+ "brief": {
+  "read": "docs/work-specs/live-publishing/spec.md (the whole spec: owner decisions O1 to O14, D1 to D6, S1 to S4, E1 to E5, what must be true, design-gate lists, how the agent tests and measures, acceptance); docs/work-specs/live-publishing/runbook.md (During the run); for phase 1 docs/work-specs/retire-hosted-control/spec.md; supabase/AGENTS.md before any migration; docs/ARCHITECTURE.md;",
+  "rules": "Provider is Claude Code Cloud; never substitute a same-VM subagent for a cloud worker. Build only your phase; later phases' features stay out. Make no change that risks reliable playout (\"Let's avoid any risky changes\"); open outputs and open pages keep working. Phases 4 to 7: the design (designs/G<n>.md) lands as its own pull request only after an independent /so grades it A; product code follows in the next pull request; a design that cannot reach A without a behaviour choice the owner has not made goes to him as one question through the coordinator. Migrations (phases 4, 6, 7 only) go in supabase/migrations with the next free number, are additive, are tested on the local stack and in the configured suite, apply before the app that relies on them, and a live-path one (control_*) applies only in a quiet window with no production live (supabase/AGENTS.md); installing a migration and switching a feature on are separate steps. Every check the run can do, it does itself; hardware checks are listed for the owner's final check (phase 9) and never counted as passed. A target the phase 2 numbers prove wrong goes to the owner, through the coordinator, before the phase that depends on it. Never weaken, skip or loosen a test, check, limit or budget, and never write a test-maintenance entry or budget exception to pass a gate (phase 1's owner-agreed Test maintenance lines are the only exception, as its spec says). Never rename persisted identifiers. Public text: plain, no em dashes. Evidence for each phase goes in docs/work-specs/live-publishing/evidence/phase-<id>.md. Keep receipts and messages short."
+ },
+ "branchPrefix": "claude",
+ "qualification": {
+  "coordinator": "plan-run-preflight coordinator passed twice 2026-11-10T18:43Z in this session",
+  "freshWorker": "create_session worker session_017SdbwMASQZQN9qa9C7L1u3 passed plan-run-preflight worker twice at 18:44:51Z and replied by send_message (a first launch with a short SHA as source_revision was refused at start: use a full SHA or branch)",
+  "wake": "send_later trig_01CTmpEuAmzyjsqX8N2CvYHX fired into this session at 2026-11-10T18:46:18Z",
+  "github": "inherits the interaction run's route: cloud-queue-merge.yml dispatches stamp Reviewed; direct commit-status writes refused",
+  "open": "wake delivery during a usage-limit stop (interaction run 2026-11-09: check-ins did not run during an ~8h weekly-limit stop)",
+  "waveResume": "plan-run-preflight coordinator --wave passed 2026-11-10T18:48:26Z after block 1 opened"
+ },
+ "waitingOn": [],
+ "inFlight": [],
+ "owner": [
+  {
+   "what": "Phase 9: the final check in the studio, CasparCG 2.5 and 2.3 with a browser output, with the checklist phase 8 prepares",
+   "where": "phase 9 hand-over on the run issue"
+  }
+ ],
+ "fixes": [],
+ "triggers": {
+  "checkin": "trig_016XrrtLph81wXbWrX6R4JL2"
+ },
+ "traps": [],
+ "heartbeat": {
   "issue": 2361,
-  "coordinator": {
-    "session": "session_017SdbwQ3odeX4g6yc2nYsLZ",
-    "environment": "env_017nuiDZBW9smUNLdWVQK8cf (Claude Code Cloud, NoaCG)",
-    "return": "send it with mcp__claude-code-remote__send_message to session_017SdbwQ3odeX4g6yc2nYsLZ, and also print it as your final answer"
-  },
-  "provider": {
-    "name": "Claude Code Cloud",
-    "workerLaunch": "create_session source_url=https://github.com/NoaCG/NoaCG-Studio, source_revision=<SOURCE as the full 40-hex SHA or a branch name; a short SHA is refused>, environment_id=env_017nuiDZBW9smUNLdWVQK8cf"
-  },
-  "authorization": {
-    "line": "Owner, 2026-11-10: \"Start the live-publishing run now. It is registered as preparation only; this message is the owner's \\\"start\\\".\" Scope: \"all nine phases exactly as phases.json lists them. Start: now. No end date: run until the phases are done.\"",
-    "startedAt": "2026-11-10T20:42:33+02:00",
-    "standing": {
-      "blockRenewal": "\"you may open the next 24-hour block yourself (blockRenewal)\" (owner, 2026-11-10)",
-      "productionMigrations": "\"Our database migration is fine\" for the migrations in phases 4, 6 and 7, applied in a quiet window when live-path, as the runbook says. Nothing else is granted. (owner, 2026-11-10)"
-    }
-  },
-  "brief": {
-    "read": "docs/work-specs/live-publishing/spec.md (the whole spec: owner decisions O1 to O14, D1 to D6, S1 to S4, E1 to E5, what must be true, design-gate lists, how the agent tests and measures, acceptance); docs/work-specs/live-publishing/runbook.md (During the run); for phase 1 docs/work-specs/retire-hosted-control/spec.md; supabase/AGENTS.md before any migration; docs/ARCHITECTURE.md;",
-    "rules": "Provider is Claude Code Cloud; never substitute a same-VM subagent for a cloud worker. Build only your phase; later phases' features stay out. Make no change that risks reliable playout (\"Let's avoid any risky changes\"); open outputs and open pages keep working. Phases 4 to 7: the design (designs/G<n>.md) lands as its own pull request only after an independent /so grades it A; product code follows in the next pull request; a design that cannot reach A without a behaviour choice the owner has not made goes to him as one question through the coordinator. Migrations (phases 4, 6, 7 only) go in supabase/migrations with the next free number, are additive, are tested on the local stack and in the configured suite, apply before the app that relies on them, and a live-path one (control_*) applies only in a quiet window with no production live (supabase/AGENTS.md); installing a migration and switching a feature on are separate steps. Every check the run can do, it does itself; hardware checks are listed for the owner's final check (phase 9) and never counted as passed. A target the phase 2 numbers prove wrong goes to the owner, through the coordinator, before the phase that depends on it. Never weaken, skip or loosen a test, check, limit or budget, and never write a test-maintenance entry or budget exception to pass a gate (phase 1's owner-agreed Test maintenance lines are the only exception, as its spec says). Never rename persisted identifiers. Public text: plain, no em dashes. Evidence for each phase goes in docs/work-specs/live-publishing/evidence/phase-<id>.md. Keep receipts and messages short."
-  },
-  "branchPrefix": "claude",
-  "qualification": {
-    "coordinator": "plan-run-preflight coordinator passed twice 2026-11-10T18:43Z in this session",
-    "freshWorker": "create_session worker session_017SdbwMASQZQN9qa9C7L1u3 passed plan-run-preflight worker twice at 18:44:51Z and replied by send_message (a first launch with a short SHA as source_revision was refused at start: use a full SHA or branch)",
-    "wake": "send_later trig_01CTmpEuAmzyjsqX8N2CvYHX fired into this session at 2026-11-10T18:46:18Z",
-    "github": "inherits the interaction run's route: cloud-queue-merge.yml dispatches stamp Reviewed; direct commit-status writes refused",
-    "open": "wake delivery during a usage-limit stop (interaction run 2026-11-09: check-ins did not run during an ~8h weekly-limit stop)"
-  },
-  "waitingOn": [],
-  "inFlight": [],
-  "owner": [
-    {
-      "what": "Phase 9: the final check in the studio, CasparCG 2.5 and 2.3 with a browser output, with the checklist phase 8 prepares",
-      "where": "phase 9 hand-over on the run issue"
-    }
-  ],
-  "fixes": [],
-  "triggers": {},
-  "traps": []
+  "comment": 6776190825
+ }
 }
