@@ -40,15 +40,13 @@
  "inFlight": [
   {
    "phase": "3",
-   "step": "build",
-   "session": "session_017SdbwR3DgAm4qzcYpnn6ML",
-   "nonce": "3-b-731c",
-   "launchedAt": "2026-11-09T20:53:33Z",
-   "branch": "claude/plan-interaction-3-build",
-   "note": "stopped 2026-11-09T21:25Z by the account weekly usage limit (all sessions); branch pushed at 8a2dbaf; resumed by message 2026-11-10T05:16Z after the 05:00Z reset. Infrastructure wait, no budget spent.",
+   "step": "check",
+   "session": "session_017SdbwNhjrHrA14ZnRqxdkN",
+   "nonce": "3-c-de9a",
+   "launchedAt": "2026-11-10T07:21:23Z",
+   "merge": "034cbc057621083581361db310d848d7b2530844",
    "pr": 2338,
-   "head": "40e73d0dd59d8702af7e50333c832c83bcec3299",
-   "stamped": "2026-11-10T07:05Z"
+   "builder": "session_017SdbwR3DgAm4qzcYpnn6ML"
   }
  ],
  "owner": [
