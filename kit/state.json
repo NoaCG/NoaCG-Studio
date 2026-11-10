@@ -36,21 +36,18 @@
  },
  "waitingOn": [
   {
-   "what": "PR #2362 merge through the queue, then record landed and launch the independent checker",
-   "eta": "2026-11-10T22:30:00Z"
+   "what": "phase 1 checker verdict on merge 78ce3f35",
+   "eta": "2026-11-10T22:45:00Z"
   }
  ],
  "inFlight": [
   {
    "phase": "1",
-   "step": "build",
-   "actor": "builder-1-1-b-fadf",
-   "session": "session_017SdbwNnPuYSroBErFxfAH2",
-   "branch": "claude/plan-live-publishing-1-build",
-   "launchedAt": "2026-11-10T18:49:22Z",
-   "pr": 2362,
-   "lastSeen": "2026-11-10T21:32Z receipt in; gates read green on 21769dcca0f5d68137fbe07797a8ae12765dc389 (CI 42902911747, configured selected 4/4, /so A delta); Reviewed stamped via run 42905864693; in merge queue 21:32:07Z",
-   "receipt": "1-b-fadf 21:30:24Z"
+   "step": "check",
+   "actor": "checker-1-1-c-17a8",
+   "session": "session_017SdbwLzLvpZovnRNNe9cw6",
+   "mergeSha": "78ce3f35063386fdc7217d0542e3df871fc32b8d",
+   "launchedAt": "2026-11-10T21:47:55Z"
   }
  ],
  "owner": [
