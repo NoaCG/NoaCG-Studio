@@ -448,14 +448,17 @@ export function useMessageSources(show: Pick<Show, 'id' | 'sources'> | null, bac
   }, [intake, plan]);
   // Leaving the production stops its chats here: nothing would keep this tab's claim honest, and
   // another tab with the key takes over within the claim's 15 s.
-  useEffect(
-    () => () => {
-      if (!intake) return;
+  useEffect(() => {
+    if (!intake) return;
+    // Chat counts and files only while this production is open here (C11): a Twitch channel stays
+    // connected across a trip to Home, but collects nothing until the production is back.
+    intake.setCollecting(true);
+    return () => {
+      intake.setCollecting(false);
       for (const running of intake.sources()) if (running.sourceId) intake.remove(running.id);
       releaseChatRead();
-    },
-    [intake],
-  );
+    };
+  }, [intake]);
 }
 
 /**

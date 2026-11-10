@@ -287,6 +287,9 @@ export interface ChatIntake {
   setVotes(door: ChatVoteDoor | null): void;
   /** What is live may have changed (this page's Go live or Stop): read it again for the next line. */
   liveChanged(): void;
+  /** Whether lines are collected at all. The production page turns it off while it is closed, so
+   *  a connected chat stays connected but counts and files nothing until the page is back (C11). */
+  setCollecting(on: boolean): void;
   /** The running source for a production source record, if any. */
   forSource(sourceId: string): ChatSourceState | null;
   onChange(cb: () => void): () => void;
@@ -327,6 +330,10 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
   let voteDoor: ChatVoteDoor | null = null;
   /** The last reading of the live round, and when it was read (CHAT_LIVE_READ_MS). */
   let liveRead: { at: number; round: AudienceRound | null } | null = null;
+  /** Moves on every `liveChanged`, so a reading already under way is known to be stale. */
+  let liveGeneration = 0;
+  /** False while no production page is open in this tab: lines are not collected (C11). */
+  let collecting = true;
   /** Lines waiting for a reading of the live round, in arrival order. */
   const unsorted: Array<{ runtime: SourceRuntime; message: ChatDriverMessage; text: string }> = [];
   let sorting = false;
@@ -385,7 +392,7 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
     const { state } = runtime;
     // Paused means NOT COLLECTING - nothing counts, nothing is remembered. An operator pausing
     // a firehose does not want to come back to ten minutes of backlog marked "dropped".
-    if (state.paused || state.status === 'stopped') return;
+    if (state.paused || state.status === 'stopped' || !collecting) return;
     const text = message.text.trim();
     if (!text) return;
     state.received += 1;
@@ -418,12 +425,18 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
   };
 
   const readLive = async (fresh = false): Promise<AudienceRound | null> => {
-    const door = voteDoor;
-    if (!door) return null;
-    if (!fresh && liveRead && Date.now() - liveRead.at < CHAT_LIVE_READ_MS) return liveRead.round;
-    const round = await door.live();
-    liveRead = { at: Date.now(), round };
-    return round;
+    for (;;) {
+      const door = voteDoor;
+      if (!door) return null;
+      if (!fresh && liveRead && Date.now() - liveRead.at < CHAT_LIVE_READ_MS) return liveRead.round;
+      // A reading that started before this page's Go live or Stop is thrown away and read again,
+      // so it never overwrites what that press made live.
+      const generation = liveGeneration;
+      const round = await door.live();
+      if (generation !== liveGeneration) continue;
+      liveRead = { at: Date.now(), round };
+      return round;
+    }
   };
 
   /** The live round for a batch. A failed reading is tried again, never taken as "nothing live";
@@ -687,6 +700,11 @@ export function createChatIntake(options: { youtubeIo?: YouTubeIo } = {}): ChatI
 
     liveChanged() {
       liveRead = null;
+      liveGeneration += 1;
+    },
+
+    setCollecting(on) {
+      collecting = on;
     },
 
     forSource(sourceId) {

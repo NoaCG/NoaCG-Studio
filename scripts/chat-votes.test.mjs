@@ -388,3 +388,49 @@ test("this page's Go live is read at once, not after the reading's three seconds
   await drain();
   assert.deepEqual(sent, ['r2']);
 });
+
+test('a reading under way when this page goes live is thrown away and read again (C11)', async (t) => {
+  clock(t, tw.goLiveAt);
+  const vote = { id: 'r2', kind: 'poll', options: ['A', 'B'], openedAt: new Date(tw.goLiveAt).toISOString(), closedAt: null };
+  let release;
+  let reads = 0;
+  const sent = [];
+  const added = [];
+  const intake = createChatIntake();
+  intake.setAdd(async (items) => (added.push(...items), items));
+  intake.setVotes({
+    live: () => {
+      reads += 1;
+      // The first reading is held until after Go live, then answers with what was live before it.
+      return reads === 1 ? new Promise((r) => (release = () => r(null))) : Promise.resolve(vote);
+    },
+    send: async (roundId, votes) => (sent.push(roundId), { counted: votes.length }),
+  });
+  const source = intake.addTest('T');
+  mock.timers.setTime(at(tw.goLiveAt, 1));
+  source.push('Viewer', 'B', 'h1', { at: at(tw.goLiveAt, 1), voter: 'tw:1' });
+  await drain();
+  intake.liveChanged();
+  release();
+  await drain();
+  assert.deepEqual(sent, ['r2'], 'the vote is sorted against the reading made after Go live');
+  assert.deepEqual(added, []);
+});
+
+test('with no production page open the intake collects nothing, and collects again once it is back (C11)', async (t) => {
+  clock(t, tw.goLiveAt);
+  const { backend, wire, chat } = room(t);
+  const q = await backend.goLive(VOTE);
+  const intake = wire(createChatIntake());
+  const source = intake.addTest('T');
+  mock.timers.setTime(at(tw.goLiveAt, 2));
+  intake.setCollecting(false);
+  source.push('Away viewer', '1', 'k1', { at: at(tw.goLiveAt, 1), voter: 'tw:1' });
+  await drain();
+  assert.deepEqual(await chat(q), [0, 0, 0]);
+  assert.equal(intake.sources()[0].received, 0, 'not even received');
+  intake.setCollecting(true);
+  source.push('Back viewer', '2', 'k2', { at: at(tw.goLiveAt, 2), voter: 'tw:2' });
+  await drain();
+  assert.deepEqual(await chat(q), [0, 1, 0]);
+});
