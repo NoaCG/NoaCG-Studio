@@ -30,6 +30,8 @@ function namedTexts(slug: string): string[] {
 
 
 const SHOTS = process.env.NOACG_SHOTS ?? '';
+// The program monitor is small on the page: review pictures are taken at four times its density.
+if (SHOTS) test.use({ deviceScaleFactor: 4 });
 
 /** Everything wrong with the frame on air right now, in words; empty when it is clean.
  *
