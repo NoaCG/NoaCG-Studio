@@ -9,7 +9,7 @@
 
 import type { DesignSvg } from '../../model/wizard';
 import type { SpxField } from '../../model/types';
-import { svgLayerLabel } from '../../assets/svgImport';
+import { isHiddenNode, svgLayerLabel } from '../../assets/svgImport';
 import { DATA_SOURCE_CLASS } from '../shared/base';
 import QR_ENCODER_JS from '../shared/qrEncoder.min.js?raw';
 import { PREFIX } from './shared';
@@ -22,15 +22,26 @@ export const QR_FIELD_TITLE = 'Join link';
 export const QR_LAYER_CLASS = `${PREFIX}-qr`;
 
 /** The first drawn element whose layer name is `QR`, in document order, or null. Text is never
- *  one (Figma names a text layer after its words, so a label reading "QR" would qualify), and
- *  nothing in `<defs>` is drawn where it stands. */
+ *  one (Figma names a text layer after its words, so a label reading "QR" would qualify), nothing
+ *  in `<defs>` is drawn where it stands, and a layer the designer switched off, or one inside such
+ *  a layer, is a draft. */
 export function findQrLayer(root: Element): Element | null {
   for (const el of Array.from(root.querySelectorAll('*'))) {
     const tag = el.localName;
-    if (tag === 'text' || tag === 'tspan' || el.closest('defs, text')) continue;
-    if (svgLayerLabel(el).toUpperCase() === QR_LAYER_NAME) return el;
+    if (tag === 'text' || tag === 'tspan' || el.closest('defs, text, symbol, clipPath, mask')) continue;
+    if (svgLayerLabel(el).toUpperCase() !== QR_LAYER_NAME) continue;
+    if (hiddenWithin(el, root)) continue;
+    return el;
   }
   return null;
+}
+
+/** Whether the element, or any ancestor below the root, is hidden as exported. */
+function hiddenWithin(el: Element, root: Element): boolean {
+  for (let node: Element | null = el; node && node !== root; node = node.parentElement) {
+    if (isHiddenNode(node, root)) return true;
+  }
+  return false;
 }
 
 /** Whether this artwork has a `QR` layer. */

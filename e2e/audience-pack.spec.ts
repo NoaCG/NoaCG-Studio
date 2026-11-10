@@ -741,6 +741,7 @@ test('an imported SVG with a layer named QR draws its Join link as a code that d
   <rect id="Plate" width="900" height="400" fill="#14213d"/>
   <text id="Title" x="380" y="120" font-family="Arial" font-size="48" fill="#ffffff">Scan to join</text>
   <text id="QR " x="380" y="200" font-family="Arial" font-size="32" fill="#ffffff">QR</text>
+  <g id="Draft" display="none"><rect id="QR  " x="500" y="300" width="60" height="60"/></g>
   <g id="QR" transform="translate(40 40)"><rect width="320" height="320" fill="#888888"/></g>
 </svg>`;
     const built = await page.evaluate(async (m) => {
