@@ -1,4 +1,4 @@
-// covers: src/components/home/ProductionPage.tsx, src/components/OldControlLink.tsx, src/App.tsx
+// covers: src/components/home/ProductionPage.tsx, src/components/OldControlLink.tsx
 // covers: src/control/hostedControl.ts
 // covers: src/control/liveCue.ts, src/control/cueItems.ts, src/control/playoutSession.ts, src/control/productionDataSession.ts, src/components/home/useStorePart.ts
 // covers: src/components/home/ProductionShell.tsx
