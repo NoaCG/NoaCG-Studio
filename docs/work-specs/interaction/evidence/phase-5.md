@@ -18,7 +18,8 @@ element leaves the board, a row's label and figures stay inside the row, no labe
 column (a long name wraps to two lines, then ends in an ellipsis; one line full screen and on a
 side donut at six or more), the figures read `22.2%`, `1 096` or `22.2%|1 096` as asked, the
 graphic's own document background is transparent, and the first option's fill or swatch is the
-palette's accent. 108 cases, about 30 s.
+palette's accent; every track across has one length and every column one baseline. 108 cases,
+about 30 s.
 
 Catalog gates, scoped to `pl06` to `pl14` (on this machine, queue jobs):
 
@@ -69,6 +70,16 @@ options' share figures were a little wider on the runner than here and left thei
 board's card is now 780 px wide instead of 660); and `EXEMPLAR_CORPORA`, the AI harness's
 measured catalog corpus, is derived from the catalog and had to be regenerated for the nine new
 designs (`scripts/pro-harness-exemplars.test.mjs` writes the block; pasted as it says).
+
+## Review of `f4a8e55` (Codex)
+
+Two findings, one family (the bars must compare across rows), both product defects, fixed: bars
+across sized each row's figure column to its own figures, so a count of `1 000` beside `999`
+shortened its own track (every row now takes the widest row's figure width); in columns a
+two-line name lifted its column (every column now keeps room for two lines). The test's
+two-option case is now a short name beside a long one at 999 and 1000 votes, and checks that
+every track across has one length and every column one baseline, within one pixel. Mutation:
+undoing either fix fails the test (tracks 22.6 px apart; columns 26.4 px apart).
 
 ## Rehearsal walk (AC-15, phase 5)
 
