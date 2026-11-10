@@ -28,7 +28,8 @@ Catalog gates, scoped to `pl06` to `pl14` (on this machine, queue jobs):
   clip in its mask was fixed (line height) rather than baselined, so no baseline row is added.
 - type floor: passes after the badge and count line moved from 18 and 19 px to 20 px.
 - field coverage, numerals, factory: pass.
-- `catalog-specs --only`: see "Not run" below.
+- the catalog specs, scoped (`NOACG_ONLY_DESIGNS=pl06..pl14 npm run test:e2e:catalog`): see the
+  pull request for the run on the final head.
 
 Owner look (taste, not a gate): the nine boards at eight long options are in the test's output
 (`pl06-8.png` to `pl14-8.png`); in the studio, Browse ▸ Polls, the names start with "Result".
@@ -49,6 +50,18 @@ Owner look (taste, not a gate): the nine boards at eight long options are in the
   `main` (same files per pass): the machine's browser, not this change. No corpus file has a QR
   layer, and the behaviour runtime is unchanged.
 
+## Review (`/check`)
+
+The code review found ten points; eight were fixed: a count-only figure styled as the quiet half
+of a pair; counts fading in out of step with their bars (each row now keeps one counted share and
+fades its count with its own bar); the row-count layout applied a microtask after the text fit
+(now inside the rebuild); the ring's observer running on every board (now the donut only); a bare
+QR shape's wrapper not keeping the layer's id; a QR first measured before layout never drawn
+(now retried on the next frames); `scaffold --svg` silently ignoring `--design` and `--set` (now
+refused); the result picker's names not checked against the catalog (now in the test). Left as
+they are: the QR search re-states the importer's hidden and non-rendered test rather than sharing
+it, and an imported build parses its markup once more to look for a QR layer.
+
 ## Rehearsal walk (AC-15, phase 5)
 
 `e2e/configured/audience-live.spec.ts` "the rehearsal walk" now creates Result Donut Lower
@@ -57,7 +70,10 @@ all 113 migrations applied from scratch): the phone joins by the link decoded fr
 QR, answers the Open question, votes Away, chat adds a vote each way, Add results to rundown
 stages on Result Donut Lower, staging sends nothing to Program, Take airs the donut with both
 options under the question, and the room moves through the third question to the waiting text.
-Passed (queue jobs j-0031 and j-0032).
+Passed (queue jobs j-0031, j-0032, and j-0036 after the review fixes, 42 to 48 s). The screens
+were read: the phone shows the Open question, its thanks, the vote with A and B marks, "Counted"
+with Away marked, the third question and the waiting text; Program shows Result Donut Lower in its
+voting state, the ring empty until the operator's Show result, as every vote board is.
 
 Findings: none blocking. Filed: #2344 (imported artwork drawn as upright bars or a pie, which the
 spec's Graphics section places in this phase; AC-13 itself asks only for bars at their share).
@@ -67,5 +83,6 @@ spec's Graphics section places in this phase; AC-13 itself asks only for bars at
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is recorded and compared on
   Windows only; this machine is Linux, so it has no rows for the nine boards (the Join card from
   phase 2 has none either). Recording them is a Windows run.
-- `catalog-specs --only` needs a check stamp on the head before the queue admits it; it runs
-  after `/check` (result in the pull request).
+- The queue does not admit `node scripts/catalog-specs.mjs` as browser work on a cloud worker
+  (it refuses the run inside the job); the same specs run through `npm run test:e2e:catalog` with
+  `NOACG_ONLY_DESIGNS`, admitted with `--cap 12`, once per commit.
