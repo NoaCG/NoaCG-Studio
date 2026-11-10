@@ -8,3 +8,7 @@ The latest independent review found a V2 product defect in command outcome repor
 - Use focused fake-mixer cases for complete and invalid replies, the one-send rule, and placement uncertainty with confirmed creation. Follow with the normal package and real-vMix proof in an owned blank session. Program, Preview and transitions stay under the mixer operator's control.
 
 Reference: https://www.vmix.com/help29/TCPAPI.html
+
+The independent rules review clarified the reply boundary. Accept exact space-delimited FUNCTION and OK or ER tokens and optional UTF-8 response text. Normal TCP fragmentation and unrelated event lines do not alter the result. Reject invalid UTF-8, missing CRLF, embedded CR, and unknown status in a FUNCTION reply. Once rejected, discard the rest of that connection's buffer, including any valid-looking line in the same chunk. The next separate request can open a fresh connection.
+
+The regression fake applies In before it emits the invalid reply. Check that Browser creation is reported, placement stays uncertain, and there is one dispatch. Confirm that a separate read reconnects. Check valid refusal detail and retain existing OK readback cases.
