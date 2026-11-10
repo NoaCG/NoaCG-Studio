@@ -731,6 +731,15 @@ missing rule was about the end state, not about when to read. S26 to S30 replace
   landing after the stager's re-check, leaves the cue open until the next Stop, Go live or Add
   results on that production.
 
+Found in the Codex review of `6e258ef` (a defect in building S29, not a new rule: S26 already
+says the counts are read after the close):
+
+- S29, amended: the sweep always finalises the round the call itself closed, whatever its cue
+  says (Stop names its round; for Go live, a round whose closed time changed between the
+  provider's readings just before and just after the call). A reopened question's cue can still
+  say "closed" from an earlier Stop while its counts moved on. "Cue still says open" only adds the
+  rounds closed elsewhere.
+
 **Decisions** (made in the build, revertible in review):
 
 - The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)

@@ -100,3 +100,6 @@ live (S14); Program changed only on Take.
   Node tests "the closing sweep finds every closed poll round whose cue still says open" and "a
   staging write that read open closes the cue itself when the round closed before it landed"; the
   second fails with the re-check removed.
+- Codex review of `6e258ef`: one P2 finding, fixed (S29 amended): a reopened question whose cue
+  still said "closed" was skipped by the sweep. The sweep test now covers a reopened round under
+  Stop and under Go live, and fails with the closed-by-this-call check removed.

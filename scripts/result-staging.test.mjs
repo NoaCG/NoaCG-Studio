@@ -307,10 +307,18 @@ test('the closing sweep finds every closed poll round whose cue still says open,
   // The page saw Q1 live; another operator opened Q2 then this tab opened Q3 (r3 just opened):
   // the sweep takes what the provider says now, not what the page saw.
   const after = [r('r1', 'q1', 'then'), r('r2', 'q2', 'now'), r('r3', 'q3', null), r('r4', 'q4', 'now', 'open')];
-  assert.deepEqual(roundsToFinalise(show, after, 'r3').map((x) => x.id), ['r1']);
+  const before = [r('r1', 'q1', 'then'), r('r2', 'q2', 'now'), r('r4', 'q4', null, 'open')];
+  assert.deepEqual(roundsToFinalise(show, before, after, 'r3').map((x) => x.id), ['r1']);
   // Q3's cue says open but its round is the one just opened, or still open: left alone.
-  assert.deepEqual(roundsToFinalise(show, [r('r3', 'q3', 'x')], 'r3'), []);
-  assert.deepEqual(roundsToFinalise(show, [r('r3', 'q3', null)], null), []);
+  assert.deepEqual(roundsToFinalise(show, null, [r('r3', 'q3', 'x')], 'r3'), []);
+  assert.deepEqual(roundsToFinalise(show, null, [r('r3', 'q3', null)], null), []);
+  // A REOPENED question: its cue still says "closed" from an earlier Stop, but this call closed the
+  // round again (Stop names it; Go live changed its closed time), so its new counts are written.
+  assert.deepEqual(roundsToFinalise(show, null, [r('r2', 'q2', 'again')], null, 'r2').map((x) => x.id), ['r2']);
+  assert.deepEqual(roundsToFinalise(show, [r('r2', 'q2', null)], [r('r2', 'q2', 'again'), r('r5', 'q5', null)], 'r5').map((x) => x.id), ['r2']);
+  assert.deepEqual(roundsToFinalise(show, [r('r2', 'q2', 'first')], [r('r2', 'q2', 'second')], 'r5').map((x) => x.id), ['r2']);
+  // Closed long ago, untouched by this call, cue already closed: left alone.
+  assert.deepEqual(roundsToFinalise(show, [r('r2', 'q2', 'now')], [r('r2', 'q2', 'now')], 'r5'), []);
 });
 
 test('a staging write that read "open" closes the cue itself when the round closed before it landed (S29)', async () => {

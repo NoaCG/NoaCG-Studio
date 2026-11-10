@@ -138,16 +138,24 @@ export function resultCueSaysOpen(show: Pick<Show, 'graphics' | 'cues' | 'result
 }
 
 /**
- * The closing sweep (S26, S29): every poll round closed in the provider's reading `after` whose
- * question's result cue still says open, except the round just opened. Whatever closed it, and
- * whatever order the presses ran in, the cue then ends up saying closed with the final counts.
+ * The closing sweep (S26, S29): the poll rounds to finalise after Stop or Go live, from the
+ * provider's readings just `before` and just `after` the call. A round the call closed is always
+ * finalised (Stop's own `closing` round, or one whose closed time changed between the readings),
+ * whatever its cue says: a reopened question's cue can still say "closed" from an earlier Stop
+ * while its counts have moved on. Any other closed round whose cue still says "open" is finalised
+ * too (a close elsewhere that found no cue yet). The round just opened never is.
  */
 export function roundsToFinalise<R extends ClosableRound>(
   show: Pick<Show, 'graphics' | 'cues' | 'resultCues'>,
+  before: readonly ClosableRound[] | null,
   after: readonly R[],
   openedId: string | null,
+  closingId: string | null = null,
 ): R[] {
-  return after.filter((r) => r.closedAt && r.kind === 'poll' && r.questionId && r.id !== openedId && resultCueSaysOpen(show, r.questionId));
+  const closedByCall = (r: R) => r.id === closingId || (before !== null && before.find((x) => x.id === r.id)?.closedAt !== r.closedAt);
+  return after.filter(
+    (r) => r.closedAt && r.kind === 'poll' && r.questionId && r.id !== openedId && (closedByCall(r) || resultCueSaysOpen(show, r.questionId)),
+  );
 }
 
 /** What staging writes through: the record writer and the durable commit. Nothing that sends. */

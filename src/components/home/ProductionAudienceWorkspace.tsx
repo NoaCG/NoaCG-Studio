@@ -1169,10 +1169,15 @@ export default function ProductionAudienceWorkspace({
    * press, another tab, another operator) and in whatever order, the cue ends up saying closed.
    * A count that cannot be read is said, never replaced by this page's last reading (S28).
    */
-  const finaliseClosed = async (after: AudienceRound[] | null, openedId: string | null): Promise<{ done: ResultOutcome[]; unread: number }> => {
+  const finaliseClosed = async (
+    before: AudienceRound[] | null,
+    after: AudienceRound[] | null,
+    openedId: string | null,
+    closingId: string | null = null,
+  ): Promise<{ done: ResultOutcome[]; unread: number }> => {
     const done: ResultOutcome[] = [];
     let unread = after ? 0 : 1;
-    for (const round of after ? roundsToFinalise(loadShows().find((x) => x.id === show.id) ?? show, after, openedId) : []) {
+    for (const round of after ? roundsToFinalise(loadShows().find((x) => x.id === show.id) ?? show, before, after, openedId, closingId) : []) {
       const final = await backend.tally(round.id).catch(() => null);
       if (!final) {
         unread += 1;
@@ -1198,9 +1203,10 @@ export default function ProductionAudienceWorkspace({
     if (!isKnownType(q.type) || !takeTurn()) return;
     setArmedClear(null);
     try {
+      const before = await backend.rounds().catch(() => null);
       const opened = await backend.goLive(toLive({ ...q, type: q.type }));
       setSelectedId(q.id);
-      const swept = await finaliseClosed(await backend.rounds().catch(() => null), opened.id);
+      const swept = await finaliseClosed(before, await backend.rounds().catch(() => null), opened.id);
       setNote(`✓ Phones now show “${q.text}”.${sweepWords(swept)} Nothing is on air.`);
     } catch (err) {
       const message = (err as Error).message;
@@ -1230,7 +1236,7 @@ export default function ProductionAudienceWorkspace({
         setNote('Another question went live meanwhile, so nothing was stopped.');
         return false;
       }
-      const swept = await finaliseClosed(await backend.rounds().catch(() => null), null);
+      const swept = await finaliseClosed(null, await backend.rounds().catch(() => null), null, closing.id);
       setNote(`✓ Stopped. Phones show the waiting text.${sweepWords(swept)}${swept.done.length ? ' Take it when you want them on air.' : ''}`);
       return true;
     } catch (err) {
