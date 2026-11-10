@@ -49,13 +49,11 @@
  "waitingOn": [],
  "inFlight": [
   {
-   "phase": "cf15",
-   "step": "check",
-   "session": "session_017SdbwP9cr9eejbG5DQAkFP",
-   "nonce": "cf15-c-bb8c",
-   "launchedAt": "2026-11-10T15:09:03Z",
-   "mergeSha": "3d652dfd5f7f2c8d17cab1fa9cbcd95d765ff978",
-   "pr": 2356
+   "phase": "cf16",
+   "step": "build",
+   "session": "session_017SdbwMcejefpDhxQP8t9EL",
+   "nonce": "cf16-b-e05f",
+   "launchedAt": "2026-11-10T15:47:52Z"
   }
  ],
  "owner": [],
@@ -215,6 +213,11 @@
   {
    "at": "2026-11-10T14:58Z",
    "note": "cf15 receipt accepted: PR #2356 head 15c45257, Ordinary docs row, /check, Codex clean, CI gate green 42838273879. Close after merge if queue does not: #1849 #1920 #1945 #1949 #1953. Left open with remaining items (behaviour/test, no owning phase): #1914 #1928 #1932 #1939. work.json review-stale gaps 742->750 for edited files. Stamp run 42839396065, auto-merge on."
+  },
+  {
+   "phase": "cf15",
+   "verdict": "PASS",
+   "findings": "https://github.com/NoaCG/NoaCG-Studio/pull/2356#issuecomment-6771900278"
   }
  ],
  "decisions": [
