@@ -679,6 +679,18 @@ Found in the code review (`/check`), apart from the rules above:
   so one press leaves one board and one result cue.
 - S20. Go live that finalises another question's cue (S14) says so in its note.
 
+Found in the Codex review of `4230b2e` (three findings; S21 and S22 are one family with S15, the
+stored write deciding):
+
+- S21. Stop's close-only write reaches the stored record even when this tab's copy has no link
+  yet: its first pass changes nothing but still asks for the rebased pass, which decides. A team
+  production, not rebased, keeps its merge (S12).
+- S22. When the stored pass has nowhere to write (another tab removed the graphic or its fields),
+  nothing was written and the press asks again; Stop then says nothing about a cue. The tab's own
+  guess is never reported as success.
+- S23. A catalog board picked under S5 takes a free pool name ("House Vote 2"), so it never
+  replaces a same-named graphic already in the production.
+
 **Decisions** (made in the build, revertible in review):
 
 - The planner (`model/resultCues.ts`) and the record write (`model/shows.ts` `stageShowResult`)

@@ -9,7 +9,7 @@ coordinator; this file holds what was checked and how.
 
 | AC | Result | Evidence |
 | --- | --- | --- |
-| AC-9 | pass (local) | Node: `scripts/result-staging.test.mjs` (11 tests: the field contract; nothing picked without a choice, the choice remembered; a second press from a page holding an older record updates the cue the first made; only result fields written; a deleted cue and a graphic without the fields get a new cue with a note; Change then a pick moves the result and keeps the old cue; a catalog board's seeded cue adopted; Stop finalises and never adds; a refused or unlanded write says so and records nothing; a team merge keeps both questions' links; the staging modules import nothing that sends). Journey, offline, `e2e/production-audience.spec.ts`: "results reach air only as cues the operator takes" (choose, stage, a second press, Take, a stage with the cue on air, Stop, a question edit, a tab change, a reload, Update, a deleted cue; the Playout page's command log counted at each step: Go live, staging, Stop, edits, tab change and reload add no row; Take and Update add theirs; Stop writes "voting closed" into the cue while Program keeps "voting open" and the board's state chip does not move) and "a second operator tab updates the same result cue; a graphic without the fields gets a new cue". The older walks now pick, then stage: "a vote with nowhere to go offers a vote board", "a result staged while the rundown cannot save", the imported board in `e2e/import-svg-behaviour.spec.ts`, and `e2e/configured/audience-live.spec.ts`. |
+| AC-9 | pass (local) | Node: `scripts/result-staging.test.mjs` (15 tests, four of them added in review: the field contract; nothing picked without a choice, the choice remembered; a second press from a page holding an older record updates the cue the first made; only result fields written; a deleted cue and a graphic without the fields get a new cue with a note; Change then a pick moves the result and keeps the old cue; a catalog board's seeded cue adopted; Stop finalises and never adds; a refused or unlanded write says so and records nothing; a team merge keeps both questions' links; the staging modules import nothing that sends). Journey, offline, `e2e/production-audience.spec.ts`: "results reach air only as cues the operator takes" (choose, stage, a second press, Take, a stage with the cue on air, Stop, a question edit, a tab change, a reload, Update, a deleted cue; the Playout page's command log counted at each step: Go live, staging, Stop, edits, tab change and reload add no row; Take and Update add theirs; Stop writes "voting closed" into the cue while Program keeps "voting open" and the board's state chip does not move) and "a second operator tab updates the same result cue; a graphic without the fields gets a new cue". The older walks now pick, then stage: "a vote with nowhere to go offers a vote board", "a result staged while the rundown cannot save", the imported board in `e2e/import-svg-behaviour.spec.ts`, and `e2e/configured/audience-live.spec.ts`. |
 | AC-15 | first run: offline walk done here; local-stack walk in CI | See "Rehearsal walk" below. |
 
 ## Mutation
@@ -71,3 +71,15 @@ live (S14); Program changed only on Take.
 - Not run here: the configured suite and the catalog battery (the change moves the vote field
   words into `voteFields.ts`, which `e2e-affected` reads as catalog-affecting); both run in the
   PR's CI gate.
+
+## Review rounds
+
+- `/check` review of `14631601` (delegated): 10 findings, 9 fixed (S17 to S20; one not reachable,
+  the button only exists for a question's own round). Tests: the stored write decides the note,
+  a pick is remembered when it lands on the existing cue, an unused seeded cue goes. Mutation:
+  reporting the tab's plan instead of the stored one fails "the note reports what the stored write
+  did".
+- Codex review of `4230b2e`: three P2 findings, all fixed (S21 to S23). Tests: "Stop from a tab
+  that has not heard of the link still finalises the stored cue" and "a stored pass with nowhere
+  to write is reported as such" both fail on `4230b2e`'s `resultStaging.ts`; the same-named
+  catalog board is pinned in the second-operator journey ("House Vote 2", the old graphic kept).
