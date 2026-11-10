@@ -41,15 +41,18 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {},
+  "waitingOn": {
+    "what": "V2 fresh independent full review B. The three scoped HTTP reply-envelope attempts are spent. Duplicate JSON member names can still authorize or misreport a mixer action, and some pre-overlay Load failures omit that a Browser was created. V2 waits for authorization for a further scoped repair. Keep V3-V8 stopped."
+  },
   "inFlight": [
     {
-      "step": "build",
-      "pr": 2293,
-      "phase": "v2",
+      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7",
       "session": "/root/v2_envelope_repair",
-      "note": "The Browser source rule passed independent review. A final bounded repair applies the reassessed HTTP reply rules; draft remains outside the queue.",
-      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7"
+      "note": "Worker finished. Exact local fe67b33bf18fa57eac684e58af5bc0cc117ede19 graded B; local check FAIL. Existing draft stays outside queue.",
+      "step": "build",
+      "repairComment": 6723338187,
+      "pr": 2293,
+      "phase": "v2"
     }
   ],
   "owner": [],

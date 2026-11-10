@@ -1,0 +1,7 @@
+# V2 final scoped reply-envelope independent review
+
+AGREE WITH CORRECTIONS. Grade B. V2 fails, and V3–V8 remain held. Exact head fe67b33bf18fa57eac684e58af5bc0cc117ede19 against base 27d50cc14fffffdabaa4df70adf0ed65bb3105c2. Reviewer /root/v2_envelope_final_so reviewed all 36 files, independently passed 22 Studio tests and reproduced the findings below. Local pre-merge check FAIL.
+
+- Duplicate decoded member names can hide contradictions before vMix validation. A repeated health adapter key with an escaped spelling authorized act. Repeated action ok fields produced definite success. Repeated nested auth hop fields produced definite refusal. Verify decoded member names before any vMix authority and preserve valid CasparCG/generic reader and additive fields.
+- After Add and key persistence, a malformed final pre-In XML reading or changed overlay can return only a generic error. The reviewer observed Add and SetInputName, durable key and zero In. Every applicable post-save, pre-In failure should report that the Browser already exists and Bridge did not put it on the overlay. A sent In can still leave its outcome uncertain.
+- Browser source refusal, keyed Unload and saved preset behavior held in reviewed paths. The corrected owned production-page test, compiled tests, browser and changed-gate results are retained separately in v2-envelope-verification.md. Exact CI, review service, merge and Bridge release/download remain unrun on this local candidate.
