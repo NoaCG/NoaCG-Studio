@@ -571,6 +571,128 @@ test('an unknown sent result stays visible for its original overlay after a sett
   assert.deepEqual(dispatches, [3]);
 });
 
+test('a partial Load is reported against the original destination after a same-production change', async (t) => {
+  const address = 'http://fixture-user:fixture-pass@127.0.0.1:8899/fixture-path?fixture-query';
+  const first = { ...choice, settings: { ...settings, agentUrl: address } };
+  const overlayChanged = { ...first, settings: { ...first.settings, vmix: { overlay: 4 } } };
+  const pairingChanged = { ...first, settings: { ...first.settings, agentUrl: 'http://127.0.0.1:8900' } };
+  const otherProduction = { ...first, url: choice.url + '&other=1' };
+  const detail = 'vMix added the Browser input. Bridge did not put it on overlay 3.';
+  const uncertain = 'vMix added the Browser input. The overlay command may have acted.';
+  const original = 'Load targeted Overlay 3 on the Bridge at 127.0.0.1:8899. ';
+  let current;
+  let after;
+  let error;
+  let dispatches;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const route = url.slice(url.lastIndexOf('/'));
+    if (route === '/health') return Response.json(health);
+    if (route === '/status') return Response.json(status);
+    if (route === '/state') return Response.json(scoped());
+    assert.equal(route, '/act');
+    dispatches.push([url, JSON.parse(options.body).action.slot.overlay]);
+    current = after;
+    return Response.json({ ok: false, v: 2, error });
+  });
+
+  for (const [latest, added, code, cause, message] of [
+    [first, true, 'refused', detail, detail],
+    [overlayChanged, true, 'refused', detail, original + detail],
+    [pairingChanged, true, 'refused', detail, original + detail],
+    [pairingChanged, true, 'uncertain', uncertain, original + uncertain],
+    [otherProduction, true, 'refused', detail, undefined],
+    [null, true, 'refused', detail, undefined],
+    [overlayChanged, undefined, 'refused', 'An unmarked refusal.', undefined],
+  ]) {
+    current = first;
+    after = latest;
+    error = { hop: 'target', code, detail: cause, browserAdded: added };
+    dispatches = [];
+    const result = await changeVmixOutput({ ...load, overlay: 3 }, () => current);
+    assert.deepEqual(result, message ? { message } : {});
+    assert.deepEqual(dispatches, [[address + '/act', 3]]);
+  }
+});
+
+test('Browser creation is a fact only on valid replies to the dispatched vMix Load', async (t) => {
+  const take = { ...unload, verb: 'take' };
+  const marked = { hop: 'target', code: 'refused', detail: 'The overlay changed.', browserAdded: true };
+  let paths;
+  let body;
+  let http;
+  let dispatched;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    paths.push(path);
+    if (path === '/health') return Response.json(health);
+    if (path === '/act') dispatched?.(JSON.parse(options.body).action);
+    return new Response(body, { status: http });
+  });
+  const failure = (error, v = 2) => JSON.stringify({ ok: false, v, error });
+
+  http = 200;
+  body = failure(marked);
+  for (const [route, call] of [
+    ['/status', () => testVmix(settings)],
+    ['/connect', () => testVmix(settings, true)],
+    ['/state', () => readVmixOverlays(settings, choice.url)],
+  ]) {
+    paths = [];
+    const { result } = await call();
+    assert.equal(result.browserAdded, undefined);
+    assert.match(result.detail, /valid vMix reading/);
+    assert.deepEqual(paths, route === '/state' ? ['/state'] : ['/health', route]);
+  }
+
+  for (const [action, code, error, expected] of [
+    [take, 200, marked, { state: 'server', browserAdded: true }],
+    [take, 200, { ...marked, code: 'unreachable' }, { state: 'server', browserAdded: true }],
+    [take, 200, { ...marked, code: 'uncertain' }, { state: 'server', browserAdded: true, unknownAction: true }],
+    [take, 200, { ...marked, browserAdded: undefined }, { state: 'server' }],
+    [unload, 200, marked, { state: 'bridge', unknownAction: true }],
+    [{ ...unload, verb: 'clear' }, 200, marked, { state: 'bridge', unknownAction: true }],
+    [take, 200, { ...marked, browserAdded: false }, { state: 'bridge', unknownAction: true }],
+    [take, 200, { ...marked, browserAdded: null }, { state: 'bridge', unknownAction: true }],
+    [take, 200, { ...marked, browserAdded: 'true' }, { state: 'bridge', unknownAction: true }],
+    [take, 200, { ...marked, code: 'unreachable', setup: 'not-running' }, { state: 'bridge', unknownAction: true }],
+    [take, 200, { ...marked, code: 'unsupported' }, { state: 'bridge', unknownAction: true }],
+    [take, 400, { ...marked, hop: 'agent', code: 'usage' }, { state: 'bridge', unknownAction: true }],
+    [take, 401, { ...marked, hop: 'agent' }, { state: 'bridge', unknownAction: true }],
+    [take, 502, { ...marked, code: 'unreachable' }, { state: 'bridge', unknownAction: true }],
+  ]) {
+    paths = [];
+    http = code;
+    body = failure(error);
+    const { state, browserAdded, unknownAction } = await actVmix(settings, () => action);
+    assert.deepEqual({ state, browserAdded, unknownAction }, { browserAdded: undefined, unknownAction: undefined, ...expected });
+    assert.deepEqual(paths, ['/health', '/act']);
+  }
+
+  http = 200;
+  for (body of [
+    failure(marked, 1),
+    failure(marked).replace('"browserAdded"', String.raw`"browserAdded":false,"brow\u0073erAdded"`),
+  ]) {
+    paths = [];
+    const result = await actVmix(settings, () => take);
+    assert.equal(result.browserAdded, undefined);
+    assert.equal(result.unknownAction, true);
+    assert.deepEqual(paths, ['/health', '/act']);
+  }
+
+  const original = { ...unload };
+  dispatched = action => {
+    assert.equal(action.verb, 'out');
+    original.verb = 'take';
+  };
+  paths = [];
+  body = failure(marked);
+  const result = await actVmix(settings, () => original);
+  assert.equal(result.browserAdded, undefined);
+  assert.equal(result.unknownAction, true);
+  assert.deepEqual(paths, ['/health', '/act']);
+});
+
 test('scoped vMix state grants overlay authority only as a complete fresh snapshot', async (t) => {
   let reading;
   const requests = [];

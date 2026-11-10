@@ -201,6 +201,8 @@ export interface AgentError {
    *  `not-running` is nothing listening on the port, `not-vmix` a port that does not greet the way
    *  vMix's TCP API does. */
   setup?: 'not-running' | 'not-vmix';
+  /** A failed vMix Load had already identified the new Browser input. */
+  browserAdded?: true;
 }
 
 /** What a Bridge understands beyond the routes every v2 Bridge answers. `/health` lists them; a

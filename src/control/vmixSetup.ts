@@ -116,7 +116,14 @@ export async function changeVmixOutput(
       : { verb, slot, item, expectedOverlayInput: command.inputKey };
   });
   if (!result) return {};
-  if (!sameChoice(choice, current())) {
+  const latest = current();
+  if (!sameChoice(choice, latest)) {
+    if (result.browserAdded && latest?.url === choice.url) {
+      const address = choice.settings.agentUrl;
+      const host = URL.canParse(address) ? new URL(address).host : '';
+      const bridge = host ? `the Bridge at ${host}` : 'the original Bridge';
+      return { message: `Load targeted Overlay ${overlay.overlay} on ${bridge}. ${result.detail}` };
+    }
     return result.unknownAction ? { message: `The action targeted Overlay ${overlay.overlay}. ${result.detail}` } : {};
   }
   return result.state === 'ok' ? { completed: true, message: result.warning } : { message: result.detail };

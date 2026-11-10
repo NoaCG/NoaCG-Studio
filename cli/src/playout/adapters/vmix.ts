@@ -427,9 +427,11 @@ export function createVmixAdapter(options: {
       return refused('There was not enough time to add a new vMix Browser input. Try Load again.');
     }
 
-    const withAddedBrowser = (failure: { ok: false; error: AgentError }, placementUnknown = false) => {
+    const withAddedBrowser = (
+      failure: { ok: false; error: AgentError }, placementUnknown = false,
+    ): { ok: false; error: AgentError } => {
       const placement = placementUnknown ? '' : `Bridge did not put it on overlay ${overlay}. `;
-      return { ...failure, error: { ...failure.error, detail: `vMix added the Browser input. ${placement}${failure.error.detail}` } };
+      return { ...failure, error: { ...failure.error, browserAdded: true, detail: `vMix added the Browser input. ${placement}${failure.error.detail}` } };
     };
     const oldInputReturned = () => withAddedBrowser(
       uncertain('The old input returned while vMix was preparing a new Browser. Check both inputs in vMix before trying Load again.'),

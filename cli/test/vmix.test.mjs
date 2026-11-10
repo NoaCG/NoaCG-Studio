@@ -524,6 +524,7 @@ test('AC-4: an output added and then not read back is uncertain, never unreachab
   try {
     const r = await createVmixAdapter({ port: fake.port }).act({ adapter: 'vmix' }, { verb: 'take', item, slot: slot(8) }, directTestContext);
     assert.equal(r.error.code, 'uncertain');
+    assert.equal(r.error.browserAdded, undefined);
     assert.match(r.error.detail, /could not identify one new output input/);
   } finally {
     await fake.stop();
@@ -757,6 +758,7 @@ test('AC-4: overlay readback must still show the keyed Browser after In', async 
     await withBridge(createVmixAdapter({ port: fake.port }), async post => {
       const result = await act(post, { verb: 'take', item, slot: slot() });
       assert.equal(result.error?.code, 'uncertain', JSON.stringify(result));
+      assert.equal(result.error.browserAdded, true);
       assert.match(result.error.detail, /added the Browser input.*could not confirm it/);
       assert.doesNotMatch(result.error.detail, /did not put it on overlay 8/);
       assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput', 'SetInputName', 'OverlayInput8In']);
@@ -970,12 +972,14 @@ test('AC-4: a kept input that reappears during a replacement stops Load', async 
       reappear = 'read';
       const beforeAdd = await act(post, { verb: 'take', item, slot: slot() });
       assert.equal(beforeAdd.error?.code, 'refused');
+      assert.equal(beforeAdd.error.browserAdded, undefined);
       assert.doesNotMatch(beforeAdd.error.detail, /added the Browser input/);
       assert.deepEqual(fake.functions.slice(mark), []);
       fake.inputs.pop();
       reappear = 'add';
       const beforeSave = await act(post, { verb: 'take', item, slot: slot() });
       assert.equal(beforeSave.error?.code, 'uncertain');
+      assert.equal(beforeSave.error.browserAdded, true);
       assert.match(beforeSave.error.detail, /added the Browser input.*did not put it on overlay 8.*old input returned/);
       assert.deepEqual(fake.functions.slice(mark).map(fn => fn.name), ['AddInput']);
       assert.equal(fake.onChannel(8), undefined);
@@ -984,6 +988,7 @@ test('AC-4: a kept input that reappears during a replacement stops Load', async 
       reappear = 'name';
       const afterSave = await act(post, { verb: 'take', item, slot: slot() });
       assert.equal(afterSave.error?.code, 'uncertain');
+      assert.equal(afterSave.error.browserAdded, true);
       assert.match(afterSave.error.detail, /added the Browser input.*did not put it on overlay 8.*old input returned/);
       assert.deepEqual(fake.functions.slice(mark).map(fn => fn.name), ['AddInput', 'AddInput', 'SetInputName']);
       assert.equal(fake.onChannel(8), undefined);
@@ -1143,6 +1148,7 @@ for (const failedAt of ['naming', 'naming refusal', 'before Overlay In', 'In ref
         const refusal = failedAt.endsWith('refusal');
         assert.equal(reply.error.code, failedAt === 'after Overlay In' ? 'uncertain' : refusal ? 'refused' : 'unreachable');
         if (refusal) assert.equal(reply.error.raw, 'FUNCTION ER Refused');
+        assert.equal(reply.error.browserAdded, true);
         assert.match(reply.error.detail, /added the Browser input/);
         assert.doesNotMatch(reply.error.detail, /Nothing changed/);
         assert.equal(fake.inputs.length, 1);
@@ -1319,6 +1325,7 @@ for (const [problem, cause, code] of [
         const result = await act(post, { verb: 'take', item, slot: slot(), expectedOverlayInput: null });
         assert.equal(result.error.hop, 'target');
         assert.equal(result.error.code, code);
+        assert.equal(result.error.browserAdded, true);
         assert.match(result.error.detail, /vMix added the Browser input.*did not put it on overlay 8/);
         assert.match(result.error.detail, cause);
         if (problem === 'malformed XML') assert.match(result.error.raw, /^XML \d+$/);
@@ -1373,6 +1380,7 @@ test('AC-4: failed storage cannot acquire or rename an output', async () => {
     } }), async (post, base) => {
       const result = await act(post, { verb: 'take', item, slot: slot() });
       assert.equal(result.error.code, 'uncertain');
+      assert.equal(result.error.browserAdded, true);
       assert.match(result.error.detail, /added the Browser input.*did not put it on overlay 8.*could not keep the new input key/);
       assert.deepEqual(fake.functions.map(f => f.name), ['AddInput']);
       assert.equal(fake.onChannel(8), undefined);

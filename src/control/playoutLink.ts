@@ -1067,11 +1067,13 @@ function validVmixLinks(linked: VmixStateReply['linked'] | undefined, count: num
     Array.isArray(row.live) && row.live.every(nonblank));
 }
 
-function validVmixError(route: VmixRoute, http: number, error: AgentError | undefined): error is AgentError {
+function validVmixError(route: VmixRoute, http: number, error: AgentError | undefined, loading: boolean): error is AgentError {
   if (!error || typeof error !== 'object' || Array.isArray(error) || !nonblank(error.detail) ||
     (error.raw !== undefined && (error.hop !== 'target' || typeof error.raw !== 'string')) ||
     (error.setup !== undefined && (error.hop !== 'target' || error.code !== 'unreachable' ||
       (error.setup !== 'not-running' && error.setup !== 'not-vmix')))) return false;
+  if (error.browserAdded !== undefined && !(error.browserAdded === true && route === '/act' && loading &&
+    http === 200 && error.hop === 'target' && error.setup === undefined)) return false;
 
   if (http === 401 || http === 403) return error.hop === 'agent' && error.code === 'refused';
   if (http === 400) return error.hop === 'agent' && error.code === 'usage';
@@ -1134,10 +1136,12 @@ const vmixReplyFields = {
 } as const satisfies Record<string, readonly BridgePayloadField[]>;
 
 type VmixRoute = keyof typeof vmixReplyFields;
-type VmixActionResult = PlayoutResult & { unknownAction?: true };
+type VmixActionResult = PlayoutResult & { unknownAction?: true; browserAdded?: true };
 
 /** vMix output controls depend on an observed result, so validate this adapter's wire replies. */
-function readVmixReply(settings: PlayoutSettings, call: Call, route: VmixRoute): PlayoutReply & { result: VmixActionResult } {
+function readVmixReply(
+  settings: PlayoutSettings, call: Call, route: VmixRoute, loading = false,
+): PlayoutReply & { result: VmixActionResult } {
   const unknownAction = 'The vMix action result is unknown. Check the overlay before trying again.';
   if (!('http' in call)) {
     const { result } = readReply(settings, call, 'vMix');
@@ -1148,12 +1152,13 @@ function readVmixReply(settings: PlayoutSettings, call: Call, route: VmixRoute):
     return readReply(settings, call, 'vMix');
   }
   const current = bodyKind === 'object' && body.v === PLAYOUT_V;
-  if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error)) {
+  if (current && body.ok === false && hasOnlyPayloadFields(body) && validVmixError(route, http, body.error, loading)) {
     const reply = readReply(settings, call, 'vMix');
-    if (route === '/act' && (http === 502 || body.error.code === 'uncertain')) {
-      return { ...reply, result: { ...reply.result, unknownAction: true } };
-    }
-    return reply;
+    if (route !== '/act') return reply;
+    const result: VmixActionResult = { ...reply.result };
+    if (http === 502 || body.error.code === 'uncertain') result.unknownAction = true;
+    if (body.error.browserAdded) result.browserAdded = true;
+    return { ...reply, result };
   }
   if (current && http === 200 && body.ok === true && body.error === undefined &&
     hasOnlyPayloadFields(body, vmixReplyFields[route])) {
@@ -1215,10 +1220,11 @@ export async function actVmix(
   if (!health.adapters.includes('vmix') || !health.features.includes('vmix-output-key')) {
     return { state: 'outdated', detail: 'Update NoaCG Bridge to load or unload an output in vMix.' };
   }
+  const loading = action.verb === 'take';
   const call = await callBridge(
     settings.agentUrl, '/act', { target: vmixTarget, action }, ACT_TIMEOUT_MS, VMIX_OUTPUT_TOKEN_PREFIX + settings.agentToken, 'vmix',
   );
-  return readVmixReply(settings, call, '/act').result;
+  return readVmixReply(settings, call, '/act', loading).result;
 }
 
 // ---------------------------------------------------------------------------------------------
