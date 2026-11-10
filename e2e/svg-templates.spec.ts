@@ -105,7 +105,8 @@ for (const t of templates) {
         break;
       }
       case 'countdown':
-        await expect(page.getByTestId(`cue-field-${await fieldFor(air, 'Clock')}`)).toHaveValue('1');
+        // Clock is minutes, read off the drawn 1:00.
+        await expect(page.getByTestId('cue-field-f1')).toHaveValue('1');
         await expect(air.locator('.imported-design-clock')).not.toHaveText('1:00', { timeout: 4_000 });
         await page.getByTestId('cue-action-pause').click();
         await expect(role(air, 'paused')).toHaveClass(/imported-design-on/);
@@ -115,13 +116,13 @@ for (const t of templates) {
       case 'clock': {
         const readout = air.locator('.imported-design-clock');
         await expect(readout).toHaveAttribute('data-count', 'down');
-        await expect(readout).not.toHaveText('05:00', { timeout: 4_000 });
+        await expect(readout).not.toHaveText('5:00', { timeout: 4_000 });
         await page.getByTestId('cue-action-clock_pause').click();
         const held = await readout.textContent();
         await page.waitForTimeout(1_100);
         await expect(readout).toHaveText(held!);
         await page.getByTestId('cue-action-clock_reset').click();
-        await expect(readout).toHaveText('05:00');
+        await expect(readout).toHaveText('5:00');
         break;
       }
       case 'credits':
