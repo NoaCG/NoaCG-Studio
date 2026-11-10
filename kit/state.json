@@ -37,16 +37,7 @@
   "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning; 2026-11-09 the weekly usage limit stopped coordinator and worker for ~8h; check-ins did not run during it"
  },
  "waitingOn": [],
- "inFlight": [
-  {
-   "phase": "6",
-   "step": "check",
-   "session": "session_017SdbwM9pCrQKtcKBXsyGwC",
-   "nonce": "6-c-de53",
-   "launchedAt": "2026-11-10T14:59:17Z",
-   "mergeSha": "11373c6604aaf8653be96830ed917958103a488b"
-  }
- ],
+ "inFlight": [],
  "owner": [
   {
    "what": "Look at the result templates for taste (AC-12, phase 5)",
