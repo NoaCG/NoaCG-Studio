@@ -104,6 +104,21 @@ async function pressAndMeasure(op: Page, button: Locator, testId: string, match:
   return attribute(got.lpm, press, got.sent);
 }
 
+/** Two clicks, the second as soon as the first press is sent; the second is measured. */
+async function secondOfTwo(op: Page, button: Locator, testId: string, match: RegExp): Promise<Sample> {
+  const before = await nowOn(op);
+  await button.click();
+  const first = await sentAfter(op, before, match);
+  if (!first) return { failed: `no first ${match}` };
+  const mid = await nowOn(op);
+  await button.click();
+  const got = await sentAfter(op, Math.max(mid, first.sent.t + 0.01), match);
+  if (!got) return { failed: `no second ${match} after ${testId}` };
+  const press = pressOf(got.lpm, testId);
+  if (press === null) return { failed: `no press stamp for ${testId}` };
+  return attribute(got.lpm, press, got.sent);
+}
+
 async function opPage(page: Page, net: typeof NET) {
   await instrument(page.context());
   await throttle(page, net);
@@ -217,7 +232,7 @@ test('takes-b', async ({ page, browser }) => {
   const out = await openOutput(browser, await outputSlugOf(page, fx.showId));
   await outputReady(out, fx.graphics);
   const take = page.getByTestId('verb-take'), outBtn = page.getByTestId('verb-out');
-  const samples: Record<string, Sample[]> = { quick: [], plusOne: [], next: [], panel: [] };
+  const samples: Record<string, Sample[]> = { quick: [], quickSecondOfTwo: [], plusOne: [], plusOneSecondOfTwo: [], next: [], panel: [] };
 
   // QUICK BUTTON and +1, on the House Score board on air.
   await select(page, 'LP2 Score');
@@ -230,12 +245,24 @@ test('takes-b', async ({ page, browser }) => {
     samples.quick.push(await pressAndMeasure(page, goal, 'cue-action-goalA', SEND));
     await settle(page);
   }
+  // TWO FAST PRESSES: the second Goal pressed as soon as the first is sent, so the kept wait for
+  // the previous press (graphicVerbs.ts afterPress) and one send in flight per graphic show up.
+  for (let i = 0; i < SAMPLES; i++) {
+    await clearLpm(page);
+    samples.quickSecondOfTwo.push(await secondOfTwo(page, goal, 'cue-action-goalA', SEND));
+    await settle(page);
+  }
   const up = page.getByTestId('live-numbers').locator('[data-testid^="live-number-"][data-testid$="-up"]').first();
   await expect(up).toBeEnabled({ timeout: 20_000 });
   const upId = (await up.getAttribute('data-testid'))!;
   for (let i = 0; i < SAMPLES; i++) {
     await clearLpm(page);
     samples.plusOne.push(await pressAndMeasure(page, up, upId, /rpc:control_send_seq|rpc:control_send_many|data\/patch/));
+    await settle(page);
+  }
+  for (let i = 0; i < SAMPLES; i++) {
+    await clearLpm(page);
+    samples.plusOneSecondOfTwo.push(await secondOfTwo(page, up, upId, /rpc:control_send_seq|rpc:control_send_many|data\/patch/));
     await settle(page);
   }
   await outBtn.click();
@@ -427,7 +454,7 @@ test('bytes', async ({ page, browser }) => {
     // so a sample measures the load, not the wait; the spacing is reported beside the numbers.
     const wait = lastPrepare + 15_500 - Date.now();
     if (wait > 0) await page.waitForTimeout(wait);
-    await settle(page, 1_000);
+    await settle(page, 4_000, 60_000);
     const before = (await readyOf(out))?.v?.n ?? 0;
     opMeter.reset();
     outMeter.reset();
@@ -474,24 +501,30 @@ test('bytes', async ({ page, browser }) => {
         if (failure) throw new Error(failure);
       }, { id: fx.showId, i });
     }
-    const publishBtn = page.getByTestId('production-publish-changes');
-    await expect(publishBtn).toBeVisible({ timeout: 20_000 });
-    const tPress = await nowOn(page);
-    await publishBtn.click();
-    let tReady = NaN;
-    try {
-      await expect.poll(async () => { const r = await readyOf(out); return (r?.v?.n ?? 0) > before && r!.n === r!.of; }, { timeout: 120_000, intervals: [50] }).toBe(true);
-      tReady = await nowOn(out);
-    } catch { /* recorded as a failure below */ }
-    lastPrepare = Date.now();
-    // What the page sends behind it (the sync mirror) counts too: wait for it to go quiet.
-    await settle(page, 3_000, 60_000);
+    // TODAY a cue's text needs no publish: its values ride with each Take, and the header offers
+    // no Publish changes for it (src/components/home/usePublishDrift.ts). Its bytes are the save
+    // alone. A graphic added or updated needs Publish changes, then the output prepares it.
+    let tPress = NaN, tReady = NaN;
+    if (kind !== 'cue-edit') {
+      const publishBtn = page.getByTestId('production-publish-changes');
+      await expect(publishBtn).toBeVisible({ timeout: 20_000 });
+      tPress = await nowOn(page);
+      await publishBtn.click();
+      try {
+        await expect.poll(async () => { const r = await readyOf(out); return (r?.v?.n ?? 0) > before && r!.n === r!.of; }, { timeout: 120_000, intervals: [50] }).toBe(true);
+        tReady = await nowOn(out);
+      } catch { /* recorded as a failure below */ }
+      lastPrepare = Date.now();
+    }
+    // What the page sends behind it (the sync mirror, on a 2.5 s debounce) counts too: wait until
+    // nothing has started for 4 s.
+    await settle(page, 4_000, 60_000);
     const frames = await out.evaluate(() => document.querySelectorAll('iframe').length);
     rows.push({
       kind,
       editToPress: tPress - t0,
       pressToOutputPrepared: tReady - tPress,
-      failed: Number.isNaN(tReady),
+      failed: kind !== 'cue-edit' && Number.isNaN(tReady),
       op: opMeter.total(),
       output: outMeter.total(),
       framesBefore: addLoads,
