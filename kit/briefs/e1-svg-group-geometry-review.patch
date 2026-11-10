@@ -1,0 +1,527 @@
+diff --git a/e2e/editor-groups.spec.ts b/e2e/editor-groups.spec.ts
+index 035859b44..ebe36af2f 100644
+--- a/e2e/editor-groups.spec.ts
++++ b/e2e/editor-groups.spec.ts
+@@ -392,6 +392,104 @@ test('SVG group pivot is centered and remains static during child and group moti
+   for(const[i,time]of [0,.2,.4,0].entries()){await seek(page,time);nearRects(await rects(page,ids),poses[i]);}
+ });
+ 
++test('SVG group anchor keys keep their stored frame while a member moves', async ({ page }) => {
++  await open(page, 'svg');
++  await evaluateInPage(page, async () => {
++    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
++    const { parseAnimData } = await import('/src/blocks/animData.ts');
++    const { replaceRegionWithAnimData } = await import('/src/templates/shared/animRuntime.ts');
++    const data = parseAnimData(store.template.js)!;
++    data.steps[0].ease = 'none';
++    const members = '<g id="pivot-parent" transform="translate(100 80) rotate(30) scale(2 1.5)"><rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></g>';
++    store.applyTemplate({ ...store.template, js: replaceRegionWithAnimData(store.template.js, data)!, html: store.template.html.replace('</svg>', members + '</svg>') });
++  });
++  await ready(page);
++  const members = ['#pivot-a', '#pivot-b'], id = await group(page, members);
++  const painted = async () => {
++    await expect.poll(() => evaluateInPage(page, async () => {
++      const controller = (await import('/src/components/editorFoundation/Canvas.tsx')).foundationDiagnostics();
++      const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
++      return controller?.receipt(session.version(), session.port.view()).state;
++    })).toBe('ready');
++  };
++  const scrub = async (time: number) => { await seek(page, time); await painted(); };
++  await key(page, members[0], 'x', 0, 0);
++  await key(page, members[0], 'x', .4, -80);
++  for (const [property, first, last] of [['rotation', 0, 35], ['scaleX', 1, 1.4], ['scaleY', 1, .8]] as const) {
++    await key(page, id, property, 0, first);
++    await key(page, id, property, .4, last);
++  }
++  await select(page, [id]);
++  await scrub(.2);
++  const first = await rects(page, members), original = await source(page);
++  const history = () => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().history.length);
++  const entries = await history();
++  await page.getByRole('button', { name: 'Enable Anchor X animation', exact: true }).click();
++  await ready(page);
++  await painted();
++  nearRects(await rects(page, members), first);
++  expect(await history()).toBe(entries + 1);
++  const put = async (axis: 'X' | 'Y', value: number) => {
++    const field = page.getByRole('textbox', { name: 'Anchor ' + axis, exact: true });
++    await field.fill(String(value));
++    await field.press('Enter');
++    await ready(page);
++    await expect(page.locator('.ef-anchor').getByRole('alert')).toHaveCount(0);
++    await expect(field).toHaveValue(String(value));
++    await expect(page.getByRole('button', { name: 'Remove Anchor ' + axis + ' key', exact: true })).toBeVisible();
++  };
++  await scrub(.4);
++  await put('X', 95);
++  await page.getByRole('button', { name: 'Enable Anchor Y animation', exact: true }).click();
++  await ready(page);
++  await scrub(.6);
++  await put('Y', 95);
++  const authored = await source(page);
++  expect(authored.html).toBe(original.html);
++  expect(authored.css).toBe(original.css);
++  expect(authored.fields).toEqual(original.fields);
++  const data = await evaluateInPage(page, async ({ prior, edited, id }) => {
++    const { parseAnimData } = await import('/src/blocks/animData.ts');
++    const before = parseAnimData(prior)!, after = parseAnimData(edited)!;
++    const axes = ['--base-anchor-x', '--base-anchor-y'];
++    const pivot = Object.fromEntries(axes.map(axis => [axis, after.steps[0].layers[id][axis]]));
++    for (const step of after.steps) for (const axis of axes) delete step.layers[id][axis];
++    return { before, after, pivot };
++  }, { prior: original.js, edited: authored.js, id });
++  expect(data.after).toEqual(data.before);
++  expect(data.pivot).toEqual({ '--base-anchor-x': [{ time: .2, value: 135 }, { time: .4, value: 95 }], '--base-anchor-y': [{ time: .4, value: 70 }, { time: .6, value: 95 }] });
++
++  const iframe = page.frameLocator('iframe[title="Foundation graphic preview"]');
++  const matrix = async (selector: string) => iframe.locator(selector).evaluate(el => {
++    const node = el as SVGGraphicsElement;
++    const ancestor = document.getElementById('pivot-parent') as unknown as SVGGraphicsElement;
++    const m = ancestor.getScreenCTM()!.inverse().multiply(node.getScreenCTM()!);
++    const cache = (node as SVGGraphicsElement & { _gsap?: Record<string, unknown> })._gsap;
++    return { matrix: [m.a, m.b, m.c, m.d, m.e, m.f], origin: node.getAttribute('data-svg-origin'), transform: node.getAttribute('transform'),
++      cache: Object.fromEntries(['x', 'y', 'xOrigin', 'yOrigin', 'xOffset', 'yOffset', 'smooth'].map(prop => [prop, cache?.[prop]])) };
++  });
++  for (const [time, pivotX, pivotY, moved, degrees, scaleX, scaleY] of [
++    [0, 315, 160, 0, 0, 1, 1], [.4, 275, 160, -80, 35, 1.4, .8],
++    [.6, 275, 185, -80, 35, 1.4, .8], [.4, 275, 160, -80, 35, 1.4, .8],
++  ]) {
++    await scrub(time);
++    const angle = degrees * Math.PI / 180;
++    const a = Math.cos(angle) * scaleX, b = Math.sin(angle) * scaleX;
++    const c = -Math.sin(angle) * scaleY, d = Math.cos(angle) * scaleY;
++    const e = pivotX - a * pivotX - c * pivotY, f = pivotY - b * pivotX - d * pivotY;
++    for (const [selector, expected] of [[id, [a, b, c, d, e, f]], [members[0], [a, b, c, d, e + a * moved, f + b * moved]], [members[1], [a, b, c, d, e, f]]] as const) {
++      const painted = await matrix(selector);
++      for (const [index, value] of painted.matrix.entries()) expect(value, `${selector} at ${time}: ${JSON.stringify(painted)}`).toBeCloseTo(expected[index], 3);
++    }
++  }
++  const beforeRefusal = await history();
++  await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click();
++  await expect(page.locator('.ef-group-error')).toContainText('animates its pivot');
++  expect(await source(page)).toEqual(authored);
++  expect(await history()).toBe(beforeRefusal);
++  expect(await evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
++});
++
+ test('local parent trim keeps child motion and navigation cancels timeline drafts',async({page})=>{
+   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));
+   await key(page,ids[0],'x',0,0);await key(page,ids[0],'x',.4,44);
+diff --git a/src/blocks/animEdit.ts b/src/blocks/animEdit.ts
+index 97ff0a61b..8977208e8 100644
+--- a/src/blocks/animEdit.ts
++++ b/src/blocks/animEdit.ts
+@@ -39,6 +39,30 @@ export const EPS = 0.0005;
+ export const HOLD_SHORTEST = 0.01;
+ export const round = (n: number) => Math.round(n * 1000) / 1000;
+ 
++/** A generated SVG group repeats the same base initializer in every cue. The caller proves artwork ownership. */
++export function groupPivotInitializer(data: AnimData, selector: string): AnimKeyframe | undefined {
++  const first = data.steps[0]?.layers[selector]?.transformOrigin?.[0];
++  if (!first || typeof first.value !== 'string') return;
++  if (data.steps.every(step => {
++    const keys = step.layers[selector]?.transformOrigin;
++    return keys?.length === 1 && keys[0].time === 0 && keys[0].ease === undefined && keys[0].value === first.value;
++  })) return first;
++}
++
++/** Data owners with authored anchor motion and the generated group initializer shape. */
++export function keyedGroupPivotInitializers(data: AnimData): Map<string, AnimKeyframe> {
++  const owners = new Set(data.steps.flatMap(step => Object.keys(step.layers).filter(selector => {
++    const tracks = step.layers[selector];
++    return tracks['--base-anchor-x']?.length || tracks['--base-anchor-y']?.length;
++  })));
++  const pivots = new Map<string, AnimKeyframe>();
++  for (const selector of owners) {
++    const key = groupPivotInitializer(data, selector);
++    if (key) pivots.set(selector, key);
++  }
++  return pivots;
++}
++
+ /** Move a cue-local visibility set and every key by the same stored delta.
+  * Refuse crossing instead of clipping, stretching or overwriting keys. */
+ export function moveLayerSpan(data: AnimData, index: number, selector: string, delta: number, contains?: (ancestor: string, selector: string) => boolean): AnimData {
+diff --git a/src/blocks/baseEdits.ts b/src/blocks/baseEdits.ts
+index 754f0c7a1..43119e34d 100644
+--- a/src/blocks/baseEdits.ts
++++ b/src/blocks/baseEdits.ts
+@@ -2,9 +2,10 @@
+ import type { SpxTemplate } from '../model/types';
+ import { getTemplateParts, detectPrefix } from '../model/structure';
+ import { parseTransform } from '../assets/svgGeometry';
+-import { locateAnimData, losslessAnimData, parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
++import { locateAnimData, losslessAnimData, parseAnimData, type AnimLayerTracks, type AnimStep } from './animData';
+ import { canWriteAnchorData, writeAnimData } from '../templates/shared/animRuntime';
+ import { allTimelines } from './animMachine';
++import { groupPivotInitializer } from './animEdit';
+ import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
+ import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
+ import { artworkNode, artworkRange } from './artworkEdits';
+@@ -30,6 +31,8 @@ export interface BaseValues {
+   anchorReason: string | null;
+   /** The imported SVG member's origin belongs to CSS rather than GSAP. */
+   cssSvgAnchor?: boolean;
++  /** The uniquely owned SVG group can route animated pivots through its static frame. */
++  svgGroupAnchor?: boolean;
+ }
+ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+ export const precise = (n: number) => Math.round(n * 1000) / 1000;
+@@ -89,12 +92,11 @@ function tracksOn(steps: AnimStep[], node: Element): AnimLayerTracks[] {
+  *  interpreter, which only names the property) that sets the origin or an anchor variable and names
+  *  it by id or class. A script naming neither (the imported designs' text fit, which squeezes a placed line's
+  *  text, never its box) leaves the anchor alone. */
+-function originSetFor(js: string, data: AnimData | null, node: Element): boolean {
+-  if (tracksOn(data ? allTimelines(data) : [], node).some(tracks => tracks.transformOrigin?.length)) return true;
++function originScriptFor(js: string, node: Element): boolean {
+   const start = js.indexOf(ANIMATION_MARK_OPEN), end = js.indexOf(ANIMATION_MARK_CLOSE), at = locateAnimData(js);
+   const exterior = start >= 0 && end > start && at && at.start > start && at.end < end ? js.slice(0, start) + js.slice(end) : js;
+   const script = exterior.replace(/^\s*\/\/[^\n]*/gm, '');
+-  if (!/transformOrigin|transform-origin|--base-anchor-[xy]/.test(script)) return false;
++  if (!/transformOrigin|transform-origin|svgOrigin|--base-anchor-[xy]/.test(script)) return false;
+   return [node.id, ...Array.from(node.classList)].filter(Boolean).some(name => new RegExp('(?:^|[^\\w-])' + esc(name) + '(?![\\w-])').test(script));
+ }
+ 
+@@ -208,15 +210,26 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues
+     const keys = step.layers[selector]?.transformOrigin;
+     return keys?.length === 1 && keys[0].time === 0 && keys[0].value === rawAnchor.x+'px '+rawAnchor.y+'px';
+   });
++  const scriptPivot = originScriptFor(template.js, targetNode);
++  const otherOriginTrack = tracksOn(motion ? allTimelines(motion) : [], targetNode).some(tracks => tracks.transformOrigin?.length);
++  const inline = targetNode.getAttribute('style') ?? '';
++  const inlinePivot = /(?:^|;)\s*(?:transform-(?:origin|box)|--base-anchor-[xy])\s*:/.test(inline);
++  const svgGroupAnchor = !!ownedSvgPivot && node.localName === 'g' && !node.hasAttribute('transform') && !rawTransforms.length
++    && !!motion && motion.steps.length > 1 && !!groupPivotInitializer(motion, selector)
++    && ['x', 'y', 'width', 'height'].every(key => node.getAttribute('data-group-' + key)?.trim())
++    && !scriptPivot && !inlinePivot && !repeated && !originOwner(rules, target, true)
++    && !['svgOrigin', 'smoothOrigin', 'xOrigin', 'yOrigin'].some(channel => owned.has(channel))
++    && /^var\(--base-anchor-x\)\s+var\(--base-anchor-y\)$/.test(ownValue('transform-origin') ?? '')
++    && ['x', 'y'].every(axis => /^-?(?:\d+(?:\.\d+)?|\.\d+)px$/.test(ownValue('--base-anchor-' + axis) ?? ''));
+   const anchorReason = svg && !groupFrame && !cssSvgAnchor ? 'This SVG member has a transform or source GSAP places independently. Its pivot is preserved.'
+-    : originSetFor(template.js, motion, targetNode) && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
++    : (scriptPivot || otherOriginTrack) && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
+     : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`
+     : repeated ? 'This layer\'s own rule declares transform-origin more than once, so an anchor written there would lose to the later one. Its source is preserved.'
+-    : /(?:^|;)\s*(?:transform-(?:origin|box)|--base-anchor-[xy])\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
++    : inlinePivot ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
+     : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
+     : null;
+   return { selector, target, mode, groupFrame, offsetPosition, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
+-    originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason,
++    originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason, svgGroupAnchor,
+     x: offsetPosition ? originX + number(template.css, target, '--base-x') : placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
+     y: offsetPosition ? originY + number(template.css, target, '--base-y') : placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
+     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
+diff --git a/src/blocks/editorAnimation.ts b/src/blocks/editorAnimation.ts
+index d4b6d272a..b12cf5686 100644
+--- a/src/blocks/editorAnimation.ts
++++ b/src/blocks/editorAnimation.ts
+@@ -1,7 +1,7 @@
+ import type { SpxTemplate } from '../model/types';
+ import { getTemplateParts } from '../model/structure';
+ import { losslessAnimData, spliceAnimData, type AnimData } from './animData';
+-import { captureKeys, deleteKeyframe, easeKeys, EPS, setKeyframe, moveKeys, moveLayerSpan, pasteKeys, trimLayerSpan, type CopiedKey, type KeyEasePreset, type KeyRef } from './animEdit';
++import { captureKeys, deleteKeyframe, easeKeys, EPS, keyedGroupPivotInitializers, setKeyframe, moveKeys, moveLayerSpan, pasteKeys, trimLayerSpan, type CopiedKey, type KeyEasePreset, type KeyRef } from './animEdit';
+ import { resolveValue } from './animEval';
+ import { artworkNode, editArtworkStyle } from './artworkEdits';
+ import { baseValues, editBase, settleSvgOffset, TRANSFORM_CHANNELS, type BasePatch } from './baseEdits';
+@@ -223,8 +223,8 @@ export function anchorKeyReason(template: SpxTemplate, selector: string): string
+     const data = animationSource(template), owner = animationTarget(template, data, selector);
+     const base = baseValues(template, selector);
+     if (base.anchorReason) return base.anchorReason;
+-    if (base.groupFrame) return 'This group uses a shared pivot. Set its pivot in the base.';
+-    if (base.mode === 'svg' && !base.cssSvgAnchor || base.target !== selector) return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
++    if (base.groupFrame && (!base.svgGroupAnchor || owner !== selector)) return 'This group has no uniquely owned SVG pivot initializer. Set its pivot in the base.';
++    if (base.mode === 'svg' && !base.cssSvgAnchor && !base.svgGroupAnchor || base.target !== selector) return 'This layer uses a separate transform origin. Its pivot can only be set in the base.';
+     if (base.scaleX === 0 || base.scaleY === 0) return 'Restore a nonzero scale before animating this pivot.';
+     for (const channel of Object.values(ANCHOR_CHANNELS)) {
+       if (data.steps.some(step => step.layers[owner]?.[channel]?.some(key => typeof key.value !== 'number'))) return 'This pivot has nonnumeric keys in its source.';
+@@ -235,6 +235,27 @@ export function anchorKeyReason(template: SpxTemplate, selector: string): string
+     return null;
+   } catch (cause) { return cause instanceof Error ? cause.message : String(cause); }
+ }
++
++/** Keep a keyed SVG group's static initializer outside structural cue timing operations. */
++export function separateGroupPivotInitializers(template: SpxTemplate, original: AnimData) {
++  const pivots = keyedGroupPivotInitializers(original);
++  for (const selector of pivots.keys()) {
++    if (!baseValues(template, selector).svgGroupAnchor || trackOwner(template, original, selector) !== selector) {
++      throw new Error('This group has no uniquely owned SVG pivot initializer. Its source is preserved.');
++    }
++  }
++  const data = pivots.size ? structuredClone(original) : original;
++  for (const step of data.steps) for (const selector of pivots.keys()) {
++    delete step.layers[selector].transformOrigin;
++    if (!Object.keys(step.layers[selector]).length) delete step.layers[selector];
++  }
++  return { data, restore(updated: AnimData) {
++    for (const step of updated.steps) for (const [selector, key] of pivots) {
++      (step.layers[selector] ??= {}).transformOrigin = [{ ...key }];
++    }
++    return updated;
++  } };
++}
+ /** Throws unless a layer's Scale handles can key it: both axes have a channel to write. */
+ export function requireScaleWritable(template: SpxTemplate, selector: string) {
+   const data = animationSource(template), owner = animationTarget(template, data, selector, [...CONTROL_CHANNELS.scaleX, ...CONTROL_CHANNELS.scaleY]);
+diff --git a/src/blocks/editorGroups.ts b/src/blocks/editorGroups.ts
+index cf75f79b5..ad30a9adf 100644
+--- a/src/blocks/editorGroups.ts
++++ b/src/blocks/editorGroups.ts
+@@ -165,6 +165,9 @@ function ungroup(template: SpxTemplate, selector: string) {
+   const data = losslessAnimData(template.js);
+   if (locateAnimData(template.js) && !data) throw new Error('This animation contains data the current writer cannot preserve exactly. Its source is preserved.');
+   const timelines = data ? allTimelines(data) : [];
++  if (node.namespaceURI === SVG && timelines.some(step => step.layers[selector]?.['--base-anchor-x']?.length || step.layers[selector]?.['--base-anchor-y']?.length)) {
++    throw new Error('This SVG group animates its pivot. Disable that motion before ungrouping. Its source is preserved.');
++  }
+   const originalData = JSON.stringify(data);
+   if (data && node.matches(data.root)) throw new Error('The graphic root is owned by playback. Its source is preserved.');
+   for (const step of timelines) {
+diff --git a/src/blocks/editorOut.ts b/src/blocks/editorOut.ts
+index 999284a48..1744aa0c5 100644
+--- a/src/blocks/editorOut.ts
++++ b/src/blocks/editorOut.ts
+@@ -1,14 +1,19 @@
+ import { getTemplateParts } from '../model/structure';
+ import type { SpxTemplate } from '../model/types';
+ import type { AnimData, AnimKeyframe, AnimStep } from './animData';
+-import { clone, crossesCarried, cutBars, cutTracks, EPS, holdAt, joinBars, joinCues, round, withOut, type Bar } from './animEdit';
++import { clone, crossesCarried, cutBars, cutTracks, EPS, holdAt, joinBars, joinCues, keyedGroupPivotInitializers, round, withOut, type Bar } from './animEdit';
+ import { resolveValue } from './animEval';
+-import { animationSource, documentContains, sequenceAuthoringReason } from './editorAnimation';
++import { animationSource, documentContains, separateGroupPivotInitializers, sequenceAuthoringReason } from './editorAnimation';
+ import { writeOutData } from '../templates/shared/animRuntime';
+ import { mirrorEase } from '../templates/shared/easeRuntime';
+ 
+ export type OutOperation = { kind: 'out.set'; time: number } | { kind: 'out.reverse' };
+-export const hasExitKeys = (data: AnimData) => data.steps.length > 1 && Object.values(data.steps[data.steps.length - 1].layers).some(tracks => Object.values(tracks).some(keys => keys.length));
++export function hasExitKeys(data: AnimData): boolean {
++  if (data.steps.length <= 1) return false;
++  const pivots = keyedGroupPivotInitializers(data);
++  return Object.entries(data.steps[data.steps.length - 1].layers).some(([selector, tracks]) => Object.entries(tracks).some(([property, keys]) =>
++    keys.length && (property !== 'transformOrigin' || !pivots.has(selector))));
++}
+ /**
+  * Move Out to `boundary`, a stored time on the last pre-Out cue's clock (docs/research/editor-r1-2a-5).
+  * The exit belongs to the Out flag (owner decision 2026-09-30): it keeps its own timing from where
+@@ -192,7 +197,8 @@ function held(data: AnimData, selector: string) {
+ }
+ 
+ export function applyOut(template: SpxTemplate, operation: OutOperation): SpxTemplate {
+-  let data = animationSource(template);
++  const partition = separateGroupPivotInitializers(template, animationSource(template));
++  let { data } = partition;
+   const reason = sequenceAuthoringReason(data);
+   if (reason) throw new Error(reason);
+   if (operation.kind === 'out.set') {
+@@ -234,7 +240,7 @@ export function applyOut(template: SpxTemplate, operation: OutOperation): SpxTem
+     // The held visibility remains in force through exit. Do not replay In's gates.
+     delete exit.spans;
+   }
+-  const js = writeOutData(template.js, data);
++  const js = writeOutData(template.js, partition.restore(data));
+   if (js === null) throw new Error('This interpreter has custom source. Out cannot upgrade it safely; source is preserved.');
+   return { ...template, js };
+ }
+diff --git a/src/blocks/editorSteps.ts b/src/blocks/editorSteps.ts
+index 0ac861f24..5f8624ad5 100644
+--- a/src/blocks/editorSteps.ts
++++ b/src/blocks/editorSteps.ts
+@@ -2,7 +2,7 @@ import type { SpxTemplate } from '../model/types';
+ import { replaceDefinitionInHtml } from '../model/spxDefinition';
+ import { cueStarts, EPS, joinCues, moveStepFlag, renameStep, round, splitCue, withOut } from './animEdit';
+ import { spxSteps } from './animMachine';
+-import { animationSource, documentContains, sequenceAuthoringReason } from './editorAnimation';
++import { animationSource, documentContains, separateGroupPivotInitializers, sequenceAuthoringReason } from './editorAnimation';
+ import { writeOutData } from '../templates/shared/animRuntime';
+ 
+ /** Step authoring on the one timeline (R1.2a.4, docs/research/editor-r1-2a-4). Times are ruler
+@@ -20,7 +20,8 @@ const STEP_NAME_LIMIT = 40;
+  * known interpreter is re-emitted as Set Out does. Throws with the reason, leaving `template` as it was.
+  */
+ export function applyStep(template: SpxTemplate, operation: StepOperation): SpxTemplate {
+-  let data = animationSource(template);
++  const partition = separateGroupPivotInitializers(template, animationSource(template));
++  let { data } = partition;
+   const reason = sequenceAuthoringReason(data);
+   if (reason) throw new Error(reason);
+   // A legacy one-step graphic gains its empty Out first, so a new Step is never the exit.
+@@ -56,7 +57,7 @@ export function applyStep(template: SpxTemplate, operation: StepOperation): SpxT
+     if (moved === data) return template;
+     data = moved;
+   } else throw new Error('Unknown step operation.');
+-  const js = writeOutData(template.js, data);
++  const js = writeOutData(template.js, partition.restore(data));
+   if (js === null) throw new Error('This interpreter has custom source. Steps cannot upgrade it safely; its source is preserved.');
+   const steps = String(spxSteps(data));
+   if (template.settings.steps === steps) return { ...template, js };
+diff --git a/src/components/editorFoundation/animationAuthoring.ts b/src/components/editorFoundation/animationAuthoring.ts
+index 77b5f56cd..555f3c44d 100644
+--- a/src/components/editorFoundation/animationAuthoring.ts
++++ b/src/components/editorFoundation/animationAuthoring.ts
+@@ -149,7 +149,7 @@ export function anchorAtPlayhead(template: SpxTemplate, base: BaseValues, appear
+   const owner = ownerOf(view, base.selector), result = { ...anchor };
+   for (const [index, axis] of (['x', 'y'] as const).entries()) {
+     const channel = ANCHOR_CHANNELS[axis];
+-    if (!isArmed(view.data, owner, channel)) continue;
++    if (!base.svgGroupAnchor && !isArmed(view.data, owner, channel)) continue;
+     const sampled = departing ? resolveValue(view.data, owner, channel, segment.index, 0) : appearance?.origin?.[index];
+     if (typeof sampled === 'number') result[axis] = departing ? sampled : sampled / (appearance?.unit ?? 1);
+   }
+diff --git a/src/components/editorFoundation/runtime.ts b/src/components/editorFoundation/runtime.ts
+index 8c3ebeebd..6cf871209 100644
+--- a/src/components/editorFoundation/runtime.ts
++++ b/src/components/editorFoundation/runtime.ts
+@@ -287,7 +287,9 @@ export const foundationRuntime = String.raw`
+   }
+   function setCss(css) {
+     var sheet = document.getElementById('spx-inline-css');
+-    var baseTransforms = /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
++    var baseTransforms = Object.values(config.adapters).some(function (adapter) { return adapter.svgGroupAnchor; })
++      ? /--base-(?:scale-[xy]|anchor-[xy]|[xy]|rotation)\s*:[^;}]+/g
++      : /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
+     var changed = String((currentCss === null ? sheet.textContent : currentCss).match(baseTransforms)) !== String(css.match(baseTransforms));
+     var step = activeStep, time = timeline ? timeline.time() : 0;
+     // GSAP folds independent CSS transforms into its cached matrix and writes inline
+diff --git a/src/templates/shared/animRuntime.ts b/src/templates/shared/animRuntime.ts
+index 0e7849bad..6f7cb7aa4 100644
+--- a/src/templates/shared/animRuntime.ts
++++ b/src/templates/shared/animRuntime.ts
+@@ -13,6 +13,7 @@ import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
+ import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_EXIT_REST_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
+ import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
+ import { contentHash } from '../../model/contentHash';
++import { keyedGroupPivotInitializers } from '../../blocks/animEdit';
+ 
+ /** The interpreter body — identical in every template. Kept as one exported string so the
+  *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
+@@ -1085,13 +1086,104 @@ noacgEntranceTimeline = (function (enter) {
+   };
+ })(noacgEntranceTimeline);`;
+ 
++// The group frame is stable while members move. GSAP's relative origin API reads a live bbox,
++// so subtract that origin only at the call site to put the pivot at the fixed frame point.
++const SVG_GROUP_ANCHOR_JS = `// Editor-owned SVG group anchors. Static transformOrigin copies are base metadata.
++(function (stepTimeline, exitTimeline, exitProxy) {
++  var axes = ['--base-anchor-x', '--base-anchor-y'];
++  var source, owners;
++  function groupOwners() {
++    if (source !== NOACG_ANIM) {
++      source = NOACG_ANIM;
++      owners = Object.create(null);
++      source.steps.forEach(function (step) {
++        Object.keys(step.layers).forEach(function (selector) {
++          if (axes.some(function (axis) { return step.layers[selector][axis] && step.layers[selector][axis].length; })) owners[selector] = true;
++        });
++      });
++      Object.keys(owners).forEach(function (selector) {
++        var first = source.steps[0].layers[selector];
++        var base = first && first.transformOrigin && first.transformOrigin[0];
++        if (!base || !source.steps.every(function (step) {
++          var layer = step.layers[selector], keys = layer && layer.transformOrigin;
++          return keys && keys.length === 1 && keys[0].time === 0 && keys[0].value === base.value;
++        })) delete owners[selector];
++      });
++    }
++    return owners;
++  }
++  function group(element) {
++    return element && element.namespaceURI === 'http://www.w3.org/2000/svg' && element.localName === 'g'
++      && element.hasAttribute('data-noacg-group') && ['x', 'y', 'width', 'height'].every(function (part, i) {
++        var frame = element.getAttribute('data-group-' + part);
++        return frame !== null && frame.trim() !== '' && isFinite(Number(frame)) && (i < 2 || Number(frame) > 0);
++      });
++  }
++  function applyPivot(element) {
++    var style = getComputedStyle(element), box = element.getBBox();
++    var x = Number(element.getAttribute('data-group-x')) + parseFloat(style.getPropertyValue(axes[0]));
++    var y = Number(element.getAttribute('data-group-y')) + parseFloat(style.getPropertyValue(axes[1]));
++    gsap.set(element, { transformOrigin: (x - box.x) + 'px ' + (y - box.y) + 'px', smoothOrigin: false });
++  }
++  function proxy(element, axis, value) {
++    return Object.defineProperty({}, 'value', {
++      get: function () { return value; },
++      set: function (next) {
++        value = next;
++        if (axis) element.style.setProperty(axis, next + 'px');
++        applyPivot(element);
++      }
++    });
++  }
++  function prepare(step, exit) {
++    var owned = groupOwners(), layers = Object.assign({}, step.layers), groups = [];
++    Object.keys(layers).forEach(function (selector) {
++      if (!owned[selector]) return;
++      var nodes = document.querySelectorAll(selector);
++      if (nodes.length !== 1 || selector !== '#' + nodes[0].id || !group(nodes[0])) return;
++      var tracks = layers[selector], plain = Object.assign({}, tracks);
++      delete plain.transformOrigin;
++      if (!exit) axes.forEach(function (axis) { delete plain[axis]; });
++      layers[selector] = plain;
++      groups.push({ element: nodes[0], tracks: tracks });
++    });
++    return { step: groups.length ? Object.assign({}, step, { layers: layers }) : step, groups: groups };
++  }
++  buildStepTimeline = function (input) {
++    var step = typeof input === 'number' ? NOACG_ANIM.steps[input] : input;
++    var plan = prepare(step, false), timeline = stepTimeline(plan.step), speed = NOACG_ANIM.speed || 1;
++    plan.groups.forEach(function (entry) {
++      timeline.set(proxy(entry.element, null, 0), { value: 1 }, 0);
++      axes.forEach(function (axis) {
++        var keys = entry.tracks[axis];
++        if (!keys || !keys.length) return;
++        var target = proxy(entry.element, axis, gsap.getProperty(entry.element, axis));
++        timeline.set(target, { value: keys[0].value }, 0);
++        for (var i = 1; i < keys.length; i++) {
++          var before = keys[i - 1], key = keys[i];
++          timeline.to(target, { value: key.value, duration: (key.time - before.time) / speed,
++            ease: noacgEaseOf(key.ease || step.ease) }, before.time / speed);
++        }
++      });
++    });
++    return timeline;
++  };
++  noacgBuildExit = function (step, interrupted, silent, early) {
++    return exitTimeline(prepare(step, true).step, interrupted, silent, early);
++  };
++  noacgExitProxy = function (element, property, value) {
++    return axes.indexOf(property) >= 0 && group(element) && groupOwners()['#' + element.id]
++      ? proxy(element, property, value) : exitProxy(element, property, value);
++  };
++})(buildStepTimeline, noacgBuildExit, noacgExitProxy);`;
++
+ /** Emit the full marked ANIMATION region for a data-driven template. */
+ export function emitAnimRegion(data: AnimData): string {
+   return `${ANIMATION_MARK_OPEN}
+ ${DATA_HEADER}
+ ${ANIM_DECLARATION} = ${serializeAnimData(data)};
+ 
+-${ANIM_INTERPRETER_JS}${dataUsesAnchor(data) ? '\n' + ANCHOR_REPLAY_JS : ''}
++${ANIM_INTERPRETER_JS}${dataUsesAnchor(data) ? '\n' + ANCHOR_REPLAY_JS : ''}${keyedGroupPivotInitializers(data).size ? '\n' + SVG_GROUP_ANCHOR_JS : ''}
+ ${ANIMATION_MARK_CLOSE}`;
+ }
+ 
+@@ -1200,18 +1292,20 @@ function interpreterBody(js: string): string | null {
+ 
+ const currentInterpreter = ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim();
+ const anchorInterpreter = currentInterpreter + '\n\n' + ANCHOR_REPLAY_JS;
++const groupAnchorInterpreter = anchorInterpreter + '\n' + SVG_GROUP_ANCHOR_JS;
+ 
+ /** Only the exact shared interpreter and its generated anchor extension can take a new anchor track. */
+ export function canWriteAnchorData(js: string): boolean {
+   const body = interpreterBody(js);
+-  return body === currentInterpreter || body === anchorInterpreter;
++  return body === currentInterpreter || body === anchorInterpreter || body === groupAnchorInterpreter;
+ }
+ 
+ /** Exact known bodies only: a capability comment alone cannot authorize replacement. */
+ export function writeOutData(js: string, data: AnimData): string | null {
+   const body = interpreterBody(js);
+   if (body === null) return null;
+-  if (body === anchorInterpreter) return spliceAnimData(js, data);
++  if (body === groupAnchorInterpreter) return spliceAnimData(js, data);
++  if (body === anchorInterpreter) return keyedGroupPivotInitializers(data).size ? replaceRegionWithAnimData(js, data) : spliceAnimData(js, data);
+   if (body === currentInterpreter) return dataUsesAnchor(data) ? replaceRegionWithAnimData(js, data) : spliceAnimData(js, data);
+   const hash = contentHash(body);
+   if (dataUsesAnchor(data)) return null;
