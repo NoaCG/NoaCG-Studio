@@ -290,33 +290,62 @@ without writing Position. On a rotated or scaled layer the artwork moves
 according to the new pivot. This is the October 1 owner rule and applies
 with or without keyed anchors.
 
-- A supported layer has one definite editable transform owner and a rendered
-  pivot that matches its source. On such a layer each anchor axis can be
-  armed. Enabling at the playhead writes one key with the current displayed
-  value and leaves the first rendered pose unchanged. Typing keys only its
-  armed axis at the inspected cue/time. Center and canvas edits follow the
-  same axis rules and commit the pair as one undoable change. An unarmed
-  axis remains a base edit. Disabling or removing its last key retains the
-  inspected value, with one undo restoring the previous source.
-- The pivot uses the layer's box units. Numeric fields and the canvas
-  marker agree in scaled or rotated parents. Key interpolation uses the
-  existing cue and key-side rules. Forward, backward, held, departing and
-  Out poses agree between preview, reopen and the emitted HTML, SPX,
-  CasparCG and OGraf outputs. Motion on the other axis, Position, Rotation,
-  Scale, assets and fields stays authored as before. Legacy unkeyed
-  documents retain their existing behavior and source.
-- First qualify a rotated and scaled HTML box and an imported SVG group
-  whose pivot is already owned by the editor. Qualify an ordinary nested
-  SVG member separately before enabling editing there. The first keyed
-  write must preserve its existing SVG transform, parent mapping and pose
-  at the same pivot. Ambiguous targets, another source owner, raw or
-  design-driven transforms, singular frames, or any SVG fold that cannot
-  preserve that pose show a reason beside the control. A refusal, cancelled
-  drag or stale revision changes neither source, history nor selected layer.
-- The controls operate on the active authoring cue, including explicitly
-  inspected Out. Preview and rehearsal do not write. Source changes are
-  confined to the owned anchor tracks and the required base pivot values.
-  Existing opaque or unsupported runtime/source refuses before a write.
+- A supported layer has one editable transform owner and a rendered pivot
+  that matches its source. An axis is armed when it has an authored key
+  anywhere in the supported linear sequence. Its diamond adds or removes a
+  key in the inspected cue. Enable writes one key with the displayed value
+  and leaves that rendered pose unchanged. Typing keys only the armed axis.
+  Center and canvas edits route each axis independently and commit a pair
+  in one undoable change. An unarmed axis edits its base. An explicit base
+  edit can change the base while retaining keys. Removing the last key, or
+  disabling the axis and removing its keys sequence-wide, retains its
+  displayed value in the base. Removing an earlier key never bakes a base.
+- Use the existing G02 cue rule. At an ordinary flag a visible layer uses
+  the arriving pose and a newly revealing layer uses its departing pose.
+  Explicit Step or Out inspection uses the named cue. Commit requires the
+  same document instance, selection, source revision, rendered pose, time
+  and cue side captured when the edit starts. Rehearsal cannot edit keys.
+  A no-op, refusal, cancelled drag or stale edit changes neither source,
+  history nor selection.
+- Test layer-pixel values against the rendered marker on a created rotated
+  and scaled rectangle and the Frosted Panel box. For SVG, qualify both an
+  editor-owned group and ordinary nested text `#f0` in the imported
+  `fidelity-nested.svg` card under translate, rotate and scale. Keep the
+  transformed member check with its own markup transform in the canvas
+  transform fixture. Measure SVG pivot from the top-left of the intended
+  local box and map its rendered marker through the SVG matrices. The SVG
+  group's zero-time initializer is static bookkeeping even if there is
+  authored motion. Its existing center, cue repartition and base edit
+  behavior are preserved. A group pass cannot qualify the nested member.
+- Compare preview and the same saved/reopened document with executed HTML,
+  SPX, CasparCG and OGraf browser outputs. Sample forward and reverse, the
+  arriving hold and departure, interrupted Out from an earlier cue and
+  normal last-cue Out, one-key and zero-time Out, and carried Out. First
+  enable and unchanged axes preserve the observed pivot and other motions.
+  E6 verifies receiving hosts separately.
+- Source changes are confined to the owned anchor tracks, needed base
+  values, and any required exact known-runtime or identity upgrade in the
+  same transaction. Position, Rotation, Scale, unrelated tracks, existing
+  SVG markup transforms, assets, fields and foreign source stay as authored.
+  Unknown runtime, ambiguous ownership, raw or design-driven transforms,
+  singular geometry and any first SVG fold that cannot preserve its pose
+  show an explicit reason beside the control before writing. A refusal on
+  a required layer stays open. Existing unkeyed documents continue to work.
+
+The [rules checkpoint](https://github.com/NoaCG/NoaCG-Studio/commit/222822aa9cde7489af09d6419c45bc52b13c59bb)
+received AGREE WITH CORRECTIONS in a fresh review. The rules above incorporate
+its cue and axis semantics, static SVG initializer separation, required target
+scope and saved/exported artifact checks. These expected outcomes are written
+before runtime work and define the independent transition checks:
+
+| Start and action | Expected source, history and geometry |
+| --- | --- |
+| Unarmed X/Y, enable X at a nonzero inspected time | One X key at that cue-local time, Y still base, one history entry, same pivot and painted corners at that pose. |
+| X armed, Y base, drag the pivot | One X key edit at the inspected time plus one Y base edit in one undo. The marker follows the drag and Position remains exact. |
+| X keys in two cues, remove one diamond, then disable X | The first edit removes only that cue's key and keeps the base. Disable clears the remaining X keys and bakes the inspected X. Each successful edit has one undo. Y and Position stay exact. |
+| Visible or newly revealing layer at a Step, or explicit Step/Out inspection | Compare authored cue-local records against the named side and verify the other side's source and pose. |
+| Cancel, stale context, competing owner, or unknown runtime | Identical template and history, selected layer and rendered pose retained, refusal reason where applicable. |
+| Reopen and output playback across held and Out cases | Same pivot and transformed corners at equivalent cue times, with no jump or residue from authoring a different cue or replaying. |
 
 In `j-5057`, the rotated/scaled rectangle and animated Frosted Panel had
 working static controls. The nested SVG member displayed the existing pivot
