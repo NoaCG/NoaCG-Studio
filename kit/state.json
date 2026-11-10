@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "session": "/root/v2_json_repair",
-      "note": "One additional duplicate-reply and partial-Load repair authorized. Fresh local worker and Rules reassessment in progress.",
-      "pr": 2293,
       "step": "build",
       "phase": "v2",
-      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7"
+      "pr": 2293,
+      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7",
+      "session": "/root/v2_json_repair",
+      "note": "Duplicate-key and Bridge-side partial Load repair verified locally, including owned real vMix j-5064. Same-production stale partial feedback is being completed under independently reviewed amendment. A confirmed stale pairing Load issue awaits overlapping live-publishing #2362 files before shared UI work."
     }
   ],
   "owner": [],
