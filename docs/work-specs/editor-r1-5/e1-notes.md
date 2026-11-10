@@ -112,27 +112,61 @@ work. The active coordinator is responsible for E1 review stamping, normal
 queue entry and exact-merge monitoring.
 
 
-## Proposed key clipboard rules
+## November 10 timeline and account observations
 
-These rules are checked before any clipboard implementation. They are independent
-of the loop phase.
+On `b4466bfb52d0b804e95462f8c8c8dbad85449fbf`, Windows Chromium job `j-5046`
+ran the two saved probes with one worker and zero retries. Both reproduced.
+After copy and paste at 0.40 s, the Box X track still held only its original
+keys. At a 1093 px CSS viewport, the nearby flag labels overlapped by 66.14 px.
+The flag fix must keep each marker at its authored time and give each neighbor
+a separate hit area. Full names stay available when the visible label has to
+fit a short interval. Inspect, drag, rename and keyboard focus keep their
+existing behavior. The viewport probe does not establish physical Chrome zoom.
 
-- Copy captures the selected key values, effective incoming eases, source track
-  selectors/properties and relative stored times in the active authoring session.
-  It leaves source, selection, playhead and undo history untouched. A source
-  boundary key with two authored cue sides has no unambiguous copied segment.
-- Paste puts the earliest copied key at the playhead in the active cue and retains
-  relative intervals on the same tracks. Copy/paste is scoped to the same document
-  session. The existing operation/session path checks target ownership and the
-  latest revision before committing. Switching documents discards the clipboard.
-- The entire paste is refused before any write when a target key already exists,
-  the batch would cross a destination cue boundary, the destination track no
-  longer exists, or the source path/track is unsupported. A successful paste
-  leaves original keys, source outside the authored block and operator fields
-  intact and adds one undo. Undo restores the exact previous source.
-- Clipboard shortcuts belong to timeline focus and leave normal browser text
-  input copy/paste untouched. Context or toolbar actions must share the same
-  operation if included. Changes remain in the existing animation JSON format.
+Job `j-5047` passed all three selected `sync-dot.spec.ts` scenarios with one
+worker and zero retries. The team sign-in prompt, delayed personal save
+confirmation and session-local recovery ran in an isolated simulation.
+
+## Key clipboard rules
+
+- Copy captures selected values, track owners, effective incoming eases and
+  offsets on the concatenated stored ruler. A first key has no incoming
+  segment and uses the source cue's default when pasted after another key.
+  Copy changes no source, selection, playhead or undo history. A same-track
+  time with multiple authored keys is ambiguous, including two cue sides on a
+  flag, even when only one reference was selected. An empty selection leaves
+  the previous snapshot alone. An attempted copy of a nonempty but invalid
+  selection clears it and explains the refusal.
+- One snapshot belongs to the current authoring instance and its source
+  revision. Timeline remounts, scrubbing, selection changes and live sample
+  changes leave it intact. A successful paste keeps it for another position
+  at the resulting source revision. Other source edits, undo, redo and
+  document switches invalidate it. The paste request still checks the latest
+  document revision through the existing session transaction.
+- Paste places the first copied key at the live playhead and retains the
+  relative offsets after canonical millisecond rounding. Ordinary scrub
+  uses the arriving side of a flag. Explicit inspection uses the departing
+  side. Every new key stays in that one cue, including its endpoints.
+  Any authored key at the same stored time on that track occupies the slot,
+  including the opposite side of a flag. A synthetic legacy Out or an Out
+  with carried motion refuses paste. Nothing extends or clamps a cue.
+- Every target must resolve to the same unambiguous editable artwork track
+  and already have authored keys in the destination cue. Inherited-only
+  tracks do not acquire keys. The existing ownership and lossless-source
+  checks apply to every track. Keep value types and compatible filter shapes.
+  Refuse the entire batch on a missing, protected, incompatible or occupied
+  target. A successful batch adds one undo and preserves the original keys,
+  fields, assets and source outside the supported animation data. Undo
+  restores the exact previous source.
+- Ctrl or Command with C or V applies when the timeline owns focus,
+  including after selecting with a marquee. Text fields and active modal
+  surfaces keep their own shortcuts. No system clipboard data is read or
+  written. The format of saved animation data does not change.
+
+The transition checks use hand-written expectations for source revision and
+instance changes, distinct cue sides and occupied slots, mixed-track refusal,
+preserved offsets and easing, and exact undo. The browser probe also checks
+focus and the document source through the normal timeline shortcuts.
 
 
 ## Checkpoint
