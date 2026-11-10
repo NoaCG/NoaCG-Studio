@@ -41,9 +41,7 @@
     "source": "df5767458230558e9fdee158e663e9367e58f8e3",
     "scope": "Two coordinator and two worker preflights passed subprocess/workspace, Git main and Actions reads. Fresh same-host agent result returned in active mode. No model or effort override and no unattended wake claim."
   },
-  "waitingOn": {
-    "what": "Strict XML parser passed independently, but full V2 review is B and the local pre-merge check failed on separate V2 defects. The scoped parser repair is complete. V2 waits for authorization to address the remaining findings."
-  },
+  "waitingOn": {},
   "inFlight": [
     {
       "pr": 2293,
@@ -51,7 +49,7 @@
       "head": "3bda7063405c8862586cab12c5578e2f2f38cf91",
       "phase": "v2",
       "step": "build",
-      "note": "Worker finished. Strict parser A, full V2 B, local c2e07c54d631bb0453d2e104ba281e2f1a5c6ea6; draft stays outside queue.",
+      "note": "Fresh read-only reassessment of the remaining V2 reply validation and input identity findings before a single focused repair on the same PR.",
       "session": "/root/v2_xml_replacement"
     }
   ],
