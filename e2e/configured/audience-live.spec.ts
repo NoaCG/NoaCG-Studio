@@ -530,12 +530,13 @@ test.describe(() => {
     // local stack: a phone-sized browser joins by the link the studio's QR code carries, answers an
     // Open question and a vote, the answer and the result go to the rundown and air only through
     // Take, and the room moves through three questions. The phone's screens are attached for the
-    // walk's record (docs/work-specs/interaction/evidence/phase-3.md).
+    // walk's record (docs/work-specs/interaction/evidence/phase-3.md). Since phase 5 the vote airs
+    // on one of the result boards (a donut as a lower third) rather than the House Vote board.
     test.setTimeout(150_000);
     await signIn(page);
     await settleSync(page);
     await wipeMyGraphics(page);
-    await createGraphicInEditor(page, 'Polls', 'House Vote');
+    await createGraphicInEditor(page, 'Polls', 'Result Donut Lower');
     const walkTitle = `Audience Walk ${Date.now()}`;
     await openProductionWithCurrent(page, walkTitle);
     await publishProduction(page);
@@ -633,17 +634,21 @@ test.describe(() => {
     await expect(messages.getByTestId('audience-tally-split-1')).toHaveText('1 phone · 1 chat');
     await expect(messages.getByTestId('chat-source-stats')).toHaveText('1 in · 2 votes · 0 dropped');
     await testInfo.attach('studio-phone-and-chat-votes', { body: await messages.getByTestId('audience-tally').screenshot(), contentType: 'image/png' });
-    await addResults(messages, 'House Vote');
+    await addResults(messages, 'Result Donut Lower');
     await settleDurableWrites(messages);
     // Staging sent nothing: Program still holds the answer and not the vote.
     await expect(program('House Q&A').locator('body')).toContainText('Sent from a phone on the walk');
-    await expect(program('House Vote').locator('body')).not.toContainText('Who wins the walk?');
+    await expect(program('Result Donut Lower').locator('body')).not.toContainText('Who wins the walk?');
     const voteCue = page.locator('.pd-cue', { hasText: 'Vote —' });
     await expect(voteCue).toHaveCount(1, { timeout: 20_000 });
     await voteCue.click();
     await page.getByTestId('verb-take').click();
-    await expect(program('House Vote').locator('body')).toContainText('Who wins the walk?', { timeout: 20_000 });
-    await expect(program('House Vote').locator('body')).toContainText('Away');
+    await expect(program('Result Donut Lower').locator('body')).toContainText('Who wins the walk?', { timeout: 20_000 });
+    await expect(program('Result Donut Lower').locator('body')).toContainText('Away');
+    // The donut's legend carries both options, under the question the room voted on.
+    await expect(program('Result Donut Lower').locator('.poll-donut')).toHaveCount(1);
+    await expect(program('Result Donut Lower').locator('.poll-row')).toHaveCount(2);
+    await testInfo.attach('program-result-donut', { body: await page.getByTestId('program-stage').screenshot(), contentType: 'image/png' });
 
     // Question 3: the room moves on, and Stop leaves phones the waiting text.
     await addQuestion(messages, 'open', 'One word for tonight?');

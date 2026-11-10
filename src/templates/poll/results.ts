@@ -172,8 +172,8 @@ function html(layout: ResultLayout, placement: ResultPlacement, lines: { sample:
 /** Sizes per placement, in px at 1080p: question, label, figure, badge, foot. */
 const TYPE: Record<ResultPlacement, { q: number; label: number; fig: number; cue: number; foot: number }> = {
   full: { q: 56, label: 30, fig: 32, cue: 22, foot: 22 },
-  lower: { q: 38, label: 22, fig: 24, cue: 19, foot: 18 },
-  side: { q: 36, label: 22, fig: 24, cue: 19, foot: 18 },
+  lower: { q: 38, label: 22, fig: 24, cue: 20, foot: 20 },
+  side: { q: 36, label: 22, fig: 24, cue: 20, foot: 20 },
 };
 
 function baseCss(placement: ResultPlacement): string {
@@ -226,7 +226,7 @@ ${wide ? `  /* The category's wrap cap is drawn for a card; this board is wider.
 .poll-mask > span {
   font-size: calc(${t.q}px * var(--scale) * var(--type-scale));
   font-weight: var(--display-weight);
-  line-height: 1.14;
+  line-height: 1.22;               /* room in the mask for a descender at full-screen size */
   letter-spacing: var(--display-tracking);
   color: var(--text-color);
 }
