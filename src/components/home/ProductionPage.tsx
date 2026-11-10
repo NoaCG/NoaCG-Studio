@@ -3818,7 +3818,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 busy={slotBusy}
                 replace={vmixReplace?.choice.url === outputUrl ? vmixReplace : undefined}
                 onPair={() => setPlayoutSettingsOpen(true)}
-                onLoad={() => outputUrl && void vmixVerb({ verb: 'take' }, outputUrl)}
+                onLoad={overlay => outputUrl && void vmixVerb({ verb: 'take', overlay }, outputUrl)}
                 onUnload={command => outputUrl && void vmixVerb(command, outputUrl)}
                 onReplace={() => outputUrl && vmixReplace && void vmixVerb({ verb: 'take', confirmed: vmixReplace }, outputUrl)}
                 onCancelReplace={() => setVmixReplace(undefined)}

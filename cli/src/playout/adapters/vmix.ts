@@ -206,16 +206,22 @@ export function createVmixAdapter(options: {
   }
 
   /** One function, never repeated. vMix's OK is only that it read the line. */
-  async function fn(conn: VmixConnection, name: string, params: Record<string, string> | undefined, until: number): Promise<AdapterResult<null>> {
+  async function fn(
+    conn: VmixConnection, name: string, params: Record<string, string> | undefined, until: number, prior?: 'browser-added',
+  ): Promise<AdapterResult<null>> {
     const r = await conn.command(functionLine(name, params), until);
+    const prefix = prior ? 'vMix added the Browser input. ' : '';
     if (!r.ok) {
-      if (r.lost === 'not-sent' || r.lost === 'late') return { ok: false, error: { hop: 'target', code: 'unreachable', detail: `vMix was not sent ${name}: the connection was gone or the time was up. Nothing changed.` } };
+      if (r.lost === 'not-sent' || r.lost === 'late') {
+        const effect = prior ? 'Load did not put it on the overlay.' : 'Nothing changed.';
+        return { ok: false, error: { hop: 'target', code: 'unreachable', detail: `${prefix}vMix was not sent ${name}: the connection was gone or the time was up. ${effect}` } };
+      }
       return {
         ok: false,
-        error: { hop: 'target', code: 'uncertain', detail: `vMix was sent ${name} and gave no answer (${r.lost === 'timeout' ? 'none in time' : 'the connection closed'}). It may have acted on it: look at vMix before trying again.` },
+        error: { hop: 'target', code: 'uncertain', detail: `${prefix}vMix was sent ${name} and gave no answer (${r.lost === 'timeout' ? 'none in time' : 'the connection closed'}). It may have acted on it: look at vMix before trying again.` },
       };
     }
-    if (r.status !== 'OK') return { ok: false, error: { hop: 'target', code: 'refused', detail: `vMix refused ${name}: ${r.line}.`, raw: r.line } };
+    if (r.status !== 'OK') return { ok: false, error: { hop: 'target', code: 'refused', detail: `${prefix}vMix refused ${name}: ${r.line}.`, raw: r.line } };
     return { ok: true, value: null, raw: `${name} ${r.status}` };
   }
 
@@ -452,7 +458,7 @@ export function createVmixAdapter(options: {
     const { input: output, xml: namingState } = found;
     const title = availableName(namingState, name, output.key);
     if (output.title !== title) {
-      const renamed = await fn(conn, 'SetInputName', { Input: output.key, Value: title }, until);
+      const renamed = await fn(conn, 'SetInputName', { Input: output.key, Value: title }, until, 'browser-added');
       if (!renamed.ok) return renamed;
     }
     const fresh = await read(conn, until, scope);
@@ -465,7 +471,7 @@ export function createVmixAdapter(options: {
     }
     const moved = otherOverlay(fresh.value, confirmed, overlay);
     if (moved !== undefined) return refused(`Unload the Browser from vMix overlay ${moved} before loading on overlay ${overlay}.`);
-    const shown = await fn(conn, 'OverlayInput' + overlay + 'In', { Input: output.key }, until);
+    const shown = await fn(conn, 'OverlayInput' + overlay + 'In', { Input: output.key }, until, 'browser-added');
     if (!shown.ok) return shown;
     const after = await read(conn, until, scope);
     if (!after.ok || channelKey(after.value, overlay) !== output.key || !ownBrowser(after.value, output.key)) {

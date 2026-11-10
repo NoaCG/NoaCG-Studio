@@ -1095,6 +1095,58 @@ test('AC-4: a take without time for complete input attribution sends no AddInput
   }
 });
 
+for (const lostAt of ['naming', 'before Overlay In', 'after Overlay In']) {
+  test('AC-4: a failed Load reports the Browser already added ' + lostAt, async t => {
+    const realNow = Date.now.bind(Date);
+    let advance = 0;
+    t.mock.method(Date, 'now', () => realNow() + advance);
+    const fake = await startFakeVmix({
+      transformXml(xml) {
+        if (lostAt === 'before Overlay In' && fake.functions.some(f => f.name === 'SetInputName')) advance = 8000;
+        return xml;
+      },
+      hook(line, socket) {
+        if (lostAt !== 'after Overlay In' || !line.startsWith('FUNCTION OverlayInput8In ')) return false;
+        socket.destroy();
+        return true;
+      },
+    });
+    const stored = vmixOutputStore();
+    const outputs = {
+      ...stored,
+      async save(...args) {
+        await stored.save(...args);
+        if (lostAt === 'naming') advance = 8000;
+      },
+    };
+    try {
+      await withBridge(createVmixAdapter({ port: fake.port, outputs }), async post => {
+        const reply = await act(post, { verb: 'take', item, slot: slot() });
+        assert.equal(reply.ok, false);
+        assert.equal(reply.error.code, lostAt === 'after Overlay In' ? 'uncertain' : 'unreachable');
+        assert.match(reply.error.detail, /added the Browser input/);
+        assert.doesNotMatch(reply.error.detail, /Nothing changed/);
+        assert.equal(fake.inputs.length, 1);
+        assert.equal((await outputs.read(fake.port)).keys[vmixOutputId(OUTPUT)], fake.inputs[0].key);
+        assert.equal(fake.onChannel(8), undefined);
+        const sent = fake.lines.filter(line => line.startsWith('FUNCTION ')).map(line => line.split(' ')[1]);
+        assert.deepEqual(sent, [
+          'AddInput', ...(lostAt === 'naming' ? [] : ['SetInputName']),
+          ...(lostAt === 'after Overlay In' ? ['OverlayInput8In'] : []),
+        ]);
+        if (lostAt === 'after Overlay In') {
+          assert.match(reply.error.detail, /may have acted/);
+          assert.doesNotMatch(reply.error.detail, /did not put it on the overlay/);
+        } else {
+          assert.match(reply.error.detail, /did not put it on the overlay/);
+        }
+      });
+    } finally {
+      await fake.stop();
+    }
+  });
+}
+
 test('AC-1 and AC-4: a missing or blank edition cannot authorize placeholder overlays', async () => {
   let edition = '';
   const fake = await startFakeVmix({

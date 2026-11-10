@@ -318,7 +318,7 @@ export function VmixRows({
   busy: boolean;
   replace?: VmixReplace;
   onPair: () => void;
-  onLoad: () => void;
+  onLoad: (overlay: number) => void;
   onUnload: (command: Extract<VmixOutputCommand, { verb: 'out' }>) => void;
   onReplace: () => void;
   onCancelReplace: () => void;
@@ -364,7 +364,7 @@ export function VmixRows({
           {matched ? (
             <button type="button" onClick={() => onUnload({ verb: 'out', overlay: row.overlay, inputKey: matched.key })} data-testid="vmix-unload">Unload</button>
           ) : (
-            <button type="button" onClick={onLoad} disabled={!!activeReplace || !!loadProblem} data-testid="vmix-load">Load</button>
+            <button type="button" onClick={() => onLoad(row.overlay)} disabled={!!activeReplace || !!loadProblem} data-testid="vmix-load">Load</button>
           )}
         </div>
       )}

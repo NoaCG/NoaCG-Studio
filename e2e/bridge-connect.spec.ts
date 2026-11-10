@@ -1585,6 +1585,23 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   await expect(page.getByTestId('cue-caspar-off')).toHaveAttribute('title', 'This cue plays on CasparCG. This production uses vMix.');
   const row = panel.getByTestId('vmix-output');
   await expect(row).toContainText('Output on Overlay 3');
+  // Another tab can save a new choice after this row renders and before the click.
+  await row.getByTestId('vmix-load').evaluate(async button => {
+    const key = 'spx-gfx-caspar';
+    const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
+    localStorage.setItem(key, JSON.stringify({ ...saved, vmix: { overlay: 4 } }));
+    (button as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve));
+  });
+  await expect(page.getByTestId('production-note')).toContainText('The vMix overlay changed.');
+  await expect(row).toContainText('Output on Overlay 4');
+  expect(vmix.actions).toEqual([]);
+  await panel.getByTestId('panel-playout-settings').click();
+  const settings = page.getByTestId('playout-settings');
+  await settings.getByTestId('vmix-overlay').selectOption('3');
+  await settings.getByTestId('playout-settings-close').click();
+  await page.getByTestId('production-status').click();
+  await expect(row).toContainText('Output on Overlay 3');
   const postLoadReading = Promise.withResolvers<void>();
   const releaseReading = Promise.withResolvers<void>();
   await page.route(BRIDGE + '/state', async route => {
@@ -1614,7 +1631,6 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   await page.screenshot({ path: test.info().outputPath('vmix-output.png') });
   // A settings change is a destination choice for the next Load, not a live mixer operation.
   await panel.getByTestId('panel-playout-settings').click();
-  const settings = page.getByTestId('playout-settings');
   await settings.getByTestId('vmix-overlay').selectOption('2');
   await settings.getByTestId('playout-settings-close').click();
   await page.getByTestId('production-status').click();

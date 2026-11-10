@@ -100,6 +100,35 @@ test('vMix replacement requires the exact confirmed overlay and input before dis
   }]);
 });
 
+test('manual Load stays on the displayed overlay while first Publish uses a fresh choice', async (t) => {
+  let info;
+  let current;
+  const actions = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') return Response.json(health);
+    if (path === '/status') return Response.json({ ...status, vmix: info, version: info.version });
+    if (path === '/state') return Response.json(scoped({}, info));
+    assert.equal(path, '/act');
+    actions.push(JSON.parse(options.body).action);
+    return Response.json(acted);
+  });
+  for (const [displayed, selected, fresh] of [
+    [8, 8, { ...vmix, version: '28.0.0.42', overlays: 4 }],
+    [3, 2, vmix],
+  ]) {
+    info = fresh;
+    current = { ...choice, settings: { ...settings, vmix: { overlay: selected } } };
+    assert.match((await changeVmixOutput({ ...load, overlay: displayed }, () => current)).message, /overlay changed.*press Load again/);
+  }
+  assert.deepEqual(actions, []);
+
+  info = { ...vmix, version: '28.0.0.42', overlays: 4 };
+  current = { ...choice, settings: { ...settings, vmix: { overlay: 8 } } };
+  assert.equal((await changeVmixOutput(load, () => current)).completed, true);
+  assert.deepEqual(actions.map(action => action.slot.overlay), [4]);
+});
+
 test('a matched live Browser never verifies Load, even if Bridge omits the diagnostic', async (t) => {
   const paths = [];
   t.mock.method(globalThis, 'fetch', async url => {

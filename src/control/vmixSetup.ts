@@ -64,7 +64,7 @@ export interface VmixReplace {
 }
 
 export type VmixOutputCommand =
-  | { verb: 'take'; confirmed?: VmixReplace }
+  | { verb: 'take'; overlay?: number; confirmed?: VmixReplace }
   | { verb: 'out'; overlay: number; inputKey: string };
 
 const sameChoice = (a: VmixOutputChoice, b: VmixOutputChoice | null): b is VmixOutputChoice =>
@@ -89,8 +89,13 @@ export async function changeVmixOutput(
   if (connection.result?.state !== undefined && connection.result.state !== 'ok') return { message: connection.result.detail };
   if (!connection.keyed) return { message: 'Update NoaCG Bridge to load or unload an output in vMix.' };
   if (!overlay) return { message: loadProblem ?? detail ?? 'The vMix overlay could not be read. Check vMix and try again.' };
-  if (verb === 'take' && loadProblem) return { message: loadProblem };
-  if (verb === 'take' && overlay.ownsOutput) return { message: VMIX_BROWSER_LOAD_PROBLEM };
+  if (verb === 'take') {
+    if (loadProblem) return { message: loadProblem };
+    if (overlay.ownsOutput) return { message: VMIX_BROWSER_LOAD_PROBLEM };
+    if (command.overlay !== undefined && command.overlay !== overlay.overlay) {
+      return { message: 'The vMix overlay changed. Check it and press Load again.' };
+    }
+  }
 
   const input = overlay.input;
   if (verb === 'out' && (!overlay.ownsOutput || input?.key !== command.inputKey)) {

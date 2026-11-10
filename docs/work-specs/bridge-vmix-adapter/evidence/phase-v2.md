@@ -870,3 +870,19 @@ route before this repair.
   outdated Bridge. Current health must satisfy the current route's
   fields before Studio decides vMix support. The CasparCG interpretation
   of shared Bridge responses is unchanged.
+
+### Additional Load findings from the local review
+
+- A manual Load names the overlay displayed at the click. If the fresh
+  configured overlay differs, Load sends nothing and asks the operator to
+  check the overlay and press Load again. First Publish has no displayed
+  overlay and uses the fresh configured channel.
+- After adding and saving a Browser, a failure to name it or send Overlay
+  In reports that the Browser was added. A command that was never sent
+  cannot have put that input on the overlay. A sent In without an answer
+  remains uncertain. The existing action deadlines and key storage still
+  apply.
+- The review also found that the isolated `vmixSetup.ts` selector output
+  omits the first-Publish spec. The current branch's normal selection
+  includes it, and the local acceptance run explicitly names both
+  maintained specs. The selector and coverage declarations are unchanged.
