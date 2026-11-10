@@ -122,6 +122,21 @@ question whenever it exists. Proof: 0114's self-check asserts the operator list 
 phones and Simulate (mutation: dropping the provider's filter fails them); the Word, Fill from and
 question-list journeys pass (j-0020); the walk passes (j-0021, 51 s).
 
+## Review of `428ff47` (`/so`, fresh read-only session, also the W9 reassessment)
+
+AGREE WITH CORRECTIONS, A-. It confirmed the W9 correction holds on both providers and every path
+it traced (paste, chat, the Sheet, presenter pointers, the word count door). Two product defects
+in W6 and approval, fixed:
+
+- A word hidden after the press stayed on the cue and aired with the next Take. Hiding now removes
+  it from the question's word cloud cue in the same record write. Proof: the journey hides Tense
+  after the Take, the stored cue loses its line at once, the action log gains no row, and the next
+  Update airs the cloud without it; `wordsWithout` has its Node test.
+- A press could stage words that arrived after the panel last read (W10). Staging now counts afresh
+  only the words the panel was listing; newer ones wait for the next press and the note counts them.
+
+And one doc correction: the revert note now says what an older build does with rehearsal words.
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine

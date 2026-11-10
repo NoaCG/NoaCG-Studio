@@ -936,8 +936,10 @@ their values.
 
 Previous verified main: `7c16e66a89942d7020d19004603d091a56e4f635`. Revert of this merge:
 `git revert -m 1 <merge sha>` (the merge sha is in `evidence/phase-6.md` once it lands). Migration
-0114 keeps every function's signature and grant, so the reverted app runs on it unchanged: an older
-page never makes a Word round, and `mine` gains a key it ignores. Removing it is a new migration
+0114 keeps every existing function's signature and grant, so the reverted app runs on it unchanged
+against the server: an older page never makes a Word round, and `mine` gains a key it ignores. In
+a browser that rehearsed Word questions offline, the older build drops the stored Word rounds and
+lists their rehearsal words as unfiled messages. Removing it is a new migration
 that restores 0111's `audience_go_live`, `audience_submit`, `audience_round_guard` and
 `audience_join_by_slug` and 0095's `audience_guard`; the kind `word` in the check can stay.
 
@@ -983,7 +985,14 @@ challenged them before the final assessment:
   call that named a Word round would add a word without the per-phone limit; only the
   production's owner can make that call.
 - W6, made exact: staging takes the hidden words from the stored question whenever it is still in
-  the list, an empty list included; only a question gone from it keeps the page's reading.
+  the list, an empty list included; only a question gone from it keeps the page's reading. Hiding
+  a word also removes it from the question's word cloud cue in the same record write
+  (`setShowWordHidden`), so a word hidden after the press never airs with the next Take or Update;
+  showing it again changes only the list (the next press puts it back). Added after the `/so` of
+  `428ff47`.
+- W10. A press stages only the words the operator has seen: fresh counts for the words the panel
+  was listing at the press. A word that arrived since the panel last read waits for the next press,
+  and the note says how many are listed now and not on the cue. Added after the `/so` of `428ff47`.
 
 Model correction (after the review of `ad7ec51`): W9 had been held by filtering words out of the
 message list in each surface, using the rounds the page had read. Two successive rounds found the
