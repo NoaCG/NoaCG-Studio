@@ -409,38 +409,59 @@ SVG group. The final ordinary test set includes the all-target Out retake.
 
 #### Editor-owned SVG group rules for review
 
-- Only a uniquely addressable editor-owned SVG group with a valid stored
-  frame and its existing zero-time `transformOrigin` initializer can take
-  pivot keys. The initializer belongs to the base. It remains unchanged
-  when enabling, typing or retiming a key, stays hidden from the authored
-  key rows, and continues to initialize groups with no authored anchor keys
-  exactly as before. A separate source owner or invalid frame refuses
-  before changing source or history.
-- The keyed value is in the stored group frame, independent of the current
-  member bounds. A group can turn and scale about its own animated pivot
-  while a member moves. Only the group anchor channels change on a pivot
-  edit. A first enable captures the current displayed pivot and preserves
-  both members' first painted matrices. The other axis and all group and
-  member Position, Rotation, Scale, identity, masks and fields stay exact.
-- Before an axis has an authored pose, playback uses its existing base.
-  Once an authored pivot is visible, Next, arriving hold and departing
-  zero keep or change it under the same rules as other numeric keys. The
-  static initializer must not erase a held axis. Out begins at the observed
-  pivot when interrupted from an earlier cue, keeps carried motion only
-  on the applicable path, and handles one-key and zero-time cases. A new
-  take clears both animated axes back to their authored base before In.
-- Repartitioning a cue keeps static initializers at their original base
-  value and moves authored anchor keys through the ordinary numeric path.
-  Ungrouping must preserve pivot motion through its transform carrier or
-  explicitly refuse with source, history and selection intact. Existing
-  non-anchor group edits and ungroups keep their verified behavior.
-- The maintained imported SVG group fixture must compare actual group and
-  member geometry in the editor, after durable reopen, and through HTML,
-  SPX, CasparCG and OGraf browser execution. Sample forward and backward,
-  including the Next hold, departing pose, carried/early/normal Out and
-  replay. An independently written expected transition checks a moving
-  child and two unequal group pivot values; a static-only group pass is
-  regression coverage and cannot stand in for authored group motion.
+- A uniquely addressed SVG `g` must carry the editor group marker, four
+  explicitly present finite frame attributes with positive size, its owned
+  base CSS, and the same exact zero-time `transformOrigin` base value in
+  each cue. Competing CSS, inline or markup transforms, other selectors or
+  origin tracks, or an external script owner refuse before writing. A
+  missing or retimed historical initializer is not proof of ownership and
+  refuses. The emitter accepts the exact shared generated interpreter and
+  its exact recognized anchor extensions. It may upgrade only that region,
+  preserves the exterior bytes, and emits unkeyed graphics byte-identically.
+- The group pivot is `(frame.x + X, frame.y + Y)` in its untransformed
+  coordinates. Position stays independent. Compose translation, pivot,
+  Rotation/Scale and inverse pivot before the parent and child transforms.
+  Moving member bounds do not shift that fixed pivot and the runtime must
+  not add Position compensation. The marker and numeric control read the
+  same pose as preview and playback. First enable captures the displayed
+  pose and keeps both members' painted matrices. Other axis and group or
+  member transforms, identity, masks and fields remain authored as before.
+  Explicit base or unarmed edits and last-key bake may write the base.
+- The recognized initializer is bookkeeping. Adding or moving a pivot key
+  keeps it at zero and does not expose it in key rows, retime it, count it
+  as authored Out motion, or let it overwrite a held axis. Suppress it only
+  for the keyed group in the runtime paths that would use it as motion.
+  Unkeyed groups retain their existing initializer and playback.
+- Add, delete and move Step, Set Out carry/rejoin, and group move/trim use
+  numeric anchor timing while retaining the zero-time base initializer.
+  Existing atomic timing refusals still preserve source and history.
+  Ungrouping a keyed SVG group refuses with a reason and preserves the
+  document, history and selection. Static and non-anchor ungroup retains
+  its existing exact carrier behavior.
+- The maintained imported SVG fixture uses a nonzero frame, a translated,
+  rotated and nonuniformly scaled parent, moving child bounds, and group
+  Rotation/Scale. An independent matrix and transition oracle checks both
+  member matrices/corners and the marker, with one keyed axis and then both.
+  Check forward/reverse seek, save/reopen and the public playback lifecycle
+  in the simulator, HTML, SPX, CasparCG and OGraf, including the refusal
+  and unchanged legacy/static paths. A static-only pass has a distinct scope.
+
+| Cue path | Group pivot expected from source |
+| --- | --- |
+| Before the first authored cue or on a new Take | Existing base on each axis, then In's own opening value on any authored axis. |
+| First key inside a cue | The key holds backward only within that cue. A departing zero may differ from the arriving pose. |
+| Later cue with no key on an axis | Keep the previously evaluated axis. The other axis can key independently. |
+| Normal Out after the last settled cue | Honor authored Out and any carried motion on its own clock. A trackless axis holds live and a settled one-key axis applies at start. |
+| Interrupted Out in the last cue | Rebase from the observed live value using existing D02 timing on that cue clock. |
+| Out from an earlier cue | Skip carry and rebase the applicable exit from the observed live value. A one-key, zero-time or carried-only track holds live until exit ends, then uses the existing numeric terminal rule. |
+
+The fresh review of `5d3810c89b075efffc29a1fffbbfb9b5cd4d74a8` returned
+AGREE WITH CORRECTIONS. The rules above incorporate its ownership, geometry,
+timing and exact-state requirements before group implementation. Windows
+`j-5076` reproduced the current atomic key refusal. The moving child's
+group bbox left edge moves from 180 to 100 while the stored frame's x=180
+and the static runtime origin x=315 remain unchanged. A runtime using the
+current bbox as the pivot's reference frame would be incorrect.
 
 ## Checkpoint
 
