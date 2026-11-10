@@ -135,6 +135,11 @@ and the exact base and head SHAs. It picks its own probes.
 - Keep each new e2e test within the per-test ceiling:
   `node scripts/check-e2e-protection.mjs --changed origin/main`.
 - Never merge or push `main`, never touch another worktree, and leave nothing running.
+- **No squash after `main` moved:** `git reset --soft origin/main` followed by one commit silently
+  reverts every file `main` changed since your branch point. Merge `origin/main` into your branch
+  instead, and never rewrite a pushed branch.
+- The coordinator's work block is not your deadline: it renews. Build the whole phase in one PR,
+  and send your receipt as soon as CI is green on the final head.
 
 ## Docs and reconciliation phases
 
