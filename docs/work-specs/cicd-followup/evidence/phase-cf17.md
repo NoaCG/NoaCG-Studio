@@ -37,11 +37,11 @@ to run some planned runs here at the same time. If it doesn't work out tonight, 
 it as not run. I will start a new run now called live-publishing and continue VMix and editor runs
 if I have enough RAM."
 
-| Plan            | Runnable plans entry                                                                                                                                              | Run issue                           | Work in the window                                                                   | Coordinator                                        |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| live-publishing | `live-publishing` (`docs/work-specs/live-publishing/`, phase 1 is `retire-hosted-control`); preparation-only until the owner says start, and the owner started it | the run issue its coordinator opens | its phases in `phases.json` order, from phase 1                                      | the owner's machine, started by the owner          |
-| vMix            | `vmix` (`docs/work-specs/bridge-vmix-adapter/spec.md`)                                                                                                            | #2289                               | V2 (draft #2293), then V3 onward, after the owner authorizes V2's remaining findings | a Codex coordinator on the owner's Windows machine |
-| editor-r1-5     | `editor` names `docs/EDITOR_REBUILD_PLAN.md`, whose R1.5 this run carries out; the run's own spec (`docs/work-specs/editor-r1-5/`) is **not on `main`**           | #2295                               | E1 (blocked on the Windows file picker), then E2 onward                              | a Codex coordinator on the owner's Windows machine |
+| Plan            | Runnable plans entry                                                                                                                                                                       | Run issue                                                | Work in the window                                                                   | Coordinator                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| live-publishing | `live-publishing` (`docs/work-specs/live-publishing/`, phase 1 is `retire-hosted-control`); preparation-only until the owner says start, and the owner said at 17:43Z they are starting it | the run issue its coordinator opens (none yet at 17:50Z) | its phases in `phases.json` order, from phase 1                                      | the owner's machine                                |
+| vMix            | `vmix` (`docs/work-specs/bridge-vmix-adapter/spec.md`)                                                                                                                                     | #2289                                                    | V2 (draft #2293), then V3 onward, after the owner authorizes V2's remaining findings | a Codex coordinator on the owner's Windows machine |
+| editor-r1-5     | `editor` names `docs/EDITOR_REBUILD_PLAN.md`, whose R1.5 this run carries out; the run's own spec (`docs/work-specs/editor-r1-5/`) is **not on `main`**                                    | #2295                                                    | E1 (blocked on the Windows file picker), then E2 onward                              | a Codex coordinator on the owner's Windows machine |
 
 None of the three coordinators is a Claude Code Cloud session the cf17 builder can message. So
 the builder watches from GitHub only (the run issues, the runs' PRs and Actions history), and a
@@ -62,8 +62,10 @@ cf03's definitions (phase-cf03.md section 1) and its comparability rule and spre
 - **Completed work per unit time (W).** Phases landed per plan per window day: a phase counts when
   its build or repair PR merges and its independent check records PASS. A repair PR of the same
   phase is not a second phase.
-- **Queue delay (Q).** M2 of each trial landing, queue entry to merge (cf03 section 1), with its
-  waiting and execution parts reported apart, and M1 of each landing, by cf03 group.
+- **Queue delay (Q).** Queue to landing of each trial PR, from its first merge-queue entry to its
+  merge, so a requeue never restarts it: the clock the existing limit uses (`queueClock` in
+  `scripts/growth-controls.mjs`). cf03's M2 (from the last entry, section 1) is reported beside it
+  with its waiting and execution parts, and M1 of each landing by cf03 group.
 - **Contention (C).** For trial PRs: merge-queue removals that were not the PR's own failure (a
   conflict, or a combined-tree failure caused by another PR in the group); merges of `origin/main`
   into a trial branch forced by a conflict with another trial plan's landing; jobs of a trial run
@@ -71,8 +73,10 @@ cf03's definitions (phase-cf03.md section 1) and its comparability rule and spre
 - **Retries (R).** M4: the share of trial landings with a fail-then-pass or hang job (cf03
   section 3.4), plus re-run attempts and post-landing failures per PR (cf21's
   `phase-cf21-review.mjs` counts).
-- **CI cost (K).** M3 per trial landing, and runner-minutes per day per tier read the way the
-  weekly growth report reads them (`scripts/growth-ceilings.json`).
+- **CI cost (K).** M3 per trial landing, and each tier's runner-minutes per landing over the
+  window's landing runs (pull request, merge group and main push), computed the way the weekly
+  growth report computes `perLanding` (`scripts/growth-report.mjs`). Per day is per landing times
+  landings per day plus the tier's scheduled minutes, as the report's aggregate line computes it.
 
 **Solo reference, per plan.** A plan's recent rate is its phases landed per day over its own last
 run segment with one plan phase in flight, from its first launch to its last landing, with n:
@@ -94,16 +98,19 @@ starts so nobody reads its result as a near miss.
 
 ## 3. Success criteria (all must hold to enable permanent three-plan concurrency)
 
-Taken from cicd-improvement AC-6 (the target that authorized spec set for a three-plan cohort) and the existing
-timing limits in `scripts/growth-ceilings.json`; none is new or looser.
+Taken from cicd-improvement AC-6 (the target that authorized spec set for a three-plan cohort) and
+the existing timing limits in `scripts/growth-ceilings.json`; none is new or looser. A criterion
+that cannot be judged (too few samples for its test, or data missing) counts as not met.
 
 - **S1, completed work.** Combined W over the window at least 2x the matched serial rate (the
   mean of the three plans' solo rates), and each plan's W at least 0.8x its own solo rate (no
   starvation). Each plan has a solo reference with n of at least 3 and lands at least 3 phases in
   the window (AC-6 asked for four rows per plan; three is the minimum that makes a rate).
-- **S2, queue delay.** Trial landings' M2 (queue entry to merge) p50 at most 10 and p90 at
-  most 20 minutes (`timing.queue`, AC-6's queue-to-landing limit); M1 median per cf03 group no more than 25% above cf03's reference median for
-  that group (section 5.1), judged only for a group with at least cf03's minimum n.
+- **S2, queue delay.** Trial PRs' queue to landing (Q, first entry to merge) p50 at most 10 and
+  p90 at most 20 minutes, and none over 30 (`timing.queue` and its per-item age, AC-6's
+  queue-to-landing limit); M1 median per cf03 group no more than 25% above cf03's reference median for
+  that group (section 5.1), each trial landing's group needing at least cf03's minimum n (below
+  it, S2 cannot be judged).
 - **S3, contention.** No starvation (S1); no duplicate repair owner and no admission before a
   prerequisite PASS in any of the three ledgers; at most one contention event per 10 trial
   landings, and none left unrecovered; the repository-wide peak stays under 57 concurrent jobs
@@ -112,9 +119,9 @@ timing limits in `scripts/growth-ceilings.json`; none is new or looser.
   one-sided Fisher exact test at p below 0.05 (cf03's own M4 test); no post-landing failure on
   `main` caused by a trial landing.
 - **S5, CI cost.** M3 per trial landing within cf03's spread of its group's reference median, and
-  no tier's per-day runner-minutes above its value in the last weekly growth report before the
-  window (the backend and graphics tiers are already over their per-landing ceilings; the trial
-  may not add to that).
+  no tier's runner-minutes per landing over the window (K) above that tier's `perLanding` in the
+  last weekly growth report before the window (the backend and graphics tiers are already over
+  their per-landing ceilings; the trial may not add to that).
 - **S6, pause and resume.** At least one coordinator pause and resume happens or is exercised in
   the window without losing a phase's state (AC-6).
 
@@ -126,7 +133,8 @@ tells the owner on #1967, and the owner pauses launches in all three runs (in-fl
 repair owner). The builder records the reason and the figures in stage 2.
 
 - **Contention.** Any of: two contention events (section 2, C) within 24 hours; trial landings'
-  M2 p90 above 20 minutes over a rolling 24 hours with at least 5 landings; any required
+  queue to landing (Q) p90 above 20 minutes over a rolling 24 hours with at least 5 landings; any
+  trial PR in the queue over 30 minutes (the existing per-item age alarm); any required
   check of a trial PR queued more than 30 minutes for a runner; the repository-wide peak reaches
   57 concurrent jobs.
 - **Failure rate.** Any of: M4 share of trial landings at or above 2x cf03 side A (29%) with at
@@ -140,8 +148,9 @@ Inside existing capacity and budgets. No ceiling is raised, no exception or exte
 and nothing is bought.
 
 - **Actions.** Standard GitHub-hosted runners only (the repository is public, so they are not
-  billed). Each tier's per-day runner-minutes stay at or below the last weekly growth report's
-  value (S5), and total runner-minutes per day stay inside `envelopeRunnerMinutesPerDay` (28,800).
+  billed). Each tier's runner-minutes per landing stay at or below the last weekly growth report's
+  `perLanding` (S5), and total runner-minutes per day (K) stay inside
+  `envelopeRunnerMinutesPerDay` (28,800).
   Concurrent jobs stay under 57 (section 4).
 - **Sessions.** Each plan keeps its own procedure: one coordinator and at most one phase in flight
   (build, repair or check), plus that phase's reviews. No extra builders are started for the
