@@ -27,9 +27,10 @@ cf19 acts on it."
   the full E2E suite on 0 of 184, the configured (backend) suite on 0 (exempt by design), the
   whole-catalog gate on 77 (only when the change can move a design) and engine-floor on 0. It is
   equivalent evidence for no landing. After the merge, 127 landings got a green full E2E run on
-  their own commit and 54 did not: 33 runs cancelled themselves when superseded (by design), 1 run
-  was red before every shard finished, and 20 landings reached `main` in the same push as the
-  next one and so had no push run of their own.
+  their own commit and 3 a red one. 54 got no complete full E2E run of their own: 33 runs
+  cancelled themselves when superseded (by design), 1 run was red before every shard finished,
+  and 20 landings reached `main` in the same push as the next one and so had no push run of
+  their own.
 - **(b) Validating every exact commit in full costs about 272 runner-minutes per landing, 82
   more than today** (15,150 over the window, 2,164 a day). Most of that, 75 per landing, closes
   gaps that exist today with or without narrowing (full E2E, configured suite and engine-floor on
@@ -135,8 +136,7 @@ is equivalent to the pre-merge selection, which is exactly what a narrowing woul
 
 The 20 commits without a push run also have no configured-suite run of their own: GitHub fires
 one `push` event per push, for its head commit, so when the queue merges two entries at once the
-first is never pushed alone. cf13's checker saw 14 superseded runs of this kind; this window has 33
-superseded and 20 unpushed.
+first is never pushed alone. This window has 33 superseded and 20 unpushed.
 
 **Range coverage is quick; exact coverage is not universal.** Every landing was inside a green
 full-E2E push run within 157 minutes (median 21, p95 65.5; the earliest-finishing green run on
@@ -190,12 +190,14 @@ post-merge whole catalog per commit (the 7.1) would leave the 54 commits without
 E2E run and the 20 without their own configured run as today; that is not the model the owner
 set, and it is shown only so cf19 sees where the cost sits.
 
-**Graphics tier.** cf14 recorded the tier at 10.16 per landing for merge queue plus main push
-against a ceiling of 10, under the dated extension `cf14-catalog-gate-extension` to 2026-12-14.
-Under the post-merge model the per-commit whole-catalog run alone is 10.6 per landing, plus
-12.1 for the floor job if it is counted in the tier, so the model does not bring the tier under
-its ceiling. The full model also adds 5.9 per landing to the backend tier (the 20 unpushed
-configured runs), which ran about 119% of its line on 2026-11-03.
+**Graphics tier.** cf14 measured the catalog gate at 23.6 runner-minutes per landing against the
+graphics tier's ceiling of 10 (2026-11-04, n = 42 landings), 10.2 of it on the merge queue and
+the main push alone, and recorded the dated extension `cf14-catalog-gate-extension` to
+2026-12-14 (phase-cf14.md, Result; #2165). Under the post-merge model the per-commit
+whole-catalog run alone is 10.6 per landing, plus 12.1 for the floor job if it is counted in the
+tier, so the model does not bring the tier under its ceiling. The full model also adds 5.9 per
+landing to the backend tier (the 20 unpushed configured runs), which the weekly growth report of
+2026-11-03 put at 164.7 of 117 per landing, 141% of its ceiling (phase-cf13.md section 1).
 
 ### 3.3 Capacity
 
@@ -233,8 +235,8 @@ builds none.
 3. **A per-commit ledger and an hourly check.** `scripts/schedule-coverage.mjs` measures range
    coverage from the nightly; it would need an exact-identity mode that lists, for every landing,
    its own complete green run per contract and the oldest landing without one. Run hourly (a few
-   runner-minutes a day) on `main`, not on a cron the carrier depends on: nightly starts drifted
-   six to seven hours in this window.
+   runner-minutes a day) on `main`, not on a cron the carrier depends on: in this window the
+   nightly, due at 00:20 UTC, started between 06:03 and 07:23 UTC.
 4. **Alarms.** A landing with no validation requested within 1 hour (missed), a red or
    incomplete validation (failed: the culprit is that exact commit, no bisect), and any landing
    still uncovered at 20 hours (late, leaving 4 hours for a re-run). Each opens or updates one
@@ -265,7 +267,9 @@ Why:
    carrier and alarm; there is no existing evidence to reuse beyond the duplicate catalog gate.
 2. It costs more CI minutes than it saves: at least 64.5 more per landing. Narrowing's own part
    could save up to 10.7 per landing, but only together with the per-commit bar the owner set,
-   which costs 75.2.
+   which costs 75.2. This reads "full validation" as the whole contract table (section 1), as
+   cf19(a) does; if cf18 or the owner reads it as the catalog alone, this reason falls away, and
+   reasons 3 to 5 still hold.
 3. It buys little latency: the pull request's critical path is the configured selection, not the
    catalog gate, and the merge queue gains 0.7 minutes per landing on average.
 4. It trades a pre-merge catch for a catch up to a day later on a branch that deploys.
@@ -288,7 +292,7 @@ Optimizations of full pre-merge coverage, measured here:
 
 1. **Do not run the whole-catalog gate twice on one commit.** On 52 of 184 landings the push
    run repeated a gate the merge group had just passed on the identical commit: about 3.0
-   runner-minutes per landing, about 30% of the tier's 10.16 merge-queue-plus-push figure. The
+   runner-minutes per landing, about 30% of cf14's 10.2 merge-queue-plus-push gate figure. The
    push run could reuse a green merge-group gate on the same sha and run it only where the push
    diff raised the flag and the merge group did not (9 landings). This keeps every commit's
    whole-catalog answer. It is #2165 item 3; changing what the push run runs is a workflow change
