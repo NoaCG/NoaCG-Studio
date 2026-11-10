@@ -44,12 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "phase": "v2",
-      "pr": 2293,
-      "note": "One focused V2 repair resumed with a fresh local builder. Prior exact review and repair history retained. Draft remains outside queue.",
       "step": "build",
+      "pr": 2293,
+      "head": "6efb650efd1b5b244798a306c62981c1a3bd3641",
       "session": "/root/v2_reply_repair",
-      "head": "3bda7063405c8862586cab12c5578e2f2f38cf91"
+      "phase": "v2",
+      "note": "Fresh read-only review of the exact V2 reply and scoped state Rules, then one focused repair in the existing draft."
     }
   ],
   "owner": [],
