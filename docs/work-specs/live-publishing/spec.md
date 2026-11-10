@@ -310,4 +310,11 @@ Filled in by each phase's pull request.
   back, untracked from the deletion, for the three `--supersedes` calls and removed again. The
   local configured stack could not start in the cloud worker (its image host is blocked by the
   proxy), so the configured evidence is the CI selection on the PR head.
+- Rules (the old link's; written after coding, so the Rules-first review came after the code):
+  R1 a server answer naming a production replaces the address with `/app#/production/<id>`, the
+  query gone and no history entry added; R2 an answer with no production shows "This link no longer
+  works" with a link home and never the waiting card; R3 no answer (an error, no client, a thrown
+  request) shows "Waiting for the server" and asks again after 2, 4, 8 then every 15 s, and never
+  says the link is dead; R4 an offline build says the link no longer works at once and asks
+  nothing; R5 the production page's own behaviour and every persisted value are unchanged.
 - Evidence: `docs/work-specs/live-publishing/evidence/phase-1.md`.
