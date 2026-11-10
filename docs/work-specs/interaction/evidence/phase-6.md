@@ -109,6 +109,19 @@ whole DO block, with a throwaway account, on the local stack, and passed, includ
 no-break and ideographic spaces); W9 holds in the page, not at the operator door (stated in W9);
 a blocklisted word is filed masked and the operator hides it (stated in W6).
 
+## Review of `ad7ec51` (PR review bot)
+
+Two findings, product defects, family W9/W6 (words reach a cue only as the shown snapshot): Pick a
+message showed words while the rounds were unread (a first failed read, or a round not yet read),
+and staging could revive this page's hidden list after another tab had shown the last hidden word.
+The first is the second round on the same filter, so the rule moved to its source rather than
+being patched again: `audience_list` (0114) and the local provider's `list()` never return a Word
+round's words, and the page's filters are gone. Staging now takes the hidden list from the stored
+question whenever it exists. Proof: 0114's self-check asserts the operator list holds no word
+(run on the local stack at this text, passed); Node tests assert `list()` holds no word after
+phones and Simulate (mutation: dropping the provider's filter fails them); the Word, Fill from and
+question-list journeys pass (j-0020); the walk passes (j-0021, 51 s).
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine

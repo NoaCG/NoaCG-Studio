@@ -975,11 +975,21 @@ challenged them before the final assessment:
   the next press.
 - W8. Nothing in this sends a Take, Update or graphic event (R16, S8). Stop writes nothing into a
   word cloud cue.
-- W9. Words are not messages: they are not in the inbox, the Messages filter or the cue editor's
-  Pick a message, and paste never files under a Word question. This is the page's rule: the
-  operator door (`audience_operator_add`, unchanged) still accepts any round of the production, so
-  an operator call that named a Word round would add a word without the per-phone limit. Only the
+- W9. Words are not messages: the operator's message list (`list()`, `audience_list`) never
+  returns them, so they are not in the inbox, the Messages filter or the cue editor's Pick a
+  message whatever a page has read of the rounds; they are counted by `wordCounts` and reach a cue
+  only as a word cloud. Paste never files under a Word question. The operator door
+  (`audience_operator_add`, unchanged) still accepts any round of the production, so an operator
+  call that named a Word round would add a word without the per-phone limit; only the
   production's owner can make that call.
+- W6, made exact: staging takes the hidden words from the stored question whenever it is still in
+  the list, an empty list included; only a question gone from it keeps the page's reading.
+
+Model correction (after the review of `ad7ec51`): W9 had been held by filtering words out of the
+message list in each surface, using the rounds the page had read. Two successive rounds found the
+cue editor's Pick a message wrong at the edges of that (a failed rounds read stalled it; a round not
+yet read let words through), so instead of a third patch the rule moved to its source: the list
+never holds words.
 
 **Decisions** (made in the build, revertible in review):
 
