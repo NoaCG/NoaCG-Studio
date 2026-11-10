@@ -248,7 +248,7 @@ export-time reflow, stretching, or cropping.
   show_controlpanel.html (a card per graphic, each on its own channel). Each graphic's saved
   control-panel ENTRIES are resolved out of the LIBRARY at export time (model/library.ts
   `entriesForSavedGraphic`, by graphicId with a unique-name fallback - the SAME resolver the
-  hosted control page uses) and baked into both the aggregated panel and each graphic's own
+  retired hosted control page used) and baked into both the aggregated panel and each graphic's own
   controlpanel.html; entries are never embedded in the show, so there is no persisted-shape
   change to migrate (docs/SAVED_CONTENT_MODEL.md §4). **Two playout rules it owns
   (student-release acceptance, 2026-08-05): NO hosted receiver, published or not** - the

@@ -97,7 +97,7 @@ A template's playout behaviour travels INSIDE the template, and nowhere else:
   `{f1: '0'}`), `add` (list field ids the press appends the named source field's value to as a
   line - a puzzle's `{f2: 'f3'}`, Reveal letter adding the Guess box to the revealed letters),
   `remove` (its inverse: the last line equal to the source comes out), `destructive`. It travels
-  in the template, so exported and hosted panels keep their labels with no registry to ask.
+  in the template, so the exported panels and the production page keep their labels with no registry to ask.
   Graphic types declare it as `TypeControlEvent` (logical keys); `compileControls` resolves them
   to `fN` ids at attach, and refuses an `add` or `remove` on anything but a `lines` field.
 - **The four moving members are one family, and one road per field.** `payload` rides a field
@@ -304,13 +304,14 @@ by `e2e/configured/hosted-control-profile.spec.ts`, which published a production
 ARRANGE (plus a legacy `combine` list it had to ignore) and three bound fields, drove the hosted
 control page signed out and read every claim back off the durable log. That spec was deleted with
 the page (docs/work-specs/retire-hosted-control/spec.md); the published panel spec and profile
-stay pinned offline by `e2e/hosted-control.spec.ts`. That does not retire them from this list - a spec asserts structure and cannot judge how the
-surface LOOKS on a phone - but it does mean a hand-walk is now confirming an eye's judgement rather
-than discovering whether the mechanism works at all.
+stay pinned offline by `e2e/hosted-control.spec.ts`, which reads them but cannot see a publish
+write them. With that spec gone, steps 8 and 9 are again the only real-backend check that a
+publish writes the profile.
 
 1. `supabase db push` applies 0008 cleanly on the project.
-2. Signed in: Shows section → publish a 2-graphic show → URL appears; `control_shows` row
-   has slug/panel; Unpublish deletes it and the link 404s honestly.
+2. Signed in: publish a 2-graphic production → the output URL appears; the `control_shows` row
+   has slug/panel; Unpublish deletes it, the output URL goes dead and an old control link says
+   "This link no longer works".
 3. An old link: open `?control=<slug>` → it forwards to `#/production/<id>` (signed out, that
    page asks for a sign-in); an unknown slug says "This link no longer works".
 3b. Retired with the hosted control page (2026-11): its entry switcher and staged edits.

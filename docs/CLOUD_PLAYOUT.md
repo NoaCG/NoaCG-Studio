@@ -24,8 +24,9 @@ Reused verbatim (the audit that chose this is summarized in §9):
   INSERT is the send, DB order is the truth, gap-fill + hole detection recover a reconnect.
 - **The capability model** — an unguessable slug in the URL is the authorization; SECURITY
   DEFINER RPCs are the gate; owning/publishing needs sign-in (RLS), operating does not.
-- **Staged-vs-take** — `control_stage` + the shared `staged` buffer: nothing airs because it
-  was typed; airing is an explicit Take.
+- **Staged-vs-take** - nothing airs because it was typed; airing is an explicit Take. The
+  production page keeps an edit as a draft on the page (the retired hosted page staged through
+  `control_stage` and the shared `staged` buffer).
 - **Recovery doctrine** — reset is two operations, recovery is both: the data half (update),
   then the visual half (snap — timers arm). The renderer rebuilds from its own last
   `control_report`.
@@ -681,8 +682,8 @@ question the system could answer and did not. The production page's **Activity**
 answer: the log read back in the words an operator would use, newest first.
 
 - **It shows COMMANDS — what somebody asked the production to do.** The two meta rows are
-  deliberately absent. `staged` is typing (debounced, one row per few keystrokes, per operator)
-  and would drown everything else; `live` is the RENDERER reporting back, a different fact with
+  deliberately absent. `staged` rows were the retired hosted page's typing (nothing writes them
+  now, and old ones stay hidden); `live` is the RENDERER reporting back, a different fact with
   its own surfaces (the live chips, the renderer-connected indicator). A feed carrying all three
   is unreadable, which is the usual failure of an event log.
 - **A verb is several rows and the log says so.** A Take is `update` + `play` + `cue`, and it
@@ -888,7 +889,7 @@ last-known-good). Choose concrete providers only after licensing/cost review.
 - **The production's DATASETS on the output payload, so the hosted control page (retired
   2026-11) could match rows itself?** No: the output payload is what the OUTPUT capability URL serves, and a dataset is
   operator material - a question bank holds the answers. Publishing the matched ROWS onto the
-  `panel` spec instead (`dataRows`, 2026-08-19) keeps them behind the control link, ships less,
+  `panel` spec instead (`dataRows`, 2026-08-19) keeps them behind the control slug, ships less,
   and needs no migration: `panel` is jsonb with no version, so an older row simply carries none
   and normalizes to `[]` on read.
 - **`hello`/`graphic-online` on the wire?** The hosted path's boot recovery is self-service
@@ -1003,7 +1004,8 @@ cost more in broken presets than it saves in disk.
   two renderers apart. Presence on `live-<show id>` can (one entry per renderer instance), once
   the server has migration 0068.
 - **Graphic identity is still the pool NAME** (the 0008 key). Renaming a pool graphic
-  between publishes orphans the old key's `live`/`staged` rows until the next publish.
+  between publishes orphans the old key's `live` entry (and any `staged` entry left from before 2026-11) until
+  the next publish.
 - **`control_events.id` is a GLOBAL identity**, so per-show id sequences have legitimate gaps
   whenever other shows are active on the instance. A consumer cannot tell a benign gap from a
   missed row, so every suspected hole answers with a tail round-trip (correct either way; the

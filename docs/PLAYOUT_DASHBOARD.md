@@ -949,7 +949,7 @@ to that path follows through the diff production data already had. Three things 
 
 - the press counts from the TREE, never from the wire or the cue, because a feed may have moved the
   value since either was written;
-- nothing is mirrored into the cue or into the hosted staging buffer, since a bound field is never a
+- nothing is mirrored into the cue, since a bound field is never a
   cue value (§2.7) - which is also why the box reads out with its path instead of editing;
 - an event whose every moved field is bound fires BARE, and its figures arrive as the tree's own
   update rows.
