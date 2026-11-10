@@ -334,7 +334,52 @@ native General > Change path, which can change the saved source, remains
 unverified. The transient navigation alone already shows the AC-4
 failure. The ownership policy awaits a separate coordinator decision.
 
-## Verification before landing
+## Reply repair verification, 2026-11-10
+
+The product revision is `12d1f13c9e85a1b34f4f81963a88c35a1ed4fbaf`
+against `e6be4cf3dcbcb103a7ea0372d30d0505845a8ba8`. Main advanced
+with plan-run and trial documentation only. The 34 reviewed paths
+and their base content stayed the same. The evidence commit adds these
+notes to the tested product revision.
+
+| Criterion | Reply repair result |
+| --- | --- |
+| AC-1 | Passed the compiled vMix suite and the Windows executable health probe. The owned device was vMix 29.0.0.49 Trial. The compiled fakes cover vMix 28 and Basic HD. |
+| AC-3 | The Studio boundary tests passed malformed and recovering capability, status and scoped-state cases, including the highest fresh overlay and an explicit valid selection. The browser check is pending. |
+| AC-4 | **Failed** on the real same-GUID BrowserNavigate reuse above. Four ordinary packaged preset cases passed separately. |
+| AC-5 | The Studio boundary tests passed diagnostic-only state, malformed action outcomes without resend, uppercase Replace, Unload from the actual overlay and recovery. Browser job `j-5044` explicitly includes `bridge-connect.spec.ts` and `publish-output-setup.spec.ts`. At this checkpoint it was waiting for the existing 3.5 GiB floor. The Studio-to-vMix browser walk also remains pending. |
+| AC-6 | Built NoaCG Bridge 0.11.0 locally. Its SHA-256 is `0058a4bf7654a8aaea560bf20ce6ab484c094142280ab4ab93bec8916543d183`. The exact-merge release and download check remains open. |
+
+The package reported scoped state with the action's session, version 29.0.0.49,
+edition Trial, eight rows, two inputs and ownership on Overlay 8. With Bridge
+ready, the preset reopened on the exact output. Without Bridge, it stayed
+on the underlying plate after Bridge startup and returned to the same RGB
+composite only on explicit Browser Reload. A moved Bridge port refused Load,
+allowed Unload, and left Program and Preview selected on 1 and 2. Each of the
+four owned vMix runs verified both restored files by SHA-256. The vMix
+service stayed running.
+
+The CLI build passed. The focused compiled selections passed 50 vMix tests
+and 51 Bridge, protocol and CasparCG tests. The Studio boundary selection
+passed 15 tests. Studio TypeScript and changed-file lint passed. The changed
+gates passed 578 tests with the exact committed LF bytes of three unchanged
+files. The earlier Windows checkout attempt passed 424 of 426 tests and
+failed two LF-sensitive regex assertions. The three inputs were identical
+to main and the original checkout bytes were restored. The failed log and
+the committed-bytes log are separate.
+
+The local code review ran against the prior main base and the 34 V2 paths.
+The current base added documentation outside those paths. The exact
+scope was checked and reviewed inline. Three reply findings were fixed.
+The live Browser reuse finding remains open. The first-Publish selection
+finding is covered by explicit local verification under the owner's
+test-selection constraint. Simplification ran inline. The local check
+result is FAIL because AC-4 remains open and browser verification is pending.
+
+Logs, queue admission and owned-device captures are under
+`C:/claude/Temp/vmix-v2-reply-evidence-1110`.
+
+## Earlier verification before the reply repair
 
 | Criterion | Evidence |
 | --- | --- |
