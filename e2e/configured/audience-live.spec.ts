@@ -516,10 +516,14 @@ test.describe(() => {
 
     const messages = await openWorkspace(page, 'audience');
     // The link a phone camera reads, from the QR code's pixels.
+    // The code is drawn once the published state has loaded; read it until it decodes.
     const reader = await qrReader(browser);
-    const joinUrl = (await reader.read(await messages.getByTestId('join-qr').screenshot())) ?? '';
+    await expect(messages.getByTestId('join-published')).toBeVisible({ timeout: 30_000 });
+    let joinUrl = '';
+    await expect
+      .poll(async () => (joinUrl = (await reader.read(await messages.getByTestId('join-qr').screenshot())) ?? ''), { timeout: 20_000 })
+      .toContain('/j/');
     await reader.close();
-    expect(joinUrl).toContain('/j/');
 
     // Question 1, Open.
     await addQuestion(messages, 'open', 'What should we ask on the walk?');
