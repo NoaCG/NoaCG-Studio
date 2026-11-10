@@ -208,6 +208,11 @@ test('repeated CSS declarations patch the effective value and retain important p
   assert.equal(setCssDeclaration('#a { color: red; color: green; }', '#a', 'color', 'blue'), '#a { color: red; color: blue; }');
 });
 
+test('a pivot write preserves case-distinct variables, comments, strings and nested rules', () => {
+  const source = '#a { --base-anchor-x:100px; --base-anchor-X:75px; /* ; --base-anchor-x:80px; { } */ content:"; --base-anchor-x:90px; { }"; &:hover { --base-anchor-x:95px; } }';
+  assert.equal(setCssDeclaration(source, '#a', '--base-anchor-x', '4px'), source.replace('--base-anchor-x:100px', '--base-anchor-x: 4px'));
+});
+
 
 test('new declarations stay in the first owned rule for anchor and group readers', () => {
   const original = '#a { width: 20px; }\n#a { color: green; }';

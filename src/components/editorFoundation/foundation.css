@@ -95,8 +95,10 @@
 .ef-track-scroll { overflow: auto; min-height: 0; }
 .ef-ruler-row, .ef-track { display: grid; grid-template-columns: 230px minmax(0, 1fr); }
 .ef-ruler-row { position: sticky; top: 0; z-index: 2; background: var(--bg-app); height: calc(48px + var(--ef-flag-extra-height, 0px)); border-bottom: 1px solid var(--border-strong); }
+.ef-ruler-row.is-tall { position: relative; }
 .ef-layer-heading { padding: 13px 12px; color: var(--ef-muted); border-right: 1px solid var(--border-strong); }
 .ef-ruler { position: relative; cursor: ew-resize; touch-action: none; margin-right: 28px; }
+.ef-ruler-seek { position: absolute; inset: 0; }
 .ef-tick { position: absolute; top: 4px; font: 10px monospace; color: var(--text-dim); white-space: nowrap; }
 .ef-flag { position: absolute; bottom: 3px; box-shadow: inset 1px 0 var(--flag-stroke, var(--text-dim)); padding: 2px 0; text-indent: 4px; color: var(--text-dim); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ef-playhead-head { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); pointer-events: none; }

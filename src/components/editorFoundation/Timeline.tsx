@@ -86,6 +86,17 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   const cue = session.port.view().cue;
   const dragging = useRef<Marquee | null>(null);
   const ruler = useRef<HTMLDivElement>(null);
+  const rulerSeek = useRef<HTMLDivElement>(null);
+  const [rulerWidth, setRulerWidth] = useState(0);
+  useLayoutEffect(() => {
+    const node = ruler.current;
+    if (!node) return;
+    const measure = () => setRulerWidth(node.getBoundingClientRect().width);
+    measure();
+    const resize = new ResizeObserver(measure);
+    resize.observe(node);
+    return () => resize.disconnect();
+  }, []);
   const tracks = useRef<HTMLDivElement>(null), revealedScroll = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (reveal?.key !== 'u' || reveal.id === revealedScroll.current || !animatedOnly.some(selector => selection.includes(selector))) return;
@@ -94,7 +105,7 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   }, [reveal, animatedOnly, expanded, selection]);
   const startTime = useRef<number | null>(null);
   const extent = Math.max(2, view.duration * 1.15, session.port.view().cue === view.segments.length - 1 ? view.duration + 2 : 0);
-  const flags = useMemo(() => flagLayouts(view.segments, extent), [view.segments, extent]);
+  const flags = useMemo(() => flagLayouts(view.segments, extent, rulerWidth), [view.segments, extent, rulerWidth]);
   const limit = session.port.view().cue === view.segments.length - 1 ? extent : view.duration;
   const interval = extent <= 5 ? 0.5 : extent <= 12 ? 1 : Math.ceil(extent / 10);
   const ticks = Array.from({ length: Math.floor(extent / interval) + 1 }, (_, i) => i * interval);
@@ -117,7 +128,7 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
     // Keep canvas selections and newly created layers visible without scrolling the
     // page or moving the horizontal time range. Account for the sticky ruler above.
     const bounds = scroller.getBoundingClientRect(), item = row.getBoundingClientRect();
-    const top = bounds.top + (ruler.current?.parentElement?.getBoundingClientRect().height ?? 0);
+    const top = Math.max(bounds.top, ruler.current?.parentElement?.getBoundingClientRect().bottom ?? bounds.top);
     if (item.top < top) scroller.scrollTop += item.top - top;
     else if (item.bottom > bounds.bottom) scroller.scrollTop += item.bottom - bounds.bottom;
   }, [selection, view.parts]);
@@ -316,19 +327,9 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
     {view.reason || clipboardReason ? <p className="ef-notice" role={clipboardReason ? 'alert' : undefined}>{view.reason || clipboardReason}</p> : null}
     <div className="ef-track-scroll" tabIndex={-1} ref={tracks} onPointerDown={startMarquee} onPointerMove={moveMarquee} onPointerUp={endMarquee}
       onPointerCancel={cancelMarquee} onLostPointerCapture={cancelMarquee}>
-      <div className="ef-ruler-row" style={flags.extraHeight ? { '--ef-flag-extra-height': `${flags.extraHeight}px` } as CSSProperties : undefined}
+      <div className={'ef-ruler-row' + (flags.extraHeight > 40 ? ' is-tall' : '')} style={flags.extraHeight ? { '--ef-flag-extra-height': `${flags.extraHeight}px` } as CSSProperties : undefined}
         data-testid={groupScope ? "foundation-local-ruler" : undefined}><span className="ef-layer-heading">{groupScope ? "Group local time · " + display(time) : "Layers"}</span>
-        <div ref={ruler} className="ef-ruler" role="slider" aria-label={groupScope ? "Group local playhead" : "Playhead"} tabIndex={0} data-extent={extent}
-          aria-valuemin={-localStart} aria-valuemax={limit - localStart} aria-valuenow={time - localStart} aria-valuetext={display(time)}
-          aria-disabled={!!view.reason} data-testid="foundation-ruler"
-          onPointerDown={event => {
-            if (view.reason || event.button !== 0) return;
-            event.preventDefault(); event.currentTarget.focus(); startTime.current = time;
-            event.currentTarget.setPointerCapture(event.pointerId); fromPointer(event.clientX);
-          }}
-          onPointerMove={event => { if (startTime.current !== null) fromPointer(event.clientX); }}
-          onPointerUp={() => { startTime.current = null; }}
-          onPointerCancel={() => { if (startTime.current !== null) seek(startTime.current); startTime.current = null; }}
+        <div ref={ruler} className="ef-ruler"
           onKeyDown={event => {
             if (event.key === 'Escape' && startTime.current !== null) { seek(startTime.current); startTime.current = null; return; }
             if (view.reason) return;
@@ -337,14 +338,26 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
               event.key === 'ArrowRight' ? (Math.round(time * fps) + (event.shiftKey ? 10 : 1)) / fps : null;
             if (next !== null) { event.preventDefault(); seek(Math.max(0, Math.min(limit, next))); }
           }}>
-          {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
+          <div ref={rulerSeek} className="ef-ruler-seek" role="slider" aria-label={groupScope ? "Group local playhead" : "Playhead"} tabIndex={0} data-extent={extent}
+            aria-valuemin={-localStart} aria-valuemax={limit - localStart} aria-valuenow={time - localStart} aria-valuetext={display(time)}
+            aria-disabled={!!view.reason} data-testid="foundation-ruler"
+            onPointerDown={event => {
+              if (view.reason || event.button !== 0) return;
+              event.preventDefault(); event.currentTarget.focus(); startTime.current = time;
+              event.currentTarget.setPointerCapture(event.pointerId); fromPointer(event.clientX);
+            }}
+            onPointerMove={event => { if (startTime.current !== null) fromPointer(event.clientX); }}
+            onPointerUp={() => { startTime.current = null; }}
+            onPointerCancel={() => { if (startTime.current !== null) seek(startTime.current); startTime.current = null; }}>
+            {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
+            <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
+          </div>
           <span className="ef-flag" style={{ left: 0, ...flags.labels[0] }}>In</span>
           {groupScope && view.segments.filter(segment => segment.index > 0).map(segment => <span className="ef-flag" key={segment.index} title={segment.name}
             style={{ left: segment.start / extent * 100 + '%', ...flags.labels[segment.index] }}>{segment.name}</span>)}
           {!groupScope && !view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} view={view} extent={extent} fps={fps}
             layout={flags.labels[s.index]} snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
-            inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} />)}
-          <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
+            inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} focusRuler={() => rulerSeek.current?.focus()} />)}
         </div>
       </div>
       {organization.rows.map((row, index) => {

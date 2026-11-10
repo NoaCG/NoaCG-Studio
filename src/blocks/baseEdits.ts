@@ -6,7 +6,7 @@ import { parseTransform } from '../assets/svgGeometry';
 import { locateAnimData, losslessAnimData, parseAnimData, type AnimLayerTracks, type AnimStep } from './animData';
 import { canWriteAnchorData, hasSvgGroupRuntime, writeAnimData } from '../templates/shared/animRuntime';
 import { allTimelines } from './animMachine';
-import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
+import { addCatalogLine, appendCss, cssDeclarations, findRuleBody, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
 import { artworkNode, artworkRange } from './artworkEdits';
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
@@ -39,14 +39,12 @@ export const precise = (n: number) => Math.round(n * 1000) / 1000;
 // Parent scaling can turn tiny local offsets into whole composition pixels.
 const transformPrecision = (n: number) => Math.round(n * 1e9) / 1e9;
 function declaration(css: string, selector: string, property: string): string | null {
-  const rule = css.match(new RegExp(esc(selector) + '\\s*\\{([^}]*)\\}'));
-  return rule?.[1].match(new RegExp('(?:^|[;}]|\\*/)[\\s]*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
+  return cssDeclarations(findRuleBody(css, selector)?.body ?? '').find(({ name }) => name === property)?.value ?? null;
 }
 function number(css: string, selector: string, property: string, fallback = 0) {
   return parseFloat(declaration(css, selector, property) ?? '') || fallback;
 }
-function length(css: string, selector: string, property: string) {
-  const raw = declaration(css, selector, property);
+function length(raw: string | null) {
   if (!raw) return null;
   if (raw === '0') return { value: 0, scaled: false };
   const match = raw.match(/^(?:calc\(\s*)?(-?[\d.]+)px(?:\s*\*\s*var\(--scale\)\s*\))?$/);
@@ -57,14 +55,35 @@ function length(css: string, selector: string, property: string) {
  * Refuse competing constraints even in conditional rules: changing the viewport must
  * not silently change which placement or independent transform the editor owns. Each rule
  * says whether it sits inside a grouping rule (`@media`, `@supports`). */
-function matchingRules(css: string, node: Element): { rule: CSSStyleRule; nested: boolean }[] {
+type MatchedRule = { rule: { selectorText: string; style: CSSStyleDeclaration }; nested: boolean };
+function matchingRules(css: string, node: Element, potential = false): MatchedRule[] {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(css);
-  const rules: { rule: CSSStyleRule; nested: boolean }[] = [];
-  const visit = (list: CSSRuleList, nested: boolean) => {
+  const rules: MatchedRule[] = [];
+  const matches = (selector: string) => {
+    try {
+      if (node.matches(selector)) return true;
+      if (!potential) return false;
+      const withoutState = selector.replace(/:(?:hover|active|focus-visible|focus-within|focus|checked|target)\b/g, '');
+      return withoutState !== selector && node.matches(withoutState || '*');
+    } catch (cause) {
+      if (!potential) throw cause;
+      return true;
+    }
+  };
+  const visit = (list: CSSRuleList, nested: boolean, parent?: string) => {
     for (const rule of list) {
-      if (rule instanceof CSSStyleRule && node.matches(rule.selectorText)) rules.push({ rule, nested });
-      if (rule instanceof CSSGroupingRule) visit(rule.cssRules, true);
+      if (rule instanceof CSSStyleRule) {
+        const local = rule.selectorText;
+        const selector = !parent ? local : local.includes('&') ? local.replace(/&/g, `:is(${parent})`) : `:is(${parent}) ${local}`;
+        if (matches(selector)) rules.push({ rule, nested });
+        const children = (rule as CSSStyleRule & { cssRules?: CSSRuleList }).cssRules;
+        if (potential && children?.length) visit(children, true, selector);
+      } else if (rule instanceof CSSGroupingRule) visit(rule.cssRules, true, parent);
+      else if (potential && parent && 'style' in rule && matches(parent)) {
+        // Nested @media and rules below nested selectors can carry declarations directly.
+        rules.push({ rule: { selectorText: parent, style: rule.style as CSSStyleDeclaration }, nested: true });
+      }
     }
   };
   visit(sheet.cssRules, false);
@@ -73,7 +92,7 @@ function matchingRules(css: string, node: Element): { rule: CSSStyleRule; nested
 /** The rule, other than the target's own (the first top-level rule with exactly its selector, which
  *  `setCssDeclaration` writes), that sets `transform-origin`; or any rule whose `transform-box` measures
  *  an HTML element's origin from a box other than its border box. */
-function originOwner(rules: { rule: CSSStyleRule; nested: boolean }[], target: string, ownFillBox = false): string | null {
+function originOwner(rules: MatchedRule[], target: string, ownFillBox = false): string | null {
   const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
   return rules.find(({ rule }) => {
     const box = rule.style.getPropertyValue('transform-box');
@@ -82,19 +101,56 @@ function originOwner(rules: { rule: CSSStyleRule; nested: boolean }[], target: s
   })?.rule.selectorText ?? null;
 }
 
-/** Anchor keys write inline variables, so other declared owners can hide the keyed pose. */
-export function anchorCssReason(template: SpxTemplate, selector: string): string | null {
-  const node = artworkNode(template, selector);
-  const variables = ['--base-anchor-x', '--base-anchor-y'];
-  const pivot = [...variables, 'transform-origin', 'transform-box'];
-  const rules = matchingRules(template.css, node);
-  const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === selector)?.rule;
-  const competing = rules.some(({ rule }) => variables.some(property => rule === own
-    ? rule.style.getPropertyPriority(property) : rule.style.getPropertyValue(property)));
-  const sourceStyles = [...node.ownerDocument.querySelectorAll('style')].flatMap(style => matchingRules(style.textContent ?? '', node));
-  return competing || sourceStyles.some(({ rule }) => pivot.some(property => rule.style.getPropertyValue(property)))
-    || pivot.some(property => (node as HTMLElement).style.getPropertyValue(property))
-    ? 'This layer has competing pivot CSS. Its source is preserved.' : null;
+const anchorVariables = ['--base-anchor-x', '--base-anchor-y'];
+function cssAnchorOrigin(scaled: boolean) {
+  return anchorVariables.map(property => scaled ? `calc(var(${property}) * var(--scale, 1))` : `var(${property})`).join(' ');
+}
+const isPixelLength = (value: string) => /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?px$/i.test(value) && Number.isFinite(parseFloat(value));
+const isFiniteNumber = (value: string) => /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value) && Number.isFinite(Number(value));
+function cssMovesPivot(style: CSSStyleDeclaration, properties: string[]) {
+  return style.getPropertyValue('all') || style.animationName && style.animationName !== 'none'
+    || style.transitionDuration.split(',').some(value => parseFloat(value) > 0)
+      && (style.transitionProperty || 'all').split(',').some(value => properties.includes(value.trim()));
+}
+
+/** Prove an ordinary keyed pivot has one source rule and that both axes drive the browser origin. */
+function inspectAnchorCss(template: SpxTemplate, base: BaseValues): string | null {
+  const node = artworkNode(template, base.selector), target = base.target;
+  const origins = ['transform-origin', '-webkit-transform-origin'];
+  const pivot = [...anchorVariables, ...origins, 'transform-box', 'all',
+    ...(base.mode === 'svg' ? ['transform', '-webkit-transform', 'translate', 'rotate', 'scale'] : [])];
+  const reason = 'This layer has competing pivot CSS. Its source is preserved.';
+  const rules = matchingRules(template.css, node, true);
+  const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
+  const embedded = [...node.ownerDocument.querySelectorAll('style')].map(style => style.textContent ?? '');
+  const other = [...rules.filter(({ rule }) => rule !== own), ...embedded.flatMap(css => matchingRules(css, node, true))];
+  const hasPivot = (style: CSSStyleDeclaration) => pivot.some(property => style.getPropertyValue(property));
+  if (other.some(({ rule }) => hasPivot(rule.style)) || hasPivot((node as HTMLElement).style)) return reason;
+  if ([template.css, ...embedded].some(css => /@property\s+--base-anchor-[xy](?![\w-])/.test(css))) return reason;
+  const styles = [own?.style, (node as HTMLElement).style, ...other.map(({ rule }) => rule.style)];
+  if (styles.some(style => style && cssMovesPivot(style, pivot))) return reason;
+
+  const source = cssDeclarations(findRuleBody(template.css, target)?.body ?? '');
+  const declaredOrigin = source.filter(({ name }) => origins.includes(name));
+  const axis = anchorVariables.map(property => source.filter(({ name }) => name === property));
+  const origin = declaredOrigin[0];
+  if (declaredOrigin.length > 1 || origin?.name === '-webkit-transform-origin') return reason;
+  const normalize = (value: string) => value.replace(/\s+/g, '');
+  if (axis.some(entries => entries.length) || origin?.value.includes('--base-anchor-')) {
+    if (!own || !origin || normalize(origin.value) !== normalize(cssAnchorOrigin(base.mode === 'flow' || base.scaled))
+      || normalize(own.style.getPropertyValue('transform-origin')) !== normalize(origin.value)
+      || axis.some((entries, i) => entries.length !== 1 || entries[0].important || !isPixelLength(entries[0].value)
+        || own.style.getPropertyValue(anchorVariables[i]).trim() !== entries[0].value)) return reason;
+  } else if (origin) {
+    const values = origin.value.split(/\s+/);
+    if (!own?.style.transformOrigin || values.length > 2 || values.some(value => !/^(?:left|right|top|bottom|center|[+-]?(?:\d|\.\d)[\w.%+-]*)$/i.test(value))) return reason;
+  }
+
+  const motion = parseAnimData(template.js);
+  if (tracksOn(motion ? allTimelines(motion) : [], node).some(tracks => ['svgOrigin', 'smoothOrigin', 'transform-origin'].some(key => tracks[key]?.length))) return reason;
+  const writesOrigin = /transformOrigin|transform-origin|svgOrigin|smoothOrigin|--base-anchor-[xy]/;
+  if (externalWrite(template.js, node, writesOrigin) || [...node.ownerDocument.querySelectorAll('script')].some(script => externalWrite(script.textContent ?? '', node, writesOrigin))) return reason;
+  return null;
 }
 /** The tracks the animation data gives an element: under every data selector that names it. */
 function tracksOn(steps: AnimStep[], node: Element): AnimLayerTracks[] {
@@ -114,17 +170,26 @@ function externalWrite(js: string, node: Element, properties: RegExp): boolean {
 // A gesture repeatedly inspects the same immutable document. Retain only its derived
 // numbers, weakly, and invalidate on source replacement; never retain parsed DOM nodes.
 const inspectionCache = new WeakMap<SpxTemplate, {
-  html: string; css: string; js: string; fields: SpxTemplate['fields']; values: Map<string, BaseValues>;
+  html: string; css: string; js: string; fields: SpxTemplate['fields']; values: Map<string, BaseValues>; anchorReasons: Map<string, string | null>;
 }>();
 export function baseValues(template: SpxTemplate, selector: string): BaseValues {
   let cached = inspectionCache.get(template);
   if (!cached || cached.html !== template.html || cached.css !== template.css || cached.js !== template.js || cached.fields !== template.fields) {
-    cached = { html: template.html, css: template.css, js: template.js, fields: template.fields, values: new Map() };
+    cached = { html: template.html, css: template.css, js: template.js, fields: template.fields, values: new Map(), anchorReasons: new Map() };
     inspectionCache.set(template, cached);
   }
   let value = cached.values.get(selector);
   if (!value) { value = inspectBaseValues(template, selector); cached.values.set(selector, value); }
   return { ...value };
+}
+
+export function anchorCssReason(template: SpxTemplate, base: BaseValues): string | null {
+  const reasons = inspectionCache.get(template)?.anchorReasons;
+  const cached = reasons?.get(base.selector);
+  if (cached !== undefined) return cached;
+  const reason = inspectAnchorCss(template, base);
+  reasons?.set(base.selector, reason);
+  return reason;
 }
 
 /** No inspection mutation: identifiers and all values are read from source. */
@@ -139,7 +204,11 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const placed = placedLines(template.html, template.css)[selector];
   const svg = node.namespaceURI === 'http://www.w3.org/2000/svg' && node.tagName.toLowerCase() !== 'svg';
   const target = placed ? '#' + placed.wrapperId : selector;
-  const left = length(template.css, target, 'left'), top = length(template.css, target, 'top');
+  // Read the exact source rule the base writer edits, without serializing CSSOM.
+  const own = cssDeclarations(findRuleBody(template.css, target)?.body ?? '');
+  const ownValue = (property: string) => own.find(({ name }) => name === property)?.value ?? null;
+  const ownNumber = (property: string) => parseFloat(ownValue(property) ?? '') || 0;
+  const left = length(ownValue('left')), top = length(ownValue('top'));
   // Panels and ordinary blocks (including Quiz answer rows) use the same guarded
   // flow offset as text. Their existing animation still owns transform.
   const mode = placed ? 'placed' : svg ? 'svg' : left && top ? 'absolute' : ['line', 'panel', 'block'].includes(part.kind) ? 'flow' : null;
@@ -147,9 +216,6 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const targetNode = doc.querySelector(target)!;
   const rules = matchingRules(template.css, targetNode), styles = rules.map(({ rule }) => rule.style);
   const motion = parseAnimData(template.js);
-  // Read the exact source rule the base writer edits, without serializing CSSOM.
-  const own = findRuleBody(template.css, target)?.body ?? '';
-  const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
   const ownRule = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
   const marked = svg && !!groupFrame && node.localName === 'g' && node.hasAttribute(SVG_GROUP_PIVOT_ATTRIBUTE);
   const fixedMarker = marked && node.matches(SVG_GROUP_PIVOT_SELECTOR);
@@ -210,7 +276,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const rawAnchor = ownValue('transform-origin')?.includes('--base-anchor-') ? { x: parseFloat(ownValue('--base-anchor-x') ?? '') || 0, y: parseFloat(ownValue('--base-anchor-y') ?? '') || 0 } : null;
   const anchor = rawAnchor && groupFrame && !svg ? { x: rawAnchor.x - groupFrame.x, y: rawAnchor.y - groupFrame.y } : rawAnchor;
   // A second declaration (or its -webkit- alias) later in the rule would win over the one written.
-  const repeated = (own.match(/(?:^|[;{\s]|\*\/)(?:-webkit-)?transform-origin\s*:/g) ?? []).length > 1;
+  const repeated = own.filter(({ name }) => name === 'transform-origin' || name === '-webkit-transform-origin').length > 1;
   // A placed text animates inside its box (keys name the text, base edits its wrapper), about its own centre.
   const textMotion = mode === 'placed' && tracksOn(motion?.steps ?? [], node).some(tracks => ['rotation', 'scale', 'scaleX', 'scaleY', 'transform'].some(channel => tracks[channel]?.length));
   const cssSvgAnchor = svg && !groupFrame && node.localName === 'text' && !!node.closest('svg.imported-design-art')
@@ -229,9 +295,14 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   if (fixedMarker && groupFrame) {
     const critical = ['transform', 'transform-box', 'transform-origin', '--base-anchor-x', '--base-anchor-y', '--base-x', '--base-y',
       '--base-rotation', '--base-scale-x', '--base-scale-y', ...Object.values(SVG_GROUP_TRACK_CSS)];
-    const competing = [...critical, '-webkit-transform', '-webkit-transform-origin', 'translate', 'rotate', 'scale', 'display'];
-    const sourceStyles = [...doc.querySelectorAll('style')].flatMap(style => matchingRules(style.textContent ?? '', node));
-    const competingRules = [...rules, ...sourceStyles].some(({ rule }) => rule !== ownRule && competing.some(key => rule.style.getPropertyValue(key)));
+    const competing = [...critical, '-webkit-transform', '-webkit-transform-origin', 'translate', 'rotate', 'scale', 'display', 'all'];
+    const groupRules = matchingRules(template.css, node, true);
+    const owner = groupRules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
+    const embedded = [...doc.querySelectorAll('style')].map(style => style.textContent ?? '');
+    const groupStyles = [...groupRules, ...embedded.flatMap(css => matchingRules(css, node, true))];
+    const competingRules = groupStyles.some(({ rule }) => cssMovesPivot(rule.style, competing)
+      || rule !== owner && competing.some(key => rule.style.getPropertyValue(key)))
+      || [template.css, ...embedded].some(css => /@property\s+--(?:base-(?:anchor-|rotation|scale-|[xy])|noacg-group-)/.test(css));
     const inline = (node as SVGElement).style;
     const timelines = motion ? allTimelines(motion) : [];
     const transformTracks = new Set([...TRANSFORM_CHANNELS, ...competing, 'transformOrigin', 'svgOrigin', 'smoothOrigin']);
@@ -240,17 +311,15 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
       try { return node.matches(name) && Object.keys(tracks).some(prop => transformTracks.has(prop) && (name !== target || !allowed.has(prop))); }
       catch { return true; }
     }) || step.dynamics?.some(entry => entry.target && node.matches(entry.target)));
-    svgGroupPivot = target === '#' + node.id && hasSvgGroupRuntime(template.js) && !!motion && !!ownRule && !competingRules && !foreignMotion
-      && !node.hasAttribute('transform') && !competing.some(key => inline.getPropertyValue(key))
+    svgGroupPivot = target === '#' + node.id && hasSvgGroupRuntime(template.js) && !!motion && !!owner && !competingRules && !foreignMotion
+      && !node.hasAttribute('transform') && !competing.some(key => inline.getPropertyValue(key)) && !cssMovesPivot(inline, competing)
       && !externalWrite(template.js, node, /transform|svgOrigin|smoothOrigin|--(?:base|noacg-group)-|\b(?:rotation|scale[XY]?|translate|rotate)\s*:/)
       && !['translate', 'rotate', 'scale', 'display', '-webkit-transform', '-webkit-transform-origin'].some(ownValue)
-      && critical.every(key => ownRule.style.getPropertyValue(key) && !ownRule.style.getPropertyPriority(key)
-        && (own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(key) + '\\s*:', 'g'))?.length ?? 0) === 1)
+      && critical.every(key => owner.style.getPropertyValue(key) && !owner.style.getPropertyPriority(key)
+        && own.filter(({ name }) => name === key).length === 1)
       && ['x', 'y', 'width', 'height'].every(key => node.getAttribute('data-group-' + key)?.trim())
-      && ['x', 'y'].every(axis => {
-        const value = ownValue('--base-anchor-' + axis) ?? '';
-        return /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?px$/i.test(value) && Number.isFinite(parseFloat(value));
-      })
+      && [...anchorVariables, '--base-x', '--base-y'].every(property => isPixelLength(ownValue(property) ?? ''))
+      && ['--base-rotation', '--base-scale-x', '--base-scale-y'].every(property => isFiniteNumber(ownValue(property) ?? ''))
       && Object.entries(SVG_GROUP_TRACK_DEFAULTS).every(([key, value]) => ownValue(key) === value)
       && ownValue('transform-box') === 'view-box' && ownValue('transform') === SVG_GROUP_TRANSFORM
       && ownValue('transform-origin') === svgGroupOrigin(groupFrame.x, groupFrame.y);
@@ -268,11 +337,11 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     : null;
   return { selector, target, mode, groupFrame, offsetPosition, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
     originX, originY, anchor, anchorReason, cssSvgAnchor: cssSvgAnchor && !anchorReason, svgGroupPivot,
-    x: offsetPosition ? originX + number(template.css, target, '--base-x') : placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
-    y: offsetPosition ? originY + number(template.css, target, '--base-y') : placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
-    scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
-    scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1),
-    rotation: Number(declaration(template.css, target, '--base-rotation') ?? 0) };
+    x: offsetPosition ? originX + ownNumber('--base-x') : placed?.x ?? left?.value ?? originX + ownNumber(svg ? '--base-x' : '--layout-x'),
+    y: offsetPosition ? originY + ownNumber('--base-y') : placed?.y ?? top?.value ?? originY + ownNumber(svg ? '--base-y' : '--layout-y'),
+    scaleX: Number(ownValue('--base-scale-x') ?? 1),
+    scaleY: Number(ownValue('--base-scale-y') ?? 1),
+    rotation: Number(ownValue('--base-rotation') ?? 0) };
 }
 /** The channels through which GSAP animates a layer's transform. */
 export const TRANSFORM_CHANNELS: readonly string[] = ['x', 'y', 'xPercent', 'yPercent', 'scale', 'scaleX', 'scaleY', 'rotation', 'skewX', 'skewY', 'transform'];
@@ -394,10 +463,9 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   if (anchored) {
     // Rotation and scale, base and animated alike, turn about transform-origin. A layer whose placement
     // scales with the design measures its anchor in the same units, as its Layout offset does.
-    const unit = (axis: string) => base.mode === 'flow' || base.scaled ? `calc(var(--base-anchor-${axis}) * var(--scale, 1))` : `var(--base-anchor-${axis})`;
     css = setCssDeclaration(css, base.target, '--base-anchor-x', transformPrecision(patch.anchorX! + (base.mode === 'svg' ? 0 : base.groupFrame?.x ?? 0)) + 'px');
     css = setCssDeclaration(css, base.target, '--base-anchor-y', transformPrecision(patch.anchorY! + (base.mode === 'svg' ? 0 : base.groupFrame?.y ?? 0)) + 'px');
-    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
+    if (!base.svgGroupPivot) css = setCssDeclaration(css, base.target, 'transform-origin', cssAnchorOrigin(base.mode === 'flow' || base.scaled));
     if (base.cssSvgAnchor) css = setCssDeclaration(css, base.target, 'transform-box', 'fill-box');
   }
   let js = template.js;

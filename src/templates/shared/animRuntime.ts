@@ -1105,8 +1105,28 @@ function noacgSvgGroupDisplay(selector, hidden) {
 }
 (function (stepTimeline, exitTimeline, applyReveals, enter, reset) {
   var channels = Object.assign(Object.create(null), ${JSON.stringify(SVG_GROUP_TRACK_CSS)});
-  var axes = ['--base-anchor-x', '--base-anchor-y'];
-  var runtimeProperties = Object.keys(channels).map(function (key) { return channels[key]; }).concat(axes, 'display');
+  var axes = Object.assign(Object.create(null), { '--base-anchor-x': 'noacgSvgGroupPivotX', '--base-anchor-y': 'noacgSvgGroupPivotY' });
+  var runtimeProperties = Object.keys(channels).map(function (key) { return channels[key]; }).concat(Object.keys(axes), 'display');
+  function pivotChannel(property) {
+    var name = axes[property];
+    if (!gsap.plugins[name]) {
+      // Keep fixed units in the shared tweens and live Out getter. CSSPlugin rounds
+      // length strings before they paint, so convert to pixels only at the setter.
+      var read = function (element) {
+        return parseFloat(getComputedStyle(element).getPropertyValue(property)) * ${SVG_GROUP_PIVOT_UNITS};
+      };
+      gsap.registerPlugin({ name: name, get: read, init: function (element, value) {
+        if (noacgSvgGroup('#' + element.id) !== element) return false;
+        var target = {};
+        Object.defineProperty(target, 'value', { set: function (next) {
+          element.style.setProperty(property, (next / ${SVG_GROUP_PIVOT_UNITS}) + 'px');
+        } });
+        this.add(target, 'value', read(element), value);
+        this._props.push(name);
+      } });
+    }
+    return name;
+  }
   function adapt(step) {
     var layers = step.layers, loops = step.loops;
     Object.keys(step.layers).forEach(function (selector) {
@@ -1114,9 +1134,7 @@ function noacgSvgGroupDisplay(selector, hidden) {
       if (layers === step.layers) layers = Object.assign({}, layers);
       var tracks = step.layers[selector], converted = Object.create(null);
       Object.keys(tracks).forEach(function (key) {
-        converted[channels[key] || key] = axes.indexOf(key) < 0 ? tracks[key] : tracks[key].map(function (frame) {
-          return Object.assign({}, frame, { value: frame.value / ${SVG_GROUP_PIVOT_UNITS} });
-        });
+        converted[axes[key] ? pivotChannel(key) : channels[key] || key] = tracks[key];
       });
       layers[selector] = converted;
       if (step.loops && step.loops[selector]) {

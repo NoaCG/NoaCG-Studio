@@ -675,6 +675,55 @@ the refusal. The canonical owner now accepts its own finite scientific
 notation while still refusing conflicting source. `j-5115` exited 0 with
 all three selected ownership, precision and all-target playback cases.
 
+#### Repeated ownership and ruler cases
+
+The fresh final review of `1c3a197a7b87f9468e732ce445488a88895f8e33`
+returned AGREE WITH CORRECTIONS, grade B. A separate read-only reassessment
+confirmed the recurring CSS and ruler cases and the interpolation boundary.
+Both reviews precede the next product correction.
+
+- Anchor authoring uses the same declaration spans for the base read and
+  the source write. An ordinary authored pivot needs one finite pixel
+  value for each axis and the matching two-axis origin. An unanchored
+  supported layer can seed from its rendered pose. Duplicate, partial,
+  state-dependent and competing source owners refuse before an edit.
+  Comments, case-distinct custom properties and unrelated rules are
+  preserved when a valid pivot is baked. Existing raw single-axis source
+  still plays and exports with the same convention.
+- Flag layout uses measured ruler width. A label has at least 24 CSS
+  pixels and uses another row when the gap is narrower. It starts at its
+  exact stored marker. In, Step and Out can share zero and retain separate
+  rows. Pointer and Space inspect a Step, Enter and F2 rename it, and
+  Enter and Space inspect Out. The seek slider is a separate control.
+- The two canonical SVG pivot axes keep fixed numeric units through the
+  shared GSAP interpolation and live Out getter. The scoped setter
+  converts to the same CSS pixel variables at paint. The source literal,
+  CSS base and group marker keep the same format.
+  Ordinary anchors and legacy group playback retain their existing route.
+
+Windows `j-5116` reproduced a first-enable change from `50px 40px` to
+`100px 40px`, with changed paint, source and history, and a `0.40625px`
+Step hit area. Its split fixture first exposed an omitted `ease: none`
+expectation. `j-5117` used the exact split key and reproduced the simulator
+matrix `-1500` against `-1500.000735` at the same pose. The `0.0005` oracle
+and tolerance stayed unchanged. `j-5118` passed three corrected cases and
+failed the expanded comment case in the old base source reader.
+`j-5119` exited 0 with all five focused cases. `j-5125` isolated the three
+indirect CSS ownership cases before closing them. `j-5126` exited 0 with
+all five final cases, including CSS inheritance, an implicit transition,
+nested declarations and both valid and refused pivot authoring.
+
+The serial Windows checks `j-5120` through `j-5124` exited 0 with 5, 8,
+7, 7 and 7 cases. They include split arriving and departing matrices in
+all five browser output paths, the unchanged SVG matrix oracle, carried
+Out and retake, older groups, static and ordinary pivots, responsive
+ruler and cue editing, imagery, Pen, catalog save/reopen and clipboard.
+The ruler captures show both close positive gaps at 1093 and 1440 CSS-pixel
+viewport widths and, in a separate capture, all three zero-time labels.
+This is responsive Windows Chromium evidence. Actual Chrome 125% remains
+the earlier source-specific `j-5004` receipt. The native file receipts
+remain separate.
+
 #### Catalog and affected CI scope
 
 Windows factory `j-5098` exited 0 with 328 checks across 12 kits. The

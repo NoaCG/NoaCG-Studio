@@ -422,7 +422,7 @@ test('SVG group pivot ownership is checked again before ungrouping or editing sa
   const editCss = (t: Template, key: string, value: string) => page.evaluate(async ({ t, selector, key, value }) => ({
     ...t, css: (await import('/src/blocks/edit.ts')).setCssDeclaration(t.css, selector, key, value),
   }), { t, selector, key, value });
-  for (const [key, value] of [['transform', 'matrix(1,0,0,1,20,0)'], ['--noacg-group-x', '20']]) {
+  for (const [key, value] of [['transform', 'matrix(1,0,0,1,20,0)'], ['--noacg-group-x', '20'], ['--base-x', 'calc(20px)']]) {
     const conflict = await editCss(grouped, key, value);
     await expect.soft(operate(page, conflict, ungroup), key).rejects.toThrow('conflicting pivot owner');
   }
@@ -468,8 +468,48 @@ test('ordinary anchor keys refuse competing CSS variables and source style rules
     { ...original, css: original.css + '\nbody #box { --base-anchor-x:25px !important; }' },
     { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px !important;') },
     { ...original, html: original.html.replace('</head>', '<style>#box { transform-origin: 25px 25px !important; }</style></head>') },
+    { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:25px;--base-anchor-y:50px;transform-origin:0 var(--base-anchor-y);') },
+    { ...original, css: original.css.replace('#box{', '#box{transform-origin:25px 50px 20px;') },
+    { ...original, css: original.css.replace('#box{', '#box{transform-origin:inherit;') },
+    { ...original, css: original.css.replace('#box{', '#box{transition-duration:.2s;') },
+    { ...original, css: original.css + '\n#box:hover { transform-origin: 0 0; }' },
+    { ...original, css: original.css + '\nbody { & #box { all: unset; } }' },
+    { ...original, css: original.css + '\n#box { @media (min-width: 1px) { --base-anchor-x: 25px !important; } }' },
+    { ...original, css: original.css + '\n@property --base-anchor-x { syntax: "<number>"; inherits: false; initial-value: 0; }' },
   ];
   for (const conflict of conflicts) await expect.soft(operate(page, conflict, [key])).rejects.toThrow('competing pivot CSS');
+
+  const authored = { ...original, css: original.css.replace('#box{', '#box{--base-anchor-x:100px;--base-anchor-y:50px;transform-origin:var(--base-anchor-x) var(--base-anchor-y);--base-anchor-X:75px;/* ; --base-anchor-x:75px; { } */') };
+  const keyed = await operate(page, authored, [key]);
+  const baked = await operate(page, keyed, [{ ...key, action: 'disable', baseValues: { anchorX: 80, anchorY: 50 } }]);
+  expect(baked.css).toContain('--base-anchor-x: 80px;');
+  expect(baked.css).toContain('--base-anchor-X:75px;/* ; --base-anchor-x:75px; { } */');
+});
+
+test('a canonical SVG pivot paints the same precise pose across a cue cut', async ({ page }) => {
+  await open(page);
+  const data: Data = { version: fixture().version, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: .96, ease: 'none', layers: {} },
+    { name: 'Out', duration: .32, ease: 'none', layers: {} },
+  ] };
+  const original = await template(page, data);
+  original.html = original.html.replace('</div></body>', '<svg id="precision-parent" width="960" height="270"><rect id="a" data-gfx width="90" height="60"/><rect id="b" data-gfx x="180" width="50" height="40"/></svg></div></body>');
+  const selector = '#group-1', property = '--base-anchor-x';
+  const grouped = await operate(page, original, [{ kind: 'group.create', selectors: ['#a', '#b'], box: { x: 0, y: 0, width: 230, height: 60 } }]);
+  const key = (time: number, value: number) => ({ kind: 'animation.key', selector, property, step: 0, time, value, action: 'set' });
+  const authored = await operate(page, grouped, [{ kind: 'base.set', selector, values: { scaleX: 16, anchorX: 100, anchorY: 30 } }, key(0, 100), key(.96, 100.000098)]);
+  const split = await operate(page, authored, [{ kind: 'step.add', time: .48 }]);
+  const splitData = await dataOf(page, split);
+  expect(splitData.steps[0].layers[selector][property].at(-1)).toEqual({ time: .48, value: 100000049, ease: 'none' });
+  const sample = { svgParent: '#precision-parent', layers: [selector], exit: [0] };
+  const expectedTranslation = (1 - 16) * 100.000049;
+  for (const target of TARGETS) {
+    const before = await run(page, await build(page, authored, target), target, secondsOf(data), { ...sample, cues: [[{ key: 'mid', t: .48 }]] });
+    const after = await run(page, await build(page, split, target), target, secondsOf(splitData), { ...sample, cues: [[{ key: 'arriving', t: .48 }], [{ key: 'departing', t: 0 }]] });
+    expect(before.poses.mid[4], target + ' unsplit matrix').toBeCloseTo(expectedTranslation, 3);
+    expect(after.poses.arriving[4], target + ' arriving matrix').toBeCloseTo(expectedTranslation, 3);
+    expect(after.poses.departing[4], target + ' departing matrix').toBeCloseTo(expectedTranslation, 3);
+  }
 });
 
 test('canonical SVG groups keep their cue pivots in every saved package', async ({ page }) => {
@@ -699,7 +739,9 @@ test('nearby flags keep separate readable hit targets at their stored times', as
   const [firstTime, secondTime] = flagsOf(data);
   const a = (await first.boundingBox())!, b = (await second.boundingBox())!;
   expect(a.x).toBeLessThan(b.x);
-  expect(a.x + a.width).toBeLessThanOrEqual(b.x + .5);
+  const sameLane = Math.abs(a.y - b.y) < .5;
+  if (sameLane) expect(a.x + a.width).toBeLessThanOrEqual(b.x + .5);
+  else expect(Math.abs(a.y - b.y)).toBeGreaterThanOrEqual(a.height);
   expect(a.x).toBeCloseTo(bounds.x + firstTime / extent * bounds.width, 0);
   expect(b.x).toBeCloseTo(bounds.x + secondTime / extent * bounds.width, 0);
   await expect(first).toHaveAttribute('title', /^Headline reveal/);
@@ -730,21 +772,65 @@ test('an immediate Out keeps its hit area at the start of the ruler', async ({ p
 });
 
 test('a saved zero-duration Step and Out have separate hit targets at the same time', async ({ page }) => {
-  const data = fixture();
-  data.steps[1] = { name: 'Instant cue', duration: 0, ease: 'none', layers: {} };
-  await editorWith(page, data);
-  const before = await source(page);
-  const step = flag(page, 'Instant cue'), out = flag(page, 'Out');
-  const a = (await step.boundingBox())!, b = (await out.boundingBox())!;
-  expect(a.x).toBeCloseTo(b.x, 4);
-  expect(a.width).toBeGreaterThan(0);
-  expect(a.y).not.toBe(b.y);
-  await page.getByRole('slider', { name: 'Playhead' }).screenshot({ path: test.info().outputPath('coincident-flags.png') });
-  await step.click();
-  await expect(step).toHaveAttribute('aria-pressed', 'true');
-  await out.click();
-  await expect(out).toHaveAttribute('aria-pressed', 'true');
-  expect(await source(page)).toEqual(before);
+  for (const inLength of [1.2, 0]) {
+    const data = fixture();
+    data.steps[0] = { name: 'In', duration: inLength, ease: 'none', layers: {} };
+    data.steps[1] = { name: 'Instant cue', duration: 0, ease: 'none', layers: {} };
+    await editorWith(page, data);
+    const before = await source(page);
+    const step = flag(page, 'Instant cue'), out = flag(page, 'Out');
+    const a = (await step.boundingBox())!, b = (await out.boundingBox())!;
+    expect(a.x).toBeCloseTo(b.x, 4);
+    expect(a.width).toBeGreaterThanOrEqual(24);
+    expect(a.y).not.toBe(b.y);
+    if (inLength === 0) {
+      const entrance = (await page.locator('.ef-flag').filter({ hasText: /^In$/ }).boundingBox())!;
+      expect(entrance.x).toBeCloseTo(a.x, 4);
+      expect(entrance.width).toBeGreaterThanOrEqual(24);
+      expect([a.y, b.y]).not.toContain(entrance.y);
+    }
+    await page.getByRole('slider', { name: 'Playhead' }).screenshot({ path: test.info().outputPath(`coincident-flags-${inLength}.png`) });
+    await step.click();
+    await expect(step).toHaveAttribute('aria-pressed', 'true');
+    await out.click();
+    await expect(out).toHaveAttribute('aria-pressed', 'true');
+    expect(await source(page)).toEqual(before);
+  }
+});
+
+test('close positive flag intervals stay readable and operable at their stored times', async ({ page }) => {
+  await page.setViewportSize({ width: 1093, height: 720 });
+  for (const [gap, outLength] of [[.001, .6], [.04, 12]]) {
+    const data = fixture();
+    data.speed = 1;
+    data.steps = [
+      { name: 'In', duration: .4, ease: 'none', layers: {} },
+      { name: 'Short cue', duration: gap, ease: 'none', layers: {} },
+      { name: 'Out', duration: outLength, ease: 'none', layers: {} },
+    ];
+    await editorWith(page, data);
+    const before = await source(page), step = flag(page, 'Short cue'), out = flag(page, 'Out');
+    const slider = page.getByRole('slider', { name: 'Playhead' });
+    for (const width of [1093, 1440]) {
+      await page.setViewportSize({ width, height: 720 });
+      await expect.poll(async () => (await step.boundingBox())!.width).toBeGreaterThanOrEqual(24);
+      const bounds = (await slider.boundingBox())!, extent = Number(await slider.getAttribute('data-extent'));
+      const [a, b] = await Promise.all([step.boundingBox(), out.boundingBox()]);
+      expect(a!.x).toBeCloseTo(bounds.x + .4 / extent * bounds.width, 0);
+      expect(b!.x).toBeCloseTo(bounds.x + (.4 + gap) / extent * bounds.width, 0);
+      expect(a!.y).not.toBe(b!.y);
+      await slider.screenshot({ path: test.info().outputPath(`close-flags-${gap}-${width}.png`) });
+      await step.click();
+      await expect(step).toHaveAttribute('aria-pressed', 'true');
+      await out.focus();
+      await out.press('Enter');
+      await expect(out).toHaveAttribute('aria-pressed', 'true');
+      await step.focus();
+      await step.press('Space');
+      await expect(step).toHaveAttribute('aria-pressed', 'true');
+    }
+    expect(await source(page)).toEqual(before);
+  }
 });
 
 test('flags stay ordered: a drag or nudge onto or past a neighbour refuses and changes nothing', async ({ page }) => {

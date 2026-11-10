@@ -518,6 +518,28 @@ test('armed anchor X captures a nonzero pose, keys only its axis, and bakes the 
   expect(await source(page)).toEqual(beforeDisable);
 });
 
+test('first anchor key refuses a rotated layer with two authored values for one axis', async ({ page }) => {
+  const t = await withRectangle(page);
+  t.css = t.css.replace(t.rect + ' {', t.rect + ` {
+    --base-anchor-x: 100px; --base-anchor-x: 50px; --base-anchor-y: 40px;
+    transform-origin: var(--base-anchor-x) var(--base-anchor-y);
+    --base-rotation: 32; rotate: calc(var(--base-rotation) * 1deg);`);
+  await editorWith(page, t);
+  await select(page, t.rect);
+  const original = await source(page), entries = await history(page), painted = await bounds(page, t.rect);
+  const element = (await preview(page)).locator(t.rect);
+  const origin = () => element.evaluate(el => getComputedStyle(el).transformOrigin);
+  expect(await origin()).toBe('50px 40px');
+  const enable = page.getByRole('button', { name: 'Enable Anchor X animation', exact: true });
+  if (await enable.count()) { await enable.click(); await ready(page); }
+  expect.soft(await origin()).toBe('50px 40px');
+  expect.soft(await bounds(page, t.rect)).toEqual(painted);
+  expect.soft((await source(page)).js === original.js, 'animation source stays exact').toBe(true);
+  expect(await history(page)).toBe(entries);
+  await expect(page.locator('.ef-track[data-selector="' + t.rect + '"]')).toHaveClass(/is-selected/);
+  await expect(page.locator('.ef-anchor')).toContainText('competing pivot CSS');
+});
+
 test('anchor on animated and placed layers: Frosted Panel moves only its pivot at the playhead; created text anchors its box; refusals', async ({ page }) => {
   // Frosted Panel at 0.28 s: scale and y keyed, x not. The Anchor tool writes the anchor alone: no key,
   // every track and Position value byte-identical, and the marker under the pointer.

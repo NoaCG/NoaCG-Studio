@@ -53,20 +53,22 @@ export function readTimeline(template: SpxTemplate): TimelineView {
 }
 /** The data selector a layer's motion lives under (R1.2a.6). */
 export const ownerOf = (view: TimelineView, selector: string) => view.owners[selector] ?? selector;
-/** Keep label room between markers and stack interactive flags at an identical time. */
-export function flagLayouts(segments: Segment[], extent: number) {
-  let extraHeight = 0;
-  const labels = segments.map(({ index, start }) => {
-    let end = index + 1, first = index;
-    if (index > 0) {
-      while (first > 1 && segments[first - 1].start === start) first--;
-      while (segments[end]?.start === start) end++;
-    }
-    const marginBottom = (index - first) * 20;
-    extraHeight = Math.max(extraHeight, marginBottom);
-    return { maxWidth: ((segments[end]?.start ?? extent) - start) / extent * 100 + '%', marginBottom };
-  });
-  return { extraHeight, labels };
+/** A label stays at its marker and has at least 24 CSS pixels to read and click. */
+export function flagLayouts(segments: Segment[], extent: number, width: number) {
+  const minWidth = 24, rowHeight = 20;
+  const lanes: { at: number; index: number }[] = [];
+  const labels: { minWidth: number; maxWidth: number; marginBottom: number }[] = [];
+  for (const { index, start } of segments) {
+    const at = start / extent * width;
+    const free = lanes.findIndex(previous => at - previous.at >= minWidth);
+    const lane = free < 0 ? lanes.length : free;
+    const previous = lanes[lane];
+    if (previous) labels[previous.index].maxWidth = at - previous.at;
+    lanes[lane] = { at, index };
+    // The ruler reserves a right margin wider than the minimum label width.
+    labels.push({ minWidth, maxWidth: Math.max(minWidth, width - at), marginBottom: lane * rowHeight });
+  }
+  return { extraHeight: Math.max(0, lanes.length - 1) * rowHeight, labels };
 }
 /** A flag is a sum of cue lengths, a float step off the time it was set on: read it within this. */
 export const FLOAT_STEP = 1e-6;

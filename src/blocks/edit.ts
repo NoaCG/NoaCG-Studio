@@ -229,25 +229,29 @@ function escapeRe(s: string): string {
 }
 
 type CssRuleBody = { body: string; start: number; end: number };
+const CSS_SOURCE_TOKENS = /\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|\\[\s\S]|[()[\]{}:;]/g;
+const cssWithoutComments = (value: string) => value.replace(/\/\*[\s\S]*?\*\//g, comment => ' '.repeat(comment.length));
 
 /** Exact top-level rules, preserving the scanner used by the source readers. */
 function* ruleBodies(css: string, selector: string): Generator<CssRuleBody> {
-  let i = 0, ruleStart = 0;
-  while (i < css.length) {
-    if (css[i] === '{') {
-      const sel = css.slice(ruleStart, i).replace(/\/\*[\s\S]*?\*\//g, '').trim();
-      let depth = 1, j = i + 1;
-      while (j < css.length && depth > 0) {
-        if (css[j] === '{') depth++;
-        else if (css[j] === '}') depth--;
-        j++;
+  let depth = 0, ruleStart = 0, start = 0, name = '';
+  for (const match of css.matchAll(CSS_SOURCE_TOKENS)) {
+    const token = match[0], at = match.index!;
+    if (token === '{') {
+      if (depth === 0) {
+        name = cssWithoutComments(css.slice(ruleStart, at)).trim();
+        start = at + 1;
       }
-      if (sel === selector) yield { body: css.slice(i + 1, j - 1), start: i + 1, end: j - 1 };
-      i = j;
-      ruleStart = j;
-      continue;
+      depth++;
+    } else if (token === '}') {
+      depth--;
+      if (depth === 0) {
+        if (name === selector) yield { body: css.slice(start, at), start, end: at };
+        ruleStart = at + 1;
+      }
+    } else if (token === ';' && !depth) {
+      ruleStart = at + 1;
     }
-    i++;
   }
 }
 
@@ -256,28 +260,58 @@ export function findRuleBody(css: string, selector: string): CssRuleBody | null 
   return ruleBodies(css, selector).next().value ?? null;
 }
 
+/** Declarations and their source spans in one rule body. CSSOM keeps only the winner. */
+export function cssDeclarations(body: string) {
+  const declarations: { name: string; value: string; important: boolean; start: number; end: number }[] = [];
+  let start = 0, colon = -1, depth = 0;
+  const finish = (end: number) => {
+    if (colon >= 0) {
+      const head = cssWithoutComments(body.slice(start, colon));
+      const name = head.trim(), raw = cssWithoutComments(body.slice(colon + 1, end)).trimEnd();
+      const priority = /!\s*important$/i.exec(raw);
+      if (/^[-\w]+$/.test(name)) declarations.push({ name: name.startsWith('--') ? name : name.toLowerCase(),
+        value: raw.slice(0, priority?.index).trim(), important: !!priority,
+        start: start + head.search(/\S/), end: colon + 1 + raw.length });
+    }
+    start = end + 1;
+    colon = -1;
+  };
+  for (const match of body.matchAll(CSS_SOURCE_TOKENS)) {
+    const token = match[0], at = match.index!;
+    if (token === '(' || token === '[' || token === '{') depth++;
+    else if (token === ')' || token === ']' || token === '}') {
+      depth--;
+      if (!depth && token === '}' && !body.slice(start, colon).trimStart().startsWith('--')) {
+        start = at + 1;
+        colon = -1;
+      }
+    } else if (!depth && token === ':' && colon < 0) colon = at;
+    else if (!depth && token === ';') finish(at);
+  }
+  finish(body.length);
+  return declarations;
+}
+
 /**
  * Set the effective declaration among repeated exact top-level rules, or append to the first
  * rule when absent. Keep unrelated and nested rules intact, and retain important priority.
  */
 export function setCssDeclaration(css: string, selector: string, prop: string, value: string): string {
   let rule: CssRuleBody | undefined;
-  let chosen: { rule: CssRuleBody; match: RegExpMatchArray; important: boolean } | undefined;
-  // A trailing comment on the previous declaration also counts as a boundary.
-  const re = new RegExp(`(^|;|\\{|\\*\\/)(\\s*)${escapeRe(prop)}\\s*:[^;}]*`, 'gi');
+  let chosen: { rule: CssRuleBody; declaration: ReturnType<typeof cssDeclarations>[number] } | undefined;
+  const name = prop.startsWith('--') ? prop : prop.toLowerCase();
   for (const candidate of ruleBodies(css, selector)) {
     // New properties stay in the first owned rule, which anchor/group readers inspect.
     rule ??= candidate;
-    for (const match of candidate.body.matchAll(re)) {
-      const important = /!\s*important\s*$/i.test(match[0].replace(/\/\*[\s\S]*?\*\//g, ''));
-      if (!chosen || important || !chosen.important) chosen = { rule: candidate, match, important };
+    for (const declaration of cssDeclarations(candidate.body)) {
+      if (declaration.name === name && (!chosen || declaration.important || !chosen.declaration.important)) chosen = { rule: candidate, declaration };
     }
   }
   if (chosen) {
-    const { match, important } = chosen;
+    const { start, end, important } = chosen.declaration;
     rule = chosen.rule;
     const priority = important && !/!\s*important\s*$/i.test(value) ? ' !important' : '';
-    const body = rule.body.slice(0, match.index) + match[1] + match[2] + prop + ': ' + value + priority + rule.body.slice(match.index! + match[0].length);
+    const body = rule.body.slice(0, start) + prop + ': ' + value + priority + rule.body.slice(end);
     return css.slice(0, rule.start) + body + css.slice(rule.end);
   }
   if (rule) {
