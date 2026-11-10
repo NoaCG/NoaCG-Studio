@@ -44,13 +44,12 @@
   "waitingOn": {},
   "inFlight": [
     {
-      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7",
-      "session": "/root/v2_envelope_repair",
-      "note": "Fresh Rules reassessment of duplicate JSON reply fields and partial Load outcomes, then the one authorized repair on the existing draft.",
-      "step": "build",
-      "repairComment": 6723338187,
+      "session": "/root/v2_json_repair",
+      "note": "One additional duplicate-reply and partial-Load repair authorized. Fresh local worker and Rules reassessment in progress.",
       "pr": 2293,
-      "phase": "v2"
+      "step": "build",
+      "phase": "v2",
+      "head": "a628eda0882c9fc3c37203d1a79b10a2320468c7"
     }
   ],
   "owner": [],
