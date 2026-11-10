@@ -130,6 +130,12 @@ function pollLayout() {
   if (host.getAttribute('data-rows') !== n) host.setAttribute('data-rows', n);
   var box = host.closest ? host.closest('.poll-box') : null;
   if (box && box.getAttribute('data-rows') !== n) box.setAttribute('data-rows', n);
+  // One width for every row's figures, the widest, so every track has the same length and the
+  // bars compare: a count of 1 000 beside one of 999 must not shorten its own track.
+  host.style.removeProperty('--poll-fig-w');
+  var figures = host.querySelectorAll('.poll-row-figures'), widest = 0;
+  for (var i = 0; i < figures.length; i++) widest = Math.max(widest, figures[i].getBoundingClientRect().width);
+  if (widest > 0) host.style.setProperty('--poll-fig-w', Math.ceil(widest) + 'px');
   pollDonutPaint();
 }
 
@@ -391,7 +397,7 @@ function layoutCss(layout: ResultLayout, placement: ResultPlacement): string {
 }
 .poll-row {
   display: grid;
-  grid-template-columns: calc(${label}px * var(--scale)) minmax(0, 1fr) auto;
+  grid-template-columns: calc(${label}px * var(--scale)) minmax(0, 1fr) var(--poll-fig-w, auto);
   align-items: center;
   column-gap: calc(18px * var(--scale));
 }
@@ -411,7 +417,7 @@ ${placement === 'lower' ? `/* Five or more options in a lower third run in two c
   row-gap: calc(8px * var(--scale));
 }
 #poll-rows[data-rows="5"] .poll-row, #poll-rows[data-rows="6"] .poll-row, #poll-rows[data-rows="7"] .poll-row, #poll-rows[data-rows="8"] .poll-row {
-  grid-template-columns: calc(150px * var(--scale)) minmax(0, 1fr) auto;
+  grid-template-columns: calc(150px * var(--scale)) minmax(0, 1fr) var(--poll-fig-w, auto);
 }` : ''}`;
   }
   if (layout === 'up') {
@@ -439,6 +445,8 @@ ${placement === 'lower' ? `/* Five or more options in a lower third run in two c
 .poll-row-label {
   align-self: stretch;
   text-align: center;
+  min-height: 2.4em;               /* two lines kept for every name, so a short name and a long one
+                                      leave their columns on one baseline */
 }
 .poll-col {
   position: relative;

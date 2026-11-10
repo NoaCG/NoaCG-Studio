@@ -922,7 +922,9 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
   });
   for (const id of ids) expect(offered.map((b) => b.id), `${id} is offered for results`).toContain(id);
   for (const b of offered) expect(b.name, `${b.id} is offered under its catalog name`).toBe(b.catalog);
-  const two = 'Yes | 640\nNo | 410';
+  // Two options that differ in the ways a chart must survive: a short name beside one that wraps,
+  // and a count one digit wider than the other.
+  const two = 'Yes | 999\nNo, and here is a much longer answer that wraps | 1000';
   const eight = Array.from({ length: 8 }, (_, i) => `Option ${i + 1}: the longest answer anyone could possibly type into this box tonight | ${(8 - i) * 137}`).join('\n');
   for (const id of ids) {
     for (const palette of ['noacg', 'volt'] as const) {
@@ -996,6 +998,12 @@ test('result boards: three layouts by three placements take 2 and 8 options and 
               const want = mode === 'percent' ? /^\d+(\.\d)?%$/ : mode === 'count' ? /^[\d\u202f]+$/ : /^\d+(\.\d)?%\|[\d\u202f]+$/;
               if (!want.test(shown.join('|'))) out.push(`figures "${shown.join('|')}" for ${mode}`);
             }
+            // The bars compare: every track across is one length, every column stands on one line.
+            const spread = (xs: number[]) => Math.max(...xs) - Math.min(...xs);
+            const tracks = Array.from(document.querySelectorAll('.poll-lay-across .poll-bar')).map((b) => b.getBoundingClientRect().width);
+            if (tracks.length && spread(tracks) > 1) out.push(`tracks differ in length by ${spread(tracks).toFixed(1)} px`);
+            const columns = Array.from(document.querySelectorAll('.poll-col')).map((c) => c.getBoundingClientRect().bottom);
+            if (columns.length && spread(columns) > 1) out.push(`columns stand ${spread(columns).toFixed(1)} px apart`);
             const fill = document.querySelector('.poll-swatch, .poll-bar-fill') as HTMLElement;
             return { out, fill: getComputedStyle(fill).backgroundColor };
           }, { data: { [fields.Options]: options, [fields.Figures]: mode, [fields.Question]: n === 8 ? 'Of all the songs played tonight, which one should close the show for everyone at home?' : 'Encore?' }, n, mode });
