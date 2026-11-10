@@ -250,7 +250,7 @@ for (const t of templates) {
       case 'credits': {
         // The first line is the show title, in the drawn title's look; the title is no field of its own.
         await expect(air.locator('.imported-design-credits-row')).toHaveText(['Night Quiz', 'Director', 'Casey Hill', 'Camera', 'Robin Vale', 'Ari Moss', 'Sound', 'Jo Berg']);
-        expect(await air.locator('svg').first().evaluate(() => (window as unknown as { SPXGCTemplateDefinition: { DataFields: { title: string }[] } }).SPXGCTemplateDefinition.DataFields.map((f) => f.title))).not.toContain('Show title');
+        expect(await air.locator('svg').first().evaluate(() => (window as unknown as { SPXGCTemplateDefinition: { DataFields: { title: string }[] } }).SPXGCTemplateDefinition.DataFields.map((f) => f.title))).not.toContain('Heading');
         // ONE TEXT SCROLLS: the title travels with the list, and at no point of the roll does a
         // line cross another line or the rule drawn under the title.
         const heading = air.locator('.imported-design-credits-row[data-noacg-credits="title"]');
