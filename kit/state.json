@@ -50,10 +50,12 @@
  "inFlight": [
   {
    "phase": "cf21",
-   "step": "build",
-   "session": "session_017SdbwPJuCYHVdLZ6JcYGqg",
-   "nonce": "cf21-b-8b12",
-   "launchedAt": "2026-11-09T21:17:16Z"
+   "step": "check",
+   "session": "session_017SdbwQAFa2h7S86mAm1MTs",
+   "nonce": "cf21-c-e91c",
+   "launchedAt": "2026-11-10T13:31:01Z",
+   "mergeSha": "bb527e5f73006834ae4fdddd4942a94f2b274436",
+   "pr": 2348
   }
  ],
  "owner": [],
