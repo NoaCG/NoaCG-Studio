@@ -685,6 +685,10 @@ test.describe(() => {
     await page.getByTestId('verb-take').click();
     await expect(program('House Word Cloud').locator('.audience-word')).toHaveText(['Sparkling'], { timeout: 20_000 });
     await testInfo.attach('program-word-cloud', { body: await page.getByTestId('program-stage').screenshot(), contentType: 'image/png' });
+    // Hidden after the press on a published production: off the cue at once, and the note says the
+    // hosted page and Companion, which run the published copy, need a publish (W6).
+    await messages.getByTestId('word-row').filter({ hasText: 'Sparkling' }).getByTestId('word-hide').click();
+    await expect(messages.getByTestId('audience-note')).toContainText('Publish again so the hosted control page and Companion drop it as well.');
     await stopLive(messages, 'One word for tonight?');
     await expect(phone.locator('#join .nj-waiting')).toBeVisible({ timeout: 20_000 });
     await shot('7-waiting');

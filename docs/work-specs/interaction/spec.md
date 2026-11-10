@@ -990,7 +990,9 @@ challenged them before the final assessment:
   a word also removes it from the question's word cloud cue in the same record write
   (`setShowWordHidden`), so a word hidden after the press never airs with the next Take or Update;
   showing it again changes only the list (the next press puts it back). Added after the `/so` of
-  `428ff47`.
+  `428ff47`. The hosted control page, Companion and an exported controller run the published copy
+  of the cues, which, as for any cue edit, changes only with the next publish: on a published
+  production Hide says to publish again (after the `/so` of `378059c`).
 - W10. A press stages only the words the operator has seen: fresh counts for the words the panel
   was listing at the press. A word that arrived since the panel last read waits for the next press,
   and the note says how many are listed now and not on the cue. Added after the `/so` of `428ff47`.

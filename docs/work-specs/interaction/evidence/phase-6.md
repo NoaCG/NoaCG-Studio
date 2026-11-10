@@ -183,6 +183,20 @@ test); `production-audience`, `rundown-history` and `rundown-history-storage` wh
 (j-0030); the walk below. The production self-check needed a fresh id on this stack: earlier runs
 under different throwaway owners left the fixed id refused there; the migration is unchanged.
 
+## Review of `378059c` (PR review bot and `/so`)
+
+PR review bot, family W11: an undo that landed scrubbed left the history holding the unscrubbed
+snapshot, so the next step cleared it. Fixed: `RundownHistory.accepted` takes the slice the restore
+landed as and replaces every snapshot equal to the restored one. Node test (delete, hide, undo; Redo
+and the earlier Undo both expect the stored rundown; mutation: skipping the replacement fails it);
+the rundown-history specs and the Word journey pass (j-0032).
+
+`/so`: AGREE WITH CORRECTIONS, A-. Its writer sweep found no remaining writer that can put a
+hidden word on a cue. One finding: the hosted control page and Companion run the published copy of
+the cues, so a word hidden after publishing stays there until the next publish, as any cue edit
+does. Answered in W6 and in the product: on a published production Hide says to publish again. The
+configured walk (published) hides the staged word after Take and checks that note.
+
 ## Not run, or partly run
 
 - The rendered catalog baseline (`e2e/catalog-render-baseline.json`) is Windows-only; this machine
