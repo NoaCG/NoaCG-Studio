@@ -21,7 +21,6 @@
 // names its target, and a remembered server is only ever read back to the page, never contacted by
 // the Bridge on its own.
 
-import { VMIX_INPUT_KEY } from './vmixOutputs.js';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { isIP } from 'node:net';
 import { amcpSend } from './amcp.js';
@@ -36,6 +35,7 @@ import {
   playedSeconds,
   type AgentError,
   type BridgeFeature,
+  VMIX_INPUT_KEY,
   VMIX_OUTPUT_TOKEN_PREFIX,
   type ItemRef,
   type MediaPlayback,

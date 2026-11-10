@@ -497,6 +497,12 @@ test('AC-4: malformed and duplicate input or overlay rows cannot authorize a com
   const template = (rows, overlays) => '<vmix><version>29.0.0.49</version><edition>Trial</edition><inputs>' + rows + '</inputs><overlays>' + overlays + '</overlays></vmix>';
   const key = '913caefe-1c82-4548-85c5-fecde6369290';
   const input = (id, number) => '<input key="' + id + '" number="' + number + '" type="Browser" title="Browser marker" />';
+  for (const bad of [
+    input('bad', 1), input(key, '0x1'), 'stray' + input(key, 1), '<group>' + input(key, 1) + '</group>',
+    '<![CDATA[stray]]>', input(key, 1).replace('Browser marker', '&#99999999;'),
+    input(key, 1).replace('Browser marker', '&unknown;'), input(key, 1).replace('Browser marker', '&#0;'),
+  ]) assert.equal(parseVmixXml(template(bad, '<overlay number="8" />')), undefined, bad);
+  assert.equal(parseVmixXml(template(input(key, 1), '<overlay number="8" />').replace('<vmix>', '<vmix>stray')), undefined);
   assert.equal(parseVmixXml(template(input(key, 1) + input('', 2), '<overlay number="8" />')), undefined);
   assert.equal(parseVmixXml(template(input(key, 1) + input(key.toUpperCase(), 2), '<overlay number="8" />')), undefined);
   assert.equal(parseVmixXml(template(input(key, 1), '<overlay number="8" /><overlay number="8" />')), undefined);
@@ -520,9 +526,75 @@ test('AC-4: malformed and duplicate input or overlay rows cannot authorize a com
   });
   try {
     await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      assert.equal((await post('/status', { target: { adapter: 'vmix' } })).vmix.overlays, 8);
+      assert.equal((await post('/state', { target: { adapter: 'vmix' }, outputUrl: OUTPUT })).ok, false);
       const result = await act(post, { verb: 'take', item, slot: slot() });
       assert.match(result.error.detail, /did not identify the input on overlay 8/);
       assert.deepEqual(fake.functions, []);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+for (const fault of ['missing overlay', 'changed edition']) {
+  test('AC-4: AddInput cannot keep a key after ' + fault + ' during observation', async () => {
+    const fake = await startFakeVmix({
+      transformXml(xml) {
+        if (!fake.functions.some(fn => fn.name === 'AddInput') || fake.functions.some(fn => fn.name === 'SetInputName')) return xml;
+        return fault === 'missing overlay'
+          ? xml.replace('<overlay number="7" />', '')
+          : xml.replace('<edition>Trial</edition>', '<edition>Basic HD</edition>');
+      },
+    });
+    const outputs = vmixOutputStore();
+    try {
+      await withBridge(createVmixAdapter({ port: fake.port, outputs }), async (post, base) => {
+        const result = await act(post, { verb: 'take', item, slot: slot() });
+        assert.equal(result.error?.code, 'uncertain', JSON.stringify(result));
+        assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput']);
+        assert.deepEqual((await outputs.read(fake.port)).keys, {});
+        const alias = addedUrl(fake.lines.find(line => line.startsWith('FUNCTION AddInput ')));
+        assert.equal((await aliasRequest(base, alias)).status, 403);
+        assert.equal(fake.onChannel(8), undefined);
+      });
+    } finally {
+      await fake.stop();
+    }
+  });
+}
+
+test('AC-4: incomplete Out readback cannot authorize a rename', async () => {
+  let afterOut = false;
+  const fake = await startFakeVmix({
+    hook(line) {
+      if (line === 'FUNCTION OverlayInput8Out') afterOut = true;
+      return false;
+    },
+    transformXml: xml => afterOut ? xml.replace('<overlay number="8" />', '') : xml,
+  });
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      assert.equal((await act(post, { verb: 'take', item, slot: slot() })).ok, true);
+      const mark = fake.functions.length;
+      const result = await act(post, { verb: 'out', item: { ...item, label: 'Renamed' }, slot: slot() });
+      assert.equal(result.error?.code, 'uncertain', JSON.stringify(result));
+      assert.deepEqual(fake.functions.slice(mark).map(fn => fn.name), ['OverlayInput8Out']);
+    });
+  } finally {
+    await fake.stop();
+  }
+});
+
+test('AC-4: overlay readback must still show the keyed Browser after In', async () => {
+  const fake = await startFakeVmix({
+    transformXml: xml => fake.functions.some(fn => fn.name === 'OverlayInput8In') ? xml.replace('type="Browser"', 'type="Image"') : xml,
+  });
+  try {
+    await withBridge(createVmixAdapter({ port: fake.port }), async post => {
+      const result = await act(post, { verb: 'take', item, slot: slot() });
+      assert.equal(result.error?.code, 'uncertain', JSON.stringify(result));
+      assert.deepEqual(fake.functions.map(fn => fn.name), ['AddInput', 'SetInputName', 'OverlayInput8In']);
     });
   } finally {
     await fake.stop();

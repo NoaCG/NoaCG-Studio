@@ -454,12 +454,13 @@ export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | nu
 async function probeBridge(bridgeUrl: string): Promise<{ unreachable: PlayoutResult | null; features: BridgeFeature[]; adapters?: AdapterId[] }> {
   const health = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
   if ('http' in health) {
-    const { agent, v, adapters, features } = health.body ?? {};
+    const { ok, agent, v, adapters, features } = health.body ?? {};
+    const succeeded = health.http === 200 && ok === true;
     if (agent === 'noacg-bridge' && typeof v === 'number' && v >= MIN_PLAYOUT_V) {
       return {
         unreachable: null,
         features: Array.isArray(features) ? features : [],
-        adapters: health.http === 200 && Array.isArray(adapters) && adapters.every(name => typeof name === 'string') ? adapters : undefined,
+        adapters: succeeded && v === PLAYOUT_V && Array.isArray(adapters) && adapters.every(name => typeof name === 'string') ? adapters : undefined,
       };
     }
     if (agent === 'noacg-bridge' || agent === 'noacg-caspar') {
@@ -469,6 +470,7 @@ async function probeBridge(bridgeUrl: string): Promise<{ unreachable: PlayoutRes
           detail: `The NoaCG Bridge on ${bridgeUrl} is too old for this page${health.body.version ? ` (version ${health.body.version})` : ''}. Download the current NoaCG Bridge from the Downloads page, start it, then try again.`,
         },
         features: [],
+        adapters: succeeded && agent === 'noacg-caspar' && v === 1 ? [] : undefined,
       };
     }
     return { unreachable: { state: 'bridge', detail: `Something is listening on ${bridgeUrl}, but it is not NoaCG Bridge.` }, features: [] };
@@ -948,11 +950,16 @@ export interface VmixConnection {
   info?: VmixInfo;
 }
 
+const vmixCapabilityProblem: PlayoutResult = { state: 'bridge', detail: 'NoaCG Bridge did not return a valid playout capability response. Try again.' };
+
 export async function testVmix(settings: PlayoutSettings, reconnect = false): Promise<VmixConnection> {
   if (!bridgePaired(settings)) return { supported: false, keyed: false };
   const { unreachable, features, adapters } = await probeBridge(settings.agentUrl);
-  if (unreachable) return { supported: unreachable.state === 'outdated' ? false : undefined, keyed: false, result: unreachable };
-  if (!adapters) return { keyed: false, result: { state: 'bridge', detail: 'NoaCG Bridge did not report its playout adapters. Try again.' } };
+  if (unreachable) {
+    if (adapters) return { supported: false, keyed: false, result: unreachable };
+    if (unreachable.state !== 'outdated') return { keyed: false, result: unreachable };
+  }
+  if (!adapters) return { keyed: false, result: vmixCapabilityProblem };
   if (!adapters.includes('vmix')) return { supported: false, keyed: false };
   const call = await callBridge(
     settings.agentUrl, reconnect ? '/connect' : '/status', { target: vmixTarget }, ACT_TIMEOUT_MS, settings.agentToken,
@@ -993,6 +1000,7 @@ export async function actVmix(
   const { unreachable, features, adapters } = await probeBridge(settings.agentUrl);
   const action = currentAction();
   if (!action) return null;
+  if (!adapters && (!unreachable || unreachable.state === 'outdated')) return vmixCapabilityProblem;
   if (unreachable) return unreachable;
   if (!adapters?.includes('vmix') || !features.includes('vmix-output-key')) {
     return { state: 'outdated', detail: 'Update NoaCG Bridge to load or unload an output in vMix.' };

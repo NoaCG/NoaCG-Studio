@@ -1520,17 +1520,21 @@ test('vMix pairing and Settings report the connection and keep the selected over
   const section = page.getByTestId('settings-vmix');
   await expect(section).toContainText('vMix is not running on this computer.');
   const retry = section.getByRole('button', { name: 'Try again' });
-  let health: 'online' | 'offline' | 'older' = 'offline';
+  let health: 'online' | 'offline' | 'invalid' | 'older' = 'offline';
   await page.route(BRIDGE + '/health', route => {
     if (health === 'offline') return route.abort('failed');
-    if (health === 'older') return route.fulfill({
+    if (health === 'older' || health === 'invalid') return route.fulfill({
       headers: { 'Access-Control-Allow-Origin': '*' },
-      json: { ok: true, agent: 'noacg-bridge', v: 2, adapters: ['casparcg'] },
+      json: { ok: health === 'older', agent: 'noacg-bridge', v: 2, adapters: ['casparcg'] },
     });
     return route.fallback();
   });
   await retry.click();
   await expect(section.getByTestId('settings-vmix-connection')).toContainText(/NoaCG Bridge/);
+  await expect(retry).toBeEnabled();
+  health = 'invalid';
+  await retry.click();
+  await expect(section.getByTestId('settings-vmix-connection')).toContainText('did not return a valid playout capability response');
   await expect(retry).toBeEnabled();
   health = 'online';
   vmix.state.setup = { hop: 'target', code: 'unreachable', setup: 'not-vmix', detail: "Something on port 8099 is not vMix's TCP API." };

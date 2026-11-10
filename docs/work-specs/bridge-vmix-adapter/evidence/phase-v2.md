@@ -15,8 +15,9 @@ The isolated prototype lives in C:/claude/Temp/vmix-state-1108.
 V2 first reconciled with main at `361cb6f628df0a44d410954aae527cde976d1750`.
 The Interaction reconciliation used `7c16e66a89942d7020d19004603d091a56e4f635`.
 Main at `bb527e5f73006834ae4fdddd4942a94f2b274436` adds the review rules from PR #2348.
-The final review base, `d260583ea12b0564f3f63a35fde78dec23951fea`, restores one configured
-spec from quarantine in PR #2351. Neither changes the Bridge or Studio inputs.
+`d260583ea12b0564f3f63a35fde78dec23951fea` restores one configured spec from quarantine in
+PR #2351. The final review base, `446ae235e7760273734f7d6ef10862ca85338f29`, adds the
+cf02 evidence from PR #2352. These merges do not change the Bridge or Studio inputs.
 
 V2 lets an operator pair, choose vMix and load or unload a published production's
 Browser input on an overlay. Media controls and the media library belong to later
@@ -235,7 +236,7 @@ its display name. Broader routing stays with V4.
 | AC-3 | Browser queue `j-4992` verified pairing, both setup diagnoses, Try again, all eight options, default 8, a choice of 3 surviving reload and Update with an older Bridge. The Settings screenshot was inspected. |
 | AC-4 | The fake TCP and HTTP suite checks exact-marker ownership, the original no-op and sole foreign Browser, a concurrent unrelated addition, malformed or incomplete XML, unknown and modified alias requests, failed or dropped replies, explicit retry, store restart, stale keys, same-title names, transition readback, and replacement during preparation. Two queued delayed additions finished in 5.76 s under the unchanged seven-second action budget. The final packaged executable also passed the owned vMix preset round trip below. |
 | AC-5 | Browser queue `j-4992` passed all 75 tests in the maintained Bridge connection, Publish setup and production persistence specs. It verified one Load of the named output URL with title and Overlay 3, On air from state, Unload from the live overlay after choosing another, Cancel sending nothing, a keyed Replace, the Bridge's setup error, disabling Take and Stop/Clear for a CasparCG cue, switching back to CasparCG, abandoning a Load after navigation, and first Publish with vMix selected and unselected. The production panel was inspected in screenshots. The real run also operated Load and Unload from the studio page. |
-| AC-6 | The rebuilt NoaCG-Bridge-0.11.0.exe from the current code has SHA-256 `e8e516996f74f7142a6c77142dc0b12229dc3e87b89b660b1500cd78022ad3cc`. Its smoke test reported 0.11.0, `vmix` and `vmix-output-key`. The published baseline is 0.10.2. The release changes only the independent Bridge version and operator notes. The CI/CD coordinator lifted the hold. Exact-merge release and download checks remain for the independent checker after landing. [Hold release](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6749875855). |
+| AC-6 | The rebuilt NoaCG-Bridge-0.11.0.exe from the current code has SHA-256 `3b801e5c040b00df3c3dd6a45e8262a6dfb5ff96d3ff1b649b9669ed5bf9a32d`. Its smoke test reported 0.11.0, `vmix` and `vmix-output-key`. The published baseline is 0.10.2. The release changes only the independent Bridge version and operator notes. The CI/CD coordinator lifted the hold. Exact-merge release and download checks remain for the independent checker after landing. [Hold release](https://github.com/NoaCG/NoaCG-Studio/issues/1967#issuecomment-6749875855). |
 
 The final packaged preset check used three owned blank vMix 29.0.0.49 Trial
 sessions, with a synthetic renderer and isolated Bridge storage. It saved the
@@ -388,6 +389,38 @@ RGB SHA-256 above. Program and Preview selections stayed at 1 and 2. Both vMix f
 and verified after each run, and vMixService stayed running. The final artifacts are under
 `C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-final-lease` and
 `C:/claude/Temp/vmix-v2-runtime-1108/visuals-v2-final-lease`.
+
+### Complete snapshots and valid health replies
+
+The full independent review rated `a329007d4c83c03a9c0fd07754df4e3239973ea6` B. The
+fake mixer answered with a complete initial snapshot, then omitted Overlay 7 from all 20
+AddInput observations. The Bridge kept a key and sent AddInput, SetInputName and OverlayInput8In.
+The parser also accepted a bad GUID and stray text in the input table. The two earlier code
+repairs in this family were `6394eb6bc` and `b3bf2f226`. The final rule reassessment called for
+one authority boundary through every read, with the operation's initial overlay count fixed.
+Load and state require all supported channels. Out and Clear require the chosen channel. Each
+must have a valid input table. A status diagnosis does not require full channel coverage.
+
+The same review found that a failed HTTP reply, a string protocol version, and an explicit
+`ok: false` reply all hid Retry. A successful recognized current or legacy Bridge health reply
+can confirm absence. Failure or malformed data cannot erase the current pairing's capability.
+
+The repaired fake reproductions send only AddInput, keep neither the key nor the redirect, and
+return uncertain. An unreadable selected channel after Out cannot authorize a rename. An overlay
+In readback with the right GUID but a different input type cannot confirm a Browser on air.
+The captured vMix 29 XML and all 73 focused vMix and CasparCG tests passed. The 12 setup and
+dispatch tests passed, including failed and malformed health replies and the genuine legacy
+Bridge shape. Browser job `j-5038` passed 13 cases including Retry through the malformed reply,
+explicit capability absence, older Bridge behavior and the production controls.
+
+The strict-snapshot executable passed all four real vMix preset stages. Bridge on 48830 refused
+Load of the input created on 48829 and unloaded that owned input. Reopening on the correct port
+and reloading after late startup recovered the same RGB composite above. The Studio proof
+`j-5039` passed with the same executable. Unload restored the original Program pixels and the
+Program and Preview selections stayed fixed. Every owned vMix session restored and verified both
+configuration files and left vMixService running. The captures are under
+`C:/claude/Temp/vmix-v2-runtime-1108/packaged-preset-final-snapshot` and
+`C:/claude/Temp/vmix-v2-runtime-1108/visuals-v2-final-snapshot`.
 
 ### Changed files
 

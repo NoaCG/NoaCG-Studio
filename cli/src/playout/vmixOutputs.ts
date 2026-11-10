@@ -3,8 +3,8 @@ import { promises as fs } from 'node:fs';
 import { createServer, type Server } from 'node:net';
 import path from 'node:path';
 import { configDir } from '../config.js';
+import { VMIX_INPUT_KEY } from './protocol.js';
 
-export const VMIX_INPUT_KEY = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const VMIX_ALIAS = /^noacg-[0-9a-f]{32}\.localhost$/;
 const DIGEST = /^[0-9a-f]{64}$/;
 const INPUT_PATH = '/input?output=';

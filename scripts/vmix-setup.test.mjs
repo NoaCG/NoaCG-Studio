@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import './lib/tsResolve.mjs';
 
-const { act, finishCasparAllOut, PLAYOUT_DEFAULTS, testVmix } = await import('../src/control/playoutLink.ts');
+const { act, actVmix, finishCasparAllOut, PLAYOUT_DEFAULTS, testVmix } = await import('../src/control/playoutLink.ts');
 const { changeVmixOutput, vmixOverlay } = await import('../src/control/vmixSetup.ts');
 
 const settings = { ...PLAYOUT_DEFAULTS, agentToken: 'fixture-token', vmix: { overlay: 3 } };
 const choice = { settings, url: 'http://127.0.0.1:5284/output?production=owned', title: 'News' };
-const health = { agent: 'noacg-bridge', v: 2, adapters: ['casparcg', 'vmix'], features: ['vmix-output-key'] };
+const health = { ok: true, agent: 'noacg-bridge', v: 2, adapters: ['casparcg', 'vmix'], features: ['vmix-output-key'] };
 const status = { ok: true, vmix: { version: '29.0.0.49', edition: 'Trial', overlays: 8, inputs: 2 } };
 const occupied = { key: '1a111111-aaaa-41aa-8aaa-aaaaaaaaaaaa', number: 1, type: 'Image', title: 'Sponsor' };
 
@@ -20,17 +20,28 @@ test('the output uses the highest overlay only when no valid choice fits this vM
 
 test('an invalid Bridge health reply does not disprove vMix support', async (t) => {
   let body = null;
+  let statusCode;
   t.mock.method(globalThis, 'fetch', async url => {
     assert.equal(new URL(url).pathname, '/health');
-    return Response.json(body);
+    return Response.json(body, { status: statusCode });
   });
-  for (body of [null, { ...health, adapters: null }, { ...health, adapters: [1] }]) {
+  for ([statusCode, body] of [
+    [200, null], [200, { ...health, adapters: null }], [200, { ...health, adapters: [1] }],
+    [503, { agent: 'noacg-bridge' }], [200, { ...health, v: '2' }],
+    [200, { ...health, ok: false, adapters: [] }], [200, { ...health, v: 3 }],
+  ]) {
     const connection = await testVmix(settings);
     assert.equal(connection.supported, undefined);
     assert.equal(connection.result.state, 'bridge');
+    const act = await actVmix(settings, () => ({ verb: 'out', slot: { adapter: 'vmix', overlay: 3 }, item: { kind: 'url', name: choice.url, label: choice.title } }));
+    assert.equal(act.state, 'bridge');
   }
   body = { ...health, adapters: ['casparcg'] };
   assert.equal((await testVmix(settings)).supported, false);
+  body = { ok: true, agent: 'noacg-caspar', v: 1 };
+  const legacy = await testVmix(settings);
+  assert.equal(legacy.supported, false);
+  assert.equal(legacy.result.state, 'outdated');
 });
 
 test('vMix replacement requires the exact confirmed overlay and input before dispatch', async (t) => {

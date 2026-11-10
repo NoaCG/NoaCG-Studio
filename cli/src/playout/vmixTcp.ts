@@ -20,7 +20,7 @@
 
 import { connect, type Socket } from 'node:net';
 import { decode } from './info.js';
-import { MAX_VMIX_OVERLAYS, type VmixInput } from './protocol.js';
+import { MAX_VMIX_OVERLAYS, VMIX_INPUT_KEY, type VmixInput } from './protocol.js';
 
 /** vMix's TCP API port, documented and fixed unless somebody changed vMix's own setting. */
 export const DEFAULT_VMIX_PORT = 8099;
@@ -243,10 +243,16 @@ function rootSections(xml: string) {
   const tags = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<(\/?)([\w:-]+)((?:[^<>"']|"[^"]*"|'[^']*')*)>/g;
   for (const tag of xml.matchAll(tags)) {
     const index = tag.index;
-    if (xml.slice(previous, index).includes('<')) return;
+    const inInputs = stack.length === 2 && stack[1] === 'inputs';
+    const direct = stack.length === 1 || inInputs;
+    const gap = xml.slice(previous, index);
+    if (gap.includes('<') || (direct && gap.trim())) return;
     previous = index + tag[0].length;
     const [, close, name, rest] = tag;
-    if (!name) continue;
+    if (!name) {
+      if (direct && tag[0].startsWith('<![CDATA[')) return;
+      continue;
+    }
     const tail = rest.trim();
     if (close) {
       if (tail || stack.pop() !== name) return;
@@ -258,7 +264,10 @@ function rootSections(xml: string) {
       root = true;
     }
     const empty = tail.endsWith('/');
-    if (stack.length === 2 && stack[1] === 'inputs' && name === 'input') inputRows.push(rest);
+    if (inInputs) {
+      if (name !== 'input') return;
+      inputRows.push(rest);
+    }
     if (stack.length === 1 && names.has(name)) {
       if (sections.has(name) || tail !== (empty ? '/' : '')) return;
       if (empty) sections.set(name, '');
@@ -269,13 +278,24 @@ function rootSections(xml: string) {
   if (root && !stack.length && !xml.slice(previous).trim()) return { sections, inputRows };
 }
 
+/** Decode only valid XML text. The generic decoder also serves CasparCG. */
+function vmixText(text: string): string | undefined {
+  if (text.includes('<') || /&(?!amp;|lt;|gt;|quot;|apos;|#(?:\d+|x[0-9a-fA-F]+);)/.test(text)) return;
+  for (const [, entity] of text.matchAll(/&#(x[0-9a-fA-F]+|\d+);/g)) {
+    if (Number(entity.startsWith('x') ? '0' + entity : entity) > 0x10ffff) return;
+  }
+  const decoded = decode(text);
+  if (!/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uD800-\uDFFF\uFFFE\uFFFF]/u.test(decoded)) return decoded;
+}
+
 function attributes(tag: string): Record<string, string> | undefined {
   const attribute = /\s+([\w:-]+)="([^"]*)"/g;
   if (!/^\/?$/.test(tag.replace(attribute, '').trim())) return;
   const out: Record<string, string> = Object.create(null);
   for (const m of tag.matchAll(attribute)) {
-    if (Object.hasOwn(out, m[1])) return;
-    out[m[1]] = decode(m[2]);
+    const value = vmixText(m[2]);
+    if (value === undefined || Object.hasOwn(out, m[1])) return;
+    out[m[1]] = value;
   }
   return out;
 }
@@ -292,8 +312,7 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
   const overlaySection = sections.get('overlays');
   if (!version || !/^\d+\.\d+\.\d+\.\d+$/.test(version) || !sections.has('inputs') || overlaySection === undefined) return;
   const editionText = sections.get('edition');
-  if (!editionText || editionText.includes('<')) return;
-  const edition = decode(editionText).trim();
+  const edition = editionText === undefined ? undefined : vmixText(editionText)?.trim();
   if (!edition) return;
   const inputs: VmixInput[] = [];
   const keys = new Set<string>();
@@ -303,7 +322,8 @@ export function parseVmixXml(xml: string): VmixXml | undefined {
     if (!a) return;
     const key = a.key?.toLowerCase();
     const number = Number(a.number);
-    if (!key || !Number.isSafeInteger(number) || number < 1 || !a.type || a.title === undefined || keys.has(key) || numbers.has(number)) return;
+    if (!key || !VMIX_INPUT_KEY.test(key) || !/^[1-9]\d*$/.test(a.number ?? '') || !Number.isSafeInteger(number) ||
+      !a.type?.trim() || a.title === undefined || keys.has(key) || numbers.has(number)) return;
     keys.add(key);
     numbers.add(number);
     inputs.push({ key, number, title: a.title, type: a.type });

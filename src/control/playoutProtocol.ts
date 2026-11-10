@@ -261,6 +261,9 @@ export interface VmixInput {
   type: string;
 }
 
+/** vMix names inputs with GUIDs. */
+export const VMIX_INPUT_KEY = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
 /** One vMix overlay channel and the input on it, if any. */
 export interface VmixOverlayState {
   overlay: number;
