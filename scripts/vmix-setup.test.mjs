@@ -603,14 +603,20 @@ test('an unknown sent result names the original Bridge when the pairing changes'
   const address = 'http://fixture-user:fixture-pass@127.0.0.1:8899/fixture-path?fixture-query';
   const first = { ...choice, settings: { ...settings, agentUrl: address } };
   const observed = { ...observedOn3, settings: first.settings };
+  const otherBridge = { ...first, settings: { ...first.settings, agentUrl: 'http://127.0.0.1:8900' } };
+  const otherToken = { ...first, settings: { ...first.settings, agentToken: 'new-fixture-token' } };
+  const otherOverlay = { ...first, settings: { ...first.settings, vmix: { overlay: 4 } } };
+  const otherOutput = { ...first, url: first.url + '&other=1' };
   const generic = 'The action targeted Overlay 3.';
   const unknown = 'The vMix action result is unknown. Check the overlay before trying again.';
   const dispatches = [];
+  const requests = [];
   let command;
   let current;
   let next;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     const path = url.slice(url.lastIndexOf('/'));
+    requests.push(path);
     if (path === '/health') return Response.json(health);
     if (path === '/status') return Response.json(status);
     if (path === '/state') return Response.json(scoped(command.verb === 'out' ? { 3: { input: browser, ownsOutput: true } } : {}));
@@ -622,21 +628,32 @@ test('an unknown sent result names the original Bridge when the pairing changes'
   for (command of [{ ...manualLoad, observed }, { ...outOn3, observed }]) {
     const button = command.verb === 'take' ? 'Load' : 'Unload';
     const original = button + ' targeted Overlay 3 on the Bridge at 127.0.0.1:8899.';
-    for (const [after, prefix] of [
-      [{ ...first, settings: { ...first.settings, agentUrl: 'http://127.0.0.1:8900' } }, original],
-      [{ ...first, settings: { ...first.settings, agentToken: 'new-fixture-token' } }, original],
-      [{ ...first, settings: { ...first.settings, vmix: { overlay: 4 } } }, generic],
-      [{ ...first, url: first.url + '&other=1' }, generic],
-      [null, generic],
+    for (const [after, openOutput, prefix] of [
+      [otherBridge, null, original],
+      [otherToken, null, original],
+      [otherOverlay, null, generic],
+      [otherOutput, null, generic],
+      [null, otherBridge, original],
+      [null, otherToken, original],
+      [null, otherOverlay, generic],
+      [null, otherOutput, generic],
+      [null, null, generic],
     ]) {
       current = first;
       next = after;
-      const outcome = await changeVmixOutput(command, () => current);
+      let feedbackReads = 0;
+      requests.length = 0;
+      const outcome = await changeVmixOutput(command, () => current, () => {
+        feedbackReads += 1;
+        return openOutput;
+      });
+      assert.equal(feedbackReads, after ? 0 : 1);
+      assert.deepEqual(requests, ['/health', '/status', '/state', '/health', '/act']);
       assert.equal(outcome.message, prefix + ' ' + unknown);
       assert.doesNotMatch(outcome.message, /fixture|8900|http/);
     }
   }
-  assert.deepEqual(dispatches, Array.from({ length: 10 }, () => [address + '/act', 3]));
+  assert.deepEqual(dispatches, Array.from({ length: 18 }, () => [address + '/act', 3]));
 });
 
 test('a partial Load is reported against the original destination after a same-production change', async (t) => {
@@ -676,7 +693,11 @@ test('a partial Load is reported against the original destination after a same-p
     after = latest;
     error = { hop: 'target', code, detail: cause, browserAdded: added };
     dispatches = [];
-    const result = await changeVmixOutput({ ...manualLoad, observed: { ...observedOn3, settings: first.settings } }, () => current);
+    const result = await changeVmixOutput(
+      { ...manualLoad, observed: { ...observedOn3, settings: first.settings } },
+      () => current,
+      () => assert.fail('a known partial result should not read the open output for feedback'),
+    );
     assert.deepEqual(result, message ? { message } : {});
     assert.deepEqual(dispatches, [[address + '/act', 3]]);
   }

@@ -910,6 +910,10 @@ Load or Unload now names the original Bridge host and overlay when the
 pairing changes after dispatch. The address's credentials, path and query,
 and the pairing token, stay private. The uncertainty, original one-time
 dispatch and generic warning after leaving the production stay the same.
+If the operator switches adapters while the reply is pending, a separate
+read of the mounted output can identify the original destination for the
+unknown result. Dispatch permission and known stale feedback continue to
+use the current vMix choice.
 
 The same review reproduced the earlier, intentional refusal to act on a
 former Browser key that reappears after a replacement key is committed.

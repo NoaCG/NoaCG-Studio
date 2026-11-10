@@ -94,6 +94,7 @@ const sameChoice = (a: VmixOutputChoice, b: VmixOutputChoice | null): b is VmixO
 export async function changeVmixOutput(
   command: VmixOutputCommand,
   current: () => VmixOutputChoice | null,
+  openOutputForFeedback?: () => VmixOutputIdentity | null,
 ): Promise<{ message?: string; replace?: VmixReplace; completed?: true }> {
   const { verb, observed } = command;
   const confirmed = verb === 'take' ? command.confirmed : undefined;
@@ -141,8 +142,10 @@ export async function changeVmixOutput(
   if (!result) return {};
   const latest = current();
   const sameProduction = latest?.url === choice.url;
+  const feedbackOutput = result.unknownAction ? latest ?? openOutputForFeedback?.() : undefined;
+  const pairingChanged = feedbackOutput?.url === choice.url && !sameOutput(choice, feedbackOutput);
   if (!sameChoice(choice, latest)) {
-    if (sameProduction && (result.browserAdded || (result.unknownAction && !sameOutput(choice, latest)))) {
+    if ((result.browserAdded && sameProduction) || pairingChanged) {
       const address = choice.settings.agentUrl;
       const host = URL.canParse(address) ? new URL(address).host : '';
       const bridge = host ? `the Bridge at ${host}` : 'the original Bridge';

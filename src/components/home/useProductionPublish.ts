@@ -366,6 +366,10 @@ export function publishActions(state: ProductionPublishState, io: PublishActions
       const saved = currentProductionPlayout(show.id, legacyCasparActivity, accountCaspar ?? null, 'vmix');
       if (!saved?.outputSlug || outputPageUrl(saved.outputSlug) !== url || (automatic && !readOutputSetup(saved.outputSetup)?.vmix)) return null;
       return { settings: loadPlayoutSettings(), url, title: saved.name };
+    }, () => {
+      if (!io.pageCanDispatch()) return null;
+      const slug = loadShows().find(item => item.id === show.id)?.outputSlug;
+      return slug ? { settings: loadPlayoutSettings(), url: outputPageUrl(slug) } : null;
     });
     if (!io.pageCanDispatch()) return;
     if (outcome.replace) {
