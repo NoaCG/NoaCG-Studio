@@ -55,7 +55,10 @@ export const OPERATOR_STAMPS = () => {
     constructor(url: string | URL, protocols?: string | string[]) {
       super(url, protocols);
       this.addEventListener('message', (e: MessageEvent) => {
-        if (typeof e.data === 'string' && e.data.includes('lp2deck:')) frames.push({ t: now(), data: e.data.slice(0, 400) });
+        const t = now();
+        // Realtime sends broadcasts as binary frames; read them as text to find the press id.
+        const text = typeof e.data === 'string' ? e.data : e.data instanceof ArrayBuffer ? new TextDecoder().decode(e.data) : '';
+        if (text.includes('lp2deck:')) frames.push({ t, data: text.slice(0, 600) });
       });
     }
   };
