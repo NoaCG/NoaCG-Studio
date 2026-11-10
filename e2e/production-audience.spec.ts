@@ -659,10 +659,32 @@ test('a Word question takes one word per phone, lists words by frequency, and ai
   await expect(log.first()).toContainText('Took “Words: Sum up tonight in one word”');
   const taken = await log.count();
 
+  // A copy of the cue made before a Hide (the rundown's own clipboard) is held to it as well.
+  const clip = await ws.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { copyClip } = await import('/src/model/cueClipboard.ts');
+    const show = loadShows()[0];
+    return copyClip(show, (show.cues ?? []).filter((c) => c.label.startsWith('Words:')).map((c) => c.id));
+  });
   // A word hidden after the press leaves the cue too, so it never airs with the next Take or
   // Update; the write sends nothing (W6, W8).
   await ws.getByTestId('word-row').filter({ hasText: 'Tense' }).getByTestId('word-hide').click();
   await expect.poll(async () => (await staged()).values.f2).toBe('Exciting | 2\nBrilliant | 1');
+  await expect(note).toContainText('If the cloud is on air, press Update');
+  // Pasting the earlier copy brings no hidden word back (W11), then the copy is removed again.
+  const pasted = await ws.evaluate(async (c) => {
+    const { loadShows, pasteInRundown, removeShowCue } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const show = loadShows()[0];
+    const r = pasteInRundown(show.id, c as never, { end: true });
+    await commitDurableWrites();
+    const values = loadShows()[0].cues?.find((x) => x.id === r.cueIds[0])?.values.f2 ?? null;
+    for (const id of r.cueIds) removeShowCue(show.id, id);
+    await commitDurableWrites();
+    await new Promise((res) => setTimeout(res));
+    return { error: r.refused ?? r.error, values };
+  }, clip);
+  expect(pasted).toEqual({ error: null, values: 'Exciting | 2\nBrilliant | 1' });
 
   // A second press is a new snapshot on the same cue; Program changes only by Update (W7, W8).
   await ws.getByTestId('word-simulate').click(); // Fun, Exciting, Tense, Proud

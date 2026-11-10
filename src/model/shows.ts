@@ -613,6 +613,10 @@ function saveAll(list: Show[]): string | null {
   if (!canAuthorAccount()) return 'Account editing is paused. Sign in again; pending work is preserved.';
   const personal: Show[] = [];
   for (const show of list) {
+    // W11 (interaction phase 6): no write leaves a hidden word on a cue carrying its question's
+    // words, whichever writer put it there (a press, a paste of an earlier copy, a duplicate, an
+    // edit). A no-op for a production with no hidden words.
+    if (!show.deleted) scrubHiddenWords(show);
     if (show.teamId) writeTeamShow(show);
     else personal.push(show);
   }
@@ -1084,6 +1088,7 @@ function patchShowChecked(
   const frozen = selectionFrozen(kept, show, undefined, write) ?? typedFrozen(typed, show, undefined, typedWrite);
   if (frozen) return { shows: loadShows(), error: frozen };
   show.updatedAt = at;
+  scrubHiddenWords(show); // W11: this tab's copy too, before the rebased pass decides the stored one
   if (!rebased || show.teamId || teamShowIds().has(showId)) return { shows: visible(), error: saveAll(all) };
   const personal = loadAllShows().map((s) => (s.id === showId ? show : s));
   rebasedDurableSet(SHOWS_KEY, JSON.stringify(personal), (current) => {
@@ -1096,6 +1101,7 @@ function patchShowChecked(
     const typedFresh = typedKeep(fresh);
     const again = mutate(fresh, at);
     if (typeof again === 'string') return { refused: again };
+    if (again) scrubHiddenWords(fresh); // W11, on the stored record this pass lands on
     const frozenFresh = again ? (selectionFrozen(keptFresh, fresh, undefined, write) ?? typedFrozen(typedFresh, fresh, undefined, typedWrite)) : null;
     if (frozenFresh) return { refused: frozenFresh };
     if (again) fresh.updatedAt = at;
@@ -2611,8 +2617,6 @@ export function stageShowResult(
     }
     cueId = cue.id;
     show.resultCues = { ...readResultCues(show.resultCues), [questionId]: cue.id };
-    // W11: a word cloud press applies the hidden words of the record it writes into, in every pass.
-    if (opts.target === 'wordTarget') scrubHiddenWords(show);
     // An explicit pick is remembered, whether it added a cue or landed on the one already there (S5).
     if (opts.chosen && takes(show.graphics.find((g) => g.id === opts.chosen)?.template.fields ?? [])) show[opts.target ?? 'resultTarget'] = opts.chosen;
     return true;

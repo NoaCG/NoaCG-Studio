@@ -1530,6 +1530,10 @@ export default function ProductionAudienceWorkspace({
     setShows(shows);
     const failure = error ?? (await commitDurableWrites());
     if (failure) setNote(`${hide ? 'The word was not hidden' : 'The word was not shown again'}: ${failure}`);
+    // A cue already on air keeps what it showed until the operator's Update (W8): say so.
+    else if (hide && shows.find((x) => x.id === show.id)?.resultCues?.[q.id]) {
+      setNote('Hidden, and taken off the word cloud cue. If the cloud is on air, press Update to take the word off air too.');
+    }
   };
 
   /** Change: ask again where results go (S5, S16). Nothing is forgotten until a graphic is
@@ -2392,7 +2396,7 @@ function WordPanel({
         )}
         <span className="hint">
           {sent} {sent === 1 ? 'word' : 'words'}
-          {hidden ? `, ${hidden} hidden` : ''}. Nothing is on air until you Take the cue.
+          {hidden ? `, ${hidden} hidden` : ''}. The cue changes on air only when you Take or Update it.
         </span>
       </div>
       {choosing && round && (
