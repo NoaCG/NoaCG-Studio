@@ -527,7 +527,8 @@ legacy discrepancy and the failed checks stay in the receipt.
   transforms. Account for the SVG viewport origin exactly once. A moving
   child bbox does not change the reference point. No Position compensation
   or early coefficient rounding is allowed. The Inspector, canvas marker
-  and painted artwork agree on that pivot. Refuse an unsupported or
+  and painted artwork agree on that pivot. Inspector sampling and live Out
+  capture read the owned values without mutating the transform. Refuse an unsupported or
   conflicting transform owner before writing, including an overlapping
   selector, CSS override, direct source transform or unknown runtime.
 - First enable writes only the chosen axis's key at the rendered value
@@ -536,8 +537,10 @@ legacy discrepancy and the failed checks stay in the receipt.
   deleting its last key bakes its observed value into that axis's base
   without switching the group back to legacy composition. Changing an
   unarmed axis edits only its base. Each accepted change is one undo and
-  undo restores source and paint. A stale edit, unsupported channel or
-  other refusal leaves the document unchanged.
+  undo restores source and paint. Preserve fractional pivot values through
+  writes, splits and reopens to the matrix tolerance. Refuse atomically if
+  a value cannot be represented to that tolerance. A stale edit,
+  unsupported channel or other refusal leaves the document unchanged.
 - The new group's pivot base belongs to its owned CSS and is independent
   of authored cue motion. The legacy zero-time `transformOrigin` copies
   stay with older groups. A new group has no repeated origin keys to
@@ -545,33 +548,47 @@ legacy discrepancy and the failed checks stay in the receipt.
   Use the existing cue clock for Step add/delete/move, Set Out carry and
   rejoin, and group move/trim. A keyed group still refuses ungrouping
   atomically. Static and non-anchor ungroup keeps exact painted motion
-  and uses a transparent carrier when required.
+  and uses a transparent carrier when required. A canonical carrier keeps
+  the transform owner after losing its editable group identity. Duplication
+  preserves each source generation and gives the copy independent motion.
 - Preview and export use the same generated playback route for the new
   group's owned channels. On Take, use the base pose and then In's
   opening values. A future reveal can prearm visibility but cannot write
   future group transforms or anchor values before the owning cue starts.
+  The hidden group keeps its prior matrix and becomes visible with its
+  opening values on departure, even when its only cue motion is an anchor.
   A first key holds backward within its cue and a trackless axis holds
   the previous cue's value. Normal Out honors its own clock and carried
   motion. Interrupted Out uses the existing live-pose rule, including
   earlier-cue carry skip and terminal handling. Retake clears previous
   runtime group values before applying In. A later reveal, reverse seek,
   repeated Stop or retake never uses a second timing rule for this group.
-- Match only the exact compatible generated region when adding the new
-  group capability. Keep exterior source, operator fields, assets and
-  unrelated authored tracks exact. Templates without the new group
-  capability retain their emitted bytes. A saved new group keeps its
-  capability after removing its last key, and after save and reopen.
-  Exercise both generations in one document to check that older groups
-  remain on the existing path when the new capability is present.
+- The exact current generated region and its ordinary-anchor extension can
+  add the fixed-frame capability. A graphic that already has the exact
+  capability retains it through Step and Set Out writes even with no anchor
+  keys. Older Out-upgradable or unknown custom interpreters retain their
+  existing grouping and editing behavior. Group creation does not upgrade
+  them to the new capability. Keep exterior source, operator fields, assets
+  and unrelated authored tracks exact. Templates without the new group
+  capability retain their emitted bytes. Exercise an older group, a new
+  group and an ordinary keyed anchor together, including after removing the
+  new group's last anchor key, Step or Set Out editing, save and reopen.
 - Keep the independent matrix and transition oracle and its 0.0005
   tolerance. Verify a nonzero frame and SVG viewport origin, a translated,
   rotated and nonuniformly scaled parent, moving child bounds, group
-  Rotation/Scale and both members' matrices and marker. Compare first
-  enable at a nonidentity pose, one then both keyed axes, last-key bake,
-  refusal, forward and reverse seek, arriving and departing cues, reveals,
+  nonzero authored group Position and Rotation/Scale, and both members'
+  matrices and marker. Compare creation paint, fractional first enable at
+  a nonidentity pose, one then both keyed axes, interpolated last-key bake
+  and subsequent ungroup, refusal, forward and reverse seek, arriving and
+  departing cues, reveals,
   normal and interrupted Out, carried/rejoined motion and retake. Check
   the same saved source after reopen and on the public simulator, HTML,
   SPX, CasparCG and OGraf playback paths.
+
+The fresh review of `8c4a3791974e50062d3eeeef1e45c8ad78bd5905` returned
+AGREE WITH CORRECTIONS. The rules above include its persisted precision,
+structural ownership, reveal and observation, and exact compatibility
+requirements before product changes.
 
 ## Earlier checkpoints
 
