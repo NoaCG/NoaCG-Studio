@@ -34,7 +34,7 @@
   "freshWorker": "create_session worker session_017SdbwNJfniN4JiXwfdAWP9 passed plan-run-preflight worker twice at 11:11Z and replied by send_message",
   "wake": "send_later trig_0123dsuu4nBMycyBatZWXc5Y fired into this session at 2026-11-09T11:00Z",
   "github": "cloud-queue-merge.yml dispatches succeeded for PRs #2305, #2306, #2308, #2310, #2311 today; direct commit-status writes refused: stamp via cloud-queue-merge.yml",
-  "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning"
+  "open": "archived-session revival; wake delivery during a usage-limit stop; this session shows the seven-day usage limit at warning; 2026-11-09 the weekly usage limit stopped coordinator and worker for ~8h; check-ins did not run during it"
  },
  "waitingOn": [],
  "inFlight": [
@@ -44,7 +44,8 @@
    "session": "session_017SdbwR3DgAm4qzcYpnn6ML",
    "nonce": "3-b-731c",
    "launchedAt": "2026-11-09T20:53:33Z",
-   "branch": "claude/plan-interaction-3-build"
+   "branch": "claude/plan-interaction-3-build",
+   "note": "stopped 2026-11-09T21:25Z by the account weekly usage limit (all sessions); branch pushed at 8a2dbaf; resumed by message 2026-11-10T05:16Z after the 05:00Z reset. Infrastructure wait, no budget spent."
   }
  ],
  "owner": [
