@@ -492,10 +492,9 @@ same authored Y cannot also transfer that older group's painted pose to
 the fixed frame. Disabling the last anchor key would need the same exact
 handoff back to a base pose. The review also identified the rounded GSAP
 attribute's own error beyond the existing 0.0005 tolerance and the
-entrance reveal path's direct reads of later cue origin tracks. Both
-remain open along with the held, Out and export checks. The coordinator
-is obtaining the legacy compatibility decision. No group runtime is
-published.
+entrance reveal path's direct reads of later cue origin tracks. Both were
+open at that checkpoint alongside the held, Out and export checks. The
+group runtime stayed out of the branch pending the compatibility decision.
 
 The last verified ordinary-anchor product commit is
 `df0761176002b37190200d35265be0fb15c09cbb`. The unverified group patch is
@@ -528,9 +527,9 @@ legacy discrepancy and the failed checks stay in the receipt.
   child bbox does not change the reference point. No Position compensation
   or early coefficient rounding is allowed. The Inspector, canvas marker
   and painted artwork agree on that pivot. Inspector sampling and live Out
-  capture read the owned values without mutating the transform. Refuse an unsupported or
-  conflicting transform owner before writing, including an overlapping
-  selector, CSS override, direct source transform or unknown runtime.
+  capture read the owned values without mutating the transform. Refuse an
+  unsupported or conflicting transform owner before writing, including an
+  overlapping selector, CSS override, direct source transform or unknown runtime.
 - First enable writes only the chosen axis's key at the rendered value
   and preserves both members' painted matrices at that revision and cue.
   The other base and all existing tracks stay exact. Disabling an axis or
@@ -575,13 +574,13 @@ legacy discrepancy and the failed checks stay in the receipt.
   new group's last anchor key, Step or Set Out editing, save and reopen.
 - Keep the independent matrix and transition oracle and its 0.0005
   tolerance. Verify a nonzero frame and SVG viewport origin, a translated,
-  rotated and nonuniformly scaled parent, moving child bounds, group
-  nonzero authored group Position and Rotation/Scale, and both members'
+  rotated and nonuniformly scaled parent, moving child bounds, nonzero
+  authored group Position and Rotation/Scale, and both members'
   matrices and marker. Compare creation paint, fractional first enable at
   a nonidentity pose, one then both keyed axes, interpolated last-key bake
   and subsequent ungroup, refusal, forward and reverse seek, arriving and
-  departing cues, reveals,
-  normal and interrupted Out, carried/rejoined motion and retake. Check
+  departing cues, reveals, normal and interrupted Out, carried/rejoined
+  motion and retake. Check
   the same saved source after reopen and on the public simulator, HTML,
   SPX, CasparCG and OGraf playback paths.
 
@@ -589,6 +588,44 @@ The fresh review of `8c4a3791974e50062d3eeeef1e45c8ad78bd5905` returned
 AGREE WITH CORRECTIONS. The rules above include its persisted precision,
 structural ownership, reveal and observation, and exact compatibility
 requirements before product changes.
+
+#### Canonical SVG group verification
+
+The new group marker owns the fixed CSS transform from creation. Existing
+cue builders drive its properties. The stored animation literal keeps its
+three decimal places. The new group's marked pivot coordinates use fixed
+units to preserve fractional pixels through serialization and splits. The
+older group source and the ordinary anchor value convention stay as authored.
+
+| Windows job | Outcome | Evidence |
+| --- | --- | --- |
+| `j-5082` | Exit 1, two passed | The older static group and ordinary all-target Out replay passed. The new test's source comparison expected an Out initializer that the canonical group does not emit. |
+| `j-5083`, `j-5084` | Exit 1 | Both painted scale 3 at a reverse zero while the source key was 1. The second captured the exact source keys and inline scale. The independent review reproduced this with bundled GSAP on a plain object. The editor now forces a zero render only on a newly built cue timeline. |
+| `j-5085` | Exit 1, three passed | The corrected reverse zero and the three older and ordinary canvas cases passed. The next matrix exposed a duplicate subtraction of the SVG viewport origin, measured as exactly `(-35,-24)` in local coordinates. |
+| `j-5086` | Exit 1, two passed | The independent editor matrix, fractional first enable, last-key bake, carrier, and older-group checks passed. The simulator reset reparsed the SVG and left an inline zero origin, which masked the canonical CSS origin. |
+| `j-5087` | Exit 1 | The simulator group matrix passed after the scoped reset correction. The transformed fixture was clipped by its SVG viewport, so the next visibility check failed. The fixture now makes the entire authored group visible to that check. |
+| `j-5088` | Exit 0 | Saved and reopened groups used the same matrices in the simulator, HTML, SPX, CasparCG and OGraf for In, held and departing cues, reveals, Out and retake. |
+| `j-5091`, `j-5092` | Playwright three passed in each. Scheduler reaped both without exit codes. | Expanded group, legacy and all-target cases completed their assertions. They remain failed scheduler attempts. |
+| `j-5093`, `j-5094` | Exit 0 each on `92ed21e2ff7b8e03fa5b70f17fa5f8c92c665383` | Separate Windows jobs confirmed the saved/exported cue, carried Out, Step and group structural tests, repeated Stop, legacy/custom refusal and the editor's independent matrix and source checks. The editor also saved, reopened and ungrouped the baked group. |
+
+The current Studio pin and the executed v0.17 release source share
+Inspector blob `6d443d29d70455c00cf2f01a9af7f31dbd4b657f` and group
+selection blob `f2d4787709a9808b968bc9c8647eb4896a9f45a8`. Studio's group
+selection addresses the selected member layers, and its Inspector has no
+independent group pivot channel. There is no matching keyed group pivot
+task in this reference. The earlier Windows reference timeline interaction
+remains scoped to adding, copying and moving layer keys.
+
+Main `78ce3f35063386fdc7217d0542e3df871fc32b8d` landed production and
+account changes through #2362. It merged into E1 at
+`8feb3e034ab93eed30b8b25c66471d3dc02971a2` with the 35 E1 files unchanged.
+The earlier native Windows receipts remain pinned to their operated source.
+On the reconciled editor `j-5096` returned exit 0 with all 19 selected
+Alpha entry and sync cases passing, including the desktop, phone and
+landscape entry and return paths. The account results use an isolated
+simulation. The affected build gates passed, with 12 cheap checks and
+356 tests in 26 Node files. The exact changed paths end no comparison
+side in the existing CI observation model.
 
 ## Earlier checkpoints
 
