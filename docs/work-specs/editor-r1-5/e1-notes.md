@@ -396,13 +396,16 @@ check. Keyed group pivots still need the separate rules and checks below.
 
 The first reset placed new code into every catalog template. The raw
 catalog gate exposed that drift, so the reset moved to the guarded
-extension emitted only with authored anchor keys. The raw Windows gate
-still exits 1 for `jc01` alone. A control over all 539 designs, using
+extension emitted only with authored anchor keys. The raw Windows
+`node scripts/check-catalog-emit.mjs` still exits 1 for `jc01` alone. A
+control over all 539 designs, using
 the exact `27d50cc14fffffdabaa4df70adf0ed65bb3105c2` source in the same
 Windows environment, found no raw fingerprint differences between main
 and the candidate. The `jc01` JS on both has hash `ec5dc4ccf279231f`.
 Normalizing eight CRLF sequences from the unchanged QR encoder gives the
-committed hash `8d17b8a35536b6dd`. The baseline stays as committed.
+committed hash `8d17b8a35536b6dd`. The baseline stays as committed. The
+normalized control explains the Windows failure. The raw catalog gate
+still needs its required CI result on the reviewed head.
 `j-5075` completed all six Windows cases with exit 0 on the resulting guarded
 emit, including ordinary HTML, saved Illustrator and the unchanged static
 SVG group. The final ordinary test set includes the all-target Out retake.
@@ -463,7 +466,45 @@ group bbox left edge moves from 180 to 100 while the stored frame's x=180
 and the static runtime origin x=315 remain unchanged. A runtime using the
 current bbox as the pivot's reference frame would be incorrect.
 
-## Checkpoint
+#### SVG group paint findings
+
+| Windows job | Terminal result | Observation |
+| --- | --- | --- |
+| `j-5077` | Exit 1, two passed | The existing static SVG group and the all-target ordinary Out-only replay passed. The historical research fixture's interpreter refused the new key before mutation, so it could not serve as the positive case. |
+| `j-5078` | Exit 1 | An explicitly current generated region accepted the first X key without the observed bounds moving. A subsequent X edit had no key in the saved source. |
+| `j-5079` | Exit 1 | The numeric control's revision guard refused that edit while the previous pose was still displayed. The test then waited for the correlated paint. |
+| `j-5080` | Exit 1 | The correlated run recorded both axes and preserved the unrelated authored data. The painted group matrix failed the independent stored-frame oracle at 0.4 s. |
+| `j-5081` | Exit 1 | The same painted matrix failure reproduced. The group attribute, cache and browser matrix were captured separately. |
+
+At 0.4 s the oracle's group translation is `(33.0442468, -165.6783897)`.
+The GSAP-written attribute's translation was `(33.04485, -165.67895)`
+with cached origin `(275,160)`, zero Position and origin offsets, and
+`smoothOrigin` disabled. The browser painted `(59.6612448, -214.9587641)`.
+Factoring the difference through the measured linear transform gives the
+moving fill-box origin `(100,90)`. The unchanged `j-5076` group likewise
+painted around approximately `(415,250)` while its cached pivot was
+`(315,160)` and its live fill-box origin was `(100,90)`.
+
+The fresh repeated-family review returned DISAGREE with a local pivot
+setter correction. At the measured nonidentity transform, preserving the
+old painted pose requires both effective coordinates. Arming X with the
+same authored Y cannot also transfer that older group's painted pose to
+the fixed frame. Disabling the last anchor key would need the same exact
+handoff back to a base pose. The review also identified the rounded GSAP
+attribute's own error beyond the existing 0.0005 tolerance and the
+entrance reveal path's direct reads of later cue origin tracks. Both
+remain open along with the held, Out and export checks. The coordinator
+is obtaining the legacy compatibility decision. No group runtime is
+published.
+
+The last verified ordinary-anchor product commit is
+`df0761176002b37190200d35265be0fb15c09cbb`. The unverified group patch is
+kept separately in the run kit as `briefs/e1-svg-group-geometry-review.patch`
+at base `a5ca09e240afb9d5be5fb0fb6d14e048dc8fc223`. Its SHA256 is
+`4292acb84fac14db4af31fe0784dde32aeebd73b2f59588d42f084da0761edbd`.
+Neither geometry failure changed the oracle or tolerance.
+
+## Earlier checkpoints
 
 The E1 inventory and verified alias repair are published on the owned branch.
 E1 has no pull request, queue entry or phase verdict. There is no migration.
