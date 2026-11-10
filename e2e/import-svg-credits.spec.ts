@@ -883,6 +883,10 @@ async function lateFaceWalk(page: Page, builds: RollBuild[]) {
     await page.evaluate(() => { (window as unknown as { noacgCreditsOut?: unknown; noacgCreditsTween: unknown }).noacgCreditsOut = (window as unknown as { noacgCreditsTween: unknown }).noacgCreditsTween; });
     await page.evaluate(() => (window as unknown as { play(): void }).play());
     await expect.poll(() => page.evaluate(() => { const w = window as unknown as { noacgCreditsTween: unknown; noacgCreditsOut?: unknown }; return !!w.noacgCreditsTween && w.noacgCreditsTween !== w.noacgCreditsOut; }), `${at}: the replay starts`).toBe(true);
+    // Read once the entrance has settled, as the first take's poses were: a line measured on
+    // screen mid-Pop is laid out at another size and reads up to a pixel off (#2098), and the
+    // title rolling first (creditsRiders) is the text the start pose reads.
+    await expect.poll(() => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('*')].every((el) => !/scale\((?!1\))/.test(el.style.transform))), `${at}: the entrance settles`).toBe(true);
     const replay = await rollPoses(page);
     expect(Math.abs(replay.distance - settled.distance), `${at}: the replay measures the same roll: ${JSON.stringify(replay)}`).toBeLessThan(1);
     expect(Math.abs(replay.start.top - replay.frameBottom), `${at}: replay start`).toBeLessThan(0.5);
