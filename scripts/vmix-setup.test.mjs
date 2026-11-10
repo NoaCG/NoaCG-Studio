@@ -21,7 +21,9 @@ const scoped = (rows = {}, info = vmix, loadProblem) => ({
 const occupied = { key: '1a111111-aaaa-41aa-8aaa-aaaaaaaaaaaa', number: 1, type: 'Image', title: 'Sponsor' };
 const browser = { key: '2b222222-bbbb-42bb-8bbb-bbbbbbbbbbbb', number: 2, type: 'Browser', title: 'NoaCG News' };
 const load = { verb: 'take' };
-const outOn3 = { verb: 'out', overlay: 3, inputKey: browser.key };
+const observedOn3 = { settings: { agentUrl: settings.agentUrl, agentToken: settings.agentToken }, url: choice.url, overlay: 3 };
+const manualLoad = { ...load, observed: observedOn3 };
+const outOn3 = { verb: 'out', observed: observedOn3, inputKey: browser.key };
 const unload = { verb: 'out', slot: { adapter: 'vmix', overlay: 3 }, item: { kind: 'url', name: choice.url, label: choice.title } };
 
 test('the output uses the highest overlay only when no valid choice fits this vMix', () => {
@@ -83,14 +85,14 @@ test('vMix replacement requires the exact confirmed overlay and input before dis
   assert.deepEqual(actions, []);
 
   held = { ...held, key: '2b222222-bbbb-42bb-8bbb-bbbbbbbbbbbb' };
-  assert.match((await changeVmixOutput({ ...load, confirmed: replace }, () => current)).message, /input.*changed/);
+  assert.match((await changeVmixOutput({ ...manualLoad, confirmed: replace }, () => current)).message, /input.*changed/);
   current = { ...choice, settings: { ...settings, vmix: { overlay: 4 } } };
-  assert.match((await changeVmixOutput({ ...load, confirmed: replace }, () => current)).message, /setup changed/);
+  assert.match((await changeVmixOutput({ ...manualLoad, confirmed: replace }, () => current)).message, /setup changed/);
   assert.deepEqual(actions, []);
 
   held = { ...occupied, key: occupied.key.toUpperCase() };
   const upper = { ...replace, input: { ...replace.input, key: replace.input.key.toUpperCase() } };
-  assert.equal((await changeVmixOutput({ ...load, confirmed: upper }, () => choice)).completed, true);
+  assert.equal((await changeVmixOutput({ ...manualLoad, confirmed: upper }, () => choice)).completed, true);
   assert.deepEqual(actions, [{
     target: { adapter: 'vmix' },
     action: {
@@ -119,7 +121,7 @@ test('manual Load stays on the displayed overlay while first Publish uses a fres
   ]) {
     info = fresh;
     current = { ...choice, settings: { ...settings, vmix: { overlay: selected } } };
-    assert.match((await changeVmixOutput({ ...load, overlay: displayed }, () => current)).message, /overlay changed.*press Load again/);
+    assert.match((await changeVmixOutput({ ...manualLoad, observed: { ...observedOn3, overlay: displayed } }, () => current)).message, /overlay changed.*press Load again/);
   }
   assert.deepEqual(actions, []);
 
@@ -127,6 +129,49 @@ test('manual Load stays on the displayed overlay while first Publish uses a fres
   current = { ...choice, settings: { ...settings, vmix: { overlay: 8 } } };
   assert.equal((await changeVmixOutput(load, () => current)).completed, true);
   assert.deepEqual(actions.map(action => action.slot.overlay), [4]);
+});
+
+test('manual vMix commands reject changed pairings and output addresses before any Bridge request', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => assert.fail('a stale displayed destination must send no Bridge request'));
+  const replace = { ...manualLoad, confirmed: { choice, overlay: 3, input: occupied } };
+  for (const current of [
+    { ...choice, settings: { ...settings, agentUrl: 'http://127.0.0.1:48902' } },
+    { ...choice, settings: { ...settings, agentToken: 'different-fixture-token' } },
+    { ...choice, url: choice.url + '-different' },
+    null,
+  ]) {
+    for (const command of [manualLoad, outOn3, replace]) {
+      const result = await changeVmixOutput(command, () => current);
+      assert.match(result.message, /output setup changed.*current row.*again/);
+      assert.doesNotMatch(result.message, /http|fixture|48902|8899/);
+    }
+  }
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('current manual actions recover and first Publish uses the latest Bridge pairing', async (t) => {
+  const fresh = { ...choice, settings: { ...settings, agentUrl: 'http://127.0.0.1:48902', agentToken: 'different-fixture-token' } };
+  const actions = [];
+  let held = false;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const { origin, pathname } = new URL(url);
+    assert.equal(origin, fresh.settings.agentUrl);
+    if (pathname === '/health') return Response.json(health);
+    if (pathname === '/status') return Response.json(status);
+    if (pathname === '/state') return Response.json(scoped(held ? { 3: { input: browser, ownsOutput: true } } : {}));
+    assert.equal(pathname, '/act');
+    assert.equal(options.headers.authorization, 'Bearer vmix-output-key:' + fresh.settings.agentToken);
+    const action = JSON.parse(options.body).action;
+    actions.push(action);
+    held = action.verb === 'take';
+    return Response.json(acted);
+  });
+  const displayed = { settings: fresh.settings, url: fresh.url, overlay: 3 };
+  assert.equal((await changeVmixOutput({ verb: 'take', observed: displayed }, () => fresh)).completed, true);
+  const newConfiguredOverlay = { ...fresh, settings: { ...fresh.settings, vmix: { overlay: 2 } } };
+  assert.equal((await changeVmixOutput({ verb: 'out', observed: displayed, inputKey: browser.key }, () => newConfiguredOverlay)).completed, true);
+  assert.equal((await changeVmixOutput(load, () => fresh)).completed, true);
+  assert.deepEqual(actions.map(action => [action.verb, action.slot.overlay]), [['take', 3], ['out', 3], ['take', 3]]);
 });
 
 test('a matched live Browser never verifies Load, even if Bridge omits the diagnostic', async (t) => {
@@ -554,21 +599,44 @@ test('vMix reports only the overlay count its version and edition support', asyn
   assert.equal((await testVmix(settings)).info, undefined);
 });
 
-test('an unknown sent result stays visible for its original overlay after a settings change', async (t) => {
-  let current = choice;
+test('an unknown sent result names the original Bridge when the pairing changes', async (t) => {
+  const address = 'http://fixture-user:fixture-pass@127.0.0.1:8899/fixture-path?fixture-query';
+  const first = { ...choice, settings: { ...settings, agentUrl: address } };
+  const observed = { ...observedOn3, settings: first.settings };
+  const generic = 'The action targeted Overlay 3.';
+  const unknown = 'The vMix action result is unknown. Check the overlay before trying again.';
   const dispatches = [];
+  let command;
+  let current;
+  let next;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    const path = new URL(url).pathname;
+    const path = url.slice(url.lastIndexOf('/'));
     if (path === '/health') return Response.json(health);
     if (path === '/status') return Response.json(status);
-    if (path === '/state') return Response.json(scoped());
-    dispatches.push(JSON.parse(options.body).action.slot.overlay);
-    current = { ...choice, settings: { ...settings, vmix: { overlay: 4 } } };
+    if (path === '/state') return Response.json(scoped(command.verb === 'out' ? { 3: { input: browser, ownsOutput: true } } : {}));
+    assert.equal(path, '/act');
+    dispatches.push([url, JSON.parse(options.body).action.slot.overlay]);
+    current = next;
     return Response.json(null);
   });
-  const outcome = await changeVmixOutput(load, () => current);
-  assert.match(outcome.message, /^The action targeted Overlay 3\. The vMix action result is unknown/);
-  assert.deepEqual(dispatches, [3]);
+  for (command of [{ ...manualLoad, observed }, { ...outOn3, observed }]) {
+    const button = command.verb === 'take' ? 'Load' : 'Unload';
+    const original = button + ' targeted Overlay 3 on the Bridge at 127.0.0.1:8899.';
+    for (const [after, prefix] of [
+      [{ ...first, settings: { ...first.settings, agentUrl: 'http://127.0.0.1:8900' } }, original],
+      [{ ...first, settings: { ...first.settings, agentToken: 'new-fixture-token' } }, original],
+      [{ ...first, settings: { ...first.settings, vmix: { overlay: 4 } } }, generic],
+      [{ ...first, url: first.url + '&other=1' }, generic],
+      [null, generic],
+    ]) {
+      current = first;
+      next = after;
+      const outcome = await changeVmixOutput(command, () => current);
+      assert.equal(outcome.message, prefix + ' ' + unknown);
+      assert.doesNotMatch(outcome.message, /fixture|8900|http/);
+    }
+  }
+  assert.deepEqual(dispatches, Array.from({ length: 10 }, () => [address + '/act', 3]));
 });
 
 test('a partial Load is reported against the original destination after a same-production change', async (t) => {
@@ -608,7 +676,7 @@ test('a partial Load is reported against the original destination after a same-p
     after = latest;
     error = { hop: 'target', code, detail: cause, browserAdded: added };
     dispatches = [];
-    const result = await changeVmixOutput({ ...load, overlay: 3 }, () => current);
+    const result = await changeVmixOutput({ ...manualLoad, observed: { ...observedOn3, settings: first.settings } }, () => current);
     assert.deepEqual(result, message ? { message } : {});
     assert.deepEqual(dispatches, [[address + '/act', 3]]);
   }
@@ -745,7 +813,7 @@ test('scoped vMix state grants overlay authority only as a complete fresh snapsh
   assert.equal((await changeVmixOutput(load, () => choice)).completed, true);
   assert.equal(requests[1].slot.overlay, 3);
   reading = scoped({ 4: { input: browser, ownsOutput: true }, 8: { input: browser, ownsOutput: true } });
-  assert.equal((await changeVmixOutput({ ...outOn3, overlay: 4 }, () => choice)).completed, true);
+  assert.equal((await changeVmixOutput({ ...outOn3, observed: { ...observedOn3, overlay: 4 } }, () => choice)).completed, true);
   assert.equal(requests[2].slot.overlay, 4);
   assert.equal(requests[2].expectedOverlayInput, browser.key);
 });

@@ -1703,6 +1703,59 @@ test('vMix Load, Unload, and Replace use the selected overlay and leave CasparCG
   expect(bridge.actions).toEqual([]);
 });
 
+test('vMix polls and manual actions keep the pairing that supplied the displayed row', async ({ page }) => {
+  const vmix = fakeVmix();
+  await fakeBridge(page, { vmix });
+  await seedOnce(page, { vmix: { overlay: 3 } });
+  await seededPublishedProduction(page);
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('vmix-switch').click();
+  const row = page.getByTestId('vmix-output');
+  const note = page.getByTestId('production-note');
+  const restorePairing = async () => {
+    await page.evaluate(token => {
+      const key = 'spx-gfx-caspar';
+      const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
+      localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: token }));
+    }, TOKEN);
+    await page.reload();
+    await page.getByTestId('production-status').click();
+  };
+  await expect(row.getByTestId('vmix-load')).toBeEnabled();
+
+  // An unannounced write must not retag the next poll with this row's old pairing.
+  const nextPoll = page.waitForRequest(request => request.url() === BRIDGE + '/status' &&
+    request.postDataJSON()?.target?.adapter === 'vmix');
+  await page.evaluate(() => {
+    const key = 'spx-gfx-caspar';
+    const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
+    localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: 'changed-pairing-fixture' }));
+  });
+  expect((await nextPoll).headers().authorization).toBe('Bearer ' + TOKEN);
+  await row.getByTestId('vmix-load').click();
+  await expect(note).toContainText('Check the current row and press Load again.');
+  expect(vmix.actions).toEqual([]);
+
+  await restorePairing();
+  await row.getByTestId('vmix-load').click();
+  await expect(row).toContainText('Source unverified');
+  expect(vmix.actions).toHaveLength(1);
+
+  await row.getByTestId('vmix-unload').evaluate(async button => {
+    const key = 'spx-gfx-caspar';
+    const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
+    localStorage.setItem(key, JSON.stringify({ ...saved, agentToken: 'changed-pairing-fixture' }));
+    (button as HTMLButtonElement).click();
+    await new Promise(resolve => setTimeout(resolve));
+  });
+  await expect(note).toContainText('Check the current row and press Unload again.');
+  expect(vmix.actions).toHaveLength(1);
+  await restorePairing();
+  await row.getByTestId('vmix-unload').click();
+  await expect(row).toContainText('Off');
+  expect(vmix.actions).toHaveLength(2);
+});
+
 test('a vMix Load still waiting for state is abandoned when its production closes', async ({ page }) => {
   await page.clock.install();
   const vmix = fakeVmix();

@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useState, type ReactNode } from 'react';
 import { TONE_DOT, type OutputLine, type ReadyTone } from '../../control/readiness';
 import type { StatusCheck } from '../../control/playoutStatus';
-import { bridgePaired, loadPlayoutSettings, type PlayoutSettings } from '../../control/playoutLink';
-import { observeVmixOutput, readVmixOutput, type VmixOutputCommand, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
+import { bridgePaired, type PlayoutSettings } from '../../control/playoutLink';
+import { observeVmixOutput, readVmixOutput, sameVmixOutputSetup, type VmixManualOutputCommand, type VmixOutputReading, type VmixReplace } from '../../control/vmixSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../../downloads/links';
 
 /**
@@ -310,7 +310,7 @@ export function DueActions({ children }: { children: ReactNode }) {
 
 /** The overlay row reads the Bridge while this panel is open. Its poll updates only this section. */
 export function VmixRows({
-  on, settings, url, busy, replace, onPair, onLoad, onUnload, onReplace, onCancelReplace,
+  on, settings, url, busy, replace, onPair, onAction, onCancelReplace,
 }: {
   on: boolean;
   settings: PlayoutSettings;
@@ -318,27 +318,36 @@ export function VmixRows({
   busy: boolean;
   replace?: VmixReplace;
   onPair: () => void;
-  onLoad: (overlay: number) => void;
-  onUnload: (command: Extract<VmixOutputCommand, { verb: 'out' }>) => void;
-  onReplace: () => void;
+  onAction: (command: VmixManualOutputCommand) => void;
   onCancelReplace: () => void;
 }) {
   const paired = bridgePaired(settings);
-  const key = JSON.stringify([settings.agentUrl, settings.agentToken, settings.vmix?.overlay, url]);
-  const [observed, setObserved] = useState<{ key: string; reading: VmixOutputReading }>();
+  const { agentUrl, agentToken } = settings;
+  const configuredOverlay = settings.vmix?.overlay;
+  const [observed, setObserved] = useState<{ settings: PlayoutSettings; url: string | null; reading: VmixOutputReading }>();
+  // Each poll and its result use the same snapshot until this effect restarts.
+  const startObservation = useEffectEvent(() =>
+    observeVmixOutput(() => readVmixOutput(settings, url), reading => setObserved({ settings, url, reading })));
   useEffect(() => {
     if (!on || !paired || busy) return;
-    return observeVmixOutput(() => readVmixOutput(loadPlayoutSettings(), url), reading => setObserved({ key, reading }));
-  }, [on, paired, busy, key, url]);
-  const reading = !busy && observed?.key === key ? observed.reading : undefined;
+    return startObservation();
+  }, [on, paired, busy, agentUrl, agentToken, configuredOverlay, url]);
+  const setup = { settings, url };
+  const currentObservation = !busy && observed && sameVmixOutputSetup(observed, setup) ? observed : undefined;
+  const reading = currentObservation?.reading;
   const connection = reading?.connection;
   const update = connection && !connection.keyed && (connection.supported || !connection.result || connection.result.state === 'outdated');
   const status = connection?.info ? `vMix ${connection.info.version}` : 'NoaCG Bridge';
   const loadProblem = reading?.loadProblem;
   const problem = update ? undefined : loadProblem ?? reading?.detail ?? (connection?.result?.state === 'ok' ? undefined : connection?.result?.detail);
   const row = reading?.overlay;
+  const displayed = row && currentObservation?.url ? {
+    settings: { agentUrl: currentObservation.settings.agentUrl, agentToken: currentObservation.settings.agentToken },
+    url: currentObservation.url,
+    overlay: row.overlay,
+  } : undefined;
   const activeReplace = !loadProblem && row && !row.ownsOutput && replace?.overlay === row.overlay &&
-    replace.input.key === row.input?.key ? replace : undefined;
+    replace.input.key === row.input?.key && sameVmixOutputSetup(replace.choice, setup) ? replace : undefined;
   const matched = row?.ownsOutput ? row.input : undefined;
   const tone = loadProblem && !matched ? 'bad' : row?.input ? 'warn' : 'idle';
   return (
@@ -356,23 +365,23 @@ export function VmixRows({
           {problem && <span className="pd-pp-advice pd-pp-advice--row">{problem}</span>}
         </div>
       )}
-      {on && row && (
+      {on && row && displayed && (
         <div className={`pd-pp-row pd-pp-row--${tone}`} data-testid="vmix-output" data-tone={tone}>
           <Dot tone={tone} />
           <span className="pd-pp-name">Output on Overlay {row.overlay}</span>
           <span className="pd-pp-state">{matched ? 'Source unverified' : row.input?.title ?? 'Off'}</span>
           {matched ? (
-            <button type="button" onClick={() => onUnload({ verb: 'out', overlay: row.overlay, inputKey: matched.key })} data-testid="vmix-unload">Unload</button>
+            <button type="button" onClick={() => onAction({ verb: 'out', observed: displayed, inputKey: matched.key })} data-testid="vmix-unload">Unload</button>
           ) : (
-            <button type="button" onClick={() => onLoad(row.overlay)} disabled={!!activeReplace || !!loadProblem} data-testid="vmix-load">Load</button>
+            <button type="button" onClick={() => onAction({ verb: 'take', observed: displayed })} disabled={!!activeReplace || !!loadProblem} data-testid="vmix-load">Load</button>
           )}
         </div>
       )}
-      {on && activeReplace && (
+      {on && displayed && activeReplace && (
         <div className="pd-pp-confirm" role="alertdialog" aria-label="Replace the input on the overlay" data-testid="vmix-replace">
           <span>Replace “{activeReplace.input.title}” on Overlay {activeReplace.overlay}?</span>
           <button type="button" className="pd-pp-link" onClick={onCancelReplace}>Cancel</button>
-          <button type="button" onClick={onReplace}>Replace</button>
+          <button type="button" onClick={() => onAction({ verb: 'take', observed: displayed, confirmed: activeReplace })}>Replace</button>
         </div>
       )}
     </>

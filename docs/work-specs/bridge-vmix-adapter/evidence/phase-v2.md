@@ -900,3 +900,25 @@ and its Replace prompt use the snapshot that actually supplied the reading.
 Reconciled baseline `fbac86de` reproduced all four stale commands against
 matching Overlay 3 state: Load and keyed Unload on another Bridge URL and
 with a new token at the same URL. Each made a Bridge action request.
+
+#### Pairing finding after coding
+
+The local review reproduced an unreadable action reply after the Bridge
+pairing changed. The existing warning named the old overlay alone, which
+could also exist on the new Bridge. For the same production, an unknown
+Load or Unload now names the original Bridge host and overlay when the
+pairing changes after dispatch. The address's credentials, path and query,
+and the pairing token, stay private. The uncertainty, original one-time
+dispatch and generic warning after leaving the production stay the same.
+
+The same review reproduced the earlier, intentional refusal to act on a
+former Browser key that reappears after a replacement key is committed.
+Bridge still stops before In, and only the currently associated key is
+eligible for Unload. The coordinator confirmed this single-association
+policy against AC-4. A displaced input on an overlay needs operator
+recovery in vMix.
+
+The CasparCG fallback observation reproduces on the actual merge base
+and candidate. The browser verification names both Bridge Connect and
+the first-Publish journeys because the isolated selector does not
+include the latter for a change limited to `vmixSetup.ts`.
