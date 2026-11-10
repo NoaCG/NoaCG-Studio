@@ -397,7 +397,7 @@ NoaCG **writes into** rather than fields anyone types.
 | total votes | `Total votes` | written from the round |
 | vote badge | `Vote badge` | while voting is open |
 
-`Kysymys`, `Fråga` work as well as `Question`; `Choice 1`, `Answer 1`, `Vaihtoehto 1`, `Alternativ 1` work as well as `Option 1`; `Palkki 1`, `Stapel 1` work as well as `Bar 1`; `Share 1`, `Osuus 1`, `Procent 1` work as well as `Percent 1`; `Voittaja 1`, `Vinnare 1` work as well as `Winner 1`; `Ääntä`, `Röster` work as well as `Total votes`; `Äänestä`, `Rösta` work as well as `Vote badge`.
+`Kysymys`, `Fråga` work as well as `Question`; `Choice 1`, `Answer 1`, `Vaihtoehto 1`, `Alternativ 1` work as well as `Option 1`; `Palkki 1`, `Stapel 1` work as well as `Bar 1`; `Share 1`, `Osuus 1`, `Procent 1` work as well as `Percent 1`; `Voittaja 1`, `Vinnare 1` work as well as `Winner 1`; `Vote count`, `Ääntä`, `Röster` work as well as `Total votes`; `Äänestä`, `Rösta` work as well as `Vote badge`.
 
 Two to eight options. The operator gets Close voting, Show result and Call the winner.
 <!-- behaviour:vote:end -->
